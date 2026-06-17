@@ -1,6 +1,9 @@
 package com.ziggfreed.common.world;
 
+import java.util.Set;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.protocol.Opacity;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
@@ -41,16 +44,40 @@ public final class SurfaceProbe {
      * @return the top opaque-solid block Y, or {@code fallbackY}
      */
     public static int topSolidY(@Nonnull World world, int x, int z, int scanTop, int fallbackY) {
+        return topSolidY(world, x, z, scanTop, fallbackY, null);
+    }
+
+    /**
+     * {@link #topSolidY(World, int, int, int, int)} that additionally SKIPS any block whose registered
+     * key is in {@code skipBlockKeys}, on top of skipping air and {@link Opacity#Transparent} blocks.
+     *
+     * <p>The plain probe stops at the first opaque block, which at RUNTIME (after worldgen has decorated
+     * trees onto the surface) is often a tree trunk/branch or a leaf block sitting ABOVE the real ground
+     * - so a runtime-pasted structure floats on the canopy instead of the floor. Worldgen's own height
+     * snap dodges this because it runs against the terrain buffer BEFORE the prop/tree phase; a runtime
+     * caller does not, so it passes the foliage block keys here (resolve them from the engine's authored
+     * {@code BlockTypeList} assets via {@link BlockTypeLists#keys(String...)}, e.g. {@code "TreeWoodAndLeaves"}
+     * + {@code "AllScatter"}) to scan PAST the decoration to the genuine top-solid surface.
+     *
+     * @param skipBlockKeys block-type keys to treat as non-surface (skip), or {@code null} for none
+     */
+    public static int topSolidY(@Nonnull World world, int x, int z, int scanTop, int fallbackY,
+                                @Nullable Set<String> skipBlockKeys) {
         try {
+            boolean hasSkips = skipBlockKeys != null && !skipBlockKeys.isEmpty();
             for (int y = scanTop; y > 0; y--) {
                 int blockId = world.getBlock(x, y, z);
                 if (blockId == 0) {
                     continue;
                 }
                 BlockType type = BlockType.getAssetMap().getAsset(blockId);
-                if (type != null && type.getOpacity() != Opacity.Transparent) {
-                    return y;
+                if (type == null || type.getOpacity() == Opacity.Transparent) {
+                    continue;
                 }
+                if (hasSkips && skipBlockKeys.contains(type.getId())) {
+                    continue;
+                }
+                return y;
             }
         } catch (Throwable ignored) {
             // unloaded chunk / out-of-range coordinate -> the caller's fallback
@@ -60,7 +87,16 @@ public final class SurfaceProbe {
 
     /** {@link #topSolidY(World, int, int, int, int)} starting from {@link #DEFAULT_SCAN_TOP}. */
     public static int topSolidY(@Nonnull World world, int x, int z, int fallbackY) {
-        return topSolidY(world, x, z, DEFAULT_SCAN_TOP, fallbackY);
+        return topSolidY(world, x, z, DEFAULT_SCAN_TOP, fallbackY, null);
+    }
+
+    /**
+     * {@link #topSolidY(World, int, int, int, int, Set)} from {@link #DEFAULT_SCAN_TOP}, skipping the
+     * given block keys (e.g. foliage) so the probe finds the real ground under runtime tree decoration.
+     */
+    public static int topSolidY(@Nonnull World world, int x, int z, int fallbackY,
+                                @Nullable Set<String> skipBlockKeys) {
+        return topSolidY(world, x, z, DEFAULT_SCAN_TOP, fallbackY, skipBlockKeys);
     }
 
     /**
@@ -69,7 +105,16 @@ public final class SurfaceProbe {
      * @param fallbackStandY returned (verbatim) if no solid block is found or a read fails
      */
     public static int standableY(@Nonnull World world, int x, int z, int fallbackStandY) {
-        int top = topSolidY(world, x, z, DEFAULT_SCAN_TOP, Integer.MIN_VALUE);
+        return standableY(world, x, z, fallbackStandY, null);
+    }
+
+    /**
+     * {@link #standableY(World, int, int, int)} skipping the given block keys (e.g. foliage), so the
+     * standable Y lands on the genuine surface under runtime tree decoration rather than on a canopy.
+     */
+    public static int standableY(@Nonnull World world, int x, int z, int fallbackStandY,
+                                 @Nullable Set<String> skipBlockKeys) {
+        int top = topSolidY(world, x, z, DEFAULT_SCAN_TOP, Integer.MIN_VALUE, skipBlockKeys);
         return top == Integer.MIN_VALUE ? fallbackStandY : top + 1;
     }
 }

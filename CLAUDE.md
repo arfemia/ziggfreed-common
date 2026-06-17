@@ -34,6 +34,7 @@ src/main/java/com/ziggfreed/common/
   sound/                                               Sound3D (3D SoundEvent playback)
   camera/                                              CameraShakeService + ServerCameraService
   util/                                                AssetIndexCache + NumberFormatter + CommandExecutor + HostilityUtil + EntityIdentifierUtil
+  inventory/                                           InventoryUtil (give/count/take/spend a custom resource item across the combined inventory)
   feedback/                                            Notify + EventTitles (styled NotificationUtil / EventTitleUtil wrappers)
   ui/                                                  CustomHudHelper (HUD register / strip / restore)
   world/                                               SurfaceProbe (top-solid-Y column probe -> floor-snap runtime placement onto procedural terrain)
@@ -47,6 +48,7 @@ Each domain package carries a nested `CLAUDE.md` router that loads when you touc
 - **[`sound/`](src/main/java/com/ziggfreed/common/sound/CLAUDE.md)** - `Sound3D`: play a `SoundEvent` by id at a position OR an entity ref, with a `SoundCategory` + an optional per-listener `Predicate<Ref>`; index resolution through `AssetIndexCache`. World-thread.
 - **[`camera/`](src/main/java/com/ziggfreed/common/camera/CLAUDE.md)** - `CameraShakeService` (one-shot `CameraEffect` shake) + `ServerCameraService` (`SetServerCamera` top-down apply/reset). Packet-only; thread-safe writes.
 - **[`util/`](src/main/java/com/ziggfreed/common/util/CLAUDE.md)** - `AssetIndexCache` (the "cache ONLY a positive index" resolver), `NumberFormatter`, `CommandExecutor` (execute-only), `HostilityUtil`, `EntityIdentifierUtil`.
+- **[`inventory/`](src/main/java/com/ziggfreed/common/inventory/CLAUDE.md)** - `InventoryUtil` (give/count/take/spend a custom resource item by id across the combined inventory sections; world-thread, try-guarded).
 - **[`feedback/`](src/main/java/com/ziggfreed/common/feedback/CLAUDE.md)** - `Notify` (Default/Danger/Warning/Success toasts) + `EventTitles` (centered banner). Both take a pre-built `Message`.
 - **[`ui/`](src/main/java/com/ziggfreed/common/ui/CLAUDE.md)** - `CustomHudHelper` (install a consumer-built `CustomUIHud` + strip/restore the native HUD).
 - **[`world/`](src/main/java/com/ziggfreed/common/world/CLAUDE.md)** - `SurfaceProbe` (top-solid-Y column probe via `World.getBlock`, skipping transparent foliage; world-thread, try-guarded) to floor-snap runtime-placed prefabs/entities onto procedural terrain.
