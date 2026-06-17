@@ -1,0 +1,16 @@
+{
+  "Group": "Ziggfreed",
+  "Name": "ZiggfreedCommon",
+  "Version": "${version}",
+  "Description": "${mod_description}",
+  "Authors": [
+    {
+      "Name": "ZiggFreed"
+    }
+  ],
+  "Website": "https://wintergreen-solutions.com",
+  "ServerVersion": ">=0.5.0-pre.0 <0.6.0",
+  "DisabledByDefault": false,
+  "Main": "com.ziggfreed.common.ZiggfreedCommonPlugin",
+  "IncludesAssetPack": false
+}

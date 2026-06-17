@@ -1,0 +1,57 @@
+plugins {
+    id 'java'
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(java_version)
+    withSourcesJar()
+    withJavadocJar()
+}
+
+javadoc {
+    options.addStringOption('Xdoclint:-missing', '-quiet')
+}
+
+group = project.group
+version = project.version
+
+repositories {
+    mavenCentral()
+}
+
+// Compile against the SAME jar the server runs (path in gradle.properties).
+def hytaleServerJar = new File("${hytaleHome}/${patchline}/package/game/${game_build}/Server/HytaleServer.jar")
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    // jsr305 for @Nonnull/@Nullable. NOT compileOnly: these classes ship in the jar
+    // and consumers compileOnly against it, so the annotations must resolve there too.
+    implementation 'com.google.code.findbugs:jsr305:3.0.2'
+
+    // The Hytale server jar is provided at runtime (the server loads it first), so we
+    // NEVER bundle it - bundling would double-load engine classes under two classloaders.
+    // ziggfreed-common has NO Perfect Utils coupling (the only dep is the server jar).
+    compileOnly(files(hytaleServerJar))
+}
+
+test {
+    useJUnitPlatform()
+}
+
+processResources {
+    var expandProps = [
+            'name'           : project.name,
+            'version'        : project.version,
+            'group'          : project.group,
+            'mod_description': project.findProperty('mod_description') ?: '',
+            'website'        : project.findProperty('website') ?: '',
+            'entry_point'    : project.findProperty('entry_point') ?: ''
+    ]
+
+    filesMatching(['manifest.json']) {
+        expand expandProps
+    }
+    inputs.properties(expandProps)
+}
