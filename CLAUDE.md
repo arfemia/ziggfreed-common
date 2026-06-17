@@ -1,6 +1,6 @@
 # CLAUDE.md - Ziggfreed Common
 
-A **standalone Hytale utility mod** that holds shared, mod-agnostic primitives lifted (config-free) from the MMO Skill Tree mod and the Kweebec Nightmare minigame, so standalone Ziggfreed minigames (and eventually the MMO) consume ONE battle-tested implementation instead of re-deriving 3D sound / camera / HUD plumbing per mod. **Status: v0.1.0 scaffold + primitives** - the plugin stands up and ships the static utils; it registers no systems and bundles no assets.
+A **standalone Hytale utility mod** that holds shared, mod-agnostic primitives lifted (config-free) from the MMO Skill Tree mod and the Kweebec Nightmare minigame, so standalone Ziggfreed minigames (and eventually the MMO) consume ONE battle-tested implementation instead of re-deriving 3D sound / camera / HUD plumbing per mod. **Status: v0.2.0** - the static primitives PLUS a generic branching NPC **dialogue engine** ([`dialogue/`](src/main/java/com/ziggfreed/common/dialogue/CLAUDE.md)); the plugin still registers no systems, but it now SHIPS one asset pack (the dialogue `.ui` under `Common/UI/Custom/`, so `IncludesAssetPack:true`).
 
 It has **zero MMO dependency and NO Perfect Utils coupling** - the only dependency is the Hytale server jar. The plugin entry registers nothing; every primitive is a static utility a consumer calls directly.
 
@@ -26,7 +26,9 @@ A consumer mod adds ziggfreed-common as a `compileOnly files(...)` dependency (t
 settings.gradle / gradle.properties / build.gradle    single Java module (no api subproject)
 build.ps1                                              build + auto-install
 src/main/resources/manifest.json                       Group:Ziggfreed, ServerVersion ">=0.5.0-pre.0 <0.6.0",
-                                                        IncludesAssetPack:false, NO Dependencies
+                                                        IncludesAssetPack:true (the dialogue .ui pack), NO Dependencies
+src/main/resources/Common/UI/Custom/                   the ONE shipped asset pack: Pages/ZigDialoguePage.ui + ZigDialogueOptionRow.ui,
+                                                        Common/ZigButtons.ui + ZigFrames.ui (neutral, base-game textures)
 src/main/java/com/ziggfreed/common/
   ZiggfreedCommonPlugin.java                           JavaPlugin entry (LOGGER; setup/shutdown log presence, register nothing)
   sound/                                               Sound3D (3D SoundEvent playback)
@@ -35,6 +37,7 @@ src/main/java/com/ziggfreed/common/
   feedback/                                            Notify + EventTitles (styled NotificationUtil / EventTitleUtil wrappers)
   ui/                                                  CustomHudHelper (HUD register / strip / restore)
   world/                                               SurfaceProbe (top-solid-Y column probe -> floor-snap runtime placement onto procedural terrain)
+  dialogue/                                            the generic branching NPC dialogue engine (DialogueEngine builder + seams + page + template/validate) - see its router
 ```
 
 ## Architecture (per-package routers carry the working detail)
@@ -47,6 +50,7 @@ Each domain package carries a nested `CLAUDE.md` router that loads when you touc
 - **[`feedback/`](src/main/java/com/ziggfreed/common/feedback/CLAUDE.md)** - `Notify` (Default/Danger/Warning/Success toasts) + `EventTitles` (centered banner). Both take a pre-built `Message`.
 - **[`ui/`](src/main/java/com/ziggfreed/common/ui/CLAUDE.md)** - `CustomHudHelper` (install a consumer-built `CustomUIHud` + strip/restore the native HUD).
 - **[`world/`](src/main/java/com/ziggfreed/common/world/CLAUDE.md)** - `SurfaceProbe` (top-solid-Y column probe via `World.getBlock`, skipping transparent foliage; world-thread, try-guarded) to floor-snap runtime-placed prefabs/entities onto procedural terrain.
+- **[`dialogue/`](src/main/java/com/ziggfreed/common/dialogue/CLAUDE.md)** - the generic branching NPC dialogue engine: a per-consumer `DialogueEngine` (builder pre-seeds generic `Goto`/`Close`/`SetFlag`/`Talk`/`OpenPage` actions + `Flag`/`NotFlag` `Type`-list conditions, the consumer registers domain types + seams), the executor/sugar/template-DSL/structural-validator, and a `page/DialoguePage` whose `.ui` ships in this jar. The hyMMO MMO consumes + extends it; a minigame builds with generics only. NOT a static-util like the others - it is built per consumer.
 
 ## Conventions
 

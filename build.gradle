@@ -25,6 +25,8 @@ def hytaleServerJar = new File("${hytaleHome}/${patchline}/package/game/${game_b
 dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    // Gradle 9 requires the JUnit Platform launcher on the test runtime classpath.
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     // jsr305 for @Nonnull/@Nullable. NOT compileOnly: these classes ship in the jar
     // and consumers compileOnly against it, so the annotations must resolve there too.
@@ -34,6 +36,10 @@ dependencies {
     // NEVER bundle it - bundling would double-load engine classes under two classloaders.
     // ziggfreed-common has NO Perfect Utils coupling (the only dep is the server jar).
     compileOnly(files(hytaleServerJar))
+
+    // Tests compile + run the pure engine paths (codec decode, sugar, template resolve),
+    // which need the server jar's shaded Gson + codec classes on the TEST classpath too.
+    testImplementation(files(hytaleServerJar))
 }
 
 test {

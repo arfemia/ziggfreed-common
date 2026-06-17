@@ -1,0 +1,20 @@
+$C = "../Common.ui";
+
+// ── ziggfreed-common shared dialogue option button style (de-MMO'd) ───────────
+// Imported per page as:  $M = "../Common/ZigButtons.ui";  then  Style: $M.@ZigOptionBtnStyle;
+//
+// The native Secondary.png 9-slice patch (Border: 12) with a soft steel neutral
+// tint; the dialogue page overwrites the per-state .Background.Color from Java
+// (DialogueOptionStyle) per the option's decisive action kind. Texture paths are
+// "../Common/Buttons/..." - because Common/ and Pages/ are siblings under Custom/,
+// they resolve to the game's Common/Buttons whether the engine resolves relative to
+// this file or the consuming page. MUST keep Sounds: $C.@ButtonSounds or the button
+// is silent on click.
+
+// Dialogue option row button - left-aligned label, soft steel patch, non-bold.
+@ZigOptionBtnStyle = TextButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #6f8398), LabelStyle: (FontSize: 14, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #9fb3c8), LabelStyle: (FontSize: 14, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #5a6e82), LabelStyle: (FontSize: 14, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center)),
+  Sounds: $C.@ButtonSounds
+);

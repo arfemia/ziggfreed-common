@@ -1,0 +1,30 @@
+$C = "../Common.ui";
+$M = "../Common/ZigButtons.ui";
+
+// One dialogue option line (appended into #OptionsList; see DialoguePage). The
+// per-state button tint is overwritten from Java (DialogueOptionStyle) by the
+// option's decisive action kind. The leading glyph is chosen by revealing exactly
+// ONE of the pre-authored #Ico* children: texture paths MUST live in markup (a
+// "../Common/..." path set via cmd.set does not resolve and renders a red X), so
+// Java only flips the matching glyph's Visible.
+
+Group #DialogueOptionRow {
+  LayoutMode: Left;
+  Anchor: (Height: 40, Bottom: 4);
+
+  Group #OptIcon {
+    Anchor: (Width: 28, Height: 14, Top: 13, Left: 14);
+    Group #IcoAccept   { Anchor: (Width: 14, Height: 14, Left: 0); Background: (TexturePath: "../Common/Checkmark.png", Color: #4aff7f); Visible: false; }
+    Group #IcoTurnIn   { Anchor: (Width: 14, Height: 14, Left: 0); Background: (TexturePath: "../Common/Checkmark.png", Color: #5ab0ff); Visible: false; }
+    Group #IcoContinue { Anchor: (Width: 14, Height: 14, Left: 0); Background: (TexturePath: "../Common/ContainerTitleArrow.png", Color: #b6c9de); Visible: false; }
+    Group #IcoOpen     { Anchor: (Width: 14, Height: 14, Left: 0); Background: (TexturePath: "../Common/ContainerTitleArrow.png", Color: #ffd97a); Visible: false; }
+    Group #IcoFarewell { Anchor: (Width: 14, Height: 14, Left: 0); Background: (TexturePath: "../Common/ClearInputIcon.png", Color: #8696a8); Visible: false; }
+  }
+
+  TextButton #OptionBtn {
+    FlexWeight: 1;
+    Anchor: (Height: 40);
+    Padding: (Left: 16);
+    Style: $M.@ZigOptionBtnStyle;
+  }
+}

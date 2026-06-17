@@ -12,5 +12,5 @@
   "ServerVersion": ">=0.5.0-pre.0 <0.6.0",
   "DisabledByDefault": false,
   "Main": "com.ziggfreed.common.ZiggfreedCommonPlugin",
-  "IncludesAssetPack": false
+  "IncludesAssetPack": true
 }

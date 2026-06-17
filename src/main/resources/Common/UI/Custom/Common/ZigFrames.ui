@@ -1,0 +1,46 @@
+$C = "../Common.ui";
+
+// ── ziggfreed-common shared decorated panel frame (de-MMO'd) ──────────────────
+// Imported per page as:  $F = "../Common/ZigFrames.ui";  then used as a container:
+//   $F.@ZigDecoratedFrame { @CloseButton = true; Anchor: (...); #Content { ...body... } }
+//
+// Uses ContainerFullPatch.png (the native standalone @Panel patch, finished on ALL
+// four sides) so the border reads clean with NO header bar - the right base for a
+// page that shows its title in the body. The top/bottom rune flourishes are direct
+// children of the frame (not nested in a #Title), optional via @Ornaments. Texture
+// paths "../Common/..." resolve to the game's Common set whether the engine resolves
+// relative to this file or the consuming page.
+
+@ZigDecoratedFrame = Group {
+  @CloseButton = false;
+  @Ornaments = true;
+
+  Group #Content {
+    LayoutMode: Top;
+    Anchor: (Top: 0);
+    Padding: (Full: 18);
+    Background: (TexturePath: "../Common/ContainerFullPatch.png", Border: 20);
+  }
+
+  Group #DecorTop {
+    Anchor: (Width: 236, Height: 11, Top: -6);
+    Background: "../Common/ContainerDecorationTop.png";
+    Visible: @Ornaments;
+  }
+  Group #DecorBottom {
+    Anchor: (Width: 236, Height: 11, Bottom: -6);
+    Background: "../Common/ContainerDecorationBottom.png";
+    Visible: @Ornaments;
+  }
+
+  Button #CloseButton {
+    Anchor: (Width: 32, Height: 32, Top: -8, Right: -8);
+    Style: (
+      Default: (Background: "../Common/ContainerCloseButton.png"),
+      Hovered: (Background: "../Common/ContainerCloseButtonHovered.png"),
+      Pressed: (Background: "../Common/ContainerCloseButtonPressed.png"),
+      Sounds: $C.@ButtonsCancel
+    );
+    Visible: @CloseButton;
+  }
+};

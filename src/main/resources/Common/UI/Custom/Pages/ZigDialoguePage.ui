@@ -1,0 +1,73 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+
+// Generic branching NPC dialogue page (lifted from hyMMO, de-MMO'd): name header,
+// optional one-line annotation, node-text panel, dynamic option rows appended from
+// Java (Pages/ZigDialogueOptionRow.ui), implicit Farewell row. Shipped once in
+// ziggfreed-common and resolved client-side across the merged asset tree, so any
+// consumer mod that opens com.ziggfreed.common.dialogue.page.DialoguePage renders
+// this without shipping its own copy. Neutral names (Zig*) avoid colliding with a
+// consumer's own Pages/DialoguePage.ui when both jars are installed.
+
+$C.@PageOverlay {}
+// Shared decorated frame (top + bottom rune flourishes; no header bar). Smoke-test
+// fallback if it fails to resolve: revert to $C.@Container.
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 720, Height: 640);
+
+  #Content {
+    Label #NpcName {
+      Text: "";
+      Anchor: (Height: 30, Bottom: 6);
+      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
+    }
+
+    // Optional one-line annotation under the name (hidden until the consumer's
+    // DialogueHeaderAnnotation returns a Message; #HintText is then set from Java).
+    Group #ActiveQuestHint {
+      LayoutMode: Left;
+      Anchor: (Height: 22, Bottom: 8);
+      Visible: false;
+
+      Group #HintIcon {
+        Anchor: (Width: 14, Height: 14, Top: 4);
+        Background: (TexturePath: "../Common/ContainerTitleArrow.png", Color: #5ab0ff);
+      }
+
+      Label #HintText {
+        FlexWeight: 1;
+        Padding: (Left: 8);
+        Text: "";
+        Style: (FontSize: 12, TextColor: #b6c9de, VerticalAlignment: Center, Wrap: true);
+      }
+    }
+
+    Group { Anchor: (Height: 1, Bottom: 10); Background: #1e2a36; }
+
+    Group #TextPanel {
+      Anchor: (Height: 230, Bottom: 12);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Full: 14);
+
+      Label #NodeText {
+        Text: "";
+        Anchor: (Bottom: 4);
+        Style: (FontSize: 14, TextColor: #d7e4f0, Wrap: true);
+      }
+    }
+
+    // Decorative divider between the dialogue text and the option list.
+    // Smoke-test fallback if @PanelSeparatorFancy fails: revert to $C.@ContentSeparator.
+    $C.@PanelSeparatorFancy { Anchor: (Bottom: 10); }
+
+    Group #OptionsList {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 4);
+    }
+  }
+}
