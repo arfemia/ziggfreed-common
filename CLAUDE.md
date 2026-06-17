@@ -4,6 +4,8 @@ A **standalone Hytale utility mod** that holds shared, mod-agnostic primitives l
 
 It has **zero MMO dependency and NO Perfect Utils coupling** - the only dependency is the Hytale server jar. The plugin entry registers nothing; every primitive is a static utility a consumer calls directly.
 
+> **PARADIGM (remember this): a generic, mod-agnostic Hytale primitive belongs HERE, not duplicated in a consumer mod.** When a sibling mod (Kweebec Nightmare, a future minigame, eventually the MMO) needs a reusable engine wrapper - 3D sound, camera, an asset-index resolve, a HUD/toast helper, a worldgen/terrain query, etc. - add it to `ziggfreed-common` and consume it; do NOT reimplement it per mod. New primitive = a new file here (+ its package router), then rebuild the jar consumers pin. A consumer keeping only the mod-SPECIFIC policy (round logic, content config) is correct; the reusable engine call underneath is what gets lifted. (Latest example: `world/SurfaceProbe`, lifted out of Kweebec's `ArenaBuilder` so any mod can floor-snap onto procedural terrain.)
+
 ## Build
 
 Gradle runs via PowerShell (Java 25). Self-contained `build.ps1` builds + installs:
@@ -32,6 +34,7 @@ src/main/java/com/ziggfreed/common/
   util/                                                AssetIndexCache + NumberFormatter + CommandExecutor + HostilityUtil + EntityIdentifierUtil
   feedback/                                            Notify + EventTitles (styled NotificationUtil / EventTitleUtil wrappers)
   ui/                                                  CustomHudHelper (HUD register / strip / restore)
+  world/                                               SurfaceProbe (top-solid-Y column probe -> floor-snap runtime placement onto procedural terrain)
 ```
 
 ## Architecture (per-package routers carry the working detail)
@@ -43,6 +46,7 @@ Each domain package carries a nested `CLAUDE.md` router that loads when you touc
 - **[`util/`](src/main/java/com/ziggfreed/common/util/CLAUDE.md)** - `AssetIndexCache` (the "cache ONLY a positive index" resolver), `NumberFormatter`, `CommandExecutor` (execute-only), `HostilityUtil`, `EntityIdentifierUtil`.
 - **[`feedback/`](src/main/java/com/ziggfreed/common/feedback/CLAUDE.md)** - `Notify` (Default/Danger/Warning/Success toasts) + `EventTitles` (centered banner). Both take a pre-built `Message`.
 - **[`ui/`](src/main/java/com/ziggfreed/common/ui/CLAUDE.md)** - `CustomHudHelper` (install a consumer-built `CustomUIHud` + strip/restore the native HUD).
+- **[`world/`](src/main/java/com/ziggfreed/common/world/CLAUDE.md)** - `SurfaceProbe` (top-solid-Y column probe via `World.getBlock`, skipping transparent foliage; world-thread, try-guarded) to floor-snap runtime-placed prefabs/entities onto procedural terrain.
 
 ## Conventions
 
