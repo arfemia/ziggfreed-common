@@ -16,7 +16,6 @@ public class DialogueNode {
 
     @Nullable String textKey;
     @Nullable String text;
-    @Nullable DialogueTextParam[] textParams;
     @Nullable DialogueOption[] options;
 
     public DialogueNode() {
@@ -27,16 +26,6 @@ public class DialogueNode {
 
     /** Deprecated raw text fallback, or null. */
     @Nullable public String getText() { return text; }
-
-    /**
-     * Ordered styled spans that fill the node text's {@code {0}}, {@code {1}}, ...
-     * placeholders (per-locale rich text via {@code TextSpans}), or null for plain
-     * client-resolved text. See {@link DialogueTextParam}.
-     */
-    @Nonnull
-    public List<DialogueTextParam> getTextParams() {
-        return textParams == null ? Collections.emptyList() : List.of(textParams);
-    }
 
     @Nonnull
     public List<DialogueOption> getOptions() {

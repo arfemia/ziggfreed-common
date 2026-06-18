@@ -36,7 +36,6 @@ class DialogueEngineTest {
         assertNotNull(DialogueAction.OpenPage.CODEC);
         assertNotNull(DialogueCondition.Flag.CODEC);
         assertNotNull(DialogueCondition.NotFlag.CODEC);
-        assertNotNull(DialogueTextParam.CODEC);
         assertNotNull(DialogueEventData.CODEC);
     }
 
@@ -69,26 +68,6 @@ class DialogueEngineTest {
         DialogueAction second = node.getOptions().get(1).getActions().get(0);
         assertTrue(second instanceof DialogueAction.Goto);
         assertEquals("greet", ((DialogueAction.Goto) second).getNode());
-    }
-
-    @Test
-    void decodesNodeTextParams() {
-        DialogueEngine engine = engine();
-        String json = "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Text\":\"still {0}, the {1} comes\","
-                + "\"TextParams\":[{\"Key\":\"word.green\",\"Color\":\"#7affa0\"},"
-                + "{\"Text\":\"Void\",\"Color\":\"#a06cff\",\"Italic\":true}],\"Options\":[]}}}";
-        NpcDialogue d = engine.decode("tp", json);
-        assertNotNull(d);
-        DialogueNode node = d.getNode("g");
-        assertNotNull(node);
-        assertEquals(2, node.getTextParams().size());
-        DialogueTextParam p0 = node.getTextParams().get(0);
-        assertEquals("word.green", p0.getKey());
-        assertEquals("#7affa0", p0.getColor());
-        DialogueTextParam p1 = node.getTextParams().get(1);
-        assertEquals("Void", p1.getText());
-        assertEquals("#a06cff", p1.getColor());
-        assertEquals(Boolean.TRUE, p1.getItalic());
     }
 
     @Test

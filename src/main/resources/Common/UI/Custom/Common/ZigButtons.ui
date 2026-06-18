@@ -18,3 +18,18 @@ $C = "../Common.ui";
   Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #5a6e82), LabelStyle: (FontSize: 14, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center)),
   Sounds: $C.@ButtonSounds
 );
+
+// ── ziggfreed-common shared segmented tab / filter button ─────────────────────
+// Imported per page as:  $M = "../Common/ZigButtons.ui";  then  Style: $M.@ZigTabBtnStyle;
+//
+// A center-aligned sibling of @ZigOptionBtnStyle for tab / filter rows (a leaderboard's
+// party-size tabs, a paged list's category chips). ONE style covers active + inactive:
+// the page overwrites the ACTIVE tab's per-state .Background.Color from Java to a brighter
+// tint (the same technique DialoguePage uses to paint an option row by its action kind),
+// so there is no separate active style to drift. Keep Sounds or the tab is silent on click.
+@ZigTabBtnStyle = TextButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #4a596b), LabelStyle: (FontSize: 13, TextColor: #b6c9de, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #6f8398), LabelStyle: (FontSize: 13, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #3a4658), LabelStyle: (FontSize: 13, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Sounds: $C.@ButtonSounds
+);
