@@ -48,25 +48,6 @@ public final class DialogueMessages {
         return (rawFallback != null && !rawFallback.isEmpty()) ? Message.raw(rawFallback) : null;
     }
 
-    /**
-     * The default-locale (English) VALUE for the same explicit -> convention -> raw
-     * precedence {@link #resolve} uses, or {@code null} if nothing resolves. Used only
-     * to detect + parse inline rich-text markup ({@link RichText}); a markup-free value
-     * is rendered the per-locale way via {@link #resolve} instead.
-     */
-    @Nullable
-    public static String english(@Nonnull DialogueI18n i18n, @Nullable String explicitKey,
-                                 @Nullable String conventionKey, @Nullable String rawFallback) {
-        String key = pickKey(i18n, explicitKey, conventionKey);
-        if (key != null) {
-            String en = i18n.english(key);
-            if (en != null) {
-                return en;
-            }
-        }
-        return (rawFallback != null && !rawFallback.isEmpty()) ? rawFallback : null;
-    }
-
     @Nullable
     private static String pickKey(@Nonnull DialogueI18n i18n, @Nullable String explicit, @Nullable String convention) {
         if (explicit != null && !explicit.isEmpty() && i18n.hasKey(explicit)) {

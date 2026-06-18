@@ -25,10 +25,10 @@ import com.ziggfreed.common.dialogue.DialogueExecContext;
 import com.ziggfreed.common.dialogue.DialogueOption;
 import com.ziggfreed.common.dialogue.DialogueOptionStyle;
 import com.ziggfreed.common.dialogue.DialogueNode;
+import com.ziggfreed.common.dialogue.DialogueTextParam;
 import com.ziggfreed.common.dialogue.NpcDialogue;
 import com.ziggfreed.common.dialogue.i18n.DialogueI18n;
 import com.ziggfreed.common.dialogue.i18n.DialogueMessages;
-import com.ziggfreed.common.dialogue.i18n.RichText;
 
 /**
  * The generic branching NPC dialogue page: a name header, an optional one-line
@@ -158,22 +158,47 @@ public class DialoguePage extends InteractiveCustomUIPage<DialogueEventData> {
     }
 
     /**
-     * Set the node-text Label. When the resolved (English) value carries inline rich-text
-     * markup it is parsed into a {@link Message} span tree and set on {@code .TextSpans}
-     * (the Label rich-text property); otherwise a plain client-resolved translation is set
-     * on {@code .Text}. So markup-free dialogue stays per-locale; only a value that opts in
-     * with markup is rendered rich (and single-locale, by the nature of inline markup).
+     * Set the node-text Label. A node with authored {@link DialogueTextParam}s renders
+     * PER-LOCALE rich text: its text is a translation template ({@code {0}},{@code {1}},
+     * ...) whose params are styled sub-messages (colour/bold/italic), composed into a
+     * {@link Message} tree set on the Label's {@code TextSpans} property (the native
+     * {@code PortalDeviceActivePage} mechanism). A node with no params stays a plain
+     * client-resolved translation on {@code .Text}.
      */
     private static void setNodeText(@Nonnull UICommandBuilder cmd, @Nonnull DialogueI18n i18n,
                                     @Nonnull NpcDialogue dialogue, @Nonnull String nodeId, @Nonnull DialogueNode node) {
         String conventionKey = "dialogue." + dialogue.getId() + "." + nodeId + ".text";
-        String english = DialogueMessages.english(i18n, node.getTextKey(), conventionKey, node.getText());
-        if (english != null && RichText.hasMarkup(english)) {
-            cmd.set("#NodeText.TextSpans", RichText.parse(english));
+        List<DialogueTextParam> params = node.getTextParams();
+        if (!params.isEmpty()) {
+            String templateKey = (node.getTextKey() != null && !node.getTextKey().isBlank())
+                    ? node.getTextKey() : conventionKey;
+            Message msg = DialogueMessages.tr(i18n, templateKey);
+            for (int i = 0; i < params.size(); i++) {
+                msg.param(Integer.toString(i), buildParam(i18n, params.get(i)));
+            }
+            cmd.set("#NodeText.TextSpans", msg);
             return;
         }
         Message text = DialogueMessages.resolve(i18n, node.getTextKey(), conventionKey, node.getText());
         cmd.set("#NodeText.Text", text != null ? text : DialogueMessages.raw(conventionKey));
+    }
+
+    /** Build one styled span: a translation {@code Key} (per-locale) or a raw {@code Text}, tinted/bolded/italicized. */
+    @Nonnull
+    private static Message buildParam(@Nonnull DialogueI18n i18n, @Nonnull DialogueTextParam p) {
+        Message m = (p.getKey() != null && !p.getKey().isBlank())
+                ? DialogueMessages.tr(i18n, p.getKey())
+                : DialogueMessages.raw(p.getText());
+        if (p.getColor() != null && !p.getColor().isBlank()) {
+            m.color(p.getColor());
+        }
+        if (Boolean.TRUE.equals(p.getBold())) {
+            m.bold(true);
+        }
+        if (Boolean.TRUE.equals(p.getItalic())) {
+            m.italic(true);
+        }
+        return m;
     }
 
     @Nonnull

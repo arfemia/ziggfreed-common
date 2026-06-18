@@ -278,6 +278,9 @@ public final class DialogueEngine {
                             (n, v) -> n.textKey = v, n -> n.textKey).add()
                     .append(new KeyedCodec<>("Text", Codec.STRING, false),
                             (n, v) -> n.text = v, n -> n.text).add()
+                    .append(new KeyedCodec<>("TextParams",
+                                    new ArrayCodec<>(DialogueTextParam.CODEC, DialogueTextParam[]::new), false),
+                            (n, v) -> n.textParams = v, n -> n.textParams).add()
                     .append(new KeyedCodec<>("Options",
                                     new ArrayCodec<>(optionCodec, DialogueOption[]::new), false),
                             (n, v) -> n.options = v, n -> n.options).add()
