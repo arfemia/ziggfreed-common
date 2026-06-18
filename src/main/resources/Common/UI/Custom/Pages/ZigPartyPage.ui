@@ -1,0 +1,76 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$M = "../Common/ZigButtons.ui";
+
+// Generic party + invite screen (com.ziggfreed.common.party.page.PartyInvitePage).
+// Two tabs over the one shared decorated frame: Party (roster + incoming invites +
+// footer) and Invite (searchable online roster). Rows are appended from Java
+// (Pages/ZigPartyRow.ui). Shipped once in ziggfreed-common; neutral Zig* ids avoid
+// colliding with a consumer's own Pages/*.ui when both jars are installed. Smoke-test
+// in-game (.ui is not gradle-validated).
+
+$C.@PageOverlay {}
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 640, Height: 600);
+
+  #Content {
+    Label #Title {
+      Text: "";
+      Anchor: (Height: 30, Bottom: 6);
+      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
+    }
+
+    // Tab bar (active tab tinted from Java).
+    Group #TabBar {
+      LayoutMode: Left;
+      Anchor: (Height: 34, Bottom: 8);
+      TextButton #TabParty  { FlexWeight: 1; Anchor: (Height: 34); Style: $M.@ZigTabBtnStyle; }
+      TextButton #TabInvite { FlexWeight: 1; Anchor: (Height: 34, Left: 6); Style: $M.@ZigTabBtnStyle; }
+    }
+
+    Label #MemberCount {
+      Text: "";
+      Visible: false;
+      Anchor: (Height: 18, Bottom: 6);
+      Style: (FontSize: 12, TextColor: #b6c9de);
+    }
+
+    // Search row (revealed on the Invite tab from Java).
+    Group #SearchRow {
+      LayoutMode: Left;
+      Anchor: (Height: 30, Bottom: 8);
+      Visible: false;
+      $C.@TextField #SearchField { FlexWeight: 1; Anchor: (Height: 30); Padding: (Horizontal: 8); }
+      Group { Anchor: (Width: 6); }
+      TextButton #SearchBtn { Text: "Search"; Anchor: (Width: 90, Height: 30); Padding: (Horizontal: 8); Style: $M.@ZigOptionBtnStyle; }
+    }
+
+    Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
+
+    // Appended rows (Pages/ZigPartyRow.ui).
+    Group #PartyList {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 4);
+    }
+
+    Label #EmptyState {
+      Text: "";
+      Visible: false;
+      Anchor: (Height: 22, Top: 8);
+      Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center);
+    }
+
+    // Footer (revealed on the Party tab from Java; the three buttons toggle per role).
+    Group #FooterRow {
+      LayoutMode: Left;
+      Anchor: (Height: 36, Top: 8);
+      Visible: false;
+      TextButton #QueueBtn   { FlexWeight: 1; Anchor: (Height: 36); Style: $M.@ZigOptionBtnStyle; Visible: false; }
+      TextButton #DisbandBtn { FlexWeight: 1; Anchor: (Height: 36, Left: 6); Style: $M.@ZigOptionBtnStyle; Visible: false; }
+      TextButton #LeaveBtn   { FlexWeight: 1; Anchor: (Height: 36, Left: 6); Style: $M.@ZigOptionBtnStyle; Visible: false; }
+    }
+  }
+}

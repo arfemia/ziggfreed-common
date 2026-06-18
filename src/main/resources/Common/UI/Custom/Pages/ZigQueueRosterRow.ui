@@ -1,0 +1,16 @@
+$C = "../Common.ui";
+
+// One queue roster row (appended into #RosterList; see QueuePage). The initiator's
+// name is tinted from Java. Colour-only; no textures.
+
+Group #ZigQueueRosterRow {
+  LayoutMode: Left;
+  Anchor: (Height: 32, Bottom: 3);
+
+  Label #RowName {
+    FlexWeight: 1;
+    Padding: (Left: 12);
+    Text: "";
+    Style: (FontSize: 14, TextColor: #d7e4f0, VerticalAlignment: Center);
+  }
+}

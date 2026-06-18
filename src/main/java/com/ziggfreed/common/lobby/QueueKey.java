@@ -1,6 +1,7 @@
 package com.ziggfreed.common.lobby;
 
 import java.util.Locale;
+import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -26,6 +27,27 @@ public record QueueKey(@Nonnull String gameId, @Nonnull String presetId, @Nonnul
     /** A global (un-scoped) queue for {@code gameId}/{@code presetId}. */
     public QueueKey(@Nonnull String gameId, @Nonnull String presetId) {
         this(gameId, presetId, "");
+    }
+
+    /**
+     * A PUBLIC queue: the shared, un-scoped queue for {@code gameId}/{@code presetId}
+     * that any player (or party) coalesces into, so a partial party backfills with
+     * strangers up to {@code maxParty}.
+     */
+    @Nonnull
+    public static QueueKey publicQueue(@Nonnull String gameId, @Nonnull String presetId) {
+        return new QueueKey(gameId, presetId, "");
+    }
+
+    /**
+     * A PRIVATE queue scoped to one {@code partyId}: a distinct queue only that party
+     * reserves into, so it launches with exactly its own members (no strangers). The
+     * scope is the party id, reusing the existing {@code scope} partition - no engine
+     * change, no parallel queue map.
+     */
+    @Nonnull
+    public static QueueKey privateQueue(@Nonnull String gameId, @Nonnull String presetId, @Nonnull UUID partyId) {
+        return new QueueKey(gameId, presetId, partyId.toString());
     }
 
     @Nonnull

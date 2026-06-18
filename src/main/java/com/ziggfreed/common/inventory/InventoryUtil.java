@@ -61,6 +61,34 @@ public final class InventoryUtil {
     }
 
     /**
+     * Whether {@code n} of {@code itemId} would fit in the entity's combined inventory
+     * RIGHT NOW (a non-mutating space check, the basis of the "no claiming with a full
+     * inventory" guard). Backed by {@code CombinedItemContainer.canAddItemStacks}.
+     *
+     * @return true if it all fits; false if the ref is invalid / no inventory / it would
+     *         not all fit / on any error (fail-closed: a check failure blocks the grant)
+     */
+    public static boolean canFit(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                                 @Nonnull String itemId, int n) {
+        if (n <= 0) {
+            return true;
+        }
+        if (!ref.isValid()) {
+            return false;
+        }
+        try {
+            CombinedItemContainer inv = combined(store, ref);
+            if (inv == null) {
+                return false;
+            }
+            return inv.canAddItemStacks(java.util.List.of(new ItemStack(itemId, n)));
+        } catch (Throwable t) {
+            warn("canFit", itemId, t);
+            return false;
+        }
+    }
+
+    /**
      * Give {@code n} of {@code itemId} to the entity (added across the combined sections,
      * filling existing stacks first).
      *

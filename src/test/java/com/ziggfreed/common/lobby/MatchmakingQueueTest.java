@@ -378,4 +378,117 @@ class MatchmakingQueueTest {
         // The convenience (un-scoped) ctor equals an explicit empty scope.
         assertEquals(new QueueKey("g", "p"), new QueueKey("g", "p", ""));
     }
+
+    // ==================== party group-join + read seams ====================
+
+    @Test
+    void joinPartyAddsWholePartyAndLaunchesTogether() {
+        ManualScheduler sched = new ManualScheduler();
+        LobbyService svc = new LobbyService(sched);
+        RecordingLauncher launcher = new RecordingLauncher();
+        UUID a = id();
+        UUID b = id();
+        GroupJoinResult r = svc.queueParty(QueueKey.publicQueue("g", "p"), List.of(a, b), a,
+                new LobbyConfig(2, 2, 30, 0, false, false), launcher, u -> false, u -> true, NO_MESSAGES);
+
+        assertTrue(r.ok());
+        assertEquals(JoinResult.JOINED, r.reason());
+        assertTrue(svc.isQueued(a));
+        assertTrue(svc.isQueued(b));
+        sched.runAll();
+        assertEquals(1, launcher.calls);
+        assertEquals(a, launcher.initiator, "the owner leads the launched party");
+        assertEquals(List.of(a, b), launcher.party);
+    }
+
+    @Test
+    void joinPartyAllOrNoneRollsBackWhenAMemberIsQueuedElsewhere() {
+        ManualScheduler sched = new ManualScheduler();
+        LobbyService svc = new LobbyService(sched);
+        UUID a = id();
+        UUID b = id();
+        // a is already in another queue.
+        MatchmakingQueue other = svc.queue(QueueKey.publicQueue("g", "p1"),
+                new LobbyConfig(2, 4, 30, 5, false, false),
+                new RecordingLauncher(), u -> false, u -> true, NO_MESSAGES);
+        assertTrue(other.join(a).ok());
+
+        GroupJoinResult r = svc.queueParty(QueueKey.publicQueue("g", "p2"), List.of(b, a), b,
+                new LobbyConfig(2, 4, 30, 5, false, false), new RecordingLauncher(), u -> false, NO_MESSAGES);
+
+        assertFalse(r.ok());
+        assertEquals(JoinResult.ALREADY_QUEUED, r.reason());
+        assertTrue(r.blocked().contains(a));
+        assertFalse(svc.isQueued(b), "all-or-none: b must not be left reserved when the join is rejected");
+        assertEquals(new QueueKey("g", "p1"), svc.queueKeyOf(a), "a stays in its original queue");
+    }
+
+    @Test
+    void joinPartyRejectedWhenAMemberIsEngaged() {
+        ManualScheduler sched = new ManualScheduler();
+        LobbyService svc = new LobbyService(sched);
+        UUID a = id();
+        UUID b = id();
+        Set<UUID> engaged = new HashSet<>(Set.of(b));
+
+        GroupJoinResult r = svc.queueParty(QueueKey.publicQueue("g", "p"), List.of(a, b), a,
+                new LobbyConfig(2, 4, 30, 5, false, false), new RecordingLauncher(), inSet(engaged), NO_MESSAGES);
+
+        assertFalse(r.ok());
+        assertEquals(JoinResult.ALREADY_ENGAGED, r.reason());
+        assertTrue(r.blocked().contains(b));
+        assertFalse(svc.isQueued(a), "no member is reserved when the group-join is rejected");
+    }
+
+    @Test
+    void privateQueueDoesNotCollideWithThePublicQueue() {
+        UUID partyId = id();
+        QueueKey pub = QueueKey.publicQueue("g", "p");
+        QueueKey priv = QueueKey.privateQueue("g", "p", partyId);
+        assertFalse(pub.equals(priv), "a private party gets its own scoped queue");
+        assertEquals(partyId.toString().toLowerCase(java.util.Locale.ROOT), priv.scope());
+    }
+
+    @Test
+    void listenerObservesChangesAndLaunch() {
+        ManualScheduler sched = new ManualScheduler();
+        LobbyService svc = new LobbyService(sched);
+        RecordingLauncher launcher = new RecordingLauncher();
+        MatchmakingQueue q = svc.queue(new QueueKey("g", "p"),
+                new LobbyConfig(2, 2, 30, 0, false, false), // first join stays OPEN, second launches
+                launcher, u -> false, u -> true, NO_MESSAGES);
+
+        RecordingListener listener = new RecordingListener();
+        q.addListener(listener);
+
+        UUID a = id();
+        UUID b = id();
+        q.join(a);
+        assertTrue(listener.changes >= 1, "a join pushes a snapshot");
+        assertEquals(QueueState.OPEN, listener.lastSnapshot.state());
+        assertTrue(listener.lastSnapshot.members().contains(a));
+
+        q.join(b); // hits max=2 -> countdown(0) -> launch
+        sched.runAll();
+        assertEquals(1, launcher.calls);
+        assertTrue(listener.launched, "launch fires onLaunch");
+        assertEquals(a, listener.launchInitiator);
+    }
+
+    private static final class RecordingListener implements QueueListener {
+        int changes;
+        QueueSnapshot lastSnapshot;
+        boolean launched;
+        UUID launchInitiator;
+
+        @Override public void onChange(QueueSnapshot snapshot) {
+            changes++;
+            lastSnapshot = snapshot;
+        }
+
+        @Override public void onLaunch(QueueKey key, UUID initiator, List<UUID> party) {
+            launched = true;
+            launchInitiator = initiator;
+        }
+    }
 }

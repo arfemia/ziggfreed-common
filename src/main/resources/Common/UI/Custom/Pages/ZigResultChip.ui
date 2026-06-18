@@ -1,0 +1,17 @@
+$C = "../Common.ui";
+
+// One reward chip (appended into #RewardList; see ResultsPage). A pill-style label whose
+// text carries the amount + name ("x5 Emerald"); a pending (blocked) chip is tinted from
+// Java. Item-icon chips are a future enhancement (an item-icon element); v1 is text.
+
+Group #ZigResultChip {
+  Anchor: (Height: 26, Width: 150, Right: 6, Bottom: 4);
+  Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+
+  Label #ChipLabel {
+    Anchor: (Full: 0);
+    Padding: (Horizontal: 8);
+    Text: "";
+    Style: (FontSize: 12, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: Center);
+  }
+}

@@ -5,6 +5,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
@@ -54,6 +55,9 @@ public final class MatchmakingQueue {
     /** Join order is preserved (first = initiator). Guarded by {@code this}. */
     private final LinkedHashSet<UUID> members = new LinkedHashSet<>();
 
+    /** UI refresh hooks; packet-only by contract (see {@link QueueListener}). */
+    private final CopyOnWriteArrayList<QueueListener> listeners = new CopyOnWriteArrayList<>();
+
     private QueueState state = QueueState.OPEN;
     @Nullable private DelayScheduler.Cancellable fillTask;
     @Nullable private DelayScheduler.Cancellable countdownTask;
@@ -89,6 +93,33 @@ public final class MatchmakingQueue {
         return members.contains(uuid);
     }
 
+    /** The current roster in join order (an immutable copy). */
+    @Nonnull
+    public synchronized List<UUID> members() {
+        return List.copyOf(members);
+    }
+
+    /** Seconds left on the launch countdown, or 0 when not counting down. */
+    public synchronized int countdownRemaining() {
+        return state == QueueState.COUNTDOWN ? countdownRemaining : 0;
+    }
+
+    /** An immutable point-in-time view for a UI page (the only safe render source). */
+    @Nonnull
+    public synchronized QueueSnapshot snapshot() {
+        return new QueueSnapshot(key, state, List.copyOf(members),
+                state == QueueState.COUNTDOWN ? countdownRemaining : 0, config);
+    }
+
+    /** Register a UI refresh hook (packet-only by contract). Remove it on page close. */
+    public void addListener(@Nonnull QueueListener listener) {
+        listeners.add(listener);
+    }
+
+    public void removeListener(@Nonnull QueueListener listener) {
+        listeners.remove(listener);
+    }
+
     // ==================== join / leave / force-start ====================
 
     /** Add {@code uuid} to the queue, advancing the state machine. */
@@ -109,7 +140,75 @@ public final class MatchmakingQueue {
         members.add(uuid);
         toast(uuid, messages.joined(members.size(), config.minParty(), config.maxParty()), Tone.SUCCESS);
         evaluateAfterJoin();
+        notifyChange();
         return JoinResult.JOINED;
+    }
+
+    /**
+     * Add a whole pre-formed party AT ONCE so they land in the same round (the owner
+     * stays the initiator). All-or-none: every member is reserved + added, or nobody is
+     * and the offending members are returned. {@code ordered} is the roster (owner-led);
+     * {@code initiator} is forced first so {@code fireLaunch} re-picks it as the leader
+     * (unless this is a PUBLIC queue already holding an earlier joiner, in which case the
+     * existing first joiner remains the initiator - the correct backfill semantics).
+     *
+     * <p>Reserves through the SAME {@code owner.tryReserve}/{@code release} the solo
+     * {@link #join} uses, so the global one-queue-per-player invariant is preserved, just
+     * batched. A member already in THIS queue is treated as already-present (kept).
+     */
+    @Nonnull
+    public synchronized GroupJoinResult joinParty(@Nonnull List<UUID> ordered, @Nonnull UUID initiator) {
+        if (state == QueueState.LAUNCHING || state == QueueState.CLOSED) {
+            return GroupJoinResult.blocked(JoinResult.QUEUE_UNAVAILABLE, ordered);
+        }
+        // De-duplicated, initiator-first roster.
+        LinkedHashSet<UUID> incoming = new LinkedHashSet<>();
+        incoming.add(initiator);
+        incoming.addAll(ordered);
+
+        // Pre-check: collect everyone who cannot join (engaged, or sitting in another queue).
+        List<UUID> engagedBlocked = new ArrayList<>();
+        List<UUID> queuedBlocked = new ArrayList<>();
+        for (UUID u : incoming) {
+            if (members.contains(u)) {
+                continue; // already in THIS queue -> fine
+            }
+            if (alreadyEngaged.test(u)) {
+                engagedBlocked.add(u);
+            } else if (owner.isQueued(u)) {
+                queuedBlocked.add(u);
+            }
+        }
+        if (!engagedBlocked.isEmpty()) {
+            return GroupJoinResult.blocked(JoinResult.ALREADY_ENGAGED, engagedBlocked);
+        }
+        if (!queuedBlocked.isEmpty()) {
+            return GroupJoinResult.blocked(JoinResult.ALREADY_QUEUED, queuedBlocked);
+        }
+
+        // All-or-none reserve the not-yet-member entries; roll back every reservation on any failure.
+        List<UUID> reserved = new ArrayList<>();
+        for (UUID u : incoming) {
+            if (members.contains(u)) {
+                continue;
+            }
+            if (!owner.tryReserve(u, key)) {
+                for (UUID r : reserved) {
+                    owner.release(r, key);
+                }
+                return GroupJoinResult.blocked(JoinResult.ALREADY_QUEUED, List.of(u));
+            }
+            reserved.add(u);
+        }
+
+        members.addAll(incoming);
+        int size = members.size();
+        for (UUID u : incoming) {
+            toast(u, messages.joined(size, config.minParty(), config.maxParty()), Tone.SUCCESS);
+        }
+        evaluateAfterJoin();
+        notifyChange();
+        return GroupJoinResult.joined();
     }
 
     /** Remove {@code uuid} from the queue; cancels a pending start if it drops below the floor. */
@@ -135,6 +234,7 @@ public final class MatchmakingQueue {
             }
             cancelFillWindow();
         }
+        notifyChange();
         return true;
     }
 
@@ -201,6 +301,7 @@ public final class MatchmakingQueue {
             return;
         }
         showCountdownBanner(countdownRemaining);
+        notifyChange();
         scheduleNextTick();
     }
 
@@ -218,6 +319,7 @@ public final class MatchmakingQueue {
             countdownRemaining--;
             if (countdownRemaining > 0) {
                 showCountdownBanner(countdownRemaining);
+                notifyChange();
                 scheduleNextTick();
             } else {
                 launch = true;
@@ -241,6 +343,7 @@ public final class MatchmakingQueue {
                 return;
             }
             state = QueueState.LAUNCHING;
+            notifyChange();
             cancelFillWindow();
             cancelCountdown();
 
@@ -273,6 +376,7 @@ public final class MatchmakingQueue {
             EventTitles.hide(p, EventTitles.DEFAULT_FADE_OUT);
         }
         broadcastTo(party, messages.launching(), Tone.SUCCESS);
+        notifyLaunch(initiator, party); // off-lock: an open page closes itself
 
         final List<UUID> launched = party;
         CompletableFuture<?> future;
@@ -310,7 +414,38 @@ public final class MatchmakingQueue {
             }
             members.clear();
         }
+        notifyChange();
         owner.removeQueue(key, this);
+    }
+
+    // ==================== listener fan-out (packet-only, fully guarded) ====================
+
+    /** Push a fresh snapshot to every registered listener. Guarded; under-lock-safe (packet-only). */
+    private void notifyChange() {
+        if (listeners.isEmpty()) {
+            return;
+        }
+        QueueSnapshot snap = snapshot();
+        for (QueueListener l : listeners) {
+            try {
+                l.onChange(snap);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    /** Tell every listener the queue launched (off the lock). */
+    private void notifyLaunch(@Nonnull UUID initiator, @Nonnull List<UUID> party) {
+        if (listeners.isEmpty()) {
+            return;
+        }
+        List<UUID> snapshot = List.copyOf(party);
+        for (QueueListener l : listeners) {
+            try {
+                l.onLaunch(key, initiator, snapshot);
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     private int triggerSize() {

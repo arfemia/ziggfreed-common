@@ -1,0 +1,25 @@
+$C = "../Common.ui";
+
+// One two-cell results row (appended into #ResultsList and #BreakdownList; see
+// ResultsPage). Left cell (name / column label) flexes; right cell (score / value) is
+// right-aligned. Colour-only; the left cell's colour is set per row from Java (medal /
+// viewer / team-header tint).
+
+Group #ZigResultRow {
+  LayoutMode: Left;
+  Anchor: (Height: 28, Bottom: 3);
+
+  Label #Cell1 {
+    FlexWeight: 1;
+    Padding: (Left: 12);
+    Text: "";
+    Style: (FontSize: 14, TextColor: #d7e4f0, VerticalAlignment: Center);
+  }
+
+  Label #Cell2 {
+    Anchor: (Width: 140);
+    Padding: (Right: 12);
+    Text: "";
+    Style: (FontSize: 14, TextColor: #d7e4f0, VerticalAlignment: Center, HorizontalAlignment: Right);
+  }
+}

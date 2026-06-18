@@ -1,0 +1,43 @@
+$C = "../Common.ui";
+$M = "../Common/ZigButtons.ui";
+
+// One party / invite / online-roster row (appended into #PartyList; see
+// PartyInvitePage). A name label + an optional owner badge + up to two action buttons
+// (primary/secondary), all revealed + labelled + bound from Java per row kind:
+//   invite tab  -> #RowBtnPrimary = Invite
+//   party member-> #RowBtnPrimary = Kick (owner viewing others)
+//   incoming inv-> #RowBtnPrimary = Accept, #RowBtnSecondary = Decline
+// The two buttons default hidden; Java sets Visible + Text + the event binding.
+
+Group #ZigPartyRow {
+  LayoutMode: Left;
+  Anchor: (Height: 40, Bottom: 4);
+
+  Label #RowName {
+    FlexWeight: 1;
+    Padding: (Left: 12);
+    Text: "";
+    Style: (FontSize: 14, TextColor: #d7e4f0, VerticalAlignment: Center);
+  }
+
+  Label #RowBadge {
+    Visible: false;
+    Anchor: (Width: 70, Height: 40);
+    Text: "";
+    Style: (FontSize: 11, TextColor: #ffd97a, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
+  }
+
+  TextButton #RowBtnPrimary {
+    Visible: false;
+    Anchor: (Width: 96, Height: 32, Top: 4, Left: 6);
+    Padding: (Horizontal: 8);
+    Style: $M.@ZigOptionBtnStyle;
+  }
+
+  TextButton #RowBtnSecondary {
+    Visible: false;
+    Anchor: (Width: 96, Height: 32, Top: 4, Left: 6);
+    Padding: (Horizontal: 8);
+    Style: $M.@ZigOptionBtnStyle;
+  }
+}

@@ -1,0 +1,11 @@
+$C = "../Common.ui";
+$M = "../Common/ZigButtons.ui";
+
+// One leaderboard bucket tab (appended into #TabBar; see LeaderboardPage). The active
+// tab is tinted from Java over the neutral @ZigTabBtnStyle.
+
+Group #ZigLeaderboardTab {
+  FlexWeight: 1;
+  Anchor: (Height: 34, Right: 6);
+  TextButton #TabBtn { Anchor: (Full: 0); Style: $M.@ZigTabBtnStyle; }
+}

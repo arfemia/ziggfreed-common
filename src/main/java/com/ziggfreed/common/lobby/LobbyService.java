@@ -1,5 +1,6 @@
 package com.ziggfreed.common.lobby;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -80,6 +81,30 @@ public final class LobbyService {
         });
     }
 
+    /**
+     * Queue a whole pre-formed party into {@code key} as a unit (get-or-creating the
+     * queue with these seams), so the members land in the same round with {@code
+     * initiator} leading. Atomic all-or-none over the shared one-queue-per-player
+     * reservation - see {@link MatchmakingQueue#joinParty}. For a PUBLIC queue use
+     * {@link QueueKey#publicQueue} (the party backfills with strangers); for a PRIVATE
+     * launch use {@link QueueKey#privateQueue} (only this party).
+     */
+    @Nonnull
+    public GroupJoinResult queueParty(@Nonnull QueueKey key, @Nonnull List<UUID> party, @Nonnull UUID initiator,
+                                      @Nonnull LobbyConfig config, @Nonnull RoundLauncher launcher,
+                                      @Nonnull Predicate<UUID> alreadyEngaged, @Nonnull QueueMessages messages) {
+        return queueParty(key, party, initiator, config, launcher, alreadyEngaged, universeOnline(), messages);
+    }
+
+    /** As {@link #queueParty}, with an explicit {@code online} presence predicate (the test seam). */
+    @Nonnull
+    public GroupJoinResult queueParty(@Nonnull QueueKey key, @Nonnull List<UUID> party, @Nonnull UUID initiator,
+                                      @Nonnull LobbyConfig config, @Nonnull RoundLauncher launcher,
+                                      @Nonnull Predicate<UUID> alreadyEngaged, @Nonnull Predicate<UUID> online,
+                                      @Nonnull QueueMessages messages) {
+        return queue(key, config, launcher, alreadyEngaged, online, messages).joinParty(party, initiator);
+    }
+
     /** True if {@code uuid} is sitting in any queue right now. */
     public boolean isQueued(@Nonnull UUID uuid) {
         return queuedTo.containsKey(uuid);
@@ -89,6 +114,13 @@ public final class LobbyService {
     @Nullable
     public QueueKey queueKeyOf(@Nonnull UUID uuid) {
         return queuedTo.get(uuid);
+    }
+
+    /** The live {@link MatchmakingQueue} {@code uuid} is sitting in, or {@code null} (read-only; for a UI). */
+    @Nullable
+    public MatchmakingQueue currentQueueOf(@Nonnull UUID uuid) {
+        QueueKey k = queuedTo.get(uuid);
+        return k == null ? null : queues.get(k);
     }
 
     /** Remove {@code uuid} from whatever queue it is in. Returns false if it was not queued. */

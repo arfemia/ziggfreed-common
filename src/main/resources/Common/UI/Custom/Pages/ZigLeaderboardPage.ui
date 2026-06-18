@@ -1,0 +1,60 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+
+// Generic leaderboard page (com.ziggfreed.common.instance.leaderboard.LeaderboardPage):
+// consumer-supplied bucket tabs (Pages/ZigLeaderboardTab.ui), a column header, a
+// scrollable ranked list (Pages/ZigLeaderboardRow.ui), and a "your rank" footer. The
+// reusable lift of KweebecLeaderboardPage. Shipped once in ziggfreed-common; neutral
+// Zig* ids. Smoke-test in-game.
+
+$C.@PageOverlay {}
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 640, Height: 600);
+
+  #Content {
+    Label #Title {
+      Text: "";
+      Anchor: (Height: 30, Bottom: 8);
+      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
+    }
+
+    Group #TabBar {
+      LayoutMode: Left;
+      Anchor: (Height: 34, Bottom: 8);
+    }
+
+    Group #TableHeader {
+      LayoutMode: Left;
+      Anchor: (Height: 22, Bottom: 4);
+      Label #HdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label #HdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label #HdrScore  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: Right); }
+      Label #HdrTime   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: Right); }
+      Label #HdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: Right); }
+    }
+
+    Group { Anchor: (Height: 1, Bottom: 6); Background: #1e2a36; }
+
+    Group #LeaderboardList {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 4);
+    }
+
+    Label #EmptyState {
+      Text: "";
+      Visible: false;
+      Anchor: (Height: 22, Top: 6);
+      Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center);
+    }
+
+    Group { Anchor: (Height: 1, Top: 8); Background: #1e2a36; }
+    Label #YourRank {
+      Text: "";
+      Anchor: (Height: 24, Top: 6);
+      Style: (FontSize: 13, TextColor: #ffd97a, VerticalAlignment: Center, HorizontalAlignment: Center);
+    }
+  }
+}
