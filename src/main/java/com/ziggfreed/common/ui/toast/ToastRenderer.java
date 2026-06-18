@@ -5,6 +5,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.ui.Anchor;
 import com.hypixel.hytale.server.core.ui.ItemGridSlot;
@@ -59,7 +60,12 @@ public final class ToastRenderer {
     public static void apply(@Nonnull UICommandBuilder cmd, @Nonnull ToastSpec spec) {
         List<ToastLine> lines = spec.lines();
         cmd.setObject("#ZigToast.Anchor", anchor(WIDTH, panelHeight(lines.size())));
-        cmd.set("#ZigToastText.Text", spec.message());
+        // Text from a Message rides TextSpans, NOT .Text: a Label's .Text is a client String
+        // property that cannot construct from a raw/composite Message object (it aborts the whole
+        // CustomUI update). TextSpans is the Message sink (it encodes the full FormattedMessage,
+        // renders any markup per-locale, and renders plain Messages unchanged - the dialogue page
+        // pattern). The kind colour stays on the base Style.TextColor (the Message carries no colour).
+        cmd.set("#ZigToastText.TextSpans", spec.message());
         cmd.set("#ZigToastText.Style.TextColor", spec.kind().textColor());
         // Tint the white frame texture to the kind color (gold REWARD / green SUCCESS / red ERROR).
         cmd.set("#ZigToast.Background.Color", spec.kind().textColor());
@@ -71,7 +77,7 @@ public final class ToastRenderer {
     /** Hide the toast: collapse the panel to 0x0 (invisible) and clear all content. */
     public static void applyIdle(@Nonnull UICommandBuilder cmd) {
         cmd.setObject("#ZigToast.Anchor", anchor(0, 0));
-        cmd.set("#ZigToastText.Text", "");
+        cmd.set("#ZigToastText.TextSpans", Message.empty());
         for (int i = 0; i < MAX_LINES; i++) {
             setRow(cmd, i, null);
         }
@@ -82,12 +88,12 @@ public final class ToastRenderer {
         String sel = "#ZigToastRow" + index;
         if (line == null) {
             cmd.setObject(sel + ".Anchor", anchor(0, 0));
-            cmd.set(sel + " #RowText.Text", "");
+            cmd.set(sel + " #RowText.TextSpans", Message.empty());
             cmd.set(sel + " #RowIcon.Slots", List.<ItemGridSlot>of());
             return;
         }
         cmd.setObject(sel + ".Anchor", rowAnchor(index));
-        cmd.set(sel + " #RowText.Text", line.text());
+        cmd.set(sel + " #RowText.TextSpans", line.text());
         if (line.hasIcon()) {
             cmd.setObject(sel + " #RowIcon.Anchor", anchorWh(ICON_W, ICON_W));
             cmd.set(sel + " #RowIcon.Slots", List.of(

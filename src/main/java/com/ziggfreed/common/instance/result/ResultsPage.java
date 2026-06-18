@@ -81,10 +81,9 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
                 if (pr.isViewer()) {
                     viewerRow = pr;
                 }
-                Message nameMsg = Message.raw(name(pr.uuid()));
-                Message scoreMsg = Message.raw(NumberFormatter.grouped(pr.primaryScore()));
+                // Name (a proper noun) + score are plain locale-neutral data -> plain String.
                 String color = pr.isMvp() ? "#ffd700" : (pr.isViewer() ? "#5ab0ff" : "#d7e4f0");
-                String sel = appendRow(cmd, row++, nameMsg, scoreMsg, color);
+                String sel = appendRow(cmd, row++, name(pr.uuid()), NumberFormatter.grouped(pr.primaryScore()), color);
                 if (pr.isViewer()) {
                     cmd.set(sel + ".Background", "#1a3d4a");
                 }
@@ -98,8 +97,8 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
             for (ScoreColumn col : viewerRow.columns()) {
                 cmd.append("#BreakdownList", ROW_TEMPLATE);
                 String sel = "#BreakdownList[" + b++ + "]";
-                cmd.set(sel + " #Cell1.Text", col.label());
-                cmd.set(sel + " #Cell2.Text", Message.raw(col.formatted()));
+                setCell(cmd, sel + " #Cell1", col.label());      // localized label -> TextSpans
+                setCell(cmd, sel + " #Cell2", col.formatted());  // formatted number -> .Text
             }
         }
 
@@ -120,7 +119,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
                     cmd.set(sel + " #ChipIcon.Visible", true);
                     cmd.set(sel + " #ChipIcon.Slots", List.of(new ItemGridSlot(new ItemStack(icon, 1))));
                 }
-                cmd.set(sel + " #ChipLabel.Text", chip.label());
+                cmd.set(sel + " #ChipLabel.TextSpans", chip.label()); // composite Message (name + amount) -> TextSpans
                 if (chip.pending()) {
                     cmd.set(sel + " #ChipLabel.Style.TextColor", "#e0a030");
                     anyPending = true;
@@ -163,14 +162,28 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
     }
 
     @Nonnull
-    private String appendRow(@Nonnull UICommandBuilder cmd, int row, @Nonnull Message cell1,
-                             @Nonnull Message cell2, @Nonnull String cell1Color) {
+    private String appendRow(@Nonnull UICommandBuilder cmd, int row, @Nonnull Object cell1,
+                             @Nonnull Object cell2, @Nonnull String cell1Color) {
         cmd.append("#ResultsList", ROW_TEMPLATE);
         String sel = "#ResultsList[" + row + "]";
-        cmd.set(sel + " #Cell1.Text", cell1);
+        setCell(cmd, sel + " #Cell1", cell1);
         cmd.set(sel + " #Cell1.Style.TextColor", cell1Color);
-        cmd.set(sel + " #Cell2.Text", cell2);
+        setCell(cmd, sel + " #Cell2", cell2);
         return sel;
+    }
+
+    /**
+     * Set a cell's text from a plain String (locale-neutral data -> {@code .Text}) or a Message
+     * (localized -> {@code .TextSpans}). A Label's {@code .Text} is a client String property that
+     * cannot construct from a raw/composite Message object (it aborts the whole CustomUI update);
+     * {@code TextSpans} is the Message sink (the dialogue-page pattern).
+     */
+    private static void setCell(@Nonnull UICommandBuilder cmd, @Nonnull String elem, @Nonnull Object value) {
+        if (value instanceof Message m) {
+            cmd.set(elem + ".TextSpans", m);
+        } else {
+            cmd.set(elem + ".Text", String.valueOf(value));
+        }
     }
 
     @Override
