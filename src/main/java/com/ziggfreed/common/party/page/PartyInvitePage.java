@@ -122,7 +122,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
             if (row >= MAX_ROWS) {
                 break;
             }
-            String sel = appendRow(cmd, row, Message.raw(name(inv.inviter())), null);
+            String sel = appendRow(cmd, row, name(inv.inviter()), null);
             bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.acceptButton(), "accept", null, inv.partyId());
             bindRowButton(cmd, events, sel, "#RowBtnSecondary", t.declineButton(), "decline", null, inv.partyId());
             row++;
@@ -140,7 +140,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                     break;
                 }
                 boolean ownerRow = snap.isOwner(m);
-                String sel = appendRow(cmd, row, Message.raw(name(m)), ownerRow ? t.ownerBadge() : null);
+                String sel = appendRow(cmd, row, name(m), ownerRow ? t.ownerBadge() : null);
                 if (viewerOwns && !ownerRow) {
                     bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.kickButton(), "kick", m.toString(), null);
                 }
@@ -213,7 +213,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
             if (!q.isEmpty() && !username.toLowerCase(Locale.ROOT).contains(q)) {
                 continue;
             }
-            String sel = appendRow(cmd, row, Message.raw(username), null);
+            String sel = appendRow(cmd, row, username, null);
             bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.inviteButton(), "invite", uid.toString(), null);
             row++;
         }
@@ -226,9 +226,12 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
     // ==================== row helpers ====================
 
     @Nonnull
-    private String appendRow(@Nonnull UICommandBuilder cmd, int row, @Nonnull Message name, @Nullable Message badge) {
+    private String appendRow(@Nonnull UICommandBuilder cmd, int row, @Nonnull String name, @Nullable Message badge) {
         cmd.append("#PartyList", ROW_TEMPLATE);
         String sel = "#PartyList[" + row + "]";
+        // Name is a plain String (a proper-noun username): .Text is a client String property that
+        // cannot construct from a raw-Message object. The badge (a localized ownerBadge) stays a
+        // translation Message, which .Text DOES resolve.
         cmd.set(sel + " #RowName.Text", name);
         if (badge != null) {
             cmd.set(sel + " #RowBadge.Visible", true);

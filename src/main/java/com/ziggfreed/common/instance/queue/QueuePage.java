@@ -83,7 +83,9 @@ public class QueuePage extends ToastablePage<QueueEventData> {
         for (int i = 0; i < members.size() && i < MAX_ROWS; i++) {
             cmd.append("#RosterList", ROW_TEMPLATE);
             String sel = "#RosterList[" + i + "]";
-            cmd.set(sel + " #RowName.Text", Message.raw(name(members.get(i))));
+            // Plain String (a proper-noun username), not a raw Message: .Text is a client String
+            // property that cannot construct from a raw-Message object (aborts the CustomUI update).
+            cmd.set(sel + " #RowName.Text", name(members.get(i)));
             if (i == 0) {
                 cmd.set(sel + " #RowName.Style.TextColor", "#ffd97a"); // initiator
             }

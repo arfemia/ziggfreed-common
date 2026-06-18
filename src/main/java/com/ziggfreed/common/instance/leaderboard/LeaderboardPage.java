@@ -14,7 +14,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
@@ -125,11 +124,15 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                            @Nonnull UUID uuid, @Nonnull LeaderboardEntry e, boolean isSelf) {
         cmd.append("#LeaderboardList", ROW_TEMPLATE);
         String sel = "#LeaderboardList[" + index + "]";
-        cmd.set(sel + " #Rank.Text", Message.raw("#" + rank));
-        cmd.set(sel + " #Player.Text", Message.raw(resolveName(uuid, e)));
-        cmd.set(sel + " #Score.Text", Message.raw(NumberFormatter.grouped(e.bestScore)));
-        cmd.set(sel + " #Time.Text", Message.raw(e.bestTimeSeconds > 0 ? formatTime(e.bestTimeSeconds) : "-"));
-        cmd.set(sel + " #Plays.Text", Message.raw(Integer.toString(e.plays)));
+        // Plain data (rank / name / score / time / plays) is set as a plain String, NOT a raw
+        // Message: a Label's .Text is a client String property that accepts a string (and resolves
+        // a translation Message) but cannot construct one from a raw-Message object - that aborts
+        // the whole CustomUI update. Numbers + a proper-noun username are locale-neutral data.
+        cmd.set(sel + " #Rank.Text", "#" + rank);
+        cmd.set(sel + " #Player.Text", resolveName(uuid, e));
+        cmd.set(sel + " #Score.Text", NumberFormatter.grouped(e.bestScore));
+        cmd.set(sel + " #Time.Text", e.bestTimeSeconds > 0 ? formatTime(e.bestTimeSeconds) : "-");
+        cmd.set(sel + " #Plays.Text", Integer.toString(e.plays));
         if (rank == 1) {
             cmd.set(sel + " #Rank.Style.TextColor", "#ffd700");
         } else if (rank == 2) {
