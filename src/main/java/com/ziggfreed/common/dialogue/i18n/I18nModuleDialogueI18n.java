@@ -1,6 +1,7 @@
 package com.ziggfreed.common.dialogue.i18n;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.modules.i18n.I18nModule;
 
@@ -41,6 +42,17 @@ public final class I18nModuleDialogueI18n implements DialogueI18n {
             // A unit JVM or pre-init window has no module; treat as "no key" so the
             // page falls through to the raw fallback rather than throwing.
             return false;
+        }
+    }
+
+    @Override
+    @Nullable
+    public String english(@Nonnull String unprefixedKey) {
+        try {
+            I18nModule i18n = I18nModule.get();
+            return i18n != null ? i18n.getMessage(englishLanguage, keyPrefix + unprefixedKey) : null;
+        } catch (Throwable t) {
+            return null;
         }
     }
 }

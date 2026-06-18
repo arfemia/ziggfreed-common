@@ -28,6 +28,7 @@ import com.ziggfreed.common.dialogue.DialogueNode;
 import com.ziggfreed.common.dialogue.NpcDialogue;
 import com.ziggfreed.common.dialogue.i18n.DialogueI18n;
 import com.ziggfreed.common.dialogue.i18n.DialogueMessages;
+import com.ziggfreed.common.dialogue.i18n.RichText;
 
 /**
  * The generic branching NPC dialogue page: a name header, an optional one-line
@@ -106,7 +107,7 @@ public class DialoguePage extends InteractiveCustomUIPage<DialogueEventData> {
             return;
         }
 
-        commandBuilder.set("#NodeText.Text", resolveNodeText(i18n, dialogue, currentNodeId, node));
+        setNodeText(commandBuilder, i18n, dialogue, currentNodeId, node);
 
         List<DialogueOption> options = node.getOptions();
         int row = 0;
@@ -156,12 +157,23 @@ public class DialoguePage extends InteractiveCustomUIPage<DialogueEventData> {
         }
     }
 
-    @Nonnull
-    private static Message resolveNodeText(@Nonnull DialogueI18n i18n, @Nonnull NpcDialogue dialogue,
-                                           @Nonnull String nodeId, @Nonnull DialogueNode node) {
+    /**
+     * Set the node-text Label. When the resolved (English) value carries inline rich-text
+     * markup it is parsed into a {@link Message} span tree and set on {@code .TextSpans}
+     * (the Label rich-text property); otherwise a plain client-resolved translation is set
+     * on {@code .Text}. So markup-free dialogue stays per-locale; only a value that opts in
+     * with markup is rendered rich (and single-locale, by the nature of inline markup).
+     */
+    private static void setNodeText(@Nonnull UICommandBuilder cmd, @Nonnull DialogueI18n i18n,
+                                    @Nonnull NpcDialogue dialogue, @Nonnull String nodeId, @Nonnull DialogueNode node) {
         String conventionKey = "dialogue." + dialogue.getId() + "." + nodeId + ".text";
+        String english = DialogueMessages.english(i18n, node.getTextKey(), conventionKey, node.getText());
+        if (english != null && RichText.hasMarkup(english)) {
+            cmd.set("#NodeText.TextSpans", RichText.parse(english));
+            return;
+        }
         Message text = DialogueMessages.resolve(i18n, node.getTextKey(), conventionKey, node.getText());
-        return text != null ? text : DialogueMessages.raw(conventionKey);
+        cmd.set("#NodeText.Text", text != null ? text : DialogueMessages.raw(conventionKey));
     }
 
     @Nonnull

@@ -1,6 +1,7 @@
 package com.ziggfreed.common.dialogue.i18n;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * The consumer-supplied namespace + key-existence probe the dialogue page uses to
@@ -25,4 +26,18 @@ public interface DialogueI18n {
      * the player's locale. The implementation prepends {@link #keyPrefix()}.
      */
     boolean hasKey(@Nonnull String unprefixedKey);
+
+    /**
+     * The default-locale (English) VALUE for this UNPREFIXED key, or {@code null} if it
+     * does not resolve / the implementation does not support it. Used ONLY to detect +
+     * parse inline rich-text markup (see {@link RichText}) for a custom-page Label's
+     * {@code TextSpans}; the resulting span tree bakes that one locale, so a value with
+     * markup is single-locale by design. Plain (markup-free) values never call this and
+     * stay client-resolved per-locale. Defaults to {@code null} (no rich text) so an
+     * existing {@link DialogueI18n} keeps working unchanged.
+     */
+    @Nullable
+    default String english(@Nonnull String unprefixedKey) {
+        return null;
+    }
 }
