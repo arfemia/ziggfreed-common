@@ -12,7 +12,6 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -24,6 +23,9 @@ import com.ziggfreed.common.lobby.LobbyConfig;
 import com.ziggfreed.common.lobby.MatchmakingQueue;
 import com.ziggfreed.common.lobby.QueueSnapshot;
 import com.ziggfreed.common.lobby.QueueState;
+import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastSpec;
+import com.ziggfreed.common.ui.toast.ToastablePage;
 
 /**
  * The generic queue / "ready" screen the player stays on after queueing. Shows the live
@@ -41,13 +43,15 @@ import com.ziggfreed.common.lobby.QueueState;
  * supplied through {@link QueuePageDeps}; the page is mod-agnostic. Usernames resolve live
  * at render time. Every {@code handleDataEvent} exit path sends a response.
  */
-public class QueuePage extends InteractiveCustomUIPage<QueueEventData> {
+public class QueuePage extends ToastablePage<QueueEventData> {
 
     private static final String PAGE_TEMPLATE = "Pages/ZigQueuePage.ui";
     private static final String ROW_TEMPLATE = "Pages/ZigQueueRosterRow.ui";
     private static final int MAX_ROWS = 32;
 
     private final QueuePageDeps deps;
+    /** One-shot: the "you're queued" toast fires only on the first open, not on a Refresh reopen. */
+    private boolean queuedToastPrimed = false;
 
     public QueuePage(@Nonnull PlayerRef playerRef, @Nonnull QueuePageDeps deps) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, QueueEventData.CODEC);
@@ -65,6 +69,7 @@ public class QueuePage extends InteractiveCustomUIPage<QueueEventData> {
         MatchmakingQueue queue = deps.lobby().currentQueueOf(playerRef.getUuid());
         if (queue == null) {
             cmd.set("#Status.Text", t.notInQueue());
+            renderToastInto(cmd);
             return;
         }
 
@@ -90,6 +95,16 @@ public class QueuePage extends InteractiveCustomUIPage<QueueEventData> {
         cmd.set("#LeaveBtn.Text", t.leaveButton());
         events.addEventBinding(CustomUIEventBindingType.Activating, "#RefreshBtn", EventData.of("Action", "refresh"));
         events.addEventBinding(CustomUIEventBindingType.Activating, "#LeaveBtn", EventData.of("Action", "leave"));
+
+        // One-shot in-page "you're queued" toast on first open (the feed is hidden behind the
+        // menu). Primed (no push) so this same build's renderToastInto paints it; a Refresh
+        // reopen does not re-fire it.
+        if (!queuedToastPrimed) {
+            queuedToastPrimed = true;
+            primeToast(ToastSpec.of(ToastKind.INFO, t.toastQueued(snap.size(), cfg.maxParty())));
+        }
+
+        renderToastInto(cmd); // LAST: the toast overlay draws on top of the page content.
     }
 
     @Nonnull

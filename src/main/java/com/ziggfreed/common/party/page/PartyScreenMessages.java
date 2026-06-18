@@ -44,4 +44,16 @@ public interface PartyScreenMessages {
 
     /** A "{size}/{max}" member-count label shown in the header. */
     @Nonnull Message memberCount(int size, int maxSize);
+
+    /** The privacy pill label when the party queues PUBLIC (backfills with strangers). */
+    @Nonnull Message privacyPublic();
+
+    /** The privacy pill label when the party queues PRIVATE (launches alone, no backfill). */
+    @Nonnull Message privacyPrivate();
+
+    /** In-page toast confirming an invite was sent to {@code playerName} (a proper noun). */
+    @Nonnull Message toastInviteSent(@Nonnull String playerName);
+
+    /** In-page toast when an invite could not be sent (target offline / already in a party / full). */
+    @Nonnull Message toastInviteFailed();
 }

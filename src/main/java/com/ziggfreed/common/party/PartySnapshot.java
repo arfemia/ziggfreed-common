@@ -11,7 +11,8 @@ import javax.annotation.Nonnull;
  * ({@code Universe.getPlayer}), never carried here (the leaderboard-page pattern).
  */
 public record PartySnapshot(@Nonnull String id, @Nonnull String gameId, @Nonnull UUID owner,
-                            @Nonnull List<UUID> members, @Nonnull List<PartyInvite> pendingInvites, int maxSize) {
+                            @Nonnull List<UUID> members, @Nonnull List<PartyInvite> pendingInvites, int maxSize,
+                            boolean privateLobby) {
 
     public int size() {
         return members.size();

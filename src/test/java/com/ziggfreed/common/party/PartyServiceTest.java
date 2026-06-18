@@ -203,6 +203,42 @@ class PartyServiceTest {
     }
 
     @Test
+    void defaultPartyIsPublic() {
+        UUID owner = id();
+        PartyService svc = service(new HashSet<>(Set.of(owner)));
+        Party party = svc.getOrCreate(owner);
+        assertFalse(party.isPrivate(), "a new party defaults to public");
+        assertFalse(party.snapshot().privateLobby());
+    }
+
+    @Test
+    void ownerTogglesPrivacyMemberCannot() {
+        UUID owner = id();
+        UUID guest = id();
+        PartyService svc = service(new HashSet<>(Set.of(owner, guest)));
+        svc.invite(owner, guest);
+        Party party = svc.partyOf(owner);
+        svc.accept(guest, party.id());
+
+        assertFalse(svc.setPrivate(guest, true), "a non-owner cannot change privacy");
+        assertFalse(party.isPrivate());
+
+        assertTrue(svc.setPrivate(owner, true), "the owner can set the party private");
+        assertTrue(party.isPrivate());
+        assertTrue(party.snapshot().privateLobby(), "the snapshot carries the private scope for the queue key");
+
+        assertTrue(svc.setPrivate(owner, false), "the owner can set it public again");
+        assertFalse(party.isPrivate());
+    }
+
+    @Test
+    void setPrivateWithNoPartyIsNoOp() {
+        UUID owner = id();
+        PartyService svc = service(new HashSet<>(Set.of(owner)));
+        assertFalse(svc.setPrivate(owner, true), "no party -> no-op, not a crash");
+    }
+
+    @Test
     void disbandRemovesEveryone() {
         UUID owner = id();
         UUID guest = id();

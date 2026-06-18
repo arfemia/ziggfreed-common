@@ -35,4 +35,11 @@ public interface QueueScreenMessages {
 
     /** Shown when the viewer is no longer in any queue (left, or already launched). */
     @Nonnull Message notInQueue();
+
+    /**
+     * One-shot in-page toast shown when the queue screen first opens for a queued player
+     * ("You're in the queue - {size}/{max}"). The notification feed is hidden behind the open
+     * menu, so this is the visible confirmation that the queue is live.
+     */
+    @Nonnull Message toastQueued(int size, int maxSize);
 }

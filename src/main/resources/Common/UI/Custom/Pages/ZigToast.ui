@@ -1,0 +1,183 @@
+// In-menu toast overlay: appended ONCE per page by ToastablePage.renderToastInto as the LAST
+// root sibling, so it overlays the page content. Shipped once in ziggfreed-common; neutral
+// #Zig* ids avoid colliding with a consumer's own Pages/*.ui when both jars are installed.
+//
+// Two layers: an OUTER border frame (#ZigToast) wrapping an INNER dark panel (#ZigToastInner) that
+// holds the readable content. The frame is a mod-shipped WHITE double-line 9-slice texture
+// (ZigToastFrame.png, beside this .ui) that ToastRenderer TINTS per kind via Background.Color -
+// gold = REWARD, green = SUCCESS, red = ERROR (a white base tints cleanly to any color). The outer
+// Padding (Full) is the rim thickness that reveals the frame; the dark inner uses the built-in
+// "../Common/ContainerFullPatch.png" (texture paths resolve relative to this .ui's dir).
+//
+// Idle = #ZigToast Anchor collapsed to 0x0; shown via Anchor expand AND a computed top (the toast
+// is centered in the top third of the screen) - see ToastRenderer. ToastRenderer drives the IDs
+// #ZigToast / #ZigToastText / #ZigToastRow0..5 by descendant selector, so the inner wrapper is
+// invisible to it. Spacing is deterministic (no FlexWeight on the headline): the headline has a
+// fixed height, row 0 gets a larger top margin (the title->reward gap), and ToastRenderer sizes the
+// panel to fit exactly. Body = 6 pre-baked reward rows (#ZigToastRow0..5: 24px ItemGrid icon +
+// Label), because a sendUpdate can only restyle existing elements, never append new ones. Rows
+// show/hide via Anchor expand/collapse (Visible cannot ride sendUpdate); the count MUST match
+// ToastRenderer.MAX_LINES.
+@ZigToastRowIconStyle = ItemGridStyle(
+  SlotSize: 24,
+  SlotIconSize: 22,
+  SlotSpacing: 0,
+  SlotBackground: "../Common/ContainerPanelPatch.png",
+  QuantityPopupSlotOverlay: "../Common/ContainerPanelPatch.png",
+  BrokenSlotBackgroundOverlay: "../Common/ContainerPanelPatch.png",
+  BrokenSlotIconOverlay: "../Common/ContainerPanelPatch.png",
+  DefaultItemIcon: "../Common/ContainerPanelPatch.png",
+  DurabilityBar: "../Common/ContainerPanelPatch.png",
+  DurabilityBarBackground: "../Common/ContainerPanelPatch.png",
+  DurabilityBarAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0),
+  DurabilityBarColorStart: #a63232,
+  DurabilityBarColorEnd: #63b649,
+  CursedIconPatch: "../Common/ContainerPanelPatch.png",
+  CursedIconAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0)
+);
+
+Group #ZigToast {
+  Anchor: (Top: 107, Width: 460, Height: 0);
+  Background: (TexturePath: "ZigToastFrame.png", Border: 13, Color: #ffd24a);
+  Padding: (Full: 12);
+  LayoutMode: Top;
+
+  Group #ZigToastInner {
+    FlexWeight: 1;
+    Background: (TexturePath: "../Common/ContainerFullPatch.png", Border: 20);
+    Padding: (Horizontal: 24, Vertical: 16);
+    LayoutMode: Top;
+
+    Label #ZigToastText {
+      Text: "";
+      Anchor: (Height: 28);
+      Style: (FontSize: 18, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center, Wrap: true);
+    }
+
+    Group #ZigToastRow0 {
+      Anchor: (Top: 16, Height: 0);
+      LayoutMode: Left;
+
+      ItemGrid #RowIcon {
+        Anchor: (Width: 24, Height: 24);
+        SlotsPerRow: 1;
+        AreItemsDraggable: false;
+        DisplayItemQuantity: false;
+        Style: @ZigToastRowIconStyle;
+      }
+
+      Group #RowIconGap { Anchor: (Width: 8); }
+
+      Label #RowText {
+        Text: "";
+        FlexWeight: 1;
+        Style: (FontSize: 15, TextColor: #eef3fa, VerticalAlignment: Center);
+      }
+    }
+
+    Group #ZigToastRow1 {
+      Anchor: (Top: 6, Height: 0);
+      LayoutMode: Left;
+
+      ItemGrid #RowIcon {
+        Anchor: (Width: 24, Height: 24);
+        SlotsPerRow: 1;
+        AreItemsDraggable: false;
+        DisplayItemQuantity: false;
+        Style: @ZigToastRowIconStyle;
+      }
+
+      Group #RowIconGap { Anchor: (Width: 8); }
+
+      Label #RowText {
+        Text: "";
+        FlexWeight: 1;
+        Style: (FontSize: 15, TextColor: #eef3fa, VerticalAlignment: Center);
+      }
+    }
+
+    Group #ZigToastRow2 {
+      Anchor: (Top: 6, Height: 0);
+      LayoutMode: Left;
+
+      ItemGrid #RowIcon {
+        Anchor: (Width: 24, Height: 24);
+        SlotsPerRow: 1;
+        AreItemsDraggable: false;
+        DisplayItemQuantity: false;
+        Style: @ZigToastRowIconStyle;
+      }
+
+      Group #RowIconGap { Anchor: (Width: 8); }
+
+      Label #RowText {
+        Text: "";
+        FlexWeight: 1;
+        Style: (FontSize: 15, TextColor: #eef3fa, VerticalAlignment: Center);
+      }
+    }
+
+    Group #ZigToastRow3 {
+      Anchor: (Top: 6, Height: 0);
+      LayoutMode: Left;
+
+      ItemGrid #RowIcon {
+        Anchor: (Width: 24, Height: 24);
+        SlotsPerRow: 1;
+        AreItemsDraggable: false;
+        DisplayItemQuantity: false;
+        Style: @ZigToastRowIconStyle;
+      }
+
+      Group #RowIconGap { Anchor: (Width: 8); }
+
+      Label #RowText {
+        Text: "";
+        FlexWeight: 1;
+        Style: (FontSize: 15, TextColor: #eef3fa, VerticalAlignment: Center);
+      }
+    }
+
+    Group #ZigToastRow4 {
+      Anchor: (Top: 6, Height: 0);
+      LayoutMode: Left;
+
+      ItemGrid #RowIcon {
+        Anchor: (Width: 24, Height: 24);
+        SlotsPerRow: 1;
+        AreItemsDraggable: false;
+        DisplayItemQuantity: false;
+        Style: @ZigToastRowIconStyle;
+      }
+
+      Group #RowIconGap { Anchor: (Width: 8); }
+
+      Label #RowText {
+        Text: "";
+        FlexWeight: 1;
+        Style: (FontSize: 15, TextColor: #eef3fa, VerticalAlignment: Center);
+      }
+    }
+
+    Group #ZigToastRow5 {
+      Anchor: (Top: 6, Height: 0);
+      LayoutMode: Left;
+
+      ItemGrid #RowIcon {
+        Anchor: (Width: 24, Height: 24);
+        SlotsPerRow: 1;
+        AreItemsDraggable: false;
+        DisplayItemQuantity: false;
+        Style: @ZigToastRowIconStyle;
+      }
+
+      Group #RowIconGap { Anchor: (Width: 8); }
+
+      Label #RowText {
+        Text: "";
+        FlexWeight: 1;
+        Style: (FontSize: 15, TextColor: #eef3fa, VerticalAlignment: Center);
+      }
+    }
+  }
+}

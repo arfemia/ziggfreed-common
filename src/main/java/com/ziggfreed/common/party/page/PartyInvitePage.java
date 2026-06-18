@@ -15,7 +15,6 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -23,10 +22,13 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.party.InviteResult;
 import com.ziggfreed.common.party.Party;
 import com.ziggfreed.common.party.PartyInvite;
 import com.ziggfreed.common.party.PartyService;
 import com.ziggfreed.common.party.PartySnapshot;
+import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastablePage;
 
 /**
  * The generic party + invite screen (the {@code KweebecLeaderboardPage}/{@code DialoguePage}
@@ -46,7 +48,7 @@ import com.ziggfreed.common.party.PartySnapshot;
  * client spins forever. The {@code .ui} ships once in ziggfreed-common and resolves
  * client-side across the merged asset tree.
  */
-public class PartyInvitePage extends InteractiveCustomUIPage<PartyEventData> {
+public class PartyInvitePage extends ToastablePage<PartyEventData> {
 
     private static final String PAGE_TEMPLATE = "Pages/ZigPartyPage.ui";
     private static final String ROW_TEMPLATE = "Pages/ZigPartyRow.ui";
@@ -95,6 +97,8 @@ public class PartyInvitePage extends InteractiveCustomUIPage<PartyEventData> {
         } else {
             buildPartyTab(cmd, events, t, viewer);
         }
+
+        renderToastInto(cmd); // LAST: the toast overlay draws on top of the page content.
     }
 
     private void paintActiveTab(@Nonnull UICommandBuilder cmd, @Nonnull String sel) {
@@ -143,7 +147,7 @@ public class PartyInvitePage extends InteractiveCustomUIPage<PartyEventData> {
                 row++;
             }
 
-            // Footer: Queue + Disband (owner) or Leave (member).
+            // Footer: Queue + Privacy + Disband (owner) or Leave (member).
             cmd.set("#FooterRow.Visible", true);
             if (viewerOwns && deps.queueHandler() != null) {
                 cmd.set("#QueueBtn.Visible", true);
@@ -151,6 +155,10 @@ public class PartyInvitePage extends InteractiveCustomUIPage<PartyEventData> {
                 events.addEventBinding(CustomUIEventBindingType.Activating, "#QueueBtn", EventData.of("Action", "queue"));
             }
             if (viewerOwns) {
+                // Public/private pill: label shows the current state; clicking flips it.
+                cmd.set("#PrivacyBtn.Visible", true);
+                cmd.set("#PrivacyBtn.Text", snap.privateLobby() ? t.privacyPrivate() : t.privacyPublic());
+                events.addEventBinding(CustomUIEventBindingType.Activating, "#PrivacyBtn", EventData.of("Action", "privacy"));
                 cmd.set("#DisbandBtn.Visible", true);
                 cmd.set("#DisbandBtn.Text", t.disbandButton());
                 events.addEventBinding(CustomUIEventBindingType.Activating, "#DisbandBtn", EventData.of("Action", "disband"));
@@ -292,7 +300,14 @@ public class PartyInvitePage extends InteractiveCustomUIPage<PartyEventData> {
             case "invite" -> {
                 UUID target = parseUuid(data.target);
                 if (target != null) {
-                    svc.invite(viewer, target);
+                    // Toast the outcome in-page: the PartyService Notify feed is hidden behind
+                    // the open menu, and a failed invite is otherwise silent.
+                    InviteResult result = svc.invite(viewer, target);
+                    if (result == InviteResult.SENT) {
+                        showToast(ToastKind.SUCCESS, deps.text().toastInviteSent(name(target)));
+                    } else {
+                        showToast(ToastKind.WARNING, deps.text().toastInviteFailed());
+                    }
                 }
             }
             case "accept" -> {
@@ -314,6 +329,14 @@ public class PartyInvitePage extends InteractiveCustomUIPage<PartyEventData> {
             }
             case "leave" -> svc.leave(viewer);
             case "disband" -> svc.disband(viewer);
+            case "privacy" -> {
+                Party party = svc.partyOf(viewer);
+                if (party != null && party.isOwner(viewer)) {
+                    boolean next = !party.isPrivate();
+                    svc.setPrivate(viewer, next);
+                    showToast(ToastKind.SUCCESS, next ? deps.text().privacyPrivate() : deps.text().privacyPublic());
+                }
+            }
             case "queue" -> {
                 PartyQueueHandler handler = deps.queueHandler();
                 if (handler != null) {

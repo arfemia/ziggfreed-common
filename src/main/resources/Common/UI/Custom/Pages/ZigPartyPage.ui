@@ -63,12 +63,14 @@ $F.@ZigDecoratedFrame {
       Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center);
     }
 
-    // Footer (revealed on the Party tab from Java; the three buttons toggle per role).
+    // Footer (revealed on the Party tab from Java; the buttons toggle per role). #PrivacyBtn is
+    // the owner's public/private pill (its label shows the current state; clicking flips it).
     Group #FooterRow {
       LayoutMode: Left;
       Anchor: (Height: 36, Top: 8);
       Visible: false;
       TextButton #QueueBtn   { FlexWeight: 1; Anchor: (Height: 36); Style: $M.@ZigOptionBtnStyle; Visible: false; }
+      TextButton #PrivacyBtn { FlexWeight: 1; Anchor: (Height: 36, Left: 6); Style: $M.@ZigTabBtnStyle; Visible: false; }
       TextButton #DisbandBtn { FlexWeight: 1; Anchor: (Height: 36, Left: 6); Style: $M.@ZigOptionBtnStyle; Visible: false; }
       TextButton #LeaveBtn   { FlexWeight: 1; Anchor: (Height: 36, Left: 6); Style: $M.@ZigOptionBtnStyle; Visible: false; }
     }

@@ -287,6 +287,21 @@ public final class PartyService {
         return true;
     }
 
+    /**
+     * Owner-only: set the party's queue privacy (true = launch alone, no stranger backfill;
+     * false = public, backfills up to max). Returns false if {@code owner} does not own a party.
+     * Fires a listener change so an open party page repaints the pill.
+     */
+    public synchronized boolean setPrivate(@Nonnull UUID owner, boolean priv) {
+        Party party = partyOf(owner);
+        if (party == null || !party.isOwner(owner)) {
+            return false;
+        }
+        party.setPrivate(priv);
+        fireChange(party);
+        return true;
+    }
+
     /** Owner-only: hand ownership to another member. */
     public synchronized boolean transferOwner(@Nonnull UUID owner, @Nonnull UUID target) {
         Party party = partyOf(owner);

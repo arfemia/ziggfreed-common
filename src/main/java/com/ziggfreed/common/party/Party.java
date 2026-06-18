@@ -30,6 +30,8 @@ public final class Party {
     private final LinkedHashSet<UUID> members = new LinkedHashSet<>();
     private final Map<UUID, PartyInvite> pendingInvites = new LinkedHashMap<>();
     private UUID owner;
+    /** Owner-settable queue privacy: true = launch this party alone (no stranger backfill). Default public. */
+    private boolean privateLobby = false;
 
     Party(@Nonnull String id, @Nonnull String gameId, @Nonnull UUID owner, @Nonnull PartyConfig config) {
         this.id = id;
@@ -71,6 +73,11 @@ public final class Party {
         return members.size() >= config.maxSize();
     }
 
+    /** True if the party queues PRIVATE (launches alone, no stranger backfill). */
+    public synchronized boolean isPrivate() {
+        return privateLobby;
+    }
+
     /** A defensive copy of the roster in owner-first join order. */
     @Nonnull
     public synchronized List<UUID> orderedMembers() {
@@ -81,7 +88,7 @@ public final class Party {
     @Nonnull
     public synchronized PartySnapshot snapshot() {
         return new PartySnapshot(id, gameId, owner, List.copyOf(members),
-                List.copyOf(pendingInvites.values()), config.maxSize());
+                List.copyOf(pendingInvites.values()), config.maxSize(), privateLobby);
     }
 
     // ==================== package-private mutators (driven by PartyService) ====================
@@ -114,6 +121,10 @@ public final class Party {
 
     synchronized void setOwner(@Nonnull UUID uuid) {
         this.owner = uuid;
+    }
+
+    synchronized void setPrivate(boolean priv) {
+        this.privateLobby = priv;
     }
 
     /**

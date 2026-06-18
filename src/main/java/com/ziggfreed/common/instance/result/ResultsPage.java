@@ -1,5 +1,6 @@
 package com.ziggfreed.common.instance.result;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,7 +14,8 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -21,6 +23,10 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastLine;
+import com.ziggfreed.common.ui.toast.ToastSpec;
+import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.NumberFormatter;
 
 /**
@@ -35,7 +41,7 @@ import com.ziggfreed.common.util.NumberFormatter;
  * Non-blocking by design - the player may dismiss it and the consumer's normal eject runs.
  * Every {@code handleDataEvent} exit path sends a response.
  */
-public class ResultsPage extends InteractiveCustomUIPage<ResultsEventData> {
+public class ResultsPage extends ToastablePage<ResultsEventData> {
 
     private static final String PAGE_TEMPLATE = "Pages/ZigResultsPage.ui";
     private static final String ROW_TEMPLATE = "Pages/ZigResultRow.ui";
@@ -43,6 +49,8 @@ public class ResultsPage extends InteractiveCustomUIPage<ResultsEventData> {
 
     private final MatchResult result;
     private final ResultsPageDeps deps;
+    /** One-shot: the granted-rewards toast fires only on the first open, not on reopen. */
+    private boolean rewardToastPrimed = false;
 
     public ResultsPage(@Nonnull PlayerRef playerRef, @Nonnull MatchResult result, @Nonnull ResultsPageDeps deps) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, ResultsEventData.CODEC);
@@ -107,6 +115,11 @@ public class ResultsPage extends InteractiveCustomUIPage<ResultsEventData> {
                 RewardChip chip = chips.get(i);
                 cmd.append("#RewardList", CHIP_TEMPLATE);
                 String sel = "#RewardList[" + i + "]";
+                String icon = chip.iconItemId();
+                if (icon != null && !icon.isEmpty()) {
+                    cmd.set(sel + " #ChipIcon.Visible", true);
+                    cmd.set(sel + " #ChipIcon.Slots", List.of(new ItemGridSlot(new ItemStack(icon, 1))));
+                }
                 cmd.set(sel + " #ChipLabel.Text", chip.label());
                 if (chip.pending()) {
                     cmd.set(sel + " #ChipLabel.Style.TextColor", "#e0a030");
@@ -116,6 +129,20 @@ public class ResultsPage extends InteractiveCustomUIPage<ResultsEventData> {
             if (anyPending) {
                 cmd.set("#PendingNote.Visible", true);
                 cmd.set("#PendingNote.Text", t.pendingNote());
+            }
+        }
+
+        // One-shot in-page reward toast on first open (the chips persist below; the toast is a
+        // transient gold flourish, and the notification feed is hidden behind the open menu).
+        // Primed (no immediate push) so this same build's renderToastInto paints it.
+        if (!rewardToastPrimed) {
+            rewardToastPrimed = true;
+            if (!chips.isEmpty()) {
+                List<ToastLine> lines = new ArrayList<>(chips.size());
+                for (RewardChip chip : chips) {
+                    lines.add(new ToastLine(chip.iconItemId(), 1, chip.label()));
+                }
+                primeToast(ToastSpec.of(ToastKind.REWARD, t.rewardsTitle()).withLines(lines));
             }
         }
 
@@ -131,6 +158,8 @@ public class ResultsPage extends InteractiveCustomUIPage<ResultsEventData> {
             cmd.set("#PlayAgainBtn.Text", t.playAgainButton());
             events.addEventBinding(CustomUIEventBindingType.Activating, "#PlayAgainBtn", EventData.of("Action", "again"));
         }
+
+        renderToastInto(cmd); // LAST: the toast overlay draws on top of the page content.
     }
 
     @Nonnull
