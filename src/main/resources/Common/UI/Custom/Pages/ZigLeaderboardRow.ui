@@ -10,7 +10,7 @@ Group #ZigLeaderboardRow {
 
   Label #Rank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: 13, TextColor: #d7e4f0, VerticalAlignment: Center, RenderBold: true); }
   Label #Player { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: 13, TextColor: #d7e4f0, VerticalAlignment: Center); }
-  Label #Score  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: 13, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: Right); }
-  Label #Time   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: 13, TextColor: #b6c9de, VerticalAlignment: Center, HorizontalAlignment: Right); }
-  Label #Plays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 13, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: Right); }
+  Label #Score  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: 13, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Label #Time   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: 13, TextColor: #b6c9de, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Label #Plays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 13, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
 }

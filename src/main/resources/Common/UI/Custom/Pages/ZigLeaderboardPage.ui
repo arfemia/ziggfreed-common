@@ -29,9 +29,9 @@ $F.@ZigDecoratedFrame {
       Anchor: (Height: 22, Bottom: 4);
       Label #HdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
       Label #HdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
-      Label #HdrScore  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: Right); }
-      Label #HdrTime   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: Right); }
-      Label #HdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: Right); }
+      Label #HdrScore  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label #HdrTime   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label #HdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
     }
 
     Group { Anchor: (Height: 1, Bottom: 6); Background: #1e2a36; }

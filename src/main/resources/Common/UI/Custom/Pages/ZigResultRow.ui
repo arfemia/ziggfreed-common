@@ -20,6 +20,6 @@ Group #ZigResultRow {
     Anchor: (Width: 140);
     Padding: (Right: 12);
     Text: "";
-    Style: (FontSize: 14, TextColor: #d7e4f0, VerticalAlignment: Center, HorizontalAlignment: Right);
+    Style: (FontSize: 14, TextColor: #d7e4f0, VerticalAlignment: Center, HorizontalAlignment: End);
   }
 }
