@@ -41,12 +41,19 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
     // Per-player toast state lives in ToastStore (keyed by uuid) so a toast set on this instance
     // still renders after the page reopens as a fresh instance.
     //
-    // Flipped by onDismiss when this page is replaced/closed. Guards the toast surface push: the
-    // auto-dismiss fires ~4s after a toast shows, by which point the player may have navigated to
-    // another page. updateCustomPage does NOT verify the page is still active, so an unguarded
-    // stale push targets whatever page is now open and crashes the client ("selector
-    // #ZigToast.Anchor not found"). Skipping the push is safe - the toast store still clears
-    // (ToastController calls clearIfCurrent regardless), so the next page opens idle.
+    // Flipped true by onDismiss, reset false by renderToastInto on every (re)build. Guards the
+    // toast surface push: the auto-dismiss fires ~4s after a toast shows, by which point the
+    // player may have navigated to another page. updateCustomPage does NOT verify the page is
+    // still active, so an unguarded stale push targets whatever page is now open and crashes the
+    // client ("selector #ZigToast.Anchor not found"). Skipping the push is safe - the toast store
+    // still clears (ToastController calls clearIfCurrent regardless), so the next page opens idle.
+    //
+    // CRUCIAL: the reset in renderToastInto. The common reopen flow is showToast(...) then
+    // openCustomPage(ref, store, this) - and PageManager.openCustomPage calls onDismiss on the
+    // OUTGOING page (which is THIS same instance) before rebuilding it. Without the reset, the
+    // self-reopen leaves dismissed=true forever, so the scheduled hide is skipped and the toast
+    // never auto-dismisses. The reset only fires when this instance rebuilds (is active again);
+    // an instance replaced by a DIFFERENT page never rebuilds, so its guard correctly stays set.
     private volatile boolean dismissed = false;
 
     private final ToastController toast = new ToastController(
@@ -88,6 +95,10 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
      * sibling and draws on top of the page content.
      */
     protected void renderToastInto(@Nonnull UICommandBuilder cmd) {
+        // This instance is (re)building, so it is the active page again: clear the dismissed guard
+        // so a hide-push scheduled before a self-reopen (openCustomPage(this), which fires
+        // onDismiss on THIS instance) is not skipped. Without this, toasts never auto-dismiss.
+        this.dismissed = false;
         cmd.append("Pages/ZigToast.ui");
         toast.renderInto(cmd);
     }
