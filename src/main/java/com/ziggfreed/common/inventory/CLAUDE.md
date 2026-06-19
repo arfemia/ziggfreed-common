@@ -16,3 +16,22 @@ needs it), so it lives here, not duplicated in a consumer.
   return so a missing component / invalid ref / engine throw never escapes into the
   caller. Backed by `CombinedItemContainer.addItemStack`/`removeItemStack`/
   `countItemStacks` + `ItemStackTransaction.getRemainder` (decompile-confirmed signatures).
+
+**Full-inventory preserve/restore (a minigame's "keep your overworld gear" lifecycle):**
+- **[`InventorySnapshot`](InventorySnapshot.java)** - slot-exact capture/strip/apply across ALL
+  six section components (Armor/Hotbar/Storage/Utility/Tool/Backpack via
+  `InventoryComponent.getComponentTypeById`), preserving each `ItemStack`'s durability + metadata
+  and each active-slot section's selected slot. Asymmetric by design: `capture` is ALWAYS the whole
+  inventory; `strip(policy)` is the ONLY configurable step; `apply` restores the EXACT entry state
+  (clears every section first - dropping in-round loot AND kept-on-entry items - then reapplies, so
+  it is idempotent / retry-safe). World thread.
+- **[`InventoryStripPolicy`](InventoryStripPolicy.java)** - governs ONLY what `strip` removes on
+  entry, never the restore. Two dials: which **sections** are stripped (`keepSections(ARMOR_SECTION_ID)`
+  leaves armor on) + an item **rule** (`whitelist`/`blacklist` of item ids). `STRIP_ALL` is the
+  strip-everything default; `clearsSection` is the one-transaction fast path.
+- **[`InventorySnapshotStore`](InventorySnapshotStore.java)** - durable, crash-safe per-player store
+  (the twin of `instance.reward.PendingRewardStore`): file-backed JSON, atomic write, serialized
+  `flush`, each `ItemStack` persisted via its own engine `CODEC` (-> BSON -> JSON). `captureAndStrip`
+  persists BEFORE touching the live inventory (crash-safety invariant); `restoreAndClear` applies then
+  drops the snapshot only on success (a throw leaves it for the next-login retry). The consumer wires
+  the lifecycle (entry strip, exit + next-login restore) - Kweebec's `RoundInventoryGuard` is the model.
