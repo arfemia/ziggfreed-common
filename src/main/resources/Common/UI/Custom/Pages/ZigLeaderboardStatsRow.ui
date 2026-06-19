@@ -1,0 +1,19 @@
+$C = "../Common.ui";
+
+// One lifetime-stats leaderboard row (appended into #LeaderboardList for the Stats view; see
+// LeaderboardPage): Rank / Player / 4 generic stat cells (#Col0..#Col3) / Plays. The page fills
+// the first K cells from the consumer's StatColumnDef list and hides the rest (4-stat cap).
+// Medal ranks + the viewer's row are tinted from Java. Colour-only.
+
+Group #ZigLeaderboardStatsRow {
+  LayoutMode: Left;
+  Anchor: (Height: 28, Bottom: 2);
+
+  Label #Rank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: 13, TextColor: #d7e4f0, VerticalAlignment: Center, RenderBold: true); }
+  Label #Player { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: 13, TextColor: #d7e4f0, VerticalAlignment: Center); }
+  Label #Col0   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 13, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Label #Col1   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 13, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Label #Col2   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 13, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Label #Col3   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 13, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Label #Plays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 13, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+}

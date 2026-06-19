@@ -19,11 +19,29 @@ public interface LeaderboardScreenMessages {
 
     @Nonnull Message colScore();
 
+    /** The cumulative total-points column header (Rankings view). */
+    @Nonnull Message colTotal();
+
     @Nonnull Message colTime();
 
     @Nonnull Message colPlays();
 
     @Nonnull Message empty();
+
+    /** Sort-toggle button label: rank by best single-run score. */
+    @Nonnull Message sortScore();
+
+    /** Sort-toggle button label: rank by cumulative total points. */
+    @Nonnull Message sortTotal();
+
+    /** Sort-toggle button label: rank by fastest winning time. */
+    @Nonnull Message sortTime();
+
+    /** View-toggle button label: the score rankings. */
+    @Nonnull Message viewRankings();
+
+    /** View-toggle button label: the lifetime stats. */
+    @Nonnull Message viewStats();
 
     /** Footer: the viewer's own rank + best score in the selected bucket. */
     @Nonnull Message yourRank(int rank, long bestScore);

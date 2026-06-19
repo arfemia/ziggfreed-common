@@ -1,16 +1,18 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
+$M = "../Common/ZigButtons.ui";
 
 // Generic leaderboard page (com.ziggfreed.common.instance.leaderboard.LeaderboardPage):
-// consumer-supplied bucket tabs (Pages/ZigLeaderboardTab.ui), a column header, a
-// scrollable ranked list (Pages/ZigLeaderboardRow.ui), and a "your rank" footer. The
-// reusable lift of KweebecLeaderboardPage. Shipped once in ziggfreed-common; neutral
-// Zig* ids. Smoke-test in-game.
+// an optional PRIMARY tab row (#GroupBar, difficulty) over the SECONDARY tab row (#TabBar,
+// party size), a sort toggle (#SortGroup) + Rankings/Stats view toggle (#ViewGroup), a
+// Rankings column header (#TableHeader) OR a Stats column header (#StatsHeader), a scrollable
+// list (Pages/ZigLeaderboardRow.ui / ZigLeaderboardStatsRow.ui), and a "your rank" footer.
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
 
 $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 640, Height: 600);
+  Anchor: (Width: 860, Height: 700);
 
   #Content {
     Label #Title {
@@ -19,19 +21,60 @@ $F.@ZigDecoratedFrame {
       Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
     }
 
-    Group #TabBar {
+    Group #GroupBar {
       LayoutMode: Left;
-      Anchor: (Height: 34, Bottom: 8);
+      Anchor: (Height: 34, Bottom: 6);
     }
 
+    Group #TabBar {
+      LayoutMode: Left;
+      Anchor: (Height: 34, Bottom: 6);
+    }
+
+    Group #ControlBar {
+      LayoutMode: Left;
+      Anchor: (Height: 30, Bottom: 8);
+
+      Group #SortGroup {
+        LayoutMode: Left;
+        FlexWeight: 1;
+        TextButton #SortBest  { Anchor: (Width: 110, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
+        TextButton #SortTotal { Anchor: (Width: 110, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
+        TextButton #SortTime  { Anchor: (Width: 110, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
+      }
+
+      Group #ViewGroup {
+        LayoutMode: Left;
+        Anchor: (Width: 232);
+        TextButton #ViewRankings { Anchor: (Width: 110, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
+        TextButton #ViewStats    { Anchor: (Width: 110);          Text: ""; Style: $M.@ZigTabBtnStyle; }
+      }
+    }
+
+    // Rankings column header.
     Group #TableHeader {
       LayoutMode: Left;
       Anchor: (Height: 22, Bottom: 4);
       Label #HdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
       Label #HdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label #HdrTotal  { Anchor: (Width: 100); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
       Label #HdrScore  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
       Label #HdrTime   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
       Label #HdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+    }
+
+    // Stats column header (4 generic stat cells; the page hides the unused ones).
+    Group #StatsHeader {
+      LayoutMode: Left;
+      Visible: false;
+      Anchor: (Height: 22, Bottom: 4);
+      Label #SHdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label #SHdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label #SHdrCol0   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label #SHdrCol1   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label #SHdrCol2   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label #SHdrCol3   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label #SHdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
     }
 
     Group { Anchor: (Height: 1, Bottom: 6); Background: #1e2a36; }

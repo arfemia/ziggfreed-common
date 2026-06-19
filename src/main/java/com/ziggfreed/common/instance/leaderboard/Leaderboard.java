@@ -2,7 +2,9 @@ package com.ziggfreed.common.instance.leaderboard;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -71,6 +73,16 @@ public final class Leaderboard {
      */
     public void record(@Nonnull String bucket, @Nonnull UUID uuid, @Nullable String name,
                        int score, int timeSeconds, boolean win) {
+        record(bucket, uuid, name, score, timeSeconds, win, null);
+    }
+
+    /**
+     * As {@link #record(String, UUID, String, int, int, boolean)} but also accrues the cumulative
+     * {@code totalPoints} (by {@code score}) and merges the given per-stat deltas into the entry's
+     * stat counters (keys are consumer-chosen). A null/empty {@code statDeltas} records no stats.
+     */
+    public void record(@Nonnull String bucket, @Nonnull UUID uuid, @Nullable String name,
+                       int score, int timeSeconds, boolean win, @Nullable Map<String, Long> statDeltas) {
         if (bucket.isBlank()) {
             return;
         }
@@ -85,8 +97,19 @@ public final class Leaderboard {
             if (score > e.bestScore) {
                 e.bestScore = score;
             }
+            e.totalPoints += score;
             if (win && timeSeconds > 0 && (e.bestTimeSeconds <= 0 || timeSeconds < e.bestTimeSeconds)) {
                 e.bestTimeSeconds = timeSeconds;
+            }
+            if (statDeltas != null && !statDeltas.isEmpty()) {
+                if (e.stats == null) {
+                    e.stats = new ConcurrentHashMap<>();
+                }
+                for (Map.Entry<String, Long> d : statDeltas.entrySet()) {
+                    if (d.getKey() != null && d.getValue() != null) {
+                        e.stats.merge(d.getKey(), d.getValue(), Long::sum);
+                    }
+                }
             }
             return e;
         });
@@ -98,6 +121,59 @@ public final class Leaderboard {
     public Map<UUID, LeaderboardEntry> forBucket(@Nonnull String bucket) {
         Map<UUID, LeaderboardEntry> b = buckets.get(bucket);
         return b == null ? Map.of() : Map.copyOf(b);
+    }
+
+    /**
+     * A GLOBAL aggregate across the given buckets: each player's entries merged into one
+     * (sum {@code totalPoints}/{@code plays}/each stat, max {@code bestScore}, min winning
+     * {@code bestTimeSeconds}, latest name). The "both granularities" seam: per-bucket stays
+     * {@link #forBucket}; this is the lifetime view (Kweebec's Stats tab sums every difficulty x
+     * party-size bucket of a mode). Never null.
+     */
+    @Nonnull
+    public Map<UUID, LeaderboardEntry> forBuckets(@Nonnull Collection<String> bucketKeys) {
+        Map<UUID, LeaderboardEntry> out = new LinkedHashMap<>();
+        for (String key : bucketKeys) {
+            ConcurrentHashMap<UUID, LeaderboardEntry> b = buckets.get(key);
+            if (b == null) {
+                continue;
+            }
+            for (Map.Entry<UUID, LeaderboardEntry> pe : b.entrySet()) {
+                out.merge(pe.getKey(), pe.getValue(), Leaderboard::mergeInto);
+            }
+        }
+        return out;
+    }
+
+    /** Merge {@code src} into a fresh copy of {@code dst} for the cross-bucket aggregate. */
+    @Nonnull
+    private static LeaderboardEntry mergeInto(@Nonnull LeaderboardEntry dst, @Nonnull LeaderboardEntry src) {
+        LeaderboardEntry e = new LeaderboardEntry();
+        e.bestScore = Math.max(dst.bestScore, src.bestScore);
+        e.plays = dst.plays + src.plays;
+        e.totalPoints = dst.totalPoints + src.totalPoints;
+        e.lastUpdatedMs = Math.max(dst.lastUpdatedMs, src.lastUpdatedMs);
+        e.name = src.lastUpdatedMs >= dst.lastUpdatedMs ? orOther(src.name, dst.name) : orOther(dst.name, src.name);
+        int dt = dst.bestTimeSeconds;
+        int st = src.bestTimeSeconds;
+        e.bestTimeSeconds = dt <= 0 ? st : (st <= 0 ? dt : Math.min(dt, st));
+        if ((dst.stats != null && !dst.stats.isEmpty()) || (src.stats != null && !src.stats.isEmpty())) {
+            e.stats = new HashMap<>();
+            if (dst.stats != null) {
+                e.stats.putAll(dst.stats);
+            }
+            if (src.stats != null) {
+                for (Map.Entry<String, Long> s : src.stats.entrySet()) {
+                    e.stats.merge(s.getKey(), s.getValue(), Long::sum);
+                }
+            }
+        }
+        return e;
+    }
+
+    @Nullable
+    private static String orOther(@Nullable String a, @Nullable String b) {
+        return a != null && !a.isBlank() ? a : b;
     }
 
     /** All bucket keys that currently hold entries. */

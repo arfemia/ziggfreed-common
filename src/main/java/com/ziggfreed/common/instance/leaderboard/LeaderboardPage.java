@@ -1,7 +1,6 @@
 package com.ziggfreed.common.instance.leaderboard;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,50 +25,97 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.util.NumberFormatter;
 
 /**
- * The generic leaderboard page (the reusable lift of {@code KweebecLeaderboardPage}, the
- * paradigm the user asked to generalize). Tabbed buckets (consumer-supplied
- * {@link LeaderboardBucketTab}s), a column header, a scrollable ranked list of the
- * selected bucket sorted by best score (top three gold/silver/bronze, the viewer's row
- * highlighted), and a "your rank" footer. The {@code ResultsPage} CTA deep-links here to
- * the just-played bucket.
+ * The generic leaderboard page (the reusable lift of {@code KweebecLeaderboardPage}). Two tab
+ * axes (an optional PRIMARY axis - difficulty - over the SECONDARY axis - party size), a
+ * three-metric sort toggle (best score / total points / best time), a Rankings/Stats view
+ * toggle, a scrollable ranked list (top three gold/silver/bronze, the viewer's row highlighted),
+ * and a "your rank" footer. The {@code ResultsPage} CTA deep-links here to the just-played bucket.
  *
- * <p>Consumer policy (the {@link Leaderboard}, tabs, chrome) is supplied through
- * {@link LeaderboardPageDeps}; the page is mod-agnostic. Names resolve live then the
- * persisted entry name then a short uuid. Every {@code handleDataEvent} exit path sends a
- * response.
+ * <p>Consumer policy (the {@link Leaderboard} for the mode, the tab axes, the stat columns, the
+ * chrome) is supplied through {@link LeaderboardPageDeps}; the page is mod-agnostic. When the
+ * primary axis / stat columns are empty it degrades to the original single-axis, score-only board.
+ * The page is stateless across events: each interaction reopens it with the next
+ * (primary, secondary, sort, view) state carried on every event binding. Every
+ * {@code handleDataEvent} exit path sends a response.
  */
 public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventData> {
 
     private static final String PAGE_TEMPLATE = "Pages/ZigLeaderboardPage.ui";
     private static final String ROW_TEMPLATE = "Pages/ZigLeaderboardRow.ui";
+    private static final String STATS_ROW_TEMPLATE = "Pages/ZigLeaderboardStatsRow.ui";
     private static final String TAB_TEMPLATE = "Pages/ZigLeaderboardTab.ui";
     private static final int MAX_ROWS = 100;
-    private static final String TAB_ACTIVE = "#5a7ba8";
+    private static final String ACTIVE_TINT = "#5a7ba8";
+    private static final String ACTIVE_TEXT = "#ffffff";
 
     private final LeaderboardPageDeps deps;
-    private final String activeBucket;
+    private final String activePrimary; // "" when there is no primary axis
+    private final String activeSecondary;
+    private final SortMode sort;
+    private final boolean statsView;
 
     public LeaderboardPage(@Nonnull PlayerRef playerRef, @Nonnull LeaderboardPageDeps deps) {
         this(playerRef, deps, null);
     }
 
+    /**
+     * Deep-link convenience: {@code bucket} is either a combined {@code "<primary>_<secondary>"}
+     * key (split on the first underscore) or a bare secondary key (legacy single-axis board).
+     */
     public LeaderboardPage(@Nonnull PlayerRef playerRef, @Nonnull LeaderboardPageDeps deps,
                            @Nullable String bucket) {
+        this(playerRef, deps, splitPrimary(deps, bucket), splitSecondary(deps, bucket),
+                SortMode.BEST_SCORE, false);
+    }
+
+    public LeaderboardPage(@Nonnull PlayerRef playerRef, @Nonnull LeaderboardPageDeps deps,
+                           @Nullable String primary, @Nullable String secondary,
+                           @Nullable SortMode sort, boolean statsView) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, LeaderboardEventData.CODEC);
         this.deps = deps;
-        this.activeBucket = resolveBucket(deps, bucket);
+        this.activePrimary = resolveKey(deps.primaryTabs(), primary);
+        this.activeSecondary = resolveKey(deps.tabs(), secondary);
+        this.sort = sort != null ? sort : SortMode.BEST_SCORE;
+        this.statsView = statsView && !deps.statColumns().isEmpty();
     }
 
     @Nonnull
-    private static String resolveBucket(@Nonnull LeaderboardPageDeps deps, @Nullable String bucket) {
-        if (bucket != null) {
-            for (LeaderboardBucketTab tab : deps.tabs()) {
-                if (tab.bucketKey().equals(bucket)) {
-                    return bucket;
+    private static String resolveKey(@Nonnull List<LeaderboardBucketTab> tabs, @Nullable String key) {
+        if (key != null) {
+            for (LeaderboardBucketTab tab : tabs) {
+                if (tab.bucketKey().equals(key)) {
+                    return key;
                 }
             }
         }
-        return deps.tabs().isEmpty() ? "" : deps.tabs().get(0).bucketKey();
+        return tabs.isEmpty() ? "" : tabs.get(0).bucketKey();
+    }
+
+    @Nullable
+    private static String splitPrimary(@Nonnull LeaderboardPageDeps deps, @Nullable String bucket) {
+        if (bucket == null || deps.primaryTabs().isEmpty()) {
+            return null;
+        }
+        int i = bucket.indexOf('_');
+        return i > 0 ? bucket.substring(0, i) : null;
+    }
+
+    @Nullable
+    private static String splitSecondary(@Nonnull LeaderboardPageDeps deps, @Nullable String bucket) {
+        if (bucket == null) {
+            return null;
+        }
+        if (deps.primaryTabs().isEmpty()) {
+            return bucket;
+        }
+        int i = bucket.indexOf('_');
+        return i > 0 ? bucket.substring(i + 1) : bucket;
+    }
+
+    /** The selected per-bucket key: {@code primary_secondary} when a primary axis exists, else secondary. */
+    @Nonnull
+    private String activeBucket() {
+        return activePrimary.isEmpty() ? activeSecondary : activePrimary + "_" + activeSecondary;
     }
 
     @Override
@@ -80,76 +126,216 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
 
         cmd.set("#Title.Text", t.title());
+        boolean hasStats = !deps.statColumns().isEmpty();
+
+        // Tab axes.
+        buildTabRow(cmd, events, "#GroupBar", deps.primaryTabs(), activePrimary, "group");
+        buildTabRow(cmd, events, "#TabBar", deps.tabs(), activeSecondary, "tab");
+        cmd.set("#GroupBar.Visible", !deps.primaryTabs().isEmpty());
+
+        // Sort toggle (Rankings only) + view toggle.
+        String viewStr = statsView ? "stats" : "rankings";
+        cmd.set("#SortBest.Text", t.sortScore());
+        cmd.set("#SortTotal.Text", t.sortTotal());
+        cmd.set("#SortTime.Text", t.sortTime());
+        bind(events, "#SortBest", "sort", activePrimary, activeSecondary, SortMode.BEST_SCORE.name(), viewStr);
+        bind(events, "#SortTotal", "sort", activePrimary, activeSecondary, SortMode.TOTAL_POINTS.name(), viewStr);
+        bind(events, "#SortTime", "sort", activePrimary, activeSecondary, SortMode.BEST_TIME.name(), viewStr);
+        if (!statsView) {
+            tint(cmd, sortButton(sort));
+        }
+        cmd.set("#SortGroup.Visible", !statsView);
+
+        cmd.set("#ViewRankings.Text", t.viewRankings());
+        cmd.set("#ViewStats.Text", t.viewStats());
+        bind(events, "#ViewRankings", "view", activePrimary, activeSecondary, sort.name(), "rankings");
+        bind(events, "#ViewStats", "view", activePrimary, activeSecondary, sort.name(), "stats");
+        cmd.set("#ViewGroup.Visible", hasStats);
+        tint(cmd, statsView ? "#ViewStats" : "#ViewRankings");
+
+        if (statsView) {
+            buildStats(cmd, t);
+        } else {
+            buildRankings(cmd, t);
+        }
+    }
+
+    // ==================== rankings view ====================
+
+    private void buildRankings(@Nonnull UICommandBuilder cmd, @Nonnull LeaderboardScreenMessages t) {
+        cmd.set("#TableHeader.Visible", true);
+        cmd.set("#StatsHeader.Visible", false);
         cmd.set("#HdrRank.Text", t.colRank());
         cmd.set("#HdrPlayer.Text", t.colPlayer());
+        cmd.set("#HdrTotal.Text", t.colTotal());
         cmd.set("#HdrScore.Text", t.colScore());
         cmd.set("#HdrTime.Text", t.colTime());
         cmd.set("#HdrPlays.Text", t.colPlays());
-        cmd.set("#EmptyState.Text", t.empty());
 
-        List<LeaderboardBucketTab> tabs = deps.tabs();
-        for (int i = 0; i < tabs.size(); i++) {
-            LeaderboardBucketTab tab = tabs.get(i);
-            cmd.append("#TabBar", TAB_TEMPLATE);
-            String sel = "#TabBar[" + i + "]";
-            cmd.set(sel + " #TabBtn.Text", tab.label());
-            if (tab.bucketKey().equals(activeBucket)) {
-                cmd.set(sel + " #TabBtn.Style.Default.Background.Color", TAB_ACTIVE);
-                cmd.set(sel + " #TabBtn.Style.Hovered.Background.Color", TAB_ACTIVE);
-                cmd.set(sel + " #TabBtn.Style.Pressed.Background.Color", TAB_ACTIVE);
-                cmd.set(sel + " #TabBtn.Style.Default.LabelStyle.TextColor", "#ffffff");
-            }
-            events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #TabBtn",
-                    EventData.of("Action", "tab").append("Bucket", tab.bucketKey()), false);
-        }
-
-        Map<UUID, LeaderboardEntry> bucket = deps.board().forBucket(activeBucket);
+        Map<UUID, LeaderboardEntry> bucket = deps.board().forBucket(activeBucket());
         List<Map.Entry<UUID, LeaderboardEntry>> sorted = new ArrayList<>(bucket.entrySet());
-        sorted.sort(Comparator.comparingInt((Map.Entry<UUID, LeaderboardEntry> e) -> e.getValue().bestScore).reversed());
+        sorted.sort(sort.comparator());
 
         UUID self = playerRef.getUuid();
         if (sorted.isEmpty()) {
+            cmd.set("#EmptyState.Text", t.empty());
             cmd.set("#EmptyState.Visible", true);
         } else {
             int max = Math.min(sorted.size(), MAX_ROWS);
             for (int i = 0; i < max; i++) {
                 Map.Entry<UUID, LeaderboardEntry> en = sorted.get(i);
-                appendRow(cmd, i, i + 1, en.getKey(), en.getValue(), en.getKey().equals(self));
+                appendRankRow(cmd, i, i + 1, en.getKey(), en.getValue(), en.getKey().equals(self));
             }
         }
         setYourRank(cmd, t, sorted, self);
     }
 
-    private void appendRow(@Nonnull UICommandBuilder cmd, int index, int rank,
-                           @Nonnull UUID uuid, @Nonnull LeaderboardEntry e, boolean isSelf) {
+    private void appendRankRow(@Nonnull UICommandBuilder cmd, int index, int rank,
+                               @Nonnull UUID uuid, @Nonnull LeaderboardEntry e, boolean isSelf) {
         cmd.append("#LeaderboardList", ROW_TEMPLATE);
         String sel = "#LeaderboardList[" + index + "]";
-        // Plain data (rank / name / score / time / plays) is set as a plain String, NOT a raw
-        // Message: a Label's .Text is a client String property that accepts a string (and resolves
-        // a translation Message) but cannot construct one from a raw-Message object - that aborts
-        // the whole CustomUI update. Numbers + a proper-noun username are locale-neutral data.
+        // Plain data (rank / name / numbers) is a plain String, NOT a raw Message: a Label's .Text
+        // accepts a string (and resolves a translation key) but cannot wrap a raw-Message object,
+        // which would abort the whole CustomUI update. Numbers + a proper-noun username are data.
         cmd.set(sel + " #Rank.Text", "#" + rank);
         cmd.set(sel + " #Player.Text", resolveName(uuid, e));
+        cmd.set(sel + " #Total.Text", NumberFormatter.grouped(e.totalPoints));
         cmd.set(sel + " #Score.Text", NumberFormatter.grouped(e.bestScore));
         cmd.set(sel + " #Time.Text", e.bestTimeSeconds > 0 ? formatTime(e.bestTimeSeconds) : "-");
         cmd.set(sel + " #Plays.Text", Integer.toString(e.plays));
+        paintRank(cmd, sel, rank, isSelf);
+    }
+
+    // ==================== stats view ====================
+
+    private void buildStats(@Nonnull UICommandBuilder cmd, @Nonnull LeaderboardScreenMessages t) {
+        cmd.set("#TableHeader.Visible", false);
+        cmd.set("#StatsHeader.Visible", true);
+        cmd.set("#SHdrRank.Text", t.colRank());
+        cmd.set("#SHdrPlayer.Text", t.colPlayer());
+        cmd.set("#SHdrPlays.Text", t.colPlays());
+        List<StatColumnDef> cols = deps.statColumns();
+        int shown = Math.min(cols.size(), StatColumnDef.MAX_STAT_COLUMNS);
+        for (int c = 0; c < StatColumnDef.MAX_STAT_COLUMNS; c++) {
+            String hdr = "#SHdrCol" + c;
+            if (c < shown) {
+                cmd.set(hdr + ".Text", cols.get(c).label());
+                cmd.set(hdr + ".Visible", true);
+            } else {
+                cmd.set(hdr + ".Visible", false);
+            }
+        }
+
+        // GLOBAL aggregate across the whole mode's board (every difficulty x size bucket).
+        Map<UUID, LeaderboardEntry> all = deps.board().forBuckets(deps.board().bucketKeys());
+        List<Map.Entry<UUID, LeaderboardEntry>> sorted = new ArrayList<>(all.entrySet());
+        sorted.sort(SortMode.TOTAL_POINTS.comparator());
+
+        UUID self = playerRef.getUuid();
+        if (sorted.isEmpty()) {
+            cmd.set("#EmptyState.Text", t.empty());
+            cmd.set("#EmptyState.Visible", true);
+        } else {
+            int max = Math.min(sorted.size(), MAX_ROWS);
+            for (int i = 0; i < max; i++) {
+                Map.Entry<UUID, LeaderboardEntry> en = sorted.get(i);
+                appendStatsRow(cmd, i, i + 1, en.getKey(), en.getValue(), cols, shown, en.getKey().equals(self));
+            }
+        }
+        setYourRank(cmd, t, sorted, self);
+    }
+
+    private void appendStatsRow(@Nonnull UICommandBuilder cmd, int index, int rank, @Nonnull UUID uuid,
+                                @Nonnull LeaderboardEntry e, @Nonnull List<StatColumnDef> cols, int shown,
+                                boolean isSelf) {
+        cmd.append("#LeaderboardList", STATS_ROW_TEMPLATE);
+        String sel = "#LeaderboardList[" + index + "]";
+        cmd.set(sel + " #Rank.Text", "#" + rank);
+        cmd.set(sel + " #Player.Text", resolveName(uuid, e));
+        cmd.set(sel + " #Plays.Text", Integer.toString(e.plays));
+        for (int c = 0; c < StatColumnDef.MAX_STAT_COLUMNS; c++) {
+            String cell = sel + " #Col" + c;
+            if (c < shown) {
+                StatColumnDef def = cols.get(c);
+                cmd.set(cell + ".Text", def.format().render(e.stat(def.statKey())));
+                cmd.set(cell + ".Visible", true);
+            } else {
+                cmd.set(cell + ".Visible", false);
+            }
+        }
+        paintRank(cmd, sel, rank, isSelf);
+    }
+
+    // ==================== shared rendering ====================
+
+    private void buildTabRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+                             @Nonnull String container, @Nonnull List<LeaderboardBucketTab> tabs,
+                             @Nonnull String active, @Nonnull String action) {
+        String viewStr = statsView ? "stats" : "rankings";
+        for (int i = 0; i < tabs.size(); i++) {
+            LeaderboardBucketTab tab = tabs.get(i);
+            cmd.append(container, TAB_TEMPLATE);
+            String sel = container + "[" + i + "]";
+            cmd.set(sel + " #TabBtn.Text", tab.label());
+            if (tab.bucketKey().equals(active)) {
+                tint(cmd, sel + " #TabBtn");
+            }
+            String group = action.equals("group") ? tab.bucketKey() : activePrimary;
+            String bucket = action.equals("group") ? activeSecondary : tab.bucketKey();
+            bind(events, sel + " #TabBtn", action, group, bucket, sort.name(), viewStr);
+        }
+    }
+
+    /** Bind a control so its click round-trips the page's full NEXT state (no duplicate keys). */
+    private void bind(@Nonnull UIEventBuilder events, @Nonnull String selector, @Nonnull String action,
+                      @Nonnull String group, @Nonnull String bucket, @Nonnull String sortName,
+                      @Nonnull String view) {
+        events.addEventBinding(CustomUIEventBindingType.Activating, selector,
+                EventData.of("Action", action)
+                        .append("Group", group)
+                        .append("Bucket", bucket)
+                        .append("Sort", sortName)
+                        .append("View", view),
+                false);
+    }
+
+    private static void tint(@Nonnull UICommandBuilder cmd, @Nonnull String btnSelector) {
+        cmd.set(btnSelector + ".Style.Default.Background.Color", ACTIVE_TINT);
+        cmd.set(btnSelector + ".Style.Hovered.Background.Color", ACTIVE_TINT);
+        cmd.set(btnSelector + ".Style.Pressed.Background.Color", ACTIVE_TINT);
+        cmd.set(btnSelector + ".Style.Default.LabelStyle.TextColor", ACTIVE_TEXT);
+    }
+
+    private static void paintRank(@Nonnull UICommandBuilder cmd, @Nonnull String rowSel, int rank, boolean isSelf) {
         if (rank == 1) {
-            cmd.set(sel + " #Rank.Style.TextColor", "#ffd700");
+            cmd.set(rowSel + " #Rank.Style.TextColor", "#ffd700");
         } else if (rank == 2) {
-            cmd.set(sel + " #Rank.Style.TextColor", "#c0c0c0");
+            cmd.set(rowSel + " #Rank.Style.TextColor", "#c0c0c0");
         } else if (rank == 3) {
-            cmd.set(sel + " #Rank.Style.TextColor", "#cd7f32");
+            cmd.set(rowSel + " #Rank.Style.TextColor", "#cd7f32");
         }
         if (isSelf) {
-            cmd.set(sel + ".Background", "#1a3d4a");
+            cmd.set(rowSel + ".Background", "#1a3d4a");
         }
+    }
+
+    @Nonnull
+    private static String sortButton(@Nonnull SortMode mode) {
+        return switch (mode) {
+            case BEST_SCORE -> "#SortBest";
+            case TOTAL_POINTS -> "#SortTotal";
+            case BEST_TIME -> "#SortTime";
+        };
     }
 
     private void setYourRank(@Nonnull UICommandBuilder cmd, @Nonnull LeaderboardScreenMessages t,
                              @Nonnull List<Map.Entry<UUID, LeaderboardEntry>> sorted, @Nonnull UUID self) {
         for (int i = 0; i < sorted.size(); i++) {
             if (sorted.get(i).getKey().equals(self)) {
-                cmd.set("#YourRank.Text", t.yourRank(i + 1, sorted.get(i).getValue().bestScore));
+                long metric = statsView
+                        ? sorted.get(i).getValue().totalPoints
+                        : sort.metric(sorted.get(i).getValue());
+                cmd.set("#YourRank.Text", t.yourRank(i + 1, metric));
                 return;
             }
         }
@@ -163,11 +349,28 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         if (player == null) {
             return;
         }
-        if ("tab".equals(data.action) && data.bucket != null) {
-            player.getPageManager().openCustomPage(ref, store, new LeaderboardPage(playerRef, deps, data.bucket));
+        if (data.action == null || "close".equals(data.action)) {
+            player.getPageManager().setPage(ref, store, Page.None);
             return;
         }
-        player.getPageManager().setPage(ref, store, Page.None);
+        String primary = data.group;
+        String secondary = data.bucket;
+        SortMode nextSort = parseSort(data.sort);
+        boolean nextStats = "stats".equals(data.view);
+        player.getPageManager().openCustomPage(ref, store,
+                new LeaderboardPage(playerRef, deps, primary, secondary, nextSort, nextStats));
+    }
+
+    @Nonnull
+    private SortMode parseSort(@Nullable String name) {
+        if (name != null) {
+            try {
+                return SortMode.valueOf(name);
+            } catch (IllegalArgumentException ignored) {
+                // fall through to current
+            }
+        }
+        return sort;
     }
 
     @Nonnull
