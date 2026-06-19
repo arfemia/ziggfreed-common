@@ -1,0 +1,73 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$M = "../Common/ZigButtons.ui";
+
+// Generic Play screen (com.ziggfreed.common.instance.play.PlayModePage). ONE page that
+// morphs between the mode-card chooser (#ModeCards) and the live roster (#RosterArea) -
+// Java toggles .Visible per the player's live-queue state. The roster #Status countdown
+// ticks DOWN live via sendUpdate (no reopen). Cards append Pages/ZigPlayModeCard.ui;
+// roster rows append Pages/ZigQueueRosterRow.ui. Shipped once in ziggfreed-common; neutral
+// Zig* ids. Smoke-test in-game (.ui is not gradle-validated).
+
+$C.@PageOverlay {}
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 580, Height: 560);
+
+  #Content {
+    Label #Title {
+      Text: "";
+      Anchor: (Height: 30, Bottom: 4);
+      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
+    }
+    Label #Subtitle {
+      Text: "";
+      Anchor: (Height: 20, Bottom: 10);
+      Style: (FontSize: 14, TextColor: #d7e4f0);
+    }
+
+    Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
+
+    // ----- chooser: the asset-driven mode cards (Public / Party / Solo), appended L->R -----
+    Group #ModeCards {
+      LayoutMode: Left;
+      Anchor: (Height: 200, Bottom: 4);
+    }
+
+    // ----- roster / ready: shown once the player is queued -----
+    Group #RosterArea {
+      Visible: false;
+      FlexWeight: 1;
+      LayoutMode: Top;
+
+      Label #PlayerCount {
+        Text: "";
+        Anchor: (Height: 20, Bottom: 4);
+        Style: (FontSize: 14, TextColor: #d7e4f0);
+      }
+      Label #Status {
+        Text: "";
+        Anchor: (Height: 22, Bottom: 4);
+        Style: (FontSize: 16, TextColor: #5ab0ff, RenderBold: true);
+      }
+      Label #WaitEstimate {
+        Text: "";
+        Anchor: (Height: 18, Bottom: 8);
+        Style: (FontSize: 11, TextColor: #8696a8);
+      }
+
+      Group #RosterList {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 4);
+      }
+
+      Group #FooterRow {
+        LayoutMode: Left;
+        Anchor: (Height: 36, Top: 8);
+        TextButton #LeaveBtn { FlexWeight: 1; Anchor: (Height: 36); Style: $M.@ZigOptionBtnStyle; Visible: false; }
+      }
+    }
+  }
+}

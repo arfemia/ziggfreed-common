@@ -1,0 +1,10 @@
+# util/ - mod-agnostic helper primitives
+
+Router for `com.ziggfreed.common.util`. Small, config-free, reusable helpers; no Kweebec/MMO imports, no i18n. Engine-touching helpers are world-thread only (caller's responsibility) and try-guarded.
+
+- **[`AssetIndexCache`](AssetIndexCache.java)** - `AssetIndexCache<T>.of(id, lookup)` / `ofCandidates(ids, lookup)` -> `resolve()`: memoize an asset id (or first candidate) to its map index, caching ONLY a strictly-positive index (the engine's `MIN_VALUE`/`0` are "not ready" and re-resolve). One instance per logical asset (e.g. a sound). Thread-safe (`volatile`).
+- **[`DamageCauseCache`](DamageCauseCache.java)** - `getCauseIndex(causeId)`: memoize `DamageCause.getAssetMap().getIndex(id)` in a `ConcurrentHashMap`, caching ONLY a resolved (`>= 0`) index (the cause asset registers AFTER class load); try-guarded, returns `UNRESOLVED` (-1) on miss / not-ready map. Lets a damage observer ID a custom (or vanilla) cause by a cheap integer compare vs `damage.getDamageCauseIndex()`. Generalizes Kweebec's `KweebecDamageSystem.isMoonbloomCause` cache; `invalidate(id)` / `invalidateAll()` drop entries.
+- **[`NumberFormatter`](NumberFormatter.java)** - `grouped(amount)` (`1200 -> "1,200"`) / `compact(value, kThreshold)` (`-> "1.2M"`/`"1.2k"`): the single numeric-display source. Pure Java, zero engine coupling.
+- **[`CommandExecutor`](CommandExecutor.java)** - `executeAsConsole(cmd[, username])` / `executeAsPlayer(playerRef, cmd)`: run a command string via the engine `CommandManager` as console or a player. The caller builds the final command string (no placeholder substitution here); logging is unit-JVM guarded.
+- **[`HostilityUtil`](HostilityUtil.java)** - `isHostileTowards(store, npcRef, targetRef)`: true when the NPC's Blackboard `AttitudeView` resolves `HOSTILE` toward the target. World-thread only; try-guarded.
+- **[`EntityIdentifierUtil`](EntityIdentifierUtil.java)** - `describeEntity(store, ref)` (human-readable log label) / `getMobId(store, ref)` (best-effort model-asset id, e.g. `"Skeleton_Fighter"`): identify mobs/players from ECS components for attribution/logging. World-thread only.

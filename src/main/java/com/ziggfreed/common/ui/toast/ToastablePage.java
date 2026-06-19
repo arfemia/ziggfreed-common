@@ -66,6 +66,18 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
     }
 
     /**
+     * True once this page instance has been navigated away from / closed / client-dismissed
+     * (set by {@link #onDismiss}, cleared on the next {@link #renderToastInto} rebuild). A
+     * subclass that pushes an off-thread {@code sendUpdate} (e.g. a live countdown driven by
+     * a queue listener) MUST guard it on {@code !isDismissed()}: the engine does not verify
+     * the page is still active, so an unguarded stale push targets whatever page replaced it
+     * and crashes the client - the same hazard the toast surface guards.
+     */
+    protected final boolean isDismissed() {
+        return dismissed;
+    }
+
+    /**
      * Show a toast for an in-menu action result. Sets the current toast and schedules its
      * auto-dismiss; the toast paints on the page's next {@code build()} (the handler should
      * reopen the page after this call).

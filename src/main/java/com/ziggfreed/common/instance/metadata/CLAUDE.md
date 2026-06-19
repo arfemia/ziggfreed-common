@@ -1,0 +1,5 @@
+# instance/metadata/ - the generic round-telemetry envelope
+
+Router for `instance/metadata/`. A tiny, dependency-free, PURE-DATA integration envelope a consumer fires alongside its own native outbound event (e.g. Kweebec's `RoundCompletedEvent`) so another mod can read a finished round's shape without depending on the producer's internal types. No engine API, no i18n, no hardcoded ids - the consumer supplies every value (id/mode/preset are free strings, difficulty is the consumer's numeric scale).
+
+- **[`RoundMetadata`](RoundMetadata.java)** - the immutable record `{ String modId, @Nullable String modeId, @Nullable String presetId, int difficulty, int playerCount, long durationSeconds, @Nullable String resultKind }`. `modId` is the only required field (a null is coerced to `""` so the envelope never carries a null producer id); optional string fields are `@Nullable`. Build it via the canonical all-args constructor, the `of(...)` factory, or the fluent `builder(modId).modeId(..).difficulty(..)...build()`. Pure logic, no logging.

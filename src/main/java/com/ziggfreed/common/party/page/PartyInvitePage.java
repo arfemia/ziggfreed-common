@@ -62,6 +62,9 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
     private final PartyPageDeps deps;
     private String activeTab = TAB_PARTY;
     private String searchText = "";
+    /** The difficulty chosen upstream (Play screen -> Party mode); threaded to the Queue handler. */
+    @Nullable
+    private String presetId = null;
 
     public PartyInvitePage(@Nonnull PlayerRef playerRef, @Nonnull PartyPageDeps deps) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, PartyEventData.CODEC);
@@ -73,6 +76,13 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         this(playerRef, deps);
         this.activeTab = TAB_INVITE.equals(activeTab) ? TAB_INVITE : TAB_PARTY;
         this.searchText = searchText == null ? "" : searchText;
+    }
+
+    /** As the 4-arg form, plus the chosen difficulty the Queue button carries into the lobby. */
+    public PartyInvitePage(@Nonnull PlayerRef playerRef, @Nonnull PartyPageDeps deps,
+                           @Nonnull String activeTab, @Nullable String searchText, @Nullable String presetId) {
+        this(playerRef, deps, activeTab, searchText);
+        this.presetId = presetId;
     }
 
     @Override
@@ -344,7 +354,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                 PartyQueueHandler handler = deps.queueHandler();
                 if (handler != null) {
                     try {
-                        handler.queue(playerRef, ref, store);
+                        handler.queue(playerRef, ref, store, presetId);
                     } catch (Throwable ignored) {
                     }
                     return; // the handler owns the next page (queue screen / close)

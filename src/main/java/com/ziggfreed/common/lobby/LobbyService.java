@@ -105,6 +105,26 @@ public final class LobbyService {
         return queue(key, config, launcher, alreadyEngaged, online, messages).joinParty(party, initiator);
     }
 
+    /**
+     * Reserve a self-scoped PRIVATE queue for {@code uuid} and launch it RIGHT NOW: no
+     * fill window, no countdown, no strangers. Respects the global one-queue-per-player
+     * reservation (fails with a conflict if {@code uuid} is already queued/engaged) and
+     * fires the same {@link RoundLauncher} off-lock as a normal launch. Only the fill +
+     * countdown timers are forced to 0 and solo forced on for this one launch;
+     * {@code config}'s {@code maxParty} (the arena-budget clamp) is preserved. Built on
+     * {@link #queueParty} + {@link QueueKey#privateQueue} - no new state-machine branch:
+     * a 0/0 {@link LobbyConfig} makes the queue's fill + countdown fast-paths fire the
+     * launch immediately, off the join lock, on the daemon thread.
+     */
+    @Nonnull
+    public GroupJoinResult launchSolo(@Nonnull QueueKey baseKey, @Nonnull UUID uuid,
+                                      @Nonnull LobbyConfig config, @Nonnull RoundLauncher launcher,
+                                      @Nonnull Predicate<UUID> alreadyEngaged, @Nonnull QueueMessages messages) {
+        QueueKey key = QueueKey.privateQueue(baseKey.gameId(), baseKey.presetId(), uuid);
+        LobbyConfig now = new LobbyConfig(1, config.maxParty(), 0, 0, true, false);
+        return queueParty(key, List.of(uuid), uuid, now, launcher, alreadyEngaged, messages);
+    }
+
     /** True if {@code uuid} is sitting in any queue right now. */
     public boolean isQueued(@Nonnull UUID uuid) {
         return queuedTo.containsKey(uuid);

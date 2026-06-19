@@ -9,6 +9,7 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.instance.reward.RewardOnExit;
 
@@ -45,8 +46,8 @@ import com.ziggfreed.common.instance.reward.RewardOnExit;
 public final class InstancePresetAsset
         implements JsonAssetWithMap<String, DefaultAssetMap<String, InstancePresetAsset>> {
 
-    /** Sentinel for an absent optional int (use the documented default). */
-    private static final int UNSET_INT = Integer.MIN_VALUE;
+    /** Sentinel for an absent optional int (use the documented default). Package-visible for {@link QueueModeSet}. */
+    static final int UNSET_INT = Integer.MIN_VALUE;
 
     /** Queue-policy defaults (Kweebec's previously-hardcoded values). */
     private static final int DEFAULT_FILL_SECONDS = 20;
@@ -68,6 +69,7 @@ public final class InstancePresetAsset
     @Nullable private String leaderboardKey;
     @Nullable private String[] rewards;
     @Nullable private String rewardOnExit;
+    @Nullable private QueueModes queueModes;
 
     public static final AssetBuilderCodec<String, InstancePresetAsset> CODEC = AssetBuilderCodec.builder(
                     InstancePresetAsset.class,
@@ -105,6 +107,8 @@ public final class InstancePresetAsset
             .add()
             .append(new KeyedCodec<>("RewardOnExit", Codec.STRING, false), (a, v) -> a.rewardOnExit = v, a -> a.rewardOnExit)
             .add()
+            .append(new KeyedCodec<>("QueueModes", QueueModes.CODEC, false), (a, v) -> a.queueModes = v, a -> a.queueModes)
+            .add()
             .build();
 
     public InstancePresetAsset() {
@@ -134,6 +138,45 @@ public final class InstancePresetAsset
         return new InstancePreset(presetId.toLowerCase(java.util.Locale.ROOT), enabled, nameKey, descriptionKey,
                 fill, countdown, solo, force,
                 LeaderboardBucket.fromString(leaderboardBucket), leaderboardKey,
-                InstanceReward.parseAll(rewards), RewardOnExit.fromString(rewardOnExit));
+                InstanceReward.parseAll(rewards), RewardOnExit.fromString(rewardOnExit),
+                QueueModeSet.from(queueModes));
+    }
+
+    /**
+     * One authored queue-mode entry (a card on the {@code PlayModePage}). All fields
+     * optional; absent = the neutral fallback ({@link QueueModeSet#fallback()} overlays).
+     * PascalCase keys (the codec rejects a lower-case first letter at static init).
+     */
+    public static final class QueueMode {
+        public static final BuilderCodec<QueueMode> CODEC = BuilderCodec.builder(QueueMode.class, QueueMode::new)
+                .append(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false), (m, v) -> m.enabled = v, m -> m.enabled).add()
+                .append(new KeyedCodec<>("IconItemId", Codec.STRING, false), (m, v) -> m.iconItemId = v, m -> m.iconItemId).add()
+                .append(new KeyedCodec<>("Order", Codec.INTEGER, false), (m, v) -> m.order = v, m -> m.order).add()
+                .append(new KeyedCodec<>("LabelKey", Codec.STRING, false), (m, v) -> m.labelKey = v, m -> m.labelKey).add()
+                .build();
+
+        @Nullable protected Boolean enabled;
+        @Nullable protected String iconItemId;
+        protected int order = UNSET_INT;
+        @Nullable protected String labelKey;
+
+        public QueueMode() {
+        }
+    }
+
+    /** The three fixed queue modes a preset can author, each optional ({@code Public}/{@code Party}/{@code Solo}). */
+    public static final class QueueModes {
+        public static final BuilderCodec<QueueModes> CODEC = BuilderCodec.builder(QueueModes.class, QueueModes::new)
+                .append(new KeyedCodec<>("Public", QueueMode.CODEC, false), (q, v) -> q.publicMode = v, q -> q.publicMode).add()
+                .append(new KeyedCodec<>("Party", QueueMode.CODEC, false), (q, v) -> q.partyMode = v, q -> q.partyMode).add()
+                .append(new KeyedCodec<>("Solo", QueueMode.CODEC, false), (q, v) -> q.soloMode = v, q -> q.soloMode).add()
+                .build();
+
+        @Nullable protected QueueMode publicMode;
+        @Nullable protected QueueMode partyMode;
+        @Nullable protected QueueMode soloMode;
+
+        public QueueModes() {
+        }
     }
 }

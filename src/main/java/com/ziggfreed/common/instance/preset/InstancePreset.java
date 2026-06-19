@@ -26,7 +26,7 @@ public record InstancePreset(@Nonnull String id, boolean enabled, @Nullable Stri
                              @Nullable String descriptionKey, int fillTimeoutSeconds, int countdownSeconds,
                              boolean allowSolo, boolean leaderForceStart, @Nonnull LeaderboardBucket leaderboardBucket,
                              @Nullable String leaderboardKey, @Nonnull List<InstanceReward> rewards,
-                             @Nonnull RewardOnExit rewardOnExit) {
+                             @Nonnull RewardOnExit rewardOnExit, @Nonnull QueueModeSet queueModes) {
 
     public InstancePreset {
         rewards = List.copyOf(rewards);

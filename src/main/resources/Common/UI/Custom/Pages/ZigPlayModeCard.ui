@@ -1,0 +1,57 @@
+$C = "../Common.ui";
+$M = "../Common/ZigButtons.ui";
+
+// One Play-screen mode card (appended into #ModeCards; see PlayModePage). A vertical card:
+// an item-glyph icon (set from Java via #CardIcon.Slots - a DATA property, settable, unlike
+// a texture path which would render a red X), a clickable name button (#CardBtn, the click
+// target Java binds per mode), and a one-line description. Mirrors ZigResultChip.ui's icon
+// style. Smoke-test the icon centering in-game (.ui is not gradle-validated).
+
+@ZigPlayIconStyle = ItemGridStyle(
+  SlotSize: 48,
+  SlotIconSize: 44,
+  SlotSpacing: 0,
+  SlotBackground: "../Common/ContainerPanelPatch.png",
+  QuantityPopupSlotOverlay: "../Common/ContainerPanelPatch.png",
+  BrokenSlotBackgroundOverlay: "../Common/ContainerPanelPatch.png",
+  BrokenSlotIconOverlay: "../Common/ContainerPanelPatch.png",
+  DefaultItemIcon: "../Common/ContainerPanelPatch.png",
+  DurabilityBar: "../Common/ContainerPanelPatch.png",
+  DurabilityBarBackground: "../Common/ContainerPanelPatch.png",
+  DurabilityBarAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0),
+  DurabilityBarColorStart: #a63232,
+  DurabilityBarColorEnd: #63b649,
+  CursedIconPatch: "../Common/ContainerPanelPatch.png",
+  CursedIconAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0)
+);
+
+Group #ZigPlayModeCard {
+  Anchor: (Width: 170, Height: 196, Right: 8);
+  Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 6);
+  Padding: (Full: 10);
+  LayoutMode: Top;
+
+  Group #CardIconWrap {
+    Anchor: (Height: 56, Bottom: 8);
+    LayoutMode: Top;
+    ItemGrid #CardIcon {
+      Anchor: (Width: 48, Height: 48);
+      SlotsPerRow: 1;
+      AreItemsDraggable: false;
+      DisplayItemQuantity: false;
+      Style: @ZigPlayIconStyle;
+    }
+  }
+
+  TextButton #CardBtn {
+    Anchor: (Height: 36, Bottom: 8);
+    Text: "";
+    Style: $M.@ZigTabBtnStyle;
+  }
+
+  Label #CardSub {
+    FlexWeight: 1;
+    Text: "";
+    Style: (FontSize: 11, TextColor: #b6c9de, HorizontalAlignment: Center);
+  }
+}
