@@ -1,7 +1,5 @@
 package com.ziggfreed.common.dialogue.template;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -11,16 +9,14 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
+import com.ziggfreed.common.util.JsonTreeUtil;
 
 /**
- * Shared, pure JSON primitives for dialogue template resolution: deep-clone,
- * {@code {{param}}} substitution (with the "empty resolve drops the holding key"
- * rule that lets templates expose optional fields), recursive object merge, and
- * the string-keyed {@code Nodes} map merge/append with the per-index
- * {@code Options} overlay semantics. The dialogue-scoped copy that lives in
- * {@code ziggfreed-common} (an MMO sibling keeps its own copy for its non-dialogue
- * resolvers); only the engine-jar + Gson are dependencies.
+ * Dialogue-specific template primitives: the string-keyed {@code Nodes} map merge/append with the
+ * per-index {@code Options} overlay semantics, plus thin re-exports of the four mod-agnostic JSON
+ * primitives (deep-clone, {@code {{param}}} substitution, recursive merge) that now live ONCE in
+ * {@link JsonTreeUtil} so the MMO's non-dialogue resolvers and this dialogue resolver share one
+ * implementation. Only the engine-jar + Gson are dependencies.
  */
 public final class JsonTemplateUtil {
 
@@ -36,99 +32,26 @@ public final class JsonTemplateUtil {
      */
     public enum OptionMode { MERGE_BY_INDEX, REPLACE }
 
-    /** Deep-clone {@code source} via a JSON round-trip (Gson exposes no public deep-copy). */
+    /** Deep-clone {@code source}. Delegates to {@link JsonTreeUtil#deepClone(JsonObject)}. */
     @Nonnull
     public static JsonObject deepClone(@Nonnull JsonObject source) {
-        return JsonParser.parseString(source.toString()).getAsJsonObject();
+        return JsonTreeUtil.deepClone(source);
     }
 
-    /**
-     * Walk {@code node} recursively, replacing {@code {{key}}} substrings in string
-     * values with {@code params.get(key)}. Mutates in place. A string whose tokens
-     * all resolved to empty drops its holding key (templates expose optional fields
-     * a caller omits via an empty param).
-     */
+    /** {@code {{param}}} substitution over a whole tree. Delegates to {@link JsonTreeUtil#substituteParamsInPlace}. */
     public static void substituteParamsInPlace(@Nonnull JsonElement node, @Nonnull JsonObject params) {
-        if (node.isJsonObject()) {
-            JsonObject obj = node.getAsJsonObject();
-            List<String> keysToDrop = new ArrayList<>();
-            List<Map.Entry<String, JsonElement>> entries = new ArrayList<>(obj.entrySet());
-            for (Map.Entry<String, JsonElement> entry : entries) {
-                JsonElement value = entry.getValue();
-                if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
-                    String original = value.getAsString();
-                    String substituted = substituteString(original, params);
-                    if (substituted.isEmpty() && !original.isEmpty()) {
-                        keysToDrop.add(entry.getKey());
-                    } else if (!substituted.equals(original)) {
-                        obj.addProperty(entry.getKey(), substituted);
-                    }
-                } else if (value.isJsonObject() || value.isJsonArray()) {
-                    substituteParamsInPlace(value, params);
-                }
-            }
-            for (String k : keysToDrop) obj.remove(k);
-        } else if (node.isJsonArray()) {
-            JsonArray arr = node.getAsJsonArray();
-            for (int i = 0; i < arr.size(); i++) {
-                JsonElement elem = arr.get(i);
-                if (elem.isJsonPrimitive() && elem.getAsJsonPrimitive().isString()) {
-                    String substituted = substituteString(elem.getAsString(), params);
-                    arr.set(i, new JsonPrimitive(substituted));
-                } else if (elem.isJsonObject() || elem.isJsonArray()) {
-                    substituteParamsInPlace(elem, params);
-                }
-            }
-        }
+        JsonTreeUtil.substituteParamsInPlace(node, params);
     }
 
-    /**
-     * Replace every {@code {{key}}} occurrence in {@code s} with {@code params.get(key)}
-     * (or leave the literal token if the param is missing - a missing param surfaces
-     * visibly). Returns the original string when no token is present.
-     */
+    /** {@code {{param}}} substitution over one string. Delegates to {@link JsonTreeUtil#substituteString}. */
     @Nonnull
     public static String substituteString(@Nonnull String s, @Nonnull JsonObject params) {
-        if (s.indexOf("{{") < 0) return s;
-        StringBuilder out = new StringBuilder(s.length());
-        int i = 0;
-        while (i < s.length()) {
-            int open = s.indexOf("{{", i);
-            if (open < 0) {
-                out.append(s, i, s.length());
-                break;
-            }
-            int close = s.indexOf("}}", open + 2);
-            if (close < 0) {
-                out.append(s, i, s.length());
-                break;
-            }
-            out.append(s, i, open);
-            String key = s.substring(open + 2, close).trim();
-            if (params.has(key) && params.get(key).isJsonPrimitive()) {
-                out.append(params.get(key).getAsString());
-            } else {
-                out.append(s, open, close + 2);
-            }
-            i = close + 2;
-        }
-        return out.toString();
+        return JsonTreeUtil.substituteString(s, params);
     }
 
-    /**
-     * Recursively merge {@code source} into {@code target}: object keys merge
-     * recursively, primitives + arrays replace wholesale. Mutates {@code target}.
-     */
+    /** Recursive object-key merge. Delegates to {@link JsonTreeUtil#deepMergeInto}. */
     public static void deepMergeInto(@Nonnull JsonObject target, @Nonnull JsonObject source) {
-        for (Map.Entry<String, JsonElement> entry : source.entrySet()) {
-            String key = entry.getKey();
-            JsonElement srcVal = entry.getValue();
-            if (srcVal.isJsonObject() && target.has(key) && target.get(key).isJsonObject()) {
-                deepMergeInto(target.getAsJsonObject(key), srcVal.getAsJsonObject());
-            } else {
-                target.add(key, srcVal);
-            }
-        }
+        JsonTreeUtil.deepMergeInto(target, source);
     }
 
     /**

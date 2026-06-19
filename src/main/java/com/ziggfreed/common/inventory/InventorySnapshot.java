@@ -40,14 +40,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 public final class InventorySnapshot {
 
     /** The six managed sections, captured + restored in a fixed order (active-slot sections last is irrelevant). */
-    static final int[] SECTION_IDS = {
-        InventoryComponent.ARMOR_SECTION_ID,
-        InventoryComponent.HOTBAR_SECTION_ID,
-        InventoryComponent.STORAGE_SECTION_ID,
-        InventoryComponent.UTILITY_SECTION_ID,
-        InventoryComponent.TOOLS_SECTION_ID,
-        InventoryComponent.BACKPACK_SECTION_ID,
-    };
+    static final int[] SECTION_IDS = InventorySections.ALL;
 
     /** One section's captured slots plus, for an active-slot section, its selected slot ({@code -1} otherwise). */
     public static final class SectionData {

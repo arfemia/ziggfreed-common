@@ -1,13 +1,10 @@
 package com.ziggfreed.common.inventory;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
 import javax.annotation.Nonnull;
-
-import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 
 /**
  * Declarative policy for what {@link InventorySnapshot#strip} removes from an entity's inventory
@@ -83,17 +80,14 @@ public final class InventoryStripPolicy {
 
     /** Fluent builder; defaults to all six sections + {@link ItemRule#ALL} (= {@link #STRIP_ALL}). */
     public static final class Builder {
-        private final Set<Integer> sections = new HashSet<>(Arrays.asList(
-                InventoryComponent.ARMOR_SECTION_ID,
-                InventoryComponent.HOTBAR_SECTION_ID,
-                InventoryComponent.STORAGE_SECTION_ID,
-                InventoryComponent.UTILITY_SECTION_ID,
-                InventoryComponent.TOOLS_SECTION_ID,
-                InventoryComponent.BACKPACK_SECTION_ID));
+        private final Set<Integer> sections = new HashSet<>();
         private ItemRule itemRule = ItemRule.ALL;
         private final Set<String> itemIds = new HashSet<>();
 
         private Builder() {
+            for (int id : InventorySections.ALL) {
+                sections.add(id);
+            }
         }
 
         /** Restrict stripping to EXACTLY these section ids (replaces the default all-six set). */

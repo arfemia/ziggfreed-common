@@ -29,6 +29,12 @@ needs it), so it lives here, not duplicated in a consumer.
   entry, never the restore. Two dials: which **sections** are stripped (`keepSections(ARMOR_SECTION_ID)`
   leaves armor on) + an item **rule** (`whitelist`/`blacklist` of item ids). `STRIP_ALL` is the
   strip-everything default; `clearsSection` is the one-transaction fast path.
+- **[`InventorySections`](InventorySections.java)** - package-private: the canonical six-section-id
+  list (Armor / Hotbar / Storage / Utility / Tool / Backpack, fixed iteration order) shared by
+  `InventorySnapshot` (capture/restore order) + `InventoryStripPolicy` (the default strip set), so the
+  two cannot drift if the engine ever adds or renames a section. One vocabulary, one place.
+- Test: **[`InventoryStripPolicyTest`](../../../../../../test/java/com/ziggfreed/common/inventory/InventoryStripPolicyTest.java)**
+  covers the strip-policy dials (section keep/strip + whitelist/blacklist item rules) with no engine bootstrap.
 - **[`InventorySnapshotStore`](InventorySnapshotStore.java)** - durable, crash-safe per-player store
   (the twin of `instance.reward.PendingRewardStore`): file-backed JSON, atomic write, serialized
   `flush`, each `ItemStack` persisted via its own engine `CODEC` (-> BSON -> JSON). `captureAndStrip`
