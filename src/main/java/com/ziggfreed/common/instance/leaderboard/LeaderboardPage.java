@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
@@ -45,8 +46,13 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     private static final String STATS_ROW_TEMPLATE = "Pages/ZigLeaderboardStatsRow.ui";
     private static final String TAB_TEMPLATE = "Pages/ZigLeaderboardTab.ui";
     private static final int MAX_ROWS = 100;
-    private static final String ACTIVE_TINT = "#5a7ba8";
+    // Strong active/inactive contrast so the current filter selection is obvious.
+    private static final String ACTIVE_TINT = "#5e86bd";
+    private static final String ACTIVE_HOVER = "#6f97cf";
     private static final String ACTIVE_TEXT = "#ffffff";
+    private static final String INACTIVE_TINT = "#2f3b49";
+    private static final String INACTIVE_HOVER = "#445364";
+    private static final String INACTIVE_TEXT = "#9fb0c2";
 
     private final LeaderboardPageDeps deps;
     private final String activePrimary; // "" when there is no primary axis
@@ -128,10 +134,16 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         cmd.set("#Title.Text", t.title());
         boolean hasStats = !deps.statColumns().isEmpty();
 
+        // Leading row labels (optional; clarify what each selector row drives).
+        setLabel(cmd, "#GroupLabel", t.primaryAxisLabel());
+        setLabel(cmd, "#TabLabel", t.secondaryAxisLabel());
+        setLabel(cmd, "#SortLabel", t.sortLabel());
+        setLabel(cmd, "#ViewLabel", t.viewLabel());
+
         // Tab axes.
         buildTabRow(cmd, events, "#GroupBar", deps.primaryTabs(), activePrimary, "group");
         buildTabRow(cmd, events, "#TabBar", deps.tabs(), activeSecondary, "tab");
-        cmd.set("#GroupBar.Visible", !deps.primaryTabs().isEmpty());
+        cmd.set("#GroupRow.Visible", !deps.primaryTabs().isEmpty());
 
         // Sort toggle (Rankings only) + view toggle.
         String viewStr = statsView ? "stats" : "rankings";
@@ -141,17 +153,20 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         bind(events, "#SortBest", "sort", activePrimary, activeSecondary, SortMode.BEST_SCORE.name(), viewStr);
         bind(events, "#SortTotal", "sort", activePrimary, activeSecondary, SortMode.TOTAL_POINTS.name(), viewStr);
         bind(events, "#SortTime", "sort", activePrimary, activeSecondary, SortMode.BEST_TIME.name(), viewStr);
-        if (!statsView) {
-            tint(cmd, sortButton(sort));
-        }
+        style(cmd, "#SortBest", !statsView && sort == SortMode.BEST_SCORE);
+        style(cmd, "#SortTotal", !statsView && sort == SortMode.TOTAL_POINTS);
+        style(cmd, "#SortTime", !statsView && sort == SortMode.BEST_TIME);
         cmd.set("#SortGroup.Visible", !statsView);
+        cmd.set("#SortLabel.Visible", !statsView && t.sortLabel() != null);
 
         cmd.set("#ViewRankings.Text", t.viewRankings());
         cmd.set("#ViewStats.Text", t.viewStats());
         bind(events, "#ViewRankings", "view", activePrimary, activeSecondary, sort.name(), "rankings");
         bind(events, "#ViewStats", "view", activePrimary, activeSecondary, sort.name(), "stats");
         cmd.set("#ViewGroup.Visible", hasStats);
-        tint(cmd, statsView ? "#ViewStats" : "#ViewRankings");
+        cmd.set("#ViewLabel.Visible", hasStats && t.viewLabel() != null);
+        style(cmd, "#ViewRankings", !statsView);
+        style(cmd, "#ViewStats", statsView);
 
         if (statsView) {
             buildStats(cmd, t);
@@ -277,9 +292,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             cmd.append(container, TAB_TEMPLATE);
             String sel = container + "[" + i + "]";
             cmd.set(sel + " #TabBtn.Text", tab.label());
-            if (tab.bucketKey().equals(active)) {
-                tint(cmd, sel + " #TabBtn");
-            }
+            style(cmd, sel + " #TabBtn", tab.bucketKey().equals(active));
             String group = action.equals("group") ? tab.bucketKey() : activePrimary;
             String bucket = action.equals("group") ? activeSecondary : tab.bucketKey();
             bind(events, sel + " #TabBtn", action, group, bucket, sort.name(), viewStr);
@@ -299,11 +312,23 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                 false);
     }
 
-    private static void tint(@Nonnull UICommandBuilder cmd, @Nonnull String btnSelector) {
-        cmd.set(btnSelector + ".Style.Default.Background.Color", ACTIVE_TINT);
-        cmd.set(btnSelector + ".Style.Hovered.Background.Color", ACTIVE_TINT);
-        cmd.set(btnSelector + ".Style.Pressed.Background.Color", ACTIVE_TINT);
-        cmd.set(btnSelector + ".Style.Default.LabelStyle.TextColor", ACTIVE_TEXT);
+    /** Paint a tab/sort/view button as the ACTIVE selection (bright + bold + white) or an inactive one (muted). */
+    private static void style(@Nonnull UICommandBuilder cmd, @Nonnull String btnSelector, boolean active) {
+        String bg = active ? ACTIVE_TINT : INACTIVE_TINT;
+        cmd.set(btnSelector + ".Style.Default.Background.Color", bg);
+        cmd.set(btnSelector + ".Style.Hovered.Background.Color", active ? ACTIVE_HOVER : INACTIVE_HOVER);
+        cmd.set(btnSelector + ".Style.Pressed.Background.Color", bg);
+        cmd.set(btnSelector + ".Style.Default.LabelStyle.TextColor", active ? ACTIVE_TEXT : INACTIVE_TEXT);
+        cmd.set(btnSelector + ".Style.Default.LabelStyle.RenderBold", active);
+    }
+
+    private static void setLabel(@Nonnull UICommandBuilder cmd, @Nonnull String sel, @Nullable Message label) {
+        if (label != null) {
+            cmd.set(sel + ".Text", label);
+            cmd.set(sel + ".Visible", true);
+        } else {
+            cmd.set(sel + ".Visible", false);
+        }
     }
 
     private static void paintRank(@Nonnull UICommandBuilder cmd, @Nonnull String rowSel, int rank, boolean isSelf) {
@@ -317,15 +342,6 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         if (isSelf) {
             cmd.set(rowSel + ".Background", "#1a3d4a");
         }
-    }
-
-    @Nonnull
-    private static String sortButton(@Nonnull SortMode mode) {
-        return switch (mode) {
-            case BEST_SCORE -> "#SortBest";
-            case TOTAL_POINTS -> "#SortTotal";
-            case BEST_TIME -> "#SortTime";
-        };
     }
 
     private void setYourRank(@Nonnull UICommandBuilder cmd, @Nonnull LeaderboardScreenMessages t,

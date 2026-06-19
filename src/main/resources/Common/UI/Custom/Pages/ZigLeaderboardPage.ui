@@ -21,33 +21,45 @@ $F.@ZigDecoratedFrame {
       Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
     }
 
-    Group #GroupBar {
+    // "Which leaderboard" selectors: a primary axis (difficulty) over a secondary axis (party size),
+    // each with a leading label so the row's purpose is unambiguous.
+    Group #GroupRow {
       LayoutMode: Left;
       Anchor: (Height: 34, Bottom: 6);
+      Label #GroupLabel { Anchor: (Width: 84); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: 12, TextColor: #8696a8, VerticalAlignment: Center); }
+      Group #GroupBar { FlexWeight: 1; LayoutMode: Left; }
     }
 
-    Group #TabBar {
+    Group #TabRow {
       LayoutMode: Left;
-      Anchor: (Height: 34, Bottom: 6);
+      Anchor: (Height: 34, Bottom: 8);
+      Label #TabLabel { Anchor: (Width: 84); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: 12, TextColor: #8696a8, VerticalAlignment: Center); }
+      Group #TabBar { FlexWeight: 1; LayoutMode: Left; }
     }
 
+    // Divider: separates "which leaderboard" (above) from "how it is shown" (below).
+    Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
+
+    // "How it is shown" controls: the sort metric (left) and the Rankings/Stats view (right edge).
     Group #ControlBar {
       LayoutMode: Left;
-      Anchor: (Height: 30, Bottom: 8);
+      Anchor: (Height: 30, Bottom: 10);
 
+      Label #SortLabel { Anchor: (Width: 48); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: 12, TextColor: #8696a8, VerticalAlignment: Center); }
       Group #SortGroup {
         LayoutMode: Left;
         FlexWeight: 1;
-        TextButton #SortBest  { Anchor: (Width: 110, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
-        TextButton #SortTotal { Anchor: (Width: 110, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
-        TextButton #SortTime  { Anchor: (Width: 110, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
+        TextButton #SortBest  { Anchor: (Width: 108, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
+        TextButton #SortTotal { Anchor: (Width: 108, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
+        TextButton #SortTime  { Anchor: (Width: 108, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
       }
 
+      Label #ViewLabel { Anchor: (Width: 44); Text: ""; Visible: false; Style: (FontSize: 12, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
       Group #ViewGroup {
         LayoutMode: Left;
-        Anchor: (Width: 232);
-        TextButton #ViewRankings { Anchor: (Width: 110, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
-        TextButton #ViewStats    { Anchor: (Width: 110);          Text: ""; Style: $M.@ZigTabBtnStyle; }
+        Anchor: (Width: 226);
+        TextButton #ViewRankings { Anchor: (Width: 108, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
+        TextButton #ViewStats    { Anchor: (Width: 108);          Text: ""; Style: $M.@ZigTabBtnStyle; }
       }
     }
 

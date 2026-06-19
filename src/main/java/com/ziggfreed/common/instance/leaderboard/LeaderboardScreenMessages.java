@@ -1,6 +1,7 @@
 package com.ziggfreed.common.instance.leaderboard;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
@@ -12,6 +13,29 @@ import com.hypixel.hytale.server.core.Message;
 public interface LeaderboardScreenMessages {
 
     @Nonnull Message title();
+
+    // ---- Optional leading row labels (default null = no label shown). Clarify which axis each
+    // selector row drives; the consumer overrides to name its axes (Kweebec: Difficulty / Players). ----
+
+    /** Leading label for the PRIMARY tab axis (e.g. "Difficulty"); null hides it. */
+    @Nullable default Message primaryAxisLabel() {
+        return null;
+    }
+
+    /** Leading label for the SECONDARY tab axis (e.g. "Players"); null hides it. */
+    @Nullable default Message secondaryAxisLabel() {
+        return null;
+    }
+
+    /** Leading label for the sort-toggle row (e.g. "Sort"); null hides it. */
+    @Nullable default Message sortLabel() {
+        return null;
+    }
+
+    /** Leading label for the Rankings/Stats view toggle (e.g. "View"); null hides it. */
+    @Nullable default Message viewLabel() {
+        return null;
+    }
 
     @Nonnull Message colRank();
 
