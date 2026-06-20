@@ -25,4 +25,15 @@ public interface ResultsActions {
     default void playAgain(@Nonnull PlayerRef player, @Nonnull Ref<EntityStore> ref,
                            @Nonnull Store<EntityStore> store) {
     }
+
+    /**
+     * Claim (grant) the run's pending spoils, applying the full-inventory guard. Returns
+     * {@code true} when everything was delivered, {@code false} when some reward could not fit
+     * and is held for a later claim (the page then shows the "make space" note). The default
+     * grants nothing and reports all-claimed (a consumer with no claimable rewards).
+     */
+    default boolean claimRewards(@Nonnull PlayerRef player, @Nonnull Ref<EntityStore> ref,
+                                 @Nonnull Store<EntityStore> store) {
+        return true;
+    }
 }

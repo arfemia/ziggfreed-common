@@ -33,3 +33,17 @@ $C = "../Common.ui";
   Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #3a4658), LabelStyle: (FontSize: 13, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
   Sounds: $C.@ButtonSounds
 );
+
+// ── ziggfreed-common shared PRIMARY CTA button ────────────────────────────────
+// Imported per page as:  $M = "../Common/ZigButtons.ui";  then  Style: $M.@ZigPrimaryBtnStyle;
+//
+// A CENTER-aligned, slightly brighter sibling of @ZigOptionBtnStyle for footer call-to-action
+// buttons (results-screen View Leaderboard / Play Again). Same Secondary.png patch; label is
+// centered (NOT Start - the option style is left-aligned for dialogue rows). Keep Sounds or the
+// button is silent on click.
+@ZigPrimaryBtnStyle = TextButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #7d93aa), LabelStyle: (FontSize: 14, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #a8bdd2), LabelStyle: (FontSize: 14, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #66798c), LabelStyle: (FontSize: 14, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Sounds: $C.@ButtonSounds
+);

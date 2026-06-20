@@ -19,6 +19,9 @@ public interface ResultsMessages {
 
     @Nonnull Message breakdownTitle();
 
+    /** The run-stats section title (raw per-run activity, rendered below the point breakdown). */
+    @Nonnull Message statsTitle();
+
     @Nonnull Message rewardsTitle();
 
     /** Shown when the run granted no rewards. */
@@ -26,6 +29,12 @@ public interface ResultsMessages {
 
     /** A note shown when a reward is pending (blocked by a full inventory). */
     @Nonnull Message pendingNote();
+
+    /** The "Claim Spoils" button label (grants the run's rewards). */
+    @Nonnull Message claimButton();
+
+    /** A note shown after the spoils were fully claimed. */
+    @Nonnull Message claimedNote();
 
     @Nonnull Message viewLeaderboardButton();
 

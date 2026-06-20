@@ -34,6 +34,14 @@ $F.@ZigDecoratedFrame {
       Anchor: (Height: 200, Bottom: 4);
     }
 
+    // Optional "Claim Rewards" button (chooser only); Java reveals it when spoils are pending.
+    TextButton #ClaimBtn {
+      Text: "";
+      Anchor: (Height: 38, Top: 6);
+      Style: $M.@ZigPrimaryBtnStyle;
+      Visible: false;
+    }
+
     // ----- roster / ready: shown once the player is queued -----
     Group #RosterArea {
       Visible: false;

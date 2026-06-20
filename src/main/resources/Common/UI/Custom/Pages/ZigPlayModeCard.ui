@@ -52,6 +52,6 @@ Group #ZigPlayModeCard {
   Label #CardSub {
     FlexWeight: 1;
     Text: "";
-    Style: (FontSize: 11, TextColor: #b6c9de, HorizontalAlignment: Center);
+    Style: (FontSize: 11, TextColor: #b6c9de, HorizontalAlignment: Center, Wrap: true);
   }
 }

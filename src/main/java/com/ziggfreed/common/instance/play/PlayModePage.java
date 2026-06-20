@@ -133,6 +133,15 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #CardBtn",
                     EventData.of("Action", "pick").append("Mode", e.mode().wire()), false);
         }
+
+        // Optional "Claim Rewards" button for spoils missed earlier (closed the results screen / full
+        // inventory). Shown only when the consumer's hook reports pending rewards for this player.
+        PlayRewardClaim claim = deps.claim();
+        if (claim != null && claim.hasPending(playerRef.getUuid())) {
+            cmd.set("#ClaimBtn.Visible", true);
+            cmd.set("#ClaimBtn.Text", t.claimButton());
+            events.addEventBinding(CustomUIEventBindingType.Activating, "#ClaimBtn", EventData.of("Action", "claim"));
+        }
     }
 
     /** The card label: an authored {@code LabelKey} override (resolved via deps) wins over the default. */
@@ -320,6 +329,16 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
             return;
         }
         String action = data.action == null ? "" : data.action;
+        if ("claim".equals(action)) {
+            PlayRewardClaim claim = deps.claim();
+            if (claim != null) {
+                claim.claim(playerRef, ref, store);
+                primeToast(ToastSpec.of(ToastKind.REWARD, deps.text().toastClaimed()));
+            }
+            // Re-render the chooser: the claim button hides itself once nothing remains pending.
+            player.getPageManager().openCustomPage(ref, store, this);
+            return;
+        }
         if ("pick".equals(action)) {
             handlePick(ref, store, player, QueueModeId.fromString(data.mode));
             return;

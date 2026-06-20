@@ -45,6 +45,12 @@ public interface PlayScreenMessages {
 
     @Nonnull Message leaveButton();
 
+    /** The "Claim Rewards" button label (chooser state; only shown when the player has pending spoils). */
+    @Nonnull Message claimButton();
+
+    /** One-shot toast after claiming pending spoils from the chooser. */
+    @Nonnull Message toastClaimed();
+
     /** Shown when the viewer is no longer in any queue (left, or already launched). */
     @Nonnull Message notInQueue();
 

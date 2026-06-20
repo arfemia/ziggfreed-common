@@ -10,7 +10,7 @@ $M = "../Common/ZigButtons.ui";
 $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 660, Height: 640);
+  Anchor: (Width: 660, Height: 752);
 
   #Content {
     Label #OutcomeTitle {
@@ -26,21 +26,35 @@ $F.@ZigDecoratedFrame {
 
     Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
 
-    // Team-grouped per-player rows.
+    // Team-grouped per-player rows (scrolls past ~4 rows for a large party).
     Group #ResultsList {
-      Anchor: (Height: 220, Bottom: 10);
+      Anchor: (Height: 130, Bottom: 10);
       LayoutMode: TopScrolling;
       ScrollbarStyle: $C.@DefaultScrollbarStyle;
       Padding: (Right: 4);
     }
 
+    // Point breakdown - how the score was earned (5 rows: Base + the score components).
     Label #BreakdownTitle {
       Text: "";
       Anchor: (Height: 20, Bottom: 4);
       Style: (FontSize: 14, TextColor: #ffd97a, RenderBold: true);
     }
     Group #BreakdownList {
-      Anchor: (Height: 120, Bottom: 10);
+      Anchor: (Height: 158, Bottom: 8);
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 4);
+    }
+
+    // Run stats - raw per-run activity (a second section below the points).
+    Label #StatsTitle {
+      Text: "";
+      Anchor: (Height: 20, Bottom: 4);
+      Style: (FontSize: 14, TextColor: #ffd97a, RenderBold: true);
+    }
+    Group #StatsList {
+      Anchor: (Height: 126, Bottom: 8);
       LayoutMode: TopScrolling;
       ScrollbarStyle: $C.@DefaultScrollbarStyle;
       Padding: (Right: 4);
@@ -68,12 +82,18 @@ $F.@ZigDecoratedFrame {
       Style: (FontSize: 11, TextColor: #e0a030);
     }
 
-    // Footer CTAs.
+    // Claim button (full-width, the primary action) + footer CTAs.
+    TextButton #ClaimBtn {
+      Text: "";
+      Anchor: (Height: 40, Top: 4, Bottom: 8);
+      Style: $M.@ZigPrimaryBtnStyle;
+      Visible: false;
+    }
     Group #FooterRow {
       LayoutMode: Left;
-      Anchor: (Height: 36, Top: 8);
-      TextButton #ViewLbBtn    { FlexWeight: 1; Anchor: (Height: 36); Style: $M.@ZigOptionBtnStyle; Visible: false; }
-      TextButton #PlayAgainBtn { FlexWeight: 1; Anchor: (Height: 36, Left: 6); Style: $M.@ZigOptionBtnStyle; Visible: false; }
+      Anchor: (Height: 36);
+      TextButton #ViewLbBtn    { FlexWeight: 1; Anchor: (Height: 36); Style: $M.@ZigPrimaryBtnStyle; Visible: false; }
+      TextButton #PlayAgainBtn { FlexWeight: 1; Anchor: (Height: 36, Left: 6); Style: $M.@ZigPrimaryBtnStyle; Visible: false; }
     }
   }
 }

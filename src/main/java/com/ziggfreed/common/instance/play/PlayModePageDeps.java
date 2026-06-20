@@ -3,6 +3,7 @@ package com.ziggfreed.common.instance.play;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
@@ -19,11 +20,13 @@ import com.ziggfreed.common.lobby.LobbyService;
  * @param key        resolves a raw lang key to a {@link Message} (for an authored mode {@code LabelKey} override)
  * @param handler    the Public/Party/Solo launch policy
  * @param text       the locale-free chrome
+ * @param claim      OPTIONAL pending-reward claim hook (a "Claim Rewards" button in the chooser); {@code null} = none
  */
 public record PlayModePageDeps(@Nonnull LobbyService lobby,
                                @Nonnull Function<String, QueueModeSet> modes,
                                @Nonnull Function<String, Message> presetName,
                                @Nonnull Function<String, Message> key,
                                @Nonnull PlayModeHandler handler,
-                               @Nonnull PlayScreenMessages text) {
+                               @Nonnull PlayScreenMessages text,
+                               @Nullable PlayRewardClaim claim) {
 }

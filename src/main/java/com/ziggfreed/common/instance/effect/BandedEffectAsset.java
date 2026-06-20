@@ -27,8 +27,9 @@ import com.hypixel.hytale.codec.KeyedCodec;
  *       escalation tier, ...) maps to that band, swapped with hysteresis. A higher
  *       {@code Band} = a deeper / more intense rung.</li>
  *   <li>A <b>one-shot band</b> ({@code Band} 0, {@code OneShot} true): a fire-once
- *       {@code EffectId} hard apply + optional {@code SoundId} stinger a consumer fires
- *       on a moment (a hit, a near-miss), never held.</li>
+ *       {@code EffectId} hard apply + optional {@code SoundId} stinger + optional
+ *       {@code ShakeId}/{@code ShakeIntensity} camera shake a consumer fires on a moment
+ *       (a hit, a near-miss, a jumpscare), never held.</li>
  * </ul>
  * {@code MinTier} gates a band to an escalation floor: a consumer never applies a band
  * whose {@code MinTier} exceeds the encounter's current tier (a deeper band can be
@@ -50,6 +51,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
  *
  * { "Name": "stinger", "Band": 0, "MinTier": 0,
  *   "EffectId": "MyMod_Stinger", "SoundId": "SFX_MyMod_Stinger",
+ *   "ShakeId": "MyMod_StingerShake", "ShakeIntensity": 0.7,
  *   "OneShot": true }
  * }</pre>
  */
@@ -66,6 +68,8 @@ public final class BandedEffectAsset
     private int minTier = 0;
     @Nullable private String effectId;
     @Nullable private String soundId;
+    @Nullable private String shakeId;
+    private float shakeIntensity = 1.0f;
     private boolean oneShot = false;
 
     public static final AssetBuilderCodec<String, BandedEffectAsset> CODEC = AssetBuilderCodec.builder(
@@ -91,6 +95,10 @@ public final class BandedEffectAsset
             .add()
             .append(new KeyedCodec<>("SoundId", Codec.STRING, false), (a, v) -> a.soundId = v, a -> a.soundId)
             .add()
+            .append(new KeyedCodec<>("ShakeId", Codec.STRING, false), (a, v) -> a.shakeId = v, a -> a.shakeId)
+            .add()
+            .append(new KeyedCodec<>("ShakeIntensity", Codec.FLOAT, false), (a, v) -> a.shakeIntensity = v, a -> a.shakeIntensity)
+            .add()
             .append(new KeyedCodec<>("OneShot", Codec.BOOLEAN, false), (a, v) -> a.oneShot = v, a -> a.oneShot)
             .add()
             .build();
@@ -106,12 +114,26 @@ public final class BandedEffectAsset
     @Nonnull
     public static BandedEffectAsset of(@Nonnull String id, int band, int minTier,
                                        @Nullable String effectId, @Nullable String soundId, boolean oneShot) {
+        return of(id, band, minTier, effectId, soundId, null, 1.0f, oneShot);
+    }
+
+    /**
+     * Full in-code factory including the one-shot camera-shake fields ({@code shakeId} +
+     * {@code shakeIntensity}). The 6-arg {@link #of(String, int, int, String, String, boolean)}
+     * delegates here with no shake; the JSON {@code CODEC} authors the same fields.
+     */
+    @Nonnull
+    public static BandedEffectAsset of(@Nonnull String id, int band, int minTier,
+                                       @Nullable String effectId, @Nullable String soundId,
+                                       @Nullable String shakeId, float shakeIntensity, boolean oneShot) {
         BandedEffectAsset a = new BandedEffectAsset();
         a.id = id;
         a.band = band;
         a.minTier = minTier;
         a.effectId = effectId;
         a.soundId = soundId;
+        a.shakeId = shakeId;
+        a.shakeIntensity = shakeIntensity;
         a.oneShot = oneShot;
         return a;
     }
@@ -152,6 +174,22 @@ public final class BandedEffectAsset
     @Nullable
     public String soundId() {
         return soundId;
+    }
+
+    /**
+     * An optional {@code CameraEffect} (camera-shake) asset id a consumer may fire alongside
+     * a ONE-SHOT beat (a hit, a near-miss, a jumpscare); blank/null means no shake. Advisory
+     * metadata - the {@link EffectBandLadder} does not act on it; a consumer hands it to its
+     * own shake sender (e.g. {@code CameraShakeService.shake}). Held bands ignore it.
+     */
+    @Nullable
+    public String shakeId() {
+        return shakeId;
+    }
+
+    /** Camera-shake intensity in the engine's 0..1 space for {@link #shakeId()} (default {@code 1.0}). */
+    public float shakeIntensity() {
+        return shakeIntensity;
     }
 
     /**

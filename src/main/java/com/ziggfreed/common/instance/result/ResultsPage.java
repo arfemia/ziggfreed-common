@@ -1,6 +1,5 @@
 package com.ziggfreed.common.instance.result;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,7 +23,6 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.ui.toast.ToastKind;
-import com.ziggfreed.common.ui.toast.ToastLine;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.NumberFormatter;
@@ -49,13 +47,28 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
 
     private final MatchResult result;
     private final ResultsPageDeps deps;
-    /** One-shot: the granted-rewards toast fires only on the first open, not on reopen. */
-    private boolean rewardToastPrimed = false;
+    /** When set, the page is a forward-looking PREVIEW: this note replaces the reward strip (nothing granted yet). */
+    @Nullable private final Message rewardsPreviewNote;
+    /** Flipped once the viewer presses Claim: hides the claim button + shows the claimed/pending note on re-render. */
+    private boolean claimed = false;
+    /** Whether the last claim delivered everything (false = some reward held for a later claim - full inventory). */
+    private boolean claimAllSucceeded = false;
 
     public ResultsPage(@Nonnull PlayerRef playerRef, @Nonnull MatchResult result, @Nonnull ResultsPageDeps deps) {
+        this(playerRef, result, deps, null);
+    }
+
+    /**
+     * Preview overload: when {@code rewardsPreviewNote} is non-null the page renders that note in place of
+     * the reward strip and skips the granted-rewards toast - the in-instance preview shown BEFORE the
+     * consumer grants the rewards on its return path. A {@code null} note is the normal granted open.
+     */
+    public ResultsPage(@Nonnull PlayerRef playerRef, @Nonnull MatchResult result, @Nonnull ResultsPageDeps deps,
+                       @Nullable Message rewardsPreviewNote) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, ResultsEventData.CODEC);
         this.result = result;
         this.deps = deps;
+        this.rewardsPreviewNote = rewardsPreviewNote;
     }
 
     @Override
@@ -90,7 +103,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
             }
         }
 
-        // Viewer's score-column breakdown.
+        // Viewer's point-breakdown (how the score was earned).
         cmd.set("#BreakdownTitle.Text", t.breakdownTitle());
         if (viewerRow != null) {
             int b = 0;
@@ -102,14 +115,29 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
             }
         }
 
-        // Reward strip.
+        // Viewer's run-stats breakdown (raw per-run activity, a second section below the points).
+        cmd.set("#StatsTitle.Text", t.statsTitle());
+        if (viewerRow != null) {
+            int s = 0;
+            for (ScoreColumn col : viewerRow.statColumns()) {
+                cmd.append("#StatsList", ROW_TEMPLATE);
+                String sel = "#StatsList[" + s++ + "]";
+                setCell(cmd, sel + " #Cell1", col.label());
+                setCell(cmd, sel + " #Cell2", col.formatted());
+            }
+        }
+
+        // Reward strip: a preview note (in-instance), the no-spoils line, or the claimable spoils chips.
+        // Nothing is granted on render - the player presses Claim (a manual claim, full-inventory guarded).
         cmd.set("#RewardsTitle.Text", t.rewardsTitle());
         List<RewardChip> chips = result.rewards();
-        if (chips.isEmpty()) {
+        if (rewardsPreviewNote != null) {
+            cmd.set("#NoRewards.Visible", true);
+            cmd.set("#NoRewards.Text", rewardsPreviewNote);
+        } else if (chips.isEmpty()) {
             cmd.set("#NoRewards.Visible", true);
             cmd.set("#NoRewards.Text", t.noRewards());
         } else {
-            boolean anyPending = false;
             for (int i = 0; i < chips.size(); i++) {
                 RewardChip chip = chips.get(i);
                 cmd.append("#RewardList", CHIP_TEMPLATE);
@@ -120,33 +148,23 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
                     cmd.set(sel + " #ChipIcon.Slots", List.of(new ItemGridSlot(new ItemStack(icon, 1))));
                 }
                 cmd.set(sel + " #ChipLabel.TextSpans", chip.label()); // composite Message (name + amount) -> TextSpans
-                if (chip.pending()) {
-                    cmd.set(sel + " #ChipLabel.Style.TextColor", "#e0a030");
-                    anyPending = true;
-                }
             }
-            if (anyPending) {
+            // After a claim, the note replaces the (now-hidden) Claim button: green = all delivered,
+            // amber = some held for a later claim (a full inventory at claim time).
+            if (claimed) {
                 cmd.set("#PendingNote.Visible", true);
-                cmd.set("#PendingNote.Text", t.pendingNote());
+                cmd.set("#PendingNote.Text", claimAllSucceeded ? t.claimedNote() : t.pendingNote());
+                cmd.set("#PendingNote.Style.TextColor", claimAllSucceeded ? "#7ad17a" : "#e0a030");
             }
         }
 
-        // One-shot in-page reward toast on first open (the chips persist below; the toast is a
-        // transient gold flourish, and the notification feed is hidden behind the open menu).
-        // Primed (no immediate push) so this same build's renderToastInto paints it.
-        if (!rewardToastPrimed) {
-            rewardToastPrimed = true;
-            if (!chips.isEmpty()) {
-                List<ToastLine> lines = new ArrayList<>(chips.size());
-                for (RewardChip chip : chips) {
-                    lines.add(new ToastLine(chip.iconItemId(), 1, chip.label()));
-                }
-                primeToast(ToastSpec.of(ToastKind.REWARD, t.rewardsTitle()).withLines(lines));
-            }
-        }
-
-        // Footer CTAs.
+        // Claim button (overworld, unclaimed spoils only) + footer CTAs.
         ResultsActions actions = deps.actions();
+        if (rewardsPreviewNote == null && actions != null && !claimed && !chips.isEmpty()) {
+            cmd.set("#ClaimBtn.Visible", true);
+            cmd.set("#ClaimBtn.Text", t.claimButton());
+            events.addEventBinding(CustomUIEventBindingType.Activating, "#ClaimBtn", EventData.of("Action", "claim"));
+        }
         if (actions != null && result.leaderboardBucket() != null) {
             cmd.set("#ViewLbBtn.Visible", true);
             cmd.set("#ViewLbBtn.Text", t.viewLeaderboardButton());
@@ -195,6 +213,16 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         }
         ResultsActions actions = deps.actions();
         String action = data.action == null ? "" : data.action;
+        if (actions != null && "claim".equals(action)) {
+            boolean allClaimed = actions.claimRewards(playerRef, ref, store);
+            claimed = true;
+            claimAllSucceeded = allClaimed;
+            // Re-render in the claimed state (button gone, note shown); prime the toast so this build paints it.
+            primeToast(ToastSpec.of(ToastKind.REWARD,
+                    allClaimed ? deps.text().claimedNote() : deps.text().pendingNote()));
+            player.getPageManager().openCustomPage(ref, store, this);
+            return;
+        }
         if (actions != null && "leaderboard".equals(action)) {
             actions.viewLeaderboard(playerRef, ref, store, result.leaderboardBucket());
             return; // the handler owns the next page

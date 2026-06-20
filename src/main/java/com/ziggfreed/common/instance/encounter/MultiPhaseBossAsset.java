@@ -39,8 +39,16 @@ import com.hypixel.hytale.codec.KeyedCodec;
  *   "Phase1AddCount": 0, "Phase2AddCount": 2, "Phase3AddCount": 3,
  *   "AddRole": "MyMod_Add", "AddCap": 4,
  *   "SpawnSoundId": "", "PhaseSwapSoundId": "",
+ *   "ThrowableClusterId": "MyMod/HelperShroom", "Phase1ThrowableCount": 0,
+ *   "Phase2ThrowableCount": 4, "Phase3ThrowableCount": 6,
+ *   "ThrowableRingRadius": 8.0, "ThrowableRespawnSeconds": 20,
  *   "NameKey": "mymod.npc.warden.name" }
  * }</pre>
+ *
+ * <p>The optional HELPER-THROWABLE knobs let a phase place harvestable resource clusters around the boss
+ * (the consumer's controller spawns {@code ThrowableClusterId} x the per-phase count in a ring of
+ * {@code ThrowableRingRadius}, replenished every {@code ThrowableRespawnSeconds}) so survivors can gather +
+ * throw them at a high-HP boss to keep it killable. All default to off (zero counts).
  */
 public final class MultiPhaseBossAsset
         implements JsonAssetWithMap<String, DefaultAssetMap<String, MultiPhaseBossAsset>> {
@@ -61,6 +69,16 @@ public final class MultiPhaseBossAsset
     private int addCap = 4;
     @Nullable private String spawnSoundId;
     @Nullable private String phaseSwapSoundId;
+    // Per-phase HELPER-THROWABLE clusters: harvestable resource clusters the controller places around the
+    // boss when a phase begins (and replenishes on a timer), so survivors can gather + throw them at the
+    // boss. Generic: the id is an opaque token the consumer's placement resolves (Kweebec treats it as a
+    // prefab key), the counts/radius/respawn are data. Zero counts / blank id = no clusters (the default).
+    @Nullable private String throwableClusterId;
+    private int phase1ThrowableCount = 0;
+    private int phase2ThrowableCount = 0;
+    private int phase3ThrowableCount = 0;
+    private double throwableRingRadius = 8.0;
+    private int throwableRespawnSeconds = 0;
 
     public static final AssetBuilderCodec<String, MultiPhaseBossAsset> CODEC = AssetBuilderCodec.builder(
                     MultiPhaseBossAsset.class,
@@ -102,6 +120,18 @@ public final class MultiPhaseBossAsset
             .append(new KeyedCodec<>("SpawnSoundId", Codec.STRING, false), (a, v) -> a.spawnSoundId = v, a -> a.spawnSoundId)
             .add()
             .append(new KeyedCodec<>("PhaseSwapSoundId", Codec.STRING, false), (a, v) -> a.phaseSwapSoundId = v, a -> a.phaseSwapSoundId)
+            .add()
+            .append(new KeyedCodec<>("ThrowableClusterId", Codec.STRING, false), (a, v) -> a.throwableClusterId = v, a -> a.throwableClusterId)
+            .add()
+            .append(new KeyedCodec<>("Phase1ThrowableCount", Codec.INTEGER, false), (a, v) -> a.phase1ThrowableCount = v, a -> a.phase1ThrowableCount)
+            .add()
+            .append(new KeyedCodec<>("Phase2ThrowableCount", Codec.INTEGER, false), (a, v) -> a.phase2ThrowableCount = v, a -> a.phase2ThrowableCount)
+            .add()
+            .append(new KeyedCodec<>("Phase3ThrowableCount", Codec.INTEGER, false), (a, v) -> a.phase3ThrowableCount = v, a -> a.phase3ThrowableCount)
+            .add()
+            .append(new KeyedCodec<>("ThrowableRingRadius", Codec.DOUBLE, false), (a, v) -> a.throwableRingRadius = v, a -> a.throwableRingRadius)
+            .add()
+            .append(new KeyedCodec<>("ThrowableRespawnSeconds", Codec.INTEGER, false), (a, v) -> a.throwableRespawnSeconds = v, a -> a.throwableRespawnSeconds)
             .add()
             .build();
 
@@ -191,5 +221,56 @@ public final class MultiPhaseBossAsset
     @Nullable
     public String phaseSwapSoundId() {
         return phaseSwapSoundId;
+    }
+
+    /**
+     * Opaque id of the harvestable HELPER-THROWABLE cluster the controller places around the boss at the
+     * start of a phase (Kweebec resolves it as a prefab key). Blank/null = no helper throwables regardless
+     * of the per-phase counts.
+     */
+    @Nullable
+    public String throwableClusterId() {
+        return throwableClusterId;
+    }
+
+    /** Helper-throwable clusters placed when entering Phase 1 (0 = none). */
+    public int phase1ThrowableCount() {
+        return phase1ThrowableCount;
+    }
+
+    /** Helper-throwable clusters placed when entering Phase 2 (0 = none). */
+    public int phase2ThrowableCount() {
+        return phase2ThrowableCount;
+    }
+
+    /** Helper-throwable clusters placed when entering Phase 3 (0 = none). */
+    public int phase3ThrowableCount() {
+        return phase3ThrowableCount;
+    }
+
+    /**
+     * The helper-throwable cluster count for a 1-based phase (1..3); 0 for any other phase. A convenience
+     * so the controller does not branch on the phase index at every placement site.
+     */
+    public int throwableCountForPhase(int phase) {
+        return switch (phase) {
+            case 1 -> phase1ThrowableCount;
+            case 2 -> phase2ThrowableCount;
+            case 3 -> phase3ThrowableCount;
+            default -> 0;
+        };
+    }
+
+    /** Ring radius (blocks) the helper-throwable clusters are placed at around the boss. */
+    public double throwableRingRadius() {
+        return throwableRingRadius;
+    }
+
+    /**
+     * Seconds between helper-throwable cluster REPLENISH waves during a phase ({@code 0} = place once on
+     * phase entry, never replenish). The configurable supply timer that keeps a high-HP boss killable.
+     */
+    public int throwableRespawnSeconds() {
+        return throwableRespawnSeconds;
     }
 }
