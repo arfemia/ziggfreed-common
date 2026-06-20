@@ -9,6 +9,8 @@ import com.ziggfreed.common.ZiggfreedCommonPlugin;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueTemplateAsset;
+import com.ziggfreed.common.instance.arena.ArenaDefinitionAsset;
+import com.ziggfreed.common.instance.arena.ArenaDefinitionConfig;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectConfig;
 import com.ziggfreed.common.instance.encounter.EncounterRuleAsset;
@@ -119,6 +121,14 @@ public final class FrameworkAssetRegistrar {
                         LeaderboardLayoutConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toLayout(id))));
 
+        // --- Arena definitions (Pattern A) - spatial layout (team spawns / objectives / pickups). ---
+        AssetStoreRegistrar.registerStore(ArenaDefinitionAsset.class,
+                new DefaultAssetMap<String, ArenaDefinitionAsset>(), "ZiggfreedCommon/Arenas",
+                ArenaDefinitionAsset::getId, ArenaDefinitionAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ArenaDefinitionAsset.class,
+                (LoadedAssetsEvent<String, ArenaDefinitionAsset, DefaultAssetMap<String, ArenaDefinitionAsset>> ev) ->
+                        ArenaDefinitionConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
         // --- Party settings (Pattern A). ---
         AssetStoreRegistrar.registerStore(PartySettingsAsset.class,
                 new DefaultAssetMap<String, PartySettingsAsset>(), "ZiggfreedCommon/Party",
@@ -131,7 +141,7 @@ public final class FrameworkAssetRegistrar {
         try {
             ZiggfreedCommonPlugin.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (Dialogues, DialogueTemplates, Instances, "
-                            + "Bosses, BandedEffects, EncounterRules, Placements, Leaderboard, Party).");
+                            + "Bosses, BandedEffects, EncounterRules, Placements, Leaderboard, Arenas, Party).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }
