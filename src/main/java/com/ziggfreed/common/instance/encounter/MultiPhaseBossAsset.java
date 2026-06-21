@@ -42,8 +42,14 @@ import com.hypixel.hytale.codec.KeyedCodec;
  *   "ThrowableClusterId": "MyMod/HelperShroom", "Phase1ThrowableCount": 0,
  *   "Phase2ThrowableCount": 4, "Phase3ThrowableCount": 6,
  *   "ThrowableRingRadius": 8.0, "ThrowableRespawnSeconds": 20,
+ *   "HealthPerPlayer": 0.35,
+ *   "MarkerIcon": "Home.png", "MarkerUpdateSeconds": 3,
  *   "NameKey": "mymod.npc.warden.name" }
  * }</pre>
+ *
+ * <p>{@code HealthPerPlayer} is a per-encounter MAX-health scale the consumer applies by party size
+ * (0.0 = off). {@code MarkerIcon}/{@code MarkerUpdateSeconds} are optional world-map-marker presentation
+ * the consumer's controller uses if it places a boss marker (the marker on/off + label are the consumer's).
  *
  * <p>The optional HELPER-THROWABLE knobs let a phase place harvestable resource clusters around the boss
  * (the consumer's controller spawns {@code ThrowableClusterId} x the per-phase count in a ring of
@@ -79,6 +85,17 @@ public final class MultiPhaseBossAsset
     private int phase3ThrowableCount = 0;
     private double throwableRingRadius = 8.0;
     private int throwableRespawnSeconds = 0;
+    // Per-player HP scaling: a fractional MAX-health bonus per ADDITIONAL participant beyond the first,
+    // applied multiplicatively by the consumer's controller (1 + healthPerPlayer * (players - 1)) so a
+    // multi-player party faces a tougher boss. Generic boss policy; the consumer supplies the player
+    // count. 0.0 = no scaling (the default), so an unconfigured boss keeps its role-authored MaxHealth.
+    private double healthPerPlayer = 0.0;
+    // Optional WORLD-MAP MARKER presentation: the client map-marker texture id the consumer places at the
+    // boss (e.g. "Home.png"), and how often (seconds) it re-places the marker to track a moving boss. The
+    // marker on/off and its label are the consumer's policy (Kweebec gates it on a per-difficulty preset
+    // knob and labels it with NameKey); these two are pure presentation. Blank icon = the documented default.
+    @Nullable private String markerIcon;
+    private int markerUpdateSeconds = 3;
 
     public static final AssetBuilderCodec<String, MultiPhaseBossAsset> CODEC = AssetBuilderCodec.builder(
                     MultiPhaseBossAsset.class,
@@ -132,6 +149,12 @@ public final class MultiPhaseBossAsset
             .append(new KeyedCodec<>("ThrowableRingRadius", Codec.DOUBLE, false), (a, v) -> a.throwableRingRadius = v, a -> a.throwableRingRadius)
             .add()
             .append(new KeyedCodec<>("ThrowableRespawnSeconds", Codec.INTEGER, false), (a, v) -> a.throwableRespawnSeconds = v, a -> a.throwableRespawnSeconds)
+            .add()
+            .append(new KeyedCodec<>("HealthPerPlayer", Codec.DOUBLE, false), (a, v) -> a.healthPerPlayer = v, a -> a.healthPerPlayer)
+            .add()
+            .append(new KeyedCodec<>("MarkerIcon", Codec.STRING, false), (a, v) -> a.markerIcon = v, a -> a.markerIcon)
+            .add()
+            .append(new KeyedCodec<>("MarkerUpdateSeconds", Codec.INTEGER, false), (a, v) -> a.markerUpdateSeconds = v, a -> a.markerUpdateSeconds)
             .add()
             .build();
 
@@ -272,5 +295,30 @@ public final class MultiPhaseBossAsset
      */
     public int throwableRespawnSeconds() {
         return throwableRespawnSeconds;
+    }
+
+    /**
+     * Fractional MAX-health bonus per ADDITIONAL participant beyond the first (the consumer applies it as
+     * {@code 1 + healthPerPlayer * (players - 1)}). {@code 0.0} (default) = no per-player scaling.
+     */
+    public double healthPerPlayer() {
+        return healthPerPlayer;
+    }
+
+    /**
+     * Client map-marker texture id the consumer places at the boss (e.g. {@code "Home.png"}); never blank -
+     * falls back to {@code "Home.png"} when unauthored so a marker is always renderable.
+     */
+    @Nonnull
+    public String markerIcon() {
+        return markerIcon != null && !markerIcon.isBlank() ? markerIcon : "Home.png";
+    }
+
+    /**
+     * Seconds between re-placements of the boss marker so it tracks a moving boss (the consumer throttles
+     * its per-tick update to this). Defaults to {@code 3}; callers should clamp to at least 1.
+     */
+    public int markerUpdateSeconds() {
+        return markerUpdateSeconds;
     }
 }

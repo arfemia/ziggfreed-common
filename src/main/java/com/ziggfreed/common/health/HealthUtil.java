@@ -8,6 +8,8 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
+import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
+import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
 
@@ -18,7 +20,8 @@ import com.ziggfreed.common.ZiggfreedCommonPlugin;
  * (or {@code Mana}) {@link EntityStatValue} off the entity's {@link EntityStatMap} and
  * {@link EntityStatMap#addStatValue} the delta up to its {@code getMax()}. The single
  * seam a minigame uses to top a player off (e.g. fully heal on a round win) without
- * re-deriving the stat-map plumbing per mod.
+ * re-deriving the stat-map plumbing per mod. {@link #scaleMaxHealth} additionally raises an
+ * entity's Health-stat MAX at runtime (a multiplicative modifier) for per-encounter scaling.
  *
  * <p><b>World thread only.</b> Every method reads the {@link Store} and so must run on
  * the entity's world thread (a system tick or inside {@code world.execute}). Each call
@@ -75,6 +78,47 @@ public final class HealthUtil {
         boolean healed = restoreToMax(store, ref, DefaultEntityStatTypes.getHealth(), "fullRestore.health");
         boolean mana = restoreToMax(store, ref, DefaultEntityStatTypes.getMana(), "fullRestore.mana");
         return healed || mana;
+    }
+
+    /**
+     * Raise the entity's {@code Health} stat MAX by {@code factor} (a multiplicative MAX modifier keyed
+     * by {@code key}) and heal it to the new max. The single seam for per-encounter HP scaling (e.g. a
+     * boss whose HP grows with party size / difficulty) without re-deriving the modifier plumbing per mod.
+     *
+     * <p><b>Idempotent</b> per entity: a no-op (returns {@code false}) when the modifier under {@code key}
+     * is already present (so it scales each entity exactly once - call it freely every tick), the Health
+     * stat is not yet present (balancing not done this tick), {@code factor == 1.0}, or the ref is invalid.
+     * Because it heals to the new max only on the call that newly applies the modifier, repeat calls never
+     * re-heal (which would make a target unkillable).
+     *
+     * <p>World thread only; fully try-guarded (any engine throw degrades to {@code false}).
+     *
+     * @param factor multiplicative scale on the post-balance max (e.g. {@code 2.0} = double max HP)
+     * @param key    unique, mod-prefixed modifier key (the idempotency handle; avoid engine stat keys)
+     * @return {@code true} if the scale was newly applied this call; {@code false} otherwise
+     */
+    public static boolean scaleMaxHealth(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                                         double factor, @Nonnull String key) {
+        if (factor == 1.0 || !ref.isValid()) {
+            return false;
+        }
+        try {
+            EntityStatMap stats = statMap(store, ref);
+            if (stats == null) {
+                return false;
+            }
+            int hp = DefaultEntityStatTypes.getHealth();
+            if (stats.get(hp) == null || stats.getModifier(hp, key) != null) {
+                return false; // stat not ready (balancing pending), or already scaled (per-entity)
+            }
+            stats.putModifier(hp, key, new StaticModifier(
+                    Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.MULTIPLICATIVE, (float) factor));
+            stats.maximizeStatValue(hp); // heal to the new full max (once, on first application)
+            return true;
+        } catch (Throwable t) {
+            warn("scaleMaxHealth", t);
+            return false;
+        }
     }
 
     // ---------------------------------------------------------------------

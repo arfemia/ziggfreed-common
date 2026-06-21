@@ -14,6 +14,11 @@ restore - needs it), so it lives here, not duplicated in a consumer.
     `AbilityHealService.applyInstant`).
   - `fullRestore(store, ref)` -> raise BOTH `Health` and `Mana` to max (each independently, so a
     mana-less entity still gets healed).
+  - `scaleMaxHealth(store, ref, factor, key)` -> raise the `Health` MAX by `factor` (a multiplicative
+    MAX `StaticModifier` keyed by `key`) and heal to the new max. Idempotent per entity (no-op if the
+    `key` modifier is already present, factor is 1.0, or the stat is not yet balanced), so it is safe to
+    call every tick and heals exactly once. The seam for per-encounter HP scaling (boss HP by party
+    size / difficulty); exemplar consumer is Kweebec's `BossController` (Warden phase entities).
 - **World thread only** (touches the `Store`); every method is try-guarded to a `false` return so a
   missing stat map / invalid ref / engine throw never escapes into the caller. The raw flogger LOGGER
   is itself wrapped in a try/catch (it throws in a log-manager-less unit JVM).

@@ -10,7 +10,7 @@ $M = "../Common/ZigButtons.ui";
 $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 660, Height: 752);
+  Anchor: (Width: 700, Height: 826);
 
   #Content {
     Label #OutcomeTitle {
@@ -65,9 +65,12 @@ $F.@ZigDecoratedFrame {
       Anchor: (Height: 20, Bottom: 4);
       Style: (FontSize: 14, TextColor: #ffd97a, RenderBold: true);
     }
+    // Reward chips flow left and WRAP onto further rows (LeftCenterWrap) instead of running off
+    // the panel edge - the height holds up to three rows of pills; the consumer merges duplicate
+    // rewards (InstanceReward.merge) so a typical run is one short row.
     Group #RewardList {
-      LayoutMode: Left;
-      Anchor: (Height: 30, Bottom: 4);
+      LayoutMode: LeftCenterWrap;
+      Anchor: (Height: 104, Bottom: 4);
     }
     Label #NoRewards {
       Text: "";

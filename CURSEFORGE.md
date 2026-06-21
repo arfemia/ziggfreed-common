@@ -52,6 +52,7 @@ Where it makes sense, CommonLib is driven by asset-pack JSON under `Server/Ziggf
 
 | Version           | Notes                                                                                                                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1.0.0             | First stable release. The primitives, the dialogue engine, and the co-op instance + encounter framework are feature-complete for the 1.0 consumer surface. Adds runtime boss health scaling, boss world-map marker knobs, and same-identity reward merging. |
 | 0.3.2             | Adds a reusable co-op "hold this zone" objective timer (extraction pads, capture points, king-of-the-hill) and per-phase helper-throwable cluster knobs on the multi-phase boss primitive. |
 | 0.3.1             | Adds a shared segmented-tab / filter button style for consumer pages (party-size tabs, category chips).                                                                                    |
 | 0.3.0 and earlier | The core primitives (3D sound, camera, asset-index cache, command exec, inventory, notifications, HUD helper, surface probe) plus the branching NPC dialogue engine and its UI asset pack. |
