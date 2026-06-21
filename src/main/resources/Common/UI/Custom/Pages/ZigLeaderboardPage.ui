@@ -75,18 +75,20 @@ $F.@ZigDecoratedFrame {
       Label #HdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
     }
 
-    // Stats column header (4 generic stat cells; the page hides the unused ones).
+    // Stats column header (4 generic stat cells; the page hides the unused ones). The stat cells +
+    // Plays are clickable sort headers (TextButton @ZigSortHeaderBtnStyle): the page binds each to
+    // set the active sort metric and tints the active one from Java (style()). Rank/Player stay Labels.
     Group #StatsHeader {
       LayoutMode: Left;
       Visible: false;
       Anchor: (Height: 22, Bottom: 4);
-      Label #SHdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
-      Label #SHdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
-      Label #SHdrCol0   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
-      Label #SHdrCol1   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
-      Label #SHdrCol2   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
-      Label #SHdrCol3   { Anchor: (Width: 110); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
-      Label #SHdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label      #SHdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label      #SHdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
+      TextButton #SHdrCol0   { Anchor: (Width: 110); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
+      TextButton #SHdrCol1   { Anchor: (Width: 110); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
+      TextButton #SHdrCol2   { Anchor: (Width: 110); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
+      TextButton #SHdrCol3   { Anchor: (Width: 110); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
+      TextButton #SHdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
     }
 
     Group { Anchor: (Height: 1, Bottom: 6); Background: #1e2a36; }

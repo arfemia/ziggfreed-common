@@ -11,6 +11,7 @@ import com.ziggfreed.common.instance.encounter.EncounterRuleAsset;
 import com.ziggfreed.common.instance.encounter.MultiPhaseBossAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetAsset;
+import com.ziggfreed.common.instance.reward.LootTableAsset;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 
@@ -37,6 +38,11 @@ class AssetCodecInitTest {
     @Test
     void multiPhaseBossAssetCodecInitializes() {
         assertNotNull(MultiPhaseBossAsset.CODEC, "MultiPhaseBossAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void lootTableAssetCodecInitializes() {
+        assertNotNull(LootTableAsset.CODEC, "LootTableAsset.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

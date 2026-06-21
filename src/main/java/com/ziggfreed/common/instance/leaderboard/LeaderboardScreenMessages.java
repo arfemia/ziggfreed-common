@@ -67,6 +67,13 @@ public interface LeaderboardScreenMessages {
     /** View-toggle button label: the lifetime stats. */
     @Nonnull Message viewStats();
 
+    /**
+     * Label for the synthesized "All" tab the page appends to the end of any axis with two or more
+     * concrete tabs (e.g. "All"): selecting it aggregates every concrete bucket on that axis, so
+     * All+All is the full lifetime roll-up. Required because the page renders this tab itself.
+     */
+    @Nonnull Message filterAll();
+
     /** Footer: the viewer's own rank + best score in the selected bucket. */
     @Nonnull Message yourRank(int rank, long bestScore);
 

@@ -74,7 +74,9 @@ $F.@ZigDecoratedFrame {
       Group #FooterRow {
         LayoutMode: Left;
         Anchor: (Height: 36, Top: 8);
-        TextButton #LeaveBtn { FlexWeight: 1; Anchor: (Height: 36); Style: $M.@ZigOptionBtnStyle; Visible: false; }
+        // Footer CTA -> the shared center-aligned primary style (NOT the left-aligned dialogue-row
+        // @ZigOptionBtnStyle), so "Leave the Gathering" centers in the full-width button.
+        TextButton #LeaveBtn { FlexWeight: 1; Anchor: (Height: 36); Style: $M.@ZigPrimaryBtnStyle; Visible: false; }
       }
     }
   }

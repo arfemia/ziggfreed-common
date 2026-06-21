@@ -21,6 +21,8 @@ import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutConfig;
 import com.ziggfreed.common.instance.preset.InstancePresetAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetConfig;
+import com.ziggfreed.common.instance.reward.LootTableAsset;
+import com.ziggfreed.common.instance.reward.LootTableConfig;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.party.PartySettingsConfig;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
@@ -79,6 +81,15 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, InstancePresetAsset, DefaultAssetMap<String, InstancePresetAsset>> ev) ->
                         InstancePresetConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toPreset(id))));
+
+        // --- Loot tables (Pattern A) - score-tiered reward pools a preset references by id. ---
+        AssetStoreRegistrar.registerStore(LootTableAsset.class,
+                new DefaultAssetMap<String, LootTableAsset>(), "ZiggfreedCommon/LootTables",
+                LootTableAsset::getId, LootTableAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, LootTableAsset.class,
+                (LoadedAssetsEvent<String, LootTableAsset, DefaultAssetMap<String, LootTableAsset>> ev) ->
+                        LootTableConfig.getInstance().mergePackLayer(
+                                AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toLootTable())));
 
         // --- Multi-phase bosses (Pattern A). ---
         AssetStoreRegistrar.registerStore(MultiPhaseBossAsset.class,
@@ -141,7 +152,7 @@ public final class FrameworkAssetRegistrar {
         try {
             ZiggfreedCommonPlugin.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (Dialogues, DialogueTemplates, Instances, "
-                            + "Bosses, BandedEffects, EncounterRules, Placements, Leaderboard, Arenas, Party).");
+                            + "LootTables, Bosses, BandedEffects, EncounterRules, Placements, Leaderboard, Arenas, Party).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }

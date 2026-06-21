@@ -40,7 +40,7 @@ import com.ziggfreed.common.instance.reward.RewardOnExit;
  *   "FillTimeoutSeconds": 20, "CountdownSeconds": 5, "AllowSolo": true, "LeaderForceStart": false,
  *   "LeaderboardBucket": "PARTY_SIZE", "LeaderboardKey": "leaderboard.nightmare.title",
  *   "Rewards": [ "currency bounty_token 100", "item hytale:emerald 5 reward.emerald.name" ],
- *   "RewardOnExit": "ON_WIN" }
+ *   "RewardOnExit": "ON_WIN", "RewardTableId": "chase_nightmare" }
  * }</pre>
  */
 public final class InstancePresetAsset
@@ -69,6 +69,7 @@ public final class InstancePresetAsset
     @Nullable private String leaderboardKey;
     @Nullable private String[] rewards;
     @Nullable private String rewardOnExit;
+    @Nullable private String rewardTableId;
     @Nullable private QueueModes queueModes;
 
     public static final AssetBuilderCodec<String, InstancePresetAsset> CODEC = AssetBuilderCodec.builder(
@@ -107,6 +108,8 @@ public final class InstancePresetAsset
             .add()
             .append(new KeyedCodec<>("RewardOnExit", Codec.STRING, false), (a, v) -> a.rewardOnExit = v, a -> a.rewardOnExit)
             .add()
+            .append(new KeyedCodec<>("RewardTableId", Codec.STRING, false), (a, v) -> a.rewardTableId = v, a -> a.rewardTableId)
+            .add()
             .append(new KeyedCodec<>("QueueModes", QueueModes.CODEC, false), (a, v) -> a.queueModes = v, a -> a.queueModes)
             .add()
             .build();
@@ -138,7 +141,7 @@ public final class InstancePresetAsset
         return new InstancePreset(presetId.toLowerCase(java.util.Locale.ROOT), enabled, nameKey, descriptionKey,
                 fill, countdown, solo, force,
                 LeaderboardBucket.fromString(leaderboardBucket), leaderboardKey,
-                InstanceReward.parseAll(rewards), RewardOnExit.fromString(rewardOnExit),
+                InstanceReward.parseAll(rewards), RewardOnExit.fromString(rewardOnExit), rewardTableId,
                 QueueModeSet.from(queueModes));
     }
 

@@ -111,7 +111,10 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
                               @Nonnull PlayScreenMessages t) {
         cmd.set("#ModeCards.Visible", true);
         cmd.set("#RosterArea.Visible", false);
-        cmd.set("#Subtitle.Text", t.difficulty(deps.presetName().apply(presetId)));
+        // TextSpans (not .Text): t.difficulty carries the preset NAME as a nested Message param,
+        // which only resolves client-side on TextSpans (.Text leaves the {0} literal). See
+        // hytale-rich-text-textspans.md / the DialoguePage #NodeText pattern.
+        cmd.set("#Subtitle.TextSpans", t.difficulty(deps.presetName().apply(presetId)));
 
         QueueModeSet modes = deps.modes().apply(presetId);
         List<QueueModeEntry> ordered = modes.enabledOrdered();
@@ -163,7 +166,9 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
 
         QueueSnapshot snap = queue.snapshot();
         LobbyConfig cfg = snap.config();
-        cmd.set("#Subtitle.Text", t.difficulty(deps.presetName().apply(snap.key().presetId())));
+        // TextSpans (not .Text): the nested preset-name Message param resolves only on TextSpans
+        // (see buildChooser).
+        cmd.set("#Subtitle.TextSpans", t.difficulty(deps.presetName().apply(snap.key().presetId())));
         cmd.set("#PlayerCount.Text", t.playerCount(snap.size(), cfg.maxParty()));
         cmd.set("#Status.Text", statusFor(t, snap));
         cmd.set("#WaitEstimate.Text", t.waitEstimate(cfg.fillTimeoutSeconds() + cfg.countdownSeconds()));

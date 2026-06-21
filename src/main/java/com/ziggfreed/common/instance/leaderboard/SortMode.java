@@ -47,4 +47,32 @@ public enum SortMode {
             case BEST_TIME -> e.bestTimeSeconds;
         };
     }
+
+    /**
+     * A comparator that ranks two entries highest-first by an arbitrary Stats-view metric: a
+     * consumer stat key (e.g. {@code "stunned"}), or the reserved keys {@code "plays"} and
+     * {@code "total"}. Unlike the three enum {@link #comparator() rank metrics}, this is the
+     * sortable-by-column Stats view (every stat column header + the Plays header). An absent stat
+     * defaults to 0, so unranked entries sort last and the order stays stable.
+     */
+    @Nonnull
+    public static Comparator<Map.Entry<UUID, LeaderboardEntry>> byStat(@Nonnull String key) {
+        return Comparator.comparingLong(
+                (Map.Entry<UUID, LeaderboardEntry> e) -> statMetric(e.getValue(), key)).reversed();
+    }
+
+    /**
+     * The Stats-view metric value for {@code key}: the {@code "plays"} count, the {@code "total"}
+     * points, else the consumer stat counter (0 when absent). The single source the {@link #byStat}
+     * comparator and the page's "your rank" footer both read, so sort order and the footer agree.
+     */
+    public static long statMetric(@Nonnull LeaderboardEntry e, @Nonnull String key) {
+        if ("plays".equals(key)) {
+            return e.plays;
+        }
+        if ("total".equals(key)) {
+            return e.totalPoints;
+        }
+        return e.stat(key);
+    }
 }

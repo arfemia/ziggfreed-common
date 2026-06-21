@@ -47,3 +47,18 @@ $C = "../Common.ui";
   Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #66798c), LabelStyle: (FontSize: 14, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
   Sounds: $C.@ButtonSounds
 );
+
+// ── ziggfreed-common shared SORTABLE COLUMN-HEADER button ─────────────────────
+// Imported per page as:  $M = "../Common/ZigButtons.ui";  then  Style: $M.@ZigSortHeaderBtnStyle;
+//
+// A MINIMAL, RIGHT-aligned, small-font clickable header for "click a column to sort" lists (the
+// leaderboard Stats-view stat columns + Plays). Muted by default so it reads as a header, not a
+// chip; the page paints the ACTIVE (currently-sorted) header's per-state .Background.Color from
+// Java via the same style() helper that tints the tabs (default tint mirrors INACTIVE_TINT
+// #2f3b49). Right-aligned to line up with the numeric cells below it. Keep Sounds or it is silent.
+@ZigSortHeaderBtnStyle = TextButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #2f3b49), LabelStyle: (FontSize: 11, TextColor: #8696a8, RenderBold: false, HorizontalAlignment: End, VerticalAlignment: Center)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #445364), LabelStyle: (FontSize: 11, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: End, VerticalAlignment: Center)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #2f3b49), LabelStyle: (FontSize: 11, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: End, VerticalAlignment: Center)),
+  Sounds: $C.@ButtonSounds
+);

@@ -81,6 +81,29 @@ class LeaderboardTest {
     }
 
     @Test
+    void byStatRanksByEachMetric() {
+        Leaderboard lb = new Leaderboard("test");
+        // A: 2 plays, total 2000, 5 wins. B: 1 play, total 3000, 2 wins.
+        lb.record("b", A, "Ada", 1000, 0, false, Map.of("wins", 5L));
+        lb.record("b", A, "Ada", 1000, 0, false, Map.of("wins", 0L));
+        lb.record("b", B, "Ben", 3000, 0, false, Map.of("wins", 2L));
+
+        List<Map.Entry<UUID, LeaderboardEntry>> rows = new ArrayList<>(lb.forBucket("b").entrySet());
+
+        rows.sort(SortMode.byStat("wins"));
+        assertEquals(A, rows.get(0).getKey(), "byStat(wins) ranks A (5) ahead of B (2)");
+
+        rows.sort(SortMode.byStat("plays"));
+        assertEquals(A, rows.get(0).getKey(), "byStat(plays) ranks A (2 plays) ahead of B (1)");
+
+        rows.sort(SortMode.byStat("total"));
+        assertEquals(B, rows.get(0).getKey(), "byStat(total) ranks B (3000) ahead of A (2000)");
+
+        // An absent stat counter defaults to 0 (no throw), so the metric is well-defined for all.
+        assertEquals(0L, SortMode.statMetric(lb.forBucket("b").get(B), "moonbloom"));
+    }
+
+    @Test
     void bestTimeSortsNoWinLast() {
         Leaderboard lb = new Leaderboard("test");
         lb.record("b", A, "Ada", 500, 0, false, null); // no winning time

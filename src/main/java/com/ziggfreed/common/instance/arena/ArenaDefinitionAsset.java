@@ -49,7 +49,7 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
  * { "Name": "frostpeak",
  *   "Id": "frostpeak",
  *   "InstanceName": "MyMod/Frostpeak.bson",
- *   "Tags": [ "capture", "2v2" ],
+ *   "ArenaTags": [ "capture", "2v2" ],
  *   "TeamSpawns": [
  *     { "Anchors": [ { "X": 10.0, "Y": 64.0, "Z": 10.0, "Yaw": 90.0 },
  *                    { "X": 12.0, "Y": 64.0, "Z": 10.0, "Yaw": 90.0 } ] },
@@ -98,7 +98,12 @@ public final class ArenaDefinitionAsset
             .append(new KeyedCodec<>("InstanceName", Codec.STRING, false),
                     (a, v) -> a.instanceName = v, a -> a.instanceName)
             .add()
-            .append(new KeyedCodec<>("Tags", Codec.STRING_ARRAY, false),
+            // "ArenaTags" (NOT "Tags") - "Tags" is a reserved AssetBuilderCodec field (an
+            // engine-registered Map<String,String[]> with tag-expansion semantics); redefining
+            // it throws "Field already defined for this version range!" at static init. These
+            // are simple flat selection labels (a preset's "ArenaTag" selector matches against
+            // them via hasTag), so they get their own non-reserved key.
+            .append(new KeyedCodec<>("ArenaTags", Codec.STRING_ARRAY, false),
                     (a, v) -> a.tags = v, a -> a.tags)
             .add()
             .append(new KeyedCodec<>("TeamSpawns", new ArrayCodec<>(TeamSpawnGroup.CODEC, TeamSpawnGroup[]::new), false),
