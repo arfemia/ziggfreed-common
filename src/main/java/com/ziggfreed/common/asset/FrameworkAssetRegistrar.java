@@ -152,7 +152,7 @@ public final class FrameworkAssetRegistrar {
         try {
             ZiggfreedCommonPlugin.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (Dialogues, DialogueTemplates, Instances, "
-                            + "LootTables, Bosses, BandedEffects, EncounterRules, Placements, Leaderboard, Arenas, Party).");
+                            + "LootTables, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, Arenas, Party).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }

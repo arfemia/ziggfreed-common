@@ -69,8 +69,14 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     private final String statSort; // the active Stats-view column metric ("" when no stat columns)
     private final boolean statsView;
 
+    /**
+     * Open the leaderboard with no deep-link context: defaults BOTH tab axes to the synthesized
+     * "All" selection (reserved key {@link #ALL}), so a fresh open shows the All-difficulty x
+     * All-party-size lifetime roll-up. An axis with fewer than two concrete tabs has no "All" tab,
+     * so {@link #resolveKey} falls back to its first concrete tab (or {@code ""} for an empty axis).
+     */
     public LeaderboardPage(@Nonnull PlayerRef playerRef, @Nonnull LeaderboardPageDeps deps) {
-        this(playerRef, deps, null);
+        this(playerRef, deps, ALL, ALL, SortMode.BEST_SCORE, null, false);
     }
 
     /**

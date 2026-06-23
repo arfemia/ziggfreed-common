@@ -4,7 +4,7 @@
 
 CommonLib is the battle-tested plumbing that Ziggfreed's mods stand on: 3D sound, camera effects, notifications and HUD helpers, a branching NPC dialogue engine, and a full co-op instance framework (parties, queues, leaderboards, rewards). Shipping it once means every mod that uses it behaves the same way and gets fixed in one place.
 
-[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/5NFdZsUxHZ) [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/ziggfreed) [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/wintergreensolutions)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/5NFdZsUxHZ) [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/ziggfreed)
 
 ---
 
@@ -50,11 +50,11 @@ Where it makes sense, CommonLib is driven by asset-pack JSON under `Server/Ziggf
 
 ## Versions
 
-| Version           | Notes                                                                                                                                                                                      |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Version           | Notes                                                                                                                                                                                                                                                       |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1.0.0             | First stable release. The primitives, the dialogue engine, and the co-op instance + encounter framework are feature-complete for the 1.0 consumer surface. Adds runtime boss health scaling, boss world-map marker knobs, and same-identity reward merging. |
-| 0.3.2             | Adds a reusable co-op "hold this zone" objective timer (extraction pads, capture points, king-of-the-hill) and per-phase helper-throwable cluster knobs on the multi-phase boss primitive. |
-| 0.3.1             | Adds a shared segmented-tab / filter button style for consumer pages (party-size tabs, category chips).                                                                                    |
-| 0.3.0 and earlier | The core primitives (3D sound, camera, asset-index cache, command exec, inventory, notifications, HUD helper, surface probe) plus the branching NPC dialogue engine and its UI asset pack. |
+| 0.3.2             | Adds a reusable co-op "hold this zone" objective timer (extraction pads, capture points, king-of-the-hill) and per-phase helper-throwable cluster knobs on the multi-phase boss primitive.                                                                  |
+| 0.3.1             | Adds a shared segmented-tab / filter button style for consumer pages (party-size tabs, category chips).                                                                                                                                                     |
+| 0.3.0 and earlier | The core primitives (3D sound, camera, asset-index cache, command exec, inventory, notifications, HUD helper, surface probe) plus the branching NPC dialogue engine and its UI asset pack.                                                                  |
 
 Made by Ziggfreed / [Wintergreen Solutions](https://wintergreen-solutions.com).

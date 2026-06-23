@@ -2,6 +2,12 @@
 
 The dev changelog for the shared, mod-agnostic Hytale primitive library. Newest first. No em-dashes.
 
+## Unreleased
+The version stays 1.0.0 locally; a 1.1.0 bump is owed at ship time (this section formalizes then).
+
+- New: `world/ForcedMusicService.applyFor(store, ref, containerId)` / `clearFor(store, ref)` - force a `MusicContainer` music bed onto one player by id. Resolves + validates the id via `MusicContainer.getAssetMap().getIndex`, sets the player's `ForcedMusicTracker` index, and pushes the `UpdateForcedMusic` packet directly to the player's handler (works whether or not the engine's `ForcedMusicSystems.Tick` runs in an instance world). `applyFor` returns false on a bad / unresolved id or invalid ref so the caller can retry (never latches index 0); `clearFor` sends index 0 to restore the default bed. World-thread, fully try-guarded. Lifted the MECHANISM from Kweebec Nightmare's `MusicBedService`; the dread-container candidate list + per-tier selection policy stay in the consumer, which iterates its own roster and calls `applyFor` per player.
+- New: `world/AtmosphereService.setDayTime(world, dayTimeFraction, pauseTime)` / `setForcedWeather(world, weatherId)` / `lock(world, dayTimeFraction, weatherId)` - control a world's time-of-day and forced weather. `setDayTime` pins the clock (`0.0` = midnight / darkest, `0.5` = noon) and optionally pauses it; `setForcedWeather` validates the id (an unknown id would blank the sky, so it is skipped) before forcing both the live `WeatherResource` and the persisted `WorldConfig`, and a `null` id clears the override; `lock` composes a paused day-time set with a forced weather (the frozen-dark-midnight convenience). Each call self-hops via `world.execute` and is fully try-guarded. Lifted the MECHANISM from Kweebec Nightmare's `AtmosphereService`; the dark-weather candidate list + choice stay in the consumer.
+
 ## 1.0.0
 First stable release. The static primitives, the branching NPC dialogue engine, and the full co-op instance + encounter framework are feature-complete for the 1.0 consumer surface (Kweebec Nightmare 1.0.0 is the exemplar consumer). This cycle adds runtime boss MAX-health scaling, per-encounter boss world-map marker knobs, and same-identity reward merging.
 
