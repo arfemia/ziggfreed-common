@@ -28,6 +28,7 @@ import com.ziggfreed.common.dialogue.DialogueNode;
 import com.ziggfreed.common.dialogue.NpcDialogue;
 import com.ziggfreed.common.dialogue.i18n.DialogueI18n;
 import com.ziggfreed.common.dialogue.i18n.DialogueMessages;
+import com.ziggfreed.common.ui.UiRetint;
 
 /**
  * The generic branching NPC dialogue page: a name header, an optional one-line
@@ -147,9 +148,8 @@ public class DialoguePage extends InteractiveCustomUIPage<DialogueEventData> {
      */
     private static void applyOptionStyle(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
                                          @Nonnull DialogueOptionStyle style) {
-        cmd.set(sel + " #OptionBtn.Style.Default.Background.Color", style.tintDefault());
-        cmd.set(sel + " #OptionBtn.Style.Hovered.Background.Color", style.tintHovered());
-        cmd.set(sel + " #OptionBtn.Style.Pressed.Background.Color", style.tintPressed());
+        UiRetint.retintButtonStates(cmd, sel + " #OptionBtn",
+                style.tintDefault(), style.tintHovered(), style.tintPressed());
         String iconId = style.iconElementId();
         if (iconId != null) {
             cmd.set(sel + " #OptIcon " + iconId + ".Visible", true);

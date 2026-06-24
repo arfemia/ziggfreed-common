@@ -23,6 +23,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.util.NumberFormatter;
 
 /**
@@ -423,9 +424,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     /** Paint a tab/sort/view button as the ACTIVE selection (bright + bold + white) or an inactive one (muted). */
     private static void style(@Nonnull UICommandBuilder cmd, @Nonnull String btnSelector, boolean active) {
         String bg = active ? ACTIVE_TINT : INACTIVE_TINT;
-        cmd.set(btnSelector + ".Style.Default.Background.Color", bg);
-        cmd.set(btnSelector + ".Style.Hovered.Background.Color", active ? ACTIVE_HOVER : INACTIVE_HOVER);
-        cmd.set(btnSelector + ".Style.Pressed.Background.Color", bg);
+        UiRetint.retintButtonStates(cmd, btnSelector, bg, active ? ACTIVE_HOVER : INACTIVE_HOVER, bg);
         cmd.set(btnSelector + ".Style.Default.LabelStyle.TextColor", active ? ACTIVE_TEXT : INACTIVE_TEXT);
         cmd.set(btnSelector + ".Style.Default.LabelStyle.RenderBold", active);
     }

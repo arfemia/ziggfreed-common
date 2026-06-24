@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.ui.Anchor;
 import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
+import com.ziggfreed.common.ui.UiRetint;
 
 /**
  * Single source of truth for the {@code #ZigToast} element-id contract over the shared
@@ -67,8 +68,10 @@ public final class ToastRenderer {
         // pattern). The kind colour stays on the base Style.TextColor (the Message carries no colour).
         cmd.set("#ZigToastText.TextSpans", spec.message());
         cmd.set("#ZigToastText.Style.TextColor", spec.kind().textColor());
-        // Tint the white frame texture to the kind color (gold REWARD / green SUCCESS / red ERROR).
-        cmd.set("#ZigToast.Background.Color", spec.kind().textColor());
+        // Tint the white frame texture to the kind color (gold REWARD / green SUCCESS / red ERROR)
+        // through the shared retint primitive (the ToastKind hex is always 6-digit, so the
+        // primitive's hex guard is a no-op here).
+        UiRetint.retintColor(cmd, "#ZigToast", spec.kind().textColor());
         for (int i = 0; i < MAX_LINES; i++) {
             setRow(cmd, i, i < lines.size() ? lines.get(i) : null);
         }

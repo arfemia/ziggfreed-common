@@ -27,6 +27,7 @@ import com.ziggfreed.common.party.Party;
 import com.ziggfreed.common.party.PartyInvite;
 import com.ziggfreed.common.party.PartyService;
 import com.ziggfreed.common.party.PartySnapshot;
+import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 
@@ -112,9 +113,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
     }
 
     private void paintActiveTab(@Nonnull UICommandBuilder cmd, @Nonnull String sel) {
-        cmd.set(sel + ".Style.Default.Background.Color", TAB_ACTIVE);
-        cmd.set(sel + ".Style.Hovered.Background.Color", TAB_ACTIVE);
-        cmd.set(sel + ".Style.Pressed.Background.Color", TAB_ACTIVE);
+        UiRetint.retintButtonStates(cmd, sel, TAB_ACTIVE, TAB_ACTIVE, TAB_ACTIVE);
         cmd.set(sel + ".Style.Default.LabelStyle.TextColor", "#ffffff");
         cmd.set(sel + ".Style.Default.LabelStyle.RenderBold", true);
     }
