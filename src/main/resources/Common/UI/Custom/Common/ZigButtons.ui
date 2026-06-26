@@ -1,5 +1,86 @@
 $C = "../Common.ui";
 
+// ── ziggfreed-common shared RICH-ROW button style (Button + inner Label) ──────
+// Imported per page as:  $Z = "../Common/ZigButtons.ui";  then  Style: $Z.@ZigRichRowBtnStyle;
+//
+// The generic clickable-list-ROW companion to the ZigRichButton primitive
+// (com.ziggfreed.common.ui.ZigRichButton). A `ButtonStyle` (backgrounds + Sounds
+// only, NO LabelStyle) for the vanilla `Button` ELEMENT - which, unlike a
+// `TextButton`, wraps a child `Label #Label` whose text is pushed via .TextSpans so
+// PARAMETERIZED / composite localized text actually substitutes (a TextButton .Text
+// prints the literal "{0}{1}"). Authority: the hyMMO repo's
+// .claude/research/hytale-rich-text-textspans.md.
+//
+// THEME-TINTABLE: the native Secondary.png 9-slice patch with a per-state neutral
+// Color tint - the SAME retint-ready form as @ZigOptionBtnStyle, so a theme can
+// recolour each row via UiRetint.retintButtonStates (overwriting
+// .Style.{Default,Hovered,Pressed}.Background.Color) exactly like the dialogue option
+// rows. A FLAT hex `Background: #rrggbb` would NOT be tintable (no .Color
+// sub-property) - hence the patch. The per-row TEXT style (font / colour / alignment)
+// lives on each consumer's inner `#Label`; a selected-row accent is set from Java by
+// tinting this instance's .Style.Default.Background.Color (NOT by replacing .Background
+// with a bare String, which red-Xes) + the #Label colour. The 9-slice needs a row
+// height >= ~24px to render cleanly. For a tab/filter look use the vanilla
+// $C.@TertiaryButtonStyle instead. Keep Sounds or the row is silent on click.
+@ZigRichRowBtnStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #41506a)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #5b6f8c)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #344156)),
+  Sounds: $C.@ButtonSounds
+);
+
+// PRIMARY-CTA variant of the rich row: a brighter steel tint for a footer / hero
+// call-to-action (Switch Class, Accept, View Leaderboard). Same retint-ready
+// Secondary.png patch form as @ZigRichRowBtnStyle, so a theme recolours it the same
+// way. Pair with the @ZigRichBtn component (or a Button + Label #Label) below.
+@ZigRichPrimaryBtnStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #7d93aa)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #a8bdd2)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #66798c)),
+  Sounds: $C.@ButtonSounds
+);
+
+// ── ziggfreed-common reusable RICH BUTTON component (icon + label) ────────────
+// Imported per page as:  $Z = "../Common/ZigButtons.ui";  then instantiated:
+//   $Z.@ZigRichBtn #MyBtn { @Style = $Z.@ZigRichPrimaryBtnStyle; @LabelStyle = (...); }
+//
+// A `Button` (clickable container, see ZigRichButton) wrapping an OPTIONAL leading
+// icon, the text `Label #Label`, and an OPTIONAL trailing icon. Both icon slots are
+// Visible:false until populated from Java via ZigRichButton.iconStart / .iconEnd - so
+// the SAME component places an icon at the START or the END (or neither / both) with
+// no per-consumer .ui variant. Text is pushed via ZigRichButton.text (.TextSpans).
+// Overridable params: @Style (ButtonStyle), @LabelStyle, @Anchor, @Height, @IconSize.
+@ZigRichBtn = Button {
+  @Style = @ZigRichRowBtnStyle;
+  @LabelStyle = (FontSize: 13, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center);
+  @Anchor = Anchor();
+  @Height = 28;
+  @IconSize = 16;
+  Style: @Style;
+  Anchor: (...@Anchor, Height: @Height);
+  LayoutMode: Left;
+  Padding: (Horizontal: 8);
+
+  // Leading icon - a UI glyph texture set + shown by ZigRichButton.iconStart.
+  Group #IconStart {
+    Anchor: (Width: @IconSize, Height: @IconSize, Right: 6);
+    Visible: false;
+  }
+
+  Label #Label {
+    FlexWeight: 1;
+    Text: "";
+    Anchor: (Height: @Height);
+    Style: @LabelStyle;
+  }
+
+  // Trailing icon - set + shown by ZigRichButton.iconEnd.
+  Group #IconEnd {
+    Anchor: (Width: @IconSize, Height: @IconSize, Left: 6);
+    Visible: false;
+  }
+};
+
 // ── ziggfreed-common shared dialogue option button style (de-MMO'd) ───────────
 // Imported per page as:  $M = "../Common/ZigButtons.ui";  then  Style: $M.@ZigOptionBtnStyle;
 //
