@@ -1,16 +1,23 @@
 package com.ziggfreed.common.ui.toast;
 
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.packets.interface_.CustomPage;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
@@ -41,24 +48,79 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
     // Per-player toast state lives in ToastStore (keyed by uuid) so a toast set on this instance
     // still renders after the page reopens as a fresh instance.
     //
-    // Flipped true by onDismiss, reset false by renderToastInto on every (re)build. Guards the
-    // toast surface push: the auto-dismiss fires ~4s after a toast shows, by which point the
-    // player may have navigated to another page. updateCustomPage does NOT verify the page is
-    // still active, so an unguarded stale push targets whatever page is now open and crashes the
-    // client ("selector #ZigToast.Anchor not found"). Skipping the push is safe - the toast store
-    // still clears (ToastController calls clearIfCurrent regardless), so the next page opens idle.
-    //
-    // CRUCIAL: the reset in renderToastInto. The common reopen flow is showToast(...) then
-    // openCustomPage(ref, store, this) - and PageManager.openCustomPage calls onDismiss on the
-    // OUTGOING page (which is THIS same instance) before rebuilding it. Without the reset, the
-    // self-reopen leaves dismissed=true forever, so the scheduled hide is skipped and the toast
-    // never auto-dismisses. The reset only fires when this instance rebuilds (is active again);
-    // an instance replaced by a DIFFERENT page never rebuilds, so its guard correctly stays set.
+    // The auto-dismiss surface push is keyed on the player's CURRENTLY-ACTIVE toastable page
+    // (ACTIVE below), NOT the instance that scheduled it. A toast outlives the page instance that
+    // showed it: the dominant reopen flow is showToast(...) then openCustomPage(ref, store, new
+    // SomePage(...)) - a DIFFERENT instance. The scheduled hide (~4s later) must push #ZigToast
+    // into whatever instance is open NOW, not the dead one. Routing through ACTIVE does exactly
+    // that; binding to the scheduling instance is what left toasts stuck (the old per-instance
+    // `dismissed`-guarded surface only auto-dismissed when the page reopened as `this`).
+    private static final ConcurrentHashMap<UUID, ToastablePage<?>> ACTIVE = new ConcurrentHashMap<>();
+
+    // Flipped true by onDismiss, reset false by renderToastInto on every (re)build. Read inside
+    // the world-thread push recheck (with ACTIVE membership + ref.isValid) so a stale push never
+    // targets a page that has since been replaced. Also exposed via isDismissed() for subclasses
+    // that drive their own off-thread sendUpdate (e.g. a live countdown).
     private volatile boolean dismissed = false;
 
+    // The surface captures only the player UUID (same player for life), never `this`: each push
+    // re-resolves the player's live toastable page from ACTIVE, so a hide scheduled by one page
+    // instance correctly fires through whichever instance is open when it lands.
     private final ToastController toast = new ToastController(
             () -> this.playerRef.getUuid(),
-            cmd -> { if (!this.dismissed) this.sendUpdate(cmd, new UIEventBuilder(), false); });
+            cmd -> pushToActive(this.playerRef.getUuid(), cmd));
+
+    /** Route a toast command to the player's currently-active toastable page (or drop it). */
+    private static void pushToActive(@Nullable UUID id, @Nonnull UICommandBuilder cmd) {
+        if (id == null) {
+            return;
+        }
+        ToastablePage<?> active = ACTIVE.get(id);
+        if (active != null) {
+            active.pushToastUpdate(id, cmd);
+        }
+    }
+
+    /**
+     * Apply a toast command into THIS (active) page, rechecking on the world thread - where
+     * {@code build}/{@code onDismiss} run - that this page is still the player's live toastable
+     * page before the update lands. The engine {@code sendUpdate} only rechecks {@code ref.isValid}
+     * inside its world hop; replicating the push here lets the ACTIVE-membership + {@code dismissed}
+     * recheck run inside the hop too, so a delayed hide that races a navigation is reliably skipped
+     * (an unguarded stale push would target whatever page replaced this one and crash the client -
+     * "selector #ZigToast not found").
+     */
+    private void pushToastUpdate(@Nonnull UUID id, @Nonnull UICommandBuilder cmd) {
+        Ref<EntityStore> ref = playerRef.getReference();
+        if (ref == null) {
+            return;
+        }
+        Store<EntityStore> store = ref.getStore();
+        World world;
+        try {
+            world = store.getExternalData().getWorld();
+        } catch (Throwable t) {
+            return;
+        }
+        if (world == null) {
+            return;
+        }
+        world.execute(() -> {
+            if (dismissed || !ref.isValid() || ACTIVE.get(id) != this) {
+                return;
+            }
+            try {
+                Player p = store.getComponent(ref, Player.getComponentType());
+                if (p == null) {
+                    return;
+                }
+                p.getPageManager().updateCustomPage(new CustomPage(
+                        getClass().getName(), false, false, lifetime,
+                        cmd.getCommands(), UIEventBuilder.EMPTY_EVENT_BINDING_ARRAY));
+            } catch (Throwable ignored) {
+            }
+        });
+    }
 
     protected ToastablePage(@Nonnull PlayerRef playerRef, @Nonnull CustomPageLifetime lifetime,
                             @Nonnull BuilderCodec<T> eventDataCodec) {
@@ -107,10 +169,15 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
      * sibling and draws on top of the page content.
      */
     protected void renderToastInto(@Nonnull UICommandBuilder cmd) {
-        // This instance is (re)building, so it is the active page again: clear the dismissed guard
-        // so a hide-push scheduled before a self-reopen (openCustomPage(this), which fires
-        // onDismiss on THIS instance) is not skipped. Without this, toasts never auto-dismiss.
+        // This instance is (re)building, so it is the player's active toastable page: register it
+        // so a hide scheduled by a PRIOR instance fires through this one, and clear the dismissed
+        // guard. (build/onDismiss both run on the world thread, so the ACTIVE write is ordered
+        // against the world-thread push recheck.)
         this.dismissed = false;
+        UUID id = playerRef.getUuid();
+        if (id != null) {
+            ACTIVE.put(id, this);
+        }
         cmd.append("Pages/ZigToast.ui");
         toast.renderInto(cmd);
     }
@@ -125,6 +192,12 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
     @Override
     public void onDismiss(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
         this.dismissed = true;
+        // Deregister iff still the active page (a fresh instance may already have replaced us via
+        // its renderToastInto on a self/cross reopen - do not clobber it).
+        UUID id = playerRef.getUuid();
+        if (id != null) {
+            ACTIVE.remove(id, this);
+        }
         super.onDismiss(ref, store);
     }
 }

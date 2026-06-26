@@ -3,7 +3,7 @@
 The dev changelog for the shared, mod-agnostic Hytale primitive library. Newest first. No em-dashes.
 
 ## Unreleased
-Nothing yet.
+- Fix: in-menu toasts never auto-dismissed after a page reopened as a NEW instance. The auto-dismiss hide was bound to the page instance that scheduled it, but the dominant reopen flow is `showToast(...)` then `openCustomPage(ref, store, new SomePage(...))` - a different instance - so `onDismiss` set the scheduling instance's guard and the new instance never reset it, leaving the hide skipped forever (the toast stuck until the next page action). `ToastablePage` now keys the auto-dismiss on the player's CURRENTLY-ACTIVE toastable page (a static registry `renderToastInto` registers and `onDismiss` compare-removes), so a hide scheduled by any instance fires through whichever toastable page is open when it lands. The world-thread push rechecks active-membership + `dismissed` + `ref.isValid` so a delayed hide racing a navigation is dropped, never crashed. The prior 1.1.0 fix only covered the self-reopen (`this`) case; this covers the new-instance case the MMO Skill Tree's pages use.
 
 ## 1.1.0
 A UI-theming + world-atmosphere primitives release, all additive over 1.0.0. Adds the generic retint engine (`ui/UiRetint`) + the mod-agnostic theme value model (`ui/theme/Palette` + `ThemeRecord`) the MMO Skill Tree's Pro themeable menu builds on (with the inline recolor copies in the toast / dialogue / leaderboard / party pages converged onto the one primitive), plus world time-of-day + forced-weather control (`world/AtmosphereService`) and per-player forced music (`world/ForcedMusicService`).
