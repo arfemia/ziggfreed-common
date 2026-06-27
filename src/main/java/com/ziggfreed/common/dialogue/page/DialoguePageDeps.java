@@ -29,7 +29,7 @@ public final class DialoguePageDeps {
     private final DialogueI18n i18n;
     private final NpcNameProvider npcName;
     private final DialogueHeaderAnnotation headerAnnotation;
-    private final Function<String, ToastSpec> questCompletedToast;
+    private final Function<String, ToastSpec> completionToast;
 
     public DialoguePageDeps(@Nonnull DialogueEngine engine,
                             @Nonnull Function<String, NpcDialogue> dialogueResolver,
@@ -41,8 +41,8 @@ public final class DialoguePageDeps {
     }
 
     /**
-     * @param questCompletedToast optional quest-id -> completion {@link ToastSpec} (returns null for
-     *        "no toast"); when a dialogue action reports a just-completed quest, the page shows this
+     * @param completionToast optional completed-id -> completion {@link ToastSpec} (returns null for
+     *        "no toast"); when a dialogue action reports a just-completed thing, the page shows this
      *        toast in-menu. Pass null to disable (no completion toasts, the default).
      */
     public DialoguePageDeps(@Nonnull DialogueEngine engine,
@@ -51,14 +51,14 @@ public final class DialoguePageDeps {
                             @Nonnull DialogueI18n i18n,
                             @Nullable NpcNameProvider npcName,
                             @Nullable DialogueHeaderAnnotation headerAnnotation,
-                            @Nullable Function<String, ToastSpec> questCompletedToast) {
+                            @Nullable Function<String, ToastSpec> completionToast) {
         this.engine = engine;
         this.dialogueResolver = dialogueResolver;
         this.contextFactory = contextFactory;
         this.i18n = i18n;
         this.npcName = npcName != null ? npcName : NpcNameProvider.NONE;
         this.headerAnnotation = headerAnnotation != null ? headerAnnotation : DialogueHeaderAnnotation.NONE;
-        this.questCompletedToast = questCompletedToast != null ? questCompletedToast : id -> null;
+        this.completionToast = completionToast != null ? completionToast : id -> null;
     }
 
     @Nonnull public DialogueEngine engine() { return engine; }
@@ -73,8 +73,8 @@ public final class DialoguePageDeps {
 
     @Nonnull public DialogueHeaderAnnotation headerAnnotation() { return headerAnnotation; }
 
-    /** The completion toast for {@code questId}, or null when none is configured / wanted. */
-    @Nullable public ToastSpec questCompletedToast(@Nonnull String questId) {
-        return questCompletedToast.apply(questId);
+    /** The completion toast for {@code completedId}, or null when none is configured / wanted. */
+    @Nullable public ToastSpec completionToast(@Nonnull String completedId) {
+        return completionToast.apply(completedId);
     }
 }

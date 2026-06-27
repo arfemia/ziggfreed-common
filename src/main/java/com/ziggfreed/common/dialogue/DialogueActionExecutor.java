@@ -20,13 +20,13 @@ import javax.annotation.Nullable;
 public final class DialogueActionExecutor {
 
     /**
-     * What the page should do after the action list ran. {@code completedQuestId} is the
-     * id of a quest a handler reports as having JUST transitioned to completed (turn-in /
-     * force-complete), so a toast-capable page can surface an in-menu completion toast; it
-     * is purely advisory feedback and never affects control flow.
+     * What the page should do after the action list ran. {@code completedId} is the
+     * id of a domain thing (a quest, an objective, anything) a handler reports as having
+     * JUST transitioned to completed, so a toast-capable page can surface an in-menu
+     * completion toast; it is purely advisory feedback and never affects control flow.
      */
     public record Outcome(@Nullable String gotoNode, boolean close, boolean openedOtherPage,
-                          @Nullable String completedQuestId) {
+                          @Nullable String completedId) {
         public static final Outcome STAY = new Outcome(null, false, false, null);
     }
 
@@ -35,7 +35,7 @@ public final class DialogueActionExecutor {
         @Nullable private String gotoNode;
         private boolean close;
         private boolean openedOtherPage;
-        @Nullable private String completedQuestId;
+        @Nullable private String completedId;
 
         /** Request a jump to {@code node} after the list runs. */
         public void goTo(@Nullable String node) { this.gotoNode = node; }
@@ -47,12 +47,13 @@ public final class DialogueActionExecutor {
         public void markOpenedOtherPage() { this.openedOtherPage = true; }
 
         /**
-         * Report that {@code questId} just transitioned to completed (the page may show a
-         * completion toast). Advisory only; the last reporter in an action list wins.
+         * Report that {@code id} (a quest, an objective, any domain thing) just transitioned to
+         * completed (the page may show a completion toast). Advisory only; the last reporter in
+         * an action list wins.
          */
-        public void completedQuest(@Nullable String questId) { this.completedQuestId = questId; }
+        public void reportCompleted(@Nullable String id) { this.completedId = id; }
 
-        @Nonnull Outcome build() { return new Outcome(gotoNode, close, openedOtherPage, completedQuestId); }
+        @Nonnull Outcome build() { return new Outcome(gotoNode, close, openedOtherPage, completedId); }
     }
 
     private final Map<Class<? extends DialogueAction>, DialogueActionHandler<?>> handlers;

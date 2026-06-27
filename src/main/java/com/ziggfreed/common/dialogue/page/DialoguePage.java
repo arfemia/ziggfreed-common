@@ -47,8 +47,8 @@ import com.ziggfreed.common.ui.toast.ToastablePage;
  * resolve client-side across the merged asset tree.
  *
  * <p>Extends {@link ToastablePage} so a dialogue can float an in-menu completion toast: when an
- * action reports a just-completed quest ({@code Outcome.completedQuestId}) and the consumer wired
- * a {@code questCompletedToast} into {@link DialoguePageDeps}, the page shows it before reopening.
+ * action reports a just-completed thing ({@code Outcome.completedId}) and the consumer wired
+ * a {@code completionToast} into {@link DialoguePageDeps}, the page shows it before reopening.
  * The toast overlay is inert (no toast configured / reported) for every other dialogue.
  */
 public class DialoguePage extends ToastablePage<DialogueEventData> {
@@ -83,17 +83,20 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         // The name header + optional annotation, both consumer-supplied (default: none).
         Message name = deps.npcName().nameFor(contextNpcId);
         if (name != null) {
-            commandBuilder.set("#NpcName.Text", name);
+            // A Message MUST go on a Label's .TextSpans, NOT .Text (a String sink): a Message on
+            // .Text fails the client's set command ("couldn't set value. Selector: #NpcName.Text")
+            // and disconnects. Matches #NodeText.TextSpans below. See hytale-rich-text-textspans.
+            commandBuilder.set("#NpcName.TextSpans", name);
         }
         Message annotation = deps.headerAnnotation().annotationFor(contextNpcId, ref, store);
         if (annotation != null) {
             commandBuilder.set("#ActiveQuestHint.Visible", true);
-            commandBuilder.set("#HintText.Text", annotation);
+            commandBuilder.set("#HintText.TextSpans", annotation);
         }
 
         NpcDialogue dialogue = deps.dialogueResolver().apply(dialogueId);
         if (dialogue == null) {
-            commandBuilder.set("#NodeText.Text", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
+            commandBuilder.set("#NodeText.TextSpans", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
             appendFarewellRow(commandBuilder, eventBuilder, i18n, 0);
             renderToastInto(commandBuilder);
             return;
@@ -109,7 +112,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         }
         DialogueNode node = dialogue.getNode(currentNodeId);
         if (node == null) {
-            commandBuilder.set("#NodeText.Text", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
+            commandBuilder.set("#NodeText.TextSpans", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
             appendFarewellRow(commandBuilder, eventBuilder, i18n, 0);
             renderToastInto(commandBuilder);
             return;
@@ -230,10 +233,10 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         if (outcome.gotoNode() != null && dialogue.getNode(outcome.gotoNode()) != null) {
             currentNodeId = outcome.gotoNode();
         }
-        // A handler reported a just-completed quest: float the consumer's completion toast over the
+        // A handler reported a just-completed thing: float the consumer's completion toast over the
         // dialogue (it paints on the reopen below). Inert when no toast is wired or none applies.
-        if (outcome.completedQuestId() != null) {
-            ToastSpec spec = deps.questCompletedToast(outcome.completedQuestId());
+        if (outcome.completedId() != null) {
+            ToastSpec spec = deps.completionToast(outcome.completedId());
             if (spec != null) {
                 showToast(spec);
             }

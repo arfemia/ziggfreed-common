@@ -87,4 +87,4 @@ Each domain package carries a nested `CLAUDE.md` router that loads when you touc
 
 ## Release notes
 
-`CHANGELOG.md` is the dev changelog (newest first); `CURSEFORGE.md` is the GitHub/CurseForge front page. **Describe shipped reality, not aspiration.**
+`CHANGELOG.md` is the dev changelog (newest first); `CURSEFORGE.md` is the GitHub/CurseForge front page; `patch-notes/<version>.md` is the per-version user/modder-facing release note (frontmatter `version`/`title`/`type`/`status` + a short summary + bullets + a Related section linking the changelog). Author one per release. **Describe shipped reality, not aspiration.** **Keep these notes mod-agnostic: this is a domain-free library, so do NOT name a specific consumer's internals / unreleased product features (e.g. an MMO's classes or "Pro" menus) - describe primitives in neutral "a consumer" terms. Naming the openly-declared companion exemplar (Kweebec Nightmare) is fine.**
