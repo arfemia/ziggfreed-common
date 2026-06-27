@@ -12,7 +12,6 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -29,6 +28,8 @@ import com.ziggfreed.common.dialogue.NpcDialogue;
 import com.ziggfreed.common.dialogue.i18n.DialogueI18n;
 import com.ziggfreed.common.dialogue.i18n.DialogueMessages;
 import com.ziggfreed.common.ui.UiRetint;
+import com.ziggfreed.common.ui.toast.ToastSpec;
+import com.ziggfreed.common.ui.toast.ToastablePage;
 
 /**
  * The generic branching NPC dialogue page: a name header, an optional one-line
@@ -44,8 +45,13 @@ import com.ziggfreed.common.ui.UiRetint;
  * otherwise. The two {@code .ui} templates ship once in ziggfreed-common
  * ({@code Pages/ZigDialoguePage.ui}, {@code Pages/ZigDialogueOptionRow.ui}) and
  * resolve client-side across the merged asset tree.
+ *
+ * <p>Extends {@link ToastablePage} so a dialogue can float an in-menu completion toast: when an
+ * action reports a just-completed quest ({@code Outcome.completedQuestId}) and the consumer wired
+ * a {@code questCompletedToast} into {@link DialoguePageDeps}, the page shows it before reopening.
+ * The toast overlay is inert (no toast configured / reported) for every other dialogue.
  */
-public class DialoguePage extends InteractiveCustomUIPage<DialogueEventData> {
+public class DialoguePage extends ToastablePage<DialogueEventData> {
 
     private static final String PAGE_TEMPLATE = "Pages/ZigDialoguePage.ui";
     private static final String OPTION_ROW_TEMPLATE = "Pages/ZigDialogueOptionRow.ui";
@@ -89,6 +95,7 @@ public class DialoguePage extends InteractiveCustomUIPage<DialogueEventData> {
         if (dialogue == null) {
             commandBuilder.set("#NodeText.Text", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
             appendFarewellRow(commandBuilder, eventBuilder, i18n, 0);
+            renderToastInto(commandBuilder);
             return;
         }
 
@@ -104,6 +111,7 @@ public class DialoguePage extends InteractiveCustomUIPage<DialogueEventData> {
         if (node == null) {
             commandBuilder.set("#NodeText.Text", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
             appendFarewellRow(commandBuilder, eventBuilder, i18n, 0);
+            renderToastInto(commandBuilder);
             return;
         }
 
@@ -128,6 +136,8 @@ public class DialoguePage extends InteractiveCustomUIPage<DialogueEventData> {
             row++;
         }
         appendFarewellRow(commandBuilder, eventBuilder, i18n, row);
+        // LAST: the toast overlay draws over the dialogue; inert unless a completion toast is live.
+        renderToastInto(commandBuilder);
     }
 
     private void appendFarewellRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
@@ -219,6 +229,14 @@ public class DialoguePage extends InteractiveCustomUIPage<DialogueEventData> {
         }
         if (outcome.gotoNode() != null && dialogue.getNode(outcome.gotoNode()) != null) {
             currentNodeId = outcome.gotoNode();
+        }
+        // A handler reported a just-completed quest: float the consumer's completion toast over the
+        // dialogue (it paints on the reopen below). Inert when no toast is wired or none applies.
+        if (outcome.completedQuestId() != null) {
+            ToastSpec spec = deps.questCompletedToast(outcome.completedQuestId());
+            if (spec != null) {
+                showToast(spec);
+            }
         }
         player.getPageManager().openCustomPage(ref, store, this);
     }

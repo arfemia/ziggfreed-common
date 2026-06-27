@@ -19,9 +19,15 @@ import javax.annotation.Nullable;
  */
 public final class DialogueActionExecutor {
 
-    /** What the page should do after the action list ran. */
-    public record Outcome(@Nullable String gotoNode, boolean close, boolean openedOtherPage) {
-        public static final Outcome STAY = new Outcome(null, false, false);
+    /**
+     * What the page should do after the action list ran. {@code completedQuestId} is the
+     * id of a quest a handler reports as having JUST transitioned to completed (turn-in /
+     * force-complete), so a toast-capable page can surface an in-menu completion toast; it
+     * is purely advisory feedback and never affects control flow.
+     */
+    public record Outcome(@Nullable String gotoNode, boolean close, boolean openedOtherPage,
+                          @Nullable String completedQuestId) {
+        public static final Outcome STAY = new Outcome(null, false, false, null);
     }
 
     /** Mutable accumulator handlers contribute to across an option's action list. */
@@ -29,6 +35,7 @@ public final class DialogueActionExecutor {
         @Nullable private String gotoNode;
         private boolean close;
         private boolean openedOtherPage;
+        @Nullable private String completedQuestId;
 
         /** Request a jump to {@code node} after the list runs. */
         public void goTo(@Nullable String node) { this.gotoNode = node; }
@@ -39,7 +46,13 @@ public final class DialogueActionExecutor {
         /** Signal that a handler already opened another page (do not re-open the dialogue). */
         public void markOpenedOtherPage() { this.openedOtherPage = true; }
 
-        @Nonnull Outcome build() { return new Outcome(gotoNode, close, openedOtherPage); }
+        /**
+         * Report that {@code questId} just transitioned to completed (the page may show a
+         * completion toast). Advisory only; the last reporter in an action list wins.
+         */
+        public void completedQuest(@Nullable String questId) { this.completedQuestId = questId; }
+
+        @Nonnull Outcome build() { return new Outcome(gotoNode, close, openedOtherPage, completedQuestId); }
     }
 
     private final Map<Class<? extends DialogueAction>, DialogueActionHandler<?>> handlers;

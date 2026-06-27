@@ -20,6 +20,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.sound.Sound3D;
+
 /**
  * Mod-agnostic page base adding an in-page toast overlay for in-menu action feedback. The
  * toast renders as the last top-level sibling of the page content ({@code #ZigToast} /
@@ -142,15 +144,38 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
     /**
      * Show a toast for an in-menu action result. Sets the current toast and schedules its
      * auto-dismiss; the toast paints on the page's next {@code build()} (the handler should
-     * reopen the page after this call).
+     * reopen the page after this call). Also plays the toast's SFX (its kind default or
+     * {@link ToastSpec#withSound override}, unless {@link ToastSpec#silent()}).
      */
     protected void showToast(@Nonnull ToastKind kind, @Nonnull Message message) {
-        toast.show(ToastSpec.of(kind, message));
+        showToast(ToastSpec.of(kind, message));
     }
 
-    /** Show a fully-specified toast (custom duration / title / icon / lines). */
+    /** Show a fully-specified toast (custom duration / title / icon / lines / sound). */
     protected void showToast(@Nonnull ToastSpec spec) {
         toast.show(spec);
+        playToastSound(spec);
+    }
+
+    /**
+     * Play the toast's 3D SFX at the player (world-thread; {@code showToast} runs in a page event
+     * handler). Cosmetic and fully guarded: a missing asset / invalid ref degrades to silence,
+     * never a throw. A {@link ToastSpec#silent()} toast or a kind/override with no id is a no-op.
+     */
+    private void playToastSound(@Nonnull ToastSpec spec) {
+        String soundId = spec.effectiveSoundId();
+        if (soundId == null || soundId.isEmpty()) {
+            return;
+        }
+        try {
+            Ref<EntityStore> ref = playerRef.getReference();
+            if (ref == null) {
+                return;
+            }
+            Sound3D.playAt(soundId, Sound3D.DEFAULT_CATEGORY, ref, ref.getStore(), "TOAST", false);
+        } catch (Throwable ignored) {
+            // Cosmetic only - never let an audio failure break the toast / page flow.
+        }
     }
 
     /**
