@@ -84,6 +84,22 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
     }
 
     /**
+     * Float a toast over the player's CURRENTLY-ACTIVE toastable page from a page-less caller
+     * (a service, an event system, a dialogue action) - the generic, transport-side counterpart
+     * to the instance {@link #showToast(ToastSpec)}. Looks up the live page in the {@code ACTIVE}
+     * registry (kept current by {@link #renderToastInto}) and shows the toast on it (which paints
+     * via a {@code sendUpdate}, no reopen, scroll preserved, and plays the toast's SFX unless the
+     * spec is {@link ToastSpec#silent()}). A no-op when the player has no toastable page open - the
+     * toast is simply not shown, and the caller's other channels (e.g. a sound) are unaffected.
+     */
+    public static void showOnActive(@Nonnull UUID playerId, @Nonnull ToastSpec spec) {
+        ToastablePage<?> active = ACTIVE.get(playerId);
+        if (active != null) {
+            active.showToast(spec);
+        }
+    }
+
+    /**
      * Apply a toast command into THIS (active) page, rechecking on the world thread - where
      * {@code build}/{@code onDismiss} run - that this page is still the player's live toastable
      * page before the update lands. The engine {@code sendUpdate} only rechecks {@code ref.isValid}

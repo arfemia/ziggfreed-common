@@ -2,6 +2,11 @@
 
 The dev changelog for the shared, mod-agnostic Hytale primitive library. Newest first. No em-dashes.
 
+## 1.1.1
+A tiny additive primitive over 1.1.0: a page-less way to float an in-menu toast.
+
+- New: `ToastablePage.showOnActive(UUID playerId, ToastSpec spec)` - the static, transport-side counterpart to the instance `showToast(ToastSpec)`. Looks up the player's currently-active toastable page in the existing `ACTIVE` registry (kept current by `renderToastInto`) and shows the toast on it (paints via a `sendUpdate` - no reopen, scroll preserved - and plays the toast SFX unless the spec is `silent()`); a no-op when the player has no toastable page open. Lets a service / event system / dialogue action float a toast without holding a page instance, so a consumer can route in-menu feedback through its own one-call moment dispatch (sound + toast in lockstep) instead of threading a page reference to every call site.
+
 ## 1.1.0
 A UI-theming + in-page-feedback + world-atmosphere primitives release, all additive over 1.0.0. Adds the generic retint engine (`ui/UiRetint`) + the mod-agnostic theme value model (`ui/theme/Palette` + `ThemeRecord`) a consumer's themeable menu builds on (with the inline recolor copies in the toast / dialogue / leaderboard / party pages converged onto the one primitive), the `ui/ZigRichButton` clickable-rich-text primitive, per-kind toast SFX plus a dialogue quest-completion toast hook, and world time-of-day + forced-weather control (`world/AtmosphereService`) + per-player forced music (`world/ForcedMusicService`).
 
