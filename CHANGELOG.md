@@ -2,6 +2,13 @@
 
 The dev changelog for the shared, mod-agnostic Hytale primitive library. Newest first. No em-dashes.
 
+## 1.2.0
+A difficulty-scaling engine primitive plus two ref-less spawn-hook helpers, all additive over 1.1.1. The generic core a consumer scales encounter difficulty on (open-world mob scaling, a future dungeon/raid instance) without re-deriving the fold/clamp math or the pre-add stat plumbing per mod.
+
+- New: `scaling/` - the generic, domain-free difficulty-scaling engine. `ScalingContext` (the one input record: `baseDifficulty` + a `double[] participantPowers` + an `AggregationMode` + an opaque `@Nullable Object instanceHandle`) serves BOTH open-world proximity groups and 1-10 player instances with zero consumer-domain types (no player/party/skill leaks in); a consumer reduces each participant to a `double` at the call site. `AggregationMode` folds the array (`SOLO`/`AVERAGE`/`PEAK`/`WEIGHTED`/`DISABLED`, plus a lenient `fromName` string parse). `PowerAggregation.fold` is the pure fold (empty/DISABLED -> `0.0` identity; `WEIGHTED` = `sum(p^2)/sum(p)`, high powers drive). `ScalingEngine.resolve(ctx, bandWidth, minCap, maxCap)` = `clamp(base + clamp(aggregatedPower - base, -bandWidth, +bandWidth), minCap, maxCap)`, returning the base untouched for a DISABLED/empty context. PURE logic, zero engine coupling, unit-tested (`ScalingEngineTest`/`PowerAggregationTest`). A consumer builds the context (open-world: a cached region power scalar via `ScalingContext.openWorld`; instanced: a party reduced to a `double[]` with a non-null handle) and calls the SAME engine for both legs.
+- New: `health/HealthUtil.scaleMaxHealth(Holder, factor, key)` - the ref-less overload of the existing `scaleMaxHealth`, raising a mob's `Health` MAX (a multiplicative modifier keyed for idempotency) and healing to the new max, reading the `EntityStatMap` straight off a pre-add `Holder`. The seam for scaling HP INSIDE a `HolderSystem.onEntityAdd` spawn hook, before the entity has a valid `Ref`. Idempotent per holder (no-op when the key modifier is present, the stat is not yet balanced, or the factor is 1.0); world-thread, fully try-guarded.
+- New: `util/EntityIdentifierUtil.roleName`/`roleIndex` (Store/Ref AND `Holder` forms) - read an NPC's `NPCEntity` role identity: `roleName` (the restart-STABLE string to key allow/deny/classification config on) and `roleIndex` (the restart-UNSTABLE integer for hot in-tick lookups only). `null`/`-1` for a non-NPC or on any error. The `Holder` forms let a pre-add spawn hook classify a mob before it has a ref.
+
 ## 1.1.1
 A tiny additive primitive over 1.1.0: a page-less way to float an in-menu toast.
 

@@ -2,6 +2,7 @@ package com.ziggfreed.common.health;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
@@ -117,6 +118,45 @@ public final class HealthUtil {
             return true;
         } catch (Throwable t) {
             warn("scaleMaxHealth", t);
+            return false;
+        }
+    }
+
+    /**
+     * Ref-less {@link #scaleMaxHealth(Store, Ref, double, String)}: raise the {@code Health} stat MAX
+     * on a pre-add {@link Holder} (before the entity has a valid {@link Ref}), then heal to the new max.
+     * The seam for scaling a mob's HP INSIDE a {@code HolderSystem.onEntityAdd} spawn hook, where the
+     * entity is not yet added and no ref exists (mirrors the {@code Holder} teardown path other stat
+     * utils expose). Reads the {@link EntityStatMap} straight off the holder.
+     *
+     * <p><b>Idempotent</b> per holder (guarded by {@code key}): a no-op (returns {@code false}) when the
+     * modifier under {@code key} is already present, the Health stat is not yet present (balancing not
+     * done), or {@code factor == 1.0}. Fully try-guarded (any engine throw degrades to {@code false}).
+     *
+     * @param holder the pre-add entity holder (must carry an {@link EntityStatMap})
+     * @param factor multiplicative scale on the post-balance max (e.g. {@code 2.0} = double max HP)
+     * @param key    unique, mod-prefixed modifier key (the idempotency handle; avoid engine stat keys)
+     * @return {@code true} if the scale was newly applied this call; {@code false} otherwise
+     */
+    public static boolean scaleMaxHealth(@Nonnull Holder<EntityStore> holder, double factor, @Nonnull String key) {
+        if (factor == 1.0) {
+            return false;
+        }
+        try {
+            EntityStatMap stats = holder.getComponent(EntityStatsModule.get().getEntityStatMapComponentType());
+            if (stats == null) {
+                return false;
+            }
+            int hp = DefaultEntityStatTypes.getHealth();
+            if (stats.get(hp) == null || stats.getModifier(hp, key) != null) {
+                return false; // stat not ready (balancing pending), or already scaled (per-holder)
+            }
+            stats.putModifier(hp, key, new StaticModifier(
+                    Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.MULTIPLICATIVE, (float) factor));
+            stats.maximizeStatValue(hp); // heal to the new full max (once, on first application)
+            return true;
+        } catch (Throwable t) {
+            warn("scaleMaxHealth(holder)", t);
             return false;
         }
     }

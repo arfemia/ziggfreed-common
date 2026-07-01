@@ -7,12 +7,14 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.modules.entity.component.DisplayNameComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.npc.entities.NPCEntity;
 
 /**
  * Shared utilities for identifying entities (mobs, players) from ECS components:
@@ -69,6 +71,65 @@ public final class EntityIdentifierUtil {
             }
         }
         return readDisplayName(store, ref);
+    }
+
+    // ==================== Role identity (NPCEntity) ====================
+
+    /**
+     * The NPC's ROLE NAME (e.g. {@code "Skeleton_Fighter"}), the restart-STABLE identity string to
+     * key allow / deny / override / classification config on. Reads {@code NPCEntity.getRoleName()};
+     * {@code null} for a non-NPC (no {@link NPCEntity} component) or on any error. World-thread only.
+     */
+    @Nullable
+    public static String roleName(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        try {
+            NPCEntity npc = store.getComponent(ref, NPCEntity.getComponentType());
+            return npc == null ? null : npc.getRoleName();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * Ref-less {@link #roleName(Store, Ref)}: the role name off a pre-add {@link Holder} (inside a
+     * {@code HolderSystem.onEntityAdd} spawn hook, before a valid ref exists). {@code null} for a
+     * non-NPC holder or on any error.
+     */
+    @Nullable
+    public static String roleName(@Nonnull Holder<EntityStore> holder) {
+        try {
+            NPCEntity npc = holder.getComponent(NPCEntity.getComponentType());
+            return npc == null ? null : npc.getRoleName();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * The NPC's ROLE INDEX ({@code NPCEntity.getRoleIndex()}), a restart-UNSTABLE integer for hot
+     * in-tick lookups ONLY - never persist it or key stable config on it (use {@link #roleName}).
+     * {@code -1} for a non-NPC or on any error. World-thread only.
+     */
+    public static int roleIndex(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        try {
+            NPCEntity npc = store.getComponent(ref, NPCEntity.getComponentType());
+            return npc == null ? -1 : npc.getRoleIndex();
+        } catch (Throwable t) {
+            return -1;
+        }
+    }
+
+    /**
+     * Ref-less {@link #roleIndex(Store, Ref)}: the role index off a pre-add {@link Holder}.
+     * {@code -1} for a non-NPC holder or on any error.
+     */
+    public static int roleIndex(@Nonnull Holder<EntityStore> holder) {
+        try {
+            NPCEntity npc = holder.getComponent(NPCEntity.getComponentType());
+            return npc == null ? -1 : npc.getRoleIndex();
+        } catch (Throwable t) {
+            return -1;
+        }
     }
 
     /**
