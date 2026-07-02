@@ -161,9 +161,94 @@ public final class HealthUtil {
         }
     }
 
+    /**
+     * RECONCILE the entity's {@code Health}-stat MAX modifier under {@code key} to match {@code factor}, on a
+     * pre-add {@link Holder}. Unlike {@link #scaleMaxHealth(Holder, double, String)} (which is add-only and
+     * no-ops when the key is present), this converges the stored modifier to whatever the CURRENT roll wants,
+     * so a re-derived scale on chunk reload never strands a stale value:
+     *
+     * <ul>
+     *   <li>key ABSENT + {@code factor != 1.0} -> put the multiplicative MAX modifier + {@code maximize} (the
+     *       first-apply heal, identical to {@link #scaleMaxHealth}).</li>
+     *   <li>key PRESENT + {@code factor == 1.0} -> {@code removeModifier} (the roll no longer scales HP; the
+     *       engine recalculate clamps current HP down to the un-scaled max).</li>
+     *   <li>key PRESENT + a DIFFERENT amount -> {@code putModifier} replace WITHOUT maximize (a shrink
+     *       auto-clamps current HP via the recalculate; a re-maximize here would full-heal on every retune).</li>
+     *   <li>key PRESENT + the SAME amount, or {@code factor == 1.0} with no key -> no-op.</li>
+     * </ul>
+     *
+     * <p>This is the RECONCILE seam for a persist-and-re-derive spawn hook (open-world mob scaling): call it
+     * unconditionally with the freshly folded factor and stale HP never accumulates. World-thread only; fully
+     * try-guarded (any engine throw degrades to {@code false}).
+     *
+     * @param holder the pre-add entity holder (must carry an {@link EntityStatMap})
+     * @param factor multiplicative scale on the post-balance max ({@code 1.0} = no scale / remove any prior)
+     * @param key    unique, mod-prefixed modifier key (the reconcile handle; avoid engine stat keys)
+     * @return {@code true} if the modifier state changed this call (put / replaced / removed); {@code false} otherwise
+     */
+    public static boolean reconcileMaxHealth(@Nonnull Holder<EntityStore> holder, double factor, @Nonnull String key) {
+        try {
+            EntityStatMap stats = holder.getComponent(EntityStatsModule.get().getEntityStatMapComponentType());
+            return reconcileOnMap(stats, factor, key);
+        } catch (Throwable t) {
+            warn("reconcileMaxHealth(holder)", t);
+            return false;
+        }
+    }
+
+    /**
+     * Ref form of {@link #reconcileMaxHealth(Holder, double, String)}: reconcile the {@code Health}-stat MAX
+     * modifier under {@code key} on an already-added entity (the seam an admin purge / a post-add sweep uses).
+     * Passing {@code factor == 1.0} strips the modifier. World-thread only; fully try-guarded.
+     *
+     * @return {@code true} if the modifier state changed this call; {@code false} otherwise
+     */
+    public static boolean reconcileMaxHealth(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                                             double factor, @Nonnull String key) {
+        if (!ref.isValid()) {
+            return false;
+        }
+        try {
+            return reconcileOnMap(statMap(store, ref), factor, key);
+        } catch (Throwable t) {
+            warn("reconcileMaxHealth(ref)", t);
+            return false;
+        }
+    }
+
     // ---------------------------------------------------------------------
     // internals
     // ---------------------------------------------------------------------
+
+    /** Shared reconcile over a resolved {@link EntityStatMap} (Holder + Ref forms delegate here). */
+    private static boolean reconcileOnMap(@javax.annotation.Nullable EntityStatMap stats, double factor,
+                                          @Nonnull String key) {
+        if (stats == null) {
+            return false;
+        }
+        int hp = DefaultEntityStatTypes.getHealth();
+        if (stats.get(hp) == null) {
+            return false; // stat not ready (balancing pending)
+        }
+        Modifier existing = stats.getModifier(hp, key);
+        if (factor == 1.0) {
+            if (existing == null) {
+                return false; // nothing to strip
+            }
+            stats.removeModifier(hp, key); // recalculate clamps current HP to the un-scaled max
+            return true;
+        }
+        if (existing instanceof StaticModifier sm && Math.abs(sm.getAmount() - (float) factor) < 1.0e-4f) {
+            return false; // already at the wanted amount
+        }
+        boolean firstApply = existing == null;
+        stats.putModifier(hp, key, new StaticModifier(
+                Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.MULTIPLICATIVE, (float) factor));
+        if (firstApply) {
+            stats.maximizeStatValue(hp); // heal to the new full max ONLY on first apply; a replace/shrink clamps
+        }
+        return true;
+    }
 
     /** Raise a single stat (by its {@link DefaultEntityStatTypes} index) to its max; try-guarded to a no-op. */
     private static boolean restoreToMax(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,

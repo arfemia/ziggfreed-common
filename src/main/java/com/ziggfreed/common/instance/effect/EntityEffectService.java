@@ -107,6 +107,61 @@ public final class EntityEffectService {
         }
     }
 
+    // --- asset-authoritative apply (duration + overlap + infinite all from the asset) ---
+
+    /**
+     * Apply {@code effectId} to {@code ref} using the effect ASSET's own {@code Duration} +
+     * {@code OverlapBehavior} + {@code Infinite} flag (no Java-side duration/overlap constants), via a
+     * {@link CommandBuffer}. Routes through the engine's index-aware {@code addEffect}, which auto-dispatches
+     * to the infinite path when the asset authors {@code Infinite:true} - so this ONE call serves both an
+     * infinite aura/stat effect AND a duration-authored on-hit effect, and a mis-authored {@code Infinite}
+     * flag can never pin a timed effect forever. World-thread only; best-effort.
+     *
+     * @return true if the effect resolved and was added, false on any miss (unregistered id, bad ref, no
+     *         controller, or an engine throw)
+     */
+    public static boolean apply(@Nonnull Ref<EntityStore> ref, @Nonnull String effectId,
+                                @Nonnull CommandBuffer<EntityStore> cb) {
+        return applyAssetInternal(ref, effectId, cb);
+    }
+
+    /** {@link Store} form of {@link #apply(Ref, String, CommandBuffer)}. World-thread only; best-effort. */
+    public static boolean apply(@Nonnull Ref<EntityStore> ref, @Nonnull String effectId,
+                                @Nonnull Store<EntityStore> store) {
+        return applyAssetInternal(ref, effectId, store);
+    }
+
+    /**
+     * Shared asset-authoritative apply over the common {@link ComponentAccessor} supertype. Resolves the effect
+     * index + asset and calls {@code ctrl.addEffect(ref, idx, fx, accessor)} (the engine overload that reads the
+     * asset's Duration/OverlapBehavior/Infinite and dispatches accordingly). Best-effort, try-guarded.
+     */
+    private static boolean applyAssetInternal(@Nonnull Ref<EntityStore> ref, @Nonnull String effectId,
+                                              @Nonnull ComponentAccessor<EntityStore> accessor) {
+        if (ref == null || !ref.isValid() || effectId == null || effectId.isBlank()) {
+            return false;
+        }
+        try {
+            int idx = EntityEffect.getAssetMap().getIndex(effectId);
+            if (idx == NONE) {
+                return false;
+            }
+            EntityEffect fx = EntityEffect.getAssetMap().getAsset(idx);
+            if (fx == null) {
+                return false;
+            }
+            EffectControllerComponent ctrl =
+                    accessor.getComponent(ref, EffectControllerComponent.getComponentType());
+            if (ctrl == null) {
+                return false;
+            }
+            return ctrl.addEffect(ref, idx, fx, accessor);
+        } catch (Throwable ignored) {
+            // unregistered effect / bad ref / engine throw -> no-op
+            return false;
+        }
+    }
+
     // --- idempotent band swap (the pace-band shape) ---
 
     /**

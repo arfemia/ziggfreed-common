@@ -18,7 +18,15 @@ restore - needs it), so it lives here, not duplicated in a consumer.
     MAX `StaticModifier` keyed by `key`) and heal to the new max. Idempotent per entity (no-op if the
     `key` modifier is already present, factor is 1.0, or the stat is not yet balanced), so it is safe to
     call every tick and heals exactly once. The seam for per-encounter HP scaling (boss HP by party
-    size / difficulty); exemplar consumer is Kweebec's `BossController` (Warden phase entities).
+    size / difficulty); exemplar consumer is Kweebec's `BossController` (Warden phase entities). Also a
+    ref-less `scaleMaxHealth(holder, factor, key)` for a pre-add `HolderSystem.onEntityAdd` spawn hook.
+  - `reconcileMaxHealth(holder, factor, key)` + `reconcileMaxHealth(store, ref, factor, key)` -> the
+    RECONCILE counterpart (NOT add-only): converge the keyed MAX modifier to `factor` - absent+factor!=1
+    puts+maximizes (first-apply heal), present+factor==1 removes, present+different amount replaces
+    WITHOUT maximize (a shrink auto-clamps current HP via the engine recalculate; a re-maximize would
+    full-heal on every retune). The seam a persist-and-re-derive spawn hook (open-world mob scaling)
+    calls UNCONDITIONALLY so a re-derived scale on chunk reload never strands a stale HP value. Do NOT
+    fold this into `scaleMaxHealth` - Kweebec's `BossController` relies on the add-only contract.
 - **World thread only** (touches the `Store`); every method is try-guarded to a `false` return so a
   missing stat map / invalid ref / engine throw never escapes into the caller. The raw flogger LOGGER
   is itself wrapped in a try/catch (it throws in a log-manager-less unit JVM).
