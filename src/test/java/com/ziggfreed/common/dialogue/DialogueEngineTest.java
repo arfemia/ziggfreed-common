@@ -5,8 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Map;
-
 import org.junit.jupiter.api.Test;
 
 import com.google.gson.JsonArray;
@@ -14,11 +12,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import com.ziggfreed.common.dialogue.page.DialogueEventData;
-import com.ziggfreed.common.dialogue.template.DialogueTemplateResolver;
 
 /**
  * Build-time guards + pure end-to-end checks for the generic dialogue engine.
- * No server needed: codecs, sugar, and the template resolver are all pure.
+ * No server needed: codecs, sugar, and native Parent inheritance are all pure.
  */
 class DialogueEngineTest {
 
@@ -36,6 +33,8 @@ class DialogueEngineTest {
         assertNotNull(DialogueAction.OpenPage.CODEC);
         assertNotNull(DialogueCondition.Flag.CODEC);
         assertNotNull(DialogueCondition.NotFlag.CODEC);
+        assertNotNull(DialogueOption.Presentation.CODEC);
+        assertNotNull(DialogueOption.Icon.CODEC);
         assertNotNull(DialogueEventData.CODEC);
     }
 
@@ -105,32 +104,67 @@ class DialogueEngineTest {
     }
 
     @Test
-    void templateSubstitutesParams() {
+    void nativeParentMergesNodesByKey() {
         DialogueEngine engine = engine();
-        Map<String, JsonObject> templates = Map.of("base", JsonParser.parseString(
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Text\":\"{{greeting}}\",\"Options\":[]}}}")
-                .getAsJsonObject());
-        JsonObject body = JsonParser.parseString("{\"extends\":\"base\",\"params\":{\"greeting\":\"hello\"}}")
-                .getAsJsonObject();
-        JsonObject resolved = DialogueTemplateResolver.resolve("t", body, templates, engine.sugar(), m -> { });
-        assertEquals("hello", resolved.getAsJsonObject("Nodes").getAsJsonObject("g").get("Text").getAsString());
+        NpcDialogue parent = engine.decode("base",
+                "{\"Start\":[{\"Node\":\"greet\"}],\"Nodes\":{"
+                        + "\"greet\":{\"Text\":\"base greet\",\"Options\":[{\"Label\":\"a\"}]},"
+                        + "\"bye\":{\"Text\":\"base bye\",\"Options\":[]}}}");
+        assertNotNull(parent);
+        // Child overrides greet's TEXT only (keeps its options), adds a node, omits bye (inherits it).
+        NpcDialogue child = engine.decodeWithParent("kid",
+                "{\"Nodes\":{\"greet\":{\"Text\":\"kid greet\"},\"extra\":{\"Text\":\"new\",\"Options\":[]}}}",
+                parent);
+        assertNotNull(child);
+        assertEquals(3, child.getNodes().size());
+        assertEquals("kid greet", child.getNode("greet").getText());          // overridden field
+        assertEquals(1, child.getNode("greet").getOptions().size());          // sibling field inherited
+        assertNotNull(child.getNode("bye"));                                  // parent-only node retained
+        assertEquals("base bye", child.getNode("bye").getText());
+        assertNotNull(child.getNode("extra"));                               // child-added node
     }
 
     @Test
-    void templatePrunesEmptyParamBranch() {
+    void childOmittingNodesInheritsParent() {
         DialogueEngine engine = engine();
-        Map<String, JsonObject> templates = Map.of("base", JsonParser.parseString(
-                "{\"Start\":[{\"Node\":\"a\",\"PruneIfEmpty\":\"questId\"},{\"Node\":\"b\"}],"
-                        + "\"Nodes\":{\"a\":{\"Options\":[]},\"b\":{\"Options\":[]}}}")
-                .getAsJsonObject());
-        JsonObject body = JsonParser.parseString("{\"extends\":\"base\",\"params\":{}}").getAsJsonObject();
-        JsonObject resolved = DialogueTemplateResolver.resolve("t", body, templates, engine.sugar(), m -> { });
-        // questId omitted -> candidate "a" pruned, node "a" now unreachable -> dropped.
-        assertEquals(1, resolved.getAsJsonArray("Start").size());
-        assertEquals("b", resolved.getAsJsonArray("Start").get(0).getAsJsonObject().get("Node").getAsString());
-        assertFalse(resolved.getAsJsonObject("Nodes").has("a"));
-        assertTrue(resolved.getAsJsonObject("Nodes").has("b"));
-        // The marker is stripped from survivors.
-        assertFalse(resolved.getAsJsonArray("Start").get(0).getAsJsonObject().has("PruneIfEmpty"));
+        NpcDialogue parent = engine.decode("base",
+                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Text\":\"p\",\"Options\":[]}}}");
+        assertNotNull(parent);
+        // Child provides only Start; omitting Nodes entirely inherits the parent's node map.
+        NpcDialogue child = engine.decodeWithParent("kid", "{\"Start\":[{\"Node\":\"g\"}]}", parent);
+        assertNotNull(child);
+        assertNotNull(child.getNode("g"));
+        assertEquals("p", child.getNode("g").getText());
+    }
+
+    @Test
+    void decodesBooleanCombinators() {
+        DialogueEngine engine = engine();
+        String json = "{\"Start\":[{\"Node\":\"g\",\"Conditions\":[{\"Type\":\"AnyOf\",\"Any\":["
+                + "{\"Type\":\"Flag\",\"Flag\":\"a\"},{\"Type\":\"NotFlag\",\"Flag\":\"b\"}]}]}],"
+                + "\"Nodes\":{\"g\":{\"Conditions\":[{\"Type\":\"Not\",\"Of\":[{\"Type\":\"Flag\",\"Flag\":\"c\"}]}],"
+                + "\"Options\":[]}}}";
+        NpcDialogue d = engine.decode("combo", json);
+        assertNotNull(d);
+        DialogueCondition start = d.getStart().get(0).getConditions().get(0);
+        assertTrue(start instanceof DialogueCondition.AnyOf);
+        assertEquals(2, ((DialogueCondition.AnyOf) start).getChildren().size());
+        DialogueCondition nodeCond = d.getNode("g").getConditions().get(0);
+        assertTrue(nodeCond instanceof DialogueCondition.Not);
+        assertTrue(d.getNode("g").hasConditions());
+    }
+
+    @Test
+    void decodesOptionPresentation() {
+        DialogueEngine engine = engine();
+        String json = "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"Label\":\"x\","
+                + "\"Presentation\":{\"Color\":\"#5ab0ff\",\"Icon\":{\"Item\":\"hytale:iron_sword\"}}}]}}}";
+        NpcDialogue d = engine.decode("pres", json);
+        assertNotNull(d);
+        DialogueOption.Presentation p = d.getNode("g").getOptions().get(0).getPresentation();
+        assertNotNull(p);
+        assertEquals("#5ab0ff", p.getColor());
+        assertNotNull(p.getIcon());
+        assertEquals("hytale:iron_sword", p.getIcon().getItem());
     }
 }

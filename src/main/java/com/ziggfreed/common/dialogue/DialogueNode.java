@@ -16,6 +16,7 @@ public class DialogueNode {
 
     @Nullable String textKey;
     @Nullable String text;
+    @Nullable DialogueCondition[] conditions;
     @Nullable DialogueOption[] options;
 
     public DialogueNode() {
@@ -26,6 +27,23 @@ public class DialogueNode {
 
     /** Deprecated raw text fallback, or null. */
     @Nullable public String getText() { return text; }
+
+    /**
+     * Optional AND-combined visibility conditions on the node itself. When a
+     * {@code Start} candidate resolves to this node id, the engine additionally
+     * requires these to pass - so a node self-declares "only show me while X",
+     * collapsing the old {@code (node x state)} duplication + {@code PruneIfEmpty}.
+     * An empty/absent list always passes.
+     */
+    @Nonnull
+    public List<DialogueCondition> getConditions() {
+        return conditions == null ? Collections.emptyList() : List.of(conditions);
+    }
+
+    /** True when this node authored any visibility conditions. */
+    public boolean hasConditions() {
+        return conditions != null && conditions.length > 0;
+    }
 
     @Nonnull
     public List<DialogueOption> getOptions() {

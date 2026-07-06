@@ -21,6 +21,7 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.codec.InheritMapCodec;
 
 /**
  * A self-contained, per-consumer dialogue runtime. Built once via {@link #builder()},
@@ -117,6 +118,35 @@ public final class DialogueEngine {
         }
     }
 
+    /**
+     * Decode a canonical body that may declare native {@code Parent} inheritance: when
+     * {@code parent} is non-null the body is decoded THROUGH the engine's real
+     * {@code decodeAndInheritJson} against the already-decoded parent (child fields
+     * override; {@code Nodes} keyed-merges via {@link InheritMapCodec}; an omitted
+     * {@code Start}/{@code Nodes} inherits the parent's). The caller resolves the
+     * {@code Parent} id to the parent {@link NpcDialogue} (see
+     * {@link DialogueBodyResolver}) and strips the {@code Parent} key from the body
+     * before calling. Null + warn on failure.
+     */
+    @Nullable
+    public NpcDialogue decodeWithParent(@Nonnull String id, @Nonnull String canonicalJson,
+                                        @Nullable NpcDialogue parent) {
+        try {
+            RawJsonReader reader = RawJsonReader.fromJsonString(canonicalJson);
+            NpcDialogue d = parent == null
+                    ? dialogueCodec.decodeJson(reader, new ExtraInfo())
+                    : dialogueCodec.decodeAndInheritJson(reader, parent, new ExtraInfo());
+            if (d == null) {
+                return null;
+            }
+            d.setId(id);
+            return d;
+        } catch (Exception e) {
+            warn.accept("Failed to decode dialogue '" + id + "': " + e.getMessage());
+            return null;
+        }
+    }
+
     /** AND-combine an option's / entry's conditions for this player (an empty list passes). */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public boolean conditionsPass(@Nonnull List<DialogueCondition> conditions, @Nonnull DialogueContext ctx) {
@@ -148,15 +178,30 @@ public final class DialogueEngine {
     @Nullable
     public String resolveEntryNodeId(@Nonnull NpcDialogue dialogue, @Nonnull DialogueContext ctx) {
         for (NpcDialogue.DialogueEntry candidate : dialogue.getStart()) {
-            String node = candidate.getNode();
-            if (node == null || node.isBlank()) {
+            String nodeId = candidate.getNode();
+            if (nodeId == null || nodeId.isBlank()) {
                 continue;
             }
-            if (conditionsPass(candidate.getConditions(), ctx)) {
-                return node;
+            if (!conditionsPass(candidate.getConditions(), ctx)) {
+                continue;
+            }
+            // The target node may ALSO self-gate (node-level conditions replace the
+            // old (node x state) duplication) - both the candidate's and the node's
+            // conditions must pass for this candidate to win.
+            DialogueNode node = dialogue.getNode(nodeId);
+            if (node != null && node.hasConditions() && !conditionsPass(node.getConditions(), ctx)) {
+                continue;
+            }
+            return nodeId;
+        }
+        // Fallback: the first node whose own conditions pass, else the first node.
+        Map<String, DialogueNode> all = dialogue.getNodes();
+        for (Map.Entry<String, DialogueNode> e : all.entrySet()) {
+            DialogueNode node = e.getValue();
+            if (!node.hasConditions() || conditionsPass(node.getConditions(), ctx)) {
+                return e.getKey();
             }
         }
-        Map<String, DialogueNode> all = dialogue.getNodes();
         return all.isEmpty() ? null : all.keySet().iterator().next();
     }
 
@@ -262,6 +307,13 @@ public final class DialogueEngine {
             Codec<DialogueAction[]> actionsArray = new ArrayCodec<>(actionCodec, DialogueAction[]::new);
             Codec<DialogueCondition[]> conditionsArray = new ArrayCodec<>(conditionCodec, DialogueCondition[]::new);
 
+            // Generic boolean combinators: their child-list codec IS the conditionsArray, so
+            // they can only be assembled + registered now (like OpenPage's router binding).
+            // Evaluation delegates each child back through the finished engine's conditionsPass,
+            // reached via a one-slot holder set right after construction below.
+            final DialogueEngine[] self = new DialogueEngine[1];
+            registerCombinators(conditionCodec, conditionsArray, evaluators, self);
+
             BuilderCodec<DialogueOption> optionCodec = BuilderCodec.builder(DialogueOption.class, DialogueOption::new)
                     .append(new KeyedCodec<>("LabelKey", Codec.STRING, false),
                             (o, v) -> o.labelKey = v, o -> o.labelKey).add()
@@ -271,16 +323,27 @@ public final class DialogueEngine {
                             (o, v) -> o.conditions = v, o -> o.conditions).add()
                     .append(new KeyedCodec<>("Actions", actionsArray, false),
                             (o, v) -> o.actions = v, o -> o.actions).add()
+                    .append(new KeyedCodec<>("Presentation", DialogueOption.Presentation.CODEC, false),
+                            (o, v) -> o.presentation = v, o -> o.presentation).add()
                     .build();
 
+            // Node fields are appendInherited so a child that overrides a node by key (via the
+            // InheritMapCodec on Nodes) and restates only SOME fields keeps the parent node's
+            // other fields (e.g. change just the text, keep the same options + conditions).
             BuilderCodec<DialogueNode> nodeCodec = BuilderCodec.builder(DialogueNode.class, DialogueNode::new)
-                    .append(new KeyedCodec<>("TextKey", Codec.STRING, false),
-                            (n, v) -> n.textKey = v, n -> n.textKey).add()
-                    .append(new KeyedCodec<>("Text", Codec.STRING, false),
-                            (n, v) -> n.text = v, n -> n.text).add()
-                    .append(new KeyedCodec<>("Options",
+                    .appendInherited(new KeyedCodec<>("TextKey", Codec.STRING, false),
+                            (n, v) -> n.textKey = v, n -> n.textKey,
+                            (child, parent) -> child.textKey = parent.textKey).add()
+                    .appendInherited(new KeyedCodec<>("Text", Codec.STRING, false),
+                            (n, v) -> n.text = v, n -> n.text,
+                            (child, parent) -> child.text = parent.text).add()
+                    .appendInherited(new KeyedCodec<>("Conditions", conditionsArray, false),
+                            (n, v) -> n.conditions = v, n -> n.conditions,
+                            (child, parent) -> child.conditions = parent.conditions).add()
+                    .appendInherited(new KeyedCodec<>("Options",
                                     new ArrayCodec<>(optionCodec, DialogueOption[]::new), false),
-                            (n, v) -> n.options = v, n -> n.options).add()
+                            (n, v) -> n.options = v, n -> n.options,
+                            (child, parent) -> child.options = parent.options).add()
                     .build();
 
             BuilderCodec<NpcDialogue.DialogueEntry> entryCodec =
@@ -293,18 +356,30 @@ public final class DialogueEngine {
 
             Codec<NpcDialogue.DialogueEntry[]> startCodec =
                     new ArrayCodec<>(entryCodec, NpcDialogue.DialogueEntry[]::new);
-            Codec<Map<String, DialogueNode>> nodesCodec = new MapCodec<>(nodeCodec, LinkedHashMap::new);
+            // InheritMapCodec (not MapCodec): under native Parent inheritance a child that
+            // provides SOME nodes deep-merges them onto the parent's node map by key (each
+            // DialogueNode is a BuilderCodec = InheritCodec, so its fields merge too), rather
+            // than whole-replacing. Parent-only nodes are retained.
+            Codec<Map<String, DialogueNode>> nodesCodec = new InheritMapCodec<>(nodeCodec, LinkedHashMap::new);
 
+            // Start + Nodes are appendInherited: when a child body OMITS the field entirely it
+            // inherits the parent's value (Phase-1 seed); when it provides the field, Phase-2
+            // overrides (Start whole-replaces like a vanilla list; Nodes keyed-merges via the
+            // InheritMapCodec above).
             BuilderCodec<NpcDialogue> dialogueCodec = BuilderCodec.builder(NpcDialogue.class, NpcDialogue::new)
-                    .append(new KeyedCodec<>("Start", startCodec, false),
-                            (d, v) -> d.start = v, d -> d.start).add()
-                    .append(new KeyedCodec<>("Nodes", nodesCodec, false),
-                            (d, v) -> d.nodes = v, d -> d.nodes).add()
+                    .appendInherited(new KeyedCodec<>("Start", startCodec, false),
+                            (d, v) -> d.start = v, d -> d.start,
+                            (child, parent) -> child.start = parent.start).add()
+                    .appendInherited(new KeyedCodec<>("Nodes", nodesCodec, false),
+                            (d, v) -> d.nodes = v, d -> d.nodes,
+                            (child, parent) -> child.nodes = parent.nodes).add()
                     .build();
 
             DialogueActionExecutor executor = new DialogueActionExecutor(handlers, warn);
             DialogueSugar sugarPass = new DialogueSugar(expanders);
-            return new DialogueEngine(dialogueCodec, evaluators, styles, executor, sugarPass, warn);
+            DialogueEngine engine = new DialogueEngine(dialogueCodec, evaluators, styles, executor, sugarPass, warn);
+            self[0] = engine;
+            return engine;
         }
 
         private void seedGenericActions() {
@@ -361,6 +436,60 @@ public final class DialogueEngine {
     private static <C extends DialogueCondition> void registerCondition(
             @Nonnull CodecMapCodec<DialogueCondition> codec, @Nonnull DialogueConditionType<C> type) {
         codec.register(type.typeId(), type.conditionClass(), type.codec());
+    }
+
+    /**
+     * Register the generic boolean combinators ({@code AllOf}/{@code AnyOf}/{@code Not})
+     * whose child-list codec is the engine-scoped {@code conditionsArray} (so they can
+     * only be assembled inside {@code build()}). Each evaluator delegates its children
+     * back through the finished engine's {@link #conditionsPass}, reached via the
+     * one-slot {@code self} holder set immediately after construction.
+     */
+    private static void registerCombinators(
+            @Nonnull CodecMapCodec<DialogueCondition> conditionCodec,
+            @Nonnull Codec<DialogueCondition[]> conditionsArray,
+            @Nonnull Map<Class<? extends DialogueCondition>, DialogueConditionEvaluator<?>> evaluators,
+            @Nonnull DialogueEngine[] self) {
+
+        BuilderCodec<DialogueCondition.AllOf> allOf = BuilderCodec.builder(
+                        DialogueCondition.AllOf.class, DialogueCondition.AllOf::new)
+                .append(new KeyedCodec<>("All", conditionsArray, false),
+                        (c, v) -> c.children = v, c -> c.children).add()
+                .build();
+        conditionCodec.register("AllOf", DialogueCondition.AllOf.class, allOf);
+        DialogueConditionEvaluator<DialogueCondition.AllOf> allEval =
+                (c, ctx) -> self[0].conditionsPass(c.getChildren(), ctx);
+        evaluators.put(DialogueCondition.AllOf.class, allEval);
+
+        BuilderCodec<DialogueCondition.AnyOf> anyOf = BuilderCodec.builder(
+                        DialogueCondition.AnyOf.class, DialogueCondition.AnyOf::new)
+                .append(new KeyedCodec<>("Any", conditionsArray, false),
+                        (c, v) -> c.children = v, c -> c.children).add()
+                .build();
+        conditionCodec.register("AnyOf", DialogueCondition.AnyOf.class, anyOf);
+        DialogueConditionEvaluator<DialogueCondition.AnyOf> anyEval = (c, ctx) -> {
+            List<DialogueCondition> children = c.getChildren();
+            if (children.isEmpty()) {
+                return false;
+            }
+            for (DialogueCondition child : children) {
+                if (self[0].conditionsPass(List.of(child), ctx)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        evaluators.put(DialogueCondition.AnyOf.class, anyEval);
+
+        BuilderCodec<DialogueCondition.Not> not = BuilderCodec.builder(
+                        DialogueCondition.Not.class, DialogueCondition.Not::new)
+                .append(new KeyedCodec<>("Of", conditionsArray, false),
+                        (c, v) -> c.children = v, c -> c.children).add()
+                .build();
+        conditionCodec.register("Not", DialogueCondition.Not.class, not);
+        DialogueConditionEvaluator<DialogueCondition.Not> notEval =
+                (c, ctx) -> !self[0].conditionsPass(c.getChildren(), ctx);
+        evaluators.put(DialogueCondition.Not.class, notEval);
     }
 
     /** Default warn: logs through the common plugin logger, guarded for log-manager-less unit JVMs. */

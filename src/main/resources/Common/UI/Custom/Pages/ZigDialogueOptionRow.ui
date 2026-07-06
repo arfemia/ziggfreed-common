@@ -2,23 +2,52 @@ $C = "../Common.ui";
 $M = "../Common/ZigButtons.ui";
 
 // One dialogue option line (appended into #OptionsList; see DialoguePage). The
-// per-state button tint is overwritten from Java (DialogueOptionStyle) by the
-// option's decisive action kind. The leading glyph is chosen by revealing exactly
-// ONE of the pre-authored #Ico* children: texture paths MUST live in markup (a
-// "../Common/..." path set via cmd.set does not resolve and renders a red X), so
-// Java only flips the matching glyph's Visible.
+// per-state button tint is overwritten from Java (DialogueOptionStyle, or a
+// per-option Presentation.Color) by the option's decisive action kind. The leading
+// glyph is chosen by revealing exactly ONE of the pre-authored #Ico* children:
+// texture paths MUST live in markup (a "../Common/..." path set via cmd.set does not
+// resolve and renders a red X), so Java only flips the matching glyph's Visible.
+// A per-option Presentation.Icon.Item instead reveals #OptIconItem and pushes an
+// ItemGridSlot (a game item icon by id, the RewardRow pattern) - needs in-game
+// confirmation of the slot render.
+
+@ZigOptIconStyle = ItemGridStyle(
+  SlotSize: 22,
+  SlotIconSize: 20,
+  SlotSpacing: 0,
+  SlotBackground: "../Common/ContainerPanelPatch.png",
+  QuantityPopupSlotOverlay: "../Common/ContainerPanelPatch.png",
+  BrokenSlotBackgroundOverlay: "../Common/ContainerPanelPatch.png",
+  BrokenSlotIconOverlay: "../Common/ContainerPanelPatch.png",
+  DefaultItemIcon: "../Common/ContainerPanelPatch.png",
+  DurabilityBar: "../Common/ContainerPanelPatch.png",
+  DurabilityBarBackground: "../Common/ContainerPanelPatch.png",
+  DurabilityBarAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0),
+  DurabilityBarColorStart: #a63232,
+  DurabilityBarColorEnd: #63b649,
+  CursedIconPatch: "../Common/ContainerPanelPatch.png",
+  CursedIconAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0)
+);
 
 Group #DialogueOptionRow {
   LayoutMode: Left;
   Anchor: (Height: 40, Bottom: 4);
 
   Group #OptIcon {
-    Anchor: (Width: 28, Height: 14, Top: 13, Left: 14);
-    Group #IcoAccept   { Anchor: (Width: 14, Height: 14, Left: 0); Background: (TexturePath: "../Common/Checkmark.png", Color: #4aff7f); Visible: false; }
-    Group #IcoTurnIn   { Anchor: (Width: 14, Height: 14, Left: 0); Background: (TexturePath: "../Common/Checkmark.png", Color: #5ab0ff); Visible: false; }
-    Group #IcoContinue { Anchor: (Width: 14, Height: 14, Left: 0); Background: (TexturePath: "../Common/ContainerTitleArrow.png", Color: #b6c9de); Visible: false; }
-    Group #IcoOpen     { Anchor: (Width: 14, Height: 14, Left: 0); Background: (TexturePath: "../Common/ContainerTitleArrow.png", Color: #ffd97a); Visible: false; }
-    Group #IcoFarewell { Anchor: (Width: 14, Height: 14, Left: 0); Background: (TexturePath: "../Common/ClearInputIcon.png", Color: #8696a8); Visible: false; }
+    Anchor: (Width: 28, Height: 22, Top: 9, Left: 14);
+    Group #IcoAccept   { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: (TexturePath: "../Common/Checkmark.png", Color: #4aff7f); Visible: false; }
+    Group #IcoTurnIn   { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: (TexturePath: "../Common/Checkmark.png", Color: #5ab0ff); Visible: false; }
+    Group #IcoContinue { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: (TexturePath: "../Common/ContainerTitleArrow.png", Color: #b6c9de); Visible: false; }
+    Group #IcoOpen     { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: (TexturePath: "../Common/ContainerTitleArrow.png", Color: #ffd97a); Visible: false; }
+    Group #IcoFarewell { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: (TexturePath: "../Common/ClearInputIcon.png", Color: #8696a8); Visible: false; }
+    ItemGrid #OptIconItem {
+      Anchor: (Width: 22, Height: 22, Left: 0);
+      SlotsPerRow: 1;
+      AreItemsDraggable: false;
+      DisplayItemQuantity: false;
+      Style: @ZigOptIconStyle;
+      Visible: false;
+    }
   }
 
   TextButton #OptionBtn {

@@ -1,7 +1,9 @@
 package com.ziggfreed.common.dialogue.asset;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,9 +13,9 @@ import javax.annotation.Nullable;
 
 import com.google.gson.JsonObject;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.dialogue.DialogueBodyResolver;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.NpcDialogue;
-import com.ziggfreed.common.dialogue.template.DialogueTemplateResolver;
 
 /**
  * The mod-agnostic raw-layer holder for the dialogue stores, the Pattern-B twin of
@@ -98,41 +100,33 @@ public final class DialogueAssetStore {
 
     /**
      * Resolve every body whose owner matches {@code ownerFilter} into a decoded
-     * {@link NpcDialogue}, through the shared template engine ({@code extends}/
-     * {@code params}/{@code nodeOverrides}/{@code extraNodes} + option sugar) then the
-     * consumer-built {@code engine}'s codec - the lift of hyMMO's {@code DialogueConfig.decodeBody}.
-     * A body that resolves/decodes to null, or throws, is skipped (guarded), never aborting
-     * the batch.
+     * {@link NpcDialogue} via {@link DialogueBodyResolver} - native {@code Parent}
+     * inheritance ({@code decodeAndInheritJson} + keyed node merge) plus the engine's
+     * option sugar pre-pass. Base skeletons (a {@code Parent} target) may live in either
+     * store: the resolution POOL is the templates plus the bodies, while only owner-matched
+     * BODIES are emitted, so a shared base can be authored as a template (or another
+     * dialogue) and inherited by id without itself being returned. A body that decodes to
+     * null, or throws, is skipped (guarded), never aborting the batch.
      *
      * @param engine      the consumer's built engine (its registered domain types)
-     * @param ownerFilter only resolve dialogues with this owner ({@code null} = all owners,
+     * @param ownerFilter only emit dialogues with this owner ({@code null} = all owners,
      *                    including unowned)
      * @return id -> decoded dialogue (lower-cased ids), a fresh snapshot
      */
     @Nonnull
     public Map<String, NpcDialogue> resolveAll(@Nonnull DialogueEngine engine, @Nullable String ownerFilter) {
         String filter = ownerFilter == null ? null : ownerFilter.toLowerCase(Locale.ROOT);
-        Map<String, NpcDialogue> out = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonObject> e : bodies.entrySet()) {
-            String id = e.getKey();
-            if (filter != null) {
-                String owner = bodyOwners.get(id);
-                if (!filter.equals(owner)) {
-                    continue;
-                }
-            }
-            try {
-                JsonObject resolved = DialogueTemplateResolver.resolve(
-                        id, e.getValue(), templates, engine.sugar(), WARN);
-                NpcDialogue dialogue = engine.decode(id, resolved.toString());
-                if (dialogue != null) {
-                    out.put(dialogue.getId(), dialogue);
-                }
-            } catch (Exception ex) {
-                WARN.accept("Skipping dialogue '" + id + "': " + ex.getMessage());
+        // Pool: any template OR body can be a Parent target (a same-id body wins over a template).
+        Map<String, JsonObject> pool = new LinkedHashMap<>(templates);
+        pool.putAll(bodies);
+        // Output: only bodies matching the owner filter.
+        List<String> outputIds = new ArrayList<>();
+        for (String id : bodies.keySet()) {
+            if (filter == null || filter.equals(bodyOwners.get(id))) {
+                outputIds.add(id);
             }
         }
-        return out;
+        return DialogueBodyResolver.resolve(pool, outputIds, engine, WARN);
     }
 
     /** Unmodifiable view of the raw dialogue bodies (id -> {@code Start}/{@code Nodes}, pre-resolve). */

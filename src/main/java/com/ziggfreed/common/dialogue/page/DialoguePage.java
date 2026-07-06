@@ -1,6 +1,7 @@
 package com.ziggfreed.common.dialogue.page;
 
 import java.util.List;
+import java.util.Locale;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -12,6 +13,8 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -130,7 +133,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             commandBuilder.append("#OptionsList", OPTION_ROW_TEMPLATE);
             String sel = "#OptionsList[" + row + "]";
             commandBuilder.set(sel + " #OptionBtn.Text", resolveOptionLabel(i18n, dialogue, currentNodeId, i, option));
-            applyOptionStyle(commandBuilder, sel, engine.classifyOption(option));
+            applyOptionLook(commandBuilder, sel, engine.classifyOption(option), option.getPresentation());
             eventBuilder.addEventBinding(CustomUIEventBindingType.Activating, sel + " #OptionBtn",
                     EventData.of("Action", "choose")
                             .append("Node", currentNodeId)
@@ -148,25 +151,85 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         cmd.append("#OptionsList", OPTION_ROW_TEMPLATE);
         String sel = "#OptionsList[" + row + "]";
         cmd.set(sel + " #OptionBtn.Text", DialogueMessages.tr(i18n, "ui.dialogue.farewell"));
-        applyOptionStyle(cmd, sel, DialogueOptionStyle.FAREWELL);
+        applyOptionLook(cmd, sel, DialogueOptionStyle.FAREWELL, null);
         events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #OptionBtn",
                 EventData.of("Action", "close"));
     }
 
     /**
-     * Paint an appended option row to its semantic {@link DialogueOptionStyle}:
-     * overwrite the shared option button's three per-state background tints and
-     * reveal the matching pre-authored glyph (the glyph TEXTURE lives in markup;
-     * Java only flips the chosen child's {@code Visible}).
+     * Paint an appended option row: start from its semantic {@link DialogueOptionStyle}
+     * (derived from the option's decisive action), then let an explicit per-option
+     * {@link DialogueOption.Presentation} override the colour and/or icon.
+     *
+     * <p>Colour: a {@code Presentation.Color} hex replaces the style's three button-state
+     * tints (hover lightened, press darkened from it); otherwise the style's tints apply.
+     * Icon: {@code Presentation.Icon.Item} reveals {@code #OptIconItem} and pushes the game
+     * item's icon as an {@link ItemGridSlot} (the RewardRow mechanism); else
+     * {@code Presentation.Icon.Glyph} reveals the named pre-authored glyph; else the style's
+     * glyph. Glyph TEXTURES live in markup - Java only flips {@code Visible} / sets {@code Slots}.
      */
-    private static void applyOptionStyle(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
-                                         @Nonnull DialogueOptionStyle style) {
-        UiRetint.retintButtonStates(cmd, sel + " #OptionBtn",
-                style.tintDefault(), style.tintHovered(), style.tintPressed());
-        String iconId = style.iconElementId();
-        if (iconId != null) {
-            cmd.set(sel + " #OptIcon " + iconId + ".Visible", true);
+    private static void applyOptionLook(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
+                                        @Nonnull DialogueOptionStyle style,
+                                        @Nullable DialogueOption.Presentation presentation) {
+        String def = style.tintDefault();
+        String hov = style.tintHovered();
+        String prs = style.tintPressed();
+        String color = presentation != null ? presentation.getColor() : null;
+        if (color != null && UiRetint.isSixDigitHex(color)) {
+            def = color;
+            hov = shade(color, 0.18, true);
+            prs = shade(color, 0.15, false);
         }
+        UiRetint.retintButtonStates(cmd, sel + " #OptionBtn", def, hov, prs);
+
+        DialogueOption.Icon icon = presentation != null ? presentation.getIcon() : null;
+        String itemId = icon != null ? icon.getItem() : null;
+        if (itemId != null && !itemId.isBlank()) {
+            cmd.set(sel + " #OptIcon #OptIconItem.Visible", true);
+            cmd.set(sel + " #OptIcon #OptIconItem.Slots", List.of(new ItemGridSlot(new ItemStack(itemId, 1))));
+            return;
+        }
+        String glyphToken = icon != null ? icon.getGlyph() : null;
+        String glyphElem = glyphToken != null ? glyphElementId(glyphToken) : style.iconElementId();
+        if (glyphElem != null) {
+            cmd.set(sel + " #OptIcon " + glyphElem + ".Visible", true);
+        }
+    }
+
+    /** Map a {@code Presentation.Icon.Glyph} token to a pre-authored glyph element id, or null. */
+    @Nullable
+    private static String glyphElementId(@Nonnull String token) {
+        switch (token.toLowerCase(Locale.ROOT)) {
+            case "accept": return "#IcoAccept";
+            case "turnin":
+            case "turn_in": return "#IcoTurnIn";
+            case "continue": return "#IcoContinue";
+            case "open": return "#IcoOpen";
+            case "farewell":
+            case "close": return "#IcoFarewell";
+            default: return null;
+        }
+    }
+
+    /** Lighten (toward white) or darken (toward black) a {@code #rrggbb} hex by a factor in [0,1]. */
+    @Nonnull
+    private static String shade(@Nonnull String hex, double factor, boolean lighten) {
+        try {
+            int r = Integer.parseInt(hex.substring(1, 3), 16);
+            int g = Integer.parseInt(hex.substring(3, 5), 16);
+            int b = Integer.parseInt(hex.substring(5, 7), 16);
+            r = shadeChannel(r, factor, lighten);
+            g = shadeChannel(g, factor, lighten);
+            b = shadeChannel(b, factor, lighten);
+            return String.format(Locale.ROOT, "#%02x%02x%02x", r, g, b);
+        } catch (RuntimeException e) {
+            return hex;
+        }
+    }
+
+    private static int shadeChannel(int c, double factor, boolean lighten) {
+        double v = lighten ? c + (255 - c) * factor : c * (1 - factor);
+        return Math.max(0, Math.min(255, (int) Math.round(v)));
     }
 
     /**

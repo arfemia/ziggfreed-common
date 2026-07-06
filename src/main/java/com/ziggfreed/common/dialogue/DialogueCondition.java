@@ -1,5 +1,9 @@
 package com.ziggfreed.common.dialogue;
 
+import java.util.Collections;
+import java.util.List;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.codec.Codec;
@@ -45,5 +49,35 @@ public abstract class DialogueCondition {
         @Nullable protected String flag;
 
         @Nullable public String getFlag() { return flag; }
+    }
+
+    /**
+     * A boolean combinator over child conditions. Its child-list codec is the
+     * per-{@link DialogueEngine} {@code conditionsArray}, so (unlike the leaf
+     * conditions above) it has NO static {@code CODEC} - the engine builds and
+     * registers {@code AllOf}/{@code AnyOf}/{@code Not} in {@code Builder.build()}
+     * once that array exists, and evaluates them by delegating each child back
+     * through {@link DialogueEngine#conditionsPass}. Authored shape:
+     * {@code {"Type":"AnyOf","Any":[ {"Type":"QuestState",...}, ... ]}}.
+     */
+    public abstract static class Combinator extends DialogueCondition {
+        @Nullable protected DialogueCondition[] children;
+
+        @Nonnull
+        public List<DialogueCondition> getChildren() {
+            return children == null ? Collections.emptyList() : List.of(children);
+        }
+    }
+
+    /** Passes when EVERY child condition passes (an empty list passes). Key: {@code All}. */
+    public static final class AllOf extends Combinator {
+    }
+
+    /** Passes when AT LEAST ONE child condition passes (an empty list FAILS). Key: {@code Any}. */
+    public static final class AnyOf extends Combinator {
+    }
+
+    /** Passes when the child conditions do NOT all pass (AND then negate). Key: {@code Of}. */
+    public static final class Not extends Combinator {
     }
 }
