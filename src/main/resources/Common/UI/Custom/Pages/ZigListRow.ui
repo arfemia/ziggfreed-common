@@ -1,0 +1,65 @@
+$C = "../Common.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// ── ziggfreed-common generic appendable LIST ROW ──────────────────────────────
+// Appended into a consumer's list container:  cmd.append("#MyList", "Pages/ZigListRow.ui");
+// then addressed per row via the INDEXED PARENT (e.g. "#MyList[0] #Title"), so the bare
+// descendant ids below are safe across many rows AND across mods (the unique indexed parent
+// scopes them - the same rule ZigPartyRow / ZigResultRow rely on).
+//
+// A title (#Title) + subtitle (#Sub) text column that flexes, an optional right-aligned #Badge
+// (e.g. "default" vs "override"), and two RICH action buttons (#EditBtn, #RemoveBtn - each a
+// Button + inner #Label, so their labels are pushed on .TextSpans via ZigRichButton.text, the
+// same substituting sink a TextButton.Text cannot use). The title uses #Title (not #Label) so it
+// never collides with the buttons' inner #Label. Java per row: set #Title / #Sub text, #Badge /
+// #RemoveBtn Visible, the button labels (ZigRichButton.text on "#MyList[i] #EditBtn"), and the
+// click bindings (on "#MyList[i] #EditBtn"). Keep @ZigRichRowBtnStyle (it carries click Sounds).
+
+Group #ZigListRow {
+  LayoutMode: Left;
+  Anchor: (Height: 46, Bottom: 4);
+  Padding: (Horizontal: 6, Vertical: 3);
+  Background: (TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #2a3442);
+
+  Group #TextCol {
+    FlexWeight: 1;
+    LayoutMode: Top;
+    Padding: (Left: 8);
+    Label #Title {
+      Text: "";
+      Style: (FontSize: 14, TextColor: #e6eef7, VerticalAlignment: Center);
+    }
+    Label #Sub {
+      Text: "";
+      Style: (FontSize: 11, TextColor: #93a4b8, VerticalAlignment: Center);
+    }
+  }
+
+  Label #Badge {
+    Visible: false;
+    Anchor: (Width: 74, Height: 40);
+    Text: "";
+    Style: (FontSize: 11, TextColor: #8fd0a6, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
+  }
+
+  Button #EditBtn {
+    Style: $Z.@ZigRichRowBtnStyle;
+    Anchor: (Width: 78, Height: 30, Left: 6);
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+    }
+  }
+
+  Button #RemoveBtn {
+    Visible: false;
+    Style: $Z.@ZigRichRowBtnStyle;
+    Anchor: (Width: 78, Height: 30, Left: 6);
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: 12, TextColor: #ff9a9a, HorizontalAlignment: Center, VerticalAlignment: Center);
+    }
+  }
+}
