@@ -20,28 +20,47 @@ import javax.annotation.Nullable;
 public enum DialogueOptionStyle {
 
     /** Positive / accept. Green, with a checkmark. */
-    ACCEPT("#4aff7f", "#7affa0", "#33cc66", "#IcoAccept"),
+    ACCEPT("accept", "#4aff7f", "#7affa0", "#33cc66", "#IcoAccept"),
     /** Hand-off / turn in. Blue, with a checkmark. */
-    TURN_IN("#5ab0ff", "#8acbff", "#3f8fd6", "#IcoTurnIn"),
+    TURN_IN("turnin", "#5ab0ff", "#8acbff", "#3f8fd6", "#IcoTurnIn"),
     /** Jump to another node (re-renders elsewhere). Steel, with a right chevron. */
-    CONTINUE("#b6c9de", "#d6e3f0", "#97aabf", "#IcoContinue"),
+    CONTINUE("continue", "#b6c9de", "#d6e3f0", "#97aabf", "#IcoContinue"),
     /** Open another page / nav. Steel, with a gold "open" chevron. */
-    NEUTRAL("#b6c9de", "#d6e3f0", "#97aabf", "#IcoOpen"),
+    NEUTRAL("neutral", "#b6c9de", "#d6e3f0", "#97aabf", "#IcoOpen"),
     /** End the dialogue. Muted, with an X. */
-    FAREWELL("#6f8398", "#9fb3c8", "#5a6e82", "#IcoFarewell");
+    FAREWELL("farewell", "#6f8398", "#9fb3c8", "#5a6e82", "#IcoFarewell");
 
+    private final String key;
     private final String tintDefault;
     private final String tintHovered;
     private final String tintPressed;
     @Nullable
     private final String iconElementId;
 
-    DialogueOptionStyle(@Nonnull String tintDefault, @Nonnull String tintHovered,
+    DialogueOptionStyle(@Nonnull String key, @Nonnull String tintDefault, @Nonnull String tintHovered,
                         @Nonnull String tintPressed, @Nullable String iconElementId) {
+        this.key = key;
         this.tintDefault = tintDefault;
         this.tintHovered = tintHovered;
         this.tintPressed = tintPressed;
         this.iconElementId = iconElementId;
+    }
+
+    /**
+     * The stable asset id this kind resolves through in {@link DialogueOptionThemeConfig}
+     * (the {@code Server/ZiggfreedCommon/DialogueOptionTheme/<key>.json} filename, lower-cased).
+     */
+    @Nonnull public String key() { return key; }
+
+    /** The style whose {@link #key()} equals {@code key} (case-insensitive), or null if none. */
+    @Nullable
+    public static DialogueOptionStyle byKey(@Nonnull String key) {
+        for (DialogueOptionStyle s : values()) {
+            if (s.key.equalsIgnoreCase(key)) {
+                return s;
+            }
+        }
+        return null;
     }
 
     @Nonnull public String tintDefault() { return tintDefault; }

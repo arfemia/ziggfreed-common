@@ -27,12 +27,22 @@ public class DialogueOption {
     @Nullable DialogueCondition[] conditions;
     @Nullable DialogueAction[] actions;
     @Nullable Presentation presentation;
+    @Nullable String styleKind;
 
     public DialogueOption() {
     }
 
     /** Explicit i18n key for the option label, or null (by-convention key, then raw fallback). */
     @Nullable public String getLabelKey() { return labelKey; }
+
+    /**
+     * An explicit {@link DialogueOptionStyle} kind key ({@code accept}/{@code turnin}/
+     * {@code continue}/{@code neutral}/{@code farewell}) that OVERRIDES the action-derived style, or
+     * null. Lets an option declare its themed look by role - a data-driven, theme-resolved
+     * alternative to a hard-coded {@link Presentation} (the colour + glyph then come from the
+     * {@code DialogueOptionTheme} asset for that kind). An unknown key is ignored (action-derived).
+     */
+    @Nullable public String getStyleKind() { return styleKind; }
 
     /** Deprecated raw label fallback, or null. */
     @Nullable public String getLabel() { return label; }

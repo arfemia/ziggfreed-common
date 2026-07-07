@@ -12,6 +12,8 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -69,6 +71,60 @@ public final class DialogueBodyResolver {
         return out;
     }
 
+    /**
+     * Expand shared OPTION FRAGMENTS (pre-decode, pre-sugar). A body may declare a top-level
+     * {@code "Fragments": { "<id>": [ <option>, ... ] }} map of reusable option lists; a node
+     * references one or more with {@code "IncludeOptions": ["<id>", ...]}, and each referenced
+     * fragment's options are DEEP-COPIED and appended AFTER the node's own {@code Options} (so a
+     * node's own options lead, the shared footer trails). The {@code Fragments} map + every
+     * {@code IncludeOptions} key are stripped before decode so the codec never sees them. This is
+     * the intra-dialogue DRY seam (a hub footer authored once, referenced by every steady node);
+     * fragments are resolved within the SAME body (a fragment defined in a {@code Parent} is not
+     * visible to a child - keep shared footers in the body that uses them, or in a base a child
+     * fully inherits). An unknown fragment id warns and is skipped (the node keeps its own options).
+     */
+    private static void expandOptionFragments(@Nonnull String id, @Nonnull JsonObject body,
+                                              @Nonnull Consumer<String> warn) {
+        JsonObject fragments = body.has("Fragments") && body.get("Fragments").isJsonObject()
+                ? body.getAsJsonObject("Fragments") : null;
+        if (body.has("Nodes") && body.get("Nodes").isJsonObject()) {
+            JsonObject nodes = body.getAsJsonObject("Nodes");
+            for (Map.Entry<String, JsonElement> e : nodes.entrySet()) {
+                if (!e.getValue().isJsonObject()) {
+                    continue;
+                }
+                JsonObject node = e.getValue().getAsJsonObject();
+                if (!node.has("IncludeOptions")) {
+                    continue;
+                }
+                JsonElement inc = node.get("IncludeOptions");
+                node.remove("IncludeOptions");
+                if (!inc.isJsonArray()) {
+                    continue;
+                }
+                JsonArray options = node.has("Options") && node.get("Options").isJsonArray()
+                        ? node.getAsJsonArray("Options") : new JsonArray();
+                for (JsonElement fidEl : inc.getAsJsonArray()) {
+                    if (!fidEl.isJsonPrimitive()) {
+                        continue;
+                    }
+                    String fid = fidEl.getAsString();
+                    JsonElement frag = fragments != null ? fragments.get(fid) : null;
+                    if (frag == null || !frag.isJsonArray()) {
+                        warn.accept("Dialogue '" + id + "' node '" + e.getKey()
+                                + "' IncludeOptions references unknown fragment '" + fid + "'");
+                        continue;
+                    }
+                    for (JsonElement opt : frag.getAsJsonArray()) {
+                        options.add(opt.deepCopy());
+                    }
+                }
+                node.add("Options", options);
+            }
+        }
+        body.remove("Fragments");
+    }
+
     @Nullable
     private static NpcDialogue resolveOne(@Nonnull String id, @Nonnull Map<String, JsonObject> pool,
                                           @Nonnull DialogueEngine engine, @Nonnull Map<String, NpcDialogue> cache,
@@ -99,6 +155,7 @@ public final class DialogueBodyResolver {
                             + "' not found (or cyclic) - decoding standalone");
                 }
             }
+            expandOptionFragments(id, body, warn); // splice named shared option fragments into nodes (pre-sugar)
             engine.sugar().desugar(body); // option shorthand -> canonical Actions (pre-decode)
             NpcDialogue d = engine.decodeWithParent(id, body.toString(), parent);
             cache.put(id, d);

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueTemplateAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
@@ -68,5 +69,10 @@ class AssetCodecInitTest {
     @Test
     void partySettingsAssetCodecInitializes() {
         assertNotNull(PartySettingsAsset.CODEC, "PartySettingsAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void dialogueOptionThemeAssetCodecInitializes() {
+        assertNotNull(DialogueOptionThemeAsset.CODEC, "DialogueOptionThemeAsset.CODEC must static-init (PascalCase keys)");
     }
 }

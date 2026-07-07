@@ -6,7 +6,9 @@ import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.dialogue.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
+import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueTemplateAsset;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionAsset;
@@ -148,6 +150,18 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, PartySettingsAsset, DefaultAssetMap<String, PartySettingsAsset>> ev) ->
                         PartySettingsConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toConfig())));
+
+        // --- Dialogue option theme (Pattern A) - the data-driven look per option style kind. Common
+        //     ships the neutral defaults as its own pack (DialogueOptionTheme/*.json); a consumer pack
+        //     or owner overrides a kind by dropping the same-id file, and the DialogueOptionStyle enum
+        //     stays only as the fail-closed fallback. ---
+        AssetStoreRegistrar.registerStore(DialogueOptionThemeAsset.class,
+                new DefaultAssetMap<String, DialogueOptionThemeAsset>(), "ZiggfreedCommon/DialogueOptionTheme",
+                DialogueOptionThemeAsset::getId, DialogueOptionThemeAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DialogueOptionThemeAsset.class,
+                (LoadedAssetsEvent<String, DialogueOptionThemeAsset, DefaultAssetMap<String, DialogueOptionThemeAsset>> ev) ->
+                        DialogueOptionThemeConfig.getInstance().mergePackLayer(
+                                AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toTheme())));
 
         try {
             ZiggfreedCommonPlugin.LOGGER.atInfo().log(

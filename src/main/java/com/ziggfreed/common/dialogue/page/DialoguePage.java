@@ -26,6 +26,8 @@ import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.DialogueExecContext;
 import com.ziggfreed.common.dialogue.DialogueOption;
 import com.ziggfreed.common.dialogue.DialogueOptionStyle;
+import com.ziggfreed.common.dialogue.DialogueOptionTheme;
+import com.ziggfreed.common.dialogue.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.DialogueNode;
 import com.ziggfreed.common.dialogue.NpcDialogue;
 import com.ziggfreed.common.dialogue.i18n.DialogueI18n;
@@ -133,7 +135,8 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             commandBuilder.append("#OptionsList", OPTION_ROW_TEMPLATE);
             String sel = "#OptionsList[" + row + "]";
             commandBuilder.set(sel + " #OptionBtn.Text", resolveOptionLabel(i18n, dialogue, currentNodeId, i, option));
-            applyOptionLook(commandBuilder, sel, engine.classifyOption(option), option.getPresentation());
+            DialogueOptionStyle style = engine.classifyOption(option);
+            applyOptionLook(commandBuilder, sel, style, themeFor(style), option.getPresentation());
             eventBuilder.addEventBinding(CustomUIEventBindingType.Activating, sel + " #OptionBtn",
                     EventData.of("Action", "choose")
                             .append("Node", currentNodeId)
@@ -151,29 +154,45 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         cmd.append("#OptionsList", OPTION_ROW_TEMPLATE);
         String sel = "#OptionsList[" + row + "]";
         cmd.set(sel + " #OptionBtn.Text", DialogueMessages.tr(i18n, "ui.dialogue.farewell"));
-        applyOptionLook(cmd, sel, DialogueOptionStyle.FAREWELL, null);
+        applyOptionLook(cmd, sel, DialogueOptionStyle.FAREWELL, themeFor(DialogueOptionStyle.FAREWELL), null);
         events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #OptionBtn",
                 EventData.of("Action", "close"));
     }
 
+    /** The data-driven {@link DialogueOptionTheme} for a style kind, or null when no layer authored it. */
+    @Nullable
+    private static DialogueOptionTheme themeFor(@Nonnull DialogueOptionStyle style) {
+        return DialogueOptionThemeConfig.getInstance().forStyle(style);
+    }
+
     /**
-     * Paint an appended option row: start from its semantic {@link DialogueOptionStyle}
-     * (derived from the option's decisive action), then let an explicit per-option
-     * {@link DialogueOption.Presentation} override the colour and/or icon.
+     * Paint an appended option row from its semantic {@link DialogueOptionStyle}, resolved through
+     * the data-driven {@link DialogueOptionTheme} (authored in {@code DialogueOptionTheme/*.json},
+     * folded {@code defaults < pack < owner}), then let an explicit per-option
+     * {@link DialogueOption.Presentation} override the colour and/or icon. The {@code style} enum is
+     * only the per-leaf fail-closed fallback (used when a theme leaf, or the whole kind, is absent).
      *
-     * <p>Colour: a {@code Presentation.Color} hex replaces the style's three button-state
-     * tints (hover lightened, press darkened from it); otherwise the style's tints apply.
-     * Icon: {@code Presentation.Icon.Item} reveals {@code #OptIconItem} and pushes the game
-     * item's icon as an {@link ItemGridSlot} (the RewardRow mechanism); else
-     * {@code Presentation.Icon.Glyph} reveals the named pre-authored glyph; else the style's
-     * glyph. Glyph TEXTURES live in markup - Java only flips {@code Visible} / sets {@code Slots}.
+     * <p>Colour precedence per state: {@code Presentation.Color} (hover/press derived) &gt; the
+     * theme's {@code Color}/{@code HoverColor}/{@code PressColor} (a missing hover/press derives from
+     * {@code Color}) &gt; the enum tints. Icon: {@code Presentation.Icon.Item} reveals
+     * {@code #OptIconItem} with the game item icon; else a glyph token from the Presentation, else the
+     * theme's {@code Glyph}, else the enum glyph. Glyph TEXTURES live in markup - Java only flips
+     * {@code Visible} / sets {@code Slots}.
      */
     private static void applyOptionLook(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
                                         @Nonnull DialogueOptionStyle style,
+                                        @Nullable DialogueOptionTheme theme,
                                         @Nullable DialogueOption.Presentation presentation) {
-        String def = style.tintDefault();
-        String hov = style.tintHovered();
-        String prs = style.tintPressed();
+        // Base colours from the theme per leaf, falling back to the enum. A theme that authors only
+        // Color derives hover/press from it; a theme with no Color at all uses the enum tints.
+        String themeColor = theme != null ? theme.color() : null;
+        String def = themeColor != null ? themeColor : style.tintDefault();
+        String hov = theme != null && theme.hover() != null ? theme.hover()
+                : (themeColor != null ? shade(themeColor, 0.18, true) : style.tintHovered());
+        String prs = theme != null && theme.press() != null ? theme.press()
+                : (themeColor != null ? shade(themeColor, 0.15, false) : style.tintPressed());
+
+        // A per-option Presentation.Color wins over the kind theme (hover/press re-derived from it).
         String color = presentation != null ? presentation.getColor() : null;
         if (color != null && UiRetint.isSixDigitHex(color)) {
             def = color;
@@ -189,8 +208,17 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             cmd.set(sel + " #OptIcon #OptIconItem.Slots", List.of(new ItemGridSlot(new ItemStack(itemId, 1))));
             return;
         }
-        String glyphToken = icon != null ? icon.getGlyph() : null;
-        String glyphElem = glyphToken != null ? glyphElementId(glyphToken) : style.iconElementId();
+        // Glyph precedence: Presentation.Icon.Glyph > the theme's Glyph token > the enum's element id.
+        String presGlyph = icon != null ? icon.getGlyph() : null;
+        String themeGlyph = theme != null ? theme.glyphToken() : null;
+        String glyphElem;
+        if (presGlyph != null && !presGlyph.isBlank()) {
+            glyphElem = glyphElementId(presGlyph);
+        } else if (themeGlyph != null && !themeGlyph.isBlank()) {
+            glyphElem = glyphElementId(themeGlyph);
+        } else {
+            glyphElem = style.iconElementId();
+        }
         if (glyphElem != null) {
             cmd.set(sel + " #OptIcon " + glyphElem + ".Visible", true);
         }

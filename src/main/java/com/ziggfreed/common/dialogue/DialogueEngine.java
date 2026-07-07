@@ -206,12 +206,21 @@ public final class DialogueEngine {
     }
 
     /**
-     * The decisive look for an option: the first action whose registered type
-     * declared a {@link DialogueOptionStyle}, else {@link DialogueOptionStyle#CONTINUE}
-     * (an option with no Goto/Close re-renders its node, which reads as a continue).
+     * The decisive look for an option: an explicit {@code Style} kind override if authored
+     * ({@link DialogueOption#getStyleKind}, resolved through {@link DialogueOptionStyle#byKey}), else
+     * the first action whose registered type declared a {@link DialogueOptionStyle}, else
+     * {@link DialogueOptionStyle#CONTINUE} (an option with no Goto/Close re-renders its node, which
+     * reads as a continue).
      */
     @Nonnull
     public DialogueOptionStyle classifyOption(@Nonnull DialogueOption option) {
+        String kind = option.getStyleKind();
+        if (kind != null && !kind.isBlank()) {
+            DialogueOptionStyle explicit = DialogueOptionStyle.byKey(kind);
+            if (explicit != null) {
+                return explicit;
+            }
+        }
         for (DialogueAction action : option.getActions()) {
             DialogueOptionStyle style = styles.get(action.getClass());
             if (style != null) {
@@ -325,6 +334,8 @@ public final class DialogueEngine {
                             (o, v) -> o.actions = v, o -> o.actions).add()
                     .append(new KeyedCodec<>("Presentation", DialogueOption.Presentation.CODEC, false),
                             (o, v) -> o.presentation = v, o -> o.presentation).add()
+                    .append(new KeyedCodec<>("Style", Codec.STRING, false),
+                            (o, v) -> o.styleKind = v, o -> o.styleKind).add()
                     .build();
 
             // Node fields are appendInherited so a child that overrides a node by key (via the
