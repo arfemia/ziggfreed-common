@@ -1,0 +1,32 @@
+$C = "../Common.ui";
+
+// ── ziggfreed-common appendable SETTINGS-FORM dropdown row ────────────────────
+// Appended by SettingsForm.buildRows into a consumer's list container:
+//   cmd.append("#MyForm", "Pages/ZigFormDropdownRow.ui");
+// then addressed by the INDEXED PARENT (e.g. "#MyForm[0] #Dropdown"), so the bare
+// descendant ids below are safe across many rows AND across mods (the ZigListRow rule).
+//
+// The TRISTATE/DROPDOWN row: a flexing label (#Title) plus a fixed-width dropdown
+// (#Dropdown), entries populated from Java via SettingsUiUtil.populate. A white,
+// non-uppercase label style keeps it readable against the dark settings background.
+
+@DropStyle = DropdownBoxStyle(
+  ...$C.@DefaultDropdownBoxStyle,
+  LabelStyle: (...$C.@DefaultDropdownBoxLabelStyle, TextColor: #ffffff, RenderUppercase: false)
+);
+
+Group #ZigFormDropdownRow {
+  LayoutMode: Left;
+  Anchor: (Height: 32, Bottom: 5);
+
+  Label #Title {
+    FlexWeight: 1;
+    Text: "";
+    Style: (FontSize: 13, TextColor: #cdd8e6, VerticalAlignment: Center);
+  }
+
+  $C.@DropdownBox #Dropdown {
+    Anchor: (Width: 190, Height: 30);
+    Style: @DropStyle;
+  }
+}

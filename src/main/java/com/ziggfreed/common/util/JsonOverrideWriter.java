@@ -37,9 +37,13 @@ import com.hypixel.hytale.logger.HytaleLogger;
  * <p><b>Type fidelity is the caller's contract.</b> A value's boxed type controls the emitted JSON
  * number form, which must match the target codec: pass an {@link Integer} for a {@code Codec.INTEGER}
  * leaf (emits {@code 16}), a {@link Double} for a {@code Codec.DOUBLE} leaf (emits {@code 1.5} /
- * {@code 2.0}), a {@link Boolean}, or a {@link String}. A {@code null} value REMOVES the leaf. Values in
- * a passed map may therefore be null, so pass a null-tolerant map ({@code LinkedHashMap}, not
- * {@code Map.of}); insertion order is preserved in the emitted object.
+ * {@code 2.0}), a {@link Boolean}, or a {@link String}. A {@link java.util.List} or {@code String[]}
+ * becomes a JSON ARRAY leaf (each element boxed through the same scalar rule, so a
+ * {@code List<String>} emits a string array); an array leaf REPLACES WHOLESALE (there is no
+ * per-element merge - the whole leaf is overwritten, the same convention {@link #upsertArrayEntry}
+ * uses for a top-level array). A {@code null} value REMOVES the leaf. Values in a passed map may
+ * therefore be null, so pass a null-tolerant map ({@code LinkedHashMap}, not {@code Map.of});
+ * insertion order is preserved in the emitted object.
  *
  * <p>Gson-only + {@code java.nio}; the only reason it is not pure like {@link JsonTreeUtil} is a guarded
  * logger. Every method is fully guarded and returns {@code false} on any IO / parse failure (a malformed
@@ -94,7 +98,7 @@ public final class JsonOverrideWriter {
                 if (e.getValue() == null) {
                     removals.add(e.getKey());
                 } else {
-                    setInto(patch, e.getKey(), toPrimitive(e.getValue()));
+                    setInto(patch, e.getKey(), toElement(e.getValue()));
                 }
             }
             JsonTreeUtil.deepMergeInto(root, patch);
@@ -257,9 +261,9 @@ public final class JsonOverrideWriter {
         return -1;
     }
 
-    /** Walk/create intermediate objects for a dotted PascalCase path and set the leaf primitive. */
+    /** Walk/create intermediate objects for a dotted PascalCase path and set the leaf element (scalar or array). */
     private static void setInto(@Nonnull JsonObject target, @Nonnull String dottedPath,
-            @Nonnull JsonPrimitive value) {
+            @Nonnull JsonElement value) {
         String[] parts = dottedPath.split("\\.");
         JsonObject cursor = target;
         for (int i = 0; i < parts.length - 1; i++) {
@@ -287,6 +291,31 @@ public final class JsonOverrideWriter {
             cursor = next.getAsJsonObject();
         }
         cursor.remove(parts[parts.length - 1]);
+    }
+
+    /**
+     * Box a caller value into the JSON element {@link #setInto} stores: a {@link List} or
+     * {@code String[]} becomes a {@link JsonArray} (each element boxed through {@link #toPrimitive},
+     * so per-element type fidelity holds too); anything else is a single scalar via
+     * {@link #toPrimitive}. An array leaf REPLACES WHOLESALE - there is no per-element merge.
+     */
+    @Nonnull
+    private static JsonElement toElement(@Nonnull Object value) {
+        if (value instanceof List<?> list) {
+            JsonArray arr = new JsonArray();
+            for (Object item : list) {
+                arr.add(toPrimitive(item));
+            }
+            return arr;
+        }
+        if (value instanceof String[] strings) {
+            JsonArray arr = new JsonArray();
+            for (String item : strings) {
+                arr.add(toPrimitive(item));
+            }
+            return arr;
+        }
+        return toPrimitive(value);
     }
 
     /** Box a scalar into a Gson primitive; a Number keeps its int/double identity in the emitted JSON. */

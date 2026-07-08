@@ -1,0 +1,16 @@
+// ── ziggfreed-common appendable SETTINGS-FORM section header row ─────────────
+// Appended by SettingsForm.buildRows into a consumer's list container:
+//   cmd.append("#MyForm", "Pages/ZigFormHeaderRow.ui");
+// then addressed by the INDEXED PARENT (e.g. "#MyForm[0] #Title"), so the bare
+// descendant ids below are safe across many rows AND across mods (the ZigListRow rule).
+//
+// The HEADER row: a section heading, label only - never collected, never bound.
+
+Group #ZigFormHeaderRow {
+  Anchor: (Height: 24, Top: 6, Bottom: 4);
+
+  Label #Title {
+    Text: "";
+    Style: (FontSize: 15, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
+  }
+}

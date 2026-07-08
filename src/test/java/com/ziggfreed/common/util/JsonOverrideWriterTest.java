@@ -101,6 +101,40 @@ class JsonOverrideWriterTest {
     }
 
     @Test
+    void listLeafOnNestedPathCreatesJsonArray() throws IOException {
+        Path f = file();
+        Map<String, Object> leaves = new LinkedHashMap<>();
+        leaves.put("Filters.AllowedZones", List.of("nether", "overworld"));
+        assertTrue(JsonOverrideWriter.setLeaves(f, leaves));
+        JsonArray arr = readBack(f).getAsJsonObject("Filters").getAsJsonArray("AllowedZones");
+        assertEquals(2, arr.size());
+        assertEquals("nether", arr.get(0).getAsString());
+        assertEquals("overworld", arr.get(1).getAsString());
+    }
+
+    @Test
+    void listLeafReplacesExistingArrayWholesale() throws IOException {
+        Path f = file();
+        Files.writeString(f, "{\n  \"Filters\": { \"AllowedZones\": [\"old_a\", \"old_b\", \"old_c\"] }\n}\n",
+                StandardCharsets.UTF_8);
+        assertTrue(JsonOverrideWriter.setLeaf(f, "Filters.AllowedZones", List.of("new_only")));
+        JsonArray arr = readBack(f).getAsJsonObject("Filters").getAsJsonArray("AllowedZones");
+        assertEquals(1, arr.size()); // whole-leaf replace, not an element-wise merge
+        assertEquals("new_only", arr.get(0).getAsString());
+    }
+
+    @Test
+    void nullValueRemovesArrayLeaf() throws IOException {
+        Path f = file();
+        Files.writeString(f, "{\n  \"Filters\": { \"AllowedZones\": [\"a\", \"b\"], \"Enabled\": true }\n}\n",
+                StandardCharsets.UTF_8);
+        assertTrue(JsonOverrideWriter.setLeaf(f, "Filters.AllowedZones", null));
+        JsonObject filters = readBack(f).getAsJsonObject("Filters");
+        assertFalse(filters.has("AllowedZones"));
+        assertTrue(filters.get("Enabled").getAsBoolean()); // untouched sibling survives
+    }
+
+    @Test
     void arrayUpsertAppendsWhenAbsent() throws IOException {
         Path f = file();
         Map<String, Object> entry = new LinkedHashMap<>();

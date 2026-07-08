@@ -1,0 +1,28 @@
+$C = "../Common.ui";
+
+// ── ziggfreed-common appendable SETTINGS-FORM field row ───────────────────────
+// Appended by SettingsForm.buildRows into a consumer's list container:
+//   cmd.append("#MyForm", "Pages/ZigFormFieldRow.ui");
+// then addressed by the INDEXED PARENT (e.g. "#MyForm[0] #Field"), so the bare
+// descendant ids below are safe across many rows AND across mods (the ZigListRow rule).
+//
+// The TEXT/NUMBER/CHANCE/INT/CSV row: a flexing label (#Title) plus a fixed-width
+// text field (#Field) whose raw string round-trips through SettingsForm's value
+// cache regardless of kind - parsing/validation happens in SettingsForm.collectLeaves,
+// never here.
+
+Group #ZigFormFieldRow {
+  LayoutMode: Left;
+  Anchor: (Height: 32, Bottom: 5);
+
+  Label #Title {
+    FlexWeight: 1;
+    Text: "";
+    Style: (FontSize: 13, TextColor: #cdd8e6, VerticalAlignment: Center);
+  }
+
+  $C.@TextField #Field {
+    Anchor: (Width: 190, Height: 30);
+    Padding: (Horizontal: 8);
+  }
+}

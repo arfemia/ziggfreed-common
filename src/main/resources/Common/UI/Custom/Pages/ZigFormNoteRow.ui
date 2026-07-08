@@ -1,0 +1,18 @@
+// ── ziggfreed-common appendable SETTINGS-FORM note row ────────────────────────
+// Appended by SettingsForm.buildRows into a consumer's list container:
+//   cmd.append("#MyForm", "Pages/ZigFormNoteRow.ui");
+// then addressed by the INDEXED PARENT (e.g. "#MyForm[0] #Note"), so the bare
+// descendant ids below are safe across many rows AND across mods (the ZigListRow rule).
+//
+// The NOTE row: a wrapping hint line, label only - never collected, never bound.
+// No fixed Height anywhere so the label grows with wrapped text.
+
+Group #ZigFormNoteRow {
+  Anchor: (Bottom: 6);
+  LayoutMode: Top;
+
+  Label #Note {
+    Text: "";
+    Style: (FontSize: 11, TextColor: #8696a8, Wrap: true);
+  }
+}
