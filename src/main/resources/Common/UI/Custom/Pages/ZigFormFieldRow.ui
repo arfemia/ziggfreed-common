@@ -37,6 +37,6 @@ Group #ZigFormFieldRow {
     Visible: false;
     Text: "";
     Padding: (Right: 96);
-    Style: (FontSize: 11, TextColor: #8696a8, Wrap: true);
+    Style: (FontSize: 11, TextColor: #aabccf, Wrap: true);
   }
 }

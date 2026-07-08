@@ -13,6 +13,6 @@ Group #ZigFormNoteRow {
 
   Label #Note {
     Text: "";
-    Style: (FontSize: 11, TextColor: #8696a8, Wrap: true);
+    Style: (FontSize: 11, TextColor: #aabccf, Wrap: true);
   }
 }
