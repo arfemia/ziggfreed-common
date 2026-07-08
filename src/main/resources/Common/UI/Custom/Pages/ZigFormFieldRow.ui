@@ -9,20 +9,34 @@ $C = "../Common.ui";
 // The TEXT/NUMBER/CHANCE/INT/CSV row: a flexing label (#Title) plus a fixed-width
 // text field (#Field) whose raw string round-trips through SettingsForm's value
 // cache regardless of kind - parsing/validation happens in SettingsForm.collectLeaves,
-// never here.
+// never here. #Row wraps the control line (LayoutMode: Left) so an optional #Hint
+// sub-label can sit below it (LayoutMode: Top on the root); #Hint starts hidden and
+// collapses to zero height until SettingsForm.buildRows/applyHint paints + shows it.
 
 Group #ZigFormFieldRow {
-  LayoutMode: Left;
-  Anchor: (Height: 32, Bottom: 5);
+  LayoutMode: Top;
+  Anchor: (Bottom: 5);
 
-  Label #Title {
-    FlexWeight: 1;
-    Text: "";
-    Style: (FontSize: 13, TextColor: #cdd8e6, VerticalAlignment: Center);
+  Group #Row {
+    LayoutMode: Left;
+    Anchor: (Height: 32);
+
+    Label #Title {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: 13, TextColor: #cdd8e6, VerticalAlignment: Center);
+    }
+
+    $C.@TextField #Field {
+      Anchor: (Width: 190, Height: 30);
+      Padding: (Horizontal: 8);
+    }
   }
 
-  $C.@TextField #Field {
-    Anchor: (Width: 190, Height: 30);
-    Padding: (Horizontal: 8);
+  Label #Hint {
+    Visible: false;
+    Text: "";
+    Padding: (Right: 96);
+    Style: (FontSize: 11, TextColor: #8696a8, Wrap: true);
   }
 }

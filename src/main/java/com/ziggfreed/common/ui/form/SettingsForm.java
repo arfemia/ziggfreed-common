@@ -54,6 +54,9 @@ import com.ziggfreed.common.ui.SettingsUiUtil;
  * instead); {@code #Field} is the TEXT-ish control; {@code #Dropdown} is the TRISTATE/DROPDOWN
  * control; {@code #Toggle} is the toggle button (its own inner {@code #Label} is what
  * {@link SettingsUiUtil#setToggle} drives, so it never collides with the row's {@code #Title}).
+ * The FIELD/DROPDOWN/TOGGLE templates also carry an optional wrapping {@code #Hint} sub-label
+ * (hidden, zero-height, until {@link #buildRows}/{@link #applyHint} paints + shows it) - never
+ * {@code HEADER}/{@code NOTE}, whose {@link FieldSpec#withHint} throws instead.
  */
 public final class SettingsForm {
 
@@ -116,6 +119,11 @@ public final class SettingsForm {
             String labelSel = spec.kind() == FieldKind.NOTE ? rowSel + " #Note" : rowSel + " #Title";
             cmd.set(labelSel + ".TextSpans", labels.apply(spec.labelKey()));
             renderControl(cmd, events, rowSel, spec);
+            if (spec.hintKey() != null) {
+                String hintSel = rowSel + " #Hint";
+                cmd.set(hintSel + ".TextSpans", labels.apply(spec.hintKey()));
+                cmd.set(hintSel + ".Visible", true);
+            }
         }
     }
 
@@ -196,6 +204,31 @@ public final class SettingsForm {
             return;
         }
         refreshControl(cmd, containerSel + "[" + index + "]", spec);
+    }
+
+    /**
+     * Set or hide one row's {@code #Hint} sub-label directly, OVERRIDING whatever {@link #buildRows}
+     * last painted there. {@code hint == null} hides the row ({@code #Hint.Visible} false); a non-null
+     * {@link Message} paints {@code #Hint.TextSpans} and shows it. A no-op for an unknown
+     * {@code fieldId} or a {@code HEADER}/{@code NOTE} spec (their row templates carry no
+     * {@code #Hint}). Lets a consumer compose static help text with a dynamically-built line (e.g.
+     * "Inherits: 30") and re-push the result in a partial update; never called by
+     * {@link #applyValues}/{@link #applyValue}, which touch only the control value.
+     */
+    public void applyHint(@Nonnull UICommandBuilder cmd, @Nonnull String containerSel, @Nonnull String fieldId,
+            @Nullable Message hint) {
+        Integer index = indexById.get(fieldId);
+        FieldSpec spec = specsById.get(fieldId);
+        if (index == null || spec == null || spec.kind() == FieldKind.HEADER || spec.kind() == FieldKind.NOTE) {
+            return;
+        }
+        String hintSel = containerSel + "[" + index + "] #Hint";
+        if (hint == null) {
+            cmd.set(hintSel + ".Visible", false);
+        } else {
+            cmd.set(hintSel + ".TextSpans", hint);
+            cmd.set(hintSel + ".Visible", true);
+        }
     }
 
     /** Partial refresh: push the cached value into an ALREADY-BUILT row; no event (re)binding. */

@@ -2,7 +2,9 @@ package com.ziggfreed.common.ui.form;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -14,12 +16,14 @@ import com.hypixel.hytale.server.core.Message;
 
 /**
  * Unit tests for the pure-Java surface of {@link SettingsForm}: the value cache
- * ({@code cache}/{@code value}/{@code seed}/{@code seedValue}/{@code spec}) and the
- * {@code collectLeaves} parsing/validation rules per {@link FieldKind}. Deliberately does not touch
- * {@code buildRows}/{@code applyValues} (those need a live {@code UICommandBuilder}/{@code UIEventBuilder}
- * batch) - only the constructor's two {@link Message} labels are engine-typed, and
- * {@link Message#raw} is a plain-data constructor with no i18n/logger dependency, so this test runs
- * in a log-manager-less unit JVM like every other pure-logic test in this module.
+ * ({@code cache}/{@code value}/{@code seed}/{@code seedValue}/{@code spec}), the
+ * {@code collectLeaves} parsing/validation rules per {@link FieldKind}, and {@link FieldSpec#withHint}
+ * (the immutable-copy + header/note-rejection contract). Deliberately does not touch
+ * {@code buildRows}/{@code applyValues}/{@code applyHint} (those need a live
+ * {@code UICommandBuilder}/{@code UIEventBuilder} batch) - only the constructor's two {@link Message}
+ * labels are engine-typed, and {@link Message#raw} is a plain-data constructor with no i18n/logger
+ * dependency, so this test runs in a log-manager-less unit JVM like every other pure-logic test in
+ * this module.
  */
 class SettingsFormTest {
 
@@ -105,6 +109,63 @@ class SettingsFormTest {
         assertEquals(textSpec, form.spec("a"));
         assertEquals(FieldKind.TEXT, form.spec("a").kind());
         assertNull(form.spec("nope"));
+    }
+
+    // ---------------------------------------------------------------------
+    // FieldSpec.withHint
+    // ---------------------------------------------------------------------
+
+    @Test
+    void hintKeyDefaultsToNullForEveryFactory() {
+        assertNull(FieldSpec.text("a", "A", "lbl.a").hintKey());
+        assertNull(FieldSpec.number("b", "B", "lbl.b").hintKey());
+        assertNull(FieldSpec.chance("c", "C", "lbl.c").hintKey());
+        assertNull(FieldSpec.integer("d", "D", "lbl.d").hintKey());
+        assertNull(FieldSpec.csv("e", "E", "lbl.e").hintKey());
+        assertNull(FieldSpec.toggle("f", "lbl.f").hintKey());
+        assertNull(FieldSpec.tristate("g", "G", "lbl.g").hintKey());
+        assertNull(FieldSpec.dropdown("h", "H", "lbl.h", new String[] {"x"}).hintKey());
+        assertNull(FieldSpec.header("i", "lbl.i").hintKey());
+        assertNull(FieldSpec.note("j", "lbl.j").hintKey());
+    }
+
+    @Test
+    void withHintReturnsDistinctCopyLeavingOriginalUntouchedAndHintKeyRoundTrips() {
+        FieldSpec original = FieldSpec.text("name", "Name", "lbl.name");
+        FieldSpec hinted = original.withHint("lbl.name.hint");
+
+        assertNotSame(original, hinted); // a genuinely distinct instance
+        assertNull(original.hintKey()); // original is unchanged (FieldSpec stays immutable)
+        assertEquals("lbl.name.hint", hinted.hintKey()); // hintKey round-trips on the copy
+
+        // every other field carries over unchanged onto the copy
+        assertEquals(original.id(), hinted.id());
+        assertEquals(original.kind(), hinted.kind());
+        assertEquals(original.leafPath(), hinted.leafPath());
+        assertEquals(original.labelKey(), hinted.labelKey());
+    }
+
+    @Test
+    void withHintWorksForEveryNonHeaderNonNoteKind() {
+        assertEquals("h1", FieldSpec.number("a", "A", "lbl.a").withHint("h1").hintKey());
+        assertEquals("h2", FieldSpec.chance("b", "B", "lbl.b").withHint("h2").hintKey());
+        assertEquals("h3", FieldSpec.integer("c", "C", "lbl.c").withHint("h3").hintKey());
+        assertEquals("h4", FieldSpec.csv("d", "D", "lbl.d").withHint("h4").hintKey());
+        assertEquals("h5", FieldSpec.toggle("e", "lbl.e").withHint("h5").hintKey());
+        assertEquals("h6", FieldSpec.tristate("f", "F", "lbl.f").withHint("h6").hintKey());
+        assertEquals("h7", FieldSpec.dropdown("g", "G", "lbl.g", new String[] {"x"}).withHint("h7").hintKey());
+    }
+
+    @Test
+    void withHintOnHeaderThrows() {
+        FieldSpec header = FieldSpec.header("h", "lbl.h");
+        assertThrows(IllegalArgumentException.class, () -> header.withHint("lbl.h.hint"));
+    }
+
+    @Test
+    void withHintOnNoteThrows() {
+        FieldSpec note = FieldSpec.note("n", "lbl.n");
+        assertThrows(IllegalArgumentException.class, () -> note.withHint("lbl.n.hint"));
     }
 
     // ---------------------------------------------------------------------

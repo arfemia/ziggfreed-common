@@ -9,6 +9,9 @@ $C = "../Common.ui";
 // The TRISTATE/DROPDOWN row: a flexing label (#Title) plus a fixed-width dropdown
 // (#Dropdown), entries populated from Java via SettingsUiUtil.populate. A white,
 // non-uppercase label style keeps it readable against the dark settings background.
+// #Row wraps the control line (LayoutMode: Left) so an optional #Hint sub-label can
+// sit below it (LayoutMode: Top on the root); #Hint starts hidden and collapses to
+// zero height until SettingsForm.buildRows/applyHint paints + shows it.
 
 @DropStyle = DropdownBoxStyle(
   ...$C.@DefaultDropdownBoxStyle,
@@ -16,17 +19,29 @@ $C = "../Common.ui";
 );
 
 Group #ZigFormDropdownRow {
-  LayoutMode: Left;
-  Anchor: (Height: 32, Bottom: 5);
+  LayoutMode: Top;
+  Anchor: (Bottom: 5);
 
-  Label #Title {
-    FlexWeight: 1;
-    Text: "";
-    Style: (FontSize: 13, TextColor: #cdd8e6, VerticalAlignment: Center);
+  Group #Row {
+    LayoutMode: Left;
+    Anchor: (Height: 32);
+
+    Label #Title {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: 13, TextColor: #cdd8e6, VerticalAlignment: Center);
+    }
+
+    $C.@DropdownBox #Dropdown {
+      Anchor: (Width: 190, Height: 30);
+      Style: @DropStyle;
+    }
   }
 
-  $C.@DropdownBox #Dropdown {
-    Anchor: (Width: 190, Height: 30);
-    Style: @DropStyle;
+  Label #Hint {
+    Visible: false;
+    Text: "";
+    Padding: (Right: 96);
+    Style: (FontSize: 11, TextColor: #8696a8, Wrap: true);
   }
 }
