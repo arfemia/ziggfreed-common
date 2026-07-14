@@ -40,13 +40,27 @@ import com.ziggfreed.common.ZiggfreedCommonPlugin;
  * INSTANTIABLE registry, not a static utility. Each consumer mod news up its own
  * {@code OnHitRegistry} so two mods sharing this jar never see each other's type
  * registrations. The registry ships EMPTY - every built-in type is consumer policy,
- * registered by the consumer at startup. {@link #NO_OP} and the {@link OnHitBuilder}
- * interface are the only static / nested members.
+ * registered by the consumer at startup.
+ *
+ * <p><b>Two callback shapes.</b> The original {@link OnHitBuilder} -&gt; {@code BiConsumer<Store, Ref>}
+ * path (above) stays for callers that only need the store + target. A parallel
+ * {@link HitActionBuilder} -&gt; {@link HitAction} path ({@link #registerAction} / {@link #actionFromParams})
+ * produces a {@link HitContext}-carrying action instead, so a caller that needs a
+ * {@code CommandBuffer} accessor (to DEFER a component mutation), the damage amount, or the hit
+ * position can route through this registry too. The two registrations live in separate tables and
+ * never collide; a type registered on one path is invisible to the other.
  */
 public final class OnHitRegistry {
 
     /** No-op on-hit callback - returned when {@code onHit} params are absent or invalid. */
     public static final BiConsumer<Store<EntityStore>, Ref<EntityStore>> NO_OP = (s, r) -> {};
+
+    /**
+     * No-op {@link HitAction} - the {@link HitContext}-shaped counterpart to {@link #NO_OP},
+     * returned when {@link #actionFromParams} finds absent or invalid params. Aliases the canonical
+     * {@link HitAction#NO_OP} so identity checks (`== NO_OP_ACTION`) still hold.
+     */
+    public static final HitAction NO_OP_ACTION = HitAction.NO_OP;
 
     /**
      * Builder contract for converting a single {@code onHit} entry into a runnable
@@ -65,7 +79,25 @@ public final class OnHitRegistry {
                 @Nullable UUID sourcePlayerId);
     }
 
+    /**
+     * The {@link HitContext}-shaped builder contract - the same shape as {@link OnHitBuilder} but
+     * producing a {@link HitAction} (a rich {@link HitContext} carrier that can hold a
+     * {@code CommandBuffer} accessor, a damage amount, a hit position, ...) instead of a
+     * {@code BiConsumer<Store, Ref>}. A consumer that needs any of those on-hit fields registers via
+     * {@link #registerAction} and resolves via {@link #actionFromParams}; the {@link OnHitBuilder}
+     * path stays for callers that only need the store + target.
+     */
+    @FunctionalInterface
+    public interface HitActionBuilder {
+        @Nonnull
+        HitAction build(
+                @Nonnull Map<String, Object> params,
+                @Nullable Ref<EntityStore> sourceRef,
+                @Nullable UUID sourcePlayerId);
+    }
+
     private final Map<String, OnHitBuilder> builders = new ConcurrentHashMap<>();
+    private final Map<String, HitActionBuilder> actionBuilders = new ConcurrentHashMap<>();
 
     public OnHitRegistry() {}
 
@@ -75,6 +107,16 @@ public final class OnHitRegistry {
      */
     public void register(@Nonnull String type, @Nonnull OnHitBuilder builder) {
         builders.put(type.toUpperCase(), builder);
+    }
+
+    /**
+     * Register a {@link HitContext}-shaped builder. The {@link HitAction} counterpart to
+     * {@link #register}; case-insensitive, last write wins. Kept in a SEPARATE table from the
+     * {@link OnHitBuilder} registrations, so a consumer can register some types as {@code BiConsumer}
+     * and others as {@code HitAction} without the two colliding.
+     */
+    public void registerAction(@Nonnull String type, @Nonnull HitActionBuilder builder) {
+        actionBuilders.put(type.toUpperCase(), builder);
     }
 
     /**
@@ -137,6 +179,66 @@ public final class OnHitRegistry {
         } catch (Throwable t) {
             fine("OnHitRegistry: builder for '" + typeStr + "' threw: " + t.getMessage());
             return NO_OP;
+        }
+    }
+
+    /**
+     * The {@link HitAction} counterpart to {@link #fromParams(Object, Ref, UUID)}: convert an
+     * {@code onHit} value into a {@link HitAction}, dispatching to the {@link #registerAction}
+     * registrations. Accepts either a single Map or a List of Maps (chained in declaration order via
+     * {@link HitAction#andThen}, {@link #NO_OP_ACTION} entries skipped). Returns {@link #NO_OP_ACTION}
+     * if the value is missing, malformed, or every entry resolves to a no-op.
+     */
+    @Nonnull
+    public HitAction actionFromParams(
+            @Nullable Object onHit,
+            @Nullable Ref<EntityStore> sourceRef,
+            @Nullable UUID sourcePlayerId) {
+        if (onHit == null) return NO_OP_ACTION;
+        if (onHit instanceof Map<?, ?> single) {
+            return buildSingleAction(asStringKeyMap(single), sourceRef, sourcePlayerId);
+        }
+        if (onHit instanceof List<?> list) {
+            HitAction chain = NO_OP_ACTION;
+            for (Object entry : list) {
+                if (!(entry instanceof Map<?, ?>)) continue;
+                HitAction next =
+                        buildSingleAction(asStringKeyMap((Map<?, ?>) entry), sourceRef, sourcePlayerId);
+                if (next == NO_OP_ACTION) continue;
+                chain = (chain == NO_OP_ACTION) ? next : chain.andThen(next);
+            }
+            return chain;
+        }
+        return NO_OP_ACTION;
+    }
+
+    /** Back-compat {@code Map} overload of {@link #actionFromParams(Object, Ref, UUID)}. */
+    @Nonnull
+    public HitAction actionFromParams(
+            @Nonnull Map<String, Object> onHit,
+            @Nullable Ref<EntityStore> sourceRef,
+            @Nullable UUID sourcePlayerId) {
+        if (onHit.isEmpty()) return NO_OP_ACTION;
+        return buildSingleAction(onHit, sourceRef, sourcePlayerId);
+    }
+
+    @Nonnull
+    private HitAction buildSingleAction(
+            @Nonnull Map<String, Object> entry,
+            @Nullable Ref<EntityStore> sourceRef,
+            @Nullable UUID sourcePlayerId) {
+        Object typeObj = entry.get("type");
+        if (!(typeObj instanceof String typeStr)) return NO_OP_ACTION;
+        HitActionBuilder builder = actionBuilders.get(typeStr.toUpperCase());
+        if (builder == null) {
+            fine("OnHitRegistry: unknown onHit.type '" + typeStr + "' (action)");
+            return NO_OP_ACTION;
+        }
+        try {
+            return builder.build(entry, sourceRef, sourcePlayerId);
+        } catch (Throwable t) {
+            fine("OnHitRegistry: action builder for '" + typeStr + "' threw: " + t.getMessage());
+            return NO_OP_ACTION;
         }
     }
 
