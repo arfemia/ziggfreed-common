@@ -150,4 +150,84 @@ class OnHitRegistryTest {
         assertEquals("A", sinkA.toString());
         assertEquals("B", sinkB.toString());
     }
+
+    // ==================== HitAction path (registerAction / actionFromParams) ====================
+
+    /** A HitAction builder that appends {@code token} to {@code sink} each time its action runs. */
+    private static OnHitRegistry.HitActionBuilder actionAppender(StringBuilder sink, String token) {
+        return (params, sourceRef, sourcePlayerId) -> ctx -> sink.append(token);
+    }
+
+    @Test
+    void actionSingleMapDispatchesToRegisteredActionBuilder() {
+        StringBuilder sink = new StringBuilder();
+        OnHitRegistry reg = new OnHitRegistry();
+        reg.registerAction("STATUS", actionAppender(sink, "S"));
+
+        HitAction a = reg.actionFromParams(typeMap("STATUS"), null, null);
+        assertNotSame(OnHitRegistry.NO_OP_ACTION, a, "a registered type resolves to a real action");
+        a.onHit(null);
+        assertEquals("S", sink.toString());
+    }
+
+    @Test
+    void actionListFormChainsInDeclarationOrder() {
+        StringBuilder sink = new StringBuilder();
+        OnHitRegistry reg = new OnHitRegistry();
+        reg.registerAction("A", actionAppender(sink, "A"));
+        reg.registerAction("B", actionAppender(sink, "B"));
+        reg.registerAction("C", actionAppender(sink, "C"));
+
+        Object onHit = List.of(
+                Map.of("type", "A"),
+                Map.of("type", "B"),
+                Map.of("type", "C"));
+        reg.actionFromParams(onHit, null, null).onHit(null);
+        assertEquals("ABC", sink.toString(), "list entries chain in declaration order");
+    }
+
+    @Test
+    void actionNullMalformedAndUnknownResolveToNoOpAction() {
+        OnHitRegistry reg = new OnHitRegistry();
+        reg.registerAction("KNOWN", actionAppender(new StringBuilder(), "K"));
+
+        assertSame(OnHitRegistry.NO_OP_ACTION, reg.actionFromParams((Object) null, null, null), "null onHit");
+        assertSame(OnHitRegistry.NO_OP_ACTION, reg.actionFromParams("not-a-map", null, null), "wrong type");
+        assertSame(OnHitRegistry.NO_OP_ACTION, reg.actionFromParams(Map.of("type", "MISSING"), null, null), "unknown type");
+        assertSame(OnHitRegistry.NO_OP_ACTION, reg.actionFromParams(Map.of("nope", "x"), null, null), "no type key");
+    }
+
+    @Test
+    void actionAndBiConsumerTablesDoNotCollide() {
+        StringBuilder sink = new StringBuilder();
+        OnHitRegistry reg = new OnHitRegistry();
+        // Register the SAME type id on both tables with different tokens.
+        reg.register("SHARED", appender(sink, "biconsumer"));
+        reg.registerAction("SHARED", actionAppender(sink, "action"));
+
+        // The BiConsumer path sees only the BiConsumer builder.
+        BiConsumer<Store<EntityStore>, Ref<EntityStore>> c = reg.fromParams(typeMap("SHARED"), null, null);
+        fire(c);
+        assertEquals("biconsumer", sink.toString());
+
+        // The HitAction path sees only the HitAction builder.
+        sink.setLength(0);
+        reg.actionFromParams(typeMap("SHARED"), null, null).onHit(null);
+        assertEquals("action", sink.toString());
+
+        // A type registered on ONE table is invisible to the other.
+        OnHitRegistry reg2 = new OnHitRegistry();
+        reg2.register("ONLY_BICONSUMER", appender(new StringBuilder(), "x"));
+        assertSame(OnHitRegistry.NO_OP_ACTION, reg2.actionFromParams(typeMap("ONLY_BICONSUMER"), null, null),
+                "a BiConsumer-only type is a no-op on the action path");
+    }
+
+    @Test
+    void aThrowingActionBuilderDegradesToNoOpAction() {
+        OnHitRegistry reg = new OnHitRegistry();
+        reg.registerAction("BOOM", (params, sourceRef, sourcePlayerId) -> {
+            throw new IllegalStateException("action builder blew up");
+        });
+        assertSame(OnHitRegistry.NO_OP_ACTION, reg.actionFromParams(typeMap("BOOM"), null, null));
+    }
 }
