@@ -40,6 +40,7 @@ public final class PendingRewardStore {
         String id;
         int quantity;
         String displayKey;
+        String iconItemId;
     }
 
     private static final class Dto {
@@ -152,6 +153,7 @@ public final class PendingRewardStore {
         s.id = r.id();
         s.quantity = r.quantity();
         s.displayKey = r.displayKey();
+        s.iconItemId = r.iconItemId();
         return s;
     }
 
@@ -162,7 +164,7 @@ public final class PendingRewardStore {
         }
         try {
             InstanceReward.Kind kind = InstanceReward.Kind.valueOf(s.kind);
-            return new InstanceReward(kind, s.id, s.quantity, s.displayKey);
+            return new InstanceReward(kind, s.id, s.quantity, s.displayKey, s.iconItemId);
         } catch (Throwable t) {
             return null;
         }

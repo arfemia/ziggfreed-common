@@ -19,23 +19,30 @@ import javax.annotation.Nullable;
  *
  * <p>Pack-authored as a compact spec string (the codec has no list-of-objects form, so the pool is a
  * {@code String[]} just like {@code InstancePresetAsset.Rewards}). The grammar is a superset of
- * {@link InstanceReward}'s - optional leading {@code w}/{@code s} flag tokens (any order), then the same
- * {@code <kind> <id> <qty> [displayKey]} tail, where {@code qty} may be a single count or an inclusive
- * {@code min-max} range:
+ * {@link InstanceReward}'s - optional leading {@code w}/{@code s}/gate flag tokens (any order), then the
+ * same {@code <kind> <id> <qty> [displayKey]} tail, where {@code qty} may be a single count or an
+ * inclusive {@code min-max} range:
  * <pre>
- *   [w&lt;weight&gt;] [s&lt;minScore&gt;] item     &lt;itemId&gt;     &lt;qty|qtyMin-qtyMax&gt; [displayKey]
- *   [w&lt;weight&gt;] [s&lt;minScore&gt;] currency &lt;currencyId&gt; &lt;qty|qtyMin-qtyMax&gt; [displayKey]
+ *   [w&lt;weight&gt;] [s&lt;minScore&gt;] [win|loss|any] item     &lt;itemId&gt;     &lt;qty|qtyMin-qtyMax&gt; [displayKey]
+ *   [w&lt;weight&gt;] [s&lt;minScore&gt;] [win|loss|any] currency &lt;currencyId&gt; &lt;qty|qtyMin-qtyMax&gt; [displayKey]
  * </pre>
- * Examples: {@code "w12 item KweebecNightmare_Gustbloom 1-2"},
- * {@code "w4 s4000 item Ingredient_Life_Essence_Concentrated 1"}. Absent {@code w}/{@code s} default to
- * weight 1 / score 0 (always eligible). Ids never contain spaces.
+ * A consumer-registered token (see {@link RewardSpecRegistry}, e.g. {@code xp}) is accepted in the
+ * {@code <kind>} slot too. Examples: {@code "w12 item KweebecNightmare_Gustbloom 1-2"},
+ * {@code "w4 s4000 item Ingredient_Life_Essence_Concentrated 1"},
+ * {@code "any xp MINING 500 mymod.reward.xp.mining"}. Absent {@code w}/{@code s} default to weight 1 /
+ * score 0 (always eligible); an absent gate defaults to {@link WinGate#WIN} (win-only, the historical
+ * whole-table ON_WIN behaviour). Ids never contain spaces (a registered token's rewritten id may).
  */
 public record LootEntry(@Nonnull InstanceReward.Kind kind, @Nonnull String id, int qtyMin, int qtyMax,
-                        int weight, int minScore, @Nullable String displayKey) {
+                        int weight, int minScore, @Nullable String displayKey, @Nullable String iconItemId,
+                        @Nonnull WinGate gate) {
 
     public LootEntry {
         qtyMin = Math.max(1, qtyMin);
         qtyMax = Math.max(qtyMin, qtyMax);
+        if (gate == null) {
+            gate = WinGate.WIN;
+        }
     }
 
     /** Pick weight clamped to a non-negative value (a negative authored weight reads as 0). */
@@ -50,7 +57,7 @@ public record LootEntry(@Nonnull InstanceReward.Kind kind, @Nonnull String id, i
     @Nonnull
     public InstanceReward resolve(@Nonnull Random rng) {
         int qty = qtyMax > qtyMin ? qtyMin + rng.nextInt(qtyMax - qtyMin + 1) : qtyMin;
-        return new InstanceReward(kind, id, qty, displayKey);
+        return new InstanceReward(kind, id, qty, displayKey, iconItemId);
     }
 
     /**
@@ -66,15 +73,21 @@ public record LootEntry(@Nonnull InstanceReward.Kind kind, @Nonnull String id, i
         int i = 0;
         int weight = 1;
         int minScore = 0;
-        // Consume leading w<n> / s<n> flag tokens (any order) until the kind token.
+        WinGate gate = WinGate.WIN;
+        // Consume leading w<n> / s<n> / win|loss|any flag tokens (any order) until the kind token.
+        // flagValue requires digits after the prefix, so a win/loss token never collides with w<n>.
         while (i < p.length) {
             Integer w = flagValue(p[i], 'w');
             Integer s = flagValue(p[i], 's');
+            WinGate g = gateToken(p[i]);
             if (w != null) {
                 weight = w;
                 i++;
             } else if (s != null) {
                 minScore = s;
+                i++;
+            } else if (g != null) {
+                gate = g;
                 i++;
             } else {
                 break;
@@ -84,20 +97,45 @@ public record LootEntry(@Nonnull InstanceReward.Kind kind, @Nonnull String id, i
         if (p.length - i < 3) {
             return null;
         }
-        InstanceReward.Kind kind = switch (p[i].toLowerCase(Locale.ROOT)) {
-            case "item" -> InstanceReward.Kind.ITEM;
-            case "currency" -> InstanceReward.Kind.CURRENCY;
-            default -> null;
-        };
-        if (kind == null) {
-            return null;
+        String token = p[i].toLowerCase(Locale.ROOT);
+        InstanceReward.Kind kind;
+        String id;
+        String iconItemId = null;
+        switch (token) {
+            case "item":
+                kind = InstanceReward.Kind.ITEM;
+                id = p[i + 1];
+                break;
+            case "currency":
+                kind = InstanceReward.Kind.CURRENCY;
+                id = p[i + 1];
+                break;
+            default:
+                RewardSpecRegistry.Binding b = RewardSpecRegistry.lookup(token);
+                if (b == null) {
+                    return null;
+                }
+                kind = b.kind();
+                id = b.idTransform().apply(p[i + 1]);
+                iconItemId = b.iconResolver().apply(p[i + 1]);
         }
         int[] qty = parseQty(p[i + 2]);
         if (qty == null) {
             return null;
         }
         String displayKey = p.length - i >= 4 ? p[i + 3] : null;
-        return new LootEntry(kind, p[i + 1], qty[0], qty[1], weight, minScore, displayKey);
+        return new LootEntry(kind, id, qty[0], qty[1], weight, minScore, displayKey, iconItemId, gate);
+    }
+
+    /** The {@link WinGate} for a bare {@code win}/{@code loss}/{@code any} token, or {@code null} if not one. */
+    @Nullable
+    private static WinGate gateToken(@Nonnull String tok) {
+        return switch (tok.toLowerCase(Locale.ROOT)) {
+            case "win" -> WinGate.WIN;
+            case "loss" -> WinGate.LOSS;
+            case "any" -> WinGate.ANY;
+            default -> null;
+        };
     }
 
     /** Parse a spec array into a pool list, skipping any malformed entries. */

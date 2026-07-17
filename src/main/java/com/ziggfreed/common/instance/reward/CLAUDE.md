@@ -6,11 +6,22 @@ durable claim store, and (the score-driven layer) a pack-authorable loot table. 
 the granter only; the consumer's `Sink` interprets currency/command kinds, so common imports no currency
 engine. World-thread for grants; the roll + parse are pure.
 
-- **[`InstanceReward`](InstanceReward.java)** - `record(Kind kind, String id, int quantity, String displayKey)`,
-  `Kind` = `ITEM`/`CURRENCY`/`COMMAND`. Pack-authored as a compact spec (`item <id> <qty> [displayKey]` /
-  `currency <id> <amt> [displayKey]`) via `parse`/`parseAll` (the codec has no list-of-objects form, so
-  reward lists are `String[]`); Java-authored via `item`/`currency`/`command`. The single reward currency
-  every other class here speaks.
+- **[`InstanceReward`](InstanceReward.java)** - `record(Kind kind, String id, int quantity, String displayKey,
+  String iconItemId)`, `Kind` = `ITEM`/`CURRENCY`/`COMMAND`. Pack-authored as a compact spec
+  (`item <id> <qty> [displayKey]` / `currency <id> <amt> [displayKey]`) via `parse`/`parseAll` (the codec has
+  no list-of-objects form, so reward lists are `String[]`); Java-authored via `item`/`currency`/`command`.
+  `iconItemId` is an OPTIONAL results-chip icon (null for a plain item/currency spec). The single reward
+  currency every other class here speaks.
+- **[`RewardSpecRegistry`](RewardSpecRegistry.java)** - the EXTENSION POINT that lets a consumer add its own
+  kind TOKEN (e.g. `xp`) to the grammar without common learning the domain: `register(token, Kind, idTransform,
+  iconResolver)`. Both parsers consult it for an unknown token, mapping it to an existing `Kind` + a pure id
+  rewrite (a command template for `COMMAND`, which may hold `{player}`/`{amount}` placeholders) + an optional
+  icon. Register at consumer `setup()` (before `LoadedAssetsEvent`); an unregistered token parses to `null`
+  (the entry drops), so a spec authored for an absent mod never becomes a phantom reward. The granter
+  substitutes `{amount}` from the quantity; the consumer's `Sink` substitutes `{player}`. The MMO registers
+  `xp` -> `/mmoawardxp` so a loot table can author skill-XP rewards with no XP concept in common.
+- **[`WinGate`](WinGate.java)** - `ANY`/`WIN`/`LOSS` per-entry outcome gate on a `LootEntry` (default `WIN`):
+  the "pay a consolation/participation reward on a loss without also handing out the win spoils" seam.
 - **[`InstanceRewardGranter`](InstanceRewardGranter.java)** - `grantAll(rewards, player, ref, store, sink)`
   -> `GrantOutcome`. BLOCK-FIRST full-inventory guard: an `ITEM` is granted only if it all fits
   (`InventoryUtil.canFit`), else held in `GrantOutcome.pending()` (never partially delivered). Non-throwing,
@@ -22,25 +33,34 @@ engine. World-thread for grants; the roll + parse are pure.
   `queue`/`drain`/`has`. Holds owed spoils across disconnect/restart and re-holds anything that still does
   not fit at claim time.
 - **Score-tiered loot tables** (the "better loot for a better score" layer):
-  - **[`LootEntry`](LootEntry.java)** - one weighted, score-gated, quantity-ranged pool entry. Compact spec
-    is a superset of `InstanceReward`'s: `[w<weight>] [s<minScore>] <kind> <id> <qty|min-max> [displayKey]`.
-    `parse`/`parseAll`; `resolve(Random)` rolls the quantity; `safeWeight()` clamps `>= 0`.
-  - **[`LootTable`](LootTable.java)** - `record(guaranteed, pool, rolls, scorePerBonusRoll, maxRolls)` +
-    `roll(int score, Random)`: the guaranteed list plus `clamp(rolls + score/scorePerBonusRoll, 0, maxRolls)`
-    weighted picks among pool entries eligible at the score (`minScore <= score`), each resolved to a concrete
-    quantity. Deterministic for a given seed (mirrors `instance/encounter/SpawnRoster`'s weighted pick).
+  - **[`LootEntry`](LootEntry.java)** - one weighted, score-gated, quantity-ranged, win-gated pool entry.
+    Compact spec is a superset of `InstanceReward`'s:
+    `[w<weight>] [s<minScore>] [win|loss|any] <kind> <id> <qty|min-max> [displayKey]` (a registered token is
+    accepted in `<kind>`). `parse`/`parseAll`; `resolve(Random)` rolls the quantity; `safeWeight()` clamps
+    `>= 0`. The `win`/`loss`/`any` token never collides with `w<weight>` (the weight flag requires digits).
+  - **[`LootTable`](LootTable.java)** - `record(guaranteed, pool, rolls, scorePerBonusRoll, maxRolls,
+    sourceId, tableId)` + `roll(int score, boolean win, Random)`: each guaranteed entry whose `WinGate`
+    admits the outcome, plus `clamp(rolls + score/scorePerBonusRoll, 0, maxRolls)` weighted picks among pool
+    entries eligible at the score AND gate. `guaranteed` is a `List<LootEntry>` too (so a guaranteed reward
+    can be win/loss-gated). Deterministic for a given seed.
   - **[`LootTableAsset`](LootTableAsset.java)** + **[`LootTableConfig`](LootTableConfig.java)** - Pattern-A
     codec (`Server/<Mod>/LootTables/`, registered by `asset/FrameworkAssetRegistrar`) + its
     `defaults < pack < owner` fold. Lists are `String[]` (`Guaranteed`/`Pool`); knobs `Rolls`/
-    `ScorePerBonusRoll`/`MaxRolls`. A consumer's preset references a table by id
-    (`InstancePresetAsset.RewardTableId`) and resolves it here at its reward choke-point.
+    `ScorePerBonusRoll`/`MaxRolls`; the optional `TableId` groups ADDITIVE contributions.
+    **`LootTableConfig.resolveUnion(tableId)`** is the additive resolver: it folds EVERY loaded table whose
+    `TableId` matches into one (entries concatenated, contributors ordered by source id for a stable roll,
+    scalars from the base whose own id == `tableId`), so a second pack adds entries to a table WITHOUT
+    overriding the file that owns it. `TableId` defaults to the asset's own id, so a lone table folds to
+    itself and `resolveUnion` is a safe drop-in for `resolve`.
 
 **Consumer flow (Kweebec is the exemplar, `experience/KweebecExperience`):** at round resolve, with the
-per-player score in hand, `LootTableConfig.resolve(preset.rewardTableId()).roll(score, seed)` ONCE,
-`PendingRewardStore.queue` the concrete rolled list (durable, no grant), stash the same list for the chip
-preview, then `grantAll` on the player's Claim back in the overworld. The roll is the ONLY randomness; the
-queued list is the source of truth so the preview matches the payout.
+per-player score AND win/loss outcome in hand, `LootTableConfig.resolveUnion(preset.rewardTableId())
+.roll(score, win, seed)` ONCE, `PendingRewardStore.queue` the concrete rolled list (durable, no grant),
+stash the same list for the chip preview, then `grantAll` on the player's Claim back in the overworld. A
+preset that should pay a participation reward on a loss sets `RewardOnExit: ALWAYS` and gates its win-only
+entries `win` (the default); loss/any entries then pay on a loss.
 
-**Tests** (`src/test/.../instance/reward/`): `LootEntryTest` (grammar + range resolve), `LootTableTest`
-(determinism, score gating, bonus-roll scaling, cap, guaranteed). `LootTableAsset.CODEC` is in
-`asset/AssetCodecInitTest` (PascalCase static-init guard).
+**Tests** (`src/test/.../instance/reward/`): `LootEntryTest` (grammar + range resolve + gate tokens +
+registered-token rewrite), `LootTableTest` (determinism, score gating, bonus-roll scaling, cap, win/loss
+gating), `LootTableUnionTest` (the additive union), `InstanceRewardParseTest` (spec + registry parse).
+`LootTableAsset.CODEC` is in `asset/AssetCodecInitTest` (PascalCase static-init guard).

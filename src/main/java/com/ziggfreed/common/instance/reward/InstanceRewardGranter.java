@@ -33,7 +33,11 @@ public final class InstanceRewardGranter {
         boolean grantCurrency(@Nonnull String currencyId, int amount, @Nonnull PlayerRef player,
                               @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store);
 
-        /** Run a console command reward (the consumer substitutes any {player} placeholder). Return true if run. */
+        /**
+         * Run a console command reward. The granter has already substituted the {@code {amount}}
+         * placeholder from the reward quantity; the consumer substitutes any {@code {player}} placeholder
+         * (from {@code player.getUsername()}). Return true if run.
+         */
         boolean runCommand(@Nonnull String command, @Nonnull PlayerRef player,
                            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store);
     }
@@ -80,7 +84,10 @@ public final class InstanceRewardGranter {
                         }
                     }
                     case COMMAND -> {
-                        if (sink != null && sink.runCommand(r.id(), player, ref, store)) {
+                        // Substitute the {amount} placeholder from the reward quantity before the sink
+                        // runs; the consumer's sink substitutes {player}. Common stays currency/XP-agnostic.
+                        String command = r.id().replace("{amount}", Integer.toString(r.quantity()));
+                        if (sink != null && sink.runCommand(command, player, ref, store)) {
                             granted++;
                         } else {
                             failed++;

@@ -1,6 +1,5 @@
 package com.ziggfreed.common.instance.reward;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -53,6 +52,7 @@ public final class LootTableAsset
     private String id;
     private AssetExtraInfo.Data data;
 
+    @Nullable private String tableId;
     @Nullable private String[] guaranteed;
     @Nullable private String[] pool;
     private int rolls = DEFAULT_ROLLS;
@@ -72,6 +72,10 @@ public final class LootTableAsset
             .append(new KeyedCodec<>("Name", Codec.STRING, false),
                     (a, name) -> { /* no-op - id comes from the filename */ },
                     a -> a.id)
+            .add()
+            // The logical table id this asset CONTRIBUTES to (additive union across packs). Absent =
+            // this asset's own id (a standalone table), so existing single-file tables are unaffected.
+            .append(new KeyedCodec<>("TableId", Codec.STRING, false), (a, v) -> a.tableId = v, a -> a.tableId)
             .add()
             .append(new KeyedCodec<>("Guaranteed", Codec.STRING_ARRAY, false), (a, v) -> a.guaranteed = v, a -> a.guaranteed)
             .add()
@@ -94,15 +98,17 @@ public final class LootTableAsset
     }
 
     /**
-     * Build the runtime {@link LootTable}: the guaranteed specs parsed as fixed {@link InstanceReward}s and
-     * the pool specs parsed as {@link LootEntry}s, with the authored / default roll knobs. Malformed specs
-     * are skipped (never throw); an absent list yields an empty list. The id is the map key (the table
-     * carries no id of its own), so this needs no id arg.
+     * Build the runtime {@link LootTable}: the guaranteed AND pool specs both parsed as {@link LootEntry}s
+     * (guaranteed entries ignore weight/minScore but carry a {@link WinGate}, so a guaranteed reward can be
+     * win- or loss-gated), with the authored / default roll knobs. Malformed specs are skipped (never
+     * throw); an absent list yields an empty list. {@code sourceId} is the map key (the filename); the
+     * logical {@code tableId} defaults to it when no {@code TableId} is authored.
      */
     @Nonnull
     public LootTable toLootTable() {
-        List<InstanceReward> g = InstanceReward.parseAll(guaranteed);
+        List<LootEntry> g = LootEntry.parseAll(guaranteed);
         List<LootEntry> p = LootEntry.parseAll(pool);
-        return new LootTable(new ArrayList<>(g), p, rolls, scorePerBonusRoll, maxRolls);
+        String tid = (tableId != null && !tableId.isBlank()) ? tableId : id;
+        return new LootTable(g, p, rolls, scorePerBonusRoll, maxRolls, id, tid);
     }
 }

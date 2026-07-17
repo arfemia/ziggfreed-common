@@ -41,7 +41,10 @@ public final class RewardChipRenderer {
         Message label = reward.displayKey() != null && displayKeyResolver != null
                 ? displayKeyResolver.apply(reward.displayKey(), reward.quantity())
                 : autoLabel(reward);
-        return new RewardChip(reward.isItem() ? reward.id() : null, label, pending);
+        // An explicit iconItemId (e.g. a registered token's icon) wins; else an item chip uses its own id.
+        String icon = reward.iconItemId() != null ? reward.iconItemId()
+                : (reward.isItem() ? reward.id() : null);
+        return new RewardChip(icon, label, pending);
     }
 
     /**
