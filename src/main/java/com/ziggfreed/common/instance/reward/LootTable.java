@@ -28,10 +28,19 @@ import javax.annotation.Nullable;
  * takes the caller's {@link Random}, so the same seed yields the same loot - testable, and reproducible off
  * a round/player seed. The weighted-pick is with-replacement; a zero-total-weight eligible set falls back
  * to a uniform pick (the {@code SpawnRoster} convention). Immutable; safe to share and call from any thread.
+ *
+ * <p><b>Native item delegation</b> (XP-agnostic, engine-touching): {@link #nativeDropList} is an OPTIONAL
+ * id of a native Hytale {@code ItemDropList} asset this table's item rewards delegate to. {@link #roll}
+ * itself stays pure and unaware of it (a deliberate separation: this record never touches the live engine);
+ * {@code NativeLootService.rollTable(table, score, win, rng)} is the engine-touching wrapper that calls
+ * {@link #roll} for the non-native (command/currency/gated) entries UNCHANGED, then merges in the native
+ * roll's items on top. {@code null}/blank means no native delegation (the pre-native behavior, byte-for-
+ * byte unchanged).
  */
 public record LootTable(@Nonnull List<LootEntry> guaranteed, @Nonnull List<LootEntry> pool,
                         int rolls, int scorePerBonusRoll, int maxRolls,
-                        @Nonnull String sourceId, @Nonnull String tableId) {
+                        @Nonnull String sourceId, @Nonnull String tableId,
+                        @Nullable String nativeDropList) {
 
     public LootTable {
         guaranteed = List.copyOf(guaranteed);

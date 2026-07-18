@@ -38,8 +38,17 @@ import com.hypixel.hytale.codec.KeyedCodec;
  *   "Rolls": 2, "ScorePerBonusRoll": 1800, "MaxRolls": 5,
  *   "Pool": [ "w10 item KweebecNightmare_Gustbloom 2-3",
  *             "w6 s2000 item KweebecNightmare_Emberbloom 1-2",
- *             "w3 s4000 item Ingredient_Life_Essence_Concentrated 1" ] }
+ *             "w3 s4000 item Ingredient_Life_Essence_Concentrated 1" ],
+ *   "NativeDropList": "Chase_Nightmare_Items" }
  * }</pre>
+ *
+ * <p><b>Native item delegation.</b> {@link #nativeDropList} is an OPTIONAL id of a native Hytale
+ * {@code ItemDropList} asset. When set, item selection for this table is delegated to that native list
+ * (rolled via {@code NativeLootService.rollNative}) instead of (or in addition to) the {@code item} kind
+ * inside {@link #guaranteed}/{@link #pool}; those two lists then typically hold only command/currency
+ * entries. Absent (the default) leaves the table exactly as before native delegation existed: item entries
+ * still work via the {@code item <id> <qty>} spec in {@link #guaranteed}/{@link #pool}. See
+ * {@code NativeLootService.rollTable} for the merge.
  */
 public final class LootTableAsset
         implements JsonAssetWithMap<String, DefaultAssetMap<String, LootTableAsset>> {
@@ -55,6 +64,7 @@ public final class LootTableAsset
     @Nullable private String tableId;
     @Nullable private String[] guaranteed;
     @Nullable private String[] pool;
+    @Nullable private String nativeDropList;
     private int rolls = DEFAULT_ROLLS;
     private int scorePerBonusRoll = 0;
     private int maxRolls = DEFAULT_MAX_ROLLS;
@@ -80,6 +90,10 @@ public final class LootTableAsset
             .append(new KeyedCodec<>("Guaranteed", Codec.STRING_ARRAY, false), (a, v) -> a.guaranteed = v, a -> a.guaranteed)
             .add()
             .append(new KeyedCodec<>("Pool", Codec.STRING_ARRAY, false), (a, v) -> a.pool = v, a -> a.pool)
+            .add()
+            // Optional native Hytale ItemDropList id this table delegates item selection to (see the
+            // class doc); absent = no native delegation, unchanged pre-native behavior.
+            .append(new KeyedCodec<>("NativeDropList", Codec.STRING, false), (a, v) -> a.nativeDropList = v, a -> a.nativeDropList)
             .add()
             .append(new KeyedCodec<>("Rolls", Codec.INTEGER, false), (a, v) -> a.rolls = v, a -> a.rolls)
             .add()
@@ -109,6 +123,6 @@ public final class LootTableAsset
         List<LootEntry> g = LootEntry.parseAll(guaranteed);
         List<LootEntry> p = LootEntry.parseAll(pool);
         String tid = (tableId != null && !tableId.isBlank()) ? tableId : id;
-        return new LootTable(g, p, rolls, scorePerBonusRoll, maxRolls, id, tid);
+        return new LootTable(g, p, rolls, scorePerBonusRoll, maxRolls, id, tid, nativeDropList);
     }
 }

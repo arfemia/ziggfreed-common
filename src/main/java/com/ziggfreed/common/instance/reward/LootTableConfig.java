@@ -50,6 +50,10 @@ public final class LootTableConfig extends AbstractKeyedAssetConfig<LootTable> {
      * <p>Returns {@code null} when no loaded table contributes to {@code tableId}. A lone table (the common
      * case) folds to itself unchanged, so this is a safe drop-in for a plain {@link #resolve} at a roll
      * choke-point.
+     *
+     * <p>{@code nativeDropList} is a scalar too (the base owns it, same rule as {@code rolls}/
+     * {@code scorePerBonusRoll}/{@code maxRolls}): a contributor cannot silently redirect another pack's
+     * native item source.
      */
     @Nullable
     public LootTable resolveUnion(@Nonnull String tableId) {
@@ -83,6 +87,7 @@ public final class LootTableConfig extends AbstractKeyedAssetConfig<LootTable> {
             guaranteed.addAll(t.guaranteed());
             pool.addAll(t.pool());
         }
-        return new LootTable(guaranteed, pool, base.rolls(), base.scorePerBonusRoll(), base.maxRolls(), tid, tid);
+        return new LootTable(guaranteed, pool, base.rolls(), base.scorePerBonusRoll(), base.maxRolls(), tid, tid,
+                base.nativeDropList());
     }
 }

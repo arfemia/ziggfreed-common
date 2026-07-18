@@ -31,7 +31,7 @@ class LootTableUnionTest {
     private static LootTable tbl(String sourceId, String tableId, String[] guaranteed, String[] pool,
                                  int rolls, int spb, int maxRolls) {
         return new LootTable(LootEntry.parseAll(guaranteed), LootEntry.parseAll(pool),
-                rolls, spb, maxRolls, sourceId, tableId);
+                rolls, spb, maxRolls, sourceId, tableId, null);
     }
 
     @Test
@@ -89,6 +89,21 @@ class LootTableUnionTest {
         List<InstanceReward> second = CFG.resolveUnion("chase").roll(0, true, new Random(55));
 
         assertEquals(first, second);
+    }
+
+    @Test
+    void nativeDropListScalarComesFromBase() {
+        Map<String, LootTable> layer = new LinkedHashMap<>();
+        layer.put("chase_nightmare", new LootTable(List.of(), List.of(), 2, 1800, 5,
+                "chase_nightmare", "chase_nightmare", "Chase_Nightmare_Items"));
+        // A contributor with its OWN (different) native drop list must not override the base's.
+        layer.put("mmo_chase_nightmare", new LootTable(List.of(), List.of(), 99, 1, 99,
+                "mmo_chase_nightmare", "chase_nightmare", "Should_Be_Ignored"));
+        CFG.mergePackLayer(layer);
+
+        LootTable u = CFG.resolveUnion("chase_nightmare");
+        assertNotNull(u);
+        assertEquals("Chase_Nightmare_Items", u.nativeDropList(), "the base owns the NativeDropList scalar");
     }
 
     @Test

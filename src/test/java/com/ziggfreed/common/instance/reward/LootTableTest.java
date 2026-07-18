@@ -18,7 +18,7 @@ class LootTableTest {
 
     private static LootTable table(int rolls, int scorePerBonusRoll, int maxRolls, String[] guaranteed, String[] pool) {
         return new LootTable(LootEntry.parseAll(guaranteed), LootEntry.parseAll(pool),
-                rolls, scorePerBonusRoll, maxRolls, "test", "test");
+                rolls, scorePerBonusRoll, maxRolls, "test", "test", null);
     }
 
     @Test

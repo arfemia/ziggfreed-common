@@ -46,12 +46,26 @@ engine. World-thread for grants; the roll + parse are pure.
   - **[`LootTableAsset`](LootTableAsset.java)** + **[`LootTableConfig`](LootTableConfig.java)** - Pattern-A
     codec (`Server/<Mod>/LootTables/`, registered by `asset/FrameworkAssetRegistrar`) + its
     `defaults < pack < owner` fold. Lists are `String[]` (`Guaranteed`/`Pool`); knobs `Rolls`/
-    `ScorePerBonusRoll`/`MaxRolls`; the optional `TableId` groups ADDITIVE contributions.
-    **`LootTableConfig.resolveUnion(tableId)`** is the additive resolver: it folds EVERY loaded table whose
-    `TableId` matches into one (entries concatenated, contributors ordered by source id for a stable roll,
-    scalars from the base whose own id == `tableId`), so a second pack adds entries to a table WITHOUT
-    overriding the file that owns it. `TableId` defaults to the asset's own id, so a lone table folds to
-    itself and `resolveUnion` is a safe drop-in for `resolve`.
+    `ScorePerBonusRoll`/`MaxRolls`; the optional `TableId` groups ADDITIVE contributions; the optional
+    `NativeDropList` names a native Hytale `ItemDropList` asset this table delegates item selection to (see
+    below). **`LootTableConfig.resolveUnion(tableId)`** is the additive resolver: it folds EVERY loaded table
+    whose `TableId` matches into one (entries concatenated, contributors ordered by source id for a stable
+    roll, scalars - including `NativeDropList` - from the base whose own id == `tableId`), so a second pack
+    adds entries to a table WITHOUT overriding the file that owns it. `TableId` defaults to the asset's own
+    id, so a lone table folds to itself and `resolveUnion` is a safe drop-in for `resolve`.
+  - **[`NativeLootService`](NativeLootService.java)** - the XP-AGNOSTIC engine-touching half of the
+    primitive: `rollNative(dropListId)` wraps `ItemModule.getRandomItemDrops` (empty + warn-once on a
+    disabled module or an unclaimed id, mirroring the sibling `mmo-mob-scaling`
+    `MobScalingLootDropSystem`'s `WARNED_IDS`; never throws) and `spawnInWorld(store, commandBuffer,
+    position, rotation, items)` wraps `ItemComponent.generateItemDrops` + `CommandBuffer.addEntities` (a
+    no-op on an empty list). These two are the reusable primitives a consumer's OWN system calls to roll +
+    ground-spawn a native table (luck-loot, mob-scaling bonus loot); common ships them so the native-roll +
+    in-world-spawn idiom is written once. `rollTable(table, score, win, rng)` is the drop-in replacement for
+    a consumer's `table.roll(score, win, rng)` call: it rolls the table EXACTLY as before for its own
+    command/currency/gated entries, then, when `table.nativeDropList()` is set, rolls that native list too
+    and appends one `InstanceReward.item(...)` per resolved `ItemStack` on top. A `null`/blank
+    `nativeDropList` is a byte-for-byte pass-through (no native delegation, the pre-native behavior).
+    `LootTable.roll` itself stays pure and engine-free; only `NativeLootService` touches `ItemModule`.
 
 **Consumer flow (Kweebec is the exemplar, `experience/KweebecExperience`):** at round resolve, with the
 per-player score AND win/loss outcome in hand, `LootTableConfig.resolveUnion(preset.rewardTableId())
@@ -62,5 +76,12 @@ entries `win` (the default); loss/any entries then pay on a loss.
 
 **Tests** (`src/test/.../instance/reward/`): `LootEntryTest` (grammar + range resolve + gate tokens +
 registered-token rewrite), `LootTableTest` (determinism, score gating, bonus-roll scaling, cap, win/loss
-gating), `LootTableUnionTest` (the additive union), `InstanceRewardParseTest` (spec + registry parse).
-`LootTableAsset.CODEC` is in `asset/AssetCodecInitTest` (PascalCase static-init guard).
+gating), `LootTableUnionTest` (the additive union, incl. the `NativeDropList` base-scalar rule),
+`InstanceRewardParseTest` (spec + registry parse), `NativeLootServiceTest` (native-delegation merge,
+no-native-drop-list pass-through, unknown-id / disabled-module never-throws). `LootTableAsset.CODEC` is in
+`asset/AssetCodecInitTest` (PascalCase static-init guard). A bare unit-test JVM never boots a real
+`ItemModule` (its static `get()` is only assigned by the live plugin bootstrap) or registers the `Item`/
+`ItemDropList` asset stores, so `NativeLootServiceTest` stubs `NativeLootService`'s package-private
+engine-roll seam for the native-item cases, and builds any needed `ItemStack` via `ItemStack.CODEC.decode`
+(NOT the public constructors, which call `getItem()` and NPE with no registered `Item` asset store) rather
+than touching the live engine.
