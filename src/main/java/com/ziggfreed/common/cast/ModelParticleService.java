@@ -22,10 +22,23 @@ import com.ziggfreed.common.ZiggfreedCommonPlugin;
  * consumer's cast / ability effects share one particle seam instead of each re-deriving the
  * try/catch + player-collection boilerplate.
  *
- * <p>Two shapes, matching the engine calls consumer effects actually make:
+ * <p>Three shapes, matching the engine calls consumer effects actually make:
  * <ul>
- *   <li>{@link #spawnAt} - position-only spawn to all nearby players
- *       ({@code ParticleUtil.spawnParticleEffect(name, position, accessor)}).</li>
+ *   <li>{@link #spawnAt(Store, String, Vector3d)} - position-only spawn to all nearby players,
+ *       UNCAPPED duration ({@code ParticleUtil.spawnParticleEffect(name, position, accessor)}) -
+ *       the particle system plays out its own natural spawner budget (a finite one-shot burst
+ *       ends on its own; an authored unbounded spawner runs forever).</li>
+ *   <li>{@link #spawnAt(Store, String, Vector3d, float)} - the same spawn, capped to
+ *       {@code maxDurationSeconds} of client playback via the native
+ *       {@code SpawnParticleSystem.maxDuration} field - the SAME field the first-party
+ *       {@code PlayVfxEffect} trigger-volume effect authors through its own {@code Duration}
+ *       leaf. Use this for a ONE-SHOT moment fired at a bare position (no entity/effect
+ *       lifecycle to hang a despawn off): some particle systems are authored with an
+ *       unbounded spawner (a negative {@code TotalParticles}, e.g. {@code Block_Gem_Sparks} /
+ *       {@code Effect_Crown_Gold}) for a PERSISTENT per-entity VFX use case, and firing one of
+ *       those at a raw world position with no cap leaks it there forever - a positive cap
+ *       force-stops it instead. A genuinely one-shot burst asset finishes well inside a modest
+ *       cap on its own, so the cap is invisible for those.</li>
  *   <li>{@link #spawnDirectional} - a rotation-aware spawn. The engine's convenience
  *       overload only handles position, so this collects nearby players itself (mirroring
  *       {@code ParticleUtil}'s own spatial lookup) to reach the rotation-aware overload;
@@ -45,15 +58,30 @@ public final class ModelParticleService {
     private ModelParticleService() {}
 
     /**
-     * Spawn a named particle system at {@code position} for all nearby players. No-op
-     * ({@code false}) for a null asset id or on any error.
+     * Spawn a named particle system at {@code position} for all nearby players, UNCAPPED (the
+     * particle system's own natural spawner budget governs how long it plays). No-op
+     * ({@code false}) for a null asset id or on any error. Equivalent to
+     * {@link #spawnAt(Store, String, Vector3d, float) spawnAt(store, particleAsset, position, 0f)}.
      */
     public static boolean spawnAt(@Nonnull Store<EntityStore> store,
                                   @Nullable String particleAsset,
                                   @Nonnull Vector3d position) {
+        return spawnAt(store, particleAsset, position, 0f);
+    }
+
+    /**
+     * Spawn a named particle system at {@code position} for all nearby players, capped to
+     * {@code maxDurationSeconds} of client playback ({@code <= 0} = uncapped, matching the
+     * 3-arg overload's behavior). See the class javadoc for when a positive cap is needed. No-op
+     * ({@code false}) for a null asset id or on any error.
+     */
+    public static boolean spawnAt(@Nonnull Store<EntityStore> store,
+                                  @Nullable String particleAsset,
+                                  @Nonnull Vector3d position,
+                                  float maxDurationSeconds) {
         if (particleAsset == null) return false;
         try {
-            ParticleUtil.spawnParticleEffect(particleAsset, position, store);
+            ParticleUtil.spawnParticleEffect(particleAsset, position, 0f, 0f, 0f, 1f, maxDurationSeconds, store);
             return true;
         } catch (Throwable t) {
             fine("particle (" + particleAsset + ") failed: " + t.getMessage());
