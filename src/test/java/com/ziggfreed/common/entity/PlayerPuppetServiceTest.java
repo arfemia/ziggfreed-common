@@ -1,0 +1,157 @@
+package com.ziggfreed.common.entity;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.ComponentAccessor;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.AnimationSlot;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+/**
+ * Tests for {@link PlayerPuppetService}'s unit-JVM-safe surface: the pure spatial helpers, the
+ * {@link PlayerPuppetService.PuppetSpawnRequest} builder's mutual-exclusivity/default contract,
+ * and the try-guard "never throws, degrades to a no-op" contract on every engine-touching entry
+ * point when handed a deliberately-broken (null) accessor - the same style
+ * {@code cast.HitResolverTest} uses for {@code HitContext}'s accessor slot (a null
+ * {@code Store}/{@code CommandBuffer} is a legitimate test double here since the methods under
+ * test never dereference a non-null field before failing). {@link PlayerPuppetService#spawn}/
+ * {@link PlayerPuppetService#despawn}/{@link PlayerPuppetService#playAnimation}/
+ * {@link PlayerPuppetService#hideByScale}/{@link PlayerPuppetService#revealByScale}'s SUCCESS
+ * paths touch live Store/Holder/component types and have no unit coverage, matching this
+ * ecosystem's established precedent (e.g. {@code station.StationCustodyDisplayTest}).
+ */
+class PlayerPuppetServiceTest {
+
+    // ==================== pure spatial helpers ====================
+
+    @Test
+    void offsetPosition_shiftsEachAxis() {
+        assertArrayEquals(new double[] {10.5, 65.05, -3.3},
+                PlayerPuppetService.offsetPosition(10.5, 64.5, -3.5, 0.0, 0.55, 0.2));
+    }
+
+    @Test
+    void offsetPosition_zeroOffset_isAnchor() {
+        assertArrayEquals(new double[] {1.0, 2.0, 3.0}, PlayerPuppetService.offsetPosition(1.0, 2.0, 3.0, 0, 0, 0));
+    }
+
+    @Test
+    void yawRadiansFromDegrees_convertsCorrectly() {
+        assertEquals(0f, PlayerPuppetService.yawRadiansFromDegrees(0.0), 1e-6f);
+        assertEquals((float) Math.PI, PlayerPuppetService.yawRadiansFromDegrees(180.0), 1e-5f);
+        assertEquals((float) (Math.PI / 2), PlayerPuppetService.yawRadiansFromDegrees(90.0), 1e-5f);
+    }
+
+    @Test
+    void nearZeroScale_isSmallAndPositive() {
+        float scale = PlayerPuppetService.nearZeroScale();
+        assertTrue(scale > 0f);
+        assertTrue(scale < 0.1f);
+    }
+
+    // ==================== PuppetSpawnRequest builder ====================
+
+    @Test
+    void builder_defaults_areEmptyHandedNoPreseedZeroYaw() {
+        PlayerPuppetService.PuppetSpawnRequest req = PlayerPuppetService.PuppetSpawnRequest.builder().build();
+        assertEquals(0f, req.yawRadians());
+        assertFalse(req.mirrorHeldItem());
+        assertNull(req.heldItemIdOverride());
+        assertNull(req.initialAnimationSlot());
+        assertNull(req.initialClipId());
+    }
+
+    @Test
+    void builder_mirrorHeldItem_clearsHeldItemIdOverride() {
+        PlayerPuppetService.PuppetSpawnRequest req = PlayerPuppetService.PuppetSpawnRequest.builder()
+                .heldItemIdOverride("Tool_Hammer_Iron")
+                .mirrorHeldItem(true)
+                .build();
+        assertTrue(req.mirrorHeldItem());
+        assertNull(req.heldItemIdOverride(), "mirrorHeldItem(true) after an override clears the override");
+    }
+
+    @Test
+    void builder_heldItemIdOverride_clearsMirrorHeldItem() {
+        PlayerPuppetService.PuppetSpawnRequest req = PlayerPuppetService.PuppetSpawnRequest.builder()
+                .mirrorHeldItem(true)
+                .heldItemIdOverride("Tool_Hammer_Iron")
+                .build();
+        assertFalse(req.mirrorHeldItem(), "an override after mirrorHeldItem(true) clears the mirror flag");
+        assertEquals("Tool_Hammer_Iron", req.heldItemIdOverride());
+    }
+
+    @Test
+    void builder_initialAnimation_roundTripsBothFields() {
+        PlayerPuppetService.PuppetSpawnRequest req = PlayerPuppetService.PuppetSpawnRequest.builder()
+                .initialAnimation(AnimationSlot.Action, "Chop")
+                .build();
+        assertEquals(AnimationSlot.Action, req.initialAnimationSlot());
+        assertEquals("Chop", req.initialClipId());
+    }
+
+    @Test
+    void builder_yawRadiansAndPosition_roundTrip() {
+        org.joml.Vector3d pos = new org.joml.Vector3d(1, 2, 3);
+        PlayerPuppetService.PuppetSpawnRequest req = PlayerPuppetService.PuppetSpawnRequest.builder()
+                .position(pos)
+                .yawRadians(1.5f)
+                .build();
+        assertEquals(pos, req.position());
+        assertEquals(1.5f, req.yawRadians());
+    }
+
+    // ==================== try-guard contracts (never throw, degrade to a no-op) ====================
+
+    @Test
+    void spawn_withNullAccessor_returnsNullWithoutThrowing() {
+        Ref<EntityStore> nullRef = null;
+        PlayerPuppetService.PuppetSpawnRequest req = PlayerPuppetService.PuppetSpawnRequest.builder()
+                .sourceRef(nullRef)
+                .position(new org.joml.Vector3d(0, 0, 0))
+                .build();
+        ComponentAccessor<EntityStore> nullAccessor = null;
+        assertNull(assertDoesNotThrow(() -> PlayerPuppetService.spawn(nullAccessor, req)));
+    }
+
+    @Test
+    void despawn_withNullRef_isNoOpOnBothOverloads() {
+        Store<EntityStore> store = null;
+        CommandBuffer<EntityStore> commandBuffer = null;
+        assertDoesNotThrow(() -> PlayerPuppetService.despawn(null, store));
+        assertDoesNotThrow(() -> PlayerPuppetService.despawn(null, commandBuffer));
+    }
+
+    @Test
+    void despawn_withNullCommandBuffer_isNoOp() {
+        assertDoesNotThrow(() -> PlayerPuppetService.despawn(null, (CommandBuffer<EntityStore>) null));
+    }
+
+    @Test
+    void playAnimation_withNullPuppetRef_isNoOp() {
+        ComponentAccessor<EntityStore> nullAccessor = null;
+        assertDoesNotThrow(() -> PlayerPuppetService.playAnimation(nullAccessor, null, AnimationSlot.Action, null, "Chop", true));
+    }
+
+    @Test
+    void hideByScale_withNullAccessor_returnsNullWithoutThrowing() {
+        ComponentAccessor<EntityStore> nullAccessor = null;
+        Ref<EntityStore> nullRef = null;
+        assertNull(assertDoesNotThrow(() -> PlayerPuppetService.hideByScale(nullAccessor, nullRef)));
+    }
+
+    @Test
+    void revealByScale_withNullRef_isNoOp() {
+        ComponentAccessor<EntityStore> nullAccessor = null;
+        assertDoesNotThrow(() -> PlayerPuppetService.revealByScale(nullAccessor, null, 1.0f));
+    }
+}
