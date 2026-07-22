@@ -57,4 +57,36 @@ public interface StepSemantics<C, S, K, R> {
      */
     @Nonnull
     R onMissingHandler(@Nonnull C ctx, @Nonnull S step, @Nullable K key);
+
+    /**
+     * Whether {@code result} signals a WALK SUSPENSION for {@link CastKernel#runResumable} (default
+     * {@code false}): a {@code true} return produces a {@code Walk.Suspended(atIndex, result)} instead
+     * of the walk continuing or failing. A consumer that never suspends (the byte-parity default for
+     * {@link CastKernel#run}) inherits this and only ever sees {@code Completed}/{@code Failed} walks.
+     *
+     * <p><b>Resume contract (binding) - read before overriding.</b> When this returns {@code true} for
+     * a step's result, {@code atIndex} in the returned {@code Suspended} is that step's OWN index, and
+     * resuming re-enters that SAME step (it runs again from the top of its {@link StepHandler}) - see
+     * {@link CastKernel#runResumable}'s javadoc for the full contract. A suspending ("Wait"-style)
+     * step must derive its suspend/continue decision from state the consumer holds across the
+     * suspension (a deadline written once, read - never re-derived - on every re-entry); otherwise a
+     * naive re-entry that recomputes "not yet due" from scratch every time never converges and
+     * re-suspends forever.
+     */
+    default boolean isSuspend(@Nonnull R result) {
+        return false;
+    }
+
+    /**
+     * The index {@link CastKernel#runResumable} continues the walk at after {@code step} (currently at
+     * {@code currentIndex}) returns a success-continuing {@code result} (default
+     * {@code currentIndex + 1}, the classic linear advance). A consumer authoring branch/skip
+     * semantics (e.g. an {@code OnConditionFail.Goto}-style jump) wires it here instead of adding a
+     * dedicated branch step type. The kernel applies no bounds/loop protection beyond the walk's own
+     * {@code [0, stepCount)} termination - a {@code nextIndex} that never converges toward the end of
+     * the chain is a content-authoring bug for the consumer's own validator to catch.
+     */
+    default int nextIndex(@Nonnull C ctx, @Nonnull S step, int currentIndex, @Nonnull R result) {
+        return currentIndex + 1;
+    }
 }
