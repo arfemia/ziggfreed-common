@@ -16,6 +16,18 @@ needs it), so it lives here, not duplicated in a consumer.
   return so a missing component / invalid ref / engine throw never escapes into the
   caller. Backed by `CombinedItemContainer.addItemStack`/`removeItemStack`/
   `countItemStacks` + `ItemStackTransaction.getRemainder` (decompile-confirmed signatures).
+- **[`InventoryGrant`](InventoryGrant.java)** (round-5, 2026-07-22) - the generic HOTBAR-FIRST-IF-
+  SPACE-then-backpack-storage GRANT-ORDERING primitive: `grant(player, stack, fallback)` tries the
+  hotbar first (only when the WHOLE stack fits), then backpack storage, then a caller-supplied
+  `Consumer<ItemStack>` fallback (a world drop, a mail system, ... - policy this class does not
+  own), returning a `Landed` (`HOTBAR`/`STORAGE`/`FALLBACK`). Distinct from `InventoryUtil` above
+  (which counts/gives/takes a resource item BY ID across the combined view for a currency-shaped
+  resource) - this is a single-stack, order-sensitive placement decision for a genuine item grant.
+  **GRANT-side only, never consume-side**: a consumer's own consume/drain path should keep
+  preferring backpack storage over the hotbar (mutating the hotbar container fans an Equipment
+  update to every viewer, including the acting player, which has correlated with a client
+  rendering issue in at least one consumer's own smoke testing when it fires mid-session under a
+  locked/mounted camera) - do not widen this hotbar-first order to a consume/drain path.
 
 **Full-inventory preserve/restore (a minigame's "keep your overworld gear" lifecycle):**
 - **[`InventorySnapshot`](InventorySnapshot.java)** - slot-exact capture/strip/apply across ALL
