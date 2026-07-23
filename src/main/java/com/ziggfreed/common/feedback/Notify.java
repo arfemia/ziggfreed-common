@@ -1,9 +1,11 @@
 package com.ziggfreed.common.feedback;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.protocol.packets.interface_.NotificationStyle;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.io.PacketHandler;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.util.NotificationUtil;
@@ -50,6 +52,32 @@ public final class Notify {
             NotificationUtil.sendNotification(handler, message, style);
         } catch (Throwable t) {
             ZiggfreedCommonPlugin.LOGGER.atFine().log("Notify.send failed: " + t.getMessage());
+        }
+    }
+
+    /**
+     * A notification carrying an item IDENTITY the client can stack on: the {@code Item} slot
+     * (built via {@link ItemStack#toPacket()}) is the only identity-bearing field on the
+     * Notification packet, so consecutive notifications sharing the same {@code itemId} coalesce
+     * client-side into one growing entry (native pickup behavior; no id/group/stack-key field
+     * exists on the packet itself). The stacked entry FREEZES on {@code title}'s text; only the
+     * item-slot {@code quantity} keeps updating - so a caller wanting live-looking stacked totals
+     * must keep the amount OUT of {@code title} and IN {@code quantity} (the coalescing XP toast
+     * and a native-pickup-style item toast both rely on this).
+     *
+     * <p>Default style (matches a native pickup notification); no SFX and no
+     * {@code ShowItemPickupNotifications} gate here (that policy belongs to a caller like {@code
+     * PickupMimic} that specifically mimics a real pickup - this helper is the bare stacking
+     * mechanism). Try-guarded so it never throws into the caller.
+     */
+    public static void itemKeyed(@Nonnull PlayerRef playerRef, @Nonnull Message title,
+            @Nullable Message secondary, @Nonnull String itemId, int quantity) {
+        try {
+            PacketHandler handler = playerRef.getPacketHandler();
+            ItemStack itemStack = new ItemStack(itemId, Math.max(1, quantity));
+            NotificationUtil.sendNotification(handler, title, secondary, itemStack.toPacket());
+        } catch (Throwable t) {
+            ZiggfreedCommonPlugin.LOGGER.atFine().log("Notify.itemKeyed failed: " + t.getMessage());
         }
     }
 }

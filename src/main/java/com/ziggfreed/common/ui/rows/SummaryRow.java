@@ -22,6 +22,11 @@ import com.hypixel.hytale.server.core.Message;
  * client-resolved {@link Message} - so a consumer maps its own reward / feedback / stat rows into
  * whichever fits.
  *
+ * <p>{@link Kind#ENHANCE} is the generic "an existing item was modified in place" ledger role
+ * (a stamp/durability/enchant style outcome line), sitting alongside {@code CONSUMED}/{@code
+ * PRODUCED} for a consumer whose session summary needs to distinguish "changed" from "spent" or
+ * "gained".
+ *
  * <p>All display text / colour / bold is the CALLER's job (skill / item / currency icon
  * resolution, name resolution, {@link Message#color}/{@link Message#bold} composition); this type
  * and {@link SummaryRowRenderer} only carry / paint the result. {@code kind} is descriptive
@@ -35,7 +40,7 @@ public final class SummaryRow {
 
     /** Semantic role a row was built from; purely descriptive, not read by the renderer. */
     public enum Kind {
-        XP, CONSUMED, PRODUCED, LUCKY
+        XP, CONSUMED, PRODUCED, LUCKY, ENHANCE
     }
 
     @Nonnull
