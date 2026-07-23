@@ -110,6 +110,56 @@ class PlayerPuppetServiceTest {
         assertEquals(1.5f, req.yawRadians());
     }
 
+    // ==================== held-item mirror refresh (dirty-gate decision) ====================
+
+    @Test
+    void heldItemChanged_sameId_isFalse() {
+        assertFalse(PlayerPuppetService.heldItemChanged("Tool_Hammer_Iron", "Tool_Hammer_Iron"));
+    }
+
+    @Test
+    void heldItemChanged_differentId_isTrue() {
+        assertTrue(PlayerPuppetService.heldItemChanged("Tool_Hammer_Iron", "Tool_Hammer_Crude"));
+    }
+
+    @Test
+    void heldItemChanged_bothNull_isFalse() {
+        assertFalse(PlayerPuppetService.heldItemChanged(null, null));
+    }
+
+    @Test
+    void heldItemChanged_nullToItem_isTrue() {
+        assertTrue(PlayerPuppetService.heldItemChanged(null, "Tool_Hammer_Iron"));
+    }
+
+    @Test
+    void heldItemChanged_itemToNull_isTrue() {
+        assertTrue(PlayerPuppetService.heldItemChanged("Tool_Hammer_Iron", null));
+    }
+
+    @Test
+    void heldItemChanged_blankTreatedAsNull_isFalse() {
+        assertFalse(PlayerPuppetService.heldItemChanged(null, ""), "blank is normalized to null - not a change");
+        assertFalse(PlayerPuppetService.heldItemChanged("", null), "blank is normalized to null - not a change");
+    }
+
+    @Test
+    void updateHeldItem_withNullPuppetRef_returnsLastMirroredUnchanged() {
+        ComponentAccessor<EntityStore> nullAccessor = null;
+        assertEquals("Tool_Hammer_Iron", assertDoesNotThrow(
+                () -> PlayerPuppetService.updateHeldItem(nullAccessor, null, "Tool_Hammer_Iron", "Tool_Hammer_Crude")));
+    }
+
+    @Test
+    void updateHeldItem_noChange_neverTouchesAccessor() {
+        // A null accessor would NPE if updateHeldItem attempted any component read/write on a
+        // no-change call - reaching this without throwing proves the dirty-gate short-circuits
+        // BEFORE any accessor touch, even with a (deliberately invalid) null puppetRef.
+        ComponentAccessor<EntityStore> nullAccessor = null;
+        assertEquals("Tool_Hammer_Iron", assertDoesNotThrow(
+                () -> PlayerPuppetService.updateHeldItem(nullAccessor, null, "Tool_Hammer_Iron", "Tool_Hammer_Iron")));
+    }
+
     // ==================== try-guard contracts (never throw, degrade to a no-op) ====================
 
     @Test

@@ -49,7 +49,12 @@ import com.ziggfreed.common.ZiggfreedCommonPlugin;
  * {@code ModelSystems.AnimationEntityTrackerUpdate}, independent of exactly when a direct
  * {@link #playAnimation} packet happens to land - the spike's own round-4 fix, source-confirmed
  * against {@code AnimationUtils.playAnimation}'s {@code PlayerUtil.forEachPlayerThatCanSeeEntity}
- * viewer filter).
+ * viewer filter). Post-spawn, {@link #updateHeldItem} re-mirrors the source's currently-held item
+ * on demand (a puppet-active work session's tool can change mid-session, unlike the one-time
+ * {@link #spawn}-time snapshot) - dirty-gated via the pure {@link #heldItemChanged} so a caller
+ * re-checking every beat only touches the engine on a REAL switch, never every beat regardless of
+ * change (the primitive owns this equipment-mirroring MECHANISM; a caller's own per-step/override
+ * prop RESOLUTION policy stays caller-side, same split as everything else this class owns).
  *
  * <p><b>Scope, deliberately narrow.</b> This class owns the SPAWN MECHANISM (skin clone, held-item
  * mirror, animation surface, placement, {@code NonSerialized}, despawn) and the SCALE hide/reveal
@@ -220,6 +225,67 @@ public final class PlayerPuppetService {
         } catch (Throwable t) {
             fine("playAnimation failed: " + t.getMessage());
         }
+    }
+
+    // ==================== held-item mirror refresh (post-spawn) ====================
+
+    /**
+     * Idempotent, dirty-gated held-item MIRROR REFRESH for an already-spawned puppet - the
+     * companion to {@link #spawn}'s own one-time held-item snapshot (a caller mirroring a LIVE
+     * player's currently-held item must re-apply this every beat/tick, since the player can swap
+     * tools mid-work after spawn). Re-applies {@code resolvedItemId} onto {@code puppetRef}'s
+     * {@link InventoryComponent.Hotbar} slot 0 ONLY when it differs from {@code
+     * lastMirroredItemId} - the caller's own last-applied value, per {@link #heldItemChanged} (a
+     * pure, unit-testable decision this method delegates to). A no-change call touches NOTHING
+     * (no component read/write, no engine call at all) so the per-viewer equipment-update packet
+     * fans out only on a REAL tool switch, never every beat. This primitive is itself STATELESS -
+     * the caller tracks {@code lastMirroredItemId} (e.g. on its own session record) and threads
+     * the RETURNED value back in as next call's {@code lastMirroredItemId}.
+     *
+     * <p>{@code null}/blank {@code resolvedItemId} empties the puppet's hand (removes the {@code
+     * Hotbar} component entirely, mirroring {@link #spawn}'s own "no held item" no-component
+     * posture). Returns the id actually now mirrored (so the caller updates its own tracked
+     * value) - {@code resolvedItemId} on an applied change, or {@code lastMirroredItemId}
+     * unchanged on a no-op (nothing to do, OR an invalid/null {@code puppetRef}, OR the mutation
+     * itself failed - degrades to "leave the prior value tracked", never throws).
+     */
+    @Nullable
+    public static String updateHeldItem(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nullable Ref<EntityStore> puppetRef, @Nullable String lastMirroredItemId, @Nullable String resolvedItemId) {
+        if (puppetRef == null || !puppetRef.isValid() || !heldItemChanged(lastMirroredItemId, resolvedItemId)) {
+            return lastMirroredItemId;
+        }
+        try {
+            if (resolvedItemId == null || resolvedItemId.isBlank()) {
+                accessor.tryRemoveComponent(puppetRef, InventoryComponent.Hotbar.getComponentType());
+            } else {
+                SimpleItemContainer container = new SimpleItemContainer((short) 1);
+                container.setItemStackForSlot((short) 0, new ItemStack(resolvedItemId, 1));
+                accessor.putComponent(puppetRef, InventoryComponent.Hotbar.getComponentType(),
+                        new InventoryComponent.Hotbar(container, (byte) 0));
+            }
+            return resolvedItemId;
+        } catch (Throwable t) {
+            fine("updateHeldItem failed: " + t.getMessage());
+            return lastMirroredItemId;
+        }
+    }
+
+    /**
+     * PURE: whether {@link #updateHeldItem} needs to touch the engine at all - blank is
+     * normalized to {@code null} (both mean "empty-handed") before comparison, so a
+     * {@code null}-vs-{@code ""} pair is correctly NOT a change. Unit-testable without a live
+     * server (no accessor/ref touch of any kind).
+     */
+    public static boolean heldItemChanged(@Nullable String lastMirroredItemId, @Nullable String resolvedItemId) {
+        String a = blankToNull(lastMirroredItemId);
+        String b = blankToNull(resolvedItemId);
+        return a == null ? b != null : !a.equals(b);
+    }
+
+    @Nullable
+    private static String blankToNull(@Nullable String id) {
+        return id == null || id.isBlank() ? null : id;
     }
 
     // ==================== scale self-hide ====================
