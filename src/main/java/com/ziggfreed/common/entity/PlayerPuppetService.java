@@ -242,12 +242,29 @@ public final class PlayerPuppetService {
      * the caller tracks {@code lastMirroredItemId} (e.g. on its own session record) and threads
      * the RETURNED value back in as next call's {@code lastMirroredItemId}.
      *
-     * <p>{@code null}/blank {@code resolvedItemId} empties the puppet's hand (removes the {@code
-     * Hotbar} component entirely, mirroring {@link #spawn}'s own "no held item" no-component
-     * posture). Returns the id actually now mirrored (so the caller updates its own tracked
-     * value) - {@code resolvedItemId} on an applied change, or {@code lastMirroredItemId}
-     * unchanged on a no-op (nothing to do, OR an invalid/null {@code puppetRef}, OR the mutation
-     * itself failed - degrades to "leave the prior value tracked", never throws).
+     * <p>{@code null}/blank {@code resolvedItemId} empties the puppet's hand - puts a BARE (empty)
+     * {@code Hotbar} rather than removing the component (see the network-dirty note below: a
+     * removed component drops the entity out of {@code SyncEquipmentSystem}'s tracking query
+     * entirely, so the now-empty-hands state would never broadcast and every viewer keeps
+     * rendering the last-held item). Returns the id actually now mirrored (so the caller updates
+     * its own tracked value) - {@code resolvedItemId} on an applied change, or {@code
+     * lastMirroredItemId} unchanged on a no-op (nothing to do, OR an invalid/null {@code
+     * puppetRef}, OR the mutation itself failed - degrades to "leave the prior value tracked",
+     * never throws).
+     *
+     * <p><b>Network-dirty fix (round-6 puppet smoke, D-B).</b> {@code InventorySystems
+     * .SyncEquipmentSystem} only re-broadcasts an {@code EquipmentUpdate} to ALREADY-tracking
+     * viewers when {@code Hotbar.consumeOutdatedEquipment()} returns {@code true} (or the entity
+     * is newly-visible to a fresh viewer, which does not apply here - the puppet is already
+     * spawned and tracked). Building a brand-new {@code Hotbar} via the {@code (container,
+     * activeSlot)} constructor leaves its {@code outdatedEquipment} flag at the default {@code
+     * false}, so a bare {@code putComponent} of one (the pre-fix behavior) silently NEVER
+     * re-broadcasts the equipment change to a viewer who was already tracking the puppet - only
+     * the spawn-time mirror rendered (a fresh viewer's OWN {@code newlyVisibleTo} branch), every
+     * LATER per-beat call was invisible despite the component mutation succeeding. Both branches
+     * below now call {@link InventoryComponent.Hotbar#setOutdatedEquipment} {@code (true)} before
+     * {@code putComponent} - a public, non-deprecated setter - so {@code SyncEquipmentSystem}'s
+     * next tick genuinely re-syncs.
      */
     @Nullable
     public static String updateHeldItem(@Nonnull ComponentAccessor<EntityStore> accessor,
@@ -256,14 +273,13 @@ public final class PlayerPuppetService {
             return lastMirroredItemId;
         }
         try {
-            if (resolvedItemId == null || resolvedItemId.isBlank()) {
-                accessor.tryRemoveComponent(puppetRef, InventoryComponent.Hotbar.getComponentType());
-            } else {
-                SimpleItemContainer container = new SimpleItemContainer((short) 1);
+            SimpleItemContainer container = new SimpleItemContainer((short) 1);
+            if (resolvedItemId != null && !resolvedItemId.isBlank()) {
                 container.setItemStackForSlot((short) 0, new ItemStack(resolvedItemId, 1));
-                accessor.putComponent(puppetRef, InventoryComponent.Hotbar.getComponentType(),
-                        new InventoryComponent.Hotbar(container, (byte) 0));
             }
+            InventoryComponent.Hotbar hotbar = new InventoryComponent.Hotbar(container, (byte) 0);
+            hotbar.setOutdatedEquipment(true);
+            accessor.putComponent(puppetRef, InventoryComponent.Hotbar.getComponentType(), hotbar);
             return resolvedItemId;
         } catch (Throwable t) {
             fine("updateHeldItem failed: " + t.getMessage());
@@ -322,9 +338,23 @@ public final class PlayerPuppetService {
     }
 
     /**
-     * Reverts {@link #hideByScale}: restores {@code priorScale} if one was captured, else REMOVES
-     * the {@link EntityScaleComponent} entirely (matching the entity's true pre-hide baseline, not
-     * a hardcoded {@code 1.0}). No-op (never throws) on an invalid ref or any engine failure.
+     * Reverts {@link #hideByScale}: restores {@code priorScale} if one was captured, else applies
+     * the entity's true pre-hide baseline of {@code 1.0} (native default scale). <b>Always a
+     * {@code putComponent} of a FRESH {@link EntityScaleComponent}, never a bare remove</b> - this
+     * is the load-bearing part of the fix (round-6 puppet smoke, D-A). The engine networks an
+     * entity's scale ONLY as a piggyback field on the {@code ModelUpdate} packet, gated on {@code
+     * EntityScaleComponent.isNetworkOutdated} (defaults {@code true} on construction) or {@code
+     * newlyVisibleTo} being non-empty; a bare {@code tryRemoveComponent} raises NEITHER of those
+     * flags, so a normal (never-scaled-before) player revealed via a component REMOVE never
+     * re-networks the un-hide at all and stays rendered at the last-synced near-zero scale
+     * PERMANENTLY (until their next {@code PlayerReadyEvent}, via {@code reassertOnReady}'s own
+     * {@code ModelComponent} replace). A fresh {@code putComponent} always has {@code
+     * isNetworkOutdated=true}, so the next {@code ModelUpdate} tick genuinely re-networks the
+     * revert. The {@code priorScale == null} case therefore leaves a harmless resident
+     * {@code EntityScaleComponent(1.0)} rather than no component at all - it renders identically to
+     * having none (native default scale) and self-heals to fully absent on the player's next
+     * {@code PlayerReadyEvent} (the production safety net clears it unconditionally). No-op (never
+     * throws) on an invalid ref or any engine failure.
      *
      * <p>For the {@code ModelSwap} hide route's revert, use the existing
      * {@link PlayerModelService#restore} instead - this class does not duplicate it.
@@ -335,11 +365,8 @@ public final class PlayerPuppetService {
             return;
         }
         try {
-            if (priorScale != null) {
-                accessor.putComponent(ref, EntityScaleComponent.getComponentType(), new EntityScaleComponent(priorScale));
-            } else {
-                accessor.tryRemoveComponent(ref, EntityScaleComponent.getComponentType());
-            }
+            float restoredScale = priorScale != null ? priorScale : 1.0f;
+            accessor.putComponent(ref, EntityScaleComponent.getComponentType(), new EntityScaleComponent(restoredScale));
         } catch (Throwable t) {
             warn("revealByScale failed: " + t.getMessage(), t);
         }
