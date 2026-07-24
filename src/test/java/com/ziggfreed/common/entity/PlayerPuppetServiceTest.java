@@ -14,6 +14,7 @@ import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.AnimationSlot;
+import com.hypixel.hytale.protocol.PlayerSkin;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
@@ -108,6 +109,35 @@ class PlayerPuppetServiceTest {
                 .build();
         assertEquals(pos, req.position());
         assertEquals(1.5f, req.yawRadians());
+    }
+
+    // ==================== spawn-path skin isolation (round8 skin-wipe guard) ====================
+
+    @Test
+    void playerSkinCopyCtor_isIndependentOfSource() {
+        // Guards the assumption PlayerPuppetService.spawn relies on: it clones the source player's
+        // live PlayerSkin via `new PlayerSkin(source)` so the puppet NEVER shares the player's skin
+        // object. If a future engine change made the copy shallow (a shared mutable sub-object),
+        // mutating the puppet's copy would corrupt the real player's look. This asserts the copy is
+        // a genuine, independent snapshot - the boundary the puppet spawn depends on staying safe.
+        // (The round8 wipe itself was NOT a sharing bug - the copy was already independent, proven
+        // here - but a network-refresh omission, fixed in hideByScale/revealByScale.)
+        PlayerSkin source = new PlayerSkin();
+        source.haircut = "Hair_Long.Brown";
+        source.overtop = "Shirt_Tunic.Green";
+        source.face = "Face_A";
+
+        PlayerSkin copy = new PlayerSkin(source);
+        assertEquals("Hair_Long.Brown", copy.haircut, "copy carries the source's cosmetic slots");
+        assertEquals("Shirt_Tunic.Green", copy.overtop);
+
+        // Mutating the puppet's copy must leave the source player's skin untouched.
+        copy.haircut = null;
+        copy.overtop = null;
+        copy.face = null;
+        assertEquals("Hair_Long.Brown", source.haircut, "the puppet copy must not share state with the player's skin");
+        assertEquals("Shirt_Tunic.Green", source.overtop);
+        assertEquals("Face_A", source.face);
     }
 
     // ==================== held-item mirror refresh (dirty-gate decision) ====================

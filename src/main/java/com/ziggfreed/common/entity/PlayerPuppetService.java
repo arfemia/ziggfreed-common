@@ -315,7 +315,9 @@ public final class PlayerPuppetService {
      * (revert should REMOVE the component, not set it to {@code 1.0}). Best-effort: a failure
      * (should not happen for a live ref) also returns {@code null}, which degrades to the same
      * harmless "nothing to restore, just remove" revert path since a failed apply left no
-     * lingering scale component to begin with.
+     * lingering scale component to begin with. Also re-networks a skinned entity's cosmetic
+     * overlay ({@link #refreshPlayerSkinNetwork}) - the scale change forces a full
+     * {@code ModelUpdate} that would otherwise strip a player's look.
      */
     @Nullable
     public static Float hideByScale(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref) {
@@ -330,6 +332,7 @@ public final class PlayerPuppetService {
             EntityScaleComponent existing = accessor.getComponent(ref, EntityScaleComponent.getComponentType());
             Float prior = existing != null ? existing.getScale() : null;
             accessor.putComponent(ref, EntityScaleComponent.getComponentType(), new EntityScaleComponent(nearZeroScale));
+            refreshPlayerSkinNetwork(accessor, ref);
             return prior;
         } catch (Throwable t) {
             fine("hideByScale failed: " + t.getMessage());
@@ -356,6 +359,14 @@ public final class PlayerPuppetService {
      * {@code PlayerReadyEvent} (the production safety net clears it unconditionally). No-op (never
      * throws) on an invalid ref or any engine failure.
      *
+     * <p><b>Skin re-network (round8 skin-wipe fix).</b> After restoring the scale, re-marks a
+     * skinned entity's {@link PlayerSkinComponent} network-outdated ({@link
+     * #refreshPlayerSkinNetwork}). The scale restore forces a full {@code ModelUpdate}, which the
+     * client rebuilds the model from - dropping the player's {@link PlayerSkin} cosmetic overlay
+     * unless a {@code PlayerSkinUpdate} follows. Without this pairing a revealed player rendered
+     * as the bare default body (bald) for the rest of the session; see {@link
+     * #refreshPlayerSkinNetwork} for the full mechanism.
+     *
      * <p>For the {@code ModelSwap} hide route's revert, use the existing
      * {@link PlayerModelService#restore} instead - this class does not duplicate it.
      */
@@ -367,8 +378,50 @@ public final class PlayerPuppetService {
         try {
             float restoredScale = priorScale != null ? priorScale : 1.0f;
             accessor.putComponent(ref, EntityScaleComponent.getComponentType(), new EntityScaleComponent(restoredScale));
+            refreshPlayerSkinNetwork(accessor, ref);
         } catch (Throwable t) {
             warn("revealByScale failed: " + t.getMessage(), t);
+        }
+    }
+
+    /**
+     * Re-marks {@code ref}'s {@link PlayerSkinComponent} network-outdated so a fresh
+     * {@code PlayerSkinUpdate} re-applies the player's cosmetic overlay after a scale change
+     * (a no-op, never throwing, for a non-skinned entity or any engine failure). <b>THE
+     * skin-wipe fix (round8).</b>
+     *
+     * <p><b>Why a scale change wipes a player's look without this.</b> Both {@link #hideByScale}
+     * and {@link #revealByScale} {@code putComponent} a FRESH {@link EntityScaleComponent} (whose
+     * {@code isNetworkOutdated} defaults {@code true}) on the entity. The engine's
+     * {@code EntityTrackerSystems.EntityModel} tracker turns that dirty scale into a FULL
+     * {@code ModelUpdate} packet carrying the entity's model AND the new scale to every viewer
+     * (the player's own client included) - scale has no packet of its own, it only ever rides a
+     * {@code ModelUpdate}. On receiving that {@code ModelUpdate}, the client rebuilds the entity's
+     * model from the base mesh and DROPS the previously applied {@link PlayerSkin} cosmetic
+     * overlay, so a revealed player renders as the bare default body (bald, no cosmetics) until a
+     * {@code PlayerSkinUpdate} re-applies the skin. The engine's own model-reset paths pair every
+     * {@code ModelComponent} change with {@code PlayerSkinComponent.setNetworkOutdated()} for
+     * EXACTLY this reason (the first-party {@code builtin.model.pages.ChangeModelPage}'s
+     * "ResetModel" arm, {@code PlayerUtil.resetPlayerModel}, and this ecosystem's own
+     * {@link PlayerModelService#restore}); a scale change forces the SAME {@code ModelUpdate}, so
+     * it needs the SAME paired skin re-network.
+     *
+     * <p>This ONLY flips the component's network-dirty flag - the player's skin DATA is never
+     * read, copied, or mutated here, so a player whose look this ever failed to refresh (e.g. a
+     * reveal skipped on a {@code null}-accessor disconnect/shutdown stop) self-heals with zero
+     * action on their next connect: the fresh-join skin setup rebuilds it from their account and
+     * a consumer's {@code PlayerReadyEvent} safety net re-networks it. Nothing about the wipe was
+     * ever persisted server-side.
+     */
+    private static void refreshPlayerSkinNetwork(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull Ref<EntityStore> ref) {
+        try {
+            PlayerSkinComponent skin = accessor.getComponent(ref, PlayerSkinComponent.getComponentType());
+            if (skin != null) {
+                skin.setNetworkOutdated();
+            }
+        } catch (Throwable t) {
+            fine("refreshPlayerSkinNetwork failed: " + t.getMessage());
         }
     }
 
