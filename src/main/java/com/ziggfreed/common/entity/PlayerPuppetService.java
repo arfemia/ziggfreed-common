@@ -114,6 +114,22 @@ public final class PlayerPuppetService {
     @Nullable
     public static Ref<EntityStore> spawn(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull PuppetSpawnRequest req) {
+        return spawn(accessor, req, null);
+    }
+
+    /**
+     * {@link #spawn(ComponentAccessor, PuppetSpawnRequest)} with a {@code preAdd} holder decorator
+     * run on the fully-built spawn {@link Holder} BEFORE it enters the store (the no-live-ref-race
+     * attach point a performer backend uses to put its own identity/ownership component on the
+     * puppet - the same {@code preAddToWorld} moment {@code NPCPlugin.spawnEntity} exposes for the
+     * NPC backend). {@code preAdd} runs after every built-in component (skin/model/hotbar/animation/
+     * {@code NonSerialized}) is on the holder, so a decorator can add to OR remove from that set; it
+     * is try-guarded so a bad decorator degrades to a spawn without the extra component, never a
+     * throw. Pass {@code null} for the plain spawn.
+     */
+    @Nullable
+    public static Ref<EntityStore> spawn(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull PuppetSpawnRequest req, @Nullable java.util.function.Consumer<Holder<EntityStore>> preAdd) {
         try {
             Ref<EntityStore> sourceRef = req.sourceRef();
             PlayerSkinComponent sourceSkin = accessor.getComponent(sourceRef, PlayerSkinComponent.getComponentType());
@@ -150,7 +166,21 @@ public final class PlayerPuppetService {
                 holder.addComponent(ActiveAnimationComponent.getComponentType(), activeAnim);
             }
 
-            holder.ensureComponent(EntityStore.REGISTRY.getNonSerializedComponentType());
+            // Persist=false (the default, matching every shipped transient puppet) marks the
+            // entity NonSerialized so a crash/restart never leaves an orphan; Persist=true reserves
+            // the future persistent-performer posture (survives relog, reconciled by an owning
+            // backend's identity sweep).
+            if (!req.persist()) {
+                holder.ensureComponent(EntityStore.REGISTRY.getNonSerializedComponentType());
+            }
+
+            if (preAdd != null) {
+                try {
+                    preAdd.accept(holder);
+                } catch (Throwable t) {
+                    fine("spawn preAdd decorator failed: " + t.getMessage());
+                }
+            }
 
             Ref<EntityStore> puppetRef = accessor.addEntity(holder, AddReason.SPAWN);
             if (puppetRef == null) {
@@ -683,6 +713,7 @@ public final class PlayerPuppetService {
         private final AnimationSlot initialAnimationSlot;
         @Nullable
         private final String initialClipId;
+        private final boolean persist;
 
         private PuppetSpawnRequest(@Nonnull Builder b) {
             this.sourceRef = b.sourceRef;
@@ -692,6 +723,7 @@ public final class PlayerPuppetService {
             this.heldItemIdOverride = b.heldItemIdOverride;
             this.initialAnimationSlot = b.initialAnimationSlot;
             this.initialClipId = b.initialClipId;
+            this.persist = b.persist;
         }
 
         /** The player whose live {@link PlayerSkin} (and, optionally, held item) the puppet clones. */
@@ -734,6 +766,15 @@ public final class PlayerPuppetService {
             return initialClipId;
         }
 
+        /**
+         * Whether the spawned puppet PERSISTS (serializes, survives a relog/restart). Default
+         * {@code false} - the transient posture every shipped puppet uses ({@code NonSerialized},
+         * a crash loses it). {@code true} reserves the future persistent-performer seam.
+         */
+        public boolean persist() {
+            return persist;
+        }
+
         @Nonnull
         public static Builder builder() {
             return new Builder();
@@ -751,6 +792,7 @@ public final class PlayerPuppetService {
             private AnimationSlot initialAnimationSlot;
             @Nullable
             private String initialClipId;
+            private boolean persist;
 
             /** The player whose live skin the puppet clones. Required. */
             @Nonnull
@@ -810,6 +852,17 @@ public final class PlayerPuppetService {
             public Builder initialAnimation(@Nullable AnimationSlot slot, @Nullable String clipId) {
                 this.initialAnimationSlot = slot;
                 this.initialClipId = clipId;
+                return this;
+            }
+
+            /**
+             * Whether the puppet persists (serializes / survives relog). Default {@code false}
+             * (transient {@code NonSerialized}, byte-identical to every shipped puppet); {@code
+             * true} skips the {@code NonSerialized} mark for a future persistent performer.
+             */
+            @Nonnull
+            public Builder persist(boolean persist) {
+                this.persist = persist;
                 return this;
             }
 
