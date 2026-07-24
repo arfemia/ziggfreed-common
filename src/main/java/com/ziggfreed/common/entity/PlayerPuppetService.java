@@ -1,5 +1,7 @@
 package com.ziggfreed.common.entity;
 
+import java.util.List;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -14,11 +16,13 @@ import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.protocol.AnimationSlot;
+import com.hypixel.hytale.protocol.MovementStates;
 import com.hypixel.hytale.protocol.PlayerSkin;
 import com.hypixel.hytale.server.core.asset.type.model.config.Model;
 import com.hypixel.hytale.server.core.cosmetics.CosmeticsModule;
 import com.hypixel.hytale.server.core.entity.AnimationUtils;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
+import com.hypixel.hytale.server.core.entity.movement.MovementStatesComponent;
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.SimpleItemContainer;
@@ -27,6 +31,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.EntityScaleCompon
 import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.player.PlayerSkinComponent;
+import com.hypixel.hytale.server.core.modules.physics.util.PhysicsMath;
 import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystems;
 import com.hypixel.hytale.server.core.modules.entity.tracker.NetworkId;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -225,6 +230,220 @@ public final class PlayerPuppetService {
         } catch (Throwable t) {
             fine("playAnimation failed: " + t.getMessage());
         }
+    }
+
+    // ==================== locomotion (walk a bare-Holder puppet along waypoints) ====================
+
+    /**
+     * Advances a puppet one tick along a {@code waypoints} polyline (e.g. from
+     * {@link PuppetNav#solve}) and returns the updated {@code progress}. The caller owns the CADENCE
+     * (call this every tick from its own scheduler) and the POLICY (walk speed, when the walk starts,
+     * what "arrived" means); this primitive owns only the per-tick MECHANISM: sample the point at the
+     * new arc-length and write it to the puppet's {@link TransformComponent} (position in place, yaw
+     * via {@link PhysicsMath#headingFromDirection} toward the current segment's heading).
+     *
+     * <p>The engine's own {@code TransformSystems.EntityTrackerUpdate} diffs the live
+     * {@link TransformComponent} against its last-sent transform EVERY tick and broadcasts the move,
+     * so an in-place position/yaw write (no {@code putComponent}) is the correct, engine-native
+     * networking path for ANY entity - no NPC/living-entity gate. Pair with
+     * {@link #setWalking}{@code (accessor, ref, true)} once at the walk's start so the client renders
+     * the walk-cycle animation from the puppet's cloned player rig (the {@code Walking} movement-state
+     * boolean drives it; no {@code AnimationSlot.Movement} clip call is needed).
+     *
+     * <p>{@code progress} is the arc-length (in blocks/metres) already travelled along the path; thread
+     * the RETURNED value back in as next tick's {@code progress}. It is clamped to the path length, so
+     * once it equals {@link #pathLength(List)} the puppet sits at the final waypoint and further ticks
+     * are no-ops - the caller detects arrival via {@link #isArrived(double, double, double)} (or by
+     * comparing the return to {@code pathLength}). No-op returning {@code progress} unchanged on an
+     * invalid ref, an empty path, or any engine failure (never throws).
+     *
+     * @param accessor a component accessor ({@link Store} or {@link CommandBuffer} both satisfy it).
+     * @param ref      the puppet entity.
+     * @param waypoints the ordered walk path (world feet positions); {@code null}/empty is a no-op.
+     * @param progress  arc-length already travelled this walk.
+     * @param speedMps  walk speed in blocks (metres) per second.
+     * @param dtMs      elapsed time this tick, in milliseconds.
+     * @return the new arc-length travelled (clamped to the path length).
+     */
+    public static double walkTick(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> ref,
+            @Nullable List<Vector3d> waypoints, double progress, double speedMps, double dtMs) {
+        if (ref == null || !ref.isValid() || waypoints == null || waypoints.isEmpty()) {
+            return progress;
+        }
+        try {
+            double[][] pts = toPointArray(waypoints);
+            double total = pathLength(pts);
+            double advanced = Math.max(0.0, progress) + Math.max(0.0, speedMps) * Math.max(0.0, dtMs) / 1000.0;
+            double clamped = Math.min(advanced, total);
+
+            WalkSample sample = sampleWalk(pts, clamped);
+
+            TransformComponent transform = accessor.getComponent(ref, TransformComponent.getComponentType());
+            if (transform != null) {
+                transform.getPosition().set(sample.x(), sample.y(), sample.z());
+                if (sample.dirX() != 0.0 || sample.dirZ() != 0.0) {
+                    transform.getRotation().setYaw(PhysicsMath.headingFromDirection(sample.dirX(), sample.dirZ()));
+                }
+            }
+            return clamped;
+        } catch (Throwable t) {
+            fine("walkTick failed: " + t.getMessage());
+            return progress;
+        }
+    }
+
+    /**
+     * Toggles the puppet's {@code Walking} movement state (adding a {@link MovementStatesComponent} on
+     * first use if the bare spawn holder has none - the engine's auto-add system is gated on a
+     * living-entity marker the puppet lacks, so it never fires for a bare Holder and the component
+     * must be added explicitly). The engine's generic {@code MovementStatesSystems.TickingSystem} diffs
+     * this component against its last-sent copy every tick and broadcasts the change with no NPC gate,
+     * so the cloned player rig renders the walk cycle purely from this boolean. Also sets
+     * {@code onGround = true} (a clean grounded pose) and mirrors {@code idle}/{@code horizontalIdle}
+     * to {@code !walking}.
+     *
+     * <p><b>Threading note.</b> The first call may ADD a component (a one-time archetype change), so
+     * invoke it where a component-add is legal for the given accessor: a {@link CommandBuffer} inside a
+     * tick-processing lock, or a {@link Store} outside one (never inside the damage pipeline). No-op
+     * (never throws) on an invalid ref or any engine failure.
+     *
+     * @param accessor a component accessor ({@link Store} or {@link CommandBuffer}).
+     * @param ref      the puppet entity.
+     * @param walking  {@code true} to walk, {@code false} to stand idle.
+     */
+    public static void setWalking(@Nonnull ComponentAccessor<EntityStore> accessor, @Nullable Ref<EntityStore> ref,
+            boolean walking) {
+        if (ref == null || !ref.isValid()) {
+            return;
+        }
+        try {
+            MovementStatesComponent component = accessor.getComponent(ref, MovementStatesComponent.getComponentType());
+            if (component == null) {
+                component = new MovementStatesComponent();
+                applyWalkState(component.getMovementStates(), walking);
+                accessor.putComponent(ref, MovementStatesComponent.getComponentType(), component);
+            } else {
+                // Mutate the live component in place; the ticking diff picks it up.
+                applyWalkState(component.getMovementStates(), walking);
+            }
+        } catch (Throwable t) {
+            warn("setWalking failed: " + t.getMessage(), t);
+        }
+    }
+
+    private static void applyWalkState(@Nonnull MovementStates states, boolean walking) {
+        states.walking = walking;
+        states.onGround = true;
+        states.idle = !walking;
+        states.horizontalIdle = !walking;
+    }
+
+    @Nonnull
+    private static double[][] toPointArray(@Nonnull List<Vector3d> waypoints) {
+        double[][] pts = new double[waypoints.size()][];
+        for (int i = 0; i < waypoints.size(); i++) {
+            Vector3d w = waypoints.get(i);
+            pts[i] = new double[] {w.x, w.y, w.z};
+        }
+        return pts;
+    }
+
+    // ==================== pure locomotion cores (unit-tested without a live server) ====================
+
+    /**
+     * PURE: total arc-length of a waypoint polyline (0 for {@code null}/empty/single-point paths).
+     * The {@link Vector3d} overload for a live caller; the pure {@code double[][]} form underneath is
+     * what the tests exercise.
+     */
+    public static double pathLength(@Nullable List<Vector3d> waypoints) {
+        if (waypoints == null || waypoints.size() < 2) {
+            return 0.0;
+        }
+        return pathLength(toPointArray(waypoints));
+    }
+
+    /** PURE: total arc-length of a {@code {x, y, z}} waypoint polyline. */
+    public static double pathLength(@Nonnull double[][] waypoints) {
+        double total = 0.0;
+        for (int i = 1; i < waypoints.length; i++) {
+            total += dist(waypoints[i - 1], waypoints[i]);
+        }
+        return total;
+    }
+
+    /**
+     * PURE: whether a walk is "arrived" - the travelled {@code progress} is within {@code epsilon} of
+     * (or past) the {@code pathLength}. The consumer's own arrival rule; kept here as a pure helper so
+     * it is testable and shared rather than re-derived per caller.
+     */
+    public static boolean isArrived(double progress, double pathLength, double epsilon) {
+        return progress >= pathLength - epsilon;
+    }
+
+    /**
+     * PURE: sample a {@code {x, y, z}} waypoint polyline at arc-length {@code distance}, returning the
+     * interpolated 3D position, the CURRENT segment's horizontal heading direction (for yaw; {@code (0,
+     * 0)} when the segment is purely vertical or the path is a single point), and an {@code arrived}
+     * flag ({@code distance} at/past the total length). {@code distance} is clamped to
+     * {@code [0, total]}. Unit-testable with no live server.
+     */
+    @Nonnull
+    public static WalkSample sampleWalk(@Nonnull double[][] waypoints, double distance) {
+        if (waypoints.length == 0) {
+            return new WalkSample(0, 0, 0, 0, 0, true);
+        }
+        double[] first = waypoints[0];
+        if (waypoints.length == 1) {
+            return new WalkSample(first[0], first[1], first[2], 0, 0, true);
+        }
+        double total = pathLength(waypoints);
+        if (distance <= 0.0) {
+            double[] second = waypoints[1];
+            return new WalkSample(first[0], first[1], first[2], second[0] - first[0], second[2] - first[2], false);
+        }
+        if (distance >= total) {
+            double[] last = waypoints[waypoints.length - 1];
+            double[] prev = waypoints[waypoints.length - 2];
+            return new WalkSample(last[0], last[1], last[2], last[0] - prev[0], last[2] - prev[2], true);
+        }
+
+        double travelled = 0.0;
+        for (int i = 1; i < waypoints.length; i++) {
+            double[] a = waypoints[i - 1];
+            double[] b = waypoints[i];
+            double segLen = dist(a, b);
+            if (segLen <= 0.0) {
+                continue;
+            }
+            if (travelled + segLen >= distance) {
+                double t = (distance - travelled) / segLen;
+                double x = a[0] + (b[0] - a[0]) * t;
+                double y = a[1] + (b[1] - a[1]) * t;
+                double z = a[2] + (b[2] - a[2]) * t;
+                return new WalkSample(x, y, z, b[0] - a[0], b[2] - a[2], false);
+            }
+            travelled += segLen;
+        }
+        // Numerical fall-through (only reachable on rounding): snap to the last point.
+        double[] last = waypoints[waypoints.length - 1];
+        double[] prev = waypoints[waypoints.length - 2];
+        return new WalkSample(last[0], last[1], last[2], last[0] - prev[0], last[2] - prev[2], true);
+    }
+
+    private static double dist(@Nonnull double[] a, @Nonnull double[] b) {
+        double dx = b[0] - a[0];
+        double dy = b[1] - a[1];
+        double dz = b[2] - a[2];
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    /**
+     * PURE immutable result of {@link #sampleWalk}: the interpolated position ({@code x}/{@code y}/
+     * {@code z}), the current segment's horizontal heading direction ({@code dirX}/{@code dirZ}, raw
+     * unnormalized - only the ratio matters for {@link PhysicsMath#headingFromDirection}), and whether
+     * the sample is at/past the path end ({@code arrived}).
+     */
+    public record WalkSample(double x, double y, double z, double dirX, double dirZ, boolean arrived) {
     }
 
     // ==================== held-item mirror refresh (post-spawn) ====================
