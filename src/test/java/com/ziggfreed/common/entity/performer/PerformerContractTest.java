@@ -164,17 +164,19 @@ class PerformerContractTest {
 
     @Test
     void fakePerformer_recordsDrivenSequence() {
+        ComponentAccessor<EntityStore> accessor = noopAccessor();
         FakePerformer p = new FakePerformer();
         assertFalse(p.isAlive());
         assertNull(p.ref());
 
         p.spawn(null);
         assertTrue(p.isAlive());
-        p.setProp(PropSpec.of("Tool_Hammer_Crude"));
-        p.playClip(ClipSpec.of(AnimationSlot.Emote, "RPG_Emote_Hammer"));
-        WalkHandle h = p.walkTo(new Vector3d(1, 64, 2), 2.5);
-        assertSame(WalkHandle.State.ARRIVED, h.poll(50.0));
-        p.despawn();
+        // Decision 55: every mutating call takes a fresh per-call accessor the driver threads.
+        p.setProp(accessor, PropSpec.of("Tool_Hammer_Crude"));
+        p.playClip(accessor, ClipSpec.of(AnimationSlot.Emote, "RPG_Emote_Hammer"));
+        WalkHandle h = p.walkTo(accessor, new Vector3d(1, 64, 2), 2.5);
+        assertSame(WalkHandle.State.ARRIVED, h.poll(accessor, 50.0));
+        p.despawn(accessor);
         assertFalse(p.isAlive());
 
         assertEquals(List.of("spawn", "setProp:Tool_Hammer_Crude", "playClip:RPG_Emote_Hammer",
@@ -193,30 +195,31 @@ class PerformerContractTest {
         }
 
         @Override
-        public void despawn() {
+        public void despawn(@Nonnull ComponentAccessor<EntityStore> accessor) {
             calls.add("despawn");
             alive = false;
         }
 
         @Override
-        public void presentAt(@Nonnull Vector3d pos, float yaw) {
+        public void presentAt(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d pos, float yaw) {
             calls.add("presentAt");
         }
 
         @Override
         @Nonnull
-        public WalkHandle walkTo(@Nonnull Vector3d target, double speedMps) {
+        public WalkHandle walkTo(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d target,
+                double speedMps) {
             calls.add("walkTo:" + target.x + "," + target.y + "," + target.z + "@" + speedMps);
             return new FakeWalkHandle(WalkHandle.State.ARRIVED);
         }
 
         @Override
-        public void setProp(@Nonnull PropSpec prop) {
+        public void setProp(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull PropSpec prop) {
             calls.add("setProp:" + prop.itemId());
         }
 
         @Override
-        public void playClip(@Nonnull ClipSpec clip) {
+        public void playClip(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull ClipSpec clip) {
             calls.add("playClip:" + clip.clipId());
         }
 
@@ -242,7 +245,7 @@ class PerformerContractTest {
 
         @Override
         @Nonnull
-        public State poll(double dtMs) {
+        public State poll(@Nonnull ComponentAccessor<EntityStore> accessor, double dtMs) {
             return state;
         }
 

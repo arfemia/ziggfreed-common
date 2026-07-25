@@ -2,13 +2,18 @@ package com.ziggfreed.common.entity.performer;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.component.ComponentAccessor;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
 /**
  * A poll-driven handle over one in-progress performer walk (from {@link StationPerformer#walkTo}).
- * The caller owns the CADENCE: it calls {@link #poll(double)} once per world-thread tick with the
- * elapsed {@code dtMs}, and reads the returned {@link State} to know when the walk is done. Both
- * backends poll, but the mechanism underneath differs (the bare-{@code Holder} handle advances the
- * puppet's transform along a solved polyline; the NPC handle measures distance to a marked target
- * the engine's own A* is driving), so arrival/stuck semantics are encapsulated per backend.
+ * The caller owns the CADENCE: it calls {@link #poll(ComponentAccessor, double)} once per
+ * world-thread tick with THIS frame's mutation accessor + the elapsed {@code dtMs} (decision 55 -
+ * a {@code CommandBuffer} cannot be captured across frames), and reads the returned {@link State}
+ * to know when the walk is done. Both backends poll, but the mechanism underneath differs (the
+ * bare-{@code Holder} handle advances the puppet's transform along a solved polyline; the NPC
+ * handle measures distance to a marked target the engine's own A* is driving), so arrival/stuck
+ * semantics are encapsulated per backend.
  */
 public interface WalkHandle {
 
@@ -25,12 +30,12 @@ public interface WalkHandle {
     }
 
     /**
-     * Advance the walk by {@code dtMs} and return the resulting {@link State}. A no-op returning the
-     * current terminal state once the walk is {@link #isDone()}; never throws (a lost performer
-     * degrades to {@link State#FAILED}).
+     * Advance the walk by {@code dtMs} through this frame's {@code accessor} and return the
+     * resulting {@link State}. A no-op returning the current terminal state once the walk is
+     * {@link #isDone()}; never throws (a lost performer degrades to {@link State#FAILED}).
      */
     @Nonnull
-    State poll(double dtMs);
+    State poll(@Nonnull ComponentAccessor<EntityStore> accessor, double dtMs);
 
     /** The current {@link State} without advancing. */
     @Nonnull

@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 
 import org.joml.Vector3d;
 
+import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
@@ -13,8 +14,17 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * ({@link HolderPerformer} = the bare-{@code Holder} skinned puppet, {@link NpcRolePerformer} = a
  * Role-driven {@code NPCEntity}) implement it, so a station-puppet controller drives ONE object and
  * never branches on the {@link PerformerLook.LookSource look source}. A performer is STATEFUL: it
- * owns its own spawned ref and captures the {@link PerformerSpawnCtx#world() world}/
- * {@link PerformerSpawnCtx#store() store} at {@link #spawn}, reusing them for every later method.
+ * owns its own spawned ref (and, backend-permitting, a captured spawn store).
+ *
+ * <p><b>Per-call mutation accessor (decision 55, 2026-07-24).</b> Every MUTATING method takes a
+ * fresh per-call {@link ComponentAccessor}{@code <EntityStore>} - a {@link com.hypixel.hytale.component.Store}
+ * or a {@link com.hypixel.hytale.component.CommandBuffer}, whichever the CALLER'S current frame
+ * legally holds. A {@code CommandBuffer} is valid ONLY for its own processing pass and cannot be
+ * captured across frames, so a station-puppet controller driving mutations from successive
+ * processing-locked frames (the {@code toggle()} interaction handler, the heartbeat frame drain)
+ * MUST thread a fresh accessor per call, exactly as the shipped {@code StationPuppetController}
+ * pattern proves. {@link #isAlive()}/{@link #ref()} stay read-only and param-less.
+ * {@link #spawn(PerformerSpawnCtx)} carries its accessor on {@link PerformerSpawnCtx#accessor()}.
  *
  * <p><b>Hide is deliberately NOT on this interface.</b> Hiding the real player is orthogonal to how
  * the double is rendered - it acts on the PLAYER (via {@code PlayerPuppetService.hideByScale},
@@ -30,25 +40,30 @@ public interface StationPerformer {
     /** Create the visible double at the anchor and apply the {@link PerformerLook}. */
     void spawn(@Nonnull PerformerSpawnCtx ctx);
 
-    /** Tear the double down. Idempotent; safe to call twice (a no-op once already gone). */
-    void despawn();
+    /**
+     * Tear the double down through the caller frame's {@code accessor}. Idempotent; safe to call
+     * twice (a no-op once already gone).
+     */
+    void despawn(@Nonnull ComponentAccessor<EntityStore> accessor);
 
     /** Place / re-anchor the double at {@code pos} facing {@code yaw} (a teleport-set). */
-    void presentAt(@Nonnull Vector3d pos, float yaw);
+    void presentAt(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d pos, float yaw);
 
     /**
      * Start moving the double toward {@code target} at {@code speedMps}, returning a poll-driven
      * {@link WalkHandle}. Never returns {@code null} (an unstartable walk yields a handle already in
-     * {@link WalkHandle.State#FAILED}).
+     * {@link WalkHandle.State#FAILED}). {@code accessor} is the STARTING frame's accessor (path
+     * solve + initial walk-state write); each subsequent {@link WalkHandle#poll} takes its OWN
+     * frame's accessor.
      */
     @Nonnull
-    WalkHandle walkTo(@Nonnull Vector3d target, double speedMps);
+    WalkHandle walkTo(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d target, double speedMps);
 
-    /** Set / swap / clear the held prop. */
-    void setProp(@Nonnull PropSpec prop);
+    /** Set / swap / clear the held prop through the caller frame's {@code accessor}. */
+    void setProp(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull PropSpec prop);
 
-    /** Fire a one-shot work animation. */
-    void playClip(@Nonnull ClipSpec clip);
+    /** Fire a one-shot work animation through the caller frame's {@code accessor}. */
+    void playClip(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull ClipSpec clip);
 
     /** Whether the double's ref is still valid (spawned and not yet despawned/lost). */
     boolean isAlive();

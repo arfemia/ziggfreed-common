@@ -6,6 +6,8 @@ import javax.annotation.Nullable;
 import org.joml.Vector3d;
 
 import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
@@ -205,10 +207,11 @@ public final class NpcRolePerformer implements StationPerformer {
                 return;
             }
 
-            // Initial prop, if any (best-effort NPC-native hotbar write).
+            // Initial prop, if any (best-effort NPC-native hotbar write) - through the concrete
+            // unlocked spawn store this doSpawn body already holds.
             PropSpec prop = ctx.initialProp();
             if (prop != null && !prop.isEmpty()) {
-                setProp(prop);
+                setProp(s, prop);
             }
         } catch (Throwable t) {
             warn("spawn failed: " + t.getMessage(), t);
@@ -227,28 +230,38 @@ public final class NpcRolePerformer implements StationPerformer {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Removes the marker + NPC through the caller frame's {@code accessor} (a {@code Store} OR a
+     * {@code CommandBuffer}, both carry {@code removeEntity(Ref, RemoveReason)}) - so a lock-held
+     * caller's {@code CommandBuffer} tears the NPC down tick-safely rather than throwing on the
+     * captured live store.
+     */
     @Override
-    public void despawn() {
-        Store<EntityStore> s = store;
-        if (s != null) {
-            removeRef(markerRef, s);
-            removeRef(npcRef, s);
-        }
+    public void despawn(@Nonnull ComponentAccessor<EntityStore> accessor) {
+        removeVia(markerRef, accessor);
+        removeVia(npcRef, accessor);
         markerRef = null;
         npcRef = null;
         npc = null;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Reads/writes the NPC's {@code TransformComponent} through the passed {@code accessor}; the
+     * leash re-anchor is an {@code NPCEntity} method (no store touch).
+     */
     @Override
-    public void presentAt(@Nonnull Vector3d pos, float yaw) {
-        Store<EntityStore> s = store;
+    public void presentAt(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d pos, float yaw) {
         Ref<EntityStore> ref = npcRef;
         NPCEntity n = npc;
-        if (s == null || ref == null || !ref.isValid()) {
+        if (ref == null || !ref.isValid()) {
             return;
         }
         try {
-            TransformComponent tc = s.getComponent(ref, TransformComponent.getComponentType());
+            TransformComponent tc = accessor.getComponent(ref, TransformComponent.getComponentType());
             if (tc != null) {
                 tc.getPosition().set(pos.x, pos.y, pos.z);
                 tc.getRotation().setYaw(yaw);
@@ -263,25 +276,38 @@ public final class NpcRolePerformer implements StationPerformer {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Clears any prior marker through the STARTING frame's {@code accessor}; the returned handle
+     * (re)binds the marked target, retrying the {@code getRole()}-null race on each poll (with that
+     * poll's own accessor).
+     */
     @Override
     @Nonnull
-    public WalkHandle walkTo(@Nonnull Vector3d target, double speedMps) {
-        Store<EntityStore> s = store;
+    public WalkHandle walkTo(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d target,
+            double speedMps) {
         Ref<EntityStore> ref = npcRef;
-        if (s == null || ref == null || !ref.isValid() || npc == null) {
+        if (ref == null || !ref.isValid() || npc == null) {
             return FailedWalkHandle.INSTANCE;
         }
-        // Replace any prior marker up front; the handle (re)binds the target, retrying the
-        // getRole()-null race on each poll.
-        removeRef(markerRef, s);
+        removeVia(markerRef, accessor);
         markerRef = null;
         return new NpcWalkHandle(new Vector3d(target));
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>{@code InventoryHelper.useItem} requires a concrete {@link Store} (an NPC-native surface),
+     * so this prefers the passed {@code accessor} when it IS a {@code Store} and otherwise falls
+     * back to the captured concrete spawn store; a {@code CommandBuffer}-only frame degrades to that
+     * captured store, try-guarded (best-effort - the NPC prop render is unproven per the seam design).
+     */
     @Override
-    public void setProp(@Nonnull PropSpec prop) {
-        Store<EntityStore> s = store;
+    public void setProp(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull PropSpec prop) {
         Ref<EntityStore> ref = npcRef;
+        Store<EntityStore> s = accessor instanceof Store<EntityStore> st ? st : store;
         if (s == null || ref == null || !ref.isValid()) {
             return;
         }
@@ -293,23 +319,29 @@ public final class NpcRolePerformer implements StationPerformer {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Reads/writes {@code ActiveAnimationComponent} and fires {@code AnimationUtils.playAnimation}
+     * (NEVER {@code NPCEntity.playAnimation}, the Emote-gate landmine) through the passed
+     * {@code accessor} - both surfaces take a {@link ComponentAccessor}.
+     */
     @Override
-    public void playClip(@Nonnull ClipSpec clip) {
-        Store<EntityStore> s = store;
+    public void playClip(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull ClipSpec clip) {
         Ref<EntityStore> ref = npcRef;
-        if (s == null || ref == null || !ref.isValid()) {
+        if (ref == null || !ref.isValid()) {
             return;
         }
         try {
-            ActiveAnimationComponent anim = s.getComponent(ref, ActiveAnimationComponent.getComponentType());
+            ActiveAnimationComponent anim = accessor.getComponent(ref, ActiveAnimationComponent.getComponentType());
             if (anim == null) {
                 anim = new ActiveAnimationComponent();
-                s.putComponent(ref, ActiveAnimationComponent.getComponentType(), anim);
+                accessor.putComponent(ref, ActiveAnimationComponent.getComponentType(), anim);
             }
             anim.setPlayingAnimation(clip.slot(), clip.clipId());
             // Direct AnimationUtils, NEVER NPCEntity.playAnimation (the Emote-gate landmine).
             AnimationUtils.playAnimation(ref, clip.slot(), clip.itemAnimationsId(), clip.clipId(),
-                    clip.sendToSelf(), s);
+                    clip.sendToSelf(), accessor);
         } catch (Throwable t) {
             fine("playClip failed: " + t.getMessage());
         }
@@ -326,32 +358,58 @@ public final class NpcRolePerformer implements StationPerformer {
         return npcRef;
     }
 
-    /** Spawns a bare, invisible (no ModelComponent), NonSerialized marker at {@code pos}. */
+    /** Spawns a bare, invisible (no ModelComponent), NonSerialized marker at {@code pos} via {@code accessor}. */
     @Nullable
-    private static Ref<EntityStore> spawnMarker(@Nonnull Store<EntityStore> store, @Nonnull Vector3d pos) {
+    private static Ref<EntityStore> spawnMarker(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d pos) {
         try {
             Rotation3f rot = new Rotation3f(0f, 0f, 0f);
             Holder<EntityStore> holder = EntityStore.REGISTRY.newHolder();
             holder.addComponent(TransformComponent.getComponentType(), new TransformComponent(pos, rot));
             holder.ensureComponent(UUIDComponent.getComponentType());
-            holder.addComponent(NetworkId.getComponentType(), new NetworkId(store.getExternalData().takeNextNetworkId()));
+            holder.addComponent(NetworkId.getComponentType(), new NetworkId(accessor.getExternalData().takeNextNetworkId()));
             holder.ensureComponent(EntityStore.REGISTRY.getNonSerializedComponentType());
-            return store.addEntity(holder, AddReason.SPAWN);
+            return accessor.addEntity(holder, AddReason.SPAWN);
         } catch (Throwable t) {
             fine("spawnMarker failed: " + t.getMessage());
             return null;
         }
     }
 
-    private static void removeRef(@Nullable Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+    /**
+     * Removes {@code ref} through the caller frame's {@code accessor} - dispatching on the concrete
+     * type ({@code ComponentAccessor.removeEntity} needs a {@code Holder} neither caller has; both
+     * {@code Store} and {@code CommandBuffer} carry {@code removeEntity(Ref, RemoveReason)}). No-op
+     * (never throws) on a gone ref or an accessor of neither concrete type.
+     */
+    private static void removeVia(@Nullable Ref<EntityStore> ref, @Nonnull ComponentAccessor<EntityStore> accessor) {
         if (ref == null || !ref.isValid()) {
             return;
         }
         try {
-            store.removeEntity(ref, RemoveReason.REMOVE);
+            if (accessor instanceof CommandBuffer<EntityStore> cb) {
+                cb.removeEntity(ref, RemoveReason.REMOVE);
+            } else if (accessor instanceof Store<EntityStore> st) {
+                st.removeEntity(ref, RemoveReason.REMOVE);
+            }
         } catch (Throwable t) {
-            fine("removeRef failed: " + t.getMessage());
+            fine("removeVia failed: " + t.getMessage());
         }
+    }
+
+    /** Best-effort marker removal via the captured concrete spawn store (for the accessor-less {@link WalkHandle#cancel}). */
+    private void removeMarkerViaCapturedStore() {
+        Store<EntityStore> s = store;
+        Ref<EntityStore> marker = markerRef;
+        if (s == null || marker == null || !marker.isValid()) {
+            markerRef = null;
+            return;
+        }
+        try {
+            s.removeEntity(marker, RemoveReason.REMOVE);
+        } catch (Throwable t) {
+            fine("cancel marker clear failed: " + t.getMessage());
+        }
+        markerRef = null;
     }
 
     /**
@@ -374,32 +432,31 @@ public final class NpcRolePerformer implements StationPerformer {
 
         @Override
         @Nonnull
-        public State poll(double dtMs) {
+        public State poll(@Nonnull ComponentAccessor<EntityStore> accessor, double dtMs) {
             if (state != State.WALKING) {
                 return state;
             }
-            Store<EntityStore> s = store;
             Ref<EntityStore> ref = npcRef;
             NPCEntity n = npc;
-            if (s == null || ref == null || !ref.isValid() || n == null) {
-                return finish(State.FAILED);
+            if (ref == null || !ref.isValid() || n == null) {
+                return finish(accessor, State.FAILED);
             }
             if (!bound) {
-                tryBind(s, n);
+                tryBind(accessor, n);
                 // Not yet bound (role brain not ticked): stay WALKING and retry next poll.
                 if (!bound) {
                     return state;
                 }
             }
 
-            TransformComponent tc = s.getComponent(ref, TransformComponent.getComponentType());
+            TransformComponent tc = accessor.getComponent(ref, TransformComponent.getComponentType());
             if (tc == null) {
-                return finish(State.FAILED);
+                return finish(accessor, State.FAILED);
             }
             Vector3d pos = tc.getPosition();
             double dist = PerformerWalkMath.horizontalDistance(pos.x, pos.z, target.x, target.z);
             if (PerformerWalkMath.arrived(dist, PerformerWalkMath.ARRIVE_RADIUS)) {
-                return finish(State.ARRIVED);
+                return finish(accessor, State.ARRIVED);
             }
             double moved = Math.abs(lastDist - dist);
             lastDist = dist;
@@ -410,7 +467,7 @@ public final class NpcRolePerformer implements StationPerformer {
             }
             if (PerformerWalkMath.stuck(moved, PerformerWalkMath.STUCK_EPS, stalledMs, PerformerWalkMath.STUCK_WINDOW_MS)) {
                 // A lenient near-miss counts as arrived; a true stall gives up.
-                return finish(PerformerWalkMath.nearMiss(dist, PerformerWalkMath.NEAR_MISS_RADIUS)
+                return finish(accessor, PerformerWalkMath.nearMiss(dist, PerformerWalkMath.NEAR_MISS_RADIUS)
                         ? State.ARRIVED : State.STUCK);
             }
             return state;
@@ -419,34 +476,26 @@ public final class NpcRolePerformer implements StationPerformer {
         /**
          * Terminal transition: latch {@code terminal} AND strip the invisible {@code MoveTarget}
          * marker the walk spawned (it exists only to be pathed toward, so it must not outlive the
-         * walk). No-op on the marker when the walk never bound one. Without this an ARRIVED walk
-         * stranded its marker until the NEXT {@code walkTo} / {@code despawn} / {@code cancel}, and
-         * the marker carries no {@link PerformerIdentityComponent} so {@code PerformerReconciler}
-         * never catches it.
+         * walk) through this frame's {@code accessor}. No-op on the marker when the walk never bound
+         * one. Without this an ARRIVED walk stranded its marker until the NEXT {@code walkTo} /
+         * {@code despawn} / {@code cancel}, and the marker carries no {@link PerformerIdentityComponent}
+         * so {@code PerformerReconciler} never catches it.
          */
         @Nonnull
-        private State finish(@Nonnull State terminal) {
+        private State finish(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull State terminal) {
             this.state = terminal;
-            clearMarker();
+            removeVia(markerRef, accessor);
+            markerRef = null;
             return terminal;
         }
 
-        /** Remove the invisible MoveTarget marker if one is live (no-op when never spawned). */
-        private void clearMarker() {
-            Store<EntityStore> s = store;
-            if (s != null) {
-                removeRef(markerRef, s);
-            }
-            markerRef = null;
-        }
-
-        private void tryBind(@Nonnull Store<EntityStore> s, @Nonnull NPCEntity n) {
+        private void tryBind(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull NPCEntity n) {
             Role role = n.getRole();
             if (role == null) {
                 return;
             }
             try {
-                Ref<EntityStore> marker = spawnMarker(s, target);
+                Ref<EntityStore> marker = spawnMarker(accessor, target);
                 if (marker == null) {
                     state = State.FAILED;
                     return;
@@ -469,10 +518,13 @@ public final class NpcRolePerformer implements StationPerformer {
 
         @Override
         public void cancel() {
+            // cancel() carries no accessor (decision 55 gives one only to poll); clear the marker
+            // best-effort through the captured concrete spawn store, which for a live NPC is a valid
+            // unlocked store (the deferral design guarantees doSpawn always captured an unlocked one).
             if (state == State.WALKING) {
                 state = State.FAILED;
             }
-            clearMarker();
+            removeMarkerViaCapturedStore();
         }
     }
 

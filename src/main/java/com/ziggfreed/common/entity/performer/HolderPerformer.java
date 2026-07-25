@@ -7,6 +7,8 @@ import javax.annotation.Nullable;
 
 import org.joml.Vector3d;
 
+import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -37,14 +39,17 @@ import com.ziggfreed.common.entity.performer.PerformerLook.LookSource;
  * <p><b>Spawn accessor (tick-safety):</b> {@link #spawn} threads {@link PerformerSpawnCtx#accessor()}
  * (a {@code Store} or a {@code CommandBuffer}) into {@code PlayerPuppetService.spawn}, so a lock-held
  * caller (inside {@code toggle()}/the heartbeat frame drain) spawns the puppet tick-safely, exactly
- * as the shipped {@code StationPuppetController} does. The captured {@code store}
- * ({@link PerformerSpawnCtx#store()}, {@code @Nullable}) backs the LATER world-thread methods
- * ({@code presentAt}/{@code walkTo}/{@code setProp}/{@code playClip}/{@code despawn}); it is present
- * for an unlocked caller (boot/command time) and {@code null} for a lock-held engage-time spawn (the
- * spawn accessor was a {@code CommandBuffer} and the fresh puppet ref is still pending), in which
- * case those later methods degrade to a guarded no-op until an unlocked caller drives them. Driving
- * a Holder's later MUTATIONS from inside a subsequent processing-locked frame is the wiring caller's
- * concern (a per-frame accessor), not resolved here.
+ * as the shipped {@code StationPuppetController} does.
+ *
+ * <p><b>Per-call mutation accessor (decision 55):</b> every later MUTATING method
+ * ({@code despawn}/{@code presentAt}/{@code walkTo}/{@code setProp}/{@code playClip} + the returned
+ * {@code WalkHandle.poll}) takes a FRESH per-call {@link ComponentAccessor} the wiring caller
+ * threads from its own current frame - the crowned {@code StationPuppetController} pattern, since a
+ * {@code CommandBuffer} is valid only for its own processing pass and cannot be captured across
+ * frames. This class therefore captures NO store for its mutations. The captured {@code world}
+ * (spawn-time) backs {@code walkTo}'s path solve; the captured {@code store}
+ * ({@link PerformerSpawnCtx#store()}, {@code @Nullable}) backs ONLY the spawn-time fixed-{@code Model}
+ * overlay (an unproven, unshipped look path), no-oping when a lock-held caller left it unset.
  *
  * <p>WORLD-THREAD ONLY; every engine call is try-guarded to a no-op, never a throw.
  */
@@ -138,22 +143,26 @@ public final class HolderPerformer implements StationPerformer {
     }
 
     @Override
-    public void despawn() {
-        if (store != null) {
-            PlayerPuppetService.despawn(puppetRef, store);
+    public void despawn(@Nonnull ComponentAccessor<EntityStore> accessor) {
+        // PlayerPuppetService.despawn needs the CONCRETE type (ComponentAccessor.removeEntity wants
+        // a Holder neither caller has), so dispatch on which accessor this frame handed us - the
+        // CommandBuffer route is byte-parity with the shipped StationPuppetController.
+        if (accessor instanceof CommandBuffer<EntityStore> cb) {
+            PlayerPuppetService.despawn(puppetRef, cb);
+        } else if (accessor instanceof Store<EntityStore> st) {
+            PlayerPuppetService.despawn(puppetRef, st);
         }
         puppetRef = null;
     }
 
     @Override
-    public void presentAt(@Nonnull Vector3d pos, float yaw) {
-        Store<EntityStore> s = store;
+    public void presentAt(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d pos, float yaw) {
         Ref<EntityStore> ref = puppetRef;
-        if (s == null || ref == null || !ref.isValid()) {
+        if (ref == null || !ref.isValid()) {
             return;
         }
         try {
-            TransformComponent tc = s.getComponent(ref, TransformComponent.getComponentType());
+            TransformComponent tc = accessor.getComponent(ref, TransformComponent.getComponentType());
             if (tc != null) {
                 tc.getPosition().set(pos.x, pos.y, pos.z);
                 tc.getRotation().setYaw(yaw);
@@ -165,24 +174,24 @@ public final class HolderPerformer implements StationPerformer {
 
     @Override
     @Nonnull
-    public WalkHandle walkTo(@Nonnull Vector3d target, double speedMps) {
-        Store<EntityStore> s = store;
+    public WalkHandle walkTo(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d target,
+            double speedMps) {
         World w = world;
         Ref<EntityStore> ref = puppetRef;
-        if (s == null || w == null || ref == null || !ref.isValid()) {
+        if (w == null || ref == null || !ref.isValid()) {
             return FailedWalkHandle.INSTANCE;
         }
         try {
-            TransformComponent tc = s.getComponent(ref, TransformComponent.getComponentType());
+            TransformComponent tc = accessor.getComponent(ref, TransformComponent.getComponentType());
             if (tc == null) {
                 return FailedWalkHandle.INSTANCE;
             }
             Vector3d from = new Vector3d(tc.getPosition());
-            List<Vector3d> waypoints = PuppetNav.solve(w, s, from, target, PuppetNav.DEFAULT_MAX_RADIUS);
+            List<Vector3d> waypoints = PuppetNav.solve(w, accessor, from, target, PuppetNav.DEFAULT_MAX_RADIUS);
             if (waypoints == null || waypoints.isEmpty()) {
                 return FailedWalkHandle.INSTANCE;
             }
-            PlayerPuppetService.setWalking(s, ref, true);
+            PlayerPuppetService.setWalking(accessor, ref, true);
             return new HolderWalkHandle(waypoints, speedMps);
         } catch (Throwable t) {
             fine("walkTo failed: " + t.getMessage());
@@ -191,24 +200,22 @@ public final class HolderPerformer implements StationPerformer {
     }
 
     @Override
-    public void setProp(@Nonnull PropSpec prop) {
-        Store<EntityStore> s = store;
+    public void setProp(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull PropSpec prop) {
         Ref<EntityStore> ref = puppetRef;
-        if (s == null || ref == null) {
+        if (ref == null) {
             return;
         }
         String resolved = prop.isEmpty() ? null : prop.itemId();
-        this.lastMirroredItemId = PlayerPuppetService.updateHeldItem(s, ref, lastMirroredItemId, resolved);
+        this.lastMirroredItemId = PlayerPuppetService.updateHeldItem(accessor, ref, lastMirroredItemId, resolved);
     }
 
     @Override
-    public void playClip(@Nonnull ClipSpec clip) {
-        Store<EntityStore> s = store;
+    public void playClip(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull ClipSpec clip) {
         Ref<EntityStore> ref = puppetRef;
-        if (s == null || ref == null) {
+        if (ref == null) {
             return;
         }
-        PlayerPuppetService.playAnimation(s, ref, clip.slot(), clip.itemAnimationsId(),
+        PlayerPuppetService.playAnimation(accessor, ref, clip.slot(), clip.itemAnimationsId(),
                 clip.clipId(), clip.sendToSelf());
     }
 
@@ -241,19 +248,18 @@ public final class HolderPerformer implements StationPerformer {
 
         @Override
         @Nonnull
-        public State poll(double dtMs) {
+        public State poll(@Nonnull ComponentAccessor<EntityStore> accessor, double dtMs) {
             if (state != State.WALKING) {
                 return state;
             }
-            Store<EntityStore> s = store;
             Ref<EntityStore> ref = puppetRef;
-            if (s == null || ref == null || !ref.isValid()) {
+            if (ref == null || !ref.isValid()) {
                 state = State.FAILED;
                 return state;
             }
-            progress = PlayerPuppetService.walkTick(s, ref, waypoints, progress, speedMps, dtMs);
+            progress = PlayerPuppetService.walkTick(accessor, ref, waypoints, progress, speedMps, dtMs);
             if (PlayerPuppetService.isArrived(progress, total, ARRIVE_EPS)) {
-                PlayerPuppetService.setWalking(s, ref, false);
+                PlayerPuppetService.setWalking(accessor, ref, false);
                 state = State.ARRIVED;
             }
             return state;
@@ -267,12 +273,12 @@ public final class HolderPerformer implements StationPerformer {
 
         @Override
         public void cancel() {
+            // cancel() carries no accessor (decision 55 gives one only to poll), so it just latches
+            // the terminal state; the walk's own MovementStates "walking" flag naturally settles when
+            // no further walkTick advances it (the next poll returns FAILED without moving). No engine
+            // mutation here - a stale captured CommandBuffer would be invalid, and a fresh accessor is
+            // not available at cancel time.
             if (state == State.WALKING) {
-                Store<EntityStore> s = store;
-                Ref<EntityStore> ref = puppetRef;
-                if (s != null && ref != null && ref.isValid()) {
-                    PlayerPuppetService.setWalking(s, ref, false);
-                }
                 state = State.FAILED;
             }
         }

@@ -11,18 +11,27 @@ sections 4b-4d) + decisions 46-54 in `rpg-stations-extraction-design.md`.
 ## The contract
 
 - **[`StationPerformer`](StationPerformer.java)** - the seven-method seam:
-  `spawn(PerformerSpawnCtx)` / `despawn()` / `presentAt(pos, yaw)` /
-  `walkTo(target, speedMps) -> WalkHandle` / `setProp(PropSpec)` / `playClip(ClipSpec)` /
-  `isAlive()` + `ref()`. A performer is STATEFUL: it captures the spawn `world`/`store` and its own
-  spawned ref, reusing them for every later WORLD-THREAD call (all try-guarded to a no-op).
+  `spawn(PerformerSpawnCtx)` / `despawn(accessor)` / `presentAt(accessor, pos, yaw)` /
+  `walkTo(accessor, target, speedMps) -> WalkHandle` / `setProp(accessor, prop)` /
+  `playClip(accessor, clip)` / `isAlive()` + `ref()`. **PER-CALL MUTATION ACCESSOR (decision 55,
+  2026-07-24):** every MUTATING method takes a FRESH per-call `ComponentAccessor<EntityStore>` (a
+  `Store` OR a `CommandBuffer`) the caller threads from its OWN current frame - a `CommandBuffer` is
+  valid only for its own processing pass and cannot be captured across frames, so a station-puppet
+  controller driving from successive processing-locked frames (`toggle()`, the heartbeat drain)
+  MUST hand a fresh accessor per call (the crowned `StationPuppetController` pattern). `isAlive()`/
+  `ref()` stay read-only + param-less; `spawn` carries its accessor on `PerformerSpawnCtx.accessor()`.
+  A performer is STATEFUL only for its own spawned ref (+ the spawn `world` for the Holder walk
+  solve / the NPC captured concrete store where an NPC-native surface demands one).
   **Hide is deliberately OFF this interface** - hiding the real player acts on the PLAYER (via
   `PlayerPuppetService.hideByScale`) and stays caller-owned regardless of backend. The caller calls
   `setProp`/`playClip` UNCONDITIONALLY; each backend decides what it can do (the NPC backend's
   prop/clip are best-effort until in-game-proven) without the caller knowing which backend it holds.
-- **[`WalkHandle`](WalkHandle.java)** - a poll-driven handle over one walk (`poll(dtMs) -> State`,
-  `isDone()`, `cancel()`); `State` = WALKING/ARRIVED/STUCK/FAILED. The caller owns the cadence (one
-  `poll` per tick). Arrival/stuck semantics are encapsulated per backend. A never-started walk
-  yields the singleton `FailedWalkHandle`.
+- **[`WalkHandle`](WalkHandle.java)** - a poll-driven handle over one walk (`poll(accessor, dtMs) ->
+  State`, `isDone()`, `cancel()`); `State` = WALKING/ARRIVED/STUCK/FAILED. The caller owns the
+  cadence (one `poll` per tick, each with THAT frame's accessor per decision 55). `cancel()` carries
+  NO accessor (it just latches terminal; the Holder settles when no `walkTick` advances it, the NPC
+  clears its marker best-effort via the captured concrete store). Arrival/stuck semantics are
+  encapsulated per backend. A never-started walk yields the singleton `FailedWalkHandle`.
 
 ## The two backends
 
@@ -33,8 +42,10 @@ sections 4b-4d) + decisions 46-54 in `rpg-stations-extraction-design.md`.
   (resolution ladder `modelId -> fallbackModelId -> leave the clone`, never a red-X). Walk = the
   bounded-A* `PuppetNav.solve` polyline advanced by `PlayerPuppetService.walkTick`. `spawn` threads
   `ctx.accessor()` (a `Store` or a `CommandBuffer`) into `PlayerPuppetService.spawn` so a lock-held
-  engage-time caller spawns the puppet tick-safely; the captured `store` (nullable) backs the later
-  methods and no-ops when a lock-held caller left it unset.
+  engage-time caller spawns the puppet tick-safely; every LATER mutation threads the caller frame's
+  own per-call accessor (decision 55 - no captured store for mutations), `despawn` dispatching
+  Store-vs-CommandBuffer for the concrete `PlayerPuppetService.despawn` overload. The captured
+  `store` (nullable) backs ONLY the spawn-time fixed-`Model` overlay (unproven, unshipped path).
 - **[`NpcRolePerformer`](NpcRolePerformer.java)** - the Role-driven `NPCEntity`, the spike-proven
   mechanism promoted to a backend (native `MotionControllerWalk` gait + engine A*). `spawn` =
   `NPCPlugin.spawnEntity` with the cloned-skin model (or role default), `preAddToWorld` attaches the
@@ -68,8 +79,9 @@ sections 4b-4d) + decisions 46-54 in `rpg-stations-extraction-design.md`.
     CommandBuffer; NPC defers via `world.execute`, one-tick latency); *boot-time* (reconcile /
     plugin `setup()` via `world.execute`, unlocked) = `.liveStore(store)` (both backends
     synchronous); *command-time* (an unlocked command with a live store) = `.liveStore(store)`.
-    Later-frame Holder MUTATIONS (drive/despawn) from inside a subsequent processing lock still need
-    a per-frame accessor the wiring caller threads - NOT resolved by this ctx (it is spawn-scoped).
+    Later-frame Holder MUTATIONS (drive/despawn) from inside a subsequent processing lock take a
+    per-frame accessor on the `StationPerformer` method itself (decision 55) - this ctx is
+    spawn-scoped; the mutation accessor is the per-call param, not a captured ctx handle.
 - **[`PropSpec`](PropSpec.java)** / **[`ClipSpec`](ClipSpec.java)** - value inputs. `PropSpec` = one
   item id or empty hands. `ClipSpec` = slot + optional item-animation set + clip id + sendToSelf
   (the full `AnimationUtils.playAnimation` knob set, so the Holder swing stays byte-parity and the
