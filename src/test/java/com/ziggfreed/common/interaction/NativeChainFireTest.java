@@ -1,5 +1,6 @@
 package com.ziggfreed.common.interaction;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.hypixel.hytale.protocol.InteractionType;
@@ -28,5 +29,16 @@ class NativeChainFireTest {
     @Test
     void fire_nullInteractionId_isANoOp() {
         assertFalse(NativeChainFire.fire(null, null, null, InteractionType.Ability1));
+    }
+
+    @Test
+    void fire_withDecorator_nullStoreAndRef_decoratorIsNeverInvoked() {
+        int[] invocations = {0};
+
+        boolean result = NativeChainFire.fire(null, null, "Some_Interaction", InteractionType.Ability1,
+                ctx -> invocations[0]++);
+
+        assertFalse(result);
+        assertEquals(0, invocations[0]);
     }
 }

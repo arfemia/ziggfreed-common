@@ -1,5 +1,20 @@
 # cast/ - reusable cast / ability runtime primitives
 
+**FROZEN this cycle: zero file edits, zero deletions, zero signature changes.** A monorepo-wide
+grep (`import com\.ziggfreed\.common\.cast`) shows every class in `cast/` and `cast/step/` has
+at least one live importer: rpg-stations imports `step.CastKernel`/`StepHandler`/`StepRegistry`/
+`StepSemantics` plus `AbstractWorldFrameSystem`/`WorldEvictors`/`WorldKeyedQueues`/
+`ModelParticleService` (`cast.step` is its station-PROGRAM engine, a consumer with zero relation
+to abilities); mmo-mob-scaling imports `OnHitRegistry`/`CastParams`; the hyMMO MMO imports nearly
+every class in both packages including `step.CastKernel`/`step.StepSemantics`. Deleting or
+renaming anything here breaks a shipped sibling mod this cycle is not touching, so the cast /
+ability rewrite lands as a NEW tree instead: the generic interaction-composition framework now
+lives in [`../interaction/`](../interaction/CLAUDE.md) (+ `interaction/type/`, `interaction/param/`,
+`interaction/target/`) and COMPOSES with these primitives rather than replacing them -
+`interaction/target/` builds its sweeps on `RaycastTargeting` + `BlockRaystep`, and a consumer's
+custom interaction Types keep dispatching hits through `HitResolver` and keep their per-world
+ticker registered on the `WorldKeyedQueues`/`WorldEvictors` partition exactly as before.
+
 Router for `com.ziggfreed.common.cast` (+ `cast.step`). The mod-agnostic runtime seams a consumer's cast / ability system needs: the generic step-dispatch KERNEL, an on-hit builder registry, a per-hit resolver, a per-caster armed-state store, a guarded observer registry, ray + block targeting, and the per-world tick partition (frame gate, world-keyed queues, evictor fan-out, and the abstract drain system). Lifted config-free from a consumer; every engine-touching call is try-guarded to a no-op / `false`, and world-thread work is asserted in javadoc, not enforced. No content, no ids, no step vocabulary baked in - the consumer supplies all types and registers all policy. The layer is ADDITIVE-ONLY once frozen (new methods / overloads / `HitContext` fields OK; renames / removals / callback-widening forbidden).
 
 ## Step-dispatch kernel (`cast.step`)

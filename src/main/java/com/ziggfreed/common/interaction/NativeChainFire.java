@@ -1,6 +1,9 @@
 package com.ziggfreed.common.interaction;
 
+import java.util.function.Consumer;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -61,6 +64,35 @@ public final class NativeChainFire {
      */
     public static boolean fire(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> casterRef,
                                @Nonnull String interactionId, @Nonnull InteractionType interactionType) {
+        return fire(store, casterRef, interactionId, interactionType, null);
+    }
+
+    /**
+     * As {@link #fire(Store, Ref, String, InteractionType)}, but with a decorator invoked on the
+     * freshly-built {@link InteractionContext} AFTER {@code initChain} and BEFORE {@code
+     * queueExecuteChain} - the per-fire context door. Pair with {@code
+     * com.ziggfreed.common.interaction.param.CastScopes#decorator(CastScope)} to attach a {@code
+     * CastScope} that every node in the chain, INCLUDING every Selector hit fork, can read back (a
+     * fork is a {@code context.duplicate()}, which copies the meta store).
+     *
+     * <p><b>A missing id is still a hard no-op</b>, never the engine's silent stub. The engine's own
+     * {@code RootInteraction.getRootInteractionIdOrUnknown} resolves an unknown id to an empty
+     * 0-operation placeholder and merely logs a WARNING - a typo would silently fire a chain that
+     * does nothing, with no signal at the call site. This util instead resolves via a direct {@code
+     * RootInteraction.getAssetMap().getAsset(id)} lookup and treats {@code null} as a hard failure.
+     *
+     * <p><b>{@code forceRemoteSync=false} does NOT keep a chain server-only.</b> {@code
+     * InteractionManager.initChain} ORs the caller's {@code forceRemoteSync} argument with the
+     * root's own {@code rootInteraction.needsRemoteSync()} ({@code InteractionChain}'s {@code
+     * requiresClient} field), so ANY chain containing a client-package op still syncs to the owning
+     * client even though this util always passes {@code false} here.
+     *
+     * <p>A decorator that throws is caught, logged once (guarded WARN), and the chain STILL FIRES -
+     * a broken decoration must never swallow a cast.
+     */
+    public static boolean fire(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> casterRef,
+                               @Nonnull String interactionId, @Nonnull InteractionType interactionType,
+                               @Nullable Consumer<InteractionContext> decorator) {
         try {
             InteractionManager manager = store.getComponent(casterRef,
                     InteractionModule.get().getInteractionManagerComponent());
@@ -76,6 +108,13 @@ public final class NativeChainFire {
             InteractionContext context = InteractionContext.forInteraction(
                     manager, casterRef, interactionType, store);
             InteractionChain chain = manager.initChain(interactionType, context, root, false);
+            if (decorator != null) {
+                try {
+                    decorator.accept(context);
+                } catch (Throwable t) {
+                    warn("decorator failed for '" + interactionId + "': " + t.getMessage());
+                }
+            }
             manager.queueExecuteChain(chain);
             return true;
         } catch (Throwable t) {

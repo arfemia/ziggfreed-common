@@ -1,0 +1,219 @@
+package com.ziggfreed.common.interaction;
+
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import com.hypixel.hytale.protocol.InteractionType;
+import com.hypixel.hytale.server.core.entity.InteractionContext;
+import com.hypixel.hytale.server.core.entity.InteractionManager;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.data.Collector;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.data.CollectorTag;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.data.StringTag;
+import com.ziggfreed.common.util.SafeLog;
+
+/**
+ * Transitive, CYCLE-GUARDED, fail-soft resolution of a {@code RootInteraction} chain into its
+ * reachable interaction nodes - for validators (does this chain contain a damage node? does every
+ * ref resolve?) and description renderers (walk the chain, render a fragment per node).
+ *
+ * <p><b>The engine ships no cycle or depth guard anywhere</b> (compile() recurses raw and the
+ * chain tick loop has no cap). A self-referencing fragment stack-overflows the server at load.
+ * This walker is the guard, and a public fragment library is unsafe without it.
+ *
+ * <p><b>Mechanism.</b> The walk rides the engine's own {@code
+ * InteractionManager.walkChain(Collector, InteractionType, InteractionContext, RootInteraction)}
+ * with a guarding {@code Collector}, so it follows each concrete node's OWN declared child refs
+ * (including fork edges such as {@code SelectInteraction}'s {@code HitEntity}/{@code
+ * HitEntityRules}) - strictly more than the flat compiled {@code getOperation(i)} view used by
+ * {@code com.ziggfreed.mmoskilltree.ability.NativeChainAudit} (the narrower prior art this
+ * generalizes past), which is blind to forks that dispatch to a separately-compiled chain.
+ *
+ * <p><b>Two engine limitations are surfaced, not hidden.</b>
+ * <ol>
+ *   <li>The engine {@code Collector} contract has no "prune this branch" return - {@code
+ *       walkInteraction} does {@code if (collector.collect(...)) return true;} and that {@code
+ *       true} propagates all the way out, so a detected cycle or an exceeded cap ENDS THE ENTIRE
+ *       WALK, not just the offending branch. The result carries the flag plus everything collected
+ *       so far, never a partial-branch skip.</li>
+ *   <li>{@code walkInteraction} THROWS {@code IllegalArgumentException("Failed to find
+ *       interaction: <id>")} on an unresolvable child id rather than skipping it; this is caught
+ *       and reported as {@link ChainWalk#aborted()} + {@link ChainWalk#abortReason()} with the
+ *       engine message, never silently swallowed.</li>
+ * </ol>
+ *
+ * <p><b>Cycle detection is IDENTITY-based on the current path</b>, which is sound because
+ * interaction assets are decode-once immutable singletons shared by every firing entity - the same
+ * {@code Interaction} instance re-appearing on its own ancestor path can only mean a cycle in the
+ * authored content, never two different casts colliding.
+ *
+ * <p>Not reachable from a unit JVM once it touches the asset stores (they need an engine
+ * bootstrap); the argument guards short-circuit before that, and every engine touch beyond the
+ * guards is inside one {@code catch (Throwable)}.
+ */
+public final class ChainWalker {
+
+    public static final int DEFAULT_MAX_DEPTH = 32;
+    public static final int DEFAULT_MAX_NODES = 512;
+
+    private ChainWalker() {
+    }
+
+    /** As {@link #walk(String, InteractionType, int, int)} with the default depth/node caps. */
+    @Nonnull
+    public static ChainWalk walk(@Nullable String rootInteractionId, @Nullable InteractionType type) {
+        return walk(rootInteractionId, type, DEFAULT_MAX_DEPTH, DEFAULT_MAX_NODES);
+    }
+
+    /** As {@link #walk(String, InteractionType, int, int, InteractionContext)} with no live context. */
+    @Nonnull
+    public static ChainWalk walk(@Nullable String rootInteractionId, @Nullable InteractionType type,
+                                 int maxDepth, int maxNodes) {
+        return walk(rootInteractionId, type, maxDepth, maxNodes, null);
+    }
+
+    /**
+     * @param context a live context to walk under, or {@code null} to use {@code
+     *                InteractionContext.withoutEntity()}. A static, entity-less walk cannot resolve
+     *                item {@code InteractionVars}, so a {@code Replace} slot may take its default
+     *                branch; pass a live context when that matters.
+     */
+    @Nonnull
+    public static ChainWalk walk(@Nullable String rootInteractionId, @Nullable InteractionType type,
+                                 int maxDepth, int maxNodes, @Nullable InteractionContext context) {
+        ChainWalk.Builder builder = ChainWalk.builder(rootInteractionId);
+        if (rootInteractionId == null || rootInteractionId.isBlank() || type == null) {
+            return builder.rootResolved(false).build();
+        }
+        try {
+            RootInteraction root = RootInteraction.getAssetMap().getAsset(rootInteractionId);
+            if (root == null) {
+                return builder.rootResolved(false).build();
+            }
+            builder.rootResolved(true);
+
+            InteractionContext effectiveContext = context != null ? context : InteractionContext.withoutEntity();
+            GuardingCollector collector = new GuardingCollector(builder, maxDepth, maxNodes);
+            try {
+                InteractionManager.walkChain(collector, type, effectiveContext, root);
+            } catch (IllegalArgumentException e) {
+                String reason = e.getMessage() != null ? e.getMessage() : "unresolvable interaction id";
+                SafeLog.warn("[interaction] chain walk aborted for '" + rootInteractionId + "': " + reason);
+                builder.aborted(reason);
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[interaction] chain walk failed for '" + rootInteractionId + "'", t);
+            builder.aborted("chain walk failed: " + t.getMessage());
+        }
+        return builder.build();
+    }
+
+    /**
+     * The guarding {@link Collector}: mirrors {@code into}/{@code outof} into an identity-based
+     * ancestor path (root's null frame handled as a non-pushing frame), records a {@link ChainNode}
+     * per {@code collect}, and stops the walk (returns {@code true}) on a cycle, an exceeded depth,
+     * or an exhausted node budget.
+     */
+    private static final class GuardingCollector implements Collector {
+
+        @Nonnull
+        private final ChainWalk.Builder builder;
+        private final int maxDepth;
+        private final int maxNodes;
+
+        /** Mirrors every {@code into}/{@code outof} pair, including the root's null frame. */
+        @Nonnull
+        private final Deque<Boolean> frames = new ArrayDeque<>();
+        /** Identity-based ancestor path of real (non-null) interactions currently being walked. */
+        @Nonnull
+        private final List<Interaction> path = new ArrayList<>();
+        private int nodeCount;
+
+        private GuardingCollector(@Nonnull ChainWalk.Builder builder, int maxDepth, int maxNodes) {
+            this.builder = builder;
+            this.maxDepth = maxDepth;
+            this.maxNodes = maxNodes;
+        }
+
+        @Override
+        public void start() {
+            // No state to reset: one GuardingCollector instance backs exactly one walk.
+        }
+
+        @Override
+        public void into(@Nonnull InteractionContext context, @Nullable Interaction interaction) {
+            if (interaction != null) {
+                path.add(interaction);
+                frames.push(Boolean.TRUE);
+            } else {
+                frames.push(Boolean.FALSE);
+            }
+        }
+
+        @Override
+        public boolean collect(@Nonnull CollectorTag tag, @Nonnull InteractionContext context,
+                               @Nonnull Interaction interaction) {
+            int depth = path.size();
+            boolean cycle = isOnPath(interaction);
+
+            ChainNode node = ChainNode.of(interaction, interaction.getId(), depth, tagLabel(tag));
+            builder.node(node);
+            nodeCount++;
+
+            if (cycle) {
+                builder.cycleAt(node);
+                return true;
+            }
+            if (depth > maxDepth) {
+                builder.depthExceeded(true);
+                return true;
+            }
+            if (nodeCount >= maxNodes) {
+                builder.nodeLimitExceeded(true);
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public void outof() {
+            Boolean pushedReal = frames.isEmpty() ? Boolean.FALSE : frames.pop();
+            if (Boolean.TRUE.equals(pushedReal) && !path.isEmpty()) {
+                path.remove(path.size() - 1);
+            }
+        }
+
+        @Override
+        public void finished() {
+            // Nothing further to reconcile: a stop is already reflected on `builder` by whichever
+            // collect() call returned true, and a normal completion leaves every flag false.
+        }
+
+        private boolean isOnPath(@Nonnull Interaction interaction) {
+            for (Interaction ancestor : path) {
+                if (ancestor == interaction) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    @Nonnull
+    private static String tagLabel(@Nullable CollectorTag tag) {
+        if (tag == null || tag == CollectorTag.ROOT) {
+            return "ROOT";
+        }
+        if (tag instanceof StringTag stringTag) {
+            String value = stringTag.getTag();
+            return value != null ? value : "ROOT";
+        }
+        return tag.toString();
+    }
+}
