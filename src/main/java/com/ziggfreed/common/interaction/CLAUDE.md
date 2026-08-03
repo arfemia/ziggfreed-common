@@ -79,3 +79,15 @@ holds chain FIRE + chain WALK; three sub-packages extend the same charter with t
     which silently stubs an unknown id). Default context is `InteractionContext.withoutEntity()` -
     an entity-less walk cannot resolve item `InteractionVars`, so a `Replace` slot may take its
     default branch; pass a live context when that matters.
+  - **Supplemental blind-slot pass ([`EngineWalkGaps`](EngineWalkGaps.java), 2026-08-03).** The
+    engine's own `interaction.walk()` coverage MISSES several child-bearing codec slots (a Type
+    adding a child field without overriding `walk()` inherits `SimpleInteraction.walk`'s
+    Next/Failed-only visit): `ApplyForce.GroundNext`/`CollisionNext`, `Charging.Forks` (+
+    inherited by `Wielding`, whose own `BlockedInteractions` is also blind),
+    `MovementCondition`'s 8 direction slots, `Chaining.Flags`, `RunOnBlockTypes.Interactions`,
+    and `RunRootInteraction`'s ENTIRE payload (which is also invisible to the engine's static
+    `needsRemoteSync()` scan - the requiresClient landmine). After the engine walk,
+    `ChainWalker` re-walks every collected node's gap slots through the same guarding collector
+    (reflective field reads, dual Interaction/RootInteraction id resolution, identity-set
+    once-per-node cap so gap-slot cycles terminate). Source-verified against shared source
+    `6cdea5ead`; a reflective miss on an engine update degrades to skip + one WARN per class.

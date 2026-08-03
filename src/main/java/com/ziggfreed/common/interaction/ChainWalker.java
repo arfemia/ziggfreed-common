@@ -2,8 +2,11 @@ package com.ziggfreed.common.interaction;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -102,6 +105,7 @@ public final class ChainWalker {
             GuardingCollector collector = new GuardingCollector(builder, maxDepth, maxNodes);
             try {
                 InteractionManager.walkChain(collector, type, effectiveContext, root);
+                walkEngineGapSlots(collector, effectiveContext);
             } catch (IllegalArgumentException e) {
                 String reason = e.getMessage() != null ? e.getMessage() : "unresolvable interaction id";
                 SafeLog.warn("[interaction] chain walk aborted for '" + rootInteractionId + "': " + reason);
@@ -115,10 +119,80 @@ public final class ChainWalker {
     }
 
     /**
+     * SUPPLEMENTAL pass over the engine's blind slots ({@link EngineWalkGaps}): the engine's own
+     * {@code interaction.walk()} coverage misses several child-bearing codec slots (a Type that
+     * adds a child field without overriding {@code walk()} inherits the Next/Failed-only
+     * {@code SimpleInteraction.walk} - {@code ApplyForce.GroundNext}/{@code CollisionNext},
+     * {@code Charging.Forks}, {@code MovementCondition}'s 8 direction slots,
+     * {@code RunRootInteraction}'s entire payload, ...). Without this pass a validator riding the
+     * walk is blind to whole authored subtrees (the motivating bug: native {@code Selector} AOE
+     * sweeps hidden inside {@code GroundNext} continuations never reached the ability validator).
+     *
+     * <p>Runs AFTER the engine walk, treating the collected node list as a growing worklist: for
+     * each node with known gap slots, every referenced id is resolved against the STORE its slot
+     * codec declares ({@code SlotRef.rootRef} - never a cross-store guess: ids like
+     * {@code Goblin_Duke_Magic_1} exist in BOTH stores) and walked through the SAME guarding
+     * collector, so caps and cycle budgets still apply and newly discovered nodes get their own
+     * gap slots processed too. A missing id follows the ENGINE's own per-slot contract
+     * ({@code SlotRef.tolerant}): the {@code get*OrUnknown}-resolved slots degrade to skip + one
+     * guarded warn, only the {@code Interaction.CHILD_ASSET_CODEC} slots share
+     * {@code walkInteraction}'s throwing abort.
+     *
+     * <p>Known bounds, deliberate: an identity set caps each node's gap-slot EXPANSION at once,
+     * so a cycle through a gap slot terminates - but a re-visited subtree IS re-collected (its
+     * nodes appear again in {@code walk.nodes()}; a cross-supplement cycle therefore surfaces as
+     * the node budget, not {@code cycleAt}, since the ancestor is no longer on the live path).
+     * Depth for supplemented subtrees restarts near zero (the engine path context has unwound) -
+     * node identity and the node budget, not depth, are the meaningful guards here.
+     */
+    private static void walkEngineGapSlots(@Nonnull GuardingCollector collector,
+                                           @Nonnull InteractionContext context) {
+        Set<Interaction> supplemented = Collections.newSetFromMap(new IdentityHashMap<>());
+        List<Interaction> order = collector.collectedOrder;
+        for (int i = 0; i < order.size() && !collector.stopped; i++) {
+            Interaction node = order.get(i);
+            if (!supplemented.add(node)) {
+                continue;
+            }
+            for (EngineWalkGaps.SlotRef ref : EngineWalkGaps.missedRefsOf(node)) {
+                if (collector.stopped) {
+                    return;
+                }
+                if (ref.rootRef()) {
+                    RootInteraction gapRoot = RootInteraction.getAssetMap().getAsset(ref.id());
+                    if (gapRoot == null) {
+                        if (!ref.tolerant()) {
+                            throw new IllegalArgumentException("Failed to find interaction: " + ref.id());
+                        }
+                        SafeLog.fine("[interaction] gap-slot root '" + ref.id()
+                                + "' unresolved (engine-tolerant slot) - skipped");
+                        continue;
+                    }
+                    if (InteractionManager.walkInteractions(collector, context, ref.tag(), gapRoot.getInteractionIds())) {
+                        return;
+                    }
+                    continue;
+                }
+                if (Interaction.getAssetMap().getAsset(ref.id()) == null && ref.tolerant()) {
+                    SafeLog.fine("[interaction] gap-slot interaction '" + ref.id()
+                            + "' unresolved (engine-tolerant slot) - skipped");
+                    continue;
+                }
+                // Strict Interaction slot: walkInteraction itself throws on a miss, matching the
+                // engine's own CHILD_ASSET_CODEC contract.
+                if (InteractionManager.walkInteraction(collector, context, ref.tag(), ref.id())) {
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
      * The guarding {@link Collector}: mirrors {@code into}/{@code outof} into an identity-based
      * ancestor path (root's null frame handled as a non-pushing frame), records a {@link ChainNode}
      * per {@code collect}, and stops the walk (returns {@code true}) on a cycle, an exceeded depth,
-     * or an exhausted node budget.
+     * or an exhausted node budget. Also records the collected interactions in walk order plus a
+     * {@code stopped} latch, feeding {@link #walkEngineGapSlots}' worklist.
      */
     private static final class GuardingCollector implements Collector {
 
@@ -133,6 +207,11 @@ public final class ChainWalker {
         /** Identity-based ancestor path of real (non-null) interactions currently being walked. */
         @Nonnull
         private final List<Interaction> path = new ArrayList<>();
+        /** Every collected interaction in walk order - {@link #walkEngineGapSlots}' worklist. */
+        @Nonnull
+        private final List<Interaction> collectedOrder = new ArrayList<>();
+        /** Latched when any {@code collect} stopped the walk (cycle / depth / node budget). */
+        private boolean stopped;
         private int nodeCount;
 
         private GuardingCollector(@Nonnull ChainWalk.Builder builder, int maxDepth, int maxNodes) {
@@ -164,18 +243,22 @@ public final class ChainWalker {
 
             ChainNode node = ChainNode.of(interaction, interaction.getId(), depth, tagLabel(tag));
             builder.node(node);
+            collectedOrder.add(interaction);
             nodeCount++;
 
             if (cycle) {
                 builder.cycleAt(node);
+                stopped = true;
                 return true;
             }
             if (depth > maxDepth) {
                 builder.depthExceeded(true);
+                stopped = true;
                 return true;
             }
             if (nodeCount >= maxNodes) {
                 builder.nodeLimitExceeded(true);
+                stopped = true;
                 return true;
             }
             return false;
