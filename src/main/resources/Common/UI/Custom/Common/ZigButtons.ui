@@ -8,8 +8,7 @@ $C = "../Common.ui";
 // only, NO LabelStyle) for the vanilla `Button` ELEMENT - which, unlike a
 // `TextButton`, wraps a child `Label #Label` whose text is pushed via .TextSpans so
 // PARAMETERIZED / composite localized text actually substitutes (a TextButton .Text
-// prints the literal "{0}{1}"). Authority: the hyMMO repo's
-// .claude/research/hytale-rich-text-textspans.md.
+// prints the literal "{0}{1}").
 //
 // THEME-TINTABLE: the native Secondary.png 9-slice patch with a per-state neutral
 // Color tint - the SAME retint-ready form as @ZigOptionBtnStyle, so a theme can
