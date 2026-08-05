@@ -155,12 +155,15 @@ public final class GeneratedLangPack {
     /**
      * Build a fresh IMMUTABLE {@code .zip} from every {@code Server/Languages/<locale>/*.lang} file
      * under {@code stagingRoot} plus a root {@code manifest.json}, then register it RUNTIME via
-     * {@code AssetModule.registerPack} (unregistering any prior registration of the same id first,
-     * so a re-invocation refreshes rather than logging a duplicate). The zip is written to a
-     * sibling temp file and atomically moved into place, so {@code registerPack} - which opens the
-     * path via {@code FileSystems.newFileSystem} - never observes a half-written archive. Guarded:
-     * any failure returns {@code false} (logged at fine level) and leaves any prior registration
-     * untouched, never a throw into the caller.
+     * {@code AssetModule.registerPack}. Ordering is load-bearing: any prior same-id registration is
+     * unregistered BEFORE the rebuild, because {@code registerPack} holds an open
+     * {@code FileSystem} on the zip and Windows refuses the rebuild's move-into-place over an open
+     * handle - the old rebuild-then-unregister order failed the move deterministically on every
+     * re-invocation while registered. The zip is written to a sibling temp file and atomically
+     * moved into place, so {@code registerPack} never observes a half-written archive. Guarded:
+     * any failure returns {@code false} (logged at fine level); if the rebuild fails after the
+     * unregister, the previous on-disk zip is re-registered best-effort so clients keep the
+     * last-known-good catalog rather than losing the overlay entirely.
      *
      * @return {@code true} once the pack registered (or re-registered) successfully.
      */
@@ -169,9 +172,6 @@ public final class GeneratedLangPack {
         try {
             Semver semver = Semver.fromString(version);
             Path zip = zipTarget.toAbsolutePath().normalize();
-            if (!rebuildZip(stagingRoot, zip, group, name, semver)) {
-                return false;
-            }
             PluginManifest manifest = buildManifest(group, name, semver, description);
             String packId = new PluginIdentifier(manifest).toString();
             AssetModule am = AssetModule.get();
@@ -179,13 +179,24 @@ public final class GeneratedLangPack {
                 warn("registerZipPack", "AssetModule unavailable - '" + packId + "' not registered");
                 return false;
             }
-            // Unregister any stale same-id registration so a re-invocation opens a fresh
-            // FileSystem onto the rebuilt zip (registerPack treats a duplicate id at the same
-            // priority as a mistake and no-ops the swap otherwise).
+            // Unregister BEFORE rebuilding (see the javadoc ordering note): a registered zip is
+            // held open by the engine and cannot be replaced on Windows. First call: nothing
+            // registered, the unregister is a guarded no-op.
             try {
                 am.unregisterPack(packId);
             } catch (Throwable ignored) {
                 // no prior registration on the first call; nothing to unregister
+            }
+            if (!rebuildZip(stagingRoot, zip, group, name, semver)) {
+                // Fail-soft restore: keep serving the previous zip if one exists on disk.
+                if (Files.isRegularFile(zip)) {
+                    try {
+                        am.registerPack(packId, zip, manifest, AssetPack.PackSource.RUNTIME);
+                    } catch (Throwable ignored) {
+                        // restore is best-effort; the rebuild failure was already logged
+                    }
+                }
+                return false;
             }
             boolean ok = am.registerPack(packId, zip, manifest, AssetPack.PackSource.RUNTIME);
             if (!ok) {
