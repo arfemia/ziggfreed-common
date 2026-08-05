@@ -39,11 +39,12 @@ import com.ziggfreed.common.ZiggfreedCommonPlugin;
  * <p><b>{@code forceRemoteSync=false} does NOT keep a chain server-only.</b> {@code
  * InteractionManager.initChain} ORs the caller's {@code forceRemoteSync} argument with the root's
  * own {@code rootInteraction.needsRemoteSync()} ({@code InteractionChain}'s {@code requiresClient}
- * field), so ANY chain containing a client-package op still syncs to the owning client even though
- * this util always passes {@code false} here. A real player's client then needs to actually
- * execute the same root (desync risk if the id needs client ops the caller's client doesn't
- * expect); an NPC/entity-less caller auto-runs {@code simulationTick} server-side, no real client
- * needed.
+ * field), so ANY chain containing a client-package op still syncs to the owning client even when
+ * the caller passes {@code false} (which the three shorter overloads all do). A real player's
+ * client then needs to actually execute the same root (desync risk if the id needs client ops the
+ * caller's client doesn't expect); an NPC/entity-less caller auto-runs {@code simulationTick}
+ * server-side, no real client needed. The REVERSE case - a chain whose client node the engine's
+ * shallow scan cannot see - is what the {@code forceRemoteSync} overload exists for.
  *
  * <p><b>World-thread only</b> (reads/mutates the entity's {@code InteractionManager} component);
  * the caller guarantees the thread. Every engine touch is try-guarded, so a missing component, an
@@ -85,7 +86,8 @@ public final class NativeChainFire {
      * InteractionManager.initChain} ORs the caller's {@code forceRemoteSync} argument with the
      * root's own {@code rootInteraction.needsRemoteSync()} ({@code InteractionChain}'s {@code
      * requiresClient} field), so ANY chain containing a client-package op still syncs to the owning
-     * client even though this util always passes {@code false} here.
+     * client even though this overload passes {@code false}. To force the flag ON for a chain whose
+     * client node the engine's own scan cannot see, use the {@code forceRemoteSync} overload.
      *
      * <p>A decorator that throws is caught, logged once (guarded WARN), and the chain STILL FIRES -
      * a broken decoration must never swallow a cast.
@@ -93,6 +95,31 @@ public final class NativeChainFire {
     public static boolean fire(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> casterRef,
                                @Nonnull String interactionId, @Nonnull InteractionType interactionType,
                                @Nullable Consumer<InteractionContext> decorator) {
+        return fire(store, casterRef, interactionId, interactionType, decorator, false);
+    }
+
+    /**
+     * As {@link #fire(Store, Ref, String, InteractionType, Consumer)}, but with the engine's
+     * {@code forceRemoteSync} flag passed straight through to {@code InteractionManager.initChain}.
+     *
+     * <p><b>What the flag does.</b> {@code initChain} ORs it with the root's OWN {@code
+     * needsRemoteSync()}, and {@code InteractionChain} freezes the result as {@code requiresClient}
+     * for the whole chain, so {@code true} FORCES the chain to be synced to the owning client even
+     * when the engine's own static scan concluded no client was needed. That scan is a shallow one
+     * (an OR over the root's top-level nodes, recursing only through a {@code Simple} node's
+     * {@code Next}/{@code Failed}), so it MISSES a client node inlined by a {@code Serial} wrapper
+     * or reached through a {@code RunRootInteraction} reference. Such a chain otherwise stalls the
+     * server on data the client was never asked for, and the engine cancels it at the ping-scaled
+     * timeout. Pass {@code true} when the caller KNOWS the chain contains a client-run node.
+     *
+     * <p>{@code false} is the exact behaviour of the shorter overloads and is never a guarantee
+     * the chain stays server-only: the root's own declaration still wins where it says {@code
+     * true}. Forcing it on a chain that genuinely needs no client costs one sync packet and makes
+     * the client run a chain it has nothing to contribute to, so declare it, do not default it.
+     */
+    public static boolean fire(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> casterRef,
+                               @Nonnull String interactionId, @Nonnull InteractionType interactionType,
+                               @Nullable Consumer<InteractionContext> decorator, boolean forceRemoteSync) {
         try {
             InteractionManager manager = store.getComponent(casterRef,
                     InteractionModule.get().getInteractionManagerComponent());
@@ -107,7 +134,7 @@ public final class NativeChainFire {
             }
             InteractionContext context = InteractionContext.forInteraction(
                     manager, casterRef, interactionType, store);
-            InteractionChain chain = manager.initChain(interactionType, context, root, false);
+            InteractionChain chain = manager.initChain(interactionType, context, root, forceRemoteSync);
             if (decorator != null) {
                 try {
                     decorator.accept(context);

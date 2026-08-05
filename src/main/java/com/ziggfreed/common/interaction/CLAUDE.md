@@ -35,16 +35,27 @@ holds chain FIRE + chain WALK; three sub-packages extend the same charter with t
     fork is a `context.duplicate()` that copies the meta store) can read back. A throwing decorator
     is caught, logged once (guarded WARN), and the chain STILL FIRES - a broken decoration never
     swallows a cast. The 4-arg form is unchanged (delegates with a null decorator).
+  - **`forceRemoteSync` overload**: `fire(store, casterRef, interactionId, interactionType,
+    decorator, boolean forceRemoteSync)` - the flag goes straight to `initChain`, which ORs it with
+    the root's own `needsRemoteSync()` and freezes the result as the chain's `requiresClient`. The
+    engine's own derivation is SHALLOW (an OR over the root's TOP-LEVEL nodes, recursing only
+    through a `Simple`'s `Next`/`Failed`), so it misses a client node inlined by a `Serial` wrapper
+    or reached through a `RunRootInteraction` ref - such a chain stalls the server on client data
+    nobody was asked for and is cancelled at the ping-scaled timeout. Pass `true` when the CALLER
+    knows the chain contains a client-run node; the three shorter overloads all pass `false` and
+    are unchanged. Forcing it on a genuinely server-only chain costs a sync packet and makes the
+    client run a chain it cannot contribute to, so it is a declaration, never a default.
 - **Fail-closed, one guarded log per failure path**: no `InteractionManager` component on the
   entity (guarded FINE), an unresolved `interactionId` (guarded WARN), or any engine throw
   (guarded WARN) all degrade to `false` - never propagate, never fall through to `initChain` with
   an unresolved root.
 - **`forceRemoteSync=false` is NOT a guarantee the chain stays server-only** - `initChain` ORs the
   caller's argument with the root's OWN `needsRemoteSync()`, so a chain containing a client-package
-  op still syncs to the owning client's game state even when this util always passes `false`. A
+  op still syncs to the owning client's game state even when the caller passes `false`. A
   real player's client must be able to execute the same root (desync risk if the chain needs
   client ops the caller's client doesn't expect); an entity-less/NPC caller auto-runs
-  `simulationTick` server-side instead, no real client needed.
+  `simulationTick` server-side instead, no real client needed. The REVERSE case (a client node the
+  engine's shallow scan cannot see) is what the `forceRemoteSync` overload above is for.
 - **World-thread only** (reads/mutates the entity's `InteractionManager` component); the caller
   guarantees the thread. Lifted config-free out of the same mechanism a consumer mod's own
   `NativeChainFire` already proved in production (the seam-wave lift target for that consumer's
