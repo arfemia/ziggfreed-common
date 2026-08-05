@@ -1,5 +1,6 @@
 package com.ziggfreed.common.dialogue.page;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -39,8 +40,12 @@ import com.ziggfreed.common.ui.toast.ToastablePage;
 /**
  * The generic branching NPC dialogue page: a name header, an optional one-line
  * annotation, the localized node text, one button per option whose conditions
- * pass, and an implicit "Farewell" close row. Conditions re-evaluate on EVERY
- * render (state changes show immediately) and AGAIN on click before actions run.
+ * pass, and an implicit "Farewell" close row when none of the rendered options
+ * already closes the dialogue themselves (see {@link DialogueOption#anyCloses};
+ * an option filtered out by its own conditions never reaches the rendered list,
+ * so a currently-hidden Close option still yields the implicit row).
+ * Conditions re-evaluate on EVERY render (state changes show immediately) and
+ * AGAIN on click before actions run.
  * All consumer policy (per-player state, the npc name, the annotation, the router,
  * the i18n namespace) is supplied through {@link DialoguePageDeps}; the page itself
  * is mod-agnostic.
@@ -127,6 +132,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
 
         List<DialogueOption> options = node.getOptions();
         int row = 0;
+        List<DialogueOption> renderedOptions = new ArrayList<>();
         for (int i = 0; i < options.size(); i++) {
             DialogueOption option = options.get(i);
             if (option.hasConditions() && !engine.conditionsPass(option.getConditions(), ctx)) {
@@ -142,9 +148,12 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
                             .append("Node", currentNodeId)
                             .append("Option", Integer.toString(i)),
                     false);
+            renderedOptions.add(option);
             row++;
         }
-        appendFarewellRow(commandBuilder, eventBuilder, i18n, row);
+        if (!DialogueOption.anyCloses(renderedOptions)) {
+            appendFarewellRow(commandBuilder, eventBuilder, i18n, row);
+        }
         // LAST: the toast overlay draws over the dialogue; inert unless a completion toast is live.
         renderToastInto(commandBuilder);
     }

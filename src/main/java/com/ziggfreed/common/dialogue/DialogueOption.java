@@ -62,6 +62,33 @@ public class DialogueOption {
         return actions == null ? Collections.emptyList() : List.of(actions);
     }
 
+    /** True when this option's authored actions include a genuine {@link DialogueAction.Close}. */
+    public boolean closesDialogue() {
+        for (DialogueAction action : getActions()) {
+            if (action instanceof DialogueAction.Close) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * True when any option in the list {@linkplain #closesDialogue() closes the dialogue}.
+     * Tested on the AUTHORED ACTION, never on {@link DialogueOptionStyle#FAREWELL}: an author
+     * can force {@code Style: "farewell"} on an option that does not actually close (a themed
+     * prompt), and treating a cosmetic closer as a real exit would let a page suppress the only
+     * real way out of a node. The page's implicit-farewell policy hangs off this (a rendered
+     * node with no closing option gets the implicit "Farewell" row appended).
+     */
+    public static boolean anyCloses(@Nonnull List<DialogueOption> options) {
+        for (DialogueOption option : options) {
+            if (option.closesDialogue()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Per-option colour/icon override, or null (fall back to the action-derived style). */
     @Nullable public Presentation getPresentation() { return presentation; }
 
