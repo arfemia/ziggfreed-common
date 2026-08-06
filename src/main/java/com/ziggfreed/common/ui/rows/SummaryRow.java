@@ -33,14 +33,14 @@ import com.hypixel.hytale.server.core.Message;
  * metadata for the caller (deciding fixed-slot ordering or a per-kind icon fallback); {@link
  * SummaryRowRenderer} does NOT branch on it - every row renders identically (icon + {@code
  * TextSpans}), so a row's look is entirely how its {@link #text()} was composed. The values are
- * generic reward-ledger roles ({@link Kind#XP} progression, {@link Kind#CONSUMED} spent, {@link
- * Kind#PRODUCED} gained, {@link Kind#LUCKY} bonus), not tied to any one consumer's domain.
+ * generic reward-ledger roles ({@link Kind#PROGRESS} advancement, {@link Kind#CONSUMED} spent,
+ * {@link Kind#PRODUCED} gained, {@link Kind#LUCKY} bonus), not tied to any one consumer's domain.
  */
 public final class SummaryRow {
 
     /** Semantic role a row was built from; purely descriptive, not read by the renderer. */
     public enum Kind {
-        XP, CONSUMED, PRODUCED, LUCKY, ENHANCE
+        PROGRESS, CONSUMED, PRODUCED, LUCKY, ENHANCE
     }
 
     @Nonnull
