@@ -15,9 +15,13 @@ import com.hypixel.hytale.server.core.ui.Value;
  * {@code Height} and pins EXACTLY ONE edge per axis, so an offset moves the panel instead of being
  * neutralized by an opposing edge stretch.
  *
- * <p>Config-facing form: a named corner preset ({@code TOP_LEFT}, {@code TOP_CENTER}, ...,
- * {@code CENTER}, ..., {@code BOTTOM_RIGHT}) plus offsets, parsed by {@link #parse}. The offsets measure
- * from the pinned edge(s); for a {@code CENTER} axis they shift the centred element.
+ * <p>Config-facing form: a named corner preset plus offsets, parsed by {@link #parse}. The preferred
+ * authored spelling is PascalCase ({@code TopLeft}, {@code TopCenter}, ..., {@code Center}, ...,
+ * {@code BottomRight}), matching every other id in a consumer's own schema; the legacy SCREAMING_SNAKE
+ * spelling ({@code TOP_LEFT}, {@code TOP_CENTER}, ...) is accepted as an alias since parsing strips
+ * underscores and case before matching, so {@code TopCenter}, {@code TOP_CENTER}, {@code top_center}, and
+ * {@code topcenter} all resolve identically. The offsets measure from the pinned edge(s); for a
+ * {@code CENTER} axis they shift the centred element.
  *
  * <p>This value carries NO consumer-specific defaults - a consumer supplies its own default position
  * (e.g. a HUD's own {@code defaultPosition()}). Lifted into ziggfreed-common so every mod's HUD reads
@@ -47,9 +51,12 @@ public final class HudPosition {
     }
 
     /**
-     * Parse a named corner preset ({@code "TOP_LEFT"}, {@code "CENTER_RIGHT"}, {@code "BOTTOM_CENTER"},
-     * plain {@code "CENTER"}, case-insensitive + whitespace-tolerant) + offsets into a
-     * {@code HudPosition}; {@code null} for an unrecognized preset (the caller falls back to its default
+     * Parse a named corner preset (preferred PascalCase {@code "TopLeft"}, {@code "CenterRight"},
+     * {@code "BottomCenter"}, plain {@code "Center"}; the legacy SCREAMING_SNAKE spelling
+     * {@code "TOP_LEFT"} etc. is accepted as an alias) + offsets into a {@code HudPosition}; matching is
+     * case-insensitive and underscore-insensitive (uppercased with underscores stripped before matching),
+     * so {@code "TopCenter"}, {@code "TOP_CENTER"}, {@code "top_center"}, and {@code "topcenter"} all
+     * resolve identically. {@code null} for an unrecognized preset (the caller falls back to its default
      * and may warn).
      */
     @Nullable
@@ -57,16 +64,17 @@ public final class HudPosition {
         if (preset == null) {
             return null;
         }
-        return switch (preset.trim().toUpperCase(Locale.ROOT)) {
-            case "TOP_LEFT" -> new HudPosition(AnchorEdge.TOP, HorizontalEdge.LEFT, offsetX, offsetY);
-            case "TOP_CENTER" -> new HudPosition(AnchorEdge.TOP, HorizontalEdge.CENTER, offsetX, offsetY);
-            case "TOP_RIGHT" -> new HudPosition(AnchorEdge.TOP, HorizontalEdge.RIGHT, offsetX, offsetY);
-            case "CENTER_LEFT" -> new HudPosition(AnchorEdge.CENTER, HorizontalEdge.LEFT, offsetX, offsetY);
+        String normalized = preset.trim().toUpperCase(Locale.ROOT).replace("_", "");
+        return switch (normalized) {
+            case "TOPLEFT" -> new HudPosition(AnchorEdge.TOP, HorizontalEdge.LEFT, offsetX, offsetY);
+            case "TOPCENTER" -> new HudPosition(AnchorEdge.TOP, HorizontalEdge.CENTER, offsetX, offsetY);
+            case "TOPRIGHT" -> new HudPosition(AnchorEdge.TOP, HorizontalEdge.RIGHT, offsetX, offsetY);
+            case "CENTERLEFT" -> new HudPosition(AnchorEdge.CENTER, HorizontalEdge.LEFT, offsetX, offsetY);
             case "CENTER" -> new HudPosition(AnchorEdge.CENTER, HorizontalEdge.CENTER, offsetX, offsetY);
-            case "CENTER_RIGHT" -> new HudPosition(AnchorEdge.CENTER, HorizontalEdge.RIGHT, offsetX, offsetY);
-            case "BOTTOM_LEFT" -> new HudPosition(AnchorEdge.BOTTOM, HorizontalEdge.LEFT, offsetX, offsetY);
-            case "BOTTOM_CENTER" -> new HudPosition(AnchorEdge.BOTTOM, HorizontalEdge.CENTER, offsetX, offsetY);
-            case "BOTTOM_RIGHT" -> new HudPosition(AnchorEdge.BOTTOM, HorizontalEdge.RIGHT, offsetX, offsetY);
+            case "CENTERRIGHT" -> new HudPosition(AnchorEdge.CENTER, HorizontalEdge.RIGHT, offsetX, offsetY);
+            case "BOTTOMLEFT" -> new HudPosition(AnchorEdge.BOTTOM, HorizontalEdge.LEFT, offsetX, offsetY);
+            case "BOTTOMCENTER" -> new HudPosition(AnchorEdge.BOTTOM, HorizontalEdge.CENTER, offsetX, offsetY);
+            case "BOTTOMRIGHT" -> new HudPosition(AnchorEdge.BOTTOM, HorizontalEdge.RIGHT, offsetX, offsetY);
             default -> null;
         };
     }
