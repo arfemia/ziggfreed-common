@@ -42,6 +42,11 @@ import javax.annotation.Nullable;
  * is a string compare / {@code startsWith} / {@code endsWith} / {@code contains}; a consumer
  * caches the resolution per world. Pure logic, zero engine coupling. Feature-matched to the
  * MMO's {@code WorldRulesMatcher} (this is the shared dedupe of that shape).
+ *
+ * <p>The pre-parse itself is exposed as {@link Pattern} so a consumer that needs the
+ * SPECIFICITY of a match (not just the winner) can score one - {@link MatchRank} is built
+ * straight off {@link Pattern#kind()} + {@link Pattern#coreLength()}. {@link Entry} is a
+ * {@link Pattern} plus a payload, so there is exactly one parse implementation.
  */
 public final class WorldNameMatcher {
 
@@ -49,7 +54,7 @@ public final class WorldNameMatcher {
     }
 
     /** Match kind, in descending anchoring rank (used only as a tie-break on equal core length). */
-    private enum Kind {
+    public enum Kind {
         EXACT,     // no wildcard
         PREFIX,    // trailing "*"
         SUFFIX,    // leading "*"
@@ -57,19 +62,21 @@ public final class WorldNameMatcher {
         ALL        // bare "*" (or "**"): the catch-all default
     }
 
-    /** One authored rule: a pre-parsed match pattern bound to its payload. */
-    public static final class Entry<T> {
+    /**
+     * One pre-parsed match pattern: its {@link Kind} plus its lower-cased literal core
+     * (the pattern minus any leading/trailing {@code *}). Parse once at load, then match
+     * many times. Also the scoring input for {@link MatchRank}.
+     */
+    public static final class Pattern {
+
         /** Raw pattern as authored, for diagnostics / validation (e.g. {@code "dungeon_i*"}). */
         @Nonnull
-        public final String pattern;
+        public final String raw;
         private final Kind kind;
         private final String core; // lower-cased pattern minus any leading/trailing "*"; "" for ALL
-        @Nonnull
-        public final T payload;
 
-        public Entry(@Nonnull String pattern, @Nonnull T payload) {
-            this.pattern = pattern;
-            this.payload = payload;
+        public Pattern(@Nonnull String pattern) {
+            this.raw = pattern;
             String p = pattern.trim().toLowerCase(Locale.ROOT);
             boolean lead = p.startsWith("*");
             boolean trail = p.endsWith("*");
@@ -95,22 +102,85 @@ public final class WorldNameMatcher {
             }
         }
 
-        boolean isDefaultRule() {
+        /** Parse {@code pattern} into its kind + literal core. */
+        @Nonnull
+        public static Pattern parse(@Nonnull String pattern) {
+            return new Pattern(pattern);
+        }
+
+        @Nonnull
+        public Kind kind() {
+            return kind;
+        }
+
+        /** The lower-cased literal core (the pattern minus its wildcards); empty for {@link Kind#ALL}. */
+        @Nonnull
+        public String core() {
+            return core;
+        }
+
+        /** Length of the literal core - the primary specificity measure for a partial match. */
+        public int coreLength() {
+            return core.length();
+        }
+
+        public boolean isDefaultRule() {
             return kind == Kind.ALL;
         }
 
-        boolean matchesExact(@Nonnull String worldLower) {
+        /** Exact-kind pattern equal to the (already lower-cased) world name. */
+        public boolean matchesExact(@Nonnull String worldLower) {
             return kind == Kind.EXACT && core.equals(worldLower);
         }
 
-        /** Does this non-exact, non-ALL rule match {@code worldLower}? */
-        private boolean matchesPartial(@Nonnull String worldLower) {
+        /** Does this non-exact, non-ALL pattern match {@code worldLower}? */
+        public boolean matchesPartial(@Nonnull String worldLower) {
             return switch (kind) {
                 case PREFIX -> worldLower.startsWith(core);
                 case SUFFIX -> worldLower.endsWith(core);
                 case CONTAINS -> worldLower.contains(core);
                 default -> false;
             };
+        }
+
+        /** Does this pattern match at all, in ANY kind (exact, partial, or the bare catch-all)? */
+        public boolean matches(@Nonnull String worldLower) {
+            return kind == Kind.ALL || matchesExact(worldLower) || matchesPartial(worldLower);
+        }
+    }
+
+    /** One authored rule: a pre-parsed match {@link Pattern} bound to its payload. */
+    public static final class Entry<T> {
+        /** Raw pattern as authored, for diagnostics / validation (e.g. {@code "dungeon_i*"}). */
+        @Nonnull
+        public final String pattern;
+        private final Pattern parsed;
+        @Nonnull
+        public final T payload;
+
+        public Entry(@Nonnull String pattern, @Nonnull T payload) {
+            this.pattern = pattern;
+            this.payload = payload;
+            this.parsed = new Pattern(pattern);
+        }
+
+        /** The pre-parsed pattern behind this entry (kind + literal core). */
+        @Nonnull
+        public Pattern parsed() {
+            return parsed;
+        }
+
+        boolean isDefaultRule() {
+            return parsed.isDefaultRule();
+        }
+
+        boolean matchesExact(@Nonnull String worldLower) {
+            return parsed.matchesExact(worldLower);
+        }
+
+        /** Does this non-exact, non-ALL rule match {@code worldLower}? */
+        private boolean matchesPartial(@Nonnull String worldLower) {
+            return parsed.matchesPartial(worldLower);
         }
     }
 
@@ -166,11 +236,11 @@ public final class WorldNameMatcher {
         if (best == null) {
             return true;
         }
-        int byLen = Integer.compare(candidate.core.length(), best.core.length());
+        int byLen = Integer.compare(candidate.parsed.coreLength(), best.parsed.coreLength());
         if (byLen != 0) {
             return byLen > 0;
         }
         // Lower Kind ordinal = more anchored (PREFIX < SUFFIX < CONTAINS).
-        return candidate.kind.ordinal() < best.kind.ordinal();
+        return candidate.parsed.kind().ordinal() < best.parsed.kind().ordinal();
     }
 }

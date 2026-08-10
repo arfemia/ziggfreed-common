@@ -42,6 +42,16 @@ dependencies {
     testImplementation(files(hytaleServerJar))
 }
 
+// Never call a deprecated engine API (repo-wide sibling-mod edict, additional-mods/CLAUDE.md,
+// 2026-07-22): -Xlint:removal surfaces every Hytale API annotated @Deprecated(forRemoval = true)
+// still in use, and -Werror promotes that warning to a hard compile failure, mirroring the hyMMO
+// jar's own compileJava flag. A future Hytale server update that deprecates-for-removal an API
+// this mod calls will now fail the build on sight instead of silently degrading toward a removed
+// API. compileJava only (not compileTestJava), matching the hyMMO jar's own scoping.
+compileJava {
+    options.compilerArgs << '-Xlint:removal' << '-Werror'
+}
+
 test {
     useJUnitPlatform()
 }

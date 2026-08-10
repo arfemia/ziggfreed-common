@@ -66,16 +66,33 @@ public abstract class DialogueAction {
         @Nullable public String getTarget() { return target; }
     }
 
-    /** Set a persistent per-player dialogue flag (dialogue-local memory) via the context's flag store. */
+    /**
+     * Set a persistent per-player dialogue flag (dialogue-local memory) via the context's flag
+     * store.
+     *
+     * <p>An optional {@link DialogueFlagScope} narrows WHICH flag is written:
+     * {@code "Scope": {"WorldSelector": "forgotten_temple"}} writes the temple-scoped copy, so
+     * "I already greeted you here" is remembered per selector rather than globally. In a world
+     * that does not carry that selector name the write is a NO-OP (pair a scoped write with a
+     * {@code World} condition on the same node so the beat cannot be reached elsewhere). The key
+     * format and the reason the scope goes INSIDE any existing prefix are in
+     * {@link DialogueFlagScope}.
+     */
     public static final class SetFlag extends DialogueAction {
         public static final BuilderCodec<SetFlag> CODEC = BuilderCodec.builder(SetFlag.class, SetFlag::new)
                 .append(new KeyedCodec<>("Flag", Codec.STRING, false),
                         (a, v) -> a.flag = v, a -> a.flag).add()
+                .append(new KeyedCodec<>("Scope", DialogueFlagScope.CODEC, false),
+                        (a, v) -> a.scope = v, a -> a.scope).add()
                 .build();
 
         @Nullable protected String flag;
+        @Nullable protected DialogueFlagScope scope;
 
         @Nullable public String getFlag() { return flag; }
+
+        /** The namespace this flag is written to, or null for the global flag. */
+        @Nullable public DialogueFlagScope getScope() { return scope; }
     }
 
     /** Jump to another node; the page re-renders there. */

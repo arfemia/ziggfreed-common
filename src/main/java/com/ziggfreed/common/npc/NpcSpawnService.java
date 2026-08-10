@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
 
 import org.joml.Vector3dc;
 
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
@@ -66,6 +67,27 @@ public final class NpcSpawnService {
     public static boolean spawnRole(@Nonnull World world, @Nonnull Store<EntityStore> store, @Nonnull String role,
             @Nonnull Vector3dc position, float yaw,
             @Nullable TriConsumer<NPCEntity, Ref<EntityStore>, Store<EntityStore>> postSpawn) {
+        return spawnRole(world, store, role, position, yaw, null, postSpawn);
+    }
+
+    /**
+     * Places {@code role} at {@code position} facing {@code yaw}, with BOTH engine spawn hooks
+     * exposed: {@code preAdd} runs against the pre-commit {@link Holder} (before the entity enters
+     * the store, so an identity component can be attached with no live-ref race) and
+     * {@code postSpawn} runs against the committed ref (so the entity's own uuid can be read).
+     *
+     * <p>The 6-argument overload above is this one with a null {@code preAdd}, so a caller that
+     * only records the spawned uuid is unchanged.
+     *
+     * @param preAdd    invoked with {@code (npcEntity, holder, store)} before the entity is added,
+     *                  or {@code null}
+     * @param postSpawn invoked with {@code (npcEntity, npcRef, store)} after the entity is created,
+     *                  or {@code null} for a fire-and-forget spawn
+     */
+    public static boolean spawnRole(@Nonnull World world, @Nonnull Store<EntityStore> store, @Nonnull String role,
+            @Nonnull Vector3dc position, float yaw,
+            @Nullable TriConsumer<NPCEntity, Holder<EntityStore>, Store<EntityStore>> preAdd,
+            @Nullable TriConsumer<NPCEntity, Ref<EntityStore>, Store<EntityStore>> postSpawn) {
         if (role.isBlank()) {
             return false;
         }
@@ -81,7 +103,7 @@ public final class NpcSpawnService {
 
         Rotation3f rotation = new Rotation3f(0.0f, yaw, 0.0f);
         try {
-            var result = npc.spawnEntity(store, idx, position, rotation, null, postSpawn);
+            var result = npc.spawnEntity(store, idx, position, rotation, null, preAdd, postSpawn);
             if (result == null) {
                 warn("[NpcSpawn] spawnEntity returned null for role " + role);
                 return false;

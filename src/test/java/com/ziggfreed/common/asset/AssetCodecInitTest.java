@@ -13,8 +13,14 @@ import com.ziggfreed.common.instance.encounter.MultiPhaseBossAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetAsset;
 import com.ziggfreed.common.instance.reward.LootTableAsset;
+import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
+import com.ziggfreed.common.npc.placement.PlacedNpcComponent;
+import com.ziggfreed.common.npc.placement.PlacementBinding;
+import com.ziggfreed.common.npc.placement.PlacementCondition;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
+import com.ziggfreed.common.world.WorldSelector;
+import com.ziggfreed.common.world.WorldSelectorAsset;
 
 /**
  * Forces each common framework asset CODEC to static-initialize, so a lower-case first
@@ -69,6 +75,24 @@ class AssetCodecInitTest {
     @Test
     void partySettingsAssetCodecInitializes() {
         assertNotNull(PartySettingsAsset.CODEC, "PartySettingsAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void worldSelectorCodecsInitialize() {
+        assertNotNull(WorldSelectorAsset.CODEC, "WorldSelectorAsset.CODEC must static-init (PascalCase keys)");
+        // The embeddable group codec is not a store, but a consumer asset embeds it, so a
+        // lower-case key here would fail at that consumer's decode instead of at this build.
+        assertNotNull(WorldSelector.CODEC, "WorldSelector.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void npcPlacementCodecsInitialize() {
+        assertNotNull(NpcPlacementAsset.CODEC, "NpcPlacementAsset.CODEC must static-init (PascalCase keys)");
+        // The two shared leaf codecs are not stores, but the asset embeds them, so a lower-case
+        // key there would fail at that asset's decode instead of at this build.
+        assertNotNull(PlacementBinding.CODEC, "PlacementBinding.CODEC must static-init (PascalCase keys)");
+        assertNotNull(PlacementCondition.CODEC, "PlacementCondition.CODEC must static-init (PascalCase keys)");
+        assertNotNull(PlacedNpcComponent.CODEC, "PlacedNpcComponent.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

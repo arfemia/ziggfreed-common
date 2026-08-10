@@ -1,9 +1,12 @@
 package com.ziggfreed.common.cast;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -33,6 +36,12 @@ public final class WorldEvictors {
 
     private static final CopyOnWriteArrayList<Consumer<World>> EVICTORS = new CopyOnWriteArrayList<>();
 
+    /** How many recently-removed world names the double-fan-out guard remembers. */
+    private static final int RECENTLY_REMOVED_MAX = 128;
+
+    /** Insertion-ordered so the oldest name is the one evicted when the guard is full. */
+    private static final Set<String> RECENTLY_REMOVED = new LinkedHashSet<>();
+
     private WorldEvictors() {
     }
 
@@ -56,11 +65,22 @@ public final class WorldEvictors {
     }
 
     /**
-     * Fan out to every registered evictor for a removed world. Call from the consumer's
-     * {@code RemoveWorldEvent} listener; each evictor is guarded so a crashed evictor
-     * can never leak an unloaded world into the other partitions.
+     * Fan out to every registered evictor for a removed world. Called from
+     * {@code ZiggfreedCommonPlugin}'s own {@code RemoveWorldEvent} listener, and historically from
+     * each consumer's listener too; each evictor is guarded so a crashed evictor can never leak an
+     * unloaded world into the other partitions.
+     *
+     * <p><b>Idempotent per world, and that matters now.</b> Several installed mods each running
+     * their own {@code RemoveWorldEvent} listener means this fans out once per listener, not once
+     * per world. That is harmless for an evictor that is a {@code map::remove}, but it is
+     * CORRUPTING for one that maintains a reference count, which the chunk-pin bookkeeping does.
+     * So a world already evicted is skipped, and a re-added world clears its own mark through
+     * {@link #onWorldAdded}.
      */
     public static void onWorldRemoved(@Nonnull World world) {
+        if (!markRemoved(world)) {
+            return;
+        }
         for (Consumer<World> evictor : EVICTORS) {
             try {
                 evictor.accept(world);
@@ -68,6 +88,52 @@ public final class WorldEvictors {
                 warn("WorldEvictors evictor failed for world "
                         + world.getName() + ": " + t.getMessage());
             }
+        }
+    }
+
+    /**
+     * Forget that a world of this name was removed, so a world added under a name that was used
+     * before is evicted properly when IT is removed. Call from an {@code AddWorldEvent} listener.
+     */
+    public static void onWorldAdded(@Nonnull World world) {
+        String name = nameOf(world);
+        if (name != null) {
+            synchronized (RECENTLY_REMOVED) {
+                RECENTLY_REMOVED.remove(name);
+            }
+        }
+    }
+
+    /**
+     * Record that {@code world} is being evicted; false when it already was. Keyed by world NAME
+     * rather than by the object, because holding a removed world's object alive is exactly the
+     * leak eviction exists to prevent. Bounded, so the guard cannot grow without limit on a server
+     * that creates and destroys instance worlds all day.
+     */
+    private static boolean markRemoved(@Nonnull World world) {
+        String name = nameOf(world);
+        if (name == null) {
+            return true; // Unreadable name: never suppress an eviction on a guess.
+        }
+        synchronized (RECENTLY_REMOVED) {
+            if (!RECENTLY_REMOVED.add(name)) {
+                return false;
+            }
+            while (RECENTLY_REMOVED.size() > RECENTLY_REMOVED_MAX) {
+                java.util.Iterator<String> it = RECENTLY_REMOVED.iterator();
+                it.next();
+                it.remove();
+            }
+            return true;
+        }
+    }
+
+    @Nullable
+    private static String nameOf(@Nonnull World world) {
+        try {
+            return world.getName();
+        } catch (Throwable t) {
+            return null;
         }
     }
 

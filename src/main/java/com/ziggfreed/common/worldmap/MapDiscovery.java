@@ -14,7 +14,6 @@ import org.joml.Vector3d;
 
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 
 /**
@@ -44,9 +43,9 @@ import com.hypixel.hytale.server.core.universe.world.World;
  * <p><b>Threading.</b> {@link #register}/{@link #discover}/{@link #updateIcon}/{@link #unregister}/
  * {@link #attach}/{@link #detach}/{@link #revealWithin} are consumer-world-thread calls (they mutate the
  * tracker or touch the {@code WorldMapManager}). The per-player provider's {@code markersFor} runs on the
- * world-map tracker thread and only READS the tracker's {@link ConcurrentHashMap}s plus the passed
- * {@link Player} - it never touches consumer state, so no lock is needed. Keep a tracker free of consumer
- * objects to preserve that boundary.
+ * world-map tracker thread and only READS the tracker's {@link ConcurrentHashMap}s, keyed by the viewer
+ * uuid {@link WorldMapMarkers} resolves before invoking it - it never touches consumer state, so no lock
+ * is needed. Keep a tracker free of consumer objects to preserve that boundary.
  *
  * <p><b>Provider key.</b> Each tracker owns one mod-prefixed provider key (avoid the engine-reserved
  * {@code poi/spawn/respawn/death/personal/shared/playerIcons}); registering the same key twice replaces
@@ -209,7 +208,8 @@ public final class MapDiscovery {
      */
     public void attach(@Nonnull World world) {
         world.setCompassUpdating(true);
-        WorldMapMarkers.registerProvider(world, providerKey, ignoreViewDistance, (w, player) -> markersFor(player));
+        WorldMapMarkers.registerProvider(world, providerKey, ignoreViewDistance,
+                (w, player, viewerId) -> markersFor(viewerId));
     }
 
     /**
@@ -220,12 +220,10 @@ public final class MapDiscovery {
         WorldMapMarkers.unregisterProvider(world, providerKey);
     }
 
-    /** The per-player marker source (world-map tracker thread): the POIs {@code player} has discovered. */
+    /** The per-player marker source (world-map tracker thread): the POIs {@code viewer} has discovered. */
     @Nonnull
-    @SuppressWarnings("removal") // Entity.getUuid() is the only uuid accessor from a bare Player (no store here); the engine's own codec uses it.
-    private List<MapMarker> markersFor(@Nonnull Player player) {
-        UUID viewer = player.getUuid();
-        if (viewer == null || pois.isEmpty()) {
+    private List<MapMarker> markersFor(@Nonnull UUID viewer) {
+        if (pois.isEmpty()) {
             return List.of();
         }
         List<MapMarker> out = new ArrayList<>();

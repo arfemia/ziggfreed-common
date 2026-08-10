@@ -17,6 +17,7 @@ import org.bson.BsonDocument;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.hypixel.hytale.codec.EmptyExtraInfo;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
@@ -200,7 +201,7 @@ public final class InventorySnapshotStore {
     @Nullable
     private static String encodeStack(@Nonnull ItemStack stack) {
         try {
-            return ItemStack.CODEC.encode(stack).asDocument().toJson();
+            return ItemStack.CODEC.encode(stack, EmptyExtraInfo.EMPTY).asDocument().toJson();
         } catch (Throwable t) {
             return null;
         }
@@ -209,7 +210,7 @@ public final class InventorySnapshotStore {
     @Nullable
     private static ItemStack decodeStack(@Nonnull String json) {
         try {
-            return ItemStack.CODEC.decode(BsonDocument.parse(json));
+            return ItemStack.CODEC.decode(BsonDocument.parse(json), EmptyExtraInfo.EMPTY);
         } catch (Throwable t) {
             return null;
         }

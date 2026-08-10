@@ -1,0 +1,26 @@
+{
+  "$Comment": [
+    "Names the ordinary, persistent world a player logs into 'primary'. Content that should",
+    "live in the normal overworld and nowhere else targets that name instead of repeating a",
+    "match pattern in every file.",
+    "",
+    "A world selector is a NAMED, REUSABLE MATCHER: 'Names' is the vocabulary this file",
+    "contributes, and 'Match'/'GameplayConfig' are the patterns a world must satisfy to earn",
+    "it. Match takes the world-name grammar Foo (exact), Foo* (prefix), *Foo (suffix), *Foo*",
+    "(contains) and * (everything); only the *Foo* form reaches a live instance world, whose",
+    "name carries a random uuid.",
+    "",
+    "'default' is the stock name of a fresh Hytale world. If your server's main world is named",
+    "something else, ADD it here rather than replacing this line, e.g.",
+    "  \"Match\": [\"default\", \"my_server_world\"]",
+    "Two files may contribute to one name and both apply, so a mod can widen 'primary' by",
+    "shipping its own file listing the same name - the filename is only an address, never a",
+    "meaning. Override this exact file by dropping a Zc_Primary.json of your own in a later",
+    "pack or in the owner layer.",
+    "",
+    "Watch out: a name nothing matches is silent. If content bound to 'primary' never appears,",
+    "check that your world's real name is listed here."
+  ],
+  "Names": ["primary"],
+  "Match": ["default"]
+}

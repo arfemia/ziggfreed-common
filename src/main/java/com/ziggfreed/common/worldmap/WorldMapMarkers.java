@@ -1,6 +1,8 @@
 package com.ziggfreed.common.worldmap;
 
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -14,6 +16,8 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerBuilder;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MarkersCollector;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.entity.PlayerIdentityCache;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * A thin, reusable wrapper over Hytale's native {@code WorldMapManager} POI / marker
@@ -56,11 +60,17 @@ public final class WorldMapMarkers {
      * update (empty for none). Build each via {@link WorldMapMarkers#marker}. Runs on
      * the world-map tracker thread; keep it allocation-light and exception-free (it is
      * try-guarded regardless).
+     *
+     * <p>{@code viewerId} is the viewing player's UUID, already resolved by
+     * {@link #registerProvider} through {@link PlayerIdentityCache} - so a provider keying
+     * per-player state by uuid (the usual shape) never has to derive an identity from the bare
+     * {@link Player} itself, which off this thread has no supported accessor at all. A provider
+     * is only ever invoked once that id is known.
      */
     @FunctionalInterface
     public interface PlayerMarkerProvider {
         @Nonnull
-        List<MapMarker> markersFor(@Nonnull World world, @Nonnull Player player);
+        List<MapMarker> markersFor(@Nonnull World world, @Nonnull Player player, @Nonnull UUID viewerId);
     }
 
     /**
@@ -170,6 +180,14 @@ public final class WorldMapMarkers {
     /**
      * Register a per-player marker provider.
      *
+     * <p>This is the ONE place a viewing player's identity is resolved: the engine hands the
+     * callback a bare {@link Player} on the world-map tracker thread, and this method turns that
+     * into the {@code viewerId} every {@link PlayerMarkerProvider} receives, via
+     * {@link PlayerIdentityCache}. When the identity is not cached yet the registration FAILS
+     * CLOSED - that update contributes no markers, and the miss is logged once per registration
+     * (an off-thread miss would otherwise log every tick). Nothing downstream ever sees a player
+     * whose id could not be resolved.
+     *
      * @param ignoreViewDistance {@code true} to show the markers regardless of the map
      *                           view radius (like respawn-home markers); {@code false}
      *                           to only show those within view distance
@@ -183,9 +201,19 @@ public final class WorldMapMarkers {
             if (manager == null) {
                 return false;
             }
+            AtomicBoolean identityMissLogged = new AtomicBoolean(false);
             manager.addMarkerProvider(key, (w, player, collector) -> {
                 try {
-                    List<MapMarker> markers = provider.markersFor(w, player);
+                    UUID viewerId = PlayerIdentityCache.uuidOf(player);
+                    if (viewerId == null) {
+                        if (identityMissLogged.compareAndSet(false, true)) {
+                            SafeLog.warn("[worldmap] provider '" + key + "' saw a viewer whose identity is"
+                                    + " not cached yet; no markers delivered for them this update"
+                                    + " (logged once per registration).");
+                        }
+                        return;
+                    }
+                    List<MapMarker> markers = provider.markersFor(w, player, viewerId);
                     if (markers == null || markers.isEmpty()) {
                         return;
                     }

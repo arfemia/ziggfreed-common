@@ -409,8 +409,14 @@ public final class DialogueEngine {
             action(DialogueActionType.of("SetFlag", DialogueAction.SetFlag.class, DialogueAction.SetFlag.CODEC,
                     (DialogueAction.SetFlag a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) -> {
                         String flag = a.getFlag();
-                        if (flag != null && !flag.isBlank()) {
-                            ctx.flags().set(flag);
+                        if (flag == null || flag.isBlank()) {
+                            return;
+                        }
+                        // A null key means the authored Scope names a selector this world does
+                        // not carry: the write is a deliberate no-op (see DialogueFlagScope).
+                        String key = DialogueFlagScope.keyFor(a.getScope(), flag, ctx);
+                        if (key != null) {
+                            ctx.flags().set(key);
                         }
                     }));
 
@@ -423,17 +429,34 @@ public final class DialogueEngine {
         }
 
         private void seedGenericConditions() {
+            // An authored Scope that this world does not carry reads as UNSET: Flag fails
+            // (content hidden) and NotFlag passes. See DialogueFlagScope for the key format.
             condition(DialogueConditionType.of("Flag", DialogueCondition.Flag.class, DialogueCondition.Flag.CODEC,
                     (DialogueCondition.Flag c, DialogueContext ctx) -> {
                         String f = c.getFlag();
-                        return f == null || f.isBlank() || ctx.flags().has(f);
+                        if (f == null || f.isBlank()) {
+                            return true;
+                        }
+                        String key = DialogueFlagScope.keyFor(c.getScope(), f, ctx);
+                        return key != null && ctx.flags().has(key);
                     }));
             condition(DialogueConditionType.of("NotFlag", DialogueCondition.NotFlag.class,
                     DialogueCondition.NotFlag.CODEC,
                     (DialogueCondition.NotFlag c, DialogueContext ctx) -> {
                         String f = c.getFlag();
-                        return f == null || f.isBlank() || !ctx.flags().has(f);
+                        if (f == null || f.isBlank()) {
+                            return true;
+                        }
+                        String key = DialogueFlagScope.keyFor(c.getScope(), f, ctx);
+                        return key == null || !ctx.flags().has(key);
                     }));
+            // The player's current world, scored against an embedded WorldSelector. Fail-closed:
+            // an unreadable world (or a selector with no positive axis) matches nothing, and
+            // WorldSelector.match is itself try-guarded.
+            condition(DialogueConditionType.of("World", DialogueCondition.World.class,
+                    DialogueCondition.World.CODEC,
+                    (DialogueCondition.World c, DialogueContext ctx) ->
+                            c.getSelector().match(DialogueWorlds.currentWorld(ctx)) != null));
         }
     }
 

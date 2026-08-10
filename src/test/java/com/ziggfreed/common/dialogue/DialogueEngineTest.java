@@ -33,6 +33,8 @@ class DialogueEngineTest {
         assertNotNull(DialogueAction.OpenPage.CODEC);
         assertNotNull(DialogueCondition.Flag.CODEC);
         assertNotNull(DialogueCondition.NotFlag.CODEC);
+        assertNotNull(DialogueCondition.World.CODEC);
+        assertNotNull(DialogueFlagScope.CODEC);
         assertNotNull(DialogueOption.Presentation.CODEC);
         assertNotNull(DialogueOption.Icon.CODEC);
         assertNotNull(DialogueEventData.CODEC);
