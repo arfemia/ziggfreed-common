@@ -279,6 +279,38 @@ public final class NpcRolePerformer implements StationPerformer {
     /**
      * {@inheritDoc}
      *
+     * <p>Applies the full {@code {Pitch, Yaw, Roll}} to the NPC's {@link TransformComponent} and
+     * mirrors pitch onto the leash pitch (the leash carries no roll axis); does not otherwise
+     * restructure the NPC wiring.
+     */
+    @Override
+    public void presentAt(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d pos, float yaw,
+            float pitch, float roll) {
+        Ref<EntityStore> ref = npcRef;
+        NPCEntity n = npc;
+        if (ref == null || !ref.isValid()) {
+            return;
+        }
+        try {
+            TransformComponent tc = accessor.getComponent(ref, TransformComponent.getComponentType());
+            if (tc != null) {
+                tc.getPosition().set(pos.x, pos.y, pos.z);
+                tc.getRotation().set(pitch, yaw, roll);
+            }
+            // Re-anchor the leash so background leash/wander logic does not fight the new pose.
+            if (n != null) {
+                n.setLeashPoint(new Vector3d(pos));
+                n.setLeashHeading(yaw);
+                n.setLeashPitch(pitch);
+            }
+        } catch (Throwable t) {
+            fine("presentAt failed: " + t.getMessage());
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
      * <p>Clears any prior marker through the STARTING frame's {@code accessor}; the returned handle
      * (re)binds the marked target, retrying the {@code getRole()}-null race on each poll (with that
      * poll's own accessor).

@@ -42,6 +42,15 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
  * is the precedent). It is the primitive the dialogue {@code Nodes} map uses so a child
  * dialogue can override/add a single node while inheriting the rest.
  *
+ * <p><b>Authoring-comment keys are skipped.</b> Any key starting with {@code $} (e.g.
+ * {@code "$Comment"}, {@code "$TODO"}) is treated as authoring metadata, not a map entry:
+ * it never reaches the value codec and never lands in the decoded map, on either the JSON
+ * or the BSON path. This matches the engine {@code BuilderCodec}'s own {@code $}-convention,
+ * which reserves the same prefix for its {@code EntryType.IGNORE} entries, so an author can
+ * document a keyed map inline exactly the way they document a structured object. The value
+ * of a skipped key may be any JSON shape (a string, an object, an array); it is consumed
+ * without being decoded.
+ *
  * <p>Generic and mod-agnostic: reuse for any keyed-map field that should overlay by key
  * under native inheritance. The value codec should be an {@code InheritCodec} (typically a
  * {@code BuilderCodec}) to get per-entry deep-merge; a non-inheriting value codec still
@@ -123,6 +132,16 @@ public final class InheritMapCodec<V> implements Codec<Map<String, V>>, InheritC
 
     // ==================== shared merge logic ====================
 
+    /**
+     * Whether a key is authoring metadata rather than a map entry. The engine's
+     * {@code BuilderCodec} reserves the {@code $} prefix for its ignored keys
+     * ({@code $Comment}, {@code $TODO}, {@code $Title}, ...), and this codec honours the same
+     * convention so a keyed map can be documented inline like any structured object.
+     */
+    private static boolean isAuthoringCommentKey(@Nonnull String key) {
+        return !key.isEmpty() && key.charAt(0) == '$';
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, V> decodeInto(@Nonnull BsonDocument document, @Nonnull Map<String, V> out,
                                       @Nullable Map<String, V> parent, @Nonnull ExtraInfo extraInfo) {
@@ -132,6 +151,11 @@ public final class InheritMapCodec<V> implements Codec<Map<String, V>>, InheritC
         for (Map.Entry<String, BsonValue> entry : document.entrySet()) {
             String key = entry.getKey();
             BsonValue value = entry.getValue();
+            if (isAuthoringCommentKey(key)) {
+                // The value is already materialised in the document, so skipping it is simply
+                // not handing it to the value codec; nothing else has to be consumed.
+                continue;
+            }
             extraInfo.pushKey(key);
             try {
                 V parentValue = parent != null ? parent.get(key) : null;
@@ -166,18 +190,26 @@ public final class InheritMapCodec<V> implements Codec<Map<String, V>>, InheritC
             reader.expect(':');
             reader.consumeWhiteSpace();
 
-            extraInfo.pushKey(key, reader);
-            try {
-                V parentValue = parent != null ? parent.get(key) : null;
-                if (parentValue != null && valueCodec instanceof InheritCodec) {
-                    out.put(key, ((InheritCodec<V>) valueCodec).decodeAndInheritJson(reader, parentValue, extraInfo));
-                } else {
-                    out.put(key, valueCodec.decodeJson(reader, extraInfo));
+            if (isAuthoringCommentKey(key)) {
+                // The reader is a streaming parser, so the value MUST still be consumed or the
+                // rest of the object parses off-by-one. This is exactly BuilderCodec's own
+                // EntryType.IGNORE handling (skipField -> RawJsonReader.skipValue), which walks
+                // whatever shape follows: string, number, bool, null, object, or array.
+                reader.skipValue();
+            } else {
+                extraInfo.pushKey(key, reader);
+                try {
+                    V parentValue = parent != null ? parent.get(key) : null;
+                    if (parentValue != null && valueCodec instanceof InheritCodec) {
+                        out.put(key, ((InheritCodec<V>) valueCodec).decodeAndInheritJson(reader, parentValue, extraInfo));
+                    } else {
+                        out.put(key, valueCodec.decodeJson(reader, extraInfo));
+                    }
+                } catch (Exception e) {
+                    throw new CodecException("Failed to decode", reader, extraInfo, e);
+                } finally {
+                    extraInfo.popKey();
                 }
-            } catch (Exception e) {
-                throw new CodecException("Failed to decode", reader, extraInfo, e);
-            } finally {
-                extraInfo.popKey();
             }
             reader.consumeWhiteSpace();
             if (reader.tryConsumeOrExpect('}', ',')) {

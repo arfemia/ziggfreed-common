@@ -50,6 +50,20 @@ public interface StationPerformer {
     void presentAt(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d pos, float yaw);
 
     /**
+     * {@link #presentAt(ComponentAccessor, Vector3d, float)} with an explicit {@code pitch}/
+     * {@code roll} (radians). All three angles are the puppet's OWN authored tilt - a caller
+     * composing any block-facing yaw resolves it before calling, same convention as the yaw-only
+     * overload. The default implementation delegates to the yaw-only overload (pitch/roll dropped)
+     * so an implementor that has not opted into the full rotation still compiles and behaves
+     * exactly as before; {@link HolderPerformer} and {@link NpcRolePerformer} override this to
+     * apply the full rotation to their transform (and head rotation, where present).
+     */
+    default void presentAt(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d pos, float yaw,
+            float pitch, float roll) {
+        presentAt(accessor, pos, yaw);
+    }
+
+    /**
      * Start moving the double toward {@code target} at {@code speedMps}, returning a poll-driven
      * {@link WalkHandle}. Never returns {@code null} (an unstartable walk yields a handle already in
      * {@link WalkHandle.State#FAILED}). {@code accessor} is the STARTING frame's accessor (path

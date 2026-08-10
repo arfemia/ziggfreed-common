@@ -180,6 +180,34 @@ public final class HolderPerformer implements StationPerformer {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Applies the full {@code {Pitch, Yaw, Roll}} to both the puppet's {@link TransformComponent}
+     * and its {@link HeadRotation} (extending the same mirror the yaw-only overload already does).
+     */
+    @Override
+    public void presentAt(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d pos, float yaw,
+            float pitch, float roll) {
+        Ref<EntityStore> ref = puppetRef;
+        if (ref == null || !ref.isValid()) {
+            return;
+        }
+        try {
+            TransformComponent tc = accessor.getComponent(ref, TransformComponent.getComponentType());
+            if (tc != null) {
+                tc.getPosition().set(pos.x, pos.y, pos.z);
+                tc.getRotation().set(pitch, yaw, roll);
+                HeadRotation headRotation = accessor.getComponent(ref, HeadRotation.getComponentType());
+                if (headRotation != null) {
+                    headRotation.getRotation().set(pitch, yaw, roll);
+                }
+            }
+        } catch (Throwable t) {
+            fine("presentAt failed: " + t.getMessage());
+        }
+    }
+
     @Override
     @Nonnull
     public WalkHandle walkTo(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Vector3d target,

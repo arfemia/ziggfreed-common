@@ -145,7 +145,7 @@ public final class PlayerPuppetService {
                 return null;
             }
 
-            Rotation3f rotation = new Rotation3f(0f, req.yawRadians(), 0f);
+            Rotation3f rotation = new Rotation3f(req.pitchRadians(), req.yawRadians(), req.rollRadians());
             Holder<EntityStore> holder = EntityStore.REGISTRY.newHolder();
             holder.addComponent(TransformComponent.getComponentType(), new TransformComponent(req.position(), rotation));
             // Paired with the body transform, matching every first-party spawn path (SpawnUtil,
@@ -727,6 +727,8 @@ public final class PlayerPuppetService {
         private final Ref<EntityStore> sourceRef;
         private final Vector3d position;
         private final float yawRadians;
+        private final float pitchRadians;
+        private final float rollRadians;
         private final boolean mirrorHeldItem;
         @Nullable
         private final String heldItemIdOverride;
@@ -740,6 +742,8 @@ public final class PlayerPuppetService {
             this.sourceRef = b.sourceRef;
             this.position = b.position;
             this.yawRadians = b.yawRadians;
+            this.pitchRadians = b.pitchRadians;
+            this.rollRadians = b.rollRadians;
             this.mirrorHeldItem = b.mirrorHeldItem;
             this.heldItemIdOverride = b.heldItemIdOverride;
             this.initialAnimationSlot = b.initialAnimationSlot;
@@ -762,6 +766,23 @@ public final class PlayerPuppetService {
         /** The puppet's facing yaw in radians (world-space). */
         public float yawRadians() {
             return yawRadians;
+        }
+
+        /**
+         * The puppet's own pitch tilt in radians; default {@code 0}. This is the puppet's OWN tilt,
+         * not a look-at/aim resolution - a caller composing a block-facing yaw resolves that before
+         * calling, same as {@link #yawRadians()}.
+         */
+        public float pitchRadians() {
+            return pitchRadians;
+        }
+
+        /**
+         * The puppet's own roll tilt in radians; default {@code 0}. Same authored-tilt convention as
+         * {@link #pitchRadians()}.
+         */
+        public float rollRadians() {
+            return rollRadians;
         }
 
         /** Whether to mirror the source's currently-held item onto the puppet's Hotbar. */
@@ -806,6 +827,8 @@ public final class PlayerPuppetService {
             private Ref<EntityStore> sourceRef;
             private Vector3d position;
             private float yawRadians;
+            private float pitchRadians;
+            private float rollRadians;
             private boolean mirrorHeldItem;
             @Nullable
             private String heldItemIdOverride;
@@ -833,6 +856,27 @@ public final class PlayerPuppetService {
             @Nonnull
             public Builder yawRadians(float yawRadians) {
                 this.yawRadians = yawRadians;
+                return this;
+            }
+
+            /**
+             * The puppet's own pitch tilt in radians; default {@code 0}. This is the puppet's OWN
+             * tilt (authored side), not a look-at/aim resolution - a caller composing any
+             * block-facing yaw resolves it before calling, same convention as {@link #yawRadians}.
+             */
+            @Nonnull
+            public Builder pitchRadians(float pitchRadians) {
+                this.pitchRadians = pitchRadians;
+                return this;
+            }
+
+            /**
+             * The puppet's own roll tilt in radians; default {@code 0}. Same authored-tilt
+             * convention as {@link #pitchRadians}.
+             */
+            @Nonnull
+            public Builder rollRadians(float rollRadians) {
+                this.rollRadians = rollRadians;
                 return this;
             }
 
