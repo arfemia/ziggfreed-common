@@ -18,7 +18,7 @@ import com.hypixel.hytale.server.core.modules.collision.CollisionModule;
 import com.hypixel.hytale.server.core.modules.collision.CollisionResult;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * A tiny BOUNDED A* grid-walker for pathing a bare-{@link com.hypixel.hytale.component.Holder Holder}
@@ -387,9 +387,9 @@ public final class PuppetNav {
     private static void warn(@Nonnull String message, @Nullable Throwable cause) {
         try {
             if (cause != null) {
-                ZiggfreedCommonPlugin.LOGGER.atWarning().withCause(cause).log("[ziggfreed-common][puppetnav] " + message);
+                CommonLog.LOGGER.atWarning().withCause(cause).log("[ziggfreed-common][puppetnav] " + message);
             } else {
-                ZiggfreedCommonPlugin.LOGGER.atWarning().log("[ziggfreed-common][puppetnav] " + message);
+                CommonLog.LOGGER.atWarning().log("[ziggfreed-common][puppetnav] " + message);
             }
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.

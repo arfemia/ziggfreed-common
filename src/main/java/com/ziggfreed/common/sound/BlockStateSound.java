@@ -8,7 +8,7 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.component.Store;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Plays the sound a block authors on one of its interaction STATES at the block's position.
@@ -81,7 +81,7 @@ public final class BlockStateSound {
     }
 
     private static void log(@Nonnull String contextLabel, @Nullable Throwable t) {
-        ZiggfreedCommonPlugin.LOGGER.atFine().log(
+        CommonLog.LOGGER.atFine().log(
                 contextLabel + " block-state sound failed: " + (t == null ? "?" : t.getMessage()));
     }
 }

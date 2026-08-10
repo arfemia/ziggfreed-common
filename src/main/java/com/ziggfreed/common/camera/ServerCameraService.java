@@ -13,7 +13,7 @@ import com.hypixel.hytale.protocol.ServerCameraSettings;
 import org.joml.Vector3f;
 import com.hypixel.hytale.protocol.packets.camera.SetServerCamera;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Server-driven camera override. Sends the {@code SetServerCamera} packet (280) via
@@ -36,7 +36,7 @@ public final class ServerCameraService {
         try {
             playerRef.getPacketHandler().writeNoCache(new SetServerCamera(view, isLocked, settings));
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("ServerCameraService apply failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("ServerCameraService apply failed: " + t.getMessage());
         }
     }
 

@@ -16,7 +16,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Mod-agnostic base for a custom in-world HUD overlay. Owns the machinery every HUD
@@ -234,7 +234,7 @@ public abstract class KeyedCustomHud extends CustomUIHud {
 
     private static void warn(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log(message);
+            CommonLog.LOGGER.atWarning().log(message);
         } catch (Throwable ignored) {
             // no Hytale log manager (unit JVM)
         }

@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.modules.time.WorldTimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldConfig;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Controls a world's time-of-day and forced weather: pin the clock to a fixed point
@@ -120,7 +120,7 @@ public final class AtmosphereService {
 
     private static void warn(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("[ziggfreed-common][atmosphere] " + message);
+            CommonLog.LOGGER.atWarning().log("[ziggfreed-common][atmosphere] " + message);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
         }

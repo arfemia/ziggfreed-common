@@ -9,7 +9,7 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.io.PacketHandler;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.util.NotificationUtil;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * A thin, styled wrapper over the engine {@code NotificationUtil} toast API. Routes
@@ -51,7 +51,7 @@ public final class Notify {
             PacketHandler handler = playerRef.getPacketHandler();
             NotificationUtil.sendNotification(handler, message, style);
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("Notify.send failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("Notify.send failed: " + t.getMessage());
         }
     }
 
@@ -77,7 +77,7 @@ public final class Notify {
             ItemStack itemStack = new ItemStack(itemId, Math.max(1, quantity));
             NotificationUtil.sendNotification(handler, title, secondary, itemStack.toPacket());
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("Notify.itemKeyed failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("Notify.itemKeyed failed: " + t.getMessage());
         }
     }
 }

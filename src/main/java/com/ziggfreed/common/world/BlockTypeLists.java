@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.asset.type.buildertool.config.BlockTypeListAsset;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Resolves the engine's authored {@code BlockTypeList} assets (the named block groupings the game ships
@@ -59,11 +59,11 @@ public final class BlockTypeLists {
                 if (list != null) {
                     union.addAll(list.getBlockTypeKeys());
                 } else {
-                    ZiggfreedCommonPlugin.LOGGER.atWarning().log(
+                    CommonLog.LOGGER.atWarning().log(
                             "[ZiggfreedCommon] BlockTypeList '" + id + "' not found (skipped)");
                 }
             } catch (Throwable t) {
-                ZiggfreedCommonPlugin.LOGGER.atWarning().log(
+                CommonLog.LOGGER.atWarning().log(
                         "[ZiggfreedCommon] BlockTypeList '" + id + "' resolve failed: " + t.getMessage());
             }
         }

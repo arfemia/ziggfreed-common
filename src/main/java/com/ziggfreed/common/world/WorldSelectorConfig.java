@@ -5,7 +5,7 @@ import java.util.Map;
 
 import javax.annotation.Nonnull;
 
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.common.world.WorldSelectorValidator.Issue;
 
@@ -68,9 +68,9 @@ public final class WorldSelectorConfig extends AbstractKeyedAssetConfig<WorldSel
             try {
                 String line = "WorldSelector '" + issue.sourceId() + "' [" + issue.code() + "]: " + issue.message();
                 if (issue.severity() == WorldSelectorValidator.Severity.ERROR) {
-                    ZiggfreedCommonPlugin.LOGGER.atWarning().log(line);
+                    CommonLog.LOGGER.atWarning().log(line);
                 } else {
-                    ZiggfreedCommonPlugin.LOGGER.atInfo().log(line);
+                    CommonLog.LOGGER.atInfo().log(line);
                 }
             } catch (Throwable ignored) {
                 // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.

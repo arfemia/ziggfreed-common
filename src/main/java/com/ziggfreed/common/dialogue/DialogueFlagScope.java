@@ -11,7 +11,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * The optional {@code Scope} leaf on the generic {@code SetFlag} action and the {@code Flag} /
@@ -198,7 +198,7 @@ public final class DialogueFlagScope {
             return;
         }
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log(
+            CommonLog.LOGGER.atWarning().log(
                     "[Dialogue] flag '%s' is scoped to world selector '%s', which no loaded"
                             + " WorldSelector contributes - the flag will never be written or read."
                             + " Check Server/ZiggfreedCommon/WorldSelectors for the intended name.",

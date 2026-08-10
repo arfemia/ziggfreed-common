@@ -12,7 +12,7 @@ import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * The generic HOTBAR-FIRST-IF-SPACE, then-backpack-storage GRANT-ORDERING primitive (round-5,
@@ -107,7 +107,7 @@ public final class InventoryGrant {
 
     private static void warn(@Nonnull String op, @Nonnull ItemStack stack, @Nonnull Throwable t) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log(
+            CommonLog.LOGGER.atFine().log(
                     "[ZiggfreedCommon] InventoryGrant." + op + "(" + stack.getItemId() + ") failed: " + t.getMessage());
         } catch (Throwable ignored) {
             // a log-manager-less unit JVM must not crash on the logging facade itself

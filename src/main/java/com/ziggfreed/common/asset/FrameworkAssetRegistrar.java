@@ -5,6 +5,7 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
 import com.ziggfreed.common.dialogue.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
@@ -205,7 +206,7 @@ public final class FrameworkAssetRegistrar {
                                 AssetMergeAdapter.layer(ev.getAssetMap())));
 
         try {
-            ZiggfreedCommonPlugin.LOGGER.atInfo().log(
+            CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (Dialogues, DialogueTemplates, Instances, "
                             + "LootTables, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, WorldSelectors, NpcPlacements).");

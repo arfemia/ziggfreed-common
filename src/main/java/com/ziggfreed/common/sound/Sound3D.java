@@ -16,7 +16,7 @@ import com.hypixel.hytale.server.core.asset.type.soundevent.config.SoundEvent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.SoundUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.util.AssetIndexCache;
 
 /**
@@ -105,9 +105,9 @@ public final class Sound3D {
             if (idx == AssetIndexCache.UNRESOLVED) {
                 String msg = contextLabel + " sound '" + soundEventId + "' not in SoundEvent registry";
                 if (warnOnMissing) {
-                    ZiggfreedCommonPlugin.LOGGER.atWarning().log(msg);
+                    CommonLog.LOGGER.atWarning().log(msg);
                 } else {
-                    ZiggfreedCommonPlugin.LOGGER.atFine().log(msg);
+                    CommonLog.LOGGER.atFine().log(msg);
                 }
                 return;
             }
@@ -115,9 +115,9 @@ public final class Sound3D {
         } catch (Throwable t) {
             String msg = contextLabel + " sound (" + soundEventId + ") failed: " + t.getMessage();
             if (warnOnMissing) {
-                ZiggfreedCommonPlugin.LOGGER.atWarning().log(msg);
+                CommonLog.LOGGER.atWarning().log(msg);
             } else {
-                ZiggfreedCommonPlugin.LOGGER.atFine().log(msg);
+                CommonLog.LOGGER.atFine().log(msg);
             }
         }
     }

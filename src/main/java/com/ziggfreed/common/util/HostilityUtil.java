@@ -12,7 +12,7 @@ import com.hypixel.hytale.server.npc.blackboard.Blackboard;
 import com.hypixel.hytale.server.npc.blackboard.view.attitude.AttitudeView;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.role.Role;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Hostility query using the NPC Blackboard {@link AttitudeView}.
@@ -65,7 +65,7 @@ public final class HostilityUtil {
             return attitude == Attitude.HOSTILE;
 
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("HostilityUtil failed: " + t);
+            CommonLog.LOGGER.atWarning().log("HostilityUtil failed: " + t);
             return false;
         }
     }

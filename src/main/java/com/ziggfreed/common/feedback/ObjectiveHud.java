@@ -6,7 +6,7 @@ import com.hypixel.hytale.protocol.packets.assets.TrackOrUpdateObjective;
 import com.hypixel.hytale.protocol.packets.assets.UntrackObjective;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -68,7 +68,7 @@ public final class ObjectiveHud {
                     tasks);
             playerRef.getPacketHandler().writeNoCache(new TrackOrUpdateObjective(objective));
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("ObjectiveHud.track failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("ObjectiveHud.track failed: " + t.getMessage());
         }
     }
 
@@ -77,7 +77,7 @@ public final class ObjectiveHud {
         try {
             playerRef.getPacketHandler().writeNoCache(new UntrackObjective(uuid));
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("ObjectiveHud.untrack failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("ObjectiveHud.untrack failed: " + t.getMessage());
         }
     }
 }

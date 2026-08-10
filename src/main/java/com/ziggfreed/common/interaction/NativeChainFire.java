@@ -14,7 +14,7 @@ import com.hypixel.hytale.server.core.entity.InteractionManager;
 import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Fires a named engine {@code RootInteraction} chain on an entity - {@code initChain} + {@code
@@ -152,7 +152,7 @@ public final class NativeChainFire {
 
     private static void warn(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("[ziggfreed-common][interaction] " + message);
+            CommonLog.LOGGER.atWarning().log("[ziggfreed-common][interaction] " + message);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
         }
@@ -160,7 +160,7 @@ public final class NativeChainFire {
 
     private static void fine(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("[ziggfreed-common][interaction] " + message);
+            CommonLog.LOGGER.atFine().log("[ziggfreed-common][interaction] " + message);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
         }

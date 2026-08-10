@@ -18,7 +18,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
 import com.ziggfreed.common.feedback.EventTitles;
 import com.ziggfreed.common.feedback.Notify;
 import com.ziggfreed.common.lobby.DelayScheduler;

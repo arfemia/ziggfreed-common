@@ -20,7 +20,7 @@ import com.hypixel.hytale.codec.lookup.CodecMapCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.codec.InheritMapCodec;
 
 /**
@@ -529,7 +529,7 @@ public final class DialogueEngine {
     /** Default warn: logs through the common plugin logger, guarded for log-manager-less unit JVMs. */
     private static final Consumer<String> DEFAULT_WARN = msg -> {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("[Dialogue] %s", msg);
+            CommonLog.LOGGER.atWarning().log("[Dialogue] %s", msg);
         } catch (Throwable ignored) {
             // a unit JVM with no log manager throws an Error from the fluent logger; swallow it.
         }

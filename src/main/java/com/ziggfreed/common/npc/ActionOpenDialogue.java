@@ -14,7 +14,7 @@ import com.hypixel.hytale.server.npc.asset.builder.BuilderSupport;
 import com.hypixel.hytale.server.npc.corecomponents.ActionBase;
 import com.hypixel.hytale.server.npc.role.Role;
 import com.hypixel.hytale.server.npc.sensorinfo.InfoProvider;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.dialogue.page.DialoguePage;
 import com.ziggfreed.common.dialogue.page.DialoguePageDeps;
 
@@ -110,7 +110,7 @@ public class ActionOpenDialogue extends ActionBase {
 
     private static void warn(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("%s", msg);
+            CommonLog.LOGGER.atWarning().log("%s", msg);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM; swallow.
         }

@@ -13,7 +13,7 @@ import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Generic, role-keyed, once-per-world NPC auto-spawn primitive, the config-free lift of
@@ -203,7 +203,7 @@ public final class NpcAutoSpawn {
 
     private static void info(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atInfo().log("%s", msg);
+            CommonLog.LOGGER.atInfo().log("%s", msg);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM; swallow.
         }
@@ -211,7 +211,7 @@ public final class NpcAutoSpawn {
 
     private static void warn(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("%s", msg);
+            CommonLog.LOGGER.atWarning().log("%s", msg);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM; swallow.
         }
@@ -219,7 +219,7 @@ public final class NpcAutoSpawn {
 
     private static void fine(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("%s", msg);
+            CommonLog.LOGGER.atFine().log("%s", msg);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM; swallow.
         }

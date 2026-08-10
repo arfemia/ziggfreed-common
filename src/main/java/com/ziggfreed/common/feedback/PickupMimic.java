@@ -17,7 +17,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.SoundUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.NotificationUtil;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.util.AssetIndexCache;
 
 /**
@@ -125,7 +125,7 @@ public final class PickupMimic {
 
     private static void warn(@Nonnull String op, @Nonnull Throwable t) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("[ZiggfreedCommon] PickupMimic." + op + " failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("[ZiggfreedCommon] PickupMimic." + op + " failed: " + t.getMessage());
         } catch (Throwable ignored) {
             // a log-manager-less unit JVM must not crash on the logging facade itself
         }

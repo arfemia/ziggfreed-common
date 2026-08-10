@@ -12,7 +12,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.google.gson.JsonObject;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.dialogue.DialogueBodyResolver;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.NpcDialogue;
@@ -144,7 +144,7 @@ public final class DialogueAssetStore {
     /** Warn sink: logs through the common plugin logger, guarded for log-manager-less unit JVMs. */
     private static final java.util.function.Consumer<String> WARN = msg -> {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("[DialogueAssetStore] %s", msg);
+            CommonLog.LOGGER.atWarning().log("[DialogueAssetStore] %s", msg);
         } catch (Throwable ignored) {
             // a unit JVM with no log manager throws an Error from the fluent logger; swallow it.
         }

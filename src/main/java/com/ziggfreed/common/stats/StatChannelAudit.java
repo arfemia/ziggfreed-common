@@ -5,7 +5,7 @@ import java.util.Collection;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Boot-time channel-presence check: the load-order silent-drop guard (risk R2 in the scope-2
@@ -48,7 +48,7 @@ public final class StatChannelAudit {
 
     private static void logMiss(@Nonnull String id) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atSevere().log("StatChannelAudit: expected stat channel '" + id
+            CommonLog.LOGGER.atSevere().log("StatChannelAudit: expected stat channel '" + id
                     + "' failed to resolve - register it BEFORE any item asset decodes (a jar-bundled "
                     + "Server/Entity/Stats/*.json channel, or setup()-time dynamic registration); a channel "
                     + "that registers AFTER item decode is silently dropped from that item's StatModifiers "

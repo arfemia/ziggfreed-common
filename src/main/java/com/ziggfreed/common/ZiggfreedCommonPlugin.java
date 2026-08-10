@@ -53,7 +53,13 @@ import com.ziggfreed.common.util.SafeLog;
  */
 public class ZiggfreedCommonPlugin extends JavaPlugin {
 
-    public static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
+    /**
+     * The library's logger, kept here as a convenience for anything already holding the plugin
+     * class. It is the very same handle as {@link CommonLog#LOGGER} (same name, same backend), so
+     * either route prints identical lines; prefer {@code CommonLog.LOGGER} in library code, which
+     * needs no reference to the plugin entry point at all.
+     */
+    public static final HytaleLogger LOGGER = CommonLog.LOGGER;
 
     private static ZiggfreedCommonPlugin instance;
 

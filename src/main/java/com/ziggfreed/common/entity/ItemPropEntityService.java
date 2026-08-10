@@ -26,7 +26,7 @@ import com.hypixel.hytale.server.core.modules.entity.item.PreventItemMerging;
 import com.hypixel.hytale.server.core.modules.entity.item.PreventPickup;
 import com.hypixel.hytale.server.core.modules.entity.tracker.NetworkId;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Builds / spawns / despawns a static, network-replicated, pickup-immune, physics-free PROP
@@ -195,10 +195,10 @@ public final class ItemPropEntityService {
     private static void warn(@Nonnull String message, @Nullable Throwable cause) {
         try {
             if (cause != null) {
-                ZiggfreedCommonPlugin.LOGGER.atWarning().withCause(cause)
+                CommonLog.LOGGER.atWarning().withCause(cause)
                         .log("[ziggfreed-common][itemprop] " + message);
             } else {
-                ZiggfreedCommonPlugin.LOGGER.atWarning().log("[ziggfreed-common][itemprop] " + message);
+                CommonLog.LOGGER.atWarning().log("[ziggfreed-common][itemprop] " + message);
             }
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
@@ -207,7 +207,7 @@ public final class ItemPropEntityService {
 
     private static void fine(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("[ziggfreed-common][itemprop] " + message);
+            CommonLog.LOGGER.atFine().log("[ziggfreed-common][itemprop] " + message);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
         }

@@ -12,7 +12,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.map.MapCodec;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * The ONE generic per-stack stat / enhancement record: a plain {@link BuilderCodec} data blob
@@ -196,7 +196,7 @@ public final class StackStats {
 
     private static void warn(@Nonnull String label, @Nonnull Throwable t) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("StackStats." + label + " failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("StackStats." + label + " failed: " + t.getMessage());
         } catch (Throwable ignored) {
             // log manager absent (unit JVM) - swallow, the read stays a graceful null.
         }

@@ -3,7 +3,7 @@ package com.ziggfreed.common.npc;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.npc.NPCPlugin;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Registers the generic {@code ziggfreed-common} custom NPC actions with the engine's
@@ -47,7 +47,7 @@ public final class NpcActions {
 
     private static void info(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atInfo().log("%s", msg);
+            CommonLog.LOGGER.atInfo().log("%s", msg);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM; swallow.
         }
@@ -55,7 +55,7 @@ public final class NpcActions {
 
     private static void warn(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("%s", msg);
+            CommonLog.LOGGER.atWarning().log("%s", msg);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM; swallow.
         }

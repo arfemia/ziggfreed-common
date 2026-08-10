@@ -20,7 +20,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * The generic "spawn an NPC role at a position" primitive, lifted config-free from
@@ -164,7 +164,7 @@ public final class NpcSpawnService {
 
     private static void warn(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("%s", msg);
+            CommonLog.LOGGER.atWarning().log("%s", msg);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM; swallow.
         }
@@ -172,7 +172,7 @@ public final class NpcSpawnService {
 
     private static void fine(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("%s", msg);
+            CommonLog.LOGGER.atFine().log("%s", msg);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM; swallow.
         }

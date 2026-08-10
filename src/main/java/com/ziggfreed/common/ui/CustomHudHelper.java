@@ -12,7 +12,7 @@ import com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud;
 import com.hypixel.hytale.server.core.entity.entities.player.hud.HudManager;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Minimal helpers for installing a custom {@link CustomUIHud} overlay and managing
@@ -59,7 +59,7 @@ public final class CustomHudHelper {
             manager.setVisibleHudComponents(playerRef, kept);
             return true;
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("CustomHudHelper.install failed: " + t.getMessage());
+            CommonLog.LOGGER.atWarning().log("CustomHudHelper.install failed: " + t.getMessage());
             return false;
         }
     }
@@ -78,7 +78,7 @@ public final class CustomHudHelper {
             }
             player.getHudManager().removeCustomHud(playerRef, hudKey);
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("CustomHudHelper.remove failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("CustomHudHelper.remove failed: " + t.getMessage());
         }
     }
 
@@ -95,7 +95,7 @@ public final class CustomHudHelper {
             }
             player.getHudManager().resetHud(playerRef);
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("CustomHudHelper.restore failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("CustomHudHelper.restore failed: " + t.getMessage());
         }
     }
 
@@ -114,7 +114,7 @@ public final class CustomHudHelper {
             }
             player.getHudManager().setVisibleHudComponents(playerRef, kept);
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("CustomHudHelper.strip failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("CustomHudHelper.strip failed: " + t.getMessage());
         }
     }
 

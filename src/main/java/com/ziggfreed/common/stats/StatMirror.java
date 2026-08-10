@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Idempotent keyed put/remove of a SINGLE native additive {@code MAX} {@link StaticModifier} -
@@ -94,7 +94,7 @@ public final class StatMirror {
 
     private static void warn(@Nonnull String label, @Nonnull Throwable t) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("StatMirror." + label + " failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("StatMirror." + label + " failed: " + t.getMessage());
         } catch (Throwable ignored) {
         }
     }

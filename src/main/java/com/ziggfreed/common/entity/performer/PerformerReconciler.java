@@ -16,7 +16,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * The orphan-reconcile sweep over {@link PerformerIdentityComponent} - the public helper a consumer
@@ -146,10 +146,10 @@ public final class PerformerReconciler {
     private static void warn(@Nonnull String message, @Nullable Throwable cause) {
         try {
             if (cause != null) {
-                ZiggfreedCommonPlugin.LOGGER.atWarning().withCause(cause)
+                CommonLog.LOGGER.atWarning().withCause(cause)
                         .log("[ziggfreed-common][performer] " + message);
             } else {
-                ZiggfreedCommonPlugin.LOGGER.atWarning().log("[ziggfreed-common][performer] " + message);
+                CommonLog.LOGGER.atWarning().log("[ziggfreed-common][performer] " + message);
             }
         } catch (Throwable ignored) {
             // log-manager-less unit JVM.
@@ -158,7 +158,7 @@ public final class PerformerReconciler {
 
     private static void fine(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("[ziggfreed-common][performer] " + message);
+            CommonLog.LOGGER.atFine().log("[ziggfreed-common][performer] " + message);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM.
         }

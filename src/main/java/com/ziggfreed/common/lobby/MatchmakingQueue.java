@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.feedback.EventTitles;
 import com.ziggfreed.common.feedback.Notify;
 
@@ -540,14 +540,14 @@ public final class MatchmakingQueue {
 
     private static void info(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atInfo().log("%s", msg);
+            CommonLog.LOGGER.atInfo().log("%s", msg);
         } catch (Throwable ignored) {
         }
     }
 
     private static void warn(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("%s", msg);
+            CommonLog.LOGGER.atWarning().log("%s", msg);
         } catch (Throwable ignored) {
         }
     }

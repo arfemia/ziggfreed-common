@@ -4,7 +4,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.asset.type.camera.CameraEffect;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Sends a one-shot camera-shake to a single player by referencing a
@@ -43,7 +43,7 @@ public final class CameraShakeService {
             }
             playerRef.getPacketHandler().writeNoCache(effect.createCameraShakePacket(intensity));
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("CameraShakeService.shake failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("CameraShakeService.shake failed: " + t.getMessage());
         }
     }
 }

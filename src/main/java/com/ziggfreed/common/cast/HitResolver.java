@@ -14,7 +14,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * ONE shared per-target hit-application routine: dispatch the damage, then an optional on-hit hook,
@@ -328,7 +328,7 @@ public final class HitResolver {
 
     private static void warn(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("[ziggfreed-common][hit] " + message);
+            CommonLog.LOGGER.atWarning().log("[ziggfreed-common][hit] " + message);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
         }
@@ -336,7 +336,7 @@ public final class HitResolver {
 
     private static void fine(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("[ziggfreed-common][hit] " + message);
+            CommonLog.LOGGER.atFine().log("[ziggfreed-common][hit] " + message);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
         }

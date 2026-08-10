@@ -10,7 +10,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.cast.WorldEvictors;
 
 /**
@@ -149,7 +149,7 @@ public final class WorldIdentity {
 
     private static void warn(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log(message);
+            CommonLog.LOGGER.atWarning().log(message);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
         }

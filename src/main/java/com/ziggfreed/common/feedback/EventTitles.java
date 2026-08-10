@@ -6,7 +6,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.util.EventTitleUtil;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * A thin wrapper over the engine {@code EventTitleUtil} centered banner API. Shows a
@@ -35,7 +35,7 @@ public final class EventTitles {
         try {
             EventTitleUtil.showEventTitleToPlayer(playerRef, primary, secondary, major);
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("EventTitles.show failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("EventTitles.show failed: " + t.getMessage());
         }
     }
 
@@ -51,7 +51,7 @@ public final class EventTitles {
             EventTitleUtil.showEventTitleToPlayer(playerRef, primary, secondary, major,
                     icon, duration, fadeIn, fadeOut);
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("EventTitles.show failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("EventTitles.show failed: " + t.getMessage());
         }
     }
 
@@ -60,7 +60,7 @@ public final class EventTitles {
         try {
             EventTitleUtil.hideEventTitleFromPlayer(playerRef, fadeOutDuration);
         } catch (Throwable t) {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("EventTitles.hide failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("EventTitles.hide failed: " + t.getMessage());
         }
     }
 }

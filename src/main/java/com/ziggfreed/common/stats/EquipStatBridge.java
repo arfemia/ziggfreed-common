@@ -35,7 +35,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 
@@ -569,7 +569,7 @@ public final class EquipStatBridge {
     private static void warnUnknownStatOnce(@Nonnull String statId) {
         if (WARNED_UNKNOWN_STATS.add(statId)) {
             try {
-                ZiggfreedCommonPlugin.LOGGER.atWarning().log("EquipStatBridge: unknown stat channel '" + statId
+                CommonLog.LOGGER.atWarning().log("EquipStatBridge: unknown stat channel '" + statId
                         + "' - skipping (not registered yet, or misspelled)");
             } catch (Throwable ignored) {
             }
@@ -578,7 +578,7 @@ public final class EquipStatBridge {
 
     private static void warn(@Nonnull String label, @Nonnull Throwable t) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("EquipStatBridge." + label + " failed: " + t.getMessage());
+            CommonLog.LOGGER.atFine().log("EquipStatBridge." + label + " failed: " + t.getMessage());
         } catch (Throwable ignored) {
         }
     }

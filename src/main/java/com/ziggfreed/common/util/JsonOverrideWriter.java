@@ -54,7 +54,7 @@ import com.hypixel.hytale.logger.HytaleLogger;
 public final class JsonOverrideWriter {
 
     /**
-     * This util's OWN guarded logger (NOT {@code ZiggfreedCommonPlugin.LOGGER}, which is unloadable in a
+     * This util's OWN guarded logger (NOT {@code CommonLog.LOGGER}, which is unloadable in a
      * plain unit JVM via the JavaPlugin static-init chain; this class is unit-tested). Null in a
      * log-manager-less JVM; {@link #warn} null-checks it.
      */

@@ -9,7 +9,7 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffec
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Apply / remove a Hytale {@code EntityEffect} asset on an entity by id, over the two
@@ -185,7 +185,7 @@ public final class NativeEffectUtil {
 
     private static void warn(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("[ziggfreed-common][effect] " + message);
+            CommonLog.LOGGER.atWarning().log("[ziggfreed-common][effect] " + message);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
         }
@@ -193,7 +193,7 @@ public final class NativeEffectUtil {
 
     private static void fine(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("[ziggfreed-common][effect] " + message);
+            CommonLog.LOGGER.atFine().log("[ziggfreed-common][effect] " + message);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
         }

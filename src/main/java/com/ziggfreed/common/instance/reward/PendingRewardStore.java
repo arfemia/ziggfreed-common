@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.hypixel.hytale.server.core.util.io.FileUtil;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * A durable per-player queue of rewards that could not be delivered yet (an item reward
@@ -172,7 +172,7 @@ public final class PendingRewardStore {
 
     private static void warn(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("%s", msg);
+            CommonLog.LOGGER.atWarning().log("%s", msg);
         } catch (Throwable ignored) {
         }
     }

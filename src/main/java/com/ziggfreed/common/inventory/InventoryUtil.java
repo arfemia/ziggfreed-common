@@ -11,7 +11,7 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.CombinedItemContainer;
 import com.hypixel.hytale.server.core.inventory.transaction.ItemStackTransaction;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * Mod-agnostic helpers for reading and mutating an entity's inventory by item id,
@@ -168,7 +168,7 @@ public final class InventoryUtil {
 
     private static void warn(@Nonnull String op, @Nonnull String itemId, @Nonnull Throwable t) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log(
+            CommonLog.LOGGER.atFine().log(
                     "[ZiggfreedCommon] InventoryUtil." + op + "(" + itemId + ") failed: " + t.getMessage());
         } catch (Throwable ignored) {
             // a log-manager-less unit JVM must not crash on the logging facade itself

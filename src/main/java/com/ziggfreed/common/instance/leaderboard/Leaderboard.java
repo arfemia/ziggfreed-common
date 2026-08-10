@@ -19,7 +19,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.util.io.FileUtil;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 
 /**
  * A generic, mod-agnostic, bucketed, UUID-keyed leaderboard persisted as JSON - the
@@ -270,7 +270,7 @@ public final class Leaderboard {
 
     private static void warn(@Nonnull String msg) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atWarning().log("%s", msg);
+            CommonLog.LOGGER.atWarning().log("%s", msg);
         } catch (Throwable ignored) {
         }
     }

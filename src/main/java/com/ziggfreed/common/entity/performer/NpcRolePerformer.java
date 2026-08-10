@@ -29,7 +29,7 @@ import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.role.Role;
 import com.hypixel.hytale.server.npc.util.InventoryHelper;
-import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.entity.performer.PerformerLook.SkinSource;
 
@@ -565,10 +565,10 @@ public final class NpcRolePerformer implements StationPerformer {
     private static void warn(@Nonnull String message, @Nullable Throwable cause) {
         try {
             if (cause != null) {
-                ZiggfreedCommonPlugin.LOGGER.atWarning().withCause(cause)
+                CommonLog.LOGGER.atWarning().withCause(cause)
                         .log("[ziggfreed-common][performer] " + message);
             } else {
-                ZiggfreedCommonPlugin.LOGGER.atWarning().log("[ziggfreed-common][performer] " + message);
+                CommonLog.LOGGER.atWarning().log("[ziggfreed-common][performer] " + message);
             }
         } catch (Throwable ignored) {
             // log-manager-less unit JVM.
@@ -577,7 +577,7 @@ public final class NpcRolePerformer implements StationPerformer {
 
     private static void fine(@Nonnull String message) {
         try {
-            ZiggfreedCommonPlugin.LOGGER.atFine().log("[ziggfreed-common][performer] " + message);
+            CommonLog.LOGGER.atFine().log("[ziggfreed-common][performer] " + message);
         } catch (Throwable ignored) {
             // log-manager-less unit JVM.
         }
