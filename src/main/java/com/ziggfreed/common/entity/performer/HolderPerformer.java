@@ -12,6 +12,7 @@ import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -166,6 +167,13 @@ public final class HolderPerformer implements StationPerformer {
             if (tc != null) {
                 tc.getPosition().set(pos.x, pos.y, pos.z);
                 tc.getRotation().setYaw(yaw);
+                // Mirror onto HeadRotation too - see PlayerPuppetService's spawn/walkTick pairing;
+                // without this a re-presented (moved/re-faced) puppet's head stays at its spawn-time
+                // yaw while the body snaps to the new facing.
+                HeadRotation headRotation = accessor.getComponent(ref, HeadRotation.getComponentType());
+                if (headRotation != null) {
+                    headRotation.getRotation().setYaw(yaw);
+                }
             }
         } catch (Throwable t) {
             fine("presentAt failed: " + t.getMessage());

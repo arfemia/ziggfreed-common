@@ -28,6 +28,7 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.SimpleItemContainer;
 import com.hypixel.hytale.server.core.modules.entity.component.ActiveAnimationComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.EntityScaleComponent;
+import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.player.PlayerSkinComponent;
@@ -54,7 +55,13 @@ import com.ziggfreed.common.ZiggfreedCommonPlugin;
  * {@code ModelSystems.AnimationEntityTrackerUpdate}, independent of exactly when a direct
  * {@link #playAnimation} packet happens to land - the spike's own round-4 fix, source-confirmed
  * against {@code AnimationUtils.playAnimation}'s {@code PlayerUtil.forEachPlayerThatCanSeeEntity}
- * viewer filter). Post-spawn, {@link #updateHeldItem} re-mirrors the source's currently-held item
+ * viewer filter). The spawn holder also pairs a {@link HeadRotation} with the body
+ * {@link TransformComponent} at the SAME yaw, matching every first-party spawn path
+ * ({@code SpawnUtil}/{@code World}/{@code NPCPlugin}/{@code DeployablesUtils}) - the transform
+ * tracker always transmits a look orientation, and with no {@code HeadRotation} component it falls
+ * back to world-absolute identity, rendering the puppet's head twisted relative to its body;
+ * {@link #walkTick} keeps the two paired as the puppet turns while walking. Post-spawn,
+ * {@link #updateHeldItem} re-mirrors the source's currently-held item
  * on demand (a puppet-active work session's tool can change mid-session, unlike the one-time
  * {@link #spawn}-time snapshot) - dirty-gated via the pure {@link #heldItemChanged} so a caller
  * re-checking every beat only touches the engine on a REAL switch, never every beat regardless of
@@ -141,6 +148,12 @@ public final class PlayerPuppetService {
             Rotation3f rotation = new Rotation3f(0f, req.yawRadians(), 0f);
             Holder<EntityStore> holder = EntityStore.REGISTRY.newHolder();
             holder.addComponent(TransformComponent.getComponentType(), new TransformComponent(req.position(), rotation));
+            // Paired with the body transform, matching every first-party spawn path (SpawnUtil,
+            // World, NPCPlugin, DeployablesUtils): the tracker's transform packet always carries a
+            // lookOrientation, and with no HeadRotation component present it falls back to
+            // Rotation3f.IDENTITY (world-absolute yaw 0) instead of the puppet's authored facing,
+            // rendering the head twisted relative to the body.
+            holder.addComponent(HeadRotation.getComponentType(), new HeadRotation(rotation));
             holder.ensureComponent(UUIDComponent.getComponentType());
             holder.addComponent(NetworkId.getComponentType(), new NetworkId(accessor.getExternalData().takeNextNetworkId()));
             holder.ensureComponent(EntityTrackerSystems.Visible.getComponentType());
@@ -270,7 +283,8 @@ public final class PlayerPuppetService {
      * (call this every tick from its own scheduler) and the POLICY (walk speed, when the walk starts,
      * what "arrived" means); this primitive owns only the per-tick MECHANISM: sample the point at the
      * new arc-length and write it to the puppet's {@link TransformComponent} (position in place, yaw
-     * via {@link PhysicsMath#headingFromDirection} toward the current segment's heading).
+     * via {@link PhysicsMath#headingFromDirection} toward the current segment's heading), mirroring
+     * the same yaw onto {@link HeadRotation} (when present) so the head tracks the body while walking.
      *
      * <p>The engine's own {@code TransformSystems.EntityTrackerUpdate} diffs the live
      * {@link TransformComponent} against its last-sent transform EVERY tick and broadcasts the move,
@@ -312,7 +326,14 @@ public final class PlayerPuppetService {
             if (transform != null) {
                 transform.getPosition().set(sample.x(), sample.y(), sample.z());
                 if (sample.dirX() != 0.0 || sample.dirZ() != 0.0) {
-                    transform.getRotation().setYaw(PhysicsMath.headingFromDirection(sample.dirX(), sample.dirZ()));
+                    float yaw = PhysicsMath.headingFromDirection(sample.dirX(), sample.dirZ());
+                    transform.getRotation().setYaw(yaw);
+                    // Mirror onto HeadRotation too (see the spawn-site comment) so a walking
+                    // puppet's head tracks its body instead of staying pinned at spawn-time yaw.
+                    HeadRotation headRotation = accessor.getComponent(ref, HeadRotation.getComponentType());
+                    if (headRotation != null) {
+                        headRotation.getRotation().setYaw(yaw);
+                    }
                 }
             }
             return clamped;
