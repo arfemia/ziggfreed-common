@@ -1,0 +1,9 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// Puppets, performers and the item-carried stat bridge. Depends on zc-cast for the world-eviction
+// seam a performer's per-world bookkeeping registers against.
+
+dependencies {
+    api project(':zc-core')
+    api project(':zc-cast')
+}

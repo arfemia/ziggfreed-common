@@ -1,0 +1,8 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// The cast/interaction runtime: the step-dispatch kernel, hit resolution, armed state, ray and
+// block targeting, the per-world tick partition, and the native interaction-composition framework.
+
+dependencies {
+    api project(':zc-core')
+}

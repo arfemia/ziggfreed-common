@@ -1,0 +1,4 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// Pure difficulty-scaling math: fold participant powers, clamp to a band. No engine types at all,
+// which is why it stands alone rather than folding into zc-core.

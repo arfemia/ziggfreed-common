@@ -1,0 +1,9 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// Native effect application plus the loot/reward model. Carries com.ziggfreed.common.instance.effect
+// and .instance.reward, which are self-contained and wanted by consumers that never touch the rest
+// of the instance-experience layer, so they live here rather than dragging zc-instance along.
+
+dependencies {
+    api project(':zc-core')
+}

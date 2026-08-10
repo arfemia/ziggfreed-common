@@ -2,14 +2,17 @@ plugins {
     id 'java'
 }
 
+// The wiring root. It holds only the plugin entry point and the asset registrar that reaches into
+// every domain to register its store; all the library code lives in the nine zc-* modules, and
+// this project merges their jars back into the ONE ZiggfreedCommon-<version>.jar a server loads.
+//
+// Consumers are unaffected by the module layout: the aggregate jar has the same flat classpath it
+// always had, and every class keeps its com.ziggfreed.common.* name.
+
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(java_version)
     withSourcesJar()
     withJavadocJar()
-}
-
-javadoc {
-    options.addStringOption('Xdoclint:-missing', '-quiet')
 }
 
 group = project.group
@@ -19,41 +22,117 @@ repositories {
     mavenCentral()
 }
 
+def zcModules = [
+        ':zc-core', ':zc-presentation', ':zc-cast', ':zc-entity', ':zc-effects',
+        ':zc-dialogue', ':zc-instance', ':zc-world', ':zc-scaling'
+]
+
+// Entries a module jar carries for its own sake that must not reach the aggregate: a second
+// manifest, build-tool bookkeeping, and any signature file (a signature over one module's contents
+// is meaningless once the classes are repacked, and an unmatched one makes the jar unverifiable).
+def moduleJarNoise = [
+        'META-INF/MANIFEST.MF', 'META-INF/services/**', 'META-INF/maven/**',
+        'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+]
+
+configurations {
+    // The module JARS to merge. NON-TRANSITIVE on purpose: a transitive bundle would drag jsr305
+    // in and leave stray javax/annotation classes in the shipped jar.
+    moduleBundle {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+    }
+    // The module SOURCES jars, so the published -sources artifact stays the whole tree rather than
+    // this project's two classes.
+    moduleSources {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+        attributes {
+            attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.DOCUMENTATION))
+            attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType, DocsType.SOURCES))
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.EXTERNAL))
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+        }
+    }
+}
+
 // Compile against the SAME jar the server runs (path in gradle.properties).
 def hytaleServerJar = new File("${hytaleHome}/${patchline}/package/game/${game_build}/Server/HytaleServer.jar")
 
 dependencies {
+    zcModules.each { m ->
+        implementation project(m)
+        moduleBundle project(m)
+        moduleSources project(m)
+    }
+
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     // Gradle 9 requires the JUnit Platform launcher on the test runtime classpath.
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-    // jsr305 for @Nonnull/@Nullable. NOT compileOnly: these classes ship in the jar
-    // and consumers compileOnly against it, so the annotations must resolve there too.
+    // jsr305 for @Nonnull/@Nullable. NOT compileOnly: consumers compileOnly against this jar, so
+    // the annotations must resolve there too.
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
 
-    // The Hytale server jar is provided at runtime (the server loads it first), so we
-    // NEVER bundle it - bundling would double-load engine classes under two classloaders.
-    // ziggfreed-common has NO Perfect Utils coupling (the only dep is the server jar).
+    // The Hytale server jar is provided at runtime (the server loads it first), so we NEVER bundle
+    // it - bundling would double-load engine classes under two classloaders.
     compileOnly(files(hytaleServerJar))
-
-    // Tests compile + run the pure engine paths (codec decode, sugar, template resolve),
-    // which need the server jar's shaded Gson + codec classes on the TEST classpath too.
     testImplementation(files(hytaleServerJar))
 }
 
 // Never call a deprecated engine API (repo-wide sibling-mod edict, additional-mods/CLAUDE.md,
 // 2026-07-22): -Xlint:removal surfaces every Hytale API annotated @Deprecated(forRemoval = true)
 // still in use, and -Werror promotes that warning to a hard compile failure, mirroring the hyMMO
-// jar's own compileJava flag. A future Hytale server update that deprecates-for-removal an API
-// this mod calls will now fail the build on sight instead of silently degrading toward a removed
-// API. compileJava only (not compileTestJava), matching the hyMMO jar's own scoping.
+// jar's own compileJava flag. compileJava only (not compileTestJava).
 compileJava {
     options.compilerArgs << '-Xlint:removal' << '-Werror'
 }
 
 test {
     useJUnitPlatform()
+}
+
+// The single installable runtime jar: this project's two classes plus every module's contents,
+// flattened. DuplicatesStrategy.EXCLUDE keeps the first copy of a directory entry the modules
+// share (com/, com/ziggfreed/, com/ziggfreed/common/, META-INF/) instead of failing on it.
+jar {
+    dependsOn configurations.moduleBundle
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.moduleBundle.collect { zipTree(it) } }) {
+        exclude moduleJarNoise
+    }
+}
+
+sourcesJar {
+    dependsOn configurations.moduleSources
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.moduleSources.collect { zipTree(it) } }) {
+        exclude moduleJarNoise
+    }
+}
+
+// Javadoc needs the whole tree in one place. Merging the modules' javadoc jars would collide on
+// their per-module index/element-list files and leave a browsable-but-broken index, so unpack the
+// aggregated SOURCES instead and document them as a single run.
+def aggregatedSources = layout.buildDirectory.dir('aggregated-sources')
+
+tasks.register('unpackModuleSources', Sync) {
+    dependsOn configurations.moduleSources
+    from({ configurations.moduleSources.collect { zipTree(it) } }) {
+        include '**/*.java'
+    }
+    into aggregatedSources
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+javadoc {
+    dependsOn 'unpackModuleSources'
+    source = sourceSets.main.allJava + fileTree(aggregatedSources) { include '**/*.java' }
+    classpath = sourceSets.main.compileClasspath
+    options.addStringOption('Xdoclint:-missing', '-quiet')
 }
 
 processResources {

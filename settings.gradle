@@ -1,1 +1,19 @@
 rootProject.name = 'ZiggfreedCommon'
+
+// The library is built as nine focused modules plus a thin wiring root. Every module keeps the
+// SAME package root (com.ziggfreed.common.*) and they are all merged back into the single
+// ZiggfreedCommon jar a server loads, so a module boundary here is a build-time concern only: no
+// consumer import, class name, or manifest changes because of it.
+//
+// Only ONE jar is ever installed. The per-module jars in zc-*/build/libs are compile inputs to
+// that aggregate; they carry no manifest.json and are not loadable mods on their own (the shipped
+// .ui pack has cross-module references, e.g. a dialogue page importing the shared frames).
+include 'zc-core'
+include 'zc-presentation'
+include 'zc-cast'
+include 'zc-entity'
+include 'zc-effects'
+include 'zc-dialogue'
+include 'zc-instance'
+include 'zc-world'
+include 'zc-scaling'

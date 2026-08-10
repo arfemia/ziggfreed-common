@@ -1,0 +1,10 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// World identity (selectors, name index, match ranking), atmosphere and placement helpers, and the
+// world-map POI/discovery layer.
+
+dependencies {
+    api project(':zc-core')
+    api project(':zc-cast')
+    api project(':zc-entity')
+}

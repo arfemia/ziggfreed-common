@@ -1,0 +1,5 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// The foundation layer: the shared logger handle, JSON/codec leaves, the client-resolved Message
+// factory, the generic keyed-asset store bases, and the inventory/health engine wrappers. It
+// depends on nothing but the server jar, so every other module can rest on it.

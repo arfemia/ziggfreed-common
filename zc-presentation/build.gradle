@@ -1,0 +1,8 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// Everything a player sees or hears: UI primitives (retint, theme, toast, HUD, forms, rows),
+// 3D sound, camera effects, and the notification wrappers.
+
+dependencies {
+    api project(':zc-core')
+}
