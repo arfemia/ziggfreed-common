@@ -71,6 +71,13 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
     private final DialoguePageDeps deps;
     @Nullable private String currentNodeId;
 
+    /**
+     * The entry-level {@code Once} this conversation is holding open, written only once the player
+     * finishes the beat (chooses any option on the entry node, the implicit Farewell included).
+     * Dismissing the page instead leaves it unwritten, so the beat shows again next time.
+     */
+    @Nullable private String pendingEntryOnceKey;
+
     public DialoguePage(@Nonnull PlayerRef playerRef, @Nonnull String dialogueId,
                         @Nullable String contextNpcId, @Nonnull DialoguePageDeps deps) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, DialogueEventData.CODEC);
@@ -107,7 +114,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         NpcDialogue dialogue = deps.dialogueResolver().apply(dialogueId);
         if (dialogue == null) {
             commandBuilder.set("#NodeText.TextSpans", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
-            appendFarewellRow(commandBuilder, eventBuilder, i18n, 0);
+            appendFarewellRow(commandBuilder, eventBuilder, i18n, 0, null);
             renderToastInto(commandBuilder);
             return;
         }
@@ -118,54 +125,65 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
                 contextNpcId, ref, store, playerRef, player);
 
         if (currentNodeId == null || dialogue.getNode(currentNodeId) == null) {
-            currentNodeId = engine.resolveEntryNodeId(dialogue, ctx);
+            DialogueEngine.EntryResolution entry = engine.resolveEntry(dialogue, ctx);
+            currentNodeId = entry.nodeId();
+            pendingEntryOnceKey = entry.onceKey();
         }
-        DialogueNode node = dialogue.getNode(currentNodeId);
-        if (node == null) {
+        String nodeId = currentNodeId;
+        DialogueNode node = dialogue.getNode(nodeId);
+        if (node == null || nodeId == null) {
             commandBuilder.set("#NodeText.TextSpans", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
-            appendFarewellRow(commandBuilder, eventBuilder, i18n, 0);
+            appendFarewellRow(commandBuilder, eventBuilder, i18n, 0, null);
             renderToastInto(commandBuilder);
             return;
         }
 
-        setNodeText(commandBuilder, i18n, dialogue, currentNodeId, node);
+        setNodeText(commandBuilder, i18n, dialogue, nodeId, node);
 
         List<DialogueOption> options = node.getOptions();
         int row = 0;
         List<DialogueOption> renderedOptions = new ArrayList<>();
         for (int i = 0; i < options.size(); i++) {
             DialogueOption option = options.get(i);
-            if (option.hasConditions() && !engine.conditionsPass(option.getConditions(), ctx)) {
+            if (!engine.optionAvailable(dialogue, nodeId, option, ctx)) {
                 continue;
             }
             commandBuilder.append("#OptionsList", OPTION_ROW_TEMPLATE);
             String sel = "#OptionsList[" + row + "]";
-            commandBuilder.set(sel + " #OptionBtn.Text", resolveOptionLabel(i18n, dialogue, currentNodeId, i, option));
+            commandBuilder.set(sel + " #OptionBtn.Text", resolveOptionLabel(i18n, dialogue, nodeId, i, option));
             DialogueOptionStyle style = engine.classifyOption(option);
             applyOptionLook(commandBuilder, sel, style, themeFor(style), option.getPresentation());
             eventBuilder.addEventBinding(CustomUIEventBindingType.Activating, sel + " #OptionBtn",
                     EventData.of("Action", "choose")
-                            .append("Node", currentNodeId)
+                            .append("Node", nodeId)
                             .append("Option", Integer.toString(i)),
                     false);
             renderedOptions.add(option);
             row++;
         }
         if (!DialogueOption.anyCloses(renderedOptions)) {
-            appendFarewellRow(commandBuilder, eventBuilder, i18n, row);
+            appendFarewellRow(commandBuilder, eventBuilder, i18n, row, nodeId);
         }
         // LAST: the toast overlay draws over the dialogue; inert unless a completion toast is live.
         renderToastInto(commandBuilder);
     }
 
+    /**
+     * Append the implicit exit row. It reports {@code farewell} rather than {@code close} because
+     * taking it is a CHOICE that finishes the beat (it spends a first-visit {@code Once}), while
+     * the header close button and Escape are an abandon that spends nothing.
+     */
     private void appendFarewellRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                                   @Nonnull DialogueI18n i18n, int row) {
+                                   @Nonnull DialogueI18n i18n, int row, @Nullable String nodeId) {
         cmd.append("#OptionsList", OPTION_ROW_TEMPLATE);
         String sel = "#OptionsList[" + row + "]";
         cmd.set(sel + " #OptionBtn.Text", DialogueMessages.tr(i18n, "ui.dialogue.farewell"));
         applyOptionLook(cmd, sel, DialogueOptionStyle.FAREWELL, themeFor(DialogueOptionStyle.FAREWELL), null);
-        events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #OptionBtn",
-                EventData.of("Action", "close"));
+        EventData data = EventData.of("Action", "farewell");
+        if (nodeId != null) {
+            data = data.append("Node", nodeId);
+        }
+        events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #OptionBtn", data);
     }
 
     /** The data-driven {@link DialogueOptionTheme} for a style kind, or null when no layer authored it. */
@@ -297,6 +315,14 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
                                 @Nonnull DialogueEventData data) {
         Player player = (Player) store.getComponent(ref, Player.getComponentType());
 
+        boolean farewell = "farewell".equals(data.action);
+        if (farewell) {
+            // The implicit exit row: a deliberate end to the beat, so it finishes any first-visit
+            // Once the same way an authored option does before closing.
+            consumeFarewell(ref, store, player, data.node);
+            player.getPageManager().setPage(ref, store, Page.None);
+            return;
+        }
         if (!"choose".equals(data.action) || data.node == null || data.option == null) {
             player.getPageManager().setPage(ref, store, Page.None);
             return;
@@ -315,13 +341,17 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         DialogueExecContext ctx = deps.contextFactory().create(
                 dialogue, data.node, optionIndex, contextNpcId, ref, store, playerRef, player);
 
-        // Re-check conditions on click: state may have moved since the render.
-        if (option.hasConditions() && !deps.engine().conditionsPass(option.getConditions(), ctx)) {
+        // Re-check availability on click: state may have moved since the render, and a spent
+        // one-time option must never run twice.
+        if (!deps.engine().optionAvailable(dialogue, data.node, option, ctx)) {
             player.getPageManager().openCustomPage(ref, store, this);
             return;
         }
 
         DialogueActionExecutor.Outcome outcome = deps.engine().executor().execute(option.getActions(), ctx);
+        // The beat is done: spend the entry's first-visit Once and the option's own.
+        deps.engine().consumeOnce(pendingEntryOnceKey, dialogue, data.node, option, ctx);
+        pendingEntryOnceKey = null;
 
         if (outcome.openedOtherPage()) {
             return;
@@ -342,6 +372,25 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             }
         }
         player.getPageManager().openCustomPage(ref, store, this);
+    }
+
+    /**
+     * Spend a pending first-visit {@code Once} when the player leaves through the implicit
+     * Farewell row. No option ran, so only the entry's own key is at stake.
+     */
+    private void consumeFarewell(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+                                 @Nonnull Player player, @Nullable String nodeId) {
+        if (pendingEntryOnceKey == null || nodeId == null) {
+            pendingEntryOnceKey = null;
+            return;
+        }
+        NpcDialogue dialogue = deps.dialogueResolver().apply(dialogueId);
+        if (dialogue != null) {
+            DialogueExecContext ctx = deps.contextFactory().create(
+                    dialogue, nodeId, -1, contextNpcId, ref, store, playerRef, player);
+            deps.engine().consumeOnce(pendingEntryOnceKey, dialogue, nodeId, null, ctx);
+        }
+        pendingEntryOnceKey = null;
     }
 
     private static int parseIndex(@Nullable String raw) {

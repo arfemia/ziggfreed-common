@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.factor.FactorCondition;
 
 /**
  * {@link NpcPlacementAsset}'s decode contract under native {@code Parent} inheritance.
@@ -152,7 +153,7 @@ class NpcPlacementAssetCodecTest {
                 { "Requires": { "Conditions": [ { "Factor": "yourmod:feature", "Param": "shop", "Min": 1 } ] } }
                 """, "gated");
 
-        PlacementCondition[] conditions = asset.getRequires().getConditions();
+        FactorCondition[] conditions = asset.getRequires().getConditions();
         assertEquals(1, conditions.length);
         assertEquals("yourmod:feature", conditions[0].getFactor());
         assertEquals("shop", conditions[0].getParam());

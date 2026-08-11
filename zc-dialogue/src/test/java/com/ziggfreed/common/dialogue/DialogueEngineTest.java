@@ -28,13 +28,16 @@ class DialogueEngineTest {
     void allCodecsInitialize() {
         assertNotNull(DialogueAction.Goto.CODEC);
         assertNotNull(DialogueAction.Close.CODEC);
-        assertNotNull(DialogueAction.SetFlag.CODEC);
+        assertNotNull(DialogueAction.Remember.CODEC);
+        assertNotNull(DialogueAction.Forget.CODEC);
         assertNotNull(DialogueAction.Talk.CODEC);
         assertNotNull(DialogueAction.OpenPage.CODEC);
-        assertNotNull(DialogueCondition.Flag.CODEC);
-        assertNotNull(DialogueCondition.NotFlag.CODEC);
+        assertNotNull(DialogueCondition.Remembered.CODEC);
+        assertNotNull(DialogueCondition.NotRemembered.CODEC);
         assertNotNull(DialogueCondition.World.CODEC);
         assertNotNull(DialogueFlagScope.CODEC);
+        assertNotNull(DialogueOnce.CODEC);
+        assertNotNull(DialogueMemory.CODEC);
         assertNotNull(DialogueOption.Presentation.CODEC);
         assertNotNull(DialogueOption.Icon.CODEC);
         assertNotNull(DialogueEventData.CODEC);
@@ -75,15 +78,16 @@ class DialogueEngineTest {
     void decodesTypeListConditions() {
         DialogueEngine engine = engine();
         String json = "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"Label\":\"x\","
-                + "\"Conditions\":[{\"Type\":\"Flag\",\"Flag\":\"met\"},{\"Type\":\"NotFlag\",\"Flag\":\"done\"}],"
+                + "\"Conditions\":[{\"Type\":\"Remembered\",\"Memory\":\"met\"},"
+                + "{\"Type\":\"NotRemembered\",\"Memory\":\"done\"}],"
                 + "\"Actions\":[{\"Type\":\"Close\"}]}]}}}";
         NpcDialogue d = engine.decode("c", json);
         assertNotNull(d);
         DialogueOption opt = d.getNode("g").getOptions().get(0);
         assertTrue(opt.hasConditions());
         assertEquals(2, opt.getConditions().size());
-        assertTrue(opt.getConditions().get(0) instanceof DialogueCondition.Flag);
-        assertTrue(opt.getConditions().get(1) instanceof DialogueCondition.NotFlag);
+        assertTrue(opt.getConditions().get(0) instanceof DialogueCondition.Remembered);
+        assertTrue(opt.getConditions().get(1) instanceof DialogueCondition.NotRemembered);
     }
 
     @Test
@@ -143,9 +147,9 @@ class DialogueEngineTest {
     void decodesBooleanCombinators() {
         DialogueEngine engine = engine();
         String json = "{\"Start\":[{\"Node\":\"g\",\"Conditions\":[{\"Type\":\"AnyOf\",\"Any\":["
-                + "{\"Type\":\"Flag\",\"Flag\":\"a\"},{\"Type\":\"NotFlag\",\"Flag\":\"b\"}]}]}],"
-                + "\"Nodes\":{\"g\":{\"Conditions\":[{\"Type\":\"Not\",\"Of\":[{\"Type\":\"Flag\",\"Flag\":\"c\"}]}],"
-                + "\"Options\":[]}}}";
+                + "{\"Type\":\"Remembered\",\"Memory\":\"a\"},{\"Type\":\"NotRemembered\",\"Memory\":\"b\"}]}]}],"
+                + "\"Nodes\":{\"g\":{\"Conditions\":[{\"Type\":\"Not\",\"Of\":[{\"Type\":\"Remembered\","
+                + "\"Memory\":\"c\"}]}],\"Options\":[]}}}";
         NpcDialogue d = engine.decode("combo", json);
         assertNotNull(d);
         DialogueCondition start = d.getStart().get(0).getConditions().get(0);

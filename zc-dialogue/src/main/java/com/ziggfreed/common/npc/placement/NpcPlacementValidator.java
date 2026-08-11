@@ -3,10 +3,12 @@ package com.ziggfreed.common.npc.placement;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.common.world.WorldSelectorConfig;
 import com.ziggfreed.common.world.WorldSelectorDef;
@@ -60,6 +62,7 @@ public final class NpcPlacementValidator {
         checkAnchor(placement, id, out);
         checkRequires(placement, id, out);
         checkLimits(placement, id, out);
+        checkInteract(placement, id, out);
     }
 
     // ==================== identity ====================
@@ -180,7 +183,7 @@ public final class NpcPlacementValidator {
         if (requires == null) {
             return;
         }
-        for (PlacementCondition condition : requires.conditionsOrEmpty()) {
+        for (FactorCondition condition : requires.conditionsOrEmpty()) {
             if (condition == null) {
                 continue;
             }
@@ -192,7 +195,7 @@ public final class NpcPlacementValidator {
             if (!PlacementFactorRegistry.isRegistered(condition.getFactor())) {
                 out.add(Issue.warning("UNREGISTERED_FACTOR",
                         "no provider is registered for factor '" + condition.getFactor()
-                                + "'. It resolves to 0 and the gate fails closed, so this placement will not "
+                                + "'. It cannot resolve and the gate fails closed, so this placement will not "
                                 + "appear until the mod that owns it is installed", id));
             }
         }
@@ -216,6 +219,40 @@ public final class NpcPlacementValidator {
         if (max != null && max < 0) {
             out.add(Issue.warning("NEGATIVE_MAX_PER_WORLD",
                     "Limits.MaxPerWorld is negative, which reads as unlimited. Use 0 for unlimited", id));
+        }
+    }
+
+    // ==================== interact ====================
+
+    private static void checkInteract(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
+            @Nonnull List<Issue> out) {
+        NpcPlacementAsset.Interact interact = placement.getInteract();
+        if (interact == null) {
+            return;
+        }
+        Map<String, PlacementBinding> bindings = interact.getBindings();
+        if (bindings.isEmpty()) {
+            return;
+        }
+
+        for (String channel : bindings.keySet()) {
+            if (channel == null) {
+                continue;
+            }
+            int colon = channel.indexOf(':');
+            if (colon <= 0 || channel.substring(0, colon).isBlank()) {
+                out.add(Issue.warning("BINDING_KEY_NO_NAMESPACE",
+                        "Interact.Bindings key '" + channel + "' has no 'namespace:channel' prefix, so it has "
+                                + "no owner and is dropped at every press-F", id));
+            }
+        }
+
+        for (String namespace : NpcPlacementBindings.byNamespace(bindings, id).keySet()) {
+            if (!NpcPlacementBindings.isRegistered(namespace)) {
+                out.add(Issue.warning("UNCLAIMED_BINDING_NAMESPACE",
+                        "Interact.Bindings authors the namespace '" + namespace + "', but no handler has "
+                                + "registered it, so those bindings are ignored at press-F", id));
+            }
         }
     }
 

@@ -7,11 +7,11 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 
 /**
- * Package-private: resolves a native {@link EntityStatType} id to its engine asset-map index and
- * memoizes the result, mirroring {@code util.DamageCauseCache}'s technique for a different asset
- * type (same repo, different domain). Shared by every class in this package that needs to turn a
- * stat id string into an index ({@link EquipStatBridge}, {@link StatMirror}, {@link
- * StatChannelAudit}) so the resolution + caching rule exists exactly once.
+ * Resolves a native {@link EntityStatType} id to its engine asset-map index and memoizes the
+ * result, mirroring {@code util.DamageCauseCache}'s technique for a different asset type (same
+ * repo, different domain). Shared by every class that needs to turn a stat id string into an index
+ * ({@link EquipStatBridge}, {@link StatMirror}, {@link StatChannelAudit}, and the library's own
+ * {@code hytale:stat} factor provider) so the resolution + caching rule exists exactly once.
  *
  * <p><b>Deliberately NOT routed through {@code util.AssetIndexCache}</b> even though the package
  * router lists it as the one allowed cross-domain primitive: that cache treats index {@code 0} as
@@ -22,10 +22,10 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
  * cache any {@code idx >= 0} (the engine's real "missing" sentinel is {@code Integer.MIN_VALUE}),
  * never cache a miss so a not-yet-loaded pack channel re-resolves on the next call.
  */
-final class StatIndexCache {
+public final class StatIndexCache {
 
     /** Returned (and never cached) when the id is not registered yet / the map is not ready. */
-    static final int UNRESOLVED = -1;
+    public static final int UNRESOLVED = -1;
 
     @Nonnull
     private static final ConcurrentHashMap<String, Integer> CACHE = new ConcurrentHashMap<>();
@@ -40,7 +40,7 @@ final class StatIndexCache {
      * @return the resolved index ({@code >= 0}), or {@link #UNRESOLVED} if not registered yet /
      *         the asset store is not ready (e.g. a unit JVM with no live server). Never throws.
      */
-    static int resolve(@Nonnull String statId) {
+    public static int resolve(@Nonnull String statId) {
         Integer cached = CACHE.get(statId);
         if (cached != null) {
             return cached;

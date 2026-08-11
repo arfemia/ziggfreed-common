@@ -13,10 +13,11 @@ import com.ziggfreed.common.instance.encounter.MultiPhaseBossAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetAsset;
 import com.ziggfreed.common.instance.reward.LootTableAsset;
+import com.ziggfreed.common.npc.placement.NpcBaseRoleAsset;
 import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
+import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.npc.placement.PlacedNpcComponent;
 import com.ziggfreed.common.npc.placement.PlacementBinding;
-import com.ziggfreed.common.npc.placement.PlacementCondition;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WorldSelector;
@@ -91,12 +92,19 @@ class AssetCodecInitTest {
         // The two shared leaf codecs are not stores, but the asset embeds them, so a lower-case
         // key there would fail at that asset's decode instead of at this build.
         assertNotNull(PlacementBinding.CODEC, "PlacementBinding.CODEC must static-init (PascalCase keys)");
-        assertNotNull(PlacementCondition.CODEC, "PlacementCondition.CODEC must static-init (PascalCase keys)");
+        assertNotNull(FactorCondition.CODEC, "FactorCondition.CODEC must static-init (PascalCase keys)");
+        assertNotNull(FactorCondition.codec("ziggfreedcommon:placement_factors"),
+                "the dropdown-bearing FactorCondition codec factory must static-init too");
         assertNotNull(PlacedNpcComponent.CODEC, "PlacedNpcComponent.CODEC must static-init (PascalCase keys)");
     }
 
     @Test
     void dialogueOptionThemeAssetCodecInitializes() {
         assertNotNull(DialogueOptionThemeAsset.CODEC, "DialogueOptionThemeAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void npcBaseRoleAssetCodecInitializes() {
+        assertNotNull(NpcBaseRoleAsset.CODEC, "NpcBaseRoleAsset.CODEC must static-init (PascalCase keys)");
     }
 }

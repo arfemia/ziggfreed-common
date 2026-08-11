@@ -14,8 +14,10 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * One selectable line in a dialogue node: a localized label, an optional list of
  * AND-combined {@link DialogueCondition}s (option hidden while they fail;
  * re-evaluated on every render AND again on click), an ordered list of
- * {@link DialogueAction}s, and an optional {@link Presentation} (per-option
- * colour + icon) that overrides the action-derived {@link DialogueOptionStyle}.
+ * {@link DialogueAction}s, an optional {@link DialogueOnce} ({@code "Once": true} -
+ * offered until its actions have run once), and an optional {@link Presentation}
+ * (per-option colour + icon) that overrides the action-derived
+ * {@link DialogueOptionStyle}.
  * An option with no Goto/Close re-renders its node. A pure data POJO; its codec
  * is assembled by {@link DialogueEngine} (the {@code Presentation} sub-object is
  * self-contained and carries its own {@link Presentation#CODEC}).
@@ -28,6 +30,8 @@ public class DialogueOption {
     @Nullable DialogueAction[] actions;
     @Nullable Presentation presentation;
     @Nullable String styleKind;
+    @Nullable DialogueOnce once;
+    @Nullable String onceId;
 
     public DialogueOption() {
     }
@@ -46,6 +50,37 @@ public class DialogueOption {
 
     /** Deprecated raw label fallback, or null. */
     @Nullable public String getLabel() { return label; }
+
+    /**
+     * The one-time knob, or null when this option may be chosen any number of times. With
+     * {@code "Once": true} the option is offered until its actions have run once; with
+     * {@code "Once": {"WorldSelector": "<name>"}} it is offered once per world family.
+     */
+    @Nullable public DialogueOnce getOnce() { return once; }
+
+    /**
+     * An explicit identity for this option's {@code Once}, or null to use its {@code LabelKey}.
+     * Author one when the option has no {@code LabelKey}, or when two options in the same node
+     * share a label and each should be spendable on its own.
+     */
+    @Nullable public String getOnceId() { return onceId; }
+
+    /**
+     * What this option's {@code Once} is remembered under: the {@code OnceId} when authored, else
+     * the {@code LabelKey}, else the raw {@code Label}. Never the option's index, so reordering a
+     * node's options cannot resurrect a spent Once or spend a fresh one. Blank when the option
+     * offers nothing stable to key on (author an {@code OnceId} in that case).
+     */
+    @Nonnull
+    public String onceDiscriminator() {
+        if (onceId != null && !onceId.isBlank()) {
+            return onceId;
+        }
+        if (labelKey != null && !labelKey.isBlank()) {
+            return labelKey;
+        }
+        return label != null && !label.isBlank() ? label : "";
+    }
 
     @Nonnull
     public List<DialogueCondition> getConditions() {

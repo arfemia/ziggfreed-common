@@ -26,6 +26,8 @@ import com.ziggfreed.common.instance.preset.InstancePresetAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetConfig;
 import com.ziggfreed.common.instance.reward.LootTableAsset;
 import com.ziggfreed.common.instance.reward.LootTableConfig;
+import com.ziggfreed.common.npc.placement.NpcBaseRoleAsset;
+import com.ziggfreed.common.npc.placement.NpcBaseRoleConfig;
 import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
 import com.ziggfreed.common.party.PartySettingsAsset;
@@ -205,11 +207,23 @@ public final class FrameworkAssetRegistrar {
                         NpcPlacementConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap())));
 
+        // --- NPC base roles (Pattern B) - a pack-authored role a placement's generated Identity
+        //     may clone, keyed by base-role id. The fold pushes each entry straight into
+        //     NpcRoleGenerator's base-role registry (asset wins a Java-registered collision), so
+        //     a pack can ship a base role with no Java at all. ---
+        AssetStoreRegistrar.registerStore(NpcBaseRoleAsset.class,
+                new DefaultAssetMap<String, NpcBaseRoleAsset>(), "ZiggfreedCommon/NpcBaseRoles",
+                NpcBaseRoleAsset::getId, NpcBaseRoleAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, NpcBaseRoleAsset.class,
+                (LoadedAssetsEvent<String, NpcBaseRoleAsset, DefaultAssetMap<String, NpcBaseRoleAsset>> ev) ->
+                        NpcBaseRoleConfig.getInstance().mergePackLayer(
+                                AssetMergeAdapter.layer(ev.getAssetMap())));
+
         try {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (Dialogues, DialogueTemplates, Instances, "
                             + "LootTables, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
-                            + "Arenas, Party, WorldSelectors, NpcPlacements).");
+                            + "Arenas, Party, WorldSelectors, NpcPlacements, NpcBaseRoles).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }

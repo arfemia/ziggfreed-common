@@ -1,7 +1,6 @@
 package com.ziggfreed.common.dialogue;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,37 +9,34 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
- * The pure decision core of scoped dialogue flags: the storage-key format and the
- * does-this-world-carry-the-scope resolution. No server needed.
+ * The pure decision core behind per-world-family dialogue state: the storage-key format and the
+ * does-this-world-carry-the-scope resolution. Internal plumbing - no author writes one of these
+ * keys - but the format is load-bearing for a consumer's prefix-match resets. No server needed.
  */
 class DialogueFlagScopeTest {
-
-    private static DialogueEngine engine() {
-        return DialogueEngine.builder().warn(m -> { }).build();
-    }
 
     // ==================== The key format ====================
 
     /**
-     * THE SOFT-LOCK REGRESSION GUARD. A consumer clears a namespace of dialogue flags by a leading
+     * THE SOFT-LOCK REGRESSION GUARD. A consumer clears a namespace of dialogue state by a leading
      * PREFIX match (hyMMO's {@code QuestComponent.resetQuest} clears {@code q:<questId>:*} when a
-     * quest is reset). If the world scope were PREPENDED, the scoped flag would fall outside that
+     * quest is reset). If the world scope were PREPENDED, the scoped key would fall outside that
      * prefix, the reset would silently miss it, and the dialogue would stay soft-locked forever.
      * The scope must therefore wrap only the FINAL segment, leaving every leading segment intact.
      */
     @Test
-    void questPrefixedFlagKeepsItsQuestPrefixWhenScoped() {
+    void questPrefixedKeyKeepsItsQuestPrefixWhenScoped() {
         String key = DialogueFlagScope.scopedKey("q:meet_at_the_temple:greeted", "forgotten_temple");
 
         assertEquals("q:meet_at_the_temple:w:forgotten_temple:greeted", key);
         // The exact predicate a prefix-match reset uses: it must still hit.
         assertTrue(key.startsWith("q:meet_at_the_temple:"),
-                "a world-scoped quest flag must stay inside its q:<questId>: prefix or a quest"
+                "a world-scoped quest key must stay inside its q:<questId>: prefix or a quest"
                         + " reset silently misses it and the dialogue soft-locks");
     }
 
     @Test
-    void bareFlagScopesToWorldSegment() {
+    void bareKeyScopesToWorldSegment() {
         assertEquals("w:forgotten_temple:greeted",
                 DialogueFlagScope.scopedKey("greeted", "forgotten_temple"));
     }
@@ -60,8 +56,7 @@ class DialogueFlagScopeTest {
     // ==================== Resolution against the current world ====================
 
     @Test
-    void unscopedFlagResolvesToItselfUnchanged() {
-        // The no-regression case: an absent Scope must behave exactly as before this feature.
+    void unscopedKeyResolvesToItselfUnchanged() {
         assertEquals("greeted", DialogueFlagScope.resolve(null, "greeted", Set.of("forgotten_temple")));
         assertEquals("q:x:greeted",
                 DialogueFlagScope.resolve(null, "q:x:greeted", Set.of("forgotten_temple")));
@@ -92,49 +87,34 @@ class DialogueFlagScopeTest {
         assertTrue(DialogueFlagScope.ofWorldSelector(" ").isBlank());
     }
 
-    // ==================== Round-trip decode ====================
+    // ==================== The state-key namespaces ====================
 
     @Test
-    void decodesScopeOnSetFlagAndOnBothFlagConditions() {
-        DialogueEngine engine = engine();
-        String json = "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"Label\":\"x\","
-                + "\"Conditions\":[{\"Type\":\"NotFlag\",\"Flag\":\"greeted\","
-                + "\"Scope\":{\"WorldSelector\":\"forgotten_temple\"}},"
-                + "{\"Type\":\"Flag\",\"Flag\":\"met\",\"Scope\":{\"WorldSelector\":\"primary\"}}],"
-                + "\"Actions\":[{\"Type\":\"SetFlag\",\"Flag\":\"greeted\","
-                + "\"Scope\":{\"WorldSelector\":\"forgotten_temple\"}}]}]}}}";
-
-        NpcDialogue d = engine.decode("scoped", json);
-        assertNotNull(d);
-        DialogueOption opt = d.getNode("g").getOptions().get(0);
-
-        DialogueCondition.NotFlag notFlag = (DialogueCondition.NotFlag) opt.getConditions().get(0);
-        assertNotNull(notFlag.getScope());
-        assertEquals("forgotten_temple", notFlag.getScope().getWorldSelector());
-
-        DialogueCondition.Flag flag = (DialogueCondition.Flag) opt.getConditions().get(1);
-        assertNotNull(flag.getScope());
-        assertEquals("primary", flag.getScope().getWorldSelector());
-
-        DialogueAction.SetFlag set = (DialogueAction.SetFlag) opt.getActions().get(0);
-        assertNotNull(set.getScope());
-        assertEquals("forgotten_temple", set.getScope().getWorldSelector());
+    void everyStateNamespaceHasItsOwnShape() {
+        assertEquals("once:e:mmo_hub_intro:temple_greet",
+                DialogueStateKeys.entryOnce("mmo_hub_intro", "temple_greet"));
+        assertEquals("once:o:guide:camp_talk:dialogue.guide.opt.bread",
+                DialogueStateKeys.optionOnce("guide", "camp_talk", "dialogue.guide.opt.bread"));
+        assertEquals("mem:d:guide:helped_refugees",
+                DialogueStateKeys.memory("guide", "helped_refugees", false));
+        assertEquals("mem:s:helped_refugees",
+                DialogueStateKeys.memory("guide", "helped_refugees", true));
     }
 
     @Test
-    void anUnsetScopeDecodesToNullOnEveryCarrier() {
-        DialogueEngine engine = engine();
-        String json = "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"Label\":\"x\","
-                + "\"Conditions\":[{\"Type\":\"NotFlag\",\"Flag\":\"greeted\"},"
-                + "{\"Type\":\"Flag\",\"Flag\":\"met\"}],"
-                + "\"Actions\":[{\"Type\":\"SetFlag\",\"Flag\":\"greeted\"}]}]}}}";
+    void keyPiecesAreCaseFoldedAndCannotInventASegment() {
+        assertEquals("once:e:hub:greet", DialogueStateKeys.entryOnce(" Hub ", "GREET"));
+        assertEquals("once:o:hub:greet:a.b",
+                DialogueStateKeys.optionOnce("hub", "greet", "a:b"),
+                "a separator inside a discriminator must not split into an extra segment");
+    }
 
-        NpcDialogue d = engine.decode("plain", json);
-        assertNotNull(d);
-        DialogueOption opt = d.getNode("g").getOptions().get(0);
-
-        assertNull(((DialogueCondition.NotFlag) opt.getConditions().get(0)).getScope());
-        assertNull(((DialogueCondition.Flag) opt.getConditions().get(1)).getScope());
-        assertNull(((DialogueAction.SetFlag) opt.getActions().get(0)).getScope());
+    @Test
+    void resetWithQuestPrefixesTheWholeKey() {
+        assertEquals("q:guide_trust:mem:s:helped",
+                DialogueStateKeys.withQuest("guide_trust",
+                        DialogueStateKeys.memory("guide", "helped", true)));
+        assertEquals("mem:s:helped",
+                DialogueStateKeys.withQuest(null, DialogueStateKeys.memory("guide", "helped", true)));
     }
 }

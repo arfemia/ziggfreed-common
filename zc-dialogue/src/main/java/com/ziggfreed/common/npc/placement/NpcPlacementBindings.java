@@ -26,18 +26,23 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>An unclaimed namespace is one WARN and then silence.</b> A server that removed a mod
  * whose bindings are still authored keeps working, its NPCs simply do less; a hard failure there
- * would take down every placement in the file for a channel that is by definition optional.
+ * would take down every placement in the file for a channel that is by definition optional. A
+ * channel key with no {@code namespace:} prefix has no owner at all and is dropped the same way,
+ * warned once per placement per key.
  *
- * <p>JVM-global static, so the fan-out reaches every installed consumer in one process.
- * Registration is idempotent per namespace with last-write-wins; namespaces match
- * case-insensitively.
+ * <p>Registration bookkeeping (who owns a namespace, how often its handler has failed) lives in
+ * the shared {@link PlacementRegistryLedger}. Registration is idempotent per namespace with
+ * last-write-wins; namespaces match case-insensitively.
  */
 public final class NpcPlacementBindings {
 
-    private static final Map<String, PlacementInteractHandler> HANDLERS = new ConcurrentHashMap<>();
+    private static final PlacementRegistryLedger<PlacementInteractHandler> LEDGER = new PlacementRegistryLedger<>();
 
-    /** Namespaces already warned about, so an unclaimed channel logs once, not once per press-F. */
+    /** Namespaces already warned about for having no handler, so an unclaimed channel logs once. */
     private static final Map<String, Boolean> WARNED = new ConcurrentHashMap<>();
+
+    /** {@code placementId + "|" + channel} pairs already warned about lacking a namespace prefix. */
+    private static final Map<String, Boolean> COLONLESS_WARNED = new ConcurrentHashMap<>();
 
     private NpcPlacementBindings() {
     }
@@ -47,23 +52,34 @@ public final class NpcPlacementBindings {
      * binding authored on it. Call once from a consumer's plugin {@code setup()}.
      */
     public static void register(@Nullable String namespace, @Nullable PlacementInteractHandler handler) {
+        register(namespace, PlacementRegistryLedger.UNATTRIBUTED, handler);
+    }
+
+    /** As {@link #register(String, PlacementInteractHandler)}, attributing the claim to {@code owner}. */
+    public static void register(@Nullable String namespace, @Nullable String owner,
+            @Nullable PlacementInteractHandler handler) {
         if (namespace == null || namespace.isBlank() || handler == null) {
             return;
         }
-        String key = normalize(namespace);
-        HANDLERS.put(key, handler);
-        WARNED.remove(key);
+        LEDGER.put(namespace, owner, handler);
+        WARNED.remove(normalize(namespace));
     }
 
     /** Is {@code namespace} claimed? */
     public static boolean isRegistered(@Nullable String namespace) {
-        return namespace != null && !namespace.isBlank() && HANDLERS.containsKey(normalize(namespace));
+        return LEDGER.isRegistered(namespace);
     }
 
     /** Every claimed namespace, sorted (diagnostics, a validator hint). */
     @Nonnull
     public static List<String> registeredNamespaces() {
-        return HANDLERS.keySet().stream().sorted().toList();
+        return List.copyOf(LEDGER.ids());
+    }
+
+    /** Every claimed namespace's owner + failure history, keyed by namespace (an admin channels-list read). */
+    @Nonnull
+    public static Map<String, PlacementRegistryLedger.RegistrationInfo> info() {
+        return LEDGER.info();
     }
 
     /**
@@ -94,13 +110,25 @@ public final class NpcPlacementBindings {
     }
 
     /**
-     * Group a binding map by namespace. PURE (no engine, no registry), so the split rule is
-     * unit-testable on its own. A key with no colon, or a blank namespace, is dropped: a channel
-     * id without a namespace has no owner and could never be routed.
+     * Group a binding map by namespace. A key with no colon, or a blank namespace, has no owner
+     * and is dropped (silently - a consumer wanting the drop reported passes {@code placementId}
+     * to {@link #byNamespace(Map, String)}).
      */
     @Nonnull
     public static Map<String, Map<String, PlacementBinding>> byNamespace(
             @Nonnull Map<String, PlacementBinding> bindings) {
+        return byNamespace(bindings, null);
+    }
+
+    /**
+     * As {@link #byNamespace(Map)}, additionally warning ONCE per {@code (placementId, key)} pair
+     * when a channel key carries no usable {@code namespace:} prefix - the drop site for the
+     * worst of the silent authoring mistakes: today a colon-less key just vanishes with zero
+     * signal, even at runtime.
+     */
+    @Nonnull
+    public static Map<String, Map<String, PlacementBinding>> byNamespace(
+            @Nonnull Map<String, PlacementBinding> bindings, @Nullable String placementId) {
         Map<String, Map<String, PlacementBinding>> out = new LinkedHashMap<>();
         for (Map.Entry<String, PlacementBinding> e : bindings.entrySet()) {
             String channel = e.getKey();
@@ -109,10 +137,12 @@ public final class NpcPlacementBindings {
             }
             int colon = channel.indexOf(':');
             if (colon <= 0) {
+                warnColonless(placementId, channel);
                 continue;
             }
             String namespace = normalize(channel.substring(0, colon));
             if (namespace.isEmpty()) {
+                warnColonless(placementId, channel);
                 continue;
             }
             out.computeIfAbsent(namespace, k -> new LinkedHashMap<>()).put(channel, e.getValue());
@@ -122,8 +152,9 @@ public final class NpcPlacementBindings {
 
     /**
      * Fan a press-F out to every claimed namespace the placement authored bindings on. Each
-     * handler is individually guarded, so one bad consumer can never suppress another's effect.
-     * Returns how many handlers actually ran.
+     * handler is individually guarded, so one bad consumer can never suppress another's effect. A
+     * handler failure is recorded against its namespace in the ledger. Returns how many handlers
+     * actually ran.
      *
      * <p>World thread only (it hands the caller's live store and refs straight through).
      */
@@ -132,9 +163,9 @@ public final class NpcPlacementBindings {
             @Nonnull Ref<EntityStore> npcRef, @Nonnull Ref<EntityStore> playerRef,
             @Nonnull Store<EntityStore> store) {
         int dispatched = 0;
-        for (Map.Entry<String, Map<String, PlacementBinding>> group : byNamespace(bindings).entrySet()) {
+        for (Map.Entry<String, Map<String, PlacementBinding>> group : byNamespace(bindings, placementId).entrySet()) {
             String namespace = group.getKey();
-            PlacementInteractHandler handler = HANDLERS.get(namespace);
+            PlacementInteractHandler handler = LEDGER.get(namespace);
             if (handler == null) {
                 warnOnce(namespace, "no handler registered for binding namespace '" + namespace
                         + "' - those bindings are ignored");
@@ -145,6 +176,7 @@ public final class NpcPlacementBindings {
                         placementId, namespace, group.getValue(), npcRef, playerRef, store));
                 dispatched++;
             } catch (Throwable t) {
+                LEDGER.recordFailure(namespace, t.getMessage());
                 SafeLog.warn("[placement] binding handler '" + namespace + "' failed for placement '"
                         + placementId + "': " + t.getMessage());
             }
@@ -154,8 +186,9 @@ public final class NpcPlacementBindings {
 
     /** Drop every registration. Tests only. */
     static void clearForTests() {
-        HANDLERS.clear();
+        LEDGER.clear();
         WARNED.clear();
+        COLONLESS_WARNED.clear();
     }
 
     @Nonnull
@@ -166,6 +199,22 @@ public final class NpcPlacementBindings {
     private static void warnOnce(@Nonnull String key, @Nonnull String message) {
         if (WARNED.putIfAbsent(key, Boolean.TRUE) == null) {
             SafeLog.warn("[placement] " + message);
+        }
+    }
+
+    /**
+     * Report a dropped colon-less key once per {@code (placementId, key)} pair. With NO placement
+     * id there is nothing an operator could act on, and the caller asked for the pure split, so
+     * the drop stays silent.
+     */
+    private static void warnColonless(@Nullable String placementId, @Nonnull String channel) {
+        if (placementId == null || placementId.isBlank()) {
+            return;
+        }
+        String key = placementId + "|" + channel;
+        if (COLONLESS_WARNED.putIfAbsent(key, Boolean.TRUE) == null) {
+            SafeLog.warn("[placement] '" + placementId + "' authors Interact.Bindings key '" + channel
+                    + "' with no 'namespace:channel' prefix, so it has no owner and is dropped");
         }
     }
 }

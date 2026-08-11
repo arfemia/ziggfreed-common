@@ -10,6 +10,8 @@ import javax.annotation.Nonnull;
  */
 public interface DialogueExecContext extends DialogueContext {
 
+    /** Always present here (the base context may have none). */
+    @Override
     @Nonnull NpcDialogue dialogue();
 
     @Nonnull String nodeId();

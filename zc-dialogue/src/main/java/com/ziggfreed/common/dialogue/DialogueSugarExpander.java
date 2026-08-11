@@ -29,15 +29,19 @@ public interface DialogueSugarExpander {
     /**
      * Append the canonical action object(s) for {@code value} (the sugar key's
      * value) to {@code actionsOut}. {@code option} is the whole option object (so
-     * an expander may read a sibling modifier key, e.g. a Reward's {@code Once}).
-     * No-op when the value type does not match (the validator/codec surfaces it).
+     * an expander may read a sibling modifier key it declares). No-op when the value
+     * type does not match (the validator/codec surfaces it).
      */
     void expand(@Nonnull JsonElement value, @Nonnull JsonObject option, @Nonnull JsonArray actionsOut);
 
     /**
      * Every option key this expander consumes (stripped after desugaring). Defaults
      * to just {@link #key()}; override when the expander also reads a sibling
-     * modifier key (e.g. a Reward expander consuming {@code Once}).
+     * modifier key of its own.
+     *
+     * <p>{@code Once} is the one key listing here cannot take away: it is an option field the
+     * engine itself decodes, so {@link DialogueSugar} restores it after the strip. An expander may
+     * still READ it as a modifier.
      */
     @Nonnull
     default Set<String> consumedKeys() {

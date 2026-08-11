@@ -52,8 +52,18 @@ public final class DialogueSugar {
         this.stripKeys = strip;
     }
 
-    /** Rewrite all option-level sugar in {@code dialogueBody} into canonical {@code Actions}, in place. */
+    /**
+     * Rewrite all option-level sugar in {@code dialogueBody} into canonical {@code Actions}, and
+     * normalize every {@code Once} shorthand into its group form, in place.
+     */
     public void desugar(@Nonnull JsonObject dialogueBody) {
+        if (dialogueBody.has("Start") && dialogueBody.get("Start").isJsonArray()) {
+            for (JsonElement entryEl : dialogueBody.getAsJsonArray("Start")) {
+                if (entryEl.isJsonObject()) {
+                    normalizeOnce(entryEl.getAsJsonObject());
+                }
+            }
+        }
         if (!dialogueBody.has("Nodes") || !dialogueBody.get("Nodes").isJsonObject()) {
             return;
         }
@@ -76,6 +86,12 @@ public final class DialogueSugar {
     }
 
     private void desugarOption(@Nonnull JsonObject option) {
+        // The option's own Once is an ENGINE field, not sugar: normalize it up front and put it
+        // back after the strip, so a registered expander that treats "Once" as its own modifier
+        // (a reward's inner once-guard, say) cannot consume the option-level knob with it.
+        normalizeOnce(option);
+        JsonElement optionOnce = option.get("Once");
+
         JsonArray actions = option.has("Actions") && option.get("Actions").isJsonArray()
                 ? option.getAsJsonArray("Actions") : new JsonArray();
 
@@ -108,6 +124,27 @@ public final class DialogueSugar {
         }
         for (String key : stripKeys) {
             option.remove(key);
+        }
+        if (optionOnce != null) {
+            option.add("Once", optionOnce);
+        }
+    }
+
+    /**
+     * Normalize the {@code Once} shorthand on an entry or option, in place: {@code true} becomes
+     * the empty group {@code {}} (once per character), an already-authored group is left alone,
+     * and any other value (notably {@code false}) removes the key. Pure + idempotent, so a body
+     * that has already been through the pass decodes identically.
+     */
+    static void normalizeOnce(@Nonnull JsonObject owner) {
+        JsonElement value = owner.get("Once");
+        if (value == null || value.isJsonObject()) {
+            return;
+        }
+        if (asBool(value, false)) {
+            owner.add("Once", new JsonObject());
+        } else {
+            owner.remove("Once");
         }
     }
 

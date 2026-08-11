@@ -13,8 +13,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.npc.placement.AnchorPosition.AnchorKind;
-import com.ziggfreed.common.npc.placement.PlacementFactorRegistry.FactorContext;
 
 /**
  * The three open registries, and specifically what happens when nobody registered anything: a gate
@@ -35,17 +36,22 @@ class PlacementRegistryTest {
 
     // ==================== factors: fail closed ====================
 
+    /** The placement gate's own context shape: a placement id as payload, no subject entity. */
+    private static FactorContext ctx(String placementId, String param) {
+        return FactorContext.builder().payload(placementId).param(param).build();
+    }
+
     @Test
-    void anUnregisteredFactorResolvesToZero() {
-        assertEquals(0.0, PlacementFactorRegistry.resolve("yourmod:feature",
-                new FactorContext("hub", "shop", null, null)));
+    void anUnregisteredFactorCannotBeResolvedAtAll() {
+        assertNull(PlacementFactorRegistry.resolve("yourmod:feature", ctx("hub", "shop")),
+                "an unregistered factor must be unresolvable, never a zero that a bound could pass");
         assertFalse(PlacementFactorRegistry.isRegistered("yourmod:feature"));
     }
 
     @Test
     void aGateOnAnUnregisteredFactorFailsClosed() {
-        NpcPlacementAsset.Requires requires = NpcPlacementAsset.Requires.of(new PlacementCondition[]{
-                PlacementCondition.of("yourmod:feature", "shop", 1.0, null)});
+        NpcPlacementAsset.Requires requires = NpcPlacementAsset.Requires.of(new FactorCondition[]{
+                FactorCondition.of("yourmod:feature", "shop", 1.0, null)});
 
         assertEquals("yourmod:feature",
                 PlacementFactorRegistry.firstFailure(requires, "hub", null, null),
@@ -54,37 +60,66 @@ class PlacementRegistryTest {
     }
 
     @Test
+    void aBoundLessGateOnAnUnregisteredFactorAlsoFailsClosed() {
+        NpcPlacementAsset.Requires requires = NpcPlacementAsset.Requires.of(new FactorCondition[]{
+                FactorCondition.of("yourmod:feature", null, null, null)});
+
+        assertEquals("yourmod:feature",
+                PlacementFactorRegistry.firstFailure(requires, "hub", null, null),
+                "a presence check is the shape most likely to be written, so it must be the shape "
+                        + "that fails hardest when the factor's owner is absent");
+    }
+
+    @Test
     void aRegisteredFactorSatisfiesItsBound() {
         PlacementFactorRegistry.register("yourmod:feature", ctx -> "shop".equals(ctx.param()) ? 1.0 : 0.0);
-        NpcPlacementAsset.Requires requires = NpcPlacementAsset.Requires.of(new PlacementCondition[]{
-                PlacementCondition.of("yourmod:feature", "shop", 1.0, null)});
+        NpcPlacementAsset.Requires requires = NpcPlacementAsset.Requires.of(new FactorCondition[]{
+                FactorCondition.of("yourmod:feature", "shop", 1.0, null)});
 
         assertNull(PlacementFactorRegistry.firstFailure(requires, "hub", null, null));
     }
 
     @Test
-    void aThrowingFactorProviderResolvesToZeroRatherThanBreakingTheSweep() {
+    void theGateContextCarriesThePlacementIdAsItsPayload() {
+        PlacementFactorRegistry.register("yourmod:here",
+                c -> "hub".equals(c.payload(String.class)) ? 1.0 : 0.0);
+        NpcPlacementAsset.Requires requires = NpcPlacementAsset.Requires.of(new FactorCondition[]{
+                FactorCondition.of("yourmod:here", null, 1.0, null)});
+
+        assertNull(PlacementFactorRegistry.firstFailure(requires, "hub", null, null));
+        assertEquals("yourmod:here",
+                PlacementFactorRegistry.firstFailure(requires, "elsewhere", null, null));
+    }
+
+    @Test
+    void aThrowingFactorProviderResolvesToNothingRatherThanBreakingTheSweep() {
         PlacementFactorRegistry.register("yourmod:boom", ctx -> {
             throw new IllegalStateException("provider blew up");
         });
 
-        assertEquals(0.0, PlacementFactorRegistry.resolve("yourmod:boom",
-                new FactorContext("hub", null, null, null)));
+        assertNull(PlacementFactorRegistry.resolve("yourmod:boom", ctx("hub", null)));
     }
 
     @Test
-    void aNonFiniteFactorValueIsTreatedAsZeroAndFailsABound() {
+    void aNonFiniteFactorValueIsUnresolvableAndFailsABound() {
         PlacementFactorRegistry.register("yourmod:nan", ctx -> Double.NaN);
 
-        assertEquals(0.0, PlacementFactorRegistry.resolve("yourmod:nan",
-                new FactorContext("hub", null, null, null)));
-        assertFalse(PlacementCondition.of("yourmod:nan", null, null, null).accepts(Double.NaN));
+        assertNull(PlacementFactorRegistry.resolve("yourmod:nan", ctx("hub", null)));
+        assertFalse(FactorCondition.of("yourmod:nan", null, null, null).accepts(Double.NaN));
+    }
+
+    @Test
+    void aProviderThatCannotAnswerIsIndistinguishableFromAnUnregisteredOne() {
+        PlacementFactorRegistry.register("yourmod:quiet", ctx -> null);
+
+        assertNull(PlacementFactorRegistry.resolve("yourmod:quiet", ctx("hub", null)));
+        assertFalse(FactorCondition.of("yourmod:quiet", null, null, null).accepts(null));
     }
 
     @Test
     void aBlankConditionIsSkippedRatherThanFailingTheWholeGate() {
-        NpcPlacementAsset.Requires requires = NpcPlacementAsset.Requires.of(new PlacementCondition[]{
-                PlacementCondition.of(null, null, 1.0, null)});
+        NpcPlacementAsset.Requires requires = NpcPlacementAsset.Requires.of(new FactorCondition[]{
+                FactorCondition.of(null, null, 1.0, null)});
 
         assertNull(PlacementFactorRegistry.firstFailure(requires, "hub", null, null),
                 "a half-authored entry must not hide an otherwise working placement");
@@ -92,19 +127,18 @@ class PlacementRegistryTest {
 
     @Test
     void conditionBoundsAreInclusiveAndIndependentlyOptional() {
-        assertTrue(PlacementCondition.of("f", null, null, null).accepts(-5.0));
-        assertTrue(PlacementCondition.of("f", null, 1.0, null).accepts(1.0));
-        assertFalse(PlacementCondition.of("f", null, 1.0, null).accepts(0.999));
-        assertTrue(PlacementCondition.of("f", null, null, 3.0).accepts(3.0));
-        assertFalse(PlacementCondition.of("f", null, null, 3.0).accepts(3.001));
+        assertTrue(FactorCondition.of("f", null, null, null).accepts(-5.0));
+        assertTrue(FactorCondition.of("f", null, 1.0, null).accepts(1.0));
+        assertFalse(FactorCondition.of("f", null, 1.0, null).accepts(0.999));
+        assertTrue(FactorCondition.of("f", null, null, 3.0).accepts(3.0));
+        assertFalse(FactorCondition.of("f", null, null, 3.0).accepts(3.001));
     }
 
     @Test
     void factorIdsMatchCaseInsensitively() {
         PlacementFactorRegistry.register("YourMod:Feature", ctx -> 7.0);
 
-        assertEquals(7.0, PlacementFactorRegistry.resolve("yourmod:feature",
-                new FactorContext("hub", null, null, null)));
+        assertEquals(7.0, PlacementFactorRegistry.resolve("yourmod:feature", ctx("hub", null)));
         assertTrue(PlacementFactorRegistry.isRegistered("YOURMOD:FEATURE"));
     }
 

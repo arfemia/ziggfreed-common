@@ -14,7 +14,9 @@ import javax.annotation.Nullable;
  * one NPC - NPCs attach a dialogue, so one tree can serve a whole camp).
  * {@code Start} is an ordered list of entry candidates whose conditions pick the
  * greeting node (first passing candidate wins, so greeting text tracks state);
- * {@code Nodes} maps node ids to {@link DialogueNode}s.
+ * {@code Nodes} maps node ids to {@link DialogueNode}s. An optional top-level
+ * {@code Memories} map declares the named things this conversation can remember
+ * about a player (see {@link DialogueMemory}).
  *
  * <p>A pure data POJO: its codec is assembled per-{@link DialogueEngine} (so the
  * action/condition dispatch codecs carry the consumer's registered types), which
@@ -27,6 +29,7 @@ public class NpcDialogue {
     protected String id = "";
     @Nullable DialogueEntry[] start;
     @Nullable Map<String, DialogueNode> nodes;
+    @Nullable Map<String, DialogueMemory> memories;
 
     public NpcDialogue() {
     }
@@ -57,6 +60,40 @@ public class NpcDialogue {
         return nodes == null ? Collections.emptyMap() : nodes;
     }
 
+    /**
+     * The named things this conversation can remember about a player, declared once at the top
+     * level and referred to by bare name by the {@code Remember}/{@code Forget} actions and the
+     * {@code Remembered}/{@code NotRemembered} conditions. Empty when the dialogue declares none.
+     */
+    @Nonnull
+    public Map<String, DialogueMemory> getMemories() {
+        return memories == null ? Collections.emptyMap() : memories;
+    }
+
+    /** The declaration for {@code name} (case-insensitive), or null when it was never declared. */
+    @Nullable
+    public DialogueMemory getMemory(@Nullable String name) {
+        if (name == null || name.isBlank() || memories == null) {
+            return null;
+        }
+        DialogueMemory direct = memories.get(name);
+        if (direct != null) {
+            return direct;
+        }
+        String wanted = name.trim().toLowerCase(Locale.ROOT);
+        for (Map.Entry<String, DialogueMemory> entry : memories.entrySet()) {
+            if (entry.getKey().trim().toLowerCase(Locale.ROOT).equals(wanted)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    /** Direct (non-codec) construction: declare the memories from Java. */
+    public void setMemories(@Nullable Map<String, DialogueMemory> memories) {
+        this.memories = memories;
+    }
+
     @Nullable
     public DialogueNode getNode(@Nullable String nodeId) {
         if (nodeId == null) {
@@ -70,11 +107,15 @@ public class NpcDialogue {
         return new LinkedHashMap<>();
     }
 
-    /** One ordered entry candidate: a node id plus optional AND-combined conditions. */
+    /**
+     * One ordered entry candidate: a node id, optional AND-combined conditions, and an optional
+     * {@link DialogueOnce} that retires the entry after the player has played that beat through.
+     */
     public static class DialogueEntry {
 
         @Nullable String node;
         @Nullable DialogueCondition[] conditions;
+        @Nullable DialogueOnce once;
 
         public DialogueEntry() {
         }
@@ -85,5 +126,12 @@ public class NpcDialogue {
         public List<DialogueCondition> getConditions() {
             return conditions == null ? Collections.emptyList() : List.of(conditions);
         }
+
+        /**
+         * The first-visit knob, or null when this entry may be picked any number of times. The
+         * entry stops matching once the player finishes the beat it routed to (chooses any option
+         * on that node, the implicit Farewell included); leaving with Escape shows it again.
+         */
+        @Nullable public DialogueOnce getOnce() { return once; }
     }
 }

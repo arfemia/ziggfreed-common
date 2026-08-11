@@ -128,15 +128,13 @@ class DialogueWorldConditionTest {
     // ==================== Validator findings ====================
 
     @Test
-    void validatorFlagsAnUnknownSelectorNameOnAWorldConditionAndOnAFlagScope() {
+    void validatorFlagsAnUnknownSelectorNameOnAWorldConditionAndOnAOnce() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("bad",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Conditions\":["
+                "{\"Start\":[{\"Node\":\"g\",\"Once\":{\"WorldSelector\":\"frogotten_temple\"}}],"
+                        + "\"Nodes\":{\"g\":{\"Conditions\":["
                         + "{\"Type\":\"World\",\"Names\":[\"frogotten_temple\"]}],"
-                        + "\"Options\":[{\"Label\":\"x\",\"Conditions\":[{\"Type\":\"NotFlag\","
-                        + "\"Flag\":\"greeted\",\"Scope\":{\"WorldSelector\":\"frogotten_temple\"}}],"
-                        + "\"Actions\":[{\"Type\":\"SetFlag\",\"Flag\":\"greeted\","
-                        + "\"Scope\":{\"WorldSelector\":\"frogotten_temple\"}}]}]}}}");
+                        + "\"Options\":[{\"LabelKey\":\"x\",\"Actions\":[{\"Type\":\"Close\"}]}]}}}");
         assertNotNull(d);
 
         List<String> codes = DialogueStructureValidator
@@ -144,50 +142,48 @@ class DialogueWorldConditionTest {
                 .stream().map(DialogueStructureValidator.Issue::code).toList();
 
         assertTrue(codes.contains("WORLD_CONDITION_UNKNOWN_SELECTOR"), codes.toString());
-        assertTrue(codes.contains("FLAG_SCOPE_UNKNOWN_SELECTOR"), codes.toString());
+        assertTrue(codes.contains("ONCE_UNKNOWN_SELECTOR"), codes.toString());
     }
 
     @Test
-    void validatorFlagsAWorldConditionThatCanNeverPassAndABlankScope() {
+    void validatorFlagsAWorldConditionThatCanNeverPass() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("empty",
                 "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Conditions\":["
                         + "{\"Type\":\"World\",\"ExcludeNames\":[\"arena\"]}],"
-                        + "\"Options\":[{\"Label\":\"x\",\"Actions\":[{\"Type\":\"SetFlag\","
-                        + "\"Flag\":\"greeted\",\"Scope\":{}}]}]}}}");
+                        + "\"Options\":[{\"LabelKey\":\"x\",\"Actions\":[{\"Type\":\"Close\"}]}]}}}");
         assertNotNull(d);
 
         List<String> codes = DialogueStructureValidator.validate(d, Set.of("forgotten_temple"))
                 .stream().map(DialogueStructureValidator.Issue::code).toList();
 
         assertTrue(codes.contains("WORLD_CONDITION_NO_AXIS"), codes.toString());
-        assertTrue(codes.contains("FLAG_SCOPE_BLANK"), codes.toString());
     }
 
     @Test
     void validatorStaysSilentOnKnownNamesAndOnAnUnknownVocabulary() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("good",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Conditions\":["
+                "{\"Start\":[{\"Node\":\"g\",\"Once\":{\"WorldSelector\":\"forgotten_temple\"}}],"
+                        + "\"Nodes\":{\"g\":{\"Conditions\":["
                         + "{\"Type\":\"AnyOf\",\"Any\":[{\"Type\":\"World\","
                         + "\"Names\":[\"Forgotten_Temple\"]}]}],"
-                        + "\"Options\":[{\"Label\":\"x\",\"Actions\":[{\"Type\":\"SetFlag\","
-                        + "\"Flag\":\"greeted\",\"Scope\":{\"WorldSelector\":\"forgotten_temple\"}}]}]}}}");
+                        + "\"Options\":[{\"LabelKey\":\"x\",\"Actions\":[{\"Type\":\"Close\"}]}]}}}");
         assertNotNull(d);
 
         // Known vocabulary: the name resolves (case-insensitively), even nested in a combinator.
         List<String> known = DialogueStructureValidator.validate(d, Set.of("forgotten_temple"))
                 .stream().map(DialogueStructureValidator.Issue::code).toList();
         assertFalse(known.contains("WORLD_CONDITION_UNKNOWN_SELECTOR"), known.toString());
-        assertFalse(known.contains("FLAG_SCOPE_UNKNOWN_SELECTOR"), known.toString());
+        assertFalse(known.contains("ONCE_UNKNOWN_SELECTOR"), known.toString());
 
         // Absent / empty vocabulary means "cannot tell" (assets may not have loaded), never a
         // false alarm.
         List<String> unknownPool = DialogueStructureValidator.validate(d, Set.of())
                 .stream().map(DialogueStructureValidator.Issue::code).toList();
         assertFalse(unknownPool.contains("WORLD_CONDITION_UNKNOWN_SELECTOR"), unknownPool.toString());
-        assertFalse(unknownPool.contains("FLAG_SCOPE_UNKNOWN_SELECTOR"), unknownPool.toString());
+        assertFalse(unknownPool.contains("ONCE_UNKNOWN_SELECTOR"), unknownPool.toString());
         assertFalse(DialogueStructureValidator.validate(d).stream()
-                .anyMatch(i -> i.code().equals("FLAG_SCOPE_UNKNOWN_SELECTOR")));
+                .anyMatch(i -> i.code().equals("ONCE_UNKNOWN_SELECTOR")));
     }
 }

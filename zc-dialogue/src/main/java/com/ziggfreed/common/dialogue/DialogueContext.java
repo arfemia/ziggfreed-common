@@ -33,7 +33,14 @@ public interface DialogueContext {
     /** The id the dialogue is being talked through (an NPC id), or null; resolves {@code @self}. */
     @Nullable String contextId();
 
-    /** Dialogue-local per-player flag memory (generic {@code Flag}/{@code NotFlag} + the reward once-guard). */
+    /**
+     * The dialogue this context was built for, or null when it was built without one. Needed by
+     * anything that resolves a per-dialogue name (a declared {@link DialogueMemory}, a
+     * {@code Once} key); {@link DialogueExecContext} always has it.
+     */
+    @Nullable default NpcDialogue dialogue() { return null; }
+
+    /** The per-player dialogue state store behind {@code Once} and the declared {@code Memories}. */
     @Nonnull DialogueFlagStore flags();
 
     /**

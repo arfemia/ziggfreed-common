@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**
@@ -20,65 +21,58 @@ import com.ziggfreed.common.world.WorldSelector;
  * {@link DialogueConditionType}), so a consumer adds a domain condition (quest
  * state, requirement gate, ...) without the engine knowing the domain.
  *
- * <p>Authored shape: {@code "Conditions": [ {"Type":"Flag","Flag":"met_elder"},
+ * <p>Authored shape: {@code "Conditions": [ {"Type":"Remembered","Memory":"met_elder"},
  * {"Type":"QuestState","Quest":"intro","State":"ACTIVE"} ]}. Each condition is
  * evaluated by its registered {@link DialogueConditionEvaluator}; the generic
- * {@code Flag}/{@code NotFlag} read dialogue-local memory through the context's
- * flag store, and the generic {@code World} scores the player's current world
- * against an embedded {@link com.ziggfreed.common.world.WorldSelector}.
+ * {@code Remembered}/{@code NotRemembered} read a declared {@link DialogueMemory}
+ * through the context's state store, and the generic {@code World} scores the
+ * player's current world against an embedded
+ * {@link com.ziggfreed.common.world.WorldSelector}.
  */
 public abstract class DialogueCondition {
 
     /**
-     * Passes only when the per-player dialogue flag IS set.
-     *
-     * <p>An optional {@link DialogueFlagScope} narrows WHICH flag is read: with
-     * {@code "Scope": {"WorldSelector": "forgotten_temple"}} the condition reads the
-     * temple-scoped copy of the flag, and in a world that does not carry that selector name the
-     * flag reads as UNSET (so this condition fails, hiding the gated content). Omit {@code Scope}
-     * for the plain global flag.
+     * The shared shape of the two memory conditions: a bare {@code Memory} name, declared in the
+     * dialogue's own {@code Memories} map (see {@link DialogueMemory}), which is where the scope
+     * and lifetime of that name live.
      */
-    public static final class Flag extends DialogueCondition {
-        public static final BuilderCodec<Flag> CODEC = BuilderCodec.builder(Flag.class, Flag::new)
-                .append(new KeyedCodec<>("Flag", Codec.STRING, false),
-                        (c, v) -> c.flag = v, c -> c.flag).add()
-                .append(new KeyedCodec<>("Scope", DialogueFlagScope.CODEC, false),
-                        (c, v) -> c.scope = v, c -> c.scope).add()
-                .build();
+    public abstract static class MemoryCondition extends DialogueCondition {
+        @Nullable protected String memory;
 
-        @Nullable protected String flag;
-        @Nullable protected DialogueFlagScope scope;
-
-        @Nullable public String getFlag() { return flag; }
-
-        /** The namespace this flag is read from, or null for the global flag. */
-        @Nullable public DialogueFlagScope getScope() { return scope; }
+        /** The declared memory name this condition reads, or null when unauthored. */
+        @Nullable public String getMemory() { return memory; }
     }
 
     /**
-     * Passes only when the per-player dialogue flag is NOT set.
+     * Passes once the named memory has been remembered:
+     * {@code {"Type":"Remembered","Memory":"helped_refugees"}}.
      *
-     * <p>Takes the same optional {@link DialogueFlagScope} as {@link Flag}. In a world that does
-     * not carry the scoped selector name the flag reads as UNSET, so this condition PASSES - which
-     * is why a first-visit beat gated on a scoped {@code NotFlag} should sit beside a
-     * {@code World} condition, and why a mistyped selector name warns at runtime and is a
-     * validator finding.
+     * <p>A memory kept per world family reads as forgotten in a world outside that family, so this
+     * condition fails there and its content stays hidden.
      */
-    public static final class NotFlag extends DialogueCondition {
-        public static final BuilderCodec<NotFlag> CODEC = BuilderCodec.builder(NotFlag.class, NotFlag::new)
-                .append(new KeyedCodec<>("Flag", Codec.STRING, false),
-                        (c, v) -> c.flag = v, c -> c.flag).add()
-                .append(new KeyedCodec<>("Scope", DialogueFlagScope.CODEC, false),
-                        (c, v) -> c.scope = v, c -> c.scope).add()
-                .build();
+    public static final class Remembered extends MemoryCondition {
+        public static final BuilderCodec<Remembered> CODEC =
+                BuilderCodec.builder(Remembered.class, Remembered::new)
+                        .append(new KeyedCodec<>("Memory", Codec.STRING, false),
+                                (c, v) -> c.memory = v, c -> c.memory).add()
+                        .build();
+    }
 
-        @Nullable protected String flag;
-        @Nullable protected DialogueFlagScope scope;
-
-        @Nullable public String getFlag() { return flag; }
-
-        /** The namespace this flag is read from, or null for the global flag. */
-        @Nullable public DialogueFlagScope getScope() { return scope; }
+    /**
+     * Passes while the named memory has NOT been remembered:
+     * {@code {"Type":"NotRemembered","Memory":"helped_refugees"}} - the mirror of
+     * {@link Remembered}, for a line that should only appear the first time round.
+     *
+     * <p>A memory kept per world family reads as forgotten outside that family, so this condition
+     * PASSES there: pair it with a {@code World} condition when the beat should only exist inside
+     * the family at all.
+     */
+    public static final class NotRemembered extends MemoryCondition {
+        public static final BuilderCodec<NotRemembered> CODEC =
+                BuilderCodec.builder(NotRemembered.class, NotRemembered::new)
+                        .append(new KeyedCodec<>("Memory", Codec.STRING, false),
+                                (c, v) -> c.memory = v, c -> c.memory).add()
+                        .build();
     }
 
     /**
@@ -136,6 +130,62 @@ public abstract class DialogueCondition {
             WorldSelector cached = resolved;
             if (cached == null) {
                 cached = WorldSelector.of(names, match, gameplayConfig, excludeNames);
+                resolved = cached;
+            }
+            return cached;
+        }
+    }
+
+    /**
+     * Passes when a NUMBER some other mod owns satisfies the authored bounds:
+     * {@code {"Type":"Factor","Factor":"yourmod:reputation","Param":"guild","Min":10}}.
+     *
+     * <p>The shape is the shared {@link com.ziggfreed.common.factor.FactorCondition} leaf, written
+     * inline here with its own keys, and the semantics are entirely that type's (see
+     * {@link #getCondition()}): {@code Min}/{@code Max} are inclusive and independently optional,
+     * and a condition with NEITHER is a presence check that passes as long as the factor resolves
+     * at all - which is how "only where that mod is installed" is written.
+     *
+     * <p>The number comes from the {@link com.ziggfreed.common.factor.FactorRegistry} the engine
+     * was built with ({@code DialogueEngine.Builder#factors}). <b>Fail-closed twice over</b>: an
+     * unregistered id, a provider that cannot answer, and a THROWING provider all resolve to
+     * nothing and hide the gated content, and so does an engine that was never handed a registry
+     * at all - so a dialogue authored against a factor vocabulary that is not present shows its
+     * ungated lines rather than promising something the server cannot deliver.
+     */
+    public static final class Factor extends DialogueCondition {
+        public static final BuilderCodec<Factor> CODEC = BuilderCodec.builder(Factor.class, Factor::new)
+                .append(new KeyedCodec<>("Factor", Codec.STRING, false),
+                        (c, v) -> { c.factor = v; c.resolved = null; }, c -> c.factor).add()
+                .append(new KeyedCodec<>("Param", Codec.STRING, false),
+                        (c, v) -> { c.param = v; c.resolved = null; }, c -> c.param).add()
+                .append(new KeyedCodec<>("Min", Codec.DOUBLE, false),
+                        (c, v) -> { c.min = v; c.resolved = null; }, c -> c.min).add()
+                .append(new KeyedCodec<>("Max", Codec.DOUBLE, false),
+                        (c, v) -> { c.max = v; c.resolved = null; }, c -> c.max).add()
+                .build();
+
+        @Nullable protected String factor;
+        @Nullable protected String param;
+        @Nullable protected Double min;
+        @Nullable protected Double max;
+
+        @Nullable private volatile FactorCondition resolved;
+
+        /** The authored factor id, or null. */
+        @Nullable public String getFactor() { return factor; }
+
+        /**
+         * The embedded {@link FactorCondition} carrying the authored leaves: ALL bound behaviour
+         * (inclusive bounds, the null-fails rule, the bounds-less presence check) lives there and
+         * is never duplicated here. Built lazily and memoized; every setter drops the memo, so a
+         * post-decode field write can never leave a stale condition behind.
+         */
+        @Nonnull
+        public FactorCondition getCondition() {
+            FactorCondition cached = resolved;
+            if (cached == null) {
+                cached = FactorCondition.of(factor, param, min, max);
                 resolved = cached;
             }
             return cached;

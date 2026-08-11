@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -77,6 +78,9 @@ public final class NpcRoleGenerator {
     /** Base role id (lower-cased) to a supplier of its raw JSON body. */
     private static final Map<String, Supplier<String>> BASE_ROLES = new ConcurrentHashMap<>();
 
+    /** Base role ids currently sourced from an authored {@code NpcBaseRoles} asset, not Java. */
+    private static final Set<String> ASSET_SOURCED = ConcurrentHashMap.newKeySet();
+
     /** Placement id to the role name generated for it, populated by {@link #generateAndRegister}. */
     private static final Map<String, String> GENERATED = new ConcurrentHashMap<>();
 
@@ -109,10 +113,38 @@ public final class NpcRoleGenerator {
                 && BASE_ROLES.containsKey(baseRoleId.trim().toLowerCase(Locale.ROOT));
     }
 
+    /**
+     * Register (or replace) a base role's raw JSON body from an authored {@code NpcBaseRoles}
+     * pack asset ({@link NpcBaseRoleConfig}, on every fold). This is the ASSET half of base-role
+     * registration: on a base id already registered from Java, the asset WINS (defaults < pack <
+     * owner precedence), logged once at INFO naming both, matching every other framework store's
+     * override rule. A blank id or body is ignored.
+     */
+    public static void registerBaseRoleFromAsset(@Nullable String baseRoleId, @Nullable String json) {
+        if (baseRoleId == null || baseRoleId.isBlank() || json == null || json.isBlank()) {
+            return;
+        }
+        String key = baseRoleId.trim().toLowerCase(Locale.ROOT);
+        if (hasBaseRole(key) && ASSET_SOURCED.add(key)) {
+            SafeLog.info("[placement] base role '" + key + "' was registered in Java and is now overridden by "
+                    + "the authored NpcBaseRoles asset '" + key + "' (pack content wins)");
+        } else {
+            ASSET_SOURCED.add(key);
+        }
+        registerBaseRole(key, () -> json);
+    }
+
     /** Every registered base role id, sorted (diagnostics). */
     @Nonnull
     public static List<String> registeredBaseRoles() {
         return BASE_ROLES.keySet().stream().sorted().toList();
+    }
+
+    /** The raw JSON body currently registered for {@code baseRoleId}, or {@code null}. Tests only. */
+    @Nullable
+    static String currentBaseRoleJson(@Nonnull String baseRoleId) {
+        Supplier<String> supplier = BASE_ROLES.get(baseRoleId.trim().toLowerCase(Locale.ROOT));
+        return supplier == null ? null : supplier.get();
     }
 
     // ==================== generation ====================
@@ -376,6 +408,7 @@ public final class NpcRoleGenerator {
     /** Drop every registration and generation record (tests). */
     static void clearForTests() {
         BASE_ROLES.clear();
+        ASSET_SOURCED.clear();
         GENERATED.clear();
     }
 }

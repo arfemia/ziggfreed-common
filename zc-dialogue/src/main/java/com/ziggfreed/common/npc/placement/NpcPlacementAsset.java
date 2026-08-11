@@ -17,6 +17,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.Vec3;
+import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**
@@ -55,7 +56,7 @@ import com.ziggfreed.common.world.WorldSelector;
  *       placement-mode enum: authoring several produces the UNION of their resolved positions,
  *       each an independent instance. See that class for the multi-anchor rules.</li>
  *   <li><b>{@link Requires}</b> - whether it appears at all, in authored terms (see
- *       {@link PlacementCondition}); it feeds the same gate chain an admin override does.</li>
+ *       {@link FactorCondition}); it feeds the same gate chain an admin override does.</li>
  *   <li><b>{@link Limits}</b> - how many, and how likely.</li>
  *   <li><b>{@link Lifecycle}</b> - what happens to it afterwards. Every knob is OPT-IN and
  *       defaults false, because each one costs something (a pinned chunk, a re-place, a health
@@ -701,38 +702,42 @@ public final class NpcPlacementAsset
 
     // ==================== Requires ====================
 
-    /** The authored gate: every condition must pass for the placement to appear. */
+    /**
+     * The authored gate: every condition must pass for the placement to appear. Each entry is the
+     * shared {@link FactorCondition} leaf, so a factor id gating a placement means exactly what
+     * the same id means gating a dialogue option.
+     */
     public static final class Requires {
 
-        @Nullable protected PlacementCondition[] conditions;
+        @Nullable protected FactorCondition[] conditions;
 
         public static final BuilderCodec<Requires> CODEC = BuilderCodec.builder(Requires.class, Requires::new)
                 .appendInherited(new KeyedCodec<>("Conditions",
-                                new ArrayCodec<>(PlacementCondition.CODEC, PlacementCondition[]::new), false),
+                                new ArrayCodec<>(FactorCondition.CODEC, FactorCondition[]::new), false),
                         (o, v) -> o.conditions = v, o -> o.conditions, (o, p) -> o.conditions = p.conditions)
-                .documentation("All of these must pass. A condition naming a factor nobody registered resolves to 0 "
-                        + "and fails closed, so the placement does not appear.").add()
+                .documentation("All of these must pass. A condition naming a factor nobody registered cannot "
+                        + "resolve and fails closed, so the placement does not appear.").add()
                 .build();
 
         public Requires() {
         }
 
         @Nonnull
-        public static Requires of(@Nullable PlacementCondition[] conditions) {
+        public static Requires of(@Nullable FactorCondition[] conditions) {
             Requires r = new Requires();
             r.conditions = conditions == null ? null : conditions.clone();
             return r;
         }
 
         @Nullable
-        public PlacementCondition[] getConditions() {
+        public FactorCondition[] getConditions() {
             return conditions == null ? null : conditions.clone();
         }
 
         /** The authored conditions without copying, for the hot evaluation path. */
         @Nonnull
-        PlacementCondition[] conditionsOrEmpty() {
-            return conditions == null ? new PlacementCondition[0] : conditions;
+        FactorCondition[] conditionsOrEmpty() {
+            return conditions == null ? new FactorCondition[0] : conditions;
         }
     }
 

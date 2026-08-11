@@ -14,50 +14,43 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.CommonLog;
 
 /**
- * The optional {@code Scope} leaf on the generic {@code SetFlag} action and the {@code Flag} /
- * {@code NotFlag} conditions: the namespace a dialogue flag is written to and read from.
- *
- * <p>Authored shape (a nested group, so a future scope axis is a new leaf rather than a new
- * prefixed key):
- * <pre>{@code
- * { "Type": "NotFlag", "Flag": "greeted",
- *   "Scope": { "WorldSelector": "forgotten_temple" } }
- * }</pre>
+ * INTERNAL PLUMBING: how a per-world-family {@code WorldSelector} is folded into a dialogue state
+ * key. Nothing here is authored - a {@code Once} knob or a {@code Memories} declaration names a
+ * selector, and this class turns that name plus a raw key from {@link DialogueStateKeys} into the
+ * key the consumer's {@link DialogueFlagStore} actually sees.
  *
  * <p>{@code WorldSelector} is a selector NAME from the world-identity vocabulary
  * ({@code Server/ZiggfreedCommon/WorldSelectors/*.json}), never a raw world name. That is the
  * whole point: a dynamically-created instance world is named
- * {@code instance-Forgotten_Temple-<random-uuid>} and is destroyed outright when it empties, so a
- * flag keyed by the world's NAME would re-fire on every fresh instance. Keyed by the selector
+ * {@code instance-Forgotten_Temple-<random-uuid>} and is destroyed outright when it empties, so
+ * state keyed by the world's NAME would come back on every fresh instance. Keyed by the selector
  * name, "I already greeted you in the Forgotten Temple" survives the instance being torn down and
  * re-created.
  *
  * <h2>The key format, and why the scope goes INSIDE any prefix</h2>
  *
- * <b>The scope segment wraps only the FINAL segment of the flag, preserving any leading
- * prefix.</b> A quest-scoped flag {@code q:<questId>:greeted} scoped to {@code forgotten_temple}
+ * <b>The scope segment wraps only the FINAL segment of the key, preserving any leading
+ * prefix.</b> A quest-owned key {@code q:<questId>:greeted} scoped to {@code forgotten_temple}
  * becomes:
  *
  * <pre>{@code q:<questId>:w:forgotten_temple:greeted}</pre>
  *
- * and a bare flag {@code greeted} becomes {@code w:forgotten_temple:greeted}.
+ * and a bare {@code greeted} becomes {@code w:forgotten_temple:greeted}.
  *
- * <p>This is NOT cosmetic. A consumer's flag store may clear a namespace by a leading-PREFIX
- * match - the hyMMO MMO clears a quest's flags with {@code startsWith("q:" + questId + ":")} when
+ * <p>This is NOT cosmetic. A consumer's store may clear a namespace by a leading-PREFIX match -
+ * the hyMMO MMO clears a quest's dialogue state with {@code startsWith("q:" + questId + ":")} when
  * that quest is reset. Prepending the scope instead ({@code w:<name>:q:<id>:greeted}) would move
- * the flag out of that prefix, the reset would silently miss it, and the dialogue would stay
- * soft-locked forever with no error anywhere - exactly the failure a consumer's self-heal
- * convention exists to prevent. Inserting the scope before the last segment keeps every leading
- * namespace intact, so any prefix-based clear keeps working unchanged.
+ * the key out of that prefix, the reset would silently miss it, and the dialogue would stay
+ * soft-locked forever with no error anywhere. Inserting the scope before the last segment keeps
+ * every leading namespace intact, so any prefix-based clear keeps working unchanged, and it is why
+ * a memory's {@code ResetWithQuest} prefix and its {@code WorldSelector} scope compose.
  *
  * <p><b>Semantics of a scope the current world does not carry:</b> a WRITE is a no-op and a READ
- * is "unset". That is safe when the scoped flag sits beside a {@code World} condition on the same
- * node (the beat cannot be reached elsewhere anyway), but a TYPO in the selector name would
- * silently re-fire a first-visit beat forever - so an unknown selector name emits a warn-once at
- * runtime and is a {@code dialogue/validate/DialogueStructureValidator} finding. A {@code Scope}
- * with a blank/absent {@code WorldSelector} is treated as no scope at all (the flag stays global),
- * and is also a validator finding, because authoring an empty group reads as an intent that did
- * not survive.
+ * is "unset". That is safe when the scoped state sits beside a {@code World} condition on the same
+ * entry (the beat cannot be reached elsewhere anyway), but a TYPO in the selector name would
+ * silently re-show a first-visit beat forever - so an unknown selector name emits a warn-once at
+ * runtime and is a {@code dialogue/validate/DialogueStructureValidator} finding. An absent or
+ * blank selector name narrows nothing: the state is kept once per character.
  */
 public final class DialogueFlagScope {
 
@@ -199,8 +192,8 @@ public final class DialogueFlagScope {
         }
         try {
             CommonLog.LOGGER.atWarning().log(
-                    "[Dialogue] flag '%s' is scoped to world selector '%s', which no loaded"
-                            + " WorldSelector contributes - the flag will never be written or read."
+                    "[Dialogue] state '%s' is kept per world selector '%s', which no loaded"
+                            + " WorldSelector contributes - it will never be written or read."
                             + " Check Server/ZiggfreedCommon/WorldSelectors for the intended name.",
                     flag, selectorName);
         } catch (Throwable ignored) {

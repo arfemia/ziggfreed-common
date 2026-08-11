@@ -42,9 +42,13 @@ Neither can do the other's job, which is why there are two.
   [`PlacementBinding`](PlacementBinding.java) `{Param?,Value?,Amount?}`. `NpcPlacementAssetCodecTest`
   proves the per-key merge (a child authoring one channel keeps the parent's others), because that
   is what the map buys.
-- **[`PlacementCondition`](PlacementCondition.java)** `{Factor,Param?,Min?,Max?}` is the read-side
-  twin of a binding: a binding hands an opaque payload OUT, a condition asks a registered provider
-  for a number. **Fails closed** (unregistered resolves 0).
+- **`Requires.Conditions` is the shared [`factor/FactorCondition`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/factor/CLAUDE.md)**
+  `{Factor,Param?,Min?,Max?}` - the read-side twin of a binding: a binding hands an opaque payload
+  OUT, a condition asks a registered provider for a number. Same leaf, same keys, same meaning a
+  dialogue `Factor` condition has, so authored JSON is unchanged. **Fails closed**: an unregistered
+  factor cannot RESOLVE at all (never a zero), and a `FactorCondition` rejects an unresolvable value
+  whatever its bounds say - including the bounds-less presence-check form, which is exactly the
+  shape "only where this mod is installed" is written in.
 - **[`NpcPlacementConfig`](NpcPlacementConfig.java)** - the `defaults < pack < owner` fold. Every
   merge clears the sweep debounce + the position cache, so a reload lands on the next sweep.
   Registered by [`../../asset/FrameworkAssetRegistrar`](../../../../../../../../../src/main/java/com/ziggfreed/common/asset/FrameworkAssetRegistrar.java).
@@ -53,20 +57,42 @@ Neither can do the other's job, which is why there are two.
 
 Each is JVM-global, case-insensitive, last-write-wins, and warns ONCE per unknown id.
 
-- **[`NpcPlacementBindings`](NpcPlacementBindings.java)** - `register(namespace, handler)` +
-  `bindingsFor(placementId)` / `bindingValue(placementId, channelId)`. `byNamespace(map)` is the
-  PURE split (a key with no colon has no owner and is dropped). A handler
-  ([`PlacementInteractHandler`](PlacementInteractHandler.java)) gets EVERY binding on its namespace
-  in ONE call, so a consumer needing two channels together reads both without a second lookup. An
-  unclaimed namespace is one WARN and then silence, never a hard fail.
-- **[`PlacementFactorRegistry`](PlacementFactorRegistry.java)** - `register(factorId, provider)`
-  backing `Requires.Conditions`. Unregistered or throwing resolves 0, and since a condition gates on
-  bounds the placement simply does not appear. `firstFailure(...)` evaluates a whole `Requires`.
-- **[`AnchorResolverRegistry`](AnchorResolverRegistry.java)** - `register(providerId, resolver)`
-  backing `Anchor.Custom{Provider,Params}`, so a fourth party adds an anchor with ZERO common
-  changes. Returned positions are re-stamped `CUSTOM` with the provider id folded into the instance
-  id (two providers can never collide). **A resolver's `instanceId` must be STABLE across restarts**
-  - a bare loop index changes with ordering and mints a duplicate NPC.
+- **[`PlacementRegistryLedger<T>`](PlacementRegistryLedger.java)** is this engine's naming of the
+  shared [`registry/RegistryLedger`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/registry/CLAUDE.md):
+  a one-line subclass that fixes the `[placement]` log label, so an overwrite warning says which
+  engine it came from. Every semantic lives in the parent (per id: a value, its owning mod name, a
+  failure count and the latest failure message; `put` overwrite-warns ONCE per id by IDENTITY not
+  equality, so a consumer re-running its own `setup()` with the SAME instance is silent; `info()`
+  is the snapshot an admin channels-list command reads), and `RegistrationInfo` is INHERITED - a
+  qualified `PlacementRegistryLedger.RegistrationInfo` resolves as before, while an `import`
+  statement must name the declaring `RegistryLedger`. The three registries below hold no map of
+  their own.
+- **[`NpcPlacementBindings`](NpcPlacementBindings.java)** - `register(namespace, handler)` (owner
+  `"unattributed"`) or `register(namespace, owner, handler)` + `bindingsFor(placementId)` /
+  `bindingValue(placementId, channelId)` / `info()`. `byNamespace(map)` is the PURE split (a key
+  with no colon has no owner and is dropped); `byNamespace(map, placementId)` additionally
+  warns ONCE per `(placementId, key)` at the drop site - a colon-less key used to vanish with
+  zero signal, even at runtime. A handler ([`PlacementInteractHandler`](PlacementInteractHandler.java))
+  gets EVERY binding on its namespace in ONE call, so a consumer needing two channels together
+  reads both without a second lookup. An unclaimed namespace is one WARN and then silence, never
+  a hard fail.
+- **[`PlacementFactorRegistry`](PlacementFactorRegistry.java)** - the static facade over ONE shared
+  [`factor/FactorRegistry`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/factor/CLAUDE.md)
+  instance (process-wide because placement CONTENT is: one asset store, one sweep, one ledger).
+  `register(factorId[, owner], provider)` takes the shared `factor.FactorProvider`; `resolve`
+  answers a **nullable** `Double`, `registry()` exposes the instance, `info()` the ledger snapshot.
+  `firstFailure(requires, placementId, world, store)` evaluates a whole `Requires` through
+  `FactorConditions`, building a context with the placement id as its opaque PAYLOAD (read it back
+  with `ctx.payload(String.class)`) and NO subject entity - a placement gate is asked before
+  anything stands there to ask about. **The gate-never-silently-opens rule**: unregistered,
+  throwing, non-finite and cannot-answer all resolve to nothing, and nothing fails every condition
+  shape, so a bounds-less presence check on a missing mod's factor keeps the placement absent.
+- **[`AnchorResolverRegistry`](AnchorResolverRegistry.java)** - `register(providerId, resolver)` or
+  `register(providerId, owner, resolver)`, `info()`, backing `Anchor.Custom{Provider,Params}`, so a
+  fourth party adds an anchor with ZERO common changes. Returned positions are re-stamped `CUSTOM`
+  with the provider id folded into the instance id (two providers can never collide). **A
+  resolver's `instanceId` must be STABLE across restarts** - a bare loop index changes with
+  ordering and mints a duplicate NPC.
 - **[`PlacementGates`](PlacementGates.java)** - the ordered veto chain over
   [`PlacementGate`](PlacementGate.java) (`GateContext{placement, world, worldNames, store}` ->
   `GateVerdict{allowed, reasonKey}`). **Any deny wins and the FIRST deny is reported**, so ordering
@@ -148,15 +174,25 @@ Each is JVM-global, case-insensitive, last-write-wins, and warns ONCE per unknow
 - **[`NpcRoleGenerator`](NpcRoleGenerator.java)** - clone a base role, substitute
   `Appearance`/`NameTranslationKey.Value`/every `Hint` (a recursive walk, so a base that grows a
   second interaction still gets a correct hint), register as a `PackSource.RUNTIME` directory pack.
-  **A consumer registers its OWN base role JSON** (`registerBaseRoleResource(id, Class, path)`) -
-  common ships no roles. Call `generateAndRegister(version)` once per boot AFTER the asset fold and
-  BEFORE any world streams chunks.
+  **A base role's raw JSON body comes from one of two sources**: a consumer registers its OWN base
+  role JSON in Java (`registerBaseRoleResource(id, Class, path)`), or a pack author ships it as an
+  [`NpcBaseRoleAsset`](NpcBaseRoleAsset.java) at `Server/ZiggfreedCommon/NpcBaseRoles/<baseId>.json`
+  (folded by [`NpcBaseRoleConfig`](NpcBaseRoleConfig.java) into `registerBaseRoleFromAsset`) - common
+  ships no roles of its own either way. **On a same-id collision the ASSET WINS** over a
+  Java-registered base (defaults < pack < owner precedence), logged once at INFO naming both; a
+  hot re-fold of the SAME asset id is not treated as a collision. A base role with no usable
+  `Payload` registers nothing - see [`NpcBaseRoleValidator`](NpcBaseRoleValidator.java). Call
+  `generateAndRegister(version)` once per boot AFTER the asset fold and BEFORE any world streams
+  chunks.
 - **[`NpcPlacementValidator`](NpcPlacementValidator.java)** - the findings that are otherwise
   SILENT (an NPC that never appears is indistinguishable from one you have not walked to): blank
   role, an anchor group with no usable params, `SpawnChance <= 0`, an unregistered `Custom.Provider`,
   an unregistered `Requires.Factor`, a `Where` naming no known selector, an `ExcludeNames`-only
-  selector. Neutral `Issue` values (the `world/WorldSelectorValidator` idiom). Several checks read
-  what is REGISTERED, so run the audit at first player-ready, not at plugin setup.
+  selector, a colon-less `Interact.Bindings` key (`BINDING_KEY_NO_NAMESPACE`), and an authored
+  binding namespace no handler claimed (`UNCLAIMED_BINDING_NAMESPACE`). Neutral `Issue` values (the
+  `world/WorldSelectorValidator` idiom). Several checks read what is REGISTERED, so run the audit at
+  first player-ready, not at plugin setup. [`NpcBaseRoleValidator`](NpcBaseRoleValidator.java) is
+  the small sibling for base roles: an empty or non-object `Payload` (`EMPTY_BASE_ROLE_PAYLOAD`).
 
 ## Wiring (what `ZiggfreedCommonPlugin` owns)
 
@@ -173,8 +209,14 @@ corrupting for a refcounted unpin. `WorldEvictors.onWorldRemoved` also gained an
 Pure decision cores only, never balance numbers. `NpcPlacementReconcilerTest` leads with the named
 double-place regression; `PlacementGateChainTest` covers any-deny-wins + first-deny-reported +
 override precedence; `PlacementKeepAlivePinsTest` covers the pin/unpin edges; `PlacementAnchorsTest`
-covers union / collapse order / cross-union capacity / roll determinism; `PlacementRegistryTest`
-covers fail-closed factors, no-position anchors and the namespace split;
+covers union / collapse order / cross-union capacity / roll determinism; `PlacementRegistryLedgerTest`
+covers identity-vs-equality overwrite warnings, failure counting and the `info()` snapshot through
+the subclass (the base contract itself is `zc-core`'s `RegistryLedgerTest`);
+`NpcPlacementValidatorTest` covers the colon-less-key and unclaimed-namespace findings;
+`NpcBaseRoleTest` covers the asset fold, the asset-wins-over-Java collision, and the
+empty-payload finding; `PlacementRegistryTest`
+covers fail-closed factors (including the bounds-less presence check and the placement-id payload),
+no-position anchors and the namespace split;
 `NpcPlacementAssetCodecTest` proves the per-key `Bindings` override. Every new CODEC is asserted in
 [`AssetCodecInitTest`](../../../../../../../../../src/test/java/com/ziggfreed/common/asset/AssetCodecInitTest.java).
 The engine-touching paths (spawn, sweep, pin, role generation) have no unit coverage and land behind

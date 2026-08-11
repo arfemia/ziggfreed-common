@@ -21,7 +21,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * actions every dialogue needs. Each subtype carries its own field
  * {@link BuilderCodec} (the engine registers it into the dispatch codec). Per the
  * Hytale rule every {@code KeyedCodec} field name is PascalCase ({@code Node},
- * {@code Flag}); {@code Type} VALUES are plain data.
+ * {@code Memory}); {@code Type} VALUES are plain data.
  *
  * <p>{@code Talk} and {@code OpenPage} are GENERIC carriers: they hold only data
  * (a target string) and route through consumer-supplied seams (a talk handler /
@@ -67,32 +67,39 @@ public abstract class DialogueAction {
     }
 
     /**
-     * Set a persistent per-player dialogue flag (dialogue-local memory) via the context's flag
-     * store.
-     *
-     * <p>An optional {@link DialogueFlagScope} narrows WHICH flag is written:
-     * {@code "Scope": {"WorldSelector": "forgotten_temple"}} writes the temple-scoped copy, so
-     * "I already greeted you here" is remembered per selector rather than globally. In a world
-     * that does not carry that selector name the write is a NO-OP (pair a scoped write with a
-     * {@code World} condition on the same node so the beat cannot be reached elsewhere). The key
-     * format and the reason the scope goes INSIDE any existing prefix are in
-     * {@link DialogueFlagScope}.
+     * The shared shape of the two memory actions: a bare {@code Memory} name, declared in the
+     * dialogue's own {@code Memories} map (see {@link DialogueMemory}), which is where the scope
+     * and lifetime of that name live. Nothing about the storage is repeated at the use site.
      */
-    public static final class SetFlag extends DialogueAction {
-        public static final BuilderCodec<SetFlag> CODEC = BuilderCodec.builder(SetFlag.class, SetFlag::new)
-                .append(new KeyedCodec<>("Flag", Codec.STRING, false),
-                        (a, v) -> a.flag = v, a -> a.flag).add()
-                .append(new KeyedCodec<>("Scope", DialogueFlagScope.CODEC, false),
-                        (a, v) -> a.scope = v, a -> a.scope).add()
+    public abstract static class MemoryAction extends DialogueAction {
+        @Nullable protected String memory;
+
+        /** The declared memory name this action writes, or null when unauthored. */
+        @Nullable public String getMemory() { return memory; }
+    }
+
+    /**
+     * Remember something about this player: {@code {"Type":"Remember","Memory":"helped_refugees"}}
+     * (option sugar {@code "Remember": "helped_refugees"}). From then on the {@code Remembered}
+     * condition passes for that name and {@code NotRemembered} fails.
+     */
+    public static final class Remember extends MemoryAction {
+        public static final BuilderCodec<Remember> CODEC = BuilderCodec.builder(Remember.class, Remember::new)
+                .append(new KeyedCodec<>("Memory", Codec.STRING, false),
+                        (a, v) -> a.memory = v, a -> a.memory).add()
                 .build();
+    }
 
-        @Nullable protected String flag;
-        @Nullable protected DialogueFlagScope scope;
-
-        @Nullable public String getFlag() { return flag; }
-
-        /** The namespace this flag is written to, or null for the global flag. */
-        @Nullable public DialogueFlagScope getScope() { return scope; }
+    /**
+     * Forget something previously remembered: {@code {"Type":"Forget","Memory":"helped_refugees"}}
+     * (option sugar {@code "Forget": "helped_refugees"}). The mirror of {@link Remember}, for a
+     * beat the player should be able to reach again.
+     */
+    public static final class Forget extends MemoryAction {
+        public static final BuilderCodec<Forget> CODEC = BuilderCodec.builder(Forget.class, Forget::new)
+                .append(new KeyedCodec<>("Memory", Codec.STRING, false),
+                        (a, v) -> a.memory = v, a -> a.memory).add()
+                .build();
     }
 
     /** Jump to another node; the page re-renders there. */

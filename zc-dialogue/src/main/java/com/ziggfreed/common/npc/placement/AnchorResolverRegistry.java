@@ -32,6 +32,10 @@ import com.ziggfreed.common.util.SafeLog;
  * its {@link AnchorPosition#instanceId()} must be STABLE across restarts: an id derived from the
  * position's own identity (a block key, a room id) keeps the ledger row matching, while a bare
  * loop index changes whenever the provider's ordering changes and mints a duplicate NPC.
+ *
+ * <p>Registration bookkeeping (who owns a provider id, how often it has failed) lives in the
+ * shared {@link PlacementRegistryLedger}, JVM-global like every other cross-mod registry here.
+ * Registration is idempotent per id with last-write-wins; ids are matched case-insensitively.
  */
 public final class AnchorResolverRegistry {
 
@@ -49,7 +53,7 @@ public final class AnchorResolverRegistry {
         List<AnchorPosition> resolve(@Nonnull AnchorRequest request);
     }
 
-    private static final Map<String, AnchorResolver> RESOLVERS = new ConcurrentHashMap<>();
+    private static final PlacementRegistryLedger<AnchorResolver> LEDGER = new PlacementRegistryLedger<>();
 
     /** Providers already warned about, so an unregistered id logs once rather than once per sweep. */
     private static final Map<String, Boolean> WARNED = new ConcurrentHashMap<>();
@@ -62,23 +66,33 @@ public final class AnchorResolverRegistry {
      * plugin {@code setup()}. A blank id is ignored.
      */
     public static void register(@Nullable String providerId, @Nullable AnchorResolver resolver) {
+        register(providerId, PlacementRegistryLedger.UNATTRIBUTED, resolver);
+    }
+
+    /** As {@link #register(String, AnchorResolver)}, attributing the claim to {@code owner}. */
+    public static void register(@Nullable String providerId, @Nullable String owner, @Nullable AnchorResolver resolver) {
         if (providerId == null || providerId.isBlank() || resolver == null) {
             return;
         }
-        String key = normalize(providerId);
-        RESOLVERS.put(key, resolver);
-        WARNED.remove(key);
+        LEDGER.put(providerId, owner, resolver);
+        WARNED.remove(normalize(providerId));
     }
 
     /** Is {@code providerId} registered? Used by the validator to report an anchor that resolves to nothing. */
     public static boolean isRegistered(@Nullable String providerId) {
-        return providerId != null && !providerId.isBlank() && RESOLVERS.containsKey(normalize(providerId));
+        return LEDGER.isRegistered(providerId);
     }
 
     /** Every registered provider id, sorted (diagnostics, an authoring hint). */
     @Nonnull
     public static List<String> registeredIds() {
-        return RESOLVERS.keySet().stream().sorted().toList();
+        return List.copyOf(LEDGER.ids());
+    }
+
+    /** Every registered provider id's owner + failure history, keyed by id (an admin channels-list read). */
+    @Nonnull
+    public static Map<String, PlacementRegistryLedger.RegistrationInfo> info() {
+        return LEDGER.info();
     }
 
     /**
@@ -93,7 +107,7 @@ public final class AnchorResolverRegistry {
             return List.of();
         }
         String key = normalize(providerId);
-        AnchorResolver resolver = RESOLVERS.get(key);
+        AnchorResolver resolver = LEDGER.get(key);
         if (resolver == null) {
             warnOnce(key, "no anchor resolver registered for provider '" + providerId
                     + "' - placements anchored to it will not appear");
@@ -110,6 +124,7 @@ public final class AnchorResolverRegistry {
                             key + "#" + p.instanceId(), p.x(), p.y(), p.z(), p.yaw()))
                     .toList();
         } catch (Throwable t) {
+            LEDGER.recordFailure(key, t.getMessage());
             warnOnce(key, "anchor resolver '" + providerId + "' failed: " + t.getMessage());
             return List.of();
         }
@@ -117,7 +132,7 @@ public final class AnchorResolverRegistry {
 
     /** Drop every registration. Tests only. */
     static void clearForTests() {
-        RESOLVERS.clear();
+        LEDGER.clear();
         WARNED.clear();
     }
 
