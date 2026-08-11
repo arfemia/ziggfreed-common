@@ -76,6 +76,45 @@ class NpcPlacementAssetCodecTest {
                 "one channel's untouched leaf must survive too, not just one channel among many");
     }
 
+    @Test
+    void aBindingsListLeafInheritsWholeAndOverridesWhole() throws Exception {
+        NpcPlacementAsset parent = decodeRoot("""
+                { "Interact": { "Bindings": { "yourmod:tags": { "Value": "keep",
+                                                                "Values": ["a", "b"] } } } }
+                """, "base");
+
+        PlacementBinding inherited = decode("""
+                { "Interact": { "Bindings": { "yourmod:tags": { "Value": "changed" } } } }
+                """, "silent", "base", parent).getInteract().getBindings().get("yourmod:tags");
+        assertEquals(List.of("a", "b"), inherited.effectiveValues(),
+                "a child that never mentions Values inherits the parent's list whole");
+
+        PlacementBinding replaced = decode("""
+                { "Interact": { "Bindings": { "yourmod:tags": { "Values": ["c"] } } } }
+                """, "loud", "base", parent).getInteract().getBindings().get("yourmod:tags");
+        assertEquals(List.of("c"), replaced.effectiveValues(),
+                "Values is ONE leaf, so authoring it replaces the inherited list rather than adding to it");
+        assertEquals("keep", replaced.getValue(),
+                "and its sibling leaves in the same channel are untouched");
+
+        PlacementBinding cleared = decode("""
+                { "Interact": { "Bindings": { "yourmod:tags": { "Values": [] } } } }
+                """, "empty", "base", parent).getInteract().getBindings().get("yourmod:tags");
+        assertTrue(cleared.effectiveValues().isEmpty(),
+                "an authored empty array is how a child inherits a channel and carries no list at all");
+    }
+
+    @Test
+    void anUnauthoredValuesListReadsAsEmpty() throws Exception {
+        PlacementBinding binding = decodeRoot("""
+                { "Interact": { "Bindings": { "yourmod:tags": { "Value": "one" } } } }
+                """, "bare").getInteract().getBindings().get("yourmod:tags");
+
+        assertNull(binding.getValues(), "absent stays null, like every other leaf");
+        assertTrue(binding.effectiveValues().isEmpty(),
+                "the null-safe read is what a channel owner iterates, so it never needs a guard");
+    }
+
     // ==================== appendInherited across the groups ====================
 
     @Test

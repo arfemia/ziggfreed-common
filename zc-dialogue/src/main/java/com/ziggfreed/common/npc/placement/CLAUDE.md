@@ -39,9 +39,13 @@ Neither can do the other's job, which is why there are two.
   [`InheritMapCodec`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/codec/InheritMapCodec.java) - NOT an array.** An array leaf under
   `appendInherited` is a SINGLE leaf, so authoring it at all would drop every inherited entry and
   break per-binding `Parent` override, which is the flagship authoring shape. Each entry is
-  [`PlacementBinding`](PlacementBinding.java) `{Param?,Value?,Amount?}`. `NpcPlacementAssetCodecTest`
-  proves the per-key merge (a child authoring one channel keeps the parent's others), because that
-  is what the map buys.
+  [`PlacementBinding`](PlacementBinding.java) `{Param?,Value?,Values?,Amount?}`, every leaf
+  independently optional and `appendInherited`. `Values` is the LIST payload for a channel that
+  genuinely takes several strings, so no channel owner has to invent a separator inside `Value`
+  (`effectiveValues()` is the null-safe read; entries arrive exactly as authored, since this library
+  interprets nothing). Being one leaf, an authored `Values` replaces an inherited list whole.
+  `NpcPlacementAssetCodecTest` proves the per-key merge (a child authoring one channel keeps the
+  parent's others), because that is what the map buys.
 - **`Requires.Conditions` is the shared [`factor/FactorCondition`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/factor/CLAUDE.md)**
   `{Factor,Param?,Min?,Max?}` - the read-side twin of a binding: a binding hands an opaque payload
   OUT, a condition asks a registered provider for a number. Same leaf, same keys, same meaning a
