@@ -18,172 +18,188 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.dialogue.DialogueAction;
 import com.ziggfreed.common.dialogue.DialogueCondition;
+import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.DialogueMemory;
 import com.ziggfreed.common.dialogue.DialogueNode;
 import com.ziggfreed.common.dialogue.DialogueOnce;
 import com.ziggfreed.common.dialogue.DialogueOption;
 import com.ziggfreed.common.dialogue.DialogueStateKeys;
 import com.ziggfreed.common.dialogue.NpcDialogue;
+import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
+import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.validation.Finding;
 
 /**
- * Domain-agnostic STRUCTURAL audit of a decoded dialogue tree: missing/dangling
- * start, dangling {@code Goto}, unreachable nodes, and a dialogue that resolved to
- * zero nodes. It knows nothing about a consumer's action/condition types - a
- * consumer that registers domain actions (quest accept, reward grant) runs its own
- * pass over the tree for those refs and merges the findings with these. Returns
- * neutral {@link Issue}s the consumer maps into its own reporting framework.
+ * The content audit for a decoded conversation: everything that is wrong in a way the server would
+ * otherwise never mention.
  *
- * <p>It also audits the GENERIC state surface - {@code World} conditions, {@code Once} knobs and
- * declared {@code Memories} - because every way those can be wrong is otherwise SILENT: a
- * {@code World} condition with no positive axis never passes (its content is permanently
- * invisible), a {@code Once} naming a selector nothing contributes never retires its beat (so a
- * first-visit greeting repeats forever), and a memory used without a declaration has no scope or
- * lifetime behind it. Pass the loaded selector vocabulary -
- * {@code DialogueWorlds.knownSelectorNames()} - to the {@code knownSelectorNames} overloads to
- * enable the unknown-name checks; a null or EMPTY set means "cannot tell" and skips them, so
- * validating before assets load never produces a false alarm.
+ * <p>Most of what can go wrong in a dialogue is SILENT. A greeting pointing at a screen that does not
+ * exist, a line gated on a world nothing is part of, a first-visit beat kept per a world family
+ * nothing contributes, a memory used without being declared, a shorthand quietly ignored because the
+ * option also spelled its order out - none of them throw, and every one of them shows up in game as
+ * "that line never appears" weeks later. This turns each into a startup finding naming the file.
  *
- * <p>Memory findings that need more than one dialogue (a {@code Shared} name declared differently
- * in two of them) only run in {@link #validateAll}, which sees the whole set.
+ * <p>Structure is checked on its own; the vocabulary checks need to be told what the server actually
+ * has. Pass the loaded selector names ({@code DialogueWorlds.knownSelectorNames()}), the engine's
+ * factor registry, and the engine itself to enable them; leaving any of them out means "cannot tell"
+ * and skips that check, so validating before assets have loaded never cries wolf.
+ *
+ * <p>Findings that need more than one conversation (a shared memory declared differently in two of
+ * them) only run in {@link #validateAll}, which sees the whole set.
  */
 public final class DialogueStructureValidator {
 
-    /** INFO is advisory: nothing is broken, but the content probably does not do what it says. */
-    public enum Severity { ERROR, WARNING, INFO }
-
-    /** One structural finding: a severity, a stable code, a message, and the owning dialogue id. */
-    public record Issue(@Nonnull Severity severity, @Nonnull String code,
-                        @Nonnull String message, @Nonnull String dialogueId) {
-
-        @Nonnull
-        public static Issue error(@Nonnull String code, @Nonnull String message, @Nonnull String id) {
-            return new Issue(Severity.ERROR, code, message, id);
-        }
-
-        @Nonnull
-        public static Issue warning(@Nonnull String code, @Nonnull String message, @Nonnull String id) {
-            return new Issue(Severity.WARNING, code, message, id);
-        }
-
-        @Nonnull
-        public static Issue info(@Nonnull String code, @Nonnull String message, @Nonnull String id) {
-            return new Issue(Severity.INFO, code, message, id);
-        }
-    }
+    /** The domain every finding here is stamped with. */
+    public static final String DOMAIN = "dialogue";
 
     private DialogueStructureValidator() {
     }
 
     @Nonnull
-    public static List<Issue> validateAll(@Nonnull Collection<NpcDialogue> dialogues) {
+    public static List<Finding> validateAll(@Nonnull Collection<NpcDialogue> dialogues) {
         return validateAll(dialogues, null);
     }
 
     /** {@link #validateAll(Collection)} plus the world-selector vocabulary checks. */
     @Nonnull
-    public static List<Issue> validateAll(@Nonnull Collection<NpcDialogue> dialogues,
-                                          @Nullable Set<String> knownSelectorNames) {
+    public static List<Finding> validateAll(@Nonnull Collection<NpcDialogue> dialogues,
+                                            @Nullable Set<String> knownSelectorNames) {
         return validateAll(dialogues, knownSelectorNames, null);
     }
 
     /**
-     * {@link #validateAll(Collection, Set)} plus the factor-vocabulary check. Pass the engine's
-     * own {@code factors()} registry so a {@code Factor} condition naming an id nobody registered
-     * is reported; {@code null} skips the check, exactly as an empty selector pool does.
+     * {@link #validateAll(Collection, Set)} plus the factor-vocabulary check. Pass the engine's own
+     * {@code factors()} registry so a {@code Factor} condition naming an id nobody registered is
+     * reported; {@code null} skips the check, exactly as an empty selector pool does.
      */
     @Nonnull
-    public static List<Issue> validateAll(@Nonnull Collection<NpcDialogue> dialogues,
-                                          @Nullable Set<String> knownSelectorNames,
-                                          @Nullable FactorRegistry factors) {
-        List<Issue> out = new ArrayList<>();
+    public static List<Finding> validateAll(@Nonnull Collection<NpcDialogue> dialogues,
+                                            @Nullable Set<String> knownSelectorNames,
+                                            @Nullable FactorRegistry factors) {
+        return validateAll(dialogues, knownSelectorNames, factors, null);
+    }
+
+    /**
+     * {@link #validateAll(Collection, Set, FactorRegistry)} plus the check that THIS engine can
+     * actually answer every condition and run every action in the files it is about to serve.
+     */
+    @Nonnull
+    public static List<Finding> validateAll(@Nonnull Collection<NpcDialogue> dialogues,
+                                            @Nullable Set<String> knownSelectorNames,
+                                            @Nullable FactorRegistry factors,
+                                            @Nullable DialogueEngine engine) {
+        List<Finding> out = new ArrayList<>();
         for (NpcDialogue dialogue : dialogues) {
-            validate(dialogue, out, knownSelectorNames, factors);
+            validate(dialogue, out, knownSelectorNames, factors, engine);
         }
         checkSharedMemoriesAgree(dialogues, out);
         return out;
     }
 
     @Nonnull
-    public static List<Issue> validate(@Nonnull NpcDialogue dialogue) {
+    public static List<Finding> validate(@Nonnull NpcDialogue dialogue) {
         return validate(dialogue, (Set<String>) null);
     }
 
     /** {@link #validate(NpcDialogue)} plus the world-selector vocabulary checks. */
     @Nonnull
-    public static List<Issue> validate(@Nonnull NpcDialogue dialogue,
-                                       @Nullable Set<String> knownSelectorNames) {
+    public static List<Finding> validate(@Nonnull NpcDialogue dialogue,
+                                         @Nullable Set<String> knownSelectorNames) {
         return validate(dialogue, knownSelectorNames, null);
     }
 
     /** {@link #validate(NpcDialogue, Set)} plus the factor-vocabulary check. */
     @Nonnull
-    public static List<Issue> validate(@Nonnull NpcDialogue dialogue,
-                                       @Nullable Set<String> knownSelectorNames,
-                                       @Nullable FactorRegistry factors) {
-        List<Issue> out = new ArrayList<>();
-        validate(dialogue, out, knownSelectorNames, factors);
+    public static List<Finding> validate(@Nonnull NpcDialogue dialogue,
+                                         @Nullable Set<String> knownSelectorNames,
+                                         @Nullable FactorRegistry factors) {
+        return validate(dialogue, knownSelectorNames, factors, null);
+    }
+
+    /** {@link #validate(NpcDialogue, Set, FactorRegistry)} plus the engine-vocabulary check. */
+    @Nonnull
+    public static List<Finding> validate(@Nonnull NpcDialogue dialogue,
+                                         @Nullable Set<String> knownSelectorNames,
+                                         @Nullable FactorRegistry factors,
+                                         @Nullable DialogueEngine engine) {
+        List<Finding> out = new ArrayList<>();
+        validate(dialogue, out, knownSelectorNames, factors, engine);
         return out;
     }
 
-    private static void validate(@Nonnull NpcDialogue dialogue, @Nonnull List<Issue> out,
+    private static void validate(@Nonnull NpcDialogue dialogue, @Nonnull List<Finding> out,
                                  @Nullable Set<String> knownSelectorNames,
-                                 @Nullable FactorRegistry factors) {
+                                 @Nullable FactorRegistry factors,
+                                 @Nullable DialogueEngine engine) {
         String id = dialogue.getId();
 
         if (dialogue.getNodes().isEmpty()) {
-            out.add(Issue.error("EMPTY_AFTER_RESOLVE",
-                    "Dialogue '" + id + "' resolved to zero nodes (template pruned everything?)", id));
+            out.add(error("EMPTY_DIALOGUE", "Dialogue '" + id + "' has no screens at all", id));
             return;
         }
 
         Set<String> entryNodes = new HashSet<>();
         if (dialogue.getStart().isEmpty()) {
-            out.add(Issue.warning("MISSING_START",
+            out.add(warning("MISSING_START",
                     "Dialogue '" + id + "' has no Start candidates (falls back to the first node)", id));
             entryNodes.add(dialogue.getNodes().keySet().iterator().next());
         }
         int startIndex = 0;
         for (NpcDialogue.DialogueEntry entry : dialogue.getStart()) {
             String where = "Start candidate " + startIndex++;
-            checkConditions(entry.getConditions(), where, id, out, knownSelectorNames, factors);
+            checkConditions(entry.getConditions(), where, id, out, knownSelectorNames, factors, engine);
             checkOnce(entry.getOnce(), null, where, id, out, knownSelectorNames);
             String node = entry.getNode();
             if (node == null || node.isBlank()) {
-                out.add(Issue.error("START_MISSING_NODE",
+                out.add(error("START_MISSING_NODE",
                         "Dialogue '" + id + "' has a Start candidate without a Node", id));
                 continue;
             }
             if (dialogue.getNode(node) == null) {
-                out.add(Issue.error("START_MISSING_NODE",
+                out.add(error("START_MISSING_NODE",
                         "Dialogue '" + id + "' Start references missing node '" + node + "'", id));
             } else {
                 entryNodes.add(node);
             }
         }
 
+        Set<String> declaredFragments = dialogue.getFragments().keySet();
+
         // Validate every Goto target regardless of reachability, plus the generic state refs.
         for (var nodeEntry : dialogue.getNodes().entrySet()) {
             String nodeId = nodeEntry.getKey();
             DialogueNode node = nodeEntry.getValue();
-            checkConditions(node.getConditions(), "node '" + nodeId + "'", id, out, knownSelectorNames, factors);
+            checkConditions(node.getConditions(), "node '" + nodeId + "'", id, out,
+                    knownSelectorNames, factors, engine);
+            for (String fragment : node.getIncludeOptions()) {
+                if (fragment == null || !declaredFragments.contains(fragment)) {
+                    out.add(error("UNKNOWN_FRAGMENT",
+                            "Dialogue '" + id + "' node '" + nodeId + "' pulls in shared options '"
+                                    + fragment + "', which it does not declare under Fragments", id));
+                }
+            }
             // One Once identity per node: two options resolving to the same key share one flag,
             // so spending either retires both.
             Map<String, Integer> onceIdentities = new HashMap<>();
             for (int i = 0; i < node.getOptions().size(); i++) {
                 DialogueOption option = node.getOptions().get(i);
                 String where = "node '" + nodeId + "' option " + i;
-                checkConditions(option.getConditions(), where, id, out, knownSelectorNames, factors);
+                checkConditions(option.getConditions(), where, id, out,
+                        knownSelectorNames, factors, engine);
                 checkOnce(option.getOnce(), option, where, id, out, knownSelectorNames);
                 checkOnceIdentity(option, i, nodeId, id, onceIdentities, out);
+                checkSugar(option, where, id, out);
                 for (DialogueAction action : option.getActions()) {
+                    checkActionKnown(action, where, id, out, engine);
+                    checkQuestAction(action, where, id, out);
                     if (action instanceof DialogueAction.Goto go) {
                         String target = go.getNode();
                         if (target == null || target.isBlank()) {
-                            out.add(Issue.error("GOTO_MISSING_NODE",
+                            out.add(error("GOTO_MISSING_NODE",
                                     "Dialogue '" + id + "' " + where + " has a Goto without a Node", id));
                         } else if (dialogue.getNode(target) == null) {
-                            out.add(Issue.error("GOTO_MISSING_NODE",
+                            out.add(error("GOTO_MISSING_NODE",
                                     "Dialogue '" + id + "' " + where + " Goto references missing node '"
                                             + target + "'", id));
                         }
@@ -214,9 +230,124 @@ public final class DialogueStructureValidator {
         }
         for (String nodeId : dialogue.getNodes().keySet()) {
             if (!reachable.contains(nodeId)) {
-                out.add(Issue.warning("UNREACHABLE_NODE",
+                out.add(warning("UNREACHABLE_NODE",
                         "Dialogue '" + id + "' node '" + nodeId + "' is unreachable from Start", id));
             }
+        }
+    }
+
+    // ==================== shorthand ====================
+
+    /**
+     * Two ways a shorthand quietly does nothing, both of which read as correct on the page.
+     *
+     * <p>An option that spells its order out with {@code Do} runs ONLY those atoms, so a bare
+     * shorthand sitting beside it never happens - which looks exactly like an option that forgot to
+     * do half its job. And two actions of the same kind on one option (a {@code Goto} shorthand
+     * beside a hand-written {@code Goto}, say) means one of them decides and the other is dead
+     * weight; which one wins is not something an author should have to know.
+     */
+    private static void checkSugar(@Nonnull DialogueOption option, @Nonnull String where,
+                                   @Nonnull String id, @Nonnull List<Finding> out) {
+        Set<String> bare = option.bareSugarKeys();
+        if (option.hasDoAtoms() && !bare.isEmpty()) {
+            out.add(warning("SUGAR_SHADOWED_BY_DO",
+                    "Dialogue '" + id + "' " + where + " authors Do AND " + bare
+                            + " beside it; Do decides the whole order, so those never run - move them"
+                            + " into the Do array", id));
+        }
+        Set<Class<?>> seen = new HashSet<>();
+        for (DialogueAction action : option.getActions()) {
+            if (!seen.add(action.getClass()) && isSingular(action)) {
+                out.add(warning("DUPLICATE_ACTION",
+                        "Dialogue '" + id + "' " + where + " ends up with two "
+                                + action.getClass().getSimpleName() + " actions, so only one of them"
+                                + " decides what happens - drop the one you did not mean", id));
+            }
+        }
+    }
+
+    /** The actions where a second one is genuinely dead: only one jump and one close can win. */
+    private static boolean isSingular(@Nonnull DialogueAction action) {
+        return action instanceof DialogueAction.Goto || action instanceof DialogueAction.Close;
+    }
+
+    // ==================== vocabulary this engine can serve ====================
+
+    /**
+     * An action the shared schema could READ but this engine has no handler for: the option renders
+     * and then does nothing. Only checkable when an engine was passed, and a WARNING rather than an
+     * error because the mod that owns it may simply not be installed on this server.
+     */
+    private static void checkActionKnown(@Nonnull DialogueAction action, @Nonnull String where,
+                                         @Nonnull String id, @Nonnull List<Finding> out,
+                                         @Nullable DialogueEngine engine) {
+        if (engine != null && !engine.executor().handles(action.getClass())) {
+            out.add(warning("UNKNOWN_ACTION_TYPE",
+                    "Dialogue '" + id + "' " + where + " uses the action "
+                            + action.getClass().getSimpleName() + ", which this game has no handler"
+                            + " for - the option is offered and then does nothing", id));
+        }
+    }
+
+    private static void checkConditionKnown(@Nonnull DialogueCondition condition, @Nonnull String where,
+                                            @Nonnull String id, @Nonnull List<Finding> out,
+                                            @Nullable DialogueEngine engine) {
+        if (engine != null && !engine.evaluates(condition.getClass())) {
+            out.add(warning("UNKNOWN_CONDITION_TYPE",
+                    "Dialogue '" + id + "' " + where + " gates on the condition "
+                            + condition.getClass().getSimpleName() + ", which this game cannot answer"
+                            + " - it fails closed, so that content stays hidden", id));
+        }
+    }
+
+    // ==================== quest references ====================
+
+    /** A quest line with no quest id, or naming a state that does not exist, can never be right. */
+    private static void checkQuestCondition(@Nonnull DialogueCondition condition, @Nonnull String where,
+                                            @Nonnull String id, @Nonnull List<Finding> out) {
+        if (condition instanceof QuestDialogueConditions.QuestRef ref
+                && (ref.getQuest() == null || ref.getQuest().isBlank())) {
+            out.add(error("QUEST_CONDITION_NO_ID",
+                    "Dialogue '" + id + "' " + where + " has a quest condition with no Quest id, so it"
+                            + " can never pass and its content is invisible", id));
+        }
+        if (!(condition instanceof QuestDialogueConditions.QuestState state)) {
+            return;
+        }
+        String[] states = state.getStates();
+        if (states != null && states.length > 0) {
+            for (String wanted : states) {
+                reportUnknownState(wanted, where, id, out);
+            }
+            return;
+        }
+        if (state.getState() == null || state.getState().isBlank()) {
+            out.add(error("QUEST_STATE_MISSING",
+                    "Dialogue '" + id + "' " + where + " names a quest but no State or States, so it"
+                            + " can never pass", id));
+            return;
+        }
+        reportUnknownState(state.getState(), where, id, out);
+    }
+
+    private static void reportUnknownState(@Nullable String name, @Nonnull String where,
+                                           @Nonnull String id, @Nonnull List<Finding> out) {
+        if (QuestDialogueConditions.QuestState.parse(name) == null) {
+            out.add(error("QUEST_STATE_UNKNOWN",
+                    "Dialogue '" + id + "' " + where + " waits for quest state '" + name
+                            + "', which is not a state a quest can be in - the line never appears", id));
+        }
+    }
+
+    /** An accept / hand-in line with no quest id does nothing at all when it is chosen. */
+    private static void checkQuestAction(@Nonnull DialogueAction action, @Nonnull String where,
+                                         @Nonnull String id, @Nonnull List<Finding> out) {
+        if (action instanceof QuestDialogueActions.QuestRef ref
+                && (ref.getQuest() == null || ref.getQuest().isBlank())) {
+            out.add(error("QUEST_ACTION_NO_ID",
+                    "Dialogue '" + id + "' " + where + " has a quest action with no Quest id, so"
+                            + " choosing that line does nothing", id));
         }
     }
 
@@ -228,16 +359,21 @@ public final class DialogueStructureValidator {
      */
     private static void checkConditions(@Nonnull List<DialogueCondition> conditions,
                                         @Nonnull String where, @Nonnull String id,
-                                        @Nonnull List<Issue> out,
+                                        @Nonnull List<Finding> out,
                                         @Nullable Set<String> knownSelectorNames,
-                                        @Nullable FactorRegistry factors) {
+                                        @Nullable FactorRegistry factors,
+                                        @Nullable DialogueEngine engine) {
         for (DialogueCondition condition : conditions) {
+            checkConditionKnown(condition, where, id, out, engine);
             if (condition instanceof DialogueCondition.Combinator combinator) {
-                checkConditions(combinator.getChildren(), where, id, out, knownSelectorNames, factors);
+                checkConditions(combinator.getChildren(), where, id, out,
+                        knownSelectorNames, factors, engine);
             } else if (condition instanceof DialogueCondition.World world) {
                 checkWorldCondition(world, where, id, out, knownSelectorNames);
             } else if (condition instanceof DialogueCondition.Factor factor) {
                 checkFactorCondition(factor, where, id, out, factors);
+            } else {
+                checkQuestCondition(condition, where, id, out);
             }
         }
     }
@@ -252,20 +388,20 @@ public final class DialogueStructureValidator {
      */
     private static void checkFactorCondition(@Nonnull DialogueCondition.Factor condition,
                                              @Nonnull String where, @Nonnull String id,
-                                             @Nonnull List<Issue> out,
+                                             @Nonnull List<Finding> out,
                                              @Nullable FactorRegistry factors) {
         if (factors == null) {
             return;
         }
         String factorId = condition.getFactor();
         if (factorId == null || factorId.isBlank()) {
-            out.add(Issue.error("FACTOR_CONDITION_NO_ID",
+            out.add(error("FACTOR_CONDITION_NO_ID",
                     "Dialogue '" + id + "' " + where + " has a Factor condition with no Factor id, so it"
                             + " can never pass and its content is invisible", id));
             return;
         }
         if (!factors.isRegistered(factorId)) {
-            out.add(Issue.warning("FACTOR_CONDITION_UNKNOWN_FACTOR",
+            out.add(warning("FACTOR_CONDITION_UNKNOWN_FACTOR",
                     "Dialogue '" + id + "' " + where + " gates on factor '" + factorId + "', which nothing"
                             + " has registered - it fails closed, so this content stays hidden until the"
                             + " mod that owns the factor is installed", id));
@@ -274,12 +410,12 @@ public final class DialogueStructureValidator {
 
     private static void checkWorldCondition(@Nonnull DialogueCondition.World condition,
                                             @Nonnull String where, @Nonnull String id,
-                                            @Nonnull List<Issue> out,
+                                            @Nonnull List<Finding> out,
                                             @Nullable Set<String> knownSelectorNames) {
         // A selector with only ExcludeNames (or nothing at all) matches NOTHING, so the gated
         // content can never appear. That reads as the opposite of the author's intent.
         if (condition.getSelector().hasNoPositiveAxis()) {
-            out.add(Issue.error("WORLD_CONDITION_NO_AXIS",
+            out.add(error("WORLD_CONDITION_NO_AXIS",
                     "Dialogue '" + id + "' " + where + " has a World condition with no Names/Match/"
                             + "GameplayConfig, so it can never pass and its content is invisible", id));
             return;
@@ -290,7 +426,7 @@ public final class DialogueStructureValidator {
         }
         for (String name : names) {
             if (isUnknown(name, knownSelectorNames)) {
-                out.add(Issue.error("WORLD_CONDITION_UNKNOWN_SELECTOR",
+                out.add(error("WORLD_CONDITION_UNKNOWN_SELECTOR",
                         "Dialogue '" + id + "' " + where + " has a World condition naming selector '"
                                 + name + "', which no loaded WorldSelector contributes", id));
             }
@@ -305,7 +441,7 @@ public final class DialogueStructureValidator {
      */
     private static void checkOnce(@Nullable DialogueOnce once, @Nullable DialogueOption option,
                                   @Nonnull String where, @Nonnull String id,
-                                  @Nonnull List<Issue> out,
+                                  @Nonnull List<Finding> out,
                                   @Nullable Set<String> knownSelectorNames) {
         if (once == null) {
             return;
@@ -314,13 +450,13 @@ public final class DialogueStructureValidator {
         if (hasKnownNames(knownSelectorNames) && isUnknown(name, knownSelectorNames)) {
             // The re-show case: an unmatched selector makes the write a no-op AND the read unset,
             // so a first-visit beat plays again on every single visit.
-            out.add(Issue.error("ONCE_UNKNOWN_SELECTOR",
+            out.add(error("ONCE_UNKNOWN_SELECTOR",
                     "Dialogue '" + id + "' " + where + " has a Once kept per world selector '" + name
                             + "', which no loaded WorldSelector contributes - it will never be"
                             + " remembered", id));
         }
         if (option != null && option.onceDiscriminator().isBlank()) {
-            out.add(Issue.warning("ONCE_NO_IDENTITY",
+            out.add(warning("ONCE_NO_IDENTITY",
                     "Dialogue '" + id + "' " + where + " has a Once but no LabelKey or OnceId to"
                             + " identify it, so it stays repeatable - author an OnceId", id));
         }
@@ -336,7 +472,7 @@ public final class DialogueStructureValidator {
     private static void checkOnceIdentity(@Nonnull DialogueOption option, int index,
                                           @Nonnull String nodeId, @Nonnull String id,
                                           @Nonnull Map<String, Integer> onceIdentities,
-                                          @Nonnull List<Issue> out) {
+                                          @Nonnull List<Finding> out) {
         if (option.getOnce() == null) {
             return;
         }
@@ -347,7 +483,7 @@ public final class DialogueStructureValidator {
         String key = DialogueStateKeys.optionOnce(id, nodeId, discriminator);
         Integer first = onceIdentities.putIfAbsent(key, index);
         if (first != null) {
-            out.add(Issue.error("ONCE_DUPLICATE_IDENTITY",
+            out.add(error("ONCE_DUPLICATE_IDENTITY",
                     "Dialogue '" + id + "' node '" + nodeId + "' options " + first + " and " + index
                             + " both carry a Once but resolve to the same identity '" + discriminator
                             + "', so spending either retires both - author a distinct OnceId on one",
@@ -362,21 +498,21 @@ public final class DialogueStructureValidator {
      * declared (that is where its scope and lifetime live), every declaration should be both
      * written and read, and a world family a memory is kept per must exist.
      */
-    private static void checkMemories(@Nonnull NpcDialogue dialogue, @Nonnull List<Issue> out,
+    private static void checkMemories(@Nonnull NpcDialogue dialogue, @Nonnull List<Finding> out,
                                       @Nullable Set<String> knownSelectorNames) {
         String id = dialogue.getId();
         Map<String, DialogueMemory> declared = new LinkedHashMap<>();
         for (Map.Entry<String, DialogueMemory> entry : dialogue.getMemories().entrySet()) {
             String name = normalize(entry.getKey());
             if (name.isEmpty()) {
-                out.add(Issue.error("MEMORY_BLANK_NAME",
+                out.add(error("MEMORY_BLANK_NAME",
                         "Dialogue '" + id + "' declares a memory with no name", id));
                 continue;
             }
             declared.put(name, entry.getValue());
             String selector = entry.getValue() == null ? null : entry.getValue().getWorldSelector();
             if (hasKnownNames(knownSelectorNames) && isUnknown(selector, knownSelectorNames)) {
-                out.add(Issue.error("MEMORY_UNKNOWN_SELECTOR",
+                out.add(error("MEMORY_UNKNOWN_SELECTOR",
                         "Dialogue '" + id + "' declares memory '" + name + "' per world selector '"
                                 + selector + "', which no loaded WorldSelector contributes - it will"
                                 + " never be remembered", id));
@@ -401,7 +537,7 @@ public final class DialogueStructureValidator {
             }
         }
         if (blankUse) {
-            out.add(Issue.error("MEMORY_BLANK_NAME",
+            out.add(error("MEMORY_BLANK_NAME",
                     "Dialogue '" + id + "' has a Remember/Forget/Remembered/NotRemembered with no"
                             + " Memory name", id));
         }
@@ -410,19 +546,19 @@ public final class DialogueStructureValidator {
         used.addAll(read);
         for (String name : used) {
             if (!declared.containsKey(name)) {
-                out.add(Issue.error("MEMORY_UNDECLARED",
+                out.add(error("MEMORY_UNDECLARED",
                         "Dialogue '" + id + "' uses memory '" + name + "' without declaring it in"
                                 + " Memories, so it has no scope or reset behind it", id));
             }
         }
         for (String name : declared.keySet()) {
             if (!written.contains(name)) {
-                out.add(Issue.warning("MEMORY_NEVER_WRITTEN",
+                out.add(warning("MEMORY_NEVER_WRITTEN",
                         "Dialogue '" + id + "' declares memory '" + name + "' but no option ever"
                                 + " Remembers it, so it can never become true here", id));
             }
             if (!read.contains(name)) {
-                out.add(Issue.info("MEMORY_NEVER_READ",
+                out.add(info("MEMORY_NEVER_READ",
                         "Dialogue '" + id + "' declares memory '" + name + "' but nothing reads it"
                                 + " with Remembered/NotRemembered", id));
             }
@@ -459,7 +595,7 @@ public final class DialogueStructureValidator {
      * the same memory lasts or which worlds it applies to.
      */
     private static void checkSharedMemoriesAgree(@Nonnull Collection<NpcDialogue> dialogues,
-                                                 @Nonnull List<Issue> out) {
+                                                 @Nonnull List<Finding> out) {
         Map<String, NpcDialogue> firstOwner = new HashMap<>();
         Map<String, DialogueMemory> firstDeclaration = new HashMap<>();
         for (NpcDialogue dialogue : dialogues) {
@@ -475,7 +611,7 @@ public final class DialogueStructureValidator {
                     continue;
                 }
                 if (!previous.sameDeclarationAs(declaration)) {
-                    out.add(Issue.error("MEMORY_SHARED_MISMATCH",
+                    out.add(error("MEMORY_SHARED_MISMATCH",
                             "Dialogue '" + dialogue.getId() + "' declares shared memory '" + name
                                     + "' differently from '" + firstOwner.get(name).getId()
                                     + "' - every dialogue sharing a memory must declare the same"
@@ -486,6 +622,21 @@ public final class DialogueStructureValidator {
     }
 
     // ==================== shared helpers ====================
+
+    @Nonnull
+    private static Finding error(@Nonnull String code, @Nonnull String message, @Nonnull String id) {
+        return Finding.error(DOMAIN, code, message, id);
+    }
+
+    @Nonnull
+    private static Finding warning(@Nonnull String code, @Nonnull String message, @Nonnull String id) {
+        return Finding.warning(DOMAIN, code, message, id);
+    }
+
+    @Nonnull
+    private static Finding info(@Nonnull String code, @Nonnull String message, @Nonnull String id) {
+        return Finding.info(DOMAIN, code, message, id);
+    }
 
     /** An absent or EMPTY vocabulary means "cannot tell" (assets may not have loaded yet). */
     private static boolean hasKnownNames(@Nullable Set<String> knownSelectorNames) {

@@ -23,22 +23,41 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * Hytale rule every {@code KeyedCodec} field name is PascalCase ({@code Node},
  * {@code Memory}); {@code Type} VALUES are plain data.
  *
- * <p>{@code Talk} and {@code OpenPage} are GENERIC carriers: they hold only data
- * (a target string) and route through consumer-supplied seams (a talk handler /
- * a {@link DialoguePageRouter}). A consumer may re-register the same {@code Type}
- * id with a richer handler to inject domain behavior (e.g. firing a quest
- * objective on {@code Talk}).
+ * <p>{@code OpenPage} is a GENERIC carrier: it holds only data (a target string) and
+ * routes through a consumer-supplied seam (a {@link DialoguePageRouter}). A consumer
+ * may re-register the same {@code Type} id with a richer handler to inject domain
+ * behavior.
  */
 public abstract class DialogueAction {
 
-    /** Fire a "talk" signal. A generic carrier: the engine's default handler is a no-op;
-     *  a consumer registers a handler that does something with {@code Target}/{@code Qualifier}. */
-    public static final class Talk extends DialogueAction {
-        public static final BuilderCodec<Talk> CODEC = BuilderCodec.builder(Talk.class, Talk::new)
+    /**
+     * Credit this conversation: {@code {"Type":"MarkTalked"}}, or with an explicit
+     * {@code {"Type":"MarkTalked","Target":"blacksmith"}}.
+     *
+     * <p>This is the ONE way a conversation counts as having happened. Nothing credits because a
+     * player pressed F, because a page opened, or because a dialogue re-rendered - an author puts the
+     * beat on the option that IS the moment (the greeting, the hail, the "I have returned"), and only
+     * that option credits. A discrete click is a decision a player made; a render is not.
+     *
+     * <p>What the engine gives you for free is the TARGET, not the trigger. An absent {@code Target}
+     * means the character being talked to, alias set included, so an author never types an id to
+     * credit the character they are already writing a conversation for. {@code @self} inside a target
+     * substitutes the same id. {@code Qualifier} is an optional secondary label the crediting mod may
+     * filter on.
+     *
+     * <p>Pair it with the option-level {@code Once} to credit only the first hail; the two are
+     * independent knobs and neither implies the other.
+     */
+    public static final class MarkTalked extends DialogueAction {
+        public static final BuilderCodec<MarkTalked> CODEC = BuilderCodec.builder(MarkTalked.class, MarkTalked::new)
                 .append(new KeyedCodec<>("Target", Codec.STRING, false),
-                        (a, v) -> a.target = v, a -> a.target).add()
+                        (a, v) -> a.target = v, a -> a.target)
+                .documentation("Who to credit. Omit it for the character being talked to, which is what you "
+                        + "want almost always; @self means the same thing inside a longer id.").add()
                 .append(new KeyedCodec<>("Qualifier", Codec.STRING, false),
-                        (a, v) -> a.qualifier = v, a -> a.qualifier).add()
+                        (a, v) -> a.qualifier = v, a -> a.qualifier)
+                .documentation("An optional secondary label passed through to whoever counts the "
+                        + "conversation.").add()
                 .build();
 
         @Nullable protected String target;

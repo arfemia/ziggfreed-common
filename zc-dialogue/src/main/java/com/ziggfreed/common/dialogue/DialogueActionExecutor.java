@@ -59,6 +59,15 @@ public final class DialogueActionExecutor {
     private final Map<Class<? extends DialogueAction>, DialogueActionHandler<?>> handlers;
     private final Consumer<String> warn;
 
+    /**
+     * Whether this engine actually knows what to do with an action of that shape. An action the
+     * shared schema can READ but this engine has no handler for is a no-op at runtime, which the
+     * content audit reports rather than leaving it to be discovered in game.
+     */
+    public boolean handles(@Nonnull Class<? extends DialogueAction> actionClass) {
+        return handlers.containsKey(actionClass);
+    }
+
     DialogueActionExecutor(@Nonnull Map<Class<? extends DialogueAction>, DialogueActionHandler<?>> handlers,
                            @Nonnull Consumer<String> warn) {
         this.handlers = handlers;

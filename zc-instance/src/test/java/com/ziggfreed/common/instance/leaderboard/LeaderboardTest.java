@@ -29,7 +29,7 @@ class LeaderboardTest {
 
         LeaderboardEntry e = lb.forBucket("nightmare_1").get(A);
         assertEquals(1500, e.bestScore, "best score keeps the max");
-        assertEquals(3300L, e.totalPoints, "total points sum every record");
+        assertEquals(3300L, e.totalPoints(), "total points sum every record");
         assertEquals(3, e.plays, "plays count every record");
         assertEquals(280, e.bestTimeSeconds, "best time keeps the fastest WINNING time");
         assertEquals(6L, e.stat("stunned"), "stats merge across records");
@@ -54,7 +54,7 @@ class LeaderboardTest {
         Map<UUID, LeaderboardEntry> global = lb.forBuckets(lb.bucketKeys());
         LeaderboardEntry e = global.get(A);
         assertEquals(1200, e.bestScore, "global best = max across buckets");
-        assertEquals(3100L, e.totalPoints, "global total = sum across buckets");
+        assertEquals(3100L, e.totalPoints(), "global total = sum across buckets");
         assertEquals(3, e.plays);
         assertEquals(250, e.bestTimeSeconds, "global best time = min winning across buckets");
         assertEquals(8L, e.stat("stunned"), "global stat = sum across buckets");
@@ -101,6 +101,39 @@ class LeaderboardTest {
 
         // An absent stat counter defaults to 0 (no throw), so the metric is well-defined for all.
         assertEquals(0L, SortMode.statMetric(lb.forBucket("b").get(B), "moonbloom"));
+    }
+
+    /**
+     * The counter re-base must not change a single number a consumer reads. This is the parity
+     * fixture: one hand-computed scenario stating every field of the merged aggregate at once, so a
+     * later change to the counter bag (a different merge rule, a renamed reserved key) fails here
+     * rather than silently re-ranking a board.
+     */
+    @Test
+    void counterBackedTalliesKeepEveryAggregateRule() {
+        Leaderboard lb = new Leaderboard("test");
+        lb.record("one", A, "Ada", 700, 300, true, Map.of("hits", 4L));
+        lb.record("one", A, "Ada", 900, 0, false, Map.of("hits", 1L, "picks", 2L));
+        lb.record("two", A, "Ada", 500, 240, true, Map.of("hits", 5L));
+
+        LeaderboardEntry perBucket = lb.forBucket("one").get(A);
+        assertEquals(900, perBucket.bestScore, "a best takes the better of the two");
+        assertEquals(1600L, perBucket.totalPoints(), "a cumulative tally adds");
+        assertEquals(5L, perBucket.stat("hits"));
+        assertEquals(2L, perBucket.stat("picks"));
+        assertEquals(2, perBucket.plays);
+        assertEquals(300, perBucket.bestTimeSeconds);
+
+        LeaderboardEntry merged = lb.forBuckets(lb.bucketKeys()).get(A);
+        assertEquals(900, merged.bestScore, "max across buckets");
+        assertEquals(2100L, merged.totalPoints(), "total points sums across buckets like any tally");
+        assertEquals(10L, merged.stat("hits"), "a consumer tally sums across buckets");
+        assertEquals(2L, merged.stat("picks"), "a tally only one bucket carries survives the merge");
+        assertEquals(0L, merged.stat("absent"), "an unrecorded tally reads zero, never an error");
+        assertEquals(3, merged.plays);
+        assertEquals(240, merged.bestTimeSeconds, "min WINNING time across buckets");
+        assertEquals(2100L, merged.counters().get(LeaderboardEntry.TOTAL_POINTS),
+                "total points is a reserved counter key, readable as one");
     }
 
     @Test

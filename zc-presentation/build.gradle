@@ -4,5 +4,5 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // 3D sound, camera effects, and the notification wrappers.
 
 dependencies {
-    api project(':zc-core')
+    implementation project(':zc-core')
 }

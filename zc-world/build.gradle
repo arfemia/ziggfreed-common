@@ -4,7 +4,6 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // world-map POI/discovery layer.
 
 dependencies {
-    api project(':zc-core')
-    api project(':zc-cast')
-    api project(':zc-entity')
+    implementation project(':zc-core')
+    implementation project(':zc-entity')
 }

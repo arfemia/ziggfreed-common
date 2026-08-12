@@ -1,0 +1,56 @@
+{
+  "Name": "Guide_Wilds_Dialogue",
+  "Payload": {
+    "Start": [
+      { "Node": "greet_done",
+        "Conditions": [ { "Type": "QuestState", "Quest": "wilds_call_of_the_dunes", "State": "COMPLETED" } ] },
+      { "Node": "greet_midway",
+        "Conditions": [ { "Type": "QuestState", "Quest": "wilds_meet_the_guide", "State": "COMPLETED" } ] },
+      { "Node": "greet" }
+    ],
+    "Nodes": {
+      "greet": {
+        "TextKey": "dialogue.guide_wilds.greet.text",
+        "Options": [
+          { "LabelKey": "dialogue.guide_wilds.greet.opt.intro",
+            "Conditions": [ { "Type": "QuestState", "Quest": "wilds_meet_the_guide", "State": "ACTIVE" } ],
+            "Do": [ { "TurnIn": "wilds_meet_the_guide" }, { "Goto": "camp_talk" } ] },
+          { "LabelKey": "dialogue.guide_wilds.greet.opt.work", "Open": "npcquests:@self" }
+        ]
+      },
+      "greet_midway": {
+        "TextKey": "dialogue.guide_wilds.greet_midway.text",
+        "Options": [
+          { "LabelKey": "dialogue.guide_wilds.greet.opt.work", "Open": "npcquests:@self" },
+          { "LabelKey": "dialogue.guide_wilds.greet_midway.opt.lore", "Goto": "lore_wilds" }
+        ]
+      },
+      "greet_done": {
+        "TextKey": "dialogue.guide_wilds.greet_done.text",
+        "Options": [
+          { "LabelKey": "dialogue.guide_wilds.greet.opt.work", "Open": "npcquests:@self" },
+          { "LabelKey": "dialogue.guide_wilds.greet_midway.opt.lore", "Goto": "lore_wilds" }
+        ]
+      },
+      "camp_talk": {
+        "TextKey": "dialogue.guide_wilds.camp_talk.text",
+        "Options": [
+          { "LabelKey": "dialogue.guide_wilds.camp_talk.opt.bread",
+            "Once": true,
+            "RewardOnce": false,
+            "Do": [
+              { "Reward": { "Type": "COMMAND", "Command": "/give {player} Food_Bread --quantity=3" } },
+              { "Close": true }
+            ] },
+          { "LabelKey": "dialogue.guide_wilds.camp_talk.opt.lore", "Goto": "lore_wilds" }
+        ]
+      },
+      "lore_wilds": {
+        "TextKey": "dialogue.guide_wilds.lore_wilds.text",
+        "Options": [
+          { "LabelKey": "dialogue.guide_wilds.greet.opt.work", "Open": "npcquests:@self" }
+        ]
+      }
+    }
+  }
+}

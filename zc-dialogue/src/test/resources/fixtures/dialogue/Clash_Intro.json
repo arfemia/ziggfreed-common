@@ -1,0 +1,35 @@
+{
+  "Name": "clash_intro",
+  "Owner": "kweebec",
+  "Payload": {
+    "Start": [{ "Node": "greet" }],
+    "Nodes": {
+      "greet": {
+        "Options": [
+          { "Goto": "lore" },
+          { "Conditions": [{ "Type": "NotInRound" }], "Goto": "mode_pick" },
+          { "Conditions": [{ "Type": "Engaged" }], "Goto": "already_engaged" }
+        ]
+      },
+      "lore": {
+        "Options": [
+          { "Conditions": [{ "Type": "NotInRound" }], "Goto": "mode_pick" },
+          { "Goto": "greet" }
+        ]
+      },
+      "mode_pick": {
+        "Options": [
+          { "Conditions": [{ "Type": "NotInRound" }], "Play": "clash_1v1" },
+          { "Conditions": [{ "Type": "NotInRound" }], "Play": "clash_2v2" },
+          { "Conditions": [{ "Type": "NotInRound" }], "Play": "domination_koth" },
+          { "Goto": "greet" }
+        ]
+      },
+      "already_engaged": {
+        "Options": [
+          { "Goto": "greet" }
+        ]
+      }
+    }
+  }
+}

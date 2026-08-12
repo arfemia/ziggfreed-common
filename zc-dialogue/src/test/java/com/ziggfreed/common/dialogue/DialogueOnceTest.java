@@ -12,6 +12,7 @@ import java.util.Set;
 
 import javax.annotation.Nonnull;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -21,6 +22,12 @@ import org.junit.jupiter.api.Test;
  * throw, which is also the "world cannot be read" path.
  */
 class DialogueOnceTest {
+
+    /** The decode vocabulary is process-wide; start every test from a clean one. */
+    @BeforeEach
+    void resetDialogueTypes() {
+        DialogueTestSupport.reset();
+    }
 
     private final List<String> warnings = new ArrayList<>();
 
@@ -33,7 +40,7 @@ class DialogueOnceTest {
     @Test
     void booleanShorthandNormalizesOnEntriesAndOptions() {
         DialogueEngine engine = engine();
-        NpcDialogue d = engine.decodeAuthored("t",
+        NpcDialogue d = engine.decode("t",
                 "{\"Start\":[{\"Node\":\"g\",\"Once\":true}],\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Once\":true},"
                         + "{\"LabelKey\":\"b\",\"Once\":false},"
@@ -66,7 +73,7 @@ class DialogueOnceTest {
     void sugarNormalizationIsIdempotent() {
         DialogueEngine engine = engine();
         // A body already through the pass (the group form) decodes identically the second time.
-        NpcDialogue d = engine.decodeAuthored("t",
+        NpcDialogue d = engine.decode("t",
                 "{\"Start\":[{\"Node\":\"g\",\"Once\":{}}],\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Once\":{},\"Close\":true}]}}}");
         assertNotNull(d);

@@ -10,10 +10,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.dialogue.validate.DialogueStructureValidator;
+import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.world.MatchRank;
 import com.ziggfreed.common.world.WorldNameIndex;
 
@@ -23,6 +25,12 @@ import com.ziggfreed.common.world.WorldNameIndex;
  * (world name + gameplay config + the already-resolved name index). No server needed.
  */
 class DialogueWorldConditionTest {
+
+    /** The decode vocabulary is process-wide; start every test from a clean one. */
+    @BeforeEach
+    void resetDialogueTypes() {
+        DialogueTestSupport.reset();
+    }
 
     private static DialogueEngine engine() {
         return DialogueEngine.builder().warn(m -> { }).build();
@@ -139,7 +147,7 @@ class DialogueWorldConditionTest {
 
         List<String> codes = DialogueStructureValidator
                 .validateAll(List.of(d), Set.of("forgotten_temple", "primary"))
-                .stream().map(DialogueStructureValidator.Issue::code).toList();
+                .stream().map(Finding::code).toList();
 
         assertTrue(codes.contains("WORLD_CONDITION_UNKNOWN_SELECTOR"), codes.toString());
         assertTrue(codes.contains("ONCE_UNKNOWN_SELECTOR"), codes.toString());
@@ -155,7 +163,7 @@ class DialogueWorldConditionTest {
         assertNotNull(d);
 
         List<String> codes = DialogueStructureValidator.validate(d, Set.of("forgotten_temple"))
-                .stream().map(DialogueStructureValidator.Issue::code).toList();
+                .stream().map(Finding::code).toList();
 
         assertTrue(codes.contains("WORLD_CONDITION_NO_AXIS"), codes.toString());
     }
@@ -173,14 +181,14 @@ class DialogueWorldConditionTest {
 
         // Known vocabulary: the name resolves (case-insensitively), even nested in a combinator.
         List<String> known = DialogueStructureValidator.validate(d, Set.of("forgotten_temple"))
-                .stream().map(DialogueStructureValidator.Issue::code).toList();
+                .stream().map(Finding::code).toList();
         assertFalse(known.contains("WORLD_CONDITION_UNKNOWN_SELECTOR"), known.toString());
         assertFalse(known.contains("ONCE_UNKNOWN_SELECTOR"), known.toString());
 
         // Absent / empty vocabulary means "cannot tell" (assets may not have loaded), never a
         // false alarm.
         List<String> unknownPool = DialogueStructureValidator.validate(d, Set.of())
-                .stream().map(DialogueStructureValidator.Issue::code).toList();
+                .stream().map(Finding::code).toList();
         assertFalse(unknownPool.contains("WORLD_CONDITION_UNKNOWN_SELECTOR"), unknownPool.toString());
         assertFalse(unknownPool.contains("ONCE_UNKNOWN_SELECTOR"), unknownPool.toString());
         assertFalse(DialogueStructureValidator.validate(d).stream()

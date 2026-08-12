@@ -39,6 +39,7 @@ final class TestDialogueContext implements DialogueExecContext {
 
     private final NpcDialogue dialogue;
     private final Flags flags;
+    @Nullable private String contextId;
 
     TestDialogueContext(@Nonnull NpcDialogue dialogue) {
         this(dialogue, new Flags());
@@ -51,6 +52,12 @@ final class TestDialogueContext implements DialogueExecContext {
 
     @Nonnull Flags state() { return flags; }
 
+    /** Stand in for the character being talked to, which is what an alias answer set is asked about. */
+    @Nonnull TestDialogueContext talkingTo(@Nullable String contextId) {
+        this.contextId = contextId;
+        return this;
+    }
+
     @Override @Nonnull public NpcDialogue dialogue() { return dialogue; }
 
     @Override @Nonnull public String nodeId() { return ""; }
@@ -59,7 +66,7 @@ final class TestDialogueContext implements DialogueExecContext {
 
     @Override @Nonnull public DialogueFlagStore flags() { return flags; }
 
-    @Override @Nullable public String contextId() { return null; }
+    @Override @Nullable public String contextId() { return contextId; }
 
     @Override @Nonnull public Store<EntityStore> store() {
         throw new UnsupportedOperationException("no server in a unit test");

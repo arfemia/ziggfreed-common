@@ -28,13 +28,43 @@ Neither can do the other's job, which is why there are two.
 
 - **[`NpcPlacementAsset`](NpcPlacementAsset.java)** - Pattern A, **every leaf `appendInherited`**,
   so a `Parent`-linked child overriding one leaf keeps every untouched sibling. Groups: top-level
-  `Enabled`; `Identity{Role,BaseRole,Appearance,NameKey,HintKey}`; `Where` (a
+  `Enabled`; `Identity{Role,BaseRole,Appearance,NameKey,HintKey,NpcId,Aliases}` (Appearance is the nested
+  [`AppearanceSpec`](AppearanceSpec.java) GROUP, not a string; **`BaseRole` names a native
+  parameterized TEMPLATE role directly**, and the generated role is a variant of it); `Where` (a
   [`WorldSelector`](../../../../../../../../../zc-world/src/main/java/com/ziggfreed/common/world/WorldSelector.java) - a null/empty selector defaults to
   `Names:["primary"]` **at this read site**); `Anchor{WorldSpawn,Coords,Structure,Zone,Custom}`
   (nullable ORTHOGONAL groups, never a placement-mode enum); `Requires{Conditions[]}`;
-  `Limits{SpawnChance,MaxPerWorld,OncePerWorld}`; `Lifecycle{KeepAlive,Respawn,Fortify,
+  `Limits{SpawnChance,ChanceFormula,MaxPerWorld,OncePerWorld}`; `Lifecycle{KeepAlive,Respawn,Fortify,
   FortifyHealth}` (ALL opt-in, default false - each costs a pinned chunk / a re-place / a health
   pool); `Interact{Dialogue,Bindings}`.
+- **`Identity.NpcId` + `Identity.Aliases` are what CONTENT calls this character** - a quest's giver,
+  a hand-in target, a talk objective, the waypoint marked for it. Both OPTIONAL: with no `NpcId` the
+  placement answers to its own placement id, so putting an NPC somewhere is already enough to make it
+  nameable. `Aliases` is one leaf, so an authored list replaces the parent's whole list rather than
+  adding to it. Identity lives HERE rather than inside `Interact` because it is who the NPC IS, not
+  what pressing F does - a placement with no `Interact` block still has a name. The resolution rules,
+  the primary-versus-alias asymmetry and the reverse index are
+  [`../NpcIdentities`](../CLAUDE.md).
+- **[`AppearanceSpec`](AppearanceSpec.java) is `Identity.Appearance`: orthogonal knobs behind ONE
+  exclusive choice.** `Model` uses an existing Model asset as-is; `Base` CLONES one and the override knobs re-dress the clone (`Texture`, `GradientSet`/
+  `GradientId`, `Scale`, `Particles[]` of `{SystemId,TargetNodeName,Color,Scale,PositionOffset,
+  RotationOffset,DetachedFromModel}`). Both authored is `APPEARANCE_MODEL_AND_BASE`. `Equipment
+  {Armor,Hotbar,OffHand,DefaultOffHandSlot}` is orthogonal to the choice because it rides the ROLE
+  (`Armor`/`HotbarItems`/`OffHandItems`/`DefaultOffHandSlot`), not the model, so it needs no `Base`.
+  `Scale` is emitted as `MinScale == MaxScale` so the engine's own spawn-time draw yields a constant
+  and persists it per instance (`MdlScl`) - **never `EntityScaleComponent` for an authored scale**.
+  The particle leaf names ARE the engine's `ModelParticle` names, so an emitted clone decodes
+  natively. **A `TargetNodeName` naming a bone the mesh lacks is a SILENT no-op and deliberately not
+  a finding**: bones live on the mesh and nothing server-side can enumerate them, so there is no
+  honest check to make - it is documented at the class and in the authored `$Comment` instead.
+- **`Limits.SpawnChance` and `Limits.ChanceFormula` are two knobs, not a mode.** The formula is a
+  [`factor/FactorFormula`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/factor/CLAUDE.md)
+  evaluated by `PlacementAnchors.resolveChance` (context: world + store + the placement id as
+  PAYLOAD, **no subject** - nothing stands at the anchor yet, so a subject-dependent factor
+  contributes 0 the way any value-side term does). Authored beside the scalar, the formula WINS and
+  the scalar is reported as `CHANCE_FORMULA_AND_SCALAR`; an EMPTY formula group falls back to the
+  scalar rather than reading as a constant 0. Only the chance VALUE changes - the deterministic
+  `SplitMix64` keep/skip roll is untouched.
 - **`Interact.Bindings` is a MAP keyed by channel, decoded through
   [`InheritMapCodec`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/codec/InheritMapCodec.java) - NOT an array.** An array leaf under
   `appendInherited` is a SINGLE leaf, so authoring it at all would drop every inherited entry and
@@ -171,32 +201,75 @@ Each is JVM-global, case-insensitive, last-write-wins, and warns ONCE per unknow
 - **[`ActionPlacementInteract`](ActionPlacementInteract.java)** + its
   [builder](BuilderActionPlacementInteract.java), registered `"ZigPlacementInteract"` by
   [`PlacementNpcActions`](PlacementNpcActions.java) - ONE press-F action for every placement. It
-  reads the NPC's own stamp, opens `Interact.Dialogue`, and fans `Interact.Bindings` out per
-  namespace. Reading identity off the ENTITY is what lets one base role serve every placement in the
-  server; a role cannot carry per-placement data, so an action that encoded a destination would need
-  one role per destination.
-- **[`NpcRoleGenerator`](NpcRoleGenerator.java)** - clone a base role, substitute
-  `Appearance`/`NameTranslationKey.Value`/every `Hint` (a recursive walk, so a base that grows a
-  second interaction still gets a correct hint), register as a `PackSource.RUNTIME` directory pack.
-  **A base role's raw JSON body comes from one of two sources**: a consumer registers its OWN base
-  role JSON in Java (`registerBaseRoleResource(id, Class, path)`), or a pack author ships it as an
-  [`NpcBaseRoleAsset`](NpcBaseRoleAsset.java) at `Server/ZiggfreedCommon/NpcBaseRoles/<baseId>.json`
-  (folded by [`NpcBaseRoleConfig`](NpcBaseRoleConfig.java) into `registerBaseRoleFromAsset`) - common
-  ships no roles of its own either way. **On a same-id collision the ASSET WINS** over a
-  Java-registered base (defaults < pack < owner precedence), logged once at INFO naming both; a
-  hot re-fold of the SAME asset id is not treated as a collision. A base role with no usable
-  `Payload` registers nothing - see [`NpcBaseRoleValidator`](NpcBaseRoleValidator.java). Call
-  `generateAndRegister(version)` once per boot AFTER the asset fold and BEFORE any world streams
-  chunks.
+  reads the NPC's own stamp, opens `Interact.Dialogue` **telling it who the conversation is with**,
+  and fans `Interact.Bindings` out per namespace. Reading identity off the ENTITY is what lets one
+  base role serve every placement in the server; a role cannot carry per-placement data, so an action
+  that encoded a destination would need one role per destination.
+  **The npc context is what makes a conversation NPC-aware**: without it a `MarkTalked` beat has
+  nobody to credit, `@self` substitutes nothing, and every quest-aware condition asks about a
+  character with no name and is answered no. The placement knows exactly who stands here, so it says
+  so, and a conversation opened by pressing F behaves identically to the same one opened through a
+  named route.
+- **[`NpcRoleGenerator`](NpcRoleGenerator.java)** emits a NATIVE VARIANT per placement, not a role
+  copy: `{"Type":"Variant","Reference":"<template id>","Modify":{...}}`, written into a
+  `PackSource.RUNTIME` directory pack. `Identity.BaseRole` names a native PARAMETERIZED TEMPLATE
+  ROLE shipped in any pack (a jar pack or a content pack) - this library ships none and knows none.
+  The emitted `Modify` carries ONLY the authored knobs, under the seven key names the class exposes
+  as constants and `modifyKeys()` lists: `Appearance`, `NameTranslationKey`, `Hint`, `Armor`,
+  `Weapons` (hotbar), `OffHand`, `DefaultOffHandSlot`. Those names follow the vanilla humanoid
+  templates (`Template_Intelligent` binds `HotbarItems: {Compute: "Weapons"}` and
+  `OffHandItems: {Compute: "OffHand"}`), and a placement-backing template declares them in its own
+  `Parameters` block.
+  **A variant may only override a key its template DECLARED**: the engine refuses the whole variant
+  over one undeclared key, which reads in game as an NPC that never appears. So generation asks
+  [`RoleTemplates`](RoleTemplates.java) first and DROPS an undeclared key with a `severe` log naming
+  the key and the template, keeping the rest of the NPC; the validator reports the same mismatch as
+  `MODIFY_KEY_NOT_PARAMETERIZED`. Cross-pack `Reference` is safe by construction: a runtime pack is
+  processed strictly after every boot-time pack, and role-to-model resolution happens by name at
+  spawn rather than at pack load.
+  **It emits MODELS as well as roles**, into `Server/Models/Zc_Gen_Mdl_<placementId>.json` of the
+  SAME pack, whenever the appearance names a `Base` to clone; `Modify.Appearance` then points at
+  that id, and a `Model`-form appearance points at the authored id with nothing written. Verified
+  against `AssetRegistryLoader` (`:205,229-231`): the loader walks
+  `assetPack.getRoot().resolve("Server").resolve(store.getPath())` for EVERY registered store, so
+  `Server/Models/**` in a runtime directory pack is scanned exactly like `Server/NPC/Roles/**` - one
+  `registerPack` covers both. Both output dirs are wiped and rebuilt per boot, so a removed
+  placement leaves nothing stale. The pure cores `buildVariant(identity, placementId)`,
+  `buildModify(identity, placementId)` and `buildModel(spec, placementId)` are what the tests pin.
+  Call `generateAndRegister(version)` once per boot AFTER the asset fold and BEFORE any world
+  streams chunks.
+- **[`RoleTemplates`](RoleTemplates.java)** - the two READ-ONLY questions about a template, asked of
+  the engine's own loaded roles through the shared `NPCPlugin.get().getBuilderManager()`:
+  `templateExists(name)` (via `getRoleBuilderInfo`) and `unparameterizedKeys(name, keys)` (via
+  `builder.getBuilderParameters().getParameterType(key) != VOID`, the exact check the engine itself
+  performs when it parses a `Modify` block). Nothing is mutated, nothing is loaded, no event fires.
+  **Every answer may be "cannot tell"** - `null` or an empty list - outside a running server or
+  before a pack loads, and a caller then reports NOTHING, the same rule the model and particle id
+  checks follow. Keys beginning with `_` are engine-reserved (`_CombatConfig`, `_InteractionVars`
+  and friends) and are never called undeclared.
 - **[`NpcPlacementValidator`](NpcPlacementValidator.java)** - the findings that are otherwise
   SILENT (an NPC that never appears is indistinguishable from one you have not walked to): blank
-  role, an anchor group with no usable params, `SpawnChance <= 0`, an unregistered `Custom.Provider`,
-  an unregistered `Requires.Factor`, a `Where` naming no known selector, an `ExcludeNames`-only
-  selector, a colon-less `Interact.Bindings` key (`BINDING_KEY_NO_NAMESPACE`), and an authored
-  binding namespace no handler claimed (`UNCLAIMED_BINDING_NAMESPACE`). Neutral `Issue` values (the
-  `world/WorldSelectorValidator` idiom). Several checks read what is REGISTERED, so run the audit at
-  first player-ready, not at plugin setup. [`NpcBaseRoleValidator`](NpcBaseRoleValidator.java) is
-  the small sibling for base roles: an empty or non-object `Payload` (`EMPTY_BASE_ROLE_PAYLOAD`).
+  role, an anchor group with no usable params, `SpawnChance <= 0` (suppressed when a working
+  `ChanceFormula` is what is actually rolled against), an unregistered `Custom.Provider`,
+  an unregistered `Requires.Factor` or `ChanceFormula` term, a `Where` naming no known selector, an
+  `ExcludeNames`-only selector, a colon-less `Interact.Bindings` key (`BINDING_KEY_NO_NAMESPACE`),
+  an authored binding namespace no handler claimed (`UNCLAIMED_BINDING_NAMESPACE`), the appearance
+  pair `APPEARANCE_MODEL_AND_BASE` (ERROR) / `APPEARANCE_OVERRIDE_WITHOUT_BASE` (WARN),
+  `EMPTY_CHANCE_FORMULA` (WARN), `CHANCE_FORMULA_AND_SCALAR` (INFO - both authored still WORKS,
+  since the formula is what is read, so it is a remark about clarity), and the best-effort id checks
+  `UNKNOWN_APPEARANCE_MODEL` / `UNKNOWN_PARTICLE_SYSTEM` / `UNKNOWN_TEMPLATE` (WARN - the template
+  may still load) / `MODIFY_KEY_NOT_PARAMETERIZED` (ERROR - two files that are both already here
+  disagree) - those four read the engine's own loaded asset maps and role builders and answer
+  "cannot tell" (reporting NOTHING) when nothing is up yet, which keeps them silent in a unit JVM
+  and honest before assets fold. A generated role naming no `Identity.BaseRole` at all is
+  `NO_BASE_ROLE` (ERROR). Reports shared
+  [`validation.Finding`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/validation/CLAUDE.md)
+  values under domain `placement` via `audit(placements)` / `audit(placement)`;
+  `validateAll(Collection)` is the older `WorldSelectorValidator.Issue`-shaped view kept for a
+  consumer that has not moved over yet (an `Issue` has no INFO-vs-WARNING distinction downstream, so
+  a consumer still on it sees `CHANCE_FORMULA_AND_SCALAR` as a warning). `NpcPlacementConfig.audit()`
+  audits the folded pool. Several checks read what is REGISTERED, so run the audit at
+  first player-ready, not at plugin setup.
 
 ## Wiring (what `ZiggfreedCommonPlugin` owns)
 
@@ -216,9 +289,19 @@ override precedence; `PlacementKeepAlivePinsTest` covers the pin/unpin edges; `P
 covers union / collapse order / cross-union capacity / roll determinism; `PlacementRegistryLedgerTest`
 covers identity-vs-equality overwrite warnings, failure counting and the `info()` snapshot through
 the subclass (the base contract itself is `zc-core`'s `RegistryLedgerTest`);
-`NpcPlacementValidatorTest` covers the colon-less-key and unclaimed-namespace findings;
-`NpcBaseRoleTest` covers the asset fold, the asset-wins-over-Java collision, and the
-empty-payload finding; `PlacementRegistryTest`
+`NpcPlacementValidatorTest` covers the colon-less-key and unclaimed-namespace findings, the
+appearance XOR table, and that the template checks stay SILENT with no engine to ask;
+`AppearanceSpecTest` covers the group's round trip and its per-leaf `Parent` inheritance (including
+"Particles is ONE leaf"); `NpcRoleGeneratorAppearanceTest` pins the EMITTED JSON field-for-field
+against hand-written fixtures under `zc-dialogue/src/test/resources/npc/placement/` - a whole
+expected variant, the exact key set of the model clone and of a particle entry,
+`MinScale == MaxScale`, and the variant/model pairing on the generated id - plus the contract test
+that every key the generator can emit is one the fixture TEMPLATE declares in its `Parameters`
+block, which is the offline half of what `RoleTemplates` checks live; `RoleTemplatesTest` pins the
+cannot-tell contract and proves the base-role indirection is GONE (the three classes no longer
+load, the generator declares none of the retired methods); `PlacementChanceFormulaTest` pins
+formula-over-scalar precedence, the empty-formula fallback, and the no-subject / degrade-to-zero
+context; `PlacementRegistryTest`
 covers fail-closed factors (including the bounds-less presence check and the placement-id payload),
 no-position anchors and the namespace split;
 `NpcPlacementAssetCodecTest` proves the per-key `Bindings` override. Every new CODEC is asserted in

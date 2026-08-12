@@ -113,7 +113,7 @@ class WorldSelectorAssetTest {
 
             assertNotNull(config.resolve("zc_primary"));
             assertNotNull(config.resolve("ZC_PRIMARY"), "ids fold case-insensitively");
-            assertTrue(config.validate().isEmpty());
+            assertTrue(config.audit().isEmpty());
         } finally {
             // The config is a process-wide singleton; leave it clean for any other test.
             config.mergePackLayer(Map.of());

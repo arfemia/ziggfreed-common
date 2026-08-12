@@ -77,9 +77,10 @@ public final class Leaderboard {
     }
 
     /**
-     * As {@link #record(String, UUID, String, int, int, boolean)} but also accrues the cumulative
-     * {@code totalPoints} (by {@code score}) and merges the given per-stat deltas into the entry's
-     * stat counters (keys are consumer-chosen). A null/empty {@code statDeltas} records no stats.
+     * As {@link #record(String, UUID, String, int, int, boolean)} but also merges the given per-stat
+     * deltas into the entry's counter bag (keys are consumer-chosen; avoid the reserved
+     * {@link LeaderboardEntry#TOTAL_POINTS}). A null or empty {@code statDeltas} records no stats.
+     * Total points accrues by {@code score} on either overload.
      */
     public void record(@Nonnull String bucket, @Nonnull UUID uuid, @Nullable String name,
                        int score, int timeSeconds, boolean win, @Nullable Map<String, Long> statDeltas) {
@@ -97,20 +98,11 @@ public final class Leaderboard {
             if (score > e.bestScore) {
                 e.bestScore = score;
             }
-            e.totalPoints += score;
+            e.counters().add(LeaderboardEntry.TOTAL_POINTS, score);
             if (win && timeSeconds > 0 && (e.bestTimeSeconds <= 0 || timeSeconds < e.bestTimeSeconds)) {
                 e.bestTimeSeconds = timeSeconds;
             }
-            if (statDeltas != null && !statDeltas.isEmpty()) {
-                if (e.stats == null) {
-                    e.stats = new ConcurrentHashMap<>();
-                }
-                for (Map.Entry<String, Long> d : statDeltas.entrySet()) {
-                    if (d.getKey() != null && d.getValue() != null) {
-                        e.stats.merge(d.getKey(), d.getValue(), Long::sum);
-                    }
-                }
-            }
+            e.counters().mergeSums(statDeltas);
             return e;
         });
         scheduleFlush();
@@ -125,7 +117,7 @@ public final class Leaderboard {
 
     /**
      * A GLOBAL aggregate across the given buckets: each player's entries merged into one
-     * (sum {@code totalPoints}/{@code plays}/each stat, max {@code bestScore}, min winning
+     * (sum every cumulative tally plus {@code plays}, max {@code bestScore}, min winning
      * {@code bestTimeSeconds}, latest name). The "both granularities" seam: per-bucket stays
      * {@link #forBucket}; this is the lifetime view (Kweebec's Stats tab sums every difficulty x
      * party-size bucket of a mode). Never null.
@@ -145,29 +137,23 @@ public final class Leaderboard {
         return out;
     }
 
-    /** Merge {@code src} into a fresh copy of {@code dst} for the cross-bucket aggregate. */
+    /**
+     * Merge {@code src} into a fresh copy of {@code dst} for the cross-bucket aggregate. Each field
+     * keeps the rule its meaning demands: a BEST takes the better of the two, a play count adds, and
+     * every cumulative tally (total points included) adds through the counter bag's own summing.
+     */
     @Nonnull
     private static LeaderboardEntry mergeInto(@Nonnull LeaderboardEntry dst, @Nonnull LeaderboardEntry src) {
         LeaderboardEntry e = new LeaderboardEntry();
         e.bestScore = Math.max(dst.bestScore, src.bestScore);
         e.plays = dst.plays + src.plays;
-        e.totalPoints = dst.totalPoints + src.totalPoints;
         e.lastUpdatedMs = Math.max(dst.lastUpdatedMs, src.lastUpdatedMs);
         e.name = src.lastUpdatedMs >= dst.lastUpdatedMs ? orOther(src.name, dst.name) : orOther(dst.name, src.name);
         int dt = dst.bestTimeSeconds;
         int st = src.bestTimeSeconds;
         e.bestTimeSeconds = dt <= 0 ? st : (st <= 0 ? dt : Math.min(dt, st));
-        if ((dst.stats != null && !dst.stats.isEmpty()) || (src.stats != null && !src.stats.isEmpty())) {
-            e.stats = new HashMap<>();
-            if (dst.stats != null) {
-                e.stats.putAll(dst.stats);
-            }
-            if (src.stats != null) {
-                for (Map.Entry<String, Long> s : src.stats.entrySet()) {
-                    e.stats.merge(s.getKey(), s.getValue(), Long::sum);
-                }
-            }
-        }
+        e.counters().mergeSums(dst.counters);
+        e.counters().mergeSums(src.counters);
         return e;
     }
 

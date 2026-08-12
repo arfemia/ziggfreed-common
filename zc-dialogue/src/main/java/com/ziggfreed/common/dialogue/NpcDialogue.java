@@ -1,5 +1,6 @@
 package com.ziggfreed.common.dialogue;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -8,6 +9,8 @@ import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import com.ziggfreed.common.CommonLog;
 
 /**
  * A branching NPC dialogue: a STANDALONE tree keyed by its OWN id (never bound to
@@ -30,8 +33,61 @@ public class NpcDialogue {
     @Nullable DialogueEntry[] start;
     @Nullable Map<String, DialogueNode> nodes;
     @Nullable Map<String, DialogueMemory> memories;
+    @Nullable Map<String, DialogueOption[]> fragments;
 
     public NpcDialogue() {
+    }
+
+    /**
+     * The shared option groups this conversation declares, keyed by name, for screens that name one
+     * with {@code IncludeOptions}. Empty when it declares none.
+     */
+    @Nonnull
+    public Map<String, DialogueOption[]> getFragments() {
+        return fragments == null ? Collections.emptyMap() : fragments;
+    }
+
+    /**
+     * Append each screen's named shared option groups to its own options, once, right after the
+     * whole conversation has been read (so a screen inherited from a parent picks up the child's
+     * groups too, and an unknown name is reported against the conversation that used it).
+     *
+     * <p>A group is appended AFTER the screen's own options, which is why it reads as a footer: the
+     * lines that belong to this beat come first, the ones every beat repeats come last. The same
+     * option object is shared by every screen that names the group; nothing about an option depends
+     * on which screen it is shown from, so there is nothing to copy.
+     */
+    void spliceFragments() {
+        if (nodes == null || nodes.isEmpty()) {
+            return;
+        }
+        Map<String, DialogueOption[]> declared = getFragments();
+        for (Map.Entry<String, DialogueNode> entry : nodes.entrySet()) {
+            DialogueNode node = entry.getValue();
+            if (node == null || node.includeOptions == null || node.includeOptions.length == 0) {
+                continue;
+            }
+            List<DialogueOption> merged = new ArrayList<>(node.getOptions());
+            for (String name : node.includeOptions) {
+                DialogueOption[] group = name == null ? null : declared.get(name);
+                if (group == null) {
+                    unknownFragment(entry.getKey(), name);
+                    continue;
+                }
+                Collections.addAll(merged, group);
+            }
+            node.setOptions(merged.toArray(new DialogueOption[0]));
+        }
+    }
+
+    private void unknownFragment(@Nonnull String nodeId, @Nullable String name) {
+        try {
+            CommonLog.LOGGER.atWarning().log(
+                    "[Dialogue] '%s' screen '%s' pulls in shared options '%s', which this conversation"
+                            + " does not declare under Fragments", id, nodeId, String.valueOf(name));
+        } catch (Throwable ignored) {
+            // a unit JVM with no log manager throws an Error from the fluent logger; swallow it.
+        }
     }
 
     /** The dialogue id (lowercased). */

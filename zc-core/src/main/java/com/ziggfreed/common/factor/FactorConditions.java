@@ -79,13 +79,7 @@ public final class FactorConditions {
         if (condition == null || condition.isBlank()) {
             return null;
         }
-        FactorContext scoped = FactorContext.builder()
-                .param(condition.getParam())
-                .world(ctx.world())
-                .store(ctx.store())
-                .subject(ctx.subject())
-                .payload(ctx.payload())
-                .build();
+        FactorContext scoped = ctx.withParam(condition.getParam());
         return condition.accepts(registry.resolve(condition.getFactor(), scoped))
                 ? null
                 : condition.getFactor();

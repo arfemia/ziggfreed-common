@@ -299,7 +299,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         // which would abort the whole CustomUI update. Numbers + a proper-noun username are data.
         cmd.set(sel + " #Rank.Text", "#" + rank);
         cmd.set(sel + " #Player.Text", resolveName(uuid, e));
-        cmd.set(sel + " #Total.Text", NumberFormatter.grouped(e.totalPoints));
+        cmd.set(sel + " #Total.Text", NumberFormatter.grouped(e.totalPoints()));
         cmd.set(sel + " #Score.Text", NumberFormatter.grouped(e.bestScore));
         cmd.set(sel + " #Time.Text", e.bestTimeSeconds > 0 ? formatTime(e.bestTimeSeconds) : "-");
         cmd.set(sel + " #Plays.Text", Integer.toString(e.plays));

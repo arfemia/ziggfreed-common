@@ -2,6 +2,7 @@ package com.ziggfreed.common.dialogue;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -32,8 +33,28 @@ public class DialogueOption {
     @Nullable String styleKind;
     @Nullable DialogueOnce once;
     @Nullable String onceId;
+    /** The decoded shorthand keys authored directly on this option; built on demand. */
+    @Nullable private DialogueSugarValues sugar;
+    /** The {@code Do} atoms, when the author spelled the order out; replaces the bare shorthand. */
+    @Nullable DialogueSugarValues[] doAtoms;
+    /** The folded {@code Actions} + shorthand list, computed once. */
+    @Nullable private volatile List<DialogueAction> folded;
 
     public DialogueOption() {
+    }
+
+    /**
+     * The shorthand values authored on this option, created on first touch so the codec always has
+     * somewhere to put one.
+     */
+    @Nonnull
+    DialogueSugarValues sugarValues() {
+        DialogueSugarValues values = sugar;
+        if (values == null) {
+            values = new DialogueSugarValues();
+            sugar = values;
+        }
+        return values;
     }
 
     /** Explicit i18n key for the option label, or null (by-convention key, then raw fallback). */
@@ -92,9 +113,47 @@ public class DialogueOption {
         return conditions != null && conditions.length > 0;
     }
 
+    /**
+     * Everything this option does when it is chosen: whatever it authored under {@code Actions},
+     * followed by the actions its shorthand stands for.
+     *
+     * <p>The shorthand is folded in HERE rather than by rewriting the file before it is read, which
+     * is what lets {@code "Goto": "next"} be a real field with a real type instead of a key the
+     * schema never hears about. An option that authored no shorthand skips the fold entirely.
+     */
     @Nonnull
     public List<DialogueAction> getActions() {
-        return actions == null ? Collections.emptyList() : List.of(actions);
+        if ((sugar == null || sugar.isEmpty()) && (doAtoms == null || doAtoms.length == 0)) {
+            return actions == null ? Collections.emptyList() : List.of(actions);
+        }
+        List<DialogueAction> cached = folded;
+        if (cached == null) {
+            cached = DialogueTypeTable.get().sugar().fold(actions, sugar, doAtoms);
+            folded = cached;
+        }
+        return cached;
+    }
+
+    /** Direct (non-codec) construction: set the canonical actions from Java. */
+    public void setActions(@Nullable DialogueAction[] actions) {
+        this.actions = actions;
+        this.folded = null;
+    }
+
+    /** The shorthand keys authored directly on this option (not inside {@code Do}). */
+    @Nonnull
+    public Set<String> bareSugarKeys() {
+        return sugar == null ? Collections.emptySet() : sugar.keys();
+    }
+
+    /** True when the author spelled the order out with a {@code Do} array. */
+    public boolean hasDoAtoms() {
+        return doAtoms != null && doAtoms.length > 0;
+    }
+
+    /** How many canonical {@code Actions} the option authored by hand, before any shorthand. */
+    public int authoredActionCount() {
+        return actions == null ? 0 : actions.length;
     }
 
     /** True when this option's authored actions include a genuine {@link DialogueAction.Close}. */

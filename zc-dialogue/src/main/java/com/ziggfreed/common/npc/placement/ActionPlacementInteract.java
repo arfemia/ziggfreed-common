@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.npc.sensorinfo.InfoProvider;
 import com.ziggfreed.common.dialogue.page.DialoguePage;
 import com.ziggfreed.common.dialogue.page.DialoguePageDeps;
 import com.ziggfreed.common.npc.NpcDialogueDepsRegistry;
+import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -85,7 +86,8 @@ public class ActionPlacementInteract extends ActionBase {
 
         String dialogueId = interact.getDialogue();
         if (dialogueId != null && !dialogueId.isBlank()) {
-            acted = openDialogue(ref, playerReference, store, dialogueId.trim());
+            acted = openDialogue(ref, playerReference, store, dialogueId.trim(),
+                    NpcIdentities.npcIdOfPlacement(placementId));
         }
 
         Map<String, PlacementBinding> bindings = interact.getBindings();
@@ -115,8 +117,17 @@ public class ActionPlacementInteract extends ActionBase {
         }
     }
 
+    /**
+     * Open the placement's conversation, TOLD who it is with.
+     *
+     * <p>The npc context is what makes a conversation NPC-aware: without it a {@code MarkTalked} beat
+     * has nobody to credit, {@code @self} substitutes nothing, and every quest-aware condition asks
+     * about a character with no name and is answered no. The placement knows exactly who is standing
+     * here, so it says so, and a conversation opened by pressing F behaves identically to the same
+     * one opened through a named route.
+     */
     private boolean openDialogue(@Nonnull Ref<EntityStore> npcRef, @Nonnull Ref<EntityStore> playerReference,
-            @Nonnull Store<EntityStore> store, @Nonnull String dialogueId) {
+            @Nonnull Store<EntityStore> store, @Nonnull String dialogueId, @Nullable String npcId) {
         try {
             PlayerRef playerRef = store.getComponent(playerReference, PlayerRef.getComponentType());
             Player player = store.getComponent(playerReference, Player.getComponentType());
@@ -131,7 +142,7 @@ public class ActionPlacementInteract extends ActionBase {
                 return false;
             }
             player.getPageManager().openCustomPage(npcRef, store,
-                    new DialoguePage(playerRef, dialogueId, null, deps));
+                    new DialoguePage(playerRef, dialogueId, npcId, deps));
             return true;
         } catch (Throwable t) {
             SafeLog.warn("[placement] could not open the placement dialogue: " + t.getMessage());

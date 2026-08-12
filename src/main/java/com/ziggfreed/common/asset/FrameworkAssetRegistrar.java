@@ -11,7 +11,9 @@ import com.ziggfreed.common.dialogue.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
-import com.ziggfreed.common.dialogue.asset.ZcDialogueTemplateAsset;
+import com.ziggfreed.common.factor.DerivedFactorAsset;
+import com.ziggfreed.common.factor.DerivedFactorConfig;
+import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionAsset;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionConfig;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
@@ -26,12 +28,21 @@ import com.ziggfreed.common.instance.preset.InstancePresetAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetConfig;
 import com.ziggfreed.common.instance.reward.LootTableAsset;
 import com.ziggfreed.common.instance.reward.LootTableConfig;
-import com.ziggfreed.common.npc.placement.NpcBaseRoleAsset;
-import com.ziggfreed.common.npc.placement.NpcBaseRoleConfig;
+import com.ziggfreed.common.loot.LootableAsset;
+import com.ziggfreed.common.loot.LootableConfig;
+import com.ziggfreed.common.loot.stamp.RollPoolAsset;
+import com.ziggfreed.common.loot.stamp.RollPoolConfig;
+import com.ziggfreed.common.npc.NpcIdentityAsset;
+import com.ziggfreed.common.npc.NpcIdentityConfig;
 import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.party.PartySettingsConfig;
+import com.ziggfreed.common.achievement.asset.AchievementAsset;
+import com.ziggfreed.common.achievement.asset.AchievementAssetStore;
+import com.ziggfreed.common.quest.asset.QuestAsset;
+import com.ziggfreed.common.quest.asset.QuestAssetStore;
+import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
 import com.ziggfreed.common.world.WorldIdentity;
@@ -55,13 +66,16 @@ import com.ziggfreed.common.world.WorldSelectorConfig;
  * {@code primary} and {@code any} names, which are the vocabulary every other selector-aware
  * file is written against - a consumer would have to re-declare them in every pack
  * otherwise). Both ride the jar's own asset pack, so an owner overrides either by dropping a
- * same-id file. The only ordering edge is {@code Dialogues loadsAfter DialogueTemplates} so
- * a native {@code Parent} base is in the resolution pool at decode time.
+ * same-id file.
  *
- * <p>The dialogue store is Pattern B (raw-Payload): common folds the raw bodies +
- * templates here, but the DECODE is per-consumer-engine, so a consumer calls
- * {@link DialogueAssetStore#resolveAll} with its own built {@code DialogueEngine} after
- * load. Every other store is Pattern A (a structured codec is the schema authority).
+ * <p><b>REGISTRATION ONLY (build-enforced).</b> This registrar reaches into every domain, which is
+ * exactly why it must never grow a decision: whatever lands here is unreachable from any module's
+ * own tests and welds the domains together through the back door. A store registration, its merge
+ * listener, and the id/order wiring that pairs them are the whole remit; anything that has to
+ * CHOOSE belongs in the owning module behind a seam. {@code RootRegistrationOnlyTest} fails the
+ * build on a loop, a {@code switch} or an {@code else} here; a try/catch guard, a
+ * null-or-early-return {@code if}, and a null-defaulting ternary all pass. The escape hatch is
+ * {@code // ROOT-LOGIC-OK: <reason>} with a real reason.
  */
 public final class FrameworkAssetRegistrar {
 
@@ -70,23 +84,16 @@ public final class FrameworkAssetRegistrar {
 
     /** Register every framework store + its merge listener. Call once from {@code setup()}. */
     public static void registerAll(@Nonnull JavaPlugin plugin) {
-        // --- Dialogue templates (Pattern B) - registered FIRST so Dialogues can loadsAfter it. ---
-        AssetStoreRegistrar.registerStore(ZcDialogueTemplateAsset.class,
-                new DefaultAssetMap<String, ZcDialogueTemplateAsset>(), "ZiggfreedCommon/DialogueTemplates",
-                ZcDialogueTemplateAsset::getId, ZcDialogueTemplateAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ZcDialogueTemplateAsset.class,
-                (LoadedAssetsEvent<String, ZcDialogueTemplateAsset, DefaultAssetMap<String, ZcDialogueTemplateAsset>> ev) ->
-                        DialogueAssetStore.getInstance().mergeTemplates(
-                                AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.getPayloadAsJsonObject())));
-
-        // --- Dialogues (Pattern B) - loadsAfter the templates store. ---
+        // --- Dialogues (Pattern A) - one authored conversation per file, with native Parent
+        //     inheritance and a per-screen merge, so a child conversation restates one screen and
+        //     keeps the rest. Common ships no dialogue CONTENT; every entry is consumer pack JSON,
+        //     and each consumer reads back only its own via DialogueAssetStore.dialogues(owner). ---
         AssetStoreRegistrar.registerStore(ZcDialogueAsset.class,
                 new DefaultAssetMap<String, ZcDialogueAsset>(), "ZiggfreedCommon/Dialogues",
-                ZcDialogueAsset::getId, ZcDialogueAsset.CODEC,
-                new Class<?>[]{ZcDialogueTemplateAsset.class});
+                ZcDialogueAsset::getId, ZcDialogueAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, ZcDialogueAsset.class,
                 (LoadedAssetsEvent<String, ZcDialogueAsset, DefaultAssetMap<String, ZcDialogueAsset>> ev) ->
-                        DialogueAssetStore.getInstance().mergeBodies(
+                        DialogueAssetStore.getInstance().merge(
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a)));
 
         // --- Instance presets (the cross-cutting preset layer, relocated to common-owned). ---
@@ -106,6 +113,23 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, LootTableAsset, DefaultAssetMap<String, LootTableAsset>> ev) ->
                         LootTableConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toLootTable())));
+
+        // --- Lootables (Pattern A) - named, reusable conditional loot tables anything can reference
+        //     by id. Common ships no loot CONTENT; every table is consumer pack JSON. ---
+        AssetStoreRegistrar.registerStore(LootableAsset.class,
+                new DefaultAssetMap<String, LootableAsset>(), LootableAsset.TYPE_ROOT,
+                LootableAsset::getId, LootableAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, LootableAsset.class,
+                (LoadedAssetsEvent<String, LootableAsset, DefaultAssetMap<String, LootableAsset>> ev) ->
+                        LootableConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Roll pools (Pattern A) - named, reusable stat-roll tables a stamp draws from. ---
+        AssetStoreRegistrar.registerStore(RollPoolAsset.class,
+                new DefaultAssetMap<String, RollPoolAsset>(), RollPoolAsset.TYPE_ROOT,
+                RollPoolAsset::getId, RollPoolAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, RollPoolAsset.class,
+                (LoadedAssetsEvent<String, RollPoolAsset, DefaultAssetMap<String, RollPoolAsset>> ev) ->
+                        RollPoolConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Multi-phase bosses (Pattern A). ---
         AssetStoreRegistrar.registerStore(MultiPhaseBossAsset.class,
@@ -207,23 +231,71 @@ public final class FrameworkAssetRegistrar {
                         NpcPlacementConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap())));
 
-        // --- NPC base roles (Pattern B) - a pack-authored role a placement's generated Identity
-        //     may clone, keyed by base-role id. The fold pushes each entry straight into
-        //     NpcRoleGenerator's base-role registry (asset wins a Java-registered collision), so
-        //     a pack can ship a base role with no Java at all. ---
-        AssetStoreRegistrar.registerStore(NpcBaseRoleAsset.class,
-                new DefaultAssetMap<String, NpcBaseRoleAsset>(), "ZiggfreedCommon/NpcBaseRoles",
-                NpcBaseRoleAsset::getId, NpcBaseRoleAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, NpcBaseRoleAsset.class,
-                (LoadedAssetsEvent<String, NpcBaseRoleAsset, DefaultAssetMap<String, NpcBaseRoleAsset>> ev) ->
-                        NpcBaseRoleConfig.getInstance().mergePackLayer(
+        // --- NPC identities (Pattern A) - the OVERLAY on top of the naming convention: aliases, one
+        //     character across two roles, a rename. Most NPCs need no file here at all, because a
+        //     character's id defaults to its role id in lower case and a placed NPC is already its
+        //     placement's id. Merging drops the resolved identity index (NpcIdentityConfig does it
+        //     from mergePackLayer), so a reload is visible on the next lookup. ---
+        AssetStoreRegistrar.registerStore(NpcIdentityAsset.class,
+                new DefaultAssetMap<String, NpcIdentityAsset>(), NpcIdentityAsset.TYPE_ROOT,
+                NpcIdentityAsset::getId, NpcIdentityAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, NpcIdentityAsset.class,
+                (LoadedAssetsEvent<String, NpcIdentityAsset, DefaultAssetMap<String, NpcIdentityAsset>> ev) ->
+                        NpcIdentityConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Derived factors (Pattern A) - a factor id DEFINED as a formula over other factors,
+        //     so a pack author adds a reading to the shared vocabulary with no Java. The asset id
+        //     IS the factor id. No cache to invalidate: a registry that adopts a derived id keeps a
+        //     provider that re-reads DerivedFactorConfig every call, so a re-import lands on the
+        //     next resolve and a dropped file goes straight back to failing closed. ---
+        AssetStoreRegistrar.registerStore(DerivedFactorAsset.class,
+                new DefaultAssetMap<String, DerivedFactorAsset>(), "ZiggfreedCommon/Factors",
+                DerivedFactorAsset::getId, DerivedFactorAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DerivedFactorAsset.class,
+                (LoadedAssetsEvent<String, DerivedFactorAsset, DefaultAssetMap<String, DerivedFactorAsset>> ev) ->
+                        DerivedFactorConfig.getInstance().mergePackLayer(
+                                AssetMergeAdapter.layer(ev.getAssetMap(),
+                                        (id, a) -> a.getFormula() == null ? new FactorFormula() : a.getFormula())));
+
+        // --- Quests (Pattern A) - one authored quest per file, with native Parent inheritance and a
+        //     per-objective-id merge, so a child quest retunes one step and keeps its siblings.
+        //     Common ships no quest CONTENT; every entry is consumer pack JSON, and each consumer
+        //     folds the store into its own engine via QuestAssetStore.resolveAll(owner, ...). ---
+        AssetStoreRegistrar.registerStore(QuestAsset.class,
+                new DefaultAssetMap<String, QuestAsset>(), "ZiggfreedCommon/Quests",
+                QuestAsset::getId, QuestAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, QuestAsset.class,
+                (LoadedAssetsEvent<String, QuestAsset, DefaultAssetMap<String, QuestAsset>> ev) ->
+                        QuestAssetStore.getInstance().mergeQuests(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Quest generators (Pattern A) - "the same quest, once per ore" as one file. They are
+        //     loaded AFTER the quests they inherit from, because expansion resolves each generated
+        //     child against its Base out of the quest store. ---
+        AssetStoreRegistrar.registerStore(QuestGeneratorAsset.class,
+                new DefaultAssetMap<String, QuestGeneratorAsset>(), "ZiggfreedCommon/QuestGenerators",
+                QuestGeneratorAsset::getId, QuestGeneratorAsset.CODEC, new Class<?>[]{QuestAsset.class});
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, QuestGeneratorAsset.class,
+                (LoadedAssetsEvent<String, QuestGeneratorAsset, DefaultAssetMap<String, QuestGeneratorAsset>> ev) ->
+                        QuestAssetStore.getInstance().mergeGenerators(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Achievements (Pattern A) - one authored achievement per file, with native Parent
+        //     inheritance. Common ships no achievement CONTENT; every entry is consumer pack JSON,
+        //     and each consumer folds the store into its own engine via
+        //     AchievementAssetStore.resolveAll(owner). ---
+        AssetStoreRegistrar.registerStore(AchievementAsset.class,
+                new DefaultAssetMap<String, AchievementAsset>(), "ZiggfreedCommon/Achievements",
+                AchievementAsset::getId, AchievementAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, AchievementAsset.class,
+                (LoadedAssetsEvent<String, AchievementAsset, DefaultAssetMap<String, AchievementAsset>> ev) ->
+                        AchievementAssetStore.getInstance().merge(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         try {
             CommonLog.LOGGER.atInfo().log(
-                    "ZiggfreedCommon framework stores registered (Dialogues, DialogueTemplates, Instances, "
-                            + "LootTables, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
-                            + "Arenas, Party, WorldSelectors, NpcPlacements, NpcBaseRoles).");
+                    "ZiggfreedCommon framework stores registered (Dialogues, Instances, "
+                            + "LootTables, Lootables, RollPools, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
+                            + "Arenas, Party, WorldSelectors, NpcPlacements, NpcIdentities, Factors, "
+                            + "Quests, QuestGenerators).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }

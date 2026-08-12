@@ -1,0 +1,487 @@
+{
+  "Name": "mmo_hub_intro",
+  "$Comment": "Jar-bundled hub intro (works pack-less). Quest-driven node routing via QuestState (no per-player flags). greet shows while getting_started (the onboarding tutorial) is ACTIVE or NOT_STARTED, offering 'show me around' (Open the OnboardingPage walkthrough, which completes the quest on its 'Got it!' finish) or 'skip' (CompleteQuest force-completes it here). BOTH completion paths hand off to the SECOND quest's dialogue, NOT the hub: the skip branch does Complete getting_started + Accept craft_starter_tools + Goto briefing; the walkthrough finish (OnboardingPage) completes getting_started, auto-accepts the follow-up, and reopens this dialogue, whose Start then routes to briefing (craft_starter_tools NOT_STARTED or ACTIVE - reached only once getting_started is COMPLETED, since greet matches first otherwise). briefing is the craft-quest hand-off (flavor + 'see available quests' / 'open skills') - shown while craft_starter_tools is NOT_STARTED or still in progress. The moment every craft is done and only the 'return to the guide' step remains, a higher-precedence Start entry routes to tools_ready instead (the ReadyToTurnIn condition, NPC-aware via the dialogue contextId = the hub role): it drops the stale 'go craft' text for a 'hand them in' beat whose primary option turns the quest in right here (TurnIn craft_starter_tools + Goto tools_to_gather, so the same conversation flows straight into the 'I'll get gathering' hand-off that accepts the next main-chain quest, instead of dead-ending on the generic tools_done beat and forcing a re-talk), so the guide no longer repeats the craft briefing at a player who is already finished. Every *_ready turn-in beat also carries the 'open menu' (Open hub) option beside 'available quests', so the hub is always reachable from a turn-in node. Once craft_starter_tools is COMPLETED, a higher-precedence Start entry routes to bounty_intro ONLY when the player has at least one accessible board with an active bounty (the HasActiveBounties condition): it explains the bounty boards and opens the hub launcher (Open hub, the feature-aware page that lists every active board dynamically, so no pack board ids are hard-coded here). When there is nothing to do (bounties off / no pack, no accessible board, or every accessible board's rotation is empty) the condition fails and it falls through to tools_done (a dedicated 'first tools crafted' beat - flavor + 'see available quests' / 'open menu'), then the menu node (steady state), so the bounty option never shows with no bounties to take. NpcQuestPage opens THIS dialogue the moment the player hands craft_starter_tools in at the NPC view (the quest's completionDialogue field), so the guide reacts on completion instead of the quest list reopening; the quest-complete toast carries over via the shared per-player ToastStore. getting_started's single Menu Scroll reward is granted exactly once by QuestService.complete (shared by both paths). 1.5.0 adds an OPTIONAL 'homesteader' side arc (make_camp + prove_your_mettle both prereq into_the_fray, so they surface alongside climbing_the_ranks; home_cooking prereqs make_camp since it cooks on that campfire), offered through the quests_offer node. REDUNDANCY REWORK (1.5.0): the old 'Show me available quests' (Open npcquests) + 'Got any odd jobs?' (Goto) pair collapsed into ONE 'Got any quests?' line authored as two mutually-exclusive condition branches on every steady node (menu / tools_done / bounty_intro / ranks_brief): when HasOfferableQuests passes (the NPC-aware dialogue condition, true when the guide has any acceptable NOT_STARTED quest - no quest-id list, so a new giver quest needs zero edits here) it Gotos quests_offer; else it Opens npcquests:mmo_hub directly (straight to the quest page when there is nothing to offer in dialogue). quests_offer carries the per-quest Accept options (self-healed by QuestState NOT_STARTED + prereq, each Accept + Goto its *_brief beat) PLUS a 'Show me the full list' option (Open npcquests) and the engine's implicit Farewell, so there is no dead-end and no double-close: do not add a second explicit close option. Each side quest still has a *_ready 'hand it in / well done' beat reached by a high-precedence ReadyToTurnIn Start entry (grouped right after tools_ready; NPC-aware via contextId = mmo_hub, so it only fires once the objectives are done and the report-back TURN_IN is live) whose primary option turns the quest in (TurnIn + Goto quests_offer, so a turn-in auto-advances to the remaining offerable jobs - e.g. handing in make_camp surfaces the now-unlocked home_cooking) and which also carries the 'open menu' hub option. These are parallel to the main chain and never touch climbing_the_ranks, which stays the chain end / zone-pack hook. (Node option label keys retain the odd_jobs.opt.* namespace for the three Accept lines - internal-only, kept to avoid a 9-locale rename.) FORGOTTEN TEMPLE BEATS: this same dialogue is opened by the guide placement standing in the Forgotten Temple, so it carries the beats for that world too. temple_greet is the FIRST Start entry, gated on the 'forgotten_temple' world selector plus NotRemembered on the declared memory temple_greeted, so it wins over every quest-state beat until the player has actually played the greeting through. Three rows render on it: the hail line, the spliced open-menu row, and the engine's implicit Farewell (nothing here closes the dialogue, so the page adds that row itself). Only the hail line retires the beat, because only it carries Remember temple_greeted - opening the menu or saying goodbye leaves the greeting for next time. The memory is kept per world SELECTOR rather than per world name, which is what makes 'already greeted here' survive the instance being destroyed and re-created under a fresh uuid name. That same hail line fires MarkTalked @self, which resolves to the npc id the temple placement binds, mmo_hub_temple, and is what credits the meet_at_the_temple objective there; the guide at world spawn binds a different npc id, so the same option on the same dialogue cannot credit it from spawn. temple_meet sits directly beneath it as the safety net: the same text and hail line with no seen-ness of any kind, offered whenever meet_at_the_temple is ACTIVE in the temple, so the meeting can always be credited - including by a player who greeted the guide down there long before the quest was ever offered. A second hail after the credit is a harmless no-op. Once the quest is done and the greeting remembered, the temple falls through to the ordinary Start chain and the guide behaves normally. temple_brief is the task beat after accepting from quests_offer, and temple_ready is the hand-in beat (ReadyToTurnIn, NPC-aware). Because the temple placement also answers to the spawn guide's npc id, that hand-in resolves at either guide: report the meeting on the spot, or on the way back through spawn. The temple nodes carry open_menu rather than hub_footer: the quest-list options in that footer are bound to the spawn guide's npc id, which has no meaning in the temple.",
+  "Payload": {
+    "Memories": {
+      "temple_greeted": { "WorldSelector": "forgotten_temple" }
+    },
+    "Start": [
+      {
+        "Node": "temple_greet",
+        "Conditions": [
+          { "Type": "World", "Names": ["forgotten_temple"] },
+          { "Type": "NotRemembered", "Memory": "temple_greeted" }
+        ]
+      },
+      {
+        "Node": "temple_meet",
+        "Conditions": [
+          { "Type": "World", "Names": ["forgotten_temple"] },
+          {
+            "Type": "QuestState",
+            "Quest": "meet_at_the_temple",
+            "State": "ACTIVE"
+          }
+        ]
+      },
+      {
+        "Node": "greet",
+        "Conditions": [
+          {
+            "Type": "QuestState",
+            "Quest": "getting_started",
+            "States": ["ACTIVE", "NOT_STARTED"]
+          }
+        ]
+      },
+      {
+        "Node": "briefing",
+        "Conditions": [
+          {
+            "Type": "QuestState",
+            "Quest": "craft_starter_tools",
+            "State": "NOT_STARTED"
+          }
+        ]
+      },
+      {
+        "Node": "tools_ready",
+        "Conditions": [
+          { "Type": "ReadyToTurnIn", "Quest": "craft_starter_tools" }
+        ]
+      },
+      {
+        "Node": "temple_ready",
+        "Conditions": [
+          { "Type": "ReadyToTurnIn", "Quest": "meet_at_the_temple" }
+        ]
+      },
+      {
+        "Node": "camp_ready",
+        "Conditions": [{ "Type": "ReadyToTurnIn", "Quest": "make_camp" }]
+      },
+      {
+        "Node": "cook_ready",
+        "Conditions": [{ "Type": "ReadyToTurnIn", "Quest": "home_cooking" }]
+      },
+      {
+        "Node": "mettle_ready",
+        "Conditions": [
+          { "Type": "ReadyToTurnIn", "Quest": "prove_your_mettle" }
+        ]
+      },
+      {
+        "Node": "briefing",
+        "Conditions": [
+          {
+            "Type": "QuestState",
+            "Quest": "craft_starter_tools",
+            "State": "ACTIVE"
+          }
+        ]
+      },
+      {
+        "Node": "ranks_brief",
+        "Conditions": [
+          {
+            "Type": "QuestState",
+            "Quest": "climbing_the_ranks",
+            "State": "ACTIVE"
+          }
+        ]
+      },
+      {
+        "Node": "combat_to_ranks",
+        "Conditions": [
+          {
+            "Type": "QuestState",
+            "Quest": "into_the_fray",
+            "State": "COMPLETED"
+          },
+          {
+            "Type": "QuestState",
+            "Quest": "climbing_the_ranks",
+            "State": "NOT_STARTED"
+          }
+        ]
+      },
+      {
+        "Node": "combat_brief",
+        "Conditions": [
+          { "Type": "QuestState", "Quest": "into_the_fray", "State": "ACTIVE" }
+        ]
+      },
+      {
+        "Node": "gather_to_combat",
+        "Conditions": [
+          {
+            "Type": "QuestState",
+            "Quest": "gather_the_basics",
+            "State": "COMPLETED"
+          },
+          {
+            "Type": "QuestState",
+            "Quest": "into_the_fray",
+            "State": "NOT_STARTED"
+          }
+        ]
+      },
+      {
+        "Node": "gather_brief",
+        "Conditions": [
+          {
+            "Type": "QuestState",
+            "Quest": "gather_the_basics",
+            "State": "ACTIVE"
+          }
+        ]
+      },
+      {
+        "Node": "tools_to_gather",
+        "Conditions": [
+          {
+            "Type": "QuestState",
+            "Quest": "craft_starter_tools",
+            "State": "COMPLETED"
+          },
+          {
+            "Type": "QuestState",
+            "Quest": "gather_the_basics",
+            "State": "NOT_STARTED"
+          }
+        ]
+      },
+      {
+        "Node": "bounty_intro",
+        "Conditions": [
+          {
+            "Type": "QuestState",
+            "Quest": "craft_starter_tools",
+            "State": "COMPLETED"
+          },
+          { "Type": "HasActiveBounties" }
+        ]
+      },
+      {
+        "Node": "tools_done",
+        "Conditions": [
+          {
+            "Type": "QuestState",
+            "Quest": "craft_starter_tools",
+            "State": "COMPLETED"
+          }
+        ]
+      },
+      { "Node": "menu" }
+    ],
+    "Nodes": {
+      "greet": {
+        "TextKey": "dialogue.mmo_hub_intro.greet.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.greet.opt.learn",
+            "Open": "onboarding"
+          },
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.greet.opt.skip",
+            "Do": [
+              { "Complete": "getting_started" },
+              { "Accept": "craft_starter_tools" },
+              { "Goto": "briefing" }
+            ]
+          }
+        ]
+      },
+      "briefing": {
+        "TextKey": "dialogue.mmo_hub_intro.briefing.text",
+        "IncludeOptions": ["hub_footer"]
+      },
+      "tools_ready": {
+        "TextKey": "dialogue.mmo_hub_intro.tools_ready.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.tools_ready.opt.turnin",
+            "Do": [
+              { "TurnIn": "craft_starter_tools" },
+              { "Goto": "tools_to_gather" }
+            ]
+          },
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+            "Open": "npcquests:mmo_hub"
+          }
+        ],
+        "IncludeOptions": ["open_menu"]
+      },
+      "menu": {
+        "TextKey": "dialogue.mmo_hub_intro.menu.text",
+        "IncludeOptions": ["hub_footer"]
+      },
+      "bounty_intro": {
+        "TextKey": "dialogue.mmo_hub_intro.bounty_intro.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.bounty_intro.opt.hub",
+            "Open": "hub"
+          }
+        ],
+        "IncludeOptions": ["hub_footer"]
+      },
+      "tools_done": {
+        "TextKey": "dialogue.mmo_hub_intro.tools_done.text",
+        "IncludeOptions": ["hub_footer"]
+      },
+      "tools_to_gather": {
+        "TextKey": "dialogue.mmo_hub_intro.tools_to_gather.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.tools_to_gather.opt.accept",
+            "Do": [
+              { "Accept": "gather_the_basics" },
+              { "Goto": "gather_brief" }
+            ]
+          }
+        ],
+        "IncludeOptions": ["open_menu"]
+      },
+      "gather_brief": {
+        "TextKey": "dialogue.mmo_hub_intro.gather_brief.text",
+        "IncludeOptions": ["hub_footer"]
+      },
+      "gather_to_combat": {
+        "TextKey": "dialogue.mmo_hub_intro.gather_to_combat.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.gather_to_combat.opt.accept",
+            "Do": [{ "Accept": "into_the_fray" }, { "Goto": "combat_brief" }]
+          }
+        ],
+        "IncludeOptions": ["open_menu"]
+      },
+      "combat_brief": {
+        "TextKey": "dialogue.mmo_hub_intro.combat_brief.text",
+        "IncludeOptions": ["hub_footer"]
+      },
+      "combat_to_ranks": {
+        "TextKey": "dialogue.mmo_hub_intro.combat_to_ranks.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.combat_to_ranks.opt.accept",
+            "Do": [
+              { "Accept": "climbing_the_ranks" },
+              { "Goto": "ranks_brief" }
+            ]
+          }
+        ],
+        "IncludeOptions": ["open_menu"]
+      },
+      "ranks_brief": {
+        "TextKey": "dialogue.mmo_hub_intro.ranks_brief.text",
+        "IncludeOptions": ["hub_footer"]
+      },
+      "quests_offer": {
+        "TextKey": "dialogue.mmo_hub_intro.quests_offer.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.odd_jobs.opt.camp",
+            "Conditions": [
+              {
+                "Type": "QuestState",
+                "Quest": "make_camp",
+                "State": "NOT_STARTED"
+              }
+            ],
+            "Do": [{ "Accept": "make_camp" }, { "Goto": "camp_brief" }]
+          },
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.odd_jobs.opt.mettle",
+            "Conditions": [
+              {
+                "Type": "QuestState",
+                "Quest": "prove_your_mettle",
+                "State": "NOT_STARTED"
+              }
+            ],
+            "Do": [
+              { "Accept": "prove_your_mettle" },
+              { "Goto": "mettle_brief" }
+            ]
+          },
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.odd_jobs.opt.cook",
+            "Conditions": [
+              {
+                "Type": "QuestState",
+                "Quest": "make_camp",
+                "State": "COMPLETED"
+              },
+              {
+                "Type": "QuestState",
+                "Quest": "home_cooking",
+                "State": "NOT_STARTED"
+              }
+            ],
+            "Do": [{ "Accept": "home_cooking" }, { "Goto": "cook_brief" }]
+          },
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.quests_offer.opt.temple",
+            "Conditions": [
+              {
+                "Type": "QuestState",
+                "Quest": "meet_at_the_temple",
+                "State": "NOT_STARTED"
+              }
+            ],
+            "Do": [
+              { "Accept": "meet_at_the_temple" },
+              { "Goto": "temple_brief" }
+            ]
+          },
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.quests_offer.opt.viewall",
+            "Style": "neutral",
+            "Open": "npcquests:mmo_hub"
+          }
+        ]
+      },
+      "camp_brief": {
+        "TextKey": "dialogue.mmo_hub_intro.camp_brief.text",
+        "IncludeOptions": ["hub_footer"]
+      },
+      "cook_brief": {
+        "TextKey": "dialogue.mmo_hub_intro.cook_brief.text",
+        "IncludeOptions": ["hub_footer"]
+      },
+      "mettle_brief": {
+        "TextKey": "dialogue.mmo_hub_intro.mettle_brief.text",
+        "IncludeOptions": ["hub_footer"]
+      },
+      "camp_ready": {
+        "TextKey": "dialogue.mmo_hub_intro.camp_ready.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.opt.turnin",
+            "Do": [{ "TurnIn": "make_camp" }, { "Goto": "quests_offer" }]
+          },
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+            "Open": "npcquests:mmo_hub"
+          }
+        ],
+        "IncludeOptions": ["open_menu"]
+      },
+      "cook_ready": {
+        "TextKey": "dialogue.mmo_hub_intro.cook_ready.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.opt.turnin",
+            "Do": [{ "TurnIn": "home_cooking" }, { "Goto": "quests_offer" }]
+          },
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+            "Open": "npcquests:mmo_hub"
+          }
+        ],
+        "IncludeOptions": ["open_menu"]
+      },
+      "mettle_ready": {
+        "TextKey": "dialogue.mmo_hub_intro.mettle_ready.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.opt.turnin",
+            "Do": [
+              { "TurnIn": "prove_your_mettle" },
+              { "Goto": "quests_offer" }
+            ]
+          },
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+            "Open": "npcquests:mmo_hub"
+          }
+        ],
+        "IncludeOptions": ["open_menu"]
+      },
+      "temple_brief": {
+        "TextKey": "dialogue.mmo_hub_intro.temple_brief.text",
+        "IncludeOptions": ["hub_footer"]
+      },
+      "temple_greet": {
+        "TextKey": "dialogue.mmo_hub_intro.temple_greet.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.temple_greet.opt.hail",
+            "Actions": [
+              { "Type": "MarkTalked", "Target": "@self" },
+              { "Type": "Remember", "Memory": "temple_greeted" },
+              { "Type": "Goto", "Node": "temple_talk" }
+            ]
+          }
+        ],
+        "IncludeOptions": ["open_menu"]
+      },
+      "temple_meet": {
+        "TextKey": "dialogue.mmo_hub_intro.temple_greet.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.temple_greet.opt.hail",
+            "Actions": [
+              { "Type": "MarkTalked", "Target": "@self" },
+              { "Type": "Goto", "Node": "temple_talk" }
+            ]
+          }
+        ],
+        "IncludeOptions": ["open_menu"]
+      },
+      "temple_talk": {
+        "TextKey": "dialogue.mmo_hub_intro.temple_talk.text",
+        "IncludeOptions": ["open_menu"]
+      },
+      "temple_ready": {
+        "TextKey": "dialogue.mmo_hub_intro.temple_ready.text",
+        "Options": [
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.opt.turnin",
+            "Do": [
+              { "TurnIn": "meet_at_the_temple" },
+              { "Goto": "quests_offer" }
+            ]
+          },
+          {
+            "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+            "Open": "npcquests:mmo_hub"
+          }
+        ],
+        "IncludeOptions": ["open_menu"]
+      }
+    },
+    "Fragments": {
+      "$Comment": "Shared option fragments, authored ONCE and spliced into a node via IncludeOptions (DialogueBodyResolver appends a fragment's options after the node's own). Styling is theme-driven (Style kind -> DialogueOptionTheme), never an inline Presentation. hub_footer = the full steady/brief-node footer: opt.returned only shows when a quest's last step is return-to-this-npc (HasReadyToTurnIn); the two opt.quests rows are the one 'Got any quests?' button (offer node when something is offerable, else straight to the quest page); then 'open menu'. open_menu = just the 'open menu' row, referenced by the accept-hand-off + *_ready nodes (which lead with their own accept / turn-in option) so that row is deduped too.",
+      "hub_footer": [
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.returned",
+          "Style": "accept",
+          "Conditions": [{ "Type": "HasReadyToTurnIn" }],
+          "Open": "npcquests:mmo_hub"
+        },
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+          "Style": "neutral",
+          "Conditions": [{ "Type": "HasOfferableQuests" }],
+          "Goto": "quests_offer"
+        },
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+          "Style": "neutral",
+          "Conditions": [
+            { "Type": "Not", "Of": [{ "Type": "HasOfferableQuests" }] }
+          ],
+          "Open": "npcquests:mmo_hub"
+        },
+        { "LabelKey": "dialogue.mmo_hub_intro.menu.opt.open", "Open": "hub" }
+      ],
+      "open_menu": [
+        { "LabelKey": "dialogue.mmo_hub_intro.menu.opt.open", "Open": "hub" }
+      ]
+    }
+  }
+}

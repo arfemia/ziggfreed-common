@@ -13,6 +13,13 @@ Router for `com.ziggfreed.common.worldmap`: the ONE reusable seam for in-game wo
   - **Visibility** = `MapDiscovery.Visibility { PER_PLAYER, SHARED }`, per-POI: only the discoverer, or everyone once anyone finds it. One tracker hosts both.
   - Consumer holds one per context, `register`s POIs (lazily on interact, or all up front for proximity), `attach(world)` (enables the compass + registers ONE provider under a mod-prefixed key), `detach(world)` at end. `updateIcon(id, icon)` swaps an icon in place (e.g. an objective completing) keeping who discovered it. Generic: no consumer types, no baked ids/icons; display `Message`s come from the consumer.
 
+- **[`WaypointService`](WaypointService.java)** + **[`WaypointSnapshots`](WaypointSnapshots.java)** - the "show me where to go next" MECHANISM, COMPOSED over `WorldMapMarkers` (per-player provider). A consumer supplies only the two things that are its own business and gets everything between:
+  - **WHY** somebody is pointed somewhere = [`WaypointTargetSource`](WaypointTargetSource.java) (`targetsFor(viewerId)` -> [`WaypointTarget`](WaypointTarget.java)s). Sources are ADDITIVE and independent: registering a second reason is one `addSource` call and nothing here changes. Registration order is the precedence for a repeated target id.
+  - **WHERE** a named place actually is = [`WaypointPositionResolver`](WaypointPositionResolver.java) (`resolve(worldName, positionKey)` -> [`WaypointPosition`](WaypointPosition.java)s). A key that resolves nowhere in this world draws nothing here, which is how a viewer is never pointed at another world's copy.
+  - `builder(providerKey)` knobs, all independent: `defaultIcon`, `positionResolver`, `ignoreViewDistance` (default true - a waypoint is usually off-screen), `forceCompass` (default true), `warn`. `registerForWorld(world)` is idempotent per world; `refresh(viewerId)` / `set(viewerId, targets)` / `clear(viewerId)` drive the snapshot.
+  - **The thread split IS the design.** `refresh` runs on the consumer's own (world) thread; `markerSpecsFor` runs on the map tracker and only reads the concurrent snapshot plus the resolver, never the entity store. `WaypointSnapshots` is that whole rule with no world in it, so it is unit-testable and a consumer wanting the rule without the binding can hold one directly.
+  - Marker ids are `providerKey:targetId:anchorKey`, so two live copies of one place stay two markers.
+
 ## Gotchas
 
 - **Rendering precondition:** markers only deliver while the world's compass or map is enabled (`World.isCompassUpdating() || isWorldMapEnabled()`). A bespoke instance world with both off shows nothing until `World.setCompassUpdating(true)`.

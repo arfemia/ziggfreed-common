@@ -1,6 +1,5 @@
 package com.ziggfreed.common.dialogue;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,59 +11,52 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.ExtraInfo;
-import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
-import com.hypixel.hytale.codec.codecs.map.MapCodec;
-import com.hypixel.hytale.codec.lookup.CodecMapCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.ziggfreed.common.CommonLog;
-import com.ziggfreed.common.codec.InheritMapCodec;
+import com.ziggfreed.common.dialogue.quest.DialogueQuests;
+import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
+import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 
 /**
- * A self-contained, per-consumer dialogue runtime. Built once via {@link #builder()},
- * it OWNS its action/condition dispatch codecs (pre-seeded with the generic types,
- * extended by the consumer's {@link DialogueActionType}/{@link DialogueConditionType}
- * registrations), assembles the whole {@link NpcDialogue} codec graph around them,
- * and exposes the decode + execute + condition-eval + sugar + option-style surface
- * the page and config need.
+ * One mod's dialogue runtime: what its actions DO, what its conditions ANSWER, which page its
+ * {@code OpenPage} reaches, which numbers its {@code Factor} conditions read, and which quest
+ * runtime its quest lines talk to. Built once via {@link #builder()}, in the mod's setup.
  *
- * <p>Per-consumer (not a shared mutable registry) by design: the codecs are fully
- * populated before they are ever used to decode, so there is no registration race
- * and one consumer's domain types never leak into another's. The MMO registers
- * quest/reward/gate types; a minigame builds with generics only.
+ * <p><b>Behaviour is private to an engine; the SCHEMA is shared.</b> Registering a type here teaches
+ * this engine what to do with it AND teaches {@link DialogueTypeTable} how to read it, because
+ * dialogue files live in one store the server reads once. So two mods can author into that store
+ * without either one running the other's code: an action this engine has no handler for does
+ * nothing, and a condition it cannot evaluate hides its line.
+ *
+ * <p>Build the engine in setup, before assets load. An engine built later has missed the read.
  */
 public final class DialogueEngine {
 
-    private final BuilderCodec<NpcDialogue> dialogueCodec;
     private final Map<Class<? extends DialogueCondition>, DialogueConditionEvaluator<?>> evaluators;
     private final Map<Class<? extends DialogueAction>, DialogueOptionStyle> styles;
     private final DialogueActionExecutor executor;
-    private final DialogueSugar sugar;
     private final Consumer<String> warn;
     @Nullable private final FactorRegistry factors;
+    private final DialogueQuests quests;
 
     /** Authoring mistakes that repeat on every render, reported once per distinct case. */
     private final Set<String> warnedOnce = ConcurrentHashMap.newKeySet();
 
-    private DialogueEngine(@Nonnull BuilderCodec<NpcDialogue> dialogueCodec,
-                           @Nonnull Map<Class<? extends DialogueCondition>, DialogueConditionEvaluator<?>> evaluators,
+    private DialogueEngine(@Nonnull Map<Class<? extends DialogueCondition>, DialogueConditionEvaluator<?>> evaluators,
                            @Nonnull Map<Class<? extends DialogueAction>, DialogueOptionStyle> styles,
-                           @Nonnull DialogueActionExecutor executor, @Nonnull DialogueSugar sugar,
-                           @Nonnull Consumer<String> warn, @Nullable FactorRegistry factors) {
-        this.dialogueCodec = dialogueCodec;
+                           @Nonnull DialogueActionExecutor executor,
+                           @Nonnull Consumer<String> warn, @Nullable FactorRegistry factors,
+                           @Nonnull DialogueQuests quests) {
         this.evaluators = evaluators;
         this.styles = styles;
         this.executor = executor;
-        this.sugar = sugar;
         this.warn = warn;
         this.factors = factors;
+        this.quests = quests;
     }
 
     /**
@@ -78,15 +70,24 @@ public final class DialogueEngine {
         return factors;
     }
 
+    /**
+     * The quest runtime the quest-aware lines read and act through. Never null: an engine built
+     * without one keeps {@link DialogueQuests#NONE}, which answers nothing and refuses everything.
+     */
+    @Nonnull
+    public DialogueQuests quests() {
+        return quests;
+    }
+
     @Nonnull
     public static Builder builder() {
         return new Builder();
     }
 
-    /** The assembled {@code Start}/{@code Nodes} codec (consumer configs decode the canonical body through this). */
+    /** The shared {@code Start}/{@code Nodes} codec every authored dialogue is read through. */
     @Nonnull
     public BuilderCodec<NpcDialogue> dialogueCodec() {
-        return dialogueCodec;
+        return DialogueTypeTable.get().dialogueCodec();
     }
 
     @Nonnull
@@ -94,68 +95,27 @@ public final class DialogueEngine {
         return executor;
     }
 
-    @Nonnull
-    public DialogueSugar sugar() {
-        return sugar;
+    /**
+     * Whether this engine can actually answer a condition of that shape. The shared schema can READ
+     * every mod's conditions, so a file may carry one this engine knows nothing about - and an
+     * unanswerable condition hides its line. The content audit reports that rather than leaving it
+     * to be noticed in game.
+     */
+    public boolean evaluates(@Nonnull Class<? extends DialogueCondition> conditionClass) {
+        return evaluators.containsKey(conditionClass);
     }
 
     /**
-     * Decode a canonical (already template-resolved + desugared) {@code Start}/{@code Nodes}
-     * JSON body into an {@link NpcDialogue} with its id set. Null + warn on failure.
+     * Read a dialogue body ({@code Start}/{@code Nodes}/{@code Memories}/{@code Fragments}) written
+     * as JSON, for a consumer building a tree in code or a test. Authored FILES do not come through
+     * here - the asset store reads those directly, which is what gives them {@code Parent}
+     * inheritance. Null + warn on failure.
      */
     @Nullable
-    public NpcDialogue decode(@Nonnull String id, @Nonnull String canonicalJson) {
+    public NpcDialogue decode(@Nonnull String id, @Nonnull String json) {
         try {
-            NpcDialogue d = dialogueCodec.decodeJson(RawJsonReader.fromJsonString(canonicalJson), new ExtraInfo());
-            if (d == null) {
-                return null;
-            }
-            d.setId(id);
-            return d;
-        } catch (Exception e) {
-            warn.accept("Failed to decode dialogue '" + id + "': " + e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Decode a NON-templated authored body (with option sugar but no {@code extends}):
-     * runs the engine's sugar pass then {@link #decode}. A Gson-free convenience for a
-     * consumer that hand-authors a dialogue without the template DSL (a minigame's demo
-     * tree); templated bodies must go through
-     * {@code template.DialogueTemplateResolver.resolve(..., sugar(), ...)} with a
-     * template map instead. Null + warn on failure.
-     */
-    @Nullable
-    public NpcDialogue decodeAuthored(@Nonnull String id, @Nonnull String authoredJson) {
-        try {
-            JsonObject body = JsonParser.parseString(authoredJson).getAsJsonObject();
-            sugar.desugar(body);
-            return decode(id, body.toString());
-        } catch (Exception e) {
-            warn.accept("Failed to decode authored dialogue '" + id + "': " + e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Decode a canonical body that may declare native {@code Parent} inheritance: when
-     * {@code parent} is non-null the body is decoded THROUGH the engine's real
-     * {@code decodeAndInheritJson} against the already-decoded parent (child fields
-     * override; {@code Nodes} keyed-merges via {@link InheritMapCodec}; an omitted
-     * {@code Start}/{@code Nodes} inherits the parent's). The caller resolves the
-     * {@code Parent} id to the parent {@link NpcDialogue} (see
-     * {@link DialogueBodyResolver}) and strips the {@code Parent} key from the body
-     * before calling. Null + warn on failure.
-     */
-    @Nullable
-    public NpcDialogue decodeWithParent(@Nonnull String id, @Nonnull String canonicalJson,
-                                        @Nullable NpcDialogue parent) {
-        try {
-            RawJsonReader reader = RawJsonReader.fromJsonString(canonicalJson);
-            NpcDialogue d = parent == null
-                    ? dialogueCodec.decodeJson(reader, new ExtraInfo())
-                    : dialogueCodec.decodeAndInheritJson(reader, parent, new ExtraInfo());
+            NpcDialogue d = DialogueTypeTable.get().dialogueCodec()
+                    .decodeJson(RawJsonReader.fromJsonString(json), new ExtraInfo());
             if (d == null) {
                 return null;
             }
@@ -422,7 +382,7 @@ public final class DialogueEngine {
 
     // ==================== Builder ====================
 
-    /** Assembles a {@link DialogueEngine}: pre-seeds the generic types, then the consumer adds its own. */
+    /** Assembles a {@link DialogueEngine}: pre-seeds the generic vocabulary, then the consumer adds its own. */
     public static final class Builder {
 
         private final Map<String, DialogueActionType<?>> actions = new LinkedHashMap<>();
@@ -430,6 +390,7 @@ public final class DialogueEngine {
         private DialoguePageRouter router = DialoguePageRouter.NONE;
         private Consumer<String> warn = DEFAULT_WARN;
         @Nullable private FactorRegistry factors;
+        private DialogueQuests quests = DialogueQuests.NONE;
 
         /**
          * The one-slot holder the seeded handlers/evaluators reach the FINISHED engine through
@@ -441,6 +402,7 @@ public final class DialogueEngine {
         Builder() {
             seedGenericConditions();
             seedGenericActions();
+            seedQuestVocabulary();
         }
 
         /** Register (or override by Type id) an action type. */
@@ -483,6 +445,17 @@ public final class DialogueEngine {
             return this;
         }
 
+        /**
+         * The quest runtime the quest-aware lines read and act through. Leaving it unset means every
+         * quest condition reads NOT_STARTED and every accept / hand-in refuses, so a dialogue written
+         * for a quest system this server does not run hides those beats.
+         */
+        @Nonnull
+        public Builder quests(@Nonnull DialogueQuests quests) {
+            this.quests = quests;
+            return this;
+        }
+
         @Nonnull
         public DialogueEngine build() {
             // Generic OpenPage, bound to the FINAL router (added unless a consumer overrode it).
@@ -496,122 +469,32 @@ public final class DialogueEngine {
                                 }
                             })
                     .withStyle(DialogueOptionStyle.NEUTRAL)
-                    .withSugar(DialogueSugar.string("Open", 50, "Target", "OpenPage")));
+                    .withSugar(DialogueSugar.string("Open", 50, target -> {
+                        DialogueAction.OpenPage open = new DialogueAction.OpenPage();
+                        open.target = target;
+                        return open;
+                    })));
 
-            // Assemble the action codec + handler/style maps + sugar table.
-            CodecMapCodec<DialogueAction> actionCodec = new CodecMapCodec<>("Type");
+            DialogueTypeTable table = DialogueTypeTable.get();
             Map<Class<? extends DialogueAction>, DialogueActionHandler<?>> handlers = new HashMap<>();
             Map<Class<? extends DialogueAction>, DialogueOptionStyle> styles = new HashMap<>();
-            List<DialogueSugarExpander> expanders = new ArrayList<>();
             for (DialogueActionType<?> type : actions.values()) {
-                registerAction(actionCodec, type);
+                table.register(type);
                 handlers.put(type.actionClass(), type.handler());
                 if (type.style() != null) {
                     styles.put(type.actionClass(), type.style());
                 }
-                if (type.sugar() != null) {
-                    expanders.add(type.sugar());
-                }
             }
 
-            // Assemble the condition codec + evaluator map.
-            CodecMapCodec<DialogueCondition> conditionCodec = new CodecMapCodec<>("Type");
             Map<Class<? extends DialogueCondition>, DialogueConditionEvaluator<?>> evaluators = new HashMap<>();
             for (DialogueConditionType<?> type : conditions.values()) {
-                registerCondition(conditionCodec, type);
+                table.register(type);
                 evaluators.put(type.conditionClass(), type.evaluator());
             }
-
-            // Build the dialogue codec graph around the two dispatch codecs.
-            Codec<DialogueAction[]> actionsArray = new ArrayCodec<>(actionCodec, DialogueAction[]::new);
-            Codec<DialogueCondition[]> conditionsArray = new ArrayCodec<>(conditionCodec, DialogueCondition[]::new);
-
-            // Generic boolean combinators: their child-list codec IS the conditionsArray, so
-            // they can only be assembled + registered now (like OpenPage's router binding).
-            // Evaluation delegates each child back through the finished engine's conditionsPass,
-            // reached via the one-slot holder set right after construction below.
-            registerCombinators(conditionCodec, conditionsArray, evaluators, self);
-
-            BuilderCodec<DialogueOption> optionCodec = BuilderCodec.builder(DialogueOption.class, DialogueOption::new)
-                    .append(new KeyedCodec<>("LabelKey", Codec.STRING, false),
-                            (o, v) -> o.labelKey = v, o -> o.labelKey).add()
-                    .append(new KeyedCodec<>("Label", Codec.STRING, false),
-                            (o, v) -> o.label = v, o -> o.label).add()
-                    .append(new KeyedCodec<>("Conditions", conditionsArray, false),
-                            (o, v) -> o.conditions = v, o -> o.conditions).add()
-                    .append(new KeyedCodec<>("Actions", actionsArray, false),
-                            (o, v) -> o.actions = v, o -> o.actions).add()
-                    .append(new KeyedCodec<>("Presentation", DialogueOption.Presentation.CODEC, false),
-                            (o, v) -> o.presentation = v, o -> o.presentation).add()
-                    .append(new KeyedCodec<>("Style", Codec.STRING, false),
-                            (o, v) -> o.styleKind = v, o -> o.styleKind).add()
-                    .append(new KeyedCodec<>("Once", DialogueOnce.CODEC, false),
-                            (o, v) -> o.once = v, o -> o.once).add()
-                    .append(new KeyedCodec<>("OnceId", Codec.STRING, false),
-                            (o, v) -> o.onceId = v, o -> o.onceId).add()
-                    .build();
-
-            // Node fields are appendInherited so a child that overrides a node by key (via the
-            // InheritMapCodec on Nodes) and restates only SOME fields keeps the parent node's
-            // other fields (e.g. change just the text, keep the same options + conditions).
-            BuilderCodec<DialogueNode> nodeCodec = BuilderCodec.builder(DialogueNode.class, DialogueNode::new)
-                    .appendInherited(new KeyedCodec<>("TextKey", Codec.STRING, false),
-                            (n, v) -> n.textKey = v, n -> n.textKey,
-                            (child, parent) -> child.textKey = parent.textKey).add()
-                    .appendInherited(new KeyedCodec<>("Text", Codec.STRING, false),
-                            (n, v) -> n.text = v, n -> n.text,
-                            (child, parent) -> child.text = parent.text).add()
-                    .appendInherited(new KeyedCodec<>("Conditions", conditionsArray, false),
-                            (n, v) -> n.conditions = v, n -> n.conditions,
-                            (child, parent) -> child.conditions = parent.conditions).add()
-                    .appendInherited(new KeyedCodec<>("Options",
-                                    new ArrayCodec<>(optionCodec, DialogueOption[]::new), false),
-                            (n, v) -> n.options = v, n -> n.options,
-                            (child, parent) -> child.options = parent.options).add()
-                    .build();
-
-            BuilderCodec<NpcDialogue.DialogueEntry> entryCodec =
-                    BuilderCodec.builder(NpcDialogue.DialogueEntry.class, NpcDialogue.DialogueEntry::new)
-                            .append(new KeyedCodec<>("Node", Codec.STRING, false),
-                                    (e, v) -> e.node = v, e -> e.node).add()
-                            .append(new KeyedCodec<>("Conditions", conditionsArray, false),
-                                    (e, v) -> e.conditions = v, e -> e.conditions).add()
-                            .append(new KeyedCodec<>("Once", DialogueOnce.CODEC, false),
-                                    (e, v) -> e.once = v, e -> e.once).add()
-                            .build();
-
-            Codec<NpcDialogue.DialogueEntry[]> startCodec =
-                    new ArrayCodec<>(entryCodec, NpcDialogue.DialogueEntry[]::new);
-            // InheritMapCodec (not MapCodec): under native Parent inheritance a child that
-            // provides SOME nodes deep-merges them onto the parent's node map by key (each
-            // DialogueNode is a BuilderCodec = InheritCodec, so its fields merge too), rather
-            // than whole-replacing. Parent-only nodes are retained.
-            Codec<Map<String, DialogueNode>> nodesCodec = new InheritMapCodec<>(nodeCodec, LinkedHashMap::new);
-            // Memories keyed-merge exactly like Nodes: a child dialogue re-declares or adds ONE
-            // memory (its own leaves merging onto the inherited declaration) and keeps the rest.
-            Codec<Map<String, DialogueMemory>> memoriesCodec =
-                    new InheritMapCodec<>(DialogueMemory.CODEC, LinkedHashMap::new);
-
-            // Start + Nodes + Memories are appendInherited: when a child body OMITS the field
-            // entirely it inherits the parent's value (Phase-1 seed); when it provides the field,
-            // Phase-2 overrides (Start whole-replaces like a vanilla list; Nodes and Memories
-            // keyed-merge via the InheritMapCodecs above).
-            BuilderCodec<NpcDialogue> dialogueCodec = BuilderCodec.builder(NpcDialogue.class, NpcDialogue::new)
-                    .appendInherited(new KeyedCodec<>("Start", startCodec, false),
-                            (d, v) -> d.start = v, d -> d.start,
-                            (child, parent) -> child.start = parent.start).add()
-                    .appendInherited(new KeyedCodec<>("Nodes", nodesCodec, false),
-                            (d, v) -> d.nodes = v, d -> d.nodes,
-                            (child, parent) -> child.nodes = parent.nodes).add()
-                    .appendInherited(new KeyedCodec<>("Memories", memoriesCodec, false),
-                            (d, v) -> d.memories = v, d -> d.memories,
-                            (child, parent) -> child.memories = parent.memories).add()
-                    .build();
+            registerCombinatorEvaluators(evaluators, self);
 
             DialogueActionExecutor executor = new DialogueActionExecutor(handlers, warn);
-            DialogueSugar sugarPass = new DialogueSugar(expanders);
-            DialogueEngine engine = new DialogueEngine(dialogueCodec, evaluators, styles, executor, sugarPass,
-                    warn, factors);
+            DialogueEngine engine = new DialogueEngine(evaluators, styles, executor, warn, factors, quests);
             self[0] = engine;
             return engine;
         }
@@ -621,7 +504,11 @@ public final class DialogueEngine {
                             (DialogueAction.Goto a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) ->
                                     out.goTo(a.getNode()))
                     .withStyle(DialogueOptionStyle.CONTINUE)
-                    .withSugar(DialogueSugar.string("Goto", 60, "Node", "Goto")));
+                    .withSugar(DialogueSugar.string("Goto", 60, node -> {
+                        DialogueAction.Goto go = new DialogueAction.Goto();
+                        go.node = node;
+                        return go;
+                    })));
 
             action(DialogueActionType.of("Close", DialogueAction.Close.class, DialogueAction.Close.CODEC,
                             (DialogueAction.Close a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) ->
@@ -632,10 +519,9 @@ public final class DialogueEngine {
             // Remember / Forget write a memory the dialogue DECLARED in its Memories map; the
             // scope and lifetime live in that declaration, so the use site is just the name.
             // A null key means the memory does not exist here (per world family, wrong world),
-            // which makes the write a deliberate no-op. Bare-key sugar orders 32/33 keep the
-            // memory writes clear of the 10/20/25/30 band consumers register their own quest
-            // sugar in, so a bare {"TurnIn": ..., "Remember": ...} records the memory AFTER the
-            // turn-in that justifies it rather than before.
+            // which makes the write a deliberate no-op. Orders 32/33 keep the memory writes clear
+            // of the quest band (20/30), so a bare {"TurnIn": ..., "Remember": ...} records the
+            // memory AFTER the turn-in that justifies it rather than before.
             action(DialogueActionType.of("Remember", DialogueAction.Remember.class,
                             DialogueAction.Remember.CODEC,
                             (DialogueAction.Remember a, DialogueExecContext ctx,
@@ -645,7 +531,11 @@ public final class DialogueEngine {
                                     ctx.flags().set(key);
                                 }
                             })
-                    .withSugar(DialogueSugar.string("Remember", 32, "Memory", "Remember")));
+                    .withSugar(DialogueSugar.string("Remember", 32, name -> {
+                        DialogueAction.Remember remember = new DialogueAction.Remember();
+                        remember.memory = name;
+                        return remember;
+                    })));
 
             action(DialogueActionType.of("Forget", DialogueAction.Forget.class,
                             DialogueAction.Forget.CODEC,
@@ -656,14 +546,23 @@ public final class DialogueEngine {
                                     ctx.flags().clear(key);
                                 }
                             })
-                    .withSugar(DialogueSugar.string("Forget", 33, "Memory", "Forget")));
+                    .withSugar(DialogueSugar.string("Forget", 33, name -> {
+                        DialogueAction.Forget forget = new DialogueAction.Forget();
+                        forget.memory = name;
+                        return forget;
+                    })));
 
-            // Talk is a generic carrier with a no-op handler; a consumer overrides "Talk"
-            // to inject domain behavior (e.g. firing a quest objective).
-            action(DialogueActionType.of("Talk", DialogueAction.Talk.class, DialogueAction.Talk.CODEC,
-                            (DialogueAction.Talk a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) -> {
-                                /* no-op carrier */ })
-                    .withSugar(DialogueSugar.talk("Talk", 10)));
+            // MarkTalked is the credit beat, and it has NO sugar on purpose: crediting a conversation
+            // is a deliberate statement about the story, so it is written out in full rather than
+            // hidden inside a one-word shorthand that reads like a flag. Order 10 keeps it with the
+            // other "record what just happened" writes, ahead of the quest band.
+            action(DialogueActionType.of("MarkTalked", DialogueAction.MarkTalked.class,
+                    DialogueAction.MarkTalked.CODEC,
+                    (DialogueAction.MarkTalked a, DialogueExecContext ctx,
+                     DialogueActionExecutor.Mut out) ->
+                            DialogueTalk.credit(ctx,
+                                    DialogueActionExecutor.resolveTarget(a.getTarget(), ctx.contextId()),
+                                    a.getQualifier())));
         }
 
         private void seedGenericConditions() {
@@ -696,49 +595,36 @@ public final class DialogueEngine {
                     DialogueCondition.Factor.CODEC,
                     (DialogueCondition.Factor c, DialogueContext ctx) -> self[0].factorPasses(c, ctx)));
         }
-    }
 
-    // ==================== capture helpers ====================
-
-    private static <A extends DialogueAction> void registerAction(
-            @Nonnull CodecMapCodec<DialogueAction> codec, @Nonnull DialogueActionType<A> type) {
-        codec.register(type.typeId(), type.actionClass(), type.codec());
-    }
-
-    private static <C extends DialogueCondition> void registerCondition(
-            @Nonnull CodecMapCodec<DialogueCondition> codec, @Nonnull DialogueConditionType<C> type) {
-        codec.register(type.typeId(), type.conditionClass(), type.codec());
+        /**
+         * The quest-aware vocabulary, seeded like the rest and reading through whatever the consumer
+         * later wires with {@link #quests}. Seeded rather than opt-in because a quest giver with
+         * nothing to say about the state of what it gave out is not a giver, and because a shared
+         * store needs one spelling of "is this quest active" rather than one per mod.
+         */
+        private void seedQuestVocabulary() {
+            for (DialogueConditionType<?> type : QuestDialogueConditions.types(() -> self[0].quests())) {
+                condition(type);
+            }
+            for (DialogueActionType<?> type : QuestDialogueActions.types(() -> self[0].quests())) {
+                action(type);
+            }
+        }
     }
 
     /**
-     * Register the generic boolean combinators ({@code AllOf}/{@code AnyOf}/{@code Not})
-     * whose child-list codec is the engine-scoped {@code conditionsArray} (so they can
-     * only be assembled inside {@code build()}). Each evaluator delegates its children
-     * back through the finished engine's {@link #conditionsPass}, reached via the
-     * one-slot {@code self} holder set immediately after construction.
+     * The combinator EVALUATORS: each walks its children back through this engine's own condition
+     * pass, so a combinator wrapping a domain condition is evaluated by the mod that owns it. Their
+     * codecs live with the shared schema, because a combinator's children are the shared array.
      */
-    private static void registerCombinators(
-            @Nonnull CodecMapCodec<DialogueCondition> conditionCodec,
-            @Nonnull Codec<DialogueCondition[]> conditionsArray,
+    private static void registerCombinatorEvaluators(
             @Nonnull Map<Class<? extends DialogueCondition>, DialogueConditionEvaluator<?>> evaluators,
             @Nonnull DialogueEngine[] self) {
 
-        BuilderCodec<DialogueCondition.AllOf> allOf = BuilderCodec.builder(
-                        DialogueCondition.AllOf.class, DialogueCondition.AllOf::new)
-                .append(new KeyedCodec<>("All", conditionsArray, false),
-                        (c, v) -> c.children = v, c -> c.children).add()
-                .build();
-        conditionCodec.register("AllOf", DialogueCondition.AllOf.class, allOf);
         DialogueConditionEvaluator<DialogueCondition.AllOf> allEval =
                 (c, ctx) -> self[0].conditionsPass(c.getChildren(), ctx);
         evaluators.put(DialogueCondition.AllOf.class, allEval);
 
-        BuilderCodec<DialogueCondition.AnyOf> anyOf = BuilderCodec.builder(
-                        DialogueCondition.AnyOf.class, DialogueCondition.AnyOf::new)
-                .append(new KeyedCodec<>("Any", conditionsArray, false),
-                        (c, v) -> c.children = v, c -> c.children).add()
-                .build();
-        conditionCodec.register("AnyOf", DialogueCondition.AnyOf.class, anyOf);
         DialogueConditionEvaluator<DialogueCondition.AnyOf> anyEval = (c, ctx) -> {
             List<DialogueCondition> children = c.getChildren();
             if (children.isEmpty()) {
@@ -753,12 +639,6 @@ public final class DialogueEngine {
         };
         evaluators.put(DialogueCondition.AnyOf.class, anyEval);
 
-        BuilderCodec<DialogueCondition.Not> not = BuilderCodec.builder(
-                        DialogueCondition.Not.class, DialogueCondition.Not::new)
-                .append(new KeyedCodec<>("Of", conditionsArray, false),
-                        (c, v) -> c.children = v, c -> c.children).add()
-                .build();
-        conditionCodec.register("Not", DialogueCondition.Not.class, not);
         DialogueConditionEvaluator<DialogueCondition.Not> notEval =
                 (c, ctx) -> !self[0].conditionsPass(c.getChildren(), ctx);
         evaluators.put(DialogueCondition.Not.class, notEval);

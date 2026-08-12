@@ -36,7 +36,8 @@ class HytaleFactorsTest {
                         HytaleFactors.TOOL_DURABILITY_PERCENT,
                         HytaleFactors.TOOL_ITEM_LEVEL,
                         HytaleFactors.TOOL_POWER,
-                        HytaleFactors.TOOL_QUALITY),
+                        HytaleFactors.TOOL_QUALITY,
+                        HytaleFactors.TOOL_TIER),
                 registry.ids(),
                 "the portable set is fixed - a new id here is a deliberate vocabulary addition");
         assertEquals("yourmod", registry.info().get(HytaleFactors.STAT).owner());

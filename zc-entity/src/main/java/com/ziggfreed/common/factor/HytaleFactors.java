@@ -1,6 +1,5 @@
 package com.ziggfreed.common.factor;
 
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,20 +42,33 @@ import com.ziggfreed.common.util.SafeLog;
  *       <td>the subject's EFFECTIVE (folded max) value for that channel</td></tr>
  *   <tr><td>{@code hytale:tool_power}</td><td>a native {@code GatherType} name (omit for the best
  *       of any type)</td><td>the held tool's gather power</td></tr>
- *   <tr><td>{@code hytale:tool_durability_percent}</td><td>-</td><td>0..100 of the held stack</td></tr>
- *   <tr><td>{@code hytale:tool_quality}</td><td>-</td><td>the held item's quality tier value</td></tr>
- *   <tr><td>{@code hytale:tool_item_level}</td><td>-</td><td>the held item's native item level</td></tr>
+ *   <tr><td>{@code hytale:tool_tier}</td><td>a native {@code GatherType} name (omit for the best
+ *       of any type)</td><td>the held tool's per-type harvest-TIER GATE ({@code ItemToolSpec
+ *       .Quality}) - a different number from {@code tool_quality} below</td></tr>
+ *   <tr><td>{@code hytale:tool_durability_percent}</td><td>ignored</td><td>0..100 of the held stack</td></tr>
+ *   <tr><td>{@code hytale:tool_quality}</td><td>ignored</td><td>the held item's quality tier value</td></tr>
+ *   <tr><td>{@code hytale:tool_item_level}</td><td>ignored</td><td>the held item's native item level</td></tr>
  *   <tr><td>{@code hytale:held_tag}</td><td>{@code family:value}, or a bare value</td>
  *       <td>1 when the held item carries it, else 0</td></tr>
  *   <tr><td>{@code hytale:held_item}</td><td>an item id</td><td>1 on a match, else 0</td></tr>
  * </table>
  *
- * <p>The three TOOL axes are deliberately three, and none subsumes another. {@code tool_power} is
- * the FUNCTIONAL read but SATURATES across a family's upper tiers, so it cannot separate the top
- * rungs; {@code tool_quality} is the authored number that ORDERS rarity tiers (so a pack shipping
- * its own tier participates for free) but cannot separate two tools inside one tier;
+ * <p>The FOUR tool-shaped axes are deliberately four, and none subsumes another. {@code tool_power}
+ * is the FUNCTIONAL read but SATURATES across a family's upper tiers, so it cannot separate the top
+ * rungs; {@code tool_tier} is the per-job GATE the engine itself enforces before a spec's power
+ * counts at all (a spec below a block's required tier never damages it, whatever its power reads);
+ * {@code tool_quality} is the authored number that ORDERS rarity tiers (so a pack shipping its own
+ * tier participates for free) but cannot separate two tools inside one tier;
  * {@code tool_item_level} separates same-tier tools but does NOT track rarity, so it belongs as a
  * small tiebreaker rather than a leading term. Weighting them is the author's call.
+ *
+ * <p><b>{@code tool_power} and {@code tool_tier} are the only two that take a {@code Param}, and
+ * that is the engine's shape rather than a choice made here.</b> A tool's gather powers AND its
+ * harvest-tier gates are each one native {@code ItemToolSpec} field PER {@code GatherType}, so
+ * neither question is meaningful until an author says which job is being asked about; rarity, item
+ * level and durability are each authored once for the whole item (or, for durability, carried on
+ * the stack), so there is nothing inside them to address and a {@code Param} on those three is
+ * simply ignored rather than narrowing anything.
  *
  * <p>A consumer whose own evaluation site resolves these differently (a work session holding a
  * tool snapshot rather than reading the live hand) registers its OWN provider under the SAME id in
@@ -68,6 +80,11 @@ public final class HytaleFactors {
     public static final String STAT = "hytale:stat";
     /** {@code hytale:tool_power} - the held tool's gather power for the GatherType named by Param. */
     public static final String TOOL_POWER = "hytale:tool_power";
+    /**
+     * {@code hytale:tool_tier} - the held tool's harvest-TIER GATE ({@code ItemToolSpec.Quality})
+     * for the GatherType named by Param. A different number from {@link #TOOL_QUALITY}.
+     */
+    public static final String TOOL_TIER = "hytale:tool_tier";
     /** {@code hytale:tool_durability_percent} - the held stack's remaining durability, 0..100. */
     public static final String TOOL_DURABILITY_PERCENT = "hytale:tool_durability_percent";
     /** {@code hytale:tool_quality} - the held item's native quality-tier ordering value. */
@@ -100,6 +117,7 @@ public final class HytaleFactors {
     public static void registerInto(@Nonnull FactorRegistry registry, @Nullable String owner) {
         registry.register(STAT, owner, HytaleFactors::resolveStat);
         registry.register(TOOL_POWER, owner, HytaleFactors::resolveToolPower);
+        registry.register(TOOL_TIER, owner, HytaleFactors::resolveToolTier);
         registry.register(TOOL_DURABILITY_PERCENT, owner, HytaleFactors::resolveToolDurabilityPercent);
         registry.register(TOOL_QUALITY, owner, HytaleFactors::resolveToolQuality);
         registry.register(TOOL_ITEM_LEVEL, owner, HytaleFactors::resolveToolItemLevel);
@@ -146,48 +164,86 @@ public final class HytaleFactors {
     }
 
     /**
-     * The held tool's gather power for the native {@code GatherType} named by {@code Param}. With
-     * NO {@code Param} it answers the BEST power the tool has for any gather type, which is the
-     * portable "how good a tool is this at all" read; with one, only that type counts. Null when
-     * nothing is held, the held item is not a tool, or it has no spec for the named type - a tool
-     * that cannot do the job at all is not the same as one that does it badly.
+     * The held tool's gather power, ADDRESSED by {@code Param}.
+     *
+     * <p>A tool does not have "a power": the native {@code ItemToolSpec} is one entry per
+     * {@code GatherType}, and a real tool carries a whole spread of them (a hatchet's authored
+     * {@code Woods} power sits beside token powers for soils, rocks, and every ore tier). So
+     * {@code Param} names WHICH gather type is being asked about - {@code "Woods"},
+     * {@code "Rocks"}, {@code "OreMithril"} - matched case-insensitively, and only that spec counts.
+     *
+     * <p>With NO {@code Param} (absent or blank) it answers the AGGREGATE form instead: the BEST
+     * power the tool has for any gather type, the portable "how good a tool is this at all" read.
+     * Use it when the site does not care what the tool is FOR; name a gather type the moment it
+     * does, because the aggregate of a pickaxe and the aggregate of a hatchet are the same kind of
+     * number and say nothing about chopping.
+     *
+     * <p>Null when nothing is held, the held item is not a tool, or a NAMED gather type has no spec
+     * on it - a tool that cannot do the job at all is not the same as one that does it badly, so a
+     * formula term contributes nothing and a gate on it stays shut rather than reading a
+     * fabricated {@code 0} as a real, very low power.
      */
     @Nullable
     static Double resolveToolPower(@Nonnull FactorContext ctx) {
         Item item = HeldItemUtil.heldItem(ctx.store(), ctx.subject());
-        Map<String, Double> powers = HeldItemUtil.toolPowersOf(item);
-        if (powers.isEmpty()) {
-            return null;
-        }
-        String gatherType = trimmed(ctx.param());
-        if (gatherType == null) {
-            double best = Double.NEGATIVE_INFINITY;
-            for (Double power : powers.values()) {
-                if (power != null && power > best) {
-                    best = power;
-                }
-            }
-            return best == Double.NEGATIVE_INFINITY ? null : best;
-        }
-        return powers.get(gatherType.toLowerCase(Locale.ROOT));
+        return HeldItemUtil.toolPowerFor(HeldItemUtil.toolPowersOf(item), ctx.param());
+    }
+
+    /**
+     * The held tool's harvest-TIER GATE, ADDRESSED by {@code Param} - the native
+     * {@code ItemToolSpec.Quality} integer {@code BlockHarvestUtils} compares against a block's
+     * required {@code Gathering.Breaking.Quality} before the spec's {@code Power} counts at all. A
+     * spec below the required tier never damages that block, whatever its {@code tool_power} reads,
+     * so this is the GATE a formula or condition checks to ask "can this tool even do the job", where
+     * {@code tool_power} answers "how well".
+     *
+     * <p><b>A different number from {@link #resolveToolQuality} ({@code hytale:tool_quality})</b>:
+     * that id reads the held ITEM's own rarity tier, one value authored once for the whole item;
+     * this id reads a per-{@code GatherType} field on the tool's own spec array. Two tools of the
+     * same rarity quality can gate very differently by job, and this is the only id that says so.
+     *
+     * <p>Same {@code Param} contract as {@link #resolveToolPower}: a named gather type
+     * (case-insensitive) selects that spec's tier alone; absent/blank asks for the AGGREGATE - the
+     * BEST tier the tool reaches for any type. Null when nothing is held, the held item is not a
+     * tool, or a NAMED gather type has no spec on it at all - failing to answer, not answering
+     * {@code 0}, because "cannot do this job" must not read as "gated at the lowest tier".
+     */
+    @Nullable
+    static Double resolveToolTier(@Nonnull FactorContext ctx) {
+        Item item = HeldItemUtil.heldItem(ctx.store(), ctx.subject());
+        return HeldItemUtil.toolTierFor(HeldItemUtil.toolTiersOf(item), ctx.param());
     }
 
     /**
      * The held stack's remaining durability as a percent in {@code [0, 100]}; an item that tracks
      * no durability reads 100 (it can never be worn). Null when nothing is held.
+     *
+     * <p><b>{@code Param} is ignored.</b> Durability is one number on the STACK, not per gather
+     * type, so there is nothing to address within it.
      */
     @Nullable
     static Double resolveToolDurabilityPercent(@Nonnull FactorContext ctx) {
         return HeldItemUtil.durabilityPercentOf(HeldItemUtil.heldStack(ctx.store(), ctx.subject()));
     }
 
-    /** The held item's native quality-tier ordering value. Null when nothing is held. */
+    /**
+     * The held item's native quality-tier ordering value. Null when nothing is held.
+     *
+     * <p><b>{@code Param} is ignored.</b> This is the item's own RARITY - its {@code Quality} field
+     * names one {@code ItemQuality} asset for the whole item - so it is a single value with nothing
+     * to address within it.
+     */
     @Nullable
     static Double resolveToolQuality(@Nonnull FactorContext ctx) {
         return HeldItemUtil.qualityValueOf(HeldItemUtil.heldItem(ctx.store(), ctx.subject()));
     }
 
-    /** The held item's native item level. Null when nothing is held. */
+    /**
+     * The held item's native item level. Null when nothing is held.
+     *
+     * <p><b>{@code Param} is ignored.</b> {@code ItemLevel} is one integer authored on the item, not
+     * per gather type.
+     */
     @Nullable
     static Double resolveToolItemLevel(@Nonnull FactorContext ctx) {
         return HeldItemUtil.itemLevelOf(HeldItemUtil.heldItem(ctx.store(), ctx.subject()));

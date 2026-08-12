@@ -1,5 +1,10 @@
 package com.ziggfreed.common;
 
+import java.util.Collection;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
+
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.logger.HytaleLogger;
@@ -7,18 +12,33 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.events.AddWorldEvent;
 import com.hypixel.hytale.server.core.universe.world.events.RemoveWorldEvent;
+import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.FrameworkAssetRegistrar;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.entity.PlayerIdentityCache;
+import com.ziggfreed.common.factor.DerivedFactorConfig;
+import com.ziggfreed.common.loot.LootEditorDataSets;
+import com.ziggfreed.common.loot.reward.DroplistRewardKind;
+import com.ziggfreed.common.loot.reward.LootRewardKinds;
+import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.loot.stamp.StackStatsStamper;
+import com.ziggfreed.common.loot.stamp.StamperRegistry;
+import com.ziggfreed.common.npc.NpcActions;
+import com.ziggfreed.common.npc.NpcTalkDialogue;
+import com.ziggfreed.common.npc.TalkCredits;
 import com.ziggfreed.common.npc.placement.NpcPlacementLedger;
 import com.ziggfreed.common.npc.placement.NpcPlacementOverrides;
 import com.ziggfreed.common.npc.placement.NpcPlacementReconciler;
 import com.ziggfreed.common.npc.placement.PlacedNpcComponent;
 import com.ziggfreed.common.npc.placement.PlacementMarkerSystem;
+import com.ziggfreed.common.npc.placement.PlacementFactorRegistry;
 import com.ziggfreed.common.npc.placement.PlacementNpcActions;
+import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
+import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -34,10 +54,13 @@ import com.ziggfreed.common.util.SafeLog;
  * server jar.
  *
  * <p>The static primitives register nothing (a consumer calls them directly), but this plugin DOES
- * own four registrations of its own:
+ * own five registrations of its own:
  * <ul>
  *   <li>the framework asset stores ({@link FrameworkAssetRegistrar}), so common owns each store at
  *       {@code Server/ZiggfreedCommon/<Type>/} exactly once;</li>
+ *   <li>the Asset Editor pick lists for the fields naming a factor id ({@link EditorDataSets}),
+ *       because the vocabulary they offer spans the placement registry and the Factors assets and
+ *       only this wiring root can see both;</li>
  *   <li>the NPC placement engine's component, marker system and press-F action, because that
  *       engine is common's own and no consumer can be asked to register another mod's pieces;</li>
  *   <li><b>its own {@code AddWorldEvent}/{@code RemoveWorldEvent} listeners.</b> World eviction
@@ -50,6 +73,16 @@ import com.ziggfreed.common.util.SafeLog;
  *       primitive and the only supported way to identify a player off the world thread, so it has
  *       to be kept current here rather than by whichever consumer happens to read it.</li>
  * </ul>
+ *
+ * <p><b>REGISTRATION ONLY (build-enforced).</b> This class registers, wires and populates; it never
+ * DECIDES. The wiring root is the one place in the library where an edge between any two modules is
+ * legal, so it will absorb any awkward dependency offered to it - and logic that settles here is
+ * logic no module can be tested or reasoned about without standing up the whole plugin. When a
+ * choice has to be made, it belongs in the module that owns it, behind a seam this class fills.
+ * {@code RootRegistrationOnlyTest} fails the build on a loop, a {@code switch} or an {@code else}
+ * here; a try/catch guard, a null-or-early-return {@code if}, and a null-defaulting ternary all
+ * pass. The escape hatch is {@code // ROOT-LOGIC-OK: <reason>} with a real reason, and reaching for
+ * it should feel like a defeat.
  */
 public class ZiggfreedCommonPlugin extends JavaPlugin {
 
@@ -81,11 +114,66 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // nothing - a consumer calls them directly.
         FrameworkAssetRegistrar.registerAll(this);
 
+        registerEditorDataSets();
+        registerLootVocabulary();
         setupPlacementEngine();
+        setupTalkCredit();
         registerWorldLifecycle();
         registerPlayerIdentity();
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
+    }
+
+    /**
+     * Serve the Asset Editor pick lists for the fields that name a FACTOR id, so an author picks a
+     * factor from the vocabulary actually present on this server rather than typing one.
+     *
+     * <p>Both datasets answer the same union - the process-wide placement vocabulary plus every
+     * asset-defined factor - because that union is the whole of what common can enumerate from
+     * here. A factor a mod registers into its OWN per-consumer registry appears once that mod also
+     * claims it in the shared placement facade, which is the only place the ids are process-wide.
+     * The dropdown is a convenience either way: a hand-written JSON never passes through the editor,
+     * so the validators stay the real check, and a free-typed id still resolves.
+     */
+    /**
+     * The loot vocabulary a bare server starts with: the three framework reward kinds, the droplist
+     * kind (a native drop table rolled onto the ground), the effect kind (registered from up here
+     * because the loot layer must never see the effect module), and the stack-metadata stamper every
+     * stamp writes through until a richer mod replaces it.
+     */
+    private void registerLootVocabulary() {
+        LootRewardKinds.registerInto(RewardKinds.shared());
+        DroplistRewardKind.registerInto(RewardKinds.shared());
+        EffectRewardKind.registerInto(RewardKinds.shared());
+        StamperRegistry.register(new StackStatsStamper());
+    }
+
+    private void registerEditorDataSets() {
+        EditorDataSets.live(getEventRegistry(), EditorDataSets.PLACEMENT_FACTORS,
+                ZiggfreedCommonPlugin::factorVocabulary);
+        EditorDataSets.live(getEventRegistry(), LootEditorDataSets.LOOTABLES,
+                LootEditorDataSets::lootableIds);
+        EditorDataSets.live(getEventRegistry(), LootEditorDataSets.ROLL_POOLS,
+                LootEditorDataSets::rollPoolIds);
+        EditorDataSets.live(getEventRegistry(), LootEditorDataSets.REWARD_KINDS,
+                LootEditorDataSets::rewardKindIds);
+        EditorDataSets.live(getEventRegistry(), EditorDataSets.FACTORS,
+                ZiggfreedCommonPlugin::factorVocabulary);
+        // The quest vocabularies are per-consumer (each mod builds its own registries), so they are
+        // answered from whatever consumers have advertised, plus the engine-generic objective kinds
+        // every engine starts with.
+        EditorDataSets.live(getEventRegistry(), ProgressEditorDataSets.OBJECTIVE_KINDS,
+                ProgressEditorDataSets::objectiveKindIds);
+        EditorDataSets.live(getEventRegistry(), ProgressEditorDataSets.REWARD_KINDS,
+                ProgressEditorDataSets::rewardKindIds);
+    }
+
+    /** Every factor id an author can name here: registered placement providers plus derived assets. */
+    @Nonnull
+    private static Collection<String> factorVocabulary() {
+        Set<String> ids = new TreeSet<>(PlacementFactorRegistry.registeredIds());
+        ids.addAll(DerivedFactorConfig.getInstance().ids());
+        return ids;
     }
 
     /**
@@ -103,6 +191,35 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             NpcPlacementLedger.getInstance().load();
         } catch (Throwable t) {
             SafeLog.warn("[placement] engine setup failed", t);
+        }
+    }
+
+    /**
+     * Wire the talk-credit engine: register the {@code ZigTalkCredit} NPC action, join a
+     * conversation's {@code MarkTalked} beat to it, and drop a departing player's re-trigger windows.
+     *
+     * <p>All three belong to common rather than to a consumer. The dialogue engine deliberately stops
+     * at resolving WHO a beat is about, so something has to say what crediting that character means;
+     * the NPC action needs nothing from any consumer, unlike {@code ZigOpenDialogue}, which cannot
+     * work without one; and the re-trigger window is in memory, so a player who leaves and returns
+     * should not find their next conversation swallowed by the last one.
+     *
+     * <p>The action registration runs here, in {@code setup()}, because a role asset naming a
+     * {@code Type} nothing has registered yet silently fails to parse.
+     */
+    private void setupTalkCredit() {
+        try {
+            NpcActions.registerTalkCredit();
+            NpcTalkDialogue.install();
+            getEventRegistry().register(PlayerDisconnectEvent.class, event -> {
+                PlayerRef playerRef = event.getPlayerRef();
+                UUID uuid = playerRef == null ? null : playerRef.getUuid();
+                if (uuid != null) {
+                    TalkCredits.clearPlayer(uuid);
+                }
+            });
+        } catch (Throwable t) {
+            SafeLog.warn("[talk] could not wire the talk-credit engine", t);
         }
     }
 

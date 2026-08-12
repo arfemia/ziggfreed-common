@@ -3,13 +3,13 @@ package com.ziggfreed.common.dialogue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.Test;
+import java.util.List;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.dialogue.page.DialogueEventData;
 
@@ -18,6 +18,12 @@ import com.ziggfreed.common.dialogue.page.DialogueEventData;
  * No server needed: codecs, sugar, and native Parent inheritance are all pure.
  */
 class DialogueEngineTest {
+
+    /** The decode vocabulary is process-wide; start every test from a clean one. */
+    @BeforeEach
+    void resetDialogueTypes() {
+        DialogueTestSupport.reset();
+    }
 
     /**
      * Force class-init of every static codec so a lowercase PascalCase field name
@@ -30,7 +36,7 @@ class DialogueEngineTest {
         assertNotNull(DialogueAction.Close.CODEC);
         assertNotNull(DialogueAction.Remember.CODEC);
         assertNotNull(DialogueAction.Forget.CODEC);
-        assertNotNull(DialogueAction.Talk.CODEC);
+        assertNotNull(DialogueAction.MarkTalked.CODEC);
         assertNotNull(DialogueAction.OpenPage.CODEC);
         assertNotNull(DialogueCondition.Remembered.CODEC);
         assertNotNull(DialogueCondition.NotRemembered.CODEC);
@@ -52,7 +58,6 @@ class DialogueEngineTest {
         DialogueEngine engine = engine();
         assertNotNull(engine.dialogueCodec());
         assertNotNull(engine.executor());
-        assertNotNull(engine.sugar());
     }
 
     @Test
@@ -91,26 +96,92 @@ class DialogueEngineTest {
     }
 
     @Test
-    void sugarExpandsInBareOrder() {
+    void sugarFoldsInBareOrder() {
         DialogueEngine engine = engine();
-        JsonObject body = JsonParser.parseString(
-                "{\"Nodes\":{\"g\":{\"Options\":[{\"Talk\":\"\",\"Goto\":\"next\",\"Close\":true}]}}}")
-                .getAsJsonObject();
-        engine.sugar().desugar(body);
-        JsonArray actions = body.getAsJsonObject("Nodes").getAsJsonObject("g")
-                .getAsJsonArray("Options").get(0).getAsJsonObject().getAsJsonArray("Actions");
-        // Bare order: Talk(10) < Goto(60) < Close(70).
+        NpcDialogue d = engine.decode("sugar",
+                "{\"Memories\":{\"met\":{}},"
+                        + "\"Nodes\":{\"g\":{\"Options\":[{\"Close\":true,\"Goto\":\"next\",\"Remember\":\"met\"}]}}}");
+        assertNotNull(d);
+        List<DialogueAction> actions = d.getNode("g").getOptions().get(0).getActions();
+        // Authored deliberately backwards: bare keys fold by their fixed order, never by the order
+        // they were written in. Remember(32) < Goto(60) < Close(70).
         assertEquals(3, actions.size());
-        assertEquals("Talk", actions.get(0).getAsJsonObject().get("Type").getAsString());
-        assertEquals("Goto", actions.get(1).getAsJsonObject().get("Type").getAsString());
-        assertEquals("Close", actions.get(2).getAsJsonObject().get("Type").getAsString());
-        // Sugar keys stripped.
-        assertFalse(body.getAsJsonObject("Nodes").getAsJsonObject("g")
-                .getAsJsonArray("Options").get(0).getAsJsonObject().has("Goto"));
+        assertTrue(actions.get(0) instanceof DialogueAction.Remember);
+        assertTrue(actions.get(1) instanceof DialogueAction.Goto);
+        assertTrue(actions.get(2) instanceof DialogueAction.Close);
+        assertEquals("next", ((DialogueAction.Goto) actions.get(1)).getNode());
     }
 
     @Test
-    void nativeParentMergesNodesByKey() {
+    void doAtomsFoldInArrayOrderAndShadowTheBareKeys() {
+        DialogueEngine engine = engine();
+        NpcDialogue d = engine.decode("sugar",
+                "{\"Nodes\":{\"g\":{\"Options\":[{\"Goto\":\"ignored\",\"Do\":["
+                        + "{\"Close\":true},{\"Goto\":\"next\"}]}]}}}");
+        assertNotNull(d);
+        List<DialogueAction> actions = d.getNode("g").getOptions().get(0).getActions();
+        // Array order wins over the registration order, and the bare Goto never runs.
+        assertEquals(2, actions.size());
+        assertTrue(actions.get(0) instanceof DialogueAction.Close);
+        assertEquals("next", ((DialogueAction.Goto) actions.get(1)).getNode());
+    }
+
+    @Test
+    void authoredActionsRunBeforeTheShorthand() {
+        DialogueEngine engine = engine();
+        NpcDialogue d = engine.decode("sugar",
+                "{\"Nodes\":{\"g\":{\"Options\":[{\"Actions\":[{\"Type\":\"MarkTalked\","
+                        + "\"Target\":\"elder\"}],\"Goto\":\"next\"}]}}}");
+        assertNotNull(d);
+        List<DialogueAction> actions = d.getNode("g").getOptions().get(0).getActions();
+        assertEquals(2, actions.size());
+        assertEquals("elder", ((DialogueAction.MarkTalked) actions.get(0)).getTarget());
+        assertTrue(actions.get(1) instanceof DialogueAction.Goto);
+    }
+
+    @Test
+    void anUnknownTypeFailsLoudlyRatherThanBeingDropped() {
+        DialogueEngine engine = engine();
+        assertNull(engine.decode("bad",
+                "{\"Nodes\":{\"g\":{\"Options\":[{\"Actions\":[{\"Type\":\"NoSuchAction\"}]}]}}}"),
+                "a Type nothing registered must fail the whole read, never silently vanish");
+        assertNull(engine.decode("bad2",
+                "{\"Start\":[{\"Node\":\"g\",\"Conditions\":[{\"Type\":\"NoSuchCondition\"}]}],"
+                        + "\"Nodes\":{\"g\":{\"Options\":[]}}}"));
+    }
+
+    @Test
+    void onceAcceptsBothTheFlagAndTheGroupForm() {
+        DialogueEngine engine = engine();
+        NpcDialogue d = engine.decode("once",
+                "{\"Start\":[{\"Node\":\"g\",\"Once\":true},{\"Node\":\"g\",\"Once\":"
+                        + "{\"WorldSelector\":\"temple\"}},{\"Node\":\"g\",\"Once\":false}],"
+                        + "\"Nodes\":{\"g\":{\"Options\":[]}}}");
+        assertNotNull(d);
+        assertNotNull(d.getStart().get(0).getOnce());
+        assertNull(d.getStart().get(0).getOnce().getWorldSelector());
+        assertEquals("temple", d.getStart().get(1).getOnce().getWorldSelector());
+        assertNull(d.getStart().get(2).getOnce(), "false means there is no Once at all");
+    }
+
+    @Test
+    void fragmentsAreSplicedAfterTheNodesOwnOptions() {
+        DialogueEngine engine = engine();
+        NpcDialogue d = engine.decode("frag",
+                "{\"Fragments\":{\"footer\":[{\"LabelKey\":\"bye\",\"Close\":true}]},"
+                        + "\"Start\":[{\"Node\":\"g\"}],"
+                        + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\"}],"
+                        + "\"IncludeOptions\":[\"footer\"]}}}");
+        assertNotNull(d);
+        List<DialogueOption> options = d.getNode("g").getOptions();
+        assertEquals(2, options.size());
+        assertEquals("a", options.get(0).getLabelKey());
+        assertEquals("bye", options.get(1).getLabelKey());
+        assertTrue(options.get(1).closesDialogue());
+    }
+
+    @Test
+    void nativeParentMergesNodesByKey() throws Exception {
         DialogueEngine engine = engine();
         NpcDialogue parent = engine.decode("base",
                 "{\"Start\":[{\"Node\":\"greet\"}],\"Nodes\":{"
@@ -118,7 +189,7 @@ class DialogueEngineTest {
                         + "\"bye\":{\"Text\":\"base bye\",\"Options\":[]}}}");
         assertNotNull(parent);
         // Child overrides greet's TEXT only (keeps its options), adds a node, omits bye (inherits it).
-        NpcDialogue child = engine.decodeWithParent("kid",
+        NpcDialogue child = DialogueTestSupport.decodeWithParent(engine, "kid",
                 "{\"Nodes\":{\"greet\":{\"Text\":\"kid greet\"},\"extra\":{\"Text\":\"new\",\"Options\":[]}}}",
                 parent);
         assertNotNull(child);
@@ -131,13 +202,13 @@ class DialogueEngineTest {
     }
 
     @Test
-    void childOmittingNodesInheritsParent() {
+    void childOmittingNodesInheritsParent() throws Exception {
         DialogueEngine engine = engine();
         NpcDialogue parent = engine.decode("base",
                 "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Text\":\"p\",\"Options\":[]}}}");
         assertNotNull(parent);
         // Child provides only Start; omitting Nodes entirely inherits the parent's node map.
-        NpcDialogue child = engine.decodeWithParent("kid", "{\"Start\":[{\"Node\":\"g\"}]}", parent);
+        NpcDialogue child = DialogueTestSupport.decodeWithParent(engine, "kid", "{\"Start\":[{\"Node\":\"g\"}]}", parent);
         assertNotNull(child);
         assertNotNull(child.getNode("g"));
         assertEquals("p", child.getNode("g").getText());

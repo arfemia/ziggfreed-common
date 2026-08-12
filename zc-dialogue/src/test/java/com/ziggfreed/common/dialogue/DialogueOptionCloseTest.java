@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Collections;
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -19,6 +20,12 @@ import org.junit.jupiter.api.Test;
  * through the engine is pure, same as DialogueEngineTest.
  */
 class DialogueOptionCloseTest {
+
+    /** The decode vocabulary is process-wide; start every test from a clean one. */
+    @BeforeEach
+    void resetDialogueTypes() {
+        DialogueTestSupport.reset();
+    }
 
     private static DialogueEngine engine() {
         return DialogueEngine.builder().warn(m -> { }).build();

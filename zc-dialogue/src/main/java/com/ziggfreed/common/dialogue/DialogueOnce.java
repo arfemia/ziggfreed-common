@@ -1,13 +1,20 @@
 package com.ziggfreed.common.dialogue;
 
+import java.io.IOException;
 import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.bson.BsonValue;
+
 import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.Schema;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
  * The {@code Once} knob: keyless seen-ness, authored on a {@code Start} entry or on an option.
@@ -50,11 +57,54 @@ public final class DialogueOnce {
     /** The canonical "once per character" group, the decoded form of {@code "Once": true}. */
     public static final DialogueOnce GLOBAL = new DialogueOnce();
 
-    public static final BuilderCodec<DialogueOnce> CODEC =
+    /** The group form, {@code {"WorldSelector": "..."}}. */
+    private static final BuilderCodec<DialogueOnce> GROUP =
             BuilderCodec.builder(DialogueOnce.class, DialogueOnce::new)
                     .append(new KeyedCodec<>("WorldSelector", Codec.STRING, false),
-                            (o, v) -> { o.worldSelector = v; o.scope = null; }, o -> o.worldSelector).add()
+                            (o, v) -> { o.worldSelector = v; o.scope = null; }, o -> o.worldSelector)
+                    .documentation("Keep this per world FAMILY: name a world selector and the answer is "
+                            + "remembered for every world that selector covers, so a rebuilt instance does "
+                            + "not forget. Leave it out for once per character.").add()
                     .build();
+
+    /**
+     * Accepts BOTH authored forms: the plain {@code true} an author reaches for first, and the group
+     * form that names a world family. {@code false} reads as "no Once at all", so turning one off is
+     * a one-character edit rather than deleting a block.
+     */
+    public static final Codec<DialogueOnce> CODEC = new Codec<>() {
+
+        @Override
+        @Nullable
+        public DialogueOnce decode(BsonValue value, ExtraInfo extraInfo) {
+            if (value.isBoolean()) {
+                return value.asBoolean().getValue() ? new DialogueOnce() : null;
+            }
+            return GROUP.decode(value, extraInfo);
+        }
+
+        @Nonnull
+        @Override
+        public BsonValue encode(DialogueOnce once, ExtraInfo extraInfo) {
+            return GROUP.encode(once, extraInfo);
+        }
+
+        @Override
+        @Nullable
+        public DialogueOnce decodeJson(RawJsonReader reader, ExtraInfo extraInfo) throws IOException {
+            int next = reader.peek();
+            if (next == 't' || next == 'T' || next == 'f' || next == 'F') {
+                return reader.readBooleanValue() ? new DialogueOnce() : null;
+            }
+            return GROUP.decodeJson(reader, extraInfo);
+        }
+
+        @Nonnull
+        @Override
+        public Schema toSchema(@Nonnull SchemaContext context) {
+            return GROUP.toSchema(context);
+        }
+    };
 
     @Nullable protected String worldSelector;
 

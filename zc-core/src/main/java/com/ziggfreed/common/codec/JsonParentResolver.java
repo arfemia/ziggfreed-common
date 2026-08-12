@@ -31,9 +31,9 @@ import com.ziggfreed.common.util.JsonTreeUtil;
  *
  * <p>The POOL (every body available as a parent) is separate from the OUTPUT ids (which
  * resolved bodies to return), so a consumer can keep shared base skeletons in the pool
- * without emitting them. This generalizes the dialogue engine's
- * {@code DialogueBodyResolver} inherit core (which stays as-is - it composes the merge
- * with sugar pre-passes + an engine decode); new cross-layer types use this directly.
+ * without emitting them. The engine resolves {@code Parent} inside ONE store's load batch, so
+ * this exists for the families whose layers the store cannot see; anything living in a single
+ * store should use the native resolution instead.
  */
 public final class JsonParentResolver {
 

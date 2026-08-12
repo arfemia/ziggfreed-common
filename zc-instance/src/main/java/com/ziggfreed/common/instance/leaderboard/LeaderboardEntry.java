@@ -1,37 +1,59 @@
 package com.ziggfreed.common.instance.leaderboard;
 
-import java.util.Map;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import com.ziggfreed.common.counter.CounterMap;
 
 /**
- * One player's best result in a {@link Leaderboard} bucket. Public mutable fields for
- * Gson (the persisted shape). Generalized verbatim from Kweebec's {@code Leaderboard.Entry}
- * so any instance can record a best score + best winning time + a play count + the
- * last-known display name, PLUS a cumulative total-points tally and a generic, consumer-keyed
- * stat counter map (so the primitive stays mod-agnostic: the consumer chooses the stat keys).
+ * One player's best result in a {@link Leaderboard} bucket: the BESTS and the play count as their
+ * own fields, plus every CUMULATIVE tally in one {@link CounterMap}.
+ *
+ * <p><b>Why the split.</b> A best score and a best time are one-value-per-entry facts with their own
+ * comparison rule; a lifetime tally is arbitrary, consumer-named, and always summed. Keeping the
+ * tallies in a counter bag means the record path, the cross-bucket aggregate, and any consumer
+ * reading them all share ONE summing authority instead of three hand-written merges - and a consumer
+ * adds a new tally by naming it, with no field and no format change.
+ *
+ * <p>Total points is the one tally this library names itself, under the reserved key
+ * {@value #TOTAL_POINTS}: a consumer stat key must not use it.
+ *
+ * <p>Public mutable fields for the JSON persister (this IS the persisted shape).
  */
 public final class LeaderboardEntry {
+
+    /** Reserved counter key: the sum of every score ever recorded for this player in the bucket. */
+    public static final String TOTAL_POINTS = "total_points";
 
     public int bestScore;
     /** Best (lowest) WINNING completion time in seconds; 0 = no win recorded yet. */
     public int bestTimeSeconds;
     public int plays;
     public long lastUpdatedMs;
-    /** Last-known display name of the player, captured at record time; null on legacy entries. */
+    /** Last-known display name of the player, captured at record time; null until one is recorded. */
     public String name;
-    /** Cumulative sum of every score recorded for this player in the bucket (a lifetime tally). */
-    public long totalPoints;
     /**
-     * Cumulative per-stat counters, keyed by consumer-chosen strings (Kweebec: "stunned" /
-     * "moonbloom" / "shrines"). Lazily allocated; null on legacy entries (treat as empty).
+     * Every cumulative tally: {@value #TOTAL_POINTS} plus whatever the consumer names (a hit count,
+     * a pickup count). Lazily allocated, so an entry that has counted nothing carries no map.
      */
-    public Map<String, Long> stats;
+    @Nullable public CounterMap counters;
 
-    /** A stat counter, defaulting to 0 when the map or key is absent. */
-    public long stat(String key) {
-        if (stats == null) {
-            return 0L;
+    /** The tally bag, created on first use. */
+    @Nonnull
+    public CounterMap counters() {
+        if (counters == null) {
+            counters = new CounterMap();
         }
-        Long v = stats.get(key);
-        return v == null ? 0L : v;
+        return counters;
+    }
+
+    /** The sum of every score recorded for this player in the bucket. */
+    public long totalPoints() {
+        return counters == null ? 0L : counters.get(TOTAL_POINTS);
+    }
+
+    /** One consumer tally, defaulting to 0 when the bag or the key is absent. */
+    public long stat(@Nullable String key) {
+        return counters == null ? 0L : counters.get(key);
     }
 }

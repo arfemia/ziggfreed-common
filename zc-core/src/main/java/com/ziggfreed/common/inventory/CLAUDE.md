@@ -28,6 +28,20 @@ needs it), so it lives here, not duplicated in a consumer.
   update to every viewer, including the acting player, which has correlated with a client
   rendering issue in at least one consumer's own smoke testing when it fires mid-session under a
   locked/mounted camera) - do not widen this hotbar-first order to a consume/drain path.
+  - **`canAdd(player, stack)` / `canAddAll(player, stacks)` are the PROBE half**: would `grant`
+    land these, without putting anything anywhere. This is the ONE fit check every consumer asks
+    before charging a price, spending a completion, or announcing a reward - the MMO's quest /
+    shop / command-reward space checks and RpgStations' conversion-output and stamp-return checks
+    all read it, so "is there room" means one thing across the whole family. Fails closed (no
+    inventory, invalid ref, engine throw -> false). A batch is checked against STORAGE alone while
+    a lone stack also gets the hotbar: the hotbar is a per-stack placement decision `grant` makes
+    one stack at a time, so no container can answer for a whole batch, and storage is where every
+    stack ends up anyway - the batch answer can only under-promise, which is the safe direction.
+  - **Pair a probe with its own granter.** `InventoryGrant.canAdd` mirrors `InventoryGrant.grant`
+    (hotbar + storage); `InventoryUtil.canFit` mirrors `InventoryUtil.give` (the combined view,
+    every section). They deliberately answer about different space, so do NOT merge them or read
+    one before calling the other - that is how a "checked" grant still lands somewhere nobody
+    expected, or fails after the price was taken.
 
 **Full-inventory preserve/restore (a minigame's "keep your overworld gear" lifecycle):**
 - **[`InventorySnapshot`](InventorySnapshot.java)** - slot-exact capture/strip/apply across ALL

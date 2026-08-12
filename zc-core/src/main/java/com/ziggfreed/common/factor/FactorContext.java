@@ -89,6 +89,26 @@ public final class FactorContext {
         return store != null && subject != null && subject.isValid();
     }
 
+    /**
+     * This same question re-scoped to {@code param}, every other leaf carried over unchanged.
+     *
+     * <p>Every evaluator that walks a LIST of authored entries needs exactly this: each entry
+     * carries its own {@code Param} beside the same factor id, so the context handed to the
+     * provider has to be rebuilt per entry rather than reused. {@link FactorConditions} does it per
+     * condition and {@link FactorFormula} per term, both through here, so "a term's Param wins over
+     * the caller's" means one thing everywhere.
+     */
+    @Nonnull
+    public FactorContext withParam(@Nullable String param) {
+        return builder()
+                .param(param)
+                .world(world)
+                .store(store)
+                .subject(subject)
+                .payload(payload)
+                .build();
+    }
+
     @Nonnull
     public static Builder builder() {
         return new Builder();

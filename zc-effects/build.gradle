@@ -1,9 +1,14 @@
 apply from: "$rootDir/gradle/zc-module.gradle"
 
-// Native effect application plus the loot/reward model. Carries com.ziggfreed.common.instance.effect
-// and .instance.reward, which are self-contained and wanted by consumers that never touch the rest
-// of the instance-experience layer, so they live here rather than dragging zc-instance along.
+// Native effect application. Carries com.ziggfreed.common.effect (apply/remove/track a native
+// EntityEffect by id) and com.ziggfreed.common.instance.effect (the timed + banded encounter
+// framework), both self-contained and wanted by consumers that never touch the rest of the
+// instance-experience layer, so they live here rather than dragging zc-instance along.
+//
+// This module must NEVER gain an edge to zc-loot: a loot grant that applies a native effect
+// dispatches through a registered reward kind the wiring root populates, which is what keeps the
+// two directions from closing into a cycle.
 
 dependencies {
-    api project(':zc-core')
+    implementation project(':zc-core')
 }

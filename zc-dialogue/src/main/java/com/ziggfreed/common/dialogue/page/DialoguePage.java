@@ -36,6 +36,7 @@ import com.ziggfreed.common.dialogue.i18n.DialogueMessages;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The generic branching NPC dialogue page: a name header, an optional one-line
@@ -55,6 +56,12 @@ import com.ziggfreed.common.ui.toast.ToastablePage;
  * otherwise. The two {@code .ui} templates ship once in ziggfreed-common
  * ({@code Pages/ZigDialoguePage.ui}, {@code Pages/ZigDialogueOptionRow.ui}) and
  * resolve client-side across the merged asset tree.
+ *
+ * <p><b>The render reads the PLAYER, whatever ref it was opened on.</b> An NPC action opens a page
+ * on the NPC's own ref, so {@code build}'s {@code ref} argument is not reliably the player;
+ * {@code build} therefore resolves the player from the {@link PlayerRef} the page holds, the same
+ * way first-party {@code BarterPage} does. Click renders come back through the player's ref already
+ * (the client's page event names the player), so the two paths agree.
  *
  * <p>Extends {@link ToastablePage} so a dialogue can float an in-menu completion toast: when an
  * action reports a just-completed thing ({@code Outcome.completedId}) and the consumer wired
@@ -95,7 +102,31 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
 
         DialogueEngine engine = deps.engine();
         DialogueI18n i18n = deps.i18n();
-        Player player = (Player) store.getComponent(ref, Player.getComponentType());
+
+        // WHO this render is about: the PLAYER, never whoever opened the page. The ref argument is
+        // simply what the opener handed the page manager, and every NPC-action route hands it the
+        // NPC (first-party ActionOpenBarterShop does exactly that). Reading player state off it
+        // would evaluate this first render against an entity that has none of the player's
+        // components - quest lines read as not started, factor gates fail closed - and the options
+        // that should be there would appear only after a click re-rendered through the player's own
+        // ref. So resolve the player from the PlayerRef this page was built with, which is what
+        // first-party BarterPage.build does for the same reason.
+        Ref<EntityStore> subject = playerRef.getReference();
+        Player player = subject == null ? null
+                : (Player) store.getComponent(subject, Player.getComponentType());
+        if (player == null) {
+            subject = ref;
+            player = (Player) store.getComponent(ref, Player.getComponentType());
+        }
+        if (player == null) {
+            // Nobody to read and nobody to talk to. Still SEND something: the page manager does not
+            // wrap build(), so a silent return leaves the client loading forever.
+            SafeLog.warn("[dialogue] '" + dialogueId + "' opened with no reachable player - showing nothing");
+            commandBuilder.set("#NodeText.TextSpans", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
+            appendFarewellRow(commandBuilder, eventBuilder, i18n, 0, null);
+            renderToastInto(commandBuilder);
+            return;
+        }
 
         // The name header + optional annotation, both consumer-supplied (default: none).
         Message name = deps.npcName().nameFor(contextNpcId);
@@ -105,7 +136,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             // and disconnects. Matches #NodeText.TextSpans below. See hytale-rich-text-textspans.
             commandBuilder.set("#NpcName.TextSpans", name);
         }
-        Message annotation = deps.headerAnnotation().annotationFor(contextNpcId, ref, store);
+        Message annotation = deps.headerAnnotation().annotationFor(contextNpcId, subject, store);
         if (annotation != null) {
             commandBuilder.set("#ActiveQuestHint.Visible", true);
             commandBuilder.set("#HintText.TextSpans", annotation);
@@ -122,7 +153,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         // One eval context for the whole render (conditions ignore node/option, so the placeholders are fine).
         DialogueExecContext ctx = deps.contextFactory().create(
                 dialogue, currentNodeId != null ? currentNodeId : "", -1,
-                contextNpcId, ref, store, playerRef, player);
+                contextNpcId, subject, store, playerRef, player);
 
         if (currentNodeId == null || dialogue.getNode(currentNodeId) == null) {
             DialogueEngine.EntryResolution entry = engine.resolveEntry(dialogue, ctx);

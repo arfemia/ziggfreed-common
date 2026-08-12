@@ -18,8 +18,23 @@ public class DialogueNode {
     @Nullable String text;
     @Nullable DialogueCondition[] conditions;
     @Nullable DialogueOption[] options;
+    @Nullable String[] includeOptions;
 
     public DialogueNode() {
+    }
+
+    /**
+     * The shared option groups this screen pulls in from the dialogue's {@code Fragments}, appended
+     * after its own {@code Options}. Empty when it names none.
+     */
+    @Nonnull
+    public List<String> getIncludeOptions() {
+        return includeOptions == null ? Collections.emptyList() : List.of(includeOptions);
+    }
+
+    /** Replace the option list with the fragment-spliced one. Called once, right after decode. */
+    void setOptions(@Nullable DialogueOption[] options) {
+        this.options = options;
     }
 
     /** Explicit i18n key for the NPC text, or null (by-convention key, then raw fallback). */

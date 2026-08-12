@@ -7,7 +7,8 @@ import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
-import com.ziggfreed.common.world.WorldSelectorValidator.Issue;
+import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.validation.ValidationReport;
 
 /**
  * The {@code defaults < pack < owner} fold of every {@link WorldSelectorAsset}, and the pool
@@ -58,23 +59,18 @@ public final class WorldSelectorConfig extends AbstractKeyedAssetConfig<WorldSel
      * validation command; {@link #logFindings()} is the always-on baseline.
      */
     @Nonnull
-    public List<Issue> validate() {
+    public List<Finding> audit() {
         return WorldSelectorValidator.validateAll(all().values());
     }
 
-    /** Log this config's findings once per fold (guarded - a unit JVM has no log manager). */
+    /**
+     * Log this config's findings once per fold. Each sink call is guarded by
+     * {@link ValidationReport#logAll}, which matters here because the flogger LOGGER throws in a
+     * log-manager-less unit JVM.
+     */
     public void logFindings() {
-        for (Issue issue : validate()) {
-            try {
-                String line = "WorldSelector '" + issue.sourceId() + "' [" + issue.code() + "]: " + issue.message();
-                if (issue.severity() == WorldSelectorValidator.Severity.ERROR) {
-                    CommonLog.LOGGER.atWarning().log(line);
-                } else {
-                    CommonLog.LOGGER.atInfo().log(line);
-                }
-            } catch (Throwable ignored) {
-                // log-manager-less unit JVM: the flogger LOGGER can throw; swallow it.
-            }
-        }
+        ValidationReport.logAll("WorldSelector", audit(),
+                line -> CommonLog.LOGGER.atWarning().log(line),
+                line -> CommonLog.LOGGER.atInfo().log(line));
     }
 }

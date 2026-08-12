@@ -11,7 +11,7 @@ import com.hypixel.hytale.codec.Codec;
  * discriminator, the action class, its field codec, the executor
  * {@link DialogueActionHandler}, an optional {@link DialogueOptionStyle} (the
  * decisive look an option gets when it carries this action), and an optional
- * {@link DialogueSugarExpander}. A consumer registers one of these per action and
+ * {@link DialogueSugarLeaf}. A consumer registers one of these per action and
  * the engine wires it into the dispatch codec, the handler map, the style
  * classifier, and the sugar pass.
  *
@@ -26,11 +26,11 @@ public final class DialogueActionType<A extends DialogueAction> {
     private final Codec<A> codec;
     private final DialogueActionHandler<A> handler;
     @Nullable private final DialogueOptionStyle style;
-    @Nullable private final DialogueSugarExpander sugar;
+    @Nullable private final DialogueSugarLeaf<?> sugar;
 
     private DialogueActionType(@Nonnull String typeId, @Nonnull Class<A> actionClass,
                               @Nonnull Codec<A> codec, @Nonnull DialogueActionHandler<A> handler,
-                              @Nullable DialogueOptionStyle style, @Nullable DialogueSugarExpander sugar) {
+                              @Nullable DialogueOptionStyle style, @Nullable DialogueSugarLeaf<?> sugar) {
         this.typeId = typeId;
         this.actionClass = actionClass;
         this.codec = codec;
@@ -52,9 +52,9 @@ public final class DialogueActionType<A extends DialogueAction> {
         return new DialogueActionType<>(typeId, actionClass, codec, handler, style, sugar);
     }
 
-    /** A copy that also registers an option-level sugar expander for this action. */
+    /** A copy that also registers the option-level shorthand this action is written as. */
     @Nonnull
-    public DialogueActionType<A> withSugar(@Nonnull DialogueSugarExpander sugar) {
+    public DialogueActionType<A> withSugar(@Nonnull DialogueSugarLeaf<?> sugar) {
         return new DialogueActionType<>(typeId, actionClass, codec, handler, style, sugar);
     }
 
@@ -68,5 +68,5 @@ public final class DialogueActionType<A extends DialogueAction> {
 
     @Nullable public DialogueOptionStyle style() { return style; }
 
-    @Nullable public DialogueSugarExpander sugar() { return sugar; }
+    @Nullable public DialogueSugarLeaf<?> sugar() { return sugar; }
 }

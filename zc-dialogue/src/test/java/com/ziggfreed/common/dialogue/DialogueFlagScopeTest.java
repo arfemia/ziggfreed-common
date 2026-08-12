@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Set;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -14,6 +15,12 @@ import org.junit.jupiter.api.Test;
  * keys - but the format is load-bearing for a consumer's prefix-match resets. No server needed.
  */
 class DialogueFlagScopeTest {
+
+    /** The decode vocabulary is process-wide; start every test from a clean one. */
+    @BeforeEach
+    void resetDialogueTypes() {
+        DialogueTestSupport.reset();
+    }
 
     // ==================== The key format ====================
 

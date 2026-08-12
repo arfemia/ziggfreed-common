@@ -10,11 +10,12 @@ import java.util.Set;
 
 import javax.annotation.Nonnull;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.dialogue.validate.DialogueStructureValidator;
-import com.ziggfreed.common.dialogue.validate.DialogueStructureValidator.Issue;
-import com.ziggfreed.common.dialogue.validate.DialogueStructureValidator.Severity;
+import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.validation.Severity;
 
 /**
  * The validator findings for the generic state surface: every way a {@code Once} or a declared
@@ -23,19 +24,25 @@ import com.ziggfreed.common.dialogue.validate.DialogueStructureValidator.Severit
  */
 class DialogueStateValidationTest {
 
+    /** The decode vocabulary is process-wide; start every test from a clean one. */
+    @BeforeEach
+    void resetDialogueTypes() {
+        DialogueTestSupport.reset();
+    }
+
     private static DialogueEngine engine() {
         return DialogueEngine.builder().warn(m -> { }).build();
     }
 
     @Nonnull
-    private static List<String> codes(@Nonnull List<Issue> issues) {
-        return issues.stream().map(Issue::code).toList();
+    private static List<String> codes(@Nonnull List<Finding> findings) {
+        return DialogueTestSupport.codes(findings);
     }
 
     @Nonnull
-    private static Issue issue(@Nonnull List<Issue> issues, @Nonnull String code) {
-        Issue found = issues.stream().filter(i -> i.code().equals(code)).findFirst().orElse(null);
-        assertNotNull(found, "expected a " + code + " finding in " + codes(issues));
+    private static Finding issue(@Nonnull List<Finding> findings, @Nonnull String code) {
+        Finding found = findings.stream().filter(f -> f.code().equals(code)).findFirst().orElse(null);
+        assertNotNull(found, "expected a " + code + " finding in " + codes(findings));
         return found;
     }
 
@@ -48,7 +55,7 @@ class DialogueStateValidationTest {
                 + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]}]}}}");
         assertNotNull(d);
 
-        List<Issue> issues = DialogueStructureValidator.validate(d);
+        List<Finding> issues = DialogueStructureValidator.validate(d);
         assertEquals(Severity.ERROR, issue(issues, "MEMORY_UNDECLARED").severity());
     }
 
@@ -76,7 +83,7 @@ class DialogueStateValidationTest {
                 + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"write_only\"}]}]}}}");
         assertNotNull(d);
 
-        List<Issue> issues = DialogueStructureValidator.validate(d);
+        List<Finding> issues = DialogueStructureValidator.validate(d);
         assertEquals(Severity.WARNING, issue(issues, "MEMORY_NEVER_WRITTEN").severity());
         assertEquals(Severity.INFO, issue(issues, "MEMORY_NEVER_READ").severity());
         assertTrue(issues.stream().anyMatch(i -> i.code().equals("MEMORY_NEVER_WRITTEN")
@@ -93,7 +100,7 @@ class DialogueStateValidationTest {
                 + "\"Actions\":[{\"Type\":\"Remember\"}]}]}}}");
         assertNotNull(d);
 
-        List<Issue> issues = DialogueStructureValidator.validate(d);
+        List<Finding> issues = DialogueStructureValidator.validate(d);
         assertEquals(Severity.ERROR, issue(issues, "MEMORY_BLANK_NAME").severity());
     }
 
@@ -115,11 +122,11 @@ class DialogueStateValidationTest {
         List<String> agreed = codes(DialogueStructureValidator.validateAll(List.of(first, agreeing)));
         assertFalse(agreed.contains("MEMORY_SHARED_MISMATCH"), agreed.toString());
 
-        List<Issue> mismatched =
+        List<Finding> mismatched =
                 DialogueStructureValidator.validateAll(List.of(first, disagreeing));
-        Issue found = issue(mismatched, "MEMORY_SHARED_MISMATCH");
+        Finding found = issue(mismatched, "MEMORY_SHARED_MISMATCH");
         assertEquals(Severity.ERROR, found.severity());
-        assertEquals("guide_c", found.dialogueId());
+        assertEquals("guide_c", found.sourceId());
     }
 
     @Test
@@ -132,7 +139,7 @@ class DialogueStateValidationTest {
                         + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]}]}}}");
         assertNotNull(d);
 
-        List<Issue> issues = DialogueStructureValidator.validate(d, Set.of("emerald_wilds"));
+        List<Finding> issues = DialogueStructureValidator.validate(d, Set.of("emerald_wilds"));
         assertEquals(Severity.ERROR, issue(issues, "MEMORY_UNKNOWN_SELECTOR").severity());
 
         // "Cannot tell" (no vocabulary loaded yet) must never produce the finding.
@@ -147,7 +154,7 @@ class DialogueStateValidationTest {
                 + "\"Once\":{\"WorldSelector\":\"emrald_wilds\"}}]}}}");
         assertNotNull(d);
 
-        List<Issue> issues = DialogueStructureValidator.validate(d, Set.of("emerald_wilds"));
+        List<Finding> issues = DialogueStructureValidator.validate(d, Set.of("emerald_wilds"));
         assertEquals(Severity.ERROR, issue(issues, "ONCE_UNKNOWN_SELECTOR").severity());
     }
 
@@ -158,8 +165,8 @@ class DialogueStateValidationTest {
                 + "\"Nodes\":{\"g\":{\"Options\":[{\"Once\":{}},{\"LabelKey\":\"fine\",\"Once\":{}}]}}}");
         assertNotNull(d);
 
-        List<Issue> issues = DialogueStructureValidator.validate(d);
-        Issue found = issue(issues, "ONCE_NO_IDENTITY");
+        List<Finding> issues = DialogueStructureValidator.validate(d);
+        Finding found = issue(issues, "ONCE_NO_IDENTITY");
         assertEquals(Severity.WARNING, found.severity());
         assertEquals(1, issues.stream().filter(i -> i.code().equals("ONCE_NO_IDENTITY")).count(),
                 "the option with a LabelKey is fine");
@@ -176,8 +183,8 @@ class DialogueStateValidationTest {
                 + "{\"LabelKey\":\"opt.other\"}]}}}");
         assertNotNull(d);
 
-        List<Issue> issues = DialogueStructureValidator.validate(d);
-        Issue found = issue(issues, "ONCE_DUPLICATE_IDENTITY");
+        List<Finding> issues = DialogueStructureValidator.validate(d);
+        Finding found = issue(issues, "ONCE_DUPLICATE_IDENTITY");
         assertEquals(Severity.ERROR, found.severity());
         assertEquals(1, issues.stream().filter(i -> i.code().equals("ONCE_DUPLICATE_IDENTITY")).count(),
                 "the OnceId option has its own identity and the Once-less option cannot collide");

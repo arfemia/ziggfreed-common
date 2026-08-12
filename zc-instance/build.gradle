@@ -4,7 +4,7 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // screens, presets, leaderboards, plus the lobby and party systems that feed them.
 
 dependencies {
-    api project(':zc-core')
-    api project(':zc-presentation')
-    api project(':zc-effects')
+    implementation project(':zc-core')
+    implementation project(':zc-presentation')
+    implementation project(':zc-loot')
 }

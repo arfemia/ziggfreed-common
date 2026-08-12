@@ -3,6 +3,7 @@ package com.ziggfreed.common.entity;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.ToDoubleFunction;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -32,6 +33,13 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * <p><b>World thread only</b>: the held-stack reads touch a live {@link Store}. The asset-side
  * reads ({@link #rawTagsOf}, {@link #toolPowersOf}, {@link #qualityValueOf}, {@link #itemLevelOf})
  * are pure asset-map lookups and need no ref at all.
+ *
+ * <p><b>Only GATHER POWER is keyed per gather type.</b> The native {@code ItemToolSpec} is one entry
+ * PER {@code GatherType} on a tool, so a tool has as many powers as it has specs and a caller must
+ * say which one it means ({@link #toolPowerFor}). Quality and item level are authored ONCE on the
+ * item itself ({@code Quality} names an {@code ItemQuality} asset, {@code ItemLevel} is a plain
+ * integer), and durability lives on the STACK, so those three are single values for the whole item
+ * and there is nothing to address within them.
  */
 public final class HeldItemUtil {
 
@@ -114,6 +122,10 @@ public final class HeldItemUtil {
      * Every native {@code GatherType} {@code item} carries a tool spec for, mapped to that spec's
      * power. Keys are LOWERCASED so a lookup matches whatever casing an author wrote; the highest
      * power wins when one gather type appears twice. Empty for a non-tool.
+     *
+     * <p>A real tool carries MANY specs at once - a hatchet is authored with its high {@code Woods}
+     * power beside a token power for soils, rocks and every ore - so "the tool's power" is only ever
+     * a question about ONE gather type or about the best of them. {@link #toolPowerFor} is the pick.
      */
     @Nonnull
     public static Map<String, Double> toolPowersOf(@Nullable Item item) {
@@ -122,10 +134,70 @@ public final class HeldItemUtil {
         }
         try {
             ItemTool tool = item.getTool();
-            ItemToolSpec[] specs = tool == null ? null : tool.getSpecs();
-            if (specs == null || specs.length == 0) {
-                return Map.of();
-            }
+            return toolPowersOf(tool == null ? null : tool.getSpecs());
+        } catch (Throwable ignored) {
+            return Map.of();
+        }
+    }
+
+    /**
+     * The same fold over a spec array the caller already holds (a session snapshotting the tool it
+     * engaged with, a test fixture), so the map's shape is decided in exactly one place.
+     */
+    @Nonnull
+    public static Map<String, Double> toolPowersOf(@Nullable ItemToolSpec[] specs) {
+        return foldSpecs(specs, ItemToolSpec::getPower);
+    }
+
+    /**
+     * Every native {@code GatherType} {@code item} carries a tool spec for, mapped to that spec's
+     * HARVEST-TIER GATE value ({@code ItemToolSpec.Quality} - the integer {@code BlockHarvestUtils}
+     * compares against a block's required {@code Gathering.Breaking.Quality} before the spec's
+     * {@code Power} counts at all). <b>A different number from {@link #qualityValueOf}</b>, which
+     * reads the ITEM's own rarity tier for the whole item, not a per-job gate the tool must clear.
+     * Keys are LOWERCASED so a lookup matches whatever casing an author wrote; the highest tier wins
+     * when one gather type appears twice. Empty for a non-tool.
+     *
+     * <p>Same spread as {@link #toolPowersOf}: a real tool is authored with a tier per gather type
+     * (a pickaxe reaching high tiers on rock/ore families while gating out entirely on others), so
+     * "the tool's tier" is only ever a question about ONE gather type or the best of them -
+     * {@link #toolTierFor} is the pick.
+     */
+    @Nonnull
+    public static Map<String, Double> toolTiersOf(@Nullable Item item) {
+        if (item == null) {
+            return Map.of();
+        }
+        try {
+            ItemTool tool = item.getTool();
+            return toolTiersOf(tool == null ? null : tool.getSpecs());
+        } catch (Throwable ignored) {
+            return Map.of();
+        }
+    }
+
+    /**
+     * The same fold over a spec array the caller already holds, mirroring
+     * {@link #toolPowersOf(ItemToolSpec[])}.
+     */
+    @Nonnull
+    public static Map<String, Double> toolTiersOf(@Nullable ItemToolSpec[] specs) {
+        return foldSpecs(specs, spec -> (double) spec.getQuality());
+    }
+
+    /**
+     * The shared per-{@code GatherType} fold underneath {@link #toolPowersOf(ItemToolSpec[])} and
+     * {@link #toolTiersOf(ItemToolSpec[])}: keys LOWERCASED, the higher {@code reader} value wins on
+     * a duplicated gather type, a blank/null gather type skipped. {@code reader} is the one thing
+     * that differs between the two axes (power vs. the harvest-tier gate).
+     */
+    @Nonnull
+    private static Map<String, Double> foldSpecs(@Nullable ItemToolSpec[] specs,
+            @Nonnull ToDoubleFunction<ItemToolSpec> reader) {
+        if (specs == null || specs.length == 0) {
+            return Map.of();
+        }
+        try {
             Map<String, Double> out = new LinkedHashMap<>(specs.length);
             for (ItemToolSpec spec : specs) {
                 String gatherType = spec == null ? null : spec.getGatherType();
@@ -133,16 +205,68 @@ public final class HeldItemUtil {
                     continue;
                 }
                 String key = gatherType.trim().toLowerCase(Locale.ROOT);
-                double power = spec.getPower();
+                double value = reader.applyAsDouble(spec);
                 Double existing = out.get(key);
-                if (existing == null || power > existing) {
-                    out.put(key, power);
+                if (existing == null || value > existing) {
+                    out.put(key, value);
                 }
             }
             return out;
         } catch (Throwable ignored) {
             return Map.of();
         }
+    }
+
+    /**
+     * Pick ONE reading out of a {@link #toolPowersOf} map. Naming a {@code gatherType} asks for THAT
+     * type's power (matched case-insensitively, since the map's own keys are lowercased); passing
+     * null or blank asks the AGGREGATE question instead - the BEST power the tool has for any type,
+     * which is the portable "how good a tool is this at all" read.
+     *
+     * <p>Null when the map is empty (nothing held, or the held item is no tool) and, crucially, also
+     * when a NAMED gather type is absent from it: a tool that cannot do that job at all is a
+     * different answer from one that does it badly, so the caller can keep a gate shut on it rather
+     * than reading a fabricated {@code 0} as a real, very low power.
+     */
+    @Nullable
+    public static Double toolPowerFor(@Nullable Map<String, Double> powers, @Nullable String gatherType) {
+        return selectFrom(powers, gatherType);
+    }
+
+    /**
+     * Pick ONE reading out of a {@link #toolTiersOf} map, same selection contract as
+     * {@link #toolPowerFor}: a named {@code gatherType} (case-insensitive) picks that one type's
+     * harvest-tier gate; null/blank asks for the AGGREGATE - the best tier the tool reaches for any
+     * type. Null when the map is empty, or a NAMED type has no spec on it - a tool that cannot do
+     * that job at all must not read as tier {@code 0}, which would look like a real (if unqualified)
+     * gate value to a bounds-checking caller.
+     */
+    @Nullable
+    public static Double toolTierFor(@Nullable Map<String, Double> tiers, @Nullable String gatherType) {
+        return selectFrom(tiers, gatherType);
+    }
+
+    /**
+     * The shared selection contract behind {@link #toolPowerFor} and {@link #toolTierFor}: a named
+     * key picked case-insensitively, or - with null/blank - the AGGREGATE best value across every
+     * entry. Null when the map is empty/null, or a named key is absent from it.
+     */
+    @Nullable
+    private static Double selectFrom(@Nullable Map<String, Double> values, @Nullable String gatherType) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        String wanted = gatherType == null ? null : gatherType.trim();
+        if (wanted == null || wanted.isEmpty()) {
+            double best = Double.NEGATIVE_INFINITY;
+            for (Double value : values.values()) {
+                if (value != null && value > best) {
+                    best = value;
+                }
+            }
+            return best == Double.NEGATIVE_INFINITY ? null : best;
+        }
+        return values.get(wanted.toLowerCase(Locale.ROOT));
     }
 
     /**

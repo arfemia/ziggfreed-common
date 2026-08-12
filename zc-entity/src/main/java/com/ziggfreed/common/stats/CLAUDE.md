@@ -8,7 +8,22 @@ beyond the Hytale server jar itself (see [`StatIndexCache`](StatIndexCache.java)
 it does NOT route through `util.AssetIndexCache`). All world-thread, try-guarded, static /
 config-free; `StackStats` and every pure decision core are unit-testable without a live server.
 
-- **[`StackStats`](StackStats.java)** - the ONE generic per-stack stat/enhancement record.
+**Where the files live.** `com.ziggfreed.common.stats` is a SPLIT package: `StackStats` (a pure
+item-metadata value record - codecs, an `ItemStack`, nothing else) sits in **zc-core** so any module
+can read or stamp a stack without pulling in the ECS trigger machinery; everything on this page that
+touches the entity store (`EquipStatBridge`, `StatMirror`, `StatChannelAudit`, `StatIndexCache`)
+stays in **zc-entity**. One package, one router, two modules.
+
+**`stats/` vs `counter/` - they never merge.** `stats/` is the native `EntityStatMap` bridging of
+ITEM-CARRIED stats: a value lives on a stack or an item asset, and this package turns it into a
+keyed native modifier on an entity. [`counter/`](../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/counter/CLAUDE.md) (zc-core) is arbitrary named TALLIES keyed by a
+`subject.Subject` id, with a persistence seam and no engine types at all. A "how many times has this
+player done X" number is a counter and belongs there even when it later feeds a stat; a "what does
+this sword add to Attack Damage" number is a stat and belongs here even when it happens to be an
+integer someone increments. If a new type wants both, it wants a counter that a consumer mirrors
+onto a channel through `StatMirror` - not a merged package.
+
+- **[`StackStats`](../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/stats/StackStats.java)** (in zc-core) - the ONE generic per-stack stat/enhancement record.
   Metadata blob key `"ZigStackStats"`. Codec fields `Entries` (`Map<String, Double>`: percent
   channels in WHOLE PERCENT POINTS, flat channels raw - the one numeric convention every
   reader/writer in this domain shares) and `StampCount` (`Integer`, enhancement-stamp counter).

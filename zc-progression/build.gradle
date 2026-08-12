@@ -1,0 +1,21 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// The consumer-agnostic PROGRESSION engines and the shared cores under them. `progress/` holds what
+// every lifecycle engine here shares (the registered objective vocabulary, the two match flavors,
+// the progress + objective model, the dispatch knobs); `quest/` holds the quest lifecycle built on
+// top (catalogue, status, gates, persistence seam, asset layer, outbound events). It carries no
+// content and no domain vocabulary of its own, so it needs nothing beyond the shared registry +
+// logging primitives in zc-core.
+//
+// REVERSE-EDGE TRAP: this module sits below zc-dialogue, so it may never import dialogue,
+// presentation, or world. A turn-in conversation, a results page, or a waypoint is a SEAM the
+// wiring root or the consumer fills, never an import. See the quest package router.
+//
+// The zc-loot edge is the reward VOCABULARY (`loot.reward`): what a reward is, who pays it out, and
+// the isolated payout pass are shared with every other engine that grants, so they live one module
+// down rather than being re-derived here. The edge only ever points this way.
+
+dependencies {
+    implementation project(':zc-core')
+    implementation project(':zc-loot')
+}

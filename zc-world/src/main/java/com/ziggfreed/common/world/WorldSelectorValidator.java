@@ -7,6 +7,8 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.validation.Finding;
+
 /**
  * Audits authored world selectors for the mistakes that fail SILENTLY at runtime - a selector
  * that names nothing, or that names something it can never match, produces no error anywhere; the
@@ -14,38 +16,20 @@ import javax.annotation.Nullable;
  *
  * <p>Two entry points, because there are two authoring surfaces: {@link #validate(WorldSelectorDef)}
  * for a {@link WorldSelectorAsset} file, and {@link #validateSelector} for a {@link WorldSelector}
- * group embedded in some other asset. Findings are neutral {@link Issue} values (the idiom
- * {@code dialogue/validate/DialogueStructureValidator} uses), so a consumer maps them into its own
- * reporting framework.
+ * group embedded in some other asset. Findings are shared {@link Finding} values, so a consumer maps
+ * them into its own reporting framework alongside every other validator's.
  */
 public final class WorldSelectorValidator {
 
-    public enum Severity { ERROR, WARNING }
-
-    /**
-     * One finding: a severity, a stable code, a human message, and the id of the asset (or the
-     * caller-supplied context label) it came from.
-     */
-    public record Issue(@Nonnull Severity severity, @Nonnull String code,
-                        @Nonnull String message, @Nonnull String sourceId) {
-
-        @Nonnull
-        public static Issue error(@Nonnull String code, @Nonnull String message, @Nonnull String sourceId) {
-            return new Issue(Severity.ERROR, code, message, sourceId);
-        }
-
-        @Nonnull
-        public static Issue warning(@Nonnull String code, @Nonnull String message, @Nonnull String sourceId) {
-            return new Issue(Severity.WARNING, code, message, sourceId);
-        }
-    }
+    /** The content family these findings belong to. */
+    public static final String DOMAIN = "worldselector";
 
     private WorldSelectorValidator() {
     }
 
     @Nonnull
-    public static List<Issue> validateAll(@Nonnull Collection<WorldSelectorDef> defs) {
-        List<Issue> out = new ArrayList<>();
+    public static List<Finding> validateAll(@Nonnull Collection<WorldSelectorDef> defs) {
+        List<Finding> out = new ArrayList<>();
         for (WorldSelectorDef def : defs) {
             if (def != null) {
                 validate(def, out);
@@ -55,20 +39,20 @@ public final class WorldSelectorValidator {
     }
 
     @Nonnull
-    public static List<Issue> validate(@Nonnull WorldSelectorDef def) {
-        List<Issue> out = new ArrayList<>();
+    public static List<Finding> validate(@Nonnull WorldSelectorDef def) {
+        List<Finding> out = new ArrayList<>();
         validate(def, out);
         return out;
     }
 
-    private static void validate(@Nonnull WorldSelectorDef def, @Nonnull List<Issue> out) {
+    private static void validate(@Nonnull WorldSelectorDef def, @Nonnull List<Finding> out) {
         String id = def.id();
 
         String[] raw = def.rawNames();
         if (raw != null) {
             for (String n : raw) {
                 if (n == null || n.isBlank()) {
-                    out.add(Issue.error("BLANK_NAME",
+                    out.add(Finding.error(DOMAIN, "BLANK_NAME",
                             "Names contains a blank entry - a blank name can never be referenced", id));
                     break;
                 }
@@ -76,14 +60,14 @@ public final class WorldSelectorValidator {
         }
 
         if (def.hasNoNames()) {
-            out.add(Issue.error("MISSING_NAMES",
+            out.add(Finding.error(DOMAIN, "MISSING_NAMES",
                     "Names is required: the name IS this file's contribution, and the asset id is a "
                             + "pure address that is never used as one", id));
             return;
         }
 
         if (def.matchesNothing()) {
-            out.add(Issue.warning("MATCHES_NOTHING",
+            out.add(Finding.warning(DOMAIN, "MATCHES_NOTHING",
                     "Names " + def.names() + " is contributed but no Match pattern or GameplayConfig "
                             + "value is authored, so no world can ever earn it", id));
         }
@@ -97,8 +81,8 @@ public final class WorldSelectorValidator {
      * the finding (typically the owning asset's id plus its field name).
      */
     @Nonnull
-    public static List<Issue> validateSelector(@Nullable WorldSelector selector, @Nonnull String contextId) {
-        List<Issue> out = new ArrayList<>();
+    public static List<Finding> validateSelector(@Nullable WorldSelector selector, @Nonnull String contextId) {
+        List<Finding> out = new ArrayList<>();
         if (selector == null) {
             return out;
         }
@@ -108,7 +92,7 @@ public final class WorldSelectorValidator {
                 && !isAllBlank(selector.getExcludeNames());
 
         if (noPositive && hasExcludes) {
-            out.add(Issue.error("EXCLUDE_ONLY",
+            out.add(Finding.error(DOMAIN, "EXCLUDE_ONLY",
                     "ExcludeNames is a filter over the positive axes, not a complement of them, so a "
                             + "selector with only ExcludeNames matches NOTHING - add Names, Match, or "
                             + "GameplayConfig to say which worlds it applies to first", contextId));
@@ -122,13 +106,13 @@ public final class WorldSelectorValidator {
     }
 
     private static void reportBlankPatterns(@Nullable String[] values, @Nonnull String field,
-            @Nonnull String sourceId, @Nonnull List<Issue> out) {
+            @Nonnull String sourceId, @Nonnull List<Finding> out) {
         if (values == null) {
             return;
         }
         for (String v : values) {
             if (v == null || v.isBlank()) {
-                out.add(Issue.warning("BLANK_ENTRY",
+                out.add(Finding.warning(DOMAIN, "BLANK_ENTRY",
                         field + " contains a blank entry, which is ignored", sourceId));
                 return;
             }

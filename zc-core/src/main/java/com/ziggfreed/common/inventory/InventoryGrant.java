@@ -48,6 +48,59 @@ public final class InventoryGrant {
     public enum Landed { HOTBAR, STORAGE, FALLBACK }
 
     /**
+     * Would {@link #grant} put {@code stack} in an inventory section right now, WITHOUT putting
+     * anything anywhere? The question to ask before charging a price, spending a completion, or
+     * telling a player their reward is ready: a grant that reaches the fallback is a reward the
+     * player did not receive, and a probe first is how a caller avoids paying for that.
+     *
+     * <p>Answers false when it cannot tell (no inventory, an invalid reference, an engine throw),
+     * because the useful failure here is "we did not hand it over" rather than "we handed it
+     * somewhere and lost track".
+     */
+    public static boolean canAdd(@Nonnull Player player, @Nonnull ItemStack stack) {
+        return canAddAll(player, List.of(stack));
+    }
+
+    /**
+     * Would ALL of {@code stacks} land, given together? Empty answers true.
+     *
+     * <p>A batch is checked against backpack STORAGE alone, while a lone stack also gets the
+     * hotbar. That is not an oversight: the hotbar is a per-stack placement decision {@link #grant}
+     * makes one stack at a time, so no single container answers "do these five fit between the
+     * two of them". Storage is where every stack ends up when the hotbar is full, so a batch that
+     * fits there fits full stop - the answer can only ever UNDER-promise, which is the safe
+     * direction for a caller about to charge somebody.
+     *
+     * <p><b>Pair a probe with its own granter.</b> This one mirrors {@link #grant}; {@code
+     * InventoryUtil.canFit} mirrors {@code InventoryUtil.give} across the combined view. Reading
+     * one and then calling the other is how a "checked" grant still lands somewhere nobody
+     * expected.
+     */
+    public static boolean canAddAll(@Nonnull Player player, @Nonnull List<ItemStack> stacks) {
+        if (stacks.isEmpty()) {
+            return true;
+        }
+        try {
+            ItemContainer storage = storageOf(player);
+            if (storage != null && storage.canAddItemStacks(stacks)) {
+                return true;
+            }
+        } catch (Throwable t) {
+            warn("canAdd/storage", label(stacks), t);
+        }
+        if (stacks.size() != 1) {
+            return false;
+        }
+        try {
+            ItemContainer hotbar = hotbarOf(player);
+            return hotbar != null && hotbar.canAddItemStacks(stacks);
+        } catch (Throwable t) {
+            warn("canAdd/hotbar", label(stacks), t);
+            return false;
+        }
+    }
+
+    /**
      * Hotbar-first (only when the WHOLE stack fits), then backpack storage, then {@code
      * fallback} (invoked with {@code stack} unchanged - the caller decides what "no room
      * anywhere" means). Never throws.
@@ -62,7 +115,7 @@ public final class InventoryGrant {
                 return Landed.HOTBAR;
             }
         } catch (Throwable t) {
-            warn("grant/hotbar", stack, t);
+            warn("grant/hotbar", stack.getItemId(), t);
         }
         try {
             ItemContainer storage = storageOf(player);
@@ -71,7 +124,7 @@ public final class InventoryGrant {
                 return Landed.STORAGE;
             }
         } catch (Throwable t) {
-            warn("grant/storage", stack, t);
+            warn("grant/storage", stack.getItemId(), t);
         }
         fallback.accept(stack);
         return Landed.FALLBACK;
@@ -105,10 +158,15 @@ public final class InventoryGrant {
         return (ref != null && ref.isValid()) ? ref : null;
     }
 
-    private static void warn(@Nonnull String op, @Nonnull ItemStack stack, @Nonnull Throwable t) {
+    @Nonnull
+    private static String label(@Nonnull List<ItemStack> stacks) {
+        return stacks.size() == 1 ? stacks.get(0).getItemId() : stacks.size() + " stacks";
+    }
+
+    private static void warn(@Nonnull String op, @Nonnull String what, @Nonnull Throwable t) {
         try {
             CommonLog.LOGGER.atFine().log(
-                    "[ZiggfreedCommon] InventoryGrant." + op + "(" + stack.getItemId() + ") failed: " + t.getMessage());
+                    "[ZiggfreedCommon] InventoryGrant." + op + "(" + what + ") failed: " + t.getMessage());
         } catch (Throwable ignored) {
             // a log-manager-less unit JVM must not crash on the logging facade itself
         }

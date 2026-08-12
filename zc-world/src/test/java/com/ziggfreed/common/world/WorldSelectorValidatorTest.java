@@ -7,8 +7,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.ziggfreed.common.world.WorldSelectorValidator.Issue;
-import com.ziggfreed.common.world.WorldSelectorValidator.Severity;
+import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.validation.Severity;
 
 /**
  * The findings that exist because these mistakes are SILENT at runtime: content bound to a
@@ -16,13 +16,13 @@ import com.ziggfreed.common.world.WorldSelectorValidator.Severity;
  */
 class WorldSelectorValidatorTest {
 
-    private static boolean hasCode(List<Issue> issues, String code) {
+    private static boolean hasCode(List<Finding> issues, String code) {
         return issues.stream().anyMatch(i -> i.code().equals(code));
     }
 
     @Test
     void missingNamesIsAnError() {
-        List<Issue> issues = WorldSelectorValidator.validate(
+        List<Finding> issues = WorldSelectorValidator.validate(
                 new WorldSelectorDef("zc_primary", null, new String[]{"default"}, null));
 
         assertTrue(hasCode(issues, "MISSING_NAMES"));
@@ -38,7 +38,7 @@ class WorldSelectorValidatorTest {
 
     @Test
     void aBlankNameEntryIsAnError() {
-        List<Issue> issues = WorldSelectorValidator.validate(
+        List<Finding> issues = WorldSelectorValidator.validate(
                 new WorldSelectorDef("zc_primary", new String[]{"primary", "  "},
                         new String[]{"default"}, null));
 
@@ -47,7 +47,7 @@ class WorldSelectorValidatorTest {
 
     @Test
     void namesWithNoPatternMatchesNothing() {
-        List<Issue> issues = WorldSelectorValidator.validate(
+        List<Finding> issues = WorldSelectorValidator.validate(
                 new WorldSelectorDef("mmo_temple", new String[]{"forgotten_temple"}, null, null));
 
         assertTrue(hasCode(issues, "MATCHES_NOTHING"));
@@ -63,7 +63,7 @@ class WorldSelectorValidatorTest {
 
     @Test
     void anExcludeOnlySelectorIsAnError() {
-        List<Issue> issues = WorldSelectorValidator.validateSelector(
+        List<Finding> issues = WorldSelectorValidator.validateSelector(
                 WorldSelector.of(null, null, null, new String[]{"instance"}), "mmo_hub.Where");
 
         assertTrue(hasCode(issues, "EXCLUDE_ONLY"),

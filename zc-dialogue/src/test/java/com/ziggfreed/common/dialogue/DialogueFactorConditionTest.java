@@ -7,9 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.dialogue.validate.DialogueStructureValidator;
+import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.factor.FactorRegistry;
 
 /**
@@ -21,6 +23,12 @@ import com.ziggfreed.common.factor.FactorRegistry;
  * server sees when the vocabulary's owning mod simply is not installed.
  */
 class DialogueFactorConditionTest {
+
+    /** The decode vocabulary is process-wide; start every test from a clean one. */
+    @BeforeEach
+    void resetDialogueTypes() {
+        DialogueTestSupport.reset();
+    }
 
     private static DialogueEngine engine(FactorRegistry factors) {
         return DialogueEngine.builder().warn(m -> { }).factors(factors).build();
@@ -141,7 +149,7 @@ class DialogueFactorConditionTest {
                 "{\"Type\":\"AllOf\",\"All\":[{\"Type\":\"Factor\",\"Factor\":\"yourmod:reputaton\"}]}");
 
         List<String> codes = DialogueStructureValidator.validateAll(List.of(d), null, factors)
-                .stream().map(DialogueStructureValidator.Issue::code).toList();
+                .stream().map(Finding::code).toList();
 
         assertTrue(codes.contains("FACTOR_CONDITION_UNKNOWN_FACTOR"), codes.toString());
     }
@@ -171,7 +179,7 @@ class DialogueFactorConditionTest {
         NpcDialogue d = gated(engine, "{\"Type\":\"Factor\",\"Min\":1}");
 
         List<String> codes = DialogueStructureValidator.validate(d, null, factors)
-                .stream().map(DialogueStructureValidator.Issue::code).toList();
+                .stream().map(Finding::code).toList();
 
         assertTrue(codes.contains("FACTOR_CONDITION_NO_ID"), codes.toString());
     }

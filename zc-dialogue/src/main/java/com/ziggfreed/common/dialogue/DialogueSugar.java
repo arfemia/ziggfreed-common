@@ -4,229 +4,182 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.hypixel.hytale.codec.Codec;
 
 /**
- * The option-level sugar pass: a pre-codec Gson rewrite that turns each registered
- * {@link DialogueSugarExpander}'s flat key into canonical {@code Actions}, then
- * strips the consumed keys, so the codec / validator / executor only ever see
- * canonical {@code Actions}. The DRIVER (per-node, per-option iteration, the
- * {@code Do} escape hatch, the bare-key ordering, the strip) is generic; the TABLE
- * of keys is the registered expander set, so a consumer adds a sugar key with its
- * action.
+ * The option-level sugar FOLD: turns the decoded {@link DialogueSugarValues} on an option into the
+ * canonical {@link DialogueAction} list, appended after whatever the option authored under
+ * {@code Actions}.
  *
- * <p>Bare keys (no {@code Do}) expand in {@link DialogueSugarExpander#order()};
- * {@code Do} is the explicit-order escape hatch (atoms desugared in array order,
- * keys within an atom in authored order). Pure, idempotent, null-safe.
+ * <p>It is a fold over decoded data, NOT a rewrite of raw JSON. Each registered
+ * {@link DialogueSugarLeaf} owns a real keyed field on the option codec, so by the time this runs
+ * the values are typed and an authoring mistake has already been reported by the codec that
+ * expected something else. The DRIVER here (bare-key ordering, the {@code Do} escape hatch) is
+ * generic; the TABLE of keys is whatever the consumers registered, which is how a consumer adds a
+ * shorthand together with its action.
  *
- * <p>Built by {@link DialogueEngine} from the registered action types' sugar.
+ * <p><b>{@code Do} wins outright.</b> An option that authors a {@code Do} array folds only the
+ * atoms, in array order, and its bare sugar keys are left alone - the array IS the author saying
+ * "run these, in this order". Within one atom the leaves fold in {@link DialogueSugarLeaf#order()},
+ * so an atom carrying two shorthands still has a defined order rather than a JSON-key-order one.
+ *
+ * <p>Built by {@link DialogueTypeTable} from the registered action types' leaves.
  */
 public final class DialogueSugar {
 
-    private final Map<String, DialogueSugarExpander> byKey;
-    private final List<DialogueSugarExpander> bareOrdered;
-    private final Set<String> stripKeys;
+    private final List<DialogueSugarLeaf<?>> ordered;
 
-    DialogueSugar(@Nonnull Collection<DialogueSugarExpander> expanders) {
-        Map<String, DialogueSugarExpander> m = new LinkedHashMap<>();
-        Set<String> strip = new LinkedHashSet<>();
-        for (DialogueSugarExpander e : expanders) {
-            m.put(e.key(), e);
-            strip.addAll(e.consumedKeys());
+    DialogueSugar(@Nonnull Collection<DialogueSugarLeaf<?>> leaves) {
+        Map<String, DialogueSugarLeaf<?>> keyed = new LinkedHashMap<>();
+        for (DialogueSugarLeaf<?> leaf : leaves) {
+            keyed.putIfAbsent(leaf.key(), leaf);
         }
-        strip.add("Do");
-        this.byKey = m;
-        List<DialogueSugarExpander> ordered = new ArrayList<>(expanders);
-        ordered.sort(Comparator.comparingInt(DialogueSugarExpander::order));
-        this.bareOrdered = ordered;
-        this.stripKeys = strip;
+        List<DialogueSugarLeaf<?>> sorted = new ArrayList<>(keyed.values());
+        sorted.sort(Comparator.comparingInt(DialogueSugarLeaf::order));
+        this.ordered = List.copyOf(sorted);
+    }
+
+    /** Every registered leaf, in fold order (the codec assembler walks this to build its fields). */
+    @Nonnull
+    public List<DialogueSugarLeaf<?>> leaves() {
+        return ordered;
     }
 
     /**
-     * Rewrite all option-level sugar in {@code dialogueBody} into canonical {@code Actions}, and
-     * normalize every {@code Once} shorthand into its group form, in place.
+     * The option's effective action list: everything it authored under {@code Actions}, then the
+     * actions its shorthand stands for.
+     *
+     * @param authored the option's own {@code Actions}, or null
+     * @param own      the sugar values authored directly on the option, or null
+     * @param atoms    the option's {@code Do} atoms, or null; a non-empty array replaces {@code own}
      */
-    public void desugar(@Nonnull JsonObject dialogueBody) {
-        if (dialogueBody.has("Start") && dialogueBody.get("Start").isJsonArray()) {
-            for (JsonElement entryEl : dialogueBody.getAsJsonArray("Start")) {
-                if (entryEl.isJsonObject()) {
-                    normalizeOnce(entryEl.getAsJsonObject());
+    @Nonnull
+    List<DialogueAction> fold(@Nullable DialogueAction[] authored, @Nullable DialogueSugarValues own,
+                              @Nullable DialogueSugarValues[] atoms) {
+        List<DialogueAction> out = new ArrayList<>();
+        if (authored != null) {
+            for (DialogueAction action : authored) {
+                if (action != null) {
+                    out.add(action);
                 }
             }
         }
-        if (!dialogueBody.has("Nodes") || !dialogueBody.get("Nodes").isJsonObject()) {
-            return;
+        if (atoms != null && atoms.length > 0) {
+            for (DialogueSugarValues atom : atoms) {
+                if (atom != null) {
+                    // Only MODIFIERS reach past the atom to the option around it; a shorthand written
+                    // bare beside a Do array stays shadowed, which is what makes Do the whole story.
+                    atom.fallbackTo(own);
+                    foldOne(atom, out);
+                }
+            }
+        } else if (own != null) {
+            foldOne(own, out);
         }
-        JsonObject nodes = dialogueBody.getAsJsonObject("Nodes");
-        for (Map.Entry<String, JsonElement> nodeEntry : nodes.entrySet()) {
-            JsonElement nodeEl = nodeEntry.getValue();
-            if (!nodeEl.isJsonObject()) {
+        return List.copyOf(out);
+    }
+
+    private void foldOne(@Nonnull DialogueSugarValues values, @Nonnull List<DialogueAction> out) {
+        for (DialogueSugarLeaf<?> leaf : ordered) {
+            Object value = values.own(leaf.key());
+            if (value == null) {
                 continue;
             }
-            JsonObject node = nodeEl.getAsJsonObject();
-            if (!node.has("Options") || !node.get("Options").isJsonArray()) {
-                continue;
+            DialogueAction action = build(leaf, value, values);
+            if (action != null) {
+                out.add(action);
             }
-            for (JsonElement optEl : node.getAsJsonArray("Options")) {
-                if (optEl.isJsonObject()) {
-                    desugarOption(optEl.getAsJsonObject());
-                }
-            }
-        }
-    }
-
-    private void desugarOption(@Nonnull JsonObject option) {
-        // The option's own Once is an ENGINE field, not sugar: normalize it up front and put it
-        // back after the strip, so a registered expander that treats "Once" as its own modifier
-        // (a reward's inner once-guard, say) cannot consume the option-level knob with it.
-        normalizeOnce(option);
-        JsonElement optionOnce = option.get("Once");
-
-        JsonArray actions = option.has("Actions") && option.get("Actions").isJsonArray()
-                ? option.getAsJsonArray("Actions") : new JsonArray();
-
-        if (option.has("Do") && option.get("Do").isJsonArray()) {
-            // Explicit-order escape hatch: each atom desugared in array order; keys
-            // within an atom in authored order. A key with no expander (a sibling
-            // modifier like Once) is skipped here and consumed by its primary.
-            for (JsonElement atomEl : option.getAsJsonArray("Do")) {
-                if (!atomEl.isJsonObject()) {
-                    continue;
-                }
-                JsonObject atom = atomEl.getAsJsonObject();
-                for (String key : new ArrayList<>(atom.keySet())) {
-                    DialogueSugarExpander e = byKey.get(key);
-                    if (e != null) {
-                        e.expand(atom.get(key), atom, actions);
-                    }
-                }
-            }
-        } else {
-            for (DialogueSugarExpander e : bareOrdered) {
-                if (option.has(e.key())) {
-                    e.expand(option.get(e.key()), option, actions);
-                }
-            }
-        }
-
-        if (!actions.isEmpty()) {
-            option.add("Actions", actions);
-        }
-        for (String key : stripKeys) {
-            option.remove(key);
-        }
-        if (optionOnce != null) {
-            option.add("Once", optionOnce);
         }
     }
 
     /**
-     * Normalize the {@code Once} shorthand on an entry or option, in place: {@code true} becomes
-     * the empty group {@code {}} (once per character), an already-authored group is left alone,
-     * and any other value (notably {@code false}) removes the key. Pure + idempotent, so a body
-     * that has already been through the pass decodes identically.
+     * The one unchecked hop: the table stores leaves heterogeneously, and the value under a leaf's
+     * key was decoded by that same leaf's codec, so the cast is sound by construction.
      */
-    static void normalizeOnce(@Nonnull JsonObject owner) {
-        JsonElement value = owner.get("Once");
-        if (value == null || value.isJsonObject()) {
-            return;
-        }
-        if (asBool(value, false)) {
-            owner.add("Once", new JsonObject());
-        } else {
-            owner.remove("Once");
-        }
-    }
-
-    // ==================== reusable expander factories ====================
-
-    /**
-     * A string-valued sugar key that expands to {@code {"Type":type,"<field>":value}}
-     * (the common shape: {@code Goto->Node}, {@code Open->Target},
-     * {@code Accept->Quest}). No-op when the value is not a string.
-     */
-    @Nonnull
-    public static DialogueSugarExpander string(@Nonnull String key, int order,
-                                               @Nonnull String field, @Nonnull String type) {
-        return new DialogueSugarExpander() {
-            @Override public String key() { return key; }
-            @Override public int order() { return order; }
-            @Override public void expand(JsonElement value, JsonObject option, JsonArray out) {
-                String v = asString(value);
-                if (v != null) {
-                    out.add(action(type, field, v));
-                }
-            }
-        };
-    }
-
-    /**
-     * The {@code Talk} sugar key: an optional string value becomes a
-     * {@code {"Type":"Talk"(,"Target":value)}} carrier (a non-empty string sets the
-     * target). A bare {@code "Talk": ""} or {@code "Talk": true} still emits a
-     * targetless Talk.
-     */
-    @Nonnull
-    public static DialogueSugarExpander talk(@Nonnull String key, int order) {
-        return new DialogueSugarExpander() {
-            @Override public String key() { return key; }
-            @Override public int order() { return order; }
-            @Override public void expand(JsonElement value, JsonObject option, JsonArray out) {
-                JsonObject talk = new JsonObject();
-                talk.addProperty("Type", "Talk");
-                String target = asString(value);
-                if (target != null && !target.isEmpty()) {
-                    talk.addProperty("Target", target);
-                }
-                out.add(talk);
-            }
-        };
-    }
-
-    /** The {@code Close} sugar key: a boolean {@code true} emits {@code {"Type":"Close"}}. */
-    @Nonnull
-    public static DialogueSugarExpander close(@Nonnull String key, int order) {
-        return new DialogueSugarExpander() {
-            @Override public String key() { return key; }
-            @Override public int order() { return order; }
-            @Override public void expand(JsonElement value, JsonObject option, JsonArray out) {
-                if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean() && value.getAsBoolean()) {
-                    JsonObject close = new JsonObject();
-                    close.addProperty("Type", "Close");
-                    out.add(close);
-                }
-            }
-        };
-    }
-
-    /** Build a {@code {"Type":...,"<field>":<value>}} action object. */
-    @Nonnull
-    public static JsonObject action(@Nonnull String type, @Nonnull String field, @Nonnull String value) {
-        JsonObject obj = new JsonObject();
-        obj.addProperty("Type", type);
-        obj.addProperty(field, value);
-        return obj;
-    }
-
-    /** The element as a non-null string when it is a string primitive, else null. */
+    @SuppressWarnings("unchecked")
     @Nullable
-    public static String asString(@Nonnull JsonElement el) {
-        return el.isJsonPrimitive() && el.getAsJsonPrimitive().isString() ? el.getAsString() : null;
+    private static DialogueAction build(@Nonnull DialogueSugarLeaf<?> leaf, @Nonnull Object value,
+                                        @Nonnull DialogueSugarValues values) {
+        return ((DialogueSugarLeaf<Object>) leaf).toAction(value, values);
     }
 
-    /** The element as a boolean, or {@code fallback} when absent / not a boolean. */
-    public static boolean asBool(@Nullable JsonElement el, boolean fallback) {
-        return el != null && el.isJsonPrimitive() && el.getAsJsonPrimitive().isBoolean()
-                ? el.getAsBoolean() : fallback;
+    // ==================== reusable leaf factories ====================
+
+    /**
+     * A string-valued shorthand ({@code "Goto": "next"}, {@code "Accept": "intro"}) whose value maps
+     * straight to one action. The factory may return null to emit nothing (e.g. a blank id).
+     */
+    @Nonnull
+    public static DialogueSugarLeaf<String> string(@Nonnull String key, int order,
+                                                   @Nonnull Function<String, DialogueAction> factory) {
+        return new DialogueSugarLeaf<>(key, order, Codec.STRING) {
+            @Override
+            @Nullable
+            public DialogueAction toAction(@Nonnull String value, @Nonnull DialogueSugarValues values) {
+                return factory.apply(value);
+            }
+        };
+    }
+
+    /**
+     * A boolean-valued shorthand ({@code "Close": true}) that emits its action only when true, so
+     * authoring {@code false} reads as "not this one" rather than as an error.
+     */
+    @Nonnull
+    public static DialogueSugarLeaf<Boolean> flag(@Nonnull String key, int order,
+                                                  @Nonnull Supplier<DialogueAction> factory) {
+        return new DialogueSugarLeaf<>(key, order, Codec.BOOLEAN) {
+            @Override
+            @Nullable
+            public DialogueAction toAction(@Nonnull Boolean value, @Nonnull DialogueSugarValues values) {
+                return value ? factory.get() : null;
+            }
+        };
+    }
+
+    /**
+     * A shorthand with its own value shape, and optionally its own MODIFIER keys - the general form
+     * the two convenience factories above are special cases of.
+     */
+    @Nonnull
+    public static <V> DialogueSugarLeaf<V> of(@Nonnull String key, int order, @Nonnull Codec<V> codec,
+                                              @Nonnull Map<String, Codec<?>> modifiers,
+                                              @Nonnull BiFunction<V, DialogueSugarValues, DialogueAction> factory) {
+        Map<String, Codec<?>> declared = Map.copyOf(modifiers);
+        return new DialogueSugarLeaf<>(key, order, codec) {
+            @Override
+            @Nonnull
+            public Map<String, Codec<?>> modifiers() {
+                return declared;
+            }
+
+            @Override
+            @Nullable
+            public DialogueAction toAction(@Nonnull V value, @Nonnull DialogueSugarValues values) {
+                return factory.apply(value, values);
+            }
+        };
+    }
+
+    /** {@link #of(String, int, Codec, Map, BiFunction)} with no modifier keys. */
+    @Nonnull
+    public static <V> DialogueSugarLeaf<V> of(@Nonnull String key, int order, @Nonnull Codec<V> codec,
+                                              @Nonnull BiFunction<V, DialogueSugarValues, DialogueAction> factory) {
+        return of(key, order, codec, Map.of(), factory);
+    }
+
+    /** The {@code Close} shorthand: {@code true} ends the conversation. */
+    @Nonnull
+    public static DialogueSugarLeaf<Boolean> close(@Nonnull String key, int order) {
+        return flag(key, order, DialogueAction.Close::new);
     }
 }

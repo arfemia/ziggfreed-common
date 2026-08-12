@@ -14,6 +14,7 @@ import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.codec.Vec3;
+import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.util.SplitMix64;
 
@@ -32,9 +33,12 @@ import com.ziggfreed.common.util.SplitMix64;
  * server owner cares about is how many of this NPC are in their world, not how many came from a
  * particular anchor.
  *
- * <p>{@code SpawnChance} is a DETERMINISTIC roll over {@code (world seed, placement id, anchor
- * key)}. Never a plain random: the same instance must make the same decision on every reload, or a
- * chunk reload re-rolls the world's population every time a player walks past.
+ * <p>The spawn chance is a DETERMINISTIC roll over {@code (world seed, placement id, anchor key)}.
+ * Never a plain random: the same instance must make the same decision on every reload, or a chunk
+ * reload re-rolls the world's population every time a player walks past. The chance VALUE it rolls
+ * against comes from {@code Limits.ChanceFormula} when one is authored and from
+ * {@code Limits.SpawnChance} otherwise (see {@link #resolveChance}); the roll itself is the same
+ * either way.
  *
  * <p>The pure helpers here take plain values and are unit-testable; only {@link #resolve} needs a
  * live world.
@@ -79,10 +83,48 @@ public final class PlacementAnchors {
 
         NpcPlacementAsset.Limits limits = placement.getLimits();
         boolean once = limits != null && limits.effectiveOncePerWorld();
-        double chance = limits == null ? 1.0 : limits.effectiveSpawnChance();
+        double chance = resolveChance(placement, world, store);
 
         List<AnchorPosition> collapsed = collapse(union, once);
         return applyChance(collapsed, worldSeed(world), placementId, chance);
+    }
+
+    /**
+     * The chance each resolved position of {@code placement} is kept with: the authored
+     * {@code Limits.ChanceFormula} when it says anything, else the plain
+     * {@code Limits.SpawnChance}, else 1.
+     *
+     * <p>The formula is evaluated ONCE per call, against a context carrying the world, the store
+     * and the placement id as its payload, and with NO subject entity - a placement is decided
+     * before anything stands at the spot to ask about, so a factor that needs a subject cannot
+     * answer and contributes 0, exactly as it would in any other formula. Only the chance VALUE
+     * comes from here; the keep-or-skip roll itself stays the deterministic per-position one.
+     *
+     * <p>Guarded and side-effect free, so a throwing factor provider falls back to the authored
+     * number rather than emptying the world.
+     */
+    public static double resolveChance(@Nonnull NpcPlacementAsset placement, @Nullable World world,
+            @Nullable Store<EntityStore> store) {
+        NpcPlacementAsset.Limits limits = placement.getLimits();
+        if (limits == null) {
+            return 1.0;
+        }
+        if (limits.hasChanceFormula()) {
+            try {
+                FactorContext ctx = FactorContext.builder()
+                        .payload(placement.getId() == null ? "" : placement.getId())
+                        .world(world)
+                        .store(store)
+                        .build();
+                double value = limits.getChanceFormula().evaluate(PlacementFactorRegistry.registry(), ctx);
+                if (Double.isFinite(value)) {
+                    return value;
+                }
+            } catch (Throwable t) {
+                SafeLog.fine("[placement] chance formula failed for '" + placement.getId() + "': " + t.getMessage());
+            }
+        }
+        return limits.effectiveSpawnChance();
     }
 
     private static void addWorldSpawn(@Nonnull List<AnchorPosition> out, @Nonnull World world,

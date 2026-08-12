@@ -28,7 +28,7 @@ public enum SortMode {
             case BEST_SCORE -> Comparator.comparingLong(
                     (Map.Entry<UUID, LeaderboardEntry> e) -> e.getValue().bestScore).reversed();
             case TOTAL_POINTS -> Comparator.comparingLong(
-                    (Map.Entry<UUID, LeaderboardEntry> e) -> e.getValue().totalPoints).reversed();
+                    (Map.Entry<UUID, LeaderboardEntry> e) -> e.getValue().totalPoints()).reversed();
             case BEST_TIME -> Comparator.comparingLong(
                     (Map.Entry<UUID, LeaderboardEntry> e) -> timeKey(e.getValue().bestTimeSeconds));
         };
@@ -43,7 +43,7 @@ public enum SortMode {
     public long metric(@Nonnull LeaderboardEntry e) {
         return switch (this) {
             case BEST_SCORE -> e.bestScore;
-            case TOTAL_POINTS -> e.totalPoints;
+            case TOTAL_POINTS -> e.totalPoints();
             case BEST_TIME -> e.bestTimeSeconds;
         };
     }
@@ -71,7 +71,7 @@ public enum SortMode {
             return e.plays;
         }
         if ("total".equals(key)) {
-            return e.totalPoints;
+            return e.totalPoints();
         }
         return e.stat(key);
     }

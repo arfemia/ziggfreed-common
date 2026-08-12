@@ -15,9 +15,11 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**
@@ -33,7 +35,7 @@ import com.ziggfreed.common.world.WorldSelector;
  * <p>Authored shape (every group optional):
  * <pre>{@code
  * { "Enabled": true,
- *   "Identity": { "BaseRole": "Zc_Placement_Npc", "Appearance": "Human_Male_01",
+ *   "Identity": { "BaseRole": "Template_MyMod_Guide", "Appearance": { "Model": "Human_Male_01" },
  *                 "NameKey": "npc.guide.name", "HintKey": "npc.guide.hint" },
  *   "Where":    { "Names": ["primary"] },
  *   "Anchor":   { "WorldSpawn": { "Offset": {"X": 2.5}, "Yaw": 180 } },
@@ -47,8 +49,12 @@ import com.ziggfreed.common.world.WorldSelector;
  * <p><b>The groups, and why each is where it is.</b>
  * <ul>
  *   <li><b>{@link Identity}</b> - who stands there. An {@code Appearance} with no explicit
- *       {@code Role} generates a per-placement NPC role from {@code BaseRole} (see
- *       {@link NpcRoleGenerator}), so a pack ships no role JSON of its own.</li>
+ *       {@code Role} generates a per-placement NPC role as a tiny variant of the template role
+ *       {@code BaseRole} names (see {@link NpcRoleGenerator}), so a pack ships no role JSON of its
+ *       own; an {@link AppearanceSpec} naming a {@code Base} to clone generates a per-placement
+ *       MODEL beside it, so a pack ships no model JSON either. {@code NpcId} and {@code Aliases}
+ *       are what CONTENT calls this character - a quest's giver, a hand-in target, a talk
+ *       objective - and both are optional: unauthored, the placement answers to its own id.</li>
  *   <li><b>{@code Where}</b> - a {@link WorldSelector}, the shared world-identity vocabulary.
  *       The selector carries no default of its own; THIS read site treats a null or empty
  *       {@code Where} as {@code Names: ["primary"]}, i.e. the ordinary persistent world.</li>
@@ -111,7 +117,8 @@ public final class NpcPlacementAsset
             .add()
             .appendInherited(new KeyedCodec<>("Identity", Identity.CODEC, false),
                     (a, v) -> a.identity = v, a -> a.identity, (a, p) -> a.identity = p.identity)
-            .documentation("Who stands here: the NPC role, or an appearance plus a base role to generate one from.")
+            .documentation("Who stands here: the NPC role, or an appearance plus the template role to generate a "
+                    + "variant of.")
             .add()
             .appendInherited(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
                     (a, v) -> a.where = v, a -> a.where, (a, p) -> a.where = p.where)
@@ -214,9 +221,11 @@ public final class NpcPlacementAsset
 
         @Nullable protected String role;
         @Nullable protected String baseRole;
-        @Nullable protected String appearance;
+        @Nullable protected AppearanceSpec appearance;
         @Nullable protected String nameKey;
         @Nullable protected String hintKey;
+        @Nullable protected String npcId;
+        @Nullable protected String[] aliases;
 
         public static final BuilderCodec<Identity> CODEC = BuilderCodec.builder(Identity.class, Identity::new)
                 .appendInherited(new KeyedCodec<>("Role", Codec.STRING, false),
@@ -224,32 +233,59 @@ public final class NpcPlacementAsset
                 .documentation("An existing NPC role id to place as-is. Author this when you ship your own role JSON.").add()
                 .appendInherited(new KeyedCodec<>("BaseRole", Codec.STRING, false),
                         (o, v) -> o.baseRole = v, o -> o.baseRole, (o, p) -> o.baseRole = p.baseRole)
-                .documentation("The role to CLONE when generating a per-placement role from Appearance/NameKey/HintKey. "
-                        + "Ignored when Role is authored.").add()
-                .appendInherited(new KeyedCodec<>("Appearance", Codec.STRING, false),
+                .documentation("The id of a parameterized TEMPLATE role, shipped in any pack, that the generated "
+                        + "per-placement role is a variant of. The template supplies all the behaviour and must "
+                        + "declare the keys this placement overrides (Appearance, NameTranslationKey, Hint, Weapons, "
+                        + "OffHand, DefaultOffHandSlot, Armor) in its own Parameters block. Ignored when Role is "
+                        + "authored.").add()
+                .appendInherited(new KeyedCodec<>("Appearance", AppearanceSpec.CODEC, false),
                         (o, v) -> o.appearance = v, o -> o.appearance, (o, p) -> o.appearance = p.appearance)
-                .documentation("The character appearance for a generated role. Authoring this without a Role is what "
-                        + "opts the placement into role generation.").add()
+                .documentation("How the NPC looks: a Model asset to use as-is, or one to clone and re-dress, plus "
+                        + "what it wears and holds. Authoring this without a Role is what opts the placement into "
+                        + "role generation.").add()
                 .appendInherited(new KeyedCodec<>("NameKey", Codec.STRING, false),
                         (o, v) -> o.nameKey = v, o -> o.nameKey, (o, p) -> o.nameKey = p.nameKey)
                 .documentation("Localization key for the nameplate on a generated role.").add()
                 .appendInherited(new KeyedCodec<>("HintKey", Codec.STRING, false),
                         (o, v) -> o.hintKey = v, o -> o.hintKey, (o, p) -> o.hintKey = p.hintKey)
                 .documentation("Localization key for the press-F prompt on a generated role.").add()
+                .appendInherited(new KeyedCodec<>("NpcId", Codec.STRING, false),
+                        (o, v) -> o.npcId = v, o -> o.npcId, (o, p) -> o.npcId = p.npcId)
+                .documentation("The character id content binds to: a quest's giver, a hand-in target, a talk "
+                        + "objective's target, and the waypoint marked for it. Unauthored, the placement id "
+                        + "itself is used, so an ordinary placement needs no line here at all. Two placements "
+                        + "of the same character in different worlds may carry different ids, which is how a "
+                        + "quest step is scoped to one of them.").add()
+                .appendInherited(new KeyedCodec<>("Aliases", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.aliases = v, o -> o.aliases, (o, p) -> o.aliases = p.aliases)
+                .documentation("Further ids this placement also ANSWERS to, one per entry, for the same "
+                        + "character standing somewhere else. The primary is what the placement IS; an alias "
+                        + "is only what it responds to, and aliases go one way. Authoring this replaces the "
+                        + "parent's whole list rather than adding to it.").add()
                 .build();
 
         public Identity() {
         }
 
         @Nonnull
-        public static Identity of(@Nullable String role, @Nullable String baseRole, @Nullable String appearance,
-                @Nullable String nameKey, @Nullable String hintKey) {
+        public static Identity of(@Nullable String role, @Nullable String baseRole,
+                @Nullable AppearanceSpec appearance, @Nullable String nameKey, @Nullable String hintKey) {
+            return of(role, baseRole, appearance, nameKey, hintKey, null, null);
+        }
+
+        /** As {@link #of(String, String, AppearanceSpec, String, String)}, with the character id it answers as. */
+        @Nonnull
+        public static Identity of(@Nullable String role, @Nullable String baseRole,
+                @Nullable AppearanceSpec appearance, @Nullable String nameKey, @Nullable String hintKey,
+                @Nullable String npcId, @Nullable String[] aliases) {
             Identity i = new Identity();
             i.role = role;
             i.baseRole = baseRole;
             i.appearance = appearance;
             i.nameKey = nameKey;
             i.hintKey = hintKey;
+            i.npcId = npcId;
+            i.aliases = aliases == null ? null : aliases.clone();
             return i;
         }
 
@@ -264,7 +300,7 @@ public final class NpcPlacementAsset
         }
 
         @Nullable
-        public String getAppearance() {
+        public AppearanceSpec getAppearance() {
             return appearance;
         }
 
@@ -279,11 +315,34 @@ public final class NpcPlacementAsset
         }
 
         /**
+         * The character id this placement IS, or null when it authors none - in which case the
+         * placement id itself is the identity (see {@code npc/NpcIdentities}).
+         */
+        @Nullable
+        public String getNpcId() {
+            return npcId;
+        }
+
+        /** The further ids this placement also answers to, or null when it lists none. */
+        @Nullable
+        public String[] getAliases() {
+            return aliases == null ? null : aliases.clone();
+        }
+
+        /**
          * True when this identity wants a generated role: an {@code Appearance} is authored and no
          * explicit {@code Role} takes precedence over it.
          */
         public boolean usesGeneratedRole() {
             return (role == null || role.isBlank()) && appearance != null && !appearance.isBlank();
+        }
+
+        /**
+         * True when the appearance asks for a MODEL to be generated as well as a role, i.e. it
+         * names a {@code Base} to clone rather than a {@code Model} to use as it is.
+         */
+        public boolean usesGeneratedModel() {
+            return usesGeneratedRole() && appearance != null && appearance.hasBase();
         }
     }
 
@@ -713,7 +772,8 @@ public final class NpcPlacementAsset
 
         public static final BuilderCodec<Requires> CODEC = BuilderCodec.builder(Requires.class, Requires::new)
                 .appendInherited(new KeyedCodec<>("Conditions",
-                                new ArrayCodec<>(FactorCondition.CODEC, FactorCondition[]::new), false),
+                                new ArrayCodec<>(FactorCondition.codec(EditorDataSets.PLACEMENT_FACTORS),
+                                        FactorCondition[]::new), false),
                         (o, v) -> o.conditions = v, o -> o.conditions, (o, p) -> o.conditions = p.conditions)
                 .documentation("All of these must pass. A condition naming a factor nobody registered cannot "
                         + "resolve and fails closed, so the placement does not appear.").add()
@@ -743,10 +803,18 @@ public final class NpcPlacementAsset
 
     // ==================== Limits ====================
 
-    /** How many of this placement may stand in one world, and how likely each one is. */
+    /**
+     * How many of this placement may stand in one world, and how likely each one is.
+     *
+     * <p>The chance has two independent sources and they are not a mode: {@code SpawnChance} is a
+     * plain number, {@code ChanceFormula} works it out from live factor readings. Author whichever
+     * suits the placement; author both and the formula is what is used, with the number left as the
+     * value a server owner reads to see what was intended.
+     */
     public static final class Limits {
 
         @Nullable protected Double spawnChance;
+        @Nullable protected FactorFormula chanceFormula;
         @Nullable protected Integer maxPerWorld;
         @Nullable protected Boolean oncePerWorld;
 
@@ -755,6 +823,16 @@ public final class NpcPlacementAsset
                         (o, v) -> o.spawnChance = v, o -> o.spawnChance, (o, p) -> o.spawnChance = p.spawnChance)
                 .documentation("Chance in 0..1 that a resolved position is actually used; unauthored means 1 (always). "
                         + "The roll is deterministic per position, so it never re-rolls on a reload.").add()
+                .appendInherited(new KeyedCodec<>("ChanceFormula",
+                                FactorFormula.codec(EditorDataSets.PLACEMENT_FACTORS), false),
+                        (o, v) -> o.chanceFormula = v, o -> o.chanceFormula,
+                        (o, p) -> o.chanceFormula = p.chanceFormula)
+                .documentation("Work the chance out from factor readings instead of writing a fixed number, e.g. a "
+                        + "base of 0.2 plus a world-difficulty factor, clamped to 0..1. It is read once per position "
+                        + "and then rolled the same deterministic way SpawnChance is. Authored beside SpawnChance, "
+                        + "this is what wins. Factors that need an entity to ask about cannot answer here (nothing "
+                        + "stands at the spot yet), so they contribute 0 - author Base for the value the formula "
+                        + "must have on its own.").add()
                 .appendInherited(new KeyedCodec<>("MaxPerWorld", Codec.INTEGER, false),
                         (o, v) -> o.maxPerWorld = v, o -> o.maxPerWorld, (o, p) -> o.maxPerWorld = p.maxPerWorld)
                 .documentation("Ceiling on how many of this placement may stand in one world, counted across every "
@@ -771,8 +849,16 @@ public final class NpcPlacementAsset
         @Nonnull
         public static Limits of(@Nullable Double spawnChance, @Nullable Integer maxPerWorld,
                 @Nullable Boolean oncePerWorld) {
+            return of(spawnChance, null, maxPerWorld, oncePerWorld);
+        }
+
+        /** Java-side construction including the formula form of the chance. */
+        @Nonnull
+        public static Limits of(@Nullable Double spawnChance, @Nullable FactorFormula chanceFormula,
+                @Nullable Integer maxPerWorld, @Nullable Boolean oncePerWorld) {
             Limits l = new Limits();
             l.spawnChance = spawnChance;
+            l.chanceFormula = chanceFormula;
             l.maxPerWorld = maxPerWorld;
             l.oncePerWorld = oncePerWorld;
             return l;
@@ -781,6 +867,20 @@ public final class NpcPlacementAsset
         @Nullable
         public Double getSpawnChance() {
             return spawnChance;
+        }
+
+        @Nullable
+        public FactorFormula getChanceFormula() {
+            return chanceFormula;
+        }
+
+        /**
+         * True when a formula is authored AND says something, so it is the chance source. An empty
+         * formula group is an authoring accident rather than a constant 0, so it is ignored here
+         * and reported by {@link NpcPlacementValidator}.
+         */
+        public boolean hasChanceFormula() {
+            return chanceFormula != null && !chanceFormula.isEmpty();
         }
 
         @Nullable

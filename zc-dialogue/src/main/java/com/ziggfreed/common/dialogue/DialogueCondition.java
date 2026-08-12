@@ -9,6 +9,8 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.world.WorldSelector;
 
@@ -156,7 +158,8 @@ public abstract class DialogueCondition {
     public static final class Factor extends DialogueCondition {
         public static final BuilderCodec<Factor> CODEC = BuilderCodec.builder(Factor.class, Factor::new)
                 .append(new KeyedCodec<>("Factor", Codec.STRING, false),
-                        (c, v) -> { c.factor = v; c.resolved = null; }, c -> c.factor).add()
+                        (c, v) -> { c.factor = v; c.resolved = null; }, c -> c.factor)
+                .metadata(new UIEditor(new UIEditor.Dropdown(EditorDataSets.FACTORS))).add()
                 .append(new KeyedCodec<>("Param", Codec.STRING, false),
                         (c, v) -> { c.param = v; c.resolved = null; }, c -> c.param).add()
                 .append(new KeyedCodec<>("Min", Codec.DOUBLE, false),

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -20,6 +21,12 @@ import org.junit.jupiter.api.Test;
  * that does not exist outside its family. Pure: no server involved.
  */
 class DialogueMemoriesTest {
+
+    /** The decode vocabulary is process-wide; start every test from a clean one. */
+    @BeforeEach
+    void resetDialogueTypes() {
+        DialogueTestSupport.reset();
+    }
 
     private final List<String> warnings = new ArrayList<>();
 
@@ -67,7 +74,7 @@ class DialogueMemoriesTest {
     }
 
     @Test
-    void aParentChildAddsOrRedeclaresOneMemoryAndInheritsTheRest() {
+    void aParentChildAddsOrRedeclaresOneMemoryAndInheritsTheRest() throws Exception {
         DialogueEngine engine = engine();
         NpcDialogue parent = engine.decode("base", "{\"Memories\":{"
                 + "\"helped_refugees\":{\"WorldSelector\":\"emerald_wilds\"},"
@@ -76,7 +83,7 @@ class DialogueMemoriesTest {
         assertNotNull(parent);
 
         // The child re-declares one leaf of one memory and adds another; everything else inherits.
-        NpcDialogue child = engine.decodeWithParent("kid",
+        NpcDialogue child = DialogueTestSupport.decodeWithParent(engine, "kid",
                 "{\"Memories\":{\"helped_refugees\":{\"ResetWithQuest\":\"guide_trust\"},"
                         + "\"owes_me\":{}}}", parent);
         assertNotNull(child);
@@ -91,12 +98,12 @@ class DialogueMemoriesTest {
     }
 
     @Test
-    void childOmittingMemoriesInheritsTheWholeMap() {
+    void childOmittingMemoriesInheritsTheWholeMap() throws Exception {
         DialogueEngine engine = engine();
         NpcDialogue parent = engine.decode("base", "{\"Memories\":{\"a\":{}},"
                 + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[]}}}");
         assertNotNull(parent);
-        NpcDialogue child = engine.decodeWithParent("kid", "{\"Start\":[{\"Node\":\"g\"}]}", parent);
+        NpcDialogue child = DialogueTestSupport.decodeWithParent(engine, "kid", "{\"Start\":[{\"Node\":\"g\"}]}", parent);
         assertNotNull(child);
         assertNotNull(child.getMemory("a"));
     }
@@ -142,7 +149,7 @@ class DialogueMemoriesTest {
     @Test
     void optionSugarWritesTheCanonicalAction() {
         DialogueEngine engine = engine();
-        NpcDialogue d = engine.decodeAuthored("guide", "{\"Memories\":{\"met\":{}},"
+        NpcDialogue d = engine.decode("guide", "{\"Memories\":{\"met\":{}},"
                 + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
                 + "{\"LabelKey\":\"a\",\"Remember\":\"met\",\"Close\":true},"
                 + "{\"LabelKey\":\"b\",\"Forget\":\"met\"}]}}}");
@@ -159,19 +166,19 @@ class DialogueMemoriesTest {
     void bareMemorySugarExpandsAfterTheBandConsumersRegisterQuestSugarIn() {
         DialogueEngine engine = engine();
         // Authored deliberately out of order: bare keys expand by their fixed order, never by the
-        // order they were written in. Talk is 10, Remember 32, Forget 33, Close 70, so a memory
+        // order they were written in. Remember is 32, Forget 33, Goto 60, Close 70, so a memory
         // write always trails the 10-30 band a consumer's own quest sugar occupies.
-        NpcDialogue d = engine.decodeAuthored("guide", "{\"Memories\":{\"met\":{}},"
+        NpcDialogue d = engine.decode("guide", "{\"Memories\":{\"met\":{}},"
                 + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
-                + "{\"LabelKey\":\"a\",\"Close\":true,\"Forget\":\"met\",\"Remember\":\"met\","
-                + "\"Talk\":true}]}}}");
+                + "{\"LabelKey\":\"a\",\"Close\":true,\"Goto\":\"g\",\"Forget\":\"met\","
+                + "\"Remember\":\"met\"}]}}}");
         assertNotNull(d);
 
         List<DialogueAction> actions = d.getNode("g").getOptions().get(0).getActions();
         assertEquals(4, actions.size());
-        assertTrue(actions.get(0) instanceof DialogueAction.Talk, "Talk is 10");
-        assertTrue(actions.get(1) instanceof DialogueAction.Remember, "Remember is 32");
-        assertTrue(actions.get(2) instanceof DialogueAction.Forget, "Forget is 33");
+        assertTrue(actions.get(0) instanceof DialogueAction.Remember, "Remember is 32");
+        assertTrue(actions.get(1) instanceof DialogueAction.Forget, "Forget is 33");
+        assertTrue(actions.get(2) instanceof DialogueAction.Goto, "Goto is 60");
         assertTrue(actions.get(3) instanceof DialogueAction.Close, "Close is 70");
     }
 

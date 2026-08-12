@@ -1,12 +1,22 @@
 apply from: "$rootDir/gradle/zc-module.gradle"
 
-// The branching NPC dialogue engine and the NPC spawn/placement engine. It sits highest in the
-// graph because a placement gate resolves world identity (zc-world), pins chunks through the
-// world-eviction seam (zc-cast), and the dialogue page paints through the shared UI primitives.
+// The branching NPC dialogue engine and the NPC spawn/placement engine. It sits high in the graph
+// because a placement gate resolves world identity (zc-world) and the dialogue page paints through
+// the shared UI primitives (zc-presentation).
+//
+// One PUBLIC signature here re-exports a zc-world type: DialogueCondition.WorldRule#getSelector
+// returns a world.WorldSelector. The edge stays `implementation` because nothing depends on this
+// module yet; a future module that depends on zc-dialogue AND calls getSelector must declare its
+// own zc-world edge, or this one becomes `api`.
+
+// The quest-aware conversation vocabulary (QuestState / ReadyToTurnIn / Accept / TurnIn) reads
+// through zc-progression's NARROW QuestStateReader seam and nothing else - never QuestEngine, which
+// mutates: a condition that could reach it could accept a quest while merely rendering a line. The
+// edge is one-way and must stay so; zc-progression may never import anything from here.
 
 dependencies {
-    api project(':zc-core')
-    api project(':zc-presentation')
-    api project(':zc-cast')
-    api project(':zc-world')
+    implementation project(':zc-core')
+    implementation project(':zc-presentation')
+    implementation project(':zc-world')
+    implementation project(':zc-progression')
 }

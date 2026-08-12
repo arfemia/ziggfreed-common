@@ -6,8 +6,10 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
+import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.util.SafeLog;
-import com.ziggfreed.common.world.WorldSelectorValidator.Issue;
+import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.validation.ValidationReport;
 
 /**
  * The {@code defaults < pack < owner} fold of every {@link NpcPlacementAsset}, and the pool the
@@ -57,22 +59,17 @@ public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacem
     public void onPoolChanged() {
         NpcPlacementReconciler.clearDebounce();
         NpcPlacementPositionCache.invalidateAll();
+        NpcIdentities.invalidate();
     }
 
     /** Audit every folded placement (see {@link NpcPlacementValidator}). */
     @Nonnull
-    public List<Issue> validate() {
-        return NpcPlacementValidator.validateAll(all().values());
+    public List<Finding> audit() {
+        return NpcPlacementValidator.audit(all().values());
     }
 
-    /** Log this config's findings once per fold. */
+    /** Log this config's findings once per fold: an error as a warning line, anything else at info. */
     public void logFindings() {
-        for (Issue issue : validate()) {
-            String line = "[placement] '" + issue.sourceId() + "' [" + issue.code() + "]: " + issue.message();
-            switch (issue.severity()) {
-                case ERROR -> SafeLog.warn(line);
-                case WARNING -> SafeLog.info(line);
-            }
-        }
+        ValidationReport.logAll("[placement]", audit(), SafeLog::warn, SafeLog::info);
     }
 }
