@@ -27,7 +27,10 @@ Neither can do the other's job, which is why there are two.
 ## The asset
 
 - **[`NpcPlacementAsset`](NpcPlacementAsset.java)** - Pattern A, **every leaf `appendInherited`**,
-  so a `Parent`-linked child overriding one leaf keeps every untouched sibling. Groups: top-level
+  so a `Parent`-linked child overriding one leaf keeps every untouched sibling. A `Parent` value
+  must spell the target's EXACT filename (minus `.json`, case and all): same-pack parent resolution
+  is case-sensitive in the engine, and a mismatched ref drops the child at load with a boot
+  validation error. Groups: top-level
   `Enabled`; `Identity{Role,BaseRole,Appearance,NameKey,HintKey,NpcId,Aliases}` (Appearance is the nested
   [`AppearanceSpec`](AppearanceSpec.java) GROUP, not a string; **`BaseRole` names a native
   parameterized TEMPLATE role directly**, and the generated role is a variant of it); `Where` (a
