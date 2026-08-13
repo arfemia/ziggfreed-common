@@ -14,6 +14,14 @@ special-casing would thread through everything.
 Module edge: `implementation project(':zc-core')` only. Package root
 `com.ziggfreed.common.progress`.
 
+## Where THE runtime lives
+
+[`runtime/`](runtime/CLAUDE.md) holds the one shared `QuestEngine` + `AchievementEngine` pair a
+server runs and the surface a consumer registers its own parts through. A mod does not build engines
+and hand them round; it registers and reads the pair back. `builder()` on either engine stays the
+right tool for a unit test and for a genuinely private engine, and the wrong one for a mod that wants
+the server's progression.
+
 ## The pieces
 
 | Class | What it is |

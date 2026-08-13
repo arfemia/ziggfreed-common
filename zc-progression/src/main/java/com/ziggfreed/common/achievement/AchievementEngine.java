@@ -86,7 +86,8 @@ public final class AchievementEngine {
     private final LongSupplier clock;
     private final int maxPinned;
     private final boolean nativeEvents;
-    private final List<AchievementMilestone> milestones;
+    /** Swapped whole by {@link #setMilestones}, exactly as the catalogue is by {@link #setAchievements}. */
+    private volatile List<AchievementMilestone> milestones;
 
     /** The catalogue and its index, replaced together so a dispatch never sees a half-loaded pair. */
     private volatile Map<String, Achievement> achievements = Map.of();
@@ -149,10 +150,21 @@ public final class AchievementEngine {
         return maxPinned;
     }
 
-    /** The points milestones this engine was built with, lowest threshold first. */
+    /** The points milestones this engine is running, lowest threshold first. */
     @Nonnull
     public List<AchievementMilestone> milestones() {
         return milestones;
+    }
+
+    /**
+     * Replace the points milestones, sorted lowest threshold first. The exact peer of
+     * {@link #setAchievements}: a consumer whose milestones arrive with its content publishes them
+     * here rather than rebuilding the engine, which would orphan every reference anybody is holding.
+     */
+    public void setMilestones(@Nonnull List<AchievementMilestone> replacement) {
+        List<AchievementMilestone> sorted = new ArrayList<>(replacement);
+        sorted.sort(Comparator.comparingInt(AchievementMilestone::threshold));
+        this.milestones = List.copyOf(sorted);
     }
 
     /** The engine's clock, in epoch milliseconds. Injected, so unlock instants are testable. */

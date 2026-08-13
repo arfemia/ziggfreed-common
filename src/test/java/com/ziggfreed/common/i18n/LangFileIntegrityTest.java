@@ -43,9 +43,14 @@ import org.junit.jupiter.api.Test;
  */
 class LangFileIntegrityTest {
 
-    /** Every module resource root holding shipped language files. */
+    /**
+     * Every module resource root holding shipped language files. One entry per module that ships
+     * any; the checks below are per FILE NAME, so a module carrying several domain files (or a
+     * file name another module also uses, like {@code items.lang}) needs nothing else here.
+     */
     private static final List<Path> LANG_ROOTS = List.of(
-            Path.of("zc-core", "src", "main", "resources", "Server", "Languages"));
+            Path.of("zc-core", "src", "main", "resources", "Server", "Languages"),
+            Path.of("zc-objectives", "src", "main", "resources", "Server", "Languages"));
 
     private static final String EN_US = "en-US";
 

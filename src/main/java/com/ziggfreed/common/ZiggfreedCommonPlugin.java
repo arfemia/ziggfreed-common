@@ -21,7 +21,10 @@ import com.ziggfreed.common.asset.FrameworkAssetRegistrar;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.entity.PlayerIdentityCache;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
+import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.loot.LootEditorDataSets;
+import com.ziggfreed.common.loot.LootFactors;
 import com.ziggfreed.common.loot.reward.DroplistRewardKind;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardKinds;
@@ -37,9 +40,13 @@ import com.ziggfreed.common.npc.placement.PlacedNpcComponent;
 import com.ziggfreed.common.npc.placement.PlacementMarkerSystem;
 import com.ziggfreed.common.npc.placement.PlacementFactorRegistry;
 import com.ziggfreed.common.npc.placement.PlacementNpcActions;
+import com.ziggfreed.common.objectives.book.ObjectiveBookInteractions;
+import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
+import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.WorldSelectorOverrides;
 
 /**
  * Entry point for Ziggfreed Common, a shared, mod-agnostic Hytale utility mod.
@@ -116,12 +123,38 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
         registerEditorDataSets();
         registerLootVocabulary();
+        setupWorldSelectors();
         setupPlacementEngine();
         setupTalkCredit();
         registerWorldLifecycle();
         registerPlayerIdentity();
+        setupProgressionRuntime();
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
+    }
+
+    /**
+     * Wire this library's parts of THE shared progression runtime: the persisted per-player progress
+     * component, the Objective Book's interaction Type (which the shipped book item names, so it
+     * must be registered before any asset decode), and the default registrations plus the player
+     * lifecycle and generic producer systems behind {@link ProgressionDefaults#install}.
+     *
+     * <p>Every registration is unconditional, and none of them decides anything. There is one
+     * runtime per server whoever is on it; a consumer that brings its own store, gates or producers
+     * registers them at its own {@code setup()} and outranks the defaults registered here. A
+     * component type registered after a world has loaded cannot be read off entities saved carrying
+     * it, and an ECS system is a setup-time registration, so neither can wait for that. Where a
+     * consumer owns the stores, nothing attaches the component and every producer it replaced
+     * returns on its first line.
+     */
+    private void setupProgressionRuntime() {
+        try {
+            ZigProgressComponent.register(getEntityStoreRegistry());
+            ObjectiveBookInteractions.register(this);
+            ProgressionDefaults.install(this);
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] shared runtime wiring failed", t);
+        }
     }
 
     /**
@@ -140,12 +173,39 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * kind (a native drop table rolled onto the ground), the effect kind (registered from up here
      * because the loot layer must never see the effect module), and the stack-metadata stamper every
      * stamp writes through until a richer mod replaces it.
+     *
+     * <p>These are the JAVA half of the vocabulary. Kinds written as files
+     * ({@code Server/ZiggfreedCommon/RewardKinds/}) join the same table from
+     * {@link FrameworkAssetRegistrar}, once the stores have loaded and every consumer's own setup has
+     * had its say - which is what lets an owner's file take a kind over from the mod that shipped it.
+     *
+     * <p>The two rolling kinds ({@code Lootable} and {@code Stamped_Item}) also need the READ
+     * vocabulary their gates and chances are written against, or every one of those gates fails
+     * closed and a rolled reward pays out only its ungated rolls. They are pointed at a registry
+     * carrying the portable {@code hytale:} standard library plus the two instance readings a run's
+     * score and outcome are asked through, so a table authored anywhere on the server resolves the
+     * same ids it would inside a run.
      */
     private void registerLootVocabulary() {
         LootRewardKinds.registerInto(RewardKinds.shared());
         DroplistRewardKind.registerInto(RewardKinds.shared());
         EffectRewardKind.registerInto(RewardKinds.shared());
+        LootRewardKinds.factors(lootFactorVocabulary());
         StamperRegistry.register(new StackStatsStamper());
+    }
+
+    /**
+     * The factor vocabulary a rolled reward reads through: the portable engine readings about the
+     * receiving player, plus the two instance readings ({@code instance_score} / {@code instance_win}),
+     * which answer only where the asking moment carried a run outcome and stay unanswerable - so
+     * fail-closed - everywhere else.
+     */
+    @Nonnull
+    private static FactorRegistry lootFactorVocabulary() {
+        FactorRegistry registry = new FactorRegistry("loot");
+        HytaleFactors.registerInto(registry, LootFactors.OWNER);
+        LootFactors.registerInto(registry, LootFactors.OWNER);
+        return registry;
     }
 
     private void registerEditorDataSets() {
@@ -174,6 +234,20 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         Set<String> ids = new TreeSet<>(PlacementFactorRegistry.registeredIds());
         ids.addAll(DerivedFactorConfig.getInstance().ids());
         return ids;
+    }
+
+    /**
+     * Read the owner's world-selector layer. It runs BEFORE the placement engine because a
+     * placement's {@code Where} is answered in selector vocabulary, and an owner who re-pointed
+     * the main-world selector should have that in force from the first sweep rather than from the
+     * first reload.
+     */
+    private void setupWorldSelectors() {
+        try {
+            WorldSelectorOverrides.getInstance().load();
+        } catch (Throwable t) {
+            SafeLog.warn("[worldselector] owner layer could not be read", t);
+        }
     }
 
     /**

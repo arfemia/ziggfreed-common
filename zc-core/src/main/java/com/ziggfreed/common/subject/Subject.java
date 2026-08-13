@@ -19,9 +19,38 @@ import javax.annotation.Nullable;
  * handle, a session object - and gets it back, typed, inside its own store, probes, gates, and
  * reward handlers via {@link #handleAs}. Nothing in any engine ever looks inside it.
  *
+ * <p>A handle that carries SEVERAL of those at once implements {@link HandleFacets} so it can still
+ * answer a reader asking for one of them; see that interface for why a rich handle needs it.
+ *
  * <p>Cheap to build and immutable, so constructing one per call is fine.
  */
 public record Subject(@Nonnull UUID id, @Nonnull String name, @Nullable Object handle) {
+
+    /**
+     * A handle that can also answer for types it is NOT.
+     *
+     * <p>The plain contract is "the handle comes back typed, or null", and that is enough for as
+     * long as a consumer's handle IS the type every reader asks for. It stops being enough the
+     * moment a consumer attaches a richer handle - a record carrying a player reference beside an
+     * entity and a store, say - because a reader that asks only for the player representation then
+     * gets null from a subject that plainly has one. That reader is not hypothetical: the ready-made
+     * reward handlers in this library resolve their player exactly that way, so a consumer with a
+     * rich handle would find every one of them refusing to pay out.
+     *
+     * <p>Implement this on the handle and it answers such questions itself. {@link #handleAs} tries
+     * the direct cast first, unchanged, and only then asks. Nothing here learns a type, a domain or
+     * a player representation: the handle alone names what it can answer for.
+     */
+    public interface HandleFacets {
+
+        /**
+         * What this handle offers for {@code type}, or null when it has nothing to offer. An answer
+         * of the wrong type is discarded rather than trusted, so an implementation is free to answer
+         * loosely and a caller can never be handed something it did not ask for.
+         */
+        @Nullable
+        Object facet(@Nonnull Class<?> type);
+    }
 
     /** A handle-less subject: enough for the pure state operations, not for granting or taking items. */
     @Nonnull
@@ -30,11 +59,21 @@ public record Subject(@Nonnull UUID id, @Nonnull String name, @Nullable Object h
     }
 
     /**
-     * The attached handle cast to {@code type}, or null when there is none or it is something else.
+     * The attached handle cast to {@code type}, or null when there is none and nothing offers one.
      * The one read path, so a consumer never has to write an unchecked cast of its own.
+     *
+     * <p>The direct cast wins, so a handle can never shadow itself; only when it is something else
+     * is a {@link HandleFacets} handle asked what it has for {@code type}.
      */
     @Nullable
     public <T> T handleAs(@Nonnull Class<T> type) {
-        return type.isInstance(handle) ? type.cast(handle) : null;
+        if (type.isInstance(handle)) {
+            return type.cast(handle);
+        }
+        if (handle instanceof HandleFacets facets) {
+            Object facet = facets.facet(type);
+            return type.isInstance(facet) ? type.cast(facet) : null;
+        }
+        return null;
     }
 }

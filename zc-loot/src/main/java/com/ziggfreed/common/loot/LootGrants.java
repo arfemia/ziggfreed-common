@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.DoubleSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,9 +35,9 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * clarity or reach:
  *
  * <ul>
- *   <li><b>Items</b> is the direct, readable form: this exact item, this many. Author it whenever the
- *       payout is known at authoring time - it needs no other asset to exist and no mod to be
- *       installed.</li>
+ *   <li><b>Items</b> is the direct, readable form: this exact item, this many (or a quantity that
+ *       varies within a range). Author it whenever the payout is known at authoring time - it needs
+ *       no other asset to exist and no mod to be installed.</li>
  *   <li><b>DropLists</b> defers the choice to a native Hytale {@code ItemDropList}, whose own
  *       weighted container decides what (and whether) anything comes out. Author it for a real random
  *       table, and reuse the same table from several rolls. Each id rolls INDEPENDENTLY in authored
@@ -60,13 +61,19 @@ public final class LootGrants {
     // ==================== Item ====================
 
     /**
-     * ONE direct item payout: {@code {Item, Count}}. The item id is the asset filename of the item
-     * (case as the asset writes it); {@code Count} omitted means one.
+     * ONE direct item payout: {@code {Item, Count, CountMax}}. The item id is the asset filename of
+     * the item (case as the asset writes it); {@code Count} omitted means one.
+     *
+     * <p>{@code CountMax} makes the quantity VARY: the count handed over is drawn evenly from
+     * {@code Count} up to {@code CountMax} inclusive, decided once when the payout is decided. It is
+     * a separate leaf rather than a nested range because {@code Count} on its own is by far the
+     * common case and had to keep reading the way it always has.
      */
     public static final class Item {
 
         @Nullable protected String item;
         @Nullable protected Integer count;
+        @Nullable protected Integer countMax;
 
         public static final BuilderCodec<Item> CODEC = BuilderCodec.builder(Item.class, Item::new)
                 .appendInherited(new KeyedCodec<>("Item", Codec.STRING, false),
@@ -76,6 +83,11 @@ public final class LootGrants {
                         (o, v) -> o.count = v, o -> o.count, (o, p) -> o.count = p.count)
                 .documentation("How many. Omit for 1. A stack that does not fit goes wherever the granting "
                         + "site sends overflow, so a full inventory never silently eats the find.").add()
+                .appendInherited(new KeyedCodec<>("CountMax", Codec.INTEGER, false),
+                        (o, v) -> o.countMax = v, o -> o.countMax, (o, p) -> o.countMax = p.countMax)
+                .documentation("The top of a varying quantity, inclusive: the payout is drawn evenly between "
+                        + "Count and this. Omit for exactly Count. A value below Count is ignored rather than "
+                        + "inverting the range.").add()
                 .build();
 
         public Item() {
@@ -84,9 +96,16 @@ public final class LootGrants {
         /** Java-side factory; sets the same fields the codec fills. */
         @Nonnull
         public static Item of(@Nullable String item, @Nullable Integer count) {
+            return of(item, count, null);
+        }
+
+        /** Java-side factory for a varying quantity; sets the same fields the codec fills. */
+        @Nonnull
+        public static Item of(@Nullable String item, @Nullable Integer count, @Nullable Integer countMax) {
             Item i = new Item();
             i.item = item;
             i.count = count;
+            i.countMax = countMax;
             return i;
         }
 
@@ -100,9 +119,47 @@ public final class LootGrants {
             return count;
         }
 
+        @Nullable
+        public Integer getCountMax() {
+            return countMax;
+        }
+
         /** The authored count, or {@link #DEFAULT_ITEM_COUNT} when absent or not positive. */
         public int effectiveCount() {
             return count != null && count > 0 ? count : DEFAULT_ITEM_COUNT;
+        }
+
+        /** The top of the range, which is {@link #effectiveCount()} itself when none is authored. */
+        public int effectiveCountMax() {
+            int low = effectiveCount();
+            return countMax != null && countMax > low ? countMax : low;
+        }
+
+        /** True when the quantity varies, so a payout has to draw one. */
+        public boolean varies() {
+            return effectiveCountMax() > effectiveCount();
+        }
+
+        /**
+         * The concrete count this payout hands over: the fixed one, or a draw from the range using
+         * {@code sample} (a {@code [0,1)} number, consumed only when the quantity actually varies).
+         */
+        public int drawCount(@Nonnull DoubleSupplier sample) {
+            int low = effectiveCount();
+            int high = effectiveCountMax();
+            if (high <= low) {
+                return low;
+            }
+            double roll = sample.getAsDouble();
+            int span = high - low + 1;
+            int offset = (int) (roll * span);
+            if (offset < 0) {
+                offset = 0;
+            }
+            if (offset >= span) {
+                offset = span - 1;
+            }
+            return low + offset;
         }
 
         /** True when no item id is authored, so this entry can never hand anything over. */
@@ -272,6 +329,38 @@ public final class LootGrants {
             }
         }
         return out;
+    }
+
+    /**
+     * This group with every varying item quantity DRAWN, so what it names is now exactly what will be
+     * handed over. Answers {@code this} unchanged when no quantity varies, which is the usual case.
+     *
+     * <p>The draw happens when the payout is DECIDED rather than when it lands, so a site that shows
+     * a player their spoils before granting them cannot show one number and hand over another.
+     *
+     * @param sample a {@code [0,1)} number per varying quantity, in authored order
+     */
+    @Nonnull
+    public LootGrants drawQuantities(@Nonnull DoubleSupplier sample) {
+        if (items == null) {
+            return this;
+        }
+        boolean anyVaries = false;
+        for (Item item : items) {
+            if (item != null && item.varies()) {
+                anyVaries = true;
+                break;
+            }
+        }
+        if (!anyVaries) {
+            return this;
+        }
+        Item[] drawn = new Item[items.length];
+        for (int i = 0; i < items.length; i++) {
+            Item item = items[i];
+            drawn[i] = item == null ? null : Item.of(item.getItem(), item.drawCount(sample), null);
+        }
+        return of(drawn, dropLists, commands, rewards);
     }
 
     /** True when no leaf is authored - an empty group grants nothing, same as an absent one. */

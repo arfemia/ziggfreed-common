@@ -27,8 +27,14 @@ public interface QuestGates {
     /** The quest is already running, finished, or waiting to be claimed. */
     String REASON_ALREADY_STARTED = "already_started";
 
-    /** A finished repeatable whose cooldown has not elapsed. */
+    /** A finished repeatable whose rolling cooldown has not elapsed. */
     String REASON_ON_COOLDOWN = "on_cooldown";
+
+    /** A repeatable already finished as often as its calendar window allows; it returns next window. */
+    String REASON_PERIOD_SPENT = "period_spent";
+
+    /** A repeatable finished as often as it ever can be; nothing brings it back. */
+    String REASON_MAX_COMPLETIONS = "max_completions";
 
     /** The player is already carrying as many quests as the engine allows. */
     String REASON_LOG_FULL = "log_full";

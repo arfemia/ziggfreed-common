@@ -1,7 +1,6 @@
 package com.ziggfreed.common.dialogue;
 
 import java.io.IOException;
-import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -20,8 +19,9 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
  * The {@code Once} knob: keyless seen-ness, authored on a {@code Start} entry or on an option.
  *
  * <pre>{@code
- * "Once": true                                       once per character
- * "Once": { "WorldSelector": "forgotten_temple" }    once per world FAMILY
+ * "Once": true                                  once per character
+ * "Once": { "World": "forgotten_temple" }       once per world
+ * "Once": { "World": "*KweebecNightmare*" }     once per world FAMILY
  * }</pre>
  *
  * <p>Both forms are the same group - {@code true} is shorthand for the empty group {@code {}} and
@@ -38,33 +38,38 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
  * the option's {@code LabelKey} (or an explicit {@code OnceId}), never its position, so reordering
  * a node's options never resurrects a spent Once.
  *
- * <h2>{@code WorldSelector}</h2>
+ * <h2>{@code World}</h2>
  *
- * <p>A selector NAME from the world-identity vocabulary ({@code Server/ZiggfreedCommon/
- * WorldSelectors/*.json}), never a raw world name. A dynamically created instance world is named
- * {@code instance-Forgotten_Temple-<uuid>} and is destroyed when it empties, so "already seen
- * here" keyed by the world's NAME would come back on every fresh instance; keyed by the selector
- * name it survives the instance being torn down and re-created.
+ * <p>A world NAME, or a pattern in the ordinary world-name grammar - {@code Foo*} (prefix),
+ * {@code *Foo} (suffix), {@code *Foo*} (contains). The pattern IS the exact-versus-family dial;
+ * there is no second knob beside it.
  *
- * <p>In a world that does not carry the named selector, the Once neither reads nor writes: the
- * beat is offered and stays offered. Pair a world-scoped {@code Once} with a {@code World}
- * condition on the same entry so the beat cannot be reached elsewhere in the first place. A
- * selector name nothing in the loaded vocabulary contributes warns once per name and is a
- * validator finding, because a typo would otherwise re-show a first-visit beat forever.
+ * <p>Reach for the contains form for instance worlds. One is named
+ * {@code instance-KweebecNightmare_Barn-<uuid>} and is destroyed when it empties, so "already seen
+ * here" keyed by the literal name would come back on every fresh instance; {@code *KweebecNightmare*}
+ * files it under the stable core {@code KweebecNightmare} instead, and
+ * {@code *KweebecNightmare_Barn*} narrows the same state to one arena.
+ *
+ * <p>In a world the pattern does not match, the Once neither reads nor writes: the beat is offered
+ * and stays offered. Pair a world-scoped {@code Once} with a {@code World} condition on the same
+ * entry so the beat cannot be reached elsewhere in the first place. A pattern matching no world
+ * the server has loaded warns once and is a validator finding, because a typo would otherwise
+ * re-show a first-visit beat forever.
  */
 public final class DialogueOnce {
 
     /** The canonical "once per character" group, the decoded form of {@code "Once": true}. */
     public static final DialogueOnce GLOBAL = new DialogueOnce();
 
-    /** The group form, {@code {"WorldSelector": "..."}}. */
+    /** The group form, {@code {"World": "..."}}. */
     private static final BuilderCodec<DialogueOnce> GROUP =
             BuilderCodec.builder(DialogueOnce.class, DialogueOnce::new)
-                    .append(new KeyedCodec<>("WorldSelector", Codec.STRING, false),
-                            (o, v) -> { o.worldSelector = v; o.scope = null; }, o -> o.worldSelector)
-                    .documentation("Keep this per world FAMILY: name a world selector and the answer is "
-                            + "remembered for every world that selector covers, so a rebuilt instance does "
-                            + "not forget. Leave it out for once per character.").add()
+                    .append(new KeyedCodec<>("World", Codec.STRING, false),
+                            (o, v) -> { o.world = v; o.scope = null; }, o -> o.world)
+                    .documentation("Keep this per world: an exact world name, or a pattern - Foo* "
+                            + "(prefix), *Foo (suffix), *Foo* (contains). Use the contains form for a "
+                            + "family of instance worlds, so a rebuilt instance does not forget. Leave "
+                            + "it out for once per character.").add()
                     .build();
 
     /**
@@ -106,7 +111,7 @@ public final class DialogueOnce {
         }
     };
 
-    @Nullable protected String worldSelector;
+    @Nullable protected String world;
 
     /** The internal scope carrier; built lazily, dropped by the setter so it cannot go stale. */
     @Nullable private volatile DialogueFlagScope scope;
@@ -116,22 +121,22 @@ public final class DialogueOnce {
 
     /** Java-side construction (tests, a consumer building a tree in code). */
     @Nonnull
-    public static DialogueOnce ofWorldSelector(@Nullable String selectorName) {
+    public static DialogueOnce ofWorld(@Nullable String worldPattern) {
         DialogueOnce once = new DialogueOnce();
-        once.worldSelector = selectorName;
+        once.world = worldPattern;
         return once;
     }
 
-    /** The world-selector name this Once is remembered per, or null for once per character. */
+    /** The world name or pattern this Once is remembered per, or null for once per character. */
     @Nullable
-    public String getWorldSelector() {
-        return worldSelector;
+    public String getWorld() {
+        return world;
     }
 
     /**
      * The storage key {@code rawKey} resolves to for the player's CURRENT world, or null when this
-     * Once names a selector that world does not carry (the read is unset and the write a no-op).
-     * Warns once per unknown selector name; see {@link DialogueFlagScope}.
+     * Once's pattern does not match that world (the read is unset and the write a no-op). Warns
+     * once per pattern that matches no loaded world; see {@link DialogueFlagScope}.
      */
     @Nullable
     String keyFor(@Nonnull String rawKey, @Nonnull DialogueContext ctx) {
@@ -139,19 +144,19 @@ public final class DialogueOnce {
     }
 
     /**
-     * The PURE resolver behind {@link #keyFor}: the key for a world carrying
-     * {@code worldSelectorNames}, or null when it does not carry this Once's selector.
+     * The PURE resolver behind {@link #keyFor}: the key in the world named {@code worldName}, or
+     * null when this Once's pattern does not match it.
      */
     @Nullable
-    public String resolveKey(@Nonnull String rawKey, @Nonnull Set<String> worldSelectorNames) {
-        return DialogueFlagScope.resolve(scope(), rawKey, worldSelectorNames);
+    public String resolveKey(@Nonnull String rawKey, @Nullable String worldName) {
+        return DialogueFlagScope.resolve(scope(), rawKey, worldName);
     }
 
     @Nonnull
     private DialogueFlagScope scope() {
         DialogueFlagScope cached = scope;
         if (cached == null) {
-            cached = DialogueFlagScope.ofWorldSelector(worldSelector);
+            cached = DialogueFlagScope.ofWorld(world);
             scope = cached;
         }
         return cached;

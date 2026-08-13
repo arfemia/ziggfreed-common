@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Nested;
@@ -17,6 +18,7 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.validation.Finding;
 
 /**
  * {@link QuestAsset}'s decode contract, and above all what native {@code Parent} inheritance does to
@@ -91,7 +93,7 @@ class QuestAssetCodecTest {
                     { "Text":       { "TitleKey": "quest.base.title", "FlavorKey": "quest.base.flavor" },
                       "Listing":    { "Category": "gathering", "SortOrder": 10, "Tags": ["daily"] },
                       "Flow":       { "AutoTrack": true, "AutoClaim": false },
-                      "Repeat":     { "Repeatable": true, "CooldownSeconds": 86400 },
+                      "Repeat":     { "Cooldown": { "Hours": 24 } },
                       "Visibility": { "RequirePrerequisites": true },
                       "Npc":        { "ViewId": "guide", "TurnInId": "giver" } }
                     """, "base");
@@ -107,7 +109,7 @@ class QuestAssetCodecTest {
             assertEquals(List.of("daily"), child.quest().tags());
             assertTrue(child.quest().autoTrack());
             assertFalse(child.quest().autoClaim());
-            assertTrue(child.quest().repeat().repeatable());
+            assertTrue(child.quest().repeatable());
             assertEquals(86_400_000L, child.quest().repeat().cooldownMs());
             assertTrue(child.quest().visibility().requirePrerequisites());
             assertEquals("guide", child.npcViewId());
@@ -135,6 +137,126 @@ class QuestAssetCodecTest {
         }
     }
 
+    // ==================== repeat ====================
+
+    @Nested
+    class RepeatRules {
+
+        @Test
+        void anEmptyBlockIsAnExternallyGovernedRepeatable() throws Exception {
+            Quest quest = decodeRoot("{ \"Repeat\": { } }", "governed").toDefinition(null).quest();
+
+            assertTrue(quest.repeatable(), "authoring the block at all is what makes it repeatable");
+            assertEquals(Quest.Repeat.EXTERNALLY_GOVERNED, quest.repeat(),
+                    "nothing inside means nothing holds it back");
+        }
+
+        @Test
+        void aCalendarWindowNeedsNoCooldownBesideIt() throws Exception {
+            Quest.Repeat repeat = decodeRoot("""
+                    { "Repeat": { "Reset": { "Period": "Daily" } } }
+                    """, "daily").toDefinition(null).quest().repeat();
+
+            assertNotNull(repeat);
+            assertEquals(0L, repeat.cooldownMs(), "no rolling wait was authored");
+            assertNotNull(repeat.reset());
+            assertEquals(Quest.Repeat.Reset.Period.DAILY, repeat.reset().period());
+            assertEquals(1, repeat.reset().times(), "unauthored Times means once per window");
+        }
+
+        @Test
+        void theDurationUnitsAddUp() throws Exception {
+            Quest.Repeat repeat = decodeRoot("""
+                    { "Repeat": { "Cooldown": { "Hours": 1, "Minutes": 30 } } }
+                    """, "ninety").toDefinition(null).quest().repeat();
+
+            assertNotNull(repeat);
+            assertEquals(5_400_000L, repeat.cooldownMs());
+        }
+
+        @Test
+        void everyLeafInheritsRightDownIntoTheNestedWindow() throws Exception {
+            QuestAsset parent = decodeRoot("""
+                    { "Repeat": { "Cooldown": { "Hours": 24 }, "CooldownFrom": "Complete",
+                                  "Reset": { "Period": "Weekly", "Weekday": "Sunday", "Times": 3 } } }
+                    """, "base");
+
+            Quest.Repeat child = decode("""
+                    { "Repeat": { "MaxCompletions": 5, "Reset": { "Period": "Daily" } } }
+                    """, "child", "base", parent).toDefinition(null).quest().repeat();
+
+            assertNotNull(child);
+            assertEquals(86_400_000L, child.cooldownMs(), "an untouched leaf carries down");
+            assertEquals(Quest.Repeat.CooldownFrom.COMPLETE, child.cooldownFrom());
+            assertEquals(5, child.maxCompletions(), "the child's own leaf lands");
+            assertNotNull(child.reset());
+            assertEquals(Quest.Repeat.Reset.Period.DAILY, child.reset().period(),
+                    "the child's own window leaf wins");
+            assertEquals(3, child.reset().times(),
+                    "inheritance reaches leaf by leaf right into the nested window, so a child that"
+                            + " retunes one knob keeps the rest of the parent's - the same rule the"
+                            + " whole schema keeps");
+        }
+
+        @Test
+        void anUnknownEnumFallsBackAndTheValidatorSaysSo() throws Exception {
+            QuestAsset asset = decodeRoot("""
+                    { "Repeat": { "CooldownFrom": "Whenever",
+                                  "Reset": { "Period": "Fortnightly", "Weekday": "Someday" } } }
+                    """, "typo");
+
+            Quest.Repeat folded = asset.toDefinition(null).quest().repeat();
+            assertNotNull(folded);
+            assertEquals(Quest.Repeat.CooldownFrom.CLAIM, folded.cooldownFrom(),
+                    "a typo must not take a whole quest out of circulation");
+            assertNotNull(folded.reset());
+            assertEquals(Quest.Repeat.Reset.Period.DAILY, folded.reset().period());
+
+            List<String> codes = new ArrayList<>();
+            for (Finding finding : QuestPoolValidator.repeatFindings(asset.getRepeat(), "typo")) {
+                codes.add(finding.code());
+            }
+            assertTrue(codes.contains("REPEAT_UNKNOWN_COOLDOWN_FROM"));
+            assertTrue(codes.contains("REPEAT_UNKNOWN_PERIOD"));
+            assertTrue(codes.contains("REPEAT_UNKNOWN_WEEKDAY"));
+        }
+    }
+
+    // ==================== completion conversation ====================
+
+    @Nested
+    class CompletionConversation {
+
+        @Test
+        void theCompletionConversationInheritsFromAParent() throws Exception {
+            QuestAsset parent = decodeRoot("{ \"CompletionDialogue\": \"guide_thanks\" }", "base");
+
+            assertEquals("guide_thanks", decode("{ \"Enabled\": true }", "child", "base", parent)
+                    .toDefinition(null).completionDialogue());
+        }
+
+        @Test
+        void anEmptyCompletionConversationClearsTheInheritedOne() throws Exception {
+            QuestAsset parent = decodeRoot("{ \"CompletionDialogue\": \"guide_thanks\" }", "base");
+
+            assertNull(decode("{ \"CompletionDialogue\": \"\" }", "quiet", "base", parent)
+                            .toDefinition(null).completionDialogue(),
+                    "an authored empty string is how a child says it does not talk afterwards");
+        }
+
+        @Test
+        void theCompletionConversationIsLowerCasedAndTrimmedAtOneAuthority() throws Exception {
+            assertEquals("guide_thanks",
+                    decodeRoot("{ \"CompletionDialogue\": \"  Guide_Thanks  \" }", "loud")
+                            .toDefinition(null).completionDialogue());
+        }
+
+        @Test
+        void namingNoConversationIsTheOrdinaryCase() throws Exception {
+            assertNull(decodeRoot("{ }", "plain").toDefinition(null).completionDialogue());
+        }
+    }
+
     // ==================== defaults ====================
 
     @Nested
@@ -149,7 +271,8 @@ class QuestAssetCodecTest {
             assertFalse(definition.quest().autoAccept());
             assertFalse(definition.quest().autoTrack());
             assertFalse(definition.quest().sequential());
-            assertFalse(definition.quest().repeat().repeatable());
+            assertNull(definition.quest().repeat(), "no Repeat block at all is a one-shot");
+            assertFalse(definition.quest().repeatable());
             assertEquals(Quest.Visibility.OPEN, definition.quest().visibility());
             assertTrue(definition.quest().objectives().isEmpty());
             assertTrue(definition.requires().isEmpty(), "an unauthored Requires block asks for nothing");

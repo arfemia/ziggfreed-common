@@ -15,8 +15,6 @@ import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.world.WorldSelector;
-import com.ziggfreed.common.world.WorldSelectorConfig;
-import com.ziggfreed.common.world.WorldSelectorDef;
 import com.ziggfreed.common.world.WorldSelectorValidator;
 
 /**
@@ -222,33 +220,13 @@ public final class NpcPlacementValidator {
             @Nonnull List<Finding> out) {
         WorldSelector where = placement.getWhere();
         if (where == null || where.isBlank()) {
-            return; // Unauthored means the "primary" selector, which is always shipped.
+            return; // Unauthored means the "default" selector, which is always shipped.
         }
         out.addAll(WorldSelectorValidator.validateSelector(where, id + ".Where"));
-
-        String[] names = where.getNames();
-        if (names == null) {
-            return;
-        }
-        for (String name : names) {
-            if (name == null || name.isBlank() || isKnownSelectorName(name)) {
-                continue;
-            }
-            out.add(Finding.warning(DOMAIN, "UNKNOWN_SELECTOR_NAME",
-                    "Where names the world selector '" + name + "', which no loaded selector asset "
-                            + "contributes, so this placement can never match a world", id));
-        }
-    }
-
-    /** Does any loaded selector asset contribute {@code name}? */
-    private static boolean isKnownSelectorName(@Nonnull String name) {
-        String wanted = name.trim().toLowerCase(java.util.Locale.ROOT);
-        for (WorldSelectorDef def : WorldSelectorConfig.getInstance().all().values()) {
-            if (def != null && def.names().contains(wanted)) {
-                return true;
-            }
-        }
-        return false;
+        // The name-is-known question belongs to the selector layer, not to placement: it is the
+        // same question a dialogue's World condition asks, and one answer keeps them agreeing.
+        out.addAll(WorldSelectorValidator.validateNames(where.getNames(), "Where",
+                id, WorldSelectorValidator.knownNames()));
     }
 
     // ==================== anchor ====================
@@ -414,8 +392,11 @@ public final class NpcPlacementValidator {
         }
     }
 
-    /** The selector-name check as a standalone helper (a consumer command may want just this). */
+    /**
+     * The selector-name check as a standalone helper (a consumer command may want just this).
+     * Forwards to the selector layer, which owns the vocabulary.
+     */
     public static boolean isSelectorNameKnown(@Nullable String name) {
-        return name != null && !name.isBlank() && isKnownSelectorName(name);
+        return WorldSelectorValidator.isKnownName(name);
     }
 }

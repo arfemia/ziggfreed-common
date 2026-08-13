@@ -129,33 +129,38 @@ class DialogueStateValidationTest {
         assertEquals("guide_c", found.sourceId());
     }
 
+    /**
+     * A memory scoped to every world is the same state as a memory scoped to none, so the author
+     * wrote a statement the runtime cannot honour. Which world names EXIST is not knowable from a
+     * decoded conversation, so a typo in a real pattern is caught at runtime instead
+     * ({@code DialogueFlagScope}'s warn-once), and only the self-contradicting shapes land here.
+     */
     @Test
-    void anUnknownSelectorOnAMemoryDeclarationIsAnError() {
+    void aMemoryScopedToEveryWorldIsReported() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Memories\":{\"helped\":{\"WorldSelector\":\"emrald_wilds\"}},"
+                "{\"Memories\":{\"helped\":{\"World\":\"*\"}},"
                         + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
                         + "\"Conditions\":[{\"Type\":\"Remembered\",\"Memory\":\"helped\"}],"
                         + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]}]}}}");
         assertNotNull(d);
 
-        List<Finding> issues = DialogueStructureValidator.validate(d, Set.of("emerald_wilds"));
-        assertEquals(Severity.ERROR, issue(issues, "MEMORY_UNKNOWN_SELECTOR").severity());
-
-        // "Cannot tell" (no vocabulary loaded yet) must never produce the finding.
-        assertFalse(codes(DialogueStructureValidator.validate(d)).contains("MEMORY_UNKNOWN_SELECTOR"));
+        Finding found = issue(DialogueStructureValidator.validate(d),
+                "WORLD_SCOPE_MATCHES_EVERY_WORLD");
+        assertEquals(Severity.WARNING, found.severity());
+        assertTrue(found.message().contains("helped"), "the finding must name the memory");
     }
 
     @Test
-    void anUnknownSelectorOnAnOptionOnceIsAnError() {
+    void aBlankWorldOnAnOptionOnceIsReported() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide", "{\"Start\":[{\"Node\":\"g\"}],"
                 + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
-                + "\"Once\":{\"WorldSelector\":\"emrald_wilds\"}}]}}}");
+                + "\"Once\":{\"World\":\"  \"}}]}}}");
         assertNotNull(d);
 
-        List<Finding> issues = DialogueStructureValidator.validate(d, Set.of("emerald_wilds"));
-        assertEquals(Severity.ERROR, issue(issues, "ONCE_UNKNOWN_SELECTOR").severity());
+        assertEquals(Severity.WARNING,
+                issue(DialogueStructureValidator.validate(d), "WORLD_SCOPE_BLANK").severity());
     }
 
     @Test
@@ -194,8 +199,8 @@ class DialogueStateValidationTest {
     void aCleanTreeReportsNothingAboutItsState() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Memories\":{\"helped\":{\"WorldSelector\":\"emerald_wilds\"}},"
-                        + "\"Start\":[{\"Node\":\"g\",\"Once\":{\"WorldSelector\":\"emerald_wilds\"}}],"
+                "{\"Memories\":{\"helped\":{\"World\":\"emerald_wilds\"}},"
+                        + "\"Start\":[{\"Node\":\"g\",\"Once\":{\"World\":\"emerald_wilds\"}}],"
                         + "\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Once\":{},"
                         + "\"Conditions\":[{\"Type\":\"NotRemembered\",\"Memory\":\"helped\"}],"

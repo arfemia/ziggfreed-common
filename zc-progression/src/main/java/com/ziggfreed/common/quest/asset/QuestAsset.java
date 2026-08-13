@@ -1,6 +1,7 @@
 package com.ziggfreed.common.quest.asset;
 
 import java.nio.file.Path;
+import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,6 +30,7 @@ import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.time.DurationGroup;
 
 /**
  * One authored quest, at {@code Server/ZiggfreedCommon/Quests/<id>.json}. The FILE NAME is the
@@ -45,14 +47,15 @@ import com.ziggfreed.common.quest.Quest;
  *   "Text":       { "TitleKey": "quest.gather_copper.title", "FlavorKey": "quest.gather_copper.flavor" },
  *   "Listing":    { "Category": "gathering", "SortOrder": 10, "Tags": ["daily"] },
  *   "Flow":       { "AutoTrack": true, "Sequential": true },
- *   "Repeat":     { "Repeatable": true, "CooldownSeconds": 86400 },
+ *   "Repeat":     { "Cooldown": { "Hours": 24 } },
  *   "Visibility": { "Hidden": false, "RequirePrerequisites": true },
  *   "Npc":        { "ViewId": "guide", "TurnInId": "giver" },
+ *   "CompletionDialogue": "guide_thanks",
  *   "Requires":   { "Factors": [ {"Factor": "yourmod:trade_rank", "Min": 5} ] },
  *   "Objectives": { "collect": { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 10 },
  *                   "hand_in": { "Kind": "TURN_IN", "Target": "Copper_Ore", "Amount": 10, "Order": 2 } },
  *   "Rewards":    [ { "Kind": "yourmod:currency", "Params": { "Id": "coin", "Amount": "50" } } ],
- *   "Meta":       { "yourmod": { "Dialogue": "guide_thanks" } } }
+ *   "Meta":       { "yourmod": { "Faction": "wardens" } } }
  * }</pre>
  *
  * <p><b>Display text is keys, never sentences.</b> {@code Text.TitleKey} and {@code Text.FlavorKey}
@@ -81,6 +84,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable private Repeat repeat;
     @Nullable private Visibility visibility;
     @Nullable private Npc npc;
+    @Nullable private String completionDialogue;
     @Nullable private GateSpec requires;
     @Nullable private Map<String, QuestObjectiveAsset> objectives;
     @Nullable private RewardEntryAsset[] rewards;
@@ -146,6 +150,14 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .appendInherited(new KeyedCodec<>("Npc", Npc.CODEC, false),
                     (a, v) -> a.npc = v, a -> a.npc, (a, p) -> a.npc = p.npc)
             .documentation("Who offers the quest and where it is handed in.")
+            .add()
+            .appendInherited(new KeyedCodec<>("CompletionDialogue", Codec.STRING, false),
+                    (a, v) -> a.completionDialogue = v, a -> a.completionDialogue,
+                    (a, p) -> a.completionDialogue = p.completionDialogue)
+            .documentation("The conversation that follows this quest settling at a character, by dialogue id. "
+                    + "Leave it out and finishing simply pays out. It only ever plays where there is somebody "
+                    + "to play it: a quest log or a book has nobody in front of the player, so the beat is "
+                    + "skipped there. Author an empty string to drop a conversation inherited from a Parent.")
             .add()
             .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
@@ -257,6 +269,13 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return npc;
     }
 
+    /** The conversation that follows this quest settling, lower-cased, or null when it names none. */
+    @Nullable
+    public String getCompletionDialogue() {
+        return completionDialogue == null || completionDialogue.isBlank()
+                ? null : completionDialogue.trim().toLowerCase(Locale.ROOT);
+    }
+
     /** The authored requirements, or null when the quest asks for nothing. */
     @Nullable
     public GateSpec getRequires() {
@@ -299,7 +318,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .autoAccept(flow != null && flow.isAutoAccept())
                 .autoTrack(flow != null && flow.isAutoTrack())
                 .autoClaim(flow == null || flow.isAutoClaim())
-                .repeat(repeat == null ? Quest.Repeat.ONCE : repeat.toRepeat())
+                .repeat(repeat == null ? null : repeat.toRepeat())
                 .visibility(visibility == null ? Quest.Visibility.OPEN : visibility.toVisibility())
                 .tags(listing == null ? List.of() : listing.tagList());
 
@@ -331,7 +350,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 listing == null ? null : listing.getCategory(),
                 listing == null ? 0 : listing.sortOrderOrZero(),
                 listing == null ? List.of() : listing.chainList(),
-                giverId, questTurnIn,
+                giverId, questTurnIn, getCompletionDialogue(),
                 requires == null ? GateSpec.OPEN : requires,
                 objectiveText,
                 repeat == null ? List.of() : repeat.resetsOnCompleteList(),
@@ -422,28 +441,51 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
 
     // ==================== Repeat ====================
 
-    /** Whether the quest comes back around, how long the wait is, and what else it resets. */
+    /**
+     * Whether the quest comes back around, what holds it back, and what else it resets.
+     *
+     * <p><b>Authoring this block AT ALL is what makes a quest repeatable</b>, so the smallest
+     * repeatable quest is {@code "Repeat": {}} - nothing holds it back, and whatever offers it
+     * decides when it comes round. Everything inside is an independent constraint and they all have
+     * to pass: a rolling {@code Cooldown} wait, a {@code Reset} calendar allowance, and a lifetime
+     * {@code MaxCompletions} cap.
+     */
     public static final class Repeat {
 
-        @Nullable protected Boolean repeatable;
-        @Nullable protected Long cooldownSeconds;
-        @Nullable protected Boolean stampOnPark;
+        /** {@code CooldownFrom} authored as the instant the reward is taken; the default. */
+        public static final String FROM_CLAIM = "Claim";
+
+        /** {@code CooldownFrom} authored as the instant the steps were finished. */
+        public static final String FROM_COMPLETE = "Complete";
+
+        @Nullable protected DurationGroup cooldown;
+        @Nullable protected String cooldownFrom;
+        @Nullable protected Reset reset;
+        @Nullable protected Integer maxCompletions;
         @Nullable protected String[] resetsOnComplete;
 
         public static final BuilderCodec<Repeat> CODEC = BuilderCodec.builder(Repeat.class, Repeat::new)
-                .appendInherited(new KeyedCodec<>("Repeatable", Codec.BOOLEAN, false),
-                        (o, v) -> o.repeatable = v, o -> o.repeatable, (o, p) -> o.repeatable = p.repeatable)
-                .documentation("Can it be taken again once finished? Unauthored means false, a one-shot.").add()
-                .appendInherited(new KeyedCodec<>("CooldownSeconds", Codec.LONG, false),
-                        (o, v) -> o.cooldownSeconds = v, o -> o.cooldownSeconds,
-                        (o, p) -> o.cooldownSeconds = p.cooldownSeconds)
-                .documentation("How long before a repeatable quest can be taken again; 0 or unauthored means "
-                        + "straight away. 86400 is a day, 604800 a week.").add()
-                .appendInherited(new KeyedCodec<>("StampOnPark", Codec.BOOLEAN, false),
-                        (o, v) -> o.stampOnPark = v, o -> o.stampOnPark, (o, p) -> o.stampOnPark = p.stampOnPark)
-                .documentation("Start the wait when the steps are DONE rather than when the reward is taken. Set "
-                        + "it for a quest belonging to a rotating offer, so collecting late does not burn a slot in "
-                        + "the next period. Unauthored means false.").add()
+                .appendInherited(new KeyedCodec<>("Cooldown", DurationGroup.CODEC, false),
+                        (o, v) -> o.cooldown = v, o -> o.cooldown, (o, p) -> o.cooldown = p.cooldown)
+                .documentation("A rolling wait before the quest can be taken again, authored in whole units "
+                        + "that add up: {\"Hours\": 24} for a day, {\"Days\": 7} for a week. Unauthored means no "
+                        + "rolling wait at all.").add()
+                .appendInherited(new KeyedCodec<>("CooldownFrom", Codec.STRING, false),
+                        (o, v) -> o.cooldownFrom = v, o -> o.cooldownFrom,
+                        (o, p) -> o.cooldownFrom = p.cooldownFrom)
+                .documentation("Which instant the rolling wait counts from: Claim (the reward being taken, the "
+                        + "default) or Complete (the steps being finished). Choose Complete for a quest belonging "
+                        + "to a rotating offer, so collecting late does not burn a slot in the next period.").add()
+                .appendInherited(new KeyedCodec<>("Reset", Reset.CODEC, false),
+                        (o, v) -> o.reset = v, o -> o.reset, (o, p) -> o.reset = p.reset)
+                .documentation("A calendar allowance: how many times the quest may be finished inside one day "
+                        + "or one week, counted from a fixed boundary rather than from the player's last go. "
+                        + "Unauthored means no calendar limit.").add()
+                .appendInherited(new KeyedCodec<>("MaxCompletions", Codec.INTEGER, false),
+                        (o, v) -> o.maxCompletions = v, o -> o.maxCompletions,
+                        (o, p) -> o.maxCompletions = p.maxCompletions)
+                .documentation("A lifetime cap: how many times one player may ever finish it. 0 or unauthored "
+                        + "means uncapped. A player who has spent the cap sees the quest as finished for good.").add()
                 .appendInherited(new KeyedCodec<>("ResetsOnComplete", Codec.STRING_ARRAY, false),
                         (o, v) -> o.resetsOnComplete = v, o -> o.resetsOnComplete,
                         (o, p) -> o.resetsOnComplete = p.resetsOnComplete)
@@ -455,26 +497,70 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         }
 
         @Nonnull
-        public static Repeat of(@Nullable Boolean repeatable, @Nullable Long cooldownSeconds,
-                @Nullable Boolean stampOnPark, @Nullable String[] resetsOnComplete) {
+        public static Repeat of(@Nullable DurationGroup cooldown, @Nullable String cooldownFrom,
+                @Nullable Reset reset, @Nullable Integer maxCompletions,
+                @Nullable String[] resetsOnComplete) {
             Repeat r = new Repeat();
-            r.repeatable = repeatable;
-            r.cooldownSeconds = cooldownSeconds;
-            r.stampOnPark = stampOnPark;
+            r.cooldown = cooldown;
+            r.cooldownFrom = cooldownFrom;
+            r.reset = reset;
+            r.maxCompletions = maxCompletions;
             r.resetsOnComplete = resetsOnComplete == null ? null : resetsOnComplete.clone();
             return r;
         }
 
-        public boolean isRepeatable() {
-            return repeatable != null && repeatable;
+        /** The authored rolling wait, or null when the quest authors none. */
+        @Nullable
+        public DurationGroup getCooldown() {
+            return cooldown;
         }
 
+        /** The rolling wait in milliseconds; 0 when unauthored. */
         public long cooldownMs() {
-            return cooldownSeconds == null ? 0L : Math.max(0L, cooldownSeconds) * 1000L;
+            return cooldown == null ? 0L : cooldown.totalMs();
         }
 
-        public boolean isStampOnPark() {
-            return stampOnPark != null && stampOnPark;
+        /** The authored anchor exactly as written, unparsed; null when unauthored. */
+        @Nullable
+        public String getCooldownFrom() {
+            return cooldownFrom;
+        }
+
+        /** The parsed anchor, or null when a value was authored that is not one of the two. */
+        @Nullable
+        public Quest.Repeat.CooldownFrom parsedCooldownFrom() {
+            if (cooldownFrom == null || cooldownFrom.isBlank()) {
+                return Quest.Repeat.CooldownFrom.CLAIM;
+            }
+            String value = cooldownFrom.trim();
+            if (FROM_CLAIM.equalsIgnoreCase(value)) {
+                return Quest.Repeat.CooldownFrom.CLAIM;
+            }
+            return FROM_COMPLETE.equalsIgnoreCase(value) ? Quest.Repeat.CooldownFrom.COMPLETE : null;
+        }
+
+        /** The anchor, falling back to the documented default when the authored value is unknown. */
+        @Nonnull
+        public Quest.Repeat.CooldownFrom effectiveCooldownFrom() {
+            Quest.Repeat.CooldownFrom parsed = parsedCooldownFrom();
+            return parsed == null ? Quest.Repeat.CooldownFrom.CLAIM : parsed;
+        }
+
+        /** The authored calendar allowance, or null when the quest authors none. */
+        @Nullable
+        public Reset getReset() {
+            return reset;
+        }
+
+        /** The lifetime cap; 0 (uncapped) when unauthored or authored negative. */
+        public int maxCompletions() {
+            return maxCompletions == null ? 0 : Math.max(0, maxCompletions.intValue());
+        }
+
+        /** The authored lifetime cap exactly as written, for a validator that must see a bad one. */
+        @Nullable
+        public Integer getMaxCompletions() {
+            return maxCompletions;
         }
 
         @Nullable
@@ -496,15 +582,135 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             return out;
         }
 
-        /** The engine's repeat rule for these knobs. */
+        /**
+         * The engine's repeat rule for these knobs. Never null: the block existing at all IS the
+         * repeatable flag, so an empty block folds to the externally governed rule.
+         */
         @Nonnull
         public Quest.Repeat toRepeat() {
-            if (!isRepeatable()) {
-                return Quest.Repeat.ONCE;
+            return new Quest.Repeat(cooldownMs(), effectiveCooldownFrom(),
+                    reset == null ? null : reset.toReset(), maxCompletions());
+        }
+
+        // ==================== Reset ====================
+
+        /**
+         * The calendar allowance: how many times the quest may be finished inside one fixed window.
+         * Counted from a boundary on the server's own clock (UTC), not from the player's last go, so
+         * everybody's daily rolls over at the same instant.
+         */
+        public static final class Reset {
+
+            /** {@code Period} authored as a day; the default. */
+            public static final String PERIOD_DAILY = "Daily";
+
+            /** {@code Period} authored as a week. */
+            public static final String PERIOD_WEEKLY = "Weekly";
+
+            @Nullable protected String period;
+            @Nullable protected Integer atMinutes;
+            @Nullable protected String weekday;
+            @Nullable protected Integer times;
+
+            public static final BuilderCodec<Reset> CODEC = BuilderCodec.builder(Reset.class, Reset::new)
+                    .appendInherited(new KeyedCodec<>("Period", Codec.STRING, false),
+                            (o, v) -> o.period = v, o -> o.period, (o, p) -> o.period = p.period)
+                    .documentation("Daily or Weekly. Unauthored means Daily.").add()
+                    .appendInherited(new KeyedCodec<>("AtMinutes", Codec.INTEGER, false),
+                            (o, v) -> o.atMinutes = v, o -> o.atMinutes, (o, p) -> o.atMinutes = p.atMinutes)
+                    .documentation("How many minutes past the boundary the window rolls over, on the server "
+                            + "clock in UTC. Unauthored means midnight UTC; 240 moves it to 04:00, which is how "
+                            + "a server whose players are all in one part of the world stops a daily flipping "
+                            + "over in the middle of their evening.").add()
+                    .appendInherited(new KeyedCodec<>("Weekday", Codec.STRING, false),
+                            (o, v) -> o.weekday = v, o -> o.weekday, (o, p) -> o.weekday = p.weekday)
+                    .documentation("Which day a Weekly window starts on (Monday, Tuesday, ...). Unauthored "
+                            + "means Monday. It does nothing on a Daily window.").add()
+                    .appendInherited(new KeyedCodec<>("Times", Codec.INTEGER, false),
+                            (o, v) -> o.times = v, o -> o.times, (o, p) -> o.times = p.times)
+                    .documentation("How many completions fit inside one window. Unauthored means 1.").add()
+                    .build();
+
+            public Reset() {
             }
-            return isStampOnPark()
-                    ? Quest.Repeat.everyStampedOnPark(cooldownMs())
-                    : Quest.Repeat.every(cooldownMs());
+
+            @Nonnull
+            public static Reset of(@Nullable String period, @Nullable Integer atMinutes,
+                    @Nullable String weekday, @Nullable Integer times) {
+                Reset r = new Reset();
+                r.period = period;
+                r.atMinutes = atMinutes;
+                r.weekday = weekday;
+                r.times = times;
+                return r;
+            }
+
+            /** The authored period exactly as written, unparsed; null when unauthored. */
+            @Nullable
+            public String getPeriod() {
+                return period;
+            }
+
+            /** The parsed window length, or null when a value was authored that is neither. */
+            @Nullable
+            public Quest.Repeat.Reset.Period parsedPeriod() {
+                if (period == null || period.isBlank()) {
+                    return Quest.Repeat.Reset.Period.DAILY;
+                }
+                String value = period.trim();
+                if (PERIOD_DAILY.equalsIgnoreCase(value)) {
+                    return Quest.Repeat.Reset.Period.DAILY;
+                }
+                return PERIOD_WEEKLY.equalsIgnoreCase(value)
+                        ? Quest.Repeat.Reset.Period.WEEKLY : null;
+            }
+
+            /** The authored weekday exactly as written, unparsed; null when unauthored. */
+            @Nullable
+            public String getWeekday() {
+                return weekday;
+            }
+
+            /** The parsed weekday, or null when a value was authored that is not a day name. */
+            @Nullable
+            public DayOfWeek parsedWeekday() {
+                if (weekday == null || weekday.isBlank()) {
+                    return DayOfWeek.MONDAY;
+                }
+                try {
+                    return DayOfWeek.valueOf(weekday.trim().toUpperCase(Locale.ROOT));
+                } catch (IllegalArgumentException unknown) {
+                    return null;
+                }
+            }
+
+            /** The authored rollover offset exactly as written, for a validator. */
+            @Nullable
+            public Integer getAtMinutes() {
+                return atMinutes;
+            }
+
+            /** The authored allowance exactly as written, for a validator. */
+            @Nullable
+            public Integer getTimes() {
+                return times;
+            }
+
+            /**
+             * The engine's calendar rule for these knobs, each unparseable value falling back to its
+             * documented default. A validator is what tells the author about one; falling back
+             * silently here keeps a typo from taking a whole quest out of circulation.
+             */
+            @Nonnull
+            public Quest.Repeat.Reset toReset() {
+                Quest.Repeat.Reset.Period parsedPeriod = parsedPeriod();
+                DayOfWeek parsedWeekday = parsedWeekday();
+                return new Quest.Repeat.Reset(
+                        parsedPeriod == null ? Quest.Repeat.Reset.Period.DAILY : parsedPeriod,
+                        atMinutes == null ? 0 : atMinutes.intValue(),
+                        parsedWeekday == null ? DayOfWeek.MONDAY : parsedWeekday,
+                        times == null ? 1 : times.intValue());
+            }
         }
     }
 

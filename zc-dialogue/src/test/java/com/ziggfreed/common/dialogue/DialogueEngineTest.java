@@ -155,12 +155,12 @@ class DialogueEngineTest {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("once",
                 "{\"Start\":[{\"Node\":\"g\",\"Once\":true},{\"Node\":\"g\",\"Once\":"
-                        + "{\"WorldSelector\":\"temple\"}},{\"Node\":\"g\",\"Once\":false}],"
+                        + "{\"World\":\"temple\"}},{\"Node\":\"g\",\"Once\":false}],"
                         + "\"Nodes\":{\"g\":{\"Options\":[]}}}");
         assertNotNull(d);
         assertNotNull(d.getStart().get(0).getOnce());
-        assertNull(d.getStart().get(0).getOnce().getWorldSelector());
-        assertEquals("temple", d.getStart().get(1).getOnce().getWorldSelector());
+        assertNull(d.getStart().get(0).getOnce().getWorld());
+        assertEquals("temple", d.getStart().get(1).getOnce().getWorld());
         assertNull(d.getStart().get(2).getOnce(), "false means there is no Once at all");
     }
 

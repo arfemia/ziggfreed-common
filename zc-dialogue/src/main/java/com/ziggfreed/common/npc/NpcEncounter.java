@@ -6,6 +6,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.dialogue.quest.QuestHandOff;
 import com.ziggfreed.common.quest.NpcOffer;
 
 /**
@@ -75,4 +76,26 @@ public interface NpcEncounter {
      * beat: it credits because the surface decided a beat happened, never because a page opened.
      */
     boolean creditTalk(@Nullable String qualifier);
+
+    /**
+     * What conversation should follow this quest settling HERE, if any: the shared decision, asked on
+     * this character rather than on an id the caller had to resolve itself.
+     *
+     * <p>Defaults to {@link QuestHandOff.Outcome#NO_NPC_CONTEXT}, so a fourth party's own encounter
+     * implementation stays source-compatible and skips the beat rather than guessing at one.
+     */
+    @Nonnull
+    default QuestHandOff completionHandOff(@Nonnull String questId) {
+        return QuestHandOff.none(questId, QuestHandOff.Outcome.NO_NPC_CONTEXT);
+    }
+
+    /**
+     * Decide and drive it. True when a host took over the screen, in which case the caller must NOT
+     * render anything else.
+     *
+     * <p>Defaults to false: an encounter built without engine handles has no screen to hand over.
+     */
+    default boolean playCompletion(@Nonnull String questId) {
+        return false;
+    }
 }

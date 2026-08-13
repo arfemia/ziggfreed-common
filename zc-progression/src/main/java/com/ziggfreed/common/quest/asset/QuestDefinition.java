@@ -33,6 +33,8 @@ import com.ziggfreed.common.quest.Quest;
  * @param chains           the ladders this is a rung of, in authored order; the first is primary
  * @param npcViewId        who offers the quest, or null
  * @param turnInNpcId      where it is handed in, sentinel already resolved, or null for anywhere
+ * @param completionDialogue the conversation that follows this quest settling at a character, or
+ *                         null when it names none
  * @param requires         what must be true first; never null, {@link GateSpec#OPEN} when open
  * @param objectiveTextKeys objective id to its localization key, for the steps that carry one
  * @param resetsOnComplete quest ids wiped when this one finishes
@@ -45,7 +47,8 @@ public record QuestDefinition(@Nonnull String id, @Nonnull Quest quest, @Nullabl
                               @Nonnull List<String> titleArgs, @Nonnull List<String> flavorArgs,
                               @Nullable String category, int sortOrder,
                               @Nonnull List<ChainMembership> chains, @Nullable String npcViewId,
-                              @Nullable String turnInNpcId, @Nonnull GateSpec requires,
+                              @Nullable String turnInNpcId, @Nullable String completionDialogue,
+                              @Nonnull GateSpec requires,
                               @Nonnull Map<String, String> objectiveTextKeys,
                               @Nonnull List<String> resetsOnComplete, @Nullable String owner,
                               @Nullable String generatedBy,

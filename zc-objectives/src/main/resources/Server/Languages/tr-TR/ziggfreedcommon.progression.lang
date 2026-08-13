@@ -1,0 +1,37 @@
+book.title = Hedef Kitabı
+book.tab.quests = Görevler
+book.tab.achievements = Başarımlar
+book.empty.quests = Henüz sana açık bir görev yok.
+book.empty.achievements = Henüz sana açık bir başarım yok.
+book.progress = {0}/{1}
+book.more = +{0} tane daha
+
+book.quests.section.active = Devam ediyor
+book.quests.section.ready = Alınmayı bekliyor
+book.quests.section.available = Mevcut
+book.quests.section.locked = Kilitli
+book.quests.untitled = İsimsiz görev
+book.quests.step.untitled = İsimsiz adım
+book.quests.lock.unavailable = Şu anda sunulmuyor
+book.quests.lock.on_cooldown = Daha sonra tekrar açılacak
+book.quests.lock.prerequisites = Gereksinimler karşılanmadı
+book.quests.lock.other = Henüz açık değil
+
+book.achievements.points = {0}/{1}
+book.achievements.section.ready = Alınmayı bekliyor
+book.achievements.section.in_progress = Devam ediyor
+book.achievements.section.earned = Kazanıldı
+book.achievements.untitled = İsimsiz başarım
+book.achievements.criterion.untitled = İsimsiz adım
+book.achievements.status.earned = Kazanıldı
+
+book.action.accept = Kabul et
+book.action.claim = Al
+book.action.turn_in = Teslim et
+
+book.toast.accepted = Görev kabul edildi.
+book.toast.accept_failed = Bu görev şu anda kabul edilemiyor.
+book.toast.claimed = Ödüller alındı.
+book.toast.claim_failed = Şu anda alınacak bir şey yok.
+book.toast.turned_in = Teslim edildi.
+book.toast.turn_in_failed = Bu burada teslim edilemez.

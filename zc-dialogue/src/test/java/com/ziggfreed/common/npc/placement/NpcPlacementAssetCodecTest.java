@@ -121,7 +121,7 @@ class NpcPlacementAssetCodecTest {
     void aChildOverridingOneGroupInheritsTheOthers() throws Exception {
         NpcPlacementAsset parent = decodeRoot("""
                 { "Identity": { "Role": "Zc_Guide" },
-                  "Where":    { "Names": ["primary"] },
+                  "Where":    { "Names": ["default"] },
                   "Anchor":   { "WorldSpawn": { "Offset": { "X": 2.5 }, "Yaw": 180 } },
                   "Lifecycle":{ "KeepAlive": true, "Fortify": true } }
                 """, "hub");

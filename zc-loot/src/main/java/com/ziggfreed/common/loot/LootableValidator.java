@@ -45,29 +45,125 @@ public final class LootableValidator {
     public static final String EMPTY_FLOOR = "LOOT_EMPTY_FLOOR";
     public static final String BLANK_ITEM = "LOOT_BLANK_ITEM";
     public static final String NON_POSITIVE_COUNT = "LOOT_NON_POSITIVE_COUNT";
+    public static final String INVERTED_COUNT_RANGE = "LOOT_INVERTED_COUNT_RANGE";
     public static final String BLANK_DROP_LIST = "LOOT_BLANK_DROP_LIST";
     public static final String BLANK_COMMAND = "LOOT_BLANK_COMMAND";
     public static final String BLANK_REWARD_KIND = "LOOT_BLANK_REWARD_KIND";
     public static final String UNKNOWN_REWARD_KIND = "LOOT_UNKNOWN_REWARD_KIND";
+    public static final String POOL_NO_ENTRIES = "LOOT_POOL_NO_ENTRIES";
+    public static final String POOL_NO_PICKS = "LOOT_POOL_NO_PICKS";
+    public static final String POOL_ENTRY_NEVER_PICKED = "LOOT_POOL_ENTRY_NEVER_PICKED";
+    public static final String POOL_ENTRY_EMPTY = "LOOT_POOL_ENTRY_EMPTY";
+    public static final String UNKNOWN_CONTRIBUTION_TARGET = "LOOT_UNKNOWN_CONTRIBUTION_TARGET";
+    public static final String SELF_CONTRIBUTION = "LOOT_SELF_CONTRIBUTION";
+    public static final String CONTRIBUTED_PICKS_IGNORED = "LOOT_CONTRIBUTED_PICKS_IGNORED";
 
     private LootableValidator() {
     }
 
-    /** Audit every loaded lootable table. */
+    /**
+     * Audit every loaded lootable table AS AUTHORED - each file's own findings against its own id,
+     * so a contributor's mistake is reported where the author would go and fix it rather than a
+     * second time under the table it enriches.
+     */
     @Nonnull
     public static List<Finding> auditAll(@Nullable RewardKindRegistry kinds) {
         List<Finding> findings = new ArrayList<>();
-        LootableConfig.getInstance().all().forEach((id, table) -> {
+        LootableConfig config = LootableConfig.getInstance();
+        config.all().forEach((id, table) -> {
             Roll[] rolls = table.getRolls();
-            if (rolls == null || rolls.length == 0) {
+            LootPool pool = table.getPool();
+            if ((rolls == null || rolls.length == 0) && pool == null) {
                 findings.add(Finding.warning(DOMAIN, EMPTY_TABLE,
-                        "This table has no rolls, so anything referencing it gets nothing.", id));
-                return;
+                        "This table has no rolls and no pool, so anything referencing it gets nothing.", id));
             }
-            for (int i = 0; i < rolls.length; i++) {
-                findings.addAll(auditRoll(rolls[i], id + " roll " + i, kinds));
+            if (rolls != null) {
+                for (int i = 0; i < rolls.length; i++) {
+                    findings.addAll(auditRoll(rolls[i], id + " roll " + i, kinds));
+                }
             }
+            findings.addAll(auditPool(pool, id, kinds));
+            findings.addAll(auditContribution(config, id, table));
         });
+        for (String target : config.unresolvedContributionTargets()) {
+            findings.add(Finding.warning(DOMAIN, UNKNOWN_CONTRIBUTION_TARGET,
+                    "No loot table named '" + target + "' is loaded, so "
+                            + String.join(", ", config.contributorsOf(target))
+                            + " adds nothing to anything. Check the spelling, or the pack that ships it.",
+                    target));
+        }
+        return findings;
+    }
+
+    /** Audit ONE pool: that it can be drawn at all, and that each entry can win something. */
+    @Nonnull
+    public static List<Finding> auditPool(@Nullable LootPool pool, @Nonnull String sourceId,
+            @Nullable RewardKindRegistry kinds) {
+        List<Finding> findings = new ArrayList<>();
+        if (pool == null) {
+            return findings;
+        }
+        LootPool.Entry[] entries = pool.getEntries();
+        if (entries == null || entries.length == 0) {
+            findings.add(Finding.warning(DOMAIN, POOL_NO_ENTRIES,
+                    "The pool has no entries, so drawing from it hands over nothing. Author entries, or "
+                            + "remove the whole Pool group.", sourceId));
+            return findings;
+        }
+        FactorFormula picks = pool.getRolls();
+        if (picks != null && picks.hasNoTerms()) {
+            FactorFormula.Clamp clamp = picks.getClamp();
+            double base = picks.baseOrZero();
+            double effective = clamp == null ? base : clamp.apply(base);
+            if (effective < 1.0) {
+                findings.add(Finding.error(DOMAIN, POOL_NO_PICKS,
+                        "The pool works out to " + effective + " picks with no factors to raise it, so it "
+                                + "can never be drawn. Raise Base, or add a factor.", sourceId));
+            }
+        }
+        for (int i = 0; i < entries.length; i++) {
+            LootPool.Entry entry = entries[i];
+            if (entry == null) {
+                continue;
+            }
+            String entryId = sourceId + " pool entry " + i;
+            if (entry.getWeight() != null && entry.effectiveWeight() <= 0.0) {
+                findings.add(Finding.warning(DOMAIN, POOL_ENTRY_NEVER_PICKED,
+                        "This entry has a weight of " + entry.getWeight() + ", so it never comes up while "
+                                + "any other entry can.", entryId));
+            }
+            if (entry.isEmpty()) {
+                findings.add(Finding.warning(DOMAIN, POOL_ENTRY_EMPTY,
+                        "This entry hands over nothing, so drawing it wastes a pick.", entryId));
+            }
+            auditConditions(entry.getConditions(), entryId, findings);
+            auditGrants(entry.getGrants(), entryId, findings, kinds);
+        }
+        return findings;
+    }
+
+    /** Audit ONE table's {@code ContributesTo} leaf against the tables actually loaded. */
+    @Nonnull
+    private static List<Finding> auditContribution(@Nonnull LootableConfig config, @Nonnull String id,
+            @Nonnull LootableAsset table) {
+        List<Finding> findings = new ArrayList<>();
+        String target = table.getContributesTo();
+        if (target == null || target.isBlank()) {
+            return findings;
+        }
+        if (target.equalsIgnoreCase(id)) {
+            findings.add(Finding.warning(DOMAIN, SELF_CONTRIBUTION,
+                    "This table contributes to itself, which adds nothing. Remove ContributesTo, or point "
+                            + "it at the table you meant to enrich.", id));
+            return findings;
+        }
+        LootableAsset base = config.resolveAuthored(target);
+        if (base != null && base.getPool() != null && table.getPool() != null
+                && table.getPool().getRolls() != null) {
+            findings.add(Finding.info(DOMAIN, CONTRIBUTED_PICKS_IGNORED,
+                    "'" + target + "' already says how many picks its pool makes, so the Pool.Rolls here is "
+                            + "not read. The entries below it are still added.", id));
+        }
         return findings;
     }
 
@@ -236,6 +332,12 @@ public final class LootableValidator {
                     findings.add(Finding.warning(DOMAIN, NON_POSITIVE_COUNT,
                             "Item '" + item.getItem() + "' asks for a count of " + item.getCount()
                                     + "; one is handed over instead. Remove the key for one.", sourceId));
+                } else if (item.getCountMax() != null && item.getCountMax() < item.effectiveCount()) {
+                    findings.add(Finding.warning(DOMAIN, INVERTED_COUNT_RANGE,
+                            "Item '" + item.getItem() + "' has a CountMax of " + item.getCountMax()
+                                    + " below its Count of " + item.effectiveCount()
+                                    + ", so the quantity never varies. Raise CountMax, or remove it.",
+                            sourceId));
                 }
             }
         }
@@ -293,7 +395,9 @@ public final class LootableValidator {
         return List.of(EMPTY_TABLE, NO_ROLL_CONTENT, UNKNOWN_TABLE, BLANK_TABLE_REF, BLANK_CONDITION,
                 INVERTED_BOUNDS, IMPOSSIBLE_CHANCE, CERTAIN_CHANCE, INVERTED_CLAMP, LADDER_NO_FLOORS,
                 LADDER_NO_FACTORS, DUPLICATE_FLOOR, UNREACHABLE_FLOOR, EMPTY_FLOOR, BLANK_ITEM,
-                NON_POSITIVE_COUNT, BLANK_DROP_LIST, BLANK_COMMAND, BLANK_REWARD_KIND,
-                UNKNOWN_REWARD_KIND);
+                NON_POSITIVE_COUNT, INVERTED_COUNT_RANGE, BLANK_DROP_LIST, BLANK_COMMAND, BLANK_REWARD_KIND,
+                UNKNOWN_REWARD_KIND, POOL_NO_ENTRIES, POOL_NO_PICKS, POOL_ENTRY_NEVER_PICKED,
+                POOL_ENTRY_EMPTY, UNKNOWN_CONTRIBUTION_TARGET, SELF_CONTRIBUTION,
+                CONTRIBUTED_PICKS_IGNORED);
     }
 }

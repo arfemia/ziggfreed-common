@@ -2,6 +2,7 @@ package com.ziggfreed.common.loot.reward;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -12,6 +13,8 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+
+import com.ziggfreed.common.registry.RegistryLedger;
 
 /**
  * The droplist kind's PARAMETER FOLD: which id it rolls, how many times, and where the stacks land.
@@ -150,9 +153,21 @@ class DroplistRewardKindTest {
             DroplistRewardKind.registerInto(kinds);
 
             assertTrue(kinds.isRegistered(DroplistRewardKind.KIND));
-            assertEquals(DroplistRewardKind.OWNER, kinds.info().get(DroplistRewardKind.KIND).owner());
-            assertEquals(3, LootRewardKinds.parameterKeys().size(),
+            assertEquals(DroplistRewardKind.OWNER,
+                    kinds.info().get(RegistryLedger.normalize(DroplistRewardKind.KIND)).owner());
+            assertFalse(LootRewardKinds.parameterKeys().containsKey(DroplistRewardKind.KIND),
                     "a ground drop is not an inventory grant; it stays out of the item-kind table");
+        }
+
+        @Test
+        void theCanonicalIdIsTheNativeAssetSpelling() {
+            RewardKindRegistry kinds = new RewardKindRegistry("test");
+            DroplistRewardKind.registerInto(kinds);
+
+            assertEquals("Droplist", DroplistRewardKind.KIND,
+                    "a framework kind id is native-asset style, unprefixed and PascalCase");
+            assertTrue(kinds.isRegistered("droplist"),
+                    "an old lower-case spelling still resolves - the id is matched case-insensitively");
         }
 
         @Test

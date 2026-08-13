@@ -1,15 +1,21 @@
-# instance/reward/ - the mod-agnostic reward model + score-tiered loot tables (module `zc-loot`)
+# instance/reward/ - the mod-agnostic reward model + the deferred-payout layer (module `zc-loot`)
 
 Router for `com.ziggfreed.common.instance.reward`, and the module-level router for **zc-loot**. Its
 sibling packages, both of which you should read before adding anything of their shape anywhere:
 [`loot/`](../../loot/CLAUDE.md) (the ONE loot core - `Roll`, the pure evaluator, the seam-driven
 engine, the `Lootable` and `RollPool` assets, the stamp math) and
 [`loot/reward/`](../../loot/reward/CLAUDE.md) (the reward VOCABULARY every payout site shares - what
-a reward IS, who pays it out, how it is written, and the isolated payout pass). The reusable end-game reward layer a consumer minigame/dungeon grants from: a generic reward
-descriptor, the block-first full-inventory granter, a durable claim store, and (the score-driven
-layer) a pack-authorable loot table. Common ships the MODEL + the granter only; the consumer's `Sink`
-interprets currency/command kinds, so common imports no currency engine. World-thread for grants; the
-roll + parse are pure.
+a reward IS, who pays it out, how it is written, and the isolated payout pass). The reusable end-game
+reward layer a consumer minigame/dungeon grants from: a generic reward descriptor, the block-first
+full-inventory granter, a durable claim store, and the translation that turns a decided loot pass into
+rewards a player can be SHOWN before they are handed over. Common ships the MODEL + the granter only;
+the consumer's `Sink` interprets currency/command kinds, so common imports no currency engine.
+World-thread for grants; the decision + parse are pure.
+
+**What loot IS lives one package over, in [`loot/`](../../loot/CLAUDE.md).** A score-tiered table is an
+ordinary `Lootable` there - conditional `Rolls` for what everybody gets, a `Pool` for the part that
+varies - and this package's job begins once that table has DECIDED. Anything that reads like a second
+loot model appearing here is a mistake; add the knob to the one core instead.
 
 ## The module
 
@@ -58,63 +64,56 @@ Package naming to keep as this module grows: the tri-layer shape `<domain>/` + `
 - **[`PendingRewardStore`](PendingRewardStore.java)** - durable per-player reward queue (file-backed JSON):
   `queue`/`drain`/`has`. Holds owed spoils across disconnect/restart and re-holds anything that still does
   not fit at claim time.
-- **Score-tiered loot tables** (the "better loot for a better score" layer):
-  - **[`LootEntry`](LootEntry.java)** - one weighted, score-gated, quantity-ranged, win-gated pool entry.
-    Compact spec is a superset of `InstanceReward`'s:
-    `[w<weight>] [s<minScore>] [win|loss|any] <kind> <id> <qty|min-max> [displayKey]` (a registered token is
-    accepted in `<kind>`). `parse`/`parseAll`; `resolve(Random)` rolls the quantity; `safeWeight()` clamps
-    `>= 0`. The `win`/`loss`/`any` token never collides with `w<weight>` (the weight flag requires digits).
-  - **[`LootTable`](LootTable.java)** - `record(guaranteed, pool, rolls, scorePerBonusRoll, maxRolls,
-    sourceId, tableId)` + `roll(int score, boolean win, Random)`: each guaranteed entry whose `WinGate`
-    admits the outcome, plus `clamp(rolls + score/scorePerBonusRoll, 0, maxRolls)` weighted picks among pool
-    entries eligible at the score AND gate. `guaranteed` is a `List<LootEntry>` too (so a guaranteed reward
-    can be win/loss-gated). Deterministic for a given seed. **Eligibility rides the shared vocabulary**:
-    an entry's score requirement and win/loss gate are `FactorCondition`s over `loot/LootFactors`
-    (`ziggfreedcommon:instance_score` / `:instance_win`), walked by the same `loot/FactorGate` every other
-    piece of gated content uses, and the pick runs through the one `util/WeightedPick` primitive. So
-    "unlocks at 4000 points" is an ordinary reading rather than a rule only this class knows.
-    `rollCount(score)` exposes the bonus-roll arithmetic on its own.
-  - **[`LootTableAsset`](LootTableAsset.java)** + **[`LootTableConfig`](LootTableConfig.java)** - Pattern-A
-    codec (`Server/<Mod>/LootTables/`, registered by `asset/FrameworkAssetRegistrar`) + its
-    `defaults < pack < owner` fold. Lists are `String[]` (`Guaranteed`/`Pool`); knobs `Rolls`/
-    `ScorePerBonusRoll`/`MaxRolls`; the optional `TableId` groups ADDITIVE contributions; the optional
-    `NativeDropList` names a native Hytale `ItemDropList` asset this table delegates item selection to (see
-    below). **`LootTableConfig.resolveUnion(tableId)`** is the additive resolver: it folds EVERY loaded table
-    whose `TableId` matches into one (entries concatenated, contributors ordered by source id for a stable
-    roll, scalars - including `NativeDropList` - from the base whose own id == `tableId`), so a second pack
-    adds entries to a table WITHOUT overriding the file that owns it. `TableId` defaults to the asset's own
-    id, so a lone table folds to itself and `resolveUnion` is a safe drop-in for `resolve`.
-  - **[`NativeLootService`](NativeLootService.java)** - the XP-AGNOSTIC engine-touching half of the
-    primitive: `rollNative(dropListId)` wraps `ItemModule.getRandomItemDrops` (empty + warn-once on a
-    disabled module or an unclaimed id, mirroring the sibling `mmo-mob-scaling`
-    `MobScalingLootDropSystem`'s `WARNED_IDS`; never throws) and `spawnInWorld(store, commandBuffer,
-    position, rotation, items)` wraps `ItemComponent.generateItemDrops` + `CommandBuffer.addEntities` (a
-    no-op on an empty list). These two are the reusable primitives a consumer's OWN system calls to roll +
-    ground-spawn a native table (luck-loot, mob-scaling bonus loot); common ships them so the native-roll +
-    in-world-spawn idiom is written once. `rollTable(table, score, win, rng)` is the drop-in replacement for
-    a consumer's `table.roll(score, win, rng)` call: it rolls the table EXACTLY as before for its own
-    command/currency/gated entries, then, when `table.nativeDropList()` is set, rolls that native list too
-    and appends one `InstanceReward.item(...)` per resolved `ItemStack` on top. A `null`/blank
-    `nativeDropList` is a byte-for-byte pass-through (no native delegation, the pre-native behavior).
-    `LootTable.roll` itself stays pure and engine-free; only `NativeLootService` touches `ItemModule`.
+- **[`DeferredRewards`](DeferredRewards.java)** - the ONE translation from what a loot pass DECIDED
+  (`LootEngine.select`, a list of `Selected(grants, cue)`) into `InstanceReward`s that can be shown
+  now and handed over later. `from(grants, kinds, subject, sourceId, warn)` /
+  `fromSelection(selected, ...)`. Items become item rewards so the inventory guard still applies;
+  `DropLists` are rolled HERE, at decision time; `Commands` become command rewards; a registered-kind
+  `Rewards` entry is asked for its REPLAYABLE console line and becomes a command reward. **A kind that
+  offers no replay is DROPPED and reported** - its payout is decided at grant time, so promising it on
+  a results screen and paying something else later is worse than not promising it. The two OPTIONAL
+  presentation parameters `NameKey` and `Icon` are read off any reward entry by this layer (a kind's
+  own schema decides what it PAYS, not how somebody else's screen draws it), and the chip quantity
+  comes from `Amount`/`Count`/`Quantity`.
+- **[`LootEntry`](LootEntry.java)** + **[`WinGate`](WinGate.java)** - the terse COMPACT surface for a
+  weighted, score-gated, quantity-ranged, win-gated reward, one line each:
+  `[w<weight>] [s<minScore>] [win|loss|any] <kind> <id> <qty|min-max> [displayKey]` (a registered token
+  is accepted in `<kind>`). `parse`/`parseAll`; `resolve(Random)` rolls the quantity; `safeWeight()`
+  clamps `>= 0`. The `win`/`loss`/`any` token never collides with `w<weight>` (the weight flag requires
+  digits). Eligibility rides the shared vocabulary: `conditions()` / `gateConditions()` are
+  `FactorCondition`s over `loot/LootFactors` (`ziggfreedcommon:instance_score` / `:instance_win`),
+  walked by the same `loot/FactorGate` every other piece of gated content uses. For a codec field that
+  is a plain `String[]` and a whole pool visible at a glance; the structured surface with more reach
+  (conditions over any factor, every grant leaf, contributions from other packs) is a `Lootable`'s own
+  `Pool` group. `mmo-mob-scaling`'s `BonusRewards` is the compact surface's other consumer.
+- **[`NativeLootService`](NativeLootService.java)** - the XP-AGNOSTIC engine-touching half of the
+  primitive: `rollNative(dropListId)` wraps `ItemModule.getRandomItemDrops` (empty + warn-once on a
+  disabled module or an unclaimed id, mirroring the sibling `mmo-mob-scaling`
+  `MobScalingLootDropSystem`'s `WARNED_IDS`; never throws) and `spawnInWorld(store, commandBuffer,
+  position, rotation, items)` wraps `ItemComponent.generateItemDrops` + `CommandBuffer.addEntities` (a
+  no-op on an empty list). These two are the reusable primitives a consumer's OWN system calls to roll +
+  ground-spawn a native table (luck-loot, mob-scaling bonus loot, a `Droplist` reward kind); common
+  ships them so the native-roll + in-world-spawn idiom is written once, and nothing else in this module
+  touches `ItemModule`.
 
 **Consumer flow (Kweebec is the exemplar, `experience/KweebecExperience`):** at round resolve, with the
-per-player score AND win/loss outcome in hand, `LootTableConfig.resolveUnion(preset.rewardTableId())
-.roll(score, win, seed)` ONCE, `PendingRewardStore.queue` the concrete rolled list (durable, no grant),
-stash the same list for the chip preview, then `grantAll` on the player's Claim back in the overworld. A
-preset that should pay a participation reward on a loss sets `RewardOnExit: ALWAYS` and gates its win-only
-entries `win` (the default); loss/any entries then pay on a loss.
+per-player score AND win/loss outcome in hand, resolve the preset's `RewardTableId` through
+`LootableConfig.resolve` (contributions already folded in), `LootEngine.select` it ONCE against
+`LootFactors.lookupFor(score, win)` with a seeded sample source, hand the answer to
+`DeferredRewards.fromSelection`, `PendingRewardStore.queue` the concrete list (durable, no grant), stash
+the same list for the chip preview, then `grantAll` on the player's Claim back in the overworld. The
+subject handed to `DeferredRewards` is deliberately named `"{player}"`, so a deferred command line keeps
+the placeholder for whoever is standing there at claim time. A preset that should pay a participation
+reward on a loss sets `RewardOnExit: ALWAYS` and leaves its consolation entries ungated.
 
 **Tests** (`src/test/.../instance/reward/`): `LootEntryTest` (grammar + range resolve + gate tokens +
-registered-token rewrite), `LootTableTest` (determinism, score gating, bonus-roll scaling, cap, win/loss
-gating), `LootTableUnionTest` (the additive union, incl. the `NativeDropList` base-scalar rule),
-`InstanceRewardParseTest` (spec + authoring-adapter parse), `LootTableRebaseTest` (eligibility as
-conditions, the bonus-roll count, and a PINNED fixed-seed run - that pin is the payout a player
-receives, so a change there is a balance change, not a refactor), `NativeLootServiceTest` (native-delegation merge,
-no-native-drop-list pass-through, unknown-id / disabled-module never-throws). `LootTableAsset.CODEC` is in
-`asset/AssetCodecInitTest` (PascalCase static-init guard). A bare unit-test JVM never boots a real
-`ItemModule` (its static `get()` is only assigned by the live plugin bootstrap) or registers the `Item`/
-`ItemDropList` asset stores, so `NativeLootServiceTest` stubs `NativeLootService`'s package-private
-engine-roll seam for the native-item cases, and builds any needed `ItemStack` via `ItemStack.CODEC.decode`
-(NOT the public constructors, which call `getItem()` and NPE with no registered `Item` asset store) rather
-than touching the live engine.
+registered-token rewrite), `LootFactorGateTest` (what the two instance readings mean, and that a gate
+over them fails closed with no run to ask about), `InstanceRewardParseTest` (spec + authoring-adapter
+parse), `DeferredRewardsTest` (every leaf's deferral, the presentation parameters, and above all that an
+unreplayable kind is dropped and reported rather than promised), `NativeLootServiceTest` (unknown-id /
+disabled-module / throwing-engine never-throws). A bare unit-test JVM never boots a real `ItemModule`
+(its static `get()` is only assigned by the live plugin bootstrap) or registers the `Item`/
+`ItemDropList` asset stores, and cannot construct an `ItemStack` at all here (its codec chain forces a
+validator class needing the Hytale log manager installed before anything touches `java.util.logging` -
+already lost to the Gradle test worker's own bootstrap), so those cases run against the real unbooted
+engine to prove the guards directly and leave what a live drop list produces to the in-game pass.

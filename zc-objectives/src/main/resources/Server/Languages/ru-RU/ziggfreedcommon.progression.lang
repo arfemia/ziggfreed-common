@@ -1,0 +1,37 @@
+book.title = Книга целей
+book.tab.quests = Квесты
+book.tab.achievements = Достижения
+book.empty.quests = Пока нет доступных вам квестов.
+book.empty.achievements = Пока нет доступных вам достижений.
+book.progress = {0}/{1}
+book.more = +{0} ещё
+
+book.quests.section.active = В процессе
+book.quests.section.ready = Готово к получению
+book.quests.section.available = Доступные
+book.quests.section.locked = Закрытые
+book.quests.untitled = Безымянный квест
+book.quests.step.untitled = Безымянный шаг
+book.quests.lock.unavailable = Сейчас не предлагается
+book.quests.lock.on_cooldown = Будет доступен позже
+book.quests.lock.prerequisites = Требования не выполнены
+book.quests.lock.other = Пока недоступно
+
+book.achievements.points = {0}/{1}
+book.achievements.section.ready = Готово к получению
+book.achievements.section.in_progress = В процессе
+book.achievements.section.earned = Получено
+book.achievements.untitled = Безымянное достижение
+book.achievements.criterion.untitled = Безымянный шаг
+book.achievements.status.earned = Получено
+
+book.action.accept = Принять
+book.action.claim = Получить
+book.action.turn_in = Сдать
+
+book.toast.accepted = Квест принят.
+book.toast.accept_failed = Этот квест сейчас нельзя принять.
+book.toast.claimed = Награды получены.
+book.toast.claim_failed = Сейчас нечего получать.
+book.toast.turned_in = Сдано.
+book.toast.turn_in_failed = Это нельзя сдать здесь.

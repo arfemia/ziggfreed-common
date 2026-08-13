@@ -10,6 +10,12 @@ claim an id in.
   `normalize(id)` (trim + lower-case) every registry built on it uses on BOTH sides of a lookup.
   Construct with a label (`new RegistryLedger<>("placement")`) so its warnings say which registry
   they came from.
+- **`putQuietly(id, owner, value)`** is `put` minus the overwrite warning, and NOTHING else: same
+  replacement, same attribution, same identity-idempotence, and a LATER ordinary `put` over that id
+  still warns. It exists for the caller whose own report of the same swap is strictly better than
+  the ledger's - the reward-kind fold names the file that took the id over and says what the swap
+  cost, so letting the ledger add "two owners wanted this id" above it would print two lines for one
+  event, the less useful one first. Reach for it only with a better line in hand.
 - **Identity, not equality, decides an overwrite warning.** A consumer re-running its own `setup()`
   passes the SAME provider instance, and that must stay silent; only replacing one DISTINCT instance
   with another logs, once per id, naming both owners. A flapping re-register can therefore never
@@ -24,4 +30,5 @@ through their own `npc.placement.PlacementRegistryLedger` (a thin subclass that 
 through a subclass (`PlacementRegistryLedger.RegistrationInfo`) resolves normally.
 
 Covered by `RegistryLedgerTest` (zc-core): normalization, the identity-vs-equality overwrite rule,
-failure counting, snapshot freshness, and the ignored-blank-id/null-value cases.
+the quiet put replacing and attributing exactly like the loud one, failure counting, snapshot
+freshness, and the ignored-blank-id/null-value cases.

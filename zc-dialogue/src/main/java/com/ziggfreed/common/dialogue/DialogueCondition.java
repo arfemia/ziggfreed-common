@@ -78,63 +78,60 @@ public abstract class DialogueCondition {
     }
 
     /**
-     * Passes only when the player's CURRENT world matches an embedded
-     * {@link com.ziggfreed.common.world.WorldSelector} - the ONE world-identity authority, written
-     * inline here with its own keys:
+     * Passes only when the player's CURRENT world matches the embedded
+     * {@link com.ziggfreed.common.world.WorldSelector} under {@code Where} - the ONE
+     * world-identity authority, written here in exactly the spelling every other
+     * world-targeting asset uses:
      *
      * <pre>{@code
-     * {"Type": "World", "Names": ["forgotten_temple"]}
-     * {"Type": "World", "Match": ["*Forgotten_Temple*"], "ExcludeNames": ["arena"]}
-     * {"Type": "World", "GameplayConfig": ["ForgottenTemple"]}
+     * {"Type": "World", "Where": {"Names": ["forgotten_temple"]}}
+     * {"Type": "World", "Where": {"Match": ["*Forgotten_Temple*"], "ExcludeNames": ["arena"]}}
+     * {"Type": "World", "Where": {"GameplayConfig": ["ForgottenTemple"]}}
      * }</pre>
      *
-     * <p>The selector's own semantics apply unchanged, because this type re-models none of them:
-     * it holds the four authored axes and hands them to {@link WorldSelector#of} (see
-     * {@link #getSelector()}). So {@code Names} resolves through the cached world-identity index,
-     * {@code ExcludeNames} is a FILTER rather than a complement, and a selector with no positive
-     * axis matches NOTHING - which fails this condition closed and is a validator finding, since a
-     * condition that can never pass makes its content permanently invisible.
+     * <p>The selector is a NESTED GROUP rather than four keys of this type's own, so an author who
+     * has written a {@code Where} on an NPC placement or a world rule already knows this one, and a
+     * new selector axis reaches every surface at once instead of having to be re-added here.
      *
-     * <p>Fail-closed on an unreadable world too: no world means no match means the gated content
-     * stays hidden, consistent with {@link DialogueEngine#conditionsPass}'s treatment of a throwing
-     * or unregistered evaluator.
+     * <p>The selector's own semantics apply unchanged, because this type re-models none of them:
+     * {@code Names} resolves through the cached world-identity index, {@code ExcludeNames} is a
+     * FILTER rather than a complement, and a selector with no positive axis matches NOTHING - which
+     * fails this condition closed and is a validator finding, since a condition that can never pass
+     * makes its content permanently invisible.
+     *
+     * <p>Fail-closed on an unreadable world too, and on an omitted {@code Where}: no world and no
+     * selector both mean no match, so the gated content stays hidden, consistent with
+     * {@link DialogueEngine#conditionsPass}'s treatment of a throwing or unregistered evaluator.
      */
     public static final class World extends DialogueCondition {
         public static final BuilderCodec<World> CODEC = BuilderCodec.builder(World.class, World::new)
-                .append(new KeyedCodec<>("Names", Codec.STRING_ARRAY, false),
-                        (c, v) -> { c.names = v; c.resolved = null; }, c -> c.names).add()
-                .append(new KeyedCodec<>("Match", Codec.STRING_ARRAY, false),
-                        (c, v) -> { c.match = v; c.resolved = null; }, c -> c.match).add()
-                .append(new KeyedCodec<>("GameplayConfig", Codec.STRING_ARRAY, false),
-                        (c, v) -> { c.gameplayConfig = v; c.resolved = null; }, c -> c.gameplayConfig).add()
-                .append(new KeyedCodec<>("ExcludeNames", Codec.STRING_ARRAY, false),
-                        (c, v) -> { c.excludeNames = v; c.resolved = null; }, c -> c.excludeNames).add()
+                .append(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
+                        (c, v) -> c.where = v, c -> c.where)
+                .documentation("Which worlds this line may appear in, in the shared selector "
+                        + "vocabulary: Names (selector names), Match (world-name patterns), "
+                        + "GameplayConfig (exact config keys) and ExcludeNames (a filter over those). "
+                        + "Omit it and the line never shows, because nothing said where it applies.")
+                .add()
                 .build();
 
-        @Nullable protected String[] names;
-        @Nullable protected String[] match;
-        @Nullable protected String[] gameplayConfig;
-        @Nullable protected String[] excludeNames;
-
-        @Nullable private volatile WorldSelector resolved;
-
-        /** The authored selector NAMES, or null. */
-        @Nullable public String[] getNames() { return names; }
+        @Nullable protected WorldSelector where;
 
         /**
-         * The embedded {@link WorldSelector} carrying the authored axes: ALL matching behaviour
-         * (rank ladder, name resolution, the exclude filter) lives there and is never duplicated
-         * here. Built lazily and memoized; every setter drops the memo, so a post-decode field
-         * write can never leave a stale selector behind.
+         * The authored selector, or an EMPTY one when {@code Where} was omitted. Empty has no
+         * positive axis, so it matches nothing - which is what makes the omission fail closed
+         * rather than quietly meaning "everywhere".
          */
         @Nonnull
         public WorldSelector getSelector() {
-            WorldSelector cached = resolved;
-            if (cached == null) {
-                cached = WorldSelector.of(names, match, gameplayConfig, excludeNames);
-                resolved = cached;
-            }
-            return cached;
+            WorldSelector authored = where;
+            return authored == null ? WorldSelector.of(null, null, null, null) : authored;
+        }
+
+        /** The authored selector NAMES, or null - what the unknown-name audit reads. */
+        @Nullable
+        public String[] getNames() {
+            WorldSelector authored = where;
+            return authored == null ? null : authored.getNames();
         }
     }
 

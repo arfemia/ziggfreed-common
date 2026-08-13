@@ -23,16 +23,16 @@ class WorldIdentityTest {
     private static final String INSTANCE_WORLD = "instance-Forgotten_Temple-8f2c1a";
 
     private static WorldSelectorDef def(String id, String[] names, String[] match, String[] gameplayConfig) {
-        return new WorldSelectorDef(id, names, match, gameplayConfig);
+        return new WorldSelectorDef(id, names, match, gameplayConfig, null);
     }
 
     @Test
     void nameAxisOnly() {
         WorldNameIndex index = WorldIdentity.resolve("default", null,
-                List.of(def("zc_primary", new String[]{"primary"}, new String[]{"default"}, null)));
+                List.of(def("zc_default", new String[]{"default"}, new String[]{"default"}, null)));
 
-        assertEquals(Set.of("primary"), index.names());
-        assertEquals(MatchRank.EXACT_NAME_BAND, index.rankOf("primary").band());
+        assertEquals(Set.of("default"), index.names());
+        assertEquals(MatchRank.EXACT_NAME_BAND, index.rankOf("default").band());
     }
 
     @Test
@@ -70,17 +70,17 @@ class WorldIdentityTest {
 
     @Test
     void twoAssetsContributingOneNameBothApply() {
-        // The asset id is a pure address, so two mods can each ship a file feeding "primary".
+        // The asset id is a pure address, so two mods can each ship a file feeding "default".
         // A world must earn the name from EITHER, or a colliding filename would silently win.
         List<WorldSelectorDef> pool = List.of(
-                def("zc_primary", new String[]{"primary"}, new String[]{"default"}, null),
-                def("mmo_primary", new String[]{"primary"}, new String[]{"overworld"}, null));
+                def("zc_default", new String[]{"default"}, new String[]{"default"}, null),
+                def("mmo_default", new String[]{"default"}, new String[]{"overworld"}, null));
 
-        assertTrue(WorldIdentity.resolve("default", null, pool).has("primary"),
+        assertTrue(WorldIdentity.resolve("default", null, pool).has("default"),
                 "the first contributor's pattern must grant the name");
-        assertTrue(WorldIdentity.resolve("overworld", null, pool).has("primary"),
+        assertTrue(WorldIdentity.resolve("overworld", null, pool).has("default"),
                 "the second contributor's pattern must grant the same name");
-        assertFalse(WorldIdentity.resolve("arena", null, pool).has("primary"));
+        assertFalse(WorldIdentity.resolve("arena", null, pool).has("default"));
     }
 
     @Test
@@ -109,16 +109,56 @@ class WorldIdentityTest {
     @Test
     void namesAreCaseInsensitiveOnBothSides() {
         WorldNameIndex index = WorldIdentity.resolve("Default", null,
-                List.of(def("zc_primary", new String[]{"Primary"}, new String[]{"DEFAULT"}, null)));
+                List.of(def("zc_default", new String[]{"MainWorld"}, new String[]{"DEFAULT"}, null)));
 
-        assertTrue(index.has("primary"));
-        assertTrue(index.has("PRIMARY"));
-        assertNotNull(index.rankOf(" primary "));
+        assertTrue(index.has("mainworld"));
+        assertTrue(index.has("MAINWORLD"));
+        assertNotNull(index.rankOf(" mainworld "));
     }
 
     @Test
     void anEmptyPoolResolvesToTheEmptyIndex() {
         assertTrue(WorldIdentity.resolve("default", "Default", List.of()).isEmpty());
+    }
+
+    // ==================== ExcludeNames on a contributing asset ====================
+
+    private static WorldSelectorDef def(String id, String[] names, String[] match,
+            String[] gameplayConfig, String[] excludeNames) {
+        return new WorldSelectorDef(id, names, match, gameplayConfig, excludeNames);
+    }
+
+    @Test
+    void excludeNamesWithdrawsThisAssetsContributionOnly() {
+        List<WorldSelectorDef> pool = List.of(
+                def("arenas", new String[]{"arena"}, new String[]{"*_arena"}, null),
+                def("outdoors", new String[]{"outdoor"}, new String[]{"*"}, null,
+                        new String[]{"arena"}));
+
+        assertTrue(WorldIdentity.resolve("overworld", null, pool).has("outdoor"));
+        WorldNameIndex arena = WorldIdentity.resolve("north_arena", null, pool);
+        assertTrue(arena.has("arena"), "the excluding file withdraws itself, never the other one");
+        assertFalse(arena.has("outdoor"));
+    }
+
+    @Test
+    void excludeNamesIsResolvedAgainstThePositivePassSoFoldOrderCannotDecideIt() {
+        WorldSelectorDef arenas = def("arenas", new String[]{"arena"}, new String[]{"*_arena"}, null);
+        WorldSelectorDef outdoors = def("outdoors", new String[]{"outdoor"}, new String[]{"*"}, null,
+                new String[]{"arena"});
+
+        assertEquals(WorldIdentity.resolve("north_arena", null, List.of(arenas, outdoors)).names(),
+                WorldIdentity.resolve("north_arena", null, List.of(outdoors, arenas)).names(),
+                "swapping the pool order must not change what the world is called");
+    }
+
+    @Test
+    void excludeNamesAloneContributesNothingAnywhere() {
+        List<WorldSelectorDef> pool = List.of(
+                def("nothing", new String[]{"ghost"}, null, null, new String[]{"arena"}));
+
+        assertTrue(WorldIdentity.resolve("overworld", null, pool).isEmpty(),
+                "ExcludeNames filters the positive axes, it does not stand in for them");
     }
 
     // ==================== The name is a shorthand for the pattern ====================

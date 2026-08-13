@@ -16,6 +16,7 @@ import com.ziggfreed.common.progress.gate.GateKindRegistry;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestProgressStore;
+import com.ziggfreed.common.time.DurationGroup;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.validation.Finding;
@@ -90,6 +91,85 @@ public final class QuestPoolValidator {
             }
         }
         return out;
+    }
+
+    /**
+     * Audit ONE authored {@code Repeat} block, which only the ASSET carries: the folded rule has
+     * already fallen back to a documented default for anything unparseable, and a fallback is
+     * exactly what an author needs telling about. Called where the asset is still in hand (the
+     * fold), so the finding names the file rather than the rule.
+     *
+     * <p>An unknown enum value is an ERROR because the fallback changes real behaviour - when the
+     * clock starts, or which window is counted. A number outside its legal range is a WARNING,
+     * because the clamp lands where anybody would guess.
+     *
+     * @return the findings for this block, empty when there is nothing wrong or nothing authored
+     */
+    @Nonnull
+    public static List<Finding> repeatFindings(@Nullable QuestAsset.Repeat repeat,
+            @Nonnull String questId) {
+        List<Finding> out = new ArrayList<>();
+        if (repeat == null) {
+            return out;
+        }
+        if (repeat.parsedCooldownFrom() == null) {
+            out.add(Finding.error(DOMAIN, "REPEAT_UNKNOWN_COOLDOWN_FROM",
+                    "Repeat.CooldownFrom is '" + repeat.getCooldownFrom() + "', which is neither "
+                            + QuestAsset.Repeat.FROM_CLAIM + " nor " + QuestAsset.Repeat.FROM_COMPLETE
+                            + "; the wait counts from " + QuestAsset.Repeat.FROM_CLAIM + " instead", questId));
+        }
+        DurationGroup cooldown = repeat.getCooldown();
+        if (cooldown != null && cooldown.hasNegativeUnit()) {
+            out.add(Finding.warning(DOMAIN, "REPEAT_NEGATIVE_COOLDOWN_UNIT",
+                    "Repeat.Cooldown carries a negative unit, which adds nothing to the wait; write the "
+                            + "units you want or leave the block out entirely", questId));
+        }
+        Integer maxCompletions = repeat.getMaxCompletions();
+        if (maxCompletions != null && maxCompletions.intValue() < 0) {
+            out.add(Finding.warning(DOMAIN, "REPEAT_NEGATIVE_MAX_COMPLETIONS",
+                    "Repeat.MaxCompletions is negative, which reads as uncapped; use 0 to say uncapped",
+                    questId));
+        }
+        QuestAsset.Repeat.Reset reset = repeat.getReset();
+        if (reset != null) {
+            validateReset(reset, questId, out);
+        }
+        return out;
+    }
+
+    private static void validateReset(@Nonnull QuestAsset.Repeat.Reset reset, @Nonnull String questId,
+            @Nonnull List<Finding> out) {
+
+        Quest.Repeat.Reset.Period period = reset.parsedPeriod();
+        if (period == null) {
+            out.add(Finding.error(DOMAIN, "REPEAT_UNKNOWN_PERIOD",
+                    "Repeat.Reset.Period is '" + reset.getPeriod() + "', which is neither "
+                            + QuestAsset.Repeat.Reset.PERIOD_DAILY + " nor "
+                            + QuestAsset.Repeat.Reset.PERIOD_WEEKLY + "; a daily window is used instead",
+                    questId));
+        }
+        if (reset.parsedWeekday() == null) {
+            out.add(Finding.error(DOMAIN, "REPEAT_UNKNOWN_WEEKDAY",
+                    "Repeat.Reset.Weekday is '" + reset.getWeekday() + "', which is not a day name; the "
+                            + "window starts on Monday instead", questId));
+        } else if (period == Quest.Repeat.Reset.Period.DAILY && reset.getWeekday() != null) {
+            out.add(Finding.warning(DOMAIN, "REPEAT_WEEKDAY_ON_DAILY",
+                    "Repeat.Reset.Weekday does nothing on a daily window; either drop it or set Period to "
+                            + QuestAsset.Repeat.Reset.PERIOD_WEEKLY, questId));
+        }
+        Integer times = reset.getTimes();
+        if (times != null && times.intValue() < 1) {
+            out.add(Finding.warning(DOMAIN, "REPEAT_TIMES_NON_POSITIVE",
+                    "Repeat.Reset.Times is " + times + ", which would allow nothing at all; it is treated "
+                            + "as 1", questId));
+        }
+        Integer atMinutes = reset.getAtMinutes();
+        long windowMinutes = period == Quest.Repeat.Reset.Period.WEEKLY ? 7L * 24L * 60L : 24L * 60L;
+        if (atMinutes != null && (atMinutes.intValue() < 0 || atMinutes.intValue() >= windowMinutes)) {
+            out.add(Finding.warning(DOMAIN, "REPEAT_AT_MINUTES_OUT_OF_RANGE",
+                    "Repeat.Reset.AtMinutes is " + atMinutes + ", which is outside one window; it wraps "
+                            + "round into the range 0.." + (windowMinutes - 1), questId));
+        }
     }
 
     private static void validateObjectives(@Nonnull QuestDefinition definition,

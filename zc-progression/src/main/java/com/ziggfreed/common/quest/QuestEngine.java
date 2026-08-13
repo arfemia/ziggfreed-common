@@ -202,6 +202,30 @@ public final class QuestEngine implements QuestStateReader {
         this.quests = frozen;
         this.index = rebuilt;
         this.warnedOnce.clear();
+        warnUnrecordableRepeats(frozen.values());
+    }
+
+    /**
+     * Say so ONCE per quest when a quest asks for a calendar allowance or a lifetime cap and the
+     * store behind this engine cannot remember completions, so those knobs quietly do nothing.
+     *
+     * <p>Here rather than at every accept because this is the one moment both facts are settled and
+     * known together: the store was fixed when the engine was built, and the catalogue has just
+     * arrived. That makes it a load-time line instead of a per-action cost.
+     */
+    private void warnUnrecordableRepeats(@Nonnull Collection<Quest> catalogue) {
+        if (store.recordsCompletions()) {
+            return;
+        }
+        for (Quest quest : catalogue) {
+            Quest.Repeat repeat = quest.repeat();
+            if (repeat == null || (repeat.reset() == null && repeat.maxCompletions() <= 0)) {
+                continue;
+            }
+            warnOnce("repeat:" + quest.id(), "Quest '" + quest.id() + "' authors a Reset window or"
+                    + " MaxCompletions, but this runtime's progress store cannot remember completions,"
+                    + " so both are ignored and only its rolling cooldown applies");
+        }
     }
 
     /** The quest with this id, or null. */
@@ -282,8 +306,14 @@ public final class QuestEngine implements QuestStateReader {
             reasons.add(QuestGates.REASON_UNAVAILABLE);
         }
         QuestStatus status = status(subject, quest);
-        if (status == QuestStatus.ON_COOLDOWN) {
-            reasons.add(QuestGates.REASON_ON_COOLDOWN);
+        if (status == QuestStatus.ON_COOLDOWN
+                || (status == QuestStatus.COMPLETED && quest.repeatable())) {
+            // Ask the evaluator rather than inferring. ON_COOLDOWN is ONE display state covering a
+            // running clock and a spent calendar window alike, and a repeatable reading COMPLETED is
+            // one whose lifetime cap is spent - a caller deciding what to tell a player wants to know
+            // which of the three it is.
+            String reason = QuestLifecycle.repeatCheck(quest, subject, store, now()).reason();
+            reasons.add(reason != null ? reason : QuestGates.REASON_ALREADY_STARTED);
         } else if (status != QuestStatus.NOT_STARTED) {
             reasons.add(QuestGates.REASON_ALREADY_STARTED);
         }
@@ -308,11 +338,11 @@ public final class QuestEngine implements QuestStateReader {
      * the player is choosing. Callers that deliberately force a quest on somebody (a scripted start,
      * an administrator) skip the check on purpose, so it is not baked in here.
      *
-     * @return false only when a repeatable quest's cooldown has not elapsed
+     * @return false only when a repeatable quest's own repeat rules refuse it
      */
     public boolean accept(@Nonnull Subject subject, @Nonnull Quest quest) {
-        if (quest.repeat().repeatable()
-                && QuestLifecycle.onCooldown(quest.repeat(), store.cooldownStamp(subject, quest.id()), now())) {
+        if (quest.repeatable()
+                && !QuestLifecycle.repeatCheck(quest, subject, store, now()).available()) {
             return false;
         }
         store.setStatus(subject, quest.id(), QuestStatus.ACTIVE);
@@ -832,7 +862,7 @@ public final class QuestEngine implements QuestStateReader {
      * @return true when this call closed the quest out
      */
     public boolean forceComplete(@Nonnull Subject subject, @Nonnull Quest quest) {
-        if (store.status(subject, quest.id()) == QuestStatus.COMPLETED && !quest.repeat().repeatable()) {
+        if (store.status(subject, quest.id()) == QuestStatus.COMPLETED && !quest.repeatable()) {
             return false;
         }
         markCompleted(subject, quest);
@@ -844,38 +874,79 @@ public final class QuestEngine implements QuestStateReader {
     }
 
     /**
-     * The ONE "this quest is finished" rule: set the terminal status and, for a repeatable, start its
-     * cooldown.
+     * The ONE "this quest is finished" rule: set the terminal status, record the completion unless
+     * it was already recorded when the quest parked, and start a {@code CLAIM}-anchored cooldown.
      *
-     * <p><b>A stamp made when the quest PARKED is preserved.</b> Collecting runs through here while
-     * the quest is still parked, and re-stamping at that moment would restart the clock from
-     * whenever the player happened to walk over - which is how a quest finished just before a period
-     * boundary ends up locked out for the whole of the next one.
+     * <p>Reading the PRIOR status is what tells the two apart with no bookkeeping flag anywhere. A
+     * prior {@link QuestStatus#COMPLETED_UNCLAIMED} means this call is the collect of an
+     * already-parked quest, so the completion is on the record already and the clock, if it is
+     * anchored to {@code COMPLETE}, was started back then. Anything else - the auto-claim path, an
+     * administrator, a scripted skip - is the moment the quest finished.
      */
     public void markCompleted(@Nonnull Subject subject, @Nonnull Quest quest) {
         QuestStatus prior = store.status(subject, quest.id());
-        boolean stampedOnPark = prior == QuestStatus.COMPLETED_UNCLAIMED
-                && store.cooldownStamp(subject, quest.id()) > 0L;
+        boolean alreadyParked = prior == QuestStatus.COMPLETED_UNCLAIMED;
         store.setStatus(subject, quest.id(), QuestStatus.COMPLETED);
-        if (quest.repeat().repeatable() && !stampedOnPark) {
-            store.setCooldownStamp(subject, quest.id(), now());
+        Quest.Repeat repeat = quest.repeat();
+        if (repeat == null) {
+            return;
+        }
+        long nowMs = now();
+        if (!alreadyParked) {
+            recordCompletion(subject, quest, repeat, nowMs);
+        }
+        if (repeat.cooldownFrom() == Quest.Repeat.CooldownFrom.CLAIM) {
+            store.setCooldownStamp(subject, quest.id(), nowMs);
+        } else if (!alreadyParked) {
+            // A COMPLETE-anchored clock that never parked (auto-claim, an administrator) still starts
+            // at the instant the objectives were met, which is this one.
+            store.setCooldownStamp(subject, quest.id(), nowMs);
         }
     }
 
     /**
-     * The ONE "park this finished quest for collection" rule: mark it waiting, and start its clock
-     * NOW if the quest asked for {@link Quest.Repeat#stampOnPark()}.
+     * The ONE "park this finished quest for collection" rule: mark it waiting, record the completion
+     * (the objectives were just met, whether or not anybody walks over to collect), and start a
+     * {@code COMPLETE}-anchored cooldown here rather than at collection.
      *
-     * <p>That knob is what makes a period-based offer behave: the period the quest was FINISHED in
-     * is the one that counts, so walking back to collect after the offer rotates does not burn a slot
-     * in the new period. A quest without it keeps the ordinary rule - the clock starts when the
+     * <p>That anchor is what makes a quest belonging to a rotating, period-based offer behave: the
+     * period it was FINISHED in is the one that counts, so collecting late does not burn a slot in
+     * the new one. A {@code CLAIM}-anchored quest keeps the ordinary rule - its clock starts when the
      * player takes the reward.
      */
     public void markUnclaimed(@Nonnull Subject subject, @Nonnull Quest quest) {
         store.setStatus(subject, quest.id(), QuestStatus.COMPLETED_UNCLAIMED);
-        if (quest.repeat().repeatable() && quest.repeat().stampOnPark()) {
-            store.setCooldownStamp(subject, quest.id(), now());
+        Quest.Repeat repeat = quest.repeat();
+        if (repeat == null) {
+            return;
         }
+        long nowMs = now();
+        recordCompletion(subject, quest, repeat, nowMs);
+        if (repeat.cooldownFrom() == Quest.Repeat.CooldownFrom.COMPLETE) {
+            store.setCooldownStamp(subject, quest.id(), nowMs);
+        }
+    }
+
+    /**
+     * The ONE writer of a {@link QuestProgressStore.CompletionRecord}, so the window roll-over rule
+     * lives in exactly one place: a completion inside the same window as the last one adds to that
+     * window's tally, and a completion in a new window starts the tally at one. The lifetime tally
+     * saturates rather than wrapping negative.
+     */
+    private void recordCompletion(@Nonnull Subject subject, @Nonnull Quest quest,
+                                  @Nonnull Quest.Repeat repeat, long nowMs) {
+        QuestProgressStore.CompletionRecord prior = store.completions(subject, quest.id());
+        Quest.Repeat.Reset reset = repeat.reset();
+        int periodCount = 1;
+        if (reset != null && RepeatPeriod.samePeriod(reset, prior.lastCompletionMs(), nowMs)) {
+            periodCount = prior.periodCount() + 1;
+        } else if (reset == null) {
+            periodCount = 0;
+        }
+        int total = prior.totalCount() == Integer.MAX_VALUE
+                ? Integer.MAX_VALUE : prior.totalCount() + 1;
+        store.setCompletions(subject, quest.id(),
+                new QuestProgressStore.CompletionRecord(nowMs, periodCount, total));
     }
 
     /**
@@ -905,8 +976,8 @@ public final class QuestEngine implements QuestStateReader {
      *
      * <p><b>Deliberately non-destructive otherwise.</b> A quest whose definition has gone is LEFT
      * alone (it may come back), as is anything parked for collection (a reward may still be owed).
-     * Quests that stamp on park are also skipped: for those the consumer's own rotation owns the
-     * lifecycle, not the cooldown.
+     * A re-arm keeps the player's {@link QuestProgressStore.CompletionRecord}, so a lifetime cap and
+     * a calendar tally both survive it - that is the whole point of them.
      *
      * @return how many entries changed
      */
@@ -914,16 +985,13 @@ public final class QuestEngine implements QuestStateReader {
         int changed = 0;
         for (String questId : List.copyOf(store.knownQuestIds(subject))) {
             Quest quest = quests.get(questId);
-            if (quest == null) {
+            if (quest == null || !quest.repeatable()) {
                 continue;
             }
             if (store.status(subject, questId) != QuestStatus.COMPLETED) {
                 continue;
             }
-            if (!quest.repeat().repeatable() || quest.repeat().stampOnPark()) {
-                continue;
-            }
-            if (QuestLifecycle.onCooldown(quest.repeat(), store.cooldownStamp(subject, questId), now())) {
+            if (!QuestLifecycle.repeatCheck(quest, subject, store, now()).available()) {
                 continue;
             }
             store.clearQuest(subject, questId);

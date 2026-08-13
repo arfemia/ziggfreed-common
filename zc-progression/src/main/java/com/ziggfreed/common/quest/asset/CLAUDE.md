@@ -24,7 +24,7 @@ consumer: store.resolveAll(owner, enumerators)    -> expand generators -> decode
 
 | Class | What it is |
 |---|---|
-| `QuestAsset` (+ `Listing`/`Flow`/`Repeat`/`Visibility`/`Npc`) | one authored quest; Pattern A, the codec IS the schema. Its `Text`, `Rewards`, and `Requires` groups are the SHARED ones below |
+| `QuestAsset` (+ `Listing`/`Flow`/`Repeat`(+`.Reset`)/`Visibility`/`Npc`) | one authored quest; Pattern A, the codec IS the schema. Its `Text`, `Rewards`, and `Requires` groups are the SHARED ones below. Authoring `Repeat` AT ALL is what makes a quest repeatable, so `"Repeat": {}` is the smallest one; `CompletionDialogue` is a top-level leaf beside `Npc` |
 | `QuestObjectiveAsset` | a quest's objective: the shared `progress.asset.ObjectiveLeafAsset` leaves plus the two only a quest has (`Order`, `TurnInNpcId`) |
 | [`progress.gate`](../../progress/gate/CLAUDE.md) `GateClause`, `GateSpec` | the `Requires` block: four shared leaves plus `AllOf`/`AnyOf`. SHARED with achievements |
 | `progress.gate` `GateKind`, `GateKindRegistry` | the OPEN requirement vocabulary a consumer extends |

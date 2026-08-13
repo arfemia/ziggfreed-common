@@ -1,0 +1,31 @@
+{
+  "$Comment": [
+    "Names the ordinary, persistent world a player logs into 'default'. Content that should live",
+    "in the normal overworld and nowhere else targets that name instead of repeating a match",
+    "pattern in every file.",
+    "",
+    "A world selector is a NAMED, REUSABLE MATCHER: 'Names' is the vocabulary this file hands out,",
+    "and 'Match'/'GameplayConfig' are the patterns a world must satisfy to earn it. Match takes the",
+    "world-name grammar Foo (exact), Foo* (prefix), *Foo (suffix), *Foo* (contains) and *",
+    "(everything); only the *Foo* form reaches a live instance world, whose name carries a random",
+    "uuid. 'ExcludeNames' drops this file's names from a world that already carries one of the",
+    "listed names, for 'everywhere except' without spelling the exceptions out as patterns.",
+    "",
+    "'default' is what a fresh Hytale world is called, so the name and the pattern read the same",
+    "here on purpose - the name tells the truth about the world it points at.",
+    "",
+    "IF YOUR MAIN WORLD IS NAMED SOMETHING ELSE, re-point this file rather than editing every",
+    "piece of content: drop an entry under this id in mods/ziggfreedcommon/world-selectors.json,",
+    "  { \"Zc_Default\": { \"Names\": [\"default\"], \"Match\": [\"my_server_world\"] } }",
+    "and everything aimed at 'default' follows. A pack can do the same by shipping its own",
+    "Zc_Default.json. To ADD worlds to the name instead of replacing the pattern, ship a file of",
+    "your own listing the same name - two files may hand out one name and both apply, because a",
+    "filename is only an address, never a meaning.",
+    "",
+    "Watch out: a name nothing matches is silent. If content bound to 'default' never appears,",
+    "check your world's real name against the pattern below; the startup selector audit reports a",
+    "selector that matches none of the loaded worlds."
+  ],
+  "Names": ["default"],
+  "Match": ["default"]
+}

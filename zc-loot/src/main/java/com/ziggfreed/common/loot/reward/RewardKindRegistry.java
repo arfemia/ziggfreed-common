@@ -65,6 +65,20 @@ public final class RewardKindRegistry {
         ledger.put(kindId, owner, handler);
     }
 
+    /**
+     * As {@link #register(String, String, RewardHandler)}, but without the ledger's own
+     * "two owners wanted this id" warning, for a caller that reports the replacement itself.
+     *
+     * <p>{@link RewardKindFold} is the one caller: an authored kind file taking over a Java kind is a
+     * deliberate, documented swap, and the fold's warning names the file AND says which engine
+     * services the owner just gave up. Letting the ledger warn as well would print two lines for one
+     * event, the less useful one first.
+     */
+    public void registerQuietly(@Nullable String kindId, @Nullable String owner,
+            @Nullable RewardHandler handler) {
+        ledger.putQuietly(kindId, owner, handler);
+    }
+
     /** The handler for {@code kindId} (case-insensitive), or null when nothing is registered. */
     @Nullable
     public RewardHandler handler(@Nullable String kindId) {

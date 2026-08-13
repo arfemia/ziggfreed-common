@@ -42,11 +42,12 @@ a server running two content mods work.
 
 | Class | What it is |
 |---|---|
-| `QuestEngine` (+ `.Builder`) | the per-consumer runtime; every operation and every seam hangs off it |
+| `QuestEngine` (+ `.Builder`) | the runtime; every operation and every seam hangs off it. THE instance comes from [`../progress/runtime/`](../progress/runtime/CLAUDE.md); `builder()` is for tests and for a consumer that genuinely wants a private engine |
 | `Quest` (+ `.Repeat`, `.Visibility`) | the RESOLVED quest definition an authoring layer produces; its objectives are `progress.ObjectiveDef` |
 | `QuestProgressPayload` | packs one quest's whole `progress.ObjectiveProgressState` map into the opaque string a store persists |
-| `QuestStatus`, `QuestLifecycle` | the state machine and effective-status / cooldown rules |
-| `QuestProgressStore`, `InMemoryQuestProgressStore` | THE persistence seam and a ready-made in-memory one |
+| `QuestStatus`, `QuestLifecycle` | the state machine, the effective-status rule, and `repeatCheck` - the ONE evaluator for whether a repeatable may be taken again |
+| `RepeatPeriod` | the pure calendar arithmetic behind a `Repeat.Reset` window (UTC, `floorDiv`-indexed, saturating) |
+| `QuestProgressStore` (+ `.CompletionRecord`), `InMemoryQuestProgressStore` | THE persistence seam and a ready-made in-memory one |
 | `QuestGates`, `QuestPossessionProbe`, `QuestInventoryConsumer`, `QuestI18n` | the consumer seams (the dispatch tap is shared: `progress.ProgressDispatchTap`) |
 | `QuestEngine.Builder#factors` / `#factorContext` | the OPTIONAL factor pair, wired the way a gate evaluator's is; unwired, `STAT_THRESHOLD` is purely consumer-fired |
 | `QuestStateReader` | the narrow READ seam: what a conversation may ask, and the whole of what it may reach |
@@ -73,7 +74,27 @@ a server running two content mods work.
   high-water values applied through the same `applyValue`, where applying two in turn leaves exactly
   the larger, so the max is the same result in one write. Ordering is deliberately not consulted
   there (matching what the gate's answer has always done), while the later re-check honours it.
-- **`stampOnPark` is the generic form of "a rotating offer owns this quest's lifecycle."** It moves a repeatable's clock to the moment the objectives were met, and exempts the quest from `selfHeal`'s off-cooldown reset. Do not reintroduce a consumer-specific check in its place.
+- **`Quest#repeat()` is NULLABLE and its PRESENCE is the repeatable flag.** There is no boolean
+  inside and no `NONE` sentinel: either would re-create the "it says false but the object exists"
+  ambiguity. `quest.repeatable()` is the one-line read. An EMPTY group means externally governed -
+  nothing on the quest holds it back, so whatever offers it decides when it comes round, and
+  `selfHeal` re-arms it at once.
+- **Three independent constraints, ONE evaluator.** A rolling `cooldownMs`, a calendar `Reset`
+  allowance and a lifetime `maxCompletions` cap are ANDed by `QuestLifecycle.repeatCheck`, and the
+  refusal a caller is told is chosen by ACTIONABILITY: the lifetime cap first (telling somebody to
+  come back in three hours for a quest they can never take again is the worse message), then the
+  spent window, then the running clock. Never add a fourth answer anywhere else - a surface wanting
+  the specific reason asks `canAccept`.
+- **`CooldownFrom` is an ANCHOR, not a mode.** It names the single instant one clock counts from
+  (`CLAIM` the reward being taken, `COMPLETE` the objectives being met) and toggles nothing else.
+  `COMPLETE` is what a quest belonging to a rotating, period-based offer wants, so collecting late
+  does not burn a slot in the next period. Do not reintroduce a consumer-specific check in its place.
+- **`clearQuest` re-arms; it does NOT wipe the completion record.** Abandon and the off-cooldown
+  reset both go through it, and a lifetime cap either of them wiped would be a cap nobody could ever
+  reach. `setCompletions(..., CompletionRecord.NONE)` is the deliberate wipe.
+- **A store says what it can hold.** `recordsCompletions()` is the honest capability probe, exactly
+  like `usesReservedDelimiter`. A store that answers false leaves `Reset` and `MaxCompletions` inert,
+  and `setQuests` says so ONCE per quest at load rather than letting the content quietly not work.
 - **The payout never throws and never aborts.** `RewardGrants` (in `loot/reward/`) isolates each reward and converts a failure into a queued retry where the handler offers one. A caller reads `GrantOutcome` rather than assuming success.
 - **The conversation side of that seam is REAL now.** `zc-dialogue`'s pre-seeded quest vocabulary
   (`QuestState` / `ReadyToTurnIn` / `HasReadyToTurnIn` conditions, `Accept` / `TurnIn` actions) is

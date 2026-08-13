@@ -29,7 +29,9 @@ module or grow a second, subtly different idea of what a reward is.
   same word. Live and replayed payouts see the same `sourceId`.
 - **[`RewardKindRegistry`](RewardKindRegistry.java)** - the open kind table over the shared
   `registry.RegistryLedger` (case-insensitive ids, idempotent per id, last-write-wins, per-kind owner
-  + failure history via `info()`). **Nothing is pre-seeded**, on purpose: there is no such thing as a
+  + failure history via `info()`; `registerQuietly` is the same write minus the ledger's own
+  overwrite line, for the one caller that reports the swap better itself - see the fold below).
+  **Nothing is pre-seeded**, on purpose: there is no such thing as a
   generic reward, so an empty registry grants nothing and reports each unhandled kind once. It also
   carries the AUTHORING facet - `registerAuthoring`/`authoring`/`expand`/`authoringTokens` - so a
   kind's runtime half and its writing half hang off ONE id. They used to be two tables, and the cost
@@ -42,14 +44,22 @@ module or grow a second, subtly different idea of what a reward is.
 - **[`RewardKinds`](RewardKinds.java)** - the process-wide `shared()` vocabulary, for the parse paths
   that cannot be HANDED a registry (an asset decoding a list of compact strings). Most engines should
   keep taking their registry as a parameter; reach for this only from a static parse site.
-- **[`LootRewardKinds`](LootRewardKinds.java)** - the three kinds the framework itself pays out:
-  `item` (`Item`/`Count`), `lootable` (`Lootable`/`Trigger` - rolls a named table), and
-  `stamped_item` (`Item`/`Count` plus either `Pool` to roll fresh or `Stats` written out as
-  `"Damage:5,Speed:2"`). Deliberately the only three: everything else a payout could mean belongs to
-  the mod that owns the concept. Two static seams - `overflow(...)` for an item that will not fit and
+- **[`LootRewardKinds`](LootRewardKinds.java)** - the four kinds the framework itself pays out:
+  `Item` (`Item`/`Count`), `Lootable` (`Lootable`/`Trigger` - rolls a named table),
+  `Stamped_Item` (`Item`/`Count` plus either `Pool` to roll fresh or `Stats` written out as
+  `"Damage:5,Speed:2"`), and `Command` (`Command`/`RunAs`/`DelayTicks` - one authored line, with
+  `{player}`, `{uuid}`, `{source}` and the reward's own parameters substituted through the same
+  machinery a kind FILE's template uses). **Prefer `Item` over a `Command` running `/give`**: the
+  item kind is fit-checked before a claim is allowed and queueable when it does not fit. **Kind ids are native-asset style, PascalCase with underscores, and the
+  framework's own are UNPREFIXED** - a consumer's carry that mod's prefix (`Mmo_Xp`), and every
+  lookup is case-insensitive, so an older lower-case spelling in existing content still resolves.
+  Deliberately the only four: everything else a payout could mean - currency, a level, a title -
+  belongs to the mod that owns the concept. `Command` earns its place because running a command line
+  is not any one mod's idea; a kind FILE is the same idea with a declared schema, for when the shape
+  repeats across many rewards. Two static seams - `overflow(...)` for an item that will not fit and
   `factors(...)` for the vocabulary a rolled table's gates read. Plus `canAdd(spec, subject)`, the
   ASK-FIRST half of the item path: would this reward's item fit right now, granting nothing. A spec
-  that needs no room answers true, INCLUDING the two it cannot know about (a `lootable` rolls its
+  that needs no room answers true, INCLUDING the two it cannot know about (a `Lootable` rolls its
   contents at grant time; another mod's kind is that mod's business), so a false answer always names
   a specific item that specifically will not fit. It probes through
   [`inventory/InventoryGrant.canAdd`](../../inventory/CLAUDE.md) - the same machinery a grant lands
@@ -58,7 +68,7 @@ module or grow a second, subtly different idea of what a reward is.
   every reward answers yes and the last one still lands on the floor. Collect `stackFor(spec)` over
   the list (null = needs no room) and ask `InventoryGrant.canAddAll` once - `RewardFit` in the MMO
   is the worked example.
-- **[`DroplistRewardKind`](DroplistRewardKind.java)** - the fourth framework kind, `droplist`
+- **[`DroplistRewardKind`](DroplistRewardKind.java)** - the fourth framework kind, `Droplist`
   (`Droplist`/`Rolls`/`Position`): rolls a NATIVE Hytale `ItemDropList` asset and spills the stacks on
   the GROUND through the same call the engine drops mob loot with, delegating both halves to
   [`instance/reward/NativeLootService`](../../instance/reward/CLAUDE.md). It sits in its own class
@@ -75,6 +85,52 @@ module or grow a second, subtly different idea of what a reward is.
   warn)` -> `GrantOutcome(granted, queued, failed)`. Per-reward isolation: one handler throwing never
   costs the player the rest, a replayable failure becomes a queued retry, and only a reward that can
   be neither granted nor queued counts as lost. Never throws.
+
+## Minting a kind with no Java at all
+
+A kind does not have to be registered by a mod. `Server/ZiggfreedCommon/RewardKinds/<Id>.json`
+declares a parameter schema plus one command line, and the fold registers it exactly like a Java one -
+so a server with an admin command it wants paid out as a reward needs no plugin to say so, and a
+third party extends the vocabulary without shipping code. The store and the fold are wired together
+in `FrameworkAssetRegistrar`, in ONE `LoadedAssetsEvent` listener: the fold has to run after the
+layers resolve AND after every mod's `setup()`, and a second listener for the same event would leave
+that order to registration order.
+
+- **[`RewardKindAsset`](RewardKindAsset.java)** - the Pattern A type: `Params` (a per-parameter
+  `{Required, Default}` group, merged per PARAMETER under `Parent`) plus `Command` (one console line,
+  substituting `{player}`, `{uuid}` and each declared parameter by its exact spelling; `Command`
+  REPLACES on inherit). Id = filename. **The id convention is native-asset style, PascalCase with
+  underscores**: the framework's own kinds are UNPREFIXED (`Item`, `Lootable`, `Stamped_Item`,
+  `Effect`, `Droplist`, `Command`), a consumer's carry that mod's prefix (`Mmo_Xp`, `Mmo_Currency`), so two mods
+  installed together cannot collide by accident. A `$`-prefixed key is authoring metadata the codec
+  ignores, on the file and inside `Params` alike - and a shipped `$Comment` is read by whoever opens
+  the file next, so it says what the reward does and what each parameter means in game, never how the
+  file came to look this way.
+- **[`RewardKindConfig`](RewardKindConfig.java)** - the `defaults < pack < owner` table, like every
+  other keyed type. What is in it is not yet payable; the fold is what makes it so.
+- **[`CommandRewardKind`](CommandRewardKind.java)** - the handler: resolve the template, run it
+  through [`command/CommandRunner`](../../command/CLAUDE.md) as the server console (so the `/give`
+  positional-quantity fix rides along), and THROW when a `Required` parameter went unanswered.
+  `retryCommand` is the same resolved line, and is null for exactly the specs that could not be
+  granted - a reward that cannot say what it pays is not replayable either. `resolve` is public so a
+  preview, an admin listing and the retry all read one answer instead of three spellings.
+- **[`RewardKindFold`](RewardKindFold.java)** - `foldInto(kinds)`, called AFTER every Java
+  registration once the stores have loaded. **JSON WINS**: an authored id replaces a Java-registered
+  one, because an owner's file must not be overrulable by a mod. It is never silent - one boot WARN
+  per shadow plus a `Result.shadowed()` the audit reports - because the swap costs that kind's engine
+  services (the ask-first inventory fit check, any retry richer than re-running the line). It is
+  **exactly one** warn: the registration goes through `registerQuietly`, so the ledger's generic
+  "two owners wanted this id" line never lands above the one that explains the swap. A kind
+  naming no command is SKIPPED, never registered: shadowing a working kind with a dud is strictly
+  worse than not shadowing. A RE-FOLD (an asset re-import) shadows nothing: the fold recognises its
+  own handlers, so a reload never reports the whole catalogue as having taken something over.
+- **[`RewardKindValidator`](RewardKindValidator.java)** - domain `rewardkind`. `auditAll` over the
+  kinds (`NO_COMMAND`, `UNKNOWN_PARAM` for a placeholder nothing fills, `UNUSED_PARAM`,
+  `REQUIRED_WITH_DEFAULT`, and a guarded `UNKNOWN_COMMAND` head check off the engine command
+  registry), `auditSpec` over a reward written for one (`UNKNOWN_PARAM`, `MISSING_REQUIRED_PARAM`),
+  and `shadowed` for the INFO marker. The head check reads `CommandManager` directly - an engine
+  type, not another module, so it costs no edge - and answers null rather than a finding wherever
+  nothing can say which commands exist, since a check that cannot run must never invent one.
 
 ## Rules to keep
 
@@ -97,10 +153,22 @@ module or grow a second, subtly different idea of what a reward is.
   something nobody authored). `FrameworkKindFailLoudTest` covers every kind.
 - **One registry, both facets.** A new reward capability registers a handler; a new terse spelling
   registers an authoring adapter; neither justifies a second table.
+- **The authored fold runs LAST, and it is loud.** Never move `RewardKindFold.foldInto` ahead of a
+  consumer's Java registrations to "avoid the shadow warning" - the ordering IS the rule that lets an
+  owner's file win, and the warning is the only place they learn what it cost.
+- **The declared schema is the authority on what a kind reads.** A parameter a kind does not declare
+  reaches no command line, deliberately: substituting whatever a reward happened to write would make
+  every authored kind's real surface unknowable, and the validator reports the stray parameter
+  instead.
 - Tests are mechanics and invariants: `RewardGrantsTest` (isolation, retry queueing, unhandled kinds,
   the typed parameter reads), `FrameworkKindFailLoudTest` (an unpayable spec is reported failed, never
   granted), `RewardKindRegistryTest` (empty start, registration, lookup),
   `RewardKindFoldTest` (the two facets keyed together, and both compact grammars reading one table),
   and `DroplistRewardKindTest` (the whole parameter fold - which id, how many rolls, where they land -
   since every one of those is a way a payout could quietly go somewhere nobody meant it to; the roll
-  and the spawn themselves are engine calls the in-game pass covers).
+  and the spawn themselves are engine calls the in-game pass covers). For the authored kinds:
+  `RewardKindAssetCodecTest` (the decode, and the two DIFFERENT inherit rules - `Params` merges per
+  parameter, `Command` replaces), `CommandRewardKindTest` (every substitution case plus the refusals,
+  through a recording dispatcher), `RewardKindAssetFoldTest` (JSON wins, the one warning, the skipped
+  dud, a re-fold shadowing nothing, and the `defaults < pack < owner` layering), `RewardKindValidatorTest` (one case per finding,
+  and the quiet cases - above all a command-head check that skips rather than guesses).

@@ -49,7 +49,7 @@ import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
  * </ul>
  *
  * <p><b>The codec carries NO defaults: an absent list stays null.</b> Read sites genuinely differ
- * (a placement may treat an empty selector as "the primary world", a rules table may treat an
+ * (a placement may treat an empty selector as "the main world", a rules table may treat an
  * unmatched world as its own DEFAULT record), so each read site applies its own default and this
  * type never invents one. One codec with two invisible Java-side defaults would be a rework.
  *

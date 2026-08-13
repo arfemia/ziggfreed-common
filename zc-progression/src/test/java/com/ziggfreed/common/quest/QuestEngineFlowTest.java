@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -569,36 +570,47 @@ class QuestEngineFlowTest {
         }
 
         @Test
-        void maintenanceLeavesParkedRewardsAndRotationOwnedQuestsAlone() {
+        void maintenanceLeavesAParkedRewardAlone() {
             Quest parked = quest("q_parked")
                     .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
                     .repeat(Quest.Repeat.every(HOUR)).autoClaim(false)
                     .build();
-            Quest rotating = quest("q_rotating")
-                    .objective(objective("x", "BREAK_BLOCK", "Stone", 1))
-                    .repeat(Quest.Repeat.everyStampedOnPark(HOUR)).autoClaim(false)
-                    .build();
             QuestEngine engine = engine().build();
-            engine.setQuests(List.of(parked, rotating));
+            engine.setQuests(List.of(parked));
             engine.accept(player, parked);
-            engine.accept(player, rotating);
             engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
-            engine.dispatch(player, "BREAK_BLOCK", "Stone", null, 1);
-            engine.claim(player, rotating);
 
             clock.addAndGet(10 * HOUR);
             assertEquals(0, engine.selfHeal(player));
             assertEquals(QuestStatus.COMPLETED_UNCLAIMED, store.status(player, "q_parked"),
                     "a reward may still be owed");
-            assertEquals(QuestStatus.COMPLETED, store.status(player, "q_rotating"),
-                    "a quest whose clock started on park is the rotation's business, not maintenance's");
         }
 
         @Test
-        void aParkedQuestKeepsTheClockItStartedWhenItParked() {
+        void maintenanceReArmsAnExternallyGovernedQuestAtOnce() {
+            Quest governed = quest("q_governed")
+                    .objective(objective("x", "BREAK_BLOCK", "Stone", 1))
+                    .repeat(Quest.Repeat.EXTERNALLY_GOVERNED)
+                    .build();
+            QuestEngine engine = engine().build();
+            engine.setQuests(List.of(governed));
+            engine.accept(player, governed);
+            engine.dispatch(player, "BREAK_BLOCK", "Stone", null, 1);
+
+            assertEquals(1, engine.selfHeal(player),
+                    "nothing on the quest holds it back, so whatever offers it decides when it comes"
+                            + " round - the engine simply re-arms it");
+            assertEquals(QuestStatus.NOT_STARTED, store.status(player, "q_governed"));
+            assertEquals(1, store.completions(player, "q_governed").totalCount(),
+                    "a re-arm keeps the completion record, or a lifetime cap could never be reached");
+        }
+
+        @Test
+        void aCompleteAnchoredQuestKeepsTheClockItStartedWhenItParked() {
             Quest rotating = quest("q_rotating")
                     .objective(objective("x", "BREAK_BLOCK", "Stone", 1))
-                    .repeat(Quest.Repeat.everyStampedOnPark(4 * HOUR)).autoClaim(false)
+                    .repeat(new Quest.Repeat(4 * HOUR, Quest.Repeat.CooldownFrom.COMPLETE, null, 0))
+                    .autoClaim(false)
                     .build();
             QuestEngine engine = engine().build();
             engine.setQuests(List.of(rotating));
@@ -612,6 +624,150 @@ class QuestEngineFlowTest {
             assertEquals(stampedAtPark, store.cooldownStamp(player, "q_rotating"),
                     "collecting later must not restart the clock");
             assertEquals(HOUR, engine.cooldownRemainingMs(player, rotating));
+            assertEquals(1, store.completions(player, "q_rotating").totalCount(),
+                    "parking then collecting is ONE completion, not two");
+        }
+
+        @Test
+        void aClaimAnchoredQuestStartsItsClockWhenTheRewardIsTaken() {
+            Quest parked = quest("q_parked")
+                    .objective(objective("x", "BREAK_BLOCK", "Stone", 1))
+                    .repeat(Quest.Repeat.every(4 * HOUR)).autoClaim(false)
+                    .build();
+            QuestEngine engine = engine().build();
+            engine.setQuests(List.of(parked));
+            engine.accept(player, parked);
+            engine.dispatch(player, "BREAK_BLOCK", "Stone", null, 1);
+            assertEquals(0L, store.cooldownStamp(player, "q_parked"),
+                    "the clock has not started: the reward has not been taken");
+
+            clock.addAndGet(HOUR);
+            long collectedAt = clock.get();
+            engine.claim(player, parked);
+
+            assertEquals(collectedAt, store.cooldownStamp(player, "q_parked"));
+            assertEquals(1, store.completions(player, "q_parked").totalCount());
+        }
+
+        @Test
+        void aLifetimeCapAndASpentWindowRefuseWithTheirOwnReasons() {
+            Quest capped = quest("q_capped")
+                    .objective(objective("x", "BREAK_BLOCK", "Stone", 1))
+                    .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM, null, 1))
+                    .build();
+            Quest windowed = quest("q_windowed")
+                    .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
+                    .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM,
+                            Quest.Repeat.Reset.of(Quest.Repeat.Reset.Period.DAILY), 0))
+                    .build();
+            QuestEngine engine = engine().build();
+            engine.setQuests(List.of(capped, windowed));
+            engine.accept(player, capped);
+            engine.accept(player, windowed);
+            engine.dispatch(player, "BREAK_BLOCK", "Stone", null, 1);
+            engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+
+            assertTrue(engine.canAccept(player, capped).reasons()
+                    .contains(QuestGates.REASON_MAX_COMPLETIONS));
+            assertTrue(engine.canAccept(player, windowed).reasons()
+                    .contains(QuestGates.REASON_PERIOD_SPENT));
+            assertEquals(0, engine.selfHeal(player),
+                    "neither is offerable yet, so neither is re-armed");
+        }
+
+        @Test
+        void aStoreThatCannotRememberCompletionsSaysSoOnce() {
+            List<String> warnings = new ArrayList<>();
+            Quest windowed = quest("q_windowed")
+                    .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
+                    .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM,
+                            Quest.Repeat.Reset.of(Quest.Repeat.Reset.Period.DAILY), 0))
+                    .build();
+            QuestEngine engine = QuestEngine.builder()
+                    .store(new ForgetfulStore())
+                    .clock(clock::get)
+                    .nativeEvents(false)
+                    .warn(warnings::add)
+                    .build();
+            engine.setQuests(List.of(windowed));
+
+            assertEquals(1, warnings.size(), "one line per quest, at load, not one per accept");
+            assertTrue(warnings.get(0).contains("q_windowed"));
+            assertTrue(engine.accept(player, windowed),
+                    "with nothing to count against, the window simply does not apply");
+        }
+
+        /** A store that deliberately cannot remember completions, like a round-scoped one. */
+        private static final class ForgetfulStore implements QuestProgressStore {
+
+            private final InMemoryQuestProgressStore backing = new InMemoryQuestProgressStore();
+
+            @Override
+            public boolean recordsCompletions() {
+                return false;
+            }
+
+            @Override
+            @Nonnull
+            public QuestStatus status(@Nonnull Subject subject, @Nonnull String questId) {
+                return backing.status(subject, questId);
+            }
+
+            @Override
+            public void setStatus(@Nonnull Subject subject, @Nonnull String questId,
+                                  @Nonnull QuestStatus status) {
+                backing.setStatus(subject, questId, status);
+            }
+
+            @Override
+            public String progressPayload(@Nonnull Subject subject, @Nonnull String questId) {
+                return backing.progressPayload(subject, questId);
+            }
+
+            @Override
+            public void putProgressPayload(@Nonnull Subject subject, @Nonnull String questId,
+                                           @Nonnull String payload) {
+                backing.putProgressPayload(subject, questId, payload);
+            }
+
+            @Override
+            public long cooldownStamp(@Nonnull Subject subject, @Nonnull String questId) {
+                return backing.cooldownStamp(subject, questId);
+            }
+
+            @Override
+            public void setCooldownStamp(@Nonnull Subject subject, @Nonnull String questId,
+                                         long epochMs) {
+                backing.setCooldownStamp(subject, questId, epochMs);
+            }
+
+            @Override
+            @Nonnull
+            public Set<String> knownQuestIds(@Nonnull Subject subject) {
+                return backing.knownQuestIds(subject);
+            }
+
+            @Override
+            public void clearQuest(@Nonnull Subject subject, @Nonnull String questId) {
+                backing.clearQuest(subject, questId);
+            }
+
+            @Override
+            @Nonnull
+            public Map<String, Long> trackedPins(@Nonnull Subject subject) {
+                return backing.trackedPins(subject);
+            }
+
+            @Override
+            public void setTrackedPin(@Nonnull Subject subject, @Nonnull String questId,
+                                      long pinnedAtMs) {
+                backing.setTrackedPin(subject, questId, pinnedAtMs);
+            }
+
+            @Override
+            public boolean clearTrackedPin(@Nonnull Subject subject, @Nonnull String questId) {
+                return backing.clearTrackedPin(subject, questId);
+            }
         }
 
         @Test

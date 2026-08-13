@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -14,8 +15,8 @@ import javax.annotation.Nullable;
  *
  * <p>The asset id is a pure ADDRESS (owner overrides and native {@code Parent} use it) and is
  * never semantic. The names are the shared vocabulary, and they are many-to-many: two mods may
- * each ship a file contributing patterns to {@code primary}, and a world earns the name from
- * EITHER - which is exactly what makes a colliding filename harmless.
+ * each ship a file contributing patterns to one name, and a world earns the name from EITHER -
+ * which is exactly what makes a colliding filename harmless.
  *
  * <p>Immutable; pure logic, zero engine coupling.
  */
@@ -26,14 +27,19 @@ public final class WorldSelectorDef {
     private final List<String> names;
     private final String[] match;
     private final String[] gameplayConfig;
+    private final String[] excludeNames;
+    private final List<String> excludes;
 
     public WorldSelectorDef(@Nonnull String id, @Nullable String[] names,
-            @Nullable String[] match, @Nullable String[] gameplayConfig) {
+            @Nullable String[] match, @Nullable String[] gameplayConfig,
+            @Nullable String[] excludeNames) {
         this.id = id;
         this.rawNames = names == null ? null : names.clone();
         this.names = normalizeNames(names);
         this.match = match == null ? null : match.clone();
         this.gameplayConfig = gameplayConfig == null ? null : gameplayConfig.clone();
+        this.excludeNames = excludeNames == null ? null : excludeNames.clone();
+        this.excludes = normalizeNames(excludeNames);
     }
 
     /** The asset id (a pure address - the file this came from), lower-cased by the config fold. */
@@ -67,6 +73,32 @@ public final class WorldSelectorDef {
     @Nullable
     public String[] gameplayConfig() {
         return gameplayConfig == null ? null : gameplayConfig.clone();
+    }
+
+    /** The {@code ExcludeNames} list exactly as authored, blanks and all ({@code null} when none). */
+    @Nullable
+    public String[] excludeNames() {
+        return excludeNames == null ? null : excludeNames.clone();
+    }
+
+    /** The names this asset refuses to apply beside, lower-cased, blanks dropped. */
+    @Nonnull
+    public List<String> excludes() {
+        return excludes;
+    }
+
+    /**
+     * Does {@code worldNames} carry a name this asset excludes? The argument is the set a world
+     * earns from every asset's POSITIVE axes, resolved before any exclusion is applied, which is
+     * what keeps the answer independent of the order the assets folded in.
+     */
+    public boolean excludedBy(@Nonnull Set<String> worldNames) {
+        for (String name : excludes) {
+            if (worldNames.contains(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

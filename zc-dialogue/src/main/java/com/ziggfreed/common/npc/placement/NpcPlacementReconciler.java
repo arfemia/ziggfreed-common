@@ -448,7 +448,7 @@ public final class NpcPlacementReconciler {
 
     /**
      * Does {@code placement}'s {@code Where} match {@code world}? A null or empty selector defaults
-     * to the {@code primary} selector name at THIS read site (the selector codec itself carries no
+     * to the {@code default} selector name at THIS read site (the selector codec itself carries no
      * default, because a rules table and a placement want different ones).
      */
     public static boolean matchesWorld(@Nonnull NpcPlacementAsset placement, @Nullable World world) {
@@ -459,8 +459,13 @@ public final class NpcPlacementReconciler {
         return where.match(world) != null;
     }
 
-    /** The selector name an unauthored {@code Where} means: the ordinary persistent world. */
-    public static final String DEFAULT_WORLD_NAME = "primary";
+    /**
+     * The selector name an unauthored {@code Where} means: the ordinary persistent world players
+     * log into, which a stock Hytale server calls {@code default}. A server whose main world is
+     * named something else re-points that selector once in
+     * {@code mods/ziggfreedcommon/world-selectors.json} and every unauthored placement follows.
+     */
+    public static final String DEFAULT_WORLD_NAME = "default";
 
     private static boolean isResident(@Nonnull Store<EntityStore> store, @Nullable UUID uuid) {
         if (uuid == null) {

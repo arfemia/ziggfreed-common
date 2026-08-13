@@ -4,14 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Set;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * The pure decision core behind per-world-family dialogue state: the storage-key format and the
- * does-this-world-carry-the-scope resolution. Internal plumbing - no author writes one of these
+ * The pure decision core behind per-world dialogue state: the storage-key format and the
+ * does-this-pattern-match-this-world resolution. Internal plumbing - no author writes one of these
  * keys - but the format is load-bearing for a consumer's prefix-match resets. No server needed.
  */
 class DialogueFlagScopeTest {
@@ -55,7 +53,7 @@ class DialogueFlagScopeTest {
     }
 
     @Test
-    void selectorNameIsNormalized() {
+    void theStateKeySegmentIsNormalized() {
         assertEquals("w:forgotten_temple:greeted",
                 DialogueFlagScope.scopedKey("greeted", "  Forgotten_Temple "));
     }
@@ -64,34 +62,61 @@ class DialogueFlagScopeTest {
 
     @Test
     void unscopedKeyResolvesToItselfUnchanged() {
-        assertEquals("greeted", DialogueFlagScope.resolve(null, "greeted", Set.of("forgotten_temple")));
+        assertEquals("greeted", DialogueFlagScope.resolve(null, "greeted", "forgotten_temple"));
         assertEquals("q:x:greeted",
-                DialogueFlagScope.resolve(null, "q:x:greeted", Set.of("forgotten_temple")));
+                DialogueFlagScope.resolve(null, "q:x:greeted", "forgotten_temple"));
     }
 
     @Test
-    void matchingWorldResolvesToTheScopedKey() {
-        DialogueFlagScope scope = DialogueFlagScope.ofWorldSelector("forgotten_temple");
+    void anExactWorldNameResolvesToTheScopedKey() {
+        DialogueFlagScope scope = DialogueFlagScope.ofWorld("forgotten_temple");
         assertEquals("w:forgotten_temple:greeted",
-                DialogueFlagScope.resolve(scope, "greeted", Set.of("forgotten_temple", "instance")));
+                DialogueFlagScope.resolve(scope, "greeted", "Forgotten_Temple"));
+    }
+
+    @Test
+    void aPatternKeysStateByItsCoreSoARebuiltInstanceRemembers() {
+        DialogueFlagScope scope = DialogueFlagScope.ofWorld("*KweebecNightmare*");
+
+        assertEquals("w:kweebecnightmare:greeted", DialogueFlagScope.resolve(scope, "greeted",
+                "instance-KweebecNightmare_Barn-9f3a"));
+        assertEquals("w:kweebecnightmare:greeted", DialogueFlagScope.resolve(scope, "greeted",
+                "instance-KweebecNightmare_Barn-0011"),
+                "a fresh instantiation carries a different uuid and must land on the same key");
+    }
+
+    @Test
+    void aNarrowerPatternScopesTheSameStatePerArena() {
+        assertEquals("w:kweebecnightmare_barn:greeted",
+                DialogueFlagScope.resolve(DialogueFlagScope.ofWorld("*KweebecNightmare_Barn*"),
+                        "greeted", "instance-KweebecNightmare_Barn-9f3a"));
     }
 
     @Test
     void unmatchedWorldResolvesToNullSoWritesNoOpAndReadsAreUnset() {
-        DialogueFlagScope scope = DialogueFlagScope.ofWorldSelector("forgotten_temple");
-        assertNull(DialogueFlagScope.resolve(scope, "greeted", Set.of("primary")),
-                "a scope the world does not carry must resolve to no key at all");
-        assertNull(DialogueFlagScope.resolve(scope, "greeted", Set.of()),
-                "a world with no selector names carries no scope either");
+        DialogueFlagScope scope = DialogueFlagScope.ofWorld("forgotten_temple");
+        assertNull(DialogueFlagScope.resolve(scope, "greeted", "default"),
+                "a scope whose pattern misses this world must resolve to no key at all");
+        assertNull(DialogueFlagScope.resolve(scope, "greeted", null),
+                "an unreadable world carries no scope either");
     }
 
     @Test
     void blankScopeIsTreatedAsGlobal() {
         assertEquals("greeted",
-                DialogueFlagScope.resolve(DialogueFlagScope.ofWorldSelector(null), "greeted", Set.of()));
+                DialogueFlagScope.resolve(DialogueFlagScope.ofWorld(null), "greeted", "default"));
         assertEquals("greeted",
-                DialogueFlagScope.resolve(DialogueFlagScope.ofWorldSelector("  "), "greeted", Set.of()));
-        assertTrue(DialogueFlagScope.ofWorldSelector(" ").isBlank());
+                DialogueFlagScope.resolve(DialogueFlagScope.ofWorld("  "), "greeted", "default"));
+        assertTrue(DialogueFlagScope.ofWorld(" ").isBlank());
+    }
+
+    @Test
+    void aBareWildcardIsTheSameAsNoScopeAtAll() {
+        DialogueFlagScope everywhere = DialogueFlagScope.ofWorld("*");
+
+        assertTrue(everywhere.isBlank(), "scoping to every world narrows nothing");
+        assertEquals("greeted", DialogueFlagScope.resolve(everywhere, "greeted", "default"),
+                "so it must never put an empty core into the stored key");
     }
 
     // ==================== The state-key namespaces ====================

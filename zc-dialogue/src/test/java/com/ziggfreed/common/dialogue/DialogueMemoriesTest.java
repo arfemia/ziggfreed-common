@@ -54,7 +54,7 @@ class DialogueMemoriesTest {
     void declarationsDecodeEveryAxis() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide", "{\"Memories\":{"
-                + "\"helped_refugees\":{\"WorldSelector\":\"emerald_wilds\","
+                + "\"helped_refugees\":{\"World\":\"emerald_wilds\","
                 + "\"ResetWithQuest\":\"guide_trust\",\"Shared\":true},"
                 + "\"knows_my_name\":{}},"
                 + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[]}}}");
@@ -62,13 +62,13 @@ class DialogueMemoriesTest {
 
         DialogueMemory helped = d.getMemory("helped_refugees");
         assertNotNull(helped);
-        assertEquals("emerald_wilds", helped.getWorldSelector());
+        assertEquals("emerald_wilds", helped.getWorld());
         assertEquals("guide_trust", helped.getResetWithQuest());
         assertTrue(helped.isShared());
 
         DialogueMemory plain = d.getMemory("knows_my_name");
         assertNotNull(plain);
-        assertNull(plain.getWorldSelector());
+        assertNull(plain.getWorld());
         assertFalse(plain.isShared());
         assertNotNull(d.getMemory("KNOWS_MY_NAME"), "a name lookup is case-insensitive");
     }
@@ -77,7 +77,7 @@ class DialogueMemoriesTest {
     void aParentChildAddsOrRedeclaresOneMemoryAndInheritsTheRest() throws Exception {
         DialogueEngine engine = engine();
         NpcDialogue parent = engine.decode("base", "{\"Memories\":{"
-                + "\"helped_refugees\":{\"WorldSelector\":\"emerald_wilds\"},"
+                + "\"helped_refugees\":{\"World\":\"emerald_wilds\"},"
                 + "\"knows_my_name\":{}},"
                 + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[]}}}");
         assertNotNull(parent);
@@ -92,7 +92,7 @@ class DialogueMemoriesTest {
         DialogueMemory helped = child.getMemory("helped_refugees");
         assertNotNull(helped);
         assertEquals("guide_trust", helped.getResetWithQuest(), "the child's own leaf");
-        assertEquals("emerald_wilds", helped.getWorldSelector(), "the parent's leaf survives");
+        assertEquals("emerald_wilds", helped.getWorld(), "the parent's leaf survives");
         assertNotNull(child.getMemory("knows_my_name"), "a parent-only memory is retained");
         assertNotNull(child.getMemory("owes_me"), "the child's new memory is added");
     }
@@ -208,10 +208,10 @@ class DialogueMemoriesTest {
         DialogueMemory shared = DialogueMemory.of(null, null, true);
         DialogueMemory privateToOne = DialogueMemory.of(null, null, null);
 
-        assertEquals("mem:s:helped", shared.resolveKey("guide_a", "helped", Set.of()));
-        assertEquals("mem:s:helped", shared.resolveKey("guide_b", "helped", Set.of()));
-        assertEquals("mem:d:guide_a:helped", privateToOne.resolveKey("guide_a", "helped", Set.of()));
-        assertEquals("mem:d:guide_b:helped", privateToOne.resolveKey("guide_b", "helped", Set.of()));
+        assertEquals("mem:s:helped", shared.resolveKey("guide_a", "helped", "default"));
+        assertEquals("mem:s:helped", shared.resolveKey("guide_b", "helped", "default"));
+        assertEquals("mem:d:guide_a:helped", privateToOne.resolveKey("guide_a", "helped", "default"));
+        assertEquals("mem:d:guide_b:helped", privateToOne.resolveKey("guide_b", "helped", "default"));
     }
 
     /**
@@ -223,7 +223,7 @@ class DialogueMemoriesTest {
     void resetWithQuestFilesTheMemoryWhereAQuestResetFindsIt() {
         DialogueMemory memory = DialogueMemory.of("emerald_wilds", "guide_trust", null);
 
-        String key = memory.resolveKey("guide", "helped", Set.of("emerald_wilds"));
+        String key = memory.resolveKey("guide", "helped", "Emerald_Wilds");
         assertEquals("q:guide_trust:mem:d:guide:w:emerald_wilds:helped", key);
 
         TestDialogueContext.Flags flags = new TestDialogueContext.Flags();
@@ -236,20 +236,20 @@ class DialogueMemoriesTest {
     }
 
     @Test
-    void aWorldFamilyMemoryDoesNotExistOutsideThatFamily() {
+    void aWorldScopedMemoryDoesNotExistInAnotherWorld() {
         DialogueMemory memory = DialogueMemory.of("emerald_wilds", null, null);
 
         assertEquals("mem:d:guide:w:emerald_wilds:helped",
-                memory.resolveKey("guide", "helped", Set.of("emerald_wilds")));
-        assertNull(memory.resolveKey("guide", "helped", Set.of("primary")));
+                memory.resolveKey("guide", "helped", "Emerald_Wilds"));
+        assertNull(memory.resolveKey("guide", "helped", "default"));
     }
 
     @Test
-    void offWorldAScopedMemoryReadsAsForgottenAndWritesAreDropped() {
+    void offPatternAScopedMemoryReadsAsForgottenAndWritesAreDropped() {
         DialogueEngine engine = engine();
-        // The test context cannot read a world, the same shape as standing outside the family.
+        // The test context cannot read a world, the same shape as standing where the pattern misses.
         NpcDialogue d = engine.decode("guide",
-                "{\"Memories\":{\"helped\":{\"WorldSelector\":\"emerald_wilds\"}},"
+                "{\"Memories\":{\"helped\":{\"World\":\"emerald_wilds\"}},"
                         + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]},"
                         + "{\"LabelKey\":\"b\",\"Conditions\":[{\"Type\":\"Remembered\",\"Memory\":\"helped\"}]},"

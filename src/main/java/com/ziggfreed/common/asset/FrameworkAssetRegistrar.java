@@ -26,10 +26,12 @@ import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutConfig;
 import com.ziggfreed.common.instance.preset.InstancePresetAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetConfig;
-import com.ziggfreed.common.instance.reward.LootTableAsset;
-import com.ziggfreed.common.instance.reward.LootTableConfig;
 import com.ziggfreed.common.loot.LootableAsset;
 import com.ziggfreed.common.loot.LootableConfig;
+import com.ziggfreed.common.loot.reward.RewardKindAsset;
+import com.ziggfreed.common.loot.reward.RewardKindConfig;
+import com.ziggfreed.common.loot.reward.RewardKindFold;
+import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.stamp.RollPoolAsset;
 import com.ziggfreed.common.loot.stamp.RollPoolConfig;
 import com.ziggfreed.common.npc.NpcIdentityAsset;
@@ -40,6 +42,10 @@ import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.party.PartySettingsConfig;
 import com.ziggfreed.common.achievement.asset.AchievementAsset;
 import com.ziggfreed.common.achievement.asset.AchievementAssetStore;
+import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
+import com.ziggfreed.common.achievement.asset.AchievementCategoryConfig;
+import com.ziggfreed.common.achievement.asset.AchievementMilestoneAsset;
+import com.ziggfreed.common.achievement.asset.AchievementMilestoneConfig;
 import com.ziggfreed.common.quest.asset.QuestAsset;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
@@ -63,10 +69,11 @@ import com.ziggfreed.common.world.WorldSelectorConfig;
  * (last-pack-wins by id). Two store types are a deliberate exception, and both ship
  * STRUCTURE rather than content: {@code DialogueOptionTheme} (the neutral look per option
  * kind, so a page renders before anyone authors a theme) and {@code WorldSelectors} (the
- * {@code primary} and {@code any} names, which are the vocabulary every other selector-aware
+ * {@code default} and {@code any} names, which are the vocabulary every other selector-aware
  * file is written against - a consumer would have to re-declare them in every pack
  * otherwise). Both ride the jar's own asset pack, so an owner overrides either by dropping a
- * same-id file.
+ * same-id file, and world selectors additionally take an owner layer at
+ * {@code mods/ziggfreedcommon/world-selectors.json}.
  *
  * <p><b>REGISTRATION ONLY (build-enforced).</b> This registrar reaches into every domain, which is
  * exactly why it must never grow a decision: whatever lands here is unreachable from any module's
@@ -105,17 +112,9 @@ public final class FrameworkAssetRegistrar {
                         InstancePresetConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toPreset(id))));
 
-        // --- Loot tables (Pattern A) - score-tiered reward pools a preset references by id. ---
-        AssetStoreRegistrar.registerStore(LootTableAsset.class,
-                new DefaultAssetMap<String, LootTableAsset>(), "ZiggfreedCommon/LootTables",
-                LootTableAsset::getId, LootTableAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, LootTableAsset.class,
-                (LoadedAssetsEvent<String, LootTableAsset, DefaultAssetMap<String, LootTableAsset>> ev) ->
-                        LootTableConfig.getInstance().mergePackLayer(
-                                AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toLootTable())));
-
         // --- Lootables (Pattern A) - named, reusable conditional loot tables anything can reference
-        //     by id. Common ships no loot CONTENT; every table is consumer pack JSON. ---
+        //     by id, including the score-tiered pools an instance preset names. Common ships no loot
+        //     CONTENT; every table is consumer pack JSON. ---
         AssetStoreRegistrar.registerStore(LootableAsset.class,
                 new DefaultAssetMap<String, LootableAsset>(), LootableAsset.TYPE_ROOT,
                 LootableAsset::getId, LootableAsset.CODEC, null);
@@ -130,6 +129,22 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, RollPoolAsset.class,
                 (LoadedAssetsEvent<String, RollPoolAsset, DefaultAssetMap<String, RollPoolAsset>> ev) ->
                         RollPoolConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Reward kinds (Pattern A) - a reward KIND written as a file: a declared parameter
+        //     schema plus one console command line, so a server with an admin command it wants paid
+        //     out as a reward needs no plugin to say so. Folding is part of the SAME listener on
+        //     purpose. The fold has to run after every Java registration (a consumer's setup() is
+        //     long over by the time assets load) and after the layers resolve, and splitting it into
+        //     a second listener for the same event would leave that order to listener registration
+        //     order. JSON WINS here: an authored id replaces a Java-registered one, loudly, once. ---
+        AssetStoreRegistrar.registerStore(RewardKindAsset.class,
+                new DefaultAssetMap<String, RewardKindAsset>(), RewardKindAsset.TYPE_ROOT,
+                RewardKindAsset::getId, RewardKindAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, RewardKindAsset.class,
+                (LoadedAssetsEvent<String, RewardKindAsset, DefaultAssetMap<String, RewardKindAsset>> ev) -> {
+                    RewardKindConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    RewardKindFold.foldInto(RewardKinds.shared());
+                });
 
         // --- Multi-phase bosses (Pattern A). ---
         AssetStoreRegistrar.registerStore(MultiPhaseBossAsset.class,
@@ -202,8 +217,9 @@ public final class FrameworkAssetRegistrar {
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toTheme())));
 
         // --- World selectors (Pattern A) - the world-identity vocabulary. Common ships the
-        //     structural Zc_Primary / Zc_Any files; every other selector is consumer JSON.
-        //     The merge MUST invalidate WorldIdentity: the primary world is added during
+        //     structural Zc_Default / Zc_Any files; every other selector is consumer JSON or an
+        //     owner entry in mods/ziggfreedcommon/world-selectors.json.
+        //     The merge MUST invalidate WorldIdentity: the main world is added during
         //     universe boot, BEFORE this event folds the config, so its cached (and empty)
         //     name set would otherwise stand for the life of the process. WorldSelectorConfig
         //     invalidates from mergePackLayer itself; the explicit call keeps that visible at
@@ -290,12 +306,36 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, AchievementAsset, DefaultAssetMap<String, AchievementAsset>> ev) ->
                         AchievementAssetStore.getInstance().merge(AssetMergeAdapter.layer(ev.getAssetMap())));
 
+        // --- Achievement categories (Pattern A) - the presentation half of the shared
+        //     Listing.Category leaf: where a grouping label sits, what illustrates it, what it is
+        //     called, and the order its subcategories read in. Every leaf is nullable, so a pack
+        //     that only wants a different icon ships a file carrying nothing else. ---
+        AssetStoreRegistrar.registerStore(AchievementCategoryAsset.class,
+                new DefaultAssetMap<String, AchievementCategoryAsset>(), AchievementCategoryAsset.TYPE_ROOT,
+                AchievementCategoryAsset::getId, AchievementCategoryAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, AchievementCategoryAsset.class,
+                (LoadedAssetsEvent<String, AchievementCategoryAsset, DefaultAssetMap<String, AchievementCategoryAsset>> ev) ->
+                        AchievementCategoryConfig.getInstance().mergePackLayer(
+                                AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Achievement milestones (Pattern A) - the points ladder: a reward for reaching a
+        //     running TOTAL rather than for any one achievement. The Threshold inside a file is its
+        //     identity, so two files naming one number are one rung whatever they are called. ---
+        AssetStoreRegistrar.registerStore(AchievementMilestoneAsset.class,
+                new DefaultAssetMap<String, AchievementMilestoneAsset>(), AchievementMilestoneAsset.TYPE_ROOT,
+                AchievementMilestoneAsset::getId, AchievementMilestoneAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, AchievementMilestoneAsset.class,
+                (LoadedAssetsEvent<String, AchievementMilestoneAsset, DefaultAssetMap<String, AchievementMilestoneAsset>> ev) ->
+                        AchievementMilestoneConfig.getInstance().mergePackLayer(
+                                AssetMergeAdapter.layer(ev.getAssetMap())));
+
         try {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (Dialogues, Instances, "
-                            + "LootTables, Lootables, RollPools, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
+                            + "Lootables, RollPools, RewardKinds, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, WorldSelectors, NpcPlacements, NpcIdentities, Factors, "
-                            + "Quests, QuestGenerators).");
+                            + "Quests, QuestGenerators, Achievements, AchievementCategories, "
+                            + "AchievementMilestones).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }

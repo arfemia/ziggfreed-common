@@ -19,9 +19,15 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * one kind of content reads and behaves identically on the next.
  *
  * <pre>{@code
- * "Rewards": [ { "Kind": "yourmod:currency", "Params": { "Id": "coin", "Amount": "50" } },
- *              { "Kind": "yourmod:item",     "Params": { "Item": "Sword_Copper", "Count": "1" } } ]
+ * "Rewards": [ { "Kind": "Item",         "Params": { "Item": "Sword_Copper", "Count": "1" } },
+ *              { "Kind": "Yourmod_Coin", "Params": { "Id": "coin", "Amount": "50" } } ]
  * }</pre>
+ *
+ * <p><b>Kind ids read like any other asset id</b>: PascalCase with underscores. The framework's own
+ * kinds are unprefixed ({@code Item}, {@code Lootable}, {@code Stamped_Item}, {@code Effect},
+ * {@code Droplist}) because they belong to nobody in particular; a kind a mod brings carries that
+ * mod's prefix ({@code Yourmod_Coin}), which is what keeps two mods' currencies apart. Matching is
+ * case-insensitive, so an older file spelling one in lower case still resolves.
  *
  * <p><b>{@code Params} is deliberately an open map of strings.</b> What a reward needs is decided
  * by whichever mod registered the kind, so pinning a field set here would force every payout
@@ -42,9 +48,11 @@ public final class RewardEntryAsset {
                     .appendInherited(new KeyedCodec<>("Kind", Codec.STRING, false),
                             (o, v) -> o.kind = v, o -> o.kind, (o, p) -> o.kind = p.kind)
                     .metadata(new UIEditor(new UIEditor.Dropdown(ProgressEditorDataSets.REWARD_KINDS)))
-                    .documentation("Which registered reward kind pays this out. A kind nothing registered is "
-                            + "reported rather than silently skipped, so an owner can see which mod was expected "
-                            + "to provide it.").add()
+                    .documentation("Which registered reward kind pays this out, by id: Item, Lootable, "
+                            + "Stamped_Item, Effect and Droplist come with the framework, and a kind a mod brings "
+                            + "carries that mod's prefix (Yourmod_Coin). A kind nothing registered is reported "
+                            + "rather than silently skipped, so an owner can see which mod was expected to "
+                            + "provide it.").add()
                     .appendInherited(new KeyedCodec<>("Params", new InheritMapCodec<>(Codec.STRING), false),
                             (o, v) -> o.params = v, o -> o.params, (o, p) -> o.params = p.params)
                     .documentation("The kind's own parameters, as strings. Which keys matter is documented by "

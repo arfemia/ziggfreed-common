@@ -1,6 +1,12 @@
 package com.ziggfreed.common.asset;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 
@@ -11,11 +17,11 @@ import com.ziggfreed.common.instance.encounter.EncounterRuleAsset;
 import com.ziggfreed.common.instance.encounter.MultiPhaseBossAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetAsset;
-import com.ziggfreed.common.instance.reward.LootTableAsset;
 import com.ziggfreed.common.loot.LootGrants;
 import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.LootableAsset;
 import com.ziggfreed.common.loot.Roll;
+import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.stamp.RollPoolAsset;
 import com.ziggfreed.common.loot.stamp.StampSpec;
 import com.ziggfreed.common.loot.stamp.StatRollEntry;
@@ -27,8 +33,11 @@ import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.npc.placement.PlacedNpcComponent;
 import com.ziggfreed.common.npc.placement.PlacementBinding;
+import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.achievement.asset.AchievementAsset;
+import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
+import com.ziggfreed.common.achievement.asset.AchievementMilestoneAsset;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
@@ -63,11 +72,6 @@ class AssetCodecInitTest {
     @Test
     void multiPhaseBossAssetCodecInitializes() {
         assertNotNull(MultiPhaseBossAsset.CODEC, "MultiPhaseBossAsset.CODEC must static-init (PascalCase keys)");
-    }
-
-    @Test
-    void lootTableAssetCodecInitializes() {
-        assertNotNull(LootTableAsset.CODEC, "LootTableAsset.CODEC must static-init (PascalCase keys)");
     }
 
     @Test
@@ -116,6 +120,12 @@ class AssetCodecInitTest {
     }
 
     @Test
+    void standaloneProgressComponentCodecInitializes() {
+        assertNotNull(ZigProgressComponent.CODEC,
+                "ZigProgressComponent.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
     void npcIdentityAssetCodecInitializes() {
         assertNotNull(NpcIdentityAsset.CODEC, "NpcIdentityAsset.CODEC must static-init (PascalCase keys)");
     }
@@ -160,6 +170,8 @@ class AssetCodecInitTest {
         assertNotNull(QuestAsset.Listing.CODEC, "QuestAsset.Listing.CODEC must static-init (PascalCase keys)");
         assertNotNull(QuestAsset.Flow.CODEC, "QuestAsset.Flow.CODEC must static-init (PascalCase keys)");
         assertNotNull(QuestAsset.Repeat.CODEC, "QuestAsset.Repeat.CODEC must static-init (PascalCase keys)");
+        assertNotNull(QuestAsset.Repeat.Reset.CODEC,
+                "QuestAsset.Repeat.Reset.CODEC must static-init (PascalCase keys)");
         assertNotNull(QuestAsset.Visibility.CODEC, "QuestAsset.Visibility.CODEC must static-init (PascalCase keys)");
         assertNotNull(QuestAsset.Npc.CODEC, "QuestAsset.Npc.CODEC must static-init (PascalCase keys)");
         assertNotNull(QuestObjectiveAsset.CODEC, "QuestObjectiveAsset.CODEC must static-init (PascalCase keys)");
@@ -181,6 +193,12 @@ class AssetCodecInitTest {
                 "AchievementAsset.Listing.CODEC must static-init (PascalCase keys)");
         assertNotNull(AchievementAsset.Scoring.CODEC,
                 "AchievementAsset.Scoring.CODEC must static-init (PascalCase keys)");
+        assertNotNull(AchievementCategoryAsset.CODEC,
+                "AchievementCategoryAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(AchievementMilestoneAsset.CODEC,
+                "AchievementMilestoneAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(AchievementMilestoneAsset.Rewards.CODEC,
+                "AchievementMilestoneAsset.Rewards.CODEC must static-init (PascalCase keys)");
     }
     @Test
     void lootCodecsInitialize() {
@@ -206,5 +224,35 @@ class AssetCodecInitTest {
                 "the dropdown-bearing Roll codec factory must static-init too");
         assertNotNull(StampSpec.codec(EditorDataSets.FACTORS),
                 "the dropdown-bearing StampSpec codec factory must static-init too");
+    }
+
+    @Test
+    void rewardKindCodecsInitialize() {
+        assertNotNull(RewardKindAsset.CODEC, "RewardKindAsset.CODEC must static-init (PascalCase keys)");
+        // The parameter declaration is a nested group rather than a store of its own, so a lower-case
+        // key there would fail at an author's decode instead of at this build.
+        assertNotNull(RewardKindAsset.Param.CODEC,
+                "RewardKindAsset.Param.CODEC must static-init (PascalCase keys)");
+    }
+
+    /**
+     * A reward kind is the one framework type where registering the store is only half the wiring.
+     * The decoded files land in {@code RewardKindConfig}, and nothing there is payable until
+     * {@code RewardKindFold} turns it into a registered handler - so a registrar that registers the
+     * store and forgets the fold produces a server where every authored kind decodes cleanly, appears
+     * in the config, and pays out nothing. That failure is silent at boot and only shows up as a
+     * reward a player never received, which is why it is pinned here rather than left to review.
+     */
+    @Test
+    void theRewardKindStoreIsFoldedAndNotJustRegistered() throws IOException {
+        Path registrar = Path.of("src", "main", "java", "com", "ziggfreed", "common", "asset",
+                "FrameworkAssetRegistrar.java");
+        assertTrue(Files.isRegularFile(registrar), "missing root source: " + registrar.toAbsolutePath());
+        String source = Files.readString(registrar, StandardCharsets.UTF_8);
+
+        assertTrue(source.contains("RewardKindAsset.class"),
+                "the RewardKinds store must be registered like every other framework type");
+        assertTrue(source.contains("RewardKindFold.foldInto"),
+                "an authored kind that is never folded decodes fine and pays out nothing");
     }
 }

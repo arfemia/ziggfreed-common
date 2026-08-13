@@ -1,5 +1,6 @@
 package com.ziggfreed.common.world;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -12,14 +13,16 @@ import com.ziggfreed.common.validation.ValidationReport;
 
 /**
  * The {@code defaults < pack < owner} fold of every {@link WorldSelectorAsset}, and the pool
- * {@link WorldIdentity} resolves a world's names from.
+ * {@link WorldIdentity} resolves a world's names from. The owner layer is
+ * {@code mods/ziggfreedcommon/world-selectors.json}, read by {@link WorldSelectorOverrides} - the
+ * one place a server owner can say "my main world is not called what the shipped file assumes".
  *
  * <p><b>Every layer write invalidates {@link WorldIdentity}.</b> That is not an optimization
- * detail, it is the difference between working and silently broken: the primary world's
+ * detail, it is the difference between working and silently broken: the main world's
  * {@code AddWorldEvent} fires during universe boot, BEFORE the asset load event folds this
  * config, so a world resolved before the fold caches an EMPTY name set for the life of the
- * process and {@code Names: ["primary"]} never matches anything anywhere. The invalidation lives
- * on the merge methods themselves so no caller can forget it.
+ * process and every {@code Names} reference silently never matches anything anywhere. The
+ * invalidation lives on the merge methods themselves so no caller can forget it.
  */
 public final class WorldSelectorConfig extends AbstractKeyedAssetConfig<WorldSelectorDef> {
 
@@ -54,13 +57,20 @@ public final class WorldSelectorConfig extends AbstractKeyedAssetConfig<WorldSel
     }
 
     /**
-     * Audit every folded selector: missing / blank names, and a selector that names something but
-     * can never match a world. Findings are neutral values a consumer can surface in its own
-     * validation command; {@link #logFindings()} is the always-on baseline.
+     * Audit every folded selector: missing / blank names, a selector that names something but can
+     * never match a world, and a selector that matches none of the worlds this server has actually
+     * loaded (the shape a renamed main world produces - see
+     * {@link WorldSelectorValidator#validateAgainstWorlds}). The loaded-world pass reports nothing
+     * when no world can be read, so an audit run before boot finishes stays silent rather than
+     * flagging every file. Findings are neutral values a consumer can surface in its own validation
+     * command; {@link #logFindings()} is the always-on baseline.
      */
     @Nonnull
     public List<Finding> audit() {
-        return WorldSelectorValidator.validateAll(all().values());
+        List<Finding> findings = new ArrayList<>(WorldSelectorValidator.validateAll(all().values()));
+        findings.addAll(WorldSelectorValidator.validateAgainstWorlds(
+                all().values(), WorldIdentity.loadedWorlds()));
+        return findings;
     }
 
     /**

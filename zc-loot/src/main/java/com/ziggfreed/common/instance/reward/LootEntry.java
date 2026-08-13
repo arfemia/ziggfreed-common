@@ -13,13 +13,17 @@ import com.ziggfreed.common.loot.FactorGate;
 import com.ziggfreed.common.loot.LootFactors;
 
 /**
- * One weighted, score-gated, quantity-ranged entry in a {@link LootTable}'s rollable pool: an
- * {@link InstanceReward} TEMPLATE (kind + id + an inclusive quantity range) plus the policy a roll
- * needs - a pick {@link #weight} and a {@link #minScore} eligibility gate. A roll filters the pool to
- * the entries a player's score unlocks ({@code minScore <= score}), weighted-picks among them, and
- * {@link #resolve}s each pick to a concrete {@link InstanceReward} with a rolled quantity. This is the
- * "better loot for a better score" gate; the bare {@link InstanceReward} (a fixed grant) stays for the
- * table's guaranteed list.
+ * One weighted, score-gated, quantity-ranged reward written as a COMPACT string: an
+ * {@link InstanceReward} TEMPLATE (kind + id + an inclusive quantity range) plus the policy a draw
+ * needs - a pick {@link #weight} and a {@link #minScore} eligibility gate. A caller filters to the
+ * entries a player's score unlocks ({@code minScore <= score}), weighted-picks among them, and
+ * {@link #resolve}s each pick to a concrete {@link InstanceReward} with a rolled quantity.
+ *
+ * <p>It is the terse, one-line-per-reward surface, for a codec field that is a plain {@code String[]}
+ * and an author who wants a whole pool visible at a glance. The structured surface with the same
+ * reach - conditions over any factor, every grant leaf, contributions from other packs - is a
+ * {@code Lootable}'s own {@code Pool} group; reach for that when a pool wants more than a weight and
+ * a score.
  *
  * <p>Pack-authored as a compact spec string (the codec has no list-of-objects form, so the pool is a
  * {@code String[]} just like {@code InstancePresetAsset.Rewards}). The grammar is a superset of

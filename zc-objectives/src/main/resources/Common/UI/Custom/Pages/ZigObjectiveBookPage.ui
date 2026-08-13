@@ -1,0 +1,77 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// The Objective Book page (com.ziggfreed.common.objectives.book.ObjectiveBookPage): a two-tab
+// menu of this server's quests and achievements. A title, a two-button tab bar (#TabQuests /
+// #TabAchievements, each a rich Button + inner #Label so its text substitutes params), an
+// optional summary line, a scrollable list that the page appends Pages/ZigObjectiveRow.ui into,
+// and a single empty-state line used both for "nothing here yet" and for "another mod runs
+// progression on this server".
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+
+$C.@PageOverlay {}
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 760, Height: 620);
+
+  #Content {
+    Label #Title {
+      Text: "";
+      Anchor: (Height: 30, Bottom: 8);
+      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
+    }
+
+    // Tab bar: quests on the left, achievements on the right. The page tints the active tab
+    // from Java (UiRetint.retintButtonStates + the inner #Label colour), so there is no second
+    // "active" style to drift out of sync.
+    Group #TabBar {
+      LayoutMode: Left;
+      Anchor: (Height: 34, Bottom: 8);
+
+      Button #TabQuests {
+        Style: $Z.@ZigRichRowBtnStyle;
+        Anchor: (Width: 180, Height: 34, Right: 6);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+
+      Button #TabAchievements {
+        Style: $Z.@ZigRichRowBtnStyle;
+        Anchor: (Width: 180, Height: 34);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+    }
+
+    // A one-line summary above the list (the achievement tab shows earned/total points here).
+    Label #Summary {
+      Text: "";
+      Visible: false;
+      Anchor: (Height: 20, Bottom: 6);
+      Style: (FontSize: 13, TextColor: #b6c9de, VerticalAlignment: Center);
+    }
+
+    Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
+
+    Group #List {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 4);
+    }
+
+    Label #EmptyState {
+      Text: "";
+      Visible: false;
+      Anchor: (Height: 22, Top: 6);
+      Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+    }
+  }
+}

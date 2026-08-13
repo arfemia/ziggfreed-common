@@ -25,7 +25,8 @@ import com.hypixel.hytale.codec.KeyedCodec;
  * <pre>{@code
  * { "Names":          ["forgotten_temple", "instance"],
  *   "Match":          ["*Forgotten_Temple*"],
- *   "GameplayConfig": ["ForgottenTemple"] }
+ *   "GameplayConfig": ["ForgottenTemple"],
+ *   "ExcludeNames":   ["arena"] }
  * }</pre>
  *
  * <ul>
@@ -34,9 +35,9 @@ import com.hypixel.hytale.codec.KeyedCodec;
  *   <li><b>The asset id (the filename) is a pure ADDRESS</b>, used for owner overrides and for
  *       native {@code Parent} inheritance, and is NEVER semantic. That is what makes names
  *       many-to-many and collision-safe: two mods can each ship a file contributing patterns to
- *       {@code primary} and BOTH apply, because a world's names are the union across every
- *       matching asset. Prefix the filename with your mod ({@code Mmo_}, {@code Zc_}) so the two
- *       files address different slots.</li>
+ *       one name and BOTH apply, because a world's names are the union across every matching
+ *       asset. Prefix the filename with your mod ({@code Mmo_}, {@code Zc_}) so the two files
+ *       address different slots.</li>
  *   <li><b>{@code Match}</b> takes the world-name grammar of {@link WorldNameMatcher}:
  *       {@code Foo} (exact), {@code Foo*} (prefix), {@code *Foo} (suffix), {@code *Foo*}
  *       (contains), {@code *} (everything). Only {@code *Foo*} reaches a live instance world,
@@ -44,6 +45,14 @@ import com.hypixel.hytale.codec.KeyedCodec;
  *   <li><b>{@code GameplayConfig}</b> matches the world's own authored {@code GameplayConfig}
  *       key exactly. It has no uuid in it and it is stable across instance re-creation, so it is
  *       the sturdiest way to name an instance world - and it ranks above everything else.</li>
+ *   <li><b>{@code ExcludeNames}</b> withdraws this file's contribution from a world that already
+ *       carries one of the listed names, so "every world except the arenas" is one file rather
+ *       than a pattern that has to enumerate the exceptions. It is a FILTER over the positive
+ *       axes, never a complement of them: a file with only {@code ExcludeNames} contributes
+ *       nothing anywhere, because it never said which worlds it applies to in the first place.
+ *       <b>Exclusion is resolved against the names a world earns from every file's POSITIVE
+ *       axes, worked out first</b>, so two files excluding each other's names give the same
+ *       answer whatever order the packs happen to load in.</li>
  * </ul>
  *
  * <p>To re-point a name at different worlds, override the file by id (drop a same-named file in a
@@ -55,9 +64,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
  * {@code GameplayConfig} instead of silently losing them.
  *
  * <p>{@code Tags} is a reserved engine key (the asset codec attaches its own), so it is not used
- * here. {@code ExcludeNames} is deliberately absent too: an asset that CONTRIBUTES a name cannot
- * also filter on names without making the resolution order between assets significant. Exclusion
- * belongs on the consuming side, where {@link WorldSelector} carries it.
+ * here.
  */
 public final class WorldSelectorAsset
         implements JsonAssetWithMap<String, DefaultAssetMap<String, WorldSelectorAsset>> {
@@ -68,6 +75,7 @@ public final class WorldSelectorAsset
     @Nullable private String[] names;
     @Nullable private String[] match;
     @Nullable private String[] gameplayConfig;
+    @Nullable private String[] excludeNames;
 
     public static final AssetBuilderCodec<String, WorldSelectorAsset> CODEC = AssetBuilderCodec.builder(
                     WorldSelectorAsset.class,
@@ -79,13 +87,30 @@ public final class WorldSelectorAsset
                     a -> a.data)
             .appendInherited(new KeyedCodec<>("Names", Codec.STRING_ARRAY, false),
                     (a, v) -> a.names = v, a -> a.names, (a, p) -> a.names = p.names)
+            .documentation("The selector names this file hands out. Required: the name IS the "
+                    + "contribution, and the filename is only an address. Several files may hand out "
+                    + "the same name and all of them apply.")
             .add()
             .appendInherited(new KeyedCodec<>("Match", Codec.STRING_ARRAY, false),
                     (a, v) -> a.match = v, a -> a.match, (a, p) -> a.match = p.match)
+            .documentation("World-name patterns a world must satisfy to earn the names: Foo (exact), "
+                    + "Foo* (prefix), *Foo (suffix), *Foo* (contains) or * (every world). Only the "
+                    + "*Foo* form reaches an instance world, whose name carries a random uuid.")
             .add()
             .appendInherited(new KeyedCodec<>("GameplayConfig", Codec.STRING_ARRAY, false),
                     (a, v) -> a.gameplayConfig = v, a -> a.gameplayConfig,
                     (a, p) -> a.gameplayConfig = p.gameplayConfig)
+            .documentation("Exact matches against a world's own authored GameplayConfig key. It has no "
+                    + "uuid in it and survives an instance being rebuilt, so it is the sturdiest way "
+                    + "to name an instance world, and it outranks every name pattern.")
+            .add()
+            .appendInherited(new KeyedCodec<>("ExcludeNames", Codec.STRING_ARRAY, false),
+                    (a, v) -> a.excludeNames = v, a -> a.excludeNames,
+                    (a, p) -> a.excludeNames = p.excludeNames)
+            .documentation("Withdraw this file's names from any world that already carries one of "
+                    + "these names, for 'everywhere except' without listing the exceptions as "
+                    + "patterns. It filters the patterns above rather than standing in for them, so a "
+                    + "file with only ExcludeNames hands out nothing anywhere.")
             .add()
             .build();
 
@@ -112,9 +137,14 @@ public final class WorldSelectorAsset
         return gameplayConfig;
     }
 
+    @Nullable
+    public String[] getExcludeNames() {
+        return excludeNames;
+    }
+
     /** Build the resolved runtime model. {@code assetId} is the map key (the filename). */
     @Nonnull
     public WorldSelectorDef toDef(@Nonnull String assetId) {
-        return new WorldSelectorDef(assetId, names, match, gameplayConfig);
+        return new WorldSelectorDef(assetId, names, match, gameplayConfig, excludeNames);
     }
 }

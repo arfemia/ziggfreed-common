@@ -17,10 +17,18 @@ import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.util.WeightedPick;
 
 /**
- * DOES what {@link RollEvaluator} decided: resolves a {@link LootRef} to its rolls, evaluates each
- * one against a single {@link FactorSnapshot} for the batch, and applies whatever they granted.
+ * DOES what {@link RollEvaluator} decided: resolves a {@link LootRef} to the rolls and pools it
+ * evaluates, decides the pass against a single {@link FactorSnapshot} for the batch, and applies
+ * whatever it settled on.
+ *
+ * <p>Deciding and doing are separate calls, not just separate classes. {@link #select} answers what
+ * a pass WOULD hand over and touches nothing; {@link #rollAndGrant} is that answer applied. A site
+ * that pays out later - an end-of-run spoils screen, a claim waiting for the player to come back -
+ * rolls once with {@link #select} while the inputs are known and grants the saved answer whenever
+ * they turn up, so what was shown and what was handed over cannot disagree.
  *
  * <p>Every side effect leaves through a SEAM rather than a hard call, and that is the whole design.
  * This class never imports an inventory, a world, a presentation layer, or an effect system: it is
@@ -109,9 +117,20 @@ public final class LootEngine {
 
     // ==================== resolution ====================
 
+    /** Everything a {@link LootRef} evaluates, once its referenced tables have been looked up. */
+    public record Resolved(@Nonnull List<Roll> rolls, @Nonnull List<LootPool> pools) {
+
+        /** Nothing to evaluate at all. */
+        @Nonnull
+        public static Resolved empty() {
+            return new Resolved(List.of(), List.of());
+        }
+    }
+
     /**
      * The rolls a {@link LootRef} actually evaluates: every referenced table's rolls in authored
-     * order, then the ref's own inline rolls.
+     * order, then the ref's own inline rolls. A referenced table's POOL is not included - use
+     * {@link #resolve} for the whole of what a ref evaluates.
      *
      * <p>An id no table answers to is SKIPPED and reported to {@code unknownSink} rather than
      * failing the pass - one bad reference must not cost a player the rest of the loot, and the
@@ -119,10 +138,27 @@ public final class LootEngine {
      */
     @Nonnull
     public static List<Roll> resolveRolls(@Nullable LootRef ref, @Nullable Consumer<String> unknownSink) {
-        List<Roll> out = new ArrayList<>();
+        return resolve(ref, unknownSink).rolls();
+    }
+
+    /**
+     * Everything a {@link LootRef} evaluates: each referenced table's rolls THEN its pool, in the
+     * order the ids were written, followed by the ref's own inline rolls.
+     *
+     * <p>Each referenced table keeps its OWN pool rather than the pools being merged, because a pool
+     * is a bag whose entries compete: pouring two tables' bags together would change the odds inside
+     * both. Two referenced tables draw twice, once each.
+     *
+     * <p>Tables resolve through {@link LootableConfig#resolve}, so whatever other packs contributed
+     * to a referenced table is already part of what comes back.
+     */
+    @Nonnull
+    public static Resolved resolve(@Nullable LootRef ref, @Nullable Consumer<String> unknownSink) {
         if (ref == null) {
-            return out;
+            return Resolved.empty();
         }
+        List<Roll> rolls = new ArrayList<>();
+        List<LootPool> pools = new ArrayList<>();
         String[] lootables = ref.getLootables();
         if (lootables != null) {
             for (String tableId : lootables) {
@@ -134,15 +170,97 @@ public final class LootEngine {
                     report(unknownSink, tableId);
                     continue;
                 }
-                if (table.getRolls() != null) {
-                    out.addAll(Arrays.asList(table.getRolls()));
-                }
+                rolls.addAll(table.rollsOrEmpty());
+                pools.addAll(table.poolOrEmpty());
             }
         }
         if (ref.getRolls() != null) {
-            out.addAll(Arrays.asList(ref.getRolls()));
+            rolls.addAll(Arrays.asList(ref.getRolls()));
+        }
+        return new Resolved(rolls, pools);
+    }
+
+    // ==================== selection ====================
+
+    /**
+     * ONE payout a pass decided on: the grants group to hand over and the cue authored beside it.
+     *
+     * <p>It exists so a caller can learn what a pass WOULD hand over without handing it over. A
+     * granting site applies each in order and is done; a site that pays out LATER (an end-of-run
+     * spoils screen, a claim the player has to walk back for) rolls once at the moment the inputs
+     * are known, keeps the answer, and grants it whenever the player turns up. Rolling twice would
+     * mean showing one reward and handing over another.
+     */
+    public record Selected(@Nullable LootGrants grants, @Nullable String cue) {
+    }
+
+    /**
+     * Decide the whole pass without applying any of it: every roll that answers to {@code trigger}
+     * (null asks for all of them) and hit, then each pool's draws, against ONE {@code lookup}.
+     *
+     * <p>A roll contributes up to two entries in evaluation order - its own grants and cue, then
+     * whichever ladder floor it reached - because those two are judged separately by the cue rule.
+     * A pool contributes one entry per pick, in pick order. Nothing that would hand over nothing and
+     * play nothing is returned at all.
+     *
+     * <p>Pools are drawn only on the site's DEFAULT moment: a pool cannot name a trigger, so asking
+     * for a particular one asks only for the rolls that answer to it.
+     *
+     * @param sample a fresh {@code [0,1)} number per draw, chance and pick alike; inject a pinned
+     *               one to test, or a seeded one for a payout that has to be reproducible
+     */
+    @Nonnull
+    public static List<Selected> select(@Nonnull List<Roll> rolls, @Nonnull List<LootPool> pools,
+            @Nullable String trigger, @Nonnull FactorLookup lookup, @Nonnull DoubleSupplier sample) {
+        List<Selected> out = new ArrayList<>();
+        for (Roll roll : rolls) {
+            if (roll == null || !roll.answersTo(trigger)) {
+                continue;
+            }
+            RollEvaluator.Outcome outcome = RollEvaluator.evaluate(roll, lookup, sample);
+            if (!outcome.isHit()) {
+                continue;
+            }
+            add(out, outcome.getTopGrants(), outcome.getTopCue(), sample);
+            add(out, outcome.getFloorGrants(), outcome.getFloorCue(), sample);
+        }
+        if (trigger == null || Roll.DEFAULT_TRIGGER.equalsIgnoreCase(trigger)) {
+            for (LootPool pool : pools) {
+                drawPool(out, pool, lookup, sample);
+            }
         }
         return out;
+    }
+
+    /** Draw one pool: as many picks as it earns, among the entries currently competing. */
+    private static void drawPool(@Nonnull List<Selected> out, @Nullable LootPool pool,
+            @Nonnull FactorLookup lookup, @Nonnull DoubleSupplier sample) {
+        if (pool == null) {
+            return;
+        }
+        int picks = pool.pickCount(lookup);
+        if (picks <= 0) {
+            return;
+        }
+        List<LootPool.Entry> eligible = pool.eligible(lookup);
+        if (eligible.isEmpty()) {
+            return;
+        }
+        for (LootPool.Entry entry : WeightedPick.some(eligible, LootPool.Entry::effectiveWeight,
+                picks, false, sample)) {
+            add(out, entry.getGrants(), null, sample);
+        }
+    }
+
+    private static void add(@Nonnull List<Selected> out, @Nullable LootGrants grants, @Nullable String cue,
+            @Nonnull DoubleSupplier sample) {
+        boolean hasCue = cue != null && !cue.isBlank();
+        if (grants == null && !hasCue) {
+            return;
+        }
+        // Varying quantities are drawn HERE, so what a pass decided on is a concrete payout even when
+        // the handing over happens much later.
+        out.add(new Selected(grants == null ? null : grants.drawQuantities(sample), hasCue ? cue : null));
     }
 
     // ==================== the pass ====================
@@ -157,19 +275,24 @@ public final class LootEngine {
     @Nonnull
     public static Result rollAndGrant(@Nonnull List<Roll> rolls, @Nullable String trigger,
             @Nonnull FactorLookup lookup, @Nonnull DoubleSupplier chanceSample, @Nonnull Sinks sinks) {
+        return rollAndGrant(rolls, List.of(), trigger, lookup, chanceSample, sinks);
+    }
+
+    /**
+     * The whole pass: every roll that answers to {@code trigger}, then each pool's draws, applied in
+     * that order through {@code sinks}.
+     *
+     * @param sample a fresh {@code [0,1)} number per draw, chance and pick alike
+     * @param sinks  where the effects go; every leaf is optional
+     */
+    @Nonnull
+    public static Result rollAndGrant(@Nonnull List<Roll> rolls, @Nonnull List<LootPool> pools,
+            @Nullable String trigger, @Nonnull FactorLookup lookup, @Nonnull DoubleSupplier sample,
+            @Nonnull Sinks sinks) {
         Result result = new Result();
-        for (Roll roll : rolls) {
-            if (roll == null || !roll.answersTo(trigger)) {
-                continue;
-            }
-            RollEvaluator.Outcome outcome = RollEvaluator.evaluate(roll, lookup, chanceSample);
-            if (!outcome.isHit()) {
-                continue;
-            }
-            boolean topProduced = applyGrants(outcome.getTopGrants(), sinks, result);
-            boolean floorProduced = applyGrants(outcome.getFloorGrants(), sinks, result);
-            collectEarnedCue(result, outcome.getTopCue(), outcome.getTopGrants(), topProduced);
-            collectEarnedCue(result, outcome.getFloorCue(), outcome.getFloorGrants(), floorProduced);
+        for (Selected selected : select(rolls, pools, trigger, lookup, sample)) {
+            boolean produced = applyGrants(selected.grants(), sinks, result);
+            collectEarnedCue(result, selected.cue(), selected.grants(), produced);
         }
         return result;
     }

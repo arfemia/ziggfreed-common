@@ -14,6 +14,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.DialogueContext;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
+import com.ziggfreed.common.dialogue.quest.QuestCompletionRouting;
+import com.ziggfreed.common.dialogue.quest.QuestHandOff;
 import com.ziggfreed.common.quest.NpcOffer;
 import com.ziggfreed.common.quest.NpcOfferProviders;
 import com.ziggfreed.common.subject.Subject;
@@ -163,6 +165,14 @@ public final class NpcEncounters {
             }
             return false;
         }
+
+        @Override
+        @Nonnull
+        public QuestHandOff completionHandOff(@Nonnull String questId) {
+            // The PRIMARY id, not whichever alias took the hand-in: the conversation's @self targets
+            // and its header name the character the player is actually looking at.
+            return QuestCompletionRouting.decide(questId, npcId(), quests);
+        }
     }
 
     /** The engine-handle form: builds its subject and its credit from the store and the player ref. */
@@ -202,9 +212,27 @@ public final class NpcEncounters {
             }
             return TalkCredits.credit(store, playerRef, ref, npcRef, npcId(), qualifier);
         }
+
+        @Override
+        public boolean playCompletion(@Nonnull String questId) {
+            PlayerRef ref = store.getComponent(playerRef, PlayerRef.getComponentType());
+            Player player = store.getComponent(playerRef, Player.getComponentType());
+            if (ref == null || player == null) {
+                return false;
+            }
+            return QuestCompletionRouting.handOff(questId, npcId(), quests, store, playerRef, ref, player);
+        }
     }
 
-    /** The conversation form: the context already knows the player and how to enrich the subject. */
+    /**
+     * The conversation form: the context already knows the player and how to enrich the subject.
+     *
+     * <p><b>It deliberately keeps {@code playCompletion}'s false default</b>, and that is a decision
+     * rather than an omission: a conversation does not hand off to itself. A {@code TurnIn} beat
+     * inside a dialogue is already on the screen the hand-off would open, and it routes onward with
+     * {@code Goto}. It still answers {@link NpcEncounter#completionHandOff} through the base, so a
+     * dialogue action that wants to know what would follow can ask.
+     */
     private static final class ContextEncounter extends Base {
 
         @Nonnull private final DialogueContext ctx;

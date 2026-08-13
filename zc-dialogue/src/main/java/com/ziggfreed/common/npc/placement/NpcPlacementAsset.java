@@ -37,7 +37,7 @@ import com.ziggfreed.common.world.WorldSelector;
  * { "Enabled": true,
  *   "Identity": { "BaseRole": "Template_MyMod_Guide", "Appearance": { "Model": "Human_Male_01" },
  *                 "NameKey": "npc.guide.name", "HintKey": "npc.guide.hint" },
- *   "Where":    { "Names": ["primary"] },
+ *   "Where":    { "Names": ["default"] },
  *   "Anchor":   { "WorldSpawn": { "Offset": {"X": 2.5}, "Yaw": 180 } },
  *   "Requires": { "Conditions": [ {"Factor": "yourmod:feature", "Param": "shop", "Min": 1} ] },
  *   "Limits":   { "SpawnChance": 1.0, "OncePerWorld": true },
@@ -57,7 +57,7 @@ import com.ziggfreed.common.world.WorldSelector;
  *       objective - and both are optional: unauthored, the placement answers to its own id.</li>
  *   <li><b>{@code Where}</b> - a {@link WorldSelector}, the shared world-identity vocabulary.
  *       The selector carries no default of its own; THIS read site treats a null or empty
- *       {@code Where} as {@code Names: ["primary"]}, i.e. the ordinary persistent world.</li>
+ *       {@code Where} as {@code Names: ["default"]}, i.e. the ordinary persistent world.</li>
  *   <li><b>{@link Anchor}</b> - where in the world. Five INDEPENDENT nullable groups, never a
  *       placement-mode enum: authoring several produces the UNION of their resolved positions,
  *       each an independent instance. See that class for the multi-anchor rules.</li>
@@ -122,7 +122,9 @@ public final class NpcPlacementAsset
             .add()
             .appendInherited(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
                     (a, v) -> a.where = v, a -> a.where, (a, p) -> a.where = p.where)
-            .documentation("Which worlds this placement applies to. Unauthored means the 'primary' selector name.")
+            .documentation("Which worlds this placement applies to. Leave it out and the placement stands "
+                    + "in the 'default' selector's worlds, which is the ordinary persistent world "
+                    + "players log into rather than any instance.")
             .add()
             .appendInherited(new KeyedCodec<>("Anchor", Anchor.CODEC, false),
                     (a, v) -> a.anchor = v, a -> a.anchor, (a, p) -> a.anchor = p.anchor)

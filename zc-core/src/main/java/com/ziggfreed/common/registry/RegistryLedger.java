@@ -84,6 +84,28 @@ public class RegistryLedger<T> {
      * existing failure history.
      */
     public void put(@Nullable String id, @Nullable String owner, @Nullable T value) {
+        put(id, owner, value, true);
+    }
+
+    /**
+     * As {@link #put}, but WITHOUT the ledger's own overwrite warning, for the caller that reports
+     * the replacement itself and would otherwise report it twice.
+     *
+     * <p>Use it only where the caller's line is strictly the better one: it names the file or the
+     * feature behind the swap and says what the swap costs, where the ledger can only say that two
+     * owners wanted the same id. The reward-kind fold is the worked example - an authored kind file
+     * deliberately takes over a Java-registered id, and one warning that explains why is worth more
+     * than two that half-explain it.
+     *
+     * <p>Nothing else changes: the replacement still happens, the new owner is still recorded, and a
+     * LATER ordinary {@link #put} over the same id still warns, because that one is a surprise this
+     * caller never accounted for.
+     */
+    public void putQuietly(@Nullable String id, @Nullable String owner, @Nullable T value) {
+        put(id, owner, value, false);
+    }
+
+    private void put(@Nullable String id, @Nullable String owner, @Nullable T value, boolean warnOnOverwrite) {
         if (id == null || id.isBlank() || value == null) {
             return;
         }
@@ -94,7 +116,7 @@ public class RegistryLedger<T> {
             // Idempotent re-registration: keep the existing entry (and its failure history) as-is.
             return;
         }
-        if (previous != null && overwriteWarned.add(key)) {
+        if (warnOnOverwrite && previous != null && overwriteWarned.add(key)) {
             SafeLog.warn("[" + label + "] '" + key + "' was registered by '" + previous.owner
                     + "' and is now overwritten by '" + ownerName + "'");
         }

@@ -1,0 +1,37 @@
+book.title = Célok könyve
+book.tab.quests = Küldetések
+book.tab.achievements = Teljesítmények
+book.empty.quests = Még nincs elérhető küldetésed.
+book.empty.achievements = Még nincs elérhető teljesítményed.
+book.progress = {0}/{1}
+book.more = +{0} további
+
+book.quests.section.active = Folyamatban
+book.quests.section.ready = Átvehető
+book.quests.section.available = Elérhető
+book.quests.section.locked = Zárolt
+book.quests.untitled = Névtelen küldetés
+book.quests.step.untitled = Névtelen lépés
+book.quests.lock.unavailable = Jelenleg nem elérhető
+book.quests.lock.on_cooldown = Később újra elérhető
+book.quests.lock.prerequisites = A feltételek nem teljesültek
+book.quests.lock.other = Még nem elérhető
+
+book.achievements.points = {0}/{1}
+book.achievements.section.ready = Átvehető
+book.achievements.section.in_progress = Folyamatban
+book.achievements.section.earned = Megszerezve
+book.achievements.untitled = Névtelen teljesítmény
+book.achievements.criterion.untitled = Névtelen lépés
+book.achievements.status.earned = Megszerezve
+
+book.action.accept = Elvállalás
+book.action.claim = Átvétel
+book.action.turn_in = Leadás
+
+book.toast.accepted = Küldetés elvállalva.
+book.toast.accept_failed = Ez a küldetés most nem vállalható el.
+book.toast.claimed = Jutalmak átvéve.
+book.toast.claim_failed = Most nincs mit átvenni.
+book.toast.turned_in = Leadva.
+book.toast.turn_in_failed = Ezt itt nem lehet leadni.

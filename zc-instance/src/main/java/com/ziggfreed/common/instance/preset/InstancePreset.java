@@ -17,6 +17,11 @@ import com.ziggfreed.common.lobby.LobbyConfig;
  * without a twin schema - gameplay knobs stay on the consumer's own asset, the
  * cross-cutting knobs live here.
  *
+ * <p>{@link #rewardTableId()} names a {@code Lootable} - the ordinary shared loot table,
+ * conditional {@code Rolls} for what everybody earns plus a {@code Pool} for the part that varies
+ * with the run. A consumer resolves it through {@code LootableConfig} and decides it once, at the
+ * moment the score and the outcome are known.
+ *
  * <p>{@link #toLobbyConfig(int, int)} folds the authored queue policy with the
  * consumer-supplied {@code minParty}/{@code maxParty} (which stay on the gameplay
  * config so the arena-budget clamp is not duplicated), producing the {@link LobbyConfig}

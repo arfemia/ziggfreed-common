@@ -48,24 +48,24 @@ class DialogueOnceTest {
         assertNotNull(d);
 
         assertNotNull(d.getStart().get(0).getOnce(), "\"Once\": true on an entry is the empty group");
-        assertNull(d.getStart().get(0).getOnce().getWorldSelector());
+        assertNull(d.getStart().get(0).getOnce().getWorld());
         assertNotNull(d.getNode("g").getOptions().get(0).getOnce());
         assertNull(d.getNode("g").getOptions().get(1).getOnce(), "\"Once\": false authors no Once");
         assertNull(d.getNode("g").getOptions().get(2).getOnce());
     }
 
     @Test
-    void groupFormCarriesTheWorldSelector() {
+    void groupFormCarriesTheWorld() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("t",
-                "{\"Start\":[{\"Node\":\"g\",\"Once\":{\"WorldSelector\":\"forgotten_temple\"}}],"
+                "{\"Start\":[{\"Node\":\"g\",\"Once\":{\"World\":\"forgotten_temple\"}}],"
                         + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\",\"OnceId\":\"hail\","
-                        + "\"Once\":{\"WorldSelector\":\"forgotten_temple\"}}]}}}");
+                        + "\"Once\":{\"World\":\"forgotten_temple\"}}]}}}");
         assertNotNull(d);
 
-        assertEquals("forgotten_temple", d.getStart().get(0).getOnce().getWorldSelector());
+        assertEquals("forgotten_temple", d.getStart().get(0).getOnce().getWorld());
         DialogueOption option = d.getNode("g").getOptions().get(0);
-        assertEquals("forgotten_temple", option.getOnce().getWorldSelector());
+        assertEquals("forgotten_temple", option.getOnce().getWorld());
         assertEquals("hail", option.getOnceId());
     }
 
@@ -230,31 +230,31 @@ class DialogueOnceTest {
         assertEquals(warned, warnings.size(), "the warning must not repeat on every render");
     }
 
-    // ==================== The per-world-family scope ====================
+    // ==================== The per-world scope ====================
 
     @Test
-    void aWorldScopedOnceResolvesInsideItsFamilyAndNowhereElse() {
-        DialogueOnce once = DialogueOnce.ofWorldSelector("forgotten_temple");
+    void aWorldScopedOnceResolvesInThatWorldAndNowhereElse() {
+        DialogueOnce once = DialogueOnce.ofWorld("forgotten_temple");
 
         assertEquals("once:e:hub:w:forgotten_temple:greet",
-                once.resolveKey("once:e:hub:greet", Set.of("forgotten_temple", "instance")));
-        assertNull(once.resolveKey("once:e:hub:greet", Set.of("primary")),
-                "outside the family the key does not exist: reads are unset, writes are dropped");
+                once.resolveKey("once:e:hub:greet", "Forgotten_Temple"));
+        assertNull(once.resolveKey("once:e:hub:greet", "default"),
+                "in another world the key does not exist: reads are unset, writes are dropped");
     }
 
     @Test
     void anUnscopedOnceIsRememberedPerCharacter() {
         assertEquals("once:e:hub:greet",
-                DialogueOnce.GLOBAL.resolveKey("once:e:hub:greet", Set.of()));
+                DialogueOnce.GLOBAL.resolveKey("once:e:hub:greet", "default"));
     }
 
     @Test
-    void offWorldAScopedEntryOnceIsInertRatherThanSpent() {
+    void offPatternAScopedEntryOnceIsInertRatherThanSpent() {
         DialogueEngine engine = engine();
         // The test context cannot read a world at all, which is the same shape as standing in a
-        // world outside the named family.
+        // world the pattern does not match.
         NpcDialogue d = engine.decode("temple_talk",
-                "{\"Start\":[{\"Node\":\"greet\",\"Once\":{\"WorldSelector\":\"forgotten_temple\"}},"
+                "{\"Start\":[{\"Node\":\"greet\",\"Once\":{\"World\":\"forgotten_temple\"}},"
                         + "{\"Node\":\"steady\"}],\"Nodes\":{\"greet\":{\"Options\":[]},"
                         + "\"steady\":{\"Options\":[]}}}");
         assertNotNull(d);
@@ -262,7 +262,7 @@ class DialogueOnceTest {
 
         DialogueEngine.EntryResolution resolution = engine.resolveEntry(d, ctx);
         assertEquals("greet", resolution.nodeId());
-        assertNull(resolution.onceKey(), "there is no key to spend outside the world family");
+        assertNull(resolution.onceKey(), "there is no key to spend in a world the pattern does not match");
 
         engine.consumeOnce(resolution.onceKey(), d, "greet", null, ctx);
         assertTrue(ctx.state().keys.isEmpty(), "the write is a deliberate no-op, never a throw");

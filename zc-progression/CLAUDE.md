@@ -1,0 +1,82 @@
+# CLAUDE.md - zc-progression
+
+The consumer-agnostic PROGRESSION engines and the shared cores under them. `progress/` holds what
+every lifecycle engine here shares (the registered objective vocabulary, the two match flavors, the
+progress + objective model, the dispatch knobs, and the shared runtime registration surface);
+`quest/` and `achievement/` are the two lifecycle engines built on top. It carries no content and no
+domain vocabulary of its own.
+
+## Build
+
+Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
+
+## Dependencies
+
+- **Depends on**: `zc-core` (the shared registry + logging primitives), `zc-loot` (the reward
+  VOCABULARY in `loot.reward` - what a reward is, who pays it out, and the isolated payout pass;
+  the edge only ever points this way).
+- **Depended on by**: `zc-dialogue` (the quest-aware conversation vocabulary reads through
+  `QuestStateReader`), `zc-objectives` (the shared runtime this module's engines register into).
+- **Reverse-edge trap**: this module sits below `zc-dialogue`, so it may never import dialogue,
+  presentation, or world. A turn-in conversation, a results page, or a waypoint is a SEAM the
+  wiring root or the consumer fills, never an import - see the quest package router.
+
+## Packages
+
+- [`progress/`](src/main/java/com/ziggfreed/common/progress/CLAUDE.md) - the shared lifecycle
+  cores: `ObjectiveDef`, `ObjectiveKind`/`ObjectiveKindRegistry`, `MatchFlavor`/`MatchMode`/
+  `ObjectiveMatch`/`ZoneRef`, `ObjectiveProgressState`, `ObjectiveIndex`, `DispatchOptions`.
+  - `progress/asset/` - the authoring groups both engines share (`ContentTextAsset`,
+    `ObjectiveLeafAsset`, `RewardEntryAsset`, `ProgressEditorDataSets`), declared once so their
+    field names cannot drift between quest and achievement files. No router of its own.
+  - `progress/docs/` - `SchemaDocWriter`, generating this module's `SCHEMA.md` on demand
+    (`gradlew :zc-progression:generateSchemaDocs`, guarded by `SchemaDocDriftTest`). No router.
+  - `progress/gate/` - `GateClause`/`GateSpec`/`GateKind`/`GateKindRegistry`/`GateEvaluator`, the
+    ONE requirement model behind every `Requires` block. No router of its own.
+  - `progress/runtime/` - THE shared progression runtime: one `QuestEngine` + `AchievementEngine`
+    pair per server however many mods contribute to it. `ProgressionRuntime` (the holder),
+    `ProgressionRegistrar` (what a consumer calls), `ProgressionParts`, `ProducerClaims`,
+    `ContentLayers`, `ProgressionSubjectSource`, `ProgressionCallScope`, `ProgressionTextSource`.
+    Has its own router; read it before touching runtime registration.
+- [`quest/`](src/main/java/com/ziggfreed/common/quest/CLAUDE.md) (+ `quest/asset/`,
+  `quest/event/`) - the QUEST lifecycle: accept/track/hand-in/claim/cooldown, ships zero content,
+  enforced by `QuestModuleAgnosticismTest`. `quest/asset/` is the authoring layer (native `Parent`
+  inheritance, `Server/ZiggfreedCommon/Quests/`, the generator, the pool + validator); `quest/event/`
+  is five native `IEvent<Void>` POJOs.
+- [`achievement/`](src/main/java/com/ziggfreed/common/achievement/CLAUDE.md) (+
+  `achievement/asset/`, `achievement/event/`) - the ALWAYS-ON peer lifecycle: nothing is accepted,
+  nothing is abandoned, every criterion listens from the first event. Criterion progress is keyed
+  by POSITION (`"<id>#<index>"`). `achievement/asset/` also carries the taxonomy types
+  `AchievementCategoryAsset`/`AchievementMilestoneAsset` (`Server/ZiggfreedCommon/
+  AchievementCategories/` and `/AchievementMilestones/`, the display taxonomy behind the shared
+  `Listing.Category` leaf and the points ladder `zc-objectives` publishes into the runtime);
+  `achievement/event/` is three native `IEvent<Void>` POJOs.
+
+## Shipped resources
+
+None directly. `SCHEMA.md` (repo-committed at this module's root) is the authoring reference for
+the quest and achievement asset types, regenerated on demand from the actual codecs, deliberately
+NOT wired into `processResources` since it is documentation rather than a jar resource -
+`SchemaDocDriftTest` fails the build if the committed file drifts from the codecs.
+
+## Conventions
+
+Both engines ship ZERO content and ZERO domain vocabulary; a consumer supplies storage
+(`QuestProgressStore`/`AchievementProgressStore`, plus ready-made in-memory ones), gates, and
+naming. A surface that only READS a player's quests (a dialogue condition, above all) takes the
+narrow `QuestStateReader` seam rather than the mutating engine. Achievement criteria are keyed by
+POSITION, not id, so appending a criterion is safe while reordering one is a data migration -
+asserted directly in the engine test.
+
+## Tests
+
+28 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
+`ObjectiveProgressStateTest`, `ContentMetaTest`), the quest engine (`QuestEngineFlowTest`,
+`QuestEngineTurnInTest`, `QuestLifecycleTest`, `QuestGateTest`, `QuestGeneratorTest`,
+`QuestAssetCodecTest`, `QuestPoolValidatorTest`, `QuestStateReaderTest`, `QuestNestedIdTest`,
+`QuestModuleAgnosticismTest`, `AssetQuestGatesFailOpenTest`), the achievement engine
+(`AchievementEngineTest`, `AchievementAssetCodecTest`, `AchievementPoolValidatorTest`,
+`AchievementProgressStoreTest`, `AchievementStatThresholdTest`, `AchievementTaxonomyCodecTest`),
+the shared runtime (`ProgressionRuntimeTest`), and `SchemaDocDriftTest` guarding the committed
+`SCHEMA.md`.

@@ -1,0 +1,39 @@
+{
+  "$Comment": "The Objective Book. Holding it and using it opens a two-tab menu of this server's quests and achievements, with per-player progress, and lets a player take on an offered quest or collect a finished one. Nothing hands the book out on its own: give one with /give <player> Ziggfreed_Objective_Book --quantity=1 (the count is read ONLY from --quantity, a bare number after the id is ignored), or author it as a quest, shop, or loot reward. When another mod on this server runs its own quests and achievements, the book opens to a short line pointing the player at that mod's own menus instead. The art is the vanilla brown grimoire; point Icon / Model / Texture somewhere else to reskin it, or override this file by id to retune anything here.",
+  "TranslationProperties": {
+    "Name": "items.Ziggfreed_Objective_Book.name",
+    "Description": "items.Ziggfreed_Objective_Book.description"
+  },
+  "Icon": "Icons/ItemsGenerated/Weapon_Spellbook_Grimoire_Brown.png",
+  "Categories": ["Items.Recipes"],
+  "PlayerAnimationsId": "Item",
+  "Quality": "Epic",
+  "Model": "Items/Weapons/Spellbook/Grimoire.blockymodel",
+  "Texture": "Items/Weapons/Spellbook/Grimoire_Brown_Texture.png",
+  "IconProperties": {
+    "Scale": 0.745,
+    "Rotation": [45, 90, 0],
+    "Translation": [-7.8, -7.8]
+  },
+
+  "Interactions": {
+    "Primary": {
+      "Interactions": [
+        {
+          "Type": "Charging",
+          "FailOnDamage": false,
+          "HorizontalSpeedMultiplier": 0.5,
+          "Next": {
+            "0.0": {
+              "Type": "ZigOpenObjectiveBook"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "Tags": {
+    "Type": ["Consumable"],
+    "Family": ["ZiggfreedCommon"]
+  }
+}

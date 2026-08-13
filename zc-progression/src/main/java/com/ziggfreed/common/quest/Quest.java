@@ -1,5 +1,6 @@
 package com.ziggfreed.common.quest;
 
+import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,31 +30,89 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 public final class Quest {
 
     /**
-     * How (and how often) a quest comes back around.
+     * How, and how often, a quest comes back around. Its PRESENCE is what makes a quest repeatable:
+     * a quest with no {@code Repeat} at all is a one-shot, and there is deliberately no "repeatable"
+     * boolean inside, because a flag saying false on an object that exists is the ambiguity this
+     * shape removes.
      *
-     * <p>{@code stampOnPark} is the subtle one. A repeatable quest's clock normally starts when the
-     * player TAKES the reward. Set this and it starts the moment the objectives are met and the
-     * quest parks for manual claim instead - which is what a quest belonging to a rotating,
-     * period-based offer needs, so that walking back to collect after the offer rotates does not
-     * burn a slot in the NEW period. It also makes the quest exempt from the off-cooldown reset in
-     * {@link QuestEngine#selfHeal}, because in that arrangement the offer's own rotation owns the
-     * quest's lifecycle rather than the cooldown does.
+     * <p><b>Three independent constraints, ANDed, each with a neutral value.</b> A rolling
+     * {@link #cooldownMs()} wait, a calendar {@link Reset} allowance, and a lifetime
+     * {@link #maxCompletions()} cap: author one, two, or all three, and
+     * {@link QuestLifecycle#repeatCheck} settles the lot. Every one of them neutral - the EMPTY
+     * group - means the quest holds nothing back and is offerable again the moment it settles,
+     * which is what an externally governed quest wants: whatever rotating offer hands it out owns
+     * when it comes round.
+     *
+     * <p>{@link CooldownFrom} is an ANCHOR, not a mode: it bundles no switches and toggles nothing
+     * else, it names the single instant one clock counts from. Nothing else changes with it.
      */
-    public record Repeat(boolean repeatable, long cooldownMs, boolean stampOnPark) {
+    public record Repeat(long cooldownMs,
+                         @Nonnull CooldownFrom cooldownFrom,
+                         @Nullable Reset reset,
+                         int maxCompletions) {
 
-        /** A one-shot quest. */
-        public static final Repeat ONCE = new Repeat(false, 0L, false);
+        /** Where a rolling cooldown's clock starts. */
+        public enum CooldownFrom {
 
-        /** A repeatable quest whose cooldown starts when the reward is taken. */
-        @Nonnull
-        public static Repeat every(long cooldownMs) {
-            return new Repeat(true, Math.max(0L, cooldownMs), false);
+            /** The instant the reward is TAKEN, which is the ordinary reading of "since last time". */
+            CLAIM,
+
+            /**
+             * The instant the objectives were MET, whether or not the reward has been collected. What
+             * a quest belonging to a rotating, period-based offer wants, so walking back to collect
+             * late does not burn a slot in the next period.
+             */
+            COMPLETE
         }
 
-        /** A repeatable quest whose clock starts the moment the objectives are met. */
+        /**
+         * The calendar window a completion consumes, independent of any rolling cooldown. Anchored to
+         * the SERVER clock in UTC: a boundary that moved with an owner's timezone setting would move
+         * every already-stamped completion with it.
+         *
+         * @param atMinutes minutes past the period boundary the window rolls over, wrapped into one
+         *                  period; the escape hatch for a day that should start at 04:00
+         * @param weekStart which day a weekly window starts on; ignored for a daily one
+         * @param times     how many completions fit inside one window; at least 1
+         */
+        public record Reset(@Nonnull Period period, int atMinutes, @Nonnull DayOfWeek weekStart,
+                            int times) {
+
+            /** Which calendar window is counted. */
+            public enum Period { DAILY, WEEKLY }
+
+            public Reset {
+                period = period == null ? Period.DAILY : period;
+                weekStart = weekStart == null ? DayOfWeek.MONDAY : weekStart;
+                times = Math.max(1, times);
+                long lengthMinutes = period == Period.WEEKLY ? 7L * 24L * 60L : 24L * 60L;
+                atMinutes = (int) Math.floorMod((long) atMinutes, lengthMinutes);
+            }
+
+            /** A window of this period with every other knob at its default. */
+            @Nonnull
+            public static Reset of(@Nonnull Period period) {
+                return new Reset(period, 0, DayOfWeek.MONDAY, 1);
+            }
+        }
+
+        public Repeat {
+            cooldownMs = Math.max(0L, cooldownMs);
+            cooldownFrom = cooldownFrom == null ? CooldownFrom.CLAIM : cooldownFrom;
+            maxCompletions = Math.max(0, maxCompletions);
+        }
+
+        /**
+         * Everything unconstrained: the quest itself holds nothing back, so whatever offers it decides
+         * when it comes round again.
+         */
+        public static final Repeat EXTERNALLY_GOVERNED =
+                new Repeat(0L, CooldownFrom.CLAIM, null, 0);
+
+        /** A repeatable whose rolling wait starts when the reward is taken. */
         @Nonnull
-        public static Repeat everyStampedOnPark(long cooldownMs) {
-            return new Repeat(true, Math.max(0L, cooldownMs), true);
+        public static Repeat every(long cooldownMs) {
+            return new Repeat(cooldownMs, CooldownFrom.CLAIM, null, 0);
         }
     }
 
@@ -72,7 +131,7 @@ public final class Quest {
     private final String id;
     private final List<ObjectiveDef> objectives;
     private final List<RewardSpec> rewards;
-    private final Repeat repeat;
+    @Nullable private final Repeat repeat;
     private final Visibility visibility;
     private final boolean sequential;
     private final boolean autoAccept;
@@ -112,9 +171,15 @@ public final class Quest {
         return rewards;
     }
 
-    @Nonnull
+    /** The repeat rules, or null for a one-shot. Presence is the flag; see {@link Repeat}. */
+    @Nullable
     public Repeat repeat() {
         return repeat;
+    }
+
+    /** Does this quest come back around at all? The one-line form of {@code repeat() != null}. */
+    public boolean repeatable() {
+        return repeat != null;
     }
 
     @Nonnull
@@ -213,7 +278,7 @@ public final class Quest {
         private final List<ObjectiveDef> objectives = new ArrayList<>();
         private final List<RewardSpec> rewards = new ArrayList<>();
         private final List<String> tags = new ArrayList<>();
-        private Repeat repeat = Repeat.ONCE;
+        @Nullable private Repeat repeat;
         private Visibility visibility = Visibility.OPEN;
         private boolean sequential;
         private boolean autoAccept;
@@ -261,8 +326,9 @@ public final class Quest {
             return this;
         }
 
+        /** The repeat rules; null (the default) leaves the quest a one-shot. */
         @Nonnull
-        public Builder repeat(@Nonnull Repeat repeat) {
+        public Builder repeat(@Nullable Repeat repeat) {
             this.repeat = repeat;
             return this;
         }

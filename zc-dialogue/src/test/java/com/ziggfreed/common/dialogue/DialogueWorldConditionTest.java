@@ -58,8 +58,9 @@ class DialogueWorldConditionTest {
     @Test
     void decodesEverySelectorAxis() {
         DialogueCondition.World c = decodeCondition(
-                "{\"Type\":\"World\",\"Names\":[\"forgotten_temple\"],\"Match\":[\"*Forgotten_Temple*\"],"
-                        + "\"GameplayConfig\":[\"ForgottenTemple\"],\"ExcludeNames\":[\"arena\"]}");
+                "{\"Type\":\"World\",\"Where\":{\"Names\":[\"forgotten_temple\"],"
+                        + "\"Match\":[\"*Forgotten_Temple*\"],\"GameplayConfig\":[\"ForgottenTemple\"],"
+                        + "\"ExcludeNames\":[\"arena\"]}}");
 
         assertNotNull(c.getSelector());
         assertEquals(1, c.getSelector().getNames().length);
@@ -74,7 +75,7 @@ class DialogueWorldConditionTest {
     @Test
     void matchesByName() {
         DialogueCondition.World c =
-                decodeCondition("{\"Type\":\"World\",\"Names\":[\"forgotten_temple\"]}");
+                decodeCondition("{\"Type\":\"World\",\"Where\":{\"Names\":[\"forgotten_temple\"]}}");
 
         assertNotNull(c.getSelector().match("instance-Forgotten_Temple-abc", "ForgottenTemple",
                 templeIndex()));
@@ -85,7 +86,7 @@ class DialogueWorldConditionTest {
     @Test
     void matchesByInlinePattern() {
         DialogueCondition.World c =
-                decodeCondition("{\"Type\":\"World\",\"Match\":[\"*Forgotten_Temple*\"]}");
+                decodeCondition("{\"Type\":\"World\",\"Where\":{\"Match\":[\"*Forgotten_Temple*\"]}}");
 
         assertNotNull(c.getSelector().match("instance-Forgotten_Temple-abc", null, WorldNameIndex.EMPTY));
         assertNull(c.getSelector().match("default", null, WorldNameIndex.EMPTY));
@@ -94,7 +95,7 @@ class DialogueWorldConditionTest {
     @Test
     void matchesByGameplayConfig() {
         DialogueCondition.World c =
-                decodeCondition("{\"Type\":\"World\",\"GameplayConfig\":[\"ForgottenTemple\"]}");
+                decodeCondition("{\"Type\":\"World\",\"Where\":{\"GameplayConfig\":[\"ForgottenTemple\"]}}");
 
         MatchRank rank = c.getSelector().match("instance-Forgotten_Temple-abc", "ForgottenTemple",
                 WorldNameIndex.EMPTY);
@@ -108,7 +109,7 @@ class DialogueWorldConditionTest {
     @Test
     void excludeNamesVetoesAnOtherwiseMatchingWorld() {
         DialogueCondition.World c = decodeCondition(
-                "{\"Type\":\"World\",\"Match\":[\"*Forgotten_Temple*\"],\"ExcludeNames\":[\"arena\"]}");
+                "{\"Type\":\"World\",\"Where\":{\"Match\":[\"*Forgotten_Temple*\"],\"ExcludeNames\":[\"arena\"]}}");
 
         WorldNameIndex arena = WorldNameIndex.of(Map.of("arena", MatchRank.gameplayConfig()));
         assertNull(c.getSelector().match("instance-Forgotten_Temple-abc", null, arena),
@@ -119,7 +120,7 @@ class DialogueWorldConditionTest {
     @Test
     void failsClosedOnANullWorld() {
         DialogueCondition.World c =
-                decodeCondition("{\"Type\":\"World\",\"Names\":[\"forgotten_temple\"]}");
+                decodeCondition("{\"Type\":\"World\",\"Where\":{\"Names\":[\"forgotten_temple\"]}}");
         // The engine-facing overload: no world means no match, so the gated content stays hidden.
         assertNull(c.getSelector().match((World) null));
     }
@@ -127,7 +128,7 @@ class DialogueWorldConditionTest {
     @Test
     void aConditionWithNoPositiveAxisMatchesNothing() {
         DialogueCondition.World c =
-                decodeCondition("{\"Type\":\"World\",\"ExcludeNames\":[\"arena\"]}");
+                decodeCondition("{\"Type\":\"World\",\"Where\":{\"ExcludeNames\":[\"arena\"]}}");
 
         assertTrue(c.getSelector().hasNoPositiveAxis());
         assertNull(c.getSelector().match("anything", "Anything", templeIndex()));
@@ -136,21 +137,37 @@ class DialogueWorldConditionTest {
     // ==================== Validator findings ====================
 
     @Test
-    void validatorFlagsAnUnknownSelectorNameOnAWorldConditionAndOnAOnce() {
+    void validatorFlagsAnUnknownSelectorNameOnAWorldCondition() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("bad",
-                "{\"Start\":[{\"Node\":\"g\",\"Once\":{\"WorldSelector\":\"frogotten_temple\"}}],"
+                "{\"Start\":[{\"Node\":\"g\"}],"
                         + "\"Nodes\":{\"g\":{\"Conditions\":["
-                        + "{\"Type\":\"World\",\"Names\":[\"frogotten_temple\"]}],"
+                        + "{\"Type\":\"World\",\"Where\":{\"Names\":[\"frogotten_temple\"]}}],"
                         + "\"Options\":[{\"LabelKey\":\"x\",\"Actions\":[{\"Type\":\"Close\"}]}]}}}");
         assertNotNull(d);
 
-        List<String> codes = DialogueStructureValidator
-                .validateAll(List.of(d), Set.of("forgotten_temple", "primary"))
+        List<Finding> findings = DialogueStructureValidator
+                .validateAll(List.of(d), Set.of("forgotten_temple", "default"));
+        List<String> codes = findings.stream().map(Finding::code).toList();
+
+        // The finding comes from the ONE selector-layer check, so a placement naming the same
+        // typo reports the identical code rather than a dialogue-flavoured near-duplicate.
+        assertTrue(codes.contains("UNKNOWN_SELECTOR_NAME"), codes.toString());
+    }
+
+    @Test
+    void validatorFlagsAOnceScopedToEveryWorld() {
+        DialogueEngine engine = engine();
+        NpcDialogue d = engine.decode("everywhere",
+                "{\"Start\":[{\"Node\":\"g\",\"Once\":{\"World\":\"*\"}}],"
+                        + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"x\","
+                        + "\"Actions\":[{\"Type\":\"Close\"}]}]}}}");
+        assertNotNull(d);
+
+        List<String> codes = DialogueStructureValidator.validate(d)
                 .stream().map(Finding::code).toList();
 
-        assertTrue(codes.contains("WORLD_CONDITION_UNKNOWN_SELECTOR"), codes.toString());
-        assertTrue(codes.contains("ONCE_UNKNOWN_SELECTOR"), codes.toString());
+        assertTrue(codes.contains("WORLD_SCOPE_MATCHES_EVERY_WORLD"), codes.toString());
     }
 
     @Test
@@ -158,7 +175,7 @@ class DialogueWorldConditionTest {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("empty",
                 "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Conditions\":["
-                        + "{\"Type\":\"World\",\"ExcludeNames\":[\"arena\"]}],"
+                        + "{\"Type\":\"World\",\"Where\":{\"ExcludeNames\":[\"arena\"]}}],"
                         + "\"Options\":[{\"LabelKey\":\"x\",\"Actions\":[{\"Type\":\"Close\"}]}]}}}");
         assertNotNull(d);
 
@@ -172,26 +189,25 @@ class DialogueWorldConditionTest {
     void validatorStaysSilentOnKnownNamesAndOnAnUnknownVocabulary() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("good",
-                "{\"Start\":[{\"Node\":\"g\",\"Once\":{\"WorldSelector\":\"forgotten_temple\"}}],"
+                "{\"Start\":[{\"Node\":\"g\",\"Once\":{\"World\":\"forgotten_temple\"}}],"
                         + "\"Nodes\":{\"g\":{\"Conditions\":["
                         + "{\"Type\":\"AnyOf\",\"Any\":[{\"Type\":\"World\","
-                        + "\"Names\":[\"Forgotten_Temple\"]}]}],"
+                        + "\"Where\":{\"Names\":[\"Forgotten_Temple\"]}}]}],"
                         + "\"Options\":[{\"LabelKey\":\"x\",\"Actions\":[{\"Type\":\"Close\"}]}]}}}");
         assertNotNull(d);
 
         // Known vocabulary: the name resolves (case-insensitively), even nested in a combinator.
         List<String> known = DialogueStructureValidator.validate(d, Set.of("forgotten_temple"))
                 .stream().map(Finding::code).toList();
-        assertFalse(known.contains("WORLD_CONDITION_UNKNOWN_SELECTOR"), known.toString());
-        assertFalse(known.contains("ONCE_UNKNOWN_SELECTOR"), known.toString());
+        assertFalse(known.contains("UNKNOWN_SELECTOR_NAME"), known.toString());
+        assertFalse(known.contains("WORLD_SCOPE_MATCHES_EVERY_WORLD"), known.toString());
 
         // Absent / empty vocabulary means "cannot tell" (assets may not have loaded), never a
         // false alarm.
         List<String> unknownPool = DialogueStructureValidator.validate(d, Set.of())
                 .stream().map(Finding::code).toList();
-        assertFalse(unknownPool.contains("WORLD_CONDITION_UNKNOWN_SELECTOR"), unknownPool.toString());
-        assertFalse(unknownPool.contains("ONCE_UNKNOWN_SELECTOR"), unknownPool.toString());
-        assertFalse(DialogueStructureValidator.validate(d).stream()
-                .anyMatch(i -> i.code().equals("ONCE_UNKNOWN_SELECTOR")));
+        assertFalse(unknownPool.contains("UNKNOWN_SELECTOR_NAME"), unknownPool.toString());
+        assertTrue(DialogueStructureValidator.validate(d).isEmpty(),
+                "a well-formed world-scoped beat produces no findings at all");
     }
 }

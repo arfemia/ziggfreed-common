@@ -1,0 +1,40 @@
+# Objective Book + the library's own standalone progression runtime.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.progression.<key>.
+
+book.title = Objective Book
+book.tab.quests = Quests
+book.tab.achievements = Achievements
+book.empty.quests = No quests are available to you yet.
+book.empty.achievements = No achievements are available to you yet.
+book.progress = {0}/{1}
+book.more = +{0} more
+
+book.quests.section.active = In progress
+book.quests.section.ready = Ready to collect
+book.quests.section.available = Available
+book.quests.section.locked = Locked
+book.quests.untitled = Unnamed quest
+book.quests.step.untitled = Unnamed step
+book.quests.lock.unavailable = Not offered right now
+book.quests.lock.on_cooldown = Available again later
+book.quests.lock.prerequisites = Requirements not met
+book.quests.lock.other = Not available yet
+
+book.achievements.points = {0}/{1}
+book.achievements.section.ready = Ready to collect
+book.achievements.section.in_progress = In progress
+book.achievements.section.earned = Earned
+book.achievements.untitled = Unnamed achievement
+book.achievements.criterion.untitled = Unnamed step
+book.achievements.status.earned = Earned
+
+book.action.accept = Accept
+book.action.claim = Collect
+book.action.turn_in = Hand in
+
+book.toast.accepted = Quest accepted.
+book.toast.accept_failed = That quest cannot be accepted right now.
+book.toast.claimed = Rewards collected.
+book.toast.claim_failed = Nothing to collect right now.
+book.toast.turned_in = Handed in.
+book.toast.turn_in_failed = That cannot be handed in here.

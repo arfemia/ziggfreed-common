@@ -63,6 +63,37 @@ class RegistryLedgerTest {
         assertEquals(second, ledger.get("a"));
     }
 
+    /**
+     * The quiet variant drops the ledger's own warning and NOTHING else. A caller reaches for it
+     * because its own report of the same swap is the better one, not because it wants the swap to
+     * half-happen - so the value, the owner and the idempotence rule all still apply.
+     */
+    @Test
+    void aQuietOverwriteStillReplacesTheValueAndTheOwner() {
+        RegistryLedger<Object> ledger = new RegistryLedger<>("test");
+        Object second = new Object();
+        ledger.put("a", "modA", new Object());
+
+        ledger.putQuietly("a", "modB", second);
+
+        assertEquals("modB", ledger.info().get("a").owner());
+        assertEquals(second, ledger.get("a"));
+    }
+
+    @Test
+    void aQuietRegistrationOfTheSameInstanceIsStillIdempotent() {
+        RegistryLedger<String> ledger = new RegistryLedger<>("test");
+        String provider = "same-instance";
+        ledger.putQuietly("a", "modA", provider);
+        ledger.recordFailure("a", "boom");
+
+        ledger.putQuietly("a", "modB", provider);
+
+        RegistrationInfo info = ledger.info().get("a");
+        assertEquals("modA", info.owner());
+        assertEquals(1, info.failures());
+    }
+
     @Test
     void aBlankIdOrNullValueIsIgnoredRatherThanStored() {
         RegistryLedger<String> ledger = new RegistryLedger<>();

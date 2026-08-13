@@ -109,6 +109,10 @@ public final class InstancePresetAsset
             .append(new KeyedCodec<>("RewardOnExit", Codec.STRING, false), (a, v) -> a.rewardOnExit = v, a -> a.rewardOnExit)
             .add()
             .append(new KeyedCodec<>("RewardTableId", Codec.STRING, false), (a, v) -> a.rewardTableId = v, a -> a.rewardTableId)
+            .documentation("The id of the Lootable this instance pays out from (Server/ZiggfreedCommon/Lootables/). "
+                    + "Its Rolls are what everybody earns; its Pool is the part that varies with the run. "
+                    + "Whatever other packs contributed to that table is included. Omit to pay only the flat "
+                    + "Rewards list above.")
             .add()
             .append(new KeyedCodec<>("QueueModes", QueueModes.CODEC, false), (a, v) -> a.queueModes = v, a -> a.queueModes)
             .add()

@@ -19,3 +19,26 @@ dependencies {
     implementation project(':zc-core')
     implementation project(':zc-loot')
 }
+
+// Regenerate this module's SCHEMA.md - the authoring reference for the quest and achievement asset
+// types - from the actual codecs. The classpath needs the compiled classes PLUS every compile-time
+// dependency (compileClasspath, not runtimeClasspath): the writer loads QuestAsset / AchievementAsset
+// and therefore transitively the Hytale server jar's codec classes, which are compileOnly and never
+// bundled. Run ON DEMAND (`gradlew :zc-progression:generateSchemaDocs`); the output is committed and
+// deliberately NOT wired into processResources or build, because SCHEMA.md is repo documentation
+// rather than a jar resource. SchemaDocDriftTest fails the build when the committed file is stale.
+def schemaDocOutput = file('SCHEMA.md')
+tasks.register('generateSchemaDocs', JavaExec) {
+    dependsOn 'compileJava'
+    group = 'documentation'
+    description = 'Regenerate this module\'s SCHEMA.md quest + achievement authoring reference from the asset codecs'
+    classpath = sourceSets.main.output.classesDirs + configurations.compileClasspath
+    mainClass = 'com.ziggfreed.common.progress.docs.SchemaDocWriter'
+    args schemaDocOutput.absolutePath
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/quest/asset') { include '**/*.java' })
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/achievement/asset') { include '**/*.java' })
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/progress/asset') { include '**/*.java' })
+    inputs.files(fileTree('src/main/java/com/ziggfreed/common/progress/gate') { include '**/*.java' })
+    inputs.file('src/main/java/com/ziggfreed/common/progress/docs/SchemaDocWriter.java')
+    outputs.file(schemaDocOutput)
+}

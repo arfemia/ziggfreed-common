@@ -1,6 +1,11 @@
-// Shared build convention for every zc-* module. A module's own build.gradle is this one line
-// plus its `api project(':zc-x')` edges, so there is exactly one place to change a compiler flag,
-// a toolchain, or the server-jar path for all nine.
+// Shared build convention for every zc-* module. A module's own build.gradle is this one line plus
+// its `implementation project(':zc-x')` edges, so there is exactly one place to change a compiler
+// flag, a toolchain, or the server-jar path.
+//
+// Inter-module edges are `implementation`, never `api`: an `api` edge puts its own dependencies on
+// every downstream module's compile classpath, which is precisely the isolation the module split
+// exists to buy. The one deliberate `api` in the tree is jsr305, below, and it is `api` because a
+// consumer compiling against the aggregate jar has to be able to resolve the annotations.
 
 apply plugin: 'java-library'
 

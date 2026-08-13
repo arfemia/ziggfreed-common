@@ -115,7 +115,7 @@ class WorldSelectorMatchTest {
         WorldSelector selector = WorldSelector.of(null, null, null, new String[]{"instance"});
 
         assertTrue(selector.hasNoPositiveAxis());
-        assertNull(selector.match("default", "Default", index("primary", MatchRank.gameplayConfig())),
+        assertNull(selector.match("default", "Default", index("default", MatchRank.gameplayConfig())),
                 "an ExcludeNames-only selector is a filter with nothing to filter, so it matches nothing");
     }
 
@@ -133,10 +133,10 @@ class WorldSelectorMatchTest {
 
     @Test
     void absentKeysDecodeToNullNotToADefault() throws IOException {
-        WorldSelector decoded = decode("{ \"Names\": [\"primary\"] }");
+        WorldSelector decoded = decode("{ \"Names\": [\"default\"] }");
 
         assertNotNull(decoded.getNames());
-        assertEquals(List.of("primary"), List.of(decoded.getNames()));
+        assertEquals(List.of("default"), List.of(decoded.getNames()));
         assertNull(decoded.getMatch(), "an absent list must stay null - read sites own their defaults");
         assertNull(decoded.getGameplayConfig());
         assertNull(decoded.getExcludeNames());

@@ -107,9 +107,11 @@ class DialogueAuthoredFixtureTest {
         NpcDialogue d = read(engine, "Mmo_Hub_Intro.json", "mmo_hub_intro").getDialogue();
         assertNotNull(d);
 
-        // A declared memory, read by a Start candidate and written by an option.
+        // A declared memory, read by a Start candidate and written by an option. It is kept per
+        // world by a CONTAINS pattern, because the temple is an instance world whose name carries a
+        // fresh uuid every time it is built - an exact name would forget the greeting each visit.
         assertNotNull(d.getMemory("temple_greeted"));
-        assertEquals("forgotten_temple", d.getMemory("temple_greeted").getWorldSelector());
+        assertEquals("*Forgotten_Temple*", d.getMemory("temple_greeted").getWorld());
 
         // The Start ladder keeps its authored order, world gate first.
         assertEquals("temple_greet", d.getStart().get(0).getNode());

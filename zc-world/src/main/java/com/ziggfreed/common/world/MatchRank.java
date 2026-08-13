@@ -44,8 +44,9 @@ import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
  * rank compares equal (as it should: two exact-name matches are equally specific).
  *
  * <p>Ties never silently reorder authored content: use {@link #moreSpecific} to fold a stream of
- * candidate ranks, which keeps the FIRST of two equally specific matches, matching
- * {@link WorldNameMatcher#resolve}'s own first-wins behaviour.
+ * candidate ranks, which keeps the FIRST of two equally specific matches - so where the ladder has
+ * nothing left to say, authoring order decides, and a server owner can read the winner off the
+ * files rather than off map iteration order.
  *
  * @param band       the ladder band, ascending = more specific (0..3)
  * @param coreLength the matched pattern's literal core length ({@link #PARTIAL_BAND} only, else 0)
@@ -86,8 +87,8 @@ public record MatchRank(int band, int coreLength, int kindOrdinal) implements Co
 
     /**
      * Fold a candidate into the current best: returns {@code candidate} only when it is
-     * STRICTLY more specific, so the first of two equally specific matches wins (the authoring
-     * order rule {@link WorldNameMatcher#resolve} already follows). Either side may be null.
+     * STRICTLY more specific, so the first of two equally specific matches wins (the authoring-order
+     * rule every selection site in the library follows). Either side may be null.
      */
     @Nullable
     public static MatchRank moreSpecific(@Nullable MatchRank current, @Nullable MatchRank candidate) {

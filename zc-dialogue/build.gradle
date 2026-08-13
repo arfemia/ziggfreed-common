@@ -4,7 +4,7 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // because a placement gate resolves world identity (zc-world) and the dialogue page paints through
 // the shared UI primitives (zc-presentation).
 //
-// One PUBLIC signature here re-exports a zc-world type: DialogueCondition.WorldRule#getSelector
+// One PUBLIC signature here re-exports a zc-world type: DialogueCondition.World#getSelector
 // returns a world.WorldSelector. The edge stays `implementation` because nothing depends on this
 // module yet; a future module that depends on zc-dialogue AND calls getSelector must declare its
 // own zc-world edge, or this one becomes `api`.

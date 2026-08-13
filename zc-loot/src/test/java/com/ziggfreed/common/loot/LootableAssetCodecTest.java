@@ -93,6 +93,49 @@ class LootableAssetCodecTest {
     }
 
     @Test
+    void theCompetingHalfDecodesToo() throws Exception {
+        LootableAsset table = decodeRoot("""
+                {
+                  "ContributesTo": "SharedFinds",
+                  "Pool": {
+                    "Rolls": { "Base": 2,
+                               "Factors": [ { "Factor": "mymod:score", "Weight": 0.001 } ],
+                               "Clamp": { "Max": 5 } },
+                    "Entries": [
+                      { "Weight": 10,
+                        "Grants": { "Items": [ { "Item": "Ore_Iron", "Count": 2, "CountMax": 4 } ] } },
+                      { "Weight": 3,
+                        "Conditions": [ { "Factor": "mymod:score", "Min": 2000 } ],
+                        "Grants": { "Items": [ { "Item": "Gem_Ruby" } ] } }
+                    ]
+                  }
+                }
+                """, "MyFinds");
+
+        assertEquals("sharedfinds", table.getContributesTo().toLowerCase(java.util.Locale.ROOT));
+        LootPool pool = table.getPool();
+        assertNotNull(pool);
+        assertEquals(2.0, pool.getRolls().baseOrZero(), 1e-9);
+        assertEquals(5.0, pool.getRolls().getClamp().getMax(), 1e-9);
+        assertEquals(2, pool.getEntries().length);
+        assertEquals(10.0, pool.getEntries()[0].effectiveWeight(), 1e-9);
+
+        LootGrants.Item ranged = pool.getEntries()[0].getGrants().itemsOrEmpty().get(0);
+        assertEquals(2, ranged.effectiveCount());
+        assertEquals(4, ranged.effectiveCountMax());
+        assertTrue(ranged.varies());
+
+        assertEquals("mymod:score", pool.getEntries()[1].getConditions()[0].getFactor());
+    }
+
+    @Test
+    void aTableWithNeitherHalfDecodesToOneThatSimplyGrantsNothing() throws Exception {
+        LootableAsset table = decodeRoot("{ }", "empty");
+        assertNull(table.getPool());
+        assertNull(table.getContributesTo());
+    }
+
+    @Test
     void theIdComesFromTheFilenameAndIsLowerCased() throws Exception {
         LootableAsset table = decodeRoot("{ \"Name\": \"Ignored Label\", \"Rolls\": [] }", "ForestFinds");
         assertEquals("forestfinds", table.getId());
@@ -119,6 +162,21 @@ class LootableAssetCodecTest {
 
             assertNotNull(child.getRolls());
             assertEquals("Base_Item", child.getRolls()[0].getGrants().itemsOrEmpty().get(0).getItem());
+        }
+
+        @Test
+        void aChildThatWritesNoPoolInheritsTheWholeOne() throws Exception {
+            LootableAsset parent = decodeRoot("""
+                    { "Pool": { "Rolls": { "Base": 3 },
+                                "Entries": [ { "Weight": 2,
+                                               "Grants": { "Items": [ { "Item": "Base_Item" } ] } } ] } }
+                    """, "base");
+
+            LootableAsset child = decode("{ }", "variant", "base", parent);
+
+            assertNotNull(child.getPool());
+            assertEquals(3, child.getPool().pickCount(FactorLookup.none()));
+            assertEquals(1, child.getPool().getEntries().length);
         }
 
         @Test

@@ -1,7 +1,10 @@
 package com.ziggfreed.common.world;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.cast.WorldEvictors;
@@ -27,11 +31,11 @@ import com.ziggfreed.common.cast.WorldEvictors;
  * {@code WorldConfig.getGameplayConfig()} - the stable, uuid-free machine key that survives an
  * instance world being torn down and re-created under a fresh random name.
  *
- * <p><b>{@link #invalidateAll()} is mandatory, not an optimization.</b> The primary world is added
+ * <p><b>{@link #invalidateAll()} is mandatory, not an optimization.</b> The main world is added
  * during universe boot, BEFORE the asset load event folds {@link WorldSelectorConfig}. A world
  * resolved in that window sees an empty selector pool, and because the result is cached per world
- * it would keep an EMPTY name set for the entire life of the process - so
- * {@code Names: ["primary"]} would silently never match, everywhere, with no error anywhere.
+ * it would keep an EMPTY name set for the entire life of the process - so every {@code Names}
+ * reference would silently never match, everywhere, with no error anywhere.
  * {@link WorldSelectorConfig}'s merge methods therefore call this on every layer write, and a
  * consumer's config-reload command should call it too.
  *
@@ -126,11 +130,19 @@ public final class WorldIdentity {
      * <p>Every asset is scored independently and its names are unioned in, keeping the most
      * specific rank per name. Two assets contributing the same name therefore BOTH apply, which
      * is the whole point of the id being a pure address.
+     *
+     * <p><b>Two passes, so {@code ExcludeNames} cannot depend on fold order.</b> Pass one scores
+     * every asset and collects the names the world earns from POSITIVE axes alone; pass two
+     * withdraws each asset whose {@code ExcludeNames} names something in that set, and only what
+     * survives reaches the index. Resolving exclusions against a set that was already being
+     * whittled down would make the answer depend on which pack loaded first, which is exactly the
+     * failure a selector vocabulary exists to avoid.
      */
     @Nonnull
     public static WorldNameIndex resolve(@Nullable String worldName, @Nullable String worldGameplayConfig,
             @Nonnull Collection<WorldSelectorDef> pool) {
-        Map<String, MatchRank> ranks = new LinkedHashMap<>();
+        Map<WorldSelectorDef, MatchRank> matched = new LinkedHashMap<>();
+        Set<String> positiveNames = new LinkedHashSet<>();
         for (WorldSelectorDef def : pool) {
             if (def == null) {
                 continue;
@@ -139,12 +151,51 @@ public final class WorldIdentity {
             if (rank == null) {
                 continue;
             }
-            for (String name : def.names()) {
-                ranks.merge(name, rank, (existing, candidate) ->
+            matched.put(def, rank);
+            positiveNames.addAll(def.names());
+        }
+
+        Map<String, MatchRank> ranks = new LinkedHashMap<>();
+        for (Map.Entry<WorldSelectorDef, MatchRank> entry : matched.entrySet()) {
+            if (entry.getKey().excludedBy(positiveNames)) {
+                continue;
+            }
+            for (String name : entry.getKey().names()) {
+                ranks.merge(name, entry.getValue(), (existing, candidate) ->
                         candidate.isMoreSpecificThan(existing) ? candidate : existing);
             }
         }
         return WorldNameIndex.of(ranks);
+    }
+
+    /**
+     * Every world the server currently has loaded, as {@code (name, gameplayConfig)} pairs - what
+     * {@link WorldSelectorValidator#validateAgainstWorlds} needs to tell an author that a selector
+     * describes no world that exists.
+     *
+     * <p>An EMPTY list means "cannot tell" and never "nothing is loaded": it is what a unit JVM,
+     * a pre-boot call, and a failed read all return, and a caller that treated it as an answer
+     * would report a finding against every selector on the server. Try-guarded throughout.
+     */
+    @Nonnull
+    public static List<WorldSelectorValidator.LoadedWorld> loadedWorlds() {
+        List<WorldSelectorValidator.LoadedWorld> out = new ArrayList<>();
+        try {
+            Universe universe = Universe.get();
+            if (universe == null) {
+                return List.of();
+            }
+            for (World world : universe.getWorlds().values()) {
+                if (world != null) {
+                    out.add(new WorldSelectorValidator.LoadedWorld(world.getName(),
+                            world.getWorldConfig().getGameplayConfig()));
+                }
+            }
+        } catch (Throwable t) {
+            warn("WorldIdentity could not enumerate the loaded worlds: " + t.getMessage());
+            return List.of();
+        }
+        return out;
     }
 
     private static void warn(@Nonnull String message) {

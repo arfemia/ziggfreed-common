@@ -29,16 +29,19 @@ import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
+import com.ziggfreed.common.world.WorldSelectorValidator;
 
 /**
  * The content audit for a decoded conversation: everything that is wrong in a way the server would
  * otherwise never mention.
  *
  * <p>Most of what can go wrong in a dialogue is SILENT. A greeting pointing at a screen that does not
- * exist, a line gated on a world nothing is part of, a first-visit beat kept per a world family
- * nothing contributes, a memory used without being declared, a shorthand quietly ignored because the
- * option also spelled its order out - none of them throw, and every one of them shows up in game as
- * "that line never appears" weeks later. This turns each into a startup finding naming the file.
+ * exist, a line gated on a world nothing is part of, a first-visit beat scoped to every world at once
+ * so it is not really per world at all, a memory used without being declared, a shorthand quietly
+ * ignored because the option also spelled its order out - none of them throw, and every one of them
+ * shows up in game as "that line never appears" weeks later. This turns each into a startup finding
+ * naming the file.
  *
  * <p>Structure is checked on its own; the vocabulary checks need to be told what the server actually
  * has. Pass the loaded selector names ({@code DialogueWorlds.knownSelectorNames()}), the engine's
@@ -149,7 +152,7 @@ public final class DialogueStructureValidator {
         for (NpcDialogue.DialogueEntry entry : dialogue.getStart()) {
             String where = "Start candidate " + startIndex++;
             checkConditions(entry.getConditions(), where, id, out, knownSelectorNames, factors, engine);
-            checkOnce(entry.getOnce(), null, where, id, out, knownSelectorNames);
+            checkOnce(entry.getOnce(), null, where, id, out);
             String node = entry.getNode();
             if (node == null || node.isBlank()) {
                 out.add(error("START_MISSING_NODE",
@@ -187,7 +190,7 @@ public final class DialogueStructureValidator {
                 String where = "node '" + nodeId + "' option " + i;
                 checkConditions(option.getConditions(), where, id, out,
                         knownSelectorNames, factors, engine);
-                checkOnce(option.getOnce(), option, where, id, out, knownSelectorNames);
+                checkOnce(option.getOnce(), option, where, id, out);
                 checkOnceIdentity(option, i, nodeId, id, onceIdentities, out);
                 checkSugar(option, where, id, out);
                 for (DialogueAction action : option.getActions()) {
@@ -208,7 +211,7 @@ public final class DialogueStructureValidator {
             }
         }
 
-        checkMemories(dialogue, out, knownSelectorNames);
+        checkMemories(dialogue, out);
 
         // Reachability BFS over Goto edges from the entry set.
         Set<String> reachable = new HashSet<>(entryNodes);
@@ -420,41 +423,58 @@ public final class DialogueStructureValidator {
                             + "GameplayConfig, so it can never pass and its content is invisible", id));
             return;
         }
-        String[] names = condition.getNames();
-        if (names == null || !hasKnownNames(knownSelectorNames)) {
+        // "Is that a name anybody hands out?" belongs to the selector layer, which is also where a
+        // placement asks it - one answer, one finding, no second copy of the pool scan here.
+        out.addAll(WorldSelectorValidator.validateNames(condition.getNames(), "Where.Names",
+                id + " " + where, knownSelectorNames));
+    }
+
+    // ==================== per-world scope leaves ====================
+
+    /**
+     * Audit a {@code World} scope leaf on a {@code Once} or a {@code Memories} declaration. Both
+     * take a world NAME or a pattern, so the two things that can go wrong are the same for either:
+     * a blank string, which reads as a scope that is not there, and a bare {@code *}, which scopes
+     * to every world - identical to no scope at all, so writing it is a statement of intent the
+     * runtime cannot honour and an author would never see refuted.
+     *
+     * <p>A pattern that matches no world the server has loaded is caught at RUNTIME instead, by
+     * {@code DialogueFlagScope}'s warn-once: which worlds exist is not knowable from a decoded
+     * conversation, and an instance world's family is legitimately absent most of the time.
+     */
+    private static void checkWorldScope(@Nullable String world, @Nonnull String leaf,
+                                        @Nonnull String where, @Nonnull String id,
+                                        @Nonnull List<Finding> out) {
+        if (world == null) {
             return;
         }
-        for (String name : names) {
-            if (isUnknown(name, knownSelectorNames)) {
-                out.add(error("WORLD_CONDITION_UNKNOWN_SELECTOR",
-                        "Dialogue '" + id + "' " + where + " has a World condition naming selector '"
-                                + name + "', which no loaded WorldSelector contributes", id));
-            }
+        if (world.isBlank()) {
+            out.add(warning("WORLD_SCOPE_BLANK",
+                    "Dialogue '" + id + "' " + where + " has a " + leaf + " with a blank World, which "
+                            + "narrows nothing - remove the key or name a world", id));
+            return;
+        }
+        if (Pattern.parse(world).isDefaultRule()) {
+            out.add(warning("WORLD_SCOPE_MATCHES_EVERY_WORLD",
+                    "Dialogue '" + id + "' " + where + " has a " + leaf + " kept per world '" + world
+                            + "', which matches every world and is therefore the same as keeping it "
+                            + "once per character - remove the key, or name the world you meant", id));
         }
     }
 
     // ==================== Once ====================
 
     /**
-     * Audit a {@code Once} knob: the world family it is kept per must exist, and (for an option)
-     * the option must offer something stable to identify it by.
+     * Audit a {@code Once} knob: the world it is kept per must actually narrow something, and (for
+     * an option) the option must offer something stable to identify it by.
      */
     private static void checkOnce(@Nullable DialogueOnce once, @Nullable DialogueOption option,
                                   @Nonnull String where, @Nonnull String id,
-                                  @Nonnull List<Finding> out,
-                                  @Nullable Set<String> knownSelectorNames) {
+                                  @Nonnull List<Finding> out) {
         if (once == null) {
             return;
         }
-        String name = once.getWorldSelector();
-        if (hasKnownNames(knownSelectorNames) && isUnknown(name, knownSelectorNames)) {
-            // The re-show case: an unmatched selector makes the write a no-op AND the read unset,
-            // so a first-visit beat plays again on every single visit.
-            out.add(error("ONCE_UNKNOWN_SELECTOR",
-                    "Dialogue '" + id + "' " + where + " has a Once kept per world selector '" + name
-                            + "', which no loaded WorldSelector contributes - it will never be"
-                            + " remembered", id));
-        }
+        checkWorldScope(once.getWorld(), "Once", where, id, out);
         if (option != null && option.onceDiscriminator().isBlank()) {
             out.add(warning("ONCE_NO_IDENTITY",
                     "Dialogue '" + id + "' " + where + " has a Once but no LabelKey or OnceId to"
@@ -496,10 +516,9 @@ public final class DialogueStructureValidator {
     /**
      * Audit the declared {@code Memories} against their use sites: every name used must be
      * declared (that is where its scope and lifetime live), every declaration should be both
-     * written and read, and a world family a memory is kept per must exist.
+     * written and read, and a world a memory is kept per must actually narrow something.
      */
-    private static void checkMemories(@Nonnull NpcDialogue dialogue, @Nonnull List<Finding> out,
-                                      @Nullable Set<String> knownSelectorNames) {
+    private static void checkMemories(@Nonnull NpcDialogue dialogue, @Nonnull List<Finding> out) {
         String id = dialogue.getId();
         Map<String, DialogueMemory> declared = new LinkedHashMap<>();
         for (Map.Entry<String, DialogueMemory> entry : dialogue.getMemories().entrySet()) {
@@ -510,13 +529,8 @@ public final class DialogueStructureValidator {
                 continue;
             }
             declared.put(name, entry.getValue());
-            String selector = entry.getValue() == null ? null : entry.getValue().getWorldSelector();
-            if (hasKnownNames(knownSelectorNames) && isUnknown(selector, knownSelectorNames)) {
-                out.add(error("MEMORY_UNKNOWN_SELECTOR",
-                        "Dialogue '" + id + "' declares memory '" + name + "' per world selector '"
-                                + selector + "', which no loaded WorldSelector contributes - it will"
-                                + " never be remembered", id));
-            }
+            checkWorldScope(entry.getValue() == null ? null : entry.getValue().getWorld(),
+                    "memory '" + name + "'", "in Memories", id, out);
         }
 
         Set<String> written = new LinkedHashSet<>();
@@ -636,16 +650,6 @@ public final class DialogueStructureValidator {
     @Nonnull
     private static Finding info(@Nonnull String code, @Nonnull String message, @Nonnull String id) {
         return Finding.info(DOMAIN, code, message, id);
-    }
-
-    /** An absent or EMPTY vocabulary means "cannot tell" (assets may not have loaded yet). */
-    private static boolean hasKnownNames(@Nullable Set<String> knownSelectorNames) {
-        return knownSelectorNames != null && !knownSelectorNames.isEmpty();
-    }
-
-    private static boolean isUnknown(@Nullable String name, @Nullable Set<String> knownSelectorNames) {
-        return knownSelectorNames != null && name != null && !name.isBlank()
-                && !knownSelectorNames.contains(normalize(name));
     }
 
     @Nonnull

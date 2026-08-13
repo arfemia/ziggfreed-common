@@ -1,6 +1,6 @@
 rootProject.name = 'ZiggfreedCommon'
 
-// The library is built as eleven focused modules plus a thin wiring root. Every module keeps the
+// The library is built as twelve focused modules plus a thin wiring root. Every module keeps the
 // SAME package root (com.ziggfreed.common.*) and they are all merged back into the single
 // ZiggfreedCommon jar a server loads, so a module boundary here is a build-time concern only: no
 // consumer import, class name, or manifest changes because of it.
@@ -16,6 +16,7 @@ include 'zc-effects'
 include 'zc-loot'
 include 'zc-dialogue'
 include 'zc-progression'
+include 'zc-objectives'
 include 'zc-instance'
 include 'zc-world'
 include 'zc-scaling'

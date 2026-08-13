@@ -24,6 +24,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.DialogueContext;
 import com.ziggfreed.common.dialogue.DialogueFlagStore;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
+import com.ziggfreed.common.dialogue.quest.QuestDialogueHost;
+import com.ziggfreed.common.dialogue.quest.QuestDialogueHosts;
+import com.ziggfreed.common.dialogue.quest.QuestHandOff;
 import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
@@ -99,6 +102,9 @@ class NpcEncountersTest {
         /** {@code atId} that accepts a full hand-in; everything else only RESOLVES there. */
         @Nullable String deliverableAt;
 
+        /** The conversation the catalogue says follows every quest here, or none. */
+        @Nullable String completionDialogue;
+
         private final QuestStateReader reader = new QuestStateReader() {
 
             @Override @Nonnull public QuestStatus status(@Nonnull Subject subject, @Nonnull String questId) {
@@ -143,6 +149,31 @@ class NpcEncountersTest {
             turnInAsked.add(atId);
             return atId != null && atId.equals(deliverableAt);
         }
+
+        @Override @Nullable public String completionDialogueOf(@Nonnull String questId) {
+            return completionDialogue;
+        }
+    }
+
+    /** A host that knows one conversation and records the character each hand-off named. */
+    private static final class ScriptedHost implements QuestDialogueHost {
+
+        private final String knownId;
+        final List<String> openedAt = new ArrayList<>();
+
+        ScriptedHost(@Nonnull String knownId) {
+            this.knownId = knownId;
+        }
+
+        @Override public boolean knows(@Nonnull String dialogueId) {
+            return knownId.equals(dialogueId);
+        }
+
+        @Override public boolean open(@Nonnull QuestHandOff handOff, @Nonnull Store<EntityStore> store,
+                @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+            openedAt.add(handOff.npcId());
+            return true;
+        }
     }
 
     /** One placement standing for a character that also answers to a shared name. */
@@ -159,6 +190,7 @@ class NpcEncountersTest {
     void reset() {
         NpcPlacementConfig.getInstance().mergePackLayer(Map.of());
         NpcOfferProviders.clear();
+        QuestDialogueHosts.clear();
     }
 
     @Test
@@ -241,5 +273,44 @@ class NpcEncountersTest {
         assertFalse(nowhere.anythingDeliverableHere());
         assertFalse(nowhere.deliver("a_quest"));
         assertFalse(nowhere.creditTalk(null));
+    }
+
+    @Test
+    void anEncounterRoutesTheHandOffOnItsPrimaryId() {
+        loadAliasedGuide();
+        ScriptedQuests quests = new ScriptedQuests();
+        quests.completionDialogue = "guide_thanks";
+        QuestDialogueHosts.register("mymod", "A", new ScriptedHost("guide_thanks"));
+
+        QuestHandOff handOff = NpcEncounters.at(new BareContext("guide_wilds"), quests)
+                .completionHandOff("a_quest");
+
+        assertTrue(handOff.plays());
+        assertEquals("guide_thanks", handOff.dialogueId());
+        assertEquals("guide_wilds", handOff.npcId(),
+                "the conversation is with the character the player is looking at, not with an alias of them");
+    }
+
+    @Test
+    void aConversationDoesNotHandOffToItself() {
+        loadAliasedGuide();
+        ScriptedQuests quests = new ScriptedQuests();
+        quests.completionDialogue = "guide_thanks";
+        ScriptedHost host = new ScriptedHost("guide_thanks");
+        QuestDialogueHosts.register("mymod", "A", host);
+
+        assertFalse(NpcEncounters.at(new BareContext("guide_wilds"), quests).playCompletion("a_quest"),
+                "a TurnIn beat is already on the screen the hand-off would open; it routes onward with Goto");
+        assertTrue(host.openedAt.isEmpty());
+    }
+
+    @Test
+    void anEncounterWithNoConversationInstalledSkipsTheBeat() {
+        loadAliasedGuide();
+        ScriptedQuests quests = new ScriptedQuests();
+        quests.completionDialogue = "guide_thanks";
+
+        assertEquals(QuestHandOff.Outcome.NO_HOST, NpcEncounters.at(new BareContext("guide_wilds"), quests)
+                .completionHandOff("a_quest").outcome());
     }
 }

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.instance.reward.LootEntry;
+import com.ziggfreed.common.registry.RegistryLedger;
 
 /**
  * One registry now holds both halves of a reward kind: what pays it out, and how a terse authoring
@@ -157,21 +159,45 @@ class RewardKindFoldTest {
     class TheFrameworkKinds {
 
         @Test
-        void allThreeRegisterUnderTheFrameworkOwner() {
+        void everyFrameworkKindRegistersUnderTheFrameworkOwner() {
             RewardKindRegistry kinds = new RewardKindRegistry("test");
             LootRewardKinds.registerInto(kinds);
 
             assertTrue(kinds.isRegistered(LootRewardKinds.KIND_ITEM));
             assertTrue(kinds.isRegistered(LootRewardKinds.KIND_LOOTABLE));
             assertTrue(kinds.isRegistered(LootRewardKinds.KIND_STAMPED_ITEM));
+            assertTrue(kinds.isRegistered(LootRewardKinds.KIND_COMMAND));
             assertEquals(LootRewardKinds.OWNER,
-                    kinds.info().get(LootRewardKinds.KIND_ITEM).owner());
+                    kinds.info().get(RegistryLedger.normalize(LootRewardKinds.KIND_ITEM)).owner());
+        }
+
+        /**
+         * The framework's kind ids are native-asset style and UNPREFIXED, which is what a consumer's
+         * prefixed ids (Mmo_Xp, Mmo_Currency) are named against. Pinned as literals rather than read
+         * off the constants, so renaming one is a decision taken here and not a silent content break.
+         */
+        @Test
+        void theFrameworkKindsCarryTheCanonicalUnprefixedIds() {
+            assertEquals("Item", LootRewardKinds.KIND_ITEM);
+            assertEquals("Lootable", LootRewardKinds.KIND_LOOTABLE);
+            assertEquals("Stamped_Item", LootRewardKinds.KIND_STAMPED_ITEM);
+        }
+
+        @Test
+        void aRewardStillNamesAKindHoweverItSpellsIt() {
+            RewardKindRegistry kinds = new RewardKindRegistry("test");
+            LootRewardKinds.registerInto(kinds);
+
+            assertNotNull(kinds.handler("item"), "an older lower-case spelling still pays out");
+            assertNotNull(kinds.handler("STAMPED_ITEM"));
         }
 
         @Test
         void everyDeclaredKindDocumentsItsParameterKeys() {
             Map<String, List<String>> keys = LootRewardKinds.parameterKeys();
-            assertEquals(3, keys.size());
+            assertEquals(Set.of(LootRewardKinds.KIND_ITEM, LootRewardKinds.KIND_LOOTABLE,
+                            LootRewardKinds.KIND_STAMPED_ITEM, LootRewardKinds.KIND_COMMAND),
+                    keys.keySet(), "every framework kind says what it reads");
             keys.values().forEach(list -> assertFalse(list.isEmpty()));
         }
     }

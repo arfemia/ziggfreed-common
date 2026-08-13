@@ -1,0 +1,161 @@
+package com.ziggfreed.common.objectives.store;
+
+import java.util.Map;
+import java.util.Set;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import com.ziggfreed.common.achievement.AchievementProgressStore;
+import com.ziggfreed.common.achievement.AchievementStatus;
+import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.util.SafeLog;
+
+/**
+ * The library's DEFAULT achievement persistence, the peer of {@link ZigQuestStore} over the same
+ * component: resolve the subject's {@link ZigProgressComponent} and delegate.
+ *
+ * <p>Two adapters rather than one because the two seams declare {@code status(Subject, String)} with
+ * the same erasure and different return types, so no single class can implement both.
+ *
+ * <p>Same rules as its peer: a read never creates, a missing component reads neutral and drops
+ * writes with one fine-level line, and every interface default is inherited - including the
+ * composite criterion key with its one-way legacy fallback, {@code clearAchievement}, and
+ * {@code usesReservedDelimiter} (whose default already rejects everything
+ * {@link ProgressBlob} reserves, plus the criterion separator).
+ */
+public final class ZigAchievementStore implements AchievementProgressStore {
+
+    /** The one instance, registered as the LIBRARY DEFAULT and outranked by any consumer's own. */
+    public static final ZigAchievementStore INSTANCE = new ZigAchievementStore();
+
+    private ZigAchievementStore() {
+    }
+
+    @Nullable
+    private static ZigProgressComponent componentOf(@Nonnull Subject subject) {
+        ProgressHandle handle = subject.handleAs(ProgressHandle.class);
+        return handle == null ? null : handle.component();
+    }
+
+    private static void dropped(@Nonnull Subject subject, @Nonnull String what) {
+        SafeLog.fine("[progression] dropped an achievement " + what + " for '" + subject.name()
+                + "': no progress component");
+    }
+
+    @Override
+    public long progress(@Nonnull Subject subject, @Nonnull String key) {
+        ZigProgressComponent component = componentOf(subject);
+        return component == null ? 0L : component.achievementProgress(key);
+    }
+
+    @Override
+    public void putProgress(@Nonnull Subject subject, @Nonnull String key, long value) {
+        ZigProgressComponent component = componentOf(subject);
+        if (component == null) {
+            dropped(subject, "tally");
+            return;
+        }
+        component.putAchievementProgress(key, value);
+    }
+
+    @Nonnull
+    @Override
+    public Set<String> progressKeys(@Nonnull Subject subject) {
+        ZigProgressComponent component = componentOf(subject);
+        return component == null ? Set.of() : component.achievementProgressKeys();
+    }
+
+    @Nonnull
+    @Override
+    public AchievementStatus status(@Nonnull Subject subject, @Nonnull String achievementId) {
+        ZigProgressComponent component = componentOf(subject);
+        return component == null ? AchievementStatus.LOCKED : component.achievementStatus(achievementId);
+    }
+
+    @Override
+    public void setStatus(@Nonnull Subject subject, @Nonnull String achievementId,
+            @Nonnull AchievementStatus status) {
+        ZigProgressComponent component = componentOf(subject);
+        if (component == null) {
+            dropped(subject, "status");
+            return;
+        }
+        component.setAchievementStatus(achievementId, status);
+    }
+
+    @Nonnull
+    @Override
+    public Set<String> knownAchievementIds(@Nonnull Subject subject) {
+        ZigProgressComponent component = componentOf(subject);
+        return component == null ? Set.of() : component.knownAchievementIds();
+    }
+
+    @Override
+    public long unlockedAt(@Nonnull Subject subject, @Nonnull String achievementId) {
+        ZigProgressComponent component = componentOf(subject);
+        return component == null ? 0L : component.achievementUnlockedAt(achievementId);
+    }
+
+    @Override
+    public void setUnlockedAt(@Nonnull Subject subject, @Nonnull String achievementId, long epochMs) {
+        ZigProgressComponent component = componentOf(subject);
+        if (component == null) {
+            dropped(subject, "unlock instant");
+            return;
+        }
+        component.setAchievementUnlockedAt(achievementId, epochMs);
+    }
+
+    @Nonnull
+    @Override
+    public AchievementStatus milestoneStatus(@Nonnull Subject subject, int threshold) {
+        ZigProgressComponent component = componentOf(subject);
+        return component == null ? AchievementStatus.LOCKED : component.milestoneStatus(threshold);
+    }
+
+    @Override
+    public void setMilestoneStatus(@Nonnull Subject subject, int threshold,
+            @Nonnull AchievementStatus status) {
+        ZigProgressComponent component = componentOf(subject);
+        if (component == null) {
+            dropped(subject, "milestone status");
+            return;
+        }
+        component.setMilestoneStatus(threshold, status);
+    }
+
+    @Nonnull
+    @Override
+    public Set<Integer> knownMilestones(@Nonnull Subject subject) {
+        ZigProgressComponent component = componentOf(subject);
+        return component == null ? Set.of() : component.knownMilestones();
+    }
+
+    @Nonnull
+    @Override
+    public Map<String, Long> pins(@Nonnull Subject subject) {
+        ZigProgressComponent component = componentOf(subject);
+        return component == null ? Map.of() : component.achievementPins();
+    }
+
+    @Override
+    public void setPin(@Nonnull Subject subject, @Nonnull String achievementId, long pinnedAtMs) {
+        ZigProgressComponent component = componentOf(subject);
+        if (component == null) {
+            dropped(subject, "pin");
+            return;
+        }
+        component.setAchievementPin(achievementId, pinnedAtMs);
+    }
+
+    @Override
+    public boolean clearPin(@Nonnull Subject subject, @Nonnull String achievementId) {
+        ZigProgressComponent component = componentOf(subject);
+        if (component == null) {
+            dropped(subject, "unpin");
+            return false;
+        }
+        return component.clearAchievementPin(achievementId);
+    }
+}

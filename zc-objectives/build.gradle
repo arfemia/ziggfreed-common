@@ -1,0 +1,29 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// The STANDALONE progression experience: the fallback quest + achievement runtime a bare server
+// gets when no consumer mod runs one of its own, its persisted per-player progress store, the
+// generic native-event producers that feed it, and the in-game book that shows it.
+//
+// It sits ABOVE both zc-progression and zc-presentation and nothing sits above it. That position is
+// what the module exists for: a progression BOOK needs the engines and a page, and neither of those
+// two modules may reach the other (zc-progression may never import presentation, and pushing the
+// engines under presentation would drag them onto every page consumer in the library). A module
+// above both adds no reverse edge at all.
+//
+// Ships .ui (the book page + its row template) and Server/ assets (the book item), so it needs
+// zc-presentation at RUNTIME as well as at compile time - see the modules table's last column.
+
+dependencies {
+    // SafeLog, Subject, validation, the i18n Msg factory, the factor model.
+    implementation project(':zc-core')
+    // The shared reward vocabulary both engines pay out through.
+    implementation project(':zc-loot')
+    // The engines themselves, their asset stores, and the consumer-claim seam.
+    implementation project(':zc-progression')
+    // The page base, the shared frames/buttons, the retint engine, the toast engine.
+    implementation project(':zc-presentation')
+    // Custom interaction-Type registration, for the book item's Use.
+    implementation project(':zc-cast')
+    // The portable `hytale:` factor standard library, so a STAT_THRESHOLD objective settles itself.
+    implementation project(':zc-entity')
+}

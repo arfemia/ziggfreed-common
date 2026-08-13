@@ -1,0 +1,37 @@
+book.title = Livro de objetivos
+book.tab.quests = Missões
+book.tab.achievements = Conquistas
+book.empty.quests = Você ainda não tem missões disponíveis.
+book.empty.achievements = Você ainda não tem conquistas disponíveis.
+book.progress = {0}/{1}
+book.more = +{0} a mais
+
+book.quests.section.active = Em andamento
+book.quests.section.ready = Prontas para receber
+book.quests.section.available = Disponíveis
+book.quests.section.locked = Bloqueadas
+book.quests.untitled = Missão sem nome
+book.quests.step.untitled = Etapa sem nome
+book.quests.lock.unavailable = Não oferecida no momento
+book.quests.lock.on_cooldown = Disponível novamente mais tarde
+book.quests.lock.prerequisites = Requisitos não atendidos
+book.quests.lock.other = Ainda não disponível
+
+book.achievements.points = {0}/{1}
+book.achievements.section.ready = Prontas para receber
+book.achievements.section.in_progress = Em andamento
+book.achievements.section.earned = Conquistadas
+book.achievements.untitled = Conquista sem nome
+book.achievements.criterion.untitled = Etapa sem nome
+book.achievements.status.earned = Conquistada
+
+book.action.accept = Aceitar
+book.action.claim = Receber
+book.action.turn_in = Entregar
+
+book.toast.accepted = Missão aceita.
+book.toast.accept_failed = Essa missão não pode ser aceita agora.
+book.toast.claimed = Recompensas recebidas.
+book.toast.claim_failed = Não há nada para receber agora.
+book.toast.turned_in = Entregue.
+book.toast.turn_in_failed = Isso não pode ser entregue aqui.

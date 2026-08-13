@@ -19,8 +19,8 @@ import com.ziggfreed.common.subject.Subject;
 
 /**
  * What a conversation is allowed to know and do about quests: the narrow read seam, who the player
- * is, which ids the character in front of them answers to, and the two things a line may actually
- * change.
+ * is, which ids the character in front of them answers to, the conversation a quest hands off to
+ * once it settles, and the two things a line may actually change.
  *
  * <p><b>Reading goes through {@link QuestStateReader} and nothing else.</b> That interface is
  * deliberately the smallest surface that can answer "what does this player's quest look like right
@@ -102,6 +102,22 @@ public interface DialogueQuests {
      */
     default boolean turnIn(@Nonnull Subject subject, @Nonnull String questId, @Nullable String atId) {
         return false;
+    }
+
+    /**
+     * The conversation this quest hands off to when it settles, or null when it names none.
+     *
+     * <p>WHICH conversation is authored data the consumer's catalogue already carries, so only the
+     * consumer can read it. WHEN it plays is not a consumer decision at all and lives in
+     * {@link QuestCompletionRouting}, which is what keeps a quest log, a book and a giver's own panel
+     * from each improvising a different answer.
+     *
+     * <p>Returns null by default, so a mod that wires only the reader gets quest-aware lines and no
+     * hand-off.
+     */
+    @Nullable
+    default String completionDialogueOf(@Nonnull String questId) {
+        return null;
     }
 
     /**

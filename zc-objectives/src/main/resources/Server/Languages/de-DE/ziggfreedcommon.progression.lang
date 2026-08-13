@@ -1,0 +1,37 @@
+book.title = Aufgabenbuch
+book.tab.quests = Quests
+book.tab.achievements = Errungenschaften
+book.empty.quests = Für dich sind noch keine Quests verfügbar.
+book.empty.achievements = Für dich sind noch keine Errungenschaften verfügbar.
+book.progress = {0}/{1}
+book.more = +{0} weitere
+
+book.quests.section.active = In Arbeit
+book.quests.section.ready = Abholbereit
+book.quests.section.available = Verfügbar
+book.quests.section.locked = Gesperrt
+book.quests.untitled = Unbenannte Quest
+book.quests.step.untitled = Unbenannter Schritt
+book.quests.lock.unavailable = Derzeit nicht angeboten
+book.quests.lock.on_cooldown = Später wieder verfügbar
+book.quests.lock.prerequisites = Voraussetzungen nicht erfüllt
+book.quests.lock.other = Noch nicht verfügbar
+
+book.achievements.points = {0}/{1}
+book.achievements.section.ready = Abholbereit
+book.achievements.section.in_progress = In Arbeit
+book.achievements.section.earned = Erhalten
+book.achievements.untitled = Unbenannte Errungenschaft
+book.achievements.criterion.untitled = Unbenannter Schritt
+book.achievements.status.earned = Erhalten
+
+book.action.accept = Annehmen
+book.action.claim = Abholen
+book.action.turn_in = Abgeben
+
+book.toast.accepted = Quest angenommen.
+book.toast.accept_failed = Diese Quest kann derzeit nicht angenommen werden.
+book.toast.claimed = Belohnungen abgeholt.
+book.toast.claim_failed = Derzeit gibt es nichts abzuholen.
+book.toast.turned_in = Abgegeben.
+book.toast.turn_in_failed = Das kann hier nicht abgegeben werden.

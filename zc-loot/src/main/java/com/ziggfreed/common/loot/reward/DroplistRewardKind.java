@@ -20,7 +20,7 @@ import org.joml.Vector3d;
 
 /**
  * The reward kind that rolls a NATIVE Hytale drop list and spills the result on the ground:
- * {@code {"Kind": "droplist", "Params": {"Droplist": "Drop_Trork_Warrior"}}}.
+ * {@code {"Kind": "Droplist", "Params": {"Droplist": "Drop_Trork_Warrior"}}}.
  *
  * <p>It exists so a payout can reuse a loot table the game itself already balances. Every weighted
  * pool the engine ships - a mob's death drops, a chest's contents, a zone's encounter table - is an
@@ -72,7 +72,7 @@ import org.joml.Vector3d;
 public final class DroplistRewardKind implements RewardHandler {
 
     /** The kind id content writes. */
-    public static final String KIND = "droplist";
+    public static final String KIND = "Droplist";
 
     /** Who this registration is attributed to in the registry ledger. */
     public static final String OWNER = "ziggfreedcommon";
@@ -98,8 +98,8 @@ public final class DroplistRewardKind implements RewardHandler {
     public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) throws Exception {
         String dropListId = droplistIdOf(spec);
         if (dropListId == null) {
-            throw new IllegalStateException(
-                    "a '" + KIND + "' reward named no list - it needs a 'Droplist' parameter");
+            throw new IllegalStateException("a reward of kind '" + KIND
+                    + "' named no list - it needs a 'Droplist' parameter");
         }
         Player player = subject.handleAs(Player.class);
         Ref<EntityStore> ref = player == null ? null : player.getReference();

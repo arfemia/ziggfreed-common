@@ -13,7 +13,7 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
 
 /**
- * The reward kind that applies a native effect: {@code {"Kind": "effect", "Params": {"Effect": "..."}}}.
+ * The reward kind that applies a native effect: {@code {"Kind": "Effect", "Params": {"Effect": "..."}}}.
  *
  * <p>It lives up here in the wiring layer rather than beside the other reward kinds, and the reason is
  * a rule worth keeping: the loot layer sits UNDERNEATH everything that pays out, so it must never
@@ -30,7 +30,7 @@ import com.ziggfreed.common.subject.Subject;
 public final class EffectRewardKind implements RewardHandler {
 
     /** The kind id content writes. */
-    public static final String KIND = "effect";
+    public static final String KIND = "Effect";
 
     /** Who this registration is attributed to in the registry ledger. */
     public static final String OWNER = "ziggfreedcommon";
@@ -47,8 +47,8 @@ public final class EffectRewardKind implements RewardHandler {
     public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) throws Exception {
         String effectId = spec.paramOr("effect", spec.paramOr("id", "")).trim();
         if (effectId.isEmpty()) {
-            throw new IllegalStateException(
-                    "an '" + KIND + "' reward named no effect - it needs an 'Effect' parameter");
+            throw new IllegalStateException("a reward of kind '" + KIND
+                    + "' named no effect - it needs an 'Effect' parameter");
         }
         Player player = subject.handleAs(Player.class);
         Ref<EntityStore> ref = player == null ? null : player.getReference();
@@ -56,6 +56,10 @@ public final class EffectRewardKind implements RewardHandler {
             throw new IllegalStateException("no live player to apply effect '" + effectId + "' to");
         }
         double seconds = spec.doubleParam("durationseconds", -1.0);
+        // ROOT-LOGIC-OK: not a decision this class makes - the author already made it by writing
+        // DurationSeconds or leaving it out, and the two branches are the two overloads the effect
+        // primitive already offers for exactly that. Pushing it down would mean teaching the loot
+        // layer about effects, which is the one thing this class exists to avoid.
         boolean applied = seconds > 0.0
                 ? NativeEffectUtil.applyFor(ref.getStore(), ref, effectId, (float) seconds,
                         OverlapBehavior.OVERWRITE)

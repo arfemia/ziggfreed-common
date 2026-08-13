@@ -28,9 +28,9 @@ import javax.annotation.Nullable;
  * {@code _Wilds/_Act1/Trork_Trouble.json} is {@code wilds_act1_trork_trouble}. The whole result is
  * lower-cased, matching how every id in this library is addressed.
  *
- * <p><b>Where this is wired.</b> Quests use it ({@code quest/asset/QuestAssetStore}). Every other
- * asset type keys plainly off its filename; wire another type the same way when it wants the same
- * grouping.
+ * <p><b>Where this is wired.</b> Quests and achievements both use it ({@code QuestAsset} and
+ * {@code AchievementAsset} fold it in as they decode). Every other asset type keys plainly off its
+ * filename; wire another type the same way when it wants the same grouping.
  *
  * <p><b>Pick the folder name as carefully as the filename.</b> Renaming a marked folder renames
  * every id beneath it, and an id is what a player's saved progress is filed under, so a rename

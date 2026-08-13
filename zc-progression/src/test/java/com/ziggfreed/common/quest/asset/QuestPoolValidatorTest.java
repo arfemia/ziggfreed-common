@@ -194,7 +194,7 @@ class QuestPoolValidatorTest {
     void aResetTargetNobodyAuthoredIsReported() {
         assertEquals(List.of("UNKNOWN_RESET_TARGET"), codes(validate(poolOf("q", """
                 { "Objectives": { "a": { "Kind": "BREAK_BLOCK", "Target": "x" } },
-                  "Repeat": { "Repeatable": true, "ResetsOnComplete": ["daily_1"] } }
+                  "Repeat": { "ResetsOnComplete": ["daily_1"] } }
                 """))));
     }
 

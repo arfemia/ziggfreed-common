@@ -29,6 +29,7 @@ public final class InMemoryQuestProgressStore implements QuestProgressStore {
         private final Map<String, QuestStatus> statuses = new ConcurrentHashMap<>();
         private final Map<String, String> payloads = new ConcurrentHashMap<>();
         private final Map<String, Long> cooldowns = new ConcurrentHashMap<>();
+        private final Map<String, CompletionRecord> completions = new ConcurrentHashMap<>();
         private final Map<String, Long> pins = new ConcurrentHashMap<>();
     }
 
@@ -75,14 +76,39 @@ public final class InMemoryQuestProgressStore implements QuestProgressStore {
 
     @Override
     @Nonnull
+    public CompletionRecord completions(@Nonnull Subject subject, @Nonnull String questId) {
+        CompletionRecord record = state(subject).completions.get(questId);
+        return record != null ? record : CompletionRecord.NONE;
+    }
+
+    @Override
+    public void setCompletions(@Nonnull Subject subject, @Nonnull String questId,
+                               @Nonnull CompletionRecord record) {
+        PlayerState player = state(subject);
+        if (record.isEmpty()) {
+            player.completions.remove(questId);
+            return;
+        }
+        player.completions.put(questId, record);
+    }
+
+    @Override
+    public boolean recordsCompletions() {
+        return true;
+    }
+
+    @Override
+    @Nonnull
     public Set<String> knownQuestIds(@Nonnull Subject subject) {
         PlayerState player = state(subject);
         Set<String> ids = new LinkedHashSet<>(player.statuses.keySet());
         ids.addAll(player.payloads.keySet());
         ids.addAll(player.cooldowns.keySet());
+        ids.addAll(player.completions.keySet());
         return ids;
     }
 
+    /** Re-arms the quest; the completion record deliberately survives (see the interface contract). */
     @Override
     public void clearQuest(@Nonnull Subject subject, @Nonnull String questId) {
         PlayerState player = state(subject);

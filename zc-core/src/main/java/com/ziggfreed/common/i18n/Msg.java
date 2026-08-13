@@ -38,9 +38,10 @@ public final class Msg {
      * The locale-neutral glue key ({@code "{0}{1}"}) backing {@link #cat}, shipped by this
      * jar in every locale it carries (identical value everywhere - it is punctuation-free
      * concatenation, not content). The FULL registered id: {@code I18nModule} derives a
-     * pack key's prefix from the lang FILENAME ({@code ziggfreedcommon.lang} registers
-     * {@code ziggfreedcommon.*}), so the authored entry is {@code fmt.cat} and this
-     * constant carries the filename prefix explicitly - the old un-prefixed
+     * pack key's prefix from the lang FILENAME, and dots in that filename are preserved
+     * verbatim, so {@code ziggfreedcommon.fmt.lang} registers
+     * {@code ziggfreedcommon.fmt.*} and the authored entry is simply {@code cat}. This
+     * constant carries the whole resolved id explicitly - the old un-prefixed
      * {@code "common.fmt.cat"} id never resolved on any client (it rendered as the
      * literal key the first time a consumer's composite reached a screen).
      */

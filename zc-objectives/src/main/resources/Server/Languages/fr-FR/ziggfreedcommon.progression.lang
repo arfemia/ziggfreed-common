@@ -1,0 +1,37 @@
+book.title = Carnet d'objectifs
+book.tab.quests = Quêtes
+book.tab.achievements = Succès
+book.empty.quests = Aucune quête n'est encore disponible pour toi.
+book.empty.achievements = Aucun succès n'est encore disponible pour toi.
+book.progress = {0}/{1}
+book.more = +{0} de plus
+
+book.quests.section.active = En cours
+book.quests.section.ready = À récupérer
+book.quests.section.available = Disponibles
+book.quests.section.locked = Verrouillées
+book.quests.untitled = Quête sans nom
+book.quests.step.untitled = Étape sans nom
+book.quests.lock.unavailable = Pas proposée pour l'instant
+book.quests.lock.on_cooldown = De nouveau disponible plus tard
+book.quests.lock.prerequisites = Conditions non remplies
+book.quests.lock.other = Pas encore disponible
+
+book.achievements.points = {0}/{1}
+book.achievements.section.ready = À récupérer
+book.achievements.section.in_progress = En cours
+book.achievements.section.earned = Obtenus
+book.achievements.untitled = Succès sans nom
+book.achievements.criterion.untitled = Étape sans nom
+book.achievements.status.earned = Obtenu
+
+book.action.accept = Accepter
+book.action.claim = Récupérer
+book.action.turn_in = Remettre
+
+book.toast.accepted = Quête acceptée.
+book.toast.accept_failed = Cette quête ne peut pas être acceptée pour l'instant.
+book.toast.claimed = Récompenses récupérées.
+book.toast.claim_failed = Rien à récupérer pour l'instant.
+book.toast.turned_in = Remise effectuée.
+book.toast.turn_in_failed = Cela ne peut pas être remis ici.

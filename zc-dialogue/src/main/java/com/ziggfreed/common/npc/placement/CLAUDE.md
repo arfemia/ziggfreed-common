@@ -32,7 +32,7 @@ Neither can do the other's job, which is why there are two.
   [`AppearanceSpec`](AppearanceSpec.java) GROUP, not a string; **`BaseRole` names a native
   parameterized TEMPLATE role directly**, and the generated role is a variant of it); `Where` (a
   [`WorldSelector`](../../../../../../../../../zc-world/src/main/java/com/ziggfreed/common/world/WorldSelector.java) - a null/empty selector defaults to
-  `Names:["primary"]` **at this read site**); `Anchor{WorldSpawn,Coords,Structure,Zone,Custom}`
+  `Names:["default"]` **at this read site**); `Anchor{WorldSpawn,Coords,Structure,Zone,Custom}`
   (nullable ORTHOGONAL groups, never a placement-mode enum); `Requires{Conditions[]}`;
   `Limits{SpawnChance,ChanceFormula,MaxPerWorld,OncePerWorld}`; `Lifecycle{KeepAlive,Respawn,Fortify,
   FortifyHealth}` (ALL opt-in, default false - each costs a pinned chunk / a re-place / a health
@@ -251,7 +251,9 @@ Each is JVM-global, case-insensitive, last-write-wins, and warns ONCE per unknow
   SILENT (an NPC that never appears is indistinguishable from one you have not walked to): blank
   role, an anchor group with no usable params, `SpawnChance <= 0` (suppressed when a working
   `ChanceFormula` is what is actually rolled against), an unregistered `Custom.Provider`,
-  an unregistered `Requires.Factor` or `ChanceFormula` term, a `Where` naming no known selector, an
+  an unregistered `Requires.Factor` or `ChanceFormula` term, a `Where` naming no known selector (the
+  SHARED `UNKNOWN_SELECTOR_NAME` from `WorldSelectorValidator`, so a placement and a dialogue
+  condition report one code off one pool scan rather than two near-duplicates), an
   `ExcludeNames`-only selector, a colon-less `Interact.Bindings` key (`BINDING_KEY_NO_NAMESPACE`),
   an authored binding namespace no handler claimed (`UNCLAIMED_BINDING_NAMESPACE`), the appearance
   pair `APPEARANCE_MODEL_AND_BASE` (ERROR) / `APPEARANCE_OVERRIDE_WITHOUT_BASE` (WARN),

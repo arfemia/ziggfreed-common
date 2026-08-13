@@ -11,6 +11,30 @@ fields (Pattern A) with native `Parent` inheritance.
 | `AchievementPool` | every folded achievement, ready for `engine.setAchievements(pool.achievements())` |
 | `AchievementAssetStore` | the process-wide loaded layer; `resolveAll(owner)` folds it |
 | `AchievementPoolValidator` | the load-time audit, on the shared `Finding` core, `DOMAIN = "achievement"` |
+| `AchievementCategoryAsset` + `AchievementCategoryConfig` | the TAXONOMY: how one grouping label is presented (`Order`/`Icon`/`TitleKey`/`Subcategories`), at `Server/ZiggfreedCommon/AchievementCategories/<category>.json` |
+| `AchievementMilestoneAsset` + `AchievementMilestoneConfig` | the points LADDER: a reward for a running total, at `Server/ZiggfreedCommon/AchievementMilestones/<name>.json` |
+
+## The taxonomy pair
+
+Both are ordinary framework types: registered by the wiring root's `FrameworkAssetRegistrar`, folded
+`defaults < pack < owner` through `AbstractKeyedAssetConfig`, and read LAZILY (the layer is filled by
+the store's load event, long after any `setup()`).
+
+- **A category asset is presentation and nothing else.** A category exists because content filed
+  itself under that word in the shared `Listing.Category` leaf; these files only say where the word
+  sits, what illustrates it, what it is called, and how its subcategories read. Every leaf is
+  nullable, so a file changing one thing says only that thing.
+- **A milestone's identity is its `Threshold`, not its filename.** `AchievementMilestoneConfig`
+  collapses two files naming one number into one rung and hands them back ascending, which is what
+  `AchievementEngine.setMilestones` wants. A file naming no threshold reaches nothing and is dropped
+  rather than paying out on a player's first point.
+- **The ids key plainly off the FILE name** for both, so a namespace folder
+  (`AchievementMilestones/YourMod/...`) is organisational. `NestedAssetId` is deliberately NOT wired
+  here: a category id has to equal the word content writes, and a milestone is addressed by its
+  number.
+- **Nothing in the milestone schema knows about queueing, retries, or a full backpack.** A consumer
+  that has a policy about an undeliverable payout applies it as it folds; the file just says what is
+  paid.
 
 ## Shared with the quest asset layer, deliberately
 

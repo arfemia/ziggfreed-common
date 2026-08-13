@@ -158,6 +158,9 @@ public final class QuestAssetStore {
             QuestDefinition definition = asset.toDefinition(null);
             if (definition.matchesOwner(filter)) {
                 out.put(id, definition);
+                // Reported at the fold because only the ASSET still carries what the author typed;
+                // the folded rule has already fallen back to a default for anything unparseable.
+                issues.addAll(QuestPoolValidator.repeatFindings(asset.getRepeat(), id));
             }
         }
 
@@ -198,6 +201,7 @@ public final class QuestAssetStore {
                 QuestDefinition definition = decoded.toDefinition(generatorId);
                 if (definition.matchesOwner(filter)) {
                     out.put(body.id(), definition);
+                    issues.addAll(QuestPoolValidator.repeatFindings(decoded.getRepeat(), body.id()));
                 }
             }
         }

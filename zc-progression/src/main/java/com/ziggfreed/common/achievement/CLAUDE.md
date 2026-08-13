@@ -8,6 +8,14 @@ event, and an achievement earns itself the moment its criteria are all met.
 Package root `com.ziggfreed.common.achievement`. Module edge: zc-core, plus zc-loot for the reward
 vocabulary. No engine types outside the native events.
 
+## Where THE runtime lives
+
+THE shared instance comes from [`../progress/runtime/`](../progress/runtime/CLAUDE.md), not from a
+field somebody holds. `builder()` is for tests and for a private engine. **Milestones are published
+through `setMilestones`, never by rebuilding the engine** - a rebuild orphans every cached reference,
+which one shared instance cannot afford, and it is exactly why that method exists beside
+`setAchievements`.
+
 ## The pieces
 
 | Class | What it is |

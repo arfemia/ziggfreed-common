@@ -2,7 +2,6 @@ package com.ziggfreed.common.dialogue;
 
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -18,7 +17,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  *
  * <pre>{@code
  * "Memories": {
- *   "helped_refugees": { "WorldSelector": "emerald_wilds", "ResetWithQuest": "guide_trust" },
+ *   "helped_refugees": { "World": "emerald_wilds", "ResetWithQuest": "guide_trust" },
  *   "knows_my_name": {}
  * }
  * }</pre>
@@ -29,11 +28,13 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  *
  * <p>Every leaf is nullable and independent - declare only the axes that matter:
  * <ul>
- *   <li><b>{@code WorldSelector}</b> - remember it per world FAMILY instead of per character. The
- *       value is a selector NAME from {@code Server/ZiggfreedCommon/WorldSelectors/*.json}, so it
- *       survives an instance world being destroyed and re-created under a fresh name. In a world
- *       that does not carry that selector the memory reads as forgotten and writes are dropped, so
- *       pair it with a {@code World} condition where reaching the beat elsewhere would be odd.</li>
+ *   <li><b>{@code World}</b> - remember it per world instead of per character. The value is a
+ *       world NAME or a pattern ({@code Foo*}, {@code *Foo}, {@code *Foo*}), and the pattern is
+ *       the exact-versus-family dial: {@code *KweebecNightmare*} files the memory under the stable
+ *       core {@code KweebecNightmare}, so it survives an instance world being destroyed and
+ *       re-created under a fresh name. In a world the pattern does not match the memory reads as
+ *       forgotten and writes are dropped, so pair it with a {@code World} condition where reaching
+ *       the beat elsewhere would be odd.</li>
  *   <li><b>{@code ResetWithQuest}</b> - tie the memory's lifetime to a quest: it is filed inside
  *       that quest's own state, so resetting the quest forgets it too. Use this for anything the
  *       player should be able to experience again after a quest reset.</li>
@@ -53,18 +54,28 @@ public final class DialogueMemory {
 
     public static final BuilderCodec<DialogueMemory> CODEC =
             BuilderCodec.builder(DialogueMemory.class, DialogueMemory::new)
-                    .appendInherited(new KeyedCodec<>("WorldSelector", Codec.STRING, false),
-                            (m, v) -> { m.worldSelector = v; m.scope = null; }, m -> m.worldSelector,
-                            (child, parent) -> child.worldSelector = parent.worldSelector).add()
+                    .appendInherited(new KeyedCodec<>("World", Codec.STRING, false),
+                            (m, v) -> { m.world = v; m.scope = null; }, m -> m.world,
+                            (child, parent) -> child.world = parent.world)
+                    .documentation("Remember this per world: an exact world name, or a pattern - Foo* "
+                            + "(prefix), *Foo (suffix), *Foo* (contains). Use the contains form for a "
+                            + "family of instance worlds. Leave it out for one memory per character.")
+                    .add()
                     .appendInherited(new KeyedCodec<>("ResetWithQuest", Codec.STRING, false),
                             (m, v) -> m.resetWithQuest = v, m -> m.resetWithQuest,
-                            (child, parent) -> child.resetWithQuest = parent.resetWithQuest).add()
+                            (child, parent) -> child.resetWithQuest = parent.resetWithQuest)
+                    .documentation("Tie the memory's lifetime to a quest: it is filed inside that "
+                            + "quest's own state, so resetting the quest forgets it too.")
+                    .add()
                     .appendInherited(new KeyedCodec<>("Shared", Codec.BOOLEAN, false),
                             (m, v) -> m.shared = v, m -> m.shared,
-                            (child, parent) -> child.shared = parent.shared).add()
+                            (child, parent) -> child.shared = parent.shared)
+                    .documentation("Make the memory visible to every dialogue that declares this name, "
+                            + "rather than private to this one. Declare it identically in each.")
+                    .add()
                     .build();
 
-    @Nullable protected String worldSelector;
+    @Nullable protected String world;
     @Nullable protected String resetWithQuest;
     @Nullable protected Boolean shared;
 
@@ -75,19 +86,19 @@ public final class DialogueMemory {
 
     /** Java-side construction (tests, a consumer declaring memories in code). */
     @Nonnull
-    public static DialogueMemory of(@Nullable String worldSelector, @Nullable String resetWithQuest,
+    public static DialogueMemory of(@Nullable String world, @Nullable String resetWithQuest,
                                     @Nullable Boolean shared) {
         DialogueMemory memory = new DialogueMemory();
-        memory.worldSelector = worldSelector;
+        memory.world = world;
         memory.resetWithQuest = resetWithQuest;
         memory.shared = shared;
         return memory;
     }
 
-    /** The world-selector name this memory is kept per, or null for one memory per character. */
+    /** The world name or pattern this memory is kept per, or null for one memory per character. */
     @Nullable
-    public String getWorldSelector() {
-        return worldSelector;
+    public String getWorld() {
+        return world;
     }
 
     /** The quest whose reset also forgets this memory, or null when it is permanent. */
@@ -107,13 +118,14 @@ public final class DialogueMemory {
      */
     public boolean sameDeclarationAs(@Nonnull DialogueMemory other) {
         return isShared() == other.isShared()
-                && Objects.equals(normalized(worldSelector), normalized(other.worldSelector))
+                && Objects.equals(normalized(world), normalized(other.world))
                 && Objects.equals(normalized(resetWithQuest), normalized(other.resetWithQuest));
     }
 
     /**
      * The storage key this memory resolves to for the player's CURRENT world, or null when it is
-     * kept per world family and this world is not part of it (reads are "forgotten", writes drop).
+     * kept per world and this world is not one its pattern matches (reads are "forgotten", writes
+     * drop).
      */
     @Nullable
     String keyFor(@Nonnull String dialogueId, @Nonnull String name, @Nonnull DialogueContext ctx) {
@@ -121,13 +133,13 @@ public final class DialogueMemory {
     }
 
     /**
-     * The PURE resolver behind {@link #keyFor}: the key for a world carrying
-     * {@code worldSelectorNames}, or null when it does not carry this memory's selector.
+     * The PURE resolver behind {@link #keyFor}: the key in the world named {@code worldName}, or
+     * null when this memory's pattern does not match it.
      */
     @Nullable
     public String resolveKey(@Nonnull String dialogueId, @Nonnull String name,
-                             @Nonnull Set<String> worldSelectorNames) {
-        return DialogueFlagScope.resolve(scope(), baseKey(dialogueId, name), worldSelectorNames);
+                             @Nullable String worldName) {
+        return DialogueFlagScope.resolve(scope(), baseKey(dialogueId, name), worldName);
     }
 
     /** The key before any world scope: the namespace plus an optional owning-quest prefix. */
@@ -141,7 +153,7 @@ public final class DialogueMemory {
     private DialogueFlagScope scope() {
         DialogueFlagScope cached = scope;
         if (cached == null) {
-            cached = DialogueFlagScope.ofWorldSelector(worldSelector);
+            cached = DialogueFlagScope.ofWorld(world);
             scope = cached;
         }
         return cached;

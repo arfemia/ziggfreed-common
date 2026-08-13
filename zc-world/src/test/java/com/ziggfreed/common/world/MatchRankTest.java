@@ -90,7 +90,7 @@ class MatchRankTest {
         MatchRank second = rank("bar*"); // same band, same core length, same kind
         assertEquals(first, second, "the fixture needs two ranks that compare equal");
         assertSame(first, MatchRank.moreSpecific(first, second),
-                "a tie must keep the earlier-authored match, matching WorldNameMatcher.resolve");
+                "a tie must keep the earlier-authored match, so authoring order decides what the ladder cannot");
     }
 
     @Test

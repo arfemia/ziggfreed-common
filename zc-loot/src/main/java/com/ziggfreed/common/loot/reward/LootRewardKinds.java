@@ -2,16 +2,20 @@ package com.ziggfreed.common.loot.reward;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.inventory.InventoryGrant;
@@ -28,20 +32,30 @@ import com.ziggfreed.common.loot.stamp.StatRoll;
 import com.ziggfreed.common.loot.stamp.Stamper;
 import com.ziggfreed.common.loot.stamp.StamperRegistry;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.util.CommandExecutor;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The three reward kinds the framework itself can pay out, ready to register into a
+ * The four reward kinds the framework itself can pay out, ready to register into a
  * {@link RewardKindRegistry}.
  *
  * <table>
  *   <caption>What each kind reads</caption>
  *   <tr><th>Kind</th><th>Parameters</th></tr>
- *   <tr><td>{@code item}</td><td>{@code Item}, {@code Count}</td></tr>
- *   <tr><td>{@code lootable}</td><td>{@code Lootable}, {@code Trigger}</td></tr>
- *   <tr><td>{@code stamped_item}</td>
+ *   <tr><td>{@code Item}</td><td>{@code Item}, {@code Count}</td></tr>
+ *   <tr><td>{@code Lootable}</td><td>{@code Lootable}, {@code Trigger}</td></tr>
+ *   <tr><td>{@code Stamped_Item}</td>
  *       <td>{@code Item}, {@code Count}, and EITHER {@code Pool} (roll it) or {@code Stats}
  *           (written out, {@code "Damage:5,Speed:2"})</td></tr>
+ *   <tr><td>{@code Command}</td>
+ *       <td>{@code Command}, and optionally {@code RunAs} ({@code Console} or {@code Player}) and
+ *           {@code DelayTicks}</td></tr>
  * </table>
+ *
+ * <p>Ids are native-asset style, PascalCase with underscores, and the framework's own are
+ * UNPREFIXED. A kind belonging to one mod carries that mod's prefix instead ({@code Mmo_Xp}), so two
+ * mods installed together cannot collide by accident. Whatever a reward spells a kind, it is matched
+ * case-insensitively.
  *
  * <p>These are deliberately the only ones. Everything else a payout could mean - currency, a level,
  * a title - belongs to the mod that owns the concept; the framework knowing about them would just be
@@ -65,13 +79,25 @@ import com.ziggfreed.common.subject.Subject;
 public final class LootRewardKinds {
 
     /** Hands over an exact item: {@code {"Item": "Coin_Gold", "Count": "5"}}. */
-    public static final String KIND_ITEM = "item";
+    public static final String KIND_ITEM = "Item";
 
     /** Rolls a named loot table for the player: {@code {"Lootable": "forestfinds"}}. */
-    public static final String KIND_LOOTABLE = "lootable";
+    public static final String KIND_LOOTABLE = "Lootable";
 
     /** Hands over an item with stats already stamped on it. */
-    public static final String KIND_STAMPED_ITEM = "stamped_item";
+    public static final String KIND_STAMPED_ITEM = "Stamped_Item";
+
+    /**
+     * Runs an authored command line: {@code {"Command": "/give {player} Coin_Gold --quantity=5"}}.
+     *
+     * <p>Unprefixed like its siblings because running a command is not any one mod's idea: it is the
+     * capability every server already has, and the one payout whose behaviour is written per reward
+     * rather than per kind. A kind written as a FILE
+     * ({@code Server/ZiggfreedCommon/RewardKinds/}) is the other half of the same idea - use that
+     * when the same command shape repeats across many rewards and deserves a named schema, and this
+     * when the line belongs to the one reward that authored it.
+     */
+    public static final String KIND_COMMAND = "Command";
 
     /** Who these registrations are attributed to in the registry ledger. */
     public static final String OWNER = "ziggfreedcommon";
@@ -110,11 +136,12 @@ public final class LootRewardKinds {
         FACTORS.set(registry);
     }
 
-    /** Register all three kinds into {@code kinds}. */
+    /** Register all four kinds into {@code kinds}. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND_ITEM, OWNER, new ItemHandler());
         kinds.register(KIND_LOOTABLE, OWNER, new LootableHandler());
         kinds.register(KIND_STAMPED_ITEM, OWNER, new StampedItemHandler());
+        kinds.register(KIND_COMMAND, OWNER, new CommandHandler());
     }
 
     /**
@@ -126,7 +153,7 @@ public final class LootRewardKinds {
      * message a player can act on.
      *
      * <p>A spec that needs no room answers TRUE, and that includes the two it cannot know about: a
-     * {@code lootable} rolls its contents at grant time, and a kind another mod registered is that
+     * {@code Lootable} rolls its contents at grant time, and a kind another mod registered is that
      * mod's business. So a false answer always means a specific, named item that specifically will
      * not fit - never a guess.
      */
@@ -150,8 +177,8 @@ public final class LootRewardKinds {
     /** What an item-shaped reward would hand over, or null when it needs no inventory room. */
     @Nullable
     private static Handover roomFor(@Nonnull RewardSpec spec) {
-        String kind = spec.kind().toLowerCase(Locale.ROOT);
-        if (!KIND_ITEM.equals(kind) && !KIND_STAMPED_ITEM.equals(kind)) {
+        String kind = spec.kind();
+        if (!KIND_ITEM.equalsIgnoreCase(kind) && !KIND_STAMPED_ITEM.equalsIgnoreCase(kind)) {
             return null;
         }
         String itemId = itemIdOf(spec);
@@ -192,7 +219,7 @@ public final class LootRewardKinds {
         }
     }
 
-    // ==================== item ====================
+    // ==================== Item ====================
 
     /** {@code {"Item": "<id>", "Count": "<n>"}} - the plain, exact payout. */
     private static final class ItemHandler implements RewardHandler {
@@ -212,7 +239,7 @@ public final class LootRewardKinds {
         }
     }
 
-    // ==================== lootable ====================
+    // ==================== Lootable ====================
 
     /** {@code {"Lootable": "<id>"}} - roll a shared table and hand over whatever it produced. */
     private static final class LootableHandler implements RewardHandler {
@@ -221,8 +248,8 @@ public final class LootRewardKinds {
         public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) throws Exception {
             String tableId = spec.paramOr("lootable", spec.paramOr("id", "")).trim();
             if (tableId.isEmpty()) {
-                throw new IllegalStateException(
-                        "a '" + KIND_LOOTABLE + "' reward named no table - it needs a 'Lootable' parameter");
+                throw new IllegalStateException("a reward of kind '" + KIND_LOOTABLE
+                        + "' named no table - it needs a 'Lootable' parameter");
             }
             Player player = playerOf(subject);
             if (player == null) {
@@ -244,7 +271,7 @@ public final class LootRewardKinds {
         }
     }
 
-    // ==================== stamped item ====================
+    // ==================== Stamped_Item ====================
 
     /**
      * {@code {"Item": "<id>", "Pool": "<rollPoolId>"}} to roll the stats fresh, or
@@ -328,6 +355,121 @@ public final class LootRewardKinds {
         return out;
     }
 
+    // ==================== Command ====================
+
+    /** The command line to run, with {@code {player}}, {@code {uuid}} and its own parameters in it. */
+    public static final String P_COMMAND = "command";
+
+    /** {@code Console} (the default) or {@code Player}: whose authority the line runs with. */
+    public static final String P_RUN_AS = "runas";
+
+    /** How long to wait before running it, in twentieths of a second. Zero runs it now. */
+    public static final String P_DELAY_TICKS = "delayticks";
+
+    /** What paid out, offered to the template as {@code {source}} whether or not it was stamped on. */
+    private static final String P_SOURCE = "source";
+
+    /** The one {@code RunAs} value that is not the console. */
+    private static final String RUN_AS_PLAYER = "player";
+
+    /**
+     * {@code {"Command": "<line>"}} - run an authored command line for the player.
+     *
+     * <p>The template speaks the same vocabulary a kind FILE's does, resolved through the same
+     * substitution: {@code {player}}, {@code {uuid}}, {@code {source}}, and every parameter the
+     * reward itself carries. That is the whole difference between the two - a file declares its
+     * parameters up front and many rewards fill them in, while this one carries its line and its
+     * values together.
+     *
+     * <p>{@code RunAs: Player} runs the line with the player's own authority, which needs a live
+     * player; without one the grant FAILS rather than quietly falling back to the console, because
+     * console authority is the wider of the two and a reward should never grow permissions by
+     * accident. A failed grant is queued as its console form by the payout layer, so nothing is lost.
+     */
+    private static final class CommandHandler implements RewardHandler {
+
+        @Override
+        public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) throws Exception {
+            grant(spec, subject, "");
+        }
+
+        @Override
+        public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                @Nonnull String sourceId) throws Exception {
+            String line = resolveCommand(spec, subject, sourceId);
+            boolean asPlayer = RUN_AS_PLAYER.equalsIgnoreCase(spec.paramOr(P_RUN_AS, "").trim());
+            PlayerRef playerRef = subject.handleAs(PlayerRef.class);
+            if (asPlayer && playerRef == null) {
+                throw new IllegalStateException("a reward of kind '" + KIND_COMMAND + "' asked to run '"
+                        + line + "' as the player, and there is no live player to run it as");
+            }
+            long delayTicks = Math.max(0L, spec.longParam(P_DELAY_TICKS, 0L));
+            if (delayTicks <= 0L) {
+                List<String> failures = new ArrayList<>();
+                if (!dispatch(line, asPlayer, playerRef, failures::add)) {
+                    throw new IllegalStateException("a reward of kind '" + KIND_COMMAND
+                            + "' could not run '" + line + "'"
+                            + (failures.isEmpty() ? "" : ": " + failures.get(0)));
+                }
+                return;
+            }
+            // Deferred through the JDK's own delayer, whose thread is a daemon: a reward waiting on
+            // an animation must not be the reason a server cannot shut down. A line that fails after
+            // the wait has nobody left to throw to, so it reports itself instead of being retried -
+            // the payout was already counted as granted the moment the wait started.
+            CompletableFuture.runAsync(() -> dispatch(line, asPlayer, playerRef, SafeLog::warn),
+                    CompletableFuture.delayedExecutor(delayTicks * 50L, TimeUnit.MILLISECONDS));
+        }
+
+        @Override
+        @Nullable
+        public String retryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                @Nonnull String sourceId) {
+            try {
+                // The console form on purpose: a retry runs with nobody watching, so there is no
+                // player session to borrow authority from.
+                return resolveCommand(spec, subject, sourceId);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * The command line this reward would run, fully substituted, or a THROW naming what is missing.
+     * One resolver behind the live run and the retry, so the two can never be different commands.
+     */
+    @Nonnull
+    private static String resolveCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull String sourceId) {
+        String template = spec.paramOr(P_COMMAND, "").trim();
+        if (template.isEmpty()) {
+            throw new IllegalStateException("a reward of kind '" + KIND_COMMAND
+                    + "' named no command - it needs a 'Command' parameter");
+        }
+        Map<String, String> placeholders = CommandRewardKind.placeholders(spec, subject);
+        placeholders.putIfAbsent(P_SOURCE, sourceId);
+        List<String> resolved = CommandRunner.resolveAll(List.of(template), placeholders);
+        if (resolved.isEmpty()) {
+            throw new IllegalStateException("a reward of kind '" + KIND_COMMAND
+                    + "' resolved to an empty command line");
+        }
+        return resolved.get(0);
+    }
+
+    /**
+     * Run one already-resolved line, as the player when asked and as the console otherwise. False
+     * when it did not run, with the reason handed to {@code failures}.
+     */
+    private static boolean dispatch(@Nonnull String line, boolean asPlayer,
+            @Nullable PlayerRef playerRef, @Nonnull Consumer<String> failures) {
+        if (asPlayer && playerRef != null) {
+            return CommandRunner.runWith(
+                    resolved -> CommandExecutor.executeAsPlayer(playerRef, resolved), line, null, failures);
+        }
+        return CommandRunner.run(line, null, failures);
+    }
+
     // ==================== shared plumbing ====================
 
     /**
@@ -339,11 +481,11 @@ public final class LootRewardKinds {
     private static String requirePayable(@Nonnull String kind, @Nullable String itemId, int count) {
         if (itemId == null) {
             throw new IllegalStateException(
-                    "a '" + kind + "' reward named no item - it needs an 'Item' parameter");
+                    "a reward of kind '" + kind + "' named no item - it needs an 'Item' parameter");
         }
         if (count <= 0) {
             throw new IllegalStateException(
-                    "a '" + kind + "' reward for '" + itemId + "' has a 'Count' of " + count
+                    "a reward of kind '" + kind + "' for '" + itemId + "' has a 'Count' of " + count
                             + ", so it would hand over nothing");
         }
         return itemId;
@@ -430,6 +572,7 @@ public final class LootRewardKinds {
         return Map.of(
                 KIND_ITEM, List.of("item", "count"),
                 KIND_LOOTABLE, List.of("lootable", "trigger"),
-                KIND_STAMPED_ITEM, List.of("item", "count", "pool", "stats", "picks"));
+                KIND_STAMPED_ITEM, List.of("item", "count", "pool", "stats", "picks"),
+                KIND_COMMAND, List.of(P_COMMAND, P_RUN_AS, P_DELAY_TICKS));
     }
 }
