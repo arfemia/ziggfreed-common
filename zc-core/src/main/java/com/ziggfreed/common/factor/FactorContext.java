@@ -27,6 +27,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  *       acting player) and the store to read it through. <b>Live world-thread context, valid
  *       ONLY synchronously during the {@code resolve} call</b>; a provider that defers work must
  *       capture plain values and re-resolve later.</li>
+ *   <li>{@link #target()} - the OTHER entity in the moment, the one it happened TO (the mob that
+ *       just died, the entity that was hit). Read through the same {@link #store()}.</li>
  *   <li>{@link #payload()} - an opaque consumer extension, so a consumer can carry its own
  *       evaluation subject (a placement id, a session handle) without this class learning that
  *       domain.</li>
@@ -38,6 +40,7 @@ public final class FactorContext {
     @Nullable private final World world;
     @Nullable private final Store<EntityStore> store;
     @Nullable private final Ref<EntityStore> subject;
+    @Nullable private final Ref<EntityStore> target;
     @Nullable private final Object payload;
 
     private FactorContext(@Nonnull Builder b) {
@@ -45,6 +48,7 @@ public final class FactorContext {
         this.world = b.world;
         this.store = b.store;
         this.subject = b.subject;
+        this.target = b.target;
         this.payload = b.payload;
     }
 
@@ -72,6 +76,23 @@ public final class FactorContext {
         return subject;
     }
 
+    /**
+     * The entity the moment happened TO, read through the same {@link #store()}: the mob that was
+     * killed, the entity that took the hit. World-thread only, never retained.
+     *
+     * <p>It is a SECOND entity leaf rather than a re-use of {@link #subject()} because a factor
+     * has to be able to say which side of the moment it is asking about - "how rare is the mob that
+     * died" and "how lucky is the player who killed it" are both readings of one kill, and a single
+     * entity leaf would force a provider to guess. Absent (null) is the ordinary case: a block
+     * break, a placement sweep and a dialogue line have no second entity, so a provider that needs
+     * one answers null there and every gate on it stays shut, which is the vocabulary's standing
+     * rule rather than a special case.
+     */
+    @Nullable
+    public Ref<EntityStore> target() {
+        return target;
+    }
+
     /** The consumer's own opaque extension value, or null when the call site supplied none. */
     @Nullable
     public Object payload() {
@@ -87,6 +108,11 @@ public final class FactorContext {
     /** True when a live store AND a valid subject are both present, i.e. an entity read can run. */
     public boolean hasLiveSubject() {
         return store != null && subject != null && subject.isValid();
+    }
+
+    /** True when a live store AND a valid target are both present, i.e. a target read can run. */
+    public boolean hasLiveTarget() {
+        return store != null && target != null && target.isValid();
     }
 
     /**
@@ -105,6 +131,7 @@ public final class FactorContext {
                 .world(world)
                 .store(store)
                 .subject(subject)
+                .target(target)
                 .payload(payload)
                 .build();
     }
@@ -121,6 +148,7 @@ public final class FactorContext {
         @Nullable private World world;
         @Nullable private Store<EntityStore> store;
         @Nullable private Ref<EntityStore> subject;
+        @Nullable private Ref<EntityStore> target;
         @Nullable private Object payload;
 
         private Builder() {
@@ -147,6 +175,13 @@ public final class FactorContext {
         @Nonnull
         public Builder subject(@Nullable Ref<EntityStore> subject) {
             this.subject = subject;
+            return this;
+        }
+
+        /** The entity the moment happened TO (the victim), read through the same store. */
+        @Nonnull
+        public Builder target(@Nullable Ref<EntityStore> target) {
+            this.target = target;
             return this;
         }
 

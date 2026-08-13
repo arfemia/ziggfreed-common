@@ -49,9 +49,9 @@ compiles as `:zc-loot`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggreg
   (block-first full-inventory guard), `PendingRewardStore` (durable per-player queue),
   `DeferredRewards` (the one translation from what a `LootEngine.select` decision decided into
   rewards a player can be shown now and handed later), `LootEntry`/`WinGate` (the terse compact
-  spec grammar, also consumed by `mmo-mob-scaling`'s `BonusRewards` outside this library), and
-  `NativeLootService` (the XP-agnostic engine-touching half: roll a native `ItemDropList`, spawn it
-  on the ground).
+  spec grammar, offered to a codec field that can only hold a `String[]`; no consumer speaks it
+  today, so its own tests are the whole of what pins it), and `NativeLootService` (the XP-agnostic
+  engine-touching half: roll a native `ItemDropList`, spawn it on the ground).
 
 ## Shipped resources
 

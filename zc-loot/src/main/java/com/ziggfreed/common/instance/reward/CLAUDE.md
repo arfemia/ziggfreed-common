@@ -85,7 +85,10 @@ Package naming to keep as this module grows: the tri-layer shape `<domain>/` + `
   walked by the same `loot/FactorGate` every other piece of gated content uses. For a codec field that
   is a plain `String[]` and a whole pool visible at a glance; the structured surface with more reach
   (conditions over any factor, every grant leaf, contributions from other packs) is a `Lootable`'s own
-  `Pool` group. `mmo-mob-scaling`'s `BonusRewards` is the compact surface's other consumer.
+  `Pool` group. **Nothing speaks this grammar today** - every site that once did authors a `Lootable`
+  `Pool` instead, and `LootEntryTest` is the only thing holding the parser to its contract. Reach for
+  it only where a codec field genuinely cannot hold anything but a `String[]`; anywhere else the
+  structured group is the surface to author.
 - **[`NativeLootService`](NativeLootService.java)** - the XP-AGNOSTIC engine-touching half of the
   primitive: `rollNative(dropListId)` wraps `ItemModule.getRandomItemDrops` (empty + warn-once on a
   disabled module or an unclaimed id, mirroring the sibling `mmo-mob-scaling`

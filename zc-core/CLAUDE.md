@@ -40,10 +40,16 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
   admission table); never merges with `stats/` in zc-entity.
 - [`factor/`](src/main/java/com/ziggfreed/common/factor/CLAUDE.md) - the shared namespaced factor +
   condition MODEL (`FactorContext`/`FactorProvider`/`FactorRegistry`/`FactorCondition`/
-  `FactorConditions`). The portable `hytale:` standard library that reads real engine data is a
-  split package in zc-entity, not here.
+  `FactorConditions`) plus `FactorContributions`, the process-wide door one mod claims an id through
+  so every other mod's vocabulary can read it. The portable `hytale:` standard library that reads
+  real engine data is a split package in zc-entity, not here.
 - [`health/`](src/main/java/com/ziggfreed/common/health/CLAUDE.md) - `HealthUtil` (native
   `EntityStats` heal + max-health scale, `Store`/`Ref` and ref-less `Holder` forms).
+- [`match/`](src/main/java/com/ziggfreed/common/match/CLAUDE.md) - `NamePattern` (the ONE
+  name-pattern grammar: exact / prefix / suffix / contains / catch-all) + `NameMatchRank` (the
+  specificity ladder that orders two patterns matching one name). Named by zc-world (a world
+  selector) and by consumer mods' trigger keys (the MMO's BonusDrops `When.Match`, mob-scaling's
+  validator); it sits at the bottom so a consumer needs no zc-world edge to speak the grammar.
 - [`i18n/`](src/main/java/com/ziggfreed/common/i18n/CLAUDE.md) - `Msg`, the mod-agnostic
   client-resolved `Message` factory (caller-prefixed `tr`, `raw`, `join`, `cat`, `bold`/`color`).
 - [`inventory/`](src/main/java/com/ziggfreed/common/inventory/CLAUDE.md) - `InventoryUtil`
@@ -90,9 +96,10 @@ try-guards real rather than decorative.
 
 ## Tests
 
-21 files in `src/test/java/com/ziggfreed/common/`, one per primitive above plus the factor-model
-core (`FactorFormulaTest`, `FactorVocabularyTest`, `DerivedFactorTest`,
-`DerivedFactorValidatorTest`), the codec leaves (`InheritMapCodecTest`, `JsonParentResolverTest`,
+25 files in `src/test/java/com/ziggfreed/common/`, one per primitive above plus the factor-model
+core (`FactorFormulaTest`, `FactorVocabularyTest`, `FactorContextTest`, `FactorContributionsTest`,
+`DerivedFactorTest`, `DerivedFactorValidatorTest`), the name-matching core (`NamePatternTest`,
+`NameMatchRankTest`), the codec leaves (`InheritMapCodecTest`, `JsonParentResolverTest`,
 `JsonTreeCodecTest`, `JsonOverrideWriterTest`), and `NativeNamesTest`/`GeneratedLangPackTest` for
 the i18n overlay primitive. The two cross-cutting guard tests that touch every module
 (`AssetCodecInitTest`, `RootRegistrationOnlyTest`) live in the wiring root's own test set, not

@@ -12,12 +12,16 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.ziggfreed.common.world.WorldNameMatcher.Kind;
+import com.ziggfreed.common.match.NamePattern.Kind;
 import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
 
 /**
- * The specificity ladder itself: band order, the core-length-dominates-kind rule inside the
- * partial band, and the first-wins-on-tie fold. Pure decision core, no engine, no balance data.
+ * The WORLD ladder: the same shared bands plus the {@code GameplayConfig} rung above them all.
+ * Band order, the core-length-dominates-kind rule inside the partial band, and the
+ * first-wins-on-tie fold. Pure decision core, no engine, no balance data.
+ *
+ * <p>The shared ladder's own contract is pinned in zc-core's {@code NameMatchRankTest}; what this
+ * file adds is that the world flavour still sorts identically with band 0 on top.
  */
 class MatchRankTest {
 

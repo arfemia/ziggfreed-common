@@ -26,7 +26,11 @@ compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggre
   `WorldSelectorConfig` (`Server/ZiggfreedCommon/WorldSelectors/`), the embeddable `WorldSelector`
   group codec (`{Names, Match, GameplayConfig, ExcludeNames}`), the `MatchRank` specificity ladder
   (`GameplayConfig` exact > exact name > longest partial core > bare `*`), and the cached
-  `WorldIdentity` resolver. `ExcludeNames` resolves in two passes (positive names first, exclusions
+  `WorldIdentity` resolver. **The pattern GRAMMAR and the ladder itself are zc-core's
+  [`match/`](../zc-core/src/main/java/com/ziggfreed/common/match/CLAUDE.md)**: `WorldNameMatcher
+  .Pattern` is a `NamePattern` and `MatchRank` is a `NameMatchRank` plus the one world-specific
+  `GameplayConfig` rung, so a world-targeting field and any other name-matched field in the library
+  parse and sort identically. `ExcludeNames` resolves in two passes (positive names first, exclusions
   applied against that fixed set) so a world's names never depend on fold order. `WorldSelectorOverrides`
   reads the owner layer `mods/ziggfreedcommon/world-selectors.json` (id -> whole selector body,
   entry replaces by id). Also `SurfaceProbe` (top-solid-Y column probe -> floor-snap) and
@@ -57,6 +61,8 @@ forms) makes a misconfigured selector loud instead of silently matching nothing.
 ## Tests
 
 9 files: `WorldSelectorAssetTest`, `WorldSelectorMatchTest`, `WorldSelectorValidatorTest`,
-`WorldSelectorOverridesTest` (the owner-layer re-point), `WorldIdentityTest`, `MatchRankTest`,
-`WorldNameMatcherTest` (the pure pattern grammar - parses and scores, never selects, per its own
-javadoc), `MapDiscoveryTest`, `WaypointSnapshotsTest`.
+`WorldSelectorOverridesTest` (the owner-layer re-point), `WorldIdentityTest`, `MatchRankTest` (the
+world ladder: the shared bands plus the `GameplayConfig` rung on top), `WorldNameMatcherTest` (the
+grammar as the world SELECTS through it - parses and scores, never selects, per its own javadoc),
+`MapDiscoveryTest`, `WaypointSnapshotsTest`. The grammar's and the ladder's own contracts are pinned
+once in zc-core (`NamePatternTest`, `NameMatchRankTest`); these two cover what the world adds.

@@ -2,9 +2,11 @@ package com.ziggfreed.common.factor;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -24,6 +26,15 @@ import com.ziggfreed.common.util.SafeLog;
  * leaks into another's. (A single library engine may still expose ONE process-wide instance
  * behind a static facade where its own content is process-wide; that is the facade's choice, not
  * this class's.)
+ *
+ * <p><b>Two shared layers sit UNDER every registry, in this order, and only where its own ledger
+ * has nothing.</b> First {@link FactorContributions}, the process-wide door another mod claims an
+ * id through - a contributed provider then answers here exactly as a locally registered one would,
+ * which is what lets a loot table read a mob-difficulty mod's numbers with neither mod depending on
+ * the other. Then the wired {@link DerivedFactorSource}, an id DEFINED as a formula in an asset.
+ * A consumer's own registration therefore always wins, a contributor's claim beats an asset
+ * definition of the same id, and an id nobody supplies at any layer fails closed exactly as
+ * before.
  *
  * <p><b>Fail-closed, and the null sentinel is the whole mechanism.</b> An unregistered id, a
  * throwing provider, and a provider answering {@link FactorProvider#resolve} with {@code null}
@@ -144,21 +155,36 @@ public final class FactorRegistry {
         return derivedSource;
     }
 
-    /** Is {@code factorId} registered? Used by a validator to report a gate that fails closed. */
+    /**
+     * Is {@code factorId} answerable here - registered locally, or contributed process-wide by
+     * another mod? Used by a validator to report a gate that fails closed, so a cross-mod factor
+     * whose owner IS installed must not be reported as unknown.
+     */
     public boolean isRegistered(@Nullable String factorId) {
-        return ledger.isRegistered(factorId);
+        return ledger.isRegistered(factorId) || FactorContributions.isContributed(factorId);
     }
 
-    /** Every registered factor id, sorted (diagnostics, an authoring dropdown, a validator hint). */
+    /**
+     * Every factor id this registry answers, sorted (diagnostics, an authoring dropdown, a
+     * validator hint): its own registrations plus every contributed id.
+     */
     @Nonnull
     public List<String> ids() {
-        return List.copyOf(ledger.ids());
+        Set<String> all = new TreeSet<>(ledger.ids());
+        all.addAll(FactorContributions.ids());
+        return List.copyOf(all);
     }
 
-    /** Every registered id's owner + failure history, keyed by id (an admin registry listing). */
+    /**
+     * Every answerable id's owner + failure history, keyed by id (an admin registry listing).
+     * Contributed ids are included; a local registration of the same id wins, because that is the
+     * one that answers.
+     */
     @Nonnull
     public Map<String, RegistryLedger.RegistrationInfo> info() {
-        return ledger.info();
+        Map<String, RegistryLedger.RegistrationInfo> out = new LinkedHashMap<>(FactorContributions.info());
+        out.putAll(ledger.info());
+        return out;
     }
 
     /**
@@ -170,8 +196,12 @@ public final class FactorRegistry {
      * is treated as unresolvable too: a NaN cannot be reasoned about, so a gate on it must stay
      * shut rather than pass by accident. Never throws.
      *
-     * <p><b>A provider miss falls through to the wired {@link DerivedFactorSource}</b>, if there is
-     * one. When it defines {@code factorId}, the formula is evaluated against THIS registry and
+     * <p><b>A local miss falls through to {@link FactorContributions} first</b>: another mod may
+     * have claimed the id process-wide, and a contributed provider answers here exactly as a local
+     * one does (a throw is counted against the CONTRIBUTOR, not against this vocabulary).
+     *
+     * <p><b>A provider miss then falls through to the wired {@link DerivedFactorSource}</b>, if there
+     * is one. When it defines {@code factorId}, the formula is evaluated against THIS registry and
      * THIS context, so the derived value is resolved for the same subject/world/payload the caller
      * asked about, and the definition is then ADOPTED into the ledger under owner
      * {@code asset:<id>}: subsequent reads take the ordinary provider path, an admin registry
@@ -195,6 +225,11 @@ public final class FactorRegistry {
         }
         String key = RegistryLedger.normalize(factorId);
         FactorProvider provider = ledger.get(key);
+        boolean contributed = false;
+        if (provider == null) {
+            provider = FactorContributions.provider(key);
+            contributed = provider != null;
+        }
         if (provider == null) {
             provider = adoptDerived(key, factorId);
         }
@@ -207,14 +242,21 @@ public final class FactorRegistry {
         try {
             value = provider.resolve(ctx);
         } catch (Throwable t) {
-            ledger.recordFailure(key, t.getMessage());
+            if (contributed) {
+                FactorContributions.recordFailure(key, t.getMessage());
+            } else {
+                ledger.recordFailure(key, t.getMessage());
+            }
             warnOnce(key, "factor provider '" + factorId + "' failed: " + t.getMessage());
             return null;
         }
         return value != null && Double.isFinite(value) ? value : null;
     }
 
-    /** Drop every registration, every adopted definition, and every warn-once latch. */
+    /**
+     * Drop every registration, every adopted definition, and every warn-once latch. Contributions
+     * are NOT dropped: they belong to the mods that made them, not to this vocabulary.
+     */
     public void clear() {
         ledger.clear();
         adoptedDerived.clear();

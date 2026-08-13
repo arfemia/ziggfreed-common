@@ -7,6 +7,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.match.NamePattern.Kind;
+
 /**
  * The world-name ladder, end to end: exact &gt; longest literal core (prefix/suffix/contains,
  * tie-break prefix &gt; suffix &gt; contains) &gt; bare {@code *}, case-insensitivity, and the
@@ -120,12 +122,14 @@ class WorldNameMatcherTest {
     }
 
     @Test
-    void patternExposesItsKindAndCore() {
-        assertEquals(WorldNameMatcher.Kind.CONTAINS, WorldNameMatcher.Pattern.parse("*Foo*").kind());
+    void patternExposesTheSharedKindAndCore() {
+        // The world flavour speaks the SHARED grammar vocabulary, so a world rule and any other
+        // name-matched rule in the library describe the same pattern shape in the same words.
+        assertEquals(Kind.CONTAINS, WorldNameMatcher.Pattern.parse("*Foo*").kind());
         assertEquals("foo", WorldNameMatcher.Pattern.parse("*Foo*").core());
-        assertEquals(WorldNameMatcher.Kind.EXACT, WorldNameMatcher.Pattern.parse("default").kind());
+        assertEquals(Kind.EXACT, WorldNameMatcher.Pattern.parse("default").kind());
         assertEquals("default", WorldNameMatcher.Pattern.parse("default").core());
-        assertEquals(WorldNameMatcher.Kind.ALL, WorldNameMatcher.Pattern.parse("*").kind());
+        assertEquals(Kind.ALL, WorldNameMatcher.Pattern.parse("*").kind());
         assertEquals("", WorldNameMatcher.Pattern.parse("*").core());
     }
 }

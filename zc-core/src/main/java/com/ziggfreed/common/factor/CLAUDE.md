@@ -38,10 +38,21 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
 - **[`FactorContext`](FactorContext.java)** - the immutable question, builder-built, every leaf
   independently nullable and ORTHOGONAL: `param` (the authored argument beside the id), `world`,
   `store` + `subject` (the entity the question is ABOUT - live world-thread handles, valid only
-  inside the `resolve` call), and `payload` (the consumer's own opaque extension, e.g. a placement
-  id). **Field-additive by design**: a new leaf is a new nullable field plus a builder method, so a
-  provider written against an older shape keeps working - which is what lets one vocabulary serve
-  sites as different as a pre-spawn placement gate (no subject at all) and a dialogue render (both).
+  inside the `resolve` call), `target` (the OTHER entity in the moment, the one it happened TO), and
+  `payload` (the consumer's own opaque extension, e.g. a placement id). **Field-additive by design**:
+  a new leaf is a new nullable field plus a builder method, so a provider written against an older
+  shape keeps working - which is what lets one vocabulary serve sites as different as a pre-spawn
+  placement gate (no subject at all) and a dialogue render (both).
+  - **`subject` and `target` are two leaves because a moment has two sides.** "How rare is the mob
+    that died" and "how lucky is the player who killed it" are both readings of one kill, and a
+    single entity leaf would force a provider to guess which one it was handed. A drop site threads
+    the victim as `target`; a block break, a placement sweep and a dialogue line have none, so a
+    target-reading provider answers null there and every gate on it stays shut - the standing rule,
+    not a special case. `hasLiveTarget()` is the guard to ask before reading it, exactly like
+    `hasLiveSubject()`.
+  - **`withParam` carries every leaf.** The array evaluators rebuild the context per entry so each
+    carries its own `Param`; a leaf dropped there would silently blank a factor for every entry after
+    the first, which is why `FactorContextTest` pins the carry-over rather than trusting it.
 - **[`FactorProvider`](FactorProvider.java)** - `@Nullable Double resolve(ctx)`. World thread,
   synchronous, never retains the context.
 - **[`FactorFormula`](FactorFormula.java)** - the ONE authored VALUE leaf, `{Base?, Factors:[{Factor,
@@ -75,11 +86,39 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
   for owner attribution + failure counting; `register`/`resolve`/`ids`/`isRegistered`/`info`/
   `clear`, ids matched case-insensitively, last write wins. A library engine whose CONTENT is
   process-wide may still put ONE instance behind a static facade (`npc.placement
-  .PlacementFactorRegistry` does) - that is the facade's call, not this class's. On a provider MISS
-  it consults its `DerivedFactorSource` and, on a hit, ADOPTS the definition into the ledger under
-  owner `asset:<id>` (so an admin listing names the file to edit and an evaluation failure is
-  countable); the adopted provider re-reads the config every call, so a re-import needs no
-  invalidation and a dropped file goes straight back to failing closed.
+  .PlacementFactorRegistry` does) - that is the facade's call, not this class's.
+  - **Two shared layers sit under every registry, consulted in this order and only on a local miss**:
+    `FactorContributions` (below), then its `DerivedFactorSource`. So a consumer's own registration
+    always wins, a contributing mod's claim beats an asset definition of the same id, and an id
+    nobody supplies at any layer fails closed exactly as it always did.
+  - On a derived HIT it ADOPTS the definition into the ledger under owner `asset:<id>` (so an admin
+    listing names the file to edit and an evaluation failure is countable); the adopted provider
+    re-reads the config every call, so a re-import needs no invalidation and a dropped file goes
+    straight back to failing closed.
+  - `isRegistered` / `ids` / `info` answer for CONTRIBUTED ids too, because a validator asking "does
+    anything answer this?" must not report a cross-mod factor whose owner IS installed as unknown.
+    `clear()` drops only this registry's own registrations: a contribution belongs to the mod that
+    made it.
+- **[`FactorContributions`](FactorContributions.java)** - the process-wide door a mod claims a factor
+  id through, so EVERY vocabulary on the server can read it. One `register(id, owner, provider)` call
+  at the contributing mod's `setup()`, and from then on every `FactorRegistry` resolves that id as if
+  it had registered the provider itself.
+  - **Why it exists**: a per-consumer registry is right for a mod's own readings and wrong for the
+    cross-mod case. A mob-difficulty mod knows how rare the mob in front of you is; a loot table in a
+    third mod wants that number. Without a shared door the reader would have to depend on the writer,
+    and every pair of mods that wanted to compose would need a bespoke bridge.
+  - **Nothing has to be wired in the other direction, and setup ORDER does not matter** - a registry
+    consults this table live, so a vocabulary built before the contributor ran still resolves the id.
+  - **An absent contributor changes nothing about how content behaves**: nobody registers the id, so
+    a gate on it fails closed and a formula term on it adds zero. That is the standing rule, and it
+    is what lets one authored file be correct on a server with the mod and on a server without it.
+  - Namespace the id after the vocabulary's OWNER (`mmomobscaling:mob_rarity_tier`), the same rule
+    the portable `hytale:` library follows, so an author can tell from the id alone which mod has to
+    be installed. The first claim of an id logs one line naming the owner, so the boot log already
+    carries the whole picture; `contributors()` is the same thing as data (owner to sorted ids), for
+    an admin listing or a diagnostic that wants it rendered its own way.
+  - A throwing contributed provider is counted against the CONTRIBUTOR, not against whichever
+    vocabulary happened to ask.
 - **[`FactorCondition`](FactorCondition.java)** - the ONE authored gate leaf,
   `{Factor, Param?, Min?, Max?}`, bounds inclusive and independently optional. **The codec is a
   FACTORY**, `codec(dataSetId)`, because every consumer wants its OWN Asset Editor pick list on the
@@ -153,6 +192,9 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
   the registry the engine was built with (`DialogueEngine.Builder#factors`); store + subject are
   both the player. An engine built with NO registry fails every `Factor` condition closed with one
   warn, so a server missing the vocabulary's owner sees the ungated conversation.
+- **a CONTRIBUTING mod** - one that registers ids through `FactorContributions` rather than reading
+  any vocabulary of its own, so its numbers reach every consumer's content with no edge in either
+  direction (a mob-difficulty mod publishing rarity / difficulty / region readings is the shape).
 
 ## Asset Editor pick lists
 
@@ -170,7 +212,12 @@ still resolves, and the validators stay the real check.
 
 `zc-core`'s `FactorVocabularyTest` pins the whole fail-closed matrix, the accepts table, and the
 array evaluator; `FactorFormulaTest` pins the value side's mirror-image degrade-to-zero table plus
-the codec and `Parent` inheritance; `DerivedFactorTest` runs an asset-defined factor end to end and
+the codec and `Parent` inheritance; `FactorContextTest` pins every leaf's absent-until-supplied
+default, the two entity leaves' independence, and the `withParam` carry-over;
+`FactorContributionsTest` pins the whole absent-mod story (uncontributed id resolves to nothing, the
+bounds-less gate stays shut, the term adds zero while the rest of the formula survives) beside the
+installed one, plus local-beats-contributed precedence and per-contributor attribution;
+`DerivedFactorTest` runs an asset-defined factor end to end and
 pins the two silent killers (a cycle fails closed ALL the way out rather than being swallowed by the
 degrade-to-zero rule, and a definition reloaded away is not cached open); `DerivedFactorValidatorTest`
 covers the findings. `zc-entity`'s `HytaleFactorsTest` pins the no-subject behaviour of every
