@@ -11,6 +11,8 @@ Every field is optional and defaults to `null` unless its Default column reads *
 - [QuestAsset](#type-questasset)
 - [QuestObjective](#type-questobjective)
 - [AchievementAsset](#type-achievementasset)
+- [AchievementCategoryAsset](#type-achievementcategoryasset)
+- [AchievementMilestoneAsset](#type-achievementmilestoneasset)
 - [QuestGeneratorAsset](#type-questgeneratorasset)
 - [GeneratorAxis](#type-generatoraxis)
 - [ContentText](#type-contenttext)
@@ -30,7 +32,6 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Name` | `string` | `null` |  |
 | `Enabled` | `boolean` | `null` | Whether the quest is in circulation; unauthored means true. Setting false stops it being offered while leaving a player who already holds it able to finish. |
 | `Abstract` | `boolean` | `null` | Mark a file that exists only to be inherited from. It stays available as a Parent target and is never offered to anybody, so a shared skeleton needs no objectives of its own. It never carries down to a child: inheriting from a skeleton makes a real quest. |
-| `Owner` | `string` | `null` | Which game or mod this quest belongs to, so several can author into one store and each runs only its own. Unauthored means unowned, which every reader picks up. |
 | `Text` | [ContentText](#type-contenttext) | `null` | What the player reads, as localization keys. |
 | `Listing` | [Listing](#field-questasset-listing) | `null` | How the quest is grouped and ordered wherever quests are listed. |
 | `Flow` | [Flow](#field-questasset-flow) | `null` | How much the player has to do by hand: take it, track it, collect the reward, and whether the steps run in order. |
@@ -132,7 +133,6 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Name` | `string` | `null` |  |
 | `Enabled` | `boolean` | `null` | Whether the achievement is in circulation; unauthored means true. Setting false stops it being earned or listed while leaving it with whoever already earned it. |
 | `Abstract` | `boolean` | `null` | Mark a file that exists only to be inherited from. It stays available as a Parent target and is never earnable, so a shared skeleton needs no criteria of its own. It never carries down to a child: inheriting from a skeleton makes a real achievement. |
-| `Owner` | `string` | `null` | Which game or mod this belongs to, so several can author into one store and each runs only its own. Unauthored means unowned, which every reader picks up. |
 | `Text` | [ContentText](#type-contenttext) | `null` | What the player reads, as localization keys. |
 | `Listing` | [Listing](#field-achievementasset-listing) | `null` | How it is grouped, ordered, illustrated, and whether it is listed before it is earned. |
 | `Scoring` | [Scoring](#field-achievementasset-scoring) | `null` | What it is worth, and whether that worth counts toward a player's total. |
@@ -172,6 +172,36 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Id` | `string` | `null` | The ladder's own id, shared by every rung of it. Give each ladder its own: two unrelated ladders sharing one are shown as a single climb. |
 | `Tier` | `integer` | `null` | Which rung this is, counting from 1. Number them in the order a player climbs them, since a listing shows the highest one reached. |
 
+<a id="type-achievementcategoryasset"></a>
+## AchievementCategoryAsset
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
+| `Order` | `integer` | `null` | Where this category sits among the others, lowest first. It is a sort key rather than an index, so leave gaps (0, 10, 20) and a later category slots between two without renumbering the rest. Unauthored sorts after every category that named one. |
+| `Icon` | `string` | `null` | An item id standing for the whole category, shown for content in it that illustrated itself with nothing of its own. |
+| `TitleKey` | `string` | `null` | The translation key a surface labels this group with, so every player reads it in their own language. Unauthored leaves the label to whatever the surface does by convention. |
+| `Subcategories` | array of `string` | `null` | The reading order of the groups INSIDE this category. One left out still shows, it just sorts after the named ones. This is ONE leaf: author it and an inherited list is replaced whole. |
+
+<a id="type-achievementmilestoneasset"></a>
+## AchievementMilestoneAsset
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
+| `Threshold` | `integer` | `null` | The points total that reaches this milestone, and its real identity. Two files naming the same number are the same milestone, whatever they are called, so re-tune a rung by authoring its threshold rather than by matching a filename. |
+| `TitleKey` | `string` | `null` | The translation key naming this rung, so every player reads it in their own language. Unauthored leaves the name to whatever the surface does by convention. |
+| `DescriptionKey` | `string` | `null` | The translation key describing what reaching it takes. Unauthored leaves the line to the surface, which usually says the number itself. |
+| `Rewards` | [Rewards](#field-achievementmilestoneasset-rewards) | `null` | What crossing it pays, split by the two moments a payout can land in. |
+
+<a id="field-achievementmilestoneasset-rewards"></a>
+### AchievementMilestoneAsset.Rewards
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Auto` | array of [RewardEntry](#type-rewardentry) | `null` | Paid the instant the total is crossed, wherever the player is. Keep it to things that need no bag room. This is ONE leaf: author it and an inherited list is replaced whole. |
+| `Claim` | array of [RewardEntry](#type-rewardentry) | `null` | Waits on a surface for the player to collect. Where anything needing backpack room belongs, so a full bag costs nobody a reward. This is ONE leaf: author it and an inherited list is replaced whole. |
+
 <a id="type-questgeneratorasset"></a>
 ## QuestGeneratorAsset
 
@@ -180,7 +210,6 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
 | `Name` | `string` | `null` |  |
 | `Enabled` | `boolean` | `null` | Whether this generator runs at all; unauthored means true. Set false to stop a whole family appearing without deleting the file. |
-| `Owner` | `string` | `null` | Which game or mod the generated quests belong to. It is stamped on every child, so one store can serve several games. |
 | `Base` | `string` | `null` | The quest id every child inherits from. Author it as a quest file with Abstract set, carrying everything the family shares. |
 | `IdPattern` | `string` | `null` | How each child's id is spelled, with {token} placeholders. Include enough tokens to keep every combination distinct, or two children collide and only one survives. |
 | `ForEach` | array of [GeneratorAxis](#type-generatoraxis) | `null` | The axes to walk. Several axes multiply, so keep the count small and bind related values on one row instead of adding an axis for each. |

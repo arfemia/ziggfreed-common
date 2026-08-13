@@ -12,7 +12,7 @@ Store paths (registered ONCE by the root `asset/FrameworkAssetRegistrar`, common
 files -> asset store (resolves Parent natively)   -> QuestAssetStore.mergeQuests
 generators                                        -> QuestAssetStore.mergeGenerators
                      |
-consumer: store.resolveAll(owner, enumerators)    -> expand generators -> decode each generated
+consumer: store.resolveAll(enumerators)           -> expand generators -> decode each generated
                                                      body against its Base through THE SAME codec
                      |
                   QuestPool  -> engine.setQuests(pool.quests())

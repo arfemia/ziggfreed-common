@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
@@ -23,13 +22,15 @@ import com.ziggfreed.common.validation.ValidationReport;
  * to its engine.
  *
  * <pre>{@code
- * AchievementPool pool = AchievementAssetStore.getInstance().resolveAll("yourmod");
+ * AchievementPool pool = AchievementAssetStore.getInstance().resolveAll();
  * engine.setAchievements(pool.achievements());
  * }</pre>
  *
  * <p>The store is process-wide because the ASSETS are: one folder, one set of files, however many
- * games read them. Each consumer filters by {@code Owner}, and one that names no owner is picked up
- * by every reader (which is what an unowned shared base wants).
+ * games read them. Every reader resolves the WHOLE store, so an achievement is written once and
+ * whoever runs progression on this server picks it up. Two readers publishing the same id is
+ * settled by rank where the content layers meet, and two FILES landing on one id is reported here,
+ * naming both, because in that case one of them simply never exists.
  *
  * <p>Assets arrive already whole: the engine's own asset loading resolved their {@code Parent}
  * chains as the files were read.
@@ -100,10 +101,10 @@ public final class AchievementAssetStore {
         return Collections.unmodifiableMap(achievements);
     }
 
-    /** The folded pool for {@code ownerFilter}, findings logged. */
+    /** The folded pool, findings logged. */
     @Nonnull
-    public AchievementPool resolveAll(@Nullable String ownerFilter) {
-        Resolution resolution = resolve(ownerFilter);
+    public AchievementPool resolveAll() {
+        Resolution resolution = resolve();
         logIssues(resolution.issues());
         return resolution.pool();
     }
@@ -112,12 +113,13 @@ public final class AchievementAssetStore {
      * Fold every loaded achievement into one pool, skipping the skeletons that exist only to be
      * inherited from.
      *
-     * @param ownerFilter only emit achievements with this owner (null = every one, whoever owns it)
+     * <p>A skeleton is skipped because it is not a thing anybody can earn: a shared base, or a
+     * STENCIL whose id is a pattern a consumer stamps out against its own runtime roster. A
+     * consumer that knows how to expand one reads it off {@link #assets()} and expands it there;
+     * nothing unearnable ever reaches a pool.
      */
     @Nonnull
-    public Resolution resolve(@Nullable String ownerFilter) {
-        String filter = ownerFilter == null || ownerFilter.isBlank()
-                ? null : ownerFilter.trim().toLowerCase(Locale.ROOT);
+    public Resolution resolve() {
         List<Finding> issues = new ArrayList<>(layerFindings);
         Map<String, AchievementDefinition> out = new LinkedHashMap<>();
 
@@ -132,10 +134,7 @@ public final class AchievementAssetStore {
             if (asset.isAbstract()) {
                 continue;
             }
-            AchievementDefinition definition = asset.toDefinition();
-            if (definition.matchesOwner(filter)) {
-                out.put(id, definition);
-            }
+            out.put(id, asset.toDefinition());
         }
         return new Resolution(new AchievementPool(out), issues);
     }

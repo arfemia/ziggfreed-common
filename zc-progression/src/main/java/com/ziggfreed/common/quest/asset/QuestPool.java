@@ -21,7 +21,7 @@ import com.ziggfreed.common.subject.Subject;
  *
  * <p>The usual shape of a load is one line:
  * <pre>{@code
- * QuestPool pool = QuestAssetStore.getInstance().resolveAll("yourmod", myEnumerators, warn);
+ * QuestPool pool = QuestAssetStore.getInstance().resolveAll(myEnumerators);
  * engine.setQuests(pool.quests());
  * }</pre>
  * and then the consumer's UI reads {@link #definition} for the text and gates while the engine runs

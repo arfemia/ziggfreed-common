@@ -109,7 +109,6 @@ public final class QuestGeneratorExpander {
 
         List<GeneratedQuestBody> bodies = new ArrayList<>(combinations.size());
         Set<String> seen = new LinkedHashSet<>();
-        String owner = generator.getOwner();
         for (Map<String, JsonPrimitive> bindings : combinations) {
             String id = substituteString(idPattern, bindings).trim().toLowerCase(Locale.ROOT);
             JsonObject body = (JsonObject) substitute(child, bindings);
@@ -137,7 +136,7 @@ public final class QuestGeneratorExpander {
                     withParent.add(entry.getKey(), entry.getValue());
                 }
             }
-            bodies.add(new GeneratedQuestBody(id, withParent, baseId, sourceId, owner));
+            bodies.add(new GeneratedQuestBody(id, withParent, baseId, sourceId));
         }
         return new Expansion(bodies, issues);
     }

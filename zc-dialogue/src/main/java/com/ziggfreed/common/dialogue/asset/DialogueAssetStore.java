@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.ziggfreed.common.dialogue.NpcDialogue;
 
@@ -19,9 +18,9 @@ import com.ziggfreed.common.dialogue.NpcDialogue;
  * second parse and no per-mod decode step. The layer is rebuilt WHOLESALE from each load event, so a
  * hot re-import is idempotent.
  *
- * <p>A mod asks for {@linkplain #dialogues(String) its own} conversations by owner, which is what
- * lets several of them author into one folder without seeing each other's content. Skeletons marked
- * {@code Abstract} and files switched off with {@code Enabled: false} are never handed out.
+ * <p>{@link #dialogues()} hands back everything in circulation, whoever wrote it, which is what lets
+ * several mods author into one folder and any of them open a conversation another shipped. Skeletons
+ * marked {@code Abstract} and files switched off with {@code Enabled: false} are never handed out.
  *
  * <p>Ids are lower-cased so author casing never splits an entry. Writes are synchronized; the map is
  * concurrent for lock-free reads.
@@ -35,7 +34,7 @@ public final class DialogueAssetStore {
         return INSTANCE;
     }
 
-    /** id -> the loaded asset (the decoded conversation plus its owner and switches). */
+    /** id -> the loaded asset (the decoded conversation plus its switches). */
     private final Map<String, ZcDialogueAsset> loaded = new ConcurrentHashMap<>();
 
     private DialogueAssetStore() {
@@ -57,15 +56,16 @@ public final class DialogueAssetStore {
     }
 
     /**
-     * The conversations {@code ownerFilter} may open, by id: everything in circulation that is not a
-     * skeleton and that either belongs to that owner or belongs to nobody.
+     * Every conversation anybody may open, by id: everything in circulation that is not a skeleton.
      *
-     * @param ownerFilter the asking mod's owner name, or null for every owner
+     * <p>A file is not addressed to one reader. One folder holds the server's conversations, each
+     * reader takes the whole set, and an id written twice is settled where the readers' catalogues
+     * meet rather than by hiding one file from one mod.
+     *
      * @return id -> conversation, a fresh snapshot
      */
     @Nonnull
-    public Map<String, NpcDialogue> dialogues(@Nullable String ownerFilter) {
-        String filter = ownerFilter == null ? null : ownerFilter.toLowerCase(Locale.ROOT);
+    public Map<String, NpcDialogue> dialogues() {
         Map<String, NpcDialogue> out = new LinkedHashMap<>();
         for (Map.Entry<String, ZcDialogueAsset> entry : loaded.entrySet()) {
             ZcDialogueAsset asset = entry.getValue();
@@ -73,10 +73,7 @@ public final class DialogueAssetStore {
             if (dialogue == null || asset.isAbstract() || !asset.isEnabled()) {
                 continue;
             }
-            String owner = asset.getOwner();
-            if (filter == null || owner == null || filter.equals(owner)) {
-                out.put(entry.getKey(), dialogue);
-            }
+            out.put(entry.getKey(), dialogue);
         }
         return out;
     }

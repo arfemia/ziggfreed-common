@@ -77,7 +77,6 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
 
     @Nullable private Boolean enabled;
     @Nullable private Boolean isAbstract;
-    @Nullable private String owner;
     @Nullable private ContentTextAsset text;
     @Nullable private Listing listing;
     @Nullable private Flow flow;
@@ -119,11 +118,6 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .documentation("Mark a file that exists only to be inherited from. It stays available as a Parent "
                     + "target and is never offered to anybody, so a shared skeleton needs no objectives of its "
                     + "own. It never carries down to a child: inheriting from a skeleton makes a real quest.")
-            .add()
-            .appendInherited(new KeyedCodec<>("Owner", Codec.STRING, false),
-                    (a, v) -> a.owner = v, a -> a.owner, (a, p) -> a.owner = p.owner)
-            .documentation("Which game or mod this quest belongs to, so several can author into one store and "
-                    + "each runs only its own. Unauthored means unowned, which every reader picks up.")
             .add()
             .appendInherited(new KeyedCodec<>("Text", ContentTextAsset.CODEC, false),
                     (a, v) -> a.text = v, a -> a.text, (a, p) -> a.text = p.text)
@@ -231,12 +225,6 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
     /** A skeleton that exists only to be inherited from, never offered to anybody. */
     public boolean isAbstract() {
         return isAbstract != null && isAbstract;
-    }
-
-    /** Which game or mod this quest belongs to, lower-cased; null when unowned. */
-    @Nullable
-    public String getOwner() {
-        return owner == null || owner.isBlank() ? null : owner.trim().toLowerCase(Locale.ROOT);
     }
 
     @Nullable
@@ -354,7 +342,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 requires == null ? GateSpec.OPEN : requires,
                 objectiveText,
                 repeat == null ? List.of() : repeat.resetsOnCompleteList(),
-                getOwner(), generatedBy, metaOrEmpty());
+                generatedBy, metaOrEmpty());
     }
 
     // ==================== Listing ====================

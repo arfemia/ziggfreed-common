@@ -119,7 +119,7 @@ class QuestNestedIdTest {
                     decodeAt("{ }", "Wilds_Trork_Trouble",
                             "Server/ZiggfreedCommon/Quests/Wilds_Trork_Trouble.json")));
 
-            List<Finding> issues = store.resolve(null, null).issues();
+            List<Finding> issues = store.resolve(null).issues();
             Finding duplicate = issues.stream()
                     .filter(f -> "DUPLICATE_QUEST_ID".equals(f.code()))
                     .findFirst().orElseThrow(() -> new AssertionError("expected a duplicate finding: " + issues));
@@ -139,7 +139,7 @@ class QuestNestedIdTest {
                             "Server/ZiggfreedCommon/Quests/_Ashlands/Trork_Trouble.json")));
 
             assertEquals(2, store.assets().size(), "two folders, two ids, both survive");
-            assertTrue(store.resolve(null, null).issues().stream()
+            assertTrue(store.resolve(null).issues().stream()
                     .noneMatch(f -> "DUPLICATE_QUEST_ID".equals(f.code())));
         }
 
@@ -151,7 +151,7 @@ class QuestNestedIdTest {
             store.mergeQuests(layerOf(decodeAt("{ \"Objectives\": { \"step\": { \"Kind\": \"talk\" } } }",
                     "Trork_Trouble", "Server/ZiggfreedCommon/Quests/_Wilds=North/Trork_Trouble.json")));
 
-            QuestPool pool = store.resolve(null, null).pool();
+            QuestPool pool = store.resolve(null).pool();
             List<Finding> issues = QuestPoolValidator.validate(pool, null, null,
                     new InMemoryQuestProgressStore(), null);
 

@@ -159,11 +159,18 @@ reward, by design.
 - **Self-heal runs on every open**, before anything is read: it is what settles a standing-value
   step and what re-offers a repeatable whose cooldown has elapsed, so the list is never one open
   behind.
-- **Achievement rows sort by CATEGORY inside each lifecycle section**, in the order the folded
-  taxonomy declares, so a long list reads as combat things together and gathering things together
-  rather than alphabetically. There are no category HEADERS: a header needs a label per category and
-  a decision about content another mod folded, whose category this module cannot see. Content with
-  no category, and content somebody else folded, sort after the described ones.
+- **Achievement rows sort by CATEGORY inside each lifecycle section and carry a HEADER per run**,
+  in the order the folded taxonomy declares, so a long list reads as combat things together and
+  gathering things together rather than alphabetically. A header's label is a three-rung ladder
+  (`AchievementGrouping.label`): an authored `TitleKey` first, because somebody said in so many
+  words what the group is called; else the `achievement.category.<id>` convention key the schema
+  points an author at; else the category id humanized (`boss_fights` reads as `Boss Fights`), since
+  an untranslated word a player can read beats a raw key they cannot. That last rung is what lets a
+  category ANOTHER mod folded and nothing describes still head its own run. Rank follows the same
+  shape: a described category reads where its file says, an undescribed one after every described
+  one, and content with NO category at all lands in one uncategorised bucket that reads last, with
+  a line of the page's own. A header is budgeted together with the row it heads, so a list cut
+  short by the row cap never ends on a heading with nothing under it.
 - **A quest waiting out a cooldown is drawn in the locked section**, with the line its refusal names.
   Leaving it out makes a daily disappear between runs, which reads as content having been taken away
   rather than as a wait.

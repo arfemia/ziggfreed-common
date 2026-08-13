@@ -178,6 +178,25 @@ public final class ProgressionRuntime {
         return newRegistrar(owner, true);
     }
 
+    /** Everyone who has registered anything, in registration order. */
+    @Nonnull
+    public static synchronized List<String> registrars() {
+        return List.copyOf(REGISTRARS.keySet());
+    }
+
+    /**
+     * Did {@code owner} register at LIBRARY-DEFAULT rank? Nobody who never registered has, so an
+     * unknown name reads false.
+     *
+     * <p>Worth asking out loud, because rank is what settles overlapping CONTENT: a consumer's
+     * layer replaces a library default's entry for the same id silently, while two layers at the
+     * same rank are a clash nothing can resolve. A mod checking that it registered the way it meant
+     * to is checking the one thing that decides whose reading of a shared file the player gets.
+     */
+    public static synchronized boolean isLibraryDefault(@Nonnull String owner) {
+        return Boolean.TRUE.equals(REGISTRARS.get(normalizeOwner(owner)));
+    }
+
     @Nonnull
     private static synchronized ProgressionRegistrar newRegistrar(@Nonnull String owner,
                                                                   boolean libraryDefault) {
@@ -304,14 +323,6 @@ public final class ProgressionRuntime {
         }
     }
 
-    static synchronized void claimNamespace(@Nonnull ProgressionRegistrar registrar,
-                                            @Nonnull String namespace) {
-        if (CLAIMS.claimNamespace(namespace, registrar.owner()) && BUILT.get()) {
-            SafeLog.info("[progression] '" + registrar.owner() + "' claimed the content namespace '"
-                    + namespace + "' after the runtime was built; republish to apply it");
-        }
-    }
-
     // ==================== the shared vocabularies ====================
 
     /** The ONE objective vocabulary both engines dispatch against. Contribute into it, never swap it. */
@@ -430,7 +441,7 @@ public final class ProgressionRuntime {
         }
     }
 
-    // ==================== claims a producer or a content source reads ====================
+    // ==================== the claim a producer reads ====================
 
     /**
      * Is {@code kindId} still the library's own generic producer's to fire? A producer's first line.
@@ -440,10 +451,16 @@ public final class ProgressionRuntime {
         return CLAIMS.defaultProduces(kindId);
     }
 
-    /** Has a consumer claimed {@code namespace}'s content as its own to fold? */
-    public static boolean ownsContentNamespace(@Nonnull String namespace) {
-        return CLAIMS.ownsNamespace(namespace);
-    }
+    // A content namespace claim used to sit here beside the producer claim, so the library's own
+    // default source could drop every definition a consumer said it would fold itself. RANK does
+    // that job on its own and does it better, which is why there is nothing to claim: every reader
+    // folds the whole store, both publish what they folded, and ContentLayers merges LIBRARY
+    // DEFAULTS FIRST, then consumers in registration order. A consumer's entry therefore replaces
+    // the library's for the same id, SILENTLY - that branch is written out in ContentLayers.compose
+    // as the claim contract working - so a definition a consumer folded into something richer wins
+    // wherever the two meet, and a definition only the library folded still reaches the engines.
+    // Only two CONSUMERS landing on one id is a real clash, and that is the case compose warns
+    // about, naming both. Milestones resolve the same way, rung by rung, by threshold.
 
     /**
      * Is the LIBRARY DEFAULT quest store still the active one? Final at setup, so it is safe to read
@@ -639,10 +656,7 @@ public final class ProgressionRuntime {
                 + ", text sources=" + owners(TEXT_SOURCES));
         SafeLog.info("[progression]   content     quests=" + counts(QUEST_LAYERS)
                 + ", achievements=" + counts(ACHIEVEMENT_LAYERS)
-                + ", milestones=" + counts(MILESTONE_LAYERS)
-                + "; namespaces claimed: "
-                + (CLAIMS.claimedNamespaces().isEmpty() ? "none"
-                        : String.join(", ", CLAIMS.claimedNamespaces())));
+                + ", milestones=" + counts(MILESTONE_LAYERS));
     }
 
     /**

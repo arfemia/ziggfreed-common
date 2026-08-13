@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +24,7 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  */
 class AchievementTaxonomyCodecTest {
 
-    private static AchievementCategoryAsset category(String id, String json) {
+    private static AchievementCategoryAsset category(String id, String json) throws IOException {
         AssetExtraInfo.Data data = new AssetExtraInfo.Data(AchievementCategoryAsset.class, id, null);
         AchievementCategoryAsset asset = AchievementCategoryAsset.CODEC.decodeAndInheritJsonAsset(
                 RawJsonReader.fromJsonString(json), null, new AssetExtraInfo<>(data));
@@ -31,7 +32,7 @@ class AchievementTaxonomyCodecTest {
         return asset;
     }
 
-    private static AchievementMilestoneAsset milestone(String id, String json) {
+    private static AchievementMilestoneAsset milestone(String id, String json) throws IOException {
         AssetExtraInfo.Data data = new AssetExtraInfo.Data(AchievementMilestoneAsset.class, id, null);
         AchievementMilestoneAsset asset = AchievementMilestoneAsset.CODEC.decodeAndInheritJsonAsset(
                 RawJsonReader.fromJsonString(json), null, new AssetExtraInfo<>(data));
@@ -43,7 +44,7 @@ class AchievementTaxonomyCodecTest {
 
     /** A PascalCase filename addresses the same category content writes in lower case. */
     @Test
-    void aCategoryIdIsLowerCasedAtDecode() {
+    void aCategoryIdIsLowerCasedAtDecode() throws IOException {
         AchievementCategoryAsset asset = category("Combat", """
                 { "Order": 10, "Icon": "Fixture_Icon", "TitleKey": "fixture.category.combat",
                   "Subcategories": ["melee", "ranged"] }
@@ -58,7 +59,7 @@ class AchievementTaxonomyCodecTest {
 
     /** Every leaf is optional, so a file changing one thing says only that thing. */
     @Test
-    void aCategoryNamingOnlyAnIconDeclaresNothingElse() {
+    void aCategoryNamingOnlyAnIconDeclaresNothingElse() throws IOException {
         AchievementCategoryAsset asset = category("Gathering", "{ \"Icon\": \"Fixture_Icon\" }");
 
         assertEquals("Fixture_Icon", asset.getIcon());
@@ -95,7 +96,7 @@ class AchievementTaxonomyCodecTest {
 
     /** A milestone pays out in the shared reward vocabulary: a registered kind plus its parameters. */
     @Test
-    void aMilestoneDecodesBothPayoutMoments() {
+    void aMilestoneDecodesBothPayoutMoments() throws IOException {
         AchievementMilestoneAsset asset = milestone("Points_Fixture", """
                 {
                   "Threshold": 500,
@@ -125,7 +126,7 @@ class AchievementTaxonomyCodecTest {
 
     /** A file with no Rewards block is a rung that marks progress and pays nothing. */
     @Test
-    void aMilestoneWithNoRewardsBlockPaysNothing() {
+    void aMilestoneWithNoRewardsBlockPaysNothing() throws IOException {
         AchievementMilestoneAsset asset = milestone("Points_Bare", "{ \"Threshold\": 100 }");
 
         assertTrue(asset.autoRewards().isEmpty());

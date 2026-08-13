@@ -19,7 +19,7 @@ import com.ziggfreed.common.achievement.AchievementEngine;
  *
  * <p>The usual shape of a load is one line:
  * <pre>{@code
- * AchievementPool pool = AchievementAssetStore.getInstance().resolveAll("yourmod");
+ * AchievementPool pool = AchievementAssetStore.getInstance().resolveAll();
  * engine.setAchievements(pool.achievements());
  * }</pre>
  * and then the consumer's UI reads {@link #definition} for the text and gates while the engine runs

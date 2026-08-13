@@ -26,17 +26,23 @@ import com.ziggfreed.common.subject.Subject;
  */
 class CommandRewardKindTest {
 
-    /** A dispatcher that records instead of running, and can be told to fail. */
+    /**
+     * A dispatcher that records instead of running, and can be told to fail either way a real one
+     * can: by throwing, or by answering false the way a console dispatch with no command system
+     * behind it does.
+     */
     static final class Recorder implements CommandRunner.Dispatcher {
         final List<String> ran = new ArrayList<>();
         boolean fail;
+        boolean refuse;
 
         @Override
-        public void dispatch(String command) throws Exception {
+        public boolean dispatch(String command) throws Exception {
             ran.add(command);
             if (fail) {
                 throw new IllegalStateException("dispatch refused");
             }
+            return !refuse;
         }
 
         String only() {
@@ -203,6 +209,18 @@ class CommandRewardKindTest {
         void aDispatchThatFailsThrowsSoTheFailureCanBeQueued() {
             Recorder recorder = new Recorder();
             recorder.fail = true;
+            RewardKindAsset asset = kind("pay {player}", params());
+
+            assertThrows(Exception.class,
+                    () -> new CommandRewardKind(asset, recorder).grant(RewardSpec.of("Pay"), player()));
+        }
+
+        @Test
+        void aDispatchThatAnswersFalseThrowsTheSameWay() {
+            // The console dispatcher reports a refusal by answering false, not by throwing, and a
+            // payout that treated that as success would be recorded as granted and never retried.
+            Recorder recorder = new Recorder();
+            recorder.refuse = true;
             RewardKindAsset asset = kind("pay {player}", params());
 
             assertThrows(Exception.class,

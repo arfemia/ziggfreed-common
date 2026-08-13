@@ -1,6 +1,5 @@
 {
   "Name": "clash_intro",
-  "Owner": "kweebec",
   "Payload": {
     "Start": [{ "Node": "greet" }],
     "Nodes": {

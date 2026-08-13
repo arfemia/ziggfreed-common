@@ -38,7 +38,6 @@ import com.ziggfreed.common.quest.Quest;
  * @param requires         what must be true first; never null, {@link GateSpec#OPEN} when open
  * @param objectiveTextKeys objective id to its localization key, for the steps that carry one
  * @param resetsOnComplete quest ids wiped when this one finishes
- * @param owner            which game or mod authored it, lower-cased, or null when unowned
  * @param generatedBy      the generator that produced it, or null when it was authored by hand
  * @param meta             per-namespace extra facts, verbatim; see {@link ContentMeta}
  */
@@ -50,7 +49,7 @@ public record QuestDefinition(@Nonnull String id, @Nonnull Quest quest, @Nullabl
                               @Nullable String turnInNpcId, @Nullable String completionDialogue,
                               @Nonnull GateSpec requires,
                               @Nonnull Map<String, String> objectiveTextKeys,
-                              @Nonnull List<String> resetsOnComplete, @Nullable String owner,
+                              @Nonnull List<String> resetsOnComplete,
                               @Nullable String generatedBy,
                               @Nonnull Map<String, JsonElement> meta) {
 
@@ -81,10 +80,5 @@ public record QuestDefinition(@Nonnull String id, @Nonnull Quest quest, @Nullabl
     @Nullable
     public String objectiveTextKey(@Nullable String objectiveId) {
         return objectiveId == null ? null : objectiveTextKeys.get(objectiveId);
-    }
-
-    /** Does this quest belong to {@code ownerFilter}? A null filter, or an unowned quest, matches. */
-    public boolean matchesOwner(@Nullable String ownerFilter) {
-        return ownerFilter == null || owner == null || owner.equalsIgnoreCase(ownerFilter);
     }
 }

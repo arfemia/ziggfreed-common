@@ -78,7 +78,11 @@ engine above can reach the loot core without any of them reaching each other.
   score gate is now an ordinary condition, mixable with any other factor.
 - **[`LootableValidator`](LootableValidator.java)** - domain `lootable`. It hunts the mistakes that
   produce SILENCE (a roll that can never fire, a tier out of reach, a table id nothing answers to),
-  because those are the ones nobody reports until a player asks where their reward went.
+  because those are the ones nobody reports until a player asks where their reward went. `auditAll`
+  is the whole-store pass a consumer wires into its own startup audit, each file reported against
+  its OWN id. One finding sits a tier below the library's usual unknown-id WARNING:
+  `UNKNOWN_CONTRIBUTION_TARGET` is a NOTE, because a `ContributesTo` waiting on a table another mod
+  ships is the leaf working as designed, and only a typo makes it a mistake.
 - **[`LootEditorDataSets`](LootEditorDataSets.java)** - the Asset Editor pick lists, answered live off
   the running tables.
 

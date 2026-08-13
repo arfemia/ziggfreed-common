@@ -30,7 +30,9 @@ import com.ziggfreed.common.util.CommandExecutor;
  *       getting one plank has no way to tell why, so the fix belongs here rather than in each
  *       consumer's docs.</li>
  *   <li><b>A per-call guard</b>. One bad authored line reports itself and the next line still runs;
- *       nothing escapes into the caller's grant loop.</li>
+ *       nothing escapes into the caller's grant loop. A line that did not run is answered as such -
+ *       a refused dispatch reads exactly like a thrown one - so a caller that pays out on the
+ *       strength of a command can tell the difference between a grant and a silence.</li>
  * </ol>
  *
  * <p>Commands run AS THE SERVER CONSOLE. An authored command is server-owner content, so it must
@@ -49,11 +51,25 @@ public final class CommandRunner {
     @FunctionalInterface
     public interface Dispatcher {
 
-        /** Run one resolved command line. Throwing is fine - {@link CommandRunner} guards it. */
-        void dispatch(@Nonnull String command) throws Exception;
+        /**
+         * Run one resolved command line, and answer whether it ACTUALLY dispatched.
+         *
+         * <p>The answer is the whole contract. False is treated exactly like a throw: the line is
+         * reported to the caller's failure sink and {@link CommandRunner#runWith} answers false, so a
+         * grant site can queue a retry instead of recording a payout that never happened. Returning
+         * true for a line the command system refused is how a reward is lost silently.
+         *
+         * <p>Throwing is fine - {@link CommandRunner} guards it and reports it the same way. A
+         * dispatcher with genuinely nothing to check (it records the line, or hands it to something
+         * that cannot answer) returns true, and should say in a comment why that is honest.
+         */
+        boolean dispatch(@Nonnull String command) throws Exception;
     }
 
-    /** The server console, via the shared {@code util.CommandExecutor}. */
+    /**
+     * The server console, via the shared {@code util.CommandExecutor}, whose own boolean answer is
+     * passed straight through - so a line the command system refused counts as not run.
+     */
     public static final Dispatcher CONSOLE = command -> CommandExecutor.executeAsConsole(command);
 
     private CommandRunner() {
@@ -147,8 +163,8 @@ public final class CommandRunner {
      * Resolve {@code raw} (substitute, then {@link #normalizeGive}) and run it as the server
      * console.
      *
-     * @return true when the line was dispatched without throwing; false for a blank line or a
-     *         failure, which is reported to {@code failureSink}
+     * @return true when the dispatcher confirmed the line ran; false for a blank line, a dispatch
+     *         the dispatcher refused, or a throw - each reported to {@code failureSink}
      */
     public static boolean run(@Nullable String raw, @Nullable Map<String, String> placeholders,
             @Nullable Consumer<String> failureSink) {
@@ -173,8 +189,11 @@ public final class CommandRunner {
             return false;
         }
         try {
-            dispatcher.dispatch(resolved);
-            return true;
+            if (dispatcher.dispatch(resolved)) {
+                return true;
+            }
+            report(failureSink, "command '" + resolved + "' did not dispatch");
+            return false;
         } catch (Throwable t) {
             report(failureSink, "command '" + resolved + "' failed: " + t);
             return false;

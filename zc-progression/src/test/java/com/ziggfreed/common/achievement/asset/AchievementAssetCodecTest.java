@@ -167,7 +167,6 @@ class AchievementAssetCodecTest {
         assertTrue(achievement.countsTowardTotal());
         assertEquals(AchievementAsset.Scoring.DEFAULT_POINTS, achievement.points());
         assertFalse(asset.isAbstract());
-        assertNull(asset.getOwner());
         assertEquals(0, asset.toDefinition().sortOrder());
     }
 
@@ -211,17 +210,13 @@ class AchievementAssetCodecTest {
     }
 
     @Test
-    void ownerAndTagsRideThroughUntouchedInMeaningButNormalizedInForm() throws Exception {
+    void tagsRideThroughUntouchedInMeaningButNormalizedInForm() throws Exception {
         AchievementAsset asset = decodeRoot("""
-                { "Owner": "YourMod",
-                  "Listing": { "Tags": [ "gathering", " ", "capstone" ] },
+                { "Listing": { "Tags": [ "gathering", " ", "capstone" ] },
                   "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ] }
                 """, "prospector");
 
-        assertEquals("yourmod", asset.getOwner());
         assertEquals(List.of("gathering", "capstone"), asset.toDefinition().achievement().tags(),
                 "a blank tag is dropped rather than carried as an empty classification");
-        assertTrue(asset.toDefinition().matchesOwner("YourMod"));
-        assertFalse(asset.toDefinition().matchesOwner("othermod"));
     }
 }

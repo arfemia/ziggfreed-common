@@ -23,7 +23,7 @@ match). They are the wrong tool for a mod that wants the server's progression.
 | `ProgressionRuntime` | the holder: registration entry points, the engine pair, content publishing, `ensureBuilt`, the boot diagnostic |
 | `ProgressionRegistrar` | what a consumer calls; fluent, idempotent, conflict-policed |
 | `ProgressionParts` | the resolved snapshot + the FORWARDERS the engines are built over + gate/tap composition |
-| `ProducerClaims` | the two keyed claims: which objective kinds a consumer fires, which content namespaces it folds |
+| `ProducerClaims` | the keyed claim: which objective kinds a consumer fires, so the library's own generic producer stands down for exactly those |
 | `ContentLayers` | per-owner content layers and the merge, so a reload replaces one owner's layer |
 | `ProgressionSubjectSource` | how a player becomes the subject the ACTIVE stores understand |
 | `ProgressionCallScope` | what a consumer publishes around a mutating call, so a shared surface fires what its own menu would |
@@ -36,7 +36,7 @@ match). They are the wrong tool for a mod that wants the server's progression.
 - **contribution** (gates, taps, text sources): every registration applies. Gates AND with
   `accepts` collecting EVERY reason (no short-circuit), `preSatisfiedAmount` folding as a MAX; taps
   fan out, each individually guarded; text sources answer in order, first non-null wins.
-- **keyed replacement** (`producesKind`, `ownsContent`): the library's own generic part stands down
+- **keyed replacement** (`producesKind`): the library's own generic producer stands down
   for exactly that key.
 
 The three shared VOCABULARIES are not registrar methods - `objectiveKinds()`, `rewardKinds()` and

@@ -79,7 +79,7 @@ AchievementEngine engine = AchievementEngine.builder()
         .gates(myGates)
         .milestone(AchievementMilestone.claimable(100, List.of(...)))
         .build();
-engine.setAchievements(AchievementAssetStore.getInstance().resolveAll("yourmod").achievements());
+engine.setAchievements(AchievementAssetStore.getInstance().resolveAll().achievements());
 ```
 Then feed it: `engine.dispatch(subject, kind, target, qualifier, amount)` from every producer, and
 `engine.selfHeal(subject)` when a player becomes ready.

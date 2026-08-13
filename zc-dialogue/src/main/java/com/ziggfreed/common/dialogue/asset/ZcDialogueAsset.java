@@ -20,9 +20,8 @@ import com.ziggfreed.common.dialogue.NpcDialogue;
  * the dialogue id.
  *
  * <pre>{@code
- * { "Owner": "kweebec",
- *   "Payload": {
- *     "Memories": { "greeted": { "WorldSelector": "forgotten_temple" } },
+ * { "Payload": {
+ *     "Memories": { "greeted": { "World": "*Forgotten_Temple*" } },
  *     "Start": [ { "Node": "greet" } ],
  *     "Fragments": { "footer": [ { "LabelKey": "...", "Close": true } ] },
  *     "Nodes": {
@@ -48,7 +47,6 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
     private String id;
     private AssetExtraInfo.Data data;
 
-    @Nullable private String owner;
     @Nullable private Boolean enabled;
     @Nullable private Boolean isAbstract;
     @Nullable private NpcDialogue payload;
@@ -78,12 +76,6 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
             .append(new KeyedCodec<>("Name", Codec.STRING, false),
                     (a, name) -> { /* no-op: the id comes from the filename */ },
                     a -> a.id)
-            .add()
-            .appendInherited(new KeyedCodec<>("Owner", Codec.STRING, false),
-                    (a, v) -> a.owner = v, a -> a.owner, (a, p) -> a.owner = p.owner)
-            .documentation("Which game or mod this conversation belongs to, so several can author into one "
-                    + "folder and each runs only its own. Unauthored means unowned, which every reader "
-                    + "picks up.")
             .add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
@@ -119,12 +111,6 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
     @Override
     public String getId() {
         return id;
-    }
-
-    /** Which game / minigame owns this dialogue, lower-cased; null when unowned. */
-    @Nullable
-    public String getOwner() {
-        return owner == null || owner.isBlank() ? null : owner.trim().toLowerCase(Locale.ROOT);
     }
 
     /** In circulation? Unauthored means true. */

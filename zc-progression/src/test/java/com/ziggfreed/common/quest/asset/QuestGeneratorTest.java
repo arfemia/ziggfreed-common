@@ -372,7 +372,7 @@ class QuestGeneratorTest {
                             "gather_base", decodeRoot(BASE, "gather_base"))));
             store.mergeGenerators(Map.of("ladder", generator(GENERATOR, "ladder")));
 
-            QuestAssetStore.Resolution resolution = store.resolve(null, new QuestEnumeratorRegistry());
+            QuestAssetStore.Resolution resolution = store.resolve(new QuestEnumeratorRegistry());
             QuestPool pool = resolution.pool();
 
             assertTrue(resolution.issues().isEmpty(), "nothing to report: " + codes(resolution.issues()));
@@ -400,7 +400,7 @@ class QuestGeneratorTest {
                             """, "gather_copper_t2", "gather_base", base)));
             store.mergeGenerators(Map.of("ladder", generator(GENERATOR, "ladder")));
 
-            QuestAssetStore.Resolution resolution = store.resolve(null, new QuestEnumeratorRegistry());
+            QuestAssetStore.Resolution resolution = store.resolve(new QuestEnumeratorRegistry());
 
             assertEquals("quest.special.title", resolution.pool().definition("gather_copper_t2").titleKey(),
                     "writing the file is how one member of a family is made special");
@@ -415,7 +415,7 @@ class QuestGeneratorTest {
             store.mergeQuests(Map.of());
             store.mergeGenerators(Map.of("ladder", generator(GENERATOR, "ladder")));
 
-            QuestAssetStore.Resolution resolution = store.resolve(null, new QuestEnumeratorRegistry());
+            QuestAssetStore.Resolution resolution = store.resolve(new QuestEnumeratorRegistry());
 
             assertEquals(0, resolution.pool().size());
             assertTrue(codes(resolution.issues()).contains("UNKNOWN_BASE"));

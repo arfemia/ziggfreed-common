@@ -38,9 +38,14 @@ import com.ziggfreed.common.subject.Subject;
  *   level up.
  *   <li><b>Contribution</b> - gates, taps, text sources. Every registration applies; gates AND, taps
  *   fan out, text sources answer in order.
- *   <li><b>Keyed replacement</b> - {@link #producesKind} and {@link #ownsContent}. The claim is per
- *   key, so the library's own generic part stands down for exactly that key.
+ *   <li><b>Keyed replacement</b> - {@link #producesKind}. The claim is per key, so the library's
+ *   own generic producer stands down for exactly that kind.
  * </ul>
+ *
+ * <p><b>CONTENT is not registered here at all, and needs no claim.</b> Every reader folds the whole
+ * shared store and publishes what it folded; the layers merge with library defaults first and
+ * consumers after, so a consumer's version of an id silently replaces the library's. Rank settles
+ * it, which is why there is no content-ownership method beside {@code producesKind}.
  *
  * <p><b>The three shared VOCABULARIES are not here on purpose.</b> Objective kinds, reward kinds and
  * gate kinds are already open registries with their own owner attribution and overwrite policy, and
@@ -265,14 +270,4 @@ public final class ProgressionRegistrar {
         return this;
     }
 
-    /**
-     * Declare that this mod folds {@code namespace}'s content into the runtime itself, so the
-     * library's own default source leaves every definition that namespace owns alone. One claim
-     * covers quests and achievements alike.
-     */
-    @Nonnull
-    public ProgressionRegistrar ownsContent(@Nonnull String namespace) {
-        ProgressionRuntime.claimNamespace(this, namespace);
-        return this;
-    }
 }

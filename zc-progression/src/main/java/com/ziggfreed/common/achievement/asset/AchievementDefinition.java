@@ -35,7 +35,6 @@ import com.ziggfreed.common.progress.gate.GateSpec;
  * @param icon             an item id to illustrate it with, or null
  * @param requires         what must be true first; never null, {@link GateSpec#OPEN} when open
  * @param criterionTextKeys criterion POSITION to its localization key, for the ones that carry one
- * @param owner            which game or mod authored it, lower-cased, or null when unowned
  * @param meta             per-namespace extra facts, verbatim; see {@link ContentMeta}
  */
 public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement achievement,
@@ -47,7 +46,6 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
                                     @Nonnull List<ChainMembership> chains, @Nullable String icon,
                                     @Nonnull GateSpec requires,
                                     @Nonnull Map<Integer, String> criterionTextKeys,
-                                    @Nullable String owner,
                                     @Nonnull Map<String, JsonElement> meta) {
 
     public AchievementDefinition {
@@ -71,10 +69,5 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
     @Nullable
     public String criterionTextKey(int criterionIndex) {
         return criterionTextKeys.get(criterionIndex);
-    }
-
-    /** Does this belong to {@code ownerFilter}? A null filter, or an unowned achievement, matches. */
-    public boolean matchesOwner(@Nullable String ownerFilter) {
-        return ownerFilter == null || owner == null || owner.equalsIgnoreCase(ownerFilter);
     }
 }

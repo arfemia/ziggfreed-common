@@ -27,13 +27,15 @@ import com.ziggfreed.common.validation.ValidationReport;
  * asks once and hands the result to its engine.
  *
  * <pre>{@code
- * QuestPool pool = QuestAssetStore.getInstance().resolveAll("yourmod", myEnumerators);
+ * QuestPool pool = QuestAssetStore.getInstance().resolveAll(myEnumerators);
  * engine.setQuests(pool.quests());
  * }</pre>
  *
  * <p>The store is process-wide because the ASSETS are: one folder, one set of files, however many
- * games read them. Each consumer filters by {@code Owner}, and a quest that names no owner is
- * picked up by every reader (which is what an unowned shared base wants).
+ * games read them. Every reader resolves the WHOLE store, so a quest is written once and whoever
+ * runs progression on this server picks it up. Two readers publishing the same id is settled by
+ * rank where the content layers meet, and two FILES landing on one id is reported here, naming
+ * both, because in that case one of them simply never exists.
  *
  * <p>Authored quests are already whole when they arrive: the engine's own asset loading resolved
  * their {@code Parent} chains as the files were read. Only GENERATED bodies are decoded here, and
@@ -123,10 +125,10 @@ public final class QuestAssetStore {
         return Collections.unmodifiableMap(generators);
     }
 
-    /** The folded pool for {@code ownerFilter}, findings logged. */
+    /** The folded pool, findings logged. */
     @Nonnull
-    public QuestPool resolveAll(@Nullable String ownerFilter, @Nullable QuestEnumeratorRegistry enumerators) {
-        Resolution resolution = resolve(ownerFilter, enumerators);
+    public QuestPool resolveAll(@Nullable QuestEnumeratorRegistry enumerators) {
+        Resolution resolution = resolve(enumerators);
         logIssues(resolution.issues());
         return resolution.pool();
     }
@@ -138,13 +140,10 @@ public final class QuestAssetStore {
      * needs to be special is made special by writing the file - and the collision is reported, since
      * the other possibility is that a generator's {@code IdPattern} is too coarse.
      *
-     * @param ownerFilter only emit quests with this owner (null = every quest, whoever owns it)
      * @param enumerators the registered value sources a generator axis may name
      */
     @Nonnull
-    public Resolution resolve(@Nullable String ownerFilter, @Nullable QuestEnumeratorRegistry enumerators) {
-        String filter = ownerFilter == null || ownerFilter.isBlank()
-                ? null : ownerFilter.trim().toLowerCase(Locale.ROOT);
+    public Resolution resolve(@Nullable QuestEnumeratorRegistry enumerators) {
         List<Finding> issues = new ArrayList<>(layerFindings);
         Map<String, QuestDefinition> out = new LinkedHashMap<>();
 
@@ -155,13 +154,10 @@ public final class QuestAssetStore {
             if (asset == null || asset.isAbstract()) {
                 continue;
             }
-            QuestDefinition definition = asset.toDefinition(null);
-            if (definition.matchesOwner(filter)) {
-                out.put(id, definition);
-                // Reported at the fold because only the ASSET still carries what the author typed;
-                // the folded rule has already fallen back to a default for anything unparseable.
-                issues.addAll(QuestPoolValidator.repeatFindings(asset.getRepeat(), id));
-            }
+            out.put(id, asset.toDefinition(null));
+            // Reported at the fold because only the ASSET still carries what the author typed;
+            // the folded rule has already fallen back to a default for anything unparseable.
+            issues.addAll(QuestPoolValidator.repeatFindings(asset.getRepeat(), id));
         }
 
         List<String> generatorIds = new ArrayList<>(generators.keySet());
@@ -198,11 +194,8 @@ public final class QuestAssetStore {
                 if (decoded == null || decoded.isAbstract()) {
                     continue;
                 }
-                QuestDefinition definition = decoded.toDefinition(generatorId);
-                if (definition.matchesOwner(filter)) {
-                    out.put(body.id(), definition);
-                    issues.addAll(QuestPoolValidator.repeatFindings(decoded.getRepeat(), body.id()));
-                }
+                out.put(body.id(), decoded.toDefinition(generatorId));
+                issues.addAll(QuestPoolValidator.repeatFindings(decoded.getRepeat(), body.id()));
             }
         }
         return new Resolution(new QuestPool(out), issues);

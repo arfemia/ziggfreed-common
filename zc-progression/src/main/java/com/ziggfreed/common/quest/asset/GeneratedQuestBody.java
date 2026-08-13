@@ -1,7 +1,6 @@
 package com.ziggfreed.common.quest.asset;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.google.gson.JsonObject;
 
@@ -14,8 +13,7 @@ import com.google.gson.JsonObject;
  * @param body        the quest body, tokens already substituted, carrying its {@code Parent}
  * @param baseId      the quest id the body inherits from, lower-cased
  * @param generatorId which generator wrote it
- * @param owner       which game or mod it belongs to, lower-cased, or null when unowned
  */
 public record GeneratedQuestBody(@Nonnull String id, @Nonnull JsonObject body, @Nonnull String baseId,
-                                 @Nonnull String generatorId, @Nullable String owner) {
+                                 @Nonnull String generatorId) {
 }

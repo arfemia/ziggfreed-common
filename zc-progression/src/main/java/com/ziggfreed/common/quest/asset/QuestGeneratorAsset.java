@@ -58,7 +58,6 @@ public final class QuestGeneratorAsset
     private AssetExtraInfo.Data data;
 
     @Nullable private Boolean enabled;
-    @Nullable private String owner;
     @Nullable private String base;
     @Nullable private String idPattern;
     @Nullable private Axis[] forEach;
@@ -80,11 +79,6 @@ public final class QuestGeneratorAsset
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
             .documentation("Whether this generator runs at all; unauthored means true. Set false to stop a whole "
                     + "family appearing without deleting the file.")
-            .add()
-            .appendInherited(new KeyedCodec<>("Owner", Codec.STRING, false),
-                    (a, v) -> a.owner = v, a -> a.owner, (a, p) -> a.owner = p.owner)
-            .documentation("Which game or mod the generated quests belong to. It is stamped on every child, so "
-                    + "one store can serve several games.")
             .add()
             .appendInherited(new KeyedCodec<>("Base", Codec.STRING, false),
                     (a, v) -> a.base = v, a -> a.base, (a, p) -> a.base = p.base)
@@ -120,12 +114,6 @@ public final class QuestGeneratorAsset
     /** Does this generator run? Unauthored means true. */
     public boolean isEnabled() {
         return enabled == null || enabled;
-    }
-
-    /** Which game or mod the generated quests belong to, lower-cased; null when unowned. */
-    @Nullable
-    public String getOwner() {
-        return owner == null || owner.isBlank() ? null : owner.trim().toLowerCase(Locale.ROOT);
     }
 
     /** The quest id every child inherits from, lower-cased; null when unauthored. */

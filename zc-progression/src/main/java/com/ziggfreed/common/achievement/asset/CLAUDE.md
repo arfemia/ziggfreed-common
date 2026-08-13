@@ -9,7 +9,7 @@ fields (Pattern A) with native `Parent` inheritance.
 | `AchievementAsset` (+ nested `Listing`, `Scoring`) | the schema. The codec IS the schema; there is no hand parser beside it |
 | `AchievementDefinition` | the folded result: the engine's `Achievement` plus the presentation and gate data the engine has no opinion about |
 | `AchievementPool` | every folded achievement, ready for `engine.setAchievements(pool.achievements())` |
-| `AchievementAssetStore` | the process-wide loaded layer; `resolveAll(owner)` folds it |
+| `AchievementAssetStore` | the process-wide loaded layer; `resolveAll()` folds ALL of it |
 | `AchievementPoolValidator` | the load-time audit, on the shared `Finding` core, `DOMAIN = "achievement"` |
 | `AchievementCategoryAsset` + `AchievementCategoryConfig` | the TAXONOMY: how one grouping label is presented (`Order`/`Icon`/`TitleKey`/`Subcategories`), at `Server/ZiggfreedCommon/AchievementCategories/<category>.json` |
 | `AchievementMilestoneAsset` + `AchievementMilestoneConfig` | the points LADDER: a reward for a running total, at `Server/ZiggfreedCommon/AchievementMilestones/<name>.json` |

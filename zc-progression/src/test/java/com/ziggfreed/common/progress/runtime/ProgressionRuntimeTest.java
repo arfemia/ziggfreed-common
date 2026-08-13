@@ -175,12 +175,52 @@ class ProgressionRuntimeTest {
                 "a kind nobody claimed is still the library's to fire");
     }
 
+    /**
+     * Content takes no claim of its own, so RANK is the whole of what decides whose reading of a
+     * shared file the player gets. Which makes a registrar's own rank worth reading back: a mod that
+     * meant to register as a consumer and registered as a library default becomes the library's peer
+     * rather than its replacement, and every id they share turns from a silent hand-off into a
+     * reported clash.
+     */
     @Test
-    void aClaimedNamespaceIsAnsweredForBothContentKinds() {
-        assertFalse(ProgressionRuntime.ownsContentNamespace(CONSUMER));
-        ProgressionRuntime.registrar(CONSUMER).ownsContent(CONSUMER);
-        assertTrue(ProgressionRuntime.ownsContentNamespace(CONSUMER));
-        assertTrue(ProgressionRuntime.ownsContentNamespace("YourMod"));
+    void aRegistrarsRankIsReadableBackBecauseContentResolutionRestsOnIt() {
+        ProgressionRuntime.defaults(LIBRARY);
+        ProgressionRuntime.registrar(CONSUMER);
+
+        assertTrue(ProgressionRuntime.registrars().contains(LIBRARY));
+        assertTrue(ProgressionRuntime.registrars().contains(CONSUMER));
+        assertTrue(ProgressionRuntime.isLibraryDefault(LIBRARY));
+        assertFalse(ProgressionRuntime.isLibraryDefault(CONSUMER));
+        assertFalse(ProgressionRuntime.isLibraryDefault("nobody_registered_this"),
+                "a name nobody registered is not a library default either");
+    }
+
+    /**
+     * The consumer's entry REPLACES the library default's for the same id, and says nothing about
+     * it: that is the hand-off a content-ownership claim used to arrange by hand, done by rank
+     * alone. Both layers publish everything they folded, and the merge sorts it out.
+     */
+    @Test
+    void aConsumerLayerSilentlyReplacesALibraryDefaultsEntryForTheSameId() {
+        List<String> warnings = new ArrayList<>();
+        ProgressionRuntime.defaults(LIBRARY).warn(warnings::add);
+        ProgressionRuntime.registrar(CONSUMER);
+
+        ProgressionRuntime.publishQuests(LIBRARY, List.of(
+                Quest.builder("shared").tag("library_reading").build(),
+                Quest.builder("library_only").build()));
+        ProgressionRuntime.publishQuests(CONSUMER, List.of(
+                Quest.builder("shared").tag("consumer_reading").build()));
+
+        QuestEngine engine = ProgressionRuntime.quests();
+        assertTrue(engine.quest("shared").hasTag("consumer_reading"),
+                "rank alone hands the id to the consumer");
+        assertFalse(engine.quest("shared").hasTag("library_reading"),
+                "and the library's entry for it is gone rather than merged into it");
+        assertNotNull(engine.quest("library_only"),
+                "and an id only the library folded still reaches the engines");
+        assertTrue(warnings.isEmpty(), "a consumer outranking a default is the contract working,"
+                + " so there is nothing to report: " + warnings);
     }
 
     // ==================== content layers ====================

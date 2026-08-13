@@ -88,7 +88,6 @@ class DialogueAuthoredFixtureTest {
         DialogueEngine engine = engineForShippedContent();
         ZcDialogueAsset asset = read(engine, "Clash_Intro.json", "clash_intro");
 
-        assertEquals("kweebec", asset.getOwner());
         NpcDialogue d = asset.getDialogue();
         assertNotNull(d);
         assertEquals("clash_intro", d.getId());

@@ -189,14 +189,18 @@ public final class ProgressionDefaults {
      * and the engine that will run it - and because a pool nobody validated is a pool whose broken
      * content simply never progresses, with nothing said at load and no way to tell later.
      *
-     * <p>Definitions a consumer has CLAIMED are dropped: that consumer folds the same files itself,
-     * usually into something richer, and shipping both copies into one catalogue is the duplicate the
-     * namespace claim exists to prevent.
+     * <p><b>Everything folded here is published, including content a consumer also folds.</b> RANK
+     * is what resolves the overlap, and it needs no claim to do it: this layer is published at
+     * library-default rank, a consumer's at consumer rank, and the content layers merge defaults
+     * first - so wherever both hold the same id the consumer's richer version silently replaces
+     * this one, while an id only this layer folded still reaches the engines. A server with no
+     * consumer running progression therefore gets the whole shared store on the generic engines,
+     * and a server with one gets that consumer's reading of it.
      */
     public static void publishAssetContent() {
         try {
-            QuestPool quests = QuestAssetStore.getInstance().resolveAll(null, null);
-            AchievementPool achievements = AchievementAssetStore.getInstance().resolveAll(null);
+            QuestPool quests = QuestAssetStore.getInstance().resolveAll(null);
+            AchievementPool achievements = AchievementAssetStore.getInstance().resolveAll();
             QUEST_POOL = quests;
             ACHIEVEMENT_POOL = achievements;
 
@@ -206,11 +210,11 @@ public final class ProgressionDefaults {
                 gates.useEngine(ProgressionRuntime.quests());
             }
 
-            ProgressionRuntime.publishQuests(OWNER, unclaimedQuests(quests));
-            ProgressionRuntime.publishAchievements(OWNER, unclaimedAchievements(achievements));
-            // The points ladder has no owner field and nothing to claim it away: a milestone is a
-            // reward for a TOTAL, and a total is one number however many mods contributed to it. A
-            // consumer that publishes its own layer outranks this one rung for rung, by threshold.
+            ProgressionRuntime.publishQuests(OWNER, engineQuests(quests));
+            ProgressionRuntime.publishAchievements(OWNER, engineAchievements(achievements));
+            // The points ladder resolves exactly the same way: a milestone is a reward for a TOTAL,
+            // and a total is one number however many mods contributed to it, so a consumer
+            // publishing its own layer outranks this one rung for rung, by threshold.
             ProgressionRuntime.publishMilestones(OWNER,
                     AchievementMilestoneConfig.getInstance().milestones());
 
@@ -223,31 +227,24 @@ public final class ProgressionDefaults {
         }
     }
 
+    /** The engine half of every folded quest - the presentation half stays here, for the text source. */
     @Nonnull
-    private static List<Quest> unclaimedQuests(@Nonnull QuestPool pool) {
+    private static List<Quest> engineQuests(@Nonnull QuestPool pool) {
         List<Quest> out = new ArrayList<>();
         for (QuestDefinition definition : pool.definitions().values()) {
-            if (!claimed(definition.owner())) {
-                out.add(definition.quest());
-            }
+            out.add(definition.quest());
         }
         return out;
     }
 
+    /** The engine half of every folded achievement, on the same terms. */
     @Nonnull
-    private static List<Achievement> unclaimedAchievements(@Nonnull AchievementPool pool) {
+    private static List<Achievement> engineAchievements(@Nonnull AchievementPool pool) {
         List<Achievement> out = new ArrayList<>();
         for (AchievementDefinition definition : pool.definitions().values()) {
-            if (!claimed(definition.owner())) {
-                out.add(definition.achievement());
-            }
+            out.add(definition.achievement());
         }
         return out;
-    }
-
-    /** Unowned content belongs to nobody in particular, so nobody can claim it away. */
-    private static boolean claimed(@Nullable String owner) {
-        return owner != null && ProgressionRuntime.ownsContentNamespace(owner);
     }
 
     /**

@@ -277,7 +277,6 @@ class QuestAssetCodecTest {
             assertTrue(definition.quest().objectives().isEmpty());
             assertTrue(definition.requires().isEmpty(), "an unauthored Requires block asks for nothing");
             assertEquals(0, definition.sortOrder());
-            assertNull(definition.owner());
             assertFalse(definition.isGenerated());
         }
 
@@ -316,7 +315,7 @@ class QuestAssetCodecTest {
         @Test
         void abstractIsTheOneFieldThatMustNotCarryDownToAChild() throws Exception {
             QuestAsset base = decodeRoot("""
-                    { "Abstract": true, "Owner": "yourmod",
+                    { "Abstract": true, "Listing": { "Category": "gathering" },
                       "Objectives": { "collect": { "Kind": "PICKUP_ITEM", "Target": "Ore" } } }
                     """, "base");
 
@@ -325,7 +324,8 @@ class QuestAssetCodecTest {
             assertFalse(child.isAbstract(),
                     "inheriting from a skeleton makes a real quest; if this carried down, every child of "
                             + "every base would silently vanish from the pool");
-            assertEquals("yourmod", child.getOwner(), "everything else still inherits");
+            assertEquals("gathering", child.toDefinition(null).category(),
+                    "everything else still inherits");
         }
 
         @Test

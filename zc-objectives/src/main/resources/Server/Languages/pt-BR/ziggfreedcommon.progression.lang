@@ -21,6 +21,7 @@ book.achievements.points = {0}/{1}
 book.achievements.section.ready = Prontas para receber
 book.achievements.section.in_progress = Em andamento
 book.achievements.section.earned = Conquistadas
+book.achievements.category.uncategorised = Outros
 book.achievements.untitled = Conquista sem nome
 book.achievements.criterion.untitled = Etapa sem nome
 book.achievements.status.earned = Conquistada

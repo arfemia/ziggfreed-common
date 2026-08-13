@@ -13,18 +13,21 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The authored-command primitive. Every case here is a mistake an author cannot see from in-game
- * behaviour alone: a placeholder that never filled, a give that delivered one item, or a broken
- * line that swallowed the rest of the list.
+ * behaviour alone: a placeholder that never filled, a give that delivered one item, a broken line
+ * that swallowed the rest of the list, or a line the command system refused being answered as one
+ * that ran.
  */
 class CommandRunnerTest {
 
-    /** Records what would have been dispatched. */
+    /** Records what would have been dispatched, and can be told to refuse instead. */
     private static final class RecordingDispatcher implements CommandRunner.Dispatcher {
         final List<String> dispatched = new ArrayList<>();
+        boolean refuse;
 
         @Override
-        public void dispatch(String command) {
+        public boolean dispatch(String command) {
             dispatched.add(command);
+            return !refuse;
         }
     }
 
@@ -142,6 +145,33 @@ class CommandRunnerTest {
         }
 
         @Test
+        void aDispatcherThatAnswersFalseIsReportedExactlyLikeAThrow() {
+            // The failure this pins: a console dispatch the command system refuses answers false
+            // rather than throwing, and a caller told "it ran" pays out a reward that never landed.
+            RecordingDispatcher dispatcher = new RecordingDispatcher();
+            dispatcher.refuse = true;
+            List<String> failures = new ArrayList<>();
+
+            boolean ran = CommandRunner.runWith(dispatcher, "say hi", Map.of(), failures::add);
+
+            assertFalse(ran, "a line the dispatcher refused did not run");
+            assertEquals(List.of("say hi"), dispatcher.dispatched, "it was still attempted");
+            assertEquals(1, failures.size());
+            assertTrue(failures.get(0).contains("say hi"), failures.get(0));
+        }
+
+        @Test
+        void aRefusedLineIsNotCountedByRunAll() {
+            List<String> failures = new ArrayList<>();
+
+            int ran = CommandRunner.runAllWith(command -> !command.contains("refused"),
+                    List.of("say one", "say refused", "say two"), Map.of(), failures::add);
+
+            assertEquals(2, ran, "only the lines that actually dispatched count");
+            assertEquals(1, failures.size());
+        }
+
+        @Test
         void aThrowingFailureSinkStillCannotEscape() {
             // The sink is the caller's; a broken one costs its own line, never the grant loop.
             assertFalse(CommandRunner.runWith(
@@ -169,7 +199,7 @@ class CommandRunnerTest {
                 if (command.contains("boom")) {
                     throw new IllegalStateException("bad line");
                 }
-                dispatched.add(command);
+                return dispatched.add(command);
             }, List.of("say one", "say boom", "say two"), Map.of(), failures::add);
 
             assertEquals(2, ran);

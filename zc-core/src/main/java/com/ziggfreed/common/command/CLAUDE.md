@@ -29,11 +29,16 @@ Three things have to happen to every authored command, and none is worth getting
   validator or an in-game preview).
 - `CommandRunner.CONSOLE` - the default dispatcher, over `util.CommandExecutor`.
 
-`Dispatcher` is a one-method seam (`void dispatch(String) throws Exception`) so the whole class is
-unit-testable with no live server, including the throwing-dispatcher case. Failures go to a
-caller-supplied `Consumer<String>` rather than a logger, so a consumer routes them into its own
-guarded log seam, a validation report, or a test list. A sink that itself throws costs its own line,
-never the grant loop.
+`Dispatcher` is a one-method seam (`boolean dispatch(String) throws Exception`) so the whole class is
+unit-testable with no live server, including the throwing-dispatcher case. **The boolean IS the
+contract**: answer true only when the line genuinely reached the command system. A false answer reads
+exactly like a throw - reported to the failure sink, and `runWith` answers false - because that is how
+the console reports a refusal (`util.CommandExecutor.executeAsConsole` returns false, it does not
+throw), and a caller told "it ran" pays out a reward no command ever delivered. A dispatcher with
+nothing to check (it records the line, or hands it somewhere that cannot answer) returns true and says
+in a comment why that is honest. Failures go to a caller-supplied `Consumer<String>` rather than a
+logger, so a consumer routes them into its own guarded log seam, a validation report, or a test list.
+A sink that itself throws costs its own line, never the grant loop.
 
 ## Relationship to `util/CommandExecutor`
 

@@ -75,7 +75,9 @@ public class DialogueOption {
     /**
      * The one-time knob, or null when this option may be chosen any number of times. With
      * {@code "Once": true} the option is offered until its actions have run once; with
-     * {@code "Once": {"WorldSelector": "<name>"}} it is offered once per world family.
+     * {@code "Once": {"World": "<pattern>"}} it is offered once per world family - the leaf takes a
+     * world name or a pattern in the ordinary grammar ({@code forgotten_temple}, {@code Temple*},
+     * {@code *Temple*}), and the pattern is the exact-versus-family dial.
      */
     @Nullable public DialogueOnce getOnce() { return once; }
 

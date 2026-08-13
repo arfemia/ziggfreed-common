@@ -21,6 +21,7 @@ book.achievements.points = {0}/{1}
 book.achievements.section.ready = Átvehető
 book.achievements.section.in_progress = Folyamatban
 book.achievements.section.earned = Megszerezve
+book.achievements.category.uncategorised = Egyéb
 book.achievements.untitled = Névtelen teljesítmény
 book.achievements.criterion.untitled = Névtelen lépés
 book.achievements.status.earned = Megszerezve

@@ -94,7 +94,7 @@ public final class FrameworkAssetRegistrar {
         // --- Dialogues (Pattern A) - one authored conversation per file, with native Parent
         //     inheritance and a per-screen merge, so a child conversation restates one screen and
         //     keeps the rest. Common ships no dialogue CONTENT; every entry is consumer pack JSON,
-        //     and each consumer reads back only its own via DialogueAssetStore.dialogues(owner). ---
+        //     and every consumer reads the whole folder back via DialogueAssetStore.dialogues(). ---
         AssetStoreRegistrar.registerStore(ZcDialogueAsset.class,
                 new DefaultAssetMap<String, ZcDialogueAsset>(), "ZiggfreedCommon/Dialogues",
                 ZcDialogueAsset::getId, ZcDialogueAsset.CODEC, null);
@@ -277,7 +277,7 @@ public final class FrameworkAssetRegistrar {
         // --- Quests (Pattern A) - one authored quest per file, with native Parent inheritance and a
         //     per-objective-id merge, so a child quest retunes one step and keeps its siblings.
         //     Common ships no quest CONTENT; every entry is consumer pack JSON, and each consumer
-        //     folds the store into its own engine via QuestAssetStore.resolveAll(owner, ...). ---
+        //     folds the whole store into its own engine via QuestAssetStore.resolveAll(...). ---
         AssetStoreRegistrar.registerStore(QuestAsset.class,
                 new DefaultAssetMap<String, QuestAsset>(), "ZiggfreedCommon/Quests",
                 QuestAsset::getId, QuestAsset.CODEC, null);
@@ -297,8 +297,8 @@ public final class FrameworkAssetRegistrar {
 
         // --- Achievements (Pattern A) - one authored achievement per file, with native Parent
         //     inheritance. Common ships no achievement CONTENT; every entry is consumer pack JSON,
-        //     and each consumer folds the store into its own engine via
-        //     AchievementAssetStore.resolveAll(owner). ---
+        //     and every consumer folds the whole store into its own engine via
+        //     AchievementAssetStore.resolveAll(). ---
         AssetStoreRegistrar.registerStore(AchievementAsset.class,
                 new DefaultAssetMap<String, AchievementAsset>(), "ZiggfreedCommon/Achievements",
                 AchievementAsset::getId, AchievementAsset.CODEC, null);

@@ -17,7 +17,7 @@ import javax.annotation.Nullable;
  * <p>Names are many-to-many by design: several {@code WorldSelectorAsset}s may contribute
  * patterns to the SAME name, and this index holds the union - each name mapped to the most
  * specific rank any contributing asset achieved. That is what makes two mods each shipping a
- * {@code Primary.json}-ish file safe: the asset id is a pure address, the name is the shared
+ * {@code Zc_Default.json}-ish file safe: the asset id is a pure address, the name is the shared
  * vocabulary, and both contributions apply.
  *
  * <p>Immutable and name-case-insensitive (names are lower-cased on the way in and on lookup).

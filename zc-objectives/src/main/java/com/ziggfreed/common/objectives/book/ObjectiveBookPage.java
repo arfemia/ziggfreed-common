@@ -28,7 +28,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.achievement.AchievementStatus;
+import com.ziggfreed.common.achievement.asset.AchievementCategoryConfig;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.objectives.book.AchievementGrouping.HeaderWalk;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
@@ -100,6 +102,10 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     private static final String INACTIVE_TEXT = "#9fb0c2";
     private static final String HEADER_TINT = "#1e2a36";
     private static final String HEADER_TEXT = "#8696a8";
+    // The category tier sits INSIDE a lifecycle heading, so it is drawn quieter than one: a row
+    // template has no indent to give, and contrast is what is left to say "this is a sub-heading".
+    private static final String SUBHEADER_TINT = "#18212b";
+    private static final String SUBHEADER_TEXT = "#6c7c8e";
 
     /** Where a quest sits for this player, which is also the order the sections render in. */
     private enum QuestSection { ACTIVE, READY, AVAILABLE, LOCKED }
@@ -116,8 +122,9 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
      * One achievement's row. {@code category} and {@code categoryRank} are read once, at build, and
      * carried on the row: they are what makes a list of forty achievements read as combat things
      * together and gathering things together, in the order the taxonomy declares, instead of
-     * alphabetically. Content belonging to no category, and content another mod folded (whose
-     * category this library cannot see), sort after the described ones rather than in front of them.
+     * alphabetically, and each run of them carries a header naming the group. Content belonging to
+     * no category, and content another mod folded (whose category this library cannot see), share
+     * ONE bucket that reads after every named group rather than in front of them.
      */
     private record AchievementRow(@Nonnull Achievement achievement, @Nonnull Message name,
                                   @Nullable Message flavor, @Nonnull AchievementSection section,
@@ -214,17 +221,17 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 .thenComparing(r -> r.quest().id()));
 
         int index = 0;
-        QuestSection painted = null;
+        HeaderWalk<QuestSection> walk = new HeaderWalk<>();
         for (QuestRow entry : entries) {
-            if (index >= MAX_ROWS) {
+            boolean opensSection = walk.enterSection(entry.section());
+            // The header and the row it heads are budgeted TOGETHER, so a list cut short by the row
+            // ceiling never ends on a heading with nothing under it.
+            if (index + (opensSection ? 1 : 0) >= MAX_ROWS) {
                 break;
             }
-            if (entry.section() != painted) {
-                painted = entry.section();
-                index = appendHeader(cmd, index, questSectionText(painted));
-            }
-            if (index >= MAX_ROWS) {
-                break;
+            if (opensSection) {
+                index = appendHeader(cmd, index, questSectionText(entry.section()),
+                        HEADER_TINT, HEADER_TEXT);
             }
             index = appendQuestRow(cmd, events, index, subject, engine, entry);
         }
@@ -368,29 +375,54 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             entries.add(new AchievementRow(achievement,
                     nameOf(achievement.id(), "book.achievements.untitled"),
                     flavorOf(achievement.id()), section,
-                    category == null ? "" : category, ProgressionDefaults.categoryRank(category)));
+                    AchievementGrouping.bucketOf(category),
+                    AchievementGrouping.rankOf(category,
+                            ProgressionDefaults.categoryRank(category))));
         }
         entries.sort(Comparator.comparingInt((AchievementRow r) -> r.section().ordinal())
                 .thenComparingInt(AchievementRow::categoryRank)
                 .thenComparing(r -> r.category())
                 .thenComparing(r -> r.achievement().id()));
 
+        // TWO tiers of heading, the category one nested inside the lifecycle one. Both are drawn at
+        // the first row that needs them and the rows are sorted to match, so a category with
+        // nothing ready to collect simply has no header in the Ready to collect section.
         int index = 0;
-        AchievementSection painted = null;
+        HeaderWalk<AchievementSection> walk = new HeaderWalk<>();
         for (AchievementRow entry : entries) {
-            if (index >= MAX_ROWS) {
+            boolean opensSection = walk.enterSection(entry.section());
+            boolean opensCategory = walk.enterCategory(entry.category());
+            int headers = (opensSection ? 1 : 0) + (opensCategory ? 1 : 0);
+            // Headers and the row they head are budgeted TOGETHER, so a list cut short by the row
+            // ceiling never ends on a heading with nothing under it.
+            if (index + headers >= MAX_ROWS) {
                 break;
             }
-            if (entry.section() != painted) {
-                painted = entry.section();
-                index = appendHeader(cmd, index, achievementSectionText(painted));
+            if (opensSection) {
+                index = appendHeader(cmd, index, achievementSectionText(entry.section()),
+                        HEADER_TINT, HEADER_TEXT);
             }
-            if (index >= MAX_ROWS) {
-                break;
+            if (opensCategory) {
+                index = appendHeader(cmd, index, categoryText(entry.category()),
+                        SUBHEADER_TINT, SUBHEADER_TEXT);
             }
             index = appendAchievementRow(cmd, events, index, subject, engine, entry);
         }
         return index;
+    }
+
+    /**
+     * What one category's header says. The uncategorised bucket has a line of this page's own, since
+     * there is no category word to translate or tidy up; every other bucket is named by the folded
+     * taxonomy through {@link AchievementGrouping#label}.
+     */
+    @Nonnull
+    private Message categoryText(@Nonnull String category) {
+        if (AchievementGrouping.UNCATEGORISED.equals(category)) {
+            return text("book.achievements.category.uncategorised");
+        }
+        return AchievementGrouping.label(category,
+                AchievementCategoryConfig.getInstance().category(category));
     }
 
     private int appendAchievementRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
@@ -457,12 +489,16 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         return "#List[" + index + "]";
     }
 
-    /** A section heading, rendered as a row with everything but its name left hidden. */
-    private static int appendHeader(@Nonnull UICommandBuilder cmd, int index, @Nonnull Message label) {
+    /**
+     * A heading, rendered as a row with everything but its name left hidden. The two tiers differ
+     * only in their colours, which is the whole of the nesting a fixed row template can express.
+     */
+    private static int appendHeader(@Nonnull UICommandBuilder cmd, int index, @Nonnull Message label,
+                                    @Nonnull String tint, @Nonnull String textColor) {
         String sel = appendRow(cmd, index);
         cmd.set(sel + " #Name.TextSpans", label);
-        cmd.set(sel + " #Name.Style.TextColor", HEADER_TEXT);
-        cmd.set(sel + ".Background.Color", HEADER_TINT);
+        cmd.set(sel + " #Name.Style.TextColor", textColor);
+        cmd.set(sel + ".Background.Color", tint);
         return index + 1;
     }
 

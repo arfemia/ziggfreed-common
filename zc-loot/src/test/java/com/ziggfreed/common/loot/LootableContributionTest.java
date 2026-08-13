@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.validation.Severity;
 
 /**
  * One mod enriching another's table by id: what the enriched table ends up holding, whose decision
@@ -165,18 +166,31 @@ class LootableContributionTest {
     @Nested
     class TheFindings {
 
+        /**
+         * A contribution waiting on a mod this server does not run is content behaving exactly as
+         * designed, so it is a NOTE. That tier is what keeps it out of a boot log's problem count
+         * while an author running a validate command still reads it, and the line still names the
+         * target so a typo is recognisable at a glance.
+         */
         @Test
-        void aTargetNobodyShipsIsReported() {
+        void aTargetNobodyShipsIsReportedAsANote() {
             load(LootableAsset.of("extra", new Roll[] {granting("Bonus")}, null, "absent_table"));
 
-            assertTrue(codes().contains(LootableValidator.UNKNOWN_CONTRIBUTION_TARGET));
+            Finding finding = find(LootableValidator.UNKNOWN_CONTRIBUTION_TARGET);
+            assertNotNull(finding, "a contribution that attaches to nothing is still reported");
+            assertEquals(Severity.INFO, finding.severity());
+            assertTrue(finding.message().contains("absent_table"));
+            assertTrue(finding.message().contains("extra"), "and who is waiting on it");
         }
 
+        /** The lower tier is not a blanket softening: a genuine mistake still reads as one. */
         @Test
-        void aFileContributingToItselfIsReported() {
+        void aFileContributingToItselfIsStillAWarning() {
             load(LootableAsset.of("base", new Roll[] {granting("Staple")}, null, "BASE"));
 
-            assertTrue(codes().contains(LootableValidator.SELF_CONTRIBUTION));
+            Finding finding = find(LootableValidator.SELF_CONTRIBUTION);
+            assertNotNull(finding);
+            assertEquals(Severity.WARNING, finding.severity());
         }
 
         @Test
@@ -203,6 +217,16 @@ class LootableContributionTest {
                 out.add(finding.code());
             }
             return out;
+        }
+
+        /** The first finding carrying {@code code}, or null when the audit did not raise it. */
+        static Finding find(String code) {
+            for (Finding finding : LootableValidator.auditAll(null)) {
+                if (finding.code().equals(code)) {
+                    return finding;
+                }
+            }
+            return null;
         }
     }
 

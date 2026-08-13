@@ -21,9 +21,14 @@ import javax.annotation.Nonnull;
  * {@code /reload}-shaped commands do, several times a session, on a live server.
  *
  * <p>Merge order: the library's own defaults first, then each consumer in registration order. A
- * duplicate id between a default and a consumer is the consumer's, silently - that is the namespace
- * claim working as intended. A duplicate id between two CONSUMERS is a real collision nobody can
- * resolve, so the first registered keeps it and the clash is named once.
+ * duplicate id between a default and a consumer is the consumer's, silently. That silence is the
+ * WHOLE resolution story for overlapping content: every reader folds the same shared store and
+ * publishes what it folded, so a consumer that converts a file into something richer than the
+ * generic reading simply publishes it at a higher rank and wins, and a file only the library folded
+ * still reaches the engines. Nothing has to be claimed, declared or stood down for that to hold.
+ *
+ * <p>A duplicate id between two CONSUMERS is a real collision nobody can resolve, so the first
+ * registered keeps it and the clash is named once.
  *
  * @param <T> the content type (a quest, an achievement, a milestone)
  */

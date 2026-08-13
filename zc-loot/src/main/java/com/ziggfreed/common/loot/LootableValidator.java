@@ -22,6 +22,12 @@ import com.ziggfreed.common.validation.Finding;
  * content that works but almost certainly does not do what was intended, and an unknown id is always
  * a warning rather than an error: the mod that would answer it may simply not be installed on the
  * machine running the check.
+ *
+ * <p>A {@code ContributesTo} naming a table nobody ships is the one unknown id reported a tier lower
+ * still, as a NOTE. Enriching a table another mod owns is what that leaf is for, so a pack shipped
+ * for servers that may or may not run that other mod is behaving exactly as designed when its
+ * contribution finds nothing to attach to. It is worth saying once, where an author looking for a
+ * typo will read it, and worth staying out of the way otherwise.
  */
 public final class LootableValidator {
 
@@ -86,10 +92,15 @@ public final class LootableValidator {
             findings.addAll(auditContribution(config, id, table));
         });
         for (String target : config.unresolvedContributionTargets()) {
-            findings.add(Finding.warning(DOMAIN, UNKNOWN_CONTRIBUTION_TARGET,
+            // A NOTE, not a warning: contributing to a table another mod ships is the whole point of
+            // ContributesTo, so a contribution waiting for a mod this server does not run is content
+            // working as designed. Only a typo makes it a mistake, which is why the line still names
+            // the target and who is waiting on it.
+            findings.add(Finding.info(DOMAIN, UNKNOWN_CONTRIBUTION_TARGET,
                     "No loot table named '" + target + "' is loaded, so "
                             + String.join(", ", config.contributorsOf(target))
-                            + " adds nothing to anything. Check the spelling, or the pack that ships it.",
+                            + " adds nothing here. That is expected when the pack that ships '" + target
+                            + "' is not installed; check the spelling if it was meant for a table you do have.",
                     target));
         }
         return findings;
