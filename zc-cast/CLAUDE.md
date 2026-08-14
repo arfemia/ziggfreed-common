@@ -55,10 +55,10 @@ bakes in a particular ability or interaction vocabulary.
 
 ## Tests
 
-26 files, the largest test suite relative to package count in the library: the kernel
+25 files, the largest test suite relative to package count in the library: the kernel
 (`CastKernelTest`, `StepRegistryTest`), hit resolution (`HitResolverTest`, `OnHitRegistryTest`,
 `ArmedStateStoreTest`), targeting (`TargetQueryTest`, `TargetSweepTest`, `TargetHitTest`,
-`LineOfSightTest`), the per-world partition (`WorldFrameGateTest`), chain composition
+`LineOfSightTest`), chain composition
 (`ChainWalkTest`, `ChainWalkerTest`, `ChainNodeTest`, `NativeChainFireTest`), the param-fold seam
 (`CastScopeTest`, `CastScopesTest`, `ParamFoldTest`, `ParamFoldRequestTest`, `ParamSlotTest`), and
 custom-Type registration (`InteractionTypeSpecTest`, `InteractionTypesTest`, `InteractionCtxTest`,

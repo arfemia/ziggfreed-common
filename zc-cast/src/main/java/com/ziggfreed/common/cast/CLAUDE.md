@@ -1,19 +1,28 @@
 # cast/ - reusable cast / ability runtime primitives
 
-**FROZEN this cycle: zero file edits, zero deletions, zero signature changes.** A monorepo-wide
-grep (`import com\.ziggfreed\.common\.cast`) shows every class in `cast/` and `cast/step/` has
-at least one live importer: rpg-stations imports `step.CastKernel`/`StepHandler`/`StepRegistry`/
-`StepSemantics` plus `AbstractWorldFrameSystem`/`WorldEvictors`/`WorldKeyedQueues`/
-`ModelParticleService` (`cast.step` is its station-PROGRAM engine, a consumer with zero relation
-to abilities); mmo-mob-scaling imports `OnHitRegistry`/`CastParams`; the hyMMO MMO imports nearly
-every class in both packages including `step.CastKernel`/`step.StepSemantics`. Deleting or
-renaming anything here breaks a shipped sibling mod this cycle is not touching, so the cast /
-ability rewrite lands as a NEW tree instead: the generic interaction-composition framework now
-lives in [`../interaction/`](../interaction/CLAUDE.md) (+ `interaction/type/`, `interaction/param/`,
-`interaction/target/`) and COMPOSES with these primitives rather than replacing them -
-`interaction/target/` builds its sweeps on `RaycastTargeting` + `BlockRaystep`, and a consumer's
-custom interaction Types keep dispatching hits through `HitResolver` and keep their per-world
-ticker registered on the `WorldKeyedQueues`/`WorldEvictors` partition exactly as before.
+**FROZEN this cycle: zero file edits, zero deletions, zero signature changes - ONE deliberate,
+maintainer-approved exception below.** A monorepo-wide grep (`import com\.ziggfreed\.common\.cast`)
+shows every class in `cast/` and `cast/step/` has at least one live importer: rpg-stations imports
+`step.CastKernel`/`StepHandler`/`StepRegistry`/`StepSemantics` plus
+`AbstractWorldFrameSystem`/`WorldEvictors`/`WorldKeyedQueues`/`ModelParticleService` (`cast.step` is
+its station-PROGRAM engine, a consumer with zero relation to abilities); mmo-mob-scaling imports
+`OnHitRegistry`/`CastParams`; the hyMMO MMO imports nearly every class in both packages including
+`step.CastKernel`/`step.StepSemantics`. Deleting or renaming anything here breaks a shipped sibling
+mod this cycle is not touching, so the cast / ability rewrite lands as a NEW tree instead: the
+generic interaction-composition framework now lives in [`../interaction/`](../interaction/CLAUDE.md)
+(+ `interaction/type/`, `interaction/param/`, `interaction/target/`) and COMPOSES with these
+primitives rather than replacing them - `interaction/target/` builds its sweeps on
+`RaycastTargeting` + `BlockRaystep`, and a consumer's custom interaction Types keep dispatching hits
+through `HitResolver` and keep their per-world ticker registered on the
+`WorldKeyedQueues`/`WorldEvictors` partition exactly as before.
+
+**The one exception: `AbstractWorldFrameSystem` was rewired onto the engine's native once-per-world
+tick, and `WorldFrameGate` was deleted (1.6.0, maintainer-approved after a shared-source +
+decompile research pass found the engine already provides exactly this).** See both classes' own
+bullets below for the mechanism. This is a genuine signature/behavior change to a class rpg-stations'
+`StationFrameSystem` also extends - rpg-stations was rebuilt and its tests rerun against the updated
+jar as part of landing this, and its own `drainFrame` override needed no change (the abstract method
+signature is unchanged). Every OTHER class in `cast/`/`cast/step/` stays untouched by this exception.
 
 **`com.ziggfreed.common.cast` is a SPLIT package, and this module is a LEAF.** Every domain in
 the library registers into the per-world eviction fan-out, so `WorldEvictors` - which imports
@@ -44,8 +53,8 @@ The generic ordered-step-walk engine, parameterized over a consumer's OWN contex
 - **[`ArmedStateStore`](ArmedStateStore.java)** - a PER-CONSUMER INSTANCE store of per-caster transient armed state (next-hit multipliers / flat damage / on-hit chains keyed `(casterId, slot)`) + a parallel invulnerability window. `armNextHit`/`armMultiplier`/`peekArmedMultiplier`/`consumeArmed` (composite: multipliers multiply, flats sum, on-hit consumers chain, each live slot's OPAQUE `attribution` payload exposed in encounter order via `ArmedState.attributions` for the consumer to fold) + `armInvulnerability`/`isInvulnerable`/`peekInvulnerability` + `clearPlayer`. Each arm / invuln call carries a `@Nullable Object attribution` (retained payload-free `armMultiplier(UUID,double,long)` overload); `ArmedState`/`InvulnerabilityState` are final-field + ctor. No consumer-domain vocabulary lives here. Expiry-on-read pruning. **The caller supplies the UUID key and this store NEVER derives it - the consumer's caster-context stays the single key-derivation authority.** Pure state, no engine calls (unit-testable with null refs).
 - **[`RaycastTargeting`](RaycastTargeting.java)** - stateless static entity-raycast picking: `pickClosest` (nearest hit) / `pickPiercing` (all hits closest-first, capped) over `Selector` + `CollisionMath.intersectRayAABB`, caster excluded by index; `inflateRadius` widens only the broad-phase search. `Hit` carries the ref + ray-t + pick-time position. World-thread.
 - **[`BlockRaystep`](BlockRaystep.java)** - stateless static look-ray block walker: `clearDistance` (distance to first Solid block, optional wall pullback) / `hitPosition` (exact hit point). All step / distance / pullback values are caller-supplied; an unloaded / off-map block is treated as clear (`catch (Throwable ignored)` keeps stepping). World-thread.
-- **[`WorldFrameGate`](WorldFrameGate.java)** - a once-per-world-frame CAS gate on the millisecond clock: `beginFrame()` is `true` only for the first call per millisecond. Hold ONE per world. Thread-safe; no world-thread requirement.
+- **`WorldFrameGate` is DELETED (1.6.0)** - the millisecond-CAS dedup gate it provided is no longer needed now that `AbstractWorldFrameSystem` rides the engine's own once-per-world-per-tick dispatch instead of a per-player query (see that class's bullet below).
 - **[`WorldEvictors`](../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/cast/WorldEvictors.java)** (the FILE lives in **zc-core**, FQN unchanged - see the split-package note below) - STATIC (JVM-global, so fan-out reaches every consumer's partitions in one process): `worldOf(Store|Ref)` world resolution + `registerEvictor(Consumer<World>)` + `onWorldRemoved(World)` guarded fan-out. A consumer's `RemoveWorldEvent` listener calls `onWorldRemoved`.
 - **[`WorldKeyedQueues`](WorldKeyedQueues.java)** - a generic per-world queue partition `WorldKeyedQueues<E>`: `queueFor(world)` (computeIfAbsent, add path) / `peek(world)` (nullable get, drain path) / `isEmpty` / `values()` / `totalSize` / `evict`. Self-registers a `WorldEvictors` evictor in its constructor. A drain system MUST call `markDrainerAttached()`; a one-time WARNING fires if entries are added before any drainer attaches. Each per-world cast ticker swaps its private map for one instance with no tick-body change.
-- **[`AbstractWorldFrameSystem`](AbstractWorldFrameSystem.java)** - abstract `EntityTickingSystem<EntityStore>` base (player-query gate). Resolves the world from the store, gates via an internal per-world `WorldFrameGate` (self-evicting), and on winning calls the protected abstract `drainFrame(world, store, commandBuffer)`. **NEVER registered by common - the ECS system registry is class-keyed, so each consumer registers its OWN concrete subclass.**
+- **[`AbstractWorldFrameSystem`](AbstractWorldFrameSystem.java) (1.6.0: rewired onto the engine's native per-world tick)** - abstract `com.hypixel.hytale.component.system.tick.TickingSystem<EntityStore>` base, extended DIRECTLY rather than through the query-bearing `EntityTickingSystem`. `TickingSystem<ECS_TYPE>` has no query at all; the engine's own `Store.tickInternal` calls a registered system's `tick(dt, systemIndex, store)` exactly once per `Store` per server tick (confirmed against both the official shared source and the installed server's decompile - vanilla's `TimeSystem`/`WorldTimeSystems.Ticking` extend the identical base for the identical reason: world-scoped work with no per-entity fan-out). Since a `Store<EntityStore>` IS one world's store, this genuinely runs `drainFrame` exactly once per world per tick with no dedup gate to own - the pre-1.6.0 `WorldFrameGate` millisecond CAS was a workaround for riding a `PlayerRef` query on `EntityTickingSystem` (which fires once per MATCHING ENTITY, i.e. once per online player), not a requirement of the engine. A world with zero players now ticks its drains too (cheap - every drain here early-returns on an empty queue), so the old "at least one player online" side effect of the player query is gone; nothing depended on it. `tick()` obtains its `CommandBuffer` via the public `Store#forEachChunk(BiConsumer)` (the only public route to one from a query-less system, since `Store.takeCommandBuffer()` is package-private) - that call takes ONE `CommandBuffer` for the whole invocation and threads the same instance to every archetype-chunk callback, so a local flag lets `drainFrame` fire exactly once, sharing that buffer, still flushed by `forEachChunk`'s own trailing `commandBuffer.consume()`. **NEVER registered by common - the ECS system registry is class-keyed, so each consumer registers its OWN concrete subclass.**
 - **[`ModelParticleService`](ModelParticleService.java)** - static `ParticleUtil` wrappers: `spawnAt(store, asset, pos)` (position-only) + `spawnDirectional(store, asset, pos, rotation)` (collects nearby players to reach the rotation-aware overload). Null asset -> `false` no-op; `catch (Throwable)` -> `false` + guarded FINE log; `true` on success. World-thread.
