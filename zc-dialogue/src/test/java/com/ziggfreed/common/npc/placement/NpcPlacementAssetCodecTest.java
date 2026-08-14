@@ -135,6 +135,27 @@ class NpcPlacementAssetCodecTest {
         assertEquals(2.5, child.getAnchor().getWorldSpawn().getOffset().effectiveX());
         assertTrue(child.getLifecycle().effectiveKeepAlive());
         assertTrue(child.getLifecycle().effectiveFortify());
+
+        assertNull(child.getWhere().getMatch(),
+                "authoring Where in a child RETARGETS it: the parent's Match must not survive "
+                        + "underneath the child's own axis (a leaked Match:[\"default\"] once stood "
+                        + "a duplicate NPC at the main world's spawn)");
+        assertNull(child.getWhere().match("default", null),
+                "so the child must no longer match the world its parent targets");
+    }
+
+    @Test
+    void aChildAuthoringNoWhereInheritsTheParentsSelectorWhole() throws Exception {
+        NpcPlacementAsset parent = decodeRoot("""
+                { "Where": { "Match": ["default"], "ExcludeMatch": ["*Arena*"] } }
+                """, "base");
+
+        NpcPlacementAsset child = decode("{ }", "silent", "base", parent);
+
+        assertEquals(List.of("default"), List.of(child.getWhere().getMatch()),
+                "omitting Where entirely still inherits the parent's whole selector");
+        assertEquals(List.of("*Arena*"), List.of(child.getWhere().getExcludeMatch()),
+                "including its ExcludeMatch, since the selector moves as one predicate");
     }
 
     @Test

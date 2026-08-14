@@ -51,8 +51,17 @@ import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
  * unmatched world as its own DEFAULT record), so each read site applies its own default and this
  * type never invents one. One codec with two invisible Java-side defaults would be a rework.
  *
- * <p>Every leaf is registered with {@code appendInherited} so a native {@code Parent} partial
- * merge on the OWNING asset never drops an untouched sibling leaf.
+ * <p><b>Under native {@code Parent} inheritance, an authored {@code Where} replaces the parent's
+ * selector WHOLESALE.</b> A {@code Where} is ONE predicate: its positive axes are alternatives
+ * scored on one ladder, so a child inheriting the parent's {@code Match} underneath its own
+ * {@code GameplayConfig} would silently broaden itself to worlds nobody authored it for (that was
+ * a shipped bug: a temple-only child placement inherited {@code Match:["default"]} and stood a
+ * duplicate NPC at the main world's spawn). The engine merges a nested group PER LEAF, and a leaf
+ * participates only when it registers an inherit function - so these leaves deliberately register
+ * NONE. A child authoring no {@code Where} at all still inherits the parent's whole selector
+ * wherever the OWNING asset registers its {@code Where} field with an inherit function (the NPC
+ * placement asset does); a child that authors one and still wants the parent's
+ * {@code ExcludeMatch} restates it, where a reader can see it.
  */
 public final class WorldSelector {
 
@@ -62,24 +71,22 @@ public final class WorldSelector {
 
     public static final BuilderCodec<WorldSelector> CODEC =
             BuilderCodec.builder(WorldSelector.class, WorldSelector::new)
-                    .appendInherited(new KeyedCodec<>("Match", Codec.STRING_ARRAY, false),
-                            (o, v) -> o.match = v, o -> o.match, (o, p) -> o.match = p.match)
+                    .append(new KeyedCodec<>("Match", Codec.STRING_ARRAY, false),
+                            (o, v) -> o.match = v, o -> o.match)
                     .documentation("World-name patterns: Foo (exact), Foo* (prefix), *Foo (suffix), "
                             + "*Foo* (contains) or * (every world). A bare word is an exact name, so "
                             + "\"default\" means the world called default and nothing else. Only the "
                             + "*Foo* form reaches an instance world, whose name carries a random uuid.")
                     .add()
-                    .appendInherited(new KeyedCodec<>("GameplayConfig", Codec.STRING_ARRAY, false),
-                            (o, v) -> o.gameplayConfig = v, o -> o.gameplayConfig,
-                            (o, p) -> o.gameplayConfig = p.gameplayConfig)
+                    .append(new KeyedCodec<>("GameplayConfig", Codec.STRING_ARRAY, false),
+                            (o, v) -> o.gameplayConfig = v, o -> o.gameplayConfig)
                     .documentation("Exact matches against a world's own authored GameplayConfig key. It "
                             + "carries no uuid and survives an instance being rebuilt, so it is the "
                             + "sturdiest way to target an instance world, and it outranks every name "
                             + "pattern.")
                     .add()
-                    .appendInherited(new KeyedCodec<>("ExcludeMatch", Codec.STRING_ARRAY, false),
-                            (o, v) -> o.excludeMatch = v, o -> o.excludeMatch,
-                            (o, p) -> o.excludeMatch = p.excludeMatch)
+                    .append(new KeyedCodec<>("ExcludeMatch", Codec.STRING_ARRAY, false),
+                            (o, v) -> o.excludeMatch = v, o -> o.excludeMatch)
                     .documentation("Name patterns, same grammar as Match, that REJECT a world even when "
                             + "a positive axis matched - for 'everywhere except' without enumerating "
                             + "the exceptions. It filters the axes above rather than standing in for "

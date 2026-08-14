@@ -53,6 +53,26 @@ public final class JsonParentResolver {
                                                   @Nonnull Collection<String> outputIds,
                                                   @Nonnull String parentKey,
                                                   @Nonnull Consumer<String> warn) {
+        return resolve(pool, outputIds, parentKey, warn, Set.of());
+    }
+
+    /**
+     * As {@link #resolve(Map, Collection, String, Consumer)}, with {@code replaceKeys}: TOP-LEVEL
+     * keys a child authoring them REPLACES wholesale instead of deep-merging into the parent's
+     * copy. For a group that is ONE predicate whose sub-keys are alternatives rather than
+     * independent tunables - a {@code Where} world selector above all: a child retargeting its
+     * {@code Where} must not inherit the parent's {@code Match} underneath its own
+     * {@code GameplayConfig}, or it silently applies in worlds nobody authored it for. This is
+     * the same rule the engine-native decode path applies to {@code WorldSelector}'s leaves, so
+     * a {@code Where} means the same thing whichever half resolves it. A child that OMITS such a
+     * key still inherits the parent's copy whole.
+     */
+    @Nonnull
+    public static Map<String, JsonObject> resolve(@Nonnull Map<String, JsonObject> pool,
+                                                  @Nonnull Collection<String> outputIds,
+                                                  @Nonnull String parentKey,
+                                                  @Nonnull Consumer<String> warn,
+                                                  @Nonnull Set<String> replaceKeys) {
         Map<String, JsonObject> norm = new LinkedHashMap<>();
         for (Map.Entry<String, JsonObject> e : pool.entrySet()) {
             if (e.getKey() != null && e.getValue() != null) {
@@ -67,7 +87,7 @@ public final class JsonParentResolver {
                 continue;
             }
             String key = id.toLowerCase(Locale.ROOT);
-            JsonObject resolved = resolveOne(key, norm, parentKey, cache, onStack, warn);
+            JsonObject resolved = resolveOne(key, norm, parentKey, cache, onStack, warn, replaceKeys);
             if (resolved != null) {
                 out.put(key, resolved);
             }
@@ -78,7 +98,8 @@ public final class JsonParentResolver {
     @Nullable
     private static JsonObject resolveOne(@Nonnull String id, @Nonnull Map<String, JsonObject> pool,
                                          @Nonnull String parentKey, @Nonnull Map<String, JsonObject> cache,
-                                         @Nonnull Set<String> onStack, @Nonnull Consumer<String> warn) {
+                                         @Nonnull Set<String> onStack, @Nonnull Consumer<String> warn,
+                                         @Nonnull Set<String> replaceKeys) {
         if (cache.containsKey(id)) {
             return cache.get(id);
         }
@@ -99,7 +120,7 @@ public final class JsonParentResolver {
             body.remove(parentKey);
             JsonObject parent = null;
             if (parentId != null && !parentId.isEmpty()) {
-                parent = resolveOne(parentId, pool, parentKey, cache, onStack, warn);
+                parent = resolveOne(parentId, pool, parentKey, cache, onStack, warn, replaceKeys);
                 if (parent == null) {
                     warn.accept("'" + id + "' " + parentKey + " '" + parentId
                             + "' not found (or cyclic) - resolving standalone");
@@ -110,6 +131,11 @@ public final class JsonParentResolver {
                 resolved = body;
             } else {
                 resolved = JsonTreeUtil.deepClone(parent); // parent leaves first...
+                for (String replaceKey : replaceKeys) {
+                    if (body.has(replaceKey)) {
+                        resolved.remove(replaceKey); // an authored replace-key drops the parent's copy whole
+                    }
+                }
                 JsonTreeUtil.deepMergeInto(resolved, body); // ...child overrides per leaf
             }
             cache.put(id, resolved);

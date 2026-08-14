@@ -42,6 +42,29 @@ class JsonParentResolverTest {
     }
 
     @Test
+    void aReplaceKeyAuthoredByTheChildDropsTheParentsCopyWhole() {
+        Map<String, JsonObject> pool = new LinkedHashMap<>();
+        pool.put("Base", obj("{\"Where\":{\"Match\":[\"default\"],\"ExcludeMatch\":[\"*Arena*\"]},\"A\":1}"));
+        pool.put("Child", obj("{\"Parent\":\"Base\",\"Where\":{\"GameplayConfig\":[\"ForgottenTemple\"]}}"));
+        pool.put("Silent", obj("{\"Parent\":\"Base\",\"A\":2}"));
+        Map<String, JsonObject> out = JsonParentResolver.resolve(
+                pool, pool.keySet(), "Parent", s -> { }, java.util.Set.of("Where"));
+
+        JsonObject child = out.get("child").getAsJsonObject("Where");
+        assertFalse(child.has("Match"),
+                "a child retargeting its Where must not inherit the parent's Match underneath it"
+                        + " (that shape once stood a duplicate NPC in a world nobody authored it for)");
+        assertFalse(child.has("ExcludeMatch"), "the selector moves as ONE predicate");
+        assertEquals("ForgottenTemple", child.getAsJsonArray("GameplayConfig").get(0).getAsString());
+        assertEquals(1, out.get("child").get("A").getAsInt(), "non-replace keys still deep-merge");
+
+        JsonObject silent = out.get("silent").getAsJsonObject("Where");
+        assertEquals("default", silent.getAsJsonArray("Match").get(0).getAsString(),
+                "a child that omits a replace-key inherits the parent's copy whole");
+        assertEquals("*Arena*", silent.getAsJsonArray("ExcludeMatch").get(0).getAsString());
+    }
+
+    @Test
     void multiLevelChainResolvesTransitively() {
         Map<String, JsonObject> pool = new LinkedHashMap<>();
         pool.put("a", obj("{\"A\":1,\"B\":1,\"C\":1}"));
