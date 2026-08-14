@@ -63,7 +63,7 @@
       "Options": [
         {
           "LabelKey": "dialogue.mmo_hub_intro.greet.opt.learn",
-          "Open": "Onboarding"
+          "Open": "Mmo_Onboarding"
         },
         {
           "LabelKey": "dialogue.mmo_hub_intro.greet.opt.skip",
@@ -105,7 +105,7 @@
       "Options": [
         {
           "LabelKey": "dialogue.mmo_hub_intro.bounty_intro.opt.hub",
-          "Open": "Hub"
+          "Open": "Mmo_Hub"
         }
       ],
       "IncludeOptions": ["hub_footer"]
@@ -360,10 +360,10 @@
         ],
         "Open": { "Type": "Quests", "Npc": "mmo_hub" }
       },
-      { "LabelKey": "dialogue.mmo_hub_intro.menu.opt.open", "Open": "Hub" }
+      { "LabelKey": "dialogue.mmo_hub_intro.menu.opt.open", "Open": "Mmo_Hub" }
     ],
     "open_menu": [
-      { "LabelKey": "dialogue.mmo_hub_intro.menu.opt.open", "Open": "Hub" }
+      { "LabelKey": "dialogue.mmo_hub_intro.menu.opt.open", "Open": "Mmo_Hub" }
     ]
   }
 }

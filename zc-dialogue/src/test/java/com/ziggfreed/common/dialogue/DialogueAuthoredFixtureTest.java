@@ -54,8 +54,8 @@ class DialogueAuthoredFixtureTest {
         // a Type nothing registered fails the file outright, which is the whole point of it. The
         // library seeds the quest list itself; the two page ids belong to the mod that ships them.
         NpcDestinations.register();
-        DialogueTestSupport.shareDestination("Hub");
-        DialogueTestSupport.shareDestination("Onboarding");
+        DialogueTestSupport.shareDestination("Mmo_Hub");
+        DialogueTestSupport.shareDestination("Mmo_Onboarding");
         return DialogueEngine.builder()
                 .warn(m -> { })
                 .condition(paramless("NotInRound", NotInRound.class, NotInRound.CODEC))
