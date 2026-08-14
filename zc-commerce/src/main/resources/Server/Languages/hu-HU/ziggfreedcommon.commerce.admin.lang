@@ -1,0 +1,78 @@
+# A /zigcommerce parancscsalád: súgó, listák és válaszok.
+# A fájlnév a kulcs ELŐTAGJA: egy itteni bejegyzés így oldódik fel:
+# ziggfreedcommon.commerce.admin.<kulcs>.
+
+desc.family = A szerver gazdaságának megtekintése és kezelése.
+desc.validate = A szerver minden erszényének, boltjának és hirdetőtáblájának ellenőrzése.
+desc.wallets = A csomagok által meghatározott erszények listázása.
+desc.shops = A boltok, polcaik és a forgásuk állásának listázása.
+desc.boards = A hirdetőtáblák, helyeik és a forgásuk állásának listázása.
+desc.show = Egy játékos egyenlegeinek, vásárlásainak és újrahúzásainak mutatása.
+desc.give = Hozzáadás egy játékos erszényéhez.
+desc.take = Elvétel egy játékos erszényéből.
+desc.set = Egy játékos erszényének pontos összegre állítása.
+desc.resetlimits = Egy játékos vásárlásszámlálóinak törlése.
+desc.resetrerolls = Egy játékos újrahúzásainak törlése a jelenlegi időszakra.
+desc.arg.player = Az érintett játékos. Alapból te magad.
+desc.arg.currency = Az erszény azonosítója.
+desc.arg.amount = Egész szám.
+desc.arg.shop = Csak ezt a boltot és ajánlatait mutatja.
+desc.arg.board = Csak ezt a hirdetőtáblát és szerződéseit mutatja.
+
+more = ... és még {0}, a szerver naplójában.
+
+validate.clean = Kereskedelmi tartalom: nincs jelentenivaló.
+validate.counts = Kereskedelmi tartalom: {0} hiba, {1} figyelmeztetés, {2} megjegyzés.
+finding = {0} {1} [{2}] {3}
+
+wallets.header = Erszények ({0}):
+wallets.none = Nincs meghatározott erszény.
+wallets.row.item = {0} - tárgy {1}, felső határ {2}
+wallets.row.item.uncapped = {0} - tárgy {1}, nincs felső határ
+wallets.row.counter = {0} - számláló, felső határ {1}
+wallets.row.counter.uncapped = {0} - számláló, nincs felső határ
+
+shops.header = Boltok ({0}):
+shops.none = Nincs meghatározott bolt.
+shops.row = {0} - {1} polc, {2} ajánlat
+shops.shelf = polc {0} - időszak {1}, következő {2} perc múlva, {3} jelölt
+shops.offer = ajánlat {0} - polc {1}
+shops.offer.disabled = ajánlat {0} - polc {1}, kikapcsolva
+
+boards.header = Hirdetőtáblák ({0}):
+boards.none = Nincs meghatározott hirdetőtábla.
+boards.row = {0} - időszak {1}, következő {2} perc múlva, {3} hely, {4} szerződés
+boards.slot = {0} fokozatú hely, mennyiség {1}
+boards.reroll = újrahúzás: {0} időszakonként, ingyenes
+boards.reroll.paid = újrahúzás: {0} időszakonként, fizetős
+boards.contract = szerződés {0} - fokozat {1}
+
+show.header = {0} kereskedelmi adatai:
+show.balances = Egyenlegek:
+show.balances.none = nincs semmije
+show.balance.row = {0}: {1} nála, {2} összesen elköltve
+show.purchases = Vásárlások:
+show.purchases.none = semmit nem vett
+show.purchase.row = {0}: {1} ma, {2} összesen, korlátok {3}
+show.rerolls = Újrahúzások:
+show.rerolls.none = ebben az időszakban egy sem
+show.reroll.row = {0} időszak {1}: {2} elhasználva, {3} hely cserélve
+show.store.no_purchases = A telepített kereskedelmi tároló nem vezet vásárlásszámlálókat.
+show.store.no_rerolls = A telepített kereskedelmi tároló nem őrzi meg az újrahúzásokat.
+
+player.needed = Adj meg egy játékost a --player=<név> kapcsolóval.
+player.offline = Ez a játékos nincs bent, a kereskedelmi adatai pedig a saját alakján élnek.
+
+wallet.unknown = A(z) '{0}' azonosítón nincs meghatározott erszény.
+wallet.gave = {0} {1} átadva neki: {2}. Most {3} van nála.
+wallet.took = {0} {1} elvéve tőle: {2}. Most {3} van nála.
+wallet.short = {0} csak ennyivel rendelkezik: {1} {2}.
+wallet.set = {0} mostantól {1} {2} egységgel rendelkezik.
+
+arg.currency.needed = Adj meg egy erszényt a --currency=<id> kapcsolóval.
+arg.amount.needed = Adj meg egy összeget a --amount=<n> kapcsolóval.
+arg.amount.number = Ez az összeg nem egész szám: '{0}'.
+arg.amount.negative = Az összeg nem lehet negatív.
+
+reset.limits = {0} összes vásárlásszámlálója törölve.
+reset.rerolls = {0} összes újrahúzása törölve.

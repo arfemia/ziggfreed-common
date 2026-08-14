@@ -42,7 +42,7 @@ The library is built as THIRTEEN Gradle modules plus a thin wiring root, all sha
 | `zc-objectives` | `objectives` (the standalone progression runtime: `objectives.runtime` / `.store` / `.producer` / `.book`) | core, loot, progression, presentation, cast, entity | yes (the objective book page + its row) |
 | `zc-instance` | the remaining `instance.*`, `lobby`, `party` | core, presentation, loot | yes (play / results / leaderboard / party pages) |
 | `zc-scaling` | `scaling` | - (no engine types at all) | - |
-| `zc-commerce` | `currency` (definitions + the item-or-counter dispatch + the balance engine), `cost` (the price model + the check/drain/refund engine + receipts), `rotation` (the deterministic rotating-pool primitive), `shop` (storefront/pool/entry assets + the purchase engine), `board` (board + bounty assets + the rotating quest-view engine), `commerce` (the persisted-state seam) + `commerce.fold` (the JOIN: authored content to engine values, the catalogs, the owner-file readers, the `Currency` reward kind, the `Shop`/`Board` destinations) | core, loot, progression, presentation, world | yes (shop page + board page) |
+| `zc-commerce` | `currency` (definitions + the item-or-counter dispatch + the balance engine), `cost` (the price model + the check/drain/refund engine + receipts), `rotation` (the deterministic rotating-pool primitive), `shop` (storefront/pool/entry assets + the purchase engine), `board` (board + bounty assets + the rotating quest-view engine), `commerce` (the persisted-state seam + the per-player component behind it) + `commerce.fold` (the JOIN: authored content to engine values, the catalogs, the owner-file readers, the `Currency` reward kind, the `Shop`/`Board` destinations, the content audit) + `commerce.command` (`/zigcommerce`, the library's first command family) | core, loot, progression, presentation, world | yes (shop page + board page) |
 | **(root)** | `ZiggfreedCommonPlugin`, `asset/FrameworkAssetRegistrar`, `reward/EffectRewardKind` (the cross-domain reward kind only the root can see both ends of) | all thirteen | - |
 
 **`.ui` files are a RUNTIME dependency Gradle cannot see.** A page's `.ui` imports the shared `ZigButtons.ui` / `ZigFrames.ui` from zc-presentation by path, and the build never looks inside a `.ui` file. So any module marked in the last column requires zc-presentation AT RUNTIME even where it has no compile edge - harmless while one aggregate jar ships, and the thing to remember the day anything is split or shipped separately. Fill in that column for every new module; the build will never tell you.
@@ -125,6 +125,7 @@ SHIPPED ASSETS live in the modules that own the code reading them, never at the 
   zc-instance      the play / results / leaderboard / party pages
   zc-objectives    the objective book page + its row
   zc-core          Server/Languages/<locale>/ziggfreedcommon.fmt.lang (9 locales)
+  zc-commerce      Server/Languages/<locale>/ziggfreedcommon.commerce.admin.lang (9 locales)
 THE PACKAGES (one module each - see the Modules table for which):
   sound/                                               Sound3D (3D SoundEvent playback)
   camera/                                              CameraShakeService + ServerCameraService

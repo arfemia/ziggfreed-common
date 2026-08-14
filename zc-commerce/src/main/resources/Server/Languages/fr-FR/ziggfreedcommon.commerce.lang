@@ -1,0 +1,91 @@
+action.confirm = Confirmer
+
+shop.title = Boutique
+shop.count = {0} en vente
+shop.shelf = À la une
+shop.refresh_in = Renouvellement dans {0}
+shop.section.catalogue = Catalogue
+shop.empty.unavailable = Ton compte n'a pas pu être lu pour le moment.
+shop.empty.closed = Cette boutique est fermée.
+shop.empty.nothing = Rien n'est en vente ici pour le moment.
+shop.offer.untitled = Offre sans nom
+
+shop.header.cost = Prix
+shop.header.cost_any = Prix (l'un ou l'autre)
+shop.header.rewards = Tu reçois
+
+shop.limit.daily = {0}/{1} aujourd'hui
+shop.limit.total = {0}/{1} au total
+shop.badge.sold_out = Épuisé
+shop.badge.none_today = Plus rien aujourd'hui
+shop.badge.left = Encore {0}
+
+shop.action.buy = Acheter
+shop.action.take = Prendre
+shop.action.reroll = Relancer
+
+shop.toast.bought = {0} acheté.
+shop.toast.bought_queued = {0} acheté. Une partie t'attend à ta prochaine connexion.
+shop.toast.reroll_confirm = Relancer pour {0} ? Appuie encore pour confirmer.
+
+board.title = Tableau
+board.count = {0} contrats
+board.refresh_in = Nouveaux contrats dans {0}
+board.tab.posted = Affichés
+board.tab.mine = Les miens
+board.empty.unknown = Ce tableau n'existe pas ici.
+board.empty.unavailable = Ton compte n'a pas pu être lu pour le moment.
+board.empty.closed = Ce tableau est fermé.
+board.empty.posted = Rien n'est affiché pour le moment.
+board.empty.mine = Tu ne portes rien qui vienne de ce tableau.
+board.bounty.untitled = Contrat sans nom
+board.step.untitled = Étape sans nom
+board.progress = {0}/{1}
+
+board.header.objectives = Objectifs
+board.header.rewards = Récompense
+
+board.section.ready = Prêt à récupérer
+board.section.turn_in = À rendre ici
+board.section.active = En cours
+board.section.available = Disponible
+board.section.locked = Verrouillé
+board.section.spent = Fini pour ce cycle
+board.section.done = Terminé
+board.status.spent_detail = Tu l'as déjà terminé. Il revient au prochain changement du tableau.
+board.status.parked = Sa récompense t'attend au tableau où tu l'as pris.
+
+board.action.accept = Accepter
+board.action.turn_in = Rendre
+board.action.report = Faire son rapport
+board.action.claim = Récupérer
+board.action.abandon = Abandonner
+board.action.reroll = Relancer
+
+board.toast.accepted = Contrat accepté.
+board.toast.claim_failed = Il n'y a rien à récupérer pour le moment.
+board.toast.abandoned = Contrat abandonné.
+board.toast.turned_in = Rendu.
+board.toast.turn_in_failed = Impossible de rendre ça.
+board.toast.turn_in_short = Tu en as {0} sur {1}.
+board.toast.completed = Contrat terminé.
+board.toast.reroll_confirm = Relancer pour {0} ? Appuie encore pour confirmer.
+
+refuse.locked = Tu ne peux pas encore faire ça.
+refuse.disabled = Ce n'est pas disponible.
+refuse.unknown_offer = Ce n'est plus en vente.
+refuse.limit_daily = Tu en as déjà acheté autant que possible aujourd'hui.
+refuse.limit_total = Tu en as déjà acheté autant que tu le pourras jamais.
+refuse.short_currency = Tu n'as pas assez de {0}.
+refuse.short_item = Tu n'as pas assez de {0}.
+refuse.no_room = Ton inventaire est plein.
+refuse.cannot_pay = Tu n'as pas les moyens.
+refuse.refunded = Rien n'a pu être livré, tu as donc été remboursé.
+refuse.not_on_board = Ce n'est pas affiché ici pour le moment.
+refuse.already_carried = Tu portes déjà celui-là.
+refuse.spent_this_period = Tu l'as déjà terminé pendant ce cycle.
+refuse.quest_refused = Impossible de le prendre pour le moment.
+refuse.no_reroll = Celui-là ne peut pas être relancé.
+refuse.reroll_cap = Tu as utilisé toutes tes relances de ce cycle.
+refuse.reroll_no_alternative = Il n'y a rien d'autre à mettre à la place.
+refuse.reroll_cannot_pay = Tu n'as pas les moyens de relancer.

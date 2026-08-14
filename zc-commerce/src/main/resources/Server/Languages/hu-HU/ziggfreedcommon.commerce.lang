@@ -1,0 +1,91 @@
+action.confirm = Megerősítés
+
+shop.title = Bolt
+shop.count = {0} kapható
+shop.shelf = Kiemelt
+shop.refresh_in = Frissül {0} múlva
+shop.section.catalogue = Kínálat
+shop.empty.unavailable = A fiókodat most nem sikerült beolvasni.
+shop.empty.closed = Ez a bolt zárva van.
+shop.empty.nothing = Most nincs itt semmi eladó.
+shop.offer.untitled = Névtelen ajánlat
+
+shop.header.cost = Ár
+shop.header.cost_any = Ár (bármelyiket fizetheted)
+shop.header.rewards = Ezt kapod
+
+shop.limit.daily = {0}/{1} ma
+shop.limit.total = {0}/{1} összesen
+shop.badge.sold_out = Elfogyott
+shop.badge.none_today = Mára elfogyott
+shop.badge.left = Még {0}
+
+shop.action.buy = Megveszem
+shop.action.take = Elviszem
+shop.action.reroll = Csere
+
+shop.toast.bought = Megvetted: {0}.
+shop.toast.bought_queued = Megvetted: {0}. Egy része a következő belépésedre vár.
+shop.toast.reroll_confirm = Csere ennyiért: {0}? Nyomd meg újra a megerősítéshez.
+
+board.title = Hirdetőtábla
+board.count = {0} megbízás
+board.refresh_in = Új megbízások {0} múlva
+board.tab.posted = Kitéve
+board.tab.mine = Enyémek
+board.empty.unknown = Ilyen tábla itt nincs.
+board.empty.unavailable = A fiókodat most nem sikerült beolvasni.
+board.empty.closed = Ez a tábla zárva van.
+board.empty.posted = Most nincs kitéve semmi.
+board.empty.mine = Nincs nálad semmi erről a tábláról.
+board.bounty.untitled = Névtelen megbízás
+board.step.untitled = Névtelen lépés
+board.progress = {0}/{1}
+
+board.header.objectives = Célok
+board.header.rewards = Jutalom
+
+board.section.ready = Átvehető
+board.section.turn_in = Itt add le
+board.section.active = Folyamatban
+board.section.available = Elérhető
+board.section.locked = Zárolva
+board.section.spent = Ebben a körben kész
+board.section.done = Befejezve
+board.status.spent_detail = Ezt már teljesítetted. Akkor jön vissza, amikor a tábla cserélődik.
+board.status.parked = A jutalma azon a táblán vár, ahonnan elvitted.
+
+board.action.accept = Elvállalom
+board.action.turn_in = Leadás
+board.action.report = Jelentés
+board.action.claim = Átvétel
+board.action.abandon = Feladom
+board.action.reroll = Csere
+
+board.toast.accepted = Megbízás elvállalva.
+board.toast.claim_failed = Most nincs mit átvenni.
+board.toast.abandoned = Megbízás feladva.
+board.toast.turned_in = Leadva.
+board.toast.turn_in_failed = Ezt nem sikerült leadni.
+board.toast.turn_in_short = {1} darabból {0} van meg.
+board.toast.completed = Megbízás teljesítve.
+board.toast.reroll_confirm = Csere ennyiért: {0}? Nyomd meg újra a megerősítéshez.
+
+refuse.locked = Ezt még nem teheted meg.
+refuse.disabled = Ez nem elérhető.
+refuse.unknown_offer = Ezt már nem árulják.
+refuse.limit_daily = Ma már annyit vettél belőle, amennyit lehet.
+refuse.limit_total = Már annyit vettél belőle, amennyit valaha lehet.
+refuse.short_currency = Nincs elég ebből: {0}.
+refuse.short_item = Nincs elég ebből: {0}.
+refuse.no_room = Tele van a tárhelyed.
+refuse.cannot_pay = Ezt nem engedheted meg magadnak.
+refuse.refunded = Semmit sem sikerült átadni, ezért visszakaptad az árát.
+refuse.not_on_board = Ez most nincs itt kitéve.
+refuse.already_carried = Ez már nálad van.
+refuse.spent_this_period = Ezt már teljesítetted ebben a körben.
+refuse.quest_refused = Ezt most nem lehet elvállalni.
+refuse.no_reroll = Ezt nem lehet cserélni.
+refuse.reroll_cap = Elhasználtad a kör összes cseréjét.
+refuse.reroll_no_alternative = Nincs más, amit a helyére lehetne tenni.
+refuse.reroll_cannot_pay = Egy cserét nem engedhetsz meg magadnak.

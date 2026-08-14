@@ -50,7 +50,8 @@ class LangFileIntegrityTest {
      */
     private static final List<Path> LANG_ROOTS = List.of(
             Path.of("zc-core", "src", "main", "resources", "Server", "Languages"),
-            Path.of("zc-objectives", "src", "main", "resources", "Server", "Languages"));
+            Path.of("zc-objectives", "src", "main", "resources", "Server", "Languages"),
+            Path.of("zc-commerce", "src", "main", "resources", "Server", "Languages"));
 
     private static final String EN_US = "en-US";
 

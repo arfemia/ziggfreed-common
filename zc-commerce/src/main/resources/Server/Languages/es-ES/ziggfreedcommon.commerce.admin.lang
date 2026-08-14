@@ -1,0 +1,78 @@
+# La familia de comandos /zigcommerce: ayuda, listados y respuestas.
+# El nombre del archivo es el PREFIJO de las claves: aquí una entrada resuelve como
+# ziggfreedcommon.commerce.admin.<clave>.
+
+desc.family = Consulta y administra la economía de este servidor.
+desc.validate = Revisa todos los monederos, tiendas y tablones de este servidor.
+desc.wallets = Lista los monederos que define cualquier paquete.
+desc.shops = Lista las tiendas, sus estantes y el punto de su rotación.
+desc.boards = Lista los tablones, sus huecos y el punto de su rotación.
+desc.show = Muestra los saldos, las compras y las tiradas de un jugador.
+desc.give = Añade al monedero de un jugador.
+desc.take = Quita del monedero de un jugador.
+desc.set = Fija el monedero de un jugador en una cantidad exacta.
+desc.resetlimits = Borra los contadores de compra de un jugador.
+desc.resetrerolls = Borra las tiradas de un jugador en el periodo actual.
+desc.arg.player = El jugador afectado. Por defecto, tú.
+desc.arg.currency = El id del monedero.
+desc.arg.amount = Un número entero.
+desc.arg.shop = Muestra solo esta tienda y sus ofertas.
+desc.arg.board = Muestra solo este tablón y sus contratos.
+
+more = ... y {0} más, en el registro del servidor.
+
+validate.clean = Contenido de comercio: nada que informar.
+validate.counts = Contenido de comercio: {0} errores, {1} avisos, {2} notas.
+finding = {0} {1} [{2}] {3}
+
+wallets.header = Monederos ({0}):
+wallets.none = No hay ningún monedero definido.
+wallets.row.item = {0} - objeto {1}, tope {2}
+wallets.row.item.uncapped = {0} - objeto {1}, sin tope
+wallets.row.counter = {0} - contador, tope {1}
+wallets.row.counter.uncapped = {0} - contador, sin tope
+
+shops.header = Tiendas ({0}):
+shops.none = No hay ninguna tienda definida.
+shops.row = {0} - {1} estantes, {2} ofertas
+shops.shelf = estante {0} - periodo {1}, siguiente en {2} min, {3} candidatos
+shops.offer = oferta {0} - estante {1}
+shops.offer.disabled = oferta {0} - estante {1}, desactivada
+
+boards.header = Tablones ({0}):
+boards.none = No hay ningún tablón definido.
+boards.row = {0} - periodo {1}, siguiente en {2} min, {3} huecos, {4} contratos
+boards.slot = hueco de nivel {0}, cantidad {1}
+boards.reroll = tiradas: {0} por periodo, gratis
+boards.reroll.paid = tiradas: {0} por periodo, de pago
+boards.contract = contrato {0} - nivel {1}
+
+show.header = Datos de comercio de {0}:
+show.balances = Saldos:
+show.balances.none = no tiene nada
+show.balance.row = {0}: {1} en mano, {2} gastado en total
+show.purchases = Compras:
+show.purchases.none = no ha comprado nada
+show.purchase.row = {0}: {1} hoy, {2} en total, límites {3}
+show.rerolls = Tiradas:
+show.rerolls.none = ninguna en este periodo
+show.reroll.row = {0} periodo {1}: {2} gastadas, {3} huecos cambiados
+show.store.no_purchases = El almacén de comercio instalado no lleva contadores de compra.
+show.store.no_rerolls = El almacén de comercio instalado no guarda las tiradas.
+
+player.needed = Indica un jugador con --player=<nombre>.
+player.offline = Ese jugador no está conectado, y sus datos de comercio viven en su propio personaje.
+
+wallet.unknown = No hay ningún monedero definido con el id '{0}'.
+wallet.gave = Se dieron {0} {1} a {2}. Ahora tiene {3}.
+wallet.took = Se quitaron {0} {1} a {2}. Ahora tiene {3}.
+wallet.short = {0} solo tiene {1} {2}.
+wallet.set = {0} tiene ahora {1} {2}.
+
+arg.currency.needed = Indica un monedero con --currency=<id>.
+arg.amount.needed = Indica una cantidad con --amount=<n>.
+arg.amount.number = Esa cantidad no es un número entero: '{0}'.
+arg.amount.negative = Una cantidad no puede ser negativa.
+
+reset.limits = Se borraron todos los contadores de compra de {0}.
+reset.rerolls = Se borraron todas las tiradas de {0}.

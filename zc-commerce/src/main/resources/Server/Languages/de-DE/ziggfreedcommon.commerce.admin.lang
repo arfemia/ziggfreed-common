@@ -1,0 +1,77 @@
+# Die Befehlsfamilie /zigcommerce: Hilfetexte, Listen und Antworten.
+# Der Dateiname ist das Schlüssel-PRÄFIX: ein Eintrag hier heißt ziggfreedcommon.commerce.admin.<key>.
+
+desc.family = Die Wirtschaft dieses Servers ansehen und verwalten.
+desc.validate = Alle Geldbörsen, Läden und Anschlagbretter dieses Servers prüfen.
+desc.wallets = Alle Geldbörsen auflisten, die ein Paket definiert.
+desc.shops = Läden, ihre Regale und den Stand ihrer Rotation auflisten.
+desc.boards = Anschlagbretter, ihre Plätze und den Stand ihrer Rotation auflisten.
+desc.show = Guthaben, Käufe und Neuauslosungen eines Spielers anzeigen.
+desc.give = Etwas in die Geldbörse eines Spielers legen.
+desc.take = Etwas aus der Geldbörse eines Spielers nehmen.
+desc.set = Die Geldbörse eines Spielers auf einen genauen Betrag setzen.
+desc.resetlimits = Die Kaufzähler eines Spielers zurücksetzen.
+desc.resetrerolls = Die Neuauslosungen eines Spielers für diese Periode zurücksetzen.
+desc.arg.player = Der betroffene Spieler. Standard: du selbst.
+desc.arg.currency = Die ID der Geldbörse.
+desc.arg.amount = Eine ganze Zahl.
+desc.arg.shop = Nur diesen Laden und seine Angebote zeigen.
+desc.arg.board = Nur dieses Anschlagbrett und seine Aufträge zeigen.
+
+more = ... und {0} weitere, im Serverprotokoll.
+
+validate.clean = Handelsinhalte: nichts zu melden.
+validate.counts = Handelsinhalte: {0} Fehler, {1} Warnungen, {2} Hinweise.
+finding = {0} {1} [{2}] {3}
+
+wallets.header = Geldbörsen ({0}):
+wallets.none = Es ist keine Geldbörse definiert.
+wallets.row.item = {0} - Gegenstand {1}, Grenze {2}
+wallets.row.item.uncapped = {0} - Gegenstand {1}, ohne Grenze
+wallets.row.counter = {0} - Zähler, Grenze {1}
+wallets.row.counter.uncapped = {0} - Zähler, ohne Grenze
+
+shops.header = Läden ({0}):
+shops.none = Es ist kein Laden definiert.
+shops.row = {0} - {1} Regale, {2} Angebote
+shops.shelf = Regal {0} - Periode {1}, nächste in {2} Min, {3} Kandidaten
+shops.offer = Angebot {0} - Regal {1}
+shops.offer.disabled = Angebot {0} - Regal {1}, abgeschaltet
+
+boards.header = Anschlagbretter ({0}):
+boards.none = Es ist kein Anschlagbrett definiert.
+boards.row = {0} - Periode {1}, nächste in {2} Min, {3} Plätze, {4} Aufträge
+boards.slot = Platz der Stufe {0}, Anzahl {1}
+boards.reroll = Neuauslosungen: {0} pro Periode, kostenlos
+boards.reroll.paid = Neuauslosungen: {0} pro Periode, kostenpflichtig
+boards.contract = Auftrag {0} - Stufe {1}
+
+show.header = Handelsdaten von {0}:
+show.balances = Guthaben:
+show.balances.none = nichts vorhanden
+show.balance.row = {0}: {1} vorhanden, {2} insgesamt ausgegeben
+show.purchases = Käufe:
+show.purchases.none = nichts gekauft
+show.purchase.row = {0}: {1} heute, {2} insgesamt, Grenzen {3}
+show.rerolls = Neuauslosungen:
+show.rerolls.none = keine in dieser Periode
+show.reroll.row = {0} Periode {1}: {2} verbraucht, {3} Plätze geändert
+show.store.no_purchases = Der installierte Handelsspeicher führt keine Kaufzähler.
+show.store.no_rerolls = Der installierte Handelsspeicher merkt sich keine Neuauslosungen.
+
+player.needed = Gib mit --player=<name> einen Spieler an.
+player.offline = Dieser Spieler ist nicht online, und seine Handelsdaten liegen auf seiner eigenen Spielfigur.
+
+wallet.unknown = Unter '{0}' ist keine Geldbörse definiert.
+wallet.gave = {0} {1} an {2} gegeben. Bestand jetzt: {3}.
+wallet.took = {0} {1} von {2} genommen. Bestand jetzt: {3}.
+wallet.short = {0} hat nur {1} {2}.
+wallet.set = {0} hat jetzt {1} {2}.
+
+arg.currency.needed = Gib mit --currency=<id> eine Geldbörse an.
+arg.amount.needed = Gib mit --amount=<n> einen Betrag an.
+arg.amount.number = Dieser Betrag ist keine ganze Zahl: '{0}'.
+arg.amount.negative = Ein Betrag darf nicht negativ sein.
+
+reset.limits = Alle Kaufzähler von {0} zurückgesetzt.
+reset.rerolls = Alle Neuauslosungen von {0} zurückgesetzt.

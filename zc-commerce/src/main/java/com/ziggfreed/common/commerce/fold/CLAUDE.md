@@ -19,10 +19,13 @@ author may write; each of those already has an owner one package over.
 | [`AssetShopCatalog`](AssetShopCatalog.java) | the offer store (generators expanded) to `ShopCatalog` |
 | [`AssetBoardCatalog`](AssetBoardCatalog.java) | the board fold and the contract store to what the board engine takes per call |
 | [`CommerceCatalogs`](CommerceCatalogs.java) | all three, plus the value-source seam a generator's axes read and the refresh the wiring root calls |
-| [`CommerceDefaults`](CommerceDefaults.java) | what a BARE server's economy runs on: the state store and the currency engine, both producer-replaceable |
+| [`CommerceDefaults`](CommerceDefaults.java) | what a BARE server's economy runs on: the component-backed state store, its connect hook, and the currency engine, both producer-replaceable |
+| [`CommerceAudit`](CommerceAudit.java) | the ONE pass over every authored wallet, storefront and board, asking each validator only what this server can answer; runs once per boot at first player ready (`runLateAudit`, hung by the wiring root) and on demand via `/zigcommerce validate` |
 | [`CommerceOwnerLayers`](CommerceOwnerLayers.java) | the server owner's `mods/ziggfreedcommon/*.json` to each type's owner layer |
 | [`CurrencyRewardKind`](CurrencyRewardKind.java) | the shared reward table to the currency engine (`{"Kind": "Currency"}`) |
 | [`CommerceDestinations`](CommerceDestinations.java) | the shared routing vocabulary to this module's pages (`Shop` / `Board`) |
+| [`ShelfSpec`](ShelfSpec.java) | one authored rotating shelf to the `ShopShelf` seam a draw asks |
+| [`CommerceEngines`](CommerceEngines.java) | the ONE place an engine is assembled, plus the gate-evaluator seam a consumer fills |
 
 ## The two rules that shape everything here
 
@@ -63,15 +66,24 @@ author may write; each of those already has an owner one package over.
   generator's ruled contract, and it is the one place a family silently writes nothing.
 - **Registration belongs to the wiring root, not here.** Each class above exposes ONE method the root
   calls; nothing here registers itself, and nothing here is reached from a module below.
-
-## Still to fill
-
-- **The two pages.** `CommerceDestinations` registers `Shop` and `Board` NOW because an unknown
-  `Type` fails an asset read, so content naming either could not be authored until they exist. Both
-  handlers decline with one line at fine until the pages land; only those two bodies change then.
-- **A retry command for the currency kind.** A failed wallet payout is reported and lost rather than
-  queued for the next connect, because there is no command surface to replay it through yet. The
-  commands wave closes it, and nothing else about the kind changes.
+- **An ENGINE is built per call, never held.** Every part one is made of can be replaced while the
+  server runs - a consumer's own store or currency engine, a reload swapping every offer object - so
+  an engine kept in a field is one that quietly keeps answering with yesterday's content. Building
+  one is a builder and a few field copies; the catalogs and the store behind it are the long-lived
+  things, and they are all read at the moment they are asked.
+- **The gate evaluator is the one seam a consumer MUST fill to get factor gates.** This module has no
+  edge to the portable `hytale:` factor standard library, so `CommerceEngines`'s default evaluator
+  answers no factor and a `Requires` naming one fails CLOSED. That is the library's standing rule for
+  an unanswerable reading rather than a degrade invented here; the wiring root installs the evaluator
+  the progression runtime already uses, and one permission question then has one answer everywhere.
+- **A bounty is a quest only once somebody says so.** `publishBounties()` hands the folded contracts
+  to the shared quest runtime as this library's layer; until it runs, a board can draw its contracts
+  and name them and still not accept one, because the lifecycle a board drives belongs to the quest
+  engine. The wiring root calls it off the contract store's load event, beside the shop refresh.
+- **An unanswerable vocabulary is SKIPPED, never guessed.** `CommerceAudit` passes null for a probe
+  nothing here can enumerate, which is the validators' own documented contract. Factor ids are the
+  live case: which ones exist is a per-consumer vocabulary assembled in a module commerce has no edge
+  to, so a factor gate goes unchecked rather than every one of them being reported unknown.
 
 ## Adding to it
 

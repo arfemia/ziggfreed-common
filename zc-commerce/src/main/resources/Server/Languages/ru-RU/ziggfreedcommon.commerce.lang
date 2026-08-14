@@ -1,0 +1,91 @@
+action.confirm = Подтвердить
+
+shop.title = Лавка
+shop.count = В продаже: {0}
+shop.shelf = Избранное
+shop.refresh_in = Обновление через {0}
+shop.section.catalogue = Каталог
+shop.empty.unavailable = Сейчас не удалось прочитать ваши данные.
+shop.empty.closed = Лавка закрыта.
+shop.empty.nothing = Сейчас здесь ничего не продают.
+shop.offer.untitled = Безымянное предложение
+
+shop.header.cost = Цена
+shop.header.cost_any = Цена (любое из двух)
+shop.header.rewards = Вы получите
+
+shop.limit.daily = {0}/{1} за сегодня
+shop.limit.total = {0}/{1} всего
+shop.badge.sold_out = Всё раскуплено
+shop.badge.none_today = На сегодня всё
+shop.badge.left = Осталось {0}
+
+shop.action.buy = Купить
+shop.action.take = Взять
+shop.action.reroll = Заменить
+
+shop.toast.bought = Куплено: {0}.
+shop.toast.bought_queued = Куплено: {0}. Часть покупки ждёт вашего следующего входа.
+shop.toast.reroll_confirm = Заменить за {0}? Нажмите ещё раз для подтверждения.
+
+board.title = Доска
+board.count = Контрактов: {0}
+board.refresh_in = Новые контракты через {0}
+board.tab.posted = На доске
+board.tab.mine = Мои
+board.empty.unknown = Такой доски здесь нет.
+board.empty.unavailable = Сейчас не удалось прочитать ваши данные.
+board.empty.closed = Эта доска закрыта.
+board.empty.posted = Сейчас на доске ничего нет.
+board.empty.mine = У вас нет ничего с этой доски.
+board.bounty.untitled = Безымянный контракт
+board.step.untitled = Безымянный шаг
+board.progress = {0}/{1}
+
+board.header.objectives = Цели
+board.header.rewards = Награда
+
+board.section.ready = Можно забрать
+board.section.turn_in = Сдать здесь
+board.section.active = В работе
+board.section.available = Доступно
+board.section.locked = Закрыто
+board.section.spent = Сделано в этот раз
+board.section.done = Завершено
+board.status.spent_detail = Вы его уже выполнили. Он вернётся, когда доска обновится.
+board.status.parked = Награда ждёт на той доске, где вы взяли контракт.
+
+board.action.accept = Взять
+board.action.turn_in = Сдать
+board.action.report = Доложить
+board.action.claim = Забрать
+board.action.abandon = Отказаться
+board.action.reroll = Заменить
+
+board.toast.accepted = Контракт взят.
+board.toast.claim_failed = Сейчас нечего забирать.
+board.toast.abandoned = Контракт брошен.
+board.toast.turned_in = Сдано.
+board.toast.turn_in_failed = Это не удалось сдать.
+board.toast.turn_in_short = У вас {0} из {1}.
+board.toast.completed = Контракт выполнен.
+board.toast.reroll_confirm = Заменить за {0}? Нажмите ещё раз для подтверждения.
+
+refuse.locked = Вам это пока недоступно.
+refuse.disabled = Это недоступно.
+refuse.unknown_offer = Это больше не продаётся.
+refuse.limit_daily = Сегодня вы купили столько, сколько можно.
+refuse.limit_total = Вы купили столько, сколько вообще можно.
+refuse.short_currency = Вам не хватает: {0}.
+refuse.short_item = Вам не хватает: {0}.
+refuse.no_room = В инвентаре нет места.
+refuse.cannot_pay = Вам это не по карману.
+refuse.refunded = Ничего не удалось выдать, поэтому деньги вернули.
+refuse.not_on_board = Сейчас этого здесь нет.
+refuse.already_carried = Этот контракт уже у вас.
+refuse.spent_this_period = Вы уже выполнили его в этот раз.
+refuse.quest_refused = Сейчас его взять нельзя.
+refuse.no_reroll = Его нельзя заменить.
+refuse.reroll_cap = Все замены на этот раз израсходованы.
+refuse.reroll_no_alternative = Заменить не на что.
+refuse.reroll_cannot_pay = Замена вам не по карману.

@@ -1,0 +1,194 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// The storefront page (com.ziggfreed.common.commerce.page.ZigShopPage): what a shop sells on the
+// left, the offer being read on the right, and what the buyer is carrying across the top.
+//
+// LEFT: the shop's name and icon, the wallet strip (#BalanceRow, one Pages/ZigCommerceChip.ui per
+// currency the shop authored), a count, and the scrolling #OfferList the page appends
+// Pages/ZigCommerceRow.ui into - rotating shelves first, each under a heading carrying its
+// countdown, then the standing catalogue by category. #EmptyLabel carries the one line an empty
+// storefront shows.
+//
+// RIGHT: #RightPanel, hidden outright when there is nothing selected. Its four appended containers
+// (#CostRow, #RewardsList, #StatusList, #RerollCostRow) take chips or Pages/ZigCommerceLine.ui rows,
+// and the page CLEARS each one before re-rendering, so a second render for a different offer cannot
+// collide with the rows of the first.
+//
+// Every labeled button here is a Button + inner Label #Label, never a TextButton: an offer title, a
+// price and a reward line are all parameterized Messages, and those only substitute on .TextSpans.
+// The action buttons default Visible:false and the page flips exactly the ones a state offers, so
+// there is never a control that does nothing.
+//
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  @Ornaments = true;
+  Anchor: (Width: 1050, Height: 850);
+
+  #Content {
+    Anchor: (Top: 0);
+    LayoutMode: Left;
+    Padding: (Full: 0);
+
+    Group #LeftPanel {
+      Anchor: (Width: 360);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+      LayoutMode: Top;
+      Padding: (Full: 14);
+
+      Group #TitleRow {
+        LayoutMode: Left;
+        Anchor: (Height: 30, Bottom: 4);
+
+        Group #ShopIconSlot {
+          Anchor: (Width: 22, Height: 22, Top: 4, Right: 8);
+          ItemGrid #ShopIcon {
+            Anchor: (Width: 22, Height: 22);
+            SlotsPerRow: 1;
+            AreItemsDraggable: false;
+            DisplayItemQuantity: false;
+          }
+        }
+
+        Label #ShopTitle {
+          FlexWeight: 1;
+          Text: "";
+          Anchor: (Height: 30);
+          Style: (FontSize: 18, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+        }
+      }
+
+      Group #BalanceRow {
+        LayoutMode: Left;
+        Anchor: (Height: 28, Bottom: 8);
+      }
+
+      Label #OfferCount {
+        Text: "";
+        Anchor: (Height: 18, Bottom: 8);
+        Style: (FontSize: 11, TextColor: #93a4b8, VerticalAlignment: Center);
+      }
+
+      Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
+
+      Group #OfferList {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 4);
+      }
+
+      Label #EmptyLabel {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 40, Top: 8);
+        Style: (FontSize: 12, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+      }
+    }
+
+    Group #RightPanel {
+      FlexWeight: 1;
+      LayoutMode: Top;
+      Padding: (Full: 20);
+
+      Label #DetailTitle {
+        Text: "";
+        Anchor: (Height: 28, Bottom: 4);
+        Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+      }
+
+      Label #DetailCategory {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 18, Bottom: 8);
+        Style: (FontSize: 12, TextColor: #96a9be, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+      }
+
+      Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
+
+      Label #Flavor {
+        Text: "";
+        Visible: false;
+        Anchor: (Bottom: 12);
+        Style: (FontSize: 12, TextColor: #b6c9de, Wrap: true);
+      }
+
+      Label #CostHeader {
+        Text: "";
+        Anchor: (Height: 18, Bottom: 6);
+        Style: (FontSize: 11, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+      }
+
+      Group #CostRow {
+        LayoutMode: Left;
+        Anchor: (Height: 28, Bottom: 8);
+      }
+
+      Label #LimitLabel {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 18, Bottom: 12);
+        Style: (FontSize: 11, TextColor: #93a4b8, VerticalAlignment: Center);
+      }
+
+      Label #RewardsHeader {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 18, Bottom: 6);
+        Style: (FontSize: 11, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+      }
+
+      Group #RewardsList {
+        LayoutMode: Top;
+        Anchor: (Bottom: 12);
+      }
+
+      Group #StatusList {
+        LayoutMode: Top;
+        Anchor: (Bottom: 12);
+      }
+
+      Group { FlexWeight: 1; }
+
+      Group #RerollCostRow {
+        LayoutMode: Left;
+        Visible: false;
+        Anchor: (Height: 28, Bottom: 6);
+      }
+
+      Group #ActionRow {
+        LayoutMode: Left;
+        Anchor: (Height: 40);
+
+        Button #BuyBtn {
+          Style: $Z.@ZigRichPrimaryBtnStyle;
+          Anchor: (Width: 150, Height: 36, Right: 8);
+          Visible: false;
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: 13, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+
+        Button #RerollBtn {
+          Style: $Z.@ZigRichRowBtnStyle;
+          Anchor: (Width: 130, Height: 36);
+          Visible: false;
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: 13, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+
+        Group { FlexWeight: 1; }
+      }
+    }
+  }
+}

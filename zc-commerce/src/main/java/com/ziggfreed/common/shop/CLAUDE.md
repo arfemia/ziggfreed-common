@@ -5,8 +5,9 @@ happens in, and what it undoes.
 
 | Class | What it is |
 |---|---|
-| [`ShopEngine`](ShopEngine.java) | `canPurchase` / `purchase` / `priceFor` / `checkLimits`, plus the refusal tokens and `epochDay` |
+| [`ShopEngine`](ShopEngine.java) | `canPurchase` / `purchase` / `priceFor` / `checkLimits`, the rotating-shelf half (`activeShelf` / `activeShelfFor` / `canRerollShelf` / `rerollShelf`), plus the refusal tokens and `epochDay` |
 | [`ShopOffer`](ShopOffer.java) | what the engine needs to know about one thing for sale; an interface with defaults, implemented by whatever authored it |
+| [`ShopShelf`](ShopShelf.java) | what it needs to know about one rotating shelf: cadence, selection, slots, reroll terms |
 | [`ShopCatalog`](ShopCatalog.java) | which offers exist, and which rotating pool each belongs to |
 | [`PurchaseLimits`](PurchaseLimits.java) | how often one buyer may take the same offer: a daily limit and a lifetime one, independently optional |
 
@@ -50,4 +51,24 @@ one sequence that cannot leave a buyer short:
   import an engine type, so an authored offer cannot answer this interface itself;
   [`commerce/fold/ShopEntryOffer`](../commerce/fold/CLAUDE.md) does, holding the asset it came from
   rather than copying it and being rebuilt whenever the catalogue is. `ShopCatalog` is filled from
-  the same place.
+  the same place, and `commerce/fold/ShelfSpec` answers `ShopShelf` on the same terms.
+
+## The rotating shelf
+
+A storefront may stand SHELVES beside its standing catalogue: sets that turn over on a clock, drawn
+deterministically so every buyer sees the same thing and a restart changes nothing.
+
+- **`ShopShelf` is the storefront twin of `board.BoardSpec`, down to the leaf names**, because the
+  two are the same rotating primitive pointed at different content. Two spellings of "how often does
+  this turn over" is exactly the drift the shared `rotation/` package exists to prevent.
+- **The draw is pure and the OVERRIDES are per buyer.** `activeShelf` is the shared set;
+  `activeShelfFor` lays this buyer's own re-rolled positions over it, which is what a page shows
+  them.
+- **The reroll order is: probe, drain, commit, refund on a lost race**, the same order the board
+  keeps and for the same reason - nobody is charged for a reroll that could not have happened, and a
+  commit that loses the cap race compensates rather than silently keeping the price.
+- **A reroll never hands back something already turned down.** The replacement draw excludes
+  everything on show AND everything that has already sat at that position this period.
+- **The reroll refusal tokens are spelled IDENTICALLY to the board's**, so one consumer-side mapping
+  turns either engine's answer into words. `ShopEngineTest` and `CommerceRefusalsTest` both pin
+  that.

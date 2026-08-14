@@ -243,13 +243,13 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
 - **The five action buttons are bound once per build with no quest id in the binding**, and act on
   whatever the detail panel shows. A page update can restyle an element that exists but can never add
   or change a binding, so a partial swap of the panel needs no rebuild.
-- **Rewards are read generically, and a reward nothing can name is DROPPED.**
-  [`questlist/NpcQuestRewardChips`](questlist/NpcQuestRewardChips.java) reads a spec's own
-  `NameKey`/`Icon`, then the kind FILE's `Presentation`, then the item form (an item's own engine
-  display name), in the same order the deferred-payout layer reads them, so one reward cannot read
-  differently on two screens. Nothing branches on a kind id. Painting a raw kind token at a player
-  reads as a promise of something called that, so the honest answer to "nothing names this" is one
-  fewer chip and a two-line `Presentation` on the kind file.
+- **Rewards are read generically, and a reward nothing can name is DROPPED.** The page reads chips
+  through `zc-loot`'s shared `loot/reward/RewardChips` (the deps' `RewardChipSource` seam IS its
+  `Source` shape): a spec's own `NameKey`/`Icon`, then the kind FILE's `Presentation`, then the item
+  form (an item's own engine display name), in the same order the deferred-payout layer reads them,
+  so one reward cannot read differently on two screens. Nothing branches on a kind id. Painting a
+  raw kind token at a player reads as a promise of something called that, so the honest answer to
+  "nothing names this" is one fewer chip and a two-line `Presentation` on the kind file.
 - **Only THREE accept refusals have a line of their own**, the same three the book keys and for the
   same reason: those are the three a player can act on. The rest read as the generic line rather than
   leaking a gate's internal token.
@@ -302,9 +302,9 @@ The NPC quest page is split the same way. `NpcQuestSectionsTest` pins the orderi
 notices immediately and a refactor breaks silently - which bucket a status lands in, a finished quest
 belonging elsewhere reading as parked rather than offering a button the engine refuses, a repeatable
 waiting out its clock reading as locked rather than vanishing, a routed highlight beating a stale
-selection while a surviving selection beats the first row. `NpcQuestRewardChipsTest` pins how a reward
-READS from strings alone, over kind ids of the test's OWN invention, since naming a real consumer's
-kind would disprove the thing being proved. `NpcQuestPageDepsTest` pins that an unfilled seam leaves a
+selection while a surviving selection beats the first row. How a reward READS from strings alone is
+pinned by `zc-loot`'s `RewardChipsTest`, over kind ids of the test's OWN invention, since naming a
+real consumer's kind would disprove the thing being proved. `NpcQuestPageDepsTest` pins that an unfilled seam leaves a
 working page and that a filled one throwing costs its own contribution rather than the screen. The
 rendering itself, the offer providers and the engine calls behind each button are in-game smoke
 territory.

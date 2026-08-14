@@ -1,0 +1,78 @@
+# A família de comandos /zigcommerce: ajuda, listagens e respostas.
+# O nome do arquivo é o PREFIXO das chaves: uma entrada aqui resolve como
+# ziggfreedcommon.commerce.admin.<chave>.
+
+desc.family = Consulte e administre a economia deste servidor.
+desc.validate = Audite todas as carteiras, lojas e quadros deste servidor.
+desc.wallets = Liste as carteiras que qualquer pacote define.
+desc.shops = Liste as lojas, suas prateleiras e o ponto da rotação.
+desc.boards = Liste os quadros, suas vagas e o ponto da rotação.
+desc.show = Mostre os saldos, as compras e os sorteios de um jogador.
+desc.give = Acrescente à carteira de um jogador.
+desc.take = Retire da carteira de um jogador.
+desc.set = Defina a carteira de um jogador em um valor exato.
+desc.resetlimits = Limpe os contadores de compra de um jogador.
+desc.resetrerolls = Limpe os sorteios de um jogador no período atual.
+desc.arg.player = O jogador afetado. Por padrão, você.
+desc.arg.currency = O id da carteira.
+desc.arg.amount = Um número inteiro.
+desc.arg.shop = Mostre apenas esta loja e suas ofertas.
+desc.arg.board = Mostre apenas este quadro e seus contratos.
+
+more = ... e mais {0}, no registro do servidor.
+
+validate.clean = Conteúdo de comércio: nada a relatar.
+validate.counts = Conteúdo de comércio: {0} erros, {1} avisos, {2} notas.
+finding = {0} {1} [{2}] {3}
+
+wallets.header = Carteiras ({0}):
+wallets.none = Nenhuma carteira está definida.
+wallets.row.item = {0} - item {1}, teto {2}
+wallets.row.item.uncapped = {0} - item {1}, sem teto
+wallets.row.counter = {0} - contador, teto {1}
+wallets.row.counter.uncapped = {0} - contador, sem teto
+
+shops.header = Lojas ({0}):
+shops.none = Nenhuma loja está definida.
+shops.row = {0} - {1} prateleiras, {2} ofertas
+shops.shelf = prateleira {0} - período {1}, próxima em {2} min, {3} candidatos
+shops.offer = oferta {0} - prateleira {1}
+shops.offer.disabled = oferta {0} - prateleira {1}, desligada
+
+boards.header = Quadros ({0}):
+boards.none = Nenhum quadro está definido.
+boards.row = {0} - período {1}, próximo em {2} min, {3} vagas, {4} contratos
+boards.slot = vaga de nível {0}, quantidade {1}
+boards.reroll = sorteios: {0} por período, grátis
+boards.reroll.paid = sorteios: {0} por período, pagos
+boards.contract = contrato {0} - nível {1}
+
+show.header = Dados de comércio de {0}:
+show.balances = Saldos:
+show.balances.none = nada em mãos
+show.balance.row = {0}: {1} em mãos, {2} gastos no total
+show.purchases = Compras:
+show.purchases.none = nada comprado
+show.purchase.row = {0}: {1} hoje, {2} no total, limites {3}
+show.rerolls = Sorteios:
+show.rerolls.none = nenhum neste período
+show.reroll.row = {0} período {1}: {2} usados, {3} vagas trocadas
+show.store.no_purchases = O armazenamento de comércio instalado não guarda contadores de compra.
+show.store.no_rerolls = O armazenamento de comércio instalado não guarda os sorteios.
+
+player.needed = Informe um jogador com --player=<nome>.
+player.offline = Esse jogador não está online, e os dados de comércio dele vivem no próprio personagem.
+
+wallet.unknown = Nenhuma carteira está definida com o id '{0}'.
+wallet.gave = {0} {1} entregues a {2}. Agora tem {3}.
+wallet.took = {0} {1} retirados de {2}. Agora tem {3}.
+wallet.short = {0} tem apenas {1} {2}.
+wallet.set = {0} agora tem {1} {2}.
+
+arg.currency.needed = Informe uma carteira com --currency=<id>.
+arg.amount.needed = Informe um valor com --amount=<n>.
+arg.amount.number = Esse valor não é um número inteiro: '{0}'.
+arg.amount.negative = Um valor não pode ser negativo.
+
+reset.limits = Todos os contadores de compra de {0} foram limpos.
+reset.rerolls = Todos os sorteios de {0} foram limpos.

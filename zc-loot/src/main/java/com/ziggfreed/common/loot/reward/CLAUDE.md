@@ -85,6 +85,17 @@ module or grow a second, subtly different idea of what a reward is.
   warn)` -> `GrantOutcome(granted, queued, failed)`. Per-reward isolation: one handler throwing never
   costs the player the rest, a replayable failure becomes a queued retry, and only a reward that can
   be neither granted nor queued counts as lost. Never throws.
+- **[`RewardChips`](RewardChips.java) + [`RewardChip`](RewardChip.java)** - how one reward READS,
+  before it is granted. A chip is an optional item icon plus one already-composed client-resolved
+  line, assembled from the same three sources the deferred-payout layer reads and in the same order
+  (the spec's own `NameKey`/`Icon`, then the kind FILE's `Presentation`, then the item form), so the
+  same reward cannot read differently on a quest panel, a storefront offer and a results strip.
+  **Nothing branches on a kind id**, and a reward nothing can NAME is dropped rather than guessed at -
+  painting a raw kind token at a player reads as a promise of something called that, and the fix is a
+  two-line `Presentation` on the kind file. `Plan` is the whole decision over strings alone, so what a
+  chip will say is testable with no server. It lives here rather than on any one screen for the same
+  reason the vocabulary does: every surface that previews a payout has to read one reward the same
+  way.
 
 ## Minting a kind with no Java at all
 

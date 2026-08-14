@@ -1,0 +1,91 @@
+action.confirm = Onayla
+
+shop.title = Dükkan
+shop.count = {0} satışta
+shop.shelf = Öne çıkanlar
+shop.refresh_in = {0} sonra yenilenir
+shop.section.catalogue = Katalog
+shop.empty.unavailable = Hesabın şu anda okunamadı.
+shop.empty.closed = Bu dükkan kapalı.
+shop.empty.nothing = Şu anda burada satılık bir şey yok.
+shop.offer.untitled = İsimsiz teklif
+
+shop.header.cost = Fiyat
+shop.header.cost_any = Fiyat (birini öde)
+shop.header.rewards = Aldıkların
+
+shop.limit.daily = Bugün {0}/{1}
+shop.limit.total = Toplam {0}/{1}
+shop.badge.sold_out = Tükendi
+shop.badge.none_today = Bugünlük bitti
+shop.badge.left = {0} kaldı
+
+shop.action.buy = Satın al
+shop.action.take = Al
+shop.action.reroll = Değiştir
+
+shop.toast.bought = {0} satın alındı.
+shop.toast.bought_queued = {0} satın alındı. Bir kısmı bir sonraki girişini bekliyor.
+shop.toast.reroll_confirm = {0} karşılığında değiştirilsin mi? Onaylamak için tekrar bas.
+
+board.title = İlan panosu
+board.count = {0} sözleşme
+board.refresh_in = Yeni sözleşmeler {0} sonra
+board.tab.posted = Asılı olanlar
+board.tab.mine = Benimkiler
+board.empty.unknown = Burada böyle bir pano yok.
+board.empty.unavailable = Hesabın şu anda okunamadı.
+board.empty.closed = Bu pano kapalı.
+board.empty.posted = Şu anda asılı bir şey yok.
+board.empty.mine = Bu panodan üstünde bir şey taşımıyorsun.
+board.bounty.untitled = İsimsiz sözleşme
+board.step.untitled = İsimsiz adım
+board.progress = {0}/{1}
+
+board.header.objectives = Hedefler
+board.header.rewards = Ödül
+
+board.section.ready = Alınmaya hazır
+board.section.turn_in = Buraya teslim et
+board.section.active = Devam ediyor
+board.section.available = Uygun
+board.section.locked = Kilitli
+board.section.spent = Bu turda bitti
+board.section.done = Tamamlandı
+board.status.spent_detail = Bunu zaten bitirdin. Pano yenilenince geri gelir.
+board.status.parked = Ödülü, sözleşmeyi aldığın panoda seni bekliyor.
+
+board.action.accept = Kabul et
+board.action.turn_in = Teslim et
+board.action.report = Rapor ver
+board.action.claim = Ödülü al
+board.action.abandon = Bırak
+board.action.reroll = Değiştir
+
+board.toast.accepted = Sözleşme kabul edildi.
+board.toast.claim_failed = Şu anda alınacak bir şey yok.
+board.toast.abandoned = Sözleşme bırakıldı.
+board.toast.turned_in = Teslim edildi.
+board.toast.turn_in_failed = Bu teslim edilemedi.
+board.toast.turn_in_short = {1} taneden {0} tanesi sende.
+board.toast.completed = Sözleşme tamamlandı.
+board.toast.reroll_confirm = {0} karşılığında değiştirilsin mi? Onaylamak için tekrar bas.
+
+refuse.locked = Bunu henüz yapamazsın.
+refuse.disabled = Bu kullanılamıyor.
+refuse.unknown_offer = Bu artık satılmıyor.
+refuse.limit_daily = Bugün alabileceğin kadarını aldın.
+refuse.limit_total = Alabileceğin kadarını çoktan aldın.
+refuse.short_currency = Yeterince {0} yok.
+refuse.short_item = Yeterince {0} yok.
+refuse.no_room = Envanterin dolu.
+refuse.cannot_pay = Buna gücün yetmiyor.
+refuse.refunded = Hiçbir şey teslim edilemedi, bu yüzden ödemen geri verildi.
+refuse.not_on_board = Bu şu anda burada asılı değil.
+refuse.already_carried = Bunu zaten üstünde taşıyorsun.
+refuse.spent_this_period = Bunu bu turda zaten bitirdin.
+refuse.quest_refused = Bu şu anda alınamıyor.
+refuse.no_reroll = Bu değiştirilemez.
+refuse.reroll_cap = Bu turdaki bütün değişim hakkını kullandın.
+refuse.reroll_no_alternative = Yerine koyacak farklı bir şey yok.
+refuse.reroll_cannot_pay = Bir değişime gücün yetmiyor.

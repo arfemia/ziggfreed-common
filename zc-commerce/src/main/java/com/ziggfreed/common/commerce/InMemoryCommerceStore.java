@@ -23,12 +23,19 @@ import com.ziggfreed.common.subject.Subject;
  *
  * <p>Thread-safe at the map level; the per-subject records are guarded by the store's own monitor
  * where a read and a write have to agree (the reroll cap check above all).
+ *
+ * <p><b>A migration claim is honest about the run, not about history.</b> {@link #claimMigration}
+ * answers true once per server run, because the state a migration would write is equally gone at the
+ * next restart - so running it again is the correct outcome here rather than a double payout. That
+ * holds only because every write-it-in method on the seam is ABSOLUTE; a migration built out of
+ * additive calls would be wrong against this store and against any other.
  */
 public final class InMemoryCommerceStore implements CommerceStore {
 
     private final Map<UUID, Wallet> wallets = new ConcurrentHashMap<>();
     private final Map<UUID, Map<String, Purchases>> purchases = new ConcurrentHashMap<>();
     private final Map<UUID, Map<String, PeriodRerolls>> rerolls = new ConcurrentHashMap<>();
+    private final Map<UUID, Set<String>> migrations = new ConcurrentHashMap<>();
 
     private static final class Wallet {
         final Map<String, Long> balances = new ConcurrentHashMap<>();
@@ -97,6 +104,18 @@ public final class InMemoryCommerceStore implements CommerceStore {
                 (id, spent) -> spent <= amount ? null : spent - amount);
     }
 
+    @Override
+    public void setLifetimeSpent(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
+        if (amount <= 0L) {
+            Wallet wallet = wallets.get(subject.id());
+            if (wallet != null) {
+                wallet.spent.remove(currencyId);
+            }
+            return;
+        }
+        walletOf(subject).spent.put(currencyId, Long.valueOf(amount));
+    }
+
     @Nonnull
     private Wallet walletOf(@Nonnull Subject subject) {
         return wallets.computeIfAbsent(subject.id(), id -> new Wallet());
@@ -128,6 +147,23 @@ public final class InMemoryCommerceStore implements CommerceStore {
         }
         record.today++;
         record.total++;
+    }
+
+    @Override
+    public synchronized void setPurchases(@Nonnull Subject subject, @Nonnull String offerId,
+            long epochDay, int today, int total) {
+        Purchases record = purchaseRecord(subject, offerId, true);
+        if (record == null) {
+            return;
+        }
+        record.epochDay = epochDay;
+        record.today = Math.max(0, today);
+        record.total = Math.max(0, total);
+    }
+
+    @Override
+    public void clearPurchases(@Nonnull Subject subject) {
+        purchases.remove(subject.id());
     }
 
     @Nullable
@@ -192,6 +228,49 @@ public final class InMemoryCommerceStore implements CommerceStore {
         return true;
     }
 
+    @Override
+    @Nonnull
+    public synchronized RerollState rerollState(@Nonnull Subject subject, @Nonnull String poolId,
+            long period) {
+        PeriodRerolls state = current(subject, poolId, period);
+        if (state == null) {
+            return RerollState.none(period);
+        }
+        return new RerollState(period, state.spent, state.overrides, state.counts, state.seen);
+    }
+
+    @Override
+    public synchronized void setRerolls(@Nonnull Subject subject, @Nonnull String poolId,
+            @Nonnull RerollState state) {
+        if (state.isEmpty()) {
+            Map<String, PeriodRerolls> byPool = rerolls.get(subject.id());
+            if (byPool != null) {
+                byPool.remove(poolId);
+            }
+            return;
+        }
+        PeriodRerolls record = new PeriodRerolls(state.period());
+        record.spent = state.spent();
+        record.overrides.putAll(state.overrides());
+        record.counts.putAll(state.counts());
+        for (Map.Entry<Integer, Set<String>> entry : state.seen().entrySet()) {
+            record.seen.put(entry.getKey(), new HashSet<>(entry.getValue()));
+        }
+        rerolls.computeIfAbsent(subject.id(), id -> new ConcurrentHashMap<>()).put(poolId, record);
+    }
+
+    @Override
+    public void clearRerolls(@Nonnull Subject subject) {
+        rerolls.remove(subject.id());
+    }
+
+    // ==================== One-time migrations ====================
+
+    @Override
+    public synchronized boolean claimMigration(@Nonnull Subject subject, @Nonnull String migrationId) {
+        return migrations.computeIfAbsent(subject.id(), id -> new HashSet<>()).add(migrationId);
+    }
+
     /** The live record for exactly this period, or null. No creation, no mutation. */
     @Nullable
     private PeriodRerolls current(@Nonnull Subject subject, @Nonnull String poolId, long period) {
@@ -220,5 +299,6 @@ public final class InMemoryCommerceStore implements CommerceStore {
         wallets.remove(subject.id());
         purchases.remove(subject.id());
         rerolls.remove(subject.id());
+        migrations.remove(subject.id());
     }
 }

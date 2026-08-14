@@ -1,0 +1,78 @@
+# /zigcommerce komut ailesi: yardım metinleri, listeler ve yanıtlar.
+# Dosya adı anahtar ÖNEKİDİR: buradaki bir kayıt şöyle çözümlenir:
+# ziggfreedcommon.commerce.admin.<anahtar>.
+
+desc.family = Bu sunucunun ekonomisini incele ve yönet.
+desc.validate = Bu sunucudaki tüm cüzdanları, dükkanları ve panoları denetle.
+desc.wallets = Herhangi bir paketin tanımladığı cüzdanları listele.
+desc.shops = Dükkanları, raflarını ve dönüşlerinin durumunu listele.
+desc.boards = Panoları, yuvalarını ve dönüşlerinin durumunu listele.
+desc.show = Bir oyuncunun bakiyelerini, alışverişlerini ve yeniden çekimlerini göster.
+desc.give = Bir oyuncunun cüzdanına ekle.
+desc.take = Bir oyuncunun cüzdanından al.
+desc.set = Bir oyuncunun cüzdanını tam bir miktara ayarla.
+desc.resetlimits = Bir oyuncunun satın alma sayaçlarını temizle.
+desc.resetrerolls = Bir oyuncunun bu dönemdeki yeniden çekimlerini temizle.
+desc.arg.player = İşlem yapılacak oyuncu. Varsayılan olarak sen.
+desc.arg.currency = Cüzdan kimliği.
+desc.arg.amount = Tam sayı.
+desc.arg.shop = Yalnızca bu dükkanı ve tekliflerini göster.
+desc.arg.board = Yalnızca bu panoyu ve sözleşmelerini göster.
+
+more = ... ve {0} tane daha, sunucu günlüğünde.
+
+validate.clean = Ticaret içeriği: bildirilecek bir şey yok.
+validate.counts = Ticaret içeriği: {0} hata, {1} uyarı, {2} not.
+finding = {0} {1} [{2}] {3}
+
+wallets.header = Cüzdanlar ({0}):
+wallets.none = Tanımlı cüzdan yok.
+wallets.row.item = {0} - eşya {1}, üst sınır {2}
+wallets.row.item.uncapped = {0} - eşya {1}, üst sınırsız
+wallets.row.counter = {0} - sayaç, üst sınır {1}
+wallets.row.counter.uncapped = {0} - sayaç, üst sınırsız
+
+shops.header = Dükkanlar ({0}):
+shops.none = Tanımlı dükkan yok.
+shops.row = {0} - {1} raf, {2} teklif
+shops.shelf = raf {0} - dönem {1}, sonraki {2} dk sonra, {3} aday
+shops.offer = teklif {0} - raf {1}
+shops.offer.disabled = teklif {0} - raf {1}, kapalı
+
+boards.header = Panolar ({0}):
+boards.none = Tanımlı pano yok.
+boards.row = {0} - dönem {1}, sonraki {2} dk sonra, {3} yuva, {4} sözleşme
+boards.slot = {0} kademeli yuva, adet {1}
+boards.reroll = yeniden çekim: dönem başına {0}, ücretsiz
+boards.reroll.paid = yeniden çekim: dönem başına {0}, ücretli
+boards.contract = sözleşme {0} - kademe {1}
+
+show.header = {0} oyuncusunun ticaret verileri:
+show.balances = Bakiyeler:
+show.balances.none = elinde bir şey yok
+show.balance.row = {0}: elinde {1}, toplam harcanan {2}
+show.purchases = Alışverişler:
+show.purchases.none = hiçbir şey alınmamış
+show.purchase.row = {0}: bugün {1}, toplam {2}, sınırlar {3}
+show.rerolls = Yeniden çekimler:
+show.rerolls.none = bu dönemde hiç yok
+show.reroll.row = {0} dönem {1}: {2} kullanıldı, {3} yuva değişti
+show.store.no_purchases = Kurulu ticaret deposu satın alma sayaçlarını tutmuyor.
+show.store.no_rerolls = Kurulu ticaret deposu yeniden çekimleri saklamıyor.
+
+player.needed = --player=<ad> ile bir oyuncu belirt.
+player.offline = O oyuncu çevrimiçi değil ve ticaret verileri kendi karakterinde duruyor.
+
+wallet.unknown = '{0}' kimliğiyle tanımlı bir cüzdan yok.
+wallet.gave = {2} oyuncusuna {0} {1} verildi. Şimdi {3} var.
+wallet.took = {2} oyuncusundan {0} {1} alındı. Şimdi {3} var.
+wallet.short = {0} oyuncusunda yalnızca {1} {2} var.
+wallet.set = {0} oyuncusunda artık {1} {2} var.
+
+arg.currency.needed = --currency=<id> ile bir cüzdan belirt.
+arg.amount.needed = --amount=<n> ile bir miktar belirt.
+arg.amount.number = Bu miktar bir tam sayı değil: '{0}'.
+arg.amount.negative = Miktar negatif olamaz.
+
+reset.limits = {0} oyuncusunun tüm satın alma sayaçları temizlendi.
+reset.rerolls = {0} oyuncusunun tüm yeniden çekimleri temizlendi.

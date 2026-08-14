@@ -1,6 +1,9 @@
 package com.ziggfreed.common.shop;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -18,6 +21,12 @@ import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
+import com.ziggfreed.common.rotation.PoolSeed;
+import com.ziggfreed.common.rotation.RerollSpec;
+import com.ziggfreed.common.rotation.SelectionStrategies;
+import com.ziggfreed.common.rotation.SelectionStrategy;
+import com.ziggfreed.common.rotation.SlotRerollEngine;
+import com.ziggfreed.common.rotation.WeightedSlotDraw;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.PeriodMath;
 import com.ziggfreed.common.util.SafeLog;
@@ -82,6 +91,18 @@ public final class ShopEngine {
     /** Every reward failed and could not be queued, so the price was given back. */
     public static final String REASON_REFUNDED = "refunded";
 
+    /** The shelf offers no reroll at all. */
+    public static final String REASON_NO_REROLL = "no_reroll";
+
+    /** Every reroll this period has been spent. */
+    public static final String REASON_REROLL_CAP = "reroll:cap";
+
+    /** There is nothing different to swap in, so nothing was charged. */
+    public static final String REASON_NO_ALTERNATIVE = "reroll:no_alternative";
+
+    /** The reroll price could not be paid. */
+    public static final String REASON_REROLL_CANNOT_PAY = "reroll:cannot_pay";
+
     /** Whether a purchase may go ahead, and what stopped it if not. */
     public record PurchaseCheck(boolean ok, @Nullable String reason) {
 
@@ -112,6 +133,17 @@ public final class ShopEngine {
         /** True when some rewards are waiting for the buyer's next connect. */
         public boolean anyQueued() {
             return grants != null && grants.queued() > 0;
+        }
+    }
+
+    /** What a shelf reroll did: the position it changed, what left it, and what took its place. */
+    public record RerollResult(boolean ok, @Nullable String reason, int position,
+            @Nullable String replacedId, @Nullable String newId) {
+
+        /** Refused, naming what refused it. Nothing was charged. */
+        @Nonnull
+        public static RerollResult refused(@Nonnull String reason, int position) {
+            return new RerollResult(false, reason, position, null, null);
         }
     }
 
@@ -272,6 +304,170 @@ public final class ShopEngine {
                 + " queued=" + grants.queued() + " failed=" + grants.failed());
         return new PurchaseOutcome(true, null, grants, receipt.paid());
     }
+
+    // ==================== The rotating shelf ====================
+
+    /**
+     * What {@code shelf} is showing at {@code nowMs}, the same for every buyer.
+     *
+     * <p>Pure: the candidates are drawn by the shelf's registered selection strategy against a seed
+     * folded from the shelf id and the period, and answered in slot order. No state is read or
+     * written, so every player sees the same shelf and a restart changes nothing.
+     */
+    @Nonnull
+    public List<ShopOffer> activeShelf(@Nonnull ShopShelf shelf, long nowMs) {
+        return drawShelf(shelf, nowMs).items();
+    }
+
+    /**
+     * {@link #activeShelf} with the per-position slot that produced each entry, for a caller about to
+     * reroll one of them.
+     */
+    @Nonnull
+    public WeightedSlotDraw.DrawResult<ShopOffer> drawShelf(@Nonnull ShopShelf shelf, long nowMs) {
+        SelectionStrategy strategy = SelectionStrategies.forSpec(shelf.selection());
+        if (strategy == null) {
+            warn.accept("[shop] shelf '" + shelf.shelfId() + "' asks for selection type '"
+                    + shelf.selection().type() + "', which nothing registered, so it shows nothing");
+            return WeightedSlotDraw.DrawResult.empty();
+        }
+        List<ShopOffer> candidates = shelfCandidates(shelf);
+        long period = shelf.rotation().periodIndex(nowMs);
+        long seed = PoolSeed.mix(shelf.shelfId(), period, 0);
+        return strategy.draw(candidates, shelf.slots(), ShopOffer::offerId, ShopOffer::poolWeight,
+                SHELF_MATCHER, seed, shelf.defaultCount());
+    }
+
+    /**
+     * {@link #activeShelf} with this buyer's own re-rolled positions laid over it, which is what the
+     * shelf actually shows THEM.
+     */
+    @Nonnull
+    public List<ShopOffer> activeShelfFor(@Nonnull Subject subject, @Nonnull ShopShelf shelf,
+            long nowMs) {
+        WeightedSlotDraw.DrawResult<ShopOffer> base = drawShelf(shelf, nowMs);
+        Map<Integer, String> overrides = store.get()
+                .rerollOverrides(subject, shelf.shelfId(), shelf.rotation().periodIndex(nowMs));
+        if (overrides.isEmpty()) {
+            return base.items();
+        }
+        return SlotRerollEngine.applyOverrides(base, overrides, catalog::offer, SHELF_MATCHER);
+    }
+
+    /** Every enabled offer eligible for this shelf, which is what a draw picks from. */
+    @Nonnull
+    public List<ShopOffer> shelfCandidates(@Nonnull ShopShelf shelf) {
+        List<ShopOffer> candidates = new ArrayList<>();
+        for (ShopOffer offer : catalog.poolCandidates(shelf.shelfId())) {
+            if (offer != null && offer.enabled()) {
+                candidates.add(offer);
+            }
+        }
+        return candidates;
+    }
+
+    /**
+     * Could a reroll of {@code position} produce anything at all, and is one still allowed?
+     *
+     * <p><b>Asked BEFORE any price is drained</b>, which is what stops a buyer paying for a reroll
+     * that visibly changes nothing. It does not check whether they can afford it; that is the
+     * reroll's own next step.
+     */
+    @Nonnull
+    public PurchaseCheck canRerollShelf(@Nonnull Subject subject, @Nonnull ShopShelf shelf,
+            int position, long nowMs) {
+        RerollSpec spec = shelf.reroll();
+        if (spec == null) {
+            return PurchaseCheck.refused(REASON_NO_REROLL);
+        }
+        CommerceStore state = store.get();
+        long period = shelf.rotation().periodIndex(nowMs);
+        if (!state.recordsRerolls()) {
+            warn.accept("[shop] shelf '" + shelf.shelfId() + "' offers rerolls but this server's "
+                    + "commerce store keeps none, so a paid reroll would not survive a relog");
+        }
+        if (!spec.allows(state.rerollsSpent(subject, shelf.shelfId(), period))) {
+            return PurchaseCheck.refused(REASON_REROLL_CAP);
+        }
+        return shelfReplacementFor(subject, shelf, position, nowMs) == null
+                ? PurchaseCheck.refused(REASON_NO_ALTERNATIVE)
+                : PurchaseCheck.OK;
+    }
+
+    /**
+     * Swap what sits at {@code position} for something different, charging the shelf's reroll price.
+     *
+     * <p>The order is the point: probe for an alternative, drain, commit, and give the price back if
+     * the commit lost a race with the cap. Nothing is charged for a reroll that could not have
+     * happened.
+     */
+    @Nonnull
+    public RerollResult rerollShelf(@Nonnull Subject subject, @Nonnull ShopShelf shelf, int position,
+            long nowMs) {
+        RerollSpec spec = shelf.reroll();
+        if (spec == null) {
+            return RerollResult.refused(REASON_NO_REROLL, position);
+        }
+        PurchaseCheck probe = canRerollShelf(subject, shelf, position, nowMs);
+        if (!probe.ok()) {
+            return RerollResult.refused(probe.reason() == null ? REASON_NO_ALTERNATIVE : probe.reason(),
+                    position);
+        }
+        ShopOffer replacement = shelfReplacementFor(subject, shelf, position, nowMs);
+        if (replacement == null) {
+            return RerollResult.refused(REASON_NO_ALTERNATIVE, position);
+        }
+        List<ShopOffer> shown = activeShelfFor(subject, shelf, nowMs);
+        String replacedId = (position >= 0 && position < shown.size())
+                ? shown.get(position).offerId() : null;
+
+        Cost price = spec.cost();
+        CostEngine.Receipt receipt = CostEngine.Receipt.FREE;
+        if (!price.isFree()) {
+            receipt = costs.drain(subject, price);
+            if (!receipt.ok()) {
+                return RerollResult.refused(REASON_REROLL_CANNOT_PAY, position);
+            }
+        }
+
+        long period = shelf.rotation().periodIndex(nowMs);
+        boolean committed = store.get().commitReroll(subject, shelf.shelfId(), period,
+                spec.maxPerPeriod(), position, replacedId, replacement.offerId());
+        if (!committed) {
+            costs.refund(subject, receipt);
+            return RerollResult.refused(REASON_REROLL_CAP, position);
+        }
+        return new RerollResult(true, null, position, replacedId, replacement.offerId());
+    }
+
+    /**
+     * What a reroll of {@code position} would put there, or null when nothing different qualifies.
+     *
+     * <p>Excludes everything currently on show AND everything that has already sat at this position
+     * this period, so a reroll can never hand back an offer the buyer has already turned down.
+     */
+    @Nullable
+    public ShopOffer shelfReplacementFor(@Nonnull Subject subject, @Nonnull ShopShelf shelf,
+            int position, long nowMs) {
+        WeightedSlotDraw.DrawResult<ShopOffer> base = drawShelf(shelf, nowMs);
+        if (position < 0 || position >= base.size()) {
+            return null;
+        }
+        List<ShopOffer> shown = activeShelfFor(subject, shelf, nowMs);
+        CommerceStore state = store.get();
+        long period = shelf.rotation().periodIndex(nowMs);
+        Set<String> seen = state.rerollSeenAt(subject, shelf.shelfId(), period, position);
+        Set<String> exclude = SlotRerollEngine.excludeAll(shown, ShopOffer::offerId, seen);
+
+        int nextCount = state.rerollNextCount(subject, shelf.shelfId(), period, position);
+        long seed = PoolSeed.mix(shelf.shelfId(), period, position, nextCount);
+        return WeightedSlotDraw.drawReplacement(shelfCandidates(shelf), base.slotAt(position),
+                ShopOffer::offerId, ShopOffer::poolWeight, SHELF_MATCHER, exclude, seed);
+    }
+
+    /** A slot accepts an offer when the offer's own grade and tag are the ones the slot asks for. */
+    private static final WeightedSlotDraw.SlotMatcher<ShopOffer> SHELF_MATCHER =
+            (offer, slot) -> slot.accepts(offer.poolTier(), offer.poolTag());
 
     @Nonnull
     private static String shortfallReason(@Nonnull CostEngine.Affordability afford) {

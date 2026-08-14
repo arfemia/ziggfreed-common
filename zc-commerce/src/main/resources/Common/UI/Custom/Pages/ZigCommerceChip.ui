@@ -1,0 +1,33 @@
+// One chip of a commerce strip: a picture and a number, side by side. A balance reading in a page
+// header, one component of a price, one component of a reroll's price - all the same chip, appended
+// into a left-laid-out container and addressed via the INDEXED PARENT ("#BalanceRow[0] #ChipText").
+//
+// A chip is deliberately NARROW and fixed-height: a strip is read at a glance, so a wallet with a
+// long name shows its picture and its number here and says its name in a line instead.
+//
+// The picture slot hides itself when a wallet has no icon, and the number lands on
+// #ChipText.TextSpans like every other piece of text in this library.
+
+Group #ZigCommerceChip {
+  LayoutMode: Left;
+  Anchor: (Width: 92, Height: 26, Right: 6);
+  Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+  Padding: (Left: 6, Right: 6);
+
+  Group #ChipIconSlot {
+    Anchor: (Width: 18, Height: 18, Top: 4, Right: 6);
+    ItemGrid #ChipIcon {
+      Anchor: (Width: 18, Height: 18);
+      SlotsPerRow: 1;
+      AreItemsDraggable: false;
+      DisplayItemQuantity: false;
+    }
+  }
+
+  Label #ChipText {
+    FlexWeight: 1;
+    Text: "";
+    Anchor: (Height: 26);
+    Style: (FontSize: 12, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+  }
+}

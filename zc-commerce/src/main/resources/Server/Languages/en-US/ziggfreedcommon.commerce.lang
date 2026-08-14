@@ -1,0 +1,105 @@
+# The storefront page and the board page.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.commerce.<key>.
+#
+# CHROME ONLY. A shop's own name, a category label (shop.category.<id>), a contract's grade
+# (board.grade.<id>) and every offer or contract title are CONTENT keys: they belong to the lang
+# file of whoever authored the content, not here. Nothing in this file names a currency, a price or
+# any other balance figure.
+
+action.confirm = Confirm
+
+# ==================== the storefront ====================
+
+shop.title = Shop
+shop.count = {0} for sale
+shop.shelf = Featured
+shop.refresh_in = Refreshes in {0}
+shop.section.catalogue = Catalogue
+shop.empty.unavailable = Your account could not be read just now.
+shop.empty.closed = This shop is closed.
+shop.empty.nothing = Nothing is for sale here right now.
+shop.offer.untitled = Unnamed offer
+
+shop.header.cost = Price
+shop.header.cost_any = Price (pay either)
+shop.header.rewards = You receive
+
+shop.limit.daily = {0}/{1} today
+shop.limit.total = {0}/{1} ever
+shop.badge.sold_out = Sold out
+shop.badge.none_today = None left today
+shop.badge.left = {0} left
+
+shop.action.buy = Buy
+shop.action.take = Take
+shop.action.reroll = Reroll
+
+shop.toast.bought = Bought {0}.
+shop.toast.bought_queued = Bought {0}. Some of it is waiting for your next login.
+shop.toast.reroll_confirm = Reroll for {0}? Press again to confirm.
+
+# ==================== the board ====================
+
+board.title = Board
+board.count = {0} contracts
+board.refresh_in = New contracts in {0}
+board.tab.posted = Posted
+board.tab.mine = Mine
+board.empty.unknown = No such board exists here.
+board.empty.unavailable = Your account could not be read just now.
+board.empty.closed = This board is closed.
+board.empty.posted = Nothing is posted right now.
+board.empty.mine = You are not carrying anything from this board.
+board.bounty.untitled = Unnamed contract
+board.step.untitled = Unnamed step
+board.progress = {0}/{1}
+
+board.header.objectives = Objectives
+board.header.rewards = Reward
+
+board.section.ready = Ready to collect
+board.section.turn_in = Hand in here
+board.section.active = In progress
+board.section.available = Available
+board.section.locked = Locked
+board.section.spent = Done this rotation
+board.section.done = Completed
+board.status.spent_detail = You have finished this one. It comes back when the board turns over.
+board.status.parked = Its reward is waiting at the board you took it from.
+
+board.action.accept = Take it
+board.action.turn_in = Hand in
+board.action.report = Report back
+board.action.claim = Collect
+board.action.abandon = Give up
+board.action.reroll = Reroll
+
+board.toast.accepted = Contract taken.
+board.toast.claim_failed = There is nothing to collect right now.
+board.toast.abandoned = Contract given up.
+board.toast.turned_in = Handed in.
+board.toast.turn_in_failed = That could not be handed in.
+board.toast.turn_in_short = You have {0} of {1}.
+board.toast.completed = Contract complete.
+board.toast.reroll_confirm = Reroll for {0}? Press again to confirm.
+
+# ==================== why something refused ====================
+
+refuse.locked = You cannot do that yet.
+refuse.disabled = That is not available.
+refuse.unknown_offer = That is no longer for sale.
+refuse.limit_daily = You have bought as many of those as you can today.
+refuse.limit_total = You have bought as many of those as you ever can.
+refuse.short_currency = You do not have enough {0}.
+refuse.short_item = You do not have enough {0}.
+refuse.no_room = Your inventory is full.
+refuse.cannot_pay = You cannot afford that.
+refuse.refunded = Nothing could be delivered, so you were paid back.
+refuse.not_on_board = That is not posted here right now.
+refuse.already_carried = You are already carrying that one.
+refuse.spent_this_period = You have finished that one this rotation.
+refuse.quest_refused = That cannot be taken right now.
+refuse.no_reroll = This one cannot be rerolled.
+refuse.reroll_cap = You have used every reroll for this rotation.
+refuse.reroll_no_alternative = There is nothing different to swap in.
+refuse.reroll_cannot_pay = You cannot afford a reroll.

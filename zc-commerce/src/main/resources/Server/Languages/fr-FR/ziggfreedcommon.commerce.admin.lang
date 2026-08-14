@@ -1,0 +1,78 @@
+# La famille de commandes /zigcommerce : aide, listes et réponses.
+# Le nom du fichier est le PRÉFIXE des clés : une entrée ici se résout en
+# ziggfreedcommon.commerce.admin.<clé>.
+
+desc.family = Consulter et administrer l'économie de ce serveur.
+desc.validate = Vérifier tous les porte-monnaie, boutiques et tableaux de ce serveur.
+desc.wallets = Lister les porte-monnaie définis par les packs.
+desc.shops = Lister les boutiques, leurs étals et l'état de leur rotation.
+desc.boards = Lister les tableaux, leurs emplacements et l'état de leur rotation.
+desc.show = Afficher les soldes, les achats et les relances d'un joueur.
+desc.give = Ajouter au porte-monnaie d'un joueur.
+desc.take = Retirer du porte-monnaie d'un joueur.
+desc.set = Fixer le porte-monnaie d'un joueur à un montant exact.
+desc.resetlimits = Effacer les compteurs d'achat d'un joueur.
+desc.resetrerolls = Effacer les relances d'un joueur pour la période en cours.
+desc.arg.player = Le joueur concerné. Par défaut, vous.
+desc.arg.currency = L'identifiant du porte-monnaie.
+desc.arg.amount = Un nombre entier.
+desc.arg.shop = N'afficher que cette boutique et ses offres.
+desc.arg.board = N'afficher que ce tableau et ses contrats.
+
+more = ... et {0} de plus, dans le journal du serveur.
+
+validate.clean = Contenu commercial : rien à signaler.
+validate.counts = Contenu commercial : {0} erreurs, {1} avertissements, {2} notes.
+finding = {0} {1} [{2}] {3}
+
+wallets.header = Porte-monnaie ({0}) :
+wallets.none = Aucun porte-monnaie n'est défini.
+wallets.row.item = {0} - objet {1}, plafond {2}
+wallets.row.item.uncapped = {0} - objet {1}, sans plafond
+wallets.row.counter = {0} - compteur, plafond {1}
+wallets.row.counter.uncapped = {0} - compteur, sans plafond
+
+shops.header = Boutiques ({0}) :
+shops.none = Aucune boutique n'est définie.
+shops.row = {0} - {1} étals, {2} offres
+shops.shelf = étal {0} - période {1}, prochaine dans {2} min, {3} candidats
+shops.offer = offre {0} - étal {1}
+shops.offer.disabled = offre {0} - étal {1}, désactivée
+
+boards.header = Tableaux ({0}) :
+boards.none = Aucun tableau n'est défini.
+boards.row = {0} - période {1}, prochaine dans {2} min, {3} emplacements, {4} contrats
+boards.slot = emplacement de rang {0}, quantité {1}
+boards.reroll = relances : {0} par période, gratuites
+boards.reroll.paid = relances : {0} par période, payantes
+boards.contract = contrat {0} - rang {1}
+
+show.header = Données commerciales de {0} :
+show.balances = Soldes :
+show.balances.none = rien en réserve
+show.balance.row = {0} : {1} en réserve, {2} dépensé au total
+show.purchases = Achats :
+show.purchases.none = aucun achat
+show.purchase.row = {0} : {1} aujourd'hui, {2} au total, limites {3}
+show.rerolls = Relances :
+show.rerolls.none = aucune sur cette période
+show.reroll.row = {0} période {1} : {2} utilisées, {3} emplacements changés
+show.store.no_purchases = Le stockage commercial installé ne tient pas de compteurs d'achat.
+show.store.no_rerolls = Le stockage commercial installé ne retient pas les relances.
+
+player.needed = Indiquez un joueur avec --player=<nom>.
+player.offline = Ce joueur n'est pas connecté, et ses données commerciales vivent sur son propre personnage.
+
+wallet.unknown = Aucun porte-monnaie n'est défini sous '{0}'.
+wallet.gave = {0} {1} donné à {2}. Il en a maintenant {3}.
+wallet.took = {0} {1} retiré à {2}. Il en a maintenant {3}.
+wallet.short = {0} n'a que {1} {2}.
+wallet.set = {0} a maintenant {1} {2}.
+
+arg.currency.needed = Indiquez un porte-monnaie avec --currency=<id>.
+arg.amount.needed = Indiquez un montant avec --amount=<n>.
+arg.amount.number = Ce montant n'est pas un nombre entier : '{0}'.
+arg.amount.negative = Un montant ne peut pas être négatif.
+
+reset.limits = Tous les compteurs d'achat de {0} ont été effacés.
+reset.rerolls = Toutes les relances de {0} ont été effacées.

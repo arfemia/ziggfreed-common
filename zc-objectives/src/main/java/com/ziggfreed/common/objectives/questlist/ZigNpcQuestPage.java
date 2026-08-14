@@ -26,6 +26,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.loot.reward.RewardChip;
+import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Entry;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Section;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -660,7 +662,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     private void renderRewards(@Nonnull UICommandBuilder cmd, @Nonnull Quest quest) {
-        List<RewardChip> chips = NpcQuestRewardChips.chipsFor(quest.rewards(), deps.rewardChips());
+        List<RewardChip> chips = RewardChips.chipsFor(quest.rewards(), deps.rewardChips());
         if (chips.isEmpty()) {
             return;
         }

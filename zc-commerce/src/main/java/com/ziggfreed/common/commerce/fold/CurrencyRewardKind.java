@@ -1,7 +1,9 @@
 package com.ziggfreed.common.commerce.fold;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
+import com.ziggfreed.common.commerce.command.CommerceCommandLine;
 import com.ziggfreed.common.currency.CurrencyDef;
 import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.loot.reward.RewardHandler;
@@ -25,6 +27,11 @@ import com.ziggfreed.common.subject.Subject;
  * <p><b>An undefined wallet FAILS the payout</b>, so the shared issuance pass reports it and the
  * rest of the rewards still land; a wallet at its authored ceiling does NOT, because landing short
  * of a cap is a decision the content made rather than a failure.
+ *
+ * <p><b>A failed payout is replayable</b>: {@link #retryCommand} answers the admin command line that
+ * would credit the same wallet the same amount, so a consumer's retry queue hands it over on the
+ * player's next connect instead of the payout being lost. It is null for exactly the specs
+ * {@link #grant} refuses, because a reward that cannot say what it pays is not replayable either.
  */
 public final class CurrencyRewardKind implements RewardHandler {
 
@@ -67,5 +74,30 @@ public final class CurrencyRewardKind implements RewardHandler {
                     + currencyId + "', which nothing on this server defines");
         }
         engine.credit(subject, currencyId, amount);
+    }
+
+    /**
+     * The admin line that would pay the same wallet the same amount later.
+     *
+     * <p>It is built from the SPEC rather than from anything the failed attempt learned, so a queued
+     * retry hands over exactly what the content authored. A spec {@link #grant} would refuse - no
+     * wallet named, nothing to hand over - answers null instead, so it is reported lost rather than
+     * parked in a queue that would refuse it again on every attempt.
+     *
+     * <p>The wallet is deliberately NOT checked here: a payout can fail because the pack defining
+     * that wallet had not finished loading, and refusing to queue would turn a recoverable moment
+     * into a lost reward. A retry naming a wallet that never appears refuses at the command, once,
+     * where it is visible.
+     */
+    @Override
+    @Nullable
+    public String retryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull String sourceId) {
+        String currencyId = spec.paramOr(PARAM_CURRENCY, "").trim();
+        long amount = spec.longParam(PARAM_AMOUNT, 0L);
+        if (currencyId.isEmpty() || amount <= 0L) {
+            return null;
+        }
+        return CommerceCommandLine.give(subject.name(), currencyId, amount);
     }
 }

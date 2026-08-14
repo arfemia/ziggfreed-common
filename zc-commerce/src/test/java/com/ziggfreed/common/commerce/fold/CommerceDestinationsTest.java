@@ -26,14 +26,19 @@ import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
 
 /**
- * The two commerce destinations: readable now, opening nothing yet.
+ * The two commerce destinations: what content may write, what an audit says about it, and what
+ * happens when one is opened with nothing behind it.
  *
- * <p>That combination is the point of this test. An unknown {@code Type} FAILS an asset read, so a
- * shop block or a bounty master could not be authored at all until these types exist - and a handler
- * that declines is something every caller already has to cope with, since it still owes the player
- * whatever it would have done anyway. When the pages land, only the two handler bodies change; the
- * decode, the audit and every authored file stay exactly as they are, which is what these
- * assertions pin.
+ * <p>The decode half is the load-bearing one for content: an unknown {@code Type} FAILS an asset
+ * read, so a shop block or a bounty master could not be authored at all if these types did not
+ * exist, and the bare word has to mean the same value as the object form because that is what almost
+ * every authored file writes.
+ *
+ * <p>The open half is pinned by its DEGRADE rather than by a screen. Opening a page needs live
+ * player handles this test deliberately does not have, so what is asserted is that a handler asked
+ * to open one with nothing behind it answers false and never throws - which is exactly what a caller
+ * is required to cope with, since it still owes the player whatever it would have done anyway. The
+ * rendering itself is in-game smoke territory.
  */
 class CommerceDestinationsTest {
 
@@ -84,10 +89,18 @@ class CommerceDestinationsTest {
     }
 
     @Test
-    @DisplayName("opening one declines rather than reporting a screen it did not paint")
-    void aHandlerDeclinesUntilThePagesLand() {
-        assertFalse(Destinations.open(CommerceDestinations.Shop.of("general"), noHandles()));
+    @DisplayName("opening one with nothing behind it declines rather than throwing at the caller")
+    void aHandlerDeclinesWithNoHandles() {
+        assertFalse(Destinations.open(CommerceDestinations.Shop.of("general"), noHandles()),
+                "false means nothing was painted, so the caller still owes the player a response");
         assertFalse(Destinations.open(CommerceDestinations.Board.of("daily"), noHandles()));
+    }
+
+    @Test
+    @DisplayName("an unnamed target still declines cleanly on a server that declares none")
+    void anUnnamedTargetDeclinesWhenNothingIsDeclared() {
+        assertFalse(Destinations.open(CommerceDestinations.Shop.of(null), noHandles()));
+        assertFalse(Destinations.open(CommerceDestinations.Board.of(null), noHandles()));
     }
 
     @Test

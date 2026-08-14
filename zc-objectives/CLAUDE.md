@@ -39,8 +39,10 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
   - `objectives/book/` - the objective book's rendering + text-arg model.
   - `objectives/producer/` - the four native-event producers.
   - `objectives/questlist/` - the NPC quest page (`ZigNpcQuestPage`), its consumer seams
-    (`NpcQuestPageDeps`), the generic reward-chip reading (`NpcQuestRewardChips`), the pure ordering
-    core (`NpcQuestSections`), and `NpcQuestPages`, the one call a wiring root makes.
+    (`NpcQuestPageDeps`), the pure ordering core (`NpcQuestSections`), and `NpcQuestPages`, the one
+    call a wiring root makes. Reward chips read through `zc-loot`'s shared `RewardChips` (the
+    `RewardChipSource` seam IS its `Source` shape), so this page, a storefront and a results strip
+    all read one reward the same way.
   - `objectives/runtime/` - this module's own registration glue over `zc-progression`'s
     `ProgressionRegistrar`.
   - `objectives/store/` - the persisted per-player progress component + its codec.
@@ -97,6 +99,7 @@ this module's own suite covers the parts it contributes - `DefaultPartsHandInTes
 `DefaultPartsRewardGrantTest` (the registered store + producer parts pulling their weight inside a
 real runtime), `ZigProgressComponentTest`, `ProgressBlobTest` (the persisted per-player codec),
 `ProgressDispatchTest`, `ProgressHandleFacetTest`, and `ObjectiveBookTextArgsTest` (the book's
-render-text argument model), plus the NPC quest page's three pure halves - `NpcQuestSectionsTest`
-(bucketing, ordering, which quest the detail panel opens on), `NpcQuestRewardChipsTest` (how a reward
-reads, from strings alone), `NpcQuestPageDepsTest` (the defaults, and a consumer seam that throws).
+render-text argument model), plus the NPC quest page's two pure halves - `NpcQuestSectionsTest`
+(bucketing, ordering, which quest the detail panel opens on), `NpcQuestPageDepsTest` (the defaults,
+and a consumer seam that throws). How a reward chip reads is pinned in `zc-loot`'s
+`RewardChipsTest`, beside the shared vocabulary it belongs to.

@@ -12,6 +12,23 @@ reroll costs.
 | [`BountyRef`](BountyRef.java) | what it needs to know about one bounty: its quest id, and three questions about ONE board |
 | [`BoardQuests`](BoardQuests.java) | the narrow slice of the quest lifecycle the engine drives |
 | [`QuestEngineBoardQuests`](QuestEngineBoardQuests.java) | the real one, straight onto `QuestEngine` |
+| [`event/`](event/BoardEvents.java) | the outbound native moments: `BoardRotatedEvent`, `BountyRerolledEvent`, fired through `BoardEvents` |
+
+## The outbound events
+
+Two native `IEvent<Void>` POJOs on the shared engine event bus, dispatched through `BoardEvents` with
+the library's standard fire contract: resolve the dispatcher, guard on `hasListener()` so a server
+with no listeners pays nothing, dispatch synchronously on the calling thread, and guard the whole
+body so a listener blowing up never takes a reroll down with it.
+
+- **`BountyRerolledEvent` fires only after the swap is COMMITTED**, so a listener never sees a reroll
+  that was refused, that could produce no alternative, or whose price could not be taken.
+- **`BoardRotatedEvent` fires when a turnover is first NOTICED, not on a timer.** A board is a pure
+  function of the wall clock, so nothing anywhere is scheduled to roll it - which is exactly why a
+  restart costs a board nothing. `BoardEvents.noticeRotation` is called wherever a board is about to
+  be looked at and fires ONCE per board per period, however many players look next. The FIRST period
+  seen for a board is recorded silently: a server that just started has not rotated anything, and
+  announcing one on boot would be a lie every listener would learn to ignore.
 
 ## What the engine owns, so no surface can lose it
 

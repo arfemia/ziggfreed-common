@@ -413,14 +413,18 @@ public final class FrameworkAssetRegistrar {
                 });
 
         // --- Bounties (Pattern A) - one contract per file, reusing the quest schema's own groups,
-        //     plus the boards it may be posted on. The fold into runnable definitions is deferred to
-        //     whoever runs the progression, exactly as quests and achievements are. ---
+        //     plus the boards it may be posted on. Publishing to the shared quest runtime is part of
+        //     the SAME listener for the reason the shop fold is: a bounty IS a quest only once the
+        //     runtime has heard of it, and a board can draw a contract it cannot accept until then.
+        //     Published as this library's own layer, so a consumer's outranks it. ---
         AssetStoreRegistrar.registerStore(BountyAsset.class,
                 new DefaultAssetMap<String, BountyAsset>(), BountyAsset.TYPE_ROOT,
                 BountyAsset::getId, BountyAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, BountyAsset.class,
-                (LoadedAssetsEvent<String, BountyAsset, DefaultAssetMap<String, BountyAsset>> ev) ->
-                        BoardAssetStore.getInstance().merge(AssetMergeAdapter.layer(ev.getAssetMap())));
+                (LoadedAssetsEvent<String, BountyAsset, DefaultAssetMap<String, BountyAsset>> ev) -> {
+                    BoardAssetStore.getInstance().merge(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    CommerceCatalogs.publishBounties();
+                });
 
         try {
             CommonLog.LOGGER.atInfo().log(

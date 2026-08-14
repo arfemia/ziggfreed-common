@@ -2,6 +2,7 @@ package com.ziggfreed.common.commerce.fold;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -126,6 +127,31 @@ class CurrencyRewardKindTest {
         assertEquals(1, outcome.failed(), "one bad wallet costs its own reward and nothing else");
         assertTrue(outcome.anyDelivered());
         assertEquals(40L, engine.balance(SUBJECT, "bounty_token"));
+    }
+
+    @Test
+    @DisplayName("a failed payout replays as the admin line that would pay the same wallet")
+    void aFailedPayoutIsReplayable() {
+        RewardSpec spec = RewardSpec.of(CurrencyRewardKind.KIND,
+                Map.of("Currency", "Bounty_Token", "Amount", "300"));
+
+        String retry = kinds().handler(CurrencyRewardKind.KIND).retryCommand(spec, SUBJECT, "test");
+
+        assertEquals("/zigcommerce give --player=Tester --currency=Bounty_Token --amount=300", retry,
+                "the retry is a console line, and the parser binds its arguments by NAME");
+    }
+
+    @Test
+    @DisplayName("a reward that cannot say what it pays is not replayable either")
+    void anUnpayableSpecIsNotReplayable() {
+        RewardKindRegistry kinds = kinds();
+
+        assertNull(kinds.handler(CurrencyRewardKind.KIND).retryCommand(
+                RewardSpec.of(CurrencyRewardKind.KIND, Map.of("Amount", "300")), SUBJECT, "test"),
+                "no wallet named");
+        assertNull(kinds.handler(CurrencyRewardKind.KIND).retryCommand(
+                RewardSpec.of(CurrencyRewardKind.KIND, Map.of("Currency", "Bounty_Token")), SUBJECT,
+                "test"), "nothing to hand over");
     }
 
     /** A private kind table, so this test never touches the process-wide one a server shares. */

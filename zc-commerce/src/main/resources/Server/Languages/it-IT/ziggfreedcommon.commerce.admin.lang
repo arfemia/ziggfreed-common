@@ -1,0 +1,78 @@
+# La famiglia di comandi /zigcommerce: aiuto, elenchi e risposte.
+# Il nome del file è il PREFISSO delle chiavi: una voce qui si risolve come
+# ziggfreedcommon.commerce.admin.<chiave>.
+
+desc.family = Consulta e amministra l'economia di questo server.
+desc.validate = Controlla tutti i portafogli, i negozi e le bacheche di questo server.
+desc.wallets = Elenca i portafogli definiti dai pacchetti.
+desc.shops = Elenca i negozi, i loro scaffali e il punto della rotazione.
+desc.boards = Elenca le bacheche, i loro posti e il punto della rotazione.
+desc.show = Mostra saldi, acquisti e ripescaggi di un giocatore.
+desc.give = Aggiungi al portafoglio di un giocatore.
+desc.take = Togli dal portafoglio di un giocatore.
+desc.set = Porta il portafoglio di un giocatore a una cifra esatta.
+desc.resetlimits = Azzera i contatori di acquisto di un giocatore.
+desc.resetrerolls = Azzera i ripescaggi di un giocatore per il periodo attuale.
+desc.arg.player = Il giocatore su cui agire. Di norma sei tu.
+desc.arg.currency = L'id del portafoglio.
+desc.arg.amount = Un numero intero.
+desc.arg.shop = Mostra solo questo negozio e le sue offerte.
+desc.arg.board = Mostra solo questa bacheca e i suoi contratti.
+
+more = ... e altri {0}, nel registro del server.
+
+validate.clean = Contenuti di commercio: nulla da segnalare.
+validate.counts = Contenuti di commercio: {0} errori, {1} avvisi, {2} note.
+finding = {0} {1} [{2}] {3}
+
+wallets.header = Portafogli ({0}):
+wallets.none = Non è definito alcun portafoglio.
+wallets.row.item = {0} - oggetto {1}, tetto {2}
+wallets.row.item.uncapped = {0} - oggetto {1}, senza tetto
+wallets.row.counter = {0} - contatore, tetto {1}
+wallets.row.counter.uncapped = {0} - contatore, senza tetto
+
+shops.header = Negozi ({0}):
+shops.none = Non è definito alcun negozio.
+shops.row = {0} - {1} scaffali, {2} offerte
+shops.shelf = scaffale {0} - periodo {1}, prossimo tra {2} min, {3} candidati
+shops.offer = offerta {0} - scaffale {1}
+shops.offer.disabled = offerta {0} - scaffale {1}, disattivata
+
+boards.header = Bacheche ({0}):
+boards.none = Non è definita alcuna bacheca.
+boards.row = {0} - periodo {1}, prossimo tra {2} min, {3} posti, {4} contratti
+boards.slot = posto di grado {0}, quantità {1}
+boards.reroll = ripescaggi: {0} per periodo, gratuiti
+boards.reroll.paid = ripescaggi: {0} per periodo, a pagamento
+boards.contract = contratto {0} - grado {1}
+
+show.header = Dati di commercio di {0}:
+show.balances = Saldi:
+show.balances.none = non ha nulla
+show.balance.row = {0}: {1} in mano, {2} spesi in totale
+show.purchases = Acquisti:
+show.purchases.none = non ha comprato nulla
+show.purchase.row = {0}: {1} oggi, {2} in totale, limiti {3}
+show.rerolls = Ripescaggi:
+show.rerolls.none = nessuno in questo periodo
+show.reroll.row = {0} periodo {1}: {2} usati, {3} posti cambiati
+show.store.no_purchases = L'archivio di commercio installato non tiene i contatori di acquisto.
+show.store.no_rerolls = L'archivio di commercio installato non conserva i ripescaggi.
+
+player.needed = Indica un giocatore con --player=<nome>.
+player.offline = Quel giocatore non è connesso, e i suoi dati di commercio stanno sul suo personaggio.
+
+wallet.unknown = Nessun portafoglio è definito con l'id '{0}'.
+wallet.gave = Dati {0} {1} a {2}. Ora ne ha {3}.
+wallet.took = Tolti {0} {1} a {2}. Ora ne ha {3}.
+wallet.short = {0} ha solo {1} {2}.
+wallet.set = {0} ora ha {1} {2}.
+
+arg.currency.needed = Indica un portafoglio con --currency=<id>.
+arg.amount.needed = Indica una cifra con --amount=<n>.
+arg.amount.number = Quella cifra non è un numero intero: '{0}'.
+arg.amount.negative = Una cifra non può essere negativa.
+
+reset.limits = Azzerati tutti i contatori di acquisto di {0}.
+reset.rerolls = Azzerati tutti i ripescaggi di {0}.

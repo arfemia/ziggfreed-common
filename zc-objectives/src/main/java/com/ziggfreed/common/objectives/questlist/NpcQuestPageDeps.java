@@ -13,7 +13,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
-import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
@@ -76,12 +76,13 @@ public final class NpcQuestPageDeps {
         Set<String> answerSetOf(@Nonnull String npcId);
     }
 
-    /** How one reward reads on the detail panel; null to fall through to the generic reading. */
+    /**
+     * How one reward reads on the detail panel; null to fall through to the generic reading. The
+     * shape IS the shared vocabulary's own {@link RewardChips.Source}, so a consumer's reading
+     * registered once serves this page and every other chip surface alike.
+     */
     @FunctionalInterface
-    public interface RewardChipSource {
-
-        @Nullable
-        RewardChip chipFor(@Nonnull RewardSpec spec);
+    public interface RewardChipSource extends RewardChips.Source {
     }
 
     /**

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -139,5 +140,59 @@ class CommerceStoreTest {
     void capabilityProbesAreHonest() {
         assertTrue(store.recordsPurchases());
         assertTrue(store.recordsRerolls());
+    }
+
+    // ==================== writing state in, and putting it back ====================
+
+    @Test
+    @DisplayName("counts and tallies can be written outright, so an import that runs twice is the same")
+    void theWriteItInSurfaceIsAbsolute() {
+        store.setPurchases(ANNE, "boost_mining", 100L, 2, 17);
+        store.setLifetimeSpent(ANNE, "Bounty_Token", 900L);
+
+        store.setPurchases(ANNE, "boost_mining", 100L, 2, 17);
+        store.setLifetimeSpent(ANNE, "Bounty_Token", 900L);
+
+        assertEquals(2, store.purchasesToday(ANNE, "boost_mining", 100L));
+        assertEquals(17, store.purchasesTotal(ANNE, "boost_mining"));
+        assertEquals(900L, store.lifetimeSpent(ANNE, "Bounty_Token"));
+    }
+
+    @Test
+    @DisplayName("a whole reroll state goes in and comes back, and clearing takes every pool")
+    void rerollStateIsWrittenAndCleared() {
+        store.setRerolls(ANNE, "Daily", new RerollState(9L, 2,
+                Map.of(Integer.valueOf(0), "shown"), Map.of(Integer.valueOf(0), Integer.valueOf(2)),
+                Map.of(Integer.valueOf(0), Set.of("gone", "shown"))));
+
+        RerollState read = store.rerollState(ANNE, "Daily", 9L);
+        assertEquals(2, read.spent());
+        assertEquals("shown", read.overrideAt(0));
+        assertEquals(Set.of("gone", "shown"), read.seenAt(0));
+        assertEquals(3, store.rerollNextCount(ANNE, "Daily", 9L, 0));
+
+        store.clearRerolls(ANNE);
+        assertTrue(store.rerollState(ANNE, "Daily", 9L).isEmpty());
+    }
+
+    @Test
+    @DisplayName("clearing purchases takes every offer, and only for that subject")
+    void clearingPurchasesIsPerSubject() {
+        store.recordPurchase(ANNE, "boost_mining", 100L);
+        store.recordPurchase(BOB, "boost_mining", 100L);
+
+        store.clearPurchases(ANNE);
+
+        assertEquals(0, store.purchasesTotal(ANNE, "boost_mining"));
+        assertEquals(1, store.purchasesTotal(BOB, "boost_mining"));
+    }
+
+    @Test
+    @DisplayName("a migration is claimable once per subject, per id")
+    void aMigrationIsClaimedOnce() {
+        assertTrue(store.claimMigration(ANNE, "mymod:commerce-1"));
+        assertFalse(store.claimMigration(ANNE, "mymod:commerce-1"));
+        assertTrue(store.claimMigration(BOB, "mymod:commerce-1"),
+                "one player's migration says nothing about another's");
     }
 }

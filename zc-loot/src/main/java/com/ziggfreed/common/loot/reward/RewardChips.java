@@ -1,4 +1,4 @@
-package com.ziggfreed.common.objectives.questlist;
+package com.ziggfreed.common.loot.reward;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,18 +11,15 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.reward.DeferredRewards;
-import com.ziggfreed.common.loot.reward.RewardKindAsset;
-import com.ziggfreed.common.loot.reward.RewardKindConfig;
-import com.ziggfreed.common.loot.reward.RewardSpec;
 
 /**
- * Turns a quest's {@code RewardSpec}s into the chips a detail panel paints, WITHOUT knowing what any
- * one kind means.
+ * Turns {@link RewardSpec}s into the chips a surface paints, WITHOUT knowing what any one kind
+ * means.
  *
  * <p>A reward is a kind plus a bag of strings, and what a kind is called belongs to whoever defined
  * it. So nothing here branches on a kind id: a chip is assembled from the same three sources the
- * deferred-payout layer already reads, in the same order, so a reward previewed on a quest and the
- * same reward shown on a results screen cannot disagree about its own name.
+ * deferred-payout layer already reads, in the same order, so a reward previewed on a quest, on a
+ * storefront offer and on a results screen cannot disagree about its own name.
  *
  * <ol>
  *   <li>the reward's OWN {@code NameKey} / {@code Icon} parameters, which is one reward saying how it
@@ -42,14 +39,29 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * <p>{@link Plan} is the whole decision and touches nothing but strings, so what a chip WILL say is
  * testable with no server; {@link #chipFor} is the half that reaches an item for its name.
  */
-public final class NpcQuestRewardChips {
+public final class RewardChips {
 
     /** The item id a reward hands over, under either of the two spellings the loot kinds accept. */
     private static final String P_ITEM = "item";
 
     private static final String P_ID = "id";
 
-    private NpcQuestRewardChips() {
+    /**
+     * A consumer's own reading of one reward, for a mod that knows something about its own kind the
+     * generic reading cannot recover. A null answer falls through to the generic reading, never
+     * instead of it.
+     */
+    @FunctionalInterface
+    public interface Source {
+
+        @Nullable
+        RewardChip chipFor(@Nonnull RewardSpec spec);
+    }
+
+    /** No consumer opinion about any reward, so every chip takes the generic reading. */
+    public static final Source GENERIC = spec -> null;
+
+    private RewardChips() {
     }
 
     /**
@@ -73,10 +85,12 @@ public final class NpcQuestRewardChips {
      * throwing seam) falls through to the generic reading rather than dropping the reward.
      */
     @Nonnull
-    public static List<RewardChip> chipsFor(@Nonnull List<RewardSpec> rewards,
-            @Nullable NpcQuestPageDeps.RewardChipSource source) {
+    public static List<RewardChip> chipsFor(@Nonnull List<RewardSpec> rewards, @Nullable Source source) {
         List<RewardChip> out = new ArrayList<>();
         for (RewardSpec spec : rewards) {
+            if (spec == null) {
+                continue;
+            }
             RewardChip chip = null;
             if (source != null) {
                 try {

@@ -1,0 +1,272 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// The board page (com.ziggfreed.common.commerce.page.ZigBoardPage): what a board is posting on the
+// left, the contract being read on the right, and the clock to the next turnover across the top.
+//
+// LEFT: the board's name, icon and line, the countdown (#RefreshLabel), the wallet strip
+// (#BalanceRow, one Pages/ZigCommerceChip.ui per currency the board authored), a two-button tab bar
+// (#TabBoard / #TabMine) and the scrolling #BountyList the page appends Pages/ZigCommerceRow.ui
+// into. #EmptyLabel carries the one line an empty list shows; the tab bar stays visible behind it,
+// since hiding it would leave no route to the other list.
+//
+// RIGHT: #RightPanel, hidden outright when there is nothing selected. Its four appended containers
+// (#ObjectivesList, #RewardsList, #StatusList, #RerollCostRow) take chips or
+// Pages/ZigCommerceLine.ui rows, and the page CLEARS each one before re-rendering, so a second
+// render for a different contract cannot collide with the rows of the first.
+//
+// Every labeled button here is a Button + inner Label #Label, never a TextButton: a contract title
+// and a step's "3/10" are parameterized Messages, and those only substitute on .TextSpans. The five
+// action buttons default Visible:false and the page flips exactly the ones a state offers, so there
+// is never a control that does nothing.
+//
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  @Ornaments = true;
+  Anchor: (Width: 1050, Height: 850);
+
+  #Content {
+    Anchor: (Top: 0);
+    LayoutMode: Left;
+    Padding: (Full: 0);
+
+    Group #LeftPanel {
+      Anchor: (Width: 360);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+      LayoutMode: Top;
+      Padding: (Full: 14);
+
+      Group #TitleRow {
+        LayoutMode: Left;
+        Anchor: (Height: 30, Bottom: 2);
+
+        Group #BoardIconSlot {
+          Anchor: (Width: 22, Height: 22, Top: 4, Right: 8);
+          ItemGrid #BoardIcon {
+            Anchor: (Width: 22, Height: 22);
+            SlotsPerRow: 1;
+            AreItemsDraggable: false;
+            DisplayItemQuantity: false;
+          }
+        }
+
+        Label #BoardTitle {
+          FlexWeight: 1;
+          Text: "";
+          Anchor: (Height: 30);
+          Style: (FontSize: 18, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+        }
+      }
+
+      Label #BoardSubtitle {
+        Text: "";
+        Visible: false;
+        Anchor: (Bottom: 6);
+        Style: (FontSize: 11, TextColor: #93a4b8, Wrap: true);
+      }
+
+      Label #RefreshLabel {
+        Text: "";
+        Anchor: (Height: 18, Bottom: 6);
+        Style: (FontSize: 11, TextColor: #6f8296, VerticalAlignment: Center);
+      }
+
+      Group #BalanceRow {
+        LayoutMode: Left;
+        Anchor: (Height: 28, Bottom: 8);
+      }
+
+      Group #TabBar {
+        LayoutMode: Left;
+        Anchor: (Height: 30, Bottom: 8);
+
+        Button #TabBoard {
+          Style: $Z.@ZigRichRowBtnStyle;
+          FlexWeight: 1;
+          Anchor: (Height: 28, Right: 6);
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+
+        Button #TabMine {
+          Style: $Z.@ZigRichRowBtnStyle;
+          FlexWeight: 1;
+          Anchor: (Height: 28);
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+      }
+
+      Label #BountyCount {
+        Text: "";
+        Anchor: (Height: 18, Bottom: 6);
+        Style: (FontSize: 11, TextColor: #93a4b8, VerticalAlignment: Center);
+      }
+
+      Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
+
+      Group #BountyList {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 4);
+      }
+
+      Label #EmptyLabel {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 40, Top: 8);
+        Style: (FontSize: 12, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+      }
+    }
+
+    Group #RightPanel {
+      FlexWeight: 1;
+      LayoutMode: Top;
+      Padding: (Full: 20);
+
+      Label #DetailTitle {
+        Text: "";
+        Anchor: (Height: 28, Bottom: 4);
+        Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+      }
+
+      Group #DetailMetaRow {
+        LayoutMode: Left;
+        Anchor: (Height: 18, Bottom: 8);
+
+        Label #DetailStatus {
+          Anchor: (Width: 160, Height: 18);
+          Text: "";
+          Style: (FontSize: 12, TextColor: #96a9be, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+        }
+
+        Label #DetailGrade {
+          FlexWeight: 1;
+          Text: "";
+          Visible: false;
+          Anchor: (Height: 18);
+          Style: (FontSize: 12, TextColor: #c8a86a, VerticalAlignment: Center);
+        }
+      }
+
+      Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
+
+      Label #Flavor {
+        Text: "";
+        Visible: false;
+        Anchor: (Bottom: 12);
+        Style: (FontSize: 12, TextColor: #b6c9de, Wrap: true);
+      }
+
+      Label #ObjectivesHeader {
+        Text: "";
+        Anchor: (Height: 18, Bottom: 6);
+        Style: (FontSize: 11, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+      }
+
+      Group #ObjectivesList {
+        LayoutMode: Top;
+        Anchor: (Bottom: 12);
+      }
+
+      Label #RewardsHeader {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 18, Bottom: 6);
+        Style: (FontSize: 11, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+      }
+
+      Group #RewardsList {
+        LayoutMode: Top;
+        Anchor: (Bottom: 12);
+      }
+
+      Group #StatusList {
+        LayoutMode: Top;
+        Anchor: (Bottom: 12);
+      }
+
+      Group { FlexWeight: 1; }
+
+      Group #RerollCostRow {
+        LayoutMode: Left;
+        Visible: false;
+        Anchor: (Height: 28, Bottom: 6);
+      }
+
+      Group #ActionRow {
+        LayoutMode: Left;
+        Anchor: (Height: 40);
+
+        Button #AcceptBtn {
+          Style: $Z.@ZigRichPrimaryBtnStyle;
+          Anchor: (Width: 130, Height: 36, Right: 8);
+          Visible: false;
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: 13, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+
+        Button #TurnInBtn {
+          Style: $Z.@ZigRichPrimaryBtnStyle;
+          Anchor: (Width: 130, Height: 36, Right: 8);
+          Visible: false;
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: 13, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+
+        Button #ClaimBtn {
+          Style: $Z.@ZigRichPrimaryBtnStyle;
+          Anchor: (Width: 130, Height: 36, Right: 8);
+          Visible: false;
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: 13, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+
+        Button #AbandonBtn {
+          Style: $Z.@ZigRichRowBtnStyle;
+          Anchor: (Width: 120, Height: 36, Right: 8);
+          Visible: false;
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: 13, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+
+        Button #RerollBtn {
+          Style: $Z.@ZigRichRowBtnStyle;
+          Anchor: (Width: 120, Height: 36);
+          Visible: false;
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: 13, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+
+        Group { FlexWeight: 1; }
+      }
+    }
+  }
+}

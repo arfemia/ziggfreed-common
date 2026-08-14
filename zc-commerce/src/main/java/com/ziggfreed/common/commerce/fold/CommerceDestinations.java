@@ -12,13 +12,13 @@ import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.board.asset.BoardValidator;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
+import com.ziggfreed.common.commerce.page.CommercePages;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopValidator;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
-import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 
 /**
@@ -35,13 +35,15 @@ import com.ziggfreed.common.validation.Finding;
  * "Open": { "Type": "Board", "Board": "Daily" }     a named board
  * }</pre>
  *
- * <p><b>Both types are readable NOW and open nothing YET.</b> Registering them at this point is
- * deliberate rather than premature: an unknown {@code Type} FAILS an asset read, so content that
- * names a shop or a board could not be authored, shipped or migrated at all until the type exists.
- * Until the pages land, a handler declines with one line at fine - a decline the caller is already
- * required to cope with, since it still owes the player whatever it would have done anyway. The
- * pages leg replaces the two handler bodies and nothing else about a registration, an audit or an
- * authored file changes with it.
+ * <p><b>An UNNAMED target means "whichever one this server has".</b> The commonest authored form is
+ * the bare word - a shop block, a bounty master, a conversation line that is already about one
+ * place - so leaving the id out opens the first storefront or board the content declares rather than
+ * declining. A server that declares none declines, which is a decline the caller already has to cope
+ * with, since it still owes the player whatever it would have done anyway.
+ *
+ * <p>The page is opened on the moment's own anchor ({@code pageAnchor}), so pressing F on a
+ * shopkeeper opens the storefront on that character exactly as the engine's own NPC pages behave,
+ * while a block or a command opens it on the player.
  *
  * <p>Each type audits its OWN field, which is the half only this mod can answer: a storefront or a
  * board nothing defines is a WARNING rather than an error, because the pack that defines it may
@@ -115,9 +117,8 @@ public final class CommerceDestinations {
     }
 
     private static boolean openShop(@Nonnull Shop destination, @Nonnull DestinationContext ctx) {
-        SafeLog.fine("[commerce] a Shop destination was opened before the storefront page exists, so "
-                + "nothing was shown");
-        return false;
+        return CommercePages.openShop(destination.getShop(), ctx.store(), ctx.pageAnchor(),
+                ctx.playerRef(), ctx.player());
     }
 
     @Nonnull
@@ -166,9 +167,8 @@ public final class CommerceDestinations {
     }
 
     private static boolean openBoard(@Nonnull Board destination, @Nonnull DestinationContext ctx) {
-        SafeLog.fine("[commerce] a Board destination was opened before the board page exists, so "
-                + "nothing was shown");
-        return false;
+        return CommercePages.openBoard(destination.getBoard(), ctx.store(), ctx.pageAnchor(),
+                ctx.playerRef(), ctx.player());
     }
 
     @Nonnull

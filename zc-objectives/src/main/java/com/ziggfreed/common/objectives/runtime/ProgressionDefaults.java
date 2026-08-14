@@ -107,6 +107,14 @@ public final class ProgressionDefaults {
     @Nullable
     private static volatile AssetQuestGates assetGates;
 
+    /**
+     * The evaluator behind that gate, held so the wiring root can hand the SAME one to every other
+     * seam that answers a {@code Requires} block (the commerce engines above all), and one
+     * permission question then has one answer everywhere.
+     */
+    @Nullable
+    private static volatile GateEvaluator gateEvaluator;
+
     /** Registration is once per boot: a second pass would mint parts nothing is holding. */
     private static boolean registered;
 
@@ -137,6 +145,7 @@ public final class ProgressionDefaults {
                     .build();
             AssetQuestGates gates = AssetQuestGates.of(gate);
             assetGates = gates;
+            gateEvaluator = gate;
 
             ProgressionRegistrar registrar = ProgressionRuntime.defaults(OWNER);
             registrar.questStore(ZigQuestStore.INSTANCE)
@@ -522,11 +531,23 @@ public final class ProgressionDefaults {
         publishAssetContent();
     }
 
+    /**
+     * The requirement evaluator these defaults built, or null before {@link #register} has run. A
+     * seam that takes a SUPPLIER (the commerce gate seam) points here rather than copying the
+     * evaluator, so a null before registration reads as "not yet" and falls to that seam's own
+     * fail-closed default.
+     */
+    @Nullable
+    public static GateEvaluator gateEvaluator() {
+        return gateEvaluator;
+    }
+
     /** Forget this module's own folded catalogues and registrations (test reset, and shutdown). */
     public static synchronized void reset() {
         QUEST_POOL = QuestPool.EMPTY;
         ACHIEVEMENT_POOL = null;
         assetGates = null;
+        gateEvaluator = null;
         registered = false;
     }
 }

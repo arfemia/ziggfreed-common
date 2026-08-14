@@ -1,0 +1,72 @@
+$Z = "../Common/ZigButtons.ui";
+
+// One row of a commerce list, appended into #OfferList (the storefront) or #BountyList (the board).
+// Addressed per row via the INDEXED PARENT ("#OfferList[0] #RowBtn"), so the bare descendant ids
+// below are safe across many rows and across mods.
+//
+// ONE template for BOTH pages and for BOTH kinds of row. A storefront row and a board row differ in
+// what they SAY rather than in what they are, and a page update can restyle an element that already
+// exists but can never add one - so a list mixing templates would give two different child sets at
+// one index and a partial update would address the wrong thing.
+//
+// A SECTION HEADING is the same row with its button and dot hidden and #SectionLabel shown;
+// #SectionMeta carries the countdown under a rotating shelf's heading and stays hidden everywhere
+// else. A content row does the reverse (the authored defaults below).
+//
+// #RowBtn is a Button + inner Label #Label, never a TextButton: a row title is a parameterized
+// Message and only substitutes on .TextSpans. The selected-row accent is set from Java on the
+// button's per-state tints plus the inner label, never by replacing the background wholesale.
+
+Group #ZigCommerceRow {
+  LayoutMode: Top;
+  Anchor: (Height: 38, Bottom: 2);
+
+  Group #RowLine {
+    LayoutMode: Left;
+    Anchor: (Height: 36);
+
+    Group #StatusDot {
+      Anchor: (Width: 6, Height: 6, Top: 15, Left: 4);
+      Background: #96a9be;
+    }
+
+    Button #RowBtn {
+      Style: $Z.@ZigRichRowBtnStyle;
+      FlexWeight: 1;
+      Anchor: (Height: 36);
+      Padding: (Left: 14);
+      LayoutMode: Left;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Anchor: (Height: 36);
+        Style: (FontSize: 13, TextColor: #b6c9de, VerticalAlignment: Center);
+      }
+    }
+
+    Label #SectionLabel {
+      FlexWeight: 1;
+      Text: "";
+      Visible: false;
+      Anchor: (Height: 36);
+      Padding: (Left: 4);
+      Style: (FontSize: 11, TextColor: #8696a8, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+    }
+
+    Label #RowBadge {
+      Text: "";
+      Visible: false;
+      Anchor: (Width: 88, Height: 36);
+      Style: (FontSize: 11, TextColor: #96a9be, HorizontalAlignment: Right, VerticalAlignment: Center);
+    }
+  }
+
+  Label #SectionMeta {
+    Text: "";
+    Visible: false;
+    Anchor: (Height: 14);
+    Padding: (Left: 4);
+    Style: (FontSize: 10, TextColor: #6f8296, VerticalAlignment: Center);
+  }
+}

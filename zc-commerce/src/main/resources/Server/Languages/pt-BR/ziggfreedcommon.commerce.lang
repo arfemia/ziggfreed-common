@@ -1,0 +1,91 @@
+action.confirm = Confirmar
+
+shop.title = Loja
+shop.count = {0} à venda
+shop.shelf = Em destaque
+shop.refresh_in = Renova em {0}
+shop.section.catalogue = Catálogo
+shop.empty.unavailable = Não foi possível ler sua conta agora.
+shop.empty.closed = Esta loja está fechada.
+shop.empty.nothing = Não há nada à venda aqui agora.
+shop.offer.untitled = Oferta sem nome
+
+shop.header.cost = Preço
+shop.header.cost_any = Preço (pague um dos dois)
+shop.header.rewards = Você recebe
+
+shop.limit.daily = {0}/{1} hoje
+shop.limit.total = {0}/{1} no total
+shop.badge.sold_out = Esgotado
+shop.badge.none_today = Nada mais por hoje
+shop.badge.left = Restam {0}
+
+shop.action.buy = Comprar
+shop.action.take = Pegar
+shop.action.reroll = Trocar
+
+shop.toast.bought = Você comprou {0}.
+shop.toast.bought_queued = Você comprou {0}. Parte disso espera pelo seu próximo login.
+shop.toast.reroll_confirm = Trocar por {0}? Aperte de novo para confirmar.
+
+board.title = Mural
+board.count = {0} contratos
+board.refresh_in = Novos contratos em {0}
+board.tab.posted = Afixados
+board.tab.mine = Meus
+board.empty.unknown = Esse mural não existe aqui.
+board.empty.unavailable = Não foi possível ler sua conta agora.
+board.empty.closed = Este mural está fechado.
+board.empty.posted = Nada está afixado agora.
+board.empty.mine = Você não está levando nada deste mural.
+board.bounty.untitled = Contrato sem nome
+board.step.untitled = Etapa sem nome
+board.progress = {0}/{1}
+
+board.header.objectives = Objetivos
+board.header.rewards = Recompensa
+
+board.section.ready = Pronto para receber
+board.section.turn_in = Entregar aqui
+board.section.active = Em andamento
+board.section.available = Disponível
+board.section.locked = Bloqueado
+board.section.spent = Feito nesta rodada
+board.section.done = Concluído
+board.status.spent_detail = Você já terminou esse. Ele volta quando o mural mudar.
+board.status.parked = A recompensa espera no mural onde você pegou o contrato.
+
+board.action.accept = Aceitar
+board.action.turn_in = Entregar
+board.action.report = Prestar contas
+board.action.claim = Receber
+board.action.abandon = Desistir
+board.action.reroll = Trocar
+
+board.toast.accepted = Contrato aceito.
+board.toast.claim_failed = Não há nada para receber agora.
+board.toast.abandoned = Contrato abandonado.
+board.toast.turned_in = Entregue.
+board.toast.turn_in_failed = Não foi possível entregar isso.
+board.toast.turn_in_short = Você tem {0} de {1}.
+board.toast.completed = Contrato concluído.
+board.toast.reroll_confirm = Trocar por {0}? Aperte de novo para confirmar.
+
+refuse.locked = Você ainda não pode fazer isso.
+refuse.disabled = Isso não está disponível.
+refuse.unknown_offer = Isso não está mais à venda.
+refuse.limit_daily = Você já comprou quantos podia hoje.
+refuse.limit_total = Você já comprou quantos poderá comprar na vida.
+refuse.short_currency = Você não tem {0} suficiente.
+refuse.short_item = Você não tem {0} suficiente.
+refuse.no_room = Seu inventário está cheio.
+refuse.cannot_pay = Você não pode pagar isso.
+refuse.refunded = Nada pôde ser entregue, então você recebeu tudo de volta.
+refuse.not_on_board = Isso não está afixado aqui agora.
+refuse.already_carried = Você já está levando esse.
+refuse.spent_this_period = Você já terminou esse nesta rodada.
+refuse.quest_refused = Não dá para aceitar agora.
+refuse.no_reroll = Esse não pode ser trocado.
+refuse.reroll_cap = Você usou todas as trocas desta rodada.
+refuse.reroll_no_alternative = Não há nada diferente para colocar no lugar.
+refuse.reroll_cannot_pay = Você não pode pagar uma troca.

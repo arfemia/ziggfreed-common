@@ -1,0 +1,91 @@
+action.confirm = Conferma
+
+shop.title = Negozio
+shop.count = {0} in vendita
+shop.shelf = In evidenza
+shop.refresh_in = Si rinnova tra {0}
+shop.section.catalogue = Catalogo
+shop.empty.unavailable = Non è stato possibile leggere il tuo profilo in questo momento.
+shop.empty.closed = Questo negozio è chiuso.
+shop.empty.nothing = Qui non c'è nulla in vendita al momento.
+shop.offer.untitled = Offerta senza nome
+
+shop.header.cost = Prezzo
+shop.header.cost_any = Prezzo (paghi uno dei due)
+shop.header.rewards = Ricevi
+
+shop.limit.daily = {0}/{1} oggi
+shop.limit.total = {0}/{1} in totale
+shop.badge.sold_out = Esaurito
+shop.badge.none_today = Per oggi è finito
+shop.badge.left = Ne restano {0}
+
+shop.action.buy = Compra
+shop.action.take = Prendi
+shop.action.reroll = Rigenera
+
+shop.toast.bought = Hai comprato {0}.
+shop.toast.bought_queued = Hai comprato {0}. Una parte ti aspetta al prossimo accesso.
+shop.toast.reroll_confirm = Rigenerare per {0}? Premi di nuovo per confermare.
+
+board.title = Bacheca
+board.count = {0} contratti
+board.refresh_in = Nuovi contratti tra {0}
+board.tab.posted = Affissi
+board.tab.mine = I miei
+board.empty.unknown = Qui non esiste una bacheca del genere.
+board.empty.unavailable = Non è stato possibile leggere il tuo profilo in questo momento.
+board.empty.closed = Questa bacheca è chiusa.
+board.empty.posted = Al momento non c'è nulla affisso.
+board.empty.mine = Non porti con te nulla di questa bacheca.
+board.bounty.untitled = Contratto senza nome
+board.step.untitled = Passo senza nome
+board.progress = {0}/{1}
+
+board.header.objectives = Obiettivi
+board.header.rewards = Ricompensa
+
+board.section.ready = Pronto da ritirare
+board.section.turn_in = Da consegnare qui
+board.section.active = In corso
+board.section.available = Disponibile
+board.section.locked = Bloccato
+board.section.spent = Fatto in questo turno
+board.section.done = Completato
+board.status.spent_detail = L'hai già finito. Torna quando la bacheca cambia.
+board.status.parked = La ricompensa ti aspetta alla bacheca da cui l'hai preso.
+
+board.action.accept = Accetta
+board.action.turn_in = Consegna
+board.action.report = Fai rapporto
+board.action.claim = Ritira
+board.action.abandon = Abbandona
+board.action.reroll = Rigenera
+
+board.toast.accepted = Contratto accettato.
+board.toast.claim_failed = Al momento non c'è nulla da ritirare.
+board.toast.abandoned = Contratto abbandonato.
+board.toast.turned_in = Consegnato.
+board.toast.turn_in_failed = Non è stato possibile consegnarlo.
+board.toast.turn_in_short = Ne hai {0} su {1}.
+board.toast.completed = Contratto completato.
+board.toast.reroll_confirm = Rigenerare per {0}? Premi di nuovo per confermare.
+
+refuse.locked = Non puoi ancora farlo.
+refuse.disabled = Non è disponibile.
+refuse.unknown_offer = Non è più in vendita.
+refuse.limit_daily = Ne hai già comprati quanti ne puoi comprare oggi.
+refuse.limit_total = Ne hai già comprati quanti ne potrai mai comprare.
+refuse.short_currency = Non hai abbastanza {0}.
+refuse.short_item = Non hai abbastanza {0}.
+refuse.no_room = Il tuo inventario è pieno.
+refuse.cannot_pay = Non puoi permettertelo.
+refuse.refunded = Non è stato possibile consegnare nulla, quindi ti è stato restituito tutto.
+refuse.not_on_board = Al momento non è affisso qui.
+refuse.already_carried = Quello lo porti già con te.
+refuse.spent_this_period = L'hai già finito in questo turno.
+refuse.quest_refused = Al momento non si può accettare.
+refuse.no_reroll = Quello non si può rigenerare.
+refuse.reroll_cap = Hai usato tutte le rigenerazioni di questo turno.
+refuse.reroll_no_alternative = Non c'è nulla di diverso da mettere al suo posto.
+refuse.reroll_cannot_pay = Non puoi permetterti una rigenerazione.

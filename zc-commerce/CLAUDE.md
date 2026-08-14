@@ -57,13 +57,30 @@ being a half. Nothing in it decides anything; every decision already has an owne
 
 | Package | What it is |
 |---|---|
-| [`commerce/`](src/main/java/com/ziggfreed/common/commerce/CLAUDE.md) | `CommerceStore`, the ONE seam for everything commerce persists, plus the in-memory default and the holder a consumer replaces it through |
+| [`commerce/`](src/main/java/com/ziggfreed/common/commerce/CLAUDE.md) | `CommerceStore`, the ONE seam for everything commerce persists, the per-player component it is kept on by default, the in-memory alternative, and the holder a consumer replaces it through |
 | [`currency/`](src/main/java/com/ziggfreed/common/currency/CLAUDE.md) | `CurrencyDef` + `CurrencyCatalog` + `CurrencyEngine`: the item-or-counter dispatch nothing above it ever branches on |
 | [`cost/`](src/main/java/com/ziggfreed/common/cost/CLAUDE.md) | `Cost`/`ItemCost`/`CostScaling` + `CostEngine`: the one price vocabulary and the check/drain/refund authority, with receipts |
 | [`rotation/`](src/main/java/com/ziggfreed/common/rotation/CLAUDE.md) | the deterministic rotating-pool primitive: cadence, seed, draw, selection strategies, reroll layering |
 | [`shop/`](src/main/java/com/ziggfreed/common/shop/CLAUDE.md) | `ShopEngine`: the purchase pipeline, which is ordering and transactionality over other people's authorities |
 | [`board/`](src/main/java/com/ziggfreed/common/board/CLAUDE.md) | `BoardEngine`: a board as a rotating VIEW over the quest pool, with the period lock, the accept site and the pre-charge reroll probe |
-| [`commerce/fold/`](src/main/java/com/ziggfreed/common/commerce/fold/CLAUDE.md) | the JOIN: authored groups to runtime values, the three catalogs, the owner-file readers, the `Currency` reward kind, the `Shop`/`Board` destinations, and the defaults a bare server runs on |
+| [`commerce/fold/`](src/main/java/com/ziggfreed/common/commerce/fold/CLAUDE.md) | the JOIN: authored groups to runtime values, the three catalogs, the owner-file readers, the `Currency` reward kind, the `Shop`/`Board` destinations, the content audit, and the defaults a bare server runs on |
+| [`commerce/command/`](src/main/java/com/ziggfreed/common/commerce/command/CLAUDE.md) | `/zigcommerce`, the admin surface over all of the above - the library's first command family |
+| [`commerce/page/`](src/main/java/com/ziggfreed/common/commerce/page/CLAUDE.md) | the two screens: `ZigShopPage` + `ZigBoardPage`, their one deps object, the pure ordering cores, and the refusal-to-words mapping |
+
+## Shipped resources
+
+`Common/UI/Custom/Pages/{ZigShopPage.ui, ZigBoardPage.ui, ZigCommerceRow.ui, ZigCommerceLine.ui,
+ZigCommerceChip.ui}` (needs `zc-presentation` at RUNTIME as well as compile time, since a page's
+`.ui` imports the shared frames and buttons by path) plus
+`Server/Languages/<locale>/ziggfreedcommon.commerce.lang`, nine locales. The lang file holds page
+CHROME only; a shop's name, a category label, a contract's grade and every offer or contract title
+are CONTENT keys belonging to whoever authored the content.
+
+`Server/Languages/<locale>/ziggfreedcommon.commerce.admin.lang` is its SEPARATE sibling, nine
+locales, holding every line the `/zigcommerce` family says plus the help text the engine resolves a
+command and an argument description through. Two files rather than one because they are read by two
+different people in two different places, and because a key lives in exactly one file: the filename
+is its prefix.
 
 ## The rules that bind every engine here
 
@@ -86,6 +103,9 @@ being a half. Nothing in it decides anything; every decision already has an owne
   receipt and does not count. Each of those was a shipped bug somewhere before it was a rule.
 - **Refund the RECEIPT, never the price.** An `Any` price charges one component, so refunding the
   price would hand back things nobody paid.
+- **The write-it-in surface is ABSOLUTE.** Everything a consumer moves INTO the state store is
+  written rather than added, so an import that runs twice leaves the same state, and a one-time
+  migration is CLAIMED (recorded and answered in one breath) rather than checked and then run.
 
 ## Tests
 
@@ -96,13 +116,34 @@ reroll bookkeeping, the day rollover, the atomic cap), `ShopEngineTest` (the who
 fake seams), `BoardEngineTest` (the rotating view, the period lock, the lapse re-arm, the accept
 site, the reroll order). Every one of them runs with no server: pure cores plus fakes.
 
+The PERSISTED state has three more, on the same terms: `CommerceComponentTest` (the state machine
+every store rests on - the day rollover, the period rollover, the atomic cap, a migration claimed
+once, a deep clone), `CommerceBlobTest` (the wire form a saved world holds, including an id carrying
+the format's own reserved characters), and `ComponentCommerceStoreTest` (what a subject with no
+component reads, drops and refuses). The component's encode / decode pass needs a running asset
+registry, so it belongs to in-game smoke; the codec is asserted for static initialization, which is
+what catches a lower-case key at build time.
+
+The COMMANDS have one, `CommerceAdminKeysTest`, which walks the command package and fails on a key
+with nothing to resolve it from - including a verb with no help line, since the engine resolves a
+command description as a key. What the commands DO needs a booted server.
+
 The JOIN has its own five: `CommerceFoldTest` (real authored files folded into engine values, each
 compared against what the file says rather than against a number typed into the test),
 `CommerceCatalogTest` (the three catalogs over seeded stores, including the generator family and the
 live-versus-snapshot difference), `CommerceOwnerLayersTest` (leaf-by-leaf overrides, the re-read that
 must not compound, the malformed file that costs the overrides and nothing else),
 `CurrencyRewardKindTest` (the payout through the shared issuance pass, with every seam faked), and
-`CommerceDestinationsTest` (both types readable now, declining until the pages land).
+`CommerceDestinationsTest` (what content may write, what an audit says about it, and that opening one
+with nothing behind it declines rather than throwing).
+
+The PAGES are split the same way, pure halves only: `ShopSectionsTest` and `BoardSectionsTest` (the
+ordering a player notices immediately and a refactor breaks silently), `CommerceRefusalsTest` (the
+token-to-line mapping, DISCOVERING both engines' `REASON_*` constants by reflection so a new refusal
+is a failing test rather than a quiet degrade, and checking each line is actually shipped in
+English), `CommerceTextTest` (the title-argument seam and the countdown) and `ConfirmArmTest` (the
+two-click window). The rendering itself is in-game smoke territory, because `.ui` files are not
+compiled and a green build says nothing about them.
 
 Tests assert mechanics, structure and invariants. Fixtures are author-owned; never assert numbers
 that belong to somebody's balance pass.

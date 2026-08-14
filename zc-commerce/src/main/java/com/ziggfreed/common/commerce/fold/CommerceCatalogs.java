@@ -1,16 +1,25 @@
 package com.ziggfreed.common.commerce.fold;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.board.asset.BoardAssetStore;
 import com.ziggfreed.common.currency.CurrencyCatalog;
 import com.ziggfreed.common.progress.asset.GeneratorCore;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.quest.asset.QuestEnumeratorRegistry;
 import com.ziggfreed.common.quest.asset.QuestGeneratorExpander;
 import com.ziggfreed.common.shop.ShopCatalog;
+import com.ziggfreed.common.shop.asset.ShopPoolAsset;
+import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -35,6 +44,9 @@ import com.ziggfreed.common.util.SafeLog;
  * source went unanswered, rather than a family silently shipping half-written.
  */
 public final class CommerceCatalogs {
+
+    /** Who this module's published content layer is attributed to. */
+    public static final String OWNER = "ziggfreedcommon";
 
     private static final AtomicReference<Supplier<GeneratorCore.AxisValueSource>> AXIS_VALUES =
             new AtomicReference<>();
@@ -66,6 +78,23 @@ public final class CommerceCatalogs {
     @Nonnull
     public static AssetBoardCatalog boards() {
         return AssetBoardCatalog.getInstance();
+    }
+
+    /**
+     * The rotating shelves a storefront stands, in authored order. Live off the shelf fold, like the
+     * wallets and the boards: a shelf is one authored file and nothing about it has to be expanded
+     * first, so there is nothing here to refresh or invalidate.
+     */
+    @Nonnull
+    public static List<ShelfSpec> shelvesOf(@Nonnull String shopId) {
+        List<ShopPoolAsset> authored = ShopPoolConfig.getInstance().shelvesOf(shopId);
+        List<ShelfSpec> out = new ArrayList<>(authored.size());
+        for (ShopPoolAsset asset : authored) {
+            if (asset != null && asset.isEnabled()) {
+                out.add(ShelfSpec.of(asset));
+            }
+        }
+        return out;
     }
 
     // ==================== The value-source seam ====================
@@ -126,5 +155,33 @@ public final class CommerceCatalogs {
      */
     public static void refreshShops() {
         AssetShopCatalog.getInstance().refresh(axisValues());
+    }
+
+    /**
+     * Hand every authored contract to the shared quest runtime, as the layer this library owns.
+     *
+     * <p><b>A bounty IS a quest, and this is the line that makes that true at runtime.</b> Until it
+     * runs, a board can draw its contracts and name them and still not accept one, because the
+     * lifecycle a board drives belongs to the quest engine and the engine has never heard of them.
+     * Called by the wiring root off the contract store's own load event, beside the shop refresh.
+     *
+     * <p>Published as a LAYER rather than merged into anybody's catalogue, so a consumer that
+     * publishes its own contracts outranks these the same way it outranks every other library
+     * default, and a reload replaces this layer wholesale rather than accumulating.
+     */
+    public static void publishBounties() {
+        try {
+            Map<String, QuestDefinition> definitions = BoardAssetStore.getInstance().resolveAll();
+            List<Quest> quests = new ArrayList<>(definitions.size());
+            for (QuestDefinition definition : definitions.values()) {
+                if (definition != null) {
+                    quests.add(definition.quest());
+                }
+            }
+            ProgressionRuntime.publishQuests(OWNER, quests);
+        } catch (Throwable t) {
+            SafeLog.warn("[commerce] the authored contracts could not be published to the quest "
+                    + "runtime, so boards have nothing to accept", t);
+        }
     }
 }

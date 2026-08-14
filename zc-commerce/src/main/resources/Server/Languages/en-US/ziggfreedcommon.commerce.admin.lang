@@ -1,0 +1,78 @@
+# The /zigcommerce admin command family: help text, listings and answers.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.commerce.admin.<key>.
+# The desc.* keys are what the engine's own help resolves a command or an argument through.
+
+desc.family = Inspect and administer this server's economy.
+desc.validate = Audit every wallet, storefront and board on this server.
+desc.wallets = List the wallets any pack defines.
+desc.shops = List the storefronts, their shelves and where each shelf is in its rotation.
+desc.boards = List the boards, their slots and where each board is in its rotation.
+desc.show = Show one player's balances, purchases and rerolls.
+desc.give = Add to a player's wallet.
+desc.take = Take from a player's wallet.
+desc.set = Set a player's wallet to an exact amount.
+desc.resetlimits = Clear a player's purchase counts.
+desc.resetrerolls = Clear a player's rerolls for the current period.
+desc.arg.player = The player to act on. Defaults to you.
+desc.arg.currency = The wallet id.
+desc.arg.amount = A whole number.
+desc.arg.shop = Show only this storefront, and its offers.
+desc.arg.board = Show only this board, and its contracts.
+
+more = ... and {0} more, in the server log.
+
+validate.clean = Commerce content: nothing to report.
+validate.counts = Commerce content: {0} errors, {1} warnings, {2} notes.
+finding = {0} {1} [{2}] {3}
+
+wallets.header = Wallets ({0}):
+wallets.none = No wallet is defined.
+wallets.row.item = {0} - item {1}, cap {2}
+wallets.row.item.uncapped = {0} - item {1}, no cap
+wallets.row.counter = {0} - counter, cap {1}
+wallets.row.counter.uncapped = {0} - counter, no cap
+
+shops.header = Storefronts ({0}):
+shops.none = No storefront is defined.
+shops.row = {0} - {1} shelves, {2} offers
+shops.shelf = shelf {0} - period {1}, next in {2} min, {3} candidates
+shops.offer = offer {0} - shelf {1}
+shops.offer.disabled = offer {0} - shelf {1}, switched off
+
+boards.header = Boards ({0}):
+boards.none = No board is defined.
+boards.row = {0} - period {1}, next in {2} min, {3} slots, {4} contracts
+boards.slot = slot band {0}, count {1}
+boards.reroll = rerolls: {0} per period, free
+boards.reroll.paid = rerolls: {0} per period, paid
+boards.contract = contract {0} - band {1}
+
+show.header = Commerce state for {0}:
+show.balances = Balances:
+show.balances.none = nothing held
+show.balance.row = {0}: {1} held, {2} spent in total
+show.purchases = Purchases:
+show.purchases.none = nothing bought
+show.purchase.row = {0}: {1} today, {2} in total, limits {3}
+show.rerolls = Rerolls:
+show.rerolls.none = none this period
+show.reroll.row = {0} period {1}: {2} spent, {3} positions changed
+show.store.no_purchases = The installed commerce store does not keep purchase counts.
+show.store.no_rerolls = The installed commerce store does not keep reroll state.
+
+player.needed = Name a player with --player=<name>.
+player.offline = That player is not online, and their commerce state lives on their own entity.
+
+wallet.unknown = No wallet is defined under '{0}'.
+wallet.gave = Gave {0} {1} to {2}. They now hold {3}.
+wallet.took = Took {0} {1} from {2}. They now hold {3}.
+wallet.short = {0} holds only {1} {2}.
+wallet.set = {0} now holds {1} {2}.
+
+arg.currency.needed = Name a wallet with --currency=<id>.
+arg.amount.needed = Name an amount with --amount=<n>.
+arg.amount.number = That amount is not a whole number: '{0}'.
+arg.amount.negative = An amount cannot be negative.
+
+reset.limits = Cleared every purchase count for {0}.
+reset.rerolls = Cleared every reroll for {0}.

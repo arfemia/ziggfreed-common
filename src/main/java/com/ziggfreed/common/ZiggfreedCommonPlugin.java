@@ -20,9 +20,13 @@ import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.FrameworkAssetRegistrar;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.cast.WorldEvictors;
+import com.ziggfreed.common.commerce.CommerceComponent;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
+import com.ziggfreed.common.commerce.command.ZigCommerceCommand;
+import com.ziggfreed.common.commerce.fold.CommerceAudit;
 import com.ziggfreed.common.commerce.fold.CommerceDefaults;
 import com.ziggfreed.common.commerce.fold.CommerceDestinations;
+import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.commerce.fold.CurrencyRewardKind;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.rotation.SelectionStrategies;
@@ -74,8 +78,15 @@ import com.ziggfreed.common.util.SafeLog;
  * server jar.
  *
  * <p>The static primitives register nothing (a consumer calls them directly), but this plugin DOES
- * own six registrations of its own:
+ * own eight registrations of its own:
  * <ul>
+ *   <li>the two per-player COMPONENT types the library's own default stores are kept on (progress
+ *       and commerce), because a component type registered after a world has loaded cannot be read
+ *       off entities that were saved carrying it - so neither can wait to find out whether a
+ *       consumer brings its own store;</li>
+ *   <li>the {@code /zigcommerce} admin command family, because the module that owns an engine owns
+ *       the commands that drive it, and its permission nodes are derived and enforced by the command
+ *       system itself;</li>
  *   <li>the framework asset stores ({@link FrameworkAssetRegistrar}), so common owns each store at
  *       {@code Server/ZiggfreedCommon/<Type>/} exactly once;</li>
  *   <li>the two generic destinations ({@link NpcDestinations}), because a conversation is this
@@ -238,13 +249,34 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     }
 
     /**
-     * The economy a bare server starts with: the commerce state store nothing has replaced yet, the
-     * currency engine over whatever wallets the packs authored, and the reward kind that pays one.
+     * The economy a bare server starts with: the per-player component its state is kept on, the
+     * component-backed store over it, the currency engine over whatever wallets the packs authored,
+     * the reward kind that pays one, and the admin command family that drives all of them.
+     *
+     * <p>The component TYPE is registered here and unconditionally, because a component type
+     * registered after a world has loaded cannot be read off entities saved carrying it - whether a
+     * consumer ends up installing its own store is a question that cannot wait for. Attaching one is
+     * conditional, and that decision belongs to the module (see {@code CommerceDefaults}).
      *
      * <p>The kind is UNPREFIXED and registered from up here for the same reason the effect kind is:
      * the loot layer sits underneath everything that pays out and must never reach sideways into a
      * domain, so it keeps a hole where a wallet grant would be and this layer - which can see both
      * ends - fills it.
+     *
+     * <p>The commands belong to the library because the module that owns an engine owns the commands
+     * that drive it: every verb reads and writes through the same catalogues, currency engine and
+     * state store the pages and the payouts use. A consumer wanting its own spelling registers an
+     * alias that calls through, never a second implementation. Their permission nodes are derived
+     * and enforced by the engine itself, so no check is written anywhere in the family.
+     *
+     * <p>The gate seam is filled with the evaluator the progression runtime's defaults build, so a
+     * shop lock and a quest lock answer one {@code Requires} block the same way. It is a supplier
+     * read per gate: a consumer that installs its own evaluator at its own setup replaces this one,
+     * and until the defaults have registered the seam answers its fail-closed default.
+     *
+     * <p>The content audit runs once per boot at first player ready, like the placement audit and
+     * for the same reason: its checks ask other stores and open registries whether an id exists, and
+     * only by then have every store folded and every mod's {@code setup()} run.
      *
      * <p>Installing the defaults here is safe rather than a clobber because every consumer declares
      * this library as a dependency, so the server loads it first and a consumer that keeps this state
@@ -252,8 +284,13 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      */
     private void registerCommerce() {
         try {
-            CommerceDefaults.install();
+            CommerceComponent.register(getEntityStoreRegistry());
+            CommerceDefaults.install(this);
             CurrencyRewardKind.registerInto(RewardKinds.shared());
+            CommerceEngines.installGates(ProgressionDefaults::gateEvaluator);
+            getCommandRegistry().registerCommand(new ZigCommerceCommand());
+            getEventRegistry().registerGlobal(PlayerReadyEvent.class,
+                    event -> CommerceAudit.runLateAudit());
         } catch (Throwable t) {
             SafeLog.warn("[commerce] economy wiring failed", t);
         }

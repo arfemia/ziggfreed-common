@@ -1,0 +1,91 @@
+action.confirm = Bestätigen
+
+shop.title = Laden
+shop.count = {0} im Angebot
+shop.shelf = Empfohlen
+shop.refresh_in = Neu in {0}
+shop.section.catalogue = Sortiment
+shop.empty.unavailable = Dein Konto konnte gerade nicht gelesen werden.
+shop.empty.closed = Dieser Laden ist geschlossen.
+shop.empty.nothing = Hier wird gerade nichts verkauft.
+shop.offer.untitled = Unbenanntes Angebot
+
+shop.header.cost = Preis
+shop.header.cost_any = Preis (eines davon)
+shop.header.rewards = Du erhältst
+
+shop.limit.daily = {0}/{1} heute
+shop.limit.total = {0}/{1} insgesamt
+shop.badge.sold_out = Ausverkauft
+shop.badge.none_today = Heute nichts mehr
+shop.badge.left = Noch {0}
+
+shop.action.buy = Kaufen
+shop.action.take = Nehmen
+shop.action.reroll = Neu würfeln
+
+shop.toast.bought = {0} gekauft.
+shop.toast.bought_queued = {0} gekauft. Ein Teil davon wartet auf deine nächste Anmeldung.
+shop.toast.reroll_confirm = Für {0} neu würfeln? Zum Bestätigen erneut drücken.
+
+board.title = Anschlagbrett
+board.count = {0} Aufträge
+board.refresh_in = Neue Aufträge in {0}
+board.tab.posted = Ausgehängt
+board.tab.mine = Meine
+board.empty.unknown = Ein solches Brett gibt es hier nicht.
+board.empty.unavailable = Dein Konto konnte gerade nicht gelesen werden.
+board.empty.closed = Dieses Brett ist geschlossen.
+board.empty.posted = Gerade hängt nichts aus.
+board.empty.mine = Du trägst nichts von diesem Brett bei dir.
+board.bounty.untitled = Unbenannter Auftrag
+board.step.untitled = Unbenannter Schritt
+board.progress = {0}/{1}
+
+board.header.objectives = Ziele
+board.header.rewards = Belohnung
+
+board.section.ready = Abholbereit
+board.section.turn_in = Hier abgeben
+board.section.active = In Arbeit
+board.section.available = Verfügbar
+board.section.locked = Gesperrt
+board.section.spent = Diesmal erledigt
+board.section.done = Abgeschlossen
+board.status.spent_detail = Den hast du erledigt. Er kommt zurück, wenn das Brett wechselt.
+board.status.parked = Die Belohnung wartet an dem Brett, an dem du den Auftrag genommen hast.
+
+board.action.accept = Annehmen
+board.action.turn_in = Abgeben
+board.action.report = Bericht erstatten
+board.action.claim = Abholen
+board.action.abandon = Aufgeben
+board.action.reroll = Neu würfeln
+
+board.toast.accepted = Auftrag angenommen.
+board.toast.claim_failed = Es gibt gerade nichts abzuholen.
+board.toast.abandoned = Auftrag aufgegeben.
+board.toast.turned_in = Abgegeben.
+board.toast.turn_in_failed = Das konnte nicht abgegeben werden.
+board.toast.turn_in_short = Du hast {0} von {1}.
+board.toast.completed = Auftrag abgeschlossen.
+board.toast.reroll_confirm = Für {0} neu würfeln? Zum Bestätigen erneut drücken.
+
+refuse.locked = Das kannst du noch nicht.
+refuse.disabled = Das ist nicht verfügbar.
+refuse.unknown_offer = Das wird nicht mehr verkauft.
+refuse.limit_daily = Davon hast du heute schon so viele gekauft, wie du darfst.
+refuse.limit_total = Davon hast du schon so viele gekauft, wie du je darfst.
+refuse.short_currency = Du hast nicht genug {0}.
+refuse.short_item = Du hast nicht genug {0}.
+refuse.no_room = Dein Inventar ist voll.
+refuse.cannot_pay = Das kannst du dir nicht leisten.
+refuse.refunded = Es konnte nichts geliefert werden, also hast du alles zurückbekommen.
+refuse.not_on_board = Das hängt hier gerade nicht aus.
+refuse.already_carried = Den trägst du schon bei dir.
+refuse.spent_this_period = Den hast du in dieser Runde schon erledigt.
+refuse.quest_refused = Der kann gerade nicht angenommen werden.
+refuse.no_reroll = Der lässt sich nicht neu würfeln.
+refuse.reroll_cap = Du hast alle Neuwürfe dieser Runde verbraucht.
+refuse.reroll_no_alternative = Es gibt nichts anderes zum Tauschen.
+refuse.reroll_cannot_pay = Einen Neuwurf kannst du dir nicht leisten.

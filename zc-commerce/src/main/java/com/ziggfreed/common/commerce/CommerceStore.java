@@ -1,6 +1,7 @@
 package com.ziggfreed.common.commerce;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -66,6 +67,15 @@ public interface CommerceStore {
     default void refundSpend(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
     }
 
+    /**
+     * Write the lifetime tally outright rather than adding to it, so a tally moved in from somewhere
+     * else lands as the number it was rather than on top of whatever is here. The whole write-it-in
+     * surface is absolute for that reason: an import that runs twice has to leave the same state, or
+     * it is not an import.
+     */
+    default void setLifetimeSpent(@Nonnull Subject subject, @Nonnull String currencyId, long amount) {
+    }
+
     // ==================== Purchase limits ====================
 
     /**
@@ -88,6 +98,25 @@ public interface CommerceStore {
     /** True when this store genuinely keeps purchase counts; false leaves authored limits inert. */
     default boolean recordsPurchases() {
         return true;
+    }
+
+    /**
+     * Write {@code offerId}'s counts outright, rather than adding one to them.
+     *
+     * <p>Two callers want this and neither can be served by {@link #recordPurchase}: an admin putting
+     * a player's limit back, and a consumer moving state it used to keep itself into this store,
+     * where the day's count and the lifetime total are independent numbers that no amount of
+     * one-at-a-time recording can reproduce.
+     *
+     * <p>A store with nowhere to keep counts does nothing, which is the same answer
+     * {@link #recordsPurchases()} already gives.
+     */
+    default void setPurchases(@Nonnull Subject subject, @Nonnull String offerId, long epochDay,
+            int today, int total) {
+    }
+
+    /** Forget every purchase this subject has made, of everything. */
+    default void clearPurchases(@Nonnull Subject subject) {
     }
 
     // ==================== Rotating-pool rerolls ====================
@@ -131,6 +160,63 @@ public interface CommerceStore {
     /** True when this store genuinely keeps reroll state; false leaves a paid reroll unrepeatable. */
     default boolean recordsRerolls() {
         return true;
+    }
+
+    /**
+     * This subject's whole reroll state for {@code (poolId, period)} in one piece, for a surface
+     * reading out what is there rather than asking a live reroll's questions one at a time.
+     *
+     * <p>The default composes it from the per-question reads above, so an implementation gets a
+     * correct answer for free and overrides this only where reading it in one pass is cheaper.
+     */
+    @Nonnull
+    default RerollState rerollState(@Nonnull Subject subject, @Nonnull String poolId, long period) {
+        Map<Integer, String> overrides = rerollOverrides(subject, poolId, period);
+        Map<Integer, Integer> counts = new HashMap<>();
+        Map<Integer, Set<String>> seen = new HashMap<>();
+        for (Integer position : overrides.keySet()) {
+            counts.put(position, Integer.valueOf(
+                    Math.max(0, rerollNextCount(subject, poolId, period, position.intValue()) - 1)));
+            seen.put(position, rerollSeenAt(subject, poolId, period, position.intValue()));
+        }
+        return new RerollState(period, rerollsSpent(subject, poolId, period), overrides, counts, seen);
+    }
+
+    /**
+     * Write {@code poolId}'s reroll state outright, replacing whatever was held for it.
+     *
+     * <p>The counterpart to {@link #setPurchases}, and wanted by the same two callers:
+     * {@link #commitReroll} moves the state one step at a time and cap-checks as it goes, which is
+     * exactly right for a player paying for a reroll and no use at all for putting a whole recorded
+     * state back. Writing an {@link RerollState#isEmpty() empty} state clears this pool.
+     */
+    default void setRerolls(@Nonnull Subject subject, @Nonnull String poolId,
+            @Nonnull RerollState state) {
+    }
+
+    /** Forget every reroll this subject has made, in every pool. */
+    default void clearRerolls(@Nonnull Subject subject) {
+    }
+
+    // ==================== One-time migrations ====================
+
+    /**
+     * Claim the right to run {@code migrationId} for this subject, ONCE and for good.
+     *
+     * <p>True the first time and false ever after, with the claim recorded before the caller acts -
+     * so a consumer moving state it used to keep itself into this store runs the move on a player's
+     * first connect and never again, however many times the code path is reached.
+     *
+     * <p><b>The default is false, and that is the safe answer rather than the lazy one.</b> A store
+     * with nowhere to keep the mark cannot say "this has not happened yet" without also saying it
+     * again at the next login, and a migration that re-runs every login pays a player twice. So a
+     * store that cannot remember refuses the migration outright.
+     *
+     * @param migrationId a stable id owned by whoever is migrating, namespaced so two consumers
+     *                    cannot collide (for example {@code "mmoskilltree:commerce-1.6.0"})
+     */
+    default boolean claimMigration(@Nonnull Subject subject, @Nonnull String migrationId) {
+        return false;
     }
 
     // ==================== Lifecycle ====================
