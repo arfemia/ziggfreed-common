@@ -148,14 +148,14 @@ class DialogueAuthoringAuditTest {
         assertNotNull(d);
 
         // The engine that owns those types is happy with the file.
-        assertTrue(codes(DialogueStructureValidator.validate(d, null, null, full)).isEmpty()
-                        || !codes(DialogueStructureValidator.validate(d, null, null, full))
+        assertTrue(codes(DialogueStructureValidator.validate(d, null, full)).isEmpty()
+                        || !codes(DialogueStructureValidator.validate(d, null, full))
                                 .contains("UNKNOWN_CONDITION_TYPE"),
                 "the mod that registered them can serve them");
 
         // A second game, sharing the store but not the vocabulary, is told what it cannot serve.
         DialogueEngine other = DialogueEngine.builder().warn(m -> { }).build();
-        List<String> codes = codes(DialogueStructureValidator.validate(d, null, null, other));
+        List<String> codes = codes(DialogueStructureValidator.validate(d, null, other));
         assertTrue(codes.contains("UNKNOWN_CONDITION_TYPE"), codes.toString());
         assertTrue(codes.contains("UNKNOWN_ACTION_TYPE"), codes.toString());
 

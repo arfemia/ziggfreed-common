@@ -25,7 +25,6 @@ import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.stamp.RollPoolAsset;
 import com.ziggfreed.common.loot.stamp.StampSpec;
 import com.ziggfreed.common.loot.stamp.StatRollEntry;
-import com.ziggfreed.common.npc.placement.AppearanceSpec;
 import com.ziggfreed.common.npc.NpcIdentityAsset;
 import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
@@ -48,7 +47,6 @@ import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WorldSelector;
-import com.ziggfreed.common.world.WorldSelectorAsset;
 
 /**
  * Forces each common framework asset CODEC to static-initialize, so a lower-case first
@@ -100,9 +98,8 @@ class AssetCodecInitTest {
     }
 
     @Test
-    void worldSelectorCodecsInitialize() {
-        assertNotNull(WorldSelectorAsset.CODEC, "WorldSelectorAsset.CODEC must static-init (PascalCase keys)");
-        // The embeddable group codec is not a store, but a consumer asset embeds it, so a
+    void worldSelectorCodecInitializes() {
+        // The embeddable Where group codec is not a store, but a consumer asset embeds it, so a
         // lower-case key here would fail at that consumer's decode instead of at this build.
         assertNotNull(WorldSelector.CODEC, "WorldSelector.CODEC must static-init (PascalCase keys)");
     }
@@ -133,19 +130,6 @@ class AssetCodecInitTest {
     @Test
     void dialogueOptionThemeAssetCodecInitializes() {
         assertNotNull(DialogueOptionThemeAsset.CODEC, "DialogueOptionThemeAsset.CODEC must static-init (PascalCase keys)");
-    }
-
-    @Test
-    void appearanceSpecCodecsInitialize() {
-        // Embedded in NpcPlacementAsset.Identity rather than stored on its own, so without an
-        // explicit assertion a lower-case key here would only surface at a consumer's decode.
-        assertNotNull(AppearanceSpec.CODEC, "AppearanceSpec.CODEC must static-init (PascalCase keys)");
-        assertNotNull(AppearanceSpec.ParticleSpec.CODEC,
-                "AppearanceSpec.ParticleSpec.CODEC must static-init (PascalCase keys)");
-        assertNotNull(AppearanceSpec.Rotation.CODEC,
-                "AppearanceSpec.Rotation.CODEC must static-init (PascalCase keys)");
-        assertNotNull(AppearanceSpec.Equipment.CODEC,
-                "AppearanceSpec.Equipment.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

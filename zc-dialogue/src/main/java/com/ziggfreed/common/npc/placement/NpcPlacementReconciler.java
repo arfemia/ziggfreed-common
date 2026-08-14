@@ -20,7 +20,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.npc.placement.PlacementGate.GateVerdict;
 import com.ziggfreed.common.util.SafeLog;
-import com.ziggfreed.common.world.WorldIdentity;
+import com.ziggfreed.common.world.WorldSelector;
 
 /**
  * Brings a world into agreement with what the placement content says should be standing in it.
@@ -447,25 +447,29 @@ public final class NpcPlacementReconciler {
     // ==================== helpers ====================
 
     /**
-     * Does {@code placement}'s {@code Where} match {@code world}? A null or empty selector defaults
-     * to the {@code default} selector name at THIS read site (the selector codec itself carries no
-     * default, because a rules table and a placement want different ones).
+     * Does {@code placement}'s {@code Where} match {@code world}? A null or empty {@code Where}
+     * defaults to {@link #DEFAULT_WHERE} at THIS read site (the group itself carries no default,
+     * because a rules table and a placement want different ones).
      */
     public static boolean matchesWorld(@Nonnull NpcPlacementAsset placement, @Nullable World world) {
         var where = placement.getWhere();
         if (where == null || where.isBlank()) {
-            return WorldIdentity.has(world, DEFAULT_WORLD_NAME);
+            return DEFAULT_WHERE.match(world) != null;
         }
         return where.match(world) != null;
     }
 
     /**
-     * The selector name an unauthored {@code Where} means: the ordinary persistent world players
-     * log into, which a stock Hytale server calls {@code default}. A server whose main world is
-     * named something else re-points that selector once in
-     * {@code mods/ziggfreedcommon/world-selectors.json} and every unauthored placement follows.
+     * The world an unauthored {@code Where} means: the ordinary persistent world players log into,
+     * which a stock Hytale server names {@code default}. A server whose main world is named
+     * something else authors that name into the placement's own {@code Where} through its owner
+     * layer, the same way any other leaf is overridden.
      */
     public static final String DEFAULT_WORLD_NAME = "default";
+
+    /** The {@code Where} an unauthored one stands in for: an exact match on {@code default}. */
+    private static final WorldSelector DEFAULT_WHERE =
+            WorldSelector.of(new String[]{DEFAULT_WORLD_NAME}, null, null);
 
     private static boolean isResident(@Nonnull Store<EntityStore> store, @Nullable UUID uuid) {
         if (uuid == null) {

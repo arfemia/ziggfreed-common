@@ -180,7 +180,7 @@ class NpcEncountersTest {
     private static void loadAliasedGuide() {
         NpcPlacementConfig.getInstance().mergePackLayer(Map.of(
                 "guide_wilds", NpcPlacementAsset.of("guide_wilds", null,
-                        NpcPlacementAsset.Identity.of(null, null, null, null, null, "guide_wilds",
+                        NpcPlacementAsset.Identity.of(null, "guide_wilds",
                                 new String[] {"adventurers_guide"}),
                         null, null, null, null, null, null)));
     }

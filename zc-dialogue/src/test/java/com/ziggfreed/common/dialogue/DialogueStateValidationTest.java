@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
-import java.util.Set;
 
 import javax.annotation.Nonnull;
 
@@ -207,8 +206,7 @@ class DialogueStateValidationTest {
                         + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]}]}}}");
         assertNotNull(d);
 
-        List<String> codes = codes(DialogueStructureValidator.validateAll(List.of(d),
-                Set.of("emerald_wilds")));
+        List<String> codes = codes(DialogueStructureValidator.validateAll(List.of(d)));
         assertTrue(codes.isEmpty(), codes.toString());
     }
 }

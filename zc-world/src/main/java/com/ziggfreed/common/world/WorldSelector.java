@@ -14,42 +14,40 @@ import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
 
 /**
  * "Which worlds does this apply to?", as a reusable nested-group codec ANY consumer asset can
- * embed as a field.
+ * embed as a field under the key {@code Where}.
  *
- * <p><b>A world selector is a NAMED, REUSABLE MATCHER - a shorthand for match patterns - not an
- * opaque tag.</b> Everything here follows from that one sentence. {@code Names} references the
- * shared vocabulary that {@link WorldSelectorAsset} files contribute to; {@code Match} and
- * {@code GameplayConfig} are those same patterns written inline. Both routes produce a
- * {@link MatchRank}, so a rule referencing a name inherits the rank of whichever underlying
- * pattern actually matched and named and inline rules sort in ONE ordering - no priority knob,
- * nothing for a server owner to relearn. A tag would have no intrinsic specificity, and
- * precedence between two rules pointing at the same world would be undefined.
+ * <p><b>A world is named by what it is CALLED or by the gameplay config it runs.</b> There is no
+ * intermediate vocabulary to learn: {@code Match} is a world-name pattern in the ordinary grammar,
+ * {@code GameplayConfig} is the world's own authored config key, and both produce a
+ * {@link MatchRank} so two rules pointing at one world are always ordered.
  *
  * <p>Authored shape (every key optional, every list nullable):
  * <pre>{@code
- * { "Names":          ["forgotten_temple"],
- *   "Match":          ["*Forgotten_Temple*"],
+ * { "Match":          ["*Forgotten_Temple*"],
  *   "GameplayConfig": ["ForgottenTemple"],
- *   "ExcludeNames":   ["arena"] }
+ *   "ExcludeMatch":   ["*Arena*"] }
  * }</pre>
  *
  * <ul>
- *   <li><b>{@code Names}</b> - selector names contributed by {@code WorldSelectorAsset} files.
- *       Many-to-many: several assets may feed one name and the world's names are their union.</li>
- *   <li><b>{@code Match}</b> - inline world-name patterns, the exact grammar of
- *       {@link WorldNameMatcher} ({@code Foo} / {@code Foo*} / {@code *Foo} / {@code *Foo*} /
- *       {@code *}). Inline is ALWAYS available, so a one-off world never needs a selector asset.</li>
+ *   <li><b>{@code Match}</b> - world-name patterns in the grammar of {@link WorldNameMatcher}:
+ *       {@code Foo} (exact), {@code Foo*} (prefix), {@code *Foo} (suffix), {@code *Foo*}
+ *       (contains), {@code *} (every world). A bare word is an EXACT name, so
+ *       {@code ["default"]} applies to the world called {@code default} and to nothing else.</li>
  *   <li><b>{@code GameplayConfig}</b> - exact matches against the world's authored
- *       {@code WorldConfig.GameplayConfig}. The uuid-free machine key of an instance world, and
- *       the top rank on the ladder.</li>
- *   <li><b>{@code ExcludeNames}</b> - a FILTER, not a complement: a world carrying any listed name
- *       is rejected even when the positive axes matched. A selector with ONLY {@code ExcludeNames}
- *       therefore matches <b>nothing</b> (there is no positive axis to filter). That reads as the
- *       opposite of what an author expects, so {@link WorldSelectorValidator} calls it out.</li>
+ *       {@code WorldConfig.GameplayConfig} key. A live instance world is named
+ *       {@code instance-<Name>-<random uuid>}, so its NAME changes every time it is entered while
+ *       its config key does not; that is why this axis is the sturdiest way to reach an instance,
+ *       and why it sits at the top of the ladder.</li>
+ *   <li><b>{@code ExcludeMatch}</b> - name patterns in the SAME grammar as {@code Match}, applied
+ *       as a FILTER over the positive axes rather than as a complement of them: a world whose name
+ *       matches any of them is rejected even when a positive axis hit. A {@code Where} with ONLY
+ *       {@code ExcludeMatch} therefore matches <b>nothing</b> (there is no positive axis left to
+ *       filter), which reads as the opposite of what an author expects, so
+ *       {@link WhereValidator} calls it out.</li>
  * </ul>
  *
  * <p><b>The codec carries NO defaults: an absent list stays null.</b> Read sites genuinely differ
- * (a placement may treat an empty selector as "the main world", a rules table may treat an
+ * (a placement may treat an empty {@code Where} as "the main world", a rules table may treat an
  * unmatched world as its own DEFAULT record), so each read site applies its own default and this
  * type never invents one. One codec with two invisible Java-side defaults would be a rework.
  *
@@ -58,23 +56,35 @@ import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
  */
 public final class WorldSelector {
 
-    @Nullable protected String[] names;
     @Nullable protected String[] match;
     @Nullable protected String[] gameplayConfig;
-    @Nullable protected String[] excludeNames;
+    @Nullable protected String[] excludeMatch;
 
     public static final BuilderCodec<WorldSelector> CODEC =
             BuilderCodec.builder(WorldSelector.class, WorldSelector::new)
-                    .appendInherited(new KeyedCodec<>("Names", Codec.STRING_ARRAY, false),
-                            (o, v) -> o.names = v, o -> o.names, (o, p) -> o.names = p.names).add()
                     .appendInherited(new KeyedCodec<>("Match", Codec.STRING_ARRAY, false),
-                            (o, v) -> o.match = v, o -> o.match, (o, p) -> o.match = p.match).add()
+                            (o, v) -> o.match = v, o -> o.match, (o, p) -> o.match = p.match)
+                    .documentation("World-name patterns: Foo (exact), Foo* (prefix), *Foo (suffix), "
+                            + "*Foo* (contains) or * (every world). A bare word is an exact name, so "
+                            + "\"default\" means the world called default and nothing else. Only the "
+                            + "*Foo* form reaches an instance world, whose name carries a random uuid.")
+                    .add()
                     .appendInherited(new KeyedCodec<>("GameplayConfig", Codec.STRING_ARRAY, false),
                             (o, v) -> o.gameplayConfig = v, o -> o.gameplayConfig,
-                            (o, p) -> o.gameplayConfig = p.gameplayConfig).add()
-                    .appendInherited(new KeyedCodec<>("ExcludeNames", Codec.STRING_ARRAY, false),
-                            (o, v) -> o.excludeNames = v, o -> o.excludeNames,
-                            (o, p) -> o.excludeNames = p.excludeNames).add()
+                            (o, p) -> o.gameplayConfig = p.gameplayConfig)
+                    .documentation("Exact matches against a world's own authored GameplayConfig key. It "
+                            + "carries no uuid and survives an instance being rebuilt, so it is the "
+                            + "sturdiest way to target an instance world, and it outranks every name "
+                            + "pattern.")
+                    .add()
+                    .appendInherited(new KeyedCodec<>("ExcludeMatch", Codec.STRING_ARRAY, false),
+                            (o, v) -> o.excludeMatch = v, o -> o.excludeMatch,
+                            (o, p) -> o.excludeMatch = p.excludeMatch)
+                    .documentation("Name patterns, same grammar as Match, that REJECT a world even when "
+                            + "a positive axis matched - for 'everywhere except' without enumerating "
+                            + "the exceptions. It filters the axes above rather than standing in for "
+                            + "them, so a Where carrying only ExcludeMatch matches nothing.")
+                    .add()
                     .build();
 
     public WorldSelector() {
@@ -82,19 +92,13 @@ public final class WorldSelector {
 
     /** Java-side construction (tests, a consumer building a selector in code). Nulls stay null. */
     @Nonnull
-    public static WorldSelector of(@Nullable String[] names, @Nullable String[] match,
-            @Nullable String[] gameplayConfig, @Nullable String[] excludeNames) {
+    public static WorldSelector of(@Nullable String[] match, @Nullable String[] gameplayConfig,
+            @Nullable String[] excludeMatch) {
         WorldSelector s = new WorldSelector();
-        s.names = names;
         s.match = match;
         s.gameplayConfig = gameplayConfig;
-        s.excludeNames = excludeNames;
+        s.excludeMatch = excludeMatch;
         return s;
-    }
-
-    @Nullable
-    public String[] getNames() {
-        return names;
     }
 
     @Nullable
@@ -108,27 +112,26 @@ public final class WorldSelector {
     }
 
     @Nullable
-    public String[] getExcludeNames() {
-        return excludeNames;
+    public String[] getExcludeMatch() {
+        return excludeMatch;
     }
 
     /** True when no positive axis is authored, so this selector can never match a world. */
     public boolean hasNoPositiveAxis() {
-        return isEmpty(names) && isEmpty(match) && isEmpty(gameplayConfig);
+        return isEmpty(match) && isEmpty(gameplayConfig);
     }
 
     /** True when nothing at all is authored (the "absent stays null" case a read site defaults). */
     public boolean isBlank() {
-        return hasNoPositiveAxis() && isEmpty(excludeNames);
+        return hasNoPositiveAxis() && isEmpty(excludeMatch);
     }
 
     // ==================== Matching ====================
 
     /**
-     * Score this selector against a world, resolving {@code Names} through the cached
-     * {@link WorldIdentity}. Returns the most specific {@link MatchRank} across every axis, or
-     * {@code null} when the selector does not apply. Try-guarded: a failed world read degrades
-     * to {@code null} (no match), never a throw.
+     * Score this selector against a world. Returns the most specific {@link MatchRank} across every
+     * axis, or {@code null} when the selector does not apply. Try-guarded: a failed world read
+     * degrades to {@code null} (no match), never a throw.
      *
      * <p><b>World-thread</b> for the underlying world reads.
      */
@@ -138,8 +141,7 @@ public final class WorldSelector {
             return null;
         }
         try {
-            return match(world.getName(), world.getWorldConfig().getGameplayConfig(),
-                    WorldIdentity.indexFor(world));
+            return match(world.getName(), world.getWorldConfig().getGameplayConfig());
         } catch (Throwable t) {
             warn("WorldSelector.match failed: " + t.getMessage());
             return null;
@@ -147,52 +149,30 @@ public final class WorldSelector {
     }
 
     /**
-     * The PURE matcher: score this selector against a world's name, its authored
-     * {@code GameplayConfig}, and the world's already-resolved {@link WorldNameIndex}. Returns the
-     * most specific rank across the three positive axes, or {@code null} when nothing matched or
-     * an {@code ExcludeNames} entry vetoed the world. No engine coupling - this is the unit-tested
-     * decision core {@link #match(World)} delegates to.
+     * The PURE matcher: score this selector against a world's name and its authored
+     * {@code GameplayConfig}. Returns the most specific rank across the two positive axes, or
+     * {@code null} when nothing matched or an {@code ExcludeMatch} pattern vetoed the world. No
+     * engine coupling - this is the unit-tested decision core {@link #match(World)} delegates to.
      */
     @Nullable
-    public MatchRank match(@Nullable String worldName, @Nullable String worldGameplayConfig,
-            @Nullable WorldNameIndex index) {
-        WorldNameIndex idx = index != null ? index : WorldNameIndex.EMPTY;
-
-        // ExcludeNames is a FILTER over the positive axes, never a complement of them: a
-        // selector with nothing positive authored matches nothing, whatever it excludes.
+    public MatchRank match(@Nullable String worldName, @Nullable String worldGameplayConfig) {
+        // ExcludeMatch is a FILTER over the positive axes, never a complement of them: a selector
+        // with nothing positive authored matches nothing, whatever it excludes.
         if (hasNoPositiveAxis()) {
             return null;
         }
-        if (excludeNames != null) {
-            for (String n : excludeNames) {
-                if (n != null && !n.isBlank() && idx.has(n)) {
-                    return null;
-                }
-            }
+        if (matchesAny(excludeMatch, worldName)) {
+            return null;
         }
-
-        MatchRank best = directRank(match, gameplayConfig, worldName, worldGameplayConfig);
-        if (names != null) {
-            for (String n : names) {
-                if (n == null || n.isBlank()) {
-                    continue;
-                }
-                // A name reference inherits the rank of whichever pattern actually matched -
-                // that is what keeps named and inline rules in one ordering.
-                best = MatchRank.moreSpecific(best, idx.rankOf(n));
-            }
-        }
-        return best;
+        return directRank(match, gameplayConfig, worldName, worldGameplayConfig);
     }
 
     /**
-     * The ONE pattern-axis scorer, shared by an inline selector and by a
-     * {@link WorldSelectorDef} contributing a name (so the two can never drift): the most
-     * specific rank across an exact {@code GameplayConfig} hit and every matching name pattern,
-     * or {@code null}. Ties keep the FIRST authored pattern.
+     * The pattern-axis scorer: the most specific rank across an exact {@code GameplayConfig} hit
+     * and every matching name pattern, or {@code null}. Ties keep the FIRST authored pattern.
      */
     @Nullable
-    public static MatchRank directRank(@Nullable String[] matchPatterns, @Nullable String[] gameplayConfigs,
+    private static MatchRank directRank(@Nullable String[] matchPatterns, @Nullable String[] gameplayConfigs,
             @Nullable String worldName, @Nullable String worldGameplayConfig) {
         MatchRank best = null;
 
@@ -219,6 +199,20 @@ public final class WorldSelector {
             }
         }
         return best;
+    }
+
+    /** Does {@code worldName} satisfy any of {@code patterns}? Blank entries are ignored. */
+    private static boolean matchesAny(@Nullable String[] patterns, @Nullable String worldName) {
+        if (patterns == null || worldName == null || worldName.isEmpty()) {
+            return false;
+        }
+        String worldLower = worldName.toLowerCase(Locale.ROOT);
+        for (String raw : patterns) {
+            if (raw != null && !raw.isBlank() && Pattern.parse(raw).matches(worldLower)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isEmpty(@Nullable String[] arr) {

@@ -84,20 +84,20 @@ public abstract class DialogueCondition {
      * world-targeting asset uses:
      *
      * <pre>{@code
-     * {"Type": "World", "Where": {"Names": ["forgotten_temple"]}}
-     * {"Type": "World", "Where": {"Match": ["*Forgotten_Temple*"], "ExcludeNames": ["arena"]}}
+     * {"Type": "World", "Where": {"Match": ["default"]}}
+     * {"Type": "World", "Where": {"Match": ["*Forgotten_Temple*"], "ExcludeMatch": ["*Arena*"]}}
      * {"Type": "World", "Where": {"GameplayConfig": ["ForgottenTemple"]}}
      * }</pre>
      *
-     * <p>The selector is a NESTED GROUP rather than four keys of this type's own, so an author who
+     * <p>The selector is a NESTED GROUP rather than three keys of this type's own, so an author who
      * has written a {@code Where} on an NPC placement or a world rule already knows this one, and a
      * new selector axis reaches every surface at once instead of having to be re-added here.
      *
      * <p>The selector's own semantics apply unchanged, because this type re-models none of them:
-     * {@code Names} resolves through the cached world-identity index, {@code ExcludeNames} is a
-     * FILTER rather than a complement, and a selector with no positive axis matches NOTHING - which
-     * fails this condition closed and is a validator finding, since a condition that can never pass
-     * makes its content permanently invisible.
+     * {@code Match} is a world-name pattern (a bare word being an exact name), {@code ExcludeMatch}
+     * is a FILTER rather than a complement, and a selector with no positive axis matches NOTHING -
+     * which fails this condition closed and is a validator finding, since a condition that can
+     * never pass makes its content permanently invisible.
      *
      * <p>Fail-closed on an unreadable world too, and on an omitted {@code Where}: no world and no
      * selector both mean no match, so the gated content stays hidden, consistent with
@@ -107,10 +107,10 @@ public abstract class DialogueCondition {
         public static final BuilderCodec<World> CODEC = BuilderCodec.builder(World.class, World::new)
                 .append(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
                         (c, v) -> c.where = v, c -> c.where)
-                .documentation("Which worlds this line may appear in, in the shared selector "
-                        + "vocabulary: Names (selector names), Match (world-name patterns), "
-                        + "GameplayConfig (exact config keys) and ExcludeNames (a filter over those). "
-                        + "Omit it and the line never shows, because nothing said where it applies.")
+                .documentation("Which worlds this line may appear in, in the shared world-targeting "
+                        + "vocabulary: Match (world-name patterns), GameplayConfig (exact config "
+                        + "keys) and ExcludeMatch (a filter over those). Omit it and the line never "
+                        + "shows, because nothing said where it applies.")
                 .add()
                 .build();
 
@@ -124,14 +124,7 @@ public abstract class DialogueCondition {
         @Nonnull
         public WorldSelector getSelector() {
             WorldSelector authored = where;
-            return authored == null ? WorldSelector.of(null, null, null, null) : authored;
-        }
-
-        /** The authored selector NAMES, or null - what the unknown-name audit reads. */
-        @Nullable
-        public String[] getNames() {
-            WorldSelector authored = where;
-            return authored == null ? null : authored.getNames();
+            return authored == null ? WorldSelector.of(null, null, null) : authored;
         }
     }
 

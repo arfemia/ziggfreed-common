@@ -30,8 +30,8 @@ class WorldNameMatcherTest {
         MatchRank best = null;
         String winner = null;
         for (Rule rule : rules) {
-            MatchRank rank = WorldSelector.of(null, new String[]{rule.pattern()}, null, null)
-                    .match(worldName, null, WorldNameIndex.EMPTY);
+            MatchRank rank = WorldSelector.of(new String[]{rule.pattern()}, null, null)
+                    .match(worldName, null);
             if (rank != null && rank.isMoreSpecificThan(best)) {
                 best = rank;
                 winner = rule.pattern();

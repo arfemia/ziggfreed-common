@@ -9,14 +9,24 @@ and the one value every surface asks its questions through.
 
 - **[`NpcIdentities`](NpcIdentities.java) is the ONE authority for "who is this" and "which ids does
   it answer to".** CONVENTION FIRST, so almost nothing needs authoring: asked about a live NPC it
-  walks **its placement** (the stamped placement's `Identity.NpcId`, or the placement id itself when
-  it authors none) -> **an identity overlay on its role** (including the role a chain of native
+  walks **its placement** (the stamped placement's `Identity.NpcId`, or the ROLE that placement names
+  when it authors none) -> **an identity overlay on its role** (including the role a chain of native
   `Variant`s references, walked through the engine's own `BuilderRoleVariant.getReferenceIndex()`
   loop, cycle-bounded) -> **an overlay on a group it belongs to** (native `NPCGroup` membership) ->
-  **its role id in lower case** -> nobody. **The convention is the FLOOR, not a rung above the
+  **its role id** -> nobody. **The convention is the FLOOR, not a rung above the
   overlays**: both overlay forms are statements an author wrote on purpose, and a convention that beat
   them would leave the group form unable to apply at all, since every NPC already has a role name.
   Role beats group because it is the more specific statement.
+  - **An unauthored `Identity.NpcId` means the character IS its role**, so the first and the last
+    rung give the SAME answer for the same role and a character cannot change name depending on
+    whether a placement stood it up. Two placements of one role are two standings of one character:
+    a quest bound to it is offered, credited and handed in at either. An authored id opts OUT and
+    becomes a character nothing else answers to, which is how a step is scoped to one standing.
+    A placement naming neither an id nor a role stands nobody up and answers to nothing - inventing
+    an id from its file name would mint a character never in the world for content to bind to.
+    Both rungs keep the role id spelled exactly as it is: a display key built from an id
+    (`npcs.<id>.name`, `server.npcRoles.<id>.name`) is looked up verbatim, while every membership
+    test here is case-insensitive.
   - **Primary versus alias is an asymmetry, not a synonym list.** The primary is what a character IS
     (a nameplate, a waypoint); an alias is only what it RESPONDS to, and it goes one way. That is what
     lets the same character stand in two worlds, each with its own primary, both answering to the

@@ -10,7 +10,9 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootGrants;
+import com.ziggfreed.common.loot.reward.CommandRewardKind;
 import com.ziggfreed.common.loot.reward.RewardHandler;
+import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
@@ -44,14 +46,25 @@ import com.ziggfreed.common.subject.Subject;
  *       because a payout that cannot be deferred must not be silently promised.</li>
  * </ul>
  *
- * <h2>The two presentation parameters</h2>
+ * <h2>How a chip gets its label and its art</h2>
  *
  * <p>A deferred reward has to be SHOWN before it is granted, and a console line reads terribly on a
- * results chip. Any reward entry may therefore carry {@link #PARAM_NAME_KEY} and {@link #PARAM_ICON}
- * beside whatever its kind reads: a localization key for the chip's label and an item id for its
- * art. They belong to this layer rather than to any kind - a kind's own schema decides what it PAYS,
- * not how somebody else's screen draws it - so a kind that declares neither is unaffected, and both
- * are ignored anywhere a reward is granted outright.
+ * results chip. Three answers are tried in order, and the first one that exists wins:
+ *
+ * <ol>
+ *   <li>the reward's OWN {@link #PARAM_NAME_KEY} / {@link #PARAM_ICON} - a localization key for the
+ *       label and an item id for the art, written on that one reward beside whatever its kind
+ *       reads;</li>
+ *   <li>the kind's own default presentation, when the kind is one written as a file
+ *       ({@code RewardKindAsset.Presentation}): its {@code NameKey} template filled in from this
+ *       reward's parameters, and its {@code Icon} rule answered the same way. This is what stops
+ *       every reward of a kind repeating the same two lines;</li>
+ *   <li>nothing, which leaves the chip to work out a label from the reward itself.</li>
+ * </ol>
+ *
+ * <p>The per-reward pair stays first because a one-off deserves to say so, and it belongs to this
+ * layer rather than to any kind's schema - a kind decides what it PAYS, not how somebody else's
+ * screen draws it. Both are ignored anywhere a reward is granted outright.
  *
  * <p>The chip's quantity comes from {@link #PARAM_AMOUNT} (or {@code Count} / {@code Quantity}),
  * which is the number most kinds already carry, so "+500 Mining XP" renders without the loot layer
@@ -59,10 +72,10 @@ import com.ziggfreed.common.subject.Subject;
  */
 public final class DeferredRewards {
 
-    /** A localization key for the chip's label, read off any reward entry. */
+    /** A localization key for the chip's label, read off any reward entry and beating its kind's. */
     public static final String PARAM_NAME_KEY = "NameKey";
 
-    /** An item id for the chip's art, read off any reward entry. */
+    /** An item id for the chip's art, read off any reward entry and beating its kind's. */
     public static final String PARAM_ICON = "Icon";
 
     /** The parameter the chip's quantity is read from first. */
@@ -156,8 +169,33 @@ public final class DeferredRewards {
                     + "from " + sourceId + ". A payout decided at grant time has to be granted there.");
             return null;
         }
-        return InstanceReward.command(command, quantityOf(spec), spec.param(PARAM_NAME_KEY),
-                spec.param(PARAM_ICON));
+        RewardKindAsset authored = authoredKind(handler);
+        return InstanceReward.command(command, quantityOf(spec),
+                firstWritten(spec.param(PARAM_NAME_KEY),
+                        authored == null ? null : authored.presentationNameKey(spec)),
+                firstWritten(spec.param(PARAM_ICON),
+                        authored == null ? null : authored.presentationIcon(spec)));
+    }
+
+    /**
+     * The kind FILE behind {@code handler}, or null when the kind was registered in Java.
+     *
+     * <p>Only a kind written as a file carries a default presentation, which is the whole of what
+     * this layer asks it for. A Java kind knows how to pay out and nothing about how it reads, so
+     * there is nothing to ask it.
+     */
+    @Nullable
+    private static RewardKindAsset authoredKind(@Nullable RewardHandler handler) {
+        return handler instanceof CommandRewardKind authored ? authored.kind() : null;
+    }
+
+    /** The first of the two that was actually written, or null when neither was. */
+    @Nullable
+    private static String firstWritten(@Nullable String own, @Nullable String fromKind) {
+        if (own != null && !own.isBlank()) {
+            return own;
+        }
+        return fromKind != null && !fromKind.isBlank() ? fromKind : null;
     }
 
     /** The number the chip shows: the reward's own amount, else one. */

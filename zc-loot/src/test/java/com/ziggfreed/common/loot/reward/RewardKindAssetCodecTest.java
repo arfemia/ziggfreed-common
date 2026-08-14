@@ -169,4 +169,192 @@ class RewardKindAssetCodecTest {
             assertNotNull(child.param("Amount"), "replacing the command leaves the schema alone");
         }
     }
+
+    // ==================== the default presentation ====================
+
+    /**
+     * How a kind says its rewards READ, and what one reward gets out of it.
+     *
+     * <p>The template cases are the load-bearing ones: a key spelled from a parameter is the whole
+     * reason a kind can label a family of rewards none of which author anything, and a value written
+     * the way a command reads it ({@code ARTILLERY}) has to reach a key written the way keys are
+     * written ({@code artillery}) or the family never resolves.
+     */
+    @Nested
+    class DefaultPresentation {
+
+        static final String XP_KIND = """
+                {
+                  "Params": { "Skill": { "Default": "ALL" }, "Amount": { "Required": true } },
+                  "Command": "mmoawardxp {player} {Skill} {Amount}",
+                  "Presentation": {
+                    "NameKey": "mymod.reward.xp.{Skill}",
+                    "Icon": {
+                      "ByParam": "Skill",
+                      "Default": "Rock_Crystal_Iridescent_Small",
+                      "Values": { "MINING": "Tool_Pickaxe_Crude", "ARTILLERY": "Weapon_Bomb" }
+                    }
+                  }
+                }
+                """;
+
+        static RewardSpec xp(String skill) {
+            return RewardSpec.of("Mmo_Xp", "Skill", skill);
+        }
+
+        @Test
+        void everyLeafSurvivesADecode() throws Exception {
+            RewardKindAsset kind = decodeRoot(XP_KIND, "Mmo_Xp");
+
+            assertNotNull(kind.getPresentation());
+            assertEquals("mymod.reward.xp.{Skill}", kind.getPresentation().getNameKey());
+
+            RewardKindAsset.Icon icon = kind.getPresentation().getIcon();
+            assertNotNull(icon);
+            assertEquals("Skill", icon.getByParam());
+            assertEquals("Rock_Crystal_Iridescent_Small", icon.getDefaultItem());
+            assertEquals(2, icon.valuesOrEmpty().size());
+        }
+
+        @Test
+        void aKindThatSaysNothingAnswersNothing() throws Exception {
+            RewardKindAsset kind = decodeRoot("{ \"Command\": \"pay {player}\" }", "Plain");
+
+            assertNull(kind.getPresentation());
+            assertNull(kind.presentationNameKey(xp("MINING")));
+            assertNull(kind.presentationIcon(xp("MINING")));
+        }
+
+        // ---------- the name template ----------
+
+        @Test
+        void aParameterFillsInLowerCasedSoAValueReachesAKey() throws Exception {
+            RewardKindAsset kind = decodeRoot(XP_KIND, "Mmo_Xp");
+
+            assertEquals("mymod.reward.xp.artillery", kind.presentationNameKey(xp("ARTILLERY")),
+                    "the command reads ARTILLERY and the key is written artillery; the template bridges them");
+        }
+
+        @Test
+        void anOmittedParameterFillsInFromItsDeclaredDefault() throws Exception {
+            RewardKindAsset kind = decodeRoot(XP_KIND, "Mmo_Xp");
+
+            assertEquals("mymod.reward.xp.all",
+                    kind.presentationNameKey(RewardSpec.of("Mmo_Xp", "Amount", "500")));
+        }
+
+        @Test
+        void aTemplateWithNoPlaceholdersIsTheKeyItself() throws Exception {
+            RewardKindAsset kind = decodeRoot("""
+                    { "Command": "x", "Presentation": { "NameKey": "mymod.reward.boost_token" } }
+                    """, "Mmo_Boost_Token");
+
+            assertEquals("mymod.reward.boost_token", kind.presentationNameKey(xp("MINING")));
+        }
+
+        @Test
+        void aPlaceholderNamingNothingIsLeftStandingLikeInACommand() throws Exception {
+            RewardKindAsset kind = decodeRoot("""
+                    {
+                      "Params": { "Skill": { } },
+                      "Command": "x {Skill}",
+                      "Presentation": { "NameKey": "mymod.reward.{Skil}.{Skill}" }
+                    }
+                    """, "Typo");
+
+            assertEquals("mymod.reward.{Skil}.mining", kind.presentationNameKey(xp("MINING")),
+                    "a typo has to turn up in the key that was asked for, not vanish into a blank segment");
+        }
+
+        // ---------- the icon rule ----------
+
+        @Test
+        void aMappedValueWinsAndAnUnmappedOneTakesTheDefault() throws Exception {
+            RewardKindAsset kind = decodeRoot(XP_KIND, "Mmo_Xp");
+
+            assertEquals("Weapon_Bomb", kind.presentationIcon(xp("ARTILLERY")));
+            assertEquals("Rock_Crystal_Iridescent_Small", kind.presentationIcon(xp("TAMING")),
+                    "a mapping table names only the cases worth distinguishing");
+        }
+
+        @Test
+        void aValueIsMatchedWhateverTheCasing() throws Exception {
+            RewardKindAsset kind = decodeRoot(XP_KIND, "Mmo_Xp");
+
+            assertEquals("Tool_Pickaxe_Crude", kind.presentationIcon(xp("mining")));
+        }
+
+        @Test
+        void withNoByParamEveryRewardDrawsTheDefault() throws Exception {
+            RewardKindAsset kind = decodeRoot("""
+                    {
+                      "Params": { "ModId": { "Required": true } },
+                      "Command": "x {ModId}",
+                      "Presentation": { "Icon": { "Default": "Weapon_Staff_Crystal_Flame" } }
+                    }
+                    """, "Mmo_Ability_Mod");
+
+            assertEquals("Weapon_Staff_Crystal_Flame",
+                    kind.presentationIcon(RewardSpec.of("Mmo_Ability_Mod", "ModId", "Anything")));
+        }
+
+        @Test
+        void aRuleWithNoDefaultAndNoMatchDrawsNothing() throws Exception {
+            RewardKindAsset kind = decodeRoot("""
+                    {
+                      "Params": { "Skill": { } },
+                      "Command": "x {Skill}",
+                      "Presentation": { "Icon": { "ByParam": "Skill",
+                                                  "Values": { "MINING": "Tool_Pickaxe_Crude" } } }
+                    }
+                    """, "Sparse");
+
+            assertEquals("Tool_Pickaxe_Crude", kind.presentationIcon(xp("MINING")));
+            assertNull(kind.presentationIcon(xp("TAMING")),
+                    "no icon is a legitimate answer, and better than a wrong one");
+        }
+
+        // ---------- layering ----------
+
+        @Test
+        void aChildMergesPerLeafAndTheIconMapPerValue() throws Exception {
+            RewardKindAsset parent = decodeRoot(XP_KIND, "Mmo_Xp");
+
+            RewardKindAsset child = decode("""
+                    { "Presentation": { "Icon": { "Values": { "TAMING": "Deco_Rope" } } } }
+                    """, "Mypack_Xp", "Mmo_Xp", parent);
+
+            assertEquals("mymod.reward.xp.{Skill}", child.getPresentation().getNameKey(),
+                    "a child adding one icon must not lose the label it inherited");
+            assertEquals("Deco_Rope", child.presentationIcon(xp("TAMING")));
+            assertEquals("Weapon_Bomb", child.presentationIcon(xp("ARTILLERY")),
+                    "adding one mapping keeps every mapping that was already there");
+            assertEquals("Rock_Crystal_Iridescent_Small", child.presentationIcon(xp("SWORDS")),
+                    "and keeps the fallback too");
+        }
+
+        @Test
+        void aChildRetunesOneLeafAndKeepsTheOther() throws Exception {
+            RewardKindAsset parent = decodeRoot(XP_KIND, "Mmo_Xp");
+
+            RewardKindAsset child = decode("""
+                    { "Presentation": { "NameKey": "mypack.xp.{Skill}" } }
+                    """, "Mypack_Xp", "Mmo_Xp", parent);
+
+            assertEquals("mypack.xp.mining", child.presentationNameKey(xp("MINING")));
+            assertEquals("Tool_Pickaxe_Crude", child.presentationIcon(xp("MINING")),
+                    "retuning the label leaves the icon rule alone");
+        }
+
+        @Test
+        void aChildWritingNoPresentationInheritsTheWholeGroup() throws Exception {
+            RewardKindAsset parent = decodeRoot(XP_KIND, "Mmo_Xp");
+
+            RewardKindAsset child = decode("{ \"Command\": \"somethingelse {Skill}\" }",
+                    "Mypack_Xp", "Mmo_Xp", parent);
+
+            assertEquals("mymod.reward.xp.mining", child.presentationNameKey(xp("MINING")));
+            assertEquals("Tool_Pickaxe_Crude", child.presentationIcon(xp("MINING")));
+        }
+    }
 }

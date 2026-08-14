@@ -1,7 +1,6 @@
 package com.ziggfreed.common.npc.placement;
 
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.annotation.Nonnull;
@@ -13,7 +12,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.npc.placement.PlacementGate.GateContext;
 import com.ziggfreed.common.npc.placement.PlacementGate.GateVerdict;
 import com.ziggfreed.common.util.SafeLog;
-import com.ziggfreed.common.world.WorldIdentity;
 
 /**
  * The ordered chain of {@link PlacementGate}s, and the one place "may this stand here" is
@@ -80,15 +78,11 @@ public final class PlacementGates {
         return GATES.size();
     }
 
-    /**
-     * Decide for {@code placement} in {@code world}. Resolves the world's selector names once and
-     * shares them with every gate. Never throws.
-     */
+    /** Decide for {@code placement} in {@code world}. Never throws. */
     @Nonnull
     public static GateVerdict decide(@Nonnull NpcPlacementAsset placement, @Nullable World world,
             @Nullable Store<EntityStore> store) {
-        Set<String> names = world == null ? Set.of() : WorldIdentity.namesFor(world);
-        return decide(new GateContext(placement, world, names, store));
+        return decide(new GateContext(placement, world, store));
     }
 
     /** Decide for a pre-built context (the pure entry point tests drive). */

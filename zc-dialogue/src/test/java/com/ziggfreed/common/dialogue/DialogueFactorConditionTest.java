@@ -148,7 +148,7 @@ class DialogueFactorConditionTest {
         NpcDialogue d = gated(engine,
                 "{\"Type\":\"AllOf\",\"All\":[{\"Type\":\"Factor\",\"Factor\":\"yourmod:reputaton\"}]}");
 
-        List<String> codes = DialogueStructureValidator.validateAll(List.of(d), null, factors)
+        List<String> codes = DialogueStructureValidator.validateAll(List.of(d), factors)
                 .stream().map(Finding::code).toList();
 
         assertTrue(codes.contains("FACTOR_CONDITION_UNKNOWN_FACTOR"), codes.toString());
@@ -162,14 +162,14 @@ class DialogueFactorConditionTest {
         NpcDialogue known = gated(engine,
                 "{\"Type\":\"Factor\",\"Factor\":\"YourMod:Reputation\",\"Min\":1}");
 
-        assertFalse(DialogueStructureValidator.validate(known, null, factors).stream()
+        assertFalse(DialogueStructureValidator.validate(known, factors).stream()
                         .anyMatch(i -> i.code().equals("FACTOR_CONDITION_UNKNOWN_FACTOR")),
                 "ids match case-insensitively, so casing alone is never a finding");
 
         NpcDialogue unknown = gated(engine, "{\"Type\":\"Factor\",\"Factor\":\"yourmod:absent\"}");
         assertFalse(DialogueStructureValidator.validate(unknown).stream()
                         .anyMatch(i -> i.code().equals("FACTOR_CONDITION_UNKNOWN_FACTOR")),
-                "no registry passed means cannot tell, exactly like an empty selector pool");
+                "no registry passed means cannot tell, so the check is skipped rather than guessed at");
     }
 
     @Test
@@ -178,7 +178,7 @@ class DialogueFactorConditionTest {
         DialogueEngine engine = engine(factors);
         NpcDialogue d = gated(engine, "{\"Type\":\"Factor\",\"Min\":1}");
 
-        List<String> codes = DialogueStructureValidator.validate(d, null, factors)
+        List<String> codes = DialogueStructureValidator.validate(d, factors)
                 .stream().map(Finding::code).toList();
 
         assertTrue(codes.contains("FACTOR_CONDITION_NO_ID"), codes.toString());

@@ -1,7 +1,5 @@
 package com.ziggfreed.common.npc.placement;
 
-import java.util.Set;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -27,13 +25,10 @@ public interface PlacementGate {
      *
      * @param placement   the folded placement being considered
      * @param world       the world it would stand in
-     * @param worldNames  the world's resolved selector names, already computed by the caller so
-     *                    every gate in the chain shares one resolution
      * @param store       the live entity store, when the caller has one
      */
     record GateContext(@Nonnull NpcPlacementAsset placement,
                        @Nullable World world,
-                       @Nonnull Set<String> worldNames,
                        @Nullable Store<EntityStore> store) {
 
         /** The placement id, lower-cased (the id every override and ledger row is keyed by). */

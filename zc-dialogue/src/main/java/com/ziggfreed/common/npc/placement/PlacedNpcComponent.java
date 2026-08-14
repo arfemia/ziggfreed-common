@@ -51,8 +51,8 @@ public final class PlacedNpcComponent implements Component<EntityStore> {
                     (c, v) -> c.placementId = v, c -> c.placementId).add()
             .append(new KeyedCodec<>("Namespace", Codec.STRING),
                     (c, v) -> c.namespace = v, c -> c.namespace).add()
-            .append(new KeyedCodec<>("SelectorName", Codec.STRING),
-                    (c, v) -> c.selectorName = v, c -> c.selectorName).add()
+            .append(new KeyedCodec<>("MatchedWorld", Codec.STRING),
+                    (c, v) -> c.matchedWorld = v, c -> c.matchedWorld).add()
             .append(new KeyedCodec<>("AnchorKey", Codec.STRING),
                     (c, v) -> c.anchorKey = v, c -> c.anchorKey).add()
             .append(new KeyedCodec<>("KeepAlive", Codec.BOOLEAN),
@@ -69,9 +69,9 @@ public final class PlacedNpcComponent implements Component<EntityStore> {
     @Nullable
     public String namespace;
 
-    /** The world selector name the placement matched on when this NPC was placed. */
+    /** The name of the world the placement matched when this NPC was placed. */
     @Nullable
-    public String selectorName;
+    public String matchedWorld;
 
     /** The anchor instance this NPC occupies ({@link AnchorPosition#anchorKey()}). */
     @Nullable
@@ -115,7 +115,7 @@ public final class PlacedNpcComponent implements Component<EntityStore> {
     public PlacedNpcComponent set(@Nonnull PlacedNpcIdentity id) {
         this.placementId = id.placementId();
         this.namespace = id.namespace();
-        this.selectorName = id.selectorName();
+        this.matchedWorld = id.matchedWorld();
         this.anchorKey = id.anchorKey();
         this.keepAlive = id.keepAlive();
         this.spawnedAtMs = id.spawnedAtMs();
@@ -131,7 +131,7 @@ public final class PlacedNpcComponent implements Component<EntityStore> {
     /** The pure snapshot the reconcile policy runs on. */
     @Nonnull
     public PlacedNpcIdentity toIdentity() {
-        return PlacedNpcIdentity.of(placementId, namespace, selectorName, anchorKey, keepAlive, spawnedAtMs);
+        return PlacedNpcIdentity.of(placementId, namespace, matchedWorld, anchorKey, keepAlive, spawnedAtMs);
     }
 
     @Override
@@ -140,7 +140,7 @@ public final class PlacedNpcComponent implements Component<EntityStore> {
         PlacedNpcComponent c = new PlacedNpcComponent();
         c.placementId = this.placementId;
         c.namespace = this.namespace;
-        c.selectorName = this.selectorName;
+        c.matchedWorld = this.matchedWorld;
         c.anchorKey = this.anchorKey;
         c.keepAlive = this.keepAlive;
         c.spawnedAtMs = this.spawnedAtMs;

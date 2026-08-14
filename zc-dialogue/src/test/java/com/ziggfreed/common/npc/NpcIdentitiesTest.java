@@ -32,9 +32,15 @@ import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
  */
 class NpcIdentitiesTest {
 
+    /** A placement standing role {@code Some_Role} and authoring {@code npcId} (null = the default). */
     private static NpcPlacementAsset placement(String id, String npcId, String... aliases) {
+        return roled(id, "Some_Role", npcId, aliases);
+    }
+
+    /** As {@link #placement}, naming the role explicitly - the leaf the default now reads. */
+    private static NpcPlacementAsset roled(String id, String role, String npcId, String... aliases) {
         return NpcPlacementAsset.of(id, null,
-                NpcPlacementAsset.Identity.of(null, null, null, null, null, npcId,
+                NpcPlacementAsset.Identity.of(role, npcId,
                         aliases.length == 0 ? null : aliases),
                 null, null, null, null, null, null);
     }
@@ -72,10 +78,32 @@ class NpcIdentitiesTest {
         }
 
         @Test
-        void aPlacementThatAuthorsNoIdAnswersToItsOwnPlacementId() {
-            loadPlacements(placement("guide_wilds", null));
-            assertEquals("guide_wilds", NpcIdentities.npcIdOfPlacement("guide_wilds"),
-                    "putting an NPC somewhere must be enough to make it nameable by content");
+        void aPlacementThatAuthorsNoIdIsItsRole() {
+            loadPlacements(roled("wilds_camp", "Guide_Wilds", null));
+            assertEquals("Guide_Wilds", NpcIdentities.npcIdOfPlacement("wilds_camp"),
+                    "standing an NPC somewhere must be enough to make it nameable by content, and "
+                            + "the name it is nameable BY is the character it stands: its role");
+        }
+
+        @Test
+        void twoPlacementsOfOneRoleAreTwoStandingsOfOneCharacter() {
+            loadPlacements(roled("wilds_camp", "Guide_Wilds", null),
+                    roled("sands_camp", "Guide_Wilds", null));
+            assertEquals("Guide_Wilds", NpcIdentities.npcIdOfPlacement("wilds_camp"));
+            assertEquals("Guide_Wilds", NpcIdentities.npcIdOfPlacement("sands_camp"),
+                    "a quest bound to the character must be creditable at either standing, with "
+                            + "nothing authored on the second placement to say so");
+        }
+
+        @Test
+        void anAuthoredIdOptsOutOfTheRoleDefault() {
+            loadPlacements(roled("temple", "MMO_Hub", "Mmo_Hub_Temple"));
+            assertEquals("Mmo_Hub_Temple", NpcIdentities.npcIdOfPlacement("temple"),
+                    "an authored id is how one standing becomes a character of its own, which is "
+                            + "what scopes a step to it");
+            assertFalse(NpcIdentities.answersTo("temple", "MMO_Hub"),
+                    "opting out means opting out: the role id is no longer answered to unless an "
+                            + "alias says so");
         }
 
         @Test
@@ -86,9 +114,18 @@ class NpcIdentitiesTest {
         }
 
         @Test
-        void aRoleWithNoOverlayIsItsOwnNameInLowerCase() {
-            assertEquals("kweebec_elder", NpcIdentities.npcIdOfRole("Kweebec_Elder"),
-                    "the convention is the whole point: most NPCs need no file at all");
+        void aPlacementNamingNeitherAnIdNorARoleIsNobody() {
+            loadPlacements(roled("broken", null, null));
+            assertNull(NpcIdentities.npcIdOfPlacement("broken"),
+                    "it stands nobody up, so inventing an id from its file name would mint a "
+                            + "character that is never in the world for content to bind to");
+        }
+
+        @Test
+        void aRoleWithNoOverlayIsItsOwnNameSpelledAsItIs() {
+            assertEquals("Kweebec_Elder", NpcIdentities.npcIdOfRole("Kweebec_Elder"),
+                    "the convention is the whole point: most NPCs need no file at all, and it must "
+                            + "give the same answer the placement rung does for the same role");
         }
 
         @Test
@@ -115,7 +152,41 @@ class NpcIdentitiesTest {
         @Test
         void anOverlayWithNoIdSaysNothingAndTheConventionStands() {
             loadIdentities(NpcIdentityAsset.of("empty", "Kweebec_Elder", null, null, null));
-            assertEquals("kweebec_elder", NpcIdentities.npcIdOfRole("Kweebec_Elder"));
+            assertEquals("Kweebec_Elder", NpcIdentities.npcIdOfRole("Kweebec_Elder"));
+        }
+    }
+
+    /**
+     * Every question about WHO an NPC is ignores case, whatever the answer set was spelled in. It is
+     * pinned on its own because the ids being compared are written on files that never see each
+     * other - a placement, a quest, a conversation - so one capital letter apart is a step that
+     * never completes and reports nothing.
+     */
+    @Nested
+    class CaseInsensitivity {
+
+        @Test
+        void aRoleDefaultedIdIsAnsweredToInAnyCase() {
+            loadPlacements(roled("wilds_camp", "Guide_Wilds", null));
+            assertTrue(NpcIdentities.answersTo("wilds_camp", "guide_wilds"));
+            assertTrue(NpcIdentities.answersTo("WILDS_CAMP", "GUIDE_WILDS"),
+                    "the placement key is normalized too, not only the id being asked about");
+            assertTrue(NpcIdentities.primaryAnswersTo("Guide_Wilds", "guide_wilds"));
+        }
+
+        @Test
+        void anAliasIsMatchedInAnyCaseAndFoundInTheReverseIndex() {
+            loadPlacements(roled("temple", "MMO_Hub", "Mmo_Hub_Temple", "mmo_hub"));
+            assertTrue(NpcIdentities.primaryAnswersTo("MMO_HUB_TEMPLE", "MMO_Hub"));
+            assertEquals(List.of("temple"), NpcIdentities.placementsForNpcId("MMO_HUB"));
+        }
+
+        @Test
+        void aRoleDefaultKeepsItsAuthoredSpellingInTheAnswerSet() {
+            loadPlacements(roled("wilds_camp", "Guide_Wilds", null));
+            assertEquals(List.of("Guide_Wilds"), List.copyOf(NpcIdentities.answerSetOf("wilds_camp")),
+                    "a display key is built from this string verbatim (npcs.<id>.name), so the "
+                            + "authored spelling must survive even though matching ignores it");
         }
     }
 
@@ -197,6 +268,27 @@ class NpcIdentitiesTest {
                     NpcIdentities.placementsForNpcId("adventurers_guide"),
                     "a waypoint for the shared name must mark both (either one serves the quest), "
                             + "in a stable order rather than however the pool happened to hash");
+        }
+
+        @Test
+        void bothStandingsOfARoleAreFoundByThatRolesId() {
+            loadPlacements(roled("sands_camp", "Guide_Wilds", null),
+                    roled("wilds_camp", "Guide_Wilds", null));
+            assertEquals(List.of("sands_camp", "wilds_camp"),
+                    NpcIdentities.placementsForNpcId("Guide_Wilds"),
+                    "the default identity must reach the reverse index the same way an authored one "
+                            + "does, or a waypoint would point at only one of the two");
+        }
+
+        @Test
+        void anOptedOutStandingIsStillFoundByTheAliasItKeeps() {
+            loadPlacements(roled("spawn", "MMO_Hub", null),
+                    roled("temple", "MMO_Hub", "Mmo_Hub_Temple", "MMO_Hub"));
+            assertEquals(List.of("spawn", "temple"), NpcIdentities.placementsForNpcId("MMO_Hub"),
+                    "the temple guide is a character of its own, but it still ANSWERS to the shared "
+                            + "id, so a quest bound there marks both");
+            assertEquals(List.of("temple"), NpcIdentities.placementsForNpcId("Mmo_Hub_Temple"),
+                    "and its own id reaches only it - which is the whole point of opting out");
         }
 
         @Test

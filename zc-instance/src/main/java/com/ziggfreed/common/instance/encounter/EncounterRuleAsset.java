@@ -41,7 +41,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
  *
  * <p>Pack JSON shape (all knobs optional; absent = the documented default):
  * <pre>{@code
- * { "Name": "shrine_reinforce", "Trigger": "SHRINE_LIT",
+ * { "Name": "ShrineReinforce", "Trigger": "SHRINE_LIT",
  *   "Placement": "NEAR_RANDOM_PLAYER", "UnitId": "",
  *   "Count": 1, "Weight": 1.0, "Cap": 6, "CooldownSeconds": 8.0,
  *   "MinTier": 0, "MaxPerRound": 3, "RingRadius": 14.0,

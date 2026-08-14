@@ -9,14 +9,14 @@
       {
         "Node": "temple_greet",
         "Conditions": [
-          { "Type": "World", "Where": { "Names": ["forgotten_temple"] } },
+          { "Type": "World", "Where": { "GameplayConfig": ["ForgottenTemple"] } },
           { "Type": "NotRemembered", "Memory": "temple_greeted" }
         ]
       },
       {
         "Node": "temple_meet",
         "Conditions": [
-          { "Type": "World", "Where": { "Names": ["forgotten_temple"] } },
+          { "Type": "World", "Where": { "GameplayConfig": ["ForgottenTemple"] } },
           {
             "Type": "QuestState",
             "Quest": "meet_at_the_temple",

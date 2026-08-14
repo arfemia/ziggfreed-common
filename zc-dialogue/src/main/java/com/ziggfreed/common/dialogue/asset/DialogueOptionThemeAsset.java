@@ -28,7 +28,7 @@ import com.ziggfreed.common.dialogue.DialogueOptionTheme;
  *
  * <p>Pack JSON shape (all fields optional; absent = inherit the enum default for that kind):
  * <pre>{@code
- * { "Name": "accept",
+ * { "Name": "Accept",
  *   "Color": "#4aff7f", "HoverColor": "#7affa0", "PressColor": "#33cc66", "Glyph": "accept" }
  * }</pre>
  *

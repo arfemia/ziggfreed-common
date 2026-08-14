@@ -46,7 +46,7 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
  *
  * <p>Pack JSON shape (all fields optional; absent = the documented default):
  * <pre>{@code
- * { "Name": "frostpeak",
+ * { "Name": "Frostpeak",
  *   "Id": "frostpeak",
  *   "InstanceName": "MyMod/Frostpeak.bson",
  *   "ArenaTags": [ "capture", "2v2" ],

@@ -25,8 +25,7 @@ import com.ziggfreed.common.validation.ValidationReport;
  * <p><b>No cache to invalidate on a reload.</b> A registry that adopts a derived id keeps a provider
  * that re-reads this config on every call rather than the folded formula, so a re-import takes
  * effect on the next resolve and a definition that disappears goes straight back to failing closed.
- * That is why the merge methods here only re-audit, where {@code WorldSelectorConfig} must also
- * invalidate.
+ * That is why the merge methods here only re-audit, with no cache to drop.
  *
  * <p>An EMPTY definition (no {@code Base} and no usable term) is treated as NO definition:
  * {@link #formulaFor} answers null, so the id fails closed exactly as an unregistered one does. An

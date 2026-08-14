@@ -51,9 +51,6 @@ import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
-import com.ziggfreed.common.world.WorldIdentity;
-import com.ziggfreed.common.world.WorldSelectorAsset;
-import com.ziggfreed.common.world.WorldSelectorConfig;
 
 /**
  * The ONE registrar for ziggfreed-common's framework asset stores, called once from
@@ -66,14 +63,10 @@ import com.ziggfreed.common.world.WorldSelectorConfig;
  *
  * <p>Common ships no jar CONTENT for these stores (content is consumer pack JSON), so there
  * is no add/replace pack-control gate: a later pack's same-id file simply wins
- * (last-pack-wins by id). Two store types are a deliberate exception, and both ship
- * STRUCTURE rather than content: {@code DialogueOptionTheme} (the neutral look per option
- * kind, so a page renders before anyone authors a theme) and {@code WorldSelectors} (the
- * {@code default} and {@code any} names, which are the vocabulary every other selector-aware
- * file is written against - a consumer would have to re-declare them in every pack
- * otherwise). Both ride the jar's own asset pack, so an owner overrides either by dropping a
- * same-id file, and world selectors additionally take an owner layer at
- * {@code mods/ziggfreedcommon/world-selectors.json}.
+ * (last-pack-wins by id). One store type is a deliberate exception, and it ships STRUCTURE
+ * rather than content: {@code DialogueOptionTheme} (the neutral look per option kind, so a
+ * page renders before anyone authors a theme). It rides the jar's own asset pack, so an owner
+ * overrides it by dropping a same-id file.
  *
  * <p><b>REGISTRATION ONLY (build-enforced).</b> This registrar reaches into every domain, which is
  * exactly why it must never grow a decision: whatever lands here is unreachable from any module's
@@ -216,24 +209,6 @@ public final class FrameworkAssetRegistrar {
                         DialogueOptionThemeConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toTheme())));
 
-        // --- World selectors (Pattern A) - the world-identity vocabulary. Common ships the
-        //     structural Zc_Default / Zc_Any files; every other selector is consumer JSON or an
-        //     owner entry in mods/ziggfreedcommon/world-selectors.json.
-        //     The merge MUST invalidate WorldIdentity: the main world is added during
-        //     universe boot, BEFORE this event folds the config, so its cached (and empty)
-        //     name set would otherwise stand for the life of the process. WorldSelectorConfig
-        //     invalidates from mergePackLayer itself; the explicit call keeps that visible at
-        //     the site where forgetting it would break everything. ---
-        AssetStoreRegistrar.registerStore(WorldSelectorAsset.class,
-                new DefaultAssetMap<String, WorldSelectorAsset>(), "ZiggfreedCommon/WorldSelectors",
-                WorldSelectorAsset::getId, WorldSelectorAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, WorldSelectorAsset.class,
-                (LoadedAssetsEvent<String, WorldSelectorAsset, DefaultAssetMap<String, WorldSelectorAsset>> ev) -> {
-                    WorldSelectorConfig.getInstance().mergePackLayer(
-                            AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toDef(id)));
-                    WorldIdentity.invalidateAll();
-                });
-
         // --- NPC placements (Pattern A) - "put this NPC here, in these worlds, under these
         //     conditions". Common ships no placement content; every entry is consumer pack JSON.
         //     The merge clears the reconciler's per-world debounce (NpcPlacementConfig does it
@@ -333,7 +308,7 @@ public final class FrameworkAssetRegistrar {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (Dialogues, Instances, "
                             + "Lootables, RollPools, RewardKinds, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
-                            + "Arenas, Party, WorldSelectors, NpcPlacements, NpcIdentities, Factors, "
+                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, "
                             + "Quests, QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones).");
         } catch (Throwable ignored) {

@@ -29,8 +29,8 @@ import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.world.WhereValidator;
 import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
-import com.ziggfreed.common.world.WorldSelectorValidator;
 
 /**
  * The content audit for a decoded conversation: everything that is wrong in a way the server would
@@ -44,9 +44,9 @@ import com.ziggfreed.common.world.WorldSelectorValidator;
  * naming the file.
  *
  * <p>Structure is checked on its own; the vocabulary checks need to be told what the server actually
- * has. Pass the loaded selector names ({@code DialogueWorlds.knownSelectorNames()}), the engine's
- * factor registry, and the engine itself to enable them; leaving any of them out means "cannot tell"
- * and skips that check, so validating before assets have loaded never cries wolf.
+ * has. Pass the engine's factor registry and the engine itself to enable them; leaving either out
+ * means "cannot tell" and skips that check, so validating before assets have loaded never cries
+ * wolf.
  *
  * <p>Findings that need more than one conversation (a shared memory declared differently in two of
  * them) only run in {@link #validateAll}, which sees the whole set.
@@ -61,40 +61,31 @@ public final class DialogueStructureValidator {
 
     @Nonnull
     public static List<Finding> validateAll(@Nonnull Collection<NpcDialogue> dialogues) {
-        return validateAll(dialogues, null);
-    }
-
-    /** {@link #validateAll(Collection)} plus the world-selector vocabulary checks. */
-    @Nonnull
-    public static List<Finding> validateAll(@Nonnull Collection<NpcDialogue> dialogues,
-                                            @Nullable Set<String> knownSelectorNames) {
-        return validateAll(dialogues, knownSelectorNames, null);
+        return validateAll(dialogues, null, null);
     }
 
     /**
-     * {@link #validateAll(Collection, Set)} plus the factor-vocabulary check. Pass the engine's own
+     * {@link #validateAll(Collection)} plus the factor-vocabulary check. Pass the engine's own
      * {@code factors()} registry so a {@code Factor} condition naming an id nobody registered is
-     * reported; {@code null} skips the check, exactly as an empty selector pool does.
+     * reported; {@code null} skips the check.
      */
     @Nonnull
     public static List<Finding> validateAll(@Nonnull Collection<NpcDialogue> dialogues,
-                                            @Nullable Set<String> knownSelectorNames,
                                             @Nullable FactorRegistry factors) {
-        return validateAll(dialogues, knownSelectorNames, factors, null);
+        return validateAll(dialogues, factors, null);
     }
 
     /**
-     * {@link #validateAll(Collection, Set, FactorRegistry)} plus the check that THIS engine can
-     * actually answer every condition and run every action in the files it is about to serve.
+     * {@link #validateAll(Collection, FactorRegistry)} plus the check that THIS engine can actually
+     * answer every condition and run every action in the files it is about to serve.
      */
     @Nonnull
     public static List<Finding> validateAll(@Nonnull Collection<NpcDialogue> dialogues,
-                                            @Nullable Set<String> knownSelectorNames,
                                             @Nullable FactorRegistry factors,
                                             @Nullable DialogueEngine engine) {
         List<Finding> out = new ArrayList<>();
         for (NpcDialogue dialogue : dialogues) {
-            validate(dialogue, out, knownSelectorNames, factors, engine);
+            validate(dialogue, out, factors, engine);
         }
         checkSharedMemoriesAgree(dialogues, out);
         return out;
@@ -102,37 +93,27 @@ public final class DialogueStructureValidator {
 
     @Nonnull
     public static List<Finding> validate(@Nonnull NpcDialogue dialogue) {
-        return validate(dialogue, (Set<String>) null);
+        return validate(dialogue, null, null);
     }
 
-    /** {@link #validate(NpcDialogue)} plus the world-selector vocabulary checks. */
+    /** {@link #validate(NpcDialogue)} plus the factor-vocabulary check. */
     @Nonnull
     public static List<Finding> validate(@Nonnull NpcDialogue dialogue,
-                                         @Nullable Set<String> knownSelectorNames) {
-        return validate(dialogue, knownSelectorNames, null);
-    }
-
-    /** {@link #validate(NpcDialogue, Set)} plus the factor-vocabulary check. */
-    @Nonnull
-    public static List<Finding> validate(@Nonnull NpcDialogue dialogue,
-                                         @Nullable Set<String> knownSelectorNames,
                                          @Nullable FactorRegistry factors) {
-        return validate(dialogue, knownSelectorNames, factors, null);
+        return validate(dialogue, factors, null);
     }
 
-    /** {@link #validate(NpcDialogue, Set, FactorRegistry)} plus the engine-vocabulary check. */
+    /** {@link #validate(NpcDialogue, FactorRegistry)} plus the engine-vocabulary check. */
     @Nonnull
     public static List<Finding> validate(@Nonnull NpcDialogue dialogue,
-                                         @Nullable Set<String> knownSelectorNames,
                                          @Nullable FactorRegistry factors,
                                          @Nullable DialogueEngine engine) {
         List<Finding> out = new ArrayList<>();
-        validate(dialogue, out, knownSelectorNames, factors, engine);
+        validate(dialogue, out, factors, engine);
         return out;
     }
 
     private static void validate(@Nonnull NpcDialogue dialogue, @Nonnull List<Finding> out,
-                                 @Nullable Set<String> knownSelectorNames,
                                  @Nullable FactorRegistry factors,
                                  @Nullable DialogueEngine engine) {
         String id = dialogue.getId();
@@ -151,7 +132,7 @@ public final class DialogueStructureValidator {
         int startIndex = 0;
         for (NpcDialogue.DialogueEntry entry : dialogue.getStart()) {
             String where = "Start candidate " + startIndex++;
-            checkConditions(entry.getConditions(), where, id, out, knownSelectorNames, factors, engine);
+            checkConditions(entry.getConditions(), where, id, out, factors, engine);
             checkOnce(entry.getOnce(), null, where, id, out);
             String node = entry.getNode();
             if (node == null || node.isBlank()) {
@@ -174,7 +155,7 @@ public final class DialogueStructureValidator {
             String nodeId = nodeEntry.getKey();
             DialogueNode node = nodeEntry.getValue();
             checkConditions(node.getConditions(), "node '" + nodeId + "'", id, out,
-                    knownSelectorNames, factors, engine);
+                    factors, engine);
             for (String fragment : node.getIncludeOptions()) {
                 if (fragment == null || !declaredFragments.contains(fragment)) {
                     out.add(error("UNKNOWN_FRAGMENT",
@@ -189,7 +170,7 @@ public final class DialogueStructureValidator {
                 DialogueOption option = node.getOptions().get(i);
                 String where = "node '" + nodeId + "' option " + i;
                 checkConditions(option.getConditions(), where, id, out,
-                        knownSelectorNames, factors, engine);
+                        factors, engine);
                 checkOnce(option.getOnce(), option, where, id, out);
                 checkOnceIdentity(option, i, nodeId, id, onceIdentities, out);
                 checkSugar(option, where, id, out);
@@ -363,16 +344,15 @@ public final class DialogueStructureValidator {
     private static void checkConditions(@Nonnull List<DialogueCondition> conditions,
                                         @Nonnull String where, @Nonnull String id,
                                         @Nonnull List<Finding> out,
-                                        @Nullable Set<String> knownSelectorNames,
                                         @Nullable FactorRegistry factors,
                                         @Nullable DialogueEngine engine) {
         for (DialogueCondition condition : conditions) {
             checkConditionKnown(condition, where, id, out, engine);
             if (condition instanceof DialogueCondition.Combinator combinator) {
                 checkConditions(combinator.getChildren(), where, id, out,
-                        knownSelectorNames, factors, engine);
+                        factors, engine);
             } else if (condition instanceof DialogueCondition.World world) {
-                checkWorldCondition(world, where, id, out, knownSelectorNames);
+                checkWorldCondition(world, where, id, out);
             } else if (condition instanceof DialogueCondition.Factor factor) {
                 checkFactorCondition(factor, where, id, out, factors);
             } else {
@@ -386,8 +366,8 @@ public final class DialogueStructureValidator {
      * is permanently invisible - and unlike a missing node it produces no error at all at runtime,
      * which is exactly why it is worth a finding. WARNING rather than ERROR because the id may
      * legitimately belong to an optional mod: on a server that installs it the same file is
-     * correct. Skipped entirely when no registry was passed, the same "cannot tell" rule the
-     * selector-pool checks keep.
+     * correct. Skipped entirely when no registry was passed, the same "cannot tell" rule every
+     * vocabulary check here keeps.
      */
     private static void checkFactorCondition(@Nonnull DialogueCondition.Factor condition,
                                              @Nonnull String where, @Nonnull String id,
@@ -413,20 +393,19 @@ public final class DialogueStructureValidator {
 
     private static void checkWorldCondition(@Nonnull DialogueCondition.World condition,
                                             @Nonnull String where, @Nonnull String id,
-                                            @Nonnull List<Finding> out,
-                                            @Nullable Set<String> knownSelectorNames) {
-        // A selector with only ExcludeNames (or nothing at all) matches NOTHING, so the gated
-        // content can never appear. That reads as the opposite of the author's intent.
+                                            @Nonnull List<Finding> out) {
+        // A Where with only ExcludeMatch (or nothing at all) matches NOTHING, so the gated content
+        // can never appear. That reads as the opposite of the author's intent.
         if (condition.getSelector().hasNoPositiveAxis()) {
             out.add(error("WORLD_CONDITION_NO_AXIS",
-                    "Dialogue '" + id + "' " + where + " has a World condition with no Names/Match/"
+                    "Dialogue '" + id + "' " + where + " has a World condition with no Match or "
                             + "GameplayConfig, so it can never pass and its content is invisible", id));
             return;
         }
-        // "Is that a name anybody hands out?" belongs to the selector layer, which is also where a
-        // placement asks it - one answer, one finding, no second copy of the pool scan here.
-        out.addAll(WorldSelectorValidator.validateNames(condition.getNames(), "Where.Names",
-                id + " " + where, knownSelectorNames));
+        // Whether a pattern names a world that EXISTS is a runtime question, not one a decoded
+        // conversation can answer: which worlds are loaded is not knowable from here, and an
+        // instance world's family is legitimately absent most of the time.
+        out.addAll(WhereValidator.validateSelector(condition.getSelector(), id + " " + where));
     }
 
     // ==================== per-world scope leaves ====================
@@ -629,7 +608,7 @@ public final class DialogueStructureValidator {
                             "Dialogue '" + dialogue.getId() + "' declares shared memory '" + name
                                     + "' differently from '" + firstOwner.get(name).getId()
                                     + "' - every dialogue sharing a memory must declare the same"
-                                    + " WorldSelector and ResetWithQuest", dialogue.getId()));
+                                    + " World scope and ResetWithQuest", dialogue.getId()));
                 }
             }
         }

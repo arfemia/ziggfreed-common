@@ -3,12 +3,15 @@ package com.ziggfreed.common.loot.reward;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.command.CommandRunner;
+import com.ziggfreed.common.instance.reward.DeferredRewards;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -142,12 +145,11 @@ public final class CommandRewardKind implements RewardHandler {
     public static Map<String, String> placeholders(@Nonnull RewardKindAsset kind,
             @Nonnull RewardSpec spec, @Nonnull Subject subject) {
         Map<String, String> out = reserved(subject);
-        kind.paramsOrEmpty().forEach((name, declaration) -> {
-            if (name == null || name.isBlank()) {
-                return;
+        for (String name : kind.paramsOrEmpty().keySet()) {
+            if (name != null && !name.isBlank()) {
+                out.put(name, kind.effectiveParam(spec, name));
             }
-            out.put(name, valueOf(spec, name, declaration));
-        });
+        }
         return out;
     }
 
@@ -180,18 +182,6 @@ public final class CommandRewardKind implements RewardHandler {
         return out;
     }
 
-    /** A reward's value for one declared parameter: its own, else the declared default, else empty. */
-    @Nonnull
-    private static String valueOf(@Nonnull RewardSpec spec, @Nonnull String name,
-            @Nullable RewardKindAsset.Param declaration) {
-        String written = spec.param(name);
-        if (written != null) {
-            return written;
-        }
-        String fallback = declaration == null ? null : declaration.getDefault();
-        return fallback == null ? "" : fallback;
-    }
-
     /**
      * Every {@code Required} parameter this reward does not answer for, in declaration order. Empty
      * when the reward is payable. A parameter with a {@code Default} is never missing - the default
@@ -212,17 +202,34 @@ public final class CommandRewardKind implements RewardHandler {
     }
 
     /**
+     * The two RESERVED parameter names every reward entry may write whatever its kind declares:
+     * {@link DeferredRewards#PARAM_NAME_KEY} and {@link DeferredRewards#PARAM_ICON}, the per-reward
+     * presentation pair that BEATS the kind's own {@code Presentation} defaults. They are read by
+     * the layer that draws a reward, never by a command line, so a kind has no reason to declare
+     * them and an entry writing one is authoring a supported winning form, not a mistake. Held
+     * lower-cased because {@link RewardSpec} lower-cases every parameter key it is given.
+     */
+    private static final Set<String> RESERVED_PRESENTATION_PARAMS = Set.of(
+            DeferredRewards.PARAM_NAME_KEY.toLowerCase(Locale.ROOT),
+            DeferredRewards.PARAM_ICON.toLowerCase(Locale.ROOT));
+
+    /**
      * Every parameter this reward carries that the kind does not declare, in the order the reward
      * wrote them. Each one reaches no command line, which is exactly the silence a validator exists
-     * to report.
+     * to report - except the reserved presentation pair, which is read elsewhere by design (see
+     * {@link #RESERVED_PRESENTATION_PARAMS}).
      */
     @Nonnull
     public static List<String> undeclaredParams(@Nonnull RewardKindAsset kind, @Nonnull RewardSpec spec) {
         List<String> unknown = new ArrayList<>();
         for (String written : spec.params().keySet()) {
-            if (written != null && !written.isBlank() && !kind.declares(written)) {
-                unknown.add(written);
+            if (written == null || written.isBlank() || kind.declares(written)) {
+                continue;
             }
+            if (RESERVED_PRESENTATION_PARAMS.contains(written.trim().toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            unknown.add(written);
         }
         return unknown;
     }

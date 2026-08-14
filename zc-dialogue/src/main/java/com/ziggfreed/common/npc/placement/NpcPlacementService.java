@@ -1,6 +1,6 @@
 package com.ziggfreed.common.npc.placement;
 
-import java.util.Set;
+import java.util.Locale;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -22,7 +22,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.npc.NpcSpawnService;
 import com.ziggfreed.common.util.SafeLog;
-import com.ziggfreed.common.world.WorldIdentity;
 
 /**
  * The thin policy layer over {@link NpcSpawnService} that actually puts a placement's NPC in the
@@ -79,7 +78,7 @@ public final class NpcPlacementService {
                 : lifecycle.effectiveFortifyHealth();
 
         PlacedNpcIdentity identity = PlacedNpcIdentity.of(placementId, namespaceOf(placementId),
-                selectorNameFor(world, placement), anchorKey, keepAlive, System.currentTimeMillis());
+                matchedWorldFor(world), anchorKey, keepAlive, System.currentTimeMillis());
 
         boolean spawned = NpcSpawnService.spawnRole(world, store, role,
                 new Vector3d(position.x(), position.y(), position.z()), position.yaw(),
@@ -118,24 +117,16 @@ public final class NpcPlacementService {
     }
 
     /**
-     * Which NPC role a placement spawns: its explicit {@code Identity.Role}, else the role
-     * generated for it from {@code Identity.Appearance}, else {@code null}.
+     * Which NPC role a placement spawns: its {@code Identity.Role}, or {@code null} when it names
+     * none and so has nothing to stand up.
      */
     @Nullable
     public static String roleFor(@Nonnull NpcPlacementAsset placement) {
         NpcPlacementAsset.Identity identity = placement.getIdentity();
-        if (identity == null) {
+        if (identity == null || !identity.namesRole()) {
             return null;
         }
-        String role = identity.getRole();
-        if (role != null && !role.isBlank()) {
-            return role.trim();
-        }
-        String placementId = placement.getId();
-        if (placementId != null && identity.usesGeneratedRole() && NpcRoleGenerator.wasGenerated(placementId)) {
-            return NpcRoleGenerator.generatedRoleName(placementId);
-        }
-        return null;
+        return identity.getRole().trim();
     }
 
     // ==================== despawn ====================
@@ -270,23 +261,15 @@ public final class NpcPlacementService {
     }
 
     /**
-     * Which selector name a placement matched this world on, recorded on the NPC purely so a later
-     * sweep can report why it is (or is no longer) here. Falls back to the first name the world
-     * carries, then to an empty string.
+     * The world a placement matched when it was placed, lower-cased and recorded on the NPC purely
+     * so a later sweep can report why it is (or is no longer) here. An unreadable world records an
+     * empty string rather than failing the placement.
      */
     @Nonnull
-    private static String selectorNameFor(@Nonnull World world, @Nonnull NpcPlacementAsset placement) {
+    private static String matchedWorldFor(@Nonnull World world) {
         try {
-            Set<String> worldNames = WorldIdentity.namesFor(world);
-            String[] wanted = placement.getWhere() == null ? null : placement.getWhere().getNames();
-            if (wanted != null) {
-                for (String name : wanted) {
-                    if (name != null && worldNames.contains(name.trim().toLowerCase(java.util.Locale.ROOT))) {
-                        return name.trim().toLowerCase(java.util.Locale.ROOT);
-                    }
-                }
-            }
-            return worldNames.isEmpty() ? "" : worldNames.iterator().next();
+            String name = world.getName();
+            return name == null ? "" : name.toLowerCase(Locale.ROOT);
         } catch (Throwable t) {
             return "";
         }

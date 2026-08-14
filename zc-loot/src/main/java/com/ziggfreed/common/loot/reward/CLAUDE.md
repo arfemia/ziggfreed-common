@@ -99,13 +99,32 @@ that order to registration order.
 - **[`RewardKindAsset`](RewardKindAsset.java)** - the Pattern A type: `Params` (a per-parameter
   `{Required, Default}` group, merged per PARAMETER under `Parent`) plus `Command` (one console line,
   substituting `{player}`, `{uuid}` and each declared parameter by its exact spelling; `Command`
-  REPLACES on inherit). Id = filename. **The id convention is native-asset style, PascalCase with
+  REPLACES on inherit) plus the optional `Presentation` group (below). `effectiveParam(spec, name)`
+  is the ONE answer to "what does this parameter resolve to" - the reward's own value, else the
+  declared default, else empty - so a command line, a chip label and an icon lookup cannot read one
+  parameter differently. Id = filename. **The id convention is native-asset style, PascalCase with
   underscores**: the framework's own kinds are UNPREFIXED (`Item`, `Lootable`, `Stamped_Item`,
   `Effect`, `Droplist`, `Command`), a consumer's carry that mod's prefix (`Mmo_Xp`, `Mmo_Currency`), so two mods
   installed together cannot collide by accident. A `$`-prefixed key is authoring metadata the codec
   ignores, on the file and inside `Params` alike - and a shipped `$Comment` is read by whoever opens
   the file next, so it says what the reward does and what each parameter means in game, never how the
   file came to look this way.
+- **`RewardKindAsset.Presentation`** - how a kind's rewards READ where one is SHOWN before it is
+  granted, written once on the kind instead of on every reward. Two independent leaves.
+  `NameKey` is a TEMPLATE: each `{Param}` is replaced by that parameter's value, LOWER-CASED, so
+  `"mymod.reward.xp.{Skill}"` with `Skill: "MINING"` asks for `mymod.reward.xp.mining` - which is
+  what lets one line label a whole family, and what bridges a value written the way a command reads
+  it (`ARTILLERY`) to a key written the way keys are written. A placeholder naming nothing declared
+  is LEFT STANDING, exactly as the command template leaves one. `Icon` is a nested rule
+  `{Default, ByParam, Values}`: no `ByParam` means one item for every reward, `ByParam` names the
+  parameter whose value picks one out of `Values` (matched case-insensitively), and anything
+  unmapped takes `Default`, so a table names only the cases worth distinguishing. **Aim a `NameKey`
+  at a key family that already exists** wherever there is one - a kind paying out something that is
+  already named somewhere (a currency, an unlockable) points at that thing's own name key and ships
+  no translations at all, and the next pack adding one of those things then works with no authoring.
+  `Values` merges per VALUE under `Parent`, which is how a pack EXTENDS a mapping table; re-shipping
+  the kind's own id REPLACES the kind, map and all. Resolution lives on the asset
+  (`presentationNameKey` / `presentationIcon`) so it is one answer, unit-testable with no store.
 - **[`RewardKindConfig`](RewardKindConfig.java)** - the `defaults < pack < owner` table, like every
   other keyed type. What is in it is not yet payable; the fold is what makes it so.
 - **[`CommandRewardKind`](CommandRewardKind.java)** - the handler: resolve the template, run it
@@ -167,8 +186,11 @@ that order to registration order.
   and `DroplistRewardKindTest` (the whole parameter fold - which id, how many rolls, where they land -
   since every one of those is a way a payout could quietly go somewhere nobody meant it to; the roll
   and the spawn themselves are engine calls the in-game pass covers). For the authored kinds:
-  `RewardKindAssetCodecTest` (the decode, and the two DIFFERENT inherit rules - `Params` merges per
-  parameter, `Command` replaces), `CommandRewardKindTest` (every substitution case plus the refusals,
+  `RewardKindAssetCodecTest` (the decode, the three DIFFERENT inherit rules - `Params` merges per
+  parameter, `Presentation` per leaf and its `Icon.Values` per value, `Command` replaces - plus the
+  presentation resolution: a template filled in and lower-cased, an undeclared placeholder left
+  standing, an icon map hit, miss and case-insensitive match),
+  `CommandRewardKindTest` (every substitution case plus the refusals,
   through a recording dispatcher), `RewardKindAssetFoldTest` (JSON wins, the one warning, the skipped
   dud, a re-fold shadowing nothing, and the `defaults < pack < owner` layering), `RewardKindValidatorTest` (one case per finding,
   and the quiet cases - above all a command-head check that skips rather than guesses).

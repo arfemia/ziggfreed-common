@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +21,7 @@ class PlacementGateChainTest {
 
     private static GateContext ctx(String id) {
         return new GateContext(NpcPlacementAsset.of(id, null, null, null, null, null, null, null, null),
-                null, Set.of(), null);
+                null, null);
     }
 
     private static PlacementGate allow() {
@@ -84,7 +83,7 @@ class PlacementGateChainTest {
                 : GateVerdict.deny(PlacementGates.REASON_DISABLED);
 
         GateVerdict verdict = PlacementGates.decideWith(List.of(enabledGate),
-                new GateContext(off, null, Set.of(), null));
+                new GateContext(off, null, null));
         assertEquals(PlacementGates.REASON_DISABLED, verdict.reasonKey());
     }
 

@@ -33,6 +33,7 @@ import com.ziggfreed.common.loot.stamp.StamperRegistry;
 import com.ziggfreed.common.npc.NpcActions;
 import com.ziggfreed.common.npc.NpcTalkDialogue;
 import com.ziggfreed.common.npc.TalkCredits;
+import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.NpcPlacementLedger;
 import com.ziggfreed.common.npc.placement.NpcPlacementOverrides;
 import com.ziggfreed.common.npc.placement.NpcPlacementReconciler;
@@ -46,7 +47,6 @@ import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.util.SafeLog;
-import com.ziggfreed.common.world.WorldSelectorOverrides;
 
 /**
  * Entry point for Ziggfreed Common, a shared, mod-agnostic Hytale utility mod.
@@ -68,8 +68,9 @@ import com.ziggfreed.common.world.WorldSelectorOverrides;
  *   <li>the Asset Editor pick lists for the fields naming a factor id ({@link EditorDataSets}),
  *       because the vocabulary they offer spans the placement registry and the Factors assets and
  *       only this wiring root can see both;</li>
- *   <li>the NPC placement engine's component, marker system and press-F action, because that
- *       engine is common's own and no consumer can be asked to register another mod's pieces;</li>
+ *   <li>the NPC placement engine's component, marker system, press-F action and first-player-ready
+ *       content audit, because that engine is common's own and no consumer can be asked to register
+ *       another mod's pieces;</li>
  *   <li><b>its own {@code AddWorldEvent}/{@code RemoveWorldEvent} listeners.</b> World eviction
  *       used to be driven only from CONSUMER listeners, so with two consumer mods installed the
  *       fan-out fired twice per world. That is harmless for an evictor that removes a map entry
@@ -123,7 +124,6 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
         registerEditorDataSets();
         registerLootVocabulary();
-        setupWorldSelectors();
         setupPlacementEngine();
         setupTalkCredit();
         registerWorldLifecycle();
@@ -237,24 +237,17 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     }
 
     /**
-     * Read the owner's world-selector layer. It runs BEFORE the placement engine because a
-     * placement's {@code Where} is answered in selector vocabulary, and an owner who re-pointed
-     * the main-world selector should have that in force from the first sweep rather than from the
-     * first reload.
-     */
-    private void setupWorldSelectors() {
-        try {
-            WorldSelectorOverrides.getInstance().load();
-        } catch (Throwable t) {
-            SafeLog.warn("[worldselector] owner layer could not be read", t);
-        }
-    }
-
-    /**
      * Wire the NPC placement engine. The component and the press-F action must both be registered
      * before any asset decode: a role naming an unregistered action type silently fails to parse,
      * and a component registered after a world loads cannot be read off entities that were saved
      * carrying it.
+     *
+     * <p>The last registration is the placement content's CROSS-ASSET audit, on the first player
+     * ready. Those checks ask another store, an open registry or the engine's loaded assets whether
+     * an id exists, and only by then have every store folded and every mod's {@code setup()} run -
+     * asked at fold time they report whatever had not loaded yet. The audit runs once per boot and
+     * stands down where a consumer claimed it, both decided by
+     * {@link NpcPlacementConfig#runLateAudit()}.
      */
     private void setupPlacementEngine() {
         try {
@@ -263,6 +256,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             getEntityStoreRegistry().registerSystem(new PlacementMarkerSystem());
             NpcPlacementOverrides.getInstance().load();
             NpcPlacementLedger.getInstance().load();
+            getEventRegistry().registerGlobal(PlayerReadyEvent.class,
+                    event -> NpcPlacementConfig.getInstance().runLateAudit());
         } catch (Throwable t) {
             SafeLog.warn("[placement] engine setup failed", t);
         }

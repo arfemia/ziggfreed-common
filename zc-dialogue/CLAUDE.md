@@ -59,18 +59,18 @@ top-level `Memories` map used by bare name via `Remember`/`Forget` and `Remember
 Option shorthand (`Open`/`Goto`/`Talk`/`Accept`/`TurnIn`/`Reward`/`Close`/`Do`) is a structured
 schema leaf folded post-decode, not a pre-parse rewrite. A base conversation is an ordinary file
 marked `Abstract` used as a native `Parent`, never a second resolver. `NpcPlacementAsset`'s `Where`
-is the shared `{Names, Match, GameplayConfig, ExcludeNames}` group from `zc-world`, the one spelling
-of "which worlds?" every selector-aware type in the library uses.
+is the shared `{Match, GameplayConfig, ExcludeMatch}` group from `zc-world`, the one spelling of
+"which worlds?" every world-targeting type in the library uses.
 
 ## Tests
 
-32 files, the largest test suite in the library: the engine core (`DialogueEngineTest`,
+33 files, the largest test suite in the library: the engine core (`DialogueEngineTest`,
 `DialogueAuthoredFixtureTest`, `DialogueAuthoringAuditTest`), the state/scope model
 (`DialogueOnceTest`, `DialogueMemoriesTest`, `DialogueFlagScopeTest`, `DialogueWorldConditionTest`,
 `DialogueFactorConditionTest`, `DialogueStateValidationTest`), the quest vocabulary
 (`DialogueQuestVocabularyTest`, `QuestCompletionDialogueValidatorTest`,
 `QuestCompletionRoutingTest`), and the placement engine (`NpcPlacementAssetCodecTest`,
-`NpcPlacementReconcilerTest`, `NpcPlacementValidatorTest`, `PlacementAnchorsTest`,
+`NpcPlacementReconcilerTest`, `NpcPlacementValidatorTest`, `NpcPlacementAuditScopeTest`,
+`PlacementAnchorsTest`,
 `PlacementChanceFormulaTest`, `PlacementGateChainTest`, `PlacementKeepAlivePinsTest`,
-`PlacementRegistryTest`, `PlacementRegistryLedgerTest`, `RoleTemplatesTest`,
-`NpcRoleGeneratorAppearanceTest`).
+`PlacementRegistryTest`, `PlacementRegistryLedgerTest`, `RoleGenerationRetirementTest`).

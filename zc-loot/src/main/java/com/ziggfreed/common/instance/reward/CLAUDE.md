@@ -71,10 +71,14 @@ Package naming to keep as this module grows: the tri-layer shape `<domain>/` + `
   `DropLists` are rolled HERE, at decision time; `Commands` become command rewards; a registered-kind
   `Rewards` entry is asked for its REPLAYABLE console line and becomes a command reward. **A kind that
   offers no replay is DROPPED and reported** - its payout is decided at grant time, so promising it on
-  a results screen and paying something else later is worse than not promising it. The two OPTIONAL
-  presentation parameters `NameKey` and `Icon` are read off any reward entry by this layer (a kind's
-  own schema decides what it PAYS, not how somebody else's screen draws it), and the chip quantity
-  comes from `Amount`/`Count`/`Quantity`.
+  a results screen and paying something else later is worse than not promising it. A chip's label and
+  art are settled in THREE rungs, first one that exists winning: the reward's own OPTIONAL `NameKey`
+  and `Icon` parameters (read off any entry by this layer, because a kind's own schema decides what it
+  PAYS, not how somebody else's screen draws it), then - for a kind written as a file - that kind's
+  `RewardKindAsset.Presentation` defaults resolved against this reward's parameters, then nothing,
+  which leaves the chip to work a label out from the reward itself. The middle rung is what stops
+  every reward of one kind repeating the same two lines; a Java-registered kind has no file and so no
+  presentation to ask for. The chip quantity comes from `Amount`/`Count`/`Quantity`.
 - **[`LootEntry`](LootEntry.java)** + **[`WinGate`](WinGate.java)** - the terse COMPACT surface for a
   weighted, score-gated, quantity-ranged, win-gated reward, one line each:
   `[w<weight>] [s<minScore>] [win|loss|any] <kind> <id> <qty|min-max> [displayKey]` (a registered token
@@ -112,7 +116,7 @@ reward on a loss sets `RewardOnExit: ALWAYS` and leaves its consolation entries 
 **Tests** (`src/test/.../instance/reward/`): `LootEntryTest` (grammar + range resolve + gate tokens +
 registered-token rewrite), `LootFactorGateTest` (what the two instance readings mean, and that a gate
 over them fails closed with no run to ask about), `InstanceRewardParseTest` (spec + authoring-adapter
-parse), `DeferredRewardsTest` (every leaf's deferral, the presentation parameters, and above all that an
+parse), `DeferredRewardsTest` (every leaf's deferral, all three presentation rungs and their order, and above all that an
 unreplayable kind is dropped and reported rather than promised), `NativeLootServiceTest` (unknown-id /
 disabled-module / throwing-engine never-throws). A bare unit-test JVM never boots a real `ItemModule`
 (its static `get()` is only assigned by the live plugin bootstrap) or registers the `Item`/

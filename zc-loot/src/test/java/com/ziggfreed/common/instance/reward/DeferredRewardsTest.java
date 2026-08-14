@@ -15,7 +15,9 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootGrants;
+import com.ziggfreed.common.loot.reward.CommandRewardKind;
 import com.ziggfreed.common.loot.reward.RewardHandler;
+import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
@@ -180,6 +182,102 @@ class DeferredRewardsTest {
 
             assertEquals(List.of(),
                     DeferredRewards.from(grants, null, CLAIMANT, "test:table", null));
+        }
+    }
+
+    // ==================== a kind's own default presentation ====================
+
+    /**
+     * A kind written as a file can say how its rewards READ, so a whole family of rewards renders
+     * titled and iconed without one of them authoring a label.
+     *
+     * <p>The order is what these pin: a reward's own pair first, then the kind's, then nothing. The
+     * last rung matters as much as the first - answering with a half-guessed label would be worse
+     * than leaving the chip to work one out from the reward itself.
+     */
+    @Nested
+    class KindPresentation {
+
+        static final RewardKindAsset XP_KIND = RewardKindAsset.of("Mmo_Xp",
+                Map.of("Skill", RewardKindAsset.Param.of(null, "ALL"),
+                        "Amount", RewardKindAsset.Param.of(true, null)),
+                "mmoawardxp {player} {Skill} {Amount}",
+                RewardKindAsset.Presentation.of("mymod.reward.xp.{Skill}",
+                        RewardKindAsset.Icon.of("Rock_Crystal_Iridescent_Small", "Skill",
+                                Map.of("ARTILLERY", "Weapon_Bomb"))));
+
+        static RewardKindRegistry authoredKinds() {
+            RewardKindRegistry kinds = new RewardKindRegistry("test");
+            // A recording dispatcher is never reached: deferring asks only for the line, never runs it.
+            kinds.register("Mmo_Xp", "testmod", new CommandRewardKind(XP_KIND, command -> true));
+            return kinds;
+        }
+
+        static InstanceReward defer(Map<String, String> params) {
+            LootGrants grants = LootGrants.of(null, null, null,
+                    new LootGrants.Reward[] {LootGrants.Reward.of("Mmo_Xp", params)});
+            List<InstanceReward> out = DeferredRewards.from(grants, authoredKinds(), CLAIMANT,
+                    "test:table", null);
+            assertEquals(1, out.size());
+            return out.get(0);
+        }
+
+        @Test
+        void aRewardThatAuthorsNothingIsLabelledAndIconedByItsKind() {
+            InstanceReward deferred = defer(Map.of("Skill", "ARTILLERY", "Amount", "300"));
+
+            assertEquals("mymod.reward.xp.artillery", deferred.displayKey(),
+                    "the value is written ARTILLERY and the key artillery; the template bridges them");
+            assertEquals("Weapon_Bomb", deferred.iconItemId());
+            assertEquals(300, deferred.quantity());
+            assertEquals("mmoawardxp {player} ARTILLERY 300", deferred.id(),
+                    "how it reads changes nothing about what it pays");
+        }
+
+        @Test
+        void aRewardsOwnPairBeatsItsKinds() {
+            InstanceReward deferred = defer(Map.of("Skill", "ARTILLERY", "Amount", "300",
+                    "NameKey", "mymod.reward.special", "Icon", "Ingredient_Bar_Gold"));
+
+            assertEquals("mymod.reward.special", deferred.displayKey());
+            assertEquals("Ingredient_Bar_Gold", deferred.iconItemId());
+        }
+
+        @Test
+        void aRewardMayOverrideJustOneHalf() {
+            InstanceReward deferred = defer(Map.of("Skill", "ARTILLERY", "Amount", "300",
+                    "Icon", "Ingredient_Bar_Gold"));
+
+            assertEquals("mymod.reward.xp.artillery", deferred.displayKey(),
+                    "the two are independent, so overriding the icon keeps the kind's label");
+            assertEquals("Ingredient_Bar_Gold", deferred.iconItemId());
+        }
+
+        @Test
+        void anUnmappedValueTakesTheKindsDefaultIcon() {
+            InstanceReward deferred = defer(Map.of("Skill", "TAMING", "Amount", "50"));
+
+            assertEquals("mymod.reward.xp.taming", deferred.displayKey());
+            assertEquals("Rock_Crystal_Iridescent_Small", deferred.iconItemId(),
+                    "a mapping table names only the cases worth distinguishing");
+        }
+
+        @Test
+        void anOmittedParameterFillsInFromTheKindsOwnDefault() {
+            assertEquals("mymod.reward.xp.all", defer(Map.of("Amount", "50")).displayKey());
+        }
+
+        @Test
+        void aKindWithNothingToSayLeavesTheChipToWorkItOut() {
+            LootGrants grants = LootGrants.of(null, null, null,
+                    new LootGrants.Reward[] {LootGrants.Reward.of("Mod_Xp",
+                            Map.of("Skill", "MINING", "Amount", "500"))});
+
+            InstanceReward deferred = DeferredRewards
+                    .from(grants, kinds(), CLAIMANT, "test:table", null).get(0);
+
+            assertNull(deferred.displayKey(), "a Java kind knows how to pay out, not how it reads");
+            assertNull(deferred.iconItemId());
         }
     }
 

@@ -259,4 +259,25 @@ class CommandRewardKindTest {
         assertEquals(List.of("sneaky"),
                 CommandRewardKind.undeclaredParams(asset, RewardSpec.of("Pay", Map.of("Sneaky", "x"))));
     }
+
+    /**
+     * The per-reward presentation pair is a SUPPORTED winning form, so an entry writing it must not
+     * be reported for passing a value the kind never declared - it is read by the layer that draws
+     * the reward, not by the command line.
+     */
+    @Test
+    void theReservedPresentationPairIsNeverReportedUndeclared() {
+        RewardKindAsset asset = kind("pay {player} {Amount}",
+                params("Amount", RewardKindAsset.Param.of(true, null)));
+
+        assertEquals(List.of(), CommandRewardKind.undeclaredParams(asset,
+                RewardSpec.of("Pay", Map.of("Amount", "5", "NameKey", "mymod.reward.pay",
+                        "Icon", "Rock_Crystal_Iridescent_Small"))));
+
+        // Case is irrelevant (RewardSpec lower-cases every key), and a genuinely stray parameter
+        // beside the pair is still reported.
+        assertEquals(List.of("sneaky"), CommandRewardKind.undeclaredParams(asset,
+                RewardSpec.of("Pay", Map.of("namekey", "mymod.reward.pay", "ICON", "Weapon_Bomb",
+                        "Sneaky", "x"))));
+    }
 }

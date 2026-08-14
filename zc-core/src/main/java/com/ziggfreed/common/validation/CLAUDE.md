@@ -39,7 +39,7 @@ present" - the exact thing the value side exists to express - look broken.
 
 ## Who reports into it
 
-`WorldSelectorValidator` (`worldselector`), `NpcPlacementValidator` (`placement`),
+`WhereValidator` (`where`), `NpcPlacementValidator` (`placement`),
 `DerivedFactorValidator` (`factor`), `DialogueStructureValidator` (`dialogue`), `LootableValidator`
 (`lootable`), `QuestPoolValidator` + `QuestAssetStore`/`QuestGeneratorExpander` (`quest`),
 `AchievementPoolValidator` (`achievement`). Each exposes its domain as a `DOMAIN` constant.

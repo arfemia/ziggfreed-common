@@ -46,10 +46,10 @@ import com.hypixel.hytale.codec.KeyedCodec;
  *
  * <p>Pack JSON shape (persistent band, then one-shot):
  * <pre>{@code
- * { "Name": "dread_2", "Band": 2, "MinTier": 0,
+ * { "Name": "Dread2", "Band": 2, "MinTier": 0,
  *   "EffectId": "MyMod_Dread_2", "SoundId": "", "OneShot": false }
  *
- * { "Name": "stinger", "Band": 0, "MinTier": 0,
+ * { "Name": "Stinger", "Band": 0, "MinTier": 0,
  *   "EffectId": "MyMod_Stinger", "SoundId": "SFX_MyMod_Stinger",
  *   "ShakeId": "MyMod_StingerShake", "ShakeIntensity": 0.7,
  *   "OneShot": true }

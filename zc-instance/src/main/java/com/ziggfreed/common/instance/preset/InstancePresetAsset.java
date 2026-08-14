@@ -35,7 +35,7 @@ import com.ziggfreed.common.instance.reward.RewardOnExit;
  * Java-authored via the API-override seam, not pack-spec'd. Pack JSON shape (all fields
  * optional; absent = the documented default):
  * <pre>{@code
- * { "Name": "nightmare", "Enabled": true,
+ * { "Name": "Nightmare", "Enabled": true,
  *   "NameKey": "preset.nightmare.name", "DescriptionKey": "preset.nightmare.desc",
  *   "FillTimeoutSeconds": 20, "CountdownSeconds": 5, "AllowSolo": true, "LeaderForceStart": false,
  *   "LeaderboardBucket": "PARTY_SIZE", "LeaderboardKey": "leaderboard.nightmare.title",

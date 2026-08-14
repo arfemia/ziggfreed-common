@@ -121,16 +121,16 @@ class NpcPlacementAssetCodecTest {
     void aChildOverridingOneGroupInheritsTheOthers() throws Exception {
         NpcPlacementAsset parent = decodeRoot("""
                 { "Identity": { "Role": "Zc_Guide" },
-                  "Where":    { "Names": ["default"] },
+                  "Where":    { "Match": ["default"] },
                   "Anchor":   { "WorldSpawn": { "Offset": { "X": 2.5 }, "Yaw": 180 } },
                   "Lifecycle":{ "KeepAlive": true, "Fortify": true } }
                 """, "hub");
 
         NpcPlacementAsset child = decode("""
-                { "Where": { "Names": ["forgotten_temple"] } }
+                { "Where": { "GameplayConfig": ["ForgottenTemple"] } }
                 """, "hub_temple", "hub", parent);
 
-        assertEquals(List.of("forgotten_temple"), List.of(child.getWhere().getNames()));
+        assertEquals(List.of("ForgottenTemple"), List.of(child.getWhere().getGameplayConfig()));
         assertEquals("Zc_Guide", child.getIdentity().getRole());
         assertEquals(2.5, child.getAnchor().getWorldSpawn().getOffset().effectiveX());
         assertTrue(child.getLifecycle().effectiveKeepAlive());

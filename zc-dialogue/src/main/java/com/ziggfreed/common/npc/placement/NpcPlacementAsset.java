@@ -35,9 +35,8 @@ import com.ziggfreed.common.world.WorldSelector;
  * <p>Authored shape (every group optional):
  * <pre>{@code
  * { "Enabled": true,
- *   "Identity": { "BaseRole": "Template_MyMod_Guide", "Appearance": { "Model": "Human_Male_01" },
- *                 "NameKey": "npc.guide.name", "HintKey": "npc.guide.hint" },
- *   "Where":    { "Names": ["default"] },
+ *   "Identity": { "Role": "MyMod_Guide", "NpcId": "guide" },
+ *   "Where":    { "Match": ["default"] },
  *   "Anchor":   { "WorldSpawn": { "Offset": {"X": 2.5}, "Yaw": 180 } },
  *   "Requires": { "Conditions": [ {"Factor": "yourmod:feature", "Param": "shop", "Min": 1} ] },
  *   "Limits":   { "SpawnChance": 1.0, "OncePerWorld": true },
@@ -48,16 +47,18 @@ import com.ziggfreed.common.world.WorldSelector;
  *
  * <p><b>The groups, and why each is where it is.</b>
  * <ul>
- *   <li><b>{@link Identity}</b> - who stands there. An {@code Appearance} with no explicit
- *       {@code Role} generates a per-placement NPC role as a tiny variant of the template role
- *       {@code BaseRole} names (see {@link NpcRoleGenerator}), so a pack ships no role JSON of its
- *       own; an {@link AppearanceSpec} naming a {@code Base} to clone generates a per-placement
- *       MODEL beside it, so a pack ships no model JSON either. {@code NpcId} and {@code Aliases}
- *       are what CONTENT calls this character - a quest's giver, a hand-in target, a talk
- *       objective - and both are optional: unauthored, the placement answers to its own id.</li>
- *   <li><b>{@code Where}</b> - a {@link WorldSelector}, the shared world-identity vocabulary.
- *       The selector carries no default of its own; THIS read site treats a null or empty
- *       {@code Where} as {@code Names: ["default"]}, i.e. the ordinary persistent world.</li>
+ *   <li><b>{@link Identity}</b> - who stands there. {@code Role} names an NPC role, which owns
+ *       everything about the character: the look, the nameplate, the press-F prompt, what it wears
+ *       and holds. Two placements standing the same character in different worlds name the same
+ *       role; a character that should look or read differently gets its own role file, most often
+ *       a three-line native {@code Variant} of a shared template. {@code NpcId} and
+ *       {@code Aliases} are what CONTENT calls this character - a quest's giver, a hand-in target,
+ *       a talk objective - and both are optional: unauthored, the placement answers to its own
+ *       id.</li>
+ *   <li><b>{@code Where}</b> - a {@link WorldSelector}, the shared world-targeting vocabulary.
+ *       The group carries no default of its own; THIS read site treats a null or empty
+ *       {@code Where} as {@code Match: ["default"]}, i.e. the ordinary persistent world, which a
+ *       stock Hytale server calls {@code default}.</li>
  *   <li><b>{@link Anchor}</b> - where in the world. Five INDEPENDENT nullable groups, never a
  *       placement-mode enum: authoring several produces the UNION of their resolved positions,
  *       each an independent instance. See that class for the multi-anchor rules.</li>
@@ -117,13 +118,13 @@ public final class NpcPlacementAsset
             .add()
             .appendInherited(new KeyedCodec<>("Identity", Identity.CODEC, false),
                     (a, v) -> a.identity = v, a -> a.identity, (a, p) -> a.identity = p.identity)
-            .documentation("Who stands here: the NPC role, or an appearance plus the template role to generate a "
-                    + "variant of.")
+            .documentation("Who stands here: the NPC role to place, plus the character id content binds to.")
             .add()
             .appendInherited(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
                     (a, v) -> a.where = v, a -> a.where, (a, p) -> a.where = p.where)
-            .documentation("Which worlds this placement applies to. Leave it out and the placement stands "
-                    + "in the 'default' selector's worlds, which is the ordinary persistent world "
+            .documentation("Which worlds this placement applies to: Match (world-name patterns), "
+                    + "GameplayConfig (exact config keys) and ExcludeMatch. Leave it out and the "
+                    + "placement stands in the world named 'default', the ordinary persistent world "
                     + "players log into rather than any instance.")
             .add()
             .appendInherited(new KeyedCodec<>("Anchor", Anchor.CODEC, false),
@@ -222,42 +223,24 @@ public final class NpcPlacementAsset
     public static final class Identity {
 
         @Nullable protected String role;
-        @Nullable protected String baseRole;
-        @Nullable protected AppearanceSpec appearance;
-        @Nullable protected String nameKey;
-        @Nullable protected String hintKey;
         @Nullable protected String npcId;
         @Nullable protected String[] aliases;
 
         public static final BuilderCodec<Identity> CODEC = BuilderCodec.builder(Identity.class, Identity::new)
                 .appendInherited(new KeyedCodec<>("Role", Codec.STRING, false),
                         (o, v) -> o.role = v, o -> o.role, (o, p) -> o.role = p.role)
-                .documentation("An existing NPC role id to place as-is. Author this when you ship your own role JSON.").add()
-                .appendInherited(new KeyedCodec<>("BaseRole", Codec.STRING, false),
-                        (o, v) -> o.baseRole = v, o -> o.baseRole, (o, p) -> o.baseRole = p.baseRole)
-                .documentation("The id of a parameterized TEMPLATE role, shipped in any pack, that the generated "
-                        + "per-placement role is a variant of. The template supplies all the behaviour and must "
-                        + "declare the keys this placement overrides (Appearance, NameTranslationKey, Hint, Weapons, "
-                        + "OffHand, DefaultOffHandSlot, Armor) in its own Parameters block. Ignored when Role is "
-                        + "authored.").add()
-                .appendInherited(new KeyedCodec<>("Appearance", AppearanceSpec.CODEC, false),
-                        (o, v) -> o.appearance = v, o -> o.appearance, (o, p) -> o.appearance = p.appearance)
-                .documentation("How the NPC looks: a Model asset to use as-is, or one to clone and re-dress, plus "
-                        + "what it wears and holds. Authoring this without a Role is what opts the placement into "
-                        + "role generation.").add()
-                .appendInherited(new KeyedCodec<>("NameKey", Codec.STRING, false),
-                        (o, v) -> o.nameKey = v, o -> o.nameKey, (o, p) -> o.nameKey = p.nameKey)
-                .documentation("Localization key for the nameplate on a generated role.").add()
-                .appendInherited(new KeyedCodec<>("HintKey", Codec.STRING, false),
-                        (o, v) -> o.hintKey = v, o -> o.hintKey, (o, p) -> o.hintKey = p.hintKey)
-                .documentation("Localization key for the press-F prompt on a generated role.").add()
+                .documentation("The NPC role id to place. The role file owns everything about the character - the "
+                        + "look, the nameplate, the press-F prompt, what it wears and holds - so a placement that "
+                        + "names no role has nothing to spawn.").add()
                 .appendInherited(new KeyedCodec<>("NpcId", Codec.STRING, false),
                         (o, v) -> o.npcId = v, o -> o.npcId, (o, p) -> o.npcId = p.npcId)
                 .documentation("The character id content binds to: a quest's giver, a hand-in target, a talk "
-                        + "objective's target, and the waypoint marked for it. Unauthored, the placement id "
-                        + "itself is used, so an ordinary placement needs no line here at all. Two placements "
-                        + "of the same character in different worlds may carry different ids, which is how a "
-                        + "quest step is scoped to one of them.").add()
+                        + "objective's target, and the waypoint marked for it. Unauthored, the character IS "
+                        + "its Role, so an ordinary placement needs no line here at all and two placements of "
+                        + "one role are two standings of one character - a quest bound to it is offered, "
+                        + "credited and handed in at either. Author an id to opt OUT of that and become a "
+                        + "character nothing else answers to, which is how a quest step is scoped to one "
+                        + "standing.").add()
                 .appendInherited(new KeyedCodec<>("Aliases", Codec.STRING_ARRAY, false),
                         (o, v) -> o.aliases = v, o -> o.aliases, (o, p) -> o.aliases = p.aliases)
                 .documentation("Further ids this placement also ANSWERS to, one per entry, for the same "
@@ -270,22 +253,15 @@ public final class NpcPlacementAsset
         }
 
         @Nonnull
-        public static Identity of(@Nullable String role, @Nullable String baseRole,
-                @Nullable AppearanceSpec appearance, @Nullable String nameKey, @Nullable String hintKey) {
-            return of(role, baseRole, appearance, nameKey, hintKey, null, null);
+        public static Identity of(@Nullable String role) {
+            return of(role, null, null);
         }
 
-        /** As {@link #of(String, String, AppearanceSpec, String, String)}, with the character id it answers as. */
+        /** As {@link #of(String)}, with the character id it answers as and its further ids. */
         @Nonnull
-        public static Identity of(@Nullable String role, @Nullable String baseRole,
-                @Nullable AppearanceSpec appearance, @Nullable String nameKey, @Nullable String hintKey,
-                @Nullable String npcId, @Nullable String[] aliases) {
+        public static Identity of(@Nullable String role, @Nullable String npcId, @Nullable String[] aliases) {
             Identity i = new Identity();
             i.role = role;
-            i.baseRole = baseRole;
-            i.appearance = appearance;
-            i.nameKey = nameKey;
-            i.hintKey = hintKey;
             i.npcId = npcId;
             i.aliases = aliases == null ? null : aliases.clone();
             return i;
@@ -296,29 +272,9 @@ public final class NpcPlacementAsset
             return role;
         }
 
-        @Nullable
-        public String getBaseRole() {
-            return baseRole;
-        }
-
-        @Nullable
-        public AppearanceSpec getAppearance() {
-            return appearance;
-        }
-
-        @Nullable
-        public String getNameKey() {
-            return nameKey;
-        }
-
-        @Nullable
-        public String getHintKey() {
-            return hintKey;
-        }
-
         /**
          * The character id this placement IS, or null when it authors none - in which case the
-         * placement id itself is the identity (see {@code npc/NpcIdentities}).
+         * character is its {@link #getRole() role} (see {@code npc/NpcIdentities}).
          */
         @Nullable
         public String getNpcId() {
@@ -331,20 +287,9 @@ public final class NpcPlacementAsset
             return aliases == null ? null : aliases.clone();
         }
 
-        /**
-         * True when this identity wants a generated role: an {@code Appearance} is authored and no
-         * explicit {@code Role} takes precedence over it.
-         */
-        public boolean usesGeneratedRole() {
-            return (role == null || role.isBlank()) && appearance != null && !appearance.isBlank();
-        }
-
-        /**
-         * True when the appearance asks for a MODEL to be generated as well as a role, i.e. it
-         * names a {@code Base} to clone rather than a {@code Model} to use as it is.
-         */
-        public boolean usesGeneratedModel() {
-            return usesGeneratedRole() && appearance != null && appearance.hasBase();
+        /** True when a role id is authored, which is the minimum for anything to be spawnable. */
+        public boolean namesRole() {
+            return role != null && !role.isBlank();
         }
     }
 

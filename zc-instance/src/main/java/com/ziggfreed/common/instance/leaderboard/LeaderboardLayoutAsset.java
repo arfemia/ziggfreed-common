@@ -48,7 +48,7 @@ import com.ziggfreed.common.instance.result.ColumnFormat;
  *
  * <p>Pack JSON shape (all fields optional; absent = the documented default):
  * <pre>{@code
- * { "Name": "chase",
+ * { "Name": "Chase",
  *   "BoardId": "leaderboard-chase",
  *   "PrimaryAxisLabelKey": "kweebecnightmare.leaderboard.axis.difficulty",
  *   "SecondaryAxisLabelKey": "kweebecnightmare.leaderboard.axis.players",

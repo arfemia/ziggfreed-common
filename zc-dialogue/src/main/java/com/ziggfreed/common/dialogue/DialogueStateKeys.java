@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
  *   <li>a memory's {@code ResetWithQuest} PREFIXES {@code q:<questId>:} onto the whole key, so a
  *       consumer that clears a quest's state by a leading-prefix match ({@code q:<questId>:*})
  *       clears the memory with it;</li>
- *   <li>a {@code WorldSelector} scope wraps only the FINAL segment (see
+ *   <li>a {@code World} scope wraps only the FINAL segment (see
  *       {@link DialogueFlagScope#scopedKey}), so it lands INSIDE any quest prefix and can never
  *       escape that clear.</li>
  * </ul>

@@ -1,9 +1,10 @@
 # CLAUDE.md - zc-world
 
-World identity (selectors, name index, match ranking), atmosphere and placement helpers, and the
-world-map POI/discovery layer. A world selector is a NAMED, REUSABLE MATCHER, not an opaque tag -
-every selector-aware type in the library (`Where`, dialogue's `World` condition, an NPC placement,
-a mob-scaling world file) speaks this one vocabulary.
+World targeting (the `Where` group, name-pattern matching, match ranking), atmosphere and
+placement helpers, and the world-map POI/discovery layer. A world is named by what it is CALLED or
+by the gameplay config it runs, and nothing in between - every world-targeting type in the library
+(`Where`, dialogue's `World` condition, an NPC placement, a mob-scaling world file) speaks that one
+vocabulary.
 
 ## Build
 
@@ -15,25 +16,22 @@ compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggre
 - **Depends on**: `zc-core`, `zc-entity` (`SpawnPlacement`'s foliage-skip surface snap and the
   placement engine's identity resolution lean on entity-layer primitives).
 - **Depended on by**: `zc-dialogue` (`DialogueCondition.World` resolves through the shared
-  `WorldSelector` group; `WorldIdentity` backs the placement engine's `Where` gate).
-- **Reverse-edge trap**: none declared today. This module is identity infrastructure, not domain
+  `WorldSelector` group; `WhereValidator` backs the placement engine's `Where` audit).
+- **Reverse-edge trap**: none declared today. This module is targeting infrastructure, not domain
   content, so an edge upward to a domain module (dialogue, progression, instance) would mean world
-  identity had started depending on the very content it is supposed to gate.
+  targeting had started depending on the very content it is supposed to gate.
 
 ## Packages
 
-- [`world/`](src/main/java/com/ziggfreed/common/world/CLAUDE.md) - `WorldSelectorAsset` +
-  `WorldSelectorConfig` (`Server/ZiggfreedCommon/WorldSelectors/`), the embeddable `WorldSelector`
-  group codec (`{Names, Match, GameplayConfig, ExcludeNames}`), the `MatchRank` specificity ladder
-  (`GameplayConfig` exact > exact name > longest partial core > bare `*`), and the cached
-  `WorldIdentity` resolver. **The pattern GRAMMAR and the ladder itself are zc-core's
+- [`world/`](src/main/java/com/ziggfreed/common/world/CLAUDE.md) - the embeddable `WorldSelector`
+  group codec (`{Match, GameplayConfig, ExcludeMatch}`, authored under the key `Where`), the
+  `MatchRank` specificity ladder (`GameplayConfig` exact > exact name > longest partial core >
+  bare `*`), the `WhereValidator` audit, and `WorldIdentity`, the guarded read of which worlds the
+  server currently has. **The pattern GRAMMAR and the ladder itself are zc-core's
   [`match/`](../zc-core/src/main/java/com/ziggfreed/common/match/CLAUDE.md)**: `WorldNameMatcher
   .Pattern` is a `NamePattern` and `MatchRank` is a `NameMatchRank` plus the one world-specific
   `GameplayConfig` rung, so a world-targeting field and any other name-matched field in the library
-  parse and sort identically. `ExcludeNames` resolves in two passes (positive names first, exclusions
-  applied against that fixed set) so a world's names never depend on fold order. `WorldSelectorOverrides`
-  reads the owner layer `mods/ziggfreedcommon/world-selectors.json` (id -> whole selector body,
-  entry replaces by id). Also `SurfaceProbe` (top-solid-Y column probe -> floor-snap) and
+  parse and sort identically. Also `SurfaceProbe` (top-solid-Y column probe -> floor-snap) and
   `SpawnPlacement` (ring/near-player runtime spawn positions, foliage-skip surface snap).
 - [`worldmap/`](src/main/java/com/ziggfreed/common/worldmap/CLAUDE.md) - `WorldMapMarkers`
   (global + per-player POI/compass markers over the native `WorldMapManager`), `MapDiscovery` (+
@@ -43,26 +41,24 @@ compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggre
 
 ## Shipped resources
 
-`Server/ZiggfreedCommon/WorldSelectors/{Zc_Any.json, Zc_Default.json}` - the structural `any` (`*`)
-and `default` (the stock main world) selectors every other selector-aware file is written against.
-These are the one deliberate exception to "common ships zero content": they are STRUCTURAL
-vocabulary, not gameplay content. A server whose main world is named something other than `default`
-re-points `Zc_Default` through the owner layer rather than editing this file.
+None. This module is code only.
 
 ## Conventions
 
-`WorldIdentity.invalidateAll()` on every asset merge is mandatory - the main world is added BEFORE
-assets fold, so skipping the invalidation caches an empty name set for the life of the process.
-`{Names, Match, GameplayConfig, ExcludeNames}` is the ONE spelling of "which worlds?" everywhere in
-the library; a new selector-aware type embeds this group under a `Where` key rather than inventing
-its own axis. The validator's `MATCHES_NO_LOADED_WORLD` finding (both def-level and inline-selector
-forms) makes a misconfigured selector loud instead of silently matching nothing.
+`{Match, GameplayConfig, ExcludeMatch}` under the key `Where` is the ONE spelling of "which
+worlds?" everywhere in the library; a new world-targeting type embeds this group rather than
+inventing its own axis. A bare word under `Match` is an EXACT world name, so a file targeting the
+main world authors `["default"]` and reaches that world alone. The validator's
+`MATCHES_NO_LOADED_WORLD` finding (run from a LATE audit, once the universe is up) makes a
+misconfigured `Where` loud instead of silently matching nothing.
 
 ## Tests
 
-9 files: `WorldSelectorAssetTest`, `WorldSelectorMatchTest`, `WorldSelectorValidatorTest`,
-`WorldSelectorOverridesTest` (the owner-layer re-point), `WorldIdentityTest`, `MatchRankTest` (the
-world ladder: the shared bands plus the `GameplayConfig` rung on top), `WorldNameMatcherTest` (the
-grammar as the world SELECTS through it - parses and scores, never selects, per its own javadoc),
-`MapDiscoveryTest`, `WaypointSnapshotsTest`. The grammar's and the ladder's own contracts are pinned
-once in zc-core (`NamePatternTest`, `NameMatchRankTest`); these two cover what the world adds.
+7 files: `WorldSelectorMatchTest` (the two positive axes, the exclusion filter, the codec's
+null-is-null contract, and the pin that a bare `default` is an exact name rather than a contains),
+`WhereValidatorTest` (the shape findings plus the describes-a-real-world check and its "cannot
+tell" contract), `MatchRankTest` (the world ladder: the shared bands plus the `GameplayConfig` rung
+on top), `WorldNameMatcherTest` (the grammar as the world SELECTS through it - parses and scores,
+never selects, per its own javadoc), `MapDiscoveryTest`, `WaypointSnapshotsTest`. The grammar's and
+the ladder's own contracts are pinned once in zc-core (`NamePatternTest`, `NameMatchRankTest`);
+these cover what the world adds.

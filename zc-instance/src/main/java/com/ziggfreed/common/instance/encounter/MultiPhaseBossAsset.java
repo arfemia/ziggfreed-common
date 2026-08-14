@@ -31,7 +31,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
  *
  * <p>Pack JSON shape (all knobs optional; absent = the documented default):
  * <pre>{@code
- * { "Name": "warden",
+ * { "Name": "Warden",
  *   "Phase1Role": "MyMod_Warden",
  *   "Phase2Role": "MyMod_Warden_Phase2",
  *   "Phase3Role": "MyMod_Warden_Phase3",

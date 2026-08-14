@@ -40,7 +40,7 @@ class PlacementChanceFormulaTest {
 
     private static NpcPlacementAsset withLimits(String id, NpcPlacementAsset.Limits limits) {
         return NpcPlacementAsset.of(id, true,
-                NpcPlacementAsset.Identity.of("some_role", null, null, null, null), null,
+                NpcPlacementAsset.Identity.of("some_role"), null,
                 NpcPlacementAsset.Anchor.of(NpcPlacementAsset.Anchor.WorldSpawn.of(null, null),
                         null, null, null, null),
                 null, limits, null, null);

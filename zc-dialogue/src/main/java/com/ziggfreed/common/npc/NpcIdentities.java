@@ -44,17 +44,23 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <ol>
  *   <li><b>Its placement.</b> An NPC put there by the placement engine carries a stamp, and the
- *       placement's {@code Identity.NpcId} is the answer. A placement that authors none answers to
- *       its own placement id, so putting an NPC somewhere is enough to give it a name content can
- *       use.</li>
+ *       placement's {@code Identity.NpcId} is the answer. A placement that authors none IS its role:
+ *       the id is the role the placement names, so standing an NPC somewhere is enough to give it a
+ *       name content can use, and two placements of one role are two of the same character.</li>
  *   <li><b>An identity overlay on its role.</b> An {@link NpcIdentityAsset} naming that role, or the
  *       role a chain of native {@code Variant}s ultimately references.</li>
  *   <li><b>An identity overlay on a group it belongs to.</b> After the role because the more specific
  *       statement is the one the author wrote about that role in particular.</li>
- *   <li><b>Its role id, in lower case.</b> The convention: anything using the {@code Kweebec_Elder}
- *       role is {@code kweebec_elder}, with no file anywhere.</li>
+ *   <li><b>Its role id.</b> The convention: anything using the {@code Kweebec_Elder} role is
+ *       {@code Kweebec_Elder}, with no file anywhere.</li>
  *   <li><b>Nobody.</b> Null, and nothing credits.</li>
  * </ol>
+ *
+ * <p>Rungs 1 and 4 deliberately give the SAME answer for the same role, so a character does not
+ * change name depending on whether a placement stood it up. Both keep the role id exactly as it is
+ * spelled, because a display key built from an id ({@code npcs.<id>.name},
+ * {@code server.npcRoles.<id>.name}) is looked up verbatim while every membership test below is
+ * case-insensitive.
  *
  * <p>The convention is the FLOOR, not a rung that outranks the overlays. Both overlay forms are
  * statements an author wrote on purpose - "these two roles are the same person", "this whole family
@@ -114,12 +120,13 @@ public final class NpcIdentities {
         if (fromGroupOverlay != null) {
             return fromGroupOverlay;
         }
-        return roleName == null ? null : normalize(roleName);
+        return roleName;
     }
 
     /**
      * The id a placement gives whoever stands at it: its authored {@code Identity.NpcId}, or the
-     * placement id itself when it authors none. Null when no such placement is loaded.
+     * role it names when it authors none. Null when no such placement is loaded, or when it names
+     * neither (a placement with no role stands nothing up, so there is nobody to be).
      */
     @Nullable
     public static String npcIdOfPlacement(@Nullable String placementId) {
@@ -131,8 +138,8 @@ public final class NpcIdentities {
 
     /**
      * The id an NPC role carries: an identity overlay naming that role (or the role a chain of native
-     * {@code Variant}s ultimately references), else the role id in lower case. Null only for a blank
-     * role name.
+     * {@code Variant}s ultimately references), else the role id itself. Null only for a blank role
+     * name.
      *
      * <p>A GROUP overlay cannot be consulted here: group membership is a question about an entity, not
      * about a name. {@link #npcIdOfEntity} asks it in between.
@@ -143,7 +150,7 @@ public final class NpcIdentities {
             return null;
         }
         String overlay = overlayForRole(roleName);
-        return overlay != null ? overlay : normalize(roleName);
+        return overlay != null ? overlay : roleName.trim();
     }
 
     /**
@@ -248,8 +255,9 @@ public final class NpcIdentities {
     /**
      * Every placement id ANSWERING to {@code npcId} (lower-cased, the ledger and position-cache key):
      * the placement whose primary it is, plus every placement listing it as an alias. Usually one, but
-     * the same character may stand in several worlds, and an alias is exactly the "same character,
-     * second location" case - so a waypoint for an aliased id marks all of them, which is the intent.
+     * the same character may stand in several worlds - two placements of one role, or a second
+     * placement listing the first's id as an alias - so a waypoint for such an id marks all of them,
+     * which is the intent.
      *
      * <p>Sorted by placement id, so a surface listing them is stable across restarts rather than
      * following however the folded pool happened to hash.
@@ -330,7 +338,13 @@ public final class NpcIdentities {
                     continue;
                 }
                 String key = normalize(placementId);
-                String primary = primaryOf(placement, placementId);
+                String primary = primaryOf(placement);
+                if (primary == null) {
+                    // Nothing authored an id and nothing names a role, so this placement stands
+                    // nobody up. Answering with the file name would invent a character that is
+                    // never in the world for content to bind against.
+                    continue;
+                }
                 Set<String> answers = new LinkedHashSet<>();
                 answers.add(primary);
                 answers.addAll(aliasesDeclaredBy(placement));
@@ -388,15 +402,22 @@ public final class NpcIdentities {
     }
 
     /**
-     * A placement's primary id: its authored {@code Identity.NpcId}, else the placement id itself. The
-     * fallback is what makes identity free - an NPC put somewhere is already nameable by content -
-     * and it can only ever ADD an id, never take one away.
+     * A placement's primary id: its authored {@code Identity.NpcId}, else the ROLE it names, else
+     * null. The role fallback is what makes identity free - putting an NPC somewhere already names
+     * it - and it says the true thing: with no id of its own, the character IS its role, so two
+     * placements of one role are one character and a quest bound to it resolves at either.
+     *
+     * <p>An id of its own is how a placement opts OUT of that and becomes a character nothing else
+     * answers to, which is what scopes an objective to one of several standings.
      */
-    @Nonnull
-    private static String primaryOf(@Nonnull NpcPlacementAsset placement, @Nonnull String placementId) {
+    @Nullable
+    private static String primaryOf(@Nonnull NpcPlacementAsset placement) {
         NpcPlacementAsset.Identity identity = placement.getIdentity();
-        String authored = identity == null ? null : trimToNull(identity.getNpcId());
-        return authored != null ? authored : placementId;
+        if (identity == null) {
+            return null;
+        }
+        String authored = trimToNull(identity.getNpcId());
+        return authored != null ? authored : trimToNull(identity.getRole());
     }
 
     /** The alias ids a placement declares, cleaned: trimmed, blanks dropped, repeats folded away. */

@@ -26,7 +26,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
  *
  * <p>Pack JSON shape (all fields optional; absent = the documented default):
  * <pre>{@code
- * { "Name": "default",
+ * { "Name": "Default",
  *   "MaxSize": 4, "InviteTimeoutSeconds": 60, "OwnerOnlyInvite": false }
  * }</pre>
  *
