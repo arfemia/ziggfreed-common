@@ -1,14 +1,17 @@
 package com.ziggfreed.common.quest;
 
-import java.time.DayOfWeek;
-
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.quest.Quest.Repeat.Reset;
+import com.ziggfreed.common.util.PeriodMath;
 
 /**
  * The calendar arithmetic behind {@link Quest.Repeat.Reset}: which window an instant falls in, when
  * that window started, and when the next one begins.
+ *
+ * <p>What a {@code Reset} MEANS in window terms lives here - how long its window lasts and how far
+ * its boundary is shifted - while the arithmetic over those two numbers is
+ * {@link PeriodMath} in zc-core, so every recurring window in the library indexes the same way.
  *
  * <p>Pure and static - no store, no clock, no engine type - so every boundary is exercisable by
  * handing it two numbers.
@@ -22,19 +25,10 @@ import com.ziggfreed.common.quest.Quest.Repeat.Reset;
 public final class RepeatPeriod {
 
     /** Milliseconds in one day. */
-    public static final long DAY_MS = 24L * 60L * 60L * 1000L;
+    public static final long DAY_MS = PeriodMath.DAY_MS;
 
     /** Milliseconds in one week. */
-    public static final long WEEK_MS = 7L * DAY_MS;
-
-    /** Milliseconds in one minute, for the {@code atMinutes} shift. */
-    private static final long MINUTE_MS = 60L * 1000L;
-
-    /**
-     * The epoch fell on a Thursday, so a weekly window anchored to a Thursday needs no shift and
-     * every other weekday start is measured from it.
-     */
-    private static final DayOfWeek EPOCH_DAY = DayOfWeek.THURSDAY;
+    public static final long WEEK_MS = PeriodMath.WEEK_MS;
 
     private RepeatPeriod() {
     }
@@ -49,22 +43,20 @@ public final class RepeatPeriod {
      * only, because a daily window has no weekday to start on) plus the authored minutes.
      */
     public static long anchorOffsetMs(@Nonnull Reset reset) {
-        long weekdayShift = 0L;
-        if (reset.period() == Reset.Period.WEEKLY) {
-            int delta = (EPOCH_DAY.getValue() - reset.weekStart().getValue() + 7) % 7;
-            weekdayShift = delta * DAY_MS;
-        }
-        return weekdayShift - reset.atMinutes() * MINUTE_MS;
+        long weekdayShift = reset.period() == Reset.Period.WEEKLY
+                ? PeriodMath.weekdayAnchorMs(reset.weekStart())
+                : 0L;
+        return weekdayShift - reset.atMinutes() * PeriodMath.MINUTE_MS;
     }
 
     /** Which window {@code nowMs} falls in. Monotonic, including for instants before the epoch. */
     public static long periodIndex(@Nonnull Reset reset, long nowMs) {
-        return Math.floorDiv(nowMs + anchorOffsetMs(reset), lengthMs(reset));
+        return PeriodMath.periodIndex(lengthMs(reset), anchorOffsetMs(reset), nowMs);
     }
 
     /** When the window containing {@code nowMs} started, in epoch milliseconds. */
     public static long periodStartMs(@Nonnull Reset reset, long nowMs) {
-        return periodIndex(reset, nowMs) * lengthMs(reset) - anchorOffsetMs(reset);
+        return PeriodMath.periodStartMs(lengthMs(reset), anchorOffsetMs(reset), nowMs);
     }
 
     /**
@@ -76,17 +68,11 @@ public final class RepeatPeriod {
      * wrapping into a negative number, because a wrapped boundary would read as "offerable now".
      */
     public static long nextBoundaryMs(@Nonnull Reset reset, long nowMs) {
-        long length = lengthMs(reset);
-        long start = periodStartMs(reset, nowMs);
-        try {
-            return Math.addExact(start, length);
-        } catch (ArithmeticException overflow) {
-            return Long.MAX_VALUE;
-        }
+        return PeriodMath.nextBoundaryMs(lengthMs(reset), anchorOffsetMs(reset), nowMs);
     }
 
     /** Do these two instants fall in the same window? */
     public static boolean samePeriod(@Nonnull Reset reset, long aMs, long bMs) {
-        return periodIndex(reset, aMs) == periodIndex(reset, bMs);
+        return PeriodMath.samePeriod(lengthMs(reset), anchorOffsetMs(reset), aMs, bMs);
     }
 }

@@ -54,9 +54,9 @@ public record ProgressHandle(@Nonnull Store<EntityStore> store,
 
     /**
      * The foreign types this handle stands in for: the live {@link Player} and the
-     * {@link PlayerRef}, and nothing else. The second is what lets the library's ready-made
-     * permission probe - which expects the handle to BE a {@code PlayerRef} - work over a subject
-     * carrying this richer handle instead. Everything else a reader might ask for is either the
+     * {@link PlayerRef}, and nothing else. The second is what lets a reward that runs a command
+     * with the PLAYER's own authority find somebody to run it as, over a subject carrying this
+     * richer handle instead of a bare ref. Everything else a reader might ask for is either the
      * handle itself (answered by the direct cast before this is ever consulted) or genuinely not
      * ours to answer.
      */

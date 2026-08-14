@@ -1,0 +1,11 @@
+{
+  "$Comment": "The shared skeleton for delivery contracts: bring the goods back rather than do a job in the field. A child names the item and the quantity. Nothing here says where the goods go - a contract is always handed back at the board that posted it, so there is no place to author.",
+  "Abstract": true,
+  "Listing": { "Category": "bounty" },
+  "Objectives": {
+    "main": { "Kind": "TURN_IN", "Amount": 1, "MatchMode": "EXACT" }
+  },
+  "Rewards": [
+    { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "1" } }
+  ]
+}

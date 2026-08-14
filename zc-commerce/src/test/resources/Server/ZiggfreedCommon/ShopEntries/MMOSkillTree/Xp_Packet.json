@@ -1,0 +1,7 @@
+{
+  "$Comment": "The skeleton every experience packet inherits from: the storefront, the shelf it sits on, and the shape of the price. It carries no numbers, because every number differs per skill and per size - those come from the generator that writes the family. Marked Abstract, so it is never on sale itself.",
+  "Abstract": true,
+  "Shop": "XpExchange",
+  "Listing": { "Category": "conversion" },
+  "Icon": "Ingredient_Crystal_Purple"
+}

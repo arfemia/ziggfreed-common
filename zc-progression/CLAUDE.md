@@ -37,7 +37,10 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
   - `progress/runtime/` - THE shared progression runtime: one `QuestEngine` + `AchievementEngine`
     pair per server however many mods contribute to it. `ProgressionRuntime` (the holder),
     `ProgressionRegistrar` (what a consumer calls), `ProgressionParts`, `ProducerClaims`,
-    `ContentLayers`, `ProgressionSubjectSource`, `ProgressionCallScope`, `ProgressionTextSource`.
+    `ContentLayers`, `ProgressionSubjectSource`, `ProgressionCallScope`, `ProgressionTextSource`,
+    and `ProgressionFactors` (the four `ziggfreedcommon:` readings OF that runtime - finished quest,
+    completion count, earned achievement, points total - claimed process-wide so any content
+    anywhere can gate on progression with no Java and no edge to this module).
     Has its own router; read it before touching runtime registration.
 - [`quest/`](src/main/java/com/ziggfreed/common/quest/CLAUDE.md) (+ `quest/asset/`,
   `quest/event/`) - the QUEST lifecycle: accept/track/hand-in/claim/cooldown, ships zero content,
@@ -65,7 +68,9 @@ NOT wired into `processResources` since it is documentation rather than a jar re
 Both engines ship ZERO content and ZERO domain vocabulary; a consumer supplies storage
 (`QuestProgressStore`/`AchievementProgressStore`, plus ready-made in-memory ones), gates, and
 naming. A surface that only READS a player's quests (a dialogue condition, above all) takes the
-narrow `QuestStateReader` seam rather than the mutating engine. Achievement criteria are keyed by
+narrow `QuestStateReader` seam rather than the mutating engine - and so does anything reading
+progression as a NUMBER: `ProgressionFactors` declares its own narrow read seam for exactly that
+reason, so a gate on "have you finished this" can never be a gate that accepts it. Achievement criteria are keyed by
 POSITION, not id, so appending a criterion is safe while reordering one is a data migration -
 asserted directly in the engine test.
 
@@ -78,5 +83,6 @@ asserted directly in the engine test.
 `QuestModuleAgnosticismTest`, `AssetQuestGatesFailOpenTest`), the achievement engine
 (`AchievementEngineTest`, `AchievementAssetCodecTest`, `AchievementPoolValidatorTest`,
 `AchievementProgressStoreTest`, `AchievementStatThresholdTest`, `AchievementTaxonomyCodecTest`),
-the shared runtime (`ProgressionRuntimeTest`), and `SchemaDocDriftTest` guarding the committed
-`SCHEMA.md`.
+the shared runtime (`ProgressionRuntimeTest`, `ProgressionFactorsTest` - each factor ladder over a
+double AND over the real engines on in-memory stores, plus the leaf-and-factor agreement), and
+`SchemaDocDriftTest` guarding the committed `SCHEMA.md`.

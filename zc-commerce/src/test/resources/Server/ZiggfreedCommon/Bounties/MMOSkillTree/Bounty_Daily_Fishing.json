@@ -1,0 +1,13 @@
+{
+  "$Comment": "A training contract, the gentlest band on the daily board: ten of anything a rod will land. It names no quarry, so the inherited any-fish step stands.",
+  "Parent": "Bounty_Fish",
+  "Text": { "TitleKey": "quest.bounty_daily_fishing.title", "FlavorKey": "quest.bounty_daily_fishing.flavor" },
+  "Boards": [ { "Board": "Daily", "Difficulty": "Training", "Weight": 1 } ],
+  "Objectives": {
+    "main": { "Amount": 10 }
+  },
+  "Rewards": [
+    { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "10" } },
+    { "Kind": "Mmo_Xp", "Params": { "Skill": "FISHING", "Amount": "900" } }
+  ]
+}

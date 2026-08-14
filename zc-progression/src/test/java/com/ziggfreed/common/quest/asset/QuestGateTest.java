@@ -140,14 +140,73 @@ class QuestGateTest {
                     """)));
         }
 
+        /**
+         * The whole point of desugaring the leaf: the two ways a server can write one permission
+         * requirement have to mean one thing. They are one code path now rather than two that agree,
+         * and this is what says so - held, not held, and unanswerable, all three the same verdict
+         * whichever spelling asked.
+         */
         @Test
-        void anUnwiredPermissionProbeRefuses() {
-            assertEquals(GateEvaluator.REASON_PERMISSION,
-                    evaluator().firstFailure(PLAYER, spec("{ \"Permission\": \"yourmod.beta\" }")));
+        void thePermissionLeafAndTheSameFactorConditionGiveOneVerdict() {
+            registerPermissionFactor("yourmod.beta");
 
-            GateEvaluator open = GateEvaluator.builder()
-                    .permissions(GateEvaluator.PermissionProbe.ALLOW).build();
-            assertTrue(open.passes(PLAYER, spec("{ \"Permission\": \"yourmod.beta\" }")));
+            for (String node : List.of("yourmod.beta", "yourmod.alpha", "")) {
+                boolean asLeaf = evaluator().passes(PLAYER, spec("{ \"Permission\": \"" + node + "\" }"));
+                boolean asFactor = evaluator().passes(PLAYER, spec("{ \"Factors\": [ { \"Factor\": \""
+                        + GateEvaluator.PERMISSION_FACTOR + "\", \"Param\": \"" + node
+                        + "\", \"Min\": 1 } ] }"));
+                assertEquals(asFactor, asLeaf,
+                        "the leaf IS the factor, so both spellings answer alike for node '" + node + "'");
+            }
+
+            assertTrue(evaluator().passes(PLAYER, spec("{ \"Permission\": \"yourmod.beta\" }")),
+                    "a node the player holds opens the gate");
+        }
+
+        @Test
+        void aPermissionRefusalNamesTheLeafTheAuthorWrote() {
+            registerPermissionFactor("yourmod.beta");
+
+            assertEquals(GateEvaluator.REASON_PERMISSION,
+                    evaluator().firstFailure(PLAYER, spec("{ \"Permission\": \"yourmod.alpha\" }")),
+                    "the token names what is in the file, not the factor underneath it");
+        }
+
+        @Test
+        void aPermissionNobodyCanAnswerKeepsTheQuestLocked() {
+            assertEquals(GateEvaluator.REASON_PERMISSION,
+                    evaluator().firstFailure(PLAYER, spec("{ \"Permission\": \"yourmod.beta\" }")),
+                    "nothing registered the permission factor, so the reading fails closed");
+
+            GateEvaluator noVocabulary = GateEvaluator.builder().build();
+            assertFalse(noVocabulary.passes(PLAYER, spec("{ \"Permission\": \"yourmod.beta\" }")),
+                    "and an evaluator with no vocabulary at all refuses it too");
+        }
+
+        @Test
+        void aBlankPermissionNodeRefusesRatherThanAskingForNothing() {
+            registerPermissionFactor("yourmod.beta");
+
+            assertEquals(GateEvaluator.REASON_PERMISSION,
+                    evaluator().firstFailure(PLAYER, spec("{ \"Permission\": \"\" }")),
+                    "an empty node is not a node anybody holds, so the reading cannot be taken");
+            assertEquals(GateEvaluator.REASON_PERMISSION,
+                    evaluator().firstFailure(PLAYER, spec("{ \"Permission\": \"   \" }")));
+        }
+
+        /**
+         * A stand-in for the portable {@code hytale:permission} provider, which reads a live
+         * player and so cannot run here. It answers the same three ways the real one does: held,
+         * not held, and nothing to read.
+         */
+        private void registerPermissionFactor(String heldNode) {
+            factors.register(GateEvaluator.PERMISSION_FACTOR, ctx -> {
+                String node = ctx.param() == null ? "" : ctx.param().trim();
+                if (node.isEmpty()) {
+                    return null;
+                }
+                return heldNode.equals(node) ? 1.0 : 0.0;
+            });
         }
 
         @Test

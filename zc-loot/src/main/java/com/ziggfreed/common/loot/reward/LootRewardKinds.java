@@ -174,6 +174,52 @@ public final class LootRewardKinds {
         }
     }
 
+    /**
+     * Would EVERY reward in {@code rewards} have somewhere to go right now, granting nothing? The
+     * probe a payout site asks before its irreversible half: charging a price, spending a
+     * completion, marking something collected.
+     *
+     * <p><b>The whole list is asked about ONCE.</b> Calling {@link #canAdd} per reward in a loop
+     * asks each of them about the same last free slot, so three item rewards each answer yes and
+     * the third still lands on the floor - after the price was charged, which is the exact moment
+     * this exists to prevent. Every stack the payout would hand over is collected through
+     * {@link #stackFor} and asked of {@link InventoryGrant#canAddAll} as one batch, so the answer
+     * is what the payout will actually do.
+     *
+     * <p>Rewards that need no room are skipped rather than refused, exactly as {@link #canAdd}
+     * skips them: a {@code Lootable} rolls its contents at grant time and another mod's kind is
+     * that mod's business. A payout with no player behind it is not blocked, since it never
+     * reaches an inventory. So a false answer always names specific items that specifically will
+     * not fit.
+     */
+    public static boolean canAddAll(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject) {
+        if (rewards.isEmpty()) {
+            return true;
+        }
+        List<ItemStack> incoming = new ArrayList<>();
+        for (RewardSpec spec : rewards) {
+            if (spec == null) {
+                continue;
+            }
+            ItemStack stack = stackFor(spec);
+            if (stack != null) {
+                incoming.add(stack);
+            }
+        }
+        if (incoming.isEmpty()) {
+            return true;
+        }
+        Player player = playerOf(subject);
+        if (player == null) {
+            return true;
+        }
+        try {
+            return InventoryGrant.canAddAll(player, incoming);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     /** What an item-shaped reward would hand over, or null when it needs no inventory room. */
     @Nullable
     private static Handover roomFor(@Nonnull RewardSpec spec) {

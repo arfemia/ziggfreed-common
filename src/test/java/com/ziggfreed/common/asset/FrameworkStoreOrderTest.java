@@ -37,6 +37,9 @@ class FrameworkStoreOrderTest {
         REQUIRED_EDGES.put("ZcDialogueAsset", new String[]{"DialogueFragmentAsset",
                 "a conversation splices the shared option groups it names as it is read, so a group "
                         + "that has not loaded yet drops its lines out of the screen silently"});
+        REQUIRED_EDGES.put("ShopEntryGeneratorAsset", new String[]{"ShopEntryAsset",
+                "a generated offer is decoded against its Base out of the offer store, so a "
+                        + "generator that folds first writes a whole family inheriting nothing"});
     }
 
     @Test

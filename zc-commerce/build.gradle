@@ -1,0 +1,34 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// The ECONOMY layer: currencies (item- or counter-backed behind one dispatch), the one price
+// vocabulary and its check/drain/refund engine, the deterministic rotation primitive, and the
+// storefront + board engines over both.
+//
+// It sits BESIDE zc-objectives as a second top-layer consumer module: nothing in the library
+// depends on it, and it depends on four modules that already depend only on each other in one
+// direction, so the graph stays a DAG.
+//
+// REVERSE-EDGE TRAP: zc-loot, zc-progression and zc-presentation may NEVER import commerce. A quest
+// that wants a price, a reward kind that wants a balance, a shared page primitive that wants a
+// storefront are all SEAMS commerce fills from above or the wiring root registers, never an import
+// from below. Commerce may never import zc-dialogue either: a conversation opens a shop through the
+// Destination registry in zc-presentation, which is exactly what that registry exists for.
+//
+// Ships .ui (the shop + board pages), so it needs zc-presentation at RUNTIME as well as at compile
+// time - see the modules table's last column in the root router.
+
+dependencies {
+    // SafeLog, Subject, the counter + inventory primitives, the factor model, validation, registry.
+    implementation project(':zc-core')
+    // The ONE reward vocabulary and the ONE issuance pass: a purchase pays out through RewardGrants
+    // over the shared kind table, and probes inventory room through the same batch fit check.
+    implementation project(':zc-loot')
+    // Bounties ARE quests: the board engine reads and mutates through the quest engine, threads the
+    // board as the accept site, and gates through the ONE progress.gate evaluator every domain uses.
+    implementation project(':zc-progression')
+    // The ONE world-targeting spelling: a storefront or a board that exists only in some worlds
+    // carries the shared `Where` selector group, validated by the shared WhereValidator.
+    implementation project(':zc-world')
+    // The pages, the shared frames/buttons, the retint engine, the toast engine.
+    implementation project(':zc-presentation')
+}

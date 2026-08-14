@@ -1,0 +1,26 @@
+{
+  "$Comment": "Writes the whole experience-packet family: one packet per skill at each of three sizes, from one file. The skill axis reads a list the skill mod enumerates, so a skill added later gets its packets with no edit here. The size axis binds five tokens on ONE row, which is what keeps 'the greater packet costs 165 and wants level 30' stated once instead of reconstructed from five parallel lists. A token used as an object KEY is substituted too, which is how each packet's requirement names its own level channel. Write a row value the way the field it fills wants it: a value that is exactly one token keeps that token's own type, so xp is quoted (a reward's parameters are text) while tokens, essence and minLevel are not (a price and a requirement bound are numbers).",
+  "Base": "Xp_Packet",
+  "IdPattern": "shop_xp_{tier}_{skill}",
+  "ForEach": [
+    { "Token": "skill", "Source": "mmoskilltree:skills" },
+    { "Token": "tier", "Values": [
+      { "tier": "lesser",  "tokens": 75,  "essence": 30,  "xp": "1500",  "minLevel": 1,  "order": 40, "daily": 3 },
+      { "tier": "greater", "tokens": 165, "essence": 65,  "xp": "7500",  "minLevel": 30, "order": 42, "daily": 3 },
+      { "tier": "master",  "tokens": 330, "essence": 100, "xp": "40000", "minLevel": 60, "order": 44, "daily": 2 }
+    ] }
+  ],
+  "Child": {
+    "Text": { "TitleKey": "shop.xp_packet.{tier}.title", "TextArgs": { "Title": ["{skill}"] } },
+    "Listing": { "Category": "conversion", "SortOrder": "{order}", "Chains": [ { "Id": "{skill}", "Tier": 1 } ] },
+    "Cost": { "Currencies": { "bounty_token": "{tokens}", "life_essence": "{essence}" } },
+    "Limits": { "Daily": "{daily}" },
+    "Pool": { "Id": "XpExchange", "Tier": "{tier}" },
+    "Requires": {
+      "Factors": [ { "Factor": "hytale:stat", "Param": "MMO_Level_{skill}", "Min": "{minLevel}" } ]
+    },
+    "Rewards": [
+      { "Kind": "Mmo_Xp", "Params": { "Skill": "{skill}", "Amount": "{xp}" } }
+    ]
+  }
+}

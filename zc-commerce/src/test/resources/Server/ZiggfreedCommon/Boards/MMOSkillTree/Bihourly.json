@@ -1,0 +1,15 @@
+{
+  "$Comment": "The fast board: one easy contract that changes every two hours. A span cadence rather than a calendar one, because two hours is not a boundary a calendar has - author Every for anything that is not Daily or Weekly, and never both. Its contracts pay skill experience rather than tokens, so Currencies lists only the wallet the reroll is charged in, which keeps the header honest about what a player spends here.",
+  "Text": { "TitleKey": "ui.bounty.board.bihourly", "FlavorKey": "ui.bounty.board.bihourly.desc" },
+  "Order": 3,
+  "Rotation": { "Every": { "Hours": 2 } },
+  "Selection": { "Type": "Weighted_Random" },
+  "Slots": [
+    { "Difficulty": "Easy" }
+  ],
+  "Currencies": ["Bounty_Token"],
+  "Reroll": {
+    "Cost": { "Currencies": { "Bounty_Token": 10 } },
+    "MaxPerPeriod": 3
+  }
+}

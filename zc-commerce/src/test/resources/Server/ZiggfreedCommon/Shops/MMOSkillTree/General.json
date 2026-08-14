@@ -1,0 +1,8 @@
+{
+  "$Comment": "The everyday token storefront. Currencies is the balance strip in the header: list every wallet this shop prices in, so a player can see what they can afford before they browse. CategoryOrder fixes the order the shelves appear in; leave it out and they sort alphabetically, which puts 'rare' ahead of 'uncommon'. A category not named here follows the listed ones alphabetically, and each offer's own SortOrder still arranges offers WITHIN one shelf.",
+  "Text": { "TitleKey": "shop.general.title", "FlavorKey": "shop.general.desc" },
+  "Icon": "Ore_Iron",
+  "Order": 0,
+  "Currencies": ["Bounty_Token", "Life_Essence"],
+  "CategoryOrder": ["items", "boosts", "conversion", "featured"]
+}

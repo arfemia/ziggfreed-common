@@ -129,10 +129,11 @@ public final class ProgressionDefaults {
             HytaleFactors.registerInto(factors, OWNER);
             Function<Subject, FactorContext> factorContext = ProgressionDefaults::factorContextOf;
 
+            // A Requires block's Permission leaf is a hytale:permission factor bound, so the
+            // vocabulary and the context above are the whole of what answers it.
             GateEvaluator gate = GateEvaluator.builder()
                     .factors(factors)
                     .factorContext(factorContext)
-                    .permissions(ProgressionDefaults::holdsPermission)
                     .build();
             AssetQuestGates gates = AssetQuestGates.of(gate);
             assetGates = gates;
@@ -415,15 +416,6 @@ public final class ProgressionDefaults {
             return FactorContext.builder().build();
         }
         return FactorContext.builder().store(handle.store()).subject(handle.ref()).build();
-    }
-
-    /**
-     * Read a permission off the subject's own handle. A handle-less subject refuses, which is the
-     * fail-closed answer a gate needs.
-     */
-    private static boolean holdsPermission(@Nonnull Subject subject, @Nonnull String permission) {
-        ProgressHandle handle = subject.handleAs(ProgressHandle.class);
-        return handle != null && handle.playerRef().hasPermission(permission);
     }
 
     // ==================== hand-ins ====================

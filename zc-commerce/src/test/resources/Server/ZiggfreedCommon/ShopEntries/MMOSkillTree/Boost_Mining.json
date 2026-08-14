@@ -1,0 +1,16 @@
+{
+  "$Comment": "A standing offer on the general store's boosts shelf, capped at three a day so it stays a top-up rather than a way to buy a level. The requirement is written as a factor bound on the mining level channel, which is the same shape every requirement on this server takes.",
+  "Text": { "TitleKey": "shop.boost_mining.title", "FlavorKey": "shop.boost_mining.desc" },
+  "Icon": "Tool_Pickaxe_Crude",
+  "Shop": "General",
+  "Listing": { "Category": "boosts", "SortOrder": 20 },
+  "Cost": { "Currencies": { "Bounty_Token": 150 } },
+  "Limits": { "Daily": 3 },
+  "Requires": {
+    "Factors": [ { "Factor": "hytale:stat", "Param": "MMO_Level_MINING", "Min": 1 } ]
+  },
+  "Rewards": [
+    { "Kind": "Mmo_Boost_Token",
+      "Params": { "Skill": "MINING", "Multiplier": "3.0", "DurationMinutes": "20" } }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "$Comment": "Life essence: an item-backed wallet, so a player's balance IS how many Ingredient_Life_Essence they are carrying. That means it can be dropped, traded and stored like any other item, and whatever this world already does with items on death applies to it. It needs no Icon and no name key of its own: with Backing authored, both come from the backing item.",
+  "Backing": { "Item": "Ingredient_Life_Essence" },
+  "Color": "#a7e0a7",
+  "Cap": 0,
+  "Meta": {
+    "mmoskilltree": {
+      "ShowOnSidebar": true,
+      "ShowOnMasteryPage": true,
+      "XpConversionPercent": 0
+    }
+  }
+}

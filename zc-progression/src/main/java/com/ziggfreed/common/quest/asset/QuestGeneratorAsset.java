@@ -1,8 +1,6 @@
 package com.ziggfreed.common.quest.asset;
 
-import java.util.LinkedHashMap;
 import java.util.Locale;
-import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -15,10 +13,10 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
-import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
-import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.JsonTreeCodec;
+import com.ziggfreed.common.progress.asset.GeneratorAxisAsset;
+import com.ziggfreed.common.progress.asset.GeneratorSpec;
 
 /**
  * Writes a FAMILY of quests from one file, at
@@ -52,7 +50,7 @@ import com.ziggfreed.common.codec.JsonTreeCodec;
  * the validator rather than shipped, because a quest id with a brace in it is nobody's intention.
  */
 public final class QuestGeneratorAsset
-        implements JsonAssetWithMap<String, DefaultAssetMap<String, QuestGeneratorAsset>> {
+        implements JsonAssetWithMap<String, DefaultAssetMap<String, QuestGeneratorAsset>>, GeneratorSpec {
 
     private String id;
     private AssetExtraInfo.Data data;
@@ -60,7 +58,7 @@ public final class QuestGeneratorAsset
     @Nullable private Boolean enabled;
     @Nullable private String base;
     @Nullable private String idPattern;
-    @Nullable private Axis[] forEach;
+    @Nullable private GeneratorAxisAsset[] forEach;
     @Nullable private JsonElement child;
 
     public static final AssetBuilderCodec<String, QuestGeneratorAsset> CODEC = AssetBuilderCodec.builder(
@@ -91,7 +89,7 @@ public final class QuestGeneratorAsset
                     + "keep every combination distinct, or two children collide and only one survives.")
             .add()
             .appendInherited(new KeyedCodec<>("ForEach",
-                            new ArrayCodec<>(Axis.CODEC, Axis[]::new), false),
+                            new ArrayCodec<>(GeneratorAxisAsset.CODEC, GeneratorAxisAsset[]::new), false),
                     (a, v) -> a.forEach = v, a -> a.forEach, (a, p) -> a.forEach = p.forEach)
             .documentation("The axes to walk. Several axes multiply, so keep the count small and bind related "
                     + "values on one row instead of adding an axis for each.")
@@ -111,103 +109,41 @@ public final class QuestGeneratorAsset
         return id;
     }
 
+    @Override
+    @Nonnull
+    public String generatorId() {
+        return id == null ? "" : id;
+    }
+
     /** Does this generator run? Unauthored means true. */
+    @Override
     public boolean isEnabled() {
         return enabled == null || enabled;
     }
 
     /** The quest id every child inherits from, lower-cased; null when unauthored. */
+    @Override
     @Nullable
     public String getBase() {
         return base == null || base.isBlank() ? null : base.trim().toLowerCase(Locale.ROOT);
     }
 
+    @Override
     @Nullable
     public String getIdPattern() {
         return idPattern;
     }
 
+    @Override
     @Nonnull
-    public Axis[] axesOrEmpty() {
-        return forEach == null ? new Axis[0] : forEach;
+    public GeneratorAxisAsset[] axesOrEmpty() {
+        return forEach == null ? new GeneratorAxisAsset[0] : forEach;
     }
 
     /** The authored child body, or null when the generator writes nothing. */
+    @Override
     @Nullable
     public JsonObject getChild() {
         return child != null && child.isJsonObject() ? child.getAsJsonObject() : null;
-    }
-
-    // ==================== Axis ====================
-
-    /**
-     * One axis of the walk: a token name plus where its values come from - a list written here, or a
-     * source some mod enumerates.
-     *
-     * <p>Author {@code Values} for a set that belongs to this content ("the three ores this quest
-     * line is about") and {@code Source} for one that belongs to a mod and will grow ("every ore
-     * installed"). Authoring both uses {@code Values}, since an explicit list is the more specific
-     * statement.
-     */
-    public static final class Axis {
-
-        @Nullable protected String token;
-        @Nullable protected JsonElement values;
-        @Nullable protected String source;
-        @Nullable protected Map<String, String> filter;
-
-        public static final BuilderCodec<Axis> CODEC = BuilderCodec.builder(Axis.class, Axis::new)
-                .appendInherited(new KeyedCodec<>("Token", Codec.STRING, false),
-                        (o, v) -> o.token = v, o -> o.token, (o, p) -> o.token = p.token)
-                .documentation("The placeholder name this axis fills in, written {token} wherever it is used. "
-                        + "A row that names its own tokens does not need it.").add()
-                .appendInherited(new KeyedCodec<>("Values", JsonTreeCodec.array(), false),
-                        (o, v) -> o.values = v, o -> o.values, (o, p) -> o.values = p.values)
-                .documentation("The values, written out. A plain entry fills this axis's Token; an object entry "
-                        + "binds several tokens at once, which is how values that belong together stay together.").add()
-                .appendInherited(new KeyedCodec<>("Source", Codec.STRING, false),
-                        (o, v) -> o.source = v, o -> o.source, (o, p) -> o.source = p.source)
-                .documentation("The id of a list some mod enumerates, used when Values is not authored. A source "
-                        + "nothing registered produces no rows, so the whole generator falls silent.").add()
-                .appendInherited(new KeyedCodec<>("Filter", new InheritMapCodec<>(Codec.STRING), false),
-                        (o, v) -> o.filter = v, o -> o.filter, (o, p) -> o.filter = p.filter)
-                .documentation("Arguments handed to the Source, meaning whatever that source documents. Nothing "
-                        + "here reads them.").add()
-                .build();
-
-        public Axis() {
-        }
-
-        @Nonnull
-        public static Axis of(@Nullable String token, @Nullable JsonElement values, @Nullable String source,
-                @Nullable Map<String, String> filter) {
-            Axis a = new Axis();
-            a.token = token;
-            a.values = values;
-            a.source = source;
-            a.filter = filter == null ? null : new LinkedHashMap<>(filter);
-            return a;
-        }
-
-        @Nullable
-        public String getToken() {
-            return token == null || token.isBlank() ? null : token.trim();
-        }
-
-        /** The authored value list, or null when this axis reads a source instead. */
-        @Nullable
-        public JsonElement getValues() {
-            return values;
-        }
-
-        @Nullable
-        public String getSource() {
-            return source == null || source.isBlank() ? null : source.trim();
-        }
-
-        @Nonnull
-        public Map<String, String> filterOrEmpty() {
-            return filter == null ? Map.of() : filter;
-        }
     }
 }

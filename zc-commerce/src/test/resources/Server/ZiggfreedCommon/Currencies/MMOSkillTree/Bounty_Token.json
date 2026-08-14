@@ -1,0 +1,13 @@
+{
+  "$Comment": "The bounty token: what contracts pay out in and what the token shop charges. It is a plain number this server keeps for each player, so it cannot be dropped, traded or lost - Icon only decides whose picture stands for it in a balance strip or a price. Its name comes from the key currency.bounty_token.name. Give it a Cap if you would rather players spent tokens than hoarded them.",
+  "Icon": "Ingredient_Bar_Gold",
+  "Color": "#ffcc44",
+  "Cap": 0,
+  "Meta": {
+    "mmoskilltree": {
+      "ShowOnSidebar": true,
+      "ShowOnMasteryPage": false,
+      "XpConversionPercent": 0
+    }
+  }
+}

@@ -43,9 +43,25 @@ import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.achievement.asset.AchievementAsset;
 import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
 import com.ziggfreed.common.achievement.asset.AchievementMilestoneAsset;
+import com.ziggfreed.common.board.asset.BoardAsset;
+import com.ziggfreed.common.board.asset.BoardSlotAsset;
+import com.ziggfreed.common.board.asset.BountyAsset;
+import com.ziggfreed.common.commerce.asset.CostAsset;
+import com.ziggfreed.common.commerce.fold.CommerceDestinations;
+import com.ziggfreed.common.commerce.asset.RerollAsset;
+import com.ziggfreed.common.commerce.asset.RotationAsset;
+import com.ziggfreed.common.commerce.asset.SelectionAsset;
+import com.ziggfreed.common.commerce.asset.SlotAsset;
+import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
+import com.ziggfreed.common.progress.asset.GeneratorAxisAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
+import com.ziggfreed.common.shop.asset.PoolSlotAsset;
+import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.ShopEntryAsset;
+import com.ziggfreed.common.shop.asset.ShopEntryGeneratorAsset;
+import com.ziggfreed.common.shop.asset.ShopPoolAsset;
 import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.asset.QuestAsset;
@@ -187,10 +203,72 @@ class AssetCodecInitTest {
         assertNotNull(RewardEntryAsset.CODEC, "RewardEntryAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(GateClause.CODEC, "GateClause.CODEC must static-init (PascalCase keys)");
         assertNotNull(GateSpec.CODEC, "GateSpec.CODEC must static-init (PascalCase keys)");
-        assertNotNull(QuestGeneratorAsset.Axis.CODEC,
-                "QuestGeneratorAsset.Axis.CODEC must static-init (PascalCase keys)");
+        assertNotNull(GeneratorAxisAsset.CODEC,
+                "GeneratorAxisAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(ObjectiveLeafAsset.CODEC,
                 "ObjectiveLeafAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void commerceGroupCodecsInitialize() {
+        // Shared by every commerce type and embedded rather than stored, so a lower-case key in any
+        // of them would fail at a storefront's or a board's decode instead of at this build.
+        assertNotNull(CostAsset.CODEC, "CostAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(CostAsset.ItemCostAsset.CODEC,
+                "CostAsset.ItemCostAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(RotationAsset.CODEC, "RotationAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(SelectionAsset.CODEC, "SelectionAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(SlotAsset.CODEC, "SlotAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(RerollAsset.CODEC, "RerollAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void currencyAssetCodecsInitialize() {
+        assertNotNull(CurrencyAsset.CODEC, "CurrencyAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(CurrencyAsset.Backing.CODEC,
+                "CurrencyAsset.Backing.CODEC must static-init (PascalCase keys)");
+        assertNotNull(CurrencyAsset.OnDeath.CODEC,
+                "CurrencyAsset.OnDeath.CODEC must static-init (PascalCase keys)");
+        assertNotNull(CurrencyAsset.Decay.CODEC, "CurrencyAsset.Decay.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void shopCodecsInitialize() {
+        assertNotNull(ShopAsset.CODEC, "ShopAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(ShopPoolAsset.CODEC, "ShopPoolAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(PoolSlotAsset.CODEC, "PoolSlotAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(ShopEntryAsset.CODEC, "ShopEntryAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(ShopEntryGeneratorAsset.CODEC,
+                "ShopEntryGeneratorAsset.CODEC must static-init (PascalCase keys)");
+        // The nested groups are embedded rather than stored, so a lower-case key in any of them would
+        // fail at an offer's decode instead of at this build.
+        assertNotNull(ShopEntryAsset.Listing.CODEC,
+                "ShopEntryAsset.Listing.CODEC must static-init (PascalCase keys)");
+        assertNotNull(ShopEntryAsset.Limits.CODEC,
+                "ShopEntryAsset.Limits.CODEC must static-init (PascalCase keys)");
+        assertNotNull(ShopEntryAsset.PoolMembership.CODEC,
+                "ShopEntryAsset.PoolMembership.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void commerceDestinationCodecsInitialize() {
+        // Neither is a store, but a placement, a conversation option and a block all embed one, so a
+        // lower-case key here would fail at that content's decode instead of at this build.
+        assertNotNull(CommerceDestinations.Shop.CODEC,
+                "the seeded Shop destination's codec must static-init (PascalCase keys)");
+        assertNotNull(CommerceDestinations.Board.CODEC,
+                "the seeded Board destination's codec must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void boardCodecsInitialize() {
+        assertNotNull(BoardAsset.CODEC, "BoardAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(BoardSlotAsset.CODEC, "BoardSlotAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(BountyAsset.CODEC, "BountyAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(BountyAsset.Listing.CODEC,
+                "BountyAsset.Listing.CODEC must static-init (PascalCase keys)");
+        assertNotNull(BountyAsset.BoardMembership.CODEC,
+                "BountyAsset.BoardMembership.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

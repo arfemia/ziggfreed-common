@@ -28,6 +28,7 @@ match). They are the wrong tool for a mod that wants the server's progression.
 | `ProgressionSubjectSource` | how a player becomes the subject the ACTIVE stores understand |
 | `ProgressionCallScope` | what a consumer publishes around a mutating call, so a shared surface fires what its own menu would |
 | `ProgressionTextSource` | how a surface with no catalogue NAMES a piece of content |
+| `ProgressionFactors` | the four `ziggfreedcommon:` READINGS of this runtime, claimed process-wide so any content can gate on finished progression with no Java |
 
 ## Three shapes of registration, and they behave differently
 
@@ -58,6 +59,31 @@ conflict over, which is what a registry is for.
   agreeing costs nothing.
 - **The engines are never rebuilt.** Everything they reach the world through is a forwarder over the
   parts snapshot, so late registration is live AND every cached engine reference stays valid.
+- **A factor READ never builds the runtime.** `ProgressionFactors` answers nothing until
+  `isBuilt()`, because a gate evaluated early - a placement sweep, a content audit - would otherwise
+  seal every sealed part before the consumers that own them had registered. A moment of shut gates
+  is recoverable; a boot that moved where player data lives is not.
+
+## The readings, and why they are contributed rather than registered
+
+`ProgressionFactors` turns this runtime into four ordinary factor ids
+(`ziggfreedcommon:quest_completed` / `quest_completions` / `achievement_earned` /
+`achievement_points`), claimed process-wide through `FactorContributions` by ONE `contribute()` call
+from the wiring root. That is the shape because there is one progression per server and any number of
+vocabularies reading it: a storefront, a board, an NPC placement, a conversation and a loot roll all
+resolve the same ids without a single registration between them, and a consumer that genuinely wants
+its own engine answered instead uses `registerInto` on its own registry, which always outranks a
+contribution.
+
+Two rules hold them honest, both pinned by `ProgressionFactorsTest`:
+
+- **The reads are NARROW** (`Reads`: six questions, every one an answer about a player). A factor
+  read may never reach a mutating engine - the same discipline `QuestStateReader` keeps for a
+  conversation - so nothing here can accept, pay out or write.
+- **An id nothing knows answers nothing.** Record first, catalogue second, then null. A typo must
+  never read as "they have not done it", which would open a bounds-less gate authored to mean "only
+  where that content exists". "Finished" is `QuestLifecycle.isFinished`, the same rule the
+  `Requires` block's `Quests` prerequisite is answered by, so the two spellings cannot disagree.
 
 ## Where the defaults live
 

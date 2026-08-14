@@ -42,6 +42,21 @@ import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.party.PartySettingsConfig;
+import com.ziggfreed.common.board.asset.BoardAsset;
+import com.ziggfreed.common.board.asset.BoardAssetStore;
+import com.ziggfreed.common.board.asset.BoardConfig;
+import com.ziggfreed.common.board.asset.BountyAsset;
+import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
+import com.ziggfreed.common.commerce.fold.CommerceOwnerLayers;
+import com.ziggfreed.common.currency.asset.CurrencyAsset;
+import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.ShopAssetStore;
+import com.ziggfreed.common.shop.asset.ShopConfig;
+import com.ziggfreed.common.shop.asset.ShopEntryAsset;
+import com.ziggfreed.common.shop.asset.ShopEntryGeneratorAsset;
+import com.ziggfreed.common.shop.asset.ShopPoolAsset;
+import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.achievement.asset.AchievementAsset;
 import com.ziggfreed.common.achievement.asset.AchievementAssetStore;
 import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
@@ -320,13 +335,101 @@ public final class FrameworkAssetRegistrar {
                         AchievementMilestoneConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap())));
 
+        // --- Currencies (Pattern A) - one wallet per file: what backs it, what it is worth at most,
+        //     and how it wears away. The merge also re-reads the server owner's own
+        //     mods/ziggfreedcommon/currencies.json, which is why it runs HERE rather than at setup:
+        //     an owner entry is decoded against whatever the packs already say about that id, so it
+        //     has nothing to inherit from until the pack layer has landed. ---
+        AssetStoreRegistrar.registerStore(CurrencyAsset.class,
+                new DefaultAssetMap<String, CurrencyAsset>(), CurrencyAsset.TYPE_ROOT,
+                CurrencyAsset::getId, CurrencyAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, CurrencyAsset.class,
+                (LoadedAssetsEvent<String, CurrencyAsset, DefaultAssetMap<String, CurrencyAsset>> ev) -> {
+                    CurrencyConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    CommerceOwnerLayers.reloadCurrencies();
+                });
+
+        // --- Shops (Pattern A) - the storefront PAGE: what it is called, which wallets its header
+        //     shows, the order its shelves read in. What is for sale is a file per offer naming it,
+        //     so adding one thing to a shop never means editing the shop. Owner layer
+        //     mods/ziggfreedcommon/shops.json, re-read on the same event and for the same reason. ---
+        AssetStoreRegistrar.registerStore(ShopAsset.class,
+                new DefaultAssetMap<String, ShopAsset>(), ShopAsset.TYPE_ROOT,
+                ShopAsset::getId, ShopAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ShopAsset.class,
+                (LoadedAssetsEvent<String, ShopAsset, DefaultAssetMap<String, ShopAsset>> ev) -> {
+                    ShopConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    CommerceOwnerLayers.reloadShops();
+                });
+
+        // --- ShopPools (Pattern A) - one rotating shelf inside a storefront: its cadence, how it
+        //     draws, the shape of one rotation, and what a reroll costs. ---
+        AssetStoreRegistrar.registerStore(ShopPoolAsset.class,
+                new DefaultAssetMap<String, ShopPoolAsset>(), ShopPoolAsset.TYPE_ROOT,
+                ShopPoolAsset::getId, ShopPoolAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ShopPoolAsset.class,
+                (LoadedAssetsEvent<String, ShopPoolAsset, DefaultAssetMap<String, ShopPoolAsset>> ev) -> {
+                    ShopPoolConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    CommerceOwnerLayers.reloadShopPools();
+                });
+
+        // --- ShopEntries (Pattern A) - one offer per file: a price in exchange for a reward, both in
+        //     the library's shared vocabularies. Folding is part of the SAME listener for the reason
+        //     the reward kinds are: the catalogue the purchase engine reads is built FROM the store,
+        //     and a registrar that merged without rebuilding it would leave every shop showing what
+        //     the last load said. ---
+        AssetStoreRegistrar.registerStore(ShopEntryAsset.class,
+                new DefaultAssetMap<String, ShopEntryAsset>(), ShopEntryAsset.TYPE_ROOT,
+                ShopEntryAsset::getId, ShopEntryAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ShopEntryAsset.class,
+                (LoadedAssetsEvent<String, ShopEntryAsset, DefaultAssetMap<String, ShopEntryAsset>> ev) -> {
+                    ShopAssetStore.getInstance().mergeEntries(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    CommerceCatalogs.refreshShops();
+                });
+
+        // --- ShopEntryGenerators (Pattern A) - "the same packet, once per skill" as one file. They
+        //     are loaded AFTER the offers they inherit from, because expansion resolves each
+        //     generated child against its Base out of the offer store. ---
+        AssetStoreRegistrar.registerStore(ShopEntryGeneratorAsset.class,
+                new DefaultAssetMap<String, ShopEntryGeneratorAsset>(), ShopEntryGeneratorAsset.TYPE_ROOT,
+                ShopEntryGeneratorAsset::getId, ShopEntryGeneratorAsset.CODEC,
+                new Class<?>[]{ShopEntryAsset.class});
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ShopEntryGeneratorAsset.class,
+                (LoadedAssetsEvent<String, ShopEntryGeneratorAsset, DefaultAssetMap<String, ShopEntryGeneratorAsset>> ev) -> {
+                    ShopAssetStore.getInstance().mergeGenerators(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    CommerceCatalogs.refreshShops();
+                });
+
+        // --- Boards (Pattern A) - the NOTICE a rotating set of contracts is posted on: how often the
+        //     postings change, what shape one takes, and what a player has to be before they may take
+        //     the heavier work. Owner layer mods/ziggfreedcommon/boards.json. ---
+        AssetStoreRegistrar.registerStore(BoardAsset.class,
+                new DefaultAssetMap<String, BoardAsset>(), BoardAsset.TYPE_ROOT,
+                BoardAsset::getId, BoardAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, BoardAsset.class,
+                (LoadedAssetsEvent<String, BoardAsset, DefaultAssetMap<String, BoardAsset>> ev) -> {
+                    BoardConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    CommerceOwnerLayers.reloadBoards();
+                });
+
+        // --- Bounties (Pattern A) - one contract per file, reusing the quest schema's own groups,
+        //     plus the boards it may be posted on. The fold into runnable definitions is deferred to
+        //     whoever runs the progression, exactly as quests and achievements are. ---
+        AssetStoreRegistrar.registerStore(BountyAsset.class,
+                new DefaultAssetMap<String, BountyAsset>(), BountyAsset.TYPE_ROOT,
+                BountyAsset::getId, BountyAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, BountyAsset.class,
+                (LoadedAssetsEvent<String, BountyAsset, DefaultAssetMap<String, BountyAsset>> ev) ->
+                        BoardAssetStore.getInstance().merge(AssetMergeAdapter.layer(ev.getAssetMap())));
+
         try {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
                             + "Lootables, RollPools, RewardKinds, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, "
                             + "Quests, QuestGenerators, Achievements, AchievementCategories, "
-                            + "AchievementMilestones).");
+                            + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "
+                            + "ShopEntryGenerators, Boards, Bounties).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }

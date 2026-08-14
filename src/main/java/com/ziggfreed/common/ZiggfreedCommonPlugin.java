@@ -18,7 +18,16 @@ import com.hypixel.hytale.server.core.universe.world.events.AddWorldEvent;
 import com.hypixel.hytale.server.core.universe.world.events.RemoveWorldEvent;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.FrameworkAssetRegistrar;
+import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.cast.WorldEvictors;
+import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
+import com.ziggfreed.common.commerce.fold.CommerceDefaults;
+import com.ziggfreed.common.commerce.fold.CommerceDestinations;
+import com.ziggfreed.common.commerce.fold.CurrencyRewardKind;
+import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.rotation.SelectionStrategies;
+import com.ziggfreed.common.shop.asset.ShopConfig;
+import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.entity.PlayerIdentityCache;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
@@ -48,6 +57,7 @@ import com.ziggfreed.common.objectives.book.ObjectiveBookInteractions;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
+import com.ziggfreed.common.progress.runtime.ProgressionFactors;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -134,6 +144,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
         registerEditorDataSets();
         registerLootVocabulary();
+        registerCommerce();
         setupPlacementEngine();
         setupTalkCredit();
         registerWorldLifecycle();
@@ -170,12 +181,20 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * it, and an ECS system is a setup-time registration, so neither can wait for that. Where a
      * consumer owns the stores, nothing attaches the component and every producer it replaced
      * returns on its first line.
+     *
+     * <p>The last one is the progression READINGS ({@link ProgressionFactors#contribute()}): four
+     * factor ids claimed process-wide, so any content anywhere - a storefront, a board, a placement,
+     * a conversation, a loot roll - can gate on a finished quest or an earned achievement with no
+     * Java and no dependency on the engine that owns the answer. It is a contribution rather than a
+     * registration into one vocabulary, which is why it belongs beside the runtime it reads and not
+     * inside any consumer's own setup.
      */
     private void setupProgressionRuntime() {
         try {
             ZigProgressComponent.register(getEntityStoreRegistry());
             ObjectiveBookInteractions.register(this);
             ProgressionDefaults.install(this);
+            ProgressionFactors.contribute();
         } catch (Throwable t) {
             SafeLog.warn("[progression] shared runtime wiring failed", t);
         }
@@ -219,6 +238,28 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     }
 
     /**
+     * The economy a bare server starts with: the commerce state store nothing has replaced yet, the
+     * currency engine over whatever wallets the packs authored, and the reward kind that pays one.
+     *
+     * <p>The kind is UNPREFIXED and registered from up here for the same reason the effect kind is:
+     * the loot layer sits underneath everything that pays out and must never reach sideways into a
+     * domain, so it keeps a hole where a wallet grant would be and this layer - which can see both
+     * ends - fills it.
+     *
+     * <p>Installing the defaults here is safe rather than a clobber because every consumer declares
+     * this library as a dependency, so the server loads it first and a consumer that keeps this state
+     * itself replaces both in its own {@code setup()}.
+     */
+    private void registerCommerce() {
+        try {
+            CommerceDefaults.install();
+            CurrencyRewardKind.registerInto(RewardKinds.shared());
+        } catch (Throwable t) {
+            SafeLog.warn("[commerce] economy wiring failed", t);
+        }
+    }
+
+    /**
      * The factor vocabulary a rolled reward reads through: the portable engine readings about the
      * receiving player, plus the two instance readings ({@code instance_score} / {@code instance_win}),
      * which answer only where the asking moment carried a run outcome and stay unanswerable - so
@@ -245,6 +286,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     private void registerDestinations() {
         try {
             NpcDestinations.register();
+            CommerceDestinations.register();
         } catch (Throwable t) {
             SafeLog.warn("[destination] could not seed the generic destinations", t);
         }
@@ -268,6 +310,19 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                 ProgressEditorDataSets::objectiveKindIds);
         EditorDataSets.live(getEventRegistry(), ProgressEditorDataSets.REWARD_KINDS,
                 ProgressEditorDataSets::rewardKindIds);
+        // The commerce pick lists answer off the folded content itself, so an author picks a wallet,
+        // a storefront, a shelf or a board that this server genuinely has - and a pack loaded later
+        // simply widens the next answer.
+        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.CURRENCIES,
+                CurrencyConfig.getInstance()::ids);
+        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.SHOPS,
+                ShopConfig.getInstance()::ids);
+        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.SHOP_POOLS,
+                ShopPoolConfig.getInstance()::ids);
+        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.BOARDS,
+                BoardConfig.getInstance()::ids);
+        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.SELECTION_TYPES,
+                SelectionStrategies::types);
     }
 
     /** Every factor id an author can name here: registered placement providers plus derived assets. */

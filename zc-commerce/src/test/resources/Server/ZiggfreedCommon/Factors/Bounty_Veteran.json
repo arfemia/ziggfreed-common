@@ -1,0 +1,11 @@
+{
+  "$Comment": "A requirement vocabulary minted with no code: the file NAME is the factor id, so anything that gates - a board band, a storefront, an offer, a conversation line - can now ask for 'bounty_veteran' and mean this. Base is what it reads when every optional input is missing, and Clamp keeps one runaway input from swamping the rest. Retune the weights here and every gate written against it moves at once.",
+  "Formula": {
+    "Base": 0.0,
+    "Factors": [
+      { "Factor": "hytale:stat", "Param": "MMO_CombatLevel", "Weight": 1.0 },
+      { "Factor": "hytale:stat", "Param": "MMO_TotalLevel", "Weight": 0.1 }
+    ],
+    "Clamp": { "Max": 200.0 }
+  }
+}

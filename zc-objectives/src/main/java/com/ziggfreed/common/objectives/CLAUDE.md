@@ -58,8 +58,10 @@ side except their inventory.
   resolves its player as `subject.handleAs(Player.class)`, and this runtime attaches a `ProgressHandle`
   instead, so the handle implements `Subject.HandleFacets` and stands in for the player itself. A
   handle that answered only for itself would leave every collected quest paying out nothing.
-- **A permission probe over that same handle.** The library's ready-made probe expects the handle to
-  BE a `PlayerRef`, so `ProgressHandle` stands in for that too.
+- **A `PlayerRef` off that same handle.** A reward asked to run its command with the PLAYER's own
+  authority looks the subject up as a `PlayerRef`, so `ProgressHandle` stands in for that too.
+  Nothing extra answers a `Requires` block's `Permission` leaf: it is a `hytale:permission` factor
+  bound, so the portable vocabulary registered above and a context carrying the player are all of it.
 
 ## What these defaults deliberately do NOT supply
 

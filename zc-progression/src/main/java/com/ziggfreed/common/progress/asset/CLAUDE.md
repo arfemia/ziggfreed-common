@@ -14,6 +14,27 @@ engine's own codec.
 | `ObjectiveLeafAsset` (+ `appendLeaves`) | the seven leaves every authored objective carries: `Kind` / `Target` / `MatchMode` / `Qualifier` / `Amount` / `Zone` / `TextKey` |
 | `RewardEntryAsset` | one `Rewards[]` entry: `Kind` plus an open `Params` map |
 | `ProgressEditorDataSets` | the in-game editor pick lists (`objective_kinds`, `reward_kinds`) both engines' `Kind` fields point at |
+| `GeneratorAxisAsset` | one `ForEach` axis: `Token` / `Values` / `Source` / `Filter` |
+| `GeneratorSpec` | the four leaves the expander reads off ANY generator asset: `Base`, `IdPattern`, the axes, `Child` |
+| `GeneratedBody` | one piece of content a generator wrote: id, body carrying its `Parent`, base id, generator id |
+| `GeneratorCore` (+ `.Expansion`, `.AxisValueSource`) | THE expander: the axis walk, the substitution contract, the findings |
+
+## One expander, however many content types write families
+
+A generator is not a quest feature: a shop offer, and whatever writes families next, want the same
+"one file, one family" shape. So the walk, the substitution rules and the findings live here ONCE and
+each store supplies only its own body type and the word a finding is phrased in. Two copies would
+mean an author discovering that one generator substitutes an object KEY and the other does not, which
+is the sort of difference nobody finds until a file silently writes the wrong thing.
+
+- **Substitution, in full**: every string value, every object KEY, and `IdPattern`; a value that is
+  EXACTLY one token keeps that token's own type (so `"Amount": "{amount}"` lands as a number); a token
+  nothing binds is an ERROR and that one entry is skipped rather than shipped half-written.
+- **`AxisValueSource` is a SEAM, not a registry.** The open value-source vocabulary a consumer
+  registers is registered ONCE and adapted into this shape by each store, so a list a mod enumerates
+  serves every generator on the server rather than being registered again per content type.
+- **`domain` and `noun` are parameters** so a finding lands in the right report and reads in the
+  author's own terms. Nothing here names a lifecycle or a content type.
 
 ## Rules to keep
 

@@ -1,0 +1,12 @@
+{
+  "$Comment": "The featured shelf of the general store: a handful of the offers that name it, swapped at midnight UTC. It authors no Slots, so the draw is unshaped and any featured offer can fill any place - give it Slots if you want one cache and one boost every day rather than whatever the weights happen to produce.",
+  "Text": { "TitleKey": "ui.shop.category.featured" },
+  "Shop": "General",
+  "Order": 0,
+  "Rotation": { "Period": "Daily" },
+  "Selection": { "Type": "Weighted_Random" },
+  "Reroll": {
+    "Cost": { "Currencies": { "Bounty_Token": 40 } },
+    "MaxPerPeriod": 2
+  }
+}

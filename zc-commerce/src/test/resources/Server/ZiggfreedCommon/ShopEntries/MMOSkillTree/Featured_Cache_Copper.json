@@ -1,0 +1,13 @@
+{
+  "$Comment": "A featured cache: it only appears on the days the featured shelf draws it. Weight 2 makes it twice as likely as an even rival, which is how a staple stays common without shutting the rarer caches out entirely.",
+  "Text": { "TitleKey": "shop.featured_cache_copper.title", "FlavorKey": "shop.featured_cache_copper.desc" },
+  "Icon": "Ore_Copper",
+  "Shop": "General",
+  "Listing": { "Category": "featured" },
+  "Cost": { "Currencies": { "Bounty_Token": 90 } },
+  "Limits": { "Daily": 3 },
+  "Pool": { "Id": "Featured", "Weight": 2 },
+  "Rewards": [
+    { "Kind": "Item", "Params": { "Item": "Ore_Copper", "Count": "48" } }
+  ]
+}

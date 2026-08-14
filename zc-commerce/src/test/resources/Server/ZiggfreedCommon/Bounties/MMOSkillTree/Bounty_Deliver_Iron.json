@@ -1,0 +1,13 @@
+{
+  "$Comment": "An easy delivery: a stack of iron ore, handed back at the board. Weight 2 makes it twice as likely as an even rival for the same easy slot, which is how a staple contract stays common without crowding the band out.",
+  "Parent": "Bounty_TurnIn",
+  "Text": { "TitleKey": "quest.bounty_deliver_iron.title", "FlavorKey": "quest.bounty_deliver_iron.flavor" },
+  "Boards": [ { "Board": "Daily", "Difficulty": "Easy", "Weight": 2 } ],
+  "Objectives": {
+    "main": { "Target": "Ore_Iron", "Amount": 64 }
+  },
+  "Rewards": [
+    { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "75" } },
+    { "Kind": "Mmo_Xp", "Params": { "Skill": "MINING", "Amount": "800" } }
+  ]
+}

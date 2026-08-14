@@ -31,8 +31,10 @@ compiles as `:zc-entity`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggr
   - [`entity/performer/`](src/main/java/com/ziggfreed/common/entity/performer/CLAUDE.md) - the
     `StationPerformer` contract (`HolderPerformer`/`NpcRolePerformer` backends,
     `PerformerIdentityComponent` + `PerformerReconciler`).
-- `factor/` - `HytaleFactors` only, the portable `hytale:` factor standard library that reads real
-  engine entity/item data. This is one half of a deliberate split package; the domain-free model
+- `factor/` - `HytaleFactors` only, the portable `hytale:` factor standard library: nine straight
+  reads of engine data about the context's own subject - its stat channels, what it is holding, and
+  (`hytale:permission`) the permission nodes its connection holds. This is one half of a deliberate
+  split package; the domain-free model
   (`FactorContext`/`FactorProvider`/`FactorRegistry`/`FactorCondition`) lives in
   [`zc-core`'s `factor/`](../zc-core/src/main/java/com/ziggfreed/common/factor/CLAUDE.md), whose
   router carries the shared vocabulary. No router of its own (one file).

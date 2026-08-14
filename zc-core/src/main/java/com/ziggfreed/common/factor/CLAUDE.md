@@ -135,14 +135,22 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
 ## The portable standard library (zc-entity)
 
 - **[`HytaleFactors`](../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/factor/HytaleFactors.java)** -
-  `registerInto(registry, owner)` claims eight `hytale:` ids, all straight reads of NATIVE engine
+  `registerInto(registry, owner)` claims nine `hytale:` ids, all straight reads of NATIVE engine
   data about the context's own subject: `stat` (Param = a registered `EntityStatType` id, answering
   its EFFECTIVE folded max), `tool_power` (Param = a native `GatherType`; omit for the best of any
   type), `tool_tier` (same Param contract as `tool_power`, a DIFFERENT native field - see below),
   `tool_durability_percent`, `tool_quality`, `tool_item_level`, `held_tag` (Param =
-  `family:value` or a bare value), `held_item` (Param = an item id). **The namespace names the
+  `family:value` or a bare value), `held_item` (Param = an item id), `permission` (Param = a
+  permission node, answered by `PlayerRef#hasPermission`). **The namespace names the
   vocabulary's OWNER, not the registrant** - two mods converging on `hytale:tool_quality` is
   agreement rather than a collision, and an author can tell portability from the id alone.
+- **`permission` is portable because permissions are the ENGINE's paradigm** - a node on the
+  player's connection, declared in a manifest - not one mod's invention. It is the factor spelling
+  of the same requirement a shared `Requires` block writes as its `Permission` leaf, and both
+  bottom out in that one engine call, so a server sees ONE answer whichever way it is authored. It
+  reads `null` (never `0`) with no subject AND for a subject that is not a player: an entity with no
+  connection has no permissions to hold, and a definite `0` there would open a "must NOT hold this"
+  bound for every mob in the world.
 - **The four TOOL-shaped axes are deliberately four** and none subsumes another: `tool_power` is the
   functional read but SATURATES across a family's upper tiers; `tool_tier` is the per-job GATE the
   engine itself enforces before a spec's power counts at all (a spec below a block's required tier
@@ -183,6 +191,49 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
   is the guarded read layer underneath (active hotbar stack, item asset, raw tags, tool powers,
   quality value, item level, durability percent). Same rule: null means "cannot tell", never zero.
 
+## The progression readings (zc-progression)
+
+- **[`ProgressionFactors`](../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/progress/runtime/ProgressionFactors.java)** -
+  four `ziggfreedcommon:` ids answering for THE shared progression runtime: `quest_completed`
+  (Param = a quest id, 1 when ever finished), `quest_completions` (Param = a quest id, the lifetime
+  count a repeatable is gated on), `achievement_earned` (Param = an achievement id, 1 when earned,
+  collected or not) and `achievement_points` (Param ignored, the earned points total a milestone
+  gate is written against). They live beside the runtime that answers them because that is the one
+  progression a server has, whoever contributed to it.
+- **They are CONTRIBUTED, not registered per consumer**: the wiring root calls `contribute()` once,
+  so every vocabulary on the server resolves them - a storefront's `Requires`, a board, a placement
+  gate, a dialogue condition, a loot roll - with nothing to wire. `registerInto` is the same four
+  ids over somebody else's engine, for a consumer running a private one.
+- **An id nothing knows reads `null`, never `0`.** A mistyped quest id answering `0` would read as
+  "they have not done it" and OPEN a bounds-less gate, so the ladder is: the player's own RECORD
+  first (a quest they finished still answers after the content is retired), then the CATALOGUE
+  (known, not done: `0`), then nothing. `quest_completions` answers nothing where the store cannot
+  remember completions at all, because reporting everybody as zero would pass a "fewer than N" bound
+  for a player who had done it a hundred times.
+- **A read never BUILDS the runtime** (it answers null until something else does), so a gate
+  evaluated during a placement sweep or a content audit cannot seal the engines before every
+  consumer has registered its parts.
+
+## Levels, and every other consumer-mirrored number
+
+There is no factor id for a level, and there deliberately never will be: a consumer that mirrors its
+own numbers onto NATIVE stat channels gets them read by `hytale:stat` for free, with no vocabulary
+of its own to register and no dependency for the content author. That is the authoring pattern for
+this whole class of requirement:
+
+```json
+"Requires": { "Conditions": [
+  { "Factor": "hytale:stat", "Param": "MMO_Level_MINING", "Min": 30 },
+  { "Factor": "hytale:stat", "Param": "MMO_CombatLevel",  "Min": 60 } ] }
+```
+
+`Param` is the channel's registered `EntityStatType` id - a jar-bundled `Server/Entity/Stats/<id>.json`
+or one a mod registers at boot - and the reading is its EFFECTIVE (folded max) value. A channel id
+nothing registered fails closed with one named warn per id, which is what a typo in a `Param` looks
+like. Mirror a derived scalar with
+[`stats/StatMirror`](../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/stats/CLAUDE.md)
+and it is gate-able, scale-able and roll-able from that moment on.
+
 ## Consumers today
 
 - **`npc.placement`** - `NpcPlacementAsset.Requires.Conditions` is a `FactorCondition[]`, evaluated
@@ -195,6 +246,12 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
 - **a CONTRIBUTING mod** - one that registers ids through `FactorContributions` rather than reading
   any vocabulary of its own, so its numbers reach every consumer's content with no edge in either
   direction (a mob-difficulty mod publishing rarity / difficulty / region readings is the shape).
+  The library's own progression readings are contributed the same way, from the wiring root.
+- **a shared `Requires` block** -
+  [`progress/gate`](../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/progress/gate/CLAUDE.md)'s
+  `Factors` leaf is a `FactorCondition[]` over the consumer's registry, so a requirement on any
+  content this library carries is the same numeric gate an NPC placement or a dialogue option is
+  written with.
 
 ## Asset Editor pick lists
 
@@ -220,8 +277,13 @@ installed one, plus local-beats-contributed precedence and per-contributor attri
 `DerivedFactorTest` runs an asset-defined factor end to end and
 pins the two silent killers (a cycle fails closed ALL the way out rather than being swallowed by the
 degrade-to-zero rule, and a definition reloaded away is not cached open); `DerivedFactorValidatorTest`
-covers the findings. `zc-entity`'s `HytaleFactorsTest` pins the no-subject behaviour of every
-portable id (null, never zero, never a throw), and `entity/ToolPowerSelectionTest` +
+covers the findings. `zc-progression`'s `progress/runtime/ProgressionFactorsTest` walks each
+progression ladder rung by rung over a double AND over the real engines on in-memory stores, and
+pins the two rules a reader has to trust: an id nothing knows answers nothing (so a bounds-less gate
+on a typo stays shut), and the `Quests` prerequisite leaf and `quest_completed` agree about one
+player and one quest. `zc-entity`'s `HytaleFactorsTest` pins the no-subject behaviour of every
+portable id (null, never zero, never a throw), with `permission` pinned on its own because it is the
+one whose absent answer could be argued as a definite no, and `entity/ToolPowerSelectionTest` +
 `entity/ToolTierSelectionTest` (mirror-image files, one per native field) each pin their own
 selection contract over a FIXTURE multi-gather-type tool (the spec fold and its
 lowercasing/strongest-wins rules, the named pick, case-insensitivity, absent-type null, and the

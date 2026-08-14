@@ -1,0 +1,7 @@
+{
+  "$Comment": "The skill experience storefront. Its packets are priced in bounty tokens and life essence together, so both wallets are listed and both balances stay visible while browsing. Drop an id from the list to hide that wallet.",
+  "Text": { "TitleKey": "shop.xpexchange.title", "FlavorKey": "shop.xpexchange.desc" },
+  "Icon": "Tool_Pickaxe_Crude",
+  "Order": 1,
+  "Currencies": ["Bounty_Token", "Life_Essence"]
+}

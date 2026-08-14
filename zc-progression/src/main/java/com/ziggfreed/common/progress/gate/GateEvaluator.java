@@ -9,7 +9,6 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorConditions;
 import com.ziggfreed.common.factor.FactorContext;
@@ -33,11 +32,18 @@ import com.ziggfreed.common.util.SafeLog;
  * <pre>{@code
  * GateEvaluator gates = GateEvaluator.builder()
  *         .factors(myFactorRegistry)
- *         .factorContext(subject -> FactorContext.builder().subject(refOf(subject)).build())
- *         .permissions(GateEvaluator.playerRefPermissions())
+ *         .factorContext(subject -> FactorContext.builder()
+ *                 .store(storeOf(subject)).subject(refOf(subject)).build())
  *         .gateKinds(myGateKinds)
  *         .build();
  * }</pre>
+ *
+ * <p><b>A {@code Permission} leaf is a factor bound spelled short</b>, resolved as
+ * {@code {"Factor": "hytale:permission", "Param": <node>, "Min": 1}} through the very same registry
+ * lookup every other factor condition takes. So there is nothing to wire for it beyond the factor
+ * vocabulary itself, and one permission question has one answer however content spells it. Register
+ * the portable {@code hytale:} standard library into the registry handed to {@link Builder#factors}
+ * and give {@link Builder#factorContext} a context carrying the player, and the leaf works.
  *
  * <p>A refusal is an opaque REASON TOKEN naming what shut the gate ({@code "factor:yourmod:rank"},
  * {@code "permission"}, {@code "quest:intro_1"}, {@code "gate:yourmod:reputation"},
@@ -60,18 +66,21 @@ public final class GateEvaluator {
     /** The reason token for an {@code AnyOf} block where no group passed. */
     public static final String REASON_ANY_OF = "any_of";
 
-    /** Answers "does this player hold this permission node?". */
-    @FunctionalInterface
-    public interface PermissionProbe {
+    /**
+     * The factor a {@code Permission} leaf is evaluated as: {@code Param} is the node, and the
+     * reading is 1 when the player holds it. It belongs to the portable {@code hytale:} vocabulary
+     * because permissions are the engine's own paradigm rather than any one mod's invention.
+     *
+     * <p>It is named here as a STRING rather than by referencing the class that registers it,
+     * because that class lives in a module this one sits below. Nothing is lost by that: the id is
+     * looked up in the registry at evaluation time exactly as an authored one is, which is what
+     * makes the leaf and the long spelling the same requirement rather than two that happen to
+     * agree.
+     */
+    public static final String PERMISSION_FACTOR = "hytale:permission";
 
-        /** Refuses everything: the right answer when nothing is wired to say otherwise. */
-        PermissionProbe NONE = (subject, permission) -> false;
-
-        /** Grants everything, for a server that runs no permission system at all. */
-        PermissionProbe ALLOW = (subject, permission) -> true;
-
-        boolean holds(@Nonnull Subject subject, @Nonnull String permission);
-    }
+    /** The bound a {@code Permission} leaf carries: the node is held, or it is not. */
+    private static final Double MUST_HOLD = Double.valueOf(1.0);
 
     /** Answers "has this player finished this quest?". */
     @FunctionalInterface
@@ -84,21 +93,20 @@ public final class GateEvaluator {
     }
 
     /**
-     * The permission probe that reads Hytale's own permission API off the subject's handle. It
-     * answers only when the handle is a {@link PlayerRef}; anything else refuses, because a subject
-     * this library cannot recognise is a subject whose permissions it cannot honestly report.
+     * The factor condition a {@code Permission} leaf MEANS:
+     * {@code {"Factor": "hytale:permission", "Param": node, "Min": 1}}. Write the leaf or write the
+     * condition and a server sees one answer, because the leaf is evaluated as exactly this.
+     *
+     * <p>The node is passed through as authored; the factor's own provider trims it and reads a
+     * blank one as nothing it can answer.
      */
     @Nonnull
-    public static PermissionProbe playerRefPermissions() {
-        return (subject, permission) -> {
-            PlayerRef ref = subject.handleAs(PlayerRef.class);
-            return ref != null && ref.hasPermission(permission);
-        };
+    public static FactorCondition permissionCondition(@Nonnull String node) {
+        return FactorCondition.of(PERMISSION_FACTOR, node, MUST_HOLD, null);
     }
 
     @Nullable private final FactorRegistry factors;
     private final Function<Subject, FactorContext> factorContext;
-    private final PermissionProbe permissions;
     private volatile CompletionProbe completion;
     private final GateKindRegistry gateKinds;
     private final Consumer<String> warn;
@@ -107,7 +115,6 @@ public final class GateEvaluator {
     private GateEvaluator(@Nonnull Builder b) {
         this.factors = b.factors;
         this.factorContext = b.factorContext;
-        this.permissions = b.permissions;
         this.completion = b.completion;
         this.gateKinds = b.gateKinds;
         this.warn = b.warn;
@@ -184,8 +191,10 @@ public final class GateEvaluator {
             }
         }
 
+        // The leaf IS the factor: same registry, same context, same fail-closed rules. The refusal
+        // still names the leaf, because that is what the author wrote and what they can go and fix.
         String permission = clause.getPermission();
-        if (permission != null && !permission.isBlank() && !permissions.holds(subject, permission.trim())) {
+        if (permission != null && !factorsPass(subject, List.of(permissionCondition(permission)))) {
             return REASON_PERMISSION;
         }
 
@@ -248,7 +257,6 @@ public final class GateEvaluator {
 
         @Nullable private FactorRegistry factors;
         private Function<Subject, FactorContext> factorContext = subject -> FactorContext.builder().build();
-        private PermissionProbe permissions = PermissionProbe.NONE;
         private CompletionProbe completion = CompletionProbe.NONE;
         private GateKindRegistry gateKinds = new GateKindRegistry();
         private Consumer<String> warn = msg -> SafeLog.warn("[quest-gate] " + msg);
@@ -256,7 +264,10 @@ public final class GateEvaluator {
         private Builder() {
         }
 
-        /** The vocabulary factor bounds are answered against. Unset means every bound refuses. */
+        /**
+         * The vocabulary factor bounds are answered against. Unset means every bound refuses -
+         * including a {@code Permission} leaf, which is one of those bounds.
+         */
         @Nonnull
         public Builder factors(@Nullable FactorRegistry factors) {
             this.factors = factors;
@@ -266,18 +277,12 @@ public final class GateEvaluator {
         /**
          * How a subject becomes the context a factor provider reads (the entity, the store, the
          * world). Unset builds an empty context, which is enough for a provider that only needs the
-         * authored {@code Param}.
+         * authored {@code Param} - but not for one that reads the player, so a surface with
+         * {@code Permission} leaves to answer supplies the store and the subject here.
          */
         @Nonnull
         public Builder factorContext(@Nonnull Function<Subject, FactorContext> factorContext) {
             this.factorContext = factorContext;
-            return this;
-        }
-
-        /** Who answers a {@code Permission} leaf. Unset refuses every one of them. */
-        @Nonnull
-        public Builder permissions(@Nonnull PermissionProbe permissions) {
-            this.permissions = permissions;
             return this;
         }
 

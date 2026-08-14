@@ -24,13 +24,13 @@ Produces `build/libs/ZiggfreedCommon-<version>.jar` and copies the runtime jar (
 
 ## Modules (build-time only - one jar ships)
 
-The library is built as TWELVE Gradle modules plus a thin wiring root, all sharing the ONE package root `com.ziggfreed.common`. **A module boundary is a build-time concern only**: the module jars are merged back into the single `ZiggfreedCommon-<version>.jar` a server loads, so no consumer import, class name, `manifest.json`, or build script changes because of it. Only the aggregate is installable - the per-module jars in `zc-*/build/libs` are compile inputs, carry no `manifest.json`, and are NOT loadable mods on their own (the shipped `.ui` pack references across module lines, e.g. a dialogue page importing the shared frames). The point of the split is that a module reaches only what its `build.gradle` declares, so an accidental cross-domain edge fails the build instead of quietly welding two domains together.
+The library is built as THIRTEEN Gradle modules plus a thin wiring root, all sharing the ONE package root `com.ziggfreed.common`. **A module boundary is a build-time concern only**: the module jars are merged back into the single `ZiggfreedCommon-<version>.jar` a server loads, so no consumer import, class name, `manifest.json`, or build script changes because of it. Only the aggregate is installable - the per-module jars in `zc-*/build/libs` are compile inputs, carry no `manifest.json`, and are NOT loadable mods on their own (the shipped `.ui` pack references across module lines, e.g. a dialogue page importing the shared frames). The point of the split is that a module reaches only what its `build.gradle` declares, so an accidental cross-domain edge fails the build instead of quietly welding two domains together.
 
 **Every inter-module edge is `implementation`, never `api`.** An `api` edge leaks its own dependencies onto every downstream module's compile classpath, which is exactly the isolation this table claims to have and would not have. Restore `api` on a single edge only when a module's PUBLIC SIGNATURE genuinely re-exports another module's type, and name that type in a trailing comment. One such re-export exists today and deliberately stays `implementation` because nothing depends on that module yet: `zc-dialogue`'s `DialogueCondition.World#getSelector` returns a `world.WorldSelector`. (`jsr305` stays `api` in `gradle/zc-module.gradle` - consumers compiling against the aggregate must resolve the annotations.)
 
 | Module | Packages | Depends on | Ships `.ui` |
 |---|---|---|---|
-| `zc-core` | `CommonLog`, `util`, `codec`, `command`, `validation`, `registry`, `factor` (the model + registry + condition), `match`, `subject`, `counter`, `i18n`, `inventory`, `health`, `stats.StackStats`, `cast.WorldEvictors`, `asset` (the base classes) | - | - |
+| `zc-core` | `CommonLog`, `util`, `codec`, `command`, `validation`, `registry`, `factor` (the model + registry + condition), `match`, `subject`, `counter`, `time`, `i18n`, `inventory`, `health`, `stats.StackStats`, `cast.WorldEvictors`, `asset` (the base classes) | - | - |
 | `zc-presentation` | `ui`, `sound`, `camera`, `feedback` | core | yes (the shared frames + buttons + toast + form rows) |
 | `zc-cast` | `cast` (minus `WorldEvictors`), `interaction` | core | - |
 | `zc-entity` | `entity`, `stats` (minus `StackStats`), `factor` (the portable `hytale:` standard library) | core | - |
@@ -42,7 +42,8 @@ The library is built as TWELVE Gradle modules plus a thin wiring root, all shari
 | `zc-objectives` | `objectives` (the standalone progression runtime: `objectives.runtime` / `.store` / `.producer` / `.book`) | core, loot, progression, presentation, cast, entity | yes (the objective book page + its row) |
 | `zc-instance` | the remaining `instance.*`, `lobby`, `party` | core, presentation, loot | yes (play / results / leaderboard / party pages) |
 | `zc-scaling` | `scaling` | - (no engine types at all) | - |
-| **(root)** | `ZiggfreedCommonPlugin`, `asset/FrameworkAssetRegistrar`, `reward/EffectRewardKind` (the cross-domain reward kind only the root can see both ends of) | all twelve | - |
+| `zc-commerce` | `currency` (definitions + the item-or-counter dispatch + the balance engine), `cost` (the price model + the check/drain/refund engine + receipts), `rotation` (the deterministic rotating-pool primitive), `shop` (storefront/pool/entry assets + the purchase engine), `board` (board + bounty assets + the rotating quest-view engine), `commerce` (the persisted-state seam) + `commerce.fold` (the JOIN: authored content to engine values, the catalogs, the owner-file readers, the `Currency` reward kind, the `Shop`/`Board` destinations) | core, loot, progression, presentation, world | yes (shop page + board page) |
+| **(root)** | `ZiggfreedCommonPlugin`, `asset/FrameworkAssetRegistrar`, `reward/EffectRewardKind` (the cross-domain reward kind only the root can see both ends of) | all thirteen | - |
 
 **`.ui` files are a RUNTIME dependency Gradle cannot see.** A page's `.ui` imports the shared `ZigButtons.ui` / `ZigFrames.ui` from zc-presentation by path, and the build never looks inside a `.ui` file. So any module marked in the last column requires zc-presentation AT RUNTIME even where it has no compile edge - harmless while one aggregate jar ships, and the thing to remember the day anything is split or shipped separately. Fill in that column for every new module; the build will never tell you.
 
@@ -52,7 +53,8 @@ zc-core is the gravity well this whole split exists to resist: each package is i
 
 | zc-core package | Modules naming it | Standing |
 |---|---|---|
-| `CommonLog`, `util` | zc-presentation, zc-cast, zc-entity, zc-world, zc-dialogue, zc-progression, zc-instance | admitted |
+| `CommonLog`, `util` | zc-presentation, zc-cast, zc-entity, zc-world, zc-dialogue, zc-progression, zc-instance, zc-commerce | admitted. `util/PeriodMath` inside it is named by TWO on its own account: zc-progression's `RepeatPeriod` (a quest's repeat window) and zc-commerce's `RotationSpec` (a rotating pool's cadence) both index the same UTC `floorDiv` arithmetic through it, so "which window is this instant in" has ONE authority rather than two implementations that agree until one of them is fixed |
+| `time` | zc-commerce (the authored `{Days,Hours,Minutes,Seconds}` span on a rotation cadence). ONE library module today | admitted UNDER THE CARVE-OUT, like `counter` and `match`, and the row says so. It stays because it is the primitive floor's shape exactly - an authorable span with no engine type and no domain vocabulary - and because any consumer authoring a duration wants the same four leaves rather than a unit-suffixed string of its own. If a second library module names it, move this row up |
 | `asset` (bases) | zc-effects, zc-loot, zc-world, zc-dialogue, zc-progression, zc-instance | admitted |
 | `cast.WorldEvictors` | zc-entity, zc-world, zc-dialogue | admitted (split package, see below) |
 | `codec` | zc-entity, zc-dialogue, zc-progression | admitted |
@@ -108,7 +110,7 @@ below carries the real path. The repository root holds almost nothing: three jav
 `manifest.json`, and the build scripts.
 
 ```
-settings.gradle / gradle.properties / build.gradle    twelve zc-* modules + the aggregating root (see Modules)
+settings.gradle / gradle.properties / build.gradle    thirteen zc-* modules + the aggregating root (see Modules)
 gradle/zc-module.gradle                                the shared build convention every zc-* module applies
 build.ps1                                              build + auto-install
 src/main/resources/manifest.json                       root-only, and the ONLY resource at the root. Group:Ziggfreed,
@@ -131,7 +133,7 @@ THE PACKAGES (one module each - see the Modules table for which):
   validation/                                          the ONE audit-finding vocabulary every content validator reports through (Finding/Severity/ValidationReport) - see its router
   command/                                             CommandRunner (the authored-command primitive: map-driven placeholders + the /give --quantity fix + a guarded Consumer<String> failure sink over util/CommandExecutor) - see its router
   registry/                                            RegistryLedger (the shared open-registry bookkeeping engine: normalized ids, owner attribution, identity-compared warn-once overwrite, failure counting) - see its router
-  factor/                                              the shared namespaced factor + condition vocabulary (FactorContext/FactorProvider/FactorRegistry/FactorCondition/FactorConditions in zc-core, the portable hytale: HytaleFactors standard library in zc-entity beside entity/HeldItemUtil); ONE gate leaf every engine reuses, null-sentinel fail-closed throughout - see its router
+  factor/                                              the shared namespaced factor + condition vocabulary (FactorContext/FactorProvider/FactorRegistry/FactorCondition/FactorConditions in zc-core, the portable hytale: HytaleFactors standard library in zc-entity beside entity/HeldItemUtil - stats, tags, held items, and hytale:permission; plus the ziggfreedcommon: progression readings quest_completed/quest_completions/achievement_earned/achievement_points contributed by zc-progression's runtime); ONE gate leaf every engine reuses, null-sentinel fail-closed throughout - see its router
   instance/effect/ encounter/ metadata/ zone/         reusable ENCOUNTER framework: EntityEffectService/EffectBandLadder (timed/banded effects), SpawnRoster/EncounterDirector (weighted waves + gating), RoundMetadata (outbound envelope), ZoneHoldTimer (co-op hold-a-zone objective) - see the framework blockquote above
   instance/match/ arena/ result/ preset/ reward/ play/ + leaderboard/  the instance-experience layer: match rules/verdict, ArenaDefinitionAsset, MatchResult+ResultsPage, InstancePresetAsset, InstanceReward+DeferredRewards, PlayModePage, Leaderboard+LeaderboardPage - see the instance-experience blockquote
   asset/                                               generic Pattern-A registrar lift + the framework asset stores (FrameworkAssetRegistrar/AbstractKeyedAssetConfig/AbstractRawJsonAsset)

@@ -1,0 +1,11 @@
+{
+  "$Comment": "The shared skeleton for 'land a catch' contracts. Its step names no Target at all, which is how 'any fish will do' is written; a child that wants one species names it. EXACT matching pairs with that: once a child DOES name a species, only that one counts.",
+  "Abstract": true,
+  "Listing": { "Category": "bounty" },
+  "Objectives": {
+    "main": { "Kind": "CATCH_FISH", "Amount": 1, "MatchMode": "CONTAINS" }
+  },
+  "Rewards": [
+    { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "1" } }
+  ]
+}

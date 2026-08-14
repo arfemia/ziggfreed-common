@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.codec.TagMatch;
 import com.ziggfreed.common.entity.HeldItemUtil;
@@ -51,7 +52,16 @@ import com.ziggfreed.common.util.SafeLog;
  *   <tr><td>{@code hytale:held_tag}</td><td>{@code family:value}, or a bare value</td>
  *       <td>1 when the held item carries it, else 0</td></tr>
  *   <tr><td>{@code hytale:held_item}</td><td>an item id</td><td>1 on a match, else 0</td></tr>
+ *   <tr><td>{@code hytale:permission}</td><td>a permission node</td>
+ *       <td>1 when the subject's connection holds it, else 0</td></tr>
  * </table>
+ *
+ * <p><b>{@code hytale:permission} belongs to this portable set for the same reason the rest do:
+ * permissions are the ENGINE's own paradigm</b> (a node on the player's connection, declared in a
+ * mod's manifest and answered by {@code PlayerRef#hasPermission}), not any one mod's invention. It
+ * is the factor spelling of the requirement a shared {@code Requires} block writes as its
+ * {@code Permission} leaf, and both bottom out in that same engine call, so one permission question
+ * has one answer whichever way it is authored.
  *
  * <p>The FOUR tool-shaped axes are deliberately four, and none subsumes another. {@code tool_power}
  * is the FUNCTIONAL read but SATURATES across a family's upper tiers, so it cannot separate the top
@@ -62,8 +72,9 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code tool_item_level} separates same-tier tools but does NOT track rarity, so it belongs as a
  * small tiebreaker rather than a leading term. Weighting them is the author's call.
  *
- * <p><b>{@code tool_power} and {@code tool_tier} are the only two that take a {@code Param}, and
- * that is the engine's shape rather than a choice made here.</b> A tool's gather powers AND its
+ * <p><b>{@code tool_power} and {@code tool_tier} are the only two TOOL axes that take a
+ * {@code Param}, and that is the engine's shape rather than a choice made here.</b> A tool's gather
+ * powers AND its
  * harvest-tier gates are each one native {@code ItemToolSpec} field PER {@code GatherType}, so
  * neither question is meaningful until an author says which job is being asked about; rarity, item
  * level and durability are each authored once for the whole item (or, for durability, carried on
@@ -95,6 +106,8 @@ public final class HytaleFactors {
     public static final String HELD_TAG = "hytale:held_tag";
     /** {@code hytale:held_item} - 1 when the held item id equals Param, else 0. */
     public static final String HELD_ITEM = "hytale:held_item";
+    /** {@code hytale:permission} - 1 when the subject holds the permission node named by Param, else 0. */
+    public static final String PERMISSION = "hytale:permission";
 
     private static final Double YES = 1.0;
     private static final Double NO = 0.0;
@@ -123,6 +136,7 @@ public final class HytaleFactors {
         registry.register(TOOL_ITEM_LEVEL, owner, HytaleFactors::resolveToolItemLevel);
         registry.register(HELD_TAG, owner, HytaleFactors::resolveHeldTag);
         registry.register(HELD_ITEM, owner, HytaleFactors::resolveHeldItem);
+        registry.register(PERMISSION, owner, HytaleFactors::resolvePermission);
     }
 
     // ==================== providers ====================
@@ -293,6 +307,33 @@ public final class HytaleFactors {
             return null;
         }
         return wanted.equalsIgnoreCase(itemId) ? YES : NO;
+    }
+
+    /**
+     * {@code 1} when the subject's connection holds the permission node named by {@code Param},
+     * else {@code 0} - the engine's own {@code PlayerRef#hasPermission} answer, node matched
+     * exactly as the server's permission system matches it (this reads, it never interprets).
+     *
+     * <p>Null when there is no live subject, no {@code Param}, or the subject is not a PLAYER at
+     * all: an entity with no connection has no permissions to hold, and reporting that as a
+     * definite {@code 0} would let a "must NOT hold this" bound pass for a mob. Cannot tell and no
+     * are different answers, so a gate on either side of a permission stays shut where there is
+     * nobody to ask.
+     *
+     * <p>The same node written as a {@code Requires} block's {@code Permission} leaf is answered
+     * through that gate's own probe, which reads this identical engine call - author it either
+     * way and a server sees one answer.
+     */
+    @Nullable
+    static Double resolvePermission(@Nonnull FactorContext ctx) {
+        String node = trimmed(ctx.param());
+        Store<EntityStore> store = ctx.store();
+        Ref<EntityStore> subject = ctx.subject();
+        if (node == null || !ctx.hasLiveSubject() || store == null || subject == null) {
+            return null;
+        }
+        PlayerRef playerRef = store.getComponent(subject, PlayerRef.getComponentType());
+        return playerRef == null ? null : (playerRef.hasPermission(node) ? YES : NO);
     }
 
     // ==================== helpers ====================

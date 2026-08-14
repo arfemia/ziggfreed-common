@@ -10,7 +10,7 @@ import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestGates;
-import com.ziggfreed.common.quest.QuestStatus;
+import com.ziggfreed.common.quest.QuestLifecycle;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -30,9 +30,9 @@ import com.ziggfreed.common.subject.Subject;
  * content reloads long after both exist. Both handles are held atomically, so a reload swaps the
  * pool without a gap where a quest would be gated on nothing.
  *
- * <p>Everything a consumer supplies beyond this - the factor vocabulary, permissions, its own
- * requirement kinds - lives on the {@link GateEvaluator}. A quest with no requirements never
- * touches any of it.
+ * <p>Everything a consumer supplies beyond this - the factor vocabulary, the context a factor is
+ * read against, its own requirement kinds - lives on the {@link GateEvaluator}. A quest with no
+ * requirements never touches any of it.
  */
 public final class AssetQuestGates implements QuestGates {
 
@@ -110,16 +110,18 @@ public final class AssetQuestGates implements QuestGates {
     /**
      * The completion probe {@link #useEngine} installs. It is kept here rather than on the
      * evaluator so a consumer that never sets an engine still gets the fail-closed default.
+     *
+     * <p>What counts as finished is {@link QuestLifecycle#isFinished}, the ONE rule - the same one
+     * the {@code ziggfreedcommon:quest_completed} factor reading answers with - so a prerequisite
+     * written as a {@code Quests} leaf and the same requirement written as a factor condition can
+     * never disagree about one player and one quest.
      */
     @Nonnull
     GateEvaluator.CompletionProbe completionProbe() {
         return (subject, questId) -> {
             QuestEngine current = engine.get();
-            if (current == null) {
-                return false;
-            }
-            QuestStatus stored = current.store().status(subject, questId);
-            return stored == QuestStatus.COMPLETED || stored == QuestStatus.COMPLETED_UNCLAIMED;
+            return current != null
+                    && QuestLifecycle.isFinished(current.store().status(subject, questId));
         };
     }
 }

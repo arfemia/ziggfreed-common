@@ -1,6 +1,7 @@
 package com.ziggfreed.common.factor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,6 +33,7 @@ class HytaleFactorsTest {
         assertEquals(List.of(
                         HytaleFactors.HELD_ITEM,
                         HytaleFactors.HELD_TAG,
+                        HytaleFactors.PERMISSION,
                         HytaleFactors.STAT,
                         HytaleFactors.TOOL_DURABILITY_PERCENT,
                         HytaleFactors.TOOL_ITEM_LEVEL,
@@ -72,11 +74,31 @@ class HytaleFactorsTest {
         FactorRegistry registry = new FactorRegistry();
         HytaleFactors.registerInto(registry, "yourmod");
 
-        // stat / held_tag / held_item all need a Param to name what they are asking about; with
-        // none they cannot answer, which must read the same as any other unanswerable factor.
+        // stat / held_tag / held_item / permission all need a Param to name what they are asking
+        // about; with none they cannot answer, which must read the same as any other unanswerable
+        // factor.
         assertNull(registry.resolve(HytaleFactors.STAT, ctx(null)));
         assertNull(registry.resolve(HytaleFactors.HELD_TAG, ctx("   ")));
         assertNull(registry.resolve(HytaleFactors.HELD_ITEM, ctx(null)));
+        assertNull(registry.resolve(HytaleFactors.PERMISSION, ctx("   ")));
+    }
+
+    /**
+     * A permission is the one portable reading whose absent answer could plausibly be argued as a
+     * definite "no", so the rule is pinned on its own: with nobody to ask - no subject at all, or a
+     * subject that is not a player - it answers NOTHING. A {@code 0} there would let a "must not
+     * hold this" bound pass for a mob, and would open a bounds-less gate on any entity in the world.
+     */
+    @Test
+    void aPermissionWithNobodyToAskAnswersNothingRatherThanNo() {
+        FactorRegistry registry = new FactorRegistry();
+        HytaleFactors.registerInto(registry, "yourmod");
+
+        Double unanswered = registry.resolve(HytaleFactors.PERMISSION, ctx("yourmod.shop.vip"));
+        assertNull(unanswered);
+        assertFalse(FactorCondition.of(HytaleFactors.PERMISSION, "yourmod.shop.vip", null, 0.0)
+                        .accepts(unanswered),
+                "even a 'must NOT hold it' bound stays shut when there is nobody to ask");
     }
 
     @Test

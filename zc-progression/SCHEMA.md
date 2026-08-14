@@ -271,7 +271,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `Factors` | array of [FactorCondition](#type-factorcondition) | `null` | Numeric bounds on the shared factor vocabulary; all of them must pass. A factor no installed mod can answer fails closed, so the content stays locked. |
-| `Permission` | `string` | `null` | A permission node the player must hold. On a server with nothing answering permission questions this refuses, so only author it where you run one. |
+| `Permission` | `string` | `null` | A permission node the player must hold, read through the engine's own permission check. It is the short spelling of a hytale:permission factor bound, so both give one answer; where nobody can be asked, it refuses and the content stays locked. |
 | `Quests` | array of `string` | `null` | Quest ids that must already be finished. Use it to chain a story in order instead of hiding every later step behind a separate flag. |
 | `Custom` | map of map of `string` | `null` | Requirement kinds registered by other mods, keyed by their namespaced id, each with that kind's own parameters. A kind nothing registered refuses. |
 | `AllOf` | array of [GateClause](#type-gateclause) | `null` | Extra groups that must ALL pass, on top of the leaves above. Use it to keep unrelated requirements readable side by side. |
@@ -283,7 +283,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `Factors` | array of [FactorCondition](#type-factorcondition) | `null` | Numeric bounds on the shared factor vocabulary; all of them must pass. A factor no installed mod can answer fails closed, so the content stays locked. |
-| `Permission` | `string` | `null` | A permission node the player must hold. On a server with nothing answering permission questions this refuses, so only author it where you run one. |
+| `Permission` | `string` | `null` | A permission node the player must hold, read through the engine's own permission check. It is the short spelling of a hytale:permission factor bound, so both give one answer; where nobody can be asked, it refuses and the content stays locked. |
 | `Quests` | array of `string` | `null` | Quest ids that must already be finished. Use it to chain a story in order instead of hiding every later step behind a separate flag. |
 | `Custom` | map of map of `string` | `null` | Requirement kinds registered by other mods, keyed by their namespaced id, each with that kind's own parameters. A kind nothing registered refuses. |
 

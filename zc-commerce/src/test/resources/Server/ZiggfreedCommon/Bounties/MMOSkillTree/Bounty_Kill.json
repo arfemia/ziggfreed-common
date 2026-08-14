@@ -1,0 +1,11 @@
+{
+  "$Comment": "The shared skeleton every 'bring down some of these' contract inherits from. A child names its quarry and how many of them, and inherits the step, the match mode and the shape of the pay. Nothing here names a board: that belongs to the child, because the same hunt is routine work on one board and a real ask on another. CONTAINS matching is deliberate - it catches every variant of a creature id rather than one exact spelling.",
+  "Abstract": true,
+  "Listing": { "Category": "bounty" },
+  "Objectives": {
+    "main": { "Kind": "KILL_ENTITY", "Amount": 1, "MatchMode": "CONTAINS" }
+  },
+  "Rewards": [
+    { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "1" } }
+  ]
+}

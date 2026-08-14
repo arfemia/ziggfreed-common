@@ -32,9 +32,11 @@ import com.ziggfreed.common.factor.FactorCondition;
  *   <li><b>{@code Factors}</b> - the shared numeric gate over the factor vocabulary, identical to
  *       the one an NPC placement or a dialogue option is written with. A factor nobody can answer
  *       fails CLOSED, so content gated on a mod that is not installed stays gated.</li>
- *   <li><b>{@code Permission}</b> - a permission node the acting player must hold. Whether a
- *       server has any permission system at all is the consumer's business; unanswered means
- *       refused.</li>
+ *   <li><b>{@code Permission}</b> - a permission node the acting player must hold, read through
+ *       the engine's own permission check. It is the {@code hytale:permission} factor bound spelled
+ *       short, evaluated by that same lookup, so the two forms are one requirement with one answer.
+ *       Where there is nobody to ask - no live player behind the subject, or a blank node - it
+ *       refuses, like any other reading that cannot be taken.</li>
  *   <li><b>{@code Quests}</b> - quest ids that must already be finished. It is a built-in leaf
  *       rather than a registered kind because finished content is something this library owns
  *       the answer to, through the completion probe a consumer wires once.</li>
@@ -74,8 +76,9 @@ public class GateClause {
                         + "no installed mod can answer fails closed, so the content stays locked.").add()
                 .appendInherited(new KeyedCodec<>("Permission", Codec.STRING, false),
                         (o, v) -> o.permission = v, o -> o.permission, (o, p) -> o.permission = p.permission)
-                .documentation("A permission node the player must hold. On a server with nothing answering "
-                        + "permission questions this refuses, so only author it where you run one.").add()
+                .documentation("A permission node the player must hold, read through the engine's own permission "
+                        + "check. It is the short spelling of a hytale:permission factor bound, so both give one "
+                        + "answer; where nobody can be asked, it refuses and the content stays locked.").add()
                 .appendInherited(new KeyedCodec<>("Quests", Codec.STRING_ARRAY, false),
                         (o, v) -> o.quests = v, o -> o.quests, (o, p) -> o.quests = p.quests)
                 .documentation("Quest ids that must already be finished. Use it to chain a story in order "
@@ -140,10 +143,16 @@ public class GateClause {
         return custom == null ? Map.of() : custom;
     }
 
-    /** True when this group asks for nothing at all, so it passes for everyone. */
+    /**
+     * True when this group asks for nothing at all, so it passes for everyone.
+     *
+     * <p>A {@code Permission} authored as an empty string still counts as asking: an empty node is
+     * not a node anybody can hold, so it refuses rather than quietly opening the content. Leave the
+     * key out to ask for no permission.
+     */
     public boolean isEmpty() {
         return factorsOrEmpty().length == 0
-                && (permission == null || permission.isBlank())
+                && permission == null
                 && questsOrEmpty().length == 0
                 && customOrEmpty().isEmpty();
     }

@@ -7,12 +7,11 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
-import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
+import com.ziggfreed.common.progress.gate.GateValidator;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestProgressStore;
@@ -41,6 +40,9 @@ public final class QuestPoolValidator {
 
     /** The content family these findings belong to. */
     public static final String DOMAIN = "quest";
+
+    /** What one piece of this content is CALLED in a message written for the author. */
+    private static final String NOUN = "quest";
 
     /**
      * Does this server declare a character under this id? The audit cannot answer that itself - who
@@ -317,46 +319,13 @@ public final class QuestPoolValidator {
         }
     }
 
+    /**
+     * The {@code Requires} block, through the SHARED gate audit every domain carrying one uses, so a
+     * lock is reported with the same code and the same wording wherever it was authored.
+     */
     private static void validateRequires(@Nonnull QuestDefinition definition, @Nonnull QuestPool pool,
             @Nullable GateKindRegistry gateKinds, @Nonnull List<Finding> out) {
-
-        String id = definition.id();
-        List<GateClause> clauses = new ArrayList<>();
-        clauses.add(definition.requires());
-        for (GateClause clause : definition.requires().allOfOrEmpty()) {
-            clauses.add(clause);
-        }
-        for (GateClause clause : definition.requires().anyOfOrEmpty()) {
-            clauses.add(clause);
-        }
-
-        for (GateClause clause : clauses) {
-            if (clause == null) {
-                continue;
-            }
-            for (FactorCondition condition : clause.factorsOrEmpty()) {
-                if (condition == null || condition.isBlank()) {
-                    out.add(Finding.warning(DOMAIN, "BLANK_REQUIREMENT",
-                            "a Factors entry names no factor, so it is skipped and gates nothing", id));
-                }
-            }
-            for (String prerequisite : clause.questsOrEmpty()) {
-                if (prerequisite != null && !prerequisite.isBlank() && pool.definition(prerequisite) == null) {
-                    out.add(Finding.warning(DOMAIN, "UNKNOWN_PREREQUISITE",
-                            "Requires.Quests names '" + prerequisite + "', which is not a quest in this pool; "
-                                    + "nobody can ever have finished it, so this quest stays locked", id));
-                }
-            }
-            if (gateKinds != null) {
-                for (String kindId : clause.customOrEmpty().keySet()) {
-                    if (!gateKinds.isRegistered(kindId)) {
-                        out.add(Finding.warning(DOMAIN, "UNKNOWN_GATE_KIND",
-                                "Requires.Custom names '" + kindId + "', which nothing registered; the "
-                                        + "requirement refuses, so this quest stays locked until whichever mod "
-                                        + "owns it is installed", id));
-                    }
-                }
-            }
-        }
+        out.addAll(GateValidator.validate(definition.requires(), DOMAIN, definition.id(), NOUN,
+                gateKinds, null, prerequisite -> pool.definition(prerequisite) != null));
     }
 }
