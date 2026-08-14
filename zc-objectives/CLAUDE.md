@@ -2,7 +2,8 @@
 
 The STANDALONE progression experience: the fallback quest + achievement runtime a bare server gets
 when no consumer mod runs one of its own, its persisted per-player progress store, the generic
-native-event producers that feed it, and the in-game two-tab objective book that shows it.
+native-event producers that feed it, and the two in-game surfaces that show it - the two-tab objective
+book a player reads on their own, and the NPC quest page they read at a character.
 
 ## Build
 
@@ -37,32 +38,65 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
   double-tracking cannot exist rather than being switched off.
   - `objectives/book/` - the objective book's rendering + text-arg model.
   - `objectives/producer/` - the four native-event producers.
+  - `objectives/questlist/` - the NPC quest page (`ZigNpcQuestPage`), its consumer seams
+    (`NpcQuestPageDeps`), the generic reward-chip reading (`NpcQuestRewardChips`), the pure ordering
+    core (`NpcQuestSections`), and `NpcQuestPages`, the one call a wiring root makes.
   - `objectives/runtime/` - this module's own registration glue over `zc-progression`'s
     `ProgressionRegistrar`.
   - `objectives/store/` - the persisted per-player progress component + its codec.
 
-  None of the four subpackages has its own router; the parent `objectives/` router covers them all.
+  None of the five subpackages has its own router; the parent `objectives/` router covers them all.
 
 ## Shipped resources
 
-`Common/UI/Custom/Pages/{ZigObjectiveBookPage.ui, ZigObjectiveRow.ui}` (needs `zc-presentation` at
-RUNTIME as well as compile time, since a page's `.ui` imports the shared frames by path).
+`Common/UI/Custom/Pages/{ZigObjectiveBookPage.ui, ZigObjectiveRow.ui, ZigNpcQuestPage.ui,
+ZigNpcQuestRow.ui, ZigNpcQuestLine.ui}` (needs `zc-presentation` at RUNTIME as well as compile time,
+since a page's `.ui` imports the shared frames by path).
 `Server/Item/Items/Consumables/Ziggfreed_Objective_Book.json` (the book item, whose Use opens the
 page via the `zc-cast` interaction-Type registration). `Server/Languages/<locale>/{items.lang,
 ziggfreedcommon.progression.lang}`, 9 locales.
 
 ## Conventions
 
-The book reads the ONE runtime, so it shows whatever any mod on the server contributed, never its
-own private copy. A consumer that wants no fallback book at all still gets the runtime registration
-(store + producers) unless it registers its own equivalents through the same surface; the book page
-itself is the only genuinely optional piece.
+Both surfaces read the ONE runtime, so they show whatever any mod on the server contributed, never a
+private copy. A consumer that wants neither still gets the runtime registration (store + producers)
+unless it registers its own equivalents through the same surface; the two pages are the only
+genuinely optional pieces.
+
+**The wiring root registers the NPC quest page as the quest-list host.** The host interface lives in
+`zc-dialogue`, which sits BESIDE this module rather than under it, so both `NpcQuestPages.open`
+overloads are written to that interface's two shapes byte-exactly and the root supplies the object -
+pure delegation, no logic, no edge:
+
+```java
+NpcQuestListHosts.register(NpcQuestPages.OWNER, NpcQuestPages.OWNER, new NpcQuestListHost() {
+    @Override public boolean open(String npcId, Store<EntityStore> store, Ref<EntityStore> ref,
+            PlayerRef playerRef, Player player) {
+        return NpcQuestPages.open(npcId, store, ref, playerRef, player);
+    }
+    @Override public boolean open(String npcId, String highlightQuestId, Store<EntityStore> store,
+            Ref<EntityStore> ref, PlayerRef playerRef, Player player) {
+        return NpcQuestPages.open(npcId, highlightQuestId, store, ref, playerRef, player);
+    }
+});
+```
+
+**A bare `NpcQuestPages::open` method reference COMPILES here and silently loses every highlight**,
+which is the one mistake to know about. The host's highlighting method is a DEFAULT that delegates to
+the plain one, so a lambda or method reference - which can only ever implement the single abstract
+method - inherits that default and routes a hand-in to an unhighlighted list. The object form above
+overrides both. (The interface could remove the hazard by making the highlighting method the abstract
+one and the plain one the default, which would make a single method reference correct; that is
+`zc-dialogue`'s call.) A consumer wanting a different screen registers its own host; the first host to
+take the screen wins.
 
 ## Tests
 
-7 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
+10 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
 this module's own suite covers the parts it contributes - `DefaultPartsHandInTest`,
 `DefaultPartsRewardGrantTest` (the registered store + producer parts pulling their weight inside a
 real runtime), `ZigProgressComponentTest`, `ProgressBlobTest` (the persisted per-player codec),
 `ProgressDispatchTest`, `ProgressHandleFacetTest`, and `ObjectiveBookTextArgsTest` (the book's
-render-text argument model).
+render-text argument model), plus the NPC quest page's three pure halves - `NpcQuestSectionsTest`
+(bucketing, ordering, which quest the detail panel opens on), `NpcQuestRewardChipsTest` (how a reward
+reads, from strings alone), `NpcQuestPageDepsTest` (the defaults, and a consumer seam that throws).

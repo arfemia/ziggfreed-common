@@ -53,7 +53,7 @@ class DialogueAuthoringAuditTest {
     void everyFindingIsStampedWithTheDialogueDomain() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"missing\"}],\"Nodes\":{\"g\":{\"Options\":[]}}}");
+                "{\"Start\":{\"First\":[{\"Node\":\"missing\"}]},\"Nodes\":{\"g\":{\"Options\":[]}}}");
         assertNotNull(d);
 
         List<Finding> findings = DialogueStructureValidator.validate(d);
@@ -67,7 +67,7 @@ class DialogueAuthoringAuditTest {
     void bareShorthandBesideADoArrayIsReported() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Goto\":\"g\",\"Do\":[{\"Close\":true}]}]}}}");
         assertNotNull(d);
 
@@ -81,7 +81,7 @@ class DialogueAuthoringAuditTest {
     void twoJumpsOnOneOptionAreReported() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Actions\":[{\"Type\":\"Goto\",\"Node\":\"g\"}],"
                         + "\"Goto\":\"g\"}]}}}");
         assertNotNull(d);
@@ -94,7 +94,7 @@ class DialogueAuthoringAuditTest {
     void aSharedOptionGroupThatWasNeverDeclaredIsAnError() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[],"
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[],"
                         + "\"IncludeOptions\":[\"footer\"]}}}");
         assertNotNull(d);
 
@@ -106,8 +106,8 @@ class DialogueAuthoringAuditTest {
     void aQuestStateThatIsNotAStateIsAnError() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"g\",\"Conditions\":[{\"Type\":\"QuestState\","
-                        + "\"Quest\":\"intro\",\"State\":\"DONE\"}]}],"
+                "{\"Start\":{\"First\":[{\"Node\":\"g\",\"When\":[{\"Type\":\"QuestState\","
+                        + "\"Quest\":\"intro\",\"State\":\"DONE\"}]}]},"
                         + "\"Nodes\":{\"g\":{\"Options\":[]}}}");
         assertNotNull(d);
 
@@ -119,7 +119,7 @@ class DialogueAuthoringAuditTest {
     void aQuestLineWithNoQuestIdIsAnError() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Conditions\":[{\"Type\":\"ReadyToTurnIn\"}],"
                         + "\"Actions\":[{\"Type\":\"TurnInQuest\"}]}]}}}");
         assertNotNull(d);
@@ -142,7 +142,7 @@ class DialogueAuthoringAuditTest {
                         (a, ctx, out) -> { }))
                 .build();
         NpcDialogue d = full.decode("guide",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Conditions\":[{\"Type\":\"Elsewhere\"}],"
                         + "\"Actions\":[{\"Type\":\"DoElsewhere\"}]}]}}}");
         assertNotNull(d);

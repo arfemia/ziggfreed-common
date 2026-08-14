@@ -63,7 +63,7 @@ class DialogueEngineTest {
     @Test
     void decodesCanonicalTree() {
         DialogueEngine engine = engine();
-        String json = "{\"Start\":[{\"Node\":\"greet\"}],\"Nodes\":{\"greet\":{\"Text\":\"hi\","
+        String json = "{\"Start\":{\"First\":[{\"Node\":\"greet\"}]},\"Nodes\":{\"greet\":{\"Text\":\"hi\","
                 + "\"Options\":[{\"Label\":\"bye\",\"Actions\":[{\"Type\":\"Close\"}]},"
                 + "{\"Label\":\"more\",\"Actions\":[{\"Type\":\"Goto\",\"Node\":\"greet\"}]}]}}}";
         NpcDialogue d = engine.decode("test", json);
@@ -82,7 +82,7 @@ class DialogueEngineTest {
     @Test
     void decodesTypeListConditions() {
         DialogueEngine engine = engine();
-        String json = "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"Label\":\"x\","
+        String json = "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[{\"Label\":\"x\","
                 + "\"Conditions\":[{\"Type\":\"Remembered\",\"Memory\":\"met\"},"
                 + "{\"Type\":\"NotRemembered\",\"Memory\":\"done\"}],"
                 + "\"Actions\":[{\"Type\":\"Close\"}]}]}}}";
@@ -146,7 +146,7 @@ class DialogueEngineTest {
                 "{\"Nodes\":{\"g\":{\"Options\":[{\"Actions\":[{\"Type\":\"NoSuchAction\"}]}]}}}"),
                 "a Type nothing registered must fail the whole read, never silently vanish");
         assertNull(engine.decode("bad2",
-                "{\"Start\":[{\"Node\":\"g\",\"Conditions\":[{\"Type\":\"NoSuchCondition\"}]}],"
+                "{\"Start\":{\"First\":[{\"Node\":\"g\",\"When\":[{\"Type\":\"NoSuchCondition\"}]}]},"
                         + "\"Nodes\":{\"g\":{\"Options\":[]}}}"));
     }
 
@@ -154,14 +154,15 @@ class DialogueEngineTest {
     void onceAcceptsBothTheFlagAndTheGroupForm() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("once",
-                "{\"Start\":[{\"Node\":\"g\",\"Once\":true},{\"Node\":\"g\",\"Once\":"
-                        + "{\"World\":\"temple\"}},{\"Node\":\"g\",\"Once\":false}],"
+                "{\"Start\":{\"First\":[{\"Node\":\"g\",\"Once\":true},{\"Node\":\"g\",\"Once\":"
+                        + "{\"Where\":{\"Match\":[\"temple\"]}}},{\"Node\":\"g\",\"Once\":false}]},"
                         + "\"Nodes\":{\"g\":{\"Options\":[]}}}");
         assertNotNull(d);
-        assertNotNull(d.getStart().get(0).getOnce());
-        assertNull(d.getStart().get(0).getOnce().getWorld());
-        assertEquals("temple", d.getStart().get(1).getOnce().getWorld());
-        assertNull(d.getStart().get(2).getOnce(), "false means there is no Once at all");
+        assertNotNull(d.getStart().first().get(0).getOnce());
+        assertNull(d.getStart().first().get(0).getOnce().getWhere(),
+                "true is the plain once-per-character form, with no world to narrow to");
+        assertEquals("temple", d.getStart().first().get(1).getOnce().getWhere().getMatch()[0]);
+        assertNull(d.getStart().first().get(2).getOnce(), "false means there is no Once at all");
     }
 
     @Test
@@ -169,7 +170,7 @@ class DialogueEngineTest {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("frag",
                 "{\"Fragments\":{\"footer\":[{\"LabelKey\":\"bye\",\"Close\":true}]},"
-                        + "\"Start\":[{\"Node\":\"g\"}],"
+                        + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},"
                         + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\"}],"
                         + "\"IncludeOptions\":[\"footer\"]}}}");
         assertNotNull(d);
@@ -184,7 +185,7 @@ class DialogueEngineTest {
     void nativeParentMergesNodesByKey() throws Exception {
         DialogueEngine engine = engine();
         NpcDialogue parent = engine.decode("base",
-                "{\"Start\":[{\"Node\":\"greet\"}],\"Nodes\":{"
+                "{\"Start\":{\"First\":[{\"Node\":\"greet\"}]},\"Nodes\":{"
                         + "\"greet\":{\"Text\":\"base greet\",\"Options\":[{\"Label\":\"a\"}]},"
                         + "\"bye\":{\"Text\":\"base bye\",\"Options\":[]}}}");
         assertNotNull(parent);
@@ -205,10 +206,10 @@ class DialogueEngineTest {
     void childOmittingNodesInheritsParent() throws Exception {
         DialogueEngine engine = engine();
         NpcDialogue parent = engine.decode("base",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Text\":\"p\",\"Options\":[]}}}");
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Text\":\"p\",\"Options\":[]}}}");
         assertNotNull(parent);
         // Child provides only Start; omitting Nodes entirely inherits the parent's node map.
-        NpcDialogue child = DialogueTestSupport.decodeWithParent(engine, "kid", "{\"Start\":[{\"Node\":\"g\"}]}", parent);
+        NpcDialogue child = DialogueTestSupport.decodeWithParent(engine, "kid", "{\"Start\":{\"First\":[{\"Node\":\"g\"}]}}", parent);
         assertNotNull(child);
         assertNotNull(child.getNode("g"));
         assertEquals("p", child.getNode("g").getText());
@@ -217,13 +218,13 @@ class DialogueEngineTest {
     @Test
     void decodesBooleanCombinators() {
         DialogueEngine engine = engine();
-        String json = "{\"Start\":[{\"Node\":\"g\",\"Conditions\":[{\"Type\":\"AnyOf\",\"Any\":["
-                + "{\"Type\":\"Remembered\",\"Memory\":\"a\"},{\"Type\":\"NotRemembered\",\"Memory\":\"b\"}]}]}],"
+        String json = "{\"Start\":{\"First\":[{\"Node\":\"g\",\"When\":[{\"Type\":\"AnyOf\",\"Any\":["
+                + "{\"Type\":\"Remembered\",\"Memory\":\"a\"},{\"Type\":\"NotRemembered\",\"Memory\":\"b\"}]}]}]},"
                 + "\"Nodes\":{\"g\":{\"Conditions\":[{\"Type\":\"Not\",\"Of\":[{\"Type\":\"Remembered\","
                 + "\"Memory\":\"c\"}]}],\"Options\":[]}}}";
         NpcDialogue d = engine.decode("combo", json);
         assertNotNull(d);
-        DialogueCondition start = d.getStart().get(0).getConditions().get(0);
+        DialogueCondition start = d.getStart().first().get(0).getWhen().get(0);
         assertTrue(start instanceof DialogueCondition.AnyOf);
         assertEquals(2, ((DialogueCondition.AnyOf) start).getChildren().size());
         DialogueCondition nodeCond = d.getNode("g").getConditions().get(0);
@@ -234,7 +235,7 @@ class DialogueEngineTest {
     @Test
     void decodesOptionPresentation() {
         DialogueEngine engine = engine();
-        String json = "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"Label\":\"x\","
+        String json = "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[{\"Label\":\"x\","
                 + "\"Presentation\":{\"Color\":\"#5ab0ff\",\"Icon\":{\"Item\":\"hytale:iron_sword\"}}}]}}}";
         NpcDialogue d = engine.decode("pres", json);
         assertNotNull(d);

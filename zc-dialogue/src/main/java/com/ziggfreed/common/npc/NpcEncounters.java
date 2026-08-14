@@ -124,6 +124,20 @@ public final class NpcEncounters {
             return anyAnsweredId(questId, quests.reader()::canDeliverTurnInAt);
         }
 
+        /**
+         * The SITE question, over the same answer set the readiness reads walk: a quest bound to one
+         * of the ids this character responds to may be completed here, whatever the player is
+         * carrying.
+         *
+         * <p>A character with no id answers NO rather than the interface's permissive yes, and that is
+         * the honest reading of "here": there is no site to satisfy. A surface with nobody in front of
+         * the player is asking a site-free question and should read the quest seam directly.
+         */
+        @Override
+        public boolean canCompleteHere(@Nonnull String questId) {
+            return anyAnsweredId(questId, quests.reader()::canCompleteAt);
+        }
+
         /** Ask {@code question} about this quest at each id the character answers to, until one says yes. */
         private boolean anyAnsweredId(@Nonnull String questId, @Nonnull QuestQuestion question) {
             if (answersTo.isEmpty()) {

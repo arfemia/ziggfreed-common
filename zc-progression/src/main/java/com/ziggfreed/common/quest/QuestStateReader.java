@@ -74,6 +74,26 @@ public interface QuestStateReader {
     boolean hasDeliverableTurnInAt(@Nonnull Subject subject, @Nullable String atId);
 
     /**
+     * May this player complete and collect this quest HERE? The one site rule, so a quest page, a
+     * book, a conversation and a consumer's own menu all ask the same question instead of each
+     * keeping a copy of it.
+     *
+     * <p>It answers about the PLACE and nothing else - not whether the steps are done, not whether
+     * the quest is active. A surface deciding whether to offer a collection ANDs it with the state it
+     * was already reading. Pass null for {@code atId} from a surface that is nowhere in particular (a
+     * log, a book): a quest bound to a place refuses that, which is the whole point of binding it.
+     *
+     * <p><b>The default answers YES</b>, matching a quest that names no place - the great majority.
+     * A reader that does not model places at all must not hide every collection in the game, and it
+     * cannot let a wrong one through either: the runtime enforces the same rule inside the completion
+     * path itself, so the worst a stub can do is offer something the engine then refuses.
+     */
+    default boolean canCompleteAt(@Nonnull Subject subject, @Nonnull String questId,
+                                  @Nullable String atId) {
+        return true;
+    }
+
+    /**
      * Does this quest's outstanding step RESOLVE here at all - carrying the goods or not?
      *
      * <p>The weaker half of {@link #canDeliverTurnInAt}, and the difference between "come back to me

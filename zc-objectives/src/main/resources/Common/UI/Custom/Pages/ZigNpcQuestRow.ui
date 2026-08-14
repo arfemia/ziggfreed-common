@@ -1,0 +1,48 @@
+$Z = "../Common/ZigButtons.ui";
+
+// One row of the NPC quest list (appended into #QuestList; see ZigNpcQuestPage). Addressed per row
+// via the INDEXED PARENT ("#QuestList[0] #QuestBtn"), so the bare descendant ids below are safe
+// across many rows and across mods.
+//
+// The SAME template draws a quest and a section heading, because a page update can restyle an
+// element that already exists but can never add one, and a list that mixed two templates would give
+// two different child sets at one index. A heading hides #StatusDot and #QuestBtn and shows
+// #SectionLabel instead; a quest row does the reverse (the authored defaults below).
+//
+// #QuestBtn is a Button + inner Label #Label, never a TextButton: a quest title is a parameterized
+// Message and only substitutes on .TextSpans. The selected-row accent is set from Java on the
+// button's per-state tints plus the inner label, never by replacing the background wholesale.
+
+Group #ZigNpcQuestRow {
+  LayoutMode: Left;
+  Anchor: (Height: 36, Bottom: 2);
+
+  Group #StatusDot {
+    Anchor: (Width: 6, Height: 6, Top: 15, Left: 4);
+    Background: #96a9be;
+  }
+
+  Button #QuestBtn {
+    Style: $Z.@ZigRichRowBtnStyle;
+    FlexWeight: 1;
+    Anchor: (Height: 36);
+    Padding: (Left: 14);
+    LayoutMode: Left;
+
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Anchor: (Height: 36);
+      Style: (FontSize: 13, TextColor: #b6c9de, VerticalAlignment: Center);
+    }
+  }
+
+  Label #SectionLabel {
+    FlexWeight: 1;
+    Text: "";
+    Visible: false;
+    Anchor: (Height: 36);
+    Padding: (Left: 4);
+    Style: (FontSize: 11, TextColor: #8696a8, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+  }
+}

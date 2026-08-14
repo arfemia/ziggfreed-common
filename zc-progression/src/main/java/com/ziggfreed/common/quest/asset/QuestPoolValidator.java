@@ -16,6 +16,7 @@ import com.ziggfreed.common.progress.gate.GateKindRegistry;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestProgressStore;
+import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.time.DurationGroup;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
@@ -41,6 +42,23 @@ public final class QuestPoolValidator {
     /** The content family these findings belong to. */
     public static final String DOMAIN = "quest";
 
+    /**
+     * Does this server declare a character under this id? The audit cannot answer that itself - who
+     * stands where is declared a layer above this module - so a caller that CAN answer supplies this
+     * and gets the finding, while one that cannot passes null and the check is skipped.
+     *
+     * <p>It is deliberately consulted for a WARNING only. An id nothing declares may belong to a mod
+     * the author expects some servers not to install, and a convention-named character need not be
+     * enumerable at all, so a probe answering no is a reason to tell somebody, never to refuse
+     * content.
+     */
+    @FunctionalInterface
+    public interface NpcIdProbe {
+
+        /** True when something on this server answers to {@code npcId}. */
+        boolean declares(@Nonnull String npcId);
+    }
+
     private QuestPoolValidator() {
     }
 
@@ -51,7 +69,15 @@ public final class QuestPoolValidator {
     @Nonnull
     public static List<Finding> validate(@Nonnull QuestPool pool, @Nonnull QuestEngine engine,
             @Nullable GateKindRegistry gateKinds) {
-        return validate(pool, engine.objectiveKinds(), engine.rewardKinds(), engine.store(), gateKinds);
+        return validate(pool, engine, gateKinds, null);
+    }
+
+    /** {@link #validate(QuestPool, QuestEngine, GateKindRegistry)} plus the character-id probe. */
+    @Nonnull
+    public static List<Finding> validate(@Nonnull QuestPool pool, @Nonnull QuestEngine engine,
+            @Nullable GateKindRegistry gateKinds, @Nullable NpcIdProbe npcIds) {
+        return validate(pool, engine.objectiveKinds(), engine.rewardKinds(), engine.store(), gateKinds,
+                npcIds);
     }
 
     /**
@@ -63,6 +89,15 @@ public final class QuestPoolValidator {
     public static List<Finding> validate(@Nonnull QuestPool pool,
             @Nullable ObjectiveKindRegistry objectiveKinds, @Nullable RewardKindRegistry rewardKinds,
             @Nullable QuestProgressStore store, @Nullable GateKindRegistry gateKinds) {
+        return validate(pool, objectiveKinds, rewardKinds, store, gateKinds, null);
+    }
+
+    /** The piecemeal form plus the character-id probe; every other entry point lands here. */
+    @Nonnull
+    public static List<Finding> validate(@Nonnull QuestPool pool,
+            @Nullable ObjectiveKindRegistry objectiveKinds, @Nullable RewardKindRegistry rewardKinds,
+            @Nullable QuestProgressStore store, @Nullable GateKindRegistry gateKinds,
+            @Nullable NpcIdProbe npcIds) {
 
         List<Finding> out = new ArrayList<>();
         for (Map.Entry<String, QuestDefinition> entry : pool.definitions().entrySet()) {
@@ -79,6 +114,7 @@ public final class QuestPoolValidator {
             validateObjectives(definition, objectiveKinds, store, out);
             validateRewards(definition, rewardKinds, out);
             validateRequires(definition, pool, gateKinds, out);
+            validateTurnInAt(definition, npcIds, out);
 
             out.addAll(ContentListingAsset.chainFindings(definition.chains(), DOMAIN, id));
 
@@ -235,6 +271,35 @@ public final class QuestPoolValidator {
                                 + QuestObjectiveAsset.HAND_IN_KIND + " step, "
                                 + "so the place is never consulted", id));
             }
+        }
+    }
+
+    /**
+     * The collection site: both ways of naming one that nobody can ever be. Each is a WARNING, for
+     * the same reason an unknown objective kind is - the character may belong to a mod this server
+     * has not installed, and the audit cannot tell that apart from a typo.
+     */
+    private static void validateTurnInAt(@Nonnull QuestDefinition definition,
+            @Nullable NpcIdProbe npcIds, @Nonnull List<Finding> out) {
+
+        QuestTurnInSite site = definition.turnInAt();
+        if (site == null || site.isAcceptSite()) {
+            return;
+        }
+        String id = definition.id();
+        String required = site.id();
+        if (required == null) {
+            out.add(Finding.warning(DOMAIN, "TURN_IN_AT_NO_GIVER",
+                    "TurnInAt sends the player back to whoever offers this quest, but no Npc.ViewId says "
+                            + "who that is, so the reward can never be collected; name the character or drop "
+                            + "the leaf to collect it anywhere", id));
+            return;
+        }
+        if (npcIds != null && !npcIds.declares(required)) {
+            out.add(Finding.warning(DOMAIN, "UNKNOWN_TURN_IN_AT",
+                    "TurnInAt names '" + required + "', which nothing on this server answers to; the reward "
+                            + "cannot be collected until whichever mod stands that character up is installed",
+                    id));
         }
     }
 

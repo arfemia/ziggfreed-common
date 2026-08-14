@@ -15,8 +15,10 @@ import com.hypixel.hytale.server.npc.corecomponents.ActionBase;
 import com.hypixel.hytale.server.npc.role.Role;
 import com.hypixel.hytale.server.npc.sensorinfo.InfoProvider;
 import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.dialogue.page.DialogueOpener;
 import com.ziggfreed.common.dialogue.page.DialoguePage;
 import com.ziggfreed.common.dialogue.page.DialoguePageDeps;
+import com.ziggfreed.common.ui.route.DestinationContext;
 
 /**
  * Generic custom NPC interaction action that opens a {@link DialoguePage} for the
@@ -101,11 +103,12 @@ public class ActionOpenDialogue extends ActionBase {
             return false;
         }
 
-        // Open the dialogue on the NPC's own ref (the page manager is the interacting
-        // player's), exactly like ActionOpenBarterShop.
-        player.getPageManager().openCustomPage(ref, store,
-                new DialoguePage(playerRef, dialogueId, contextNpc, deps));
-        return true;
+        // Open on the NPC's own ref (the page manager is the interacting player's), exactly like
+        // ActionOpenBarterShop - and through the opener, so a conversation whose Start routes to a
+        // quest row's destination hands the screen over instead of opening on nothing.
+        return DialogueOpener.open(
+                new DestinationContext(store, playerReference, playerRef, player, ref, contextNpc, null, depsKey),
+                dialogueId, contextNpc, deps);
     }
 
     private static void warn(@Nonnull String msg) {

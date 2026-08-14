@@ -1,6 +1,7 @@
 package com.ziggfreed.common.dialogue;
 
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -60,9 +61,37 @@ public final class DialogueWorlds {
     }
 
     /**
-     * The lower-cased NAME of every world the server currently has loaded - what a per-world
-     * {@code Once} or memory pattern is checked against. Empty means "cannot tell" (no server, or
-     * a failed read), never "no worlds exist": a caller must not turn it into a verdict.
+     * The authored gameplay-config key of the world the player is currently in, or {@code null} when
+     * it cannot be read. It is the axis a per-world scope prefers, because it is authored, carries no
+     * uuid and survives an instance world being torn down and rebuilt under a fresh name.
+     */
+    @Nullable
+    public static String currentGameplayConfig(@Nonnull DialogueContext ctx) {
+        World world = currentWorld(ctx);
+        if (world == null) {
+            return null;
+        }
+        try {
+            return world.getWorldConfig().getGameplayConfig();
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * Every world the server currently has, as the two axes a {@code Where} scores against. Empty
+     * means "cannot tell" (no server, or a failed read), never "no worlds exist": a caller must not
+     * turn it into a verdict.
+     */
+    @Nonnull
+    public static List<WhereValidator.LoadedWorld> loadedWorlds() {
+        return WorldIdentity.loadedWorlds();
+    }
+
+    /**
+     * The lower-cased NAME of every world the server currently has loaded. Empty means "cannot tell"
+     * (no server, or a failed read), never "no worlds exist": a caller must not turn it into a
+     * verdict.
      */
     @Nonnull
     public static Set<String> loadedWorldNames() {

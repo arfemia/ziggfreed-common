@@ -5,9 +5,9 @@ import com.ziggfreed.common.registry.RegistryLedger;
 /**
  * The placement engine's registration bookkeeping: a thin naming of the shared
  * {@link RegistryLedger} that fixes the {@code [placement]} log prefix, so an overwrite warning
- * from {@link NpcPlacementBindings} or {@link AnchorResolverRegistry} says which engine it came
- * from. ({@link PlacementFactorRegistry} logs under the same prefix, but takes it from the label
- * it passes its zc-core {@code FactorRegistry}, not from this subclass.)
+ * from {@link AnchorResolverRegistry} says which engine it came from.
+ * ({@link PlacementFactorRegistry} logs under the same prefix, but takes it from the label it
+ * passes its zc-core {@code FactorRegistry}, not from this subclass.)
  *
  * <p>Every semantic lives in the parent - normalized ids, owner attribution, identity-compared
  * warn-once overwrite, per-entry failure counting, the {@code info()} snapshot an admin listing

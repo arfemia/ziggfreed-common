@@ -20,6 +20,8 @@ import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.npc.NpcDestinations;
+import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**
@@ -41,8 +43,7 @@ import com.ziggfreed.common.world.WorldSelector;
  *   "Requires": { "Conditions": [ {"Factor": "yourmod:feature", "Param": "shop", "Min": 1} ] },
  *   "Limits":   { "SpawnChance": 1.0, "OncePerWorld": true },
  *   "Lifecycle":{ "KeepAlive": true, "Fortify": true },
- *   "Interact": { "Dialogue": "guide_intro",
- *                 "Bindings": { "yourmod:npc_id": { "Value": "guide" } } } }
+ *   "Interact": { "Dialogue": "guide_intro" } }
  * }</pre>
  *
  * <p><b>The groups, and why each is where it is.</b>
@@ -68,9 +69,9 @@ import com.ziggfreed.common.world.WorldSelector;
  *   <li><b>{@link Lifecycle}</b> - what happens to it afterwards. Every knob is OPT-IN and
  *       defaults false, because each one costs something (a pinned chunk, a re-place, a health
  *       pool) that a placement should only pay for when it asks to.</li>
- *   <li><b>{@link Interact}</b> - what press-F does. {@code Dialogue} is understood here (this
- *       library owns the dialogue engine); every other behaviour rides {@code Bindings}, a map
- *       keyed by namespaced channel that is forwarded verbatim and interpreted by nobody here.</li>
+ *   <li><b>{@link Interact}</b> - what press-F opens. {@code Dialogue} is the terse spelling of a
+ *       conversation, {@code Open} names any registered destination; both are the same value
+ *       underneath, so author one or the other.</li>
  * </ul>
  *
  * <p>To re-tune a placement someone else shipped, override the file by id (a same-named file in a
@@ -147,7 +148,8 @@ public final class NpcPlacementAsset
             .add()
             .appendInherited(new KeyedCodec<>("Interact", Interact.CODEC, false),
                     (a, v) -> a.interact = v, a -> a.interact, (a, p) -> a.interact = p.interact)
-            .documentation("What pressing F on this NPC does: a dialogue id, plus namespaced bindings other mods read.")
+            .documentation("What pressing F on this NPC opens: a conversation, or any destination a mod on "
+                    + "this server registered.")
             .add()
             .build();
 
@@ -930,54 +932,99 @@ public final class NpcPlacementAsset
     // ==================== Interact ====================
 
     /**
-     * What pressing F on the NPC does.
+     * What pressing F on the NPC opens.
      *
-     * <p>{@code Dialogue} is the one behaviour this library understands on its own, because it
-     * owns the dialogue engine. Everything else rides {@code Bindings}, a map keyed by namespaced
-     * channel that is forwarded verbatim to whichever mod registered that namespace.
+     * <p>Two spellings of ONE value. {@code Dialogue} is the terse form of the case almost every
+     * talking NPC wants - {@code "Interact": { "Dialogue": "guide_intro" }} - and {@code Open} names
+     * any destination a mod on this server registered:
      *
-     * <p><b>{@code Bindings} is a MAP, not an array, and that is load-bearing.</b> An array is one
-     * leaf as far as inheritance is concerned, so a child placement authoring {@code Bindings} at
-     * all would drop every entry its {@code Parent} authored. Keyed by channel and decoded through
-     * a per-key merging codec, a child can override ONE channel and keep the rest.
+     * <pre>{@code
+     * "Interact": { "Dialogue": "guide_intro" }
+     * "Interact": { "Open": "Quests" }
+     * "Interact": { "Open": { "Type": "Mmo_Board", "Board": "daily" } }
+     * }</pre>
+     *
+     * <p><b>Author one or the other.</b> Both together is an authoring mistake the validator reports
+     * as {@code INTERACT_BOTH_FORMS}, since the file then says two things about one press-F; the
+     * explicit {@code Open} is what runs, so the behaviour is at least the one written out in full.
+     *
+     * <p>The conversation is automatically WITH the character standing here: header name,
+     * {@code @self}, talk credit and quest conditions all read this placement's own identity, so
+     * nothing about a destination ever restates an npc id. A placement authoring neither leaf opens
+     * that character's quest list.
+     *
+     * <p><b>A destination is a whole leaf under {@code Parent} inheritance</b>: a child that authors
+     * one REPLACES the one it inherited rather than merging into it, because half of one type's
+     * fields under another type's discriminator is not a destination anybody meant to write. The two
+     * leaves inherit independently, so a child changing what its parent opens writes the SAME leaf
+     * the parent used - a child answering an inherited {@code Open} with the terse {@code Dialogue}
+     * spelling ends up carrying both, which the validator reports. Author
+     * {@code "Open": {"Type": "Dialogue", "Dialogue": "..."}} there instead.
      */
     public static final class Interact {
 
         @Nullable protected String dialogue;
-        @Nullable protected Map<String, PlacementBinding> bindings;
+        @Nullable protected Destination open;
 
         public static final BuilderCodec<Interact> CODEC = BuilderCodec.builder(Interact.class, Interact::new)
                 .appendInherited(new KeyedCodec<>("Dialogue", Codec.STRING, false),
                         (o, v) -> o.dialogue = v, o -> o.dialogue, (o, p) -> o.dialogue = p.dialogue)
-                .documentation("A dialogue id to open on press-F.").add()
-                .appendInherited(new KeyedCodec<>("Bindings",
-                                new InheritMapCodec<>(PlacementBinding.CODEC, LinkedHashMap::new), false),
-                        (o, v) -> o.bindings = v, o -> o.bindings, (o, p) -> o.bindings = p.bindings)
-                .documentation("Per-channel payloads other mods read, keyed by namespaced channel id. Forwarded "
-                        + "verbatim and interpreted by nobody here. Merged per key under Parent inheritance, so a "
-                        + "child can override one channel and inherit the others.").add()
+                .documentation("The conversation to open on press-F, named by its file id. The short way to "
+                        + "write the Dialogue destination, and what almost every talking NPC wants.").add()
+                .appendInherited(new KeyedCodec<>("Open", Destination.CODEC, false),
+                        (o, v) -> o.open = v, o -> o.open, (o, p) -> o.open = p.open)
+                .documentation("Any destination a mod on this server registered, as {\"Type\": \"...\"} plus "
+                        + "that type's own fields, or one word for a type that has none. Author this OR "
+                        + "Dialogue, never both.").add()
                 .build();
 
         public Interact() {
         }
 
+        /** The terse conversation form: {@code Interact.of("guide_intro")}. */
         @Nonnull
-        public static Interact of(@Nullable String dialogue, @Nullable Map<String, PlacementBinding> bindings) {
+        public static Interact of(@Nullable String dialogue) {
+            return of(dialogue, null);
+        }
+
+        /** Java-side construction of either form; authoring both is what the validator reports. */
+        @Nonnull
+        public static Interact of(@Nullable String dialogue, @Nullable Destination open) {
             Interact i = new Interact();
             i.dialogue = dialogue;
-            i.bindings = bindings == null ? null : new LinkedHashMap<>(bindings);
+            i.open = open;
             return i;
         }
 
+        /** The authored dialogue id, or null when this placement opens something else (or nothing). */
         @Nullable
         public String getDialogue() {
             return dialogue;
         }
 
-        /** The authored bindings, never null (an unauthored map reads as empty). */
-        @Nonnull
-        public Map<String, PlacementBinding> getBindings() {
-            return bindings == null ? Map.of() : bindings;
+        /** The authored destination, or null when only the terse {@code Dialogue} form is written. */
+        @Nullable
+        public Destination getOpen() {
+            return open;
+        }
+
+        /**
+         * WHAT press-F opens, as the one model both spellings mean: the authored {@code Open} when
+         * there is one, otherwise the {@code Dialogue} id folded into the conversation destination.
+         * Null when neither is authored, which the caller reads as this character's quest list.
+         */
+        @Nullable
+        public Destination destination() {
+            if (open != null) {
+                return open;
+            }
+            String id = dialogue == null ? null : dialogue.trim();
+            return id == null || id.isEmpty() ? null : NpcDestinations.Dialogue.of(id);
+        }
+
+        /** True when both spellings are authored, which is one press-F described twice. */
+        public boolean hasBothForms() {
+            return open != null && dialogue != null && !dialogue.isBlank();
         }
     }
 

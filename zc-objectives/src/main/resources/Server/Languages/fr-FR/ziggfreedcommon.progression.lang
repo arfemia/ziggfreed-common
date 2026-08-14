@@ -36,3 +36,34 @@ book.toast.claimed = Récompenses récupérées.
 book.toast.claim_failed = Rien à récupérer pour l'instant.
 book.toast.turned_in = Remise effectuée.
 book.toast.turn_in_failed = Cela ne peut pas être remis ici.
+
+npcquests.title.none = Quêtes
+npcquests.count = Quêtes : {0}
+npcquests.tab.here = Quêtes d'ici
+npcquests.tab.mine = Mes quêtes
+npcquests.empty.here = Il n'y a rien pour toi ici pour l'instant.
+npcquests.empty.mine = Tu n'as aucune quête en cours.
+npcquests.empty.unavailable = Tes quêtes ne peuvent pas être lues pour l'instant.
+
+npcquests.section.ready = À récupérer
+npcquests.section.turn_in = À remettre
+npcquests.section.active = En cours
+npcquests.section.available = Disponibles
+npcquests.section.parked = À récupérer ailleurs
+npcquests.section.locked = Verrouillées
+npcquests.section.done = Terminées
+
+npcquests.header.objectives = OBJECTIFS
+npcquests.header.rewards = RÉCOMPENSES
+npcquests.header.required = REQUIS
+
+npcquests.action.complete = Terminer
+npcquests.action.abandon = Abandonner
+npcquests.action.track = Suivre
+npcquests.action.untrack = Ne plus suivre
+
+npcquests.toast.abandoned = Quête abandonnée.
+npcquests.toast.tracked = Quête suivie.
+npcquests.toast.untracked = Quête plus suivie.
+npcquests.toast.track_full = Tu suis déjà autant de quêtes que possible.
+npcquests.toast.turn_in_short = Pas encore assez : {0}/{1}.

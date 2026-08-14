@@ -65,6 +65,23 @@ public interface NpcEncounter {
     /** Is ANY quest deliverable here? */
     boolean anythingDeliverableHere();
 
+    /**
+     * May this quest be completed AT this character at all - the SITE question, asked separately from
+     * whether the player has finished it or is carrying the goods.
+     *
+     * <p>It is a REFUSAL gate rather than a readiness read, and the two are not the same question: a
+     * quest that says "report back to the quartermaster" is finished and fully carried while standing
+     * at the guide, and only this answers no. It is what the routing surface asks before sending a
+     * player somewhere to hand something in.
+     *
+     * <p>A DEFAULT so a fourth party's own encounter stays source-compatible, answering the same
+     * permissive yes the quest read seam does - a quest naming no place is the great majority, and a
+     * stub that refused would hide every hand-in in the game.
+     */
+    default boolean canCompleteHere(@Nonnull String questId) {
+        return true;
+    }
+
     /** Hand this quest in. False when it did not go through, so a caller never reports a phantom. */
     boolean deliver(@Nonnull String questId);
 

@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.world.WorldSelector;
 
 /**
  * One entry of a dialogue's top-level {@code Memories} map: a NAMED thing this conversation can
@@ -17,8 +18,9 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  *
  * <pre>{@code
  * "Memories": {
- *   "helped_refugees": { "World": "emerald_wilds", "ResetWithQuest": "guide_trust" },
- *   "knows_my_name": {}
+ *   "helped_refugees": { "Where": { "Match": ["emerald_wilds"] }, "ResetWithQuest": "guide_trust" },
+ *   "greeted_below":   { "Where": { "GameplayConfig": ["ForgottenTemple"] } },
+ *   "knows_my_name":   {}
  * }
  * }</pre>
  *
@@ -28,13 +30,13 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  *
  * <p>Every leaf is nullable and independent - declare only the axes that matter:
  * <ul>
- *   <li><b>{@code World}</b> - remember it per world instead of per character. The value is a
- *       world NAME or a pattern ({@code Foo*}, {@code *Foo}, {@code *Foo*}), and the pattern is
- *       the exact-versus-family dial: {@code *KweebecNightmare*} files the memory under the stable
- *       core {@code KweebecNightmare}, so it survives an instance world being destroyed and
- *       re-created under a fresh name. In a world the pattern does not match the memory reads as
- *       forgotten and writes are dropped, so pair it with a {@code World} condition where reaching
- *       the beat elsewhere would be odd.</li>
+ *   <li><b>{@code Where}</b> - remember it per world instead of per character, using the shared
+ *       world selector every other world-targeting field carries. {@code GameplayConfig} is the one
+ *       to reach for with an instance world: it is authored, carries no uuid, and survives the
+ *       instance being destroyed and re-created, so the memory is not forgotten each visit. A
+ *       {@code Match} pattern files the memory under the pattern's literal core. In a world the
+ *       selector does not match the memory reads as forgotten and writes are dropped, so pair it
+ *       with a {@code World} condition where reaching the beat elsewhere would be odd.</li>
  *   <li><b>{@code ResetWithQuest}</b> - tie the memory's lifetime to a quest: it is filed inside
  *       that quest's own state, so resetting the quest forgets it too. Use this for anything the
  *       player should be able to experience again after a quest reset.</li>
@@ -54,12 +56,15 @@ public final class DialogueMemory {
 
     public static final BuilderCodec<DialogueMemory> CODEC =
             BuilderCodec.builder(DialogueMemory.class, DialogueMemory::new)
-                    .appendInherited(new KeyedCodec<>("World", Codec.STRING, false),
-                            (m, v) -> { m.world = v; m.scope = null; }, m -> m.world,
-                            (child, parent) -> child.world = parent.world)
-                    .documentation("Remember this per world: an exact world name, or a pattern - Foo* "
-                            + "(prefix), *Foo (suffix), *Foo* (contains). Use the contains form for a "
-                            + "family of instance worlds. Leave it out for one memory per character.")
+                    .appendInherited(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
+                            (m, v) -> { m.where = v; m.scope = null; }, m -> m.where,
+                            (child, parent) -> child.where = parent.where)
+                    .documentation(DialogueFlagScope.WHERE_DOC)
+                    .add()
+                    .append(new KeyedCodec<>("World", DialogueFlagScope.RETIRED_WORLD_LEAF, false),
+                            (m, v) -> { /* never decoded: the leaf refuses and says what to write */ },
+                            m -> null)
+                    .documentation("Retired. Write Where instead.")
                     .add()
                     .appendInherited(new KeyedCodec<>("ResetWithQuest", Codec.STRING, false),
                             (m, v) -> m.resetWithQuest = v, m -> m.resetWithQuest,
@@ -75,7 +80,7 @@ public final class DialogueMemory {
                     .add()
                     .build();
 
-    @Nullable protected String world;
+    @Nullable protected WorldSelector where;
     @Nullable protected String resetWithQuest;
     @Nullable protected Boolean shared;
 
@@ -86,19 +91,19 @@ public final class DialogueMemory {
 
     /** Java-side construction (tests, a consumer declaring memories in code). */
     @Nonnull
-    public static DialogueMemory of(@Nullable String world, @Nullable String resetWithQuest,
+    public static DialogueMemory of(@Nullable WorldSelector where, @Nullable String resetWithQuest,
                                     @Nullable Boolean shared) {
         DialogueMemory memory = new DialogueMemory();
-        memory.world = world;
+        memory.where = where;
         memory.resetWithQuest = resetWithQuest;
         memory.shared = shared;
         return memory;
     }
 
-    /** The world name or pattern this memory is kept per, or null for one memory per character. */
+    /** The worlds this memory is kept per, or null for one memory per character. */
     @Nullable
-    public String getWorld() {
-        return world;
+    public WorldSelector getWhere() {
+        return where;
     }
 
     /** The quest whose reset also forgets this memory, or null when it is permanent. */
@@ -118,7 +123,7 @@ public final class DialogueMemory {
      */
     public boolean sameDeclarationAs(@Nonnull DialogueMemory other) {
         return isShared() == other.isShared()
-                && Objects.equals(normalized(world), normalized(other.world))
+                && DialogueFlagScope.sameSelector(where, other.where)
                 && Objects.equals(normalized(resetWithQuest), normalized(other.resetWithQuest));
     }
 
@@ -134,12 +139,20 @@ public final class DialogueMemory {
 
     /**
      * The PURE resolver behind {@link #keyFor}: the key in the world named {@code worldName}, or
-     * null when this memory's pattern does not match it.
+     * null when this memory's selector does not match it.
      */
     @Nullable
     public String resolveKey(@Nonnull String dialogueId, @Nonnull String name,
                              @Nullable String worldName) {
-        return DialogueFlagScope.resolve(scope(), baseKey(dialogueId, name), worldName);
+        return resolveKey(dialogueId, name, worldName, null);
+    }
+
+    /** {@link #resolveKey(String, String, String)} with the world's gameplay config too. */
+    @Nullable
+    public String resolveKey(@Nonnull String dialogueId, @Nonnull String name,
+                             @Nullable String worldName, @Nullable String worldGameplayConfig) {
+        return DialogueFlagScope.resolve(scope(), baseKey(dialogueId, name), worldName,
+                worldGameplayConfig);
     }
 
     /** The key before any world scope: the namespace plus an optional owning-quest prefix. */
@@ -153,7 +166,7 @@ public final class DialogueMemory {
     private DialogueFlagScope scope() {
         DialogueFlagScope cached = scope;
         if (cached == null) {
-            cached = DialogueFlagScope.ofWorld(world);
+            cached = DialogueFlagScope.ofWhere(where);
             scope = cached;
         }
         return cached;

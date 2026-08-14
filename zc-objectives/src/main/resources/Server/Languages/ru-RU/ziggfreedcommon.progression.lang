@@ -36,3 +36,34 @@ book.toast.claimed = Награды получены.
 book.toast.claim_failed = Сейчас нечего получать.
 book.toast.turned_in = Сдано.
 book.toast.turn_in_failed = Это нельзя сдать здесь.
+
+npcquests.title.none = Квесты
+npcquests.count = Квесты: {0}
+npcquests.tab.here = Квесты здесь
+npcquests.tab.mine = Мои квесты
+npcquests.empty.here = Сейчас здесь для вас ничего нет.
+npcquests.empty.mine = У вас нет взятых квестов.
+npcquests.empty.unavailable = Сейчас не удаётся прочитать ваши квесты.
+
+npcquests.section.ready = Готово к получению
+npcquests.section.turn_in = Готово к сдаче
+npcquests.section.active = В процессе
+npcquests.section.available = Доступные
+npcquests.section.parked = Получить в другом месте
+npcquests.section.locked = Закрытые
+npcquests.section.done = Завершённые
+
+npcquests.header.objectives = ЦЕЛИ
+npcquests.header.rewards = НАГРАДЫ
+npcquests.header.required = ТРЕБУЕТСЯ
+
+npcquests.action.complete = Завершить
+npcquests.action.abandon = Отказаться
+npcquests.action.track = Отслеживать
+npcquests.action.untrack = Не отслеживать
+
+npcquests.toast.abandoned = Квест отменён.
+npcquests.toast.tracked = Квест отслеживается.
+npcquests.toast.untracked = Квест больше не отслеживается.
+npcquests.toast.track_full = Вы уже отслеживаете максимум квестов.
+npcquests.toast.turn_in_short = Пока недостаточно: {0}/{1}.

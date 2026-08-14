@@ -10,6 +10,11 @@ import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.dialogue.DialogueFlagScope;
+import com.ziggfreed.common.dialogue.DialogueMemory;
+import com.ziggfreed.common.dialogue.DialogueOnce;
+import com.ziggfreed.common.dialogue.DialogueStart;
+import com.ziggfreed.common.dialogue.asset.DialogueFragmentAsset;
 import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
@@ -25,14 +30,15 @@ import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.stamp.RollPoolAsset;
 import com.ziggfreed.common.loot.stamp.StampSpec;
 import com.ziggfreed.common.loot.stamp.StatRollEntry;
+import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.NpcIdentityAsset;
 import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.npc.placement.PlacedNpcComponent;
-import com.ziggfreed.common.npc.placement.PlacementBinding;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
+import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.achievement.asset.AchievementAsset;
 import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
@@ -65,6 +71,21 @@ class AssetCodecInitTest {
     @Test
     void dialogueAssetCodecsInitialize() {
         assertNotNull(ZcDialogueAsset.CODEC, "ZcDialogueAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(DialogueFragmentAsset.CODEC,
+                "DialogueFragmentAsset.CODEC must static-init (PascalCase keys)");
+        // The conversation's own leaf codecs are not stores, but a lower-case key in one would fail
+        // at a conversation's decode rather than here, which is far later and much harder to place.
+        assertNotNull(DialogueStart.Variant.CODEC,
+                "the Pick variant codec must static-init (PascalCase keys)");
+        assertNotNull(DialogueStart.Variant.WEIGHT_CODEC,
+                "a variant's number-or-formula weight codec must static-init");
+        assertNotNull(DialogueStart.QuestRow.CODEC,
+                "the Start quest-row codec must static-init (PascalCase keys)");
+        assertNotNull(DialogueStart.QuestBeat.CODEC, "the quest-row beat codec must static-init");
+        assertNotNull(DialogueFlagScope.CODEC,
+                "the per-world scope codec must static-init (PascalCase keys)");
+        assertNotNull(DialogueOnce.CODEC, "the Once codec must static-init (PascalCase keys)");
+        assertNotNull(DialogueMemory.CODEC, "the Memories codec must static-init (PascalCase keys)");
     }
 
     @Test
@@ -107,9 +128,13 @@ class AssetCodecInitTest {
     @Test
     void npcPlacementCodecsInitialize() {
         assertNotNull(NpcPlacementAsset.CODEC, "NpcPlacementAsset.CODEC must static-init (PascalCase keys)");
-        // The two shared leaf codecs are not stores, but the asset embeds them, so a lower-case
-        // key there would fail at that asset's decode instead of at this build.
-        assertNotNull(PlacementBinding.CODEC, "PlacementBinding.CODEC must static-init (PascalCase keys)");
+        // The shared leaf codecs are not stores, but the asset embeds them, so a lower-case key
+        // there would fail at that asset's decode instead of at this build.
+        assertNotNull(Destination.CODEC, "Destination.CODEC must static-init");
+        assertNotNull(NpcDestinations.Dialogue.CODEC,
+                "the seeded Dialogue destination's codec must static-init (PascalCase keys)");
+        assertNotNull(NpcDestinations.Quests.CODEC,
+                "the seeded Quests destination's codec must static-init (PascalCase keys)");
         assertNotNull(FactorCondition.CODEC, "FactorCondition.CODEC must static-init (PascalCase keys)");
         assertNotNull(FactorCondition.codec("ziggfreedcommon:placement_factors"),
                 "the dropdown-bearing FactorCondition codec factory must static-init too");

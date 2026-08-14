@@ -1,8 +1,8 @@
 package com.ziggfreed.common.dialogue.asset;
 
 import java.util.Locale;
+import java.util.Map;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
@@ -12,6 +12,10 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.ziggfreed.common.dialogue.DeferredCodec;
+import com.ziggfreed.common.dialogue.DialogueMemory;
+import com.ziggfreed.common.dialogue.DialogueNode;
+import com.ziggfreed.common.dialogue.DialogueOption;
+import com.ziggfreed.common.dialogue.DialogueStart;
 import com.ziggfreed.common.dialogue.DialogueTypeTable;
 import com.ziggfreed.common.dialogue.NpcDialogue;
 
@@ -20,23 +24,31 @@ import com.ziggfreed.common.dialogue.NpcDialogue;
  * the dialogue id.
  *
  * <pre>{@code
- * { "Payload": {
- *     "Memories": { "greeted": { "World": "*Forgotten_Temple*" } },
- *     "Start": [ { "Node": "greet" } ],
- *     "Fragments": { "footer": [ { "LabelKey": "...", "Close": true } ] },
- *     "Nodes": {
- *       "greet": { "TextKey": "dialogue.guide.greet.text",
- *                  "Options": [ { "LabelKey": "...", "Accept": "getting_started", "Goto": "brief" } ],
- *                  "IncludeOptions": [ "footer" ] } } } }
+ * {
+ *   "Memories": { "greeted": { "World": "*Forgotten_Temple*" } },
+ *   "Start": { "Fallback": "greet" },
+ *   "Fragments": { "footer": [ { "LabelKey": "...", "Close": true } ] },
+ *   "Nodes": {
+ *     "greet": { "TextKey": "dialogue.guide.greet.text",
+ *                "Options": [ { "LabelKey": "...", "Accept": "getting_started", "Goto": "brief" } ],
+ *                "IncludeOptions": [ "footer" ] } }
+ * }
  * }</pre>
  *
  * <p>The whole conversation is read by a real codec, shorthand and all, so a mistyped key is a
- * startup error naming the file rather than a line that silently never appears.
+ * startup error naming the file rather than a line that silently never appears. Every field above is
+ * a field of the file itself, which is also what the in-game asset editor offers.
  *
  * <p><b>Reuse is inheritance, not copying.</b> A file may name another with {@code "Parent": "<id>"}
- * at the top level and restate only what differs: screens merge by name, and a screen the child does
- * not mention keeps everything the parent gave it. Mark a file that only exists to be inherited from
- * with {@code "Abstract": true} and it is never handed to anybody as a conversation of its own.
+ * at the top level and restate only what differs. Each field decides for itself what that means:
+ * {@code Nodes}, {@code Memories} and {@code Fragments} merge by name, so a screen the child does not
+ * mention keeps everything the parent gave it, while {@code Start} is one ladder and a child that
+ * writes one replaces it. Mark a file that only exists to be inherited from with
+ * {@code "Abstract": true} and it is never handed to anybody as a conversation of its own.
+ *
+ * <p><b>Lines several conversations repeat</b> can live outside this file entirely, as a
+ * {@link DialogueFragmentAsset} under {@code DialogueFragments/}; a screen names either kind the same
+ * way with {@code IncludeOptions}, and a group declared here wins over a file of the same name.
  *
  * <p><b>To retune a conversation somebody else shipped</b>, override the file by id (a same-named
  * file in a later pack), or ship your own with {@code Parent} set to theirs. To take one out of
@@ -49,16 +61,29 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
 
     @Nullable private Boolean enabled;
     @Nullable private Boolean isAbstract;
-    @Nullable private NpcDialogue payload;
 
-    /**
-     * The conversation body's codec cannot exist when this class loads: its shape is the action,
-     * condition and shorthand vocabulary the installed mods register while they start up. This
-     * stands in for it and resolves to the finished codec at the first read, which the server always
-     * performs after every plugin has finished starting.
-     */
-    private static final DeferredCodec<NpcDialogue> BODY =
-            new DeferredCodec<>(() -> DialogueTypeTable.get().dialogueCodec());
+    @Nullable private DialogueStart start;
+    @Nullable private Map<String, DialogueNode> nodes;
+    @Nullable private Map<String, DialogueMemory> memories;
+    @Nullable private Map<String, DialogueOption[]> fragments;
+
+    /** The conversation assembled from the fields above, once the whole file has been read. */
+    @Nullable private NpcDialogue dialogue;
+
+    // Each conversation field's codec cannot exist when this class loads: their shapes are the
+    // action, condition and shorthand vocabulary the installed mods register while they start up.
+    // These stand in for them and resolve to the finished codecs at the first read, which the server
+    // always performs after every plugin has finished starting. One stand-in per field rather than
+    // one for the whole body, so each field keeps its own inheritance behaviour.
+
+    private static final DeferredCodec<DialogueStart> START =
+            new DeferredCodec<>(() -> DialogueTypeTable.get().startCodec());
+    private static final DeferredCodec<Map<String, DialogueNode>> NODES =
+            new DeferredCodec<>(() -> DialogueTypeTable.get().nodesCodec());
+    private static final DeferredCodec<Map<String, DialogueMemory>> MEMORIES =
+            new DeferredCodec<>(() -> DialogueTypeTable.get().memoriesCodec());
+    private static final DeferredCodec<Map<String, DialogueOption[]>> FRAGMENTS =
+            new DeferredCodec<>(() -> DialogueTypeTable.get().fragmentsCodec());
 
     public static final AssetBuilderCodec<String, ZcDialogueAsset> CODEC = AssetBuilderCodec.builder(
                     ZcDialogueAsset.class,
@@ -90,22 +115,48 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
                     + "target and is never opened as a conversation of its own, so a shared skeleton needs no "
                     + "greeting. It never carries down to a child.")
             .add()
-            .appendInherited(new KeyedCodec<>("Payload", BODY, false),
-                    (a, v) -> a.payload = v, a -> a.payload, (a, p) -> a.payload = p.payload)
-            .documentation("The conversation itself: its greetings, its screens, what it remembers, and any "
-                    + "shared option groups.")
+            .appendInherited(new KeyedCodec<>("Start", START, false),
+                    (a, v) -> a.start = v, a -> a.start, (a, p) -> a.start = p.start)
+            .documentation(DialogueTypeTable.START_DOC)
             .add()
-            .afterDecode((asset, extraInfo) -> asset.nameBody())
+            .appendInherited(new KeyedCodec<>("Nodes", NODES, false),
+                    (a, v) -> a.nodes = v, a -> a.nodes, (a, p) -> a.nodes = p.nodes)
+            .documentation(DialogueTypeTable.NODES_DOC)
+            .add()
+            .appendInherited(new KeyedCodec<>("Memories", MEMORIES, false),
+                    (a, v) -> a.memories = v, a -> a.memories, (a, p) -> a.memories = p.memories)
+            .documentation(DialogueTypeTable.MEMORIES_DOC)
+            .add()
+            .appendInherited(new KeyedCodec<>("Fragments", FRAGMENTS, false),
+                    (a, v) -> a.fragments = v, a -> a.fragments, (a, p) -> a.fragments = p.fragments)
+            .documentation(DialogueTypeTable.FRAGMENTS_DOC)
+            .add()
+            .afterDecode((asset, extraInfo) -> asset.assemble())
             .build();
 
     public ZcDialogueAsset() {
     }
 
-    /** The body carries the file's id, so anything holding a decoded conversation knows what it is. */
-    private void nameBody() {
-        if (payload != null && id != null) {
-            payload.setId(id);
+    /**
+     * Turn the fields this file authored into the conversation everything else reads, once, after
+     * the whole file (its {@code Parent} included) has been read. The conversation carries the
+     * file's id so anything holding one knows what it is, and its screens pick up the shared option
+     * groups they name here rather than at every render.
+     */
+    private void assemble() {
+        if (start == null && nodes == null && memories == null && fragments == null) {
+            dialogue = null;
+            return;
         }
+        NpcDialogue built = new NpcDialogue();
+        if (id != null) {
+            built.setId(id);
+        }
+        built.setTree(start, nodes);
+        built.setMemories(memories);
+        built.setFragments(fragments);
+        built.spliceFragments();
+        dialogue = built;
     }
 
     @Override
@@ -123,9 +174,9 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
         return isAbstract != null && isAbstract;
     }
 
-    /** The decoded conversation, or null when the file carried no body. */
+    /** The decoded conversation, or null when the file carried no conversation fields at all. */
     @Nullable
     public NpcDialogue getDialogue() {
-        return payload;
+        return dialogue;
     }
 }

@@ -20,6 +20,7 @@ import com.ziggfreed.common.progress.ObjectiveDef;
  * <ul>
  *   <li>{@link Repeat} - repeatable at all, how long the wait is, and WHEN the clock starts.
  *   <li>{@link Visibility} - hidden until offered, and whether a consumer gate has to pass first.
+ *   <li>{@link QuestTurnInSite} - where it may be collected, when anywhere will not do.
  *   <li>{@link #sequential()} / per-objective {@link ObjectiveDef#order()} - the unlock order.
  *   <li>{@link #autoAccept()} / {@link #autoTrack()} / {@link #autoClaim()} - how much the player
  *   has to do by hand.
@@ -133,6 +134,7 @@ public final class Quest {
     private final List<RewardSpec> rewards;
     @Nullable private final Repeat repeat;
     private final Visibility visibility;
+    @Nullable private final QuestTurnInSite turnInAt;
     private final boolean sequential;
     private final boolean autoAccept;
     private final boolean autoTrack;
@@ -146,12 +148,36 @@ public final class Quest {
         this.rewards = List.copyOf(b.rewards);
         this.repeat = b.repeat;
         this.visibility = b.visibility;
+        this.turnInAt = b.turnInAt;
         this.sequential = b.sequential;
         this.autoAccept = b.autoAccept;
         this.autoTrack = b.autoTrack;
         this.autoClaim = b.autoClaim;
         this.available = b.available;
         this.tags = List.copyOf(b.tags);
+    }
+
+    /**
+     * This quest with a different hand-in site and everything else as it is - the one-line stamp for
+     * a consumer whose content declares its site by policy rather than per file (every quest of one
+     * family collected where it was taken, say). Copying lives here, beside the fields, so a field
+     * added later cannot be silently dropped by a copy written somewhere else.
+     */
+    @Nonnull
+    public Quest withTurnInAt(@Nullable QuestTurnInSite site) {
+        return builder(id)
+                .objectives(objectives)
+                .rewards(rewards)
+                .tags(tags)
+                .repeat(repeat)
+                .visibility(visibility)
+                .turnInAt(site)
+                .sequential(sequential)
+                .autoAccept(autoAccept)
+                .autoTrack(autoTrack)
+                .autoClaim(autoClaim)
+                .available(available)
+                .build();
     }
 
     @Nonnull
@@ -185,6 +211,17 @@ public final class Quest {
     @Nonnull
     public Visibility visibility() {
         return visibility;
+    }
+
+    /**
+     * Where this quest may be completed and collected, or null - the default - for anywhere. Its
+     * PRESENCE is the restriction, exactly as {@link #repeat()}'s presence is the repeatable flag;
+     * see {@link QuestTurnInSite}. The engine enforces it inside the completion path itself, so no
+     * surface has to remember to.
+     */
+    @Nullable
+    public QuestTurnInSite turnInAt() {
+        return turnInAt;
     }
 
     /**
@@ -280,6 +317,7 @@ public final class Quest {
         private final List<String> tags = new ArrayList<>();
         @Nullable private Repeat repeat;
         private Visibility visibility = Visibility.OPEN;
+        @Nullable private QuestTurnInSite turnInAt;
         private boolean sequential;
         private boolean autoAccept;
         private boolean autoTrack;
@@ -336,6 +374,13 @@ public final class Quest {
         @Nonnull
         public Builder visibility(@Nonnull Visibility visibility) {
             this.visibility = visibility;
+            return this;
+        }
+
+        /** Where it may be collected; null (the default) leaves it collectable anywhere. */
+        @Nonnull
+        public Builder turnInAt(@Nullable QuestTurnInSite turnInAt) {
+            this.turnInAt = turnInAt;
             return this;
         }
 

@@ -11,6 +11,7 @@ import com.ziggfreed.common.progress.asset.ContentListingAsset.ChainMembership;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.quest.QuestTurnInSite;
 
 /**
  * A folded quest: the {@link Quest} the engine runs, plus everything an authoring layer carries
@@ -74,6 +75,29 @@ public record QuestDefinition(@Nonnull String id, @Nonnull Quest quest, @Nullabl
     /** Was this quest produced by a generator rather than authored as its own file? */
     public boolean isGenerated() {
         return generatedBy != null;
+    }
+
+    /**
+     * Where the finished quest may be collected, or null for anywhere. It lives on {@link #quest()}
+     * rather than beside it, because unlike the rest of what this record carries the ENGINE enforces
+     * it; this is the read for a surface or an audit that has the folded definition in hand.
+     */
+    @Nullable
+    public QuestTurnInSite turnInAt() {
+        return quest.turnInAt();
+    }
+
+    /**
+     * This definition with a different collection site, for a consumer whose content declares one by
+     * POLICY rather than per file - a whole family collected wherever it was taken, say. It is the
+     * one-line stamp such an adapter applies as it folds, and it needs no authored leaf, which is
+     * what keeps the policy out of every one of those files.
+     */
+    @Nonnull
+    public QuestDefinition withTurnInAt(@Nullable QuestTurnInSite site) {
+        return new QuestDefinition(id, quest.withTurnInAt(site), titleKey, flavorKey, displayName,
+                titleArgs, flavorArgs, category, sortOrder, chains, npcViewId, turnInNpcId,
+                completionDialogue, requires, objectiveTextKeys, resetsOnComplete, generatedBy, meta);
     }
 
     /** The localization key for one step's line, or null when it authored none. */

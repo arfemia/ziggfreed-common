@@ -217,6 +217,55 @@ class QuestPoolValidatorTest {
                 """)).isEmpty());
     }
 
+    /**
+     * The collection site, both ways of naming one nobody can be. A giver-bound quest with no giver
+     * is provable from the file alone; an id nothing declares needs somebody who knows which
+     * characters exist, and with nobody to ask the check stays quiet rather than guessing.
+     */
+    @Test
+    void aCollectionSiteNobodyCanBeIsReported() {
+        List<Finding> issues = validate(poolOf("q", """
+                { "TurnInAt": true,
+                  "Objectives": { "a": { "Kind": "BREAK_BLOCK", "Target": "x" } } }
+                """));
+
+        assertEquals(List.of("TURN_IN_AT_NO_GIVER"), codes(issues));
+        assertEquals(Severity.WARNING, issues.get(0).severity());
+
+        assertTrue(validate(poolOf("q", """
+                { "TurnInAt": true, "Npc": { "ViewId": "guide" },
+                  "Objectives": { "a": { "Kind": "BREAK_BLOCK", "Target": "x" } } }
+                """)).isEmpty(), "a giver-bound quest that names its giver is fine");
+    }
+
+    @Test
+    void aCollectionSiteNothingAnswersToIsAWarningOnlyWhenSomebodyCanSaySo() {
+        QuestPool pool = poolOf("q", """
+                { "TurnInAt": "quartermaster",
+                  "Objectives": { "a": { "Kind": "BREAK_BLOCK", "Target": "x" } } }
+                """);
+
+        assertTrue(validate(pool).isEmpty(),
+                "with no probe the audit cannot know who exists, so it claims nothing");
+
+        List<Finding> issues = QuestPoolValidator.validate(pool, KINDS, REWARDS, STORE,
+                new GateKindRegistry(), npcId -> false);
+        assertEquals(List.of("UNKNOWN_TURN_IN_AT"), codes(issues));
+        assertEquals(Severity.WARNING, issues.get(0).severity(),
+                "the character may belong to a mod this server has not installed");
+
+        assertTrue(QuestPoolValidator.validate(pool, KINDS, REWARDS, STORE, new GateKindRegistry(),
+                npcId -> npcId.equals("quartermaster")).isEmpty());
+    }
+
+    @Test
+    void theAcceptedAtSiteNamesNobodySoThereIsNothingToLookUp() {
+        assertTrue(QuestPoolValidator.validate(poolOf("q", """
+                { "TurnInAt": "@accept",
+                  "Objectives": { "a": { "Kind": "BREAK_BLOCK", "Target": "x" } } }
+                """), KINDS, REWARDS, STORE, new GateKindRegistry(), npcId -> false).isEmpty());
+    }
+
     @Test
     void anUnknownVocabularyIsSkippedRatherThanReportedAsAllUnknown() {
         List<Finding> issues = QuestPoolValidator.validate(poolOf("q", """

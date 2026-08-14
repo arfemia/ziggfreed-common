@@ -7,23 +7,32 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.npc.NpcDestinations;
+import com.ziggfreed.common.ui.route.Destination;
 
 /**
  * {@link NpcPlacementAsset}'s decode contract under native {@code Parent} inheritance.
  *
- * <p>The load-bearing case is {@code Interact.Bindings}: it is a MAP rather than an array so that a
- * child placement can override ONE channel and keep the rest. An array would be a single leaf as
- * far as inheritance is concerned, so authoring it at all would drop every inherited entry. That is
- * the whole reason for the map, so it is proved here rather than assumed.
+ * <p>The load-bearing case is {@code Interact}: the terse {@code Dialogue} spelling and the general
+ * {@code Open} destination are two ways of writing ONE value, so what is proved here is that they
+ * fold to the same model, that authoring both is visible, and that a child inheriting from a
+ * {@code Parent} takes a destination as a whole leaf rather than merging one type's fields into
+ * another's.
  */
 class NpcPlacementAssetCodecTest {
+
+    @BeforeAll
+    static void seedDestinations() {
+        // The vocabulary is normally seeded in the plugin's setup, before assets are read.
+        NpcDestinations.register();
+    }
 
     private static NpcPlacementAsset decode(String json, String id, String parentId, NpcPlacementAsset parent)
             throws IOException {
@@ -36,83 +45,113 @@ class NpcPlacementAssetCodecTest {
         return decode(json, id, null, null);
     }
 
-    // ==================== Bindings: the map-vs-array decision, proved ====================
+    // ==================== Interact: one value, two spellings ====================
 
     @Test
-    void aChildOverridingOneBindingKeepsThePartnersSiblingChannels() throws Exception {
+    void theTerseDialogueSpellingIsTheDialogueDestination() throws Exception {
+        NpcPlacementAsset asset = decodeRoot("""
+                { "Interact": { "Dialogue": "hub_intro" } }
+                """, "hub");
+
+        assertEquals("hub_intro", asset.getInteract().getDialogue());
+        assertNull(asset.getInteract().getOpen(), "the terse form authors no Open leaf of its own");
+
+        Destination destination = asset.getInteract().destination();
+        assertNotNull(destination, "the terse form must resolve to a destination");
+        assertEquals("hub_intro", ((NpcDestinations.Dialogue) destination).getDialogue(),
+                "so that press-F and an explicit Open run the very same model");
+    }
+
+    @Test
+    void anOpenDestinationDecodesItsOwnFields() throws Exception {
+        NpcPlacementAsset asset = decodeRoot("""
+                { "Interact": { "Open": { "Type": "Quests", "Npc": "guide" } } }
+                """, "quartermaster");
+
+        NpcDestinations.Quests quests = (NpcDestinations.Quests) asset.getInteract().getOpen();
+        assertNotNull(quests);
+        assertEquals("guide", quests.getNpc());
+        assertNull(asset.getInteract().getDialogue());
+    }
+
+    @Test
+    void aParameterlessDestinationMayBeAuthoredAsOneWord() throws Exception {
+        NpcPlacementAsset asset = decodeRoot("""
+                { "Interact": { "Open": "Quests" } }
+                """, "greeter");
+
+        NpcDestinations.Quests quests = (NpcDestinations.Quests) asset.getInteract().getOpen();
+        assertNotNull(quests, "the bare string must decode as the same type the object form does");
+        assertNull(quests.getNpc(), "and carry no fields, so it means the character standing here");
+    }
+
+    @Test
+    void authoringBothSpellingsIsVisibleAndRunsTheExplicitOne() throws Exception {
+        NpcPlacementAsset asset = decodeRoot("""
+                { "Interact": { "Dialogue": "hub_intro", "Open": "Quests" } }
+                """, "confused");
+
+        assertTrue(asset.getInteract().hasBothForms(),
+                "one press-F described twice must be answerable off the file alone");
+        assertTrue(asset.getInteract().destination() instanceof NpcDestinations.Quests,
+                "the destination written out in full is what runs, so the behaviour is at least decided");
+    }
+
+    @Test
+    void aPlacementWithNoInteractOpensNothingOfItsOwn() throws Exception {
+        NpcPlacementAsset asset = decodeRoot("{ \"Identity\": { \"Role\": \"Zc_Guide\" } }", "silent");
+
+        assertNull(asset.getInteract(), "no Interact block authored means no destination on the asset");
+    }
+
+    // ==================== Interact under Parent ====================
+
+    @Test
+    void aChildInheritsTheParentsInteractWhole() throws Exception {
         NpcPlacementAsset parent = decodeRoot("""
-                { "Interact": { "Dialogue": "hub_intro",
-                                "Bindings": { "yourmod:ui_target": { "Value": "hub" },
-                                              "yourmod:npc_id":    { "Value": "guide" } } } }
+                { "Identity": { "Role": "Zc_Guide" },
+                  "Interact": { "Dialogue": "hub_intro" } }
                 """, "hub");
 
         NpcPlacementAsset child = decode("""
-                { "Interact": { "Bindings": { "yourmod:npc_id": { "Value": "guide_temple" } } } }
+                { "Identity": { "NpcId": "hub_temple" } }
                 """, "hub_temple", "hub", parent);
 
-        Map<String, PlacementBinding> bindings = child.getInteract().getBindings();
-        assertEquals("guide_temple", bindings.get("yourmod:npc_id").getValue(),
-                "the child's own channel must win");
-        assertNotNull(bindings.get("yourmod:ui_target"),
-                "a channel the child did not mention must survive - this is what the map buys over an array");
-        assertEquals("hub", bindings.get("yourmod:ui_target").getValue());
         assertEquals("hub_intro", child.getInteract().getDialogue(),
-                "a sibling leaf in the same group must survive the partial override");
+                "a child that swaps the identity keeps the conversation without restating it - the "
+                        + "second-world case is a file with no Interact block at all");
     }
 
     @Test
-    void aChildBindingMergesLeafWiseWithinOneChannel() throws Exception {
+    void aChildAuthoringADestinationReplacesTheInheritedOneWhole() throws Exception {
         NpcPlacementAsset parent = decodeRoot("""
-                { "Interact": { "Bindings": { "yourmod:slot": { "Value": "a", "Amount": 3.0 } } } }
+                { "Interact": { "Open": { "Type": "Quests", "Npc": "guide" } } }
                 """, "base");
 
         NpcPlacementAsset child = decode("""
-                { "Interact": { "Bindings": { "yourmod:slot": { "Value": "b" } } } }
+                { "Interact": { "Open": { "Type": "Dialogue", "Dialogue": "sage_intro" } } }
                 """, "child", "base", parent);
 
-        PlacementBinding slot = child.getInteract().getBindings().get("yourmod:slot");
-        assertEquals("b", slot.getValue());
-        assertEquals(3.0, slot.getAmount(),
-                "one channel's untouched leaf must survive too, not just one channel among many");
+        Destination open = child.getInteract().getOpen();
+        assertTrue(open instanceof NpcDestinations.Dialogue,
+                "a destination is ONE leaf: authoring it replaces the inherited one rather than merging "
+                        + "one type's fields into another type's");
+        assertEquals("sage_intro", ((NpcDestinations.Dialogue) open).getDialogue());
     }
 
     @Test
-    void aBindingsListLeafInheritsWholeAndOverridesWhole() throws Exception {
+    void aChildOverridingOneInteractLeafKeepsItsSibling() throws Exception {
         NpcPlacementAsset parent = decodeRoot("""
-                { "Interact": { "Bindings": { "yourmod:tags": { "Value": "keep",
-                                                                "Values": ["a", "b"] } } } }
+                { "Interact": { "Dialogue": "hub_intro" } }
                 """, "base");
 
-        PlacementBinding inherited = decode("""
-                { "Interact": { "Bindings": { "yourmod:tags": { "Value": "changed" } } } }
-                """, "silent", "base", parent).getInteract().getBindings().get("yourmod:tags");
-        assertEquals(List.of("a", "b"), inherited.effectiveValues(),
-                "a child that never mentions Values inherits the parent's list whole");
+        NpcPlacementAsset child = decode("""
+                { "Interact": { "Dialogue": "temple_intro" } }
+                """, "child", "base", parent);
 
-        PlacementBinding replaced = decode("""
-                { "Interact": { "Bindings": { "yourmod:tags": { "Values": ["c"] } } } }
-                """, "loud", "base", parent).getInteract().getBindings().get("yourmod:tags");
-        assertEquals(List.of("c"), replaced.effectiveValues(),
-                "Values is ONE leaf, so authoring it replaces the inherited list rather than adding to it");
-        assertEquals("keep", replaced.getValue(),
-                "and its sibling leaves in the same channel are untouched");
-
-        PlacementBinding cleared = decode("""
-                { "Interact": { "Bindings": { "yourmod:tags": { "Values": [] } } } }
-                """, "empty", "base", parent).getInteract().getBindings().get("yourmod:tags");
-        assertTrue(cleared.effectiveValues().isEmpty(),
-                "an authored empty array is how a child inherits a channel and carries no list at all");
-    }
-
-    @Test
-    void anUnauthoredValuesListReadsAsEmpty() throws Exception {
-        PlacementBinding binding = decodeRoot("""
-                { "Interact": { "Bindings": { "yourmod:tags": { "Value": "one" } } } }
-                """, "bare").getInteract().getBindings().get("yourmod:tags");
-
-        assertNull(binding.getValues(), "absent stays null, like every other leaf");
-        assertTrue(binding.effectiveValues().isEmpty(),
-                "the null-safe read is what a channel owner iterates, so it never needs a guard");
+        assertEquals("temple_intro", child.getInteract().getDialogue());
+        assertNull(child.getInteract().getOpen(),
+                "an untouched leaf in an overridden group stays as the parent left it (unauthored here)");
     }
 
     // ==================== appendInherited across the groups ====================

@@ -4,90 +4,70 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
-import java.util.Map;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.validation.Severity;
 
 /**
  * The authoring mistakes that are otherwise SILENT.
  *
- * <p>In {@code Interact.Bindings}: a channel key with no {@code namespace:} prefix has no owner and
- * simply vanishes, and a namespace nobody claimed is ignored at every press-F. In
- * {@code Identity}: naming no {@code Role} leaves nothing to spawn. Every one of them is invisible
- * at runtime - an NPC that never appears reads exactly like one nobody has walked to yet - so this
- * pins them as findings.
+ * <p>In {@code Interact}: describing one press-F twice, which leaves half the file saying something
+ * that never runs. In {@code Identity}: naming no {@code Role}, which leaves nothing to spawn. Both
+ * are invisible at runtime - an NPC that never appears reads exactly like one nobody has walked to
+ * yet - so they are pinned here as findings.
  */
 class NpcPlacementValidatorTest {
 
-    @BeforeEach
-    @AfterEach
-    void reset() {
-        NpcPlacementBindings.clearForTests();
-    }
-
-    private static NpcPlacementAsset placementWithBindings(Map<String, PlacementBinding> bindings) {
+    private static NpcPlacementAsset placementWith(NpcPlacementAsset.Interact interact) {
         return NpcPlacementAsset.of("test_placement", true,
                 NpcPlacementAsset.Identity.of("some_role"),
                 null,
                 NpcPlacementAsset.Anchor.of(NpcPlacementAsset.Anchor.WorldSpawn.of(null, null), null, null, null, null),
                 null, null, null,
-                NpcPlacementAsset.Interact.of(null, bindings));
+                interact);
     }
-
-    @Test
-    void aColonlessBindingKeyIsFlagged() {
-        List<Finding> issues = NpcPlacementValidator.audit(
-                placementWithBindings(Map.of("no_namespace", PlacementBinding.value("x"))));
-
-        assertTrue(issues.stream().anyMatch(i -> "BINDING_KEY_NO_NAMESPACE".equals(i.code())),
-                "a key with no 'namespace:channel' prefix silently drops at runtime and must be flagged");
-    }
-
-    @Test
-    void aBindingKeyStartingWithAColonHasNoNamespaceEither() {
-        List<Finding> issues = NpcPlacementValidator.audit(
-                placementWithBindings(Map.of(":ui_target", PlacementBinding.value("x"))));
-
-        assertTrue(issues.stream().anyMatch(i -> "BINDING_KEY_NO_NAMESPACE".equals(i.code())));
-    }
-
-    @Test
-    void aProperlyNamespacedKeyIsNotFlaggedAsColonless() {
-        NpcPlacementBindings.register("yourmod", ctx -> { });
-        List<Finding> issues = NpcPlacementValidator.audit(
-                placementWithBindings(Map.of("yourmod:ui_target", PlacementBinding.value("x"))));
-
-        assertFalse(issues.stream().anyMatch(i -> "BINDING_KEY_NO_NAMESPACE".equals(i.code())));
-    }
-
-    @Test
-    void anUnclaimedNamespaceIsFlagged() {
-        List<Finding> issues = NpcPlacementValidator.audit(
-                placementWithBindings(Map.of("yourmod:ui_target", PlacementBinding.value("x"))));
-
-        assertTrue(issues.stream().anyMatch(i -> "UNCLAIMED_BINDING_NAMESPACE".equals(i.code())),
-                "a namespace nobody registered a handler for is silently ignored at press-F");
-    }
-
-    @Test
-    void aClaimedNamespaceIsNotFlaggedAsUnclaimed() {
-        NpcPlacementBindings.register("yourmod", ctx -> { });
-
-        List<Finding> issues = NpcPlacementValidator.audit(
-                placementWithBindings(Map.of("yourmod:ui_target", PlacementBinding.value("x"))));
-
-        assertFalse(issues.stream().anyMatch(i -> "UNCLAIMED_BINDING_NAMESPACE".equals(i.code())));
-    }
-
-    // ==================== identity ====================
 
     private static boolean has(List<Finding> issues, String code) {
         return issues.stream().anyMatch(i -> code.equals(i.code()));
     }
+
+    // ==================== interact ====================
+
+    @Test
+    void authoringBothInteractFormsIsAnError() {
+        List<Finding> issues = NpcPlacementValidator.audit(placementWith(
+                NpcPlacementAsset.Interact.of("hub_intro", NpcDestinations.Quests.of(null))));
+
+        assertTrue(has(issues, "INTERACT_BOTH_FORMS"),
+                "one press-F described twice leaves half the file saying something that never runs");
+        assertTrue(issues.stream()
+                        .filter(i -> "INTERACT_BOTH_FORMS".equals(i.code()))
+                        .allMatch(i -> i.severity() == Severity.ERROR),
+                "and it is an error rather than a precedence rule");
+    }
+
+    @Test
+    void eitherFormOnItsOwnIsClean() {
+        assertFalse(has(NpcPlacementValidator.audit(
+                        placementWith(NpcPlacementAsset.Interact.of("hub_intro"))),
+                "INTERACT_BOTH_FORMS"));
+        assertFalse(has(NpcPlacementValidator.audit(
+                        placementWith(NpcPlacementAsset.Interact.of(null, NpcDestinations.Quests.of(null)))),
+                "INTERACT_BOTH_FORMS"));
+    }
+
+    @Test
+    void noInteractAtAllProducesNoInteractFindings() {
+        List<Finding> issues = NpcPlacementValidator.audit(placementWith(null));
+
+        assertFalse(has(issues, "INTERACT_BOTH_FORMS"),
+                "a placement that opens nothing of its own is not an authoring mistake");
+    }
+
+    // ==================== identity ====================
 
     /** A placement whose Identity says who it is but never says WHAT to stand there. */
     @Test
@@ -104,18 +84,6 @@ class NpcPlacementValidatorTest {
 
     @Test
     void anIdentityNamingARoleIsClean() {
-        assertFalse(has(NpcPlacementValidator.audit(placementWithBindings(Map.of())), "NO_ROLE"));
-    }
-
-    @Test
-    void noInteractOrNoBindingsProducesNoInteractFindings() {
-        NpcPlacementAsset noInteract = NpcPlacementAsset.of("test_placement", true,
-                NpcPlacementAsset.Identity.of("some_role"), null,
-                NpcPlacementAsset.Anchor.of(NpcPlacementAsset.Anchor.WorldSpawn.of(null, null), null, null, null, null),
-                null, null, null, null);
-
-        List<Finding> issues = NpcPlacementValidator.audit(noInteract);
-
-        assertFalse(issues.stream().anyMatch(i -> i.code().startsWith("BINDING_KEY") || i.code().startsWith("UNCLAIMED_BINDING")));
+        assertFalse(has(NpcPlacementValidator.audit(placementWith(null)), "NO_ROLE"));
     }
 }

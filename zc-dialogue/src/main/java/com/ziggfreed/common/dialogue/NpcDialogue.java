@@ -15,11 +15,10 @@ import com.ziggfreed.common.CommonLog;
 /**
  * A branching NPC dialogue: a STANDALONE tree keyed by its OWN id (never bound to
  * one NPC - NPCs attach a dialogue, so one tree can serve a whole camp).
- * {@code Start} is an ordered list of entry candidates whose conditions pick the
- * greeting node (first passing candidate wins, so greeting text tracks state);
- * {@code Nodes} maps node ids to {@link DialogueNode}s. An optional top-level
- * {@code Memories} map declares the named things this conversation can remember
- * about a player (see {@link DialogueMemory}).
+ * {@code Start} declares WHICH screen a conversation opens on, in sections the engine
+ * walks in a fixed order (see {@link DialogueStart}); {@code Nodes} maps node ids to
+ * {@link DialogueNode}s. An optional top-level {@code Memories} map declares the named
+ * things this conversation can remember about a player (see {@link DialogueMemory}).
  *
  * <p>A pure data POJO: its codec is assembled per-{@link DialogueEngine} (so the
  * action/condition dispatch codecs carry the consumer's registered types), which
@@ -30,7 +29,7 @@ import com.ziggfreed.common.CommonLog;
 public class NpcDialogue {
 
     protected String id = "";
-    @Nullable DialogueEntry[] start;
+    @Nullable DialogueStart start;
     @Nullable Map<String, DialogueNode> nodes;
     @Nullable Map<String, DialogueMemory> memories;
     @Nullable Map<String, DialogueOption[]> fragments;
@@ -47,6 +46,11 @@ public class NpcDialogue {
         return fragments == null ? Collections.emptyMap() : fragments;
     }
 
+    /** Direct (non-codec) construction: declare the shared option groups from Java. */
+    public void setFragments(@Nullable Map<String, DialogueOption[]> fragments) {
+        this.fragments = fragments;
+    }
+
     /**
      * Append each screen's named shared option groups to its own options, once, right after the
      * whole conversation has been read (so a screen inherited from a parent picks up the child's
@@ -56,35 +60,68 @@ public class NpcDialogue {
      * lines that belong to this beat come first, the ones every beat repeats come last. The same
      * option object is shared by every screen that names the group; nothing about an option depends
      * on which screen it is shown from, so there is nothing to copy.
+     *
+     * <p>A name is looked for in this conversation's own {@code Fragments} first and in the shared
+     * {@code DialogueFragments} files second, so a conversation that wants its own version of a
+     * server-wide footer writes one under its own {@code Fragments} and that is the one its screens
+     * get. Only a name neither answers is reported.
      */
-    void spliceFragments() {
+    public void spliceFragments() {
         if (nodes == null || nodes.isEmpty()) {
             return;
         }
         Map<String, DialogueOption[]> declared = getFragments();
+        Map<String, DialogueNode> spliced = null;
         for (Map.Entry<String, DialogueNode> entry : nodes.entrySet()) {
             DialogueNode node = entry.getValue();
             if (node == null || node.includeOptions == null || node.includeOptions.length == 0) {
                 continue;
             }
-            List<DialogueOption> merged = new ArrayList<>(node.getOptions());
+            // Start from what the screen itself AUTHORED, never from an earlier splice of it: under
+            // Parent a screen the child did not restate is the parent's own object, already spliced
+            // when the parent was read, and appending to that would show the shared lines twice here
+            // and change what the parent conversation says.
+            List<DialogueOption> merged = new ArrayList<>(node.getAuthoredOptions());
             for (String name : node.includeOptions) {
-                DialogueOption[] group = name == null ? null : declared.get(name);
+                DialogueOption[] group = resolveFragment(declared, name);
                 if (group == null) {
                     unknownFragment(entry.getKey(), name);
                     continue;
                 }
                 Collections.addAll(merged, group);
             }
-            node.setOptions(merged.toArray(new DialogueOption[0]));
+            // And write the result onto a COPY, into a map of this conversation's own, so a screen
+            // (or a whole screen map) shared with the conversation it inherits from is never touched.
+            if (spliced == null) {
+                spliced = new LinkedHashMap<>(nodes);
+            }
+            spliced.put(entry.getKey(), node.withSplicedOptions(merged.toArray(new DialogueOption[0])));
         }
+        if (spliced != null) {
+            nodes = spliced;
+        }
+    }
+
+    /** This conversation's own group of that name, else the shared file of that name, else null. */
+    @Nullable
+    private static DialogueOption[] resolveFragment(@Nonnull Map<String, DialogueOption[]> declared,
+                                                    @Nullable String name) {
+        if (name == null) {
+            return null;
+        }
+        DialogueOption[] local = declared.get(name);
+        if (local != null) {
+            return local;
+        }
+        return DialogueFragmentConfig.getInstance().group(name);
     }
 
     private void unknownFragment(@Nonnull String nodeId, @Nullable String name) {
         try {
             CommonLog.LOGGER.atWarning().log(
-                    "[Dialogue] '%s' screen '%s' pulls in shared options '%s', which this conversation"
-                            + " does not declare under Fragments", id, nodeId, String.valueOf(name));
+                    "[Dialogue] '%s' screen '%s' pulls in shared options '%s', which neither this"
+                            + " conversation's Fragments nor any DialogueFragments file provides",
+                    id, nodeId, String.valueOf(name));
         } catch (Throwable ignored) {
             // a unit JVM with no log manager throws an Error from the fluent logger; swallow it.
         }
@@ -101,14 +138,24 @@ public class NpcDialogue {
     }
 
     /** Direct (non-codec) construction: fill the tree from Java. */
-    public void setTree(@Nullable DialogueEntry[] start, @Nullable Map<String, DialogueNode> nodes) {
+    public void setTree(@Nullable DialogueStart start, @Nullable Map<String, DialogueNode> nodes) {
         this.start = start;
         this.nodes = nodes;
     }
 
+    /**
+     * Which screen this conversation opens on, in the sections the engine walks. Never null: a
+     * conversation that authored none gets {@link DialogueStart#EMPTY}, and the engine then opens on
+     * the first screen whose own conditions pass.
+     */
     @Nonnull
-    public List<DialogueEntry> getStart() {
-        return start == null ? Collections.emptyList() : List.of(start);
+    public DialogueStart getStart() {
+        return start == null ? DialogueStart.EMPTY : start;
+    }
+
+    /** True when this conversation authored a {@code Start} that decides something. */
+    public boolean hasStart() {
+        return start != null && !start.isEmpty();
     }
 
     @Nonnull
@@ -161,33 +208,5 @@ public class NpcDialogue {
     @Nonnull
     static Map<String, DialogueNode> emptyNodeMap() {
         return new LinkedHashMap<>();
-    }
-
-    /**
-     * One ordered entry candidate: a node id, optional AND-combined conditions, and an optional
-     * {@link DialogueOnce} that retires the entry after the player has played that beat through.
-     */
-    public static class DialogueEntry {
-
-        @Nullable String node;
-        @Nullable DialogueCondition[] conditions;
-        @Nullable DialogueOnce once;
-
-        public DialogueEntry() {
-        }
-
-        @Nullable public String getNode() { return node; }
-
-        @Nonnull
-        public List<DialogueCondition> getConditions() {
-            return conditions == null ? Collections.emptyList() : List.of(conditions);
-        }
-
-        /**
-         * The first-visit knob, or null when this entry may be picked any number of times. The
-         * entry stops matching once the player finishes the beat it routed to (chooses any option
-         * on that node, the implicit Farewell included); leaving with Escape shows it again.
-         */
-        @Nullable public DialogueOnce getOnce() { return once; }
     }
 }

@@ -37,7 +37,7 @@ class DialogueFactorConditionTest {
     /** A dialogue whose single option is gated on {@code conditionJson}. */
     private static NpcDialogue gated(DialogueEngine engine, String conditionJson) {
         NpcDialogue d = engine.decode("f",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"gated\",\"Conditions\":[" + conditionJson + "],"
                         + "\"Actions\":[{\"Type\":\"Close\"}]}]}}}");
         assertNotNull(d);

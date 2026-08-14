@@ -29,6 +29,13 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
  * <p>It forwards {@link InheritCodec} as well, so a field declared through it still takes part in
  * {@code Parent} inheritance (the engine only offers the merge path to a field whose codec is an
  * inheriting one, and asking the real codec later would be too late).
+ *
+ * <p><b>A delegate that does not inherit still works.</b> Whether a codec merges with its parent or
+ * replaces it wholesale is decided by the codec, not by this forwarder, and both kinds are declared
+ * through here (a keyed map merges per key; an array replaces). Since the engine asks this class
+ * rather than the delegate, this class asks the delegate the SAME question the engine would have
+ * asked it - merge when it can, plain decode when it cannot - so a field's inherit behaviour is the
+ * delegate's own either way.
  */
 public final class DeferredCodec<T> implements Codec<T>, InheritCodec<T> {
 
@@ -49,15 +56,31 @@ public final class DeferredCodec<T> implements Codec<T>, InheritCodec<T> {
         return supplier.get();
     }
 
-    @Nonnull
-    private InheritCodec<T> inheriting() {
+    /** The resolved codec as an inheriting one, or null when it merges nothing and replaces instead. */
+    @Nullable
+    private InheritCodec<T> inheritingOrNull() {
         Codec<T> codec = delegate();
         if (codec instanceof InheritCodec) {
             @SuppressWarnings("unchecked")
             InheritCodec<T> inherit = (InheritCodec<T>) codec;
             return inherit;
         }
-        throw new IllegalStateException("Deferred codec resolved to a non-inheriting codec: " + codec);
+        return null;
+    }
+
+    /**
+     * The resolved codec as an inheriting one, for the two forms that fill a value the caller has
+     * ALREADY created. There is no way to honour those with a replacing codec, and the engine only
+     * reaches them for a delegate it has itself confirmed is a merging one, so arriving here with
+     * anything else means the wiring is wrong rather than the file.
+     */
+    @Nonnull
+    private InheritCodec<T> inheriting() {
+        InheritCodec<T> inherit = inheritingOrNull();
+        if (inherit == null) {
+            throw new IllegalStateException("Deferred codec resolved to a non-inheriting codec: " + delegate());
+        }
+        return inherit;
     }
 
     @Override
@@ -80,7 +103,11 @@ public final class DeferredCodec<T> implements Codec<T>, InheritCodec<T> {
     @Nullable
     @Override
     public T decodeAndInherit(BsonDocument document, T parent, ExtraInfo extraInfo) {
-        return inheriting().decodeAndInherit(document, parent, extraInfo);
+        InheritCodec<T> inherit = inheritingOrNull();
+        if (inherit == null) {
+            return delegate().decode(document, extraInfo);
+        }
+        return inherit.decodeAndInherit(document, parent, extraInfo);
     }
 
     @Override
@@ -91,7 +118,11 @@ public final class DeferredCodec<T> implements Codec<T>, InheritCodec<T> {
     @Nullable
     @Override
     public T decodeAndInheritJson(RawJsonReader reader, T parent, ExtraInfo extraInfo) throws IOException {
-        return inheriting().decodeAndInheritJson(reader, parent, extraInfo);
+        InheritCodec<T> inherit = inheritingOrNull();
+        if (inherit == null) {
+            return delegate().decodeJson(reader, extraInfo);
+        }
+        return inherit.decodeAndInheritJson(reader, parent, extraInfo);
     }
 
     @Override

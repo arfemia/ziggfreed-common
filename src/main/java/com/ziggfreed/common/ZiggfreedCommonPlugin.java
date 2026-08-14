@@ -31,6 +31,9 @@ import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.stamp.StackStatsStamper;
 import com.ziggfreed.common.loot.stamp.StamperRegistry;
 import com.ziggfreed.common.npc.NpcActions;
+import com.ziggfreed.common.npc.NpcDestinations;
+import com.ziggfreed.common.npc.NpcQuestListHosts;
+import com.ziggfreed.common.objectives.questlist.NpcQuestPages;
 import com.ziggfreed.common.npc.NpcTalkDialogue;
 import com.ziggfreed.common.npc.TalkCredits;
 import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
@@ -61,10 +64,13 @@ import com.ziggfreed.common.util.SafeLog;
  * server jar.
  *
  * <p>The static primitives register nothing (a consumer calls them directly), but this plugin DOES
- * own five registrations of its own:
+ * own six registrations of its own:
  * <ul>
  *   <li>the framework asset stores ({@link FrameworkAssetRegistrar}), so common owns each store at
  *       {@code Server/ZiggfreedCommon/<Type>/} exactly once;</li>
+ *   <li>the two generic destinations ({@link NpcDestinations}), because a conversation is this
+ *       library's own engine and a character's quest list routes through a host seam, so neither
+ *       needs anything a consumer has to wire;</li>
  *   <li>the Asset Editor pick lists for the fields naming a factor id ({@link EditorDataSets}),
  *       because the vocabulary they offer spans the placement registry and the Factors assets and
  *       only this wiring root can see both;</li>
@@ -117,6 +123,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
+        // Seed the shared destination vocabulary before the stores whose assets embed it, so no
+        // read can reach a half-built vocabulary.
+        registerDestinations();
+
         // Register the framework asset stores ONCE (common owns them at
         // Server/ZiggfreedCommon/<Type>/). The stateless static primitives still register
         // nothing - a consumer calls them directly.
@@ -129,8 +139,22 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         registerWorldLifecycle();
         registerPlayerIdentity();
         setupProgressionRuntime();
+        registerQuestListHost();
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
+    }
+
+    /**
+     * The library's own NPC quest page is the DEFAULT target the Quests destination opens - a bare
+     * server gets a working quest list from this jar alone. A consumer wanting a different screen
+     * registers its own host under its own id; the walk tries hosts in sorted id order.
+     */
+    private void registerQuestListHost() {
+        try {
+            NpcQuestListHosts.register("ziggfreedcommon", "ziggfreedcommon", NpcQuestPages::open);
+        } catch (Throwable t) {
+            SafeLog.warn("[questlist] default quest-page host wiring failed", t);
+        }
     }
 
     /**
@@ -206,6 +230,24 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         HytaleFactors.registerInto(registry, LootFactors.OWNER);
         LootFactors.registerInto(registry, LootFactors.OWNER);
         return registry;
+    }
+
+    /**
+     * Seed the two destinations every server has - a conversation and a character's quest list - into
+     * the shared routing vocabulary.
+     *
+     * <p>It runs in {@code setup()} because a file naming a destination {@code Type} nothing has
+     * registered fails to load, and assets are read only after every plugin's setup has returned.
+     * Both belong to common rather than to a consumer: the library owns the dialogue engine, and the
+     * quest list routes to whatever quest UI registered a host, which is nothing to wire where none
+     * did.
+     */
+    private void registerDestinations() {
+        try {
+            NpcDestinations.register();
+        } catch (Throwable t) {
+            SafeLog.warn("[destination] could not seed the generic destinations", t);
+        }
     }
 
     private void registerEditorDataSets() {

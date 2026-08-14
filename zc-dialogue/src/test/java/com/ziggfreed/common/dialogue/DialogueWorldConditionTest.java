@@ -36,7 +36,7 @@ class DialogueWorldConditionTest {
     private static DialogueCondition.World decodeCondition(String conditionJson) {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("w",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Conditions\":[" + conditionJson
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Conditions\":[" + conditionJson
                         + "],\"Options\":[]}}}");
         assertNotNull(d);
         DialogueCondition condition = d.getNode("g").getConditions().get(0);
@@ -126,7 +126,7 @@ class DialogueWorldConditionTest {
     void validatorFlagsAOnceScopedToEveryWorld() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("everywhere",
-                "{\"Start\":[{\"Node\":\"g\",\"Once\":{\"World\":\"*\"}}],"
+                "{\"Start\":{\"First\":[{\"Node\":\"g\",\"Once\":{\"Where\":{\"Match\":[\"*\"]}}}]},"
                         + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"x\","
                         + "\"Actions\":[{\"Type\":\"Close\"}]}]}}}");
         assertNotNull(d);
@@ -141,7 +141,7 @@ class DialogueWorldConditionTest {
     void validatorFlagsAWorldConditionThatCanNeverPass() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("empty",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Conditions\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Conditions\":["
                         + "{\"Type\":\"World\",\"Where\":{\"ExcludeMatch\":[\"*Arena*\"]}}],"
                         + "\"Options\":[{\"LabelKey\":\"x\",\"Actions\":[{\"Type\":\"Close\"}]}]}}}");
         assertNotNull(d);
@@ -156,7 +156,7 @@ class DialogueWorldConditionTest {
     void validatorFlagsABlankPatternInsideAWorldCondition() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("blank",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Conditions\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Conditions\":["
                         + "{\"Type\":\"World\",\"Where\":{\"Match\":[\"default\",\"\"]}}],"
                         + "\"Options\":[{\"LabelKey\":\"x\",\"Actions\":[{\"Type\":\"Close\"}]}]}}}");
         assertNotNull(d);
@@ -173,7 +173,7 @@ class DialogueWorldConditionTest {
     void validatorStaysSilentOnAWellFormedWorldScopedBeat() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("good",
-                "{\"Start\":[{\"Node\":\"g\",\"Once\":{\"World\":\"*Forgotten_Temple*\"}}],"
+                "{\"Start\":{\"First\":[{\"Node\":\"g\",\"Once\":{\"Where\":{\"GameplayConfig\":[\"ForgottenTemple\"]}}}]},"
                         + "\"Nodes\":{\"g\":{\"Conditions\":["
                         + "{\"Type\":\"AnyOf\",\"Any\":[{\"Type\":\"World\","
                         + "\"Where\":{\"GameplayConfig\":[\"ForgottenTemple\"]}}]}],"

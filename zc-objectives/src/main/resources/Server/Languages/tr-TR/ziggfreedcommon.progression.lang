@@ -36,3 +36,34 @@ book.toast.claimed = Ödüller alındı.
 book.toast.claim_failed = Şu anda alınacak bir şey yok.
 book.toast.turned_in = Teslim edildi.
 book.toast.turn_in_failed = Bu burada teslim edilemez.
+
+npcquests.title.none = Görevler
+npcquests.count = Görevler: {0}
+npcquests.tab.here = Buradaki görevler
+npcquests.tab.mine = Görevlerim
+npcquests.empty.here = Şu anda burada senin için bir şey yok.
+npcquests.empty.mine = Üzerinde hiç görev yok.
+npcquests.empty.unavailable = Görevlerin şu anda okunamıyor.
+
+npcquests.section.ready = Alınmayı bekliyor
+npcquests.section.turn_in = Teslim edilmeyi bekliyor
+npcquests.section.active = Devam ediyor
+npcquests.section.available = Mevcut
+npcquests.section.parked = Başka yerden alınır
+npcquests.section.locked = Kilitli
+npcquests.section.done = Tamamlandı
+
+npcquests.header.objectives = HEDEFLER
+npcquests.header.rewards = ÖDÜLLER
+npcquests.header.required = GEREKENLER
+
+npcquests.action.complete = Tamamla
+npcquests.action.abandon = Bırak
+npcquests.action.track = Takip et
+npcquests.action.untrack = Takibi bırak
+
+npcquests.toast.abandoned = Görev bırakıldı.
+npcquests.toast.tracked = Görev takip ediliyor.
+npcquests.toast.untracked = Görev artık takip edilmiyor.
+npcquests.toast.track_full = Zaten takip edebileceğin kadar görev takip ediyorsun.
+npcquests.toast.turn_in_short = Henüz yeterli değil: {0}/{1}.

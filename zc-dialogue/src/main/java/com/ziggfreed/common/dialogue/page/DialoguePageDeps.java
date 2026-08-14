@@ -10,6 +10,7 @@ import com.ziggfreed.common.dialogue.DialogueHeaderAnnotation;
 import com.ziggfreed.common.dialogue.NpcDialogue;
 import com.ziggfreed.common.dialogue.NpcNameProvider;
 import com.ziggfreed.common.dialogue.i18n.DialogueI18n;
+import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
@@ -56,7 +57,10 @@ public final class DialoguePageDeps {
         this.dialogueResolver = dialogueResolver;
         this.contextFactory = contextFactory;
         this.i18n = i18n;
-        this.npcName = npcName != null ? npcName : NpcNameProvider.NONE;
+        // The default header name is the ONE authored source every other surface reads: the
+        // role's NameTranslationKey through NpcNames. A consumer passes its own provider only
+        // to OVERRIDE that (a themed header, a per-mod naming scheme), never to make names work.
+        this.npcName = npcName != null ? npcName : NpcNames::nameFor;
         this.headerAnnotation = headerAnnotation != null ? headerAnnotation : DialogueHeaderAnnotation.NONE;
         this.completionToast = completionToast != null ? completionToast : id -> null;
     }

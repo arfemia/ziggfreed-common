@@ -38,7 +38,7 @@ Neither can do the other's job, which is why there are two.
   (nullable ORTHOGONAL groups, never a placement-mode enum); `Requires{Conditions[]}`;
   `Limits{SpawnChance,ChanceFormula,MaxPerWorld,OncePerWorld}`; `Lifecycle{KeepAlive,Respawn,Fortify,
   FortifyHealth}` (ALL opt-in, default false - each costs a pinned chunk / a re-place / a health
-  pool); `Interact{Dialogue,Bindings}`.
+  pool); `Interact{Dialogue,Open}`.
 - **`Identity.NpcId` + `Identity.Aliases` are what CONTENT calls this character** - a quest's giver,
   a hand-in target, a talk objective, the waypoint marked for it. Both OPTIONAL: **with no `NpcId`
   the character IS its `Role`**, so putting an NPC somewhere is already enough to make it nameable,
@@ -89,20 +89,26 @@ Neither can do the other's job, which is why there are two.
   the scalar is reported as `CHANCE_FORMULA_AND_SCALAR`; an EMPTY formula group falls back to the
   scalar rather than reading as a constant 0. Only the chance VALUE changes - the deterministic
   `SplitMix64` keep/skip roll is untouched.
-- **`Interact.Bindings` is a MAP keyed by channel, decoded through
-  [`InheritMapCodec`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/codec/InheritMapCodec.java) - NOT an array.** An array leaf under
-  `appendInherited` is a SINGLE leaf, so authoring it at all would drop every inherited entry and
-  break per-binding `Parent` override, which is the flagship authoring shape. Each entry is
-  [`PlacementBinding`](PlacementBinding.java) `{Param?,Value?,Values?,Amount?}`, every leaf
-  independently optional and `appendInherited`. `Values` is the LIST payload for a channel that
-  genuinely takes several strings, so no channel owner has to invent a separator inside `Value`
-  (`effectiveValues()` is the null-safe read; entries arrive exactly as authored, since this library
-  interprets nothing). Being one leaf, an authored `Values` replaces an inherited list whole.
-  `NpcPlacementAssetCodecTest` proves the per-key merge (a child authoring one channel keeps the
-  parent's others), because that is what the map buys.
+- **`Interact` is TWO spellings of ONE value: `Dialogue` and `Open`.** `Dialogue` is the terse form
+  of the case almost every talking NPC wants and folds into the same
+  [`ui/route/Destination`](../../../../../../../../../zc-presentation/src/main/java/com/ziggfreed/common/ui/route/Destination.java)
+  the general `Open` leaf carries, so the two cannot drift; `Interact.destination()` is the one read
+  both go through. Authoring BOTH is `INTERACT_BOTH_FORMS` (ERROR) and the explicit `Open` runs, so
+  the behaviour is at least the one written out in full. A placement authoring neither opens that
+  character's quest list.
+  - **A destination is a WHOLE leaf under `Parent`**: a child authoring one replaces the inherited
+    one rather than merging, because half of one type's fields under another type's discriminator is
+    not a destination anybody meant. The two leaves inherit independently, so a child changing what
+    its parent opens writes the SAME leaf the parent used - answering an inherited `Open` with the
+    terse `Dialogue` spelling leaves the child carrying both.
+  - **The destination vocabulary is OPEN and process-wide** (`ui/route/Destinations`, zc-presentation):
+    a mod registers a `Type` with its codec, handler and optional audit hook at `setup()`, and an
+    unknown `Type` FAILS THE READ naming the file, so a placement can never carry a button that
+    silently does nothing. Common seeds `Dialogue` and `Quests` in
+    [`../NpcDestinations`](../CLAUDE.md).
 - **`Requires.Conditions` is the shared [`factor/FactorCondition`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/factor/CLAUDE.md)**
-  `{Factor,Param?,Min?,Max?}` - the read-side twin of a binding: a binding hands an opaque payload
-  OUT, a condition asks a registered provider for a number. Same leaf, same keys, same meaning a
+  `{Factor,Param?,Min?,Max?}` - a condition asks a registered provider for a number. Same leaf, same
+  keys, same meaning a
   dialogue `Factor` condition has, so authored JSON is unchanged. **Fails closed**: an unregistered
   factor cannot RESOLVE at all (never a zero), and a `FactorCondition` rejects an unresolvable value
   whatever its bounds say - including the bounds-less presence-check form, which is exactly the
@@ -116,7 +122,10 @@ Neither can do the other's job, which is why there are two.
 
 ## The open registries (the third/fourth-party story)
 
-Each is JVM-global, case-insensitive, last-write-wins, and warns ONCE per unknown id.
+Each is JVM-global, case-insensitive, last-write-wins, and warns ONCE per unknown id. **What press-F
+OPENS is no longer one of them**: that is the shared destination vocabulary
+(`ui/route/Destinations`), which any mod registers a typed screen into, so a placement's own
+registries are about where an NPC stands and whether it stands at all.
 
 - **[`PlacementRegistryLedger<T>`](PlacementRegistryLedger.java)** is this engine's naming of the
   shared [`registry/RegistryLedger`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/registry/CLAUDE.md):
@@ -124,19 +133,10 @@ Each is JVM-global, case-insensitive, last-write-wins, and warns ONCE per unknow
   engine it came from. Every semantic lives in the parent (per id: a value, its owning mod name, a
   failure count and the latest failure message; `put` overwrite-warns ONCE per id by IDENTITY not
   equality, so a consumer re-running its own `setup()` with the SAME instance is silent; `info()`
-  is the snapshot an admin channels-list command reads), and `RegistrationInfo` is INHERITED - a
+  is the snapshot an admin listing command reads), and `RegistrationInfo` is INHERITED - a
   qualified `PlacementRegistryLedger.RegistrationInfo` resolves as before, while an `import`
-  statement must name the declaring `RegistryLedger`. The three registries below hold no map of
+  statement must name the declaring `RegistryLedger`. The registries below hold no map of
   their own.
-- **[`NpcPlacementBindings`](NpcPlacementBindings.java)** - `register(namespace, handler)` (owner
-  `"unattributed"`) or `register(namespace, owner, handler)` + `bindingsFor(placementId)` /
-  `bindingValue(placementId, channelId)` / `info()`. `byNamespace(map)` is the PURE split (a key
-  with no colon has no owner and is dropped); `byNamespace(map, placementId)` additionally
-  warns ONCE per `(placementId, key)` at the drop site - a colon-less key used to vanish with
-  zero signal, even at runtime. A handler ([`PlacementInteractHandler`](PlacementInteractHandler.java))
-  gets EVERY binding on its namespace in ONE call, so a consumer needing two channels together
-  reads both without a second lookup. An unclaimed namespace is one WARN and then silence, never
-  a hard fail.
 - **[`PlacementFactorRegistry`](PlacementFactorRegistry.java)** - the static facade over ONE shared
   [`factor/FactorRegistry`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/factor/CLAUDE.md)
   instance (process-wide because placement CONTENT is: one asset store, one sweep, one ledger).
@@ -228,15 +228,17 @@ Each is JVM-global, case-insensitive, last-write-wins, and warns ONCE per unknow
 - **[`ActionPlacementInteract`](ActionPlacementInteract.java)** + its
   [builder](BuilderActionPlacementInteract.java), registered `"ZigPlacementInteract"` by
   [`PlacementNpcActions`](PlacementNpcActions.java) - ONE press-F action for every placement. It
-  reads the NPC's own stamp, opens `Interact.Dialogue` **telling it who the conversation is with**,
-  and fans `Interact.Bindings` out per namespace. Reading identity off the ENTITY is what lets one
-  base role serve every placement in the server; a role cannot carry per-placement data, so an action
-  that encoded a destination would need one role per destination.
-  **The npc context is what makes a conversation NPC-aware**: without it a `MarkTalked` beat has
-  nobody to credit, `@self` substitutes nothing, and every quest-aware condition asks about a
-  character with no name and is answered no. The placement knows exactly who stands here, so it says
-  so, and a conversation opened by pressing F behaves identically to the same one opened through a
-  named route.
+  reads the NPC's own stamp, resolves the placement's `Interact.destination()` (the `Dialogue` alias
+  or the explicit `Open`, falling back to the character's quest list when the placement authors
+  neither), and dispatches it through `ui/route/Destinations`. Reading identity off the ENTITY is
+  what lets one base role serve every placement in the server; a role cannot carry per-placement
+  data, so an action that encoded a destination would need one role per destination.
+  **The identity travels with every open**, whatever the destination turns out to be: without it a
+  `MarkTalked` beat has nobody to credit, `@self` substitutes nothing, and every quest-aware
+  condition asks about a character with no name and is answered no. The placement knows exactly who
+  stands here, so it says so in the `DestinationContext` (npc ref, npc id, placement id, plus the
+  role's dialogue-deps key), and pressing F behaves identically to opening the same destination from
+  anywhere else.
 - **[`NpcPlacementService.roleFor`](NpcPlacementService.java)** is the whole role resolution: the
   authored `Identity.Role`, trimmed, or `null`. There is no fallback that invents one, so a
   placement naming no role stands nothing up and the validator says so as `NO_ROLE`.
@@ -248,10 +250,16 @@ Each is JVM-global, case-insensitive, last-write-wins, and warns ONCE per unknow
   an unregistered `Requires.Factor` or `ChanceFormula` term, a `Where` describing none of the loaded
   worlds (the SHARED `MATCHES_NO_LOADED_WORLD` from `WhereValidator`, so a placement and a dialogue
   condition report one code off one audit rather than two near-duplicates), an
-  `ExcludeMatch`-only `Where` (`EXCLUDE_ONLY`), a colon-less `Interact.Bindings` key (`BINDING_KEY_NO_NAMESPACE`),
-  an authored binding namespace no handler claimed (`UNCLAIMED_BINDING_NAMESPACE`),
+  `ExcludeMatch`-only `Where` (`EXCLUDE_ONLY`), both `Interact` spellings at once
+  (`INTERACT_BOTH_FORMS`, ERROR),
+  a press-F opening a conversation no loaded file carries (`UNKNOWN_DIALOGUE`, WARN - read through
+  `Interact.destination()`, so the terse `Dialogue` leaf and an explicit `Open` of that type are the
+  same check), a character whose role resolves no `NameTranslationKey` through
+  [`../NpcNames`](../CLAUDE.md) and so shows no name anywhere (`NO_DISPLAY_NAME`, WARN),
   `EMPTY_CHANCE_FORMULA` (WARN), and `CHANCE_FORMULA_AND_SCALAR` (INFO - both authored still WORKS,
-  since the formula is what is read, so it is a remark about clarity).
+  since the formula is what is read, so it is a remark about clarity). The destination's OWN audit
+  runs in the cross-asset half (`Destinations.validate`), so a type's params are checked by the mod
+  that registered it, under that mod's domain, rather than by a check here that could only guess.
   **Whether the named ROLE exists is not checked here and cannot be**: role parsing is a bespoke
   builder framework rather than an asset store, and asking the shared `BuilderManager` about a role
   is either a lie before the packs load or a live-state mutation afterwards. A misspelled role id
@@ -263,8 +271,11 @@ Each is JVM-global, case-insensitive, last-write-wins, and warns ONCE per unknow
   is the FILE-LOCAL half: shape, spelling and self-contradiction, all answerable from the file
   alone, so it holds however much of the server is up. `audit(placements)` / `audit(placement)` is
   that plus the CROSS-ASSET half - `MATCHES_NO_LOADED_WORLD`, `UNREGISTERED_FACTOR`,
-  `UNREGISTERED_ANCHOR_PROVIDER`, `UNCLAIMED_BINDING_NAMESPACE` - each of which asks
-  an open registry or the running universe whether something exists. Those answers
+  `UNREGISTERED_ANCHOR_PROVIDER`, `UNKNOWN_DIALOGUE`, `NO_DISPLAY_NAME`, and the destination's own
+  per-type audit - each of which asks an open registry, another store or the running universe
+  whether something exists. **Each of them stays SILENT when its source is not up rather than
+  guessing**: no loaded conversation means "cannot tell", not "no file carries it", and the same for
+  a role registry that has not loaded. Those answers
   are only trustworthy once every store has folded, every mod's `setup()` has run and the universe
   is up, so the full audit belongs at first player-ready, never at a layer fold or at plugin setup.
 - **The two moments on [`NpcPlacementConfig`](NpcPlacementConfig.java)**: every layer merge calls
@@ -295,11 +306,13 @@ override precedence; `PlacementKeepAlivePinsTest` covers the pin/unpin edges; `P
 covers union / collapse order / cross-union capacity / roll determinism; `PlacementRegistryLedgerTest`
 covers identity-vs-equality overwrite warnings, failure counting and the `info()` snapshot through
 the subclass (the base contract itself is `zc-core`'s `RegistryLedgerTest`);
-`NpcPlacementValidatorTest` covers the colon-less-key and unclaimed-namespace findings plus the
-identity that names no role;
+`NpcPlacementValidatorTest` covers the both-forms Interact error plus the identity that names no
+role;
 `NpcPlacementAuditScopeTest` pins the fold-time / late split - no cross-asset code from
 `auditFileLocal`, the file-local ones still reported there, all of them back in `audit`, the
-not-yet-registered factor that used to produce a phantom finding mid-fold, and the late
+not-yet-registered factor that used to produce a phantom finding mid-fold, the two checks whose
+SOURCE can be absent (the conversation store and the role registry) staying silent rather than
+naming every placement at once, and the late
 audit's run-once plus claimed stand-down;
 `RoleGenerationRetirementTest` pins that a placement has exactly one way to say who stands there -
 `Identity` carries a role id, a character id and its aliases and nothing describing a look, a name
@@ -307,9 +320,11 @@ or a prompt, and `roleFor` returns the authored id or nothing rather than invent
 `PlacementChanceFormulaTest` pins
 formula-over-scalar precedence, the empty-formula fallback, and the no-subject / degrade-to-zero
 context; `PlacementRegistryTest`
-covers fail-closed factors (including the bounds-less presence check and the placement-id payload),
-no-position anchors and the namespace split;
-`NpcPlacementAssetCodecTest` proves the per-key `Bindings` override. Every new CODEC is asserted in
+covers fail-closed factors (including the bounds-less presence check and the placement-id payload)
+and no-position anchors;
+`NpcPlacementAssetCodecTest` proves that the two `Interact` spellings fold to one value, that both
+at once is visible, and that a destination inherits as a whole leaf (zc-presentation's
+`DestinationsTest` owns the vocabulary's own decode / dispatch / audit contract). Every new CODEC is asserted in
 [`AssetCodecInitTest`](../../../../../../../../../src/test/java/com/ziggfreed/common/asset/AssetCodecInitTest.java).
 The engine-touching paths (spawn, sweep, pin) have no unit coverage and land behind
 in-game smoke, matching the rest of the mod's split.

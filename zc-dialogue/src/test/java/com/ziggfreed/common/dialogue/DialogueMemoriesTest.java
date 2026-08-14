@@ -13,6 +13,8 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.world.WorldSelector;
+
 /**
  * Declared {@code Memories}: the declaration shape and its inheritance through a native
  * {@code Parent}, the bare-name use sites ({@code Remember}/{@code Forget} +
@@ -38,7 +40,7 @@ class DialogueMemoriesTest {
     private static NpcDialogue guide(DialogueEngine engine) {
         return engine.decode("guide", "{"
                 + "\"Memories\":{\"helped_refugees\":{}},"
-                + "\"Start\":[{\"Node\":\"camp\"}],"
+                + "\"Start\":{\"First\":[{\"Node\":\"camp\"}]},"
                 + "\"Nodes\":{\"camp\":{\"Options\":["
                 + "{\"LabelKey\":\"opt.help\",\"Actions\":[{\"Type\":\"Remember\","
                 + "\"Memory\":\"helped_refugees\"}]},"
@@ -54,21 +56,21 @@ class DialogueMemoriesTest {
     void declarationsDecodeEveryAxis() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide", "{\"Memories\":{"
-                + "\"helped_refugees\":{\"World\":\"emerald_wilds\","
+                + "\"helped_refugees\":{\"Where\":{\"Match\":[\"emerald_wilds\"]},"
                 + "\"ResetWithQuest\":\"guide_trust\",\"Shared\":true},"
                 + "\"knows_my_name\":{}},"
-                + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[]}}}");
+                + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[]}}}");
         assertNotNull(d);
 
         DialogueMemory helped = d.getMemory("helped_refugees");
         assertNotNull(helped);
-        assertEquals("emerald_wilds", helped.getWorld());
+        assertEquals("emerald_wilds", helped.getWhere().getMatch()[0]);
         assertEquals("guide_trust", helped.getResetWithQuest());
         assertTrue(helped.isShared());
 
         DialogueMemory plain = d.getMemory("knows_my_name");
         assertNotNull(plain);
-        assertNull(plain.getWorld());
+        assertNull(plain.getWhere());
         assertFalse(plain.isShared());
         assertNotNull(d.getMemory("KNOWS_MY_NAME"), "a name lookup is case-insensitive");
     }
@@ -77,9 +79,9 @@ class DialogueMemoriesTest {
     void aParentChildAddsOrRedeclaresOneMemoryAndInheritsTheRest() throws Exception {
         DialogueEngine engine = engine();
         NpcDialogue parent = engine.decode("base", "{\"Memories\":{"
-                + "\"helped_refugees\":{\"World\":\"emerald_wilds\"},"
+                + "\"helped_refugees\":{\"Where\":{\"Match\":[\"emerald_wilds\"]}},"
                 + "\"knows_my_name\":{}},"
-                + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[]}}}");
+                + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[]}}}");
         assertNotNull(parent);
 
         // The child re-declares one leaf of one memory and adds another; everything else inherits.
@@ -92,7 +94,7 @@ class DialogueMemoriesTest {
         DialogueMemory helped = child.getMemory("helped_refugees");
         assertNotNull(helped);
         assertEquals("guide_trust", helped.getResetWithQuest(), "the child's own leaf");
-        assertEquals("emerald_wilds", helped.getWorld(), "the parent's leaf survives");
+        assertEquals("emerald_wilds", helped.getWhere().getMatch()[0], "the parent's leaf survives");
         assertNotNull(child.getMemory("knows_my_name"), "a parent-only memory is retained");
         assertNotNull(child.getMemory("owes_me"), "the child's new memory is added");
     }
@@ -101,9 +103,9 @@ class DialogueMemoriesTest {
     void childOmittingMemoriesInheritsTheWholeMap() throws Exception {
         DialogueEngine engine = engine();
         NpcDialogue parent = engine.decode("base", "{\"Memories\":{\"a\":{}},"
-                + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[]}}}");
+                + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[]}}}");
         assertNotNull(parent);
-        NpcDialogue child = DialogueTestSupport.decodeWithParent(engine, "kid", "{\"Start\":[{\"Node\":\"g\"}]}", parent);
+        NpcDialogue child = DialogueTestSupport.decodeWithParent(engine, "kid", "{\"Start\":{\"First\":[{\"Node\":\"g\"}]}}", parent);
         assertNotNull(child);
         assertNotNull(child.getMemory("a"));
     }
@@ -134,7 +136,7 @@ class DialogueMemoriesTest {
     void notRememberedIsTheMirror() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide", "{\"Memories\":{\"met\":{}},"
-                + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                 + "{\"LabelKey\":\"a\",\"Conditions\":[{\"Type\":\"NotRemembered\",\"Memory\":\"met\"}],"
                 + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"met\"}]}]}}}");
         assertNotNull(d);
@@ -150,7 +152,7 @@ class DialogueMemoriesTest {
     void optionSugarWritesTheCanonicalAction() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide", "{\"Memories\":{\"met\":{}},"
-                + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                 + "{\"LabelKey\":\"a\",\"Remember\":\"met\",\"Close\":true},"
                 + "{\"LabelKey\":\"b\",\"Forget\":\"met\"}]}}}");
         assertNotNull(d);
@@ -169,7 +171,7 @@ class DialogueMemoriesTest {
         // order they were written in. Remember is 32, Forget 33, Goto 60, Close 70, so a memory
         // write always trails the 10-30 band a consumer's own quest sugar occupies.
         NpcDialogue d = engine.decode("guide", "{\"Memories\":{\"met\":{}},"
-                + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                 + "{\"LabelKey\":\"a\",\"Close\":true,\"Goto\":\"g\",\"Forget\":\"met\","
                 + "\"Remember\":\"met\"}]}}}");
         assertNotNull(d);
@@ -185,7 +187,7 @@ class DialogueMemoriesTest {
     @Test
     void anUndeclaredMemoryStillWorksButSaysSoOnce() {
         DialogueEngine engine = engine();
-        NpcDialogue d = engine.decode("guide", "{\"Start\":[{\"Node\":\"g\"}],"
+        NpcDialogue d = engine.decode("guide", "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},"
                 + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
                 + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"undeclared\"}]}]}}}");
         assertNotNull(d);
@@ -221,7 +223,7 @@ class DialogueMemoriesTest {
      */
     @Test
     void resetWithQuestFilesTheMemoryWhereAQuestResetFindsIt() {
-        DialogueMemory memory = DialogueMemory.of("emerald_wilds", "guide_trust", null);
+        DialogueMemory memory = DialogueMemory.of(WorldSelector.of(new String[] {"emerald_wilds"}, null, null), "guide_trust", null);
 
         String key = memory.resolveKey("guide", "helped", "Emerald_Wilds");
         assertEquals("q:guide_trust:mem:d:guide:w:emerald_wilds:helped", key);
@@ -237,7 +239,7 @@ class DialogueMemoriesTest {
 
     @Test
     void aWorldScopedMemoryDoesNotExistInAnotherWorld() {
-        DialogueMemory memory = DialogueMemory.of("emerald_wilds", null, null);
+        DialogueMemory memory = DialogueMemory.of(WorldSelector.of(new String[] {"emerald_wilds"}, null, null), null, null);
 
         assertEquals("mem:d:guide:w:emerald_wilds:helped",
                 memory.resolveKey("guide", "helped", "Emerald_Wilds"));
@@ -249,8 +251,8 @@ class DialogueMemoriesTest {
         DialogueEngine engine = engine();
         // The test context cannot read a world, the same shape as standing where the pattern misses.
         NpcDialogue d = engine.decode("guide",
-                "{\"Memories\":{\"helped\":{\"World\":\"emerald_wilds\"}},"
-                        + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                "{\"Memories\":{\"helped\":{\"Where\":{\"Match\":[\"emerald_wilds\"]}}},"
+                        + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]},"
                         + "{\"LabelKey\":\"b\",\"Conditions\":[{\"Type\":\"Remembered\",\"Memory\":\"helped\"}]},"
                         + "{\"LabelKey\":\"c\",\"Conditions\":[{\"Type\":\"NotRemembered\",\"Memory\":\"helped\"}]}]}}}");

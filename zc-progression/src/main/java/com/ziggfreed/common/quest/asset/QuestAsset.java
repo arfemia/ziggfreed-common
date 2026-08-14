@@ -1,5 +1,6 @@
 package com.ziggfreed.common.quest.asset;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.DayOfWeek;
 import java.util.ArrayList;
@@ -11,6 +12,8 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.bson.BsonValue;
+
 import com.google.gson.JsonElement;
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.assetstore.codec.AssetBuilderCodec;
@@ -21,6 +24,9 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.Schema;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.NestedAssetId;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.loot.reward.RewardSpec;
@@ -30,6 +36,7 @@ import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.time.DurationGroup;
 
 /**
@@ -50,6 +57,7 @@ import com.ziggfreed.common.time.DurationGroup;
  *   "Repeat":     { "Cooldown": { "Hours": 24 } },
  *   "Visibility": { "Hidden": false, "RequirePrerequisites": true },
  *   "Npc":        { "ViewId": "guide", "TurnInId": "giver" },
+ *   "TurnInAt":   true,
  *   "CompletionDialogue": "guide_thanks",
  *   "Requires":   { "Factors": [ {"Factor": "yourmod:trade_rank", "Min": 5} ] },
  *   "Objectives": { "collect": { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 10 },
@@ -70,6 +78,12 @@ import com.ziggfreed.common.time.DurationGroup;
  */
 public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, QuestAsset>> {
 
+    /**
+     * The {@code TurnInAt} value meaning "back to wherever this player took it from", whatever that
+     * turned out to be. It starts with {@code @} so it can never collide with a character id.
+     */
+    public static final String ACCEPT_SITE_SENTINEL = "@accept";
+
     private String id;
     private AssetExtraInfo.Data data;
     /** Where the file was read from, for a finding that has to name it. Never authored. */
@@ -83,6 +97,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable private Repeat repeat;
     @Nullable private Visibility visibility;
     @Nullable private Npc npc;
+    @Nullable private String turnInAt;
     @Nullable private String completionDialogue;
     @Nullable private GateSpec requires;
     @Nullable private Map<String, QuestObjectiveAsset> objectives;
@@ -144,6 +159,18 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .appendInherited(new KeyedCodec<>("Npc", Npc.CODEC, false),
                     (a, v) -> a.npc = v, a -> a.npc, (a, p) -> a.npc = p.npc)
             .documentation("Who offers the quest and where it is handed in.")
+            .add()
+            .appendInherited(new KeyedCodec<>("TurnInAt", BooleanOrStringCodec.INSTANCE, false),
+                    (a, v) -> a.turnInAt = v, a -> a.turnInAt, (a, p) -> a.turnInAt = p.turnInAt)
+            .documentation("Where the finished quest may be collected. Leave it out and it may be collected "
+                    + "anywhere the game offers - a quest log, a book, a menu - which is what most quests want. "
+                    + "Write true (or the word 'giver') to send the player back to whoever offers it, an npc id "
+                    + "to send them to that character instead (who may be somebody they have never met, and "
+                    + "need not be the giver), or '" + ACCEPT_SITE_SENTINEL + "' to send them back to whatever "
+                    + "place they took it from, which is the one to reach for when the same quest is handed out "
+                    + "at many identical fixtures. Author an empty string or false to collect anywhere again "
+                    + "after a Parent set one. This is about collecting the REWARD; a single delivery step names "
+                    + "its own place with Objectives.TurnInNpcId.")
             .add()
             .appendInherited(new KeyedCodec<>("CompletionDialogue", Codec.STRING, false),
                     (a, v) -> a.completionDialogue = v, a -> a.completionDialogue,
@@ -257,6 +284,41 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return npc;
     }
 
+    /**
+     * The authored {@code TurnInAt} exactly as written, sentinels unresolved, or null when the quest
+     * may be collected anywhere. {@code true} has already become the {@code giver} sentinel by the
+     * time it lands here, so there is one spelling to read rather than two.
+     */
+    @Nullable
+    public String getTurnInAt() {
+        return turnInAt;
+    }
+
+    /**
+     * The authored {@code TurnInAt} as the site the engine enforces, with both sentinels resolved:
+     * {@code giver} against {@code giverId}, {@code @accept} into the accepted-at form. Null when
+     * the quest names no place, so anywhere will do.
+     */
+    @Nullable
+    public QuestTurnInSite turnInSite(@Nullable String giverId) {
+        if (turnInAt == null) {
+            return null;
+        }
+        String authored = turnInAt.trim();
+        if (authored.isEmpty()) {
+            return null;
+        }
+        if (ACCEPT_SITE_SENTINEL.equalsIgnoreCase(authored)) {
+            return QuestTurnInSite.ACCEPT_SITE;
+        }
+        if (QuestObjectiveAsset.GIVER_SENTINEL.equalsIgnoreCase(authored)) {
+            // A quest nobody gives out cannot be returned to its giver: the site stays unsatisfiable
+            // rather than falling back to anywhere, so the audit is what tells the author.
+            return QuestTurnInSite.character(giverId);
+        }
+        return QuestTurnInSite.character(authored);
+    }
+
     /** The conversation that follows this quest settling, lower-cased, or null when it names none. */
     @Nullable
     public String getCompletionDialogue() {
@@ -308,6 +370,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .autoClaim(flow == null || flow.isAutoClaim())
                 .repeat(repeat == null ? null : repeat.toRepeat())
                 .visibility(visibility == null ? Quest.Visibility.OPEN : visibility.toVisibility())
+                .turnInAt(turnInSite(giverId))
                 .tags(listing == null ? List.of() : listing.tagList());
 
         Map<String, String> objectiveText = new LinkedHashMap<>();
@@ -746,6 +809,53 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         @Nonnull
         public Quest.Visibility toVisibility() {
             return new Quest.Visibility(isHidden(), isRequirePrerequisites());
+        }
+    }
+
+    // ==================== The dual-form leaf ====================
+
+    /**
+     * A leaf an author may write as a plain {@code true} or as a word: {@code true} is shorthand for
+     * the {@code giver} sentinel, {@code false} reads as nothing authored, and any string is taken as
+     * written. It exists so the commonest answer ("back to whoever gave it to me") is one word rather
+     * than a spelling to remember, without turning the field into an object.
+     *
+     * <p>It always ENCODES as the string, so a file round-trips to one canonical spelling and the
+     * in-game asset editor has a single shape to offer.
+     */
+    private static final class BooleanOrStringCodec implements Codec<String> {
+
+        static final BooleanOrStringCodec INSTANCE = new BooleanOrStringCodec();
+
+        @Override
+        @Nullable
+        public String decode(BsonValue value, ExtraInfo extraInfo) {
+            if (value.isBoolean()) {
+                return value.asBoolean().getValue() ? QuestObjectiveAsset.GIVER_SENTINEL : null;
+            }
+            return Codec.STRING.decode(value, extraInfo);
+        }
+
+        @Override
+        @Nonnull
+        public BsonValue encode(String value, ExtraInfo extraInfo) {
+            return Codec.STRING.encode(value, extraInfo);
+        }
+
+        @Override
+        @Nullable
+        public String decodeJson(RawJsonReader reader, ExtraInfo extraInfo) throws IOException {
+            int next = reader.peek();
+            if (next == 't' || next == 'T' || next == 'f' || next == 'F') {
+                return reader.readBooleanValue() ? QuestObjectiveAsset.GIVER_SENTINEL : null;
+            }
+            return Codec.STRING.decodeJson(reader, extraInfo);
+        }
+
+        @Override
+        @Nonnull
+        public Schema toSchema(@Nonnull SchemaContext context) {
+            return Codec.STRING.toSchema(context);
         }
     }
 

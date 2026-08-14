@@ -34,6 +34,9 @@ class FrameworkStoreOrderTest {
     static {
         REQUIRED_EDGES.put("QuestGeneratorAsset", new String[]{"QuestAsset",
                 "a generated child is resolved against its Base out of the quest store"});
+        REQUIRED_EDGES.put("ZcDialogueAsset", new String[]{"DialogueFragmentAsset",
+                "a conversation splices the shared option groups it names as it is read, so a group "
+                        + "that has not loaded yet drops its lines out of the screen silently"});
     }
 
     @Test

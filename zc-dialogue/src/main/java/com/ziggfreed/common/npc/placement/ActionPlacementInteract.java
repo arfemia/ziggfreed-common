@@ -1,8 +1,5 @@
 package com.ziggfreed.common.npc.placement;
 
-import java.util.Map;
-import java.util.function.Supplier;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -15,10 +12,12 @@ import com.hypixel.hytale.server.npc.asset.builder.BuilderSupport;
 import com.hypixel.hytale.server.npc.corecomponents.ActionBase;
 import com.hypixel.hytale.server.npc.role.Role;
 import com.hypixel.hytale.server.npc.sensorinfo.InfoProvider;
-import com.ziggfreed.common.dialogue.page.DialoguePage;
-import com.ziggfreed.common.dialogue.page.DialoguePageDeps;
+import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.NpcDialogueDepsRegistry;
 import com.ziggfreed.common.npc.NpcIdentities;
+import com.ziggfreed.common.ui.route.Destination;
+import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -26,18 +25,21 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>Registered as {@code "ZigPlacementInteract"} and referenced from a base role's
  * {@code InteractionInstruction}, it reads the NPC's own {@link PlacedNpcComponent}, resolves the
- * placement behind it, and does two things:
- * <ol>
- *   <li>opens {@code Interact.Dialogue} when one is authored (this library owns the dialogue
- *       engine, so that behaviour is genuinely generic);</li>
- *   <li>hands every {@code Interact.Bindings} entry to whichever mod claimed its namespace.</li>
- * </ol>
+ * placement behind it, and opens whatever that placement's {@code Interact} says - a conversation,
+ * or any destination a mod on this server registered. A placement authoring neither opens that
+ * character's quest list.
  *
  * <p><b>Why one action instead of one per behaviour.</b> The action is decoded from a role asset
  * long before any consumer has registered anything, and a role cannot carry per-placement data, so
  * an action that encoded a destination would need one role per destination. Reading the identity
  * off the ENTITY instead means one base role serves every placement in the server, and a mod gets
- * press-F behaviour by registering a handler rather than by shipping a role and an action class.
+ * press-F behaviour by registering a destination rather than by shipping a role and an action class.
+ *
+ * <p><b>The identity always travels with the open.</b> Whatever the destination turns out to be, it
+ * is told which character the player is standing at: without that a {@code MarkTalked} beat has
+ * nobody to credit, {@code @self} substitutes nothing, and every quest-aware condition asks about a
+ * character with no name and is answered no. The placement knows exactly who stands here, so it says
+ * so, and pressing F behaves identically to opening the same destination from anywhere else.
  *
  * <p>Every step is guarded: an NPC with no stamp, an unknown placement, or a handler that throws
  * each degrade to doing less, never to an exception inside the interaction.
@@ -77,25 +79,51 @@ public class ActionPlacementInteract extends ActionBase {
             return false;
         }
         NpcPlacementAsset placement = NpcPlacementConfig.getInstance().resolve(placementId);
-        if (placement == null || placement.getInteract() == null) {
+        if (placement == null) {
             return false;
         }
+
+        DestinationContext ctx = contextOf(ref, playerReference, store, placementId);
+        if (ctx == null) {
+            return false;
+        }
+        return Destinations.open(destinationOf(placement), ctx);
+    }
+
+    /**
+     * WHAT this placement opens: its authored destination, or - when it authors no {@code Interact}
+     * at all - the character's quest list, which is what a placed NPC with nothing else to say is
+     * for.
+     */
+    @Nullable
+    private static Destination destinationOf(@Nonnull NpcPlacementAsset placement) {
         NpcPlacementAsset.Interact interact = placement.getInteract();
+        Destination authored = interact == null ? null : interact.destination();
+        return authored != null ? authored : NpcDestinations.Quests.of(null);
+    }
 
-        boolean acted = false;
-
-        String dialogueId = interact.getDialogue();
-        if (dialogueId != null && !dialogueId.isBlank()) {
-            acted = openDialogue(ref, playerReference, store, dialogueId.trim(),
-                    NpcIdentities.npcIdOfPlacement(placementId));
+    /**
+     * The moment as a destination handler sees it: the player's live handles, plus WHO is standing
+     * here and WHERE, so nothing downstream has to resolve an identity of its own. Null when the
+     * interacting entity turns out not to be a player.
+     */
+    @Nullable
+    private DestinationContext contextOf(@Nonnull Ref<EntityStore> npcRef,
+            @Nonnull Ref<EntityStore> playerReference, @Nonnull Store<EntityStore> store,
+            @Nonnull String placementId) {
+        try {
+            PlayerRef playerRef = store.getComponent(playerReference, PlayerRef.getComponentType());
+            Player player = store.getComponent(playerReference, Player.getComponentType());
+            if (playerRef == null || player == null) {
+                return null;
+            }
+            return DestinationContext.of(store, playerReference, playerRef, player)
+                    .withNpc(npcRef, NpcIdentities.npcIdOfPlacement(placementId), placementId)
+                    .withDepsKey(depsKey);
+        } catch (Throwable t) {
+            SafeLog.warn("[placement] could not read the interacting player: " + t.getMessage());
+            return null;
         }
-
-        Map<String, PlacementBinding> bindings = interact.getBindings();
-        if (!bindings.isEmpty()) {
-            acted |= NpcPlacementBindings.dispatchInteract(
-                    placementId, bindings, ref, playerReference, store) > 0;
-        }
-        return acted;
     }
 
     /** The placement id stamped on this NPC, or {@code null} when it carries no stamp. */
@@ -114,39 +142,6 @@ public class ActionPlacementInteract extends ActionBase {
         } catch (Throwable t) {
             SafeLog.fine("[placement] could not read the placement stamp: " + t.getMessage());
             return null;
-        }
-    }
-
-    /**
-     * Open the placement's conversation, TOLD who it is with.
-     *
-     * <p>The npc context is what makes a conversation NPC-aware: without it a {@code MarkTalked} beat
-     * has nobody to credit, {@code @self} substitutes nothing, and every quest-aware condition asks
-     * about a character with no name and is answered no. The placement knows exactly who is standing
-     * here, so it says so, and a conversation opened by pressing F behaves identically to the same
-     * one opened through a named route.
-     */
-    private boolean openDialogue(@Nonnull Ref<EntityStore> npcRef, @Nonnull Ref<EntityStore> playerReference,
-            @Nonnull Store<EntityStore> store, @Nonnull String dialogueId, @Nullable String npcId) {
-        try {
-            PlayerRef playerRef = store.getComponent(playerReference, PlayerRef.getComponentType());
-            Player player = store.getComponent(playerReference, Player.getComponentType());
-            if (playerRef == null || player == null) {
-                return false;
-            }
-            Supplier<DialoguePageDeps> supplier = NpcDialogueDepsRegistry.get(depsKey);
-            DialoguePageDeps deps = supplier == null ? null : supplier.get();
-            if (deps == null) {
-                SafeLog.warn("[placement] no dialogue deps registered for key '" + depsKey
-                        + "' - the dialogue on this placement cannot open");
-                return false;
-            }
-            player.getPageManager().openCustomPage(npcRef, store,
-                    new DialoguePage(playerRef, dialogueId, npcId, deps));
-            return true;
-        } catch (Throwable t) {
-            SafeLog.warn("[placement] could not open the placement dialogue: " + t.getMessage());
-            return false;
         }
     }
 }

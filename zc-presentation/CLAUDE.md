@@ -40,6 +40,18 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     `SettingsForm`, the generic settings-form engine.
   - [`ui/hud/`](src/main/java/com/ziggfreed/common/ui/hud/CLAUDE.md) - `KeyedCustomHud` +
     `HudPosition`.
+  - `ui/route/` - the DESTINATION vocabulary: `Destination` (a `Type`-discriminated union authored
+    as `{"Type": "...", ...}` or as one bare word for a type with no fields) + `Destinations` (the
+    open registry a mod claims a type in, over `registry/RegistryLedger`) + `DestinationType`
+    (typeId + class + codec + `DestinationHandler` + optional `DestinationCheck`) +
+    `DestinationContext` (the player's live handles plus the nullable npc / placement / deps-key
+    leaves). ONE value answers "what does this open" for a placement's press-F, a dialogue option
+    and a page button alike, so no compound string is ever parsed. **Register in your plugin's
+    `setup()`, before assets load**, and an unknown `Type` FAILS THE READ naming the file - a
+    destination nothing can open must never be a button that silently does nothing. It sits here
+    rather than in a domain module because routing is presentation: the vocabulary holds no screen
+    of its own, and the modules that own screens (zc-dialogue seeds `Dialogue` and `Quests`)
+    register into it. No router of its own; see the class javadoc.
   - [`ui/rows/`](src/main/java/com/ziggfreed/common/ui/rows/CLAUDE.md) - `SummaryRow` +
     `SummaryRowRenderer`, the fixed-slot ledger row.
   - [`ui/toast/`](src/main/java/com/ziggfreed/common/ui/toast/CLAUDE.md) - the lifted
@@ -65,7 +77,11 @@ this module owns a namespace prefix.
 
 ## Tests
 
-Thin relative to the package count: `HudPositionTest` (corner-preset parsing + anchor math) and
-`SettingsFormTest` (field-spec render/refresh/collect round trip). The toast engine, retint engine,
+Thin relative to the package count: `HudPositionTest` (corner-preset parsing + anchor math),
+`SettingsFormTest` (field-spec render/refresh/collect round trip), and `DestinationsTest` (the
+routing vocabulary's decode + dispatch + audit contract: a registered type's own fields, the
+bare-string form as the same value, an unknown or mis-cased `Type` failing the read, a late
+registration still taking effect, a throwing handler counted against its owner). The toast engine,
+retint engine,
 and rich-button primitive have no unit coverage here; they are validated in-game per the general
 `.ui` rule (`.ui` files are not compiled, validate in-game).

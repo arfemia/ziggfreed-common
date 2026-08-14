@@ -3,12 +3,19 @@ package com.ziggfreed.common.npc.placement;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
+import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.npc.NpcDestinations;
+import com.ziggfreed.common.npc.NpcNames;
+import com.ziggfreed.common.ui.route.Destination;
+import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.world.WhereValidator;
 import com.ziggfreed.common.world.WorldIdentity;
@@ -114,7 +121,7 @@ public final class NpcPlacementValidator {
         checkAnchorShape(placement, id, out);
         checkRequiresShape(placement, id, out);
         checkLimits(placement, id, out);
-        checkBindingKeys(placement, id, out);
+        checkInteractForms(placement, id, out);
     }
 
     private static void validateCrossAsset(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
@@ -123,7 +130,9 @@ public final class NpcPlacementValidator {
         checkAnchorProvider(placement, id, out);
         checkRequiresFactors(placement, id, out);
         checkChanceFormulaFactors(placement, id, out);
-        checkBindingNamespaces(placement, id, out);
+        checkDestinationParams(placement, id, out);
+        checkDialogueExists(placement, id, out);
+        checkDisplayName(placement, id, out);
     }
 
     // ==================== identity ====================
@@ -338,43 +347,103 @@ public final class NpcPlacementValidator {
 
     // ==================== interact ====================
 
-    /** A channel key with no owner in it, which is answerable off the key alone. */
-    private static void checkBindingKeys(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
+    /**
+     * One press-F described twice. The two spellings are the same value, so a file authoring both
+     * says two things about one moment, and only the explicit one runs.
+     */
+    private static void checkInteractForms(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
             @Nonnull List<Finding> out) {
-        Map<String, PlacementBinding> bindings = bindingsOf(placement);
-        for (String channel : bindings.keySet()) {
-            if (channel == null) {
-                continue;
-            }
-            int colon = channel.indexOf(':');
-            if (colon <= 0 || channel.substring(0, colon).isBlank()) {
-                out.add(Finding.warning(DOMAIN, "BINDING_KEY_NO_NAMESPACE",
-                        "Interact.Bindings key '" + channel + "' has no 'namespace:channel' prefix, so it has "
-                                + "no owner and is dropped at every press-F", id));
-            }
+        NpcPlacementAsset.Interact interact = placement.getInteract();
+        if (interact != null && interact.hasBothForms()) {
+            out.add(Finding.error(DOMAIN, "INTERACT_BOTH_FORMS",
+                    "Interact authors both Dialogue and Open, which describes one press-F twice. Open is what "
+                            + "runs; keep whichever of the two you meant and delete the other", id));
         }
     }
 
-    /** Whether anybody has claimed each namespace the bindings hand a payload to. */
-    private static void checkBindingNamespaces(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
+    /**
+     * What the destination's OWN owner says about it. Whether the {@code Type} is readable at all was
+     * settled at decode (an unknown one fails the read), so what is left is whether the fields beside
+     * it name something real - which only the mod that registered the type can answer.
+     */
+    private static void checkDestinationParams(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
             @Nonnull List<Finding> out) {
-        Map<String, PlacementBinding> bindings = bindingsOf(placement);
-        if (bindings.isEmpty()) {
+        NpcPlacementAsset.Interact interact = placement.getInteract();
+        Destination destination = interact == null ? null : interact.destination();
+        if (destination != null) {
+            out.addAll(Destinations.validate(destination, id + ".Interact"));
+        }
+    }
+
+    /**
+     * A press-F that opens a conversation nothing on this server carries. Both {@code Interact}
+     * spellings are read through the ONE destination they mean, so the terse {@code Dialogue} leaf
+     * and an explicit {@code Open} of the conversation type are checked by the same line.
+     *
+     * <p>An empty catalogue means CANNOT TELL and reports nothing: the conversations fold in from a
+     * load event, so an audit run before that would name every placement on the server. It is a
+     * WARNING rather than an error even so, because the pack carrying the conversation may simply
+     * not be installed on this particular server.
+     */
+    private static void checkDialogueExists(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
+            @Nonnull List<Finding> out) {
+        NpcPlacementAsset.Interact interact = placement.getInteract();
+        Destination destination = interact == null ? null : interact.destination();
+        if (!(destination instanceof NpcDestinations.Dialogue conversation)) {
             return;
         }
-        for (String namespace : NpcPlacementBindings.byNamespace(bindings, id).keySet()) {
-            if (!NpcPlacementBindings.isRegistered(namespace)) {
-                out.add(Finding.warning(DOMAIN, "UNCLAIMED_BINDING_NAMESPACE",
-                        "Interact.Bindings authors the namespace '" + namespace + "', but no handler has "
-                                + "registered it, so those bindings are ignored at press-F", id));
-            }
+        String dialogueId = trimToNull(conversation.getDialogue());
+        if (dialogueId == null) {
+            return; // A conversation destination naming none is the destination type's own business.
+        }
+        Set<String> loaded = loadedDialogueIds();
+        if (loaded.isEmpty() || loaded.contains(dialogueId.toLowerCase(Locale.ROOT))) {
+            return;
+        }
+        out.add(Finding.warning(DOMAIN, "UNKNOWN_DIALOGUE",
+                "Interact opens the conversation '" + dialogueId + "', which no loaded file carries. "
+                        + "Pressing F opens nothing until the pack that ships it is installed", id));
+    }
+
+    /** Every conversation in circulation, keyed as the store keys them. Empty means cannot tell. */
+    @Nonnull
+    private static Set<String> loadedDialogueIds() {
+        try {
+            return DialogueAssetStore.getInstance().dialogues().keySet();
+        } catch (Throwable t) {
+            return Set.of();
         }
     }
 
-    @Nonnull
-    private static Map<String, PlacementBinding> bindingsOf(@Nonnull NpcPlacementAsset placement) {
-        NpcPlacementAsset.Interact interact = placement.getInteract();
-        return interact == null ? Map.of() : interact.getBindings();
+    /**
+     * A character with no name. The role a placement names is the ONE place a display name is
+     * authored ({@code NameTranslationKey}), and nothing invents one from an id - so a role that
+     * carries none leaves the nameplate, the conversation header and every "Talk to X" line blank,
+     * with nothing at runtime to say why.
+     *
+     * <p>Silent when the role registry cannot be asked (a unit JVM, or an audit run before the packs
+     * load), because a null key would otherwise read as an answer about every placement at once.
+     * A placement naming no role at all is already {@code NO_ROLE} and is not reported twice.
+     */
+    private static void checkDisplayName(@Nonnull NpcPlacementAsset placement, @Nonnull String id,
+            @Nonnull List<Finding> out) {
+        NpcPlacementAsset.Identity identity = placement.getIdentity();
+        if (identity == null || !identity.namesRole() || !NpcNames.canResolveNames()) {
+            return;
+        }
+        if (NpcNames.nameKeyOfPlacement(id) == null) {
+            out.add(Finding.warning(DOMAIN, "NO_DISPLAY_NAME",
+                    "the role '" + identity.getRole() + "' resolves no NameTranslationKey, so this "
+                            + "character shows no name anywhere. Author one on the role file", id));
+        }
     }
 
+    @Nullable
+    private static String trimToNull(@Nullable String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
 }

@@ -44,6 +44,7 @@ a server running two content mods work.
 |---|---|
 | `QuestEngine` (+ `.Builder`) | the runtime; every operation and every seam hangs off it. THE instance comes from [`../progress/runtime/`](../progress/runtime/CLAUDE.md); `builder()` is for tests and for a consumer that genuinely wants a private engine |
 | `Quest` (+ `.Repeat`, `.Visibility`) | the RESOLVED quest definition an authoring layer produces; its objectives are `progress.ObjectiveDef` |
+| `QuestTurnInSite` | WHERE a quest may be collected: a named character, or wherever this player took it from. Nullable on `Quest`, and its presence is the restriction |
 | `QuestProgressPayload` | packs one quest's whole `progress.ObjectiveProgressState` map into the opaque string a store persists |
 | `QuestStatus`, `QuestLifecycle` | the state machine, the effective-status rule, and `repeatCheck` - the ONE evaluator for whether a repeatable may be taken again |
 | `RepeatPeriod` | the pure calendar arithmetic behind a `Repeat.Reset` window (UTC, `floorDiv`-indexed, saturating) |
@@ -89,6 +90,28 @@ a server running two content mods work.
   (`CLAIM` the reward being taken, `COMPLETE` the objectives being met) and toggles nothing else.
   `COMPLETE` is what a quest belonging to a rotating, period-based offer wants, so collecting late
   does not burn a slot in the next period. Do not reintroduce a consumer-specific check in its place.
+- **WHERE a quest may be collected is ONE predicate, and the engine enforces it itself.**
+  `canCompleteAt(subject, quest, atOrNull)` is the whole rule: no `Quest#turnInAt()` means anywhere
+  (the default, and most content), a `CHARACTER` site answers to one id case-insensitively, an
+  `ACCEPT_SITE` site answers to the place recorded when the player took it. `claim` and
+  `checkCompletion` both AND it in, so a surface that never asks cannot pay a quest out in the wrong
+  place; a quest bound to a place PARKS instead of auto-claiming when it finishes anywhere else, so a
+  refusal never costs the player the reward. `forceComplete` ignores it exactly as it ignores the
+  objectives, because setting the content's rules aside is what that call is for. Every surface ASKS
+  the predicate rather than keeping a copy, and asks it through `QuestStateReader` when it only
+  looks.
+- **One character answering to several ids is resolved ABOVE this module.** `canCompleteAt` compares
+  ONE id, and a caller holding a character's whole answer set asks once per id, exactly as the
+  at-a-character reads beside it are already called. That is what keeps every identity registry out
+  of a module that sits below the one owning them. The accepted-at form is matched by plain id
+  equality and nothing else: what a player took a quest from need not be a character at all.
+- **The accepted-at place rides INSIDE the progress payload.** `accept` takes a nullable site id and
+  `QuestProgressPayload` carries it in the same opaque string the objective progress lives in, so
+  every store persists it with no new field, no capability probe and no migration; a payload written
+  without one reads back as no place. `saveProgress` re-reads and re-emits it rather than trusting
+  every caller to thread it, because a save that dropped it would unbind the quest mid-run with
+  nothing reporting it. A site id carrying one of the format's reserved characters is refused with
+  one warning rather than stored in half.
 - **`clearQuest` re-arms; it does NOT wipe the completion record.** Abandon and the off-cooldown
   reset both go through it, and a lifetime cap either of them wiped would be a cap nobody could ever
   reach. `setCompletions(..., CompletionRecord.NONE)` is the deliberate wipe.
@@ -101,7 +124,7 @@ a server running two content mods work.
   implemented against `QuestStateReader` plus a consumer-supplied answer set and two opt-in write
   methods, all bundled in `dialogue.quest.DialogueQuests`. The edge is one-way: this module may
   never import anything from `zc-dialogue`.
-- **A surface that only LOOKS gets `QuestStateReader`, never the engine.** `QuestEngine` implements it, and a conversation - which decides what to SHOW, dozens of times per render - is handed the interface. The engine mutates; a read seam cannot, so no amount of drift turns a rendering pass into an accept or a claim. Keep the seam narrow: a method belongs there only if a dialogue genuinely asks it AND the runtime can answer it alone. "Does this place have anything to OFFER?" fails the second half (who hands out what is an authoring-layer association plus a gate pass), so it is answered by ASKING `NpcOfferProviders` rather than by widening this seam. **`resolvesTurnInAt` is the deliberate weaker twin of `canDeliverTurnInAt`**: a marker pointing a player at the character a step is going to, versus a button that completes it. It DEFAULTS to the possession-aware answer, which can only under-report a destination and never offers an impossible hand-in - a runtime where a step can resolve at a character with nothing carried (a "go and speak to them" step is exactly that) overrides it.
+- **A surface that only LOOKS gets `QuestStateReader`, never the engine.** `QuestEngine` implements it, and a conversation - which decides what to SHOW, dozens of times per render - is handed the interface. The engine mutates; a read seam cannot, so no amount of drift turns a rendering pass into an accept or a claim. Keep the seam narrow: a method belongs there only if a dialogue genuinely asks it AND the runtime can answer it alone. "Does this place have anything to OFFER?" fails the second half (who hands out what is an authoring-layer association plus a gate pass), so it is answered by ASKING `NpcOfferProviders` rather than by widening this seam. `canCompleteAt` is on the seam for the same reason: a quest page, a book and a conversation all decide whether to OFFER a collection, and one predicate is what stops three copies of the rule drifting. It defaults to yes, since a reader modelling no places must not hide every collection in the game and cannot let a wrong one through either. **`resolvesTurnInAt` is the deliberate weaker twin of `canDeliverTurnInAt`**: a marker pointing a player at the character a step is going to, versus a button that completes it. It DEFAULTS to the possession-aware answer, which can only under-report a destination and never offers an impossible hand-in - a runtime where a step can resolve at a character with nothing carried (a "go and speak to them" step is exactly that) overrides it.
 - **Events are an outbound courtesy.** Every fire is guarded end to end; a listener blowing up must never take a completion down with it. Fire from the world thread.
 
 ## Adding to it

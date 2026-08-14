@@ -36,3 +36,34 @@ book.toast.claimed = Recompensas recogidas.
 book.toast.claim_failed = No hay nada que recoger ahora mismo.
 book.toast.turned_in = Entregado.
 book.toast.turn_in_failed = Eso no se puede entregar aquí.
+
+npcquests.title.none = Misiones
+npcquests.count = Misiones: {0}
+npcquests.tab.here = Misiones de aquí
+npcquests.tab.mine = Mis misiones
+npcquests.empty.here = Aquí no hay nada para ti ahora mismo.
+npcquests.empty.mine = No llevas ninguna misión.
+npcquests.empty.unavailable = Tus misiones no se pueden leer ahora mismo.
+
+npcquests.section.ready = Listas para recoger
+npcquests.section.turn_in = Listas para entregar
+npcquests.section.active = En curso
+npcquests.section.available = Disponibles
+npcquests.section.parked = Recoger en otro sitio
+npcquests.section.locked = Bloqueadas
+npcquests.section.done = Completadas
+
+npcquests.header.objectives = OBJETIVOS
+npcquests.header.rewards = RECOMPENSAS
+npcquests.header.required = REQUISITOS
+
+npcquests.action.complete = Completar
+npcquests.action.abandon = Abandonar
+npcquests.action.track = Seguir
+npcquests.action.untrack = Dejar de seguir
+
+npcquests.toast.abandoned = Misión abandonada.
+npcquests.toast.tracked = Misión en seguimiento.
+npcquests.toast.untracked = Misión fuera de seguimiento.
+npcquests.toast.track_full = Ya sigues todas las misiones que puedes.
+npcquests.toast.turn_in_short = Todavía no es suficiente: {0}/{1}.

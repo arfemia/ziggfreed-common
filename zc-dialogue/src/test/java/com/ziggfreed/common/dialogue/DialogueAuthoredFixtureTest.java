@@ -21,16 +21,16 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
+import com.ziggfreed.common.npc.NpcDestinations;
 
 /**
  * The conversations that are already out there must keep loading, verbatim.
  *
- * <p>The three fixtures are byte-for-byte copies of shipped files - a released minigame's, the MMO
- * jar's hub conversation, and a content pack's guide - and they are read through the real asset
- * codec, not a simplified stand-in. Between them they cover every authoring shape that exists:
- * shorthand written bare and inside {@code Do}, a shorthand a MOD registered rather than the
- * framework, shared option groups, declared memories, {@code Once} as a bare flag, world gates,
- * quest gates and per-option styling.
+ * <p>The three fixtures are shipped files - a released minigame's, the MMO jar's hub conversation,
+ * and a content pack's guide - and they are read through the real asset codec, not a simplified
+ * stand-in. Between them they cover every authoring shape that exists: shorthand written bare and
+ * inside {@code Do}, a shorthand a MOD registered rather than the framework, shared option groups,
+ * declared memories, {@code Once} as a bare flag, world gates, quest gates and per-option styling.
  *
  * <p>They also make the ordering rule concrete. A file naming a mod's own {@code Type} can only be
  * read once that mod has registered it, which is why the stand-in vocabulary below is registered
@@ -50,6 +50,12 @@ class DialogueAuthoredFixtureTest {
      */
     @Nonnull
     private static DialogueEngine engineForShippedContent() {
+        // The routing vocabulary is read the same way the action vocabulary is: an Open value naming
+        // a Type nothing registered fails the file outright, which is the whole point of it. The
+        // library seeds the quest list itself; the two page ids belong to the mod that ships them.
+        NpcDestinations.register();
+        DialogueTestSupport.shareDestination("Hub");
+        DialogueTestSupport.shareDestination("Onboarding");
         return DialogueEngine.builder()
                 .warn(m -> { })
                 .condition(paramless("NotInRound", NotInRound.class, NotInRound.CODEC))
@@ -92,7 +98,8 @@ class DialogueAuthoredFixtureTest {
         assertNotNull(d);
         assertEquals("clash_intro", d.getId());
         assertEquals(4, d.getNodes().size());
-        assertEquals("greet", d.getStart().get(0).getNode());
+        assertEquals("greet", d.getStart().fallback(),
+                "one screen and no state to read means the whole Start is a fallback");
         // "Play": "clash_1v1" is a shorthand the MINIGAME registered, folded into its own action.
         DialogueOption play = d.getNode("mode_pick").getOptions().get(0);
         assertEquals(1, play.getActions().size());
@@ -106,15 +113,21 @@ class DialogueAuthoredFixtureTest {
         NpcDialogue d = read(engine, "Mmo_Hub_Intro.json", "mmo_hub_intro").getDialogue();
         assertNotNull(d);
 
-        // A declared memory, read by a Start candidate and written by an option. It is kept per
-        // world by a CONTAINS pattern, because the temple is an instance world whose name carries a
-        // fresh uuid every time it is built - an exact name would forget the greeting each visit.
+        // A declared memory, read by a Start beat and written by an option. It is kept per gameplay
+        // config, because the temple is an instance world whose NAME carries a fresh uuid every time
+        // it is built while the config it runs does not.
         assertNotNull(d.getMemory("temple_greeted"));
-        assertEquals("*Forgotten_Temple*", d.getMemory("temple_greeted").getWorld());
+        assertEquals("ForgottenTemple", d.getMemory("temple_greeted").getWhere().getGameplayConfig()[0]);
 
-        // The Start ladder keeps its authored order, world gate first.
-        assertEquals("temple_greet", d.getStart().get(0).getNode());
-        assertTrue(d.getStart().get(0).getConditions().get(0) instanceof DialogueCondition.World);
+        // The sections: the two world-gated beats outrank everything, the quest rows carry the main
+        // chain, and there is a screen of last resort.
+        assertEquals("temple_greet", d.getStart().first().get(0).getNode());
+        assertTrue(d.getStart().first().get(0).getWhen().get(0) instanceof DialogueCondition.World);
+        assertEquals("menu", d.getStart().fallback());
+        assertTrue(d.getStart().quests().containsKey("craft_starter_tools"));
+        assertEquals("tools_ready", d.getStart().quests().get("craft_starter_tools").getReady().getNode());
+        assertTrue(d.getStart().quests().get("gather_the_basics").getReady().isQuestView(),
+                "Ready written as true sends the player to the quest list rather than handing it in here");
 
         // Shared option groups are declared once and spliced into every screen that names them.
         assertFalse(d.getFragments().isEmpty());

@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.ui.route.Destination;
 
 /**
  * One step a dialogue option executes, authored as a {@code Type}-discriminated
@@ -23,10 +24,10 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * Hytale rule every {@code KeyedCodec} field name is PascalCase ({@code Node},
  * {@code Memory}); {@code Type} VALUES are plain data.
  *
- * <p>{@code OpenPage} is a GENERIC carrier: it holds only data (a target string) and
- * routes through a consumer-supplied seam (a {@link DialoguePageRouter}). A consumer
- * may re-register the same {@code Type} id with a richer handler to inject domain
- * behavior.
+ * <p>{@code OpenPage} is a GENERIC carrier: it holds only a {@link Destination} from the
+ * shared routing vocabulary, and whichever mod registered that {@code Type} is what
+ * opens it. A consumer may re-register the same {@code Type} id with a richer handler
+ * to inject domain behavior.
  */
 public abstract class DialogueAction {
 
@@ -68,21 +69,32 @@ public abstract class DialogueAction {
     }
 
     /**
-     * Open another page / nav destination. A generic carrier: the engine routes
-     * {@code Target} through the configured {@link DialoguePageRouter}; if it
-     * opened a page the executor sets {@code openedOtherPage} so the dialogue page
-     * does not re-open itself over the new one. {@code @self} in the target
-     * resolves to the context id.
+     * Open something else: {@code {"Type":"OpenPage","Target":{"Type":"Quests"}}}, or the shorthand
+     * {@code "Open": "Quests"} / {@code "Open": {"Type":"Mmo_Board","Board":"daily"}}.
+     *
+     * <p>{@code Target} is a {@link Destination} - the shared vocabulary of everything that can be
+     * opened - so this action carries a real value rather than a string somebody has to parse, and
+     * whichever mod registered that {@code Type} is what opens it. A destination nothing registered
+     * fails the READ naming the file, so a button that silently does nothing cannot be authored.
+     *
+     * <p>Nothing here names the character: the conversation already knows who it is with and the
+     * identity travels in the destination context, which is why a quest list at the character in
+     * front of the player is written as one word.
+     *
+     * <p>When something was opened the executor sets {@code openedOtherPage}, so the conversation
+     * does not re-open itself over the top of it.
      */
     public static final class OpenPage extends DialogueAction {
         public static final BuilderCodec<OpenPage> CODEC = BuilderCodec.builder(OpenPage.class, OpenPage::new)
-                .append(new KeyedCodec<>("Target", Codec.STRING, false),
-                        (a, v) -> a.target = v, a -> a.target).add()
+                .append(new KeyedCodec<>("Target", Destination.CODEC, false),
+                        (a, v) -> a.target = v, a -> a.target)
+                .documentation("What to open, in the shared routing vocabulary: one word for a screen with "
+                        + "no settings of its own, or an object naming its Type and that type's fields.").add()
                 .build();
 
-        @Nullable protected String target;
+        @Nullable protected Destination target;
 
-        @Nullable public String getTarget() { return target; }
+        @Nullable public Destination getTarget() { return target; }
     }
 
     /**

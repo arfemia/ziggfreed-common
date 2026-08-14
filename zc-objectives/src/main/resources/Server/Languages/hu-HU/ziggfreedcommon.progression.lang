@@ -36,3 +36,34 @@ book.toast.claimed = Jutalmak átvéve.
 book.toast.claim_failed = Most nincs mit átvenni.
 book.toast.turned_in = Leadva.
 book.toast.turn_in_failed = Ezt itt nem lehet leadni.
+
+npcquests.title.none = Küldetések
+npcquests.count = Küldetések: {0}
+npcquests.tab.here = Itteni küldetések
+npcquests.tab.mine = Küldetéseim
+npcquests.empty.here = Itt most nincs semmi a számodra.
+npcquests.empty.mine = Nincs nálad küldetés.
+npcquests.empty.unavailable = A küldetéseid most nem olvashatók.
+
+npcquests.section.ready = Átvehető
+npcquests.section.turn_in = Leadásra kész
+npcquests.section.active = Folyamatban
+npcquests.section.available = Elérhető
+npcquests.section.parked = Máshol átvehető
+npcquests.section.locked = Zárolt
+npcquests.section.done = Befejezve
+
+npcquests.header.objectives = CÉLOK
+npcquests.header.rewards = JUTALMAK
+npcquests.header.required = SZÜKSÉGES
+
+npcquests.action.complete = Befejezés
+npcquests.action.abandon = Feladás
+npcquests.action.track = Követés
+npcquests.action.untrack = Követés leállítása
+
+npcquests.toast.abandoned = Küldetés feladva.
+npcquests.toast.tracked = Küldetés követése bekapcsolva.
+npcquests.toast.untracked = Küldetés követése kikapcsolva.
+npcquests.toast.track_full = Már annyi küldetést követsz, amennyit csak lehet.
+npcquests.toast.turn_in_short = Még nem elég: {0}/{1}.

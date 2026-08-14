@@ -2,7 +2,6 @@ package com.ziggfreed.common.npc.placement;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,7 +17,7 @@ import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.npc.placement.AnchorPosition.AnchorKind;
 
 /**
- * The three open registries, and specifically what happens when nobody registered anything: a gate
+ * The two open registries, and specifically what happens when nobody registered anything: a gate
  * must fail CLOSED, an anchor must yield NO position, and neither may throw.
  *
  * <p>Those are the cases a server actually hits (a pack installed without the mod it was written
@@ -31,7 +30,6 @@ class PlacementRegistryTest {
     void reset() {
         PlacementFactorRegistry.clearForTests();
         AnchorResolverRegistry.clearForTests();
-        NpcPlacementBindings.clearForTests();
     }
 
     // ==================== factors: fail closed ====================
@@ -177,48 +175,5 @@ class PlacementRegistryTest {
         assertEquals("custom:yourmod:station#sawmill", resolved.get(0).anchorKey(),
                 "the provider id is folded into the instance id so two providers can never collide");
         assertEquals(1.0, resolved.get(0).x());
-    }
-
-    // ==================== bindings: the namespace split ====================
-
-    @Test
-    void bindingsGroupByNamespaceKeepingTheFullChannelId() {
-        Map<String, Map<String, PlacementBinding>> grouped = NpcPlacementBindings.byNamespace(Map.of(
-                "yourmod:ui_target", PlacementBinding.value("hub"),
-                "yourmod:npc_id", PlacementBinding.value("guide"),
-                "othermod:thing", PlacementBinding.value("x")));
-
-        assertEquals(2, grouped.size());
-        assertEquals(2, grouped.get("yourmod").size());
-        assertNotNull(grouped.get("yourmod").get("yourmod:ui_target"),
-                "the full channel id stays the key so a handler can switch on it directly");
-        assertEquals(1, grouped.get("othermod").size());
-    }
-
-    @Test
-    void aChannelWithNoNamespaceIsDroppedBecauseItHasNoOwner() {
-        assertTrue(NpcPlacementBindings.byNamespace(Map.of(
-                "ui_target", PlacementBinding.value("hub"))).isEmpty());
-        assertTrue(NpcPlacementBindings.byNamespace(Map.of(
-                ":ui_target", PlacementBinding.value("hub"))).isEmpty());
-    }
-
-    @Test
-    void namespacesGroupCaseInsensitively() {
-        Map<String, Map<String, PlacementBinding>> grouped = NpcPlacementBindings.byNamespace(Map.of(
-                "YourMod:a", PlacementBinding.value("1"),
-                "yourmod:b", PlacementBinding.value("2")));
-
-        assertEquals(1, grouped.size());
-        assertEquals(2, grouped.get("yourmod").size());
-    }
-
-    @Test
-    void anUnclaimedNamespaceIsIgnoredRatherThanFailing() {
-        assertFalse(NpcPlacementBindings.isRegistered("yourmod"));
-        assertTrue(NpcPlacementBindings.registeredNamespaces().isEmpty());
-        // dispatchInteract needs live refs, so the ignore path is asserted through the split plus
-        // the registry lookup rather than through a fake engine store.
-        assertNull(NpcPlacementBindings.bindingValue("nothing_here", "yourmod:npc_id"));
     }
 }

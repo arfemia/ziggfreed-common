@@ -30,4 +30,26 @@ public interface ProgressionTextSource {
     /** What one step of this content is called, or null. */
     @Nullable
     Message objective(@Nonnull String contentId, @Nonnull String objectiveId);
+
+    /**
+     * The narrative this content reads with while it is in {@code state} - the paragraph a giver's
+     * screen shows above the steps, which changes as the quest moves along.
+     *
+     * <p>It is a SEAM rather than a schema leaf because the words already exist: a consumer resolves
+     * it from whatever convention its own content uses ({@code quest.<id>.md.<state>} is the one the
+     * library's own folded content follows), and content authored before this existed keeps working
+     * untouched.
+     *
+     * <p>{@code state} is the lower-case lifecycle word a surface is showing: {@code incomplete}
+     * before it is taken, {@code active} while it is carried, {@code complete} once it is finished. A
+     * source that has nothing for a state answers null and the surface falls back to
+     * {@link #flavor}, which is what the great majority of content has and all of it may have.
+     *
+     * <p>DEFAULT-BODIED: a source written before this existed answers null for every state, which is
+     * the honest answer for one that carries no narrative at all.
+     */
+    @Nullable
+    default Message lore(@Nonnull String contentId, @Nonnull String state) {
+        return null;
+    }
 }

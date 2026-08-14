@@ -5,14 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -21,10 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
-import com.ziggfreed.common.progress.ObjectiveProgressState;
-import com.ziggfreed.common.quest.QuestStateReader;
 import com.ziggfreed.common.quest.QuestStatus;
-import com.ziggfreed.common.subject.Subject;
 
 /**
  * The quest-aware conversation vocabulary, driven entirely through the two seams it is allowed to
@@ -38,82 +28,6 @@ class DialogueQuestVocabularyTest {
         DialogueTestSupport.reset();
     }
 
-    // ==================== the fake quest runtime ====================
-
-    /** A quest runtime made of two maps, plus a record of what was actually done to it. */
-    private static final class FakeQuests implements DialogueQuests, QuestStateReader {
-
-        final Map<String, QuestStatus> status = new LinkedHashMap<>();
-        final Set<String> deliverableAt = new LinkedHashSet<>();
-        final Map<String, Collection<String>> aliases = new LinkedHashMap<>();
-        final List<String> accepted = new ArrayList<>();
-        final List<String> handedIn = new ArrayList<>();
-        boolean acceptSucceeds = true;
-
-        @Nonnull
-        @Override
-        public QuestStateReader reader() {
-            return this;
-        }
-
-        @Nonnull
-        @Override
-        public Subject subject(@Nonnull DialogueContext ctx) {
-            return Subject.of(UUID.nameUUIDFromBytes("tester".getBytes()), "Tester");
-        }
-
-        @Nonnull
-        @Override
-        public Collection<String> answersTo(@Nullable String contextId) {
-            if (contextId == null) {
-                return List.of();
-            }
-            return aliases.getOrDefault(contextId, List.of(contextId));
-        }
-
-        @Override
-        public boolean accept(@Nonnull Subject subject, @Nonnull String questId) {
-            accepted.add(questId);
-            return acceptSucceeds;
-        }
-
-        @Override
-        public boolean turnIn(@Nonnull Subject subject, @Nonnull String questId, @Nullable String atId) {
-            handedIn.add(questId + "@" + atId);
-            return deliverableAt.contains(questId + "@" + atId);
-        }
-
-        @Nonnull
-        @Override
-        public QuestStatus status(@Nonnull Subject subject, @Nonnull String questId) {
-            return status.getOrDefault(questId, QuestStatus.NOT_STARTED);
-        }
-
-        @Nullable
-        @Override
-        public ObjectiveProgressState objectiveProgress(@Nonnull Subject subject, @Nonnull String questId,
-                                                        @Nonnull String objectiveId) {
-            return null;
-        }
-
-        @Nonnull
-        @Override
-        public List<String> activeAndUnclaimedIds(@Nonnull Subject subject) {
-            return List.copyOf(status.keySet());
-        }
-
-        @Override
-        public boolean canDeliverTurnInAt(@Nonnull Subject subject, @Nonnull String questId,
-                                          @Nullable String atId) {
-            return deliverableAt.contains(questId + "@" + atId);
-        }
-
-        @Override
-        public boolean hasDeliverableTurnInAt(@Nonnull Subject subject, @Nullable String atId) {
-            return deliverableAt.stream().anyMatch(entry -> entry.endsWith("@" + atId));
-        }
-    }
-
     @Nonnull
     private static DialogueEngine engine(@Nonnull DialogueQuests quests) {
         return DialogueEngine.builder().warn(m -> { }).quests(quests).build();
@@ -122,7 +36,7 @@ class DialogueQuestVocabularyTest {
     @Nonnull
     private static NpcDialogue gated(@Nonnull DialogueEngine engine, @Nonnull String condition) {
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
                         + "\"Conditions\":[" + condition + "]}]}}}");
         assertNotNull(d);
         return d;
@@ -139,7 +53,7 @@ class DialogueQuestVocabularyTest {
 
     @Test
     void questStateMatchesTheEffectiveStatus() {
-        FakeQuests quests = new FakeQuests();
+        TestQuests quests = new TestQuests();
         DialogueEngine engine = engine(quests);
         NpcDialogue d = gated(engine, "{\"Type\":\"QuestState\",\"Quest\":\"intro\",\"State\":\"ACTIVE\"}");
 
@@ -152,7 +66,7 @@ class DialogueQuestVocabularyTest {
 
     @Test
     void statesIsAnOrShorthandAndAnUnknownNameNeverMatches() {
-        FakeQuests quests = new FakeQuests();
+        TestQuests quests = new TestQuests();
         DialogueEngine engine = engine(quests);
         NpcDialogue any = gated(engine,
                 "{\"Type\":\"QuestState\",\"Quest\":\"intro\",\"States\":[\"NOT_STARTED\",\"ACTIVE\"]}");
@@ -169,7 +83,7 @@ class DialogueQuestVocabularyTest {
 
     @Test
     void readyToTurnInAsksEveryIdTheCharacterAnswersTo() {
-        FakeQuests quests = new FakeQuests();
+        TestQuests quests = new TestQuests();
         quests.aliases.put("guide_temple", List.of("guide_temple", "mmo_hub"));
         quests.deliverableAt.add("errand@mmo_hub");
         DialogueEngine engine = engine(quests);
@@ -183,7 +97,7 @@ class DialogueQuestVocabularyTest {
 
     @Test
     void hasReadyToTurnInIsTheAnyQuestForm() {
-        FakeQuests quests = new FakeQuests();
+        TestQuests quests = new TestQuests();
         DialogueEngine engine = engine(quests);
         NpcDialogue d = gated(engine, "{\"Type\":\"HasReadyToTurnIn\"}");
 
@@ -207,10 +121,10 @@ class DialogueQuestVocabularyTest {
 
     @Test
     void acceptShorthandStartsTheQuestThroughTheSeam() {
-        FakeQuests quests = new FakeQuests();
+        TestQuests quests = new TestQuests();
         DialogueEngine engine = engine(quests);
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Do\":[{\"Accept\":\"Intro\"},{\"Goto\":\"g\"}]}]}}}");
         assertNotNull(d);
         DialogueOption option = d.getNode("g").getOptions().get(0);
@@ -219,17 +133,20 @@ class DialogueQuestVocabularyTest {
                 .execute(option.getActions(), new TestDialogueContext(d).talkingTo("mmo_hub"));
 
         assertEquals(List.of("intro"), quests.accepted, "the id is normalized once, at the seam");
+        assertEquals(List.of("intro@mmo_hub"), quests.acceptedAt,
+                "the character the conversation is with travels as the SITE, so a quest that says"
+                        + " 'report back to whoever gave me this' can resolve where that was");
         assertEquals("g", outcome.gotoNode(), "the jump beside it still runs");
     }
 
     @Test
     void turnInTriesEveryAnsweredIdAndReportsTheCompletion() {
-        FakeQuests quests = new FakeQuests();
+        TestQuests quests = new TestQuests();
         quests.aliases.put("guide_temple", List.of("guide_temple", "mmo_hub"));
         quests.deliverableAt.add("errand@mmo_hub");
         DialogueEngine engine = engine(quests);
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"TurnIn\":\"errand\"}]}}}");
         assertNotNull(d);
 
@@ -246,7 +163,7 @@ class DialogueQuestVocabularyTest {
     void aQuestActionWithNoRuntimeWiredDoesNothingRatherThanThrowing() {
         DialogueEngine engine = DialogueEngine.builder().warn(m -> { }).build();
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Accept\":\"intro\",\"TurnIn\":\"intro\"}]}}}");
         assertNotNull(d);
 

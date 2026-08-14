@@ -7,8 +7,10 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
+import com.ziggfreed.common.dialogue.DialogueFragmentConfig;
 import com.ziggfreed.common.dialogue.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
+import com.ziggfreed.common.dialogue.asset.DialogueFragmentAsset;
 import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
@@ -84,13 +86,27 @@ public final class FrameworkAssetRegistrar {
 
     /** Register every framework store + its merge listener. Call once from {@code setup()}. */
     public static void registerAll(@Nonnull JavaPlugin plugin) {
+        // --- Dialogue fragments (Pattern A) - one group of repeated lines per file, named by any
+        //     screen with IncludeOptions, so a farewell or an open-the-menu row is written once for
+        //     the whole server. Common ships no fragment CONTENT; every entry is consumer pack JSON.
+        //     They load BEFORE Dialogues because a conversation splices the groups it names as it is
+        //     read, and a group that is not there yet would silently drop its lines. ---
+        AssetStoreRegistrar.registerStore(DialogueFragmentAsset.class,
+                new DefaultAssetMap<String, DialogueFragmentAsset>(), DialogueFragmentAsset.TYPE_ROOT,
+                DialogueFragmentAsset::getId, DialogueFragmentAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DialogueFragmentAsset.class,
+                (LoadedAssetsEvent<String, DialogueFragmentAsset, DefaultAssetMap<String, DialogueFragmentAsset>> ev) ->
+                        DialogueFragmentConfig.getInstance().mergePackLayer(
+                                AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.getOptions())));
+
         // --- Dialogues (Pattern A) - one authored conversation per file, with native Parent
         //     inheritance and a per-screen merge, so a child conversation restates one screen and
         //     keeps the rest. Common ships no dialogue CONTENT; every entry is consumer pack JSON,
         //     and every consumer reads the whole folder back via DialogueAssetStore.dialogues(). ---
         AssetStoreRegistrar.registerStore(ZcDialogueAsset.class,
                 new DefaultAssetMap<String, ZcDialogueAsset>(), "ZiggfreedCommon/Dialogues",
-                ZcDialogueAsset::getId, ZcDialogueAsset.CODEC, null);
+                ZcDialogueAsset::getId, ZcDialogueAsset.CODEC,
+                new Class<?>[]{DialogueFragmentAsset.class});
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, ZcDialogueAsset.class,
                 (LoadedAssetsEvent<String, ZcDialogueAsset, DefaultAssetMap<String, ZcDialogueAsset>> ev) ->
                         DialogueAssetStore.getInstance().merge(
@@ -306,7 +322,7 @@ public final class FrameworkAssetRegistrar {
 
         try {
             CommonLog.LOGGER.atInfo().log(
-                    "ZiggfreedCommon framework stores registered (Dialogues, Instances, "
+                    "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
                             + "Lootables, RollPools, RewardKinds, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, "
                             + "Quests, QuestGenerators, Achievements, AchievementCategories, "

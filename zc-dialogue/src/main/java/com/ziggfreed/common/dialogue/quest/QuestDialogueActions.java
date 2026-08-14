@@ -79,7 +79,10 @@ public final class QuestDialogueActions {
                                @Nonnull DialogueExecContext ctx) {
         String questId = action.normalizedQuest();
         if (questId != null) {
-            quests.accept(quests.subject(ctx), questId);
+            // The character the conversation is WITH is where the quest was taken on, which is what
+            // lets "report back to whoever gave me this" resolve later. The context id, not an
+            // answered alias: the story means the character the player is looking at.
+            quests.accept(quests.subject(ctx), questId, ctx.contextId());
         }
     }
 

@@ -36,3 +36,34 @@ book.toast.claimed = Belohnungen abgeholt.
 book.toast.claim_failed = Derzeit gibt es nichts abzuholen.
 book.toast.turned_in = Abgegeben.
 book.toast.turn_in_failed = Das kann hier nicht abgegeben werden.
+
+npcquests.title.none = Quests
+npcquests.count = Quests: {0}
+npcquests.tab.here = Quests hier
+npcquests.tab.mine = Meine Quests
+npcquests.empty.here = Hier gibt es gerade nichts für dich.
+npcquests.empty.mine = Du hast keine Quests angenommen.
+npcquests.empty.unavailable = Deine Quests können gerade nicht gelesen werden.
+
+npcquests.section.ready = Abholbereit
+npcquests.section.turn_in = Bereit zur Abgabe
+npcquests.section.active = In Arbeit
+npcquests.section.available = Verfügbar
+npcquests.section.parked = Woanders abholen
+npcquests.section.locked = Gesperrt
+npcquests.section.done = Abgeschlossen
+
+npcquests.header.objectives = ZIELE
+npcquests.header.rewards = BELOHNUNGEN
+npcquests.header.required = ERFORDERLICH
+
+npcquests.action.complete = Abschließen
+npcquests.action.abandon = Aufgeben
+npcquests.action.track = Verfolgen
+npcquests.action.untrack = Nicht mehr verfolgen
+
+npcquests.toast.abandoned = Quest aufgegeben.
+npcquests.toast.tracked = Quest wird verfolgt.
+npcquests.toast.untracked = Quest wird nicht mehr verfolgt.
+npcquests.toast.track_full = Du verfolgst bereits so viele Quests wie möglich.
+npcquests.toast.turn_in_short = Noch nicht genug: {0}/{1}.

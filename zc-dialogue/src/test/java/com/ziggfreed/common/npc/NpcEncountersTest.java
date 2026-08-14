@@ -98,9 +98,13 @@ class NpcEncountersTest {
         final List<String> resolvesAsked = new ArrayList<>();
         final List<String> deliverAsked = new ArrayList<>();
         final List<String> turnInAsked = new ArrayList<>();
+        final List<String> completeAsked = new ArrayList<>();
 
         /** {@code atId} that accepts a full hand-in; everything else only RESOLVES there. */
         @Nullable String deliverableAt;
+
+        /** {@code atId} the quest's own site rule allows it to be completed at; null means anywhere. */
+        @Nullable String completableAt;
 
         /** The conversation the catalogue says follows every quest here, or none. */
         @Nullable String completionDialogue;
@@ -134,6 +138,12 @@ class NpcEncountersTest {
                     @Nullable String atId) {
                 resolvesAsked.add(atId);
                 return true;
+            }
+
+            @Override public boolean canCompleteAt(@Nonnull Subject subject, @Nonnull String questId,
+                    @Nullable String atId) {
+                completeAsked.add(atId);
+                return completableAt == null || completableAt.equals(atId);
             }
         };
 
@@ -230,6 +240,36 @@ class NpcEncountersTest {
         assertFalse(here.deliverableHere("a_quest"),
                 "but the button that would complete it must not be offered");
         assertFalse(quests.resolvesAsked.isEmpty());
+    }
+
+    /**
+     * The SITE question is its own read, and it is a REFUSAL: a quest can be finished, fully carried
+     * and still not completable at THIS character because it says to report back somewhere else.
+     */
+    @Test
+    void theSiteQuestionIsAskedOfTheWholeAnswerSetAndRefusesElsewhere() {
+        loadAliasedGuide();
+        ScriptedQuests quests = new ScriptedQuests();
+        quests.completableAt = "adventurers_guide";
+
+        NpcEncounter here = NpcEncounters.at(new BareContext("guide_wilds"), quests);
+        assertTrue(here.canCompleteHere("a_quest"),
+                "an id the character answers to is a site it may be completed at");
+        assertEquals(List.of("guide_wilds", "adventurers_guide"), quests.completeAsked,
+                "the whole answer set is walked, in order, until one says yes");
+
+        quests.completeAsked.clear();
+        quests.completableAt = "quartermaster";
+        assertFalse(here.canCompleteHere("a_quest"),
+                "a quest bound to somebody else's counter is not completable at this one");
+    }
+
+    @Test
+    void aCharacterWithNoIdHasNoSiteToSatisfy() {
+        ScriptedQuests quests = new ScriptedQuests();
+        assertFalse(NpcEncounters.at(new BareContext(null), quests).canCompleteHere("a_quest"),
+                "there is no HERE, so the honest answer is no rather than the permissive default");
+        assertTrue(quests.completeAsked.isEmpty(), "and nothing is asked of the quest runtime");
     }
 
     @Test

@@ -15,6 +15,8 @@ import javax.annotation.Nonnull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.world.WorldSelector;
+
 /**
  * The {@code Once} knob end to end, purely: the boolean shorthand, entry-level seen-ness spent by
  * COMPLETING a beat (and not by leaving it), option-level seen-ness keyed by label rather than
@@ -41,14 +43,14 @@ class DialogueOnceTest {
     void booleanShorthandNormalizesOnEntriesAndOptions() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("t",
-                "{\"Start\":[{\"Node\":\"g\",\"Once\":true}],\"Nodes\":{\"g\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\",\"Once\":true}]},\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Once\":true},"
                         + "{\"LabelKey\":\"b\",\"Once\":false},"
                         + "{\"LabelKey\":\"c\"}]}}}");
         assertNotNull(d);
 
-        assertNotNull(d.getStart().get(0).getOnce(), "\"Once\": true on an entry is the empty group");
-        assertNull(d.getStart().get(0).getOnce().getWorld());
+        assertNotNull(d.getStart().first().get(0).getOnce(), "\"Once\": true on an entry is the empty group");
+        assertNull(d.getStart().first().get(0).getOnce().getWhere());
         assertNotNull(d.getNode("g").getOptions().get(0).getOnce());
         assertNull(d.getNode("g").getOptions().get(1).getOnce(), "\"Once\": false authors no Once");
         assertNull(d.getNode("g").getOptions().get(2).getOnce());
@@ -58,14 +60,14 @@ class DialogueOnceTest {
     void groupFormCarriesTheWorld() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("t",
-                "{\"Start\":[{\"Node\":\"g\",\"Once\":{\"World\":\"forgotten_temple\"}}],"
+                "{\"Start\":{\"First\":[{\"Node\":\"g\",\"Once\":{\"Where\":{\"Match\":[\"forgotten_temple\"]}}}]},"
                         + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\",\"OnceId\":\"hail\","
-                        + "\"Once\":{\"World\":\"forgotten_temple\"}}]}}}");
+                        + "\"Once\":{\"Where\":{\"Match\":[\"forgotten_temple\"]}}}]}}}");
         assertNotNull(d);
 
-        assertEquals("forgotten_temple", d.getStart().get(0).getOnce().getWorld());
+        assertEquals("forgotten_temple", d.getStart().first().get(0).getOnce().getWhere().getMatch()[0]);
         DialogueOption option = d.getNode("g").getOptions().get(0);
-        assertEquals("forgotten_temple", option.getOnce().getWorld());
+        assertEquals("forgotten_temple", option.getOnce().getWhere().getMatch()[0]);
         assertEquals("hail", option.getOnceId());
     }
 
@@ -74,10 +76,10 @@ class DialogueOnceTest {
         DialogueEngine engine = engine();
         // A body already through the pass (the group form) decodes identically the second time.
         NpcDialogue d = engine.decode("t",
-                "{\"Start\":[{\"Node\":\"g\",\"Once\":{}}],\"Nodes\":{\"g\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"g\",\"Once\":{}}]},\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Once\":{},\"Close\":true}]}}}");
         assertNotNull(d);
-        assertNotNull(d.getStart().get(0).getOnce());
+        assertNotNull(d.getStart().first().get(0).getOnce());
         DialogueOption option = d.getNode("g").getOptions().get(0);
         assertNotNull(option.getOnce(), "a sugar expander's strip pass must not eat the option's Once");
         assertTrue(option.closesDialogue(), "the Close sugar still expanded beside it");
@@ -88,7 +90,7 @@ class DialogueOnceTest {
     /** A first-visit greeting that falls through to a steady-state node once it is spent. */
     private static NpcDialogue firstVisitTree(@Nonnull DialogueEngine engine) {
         return engine.decode("temple_talk",
-                "{\"Start\":[{\"Node\":\"greet\",\"Once\":{}},{\"Node\":\"steady\"}],"
+                "{\"Start\":{\"First\":[{\"Node\":\"greet\",\"Once\":{}},{\"Node\":\"steady\"}]},"
                         + "\"Nodes\":{\"greet\":{\"Options\":[{\"LabelKey\":\"hail\","
                         + "\"Actions\":[{\"Type\":\"Goto\",\"Node\":\"steady\"}]}]},"
                         + "\"steady\":{\"Options\":[]}}}");
@@ -146,7 +148,7 @@ class DialogueOnceTest {
     void anEntryWithoutOnceKeepsMatching() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("plain",
-                "{\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[]}}}");
+                "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[]}}}");
         assertNotNull(d);
         TestDialogueContext ctx = new TestDialogueContext(d);
 
@@ -164,7 +166,7 @@ class DialogueOnceTest {
     void optionOnceIsKeyedByLabelKeySoReorderingCannotResurrectIt() {
         DialogueEngine engine = engine();
         NpcDialogue authored = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"camp\"}],\"Nodes\":{\"camp\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"camp\"}]},\"Nodes\":{\"camp\":{\"Options\":["
                         + "{\"LabelKey\":\"opt.bread\",\"Once\":{}},"
                         + "{\"LabelKey\":\"opt.lore\"}]}}}");
         assertNotNull(authored);
@@ -178,7 +180,7 @@ class DialogueOnceTest {
 
         // The same content re-authored with the options in the other order: still spent.
         NpcDialogue reordered = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"camp\"}],\"Nodes\":{\"camp\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"camp\"}]},\"Nodes\":{\"camp\":{\"Options\":["
                         + "{\"LabelKey\":\"opt.lore\"},"
                         + "{\"LabelKey\":\"opt.bread\",\"Once\":{}}]}}}");
         assertNotNull(reordered);
@@ -194,7 +196,7 @@ class DialogueOnceTest {
     void onceIdSeparatesTwoOptionsSharingALabel() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"camp\"}],\"Nodes\":{\"camp\":{\"Options\":["
+                "{\"Start\":{\"First\":[{\"Node\":\"camp\"}]},\"Nodes\":{\"camp\":{\"Options\":["
                         + "{\"LabelKey\":\"opt.gift\",\"OnceId\":\"bread\",\"Once\":{}},"
                         + "{\"LabelKey\":\"opt.gift\",\"OnceId\":\"stew\",\"Once\":{}}]}}}");
         assertNotNull(d);
@@ -214,7 +216,7 @@ class DialogueOnceTest {
     void anOptionWithNoIdentityStaysRepeatableAndSaysSo() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Start\":[{\"Node\":\"camp\"}],\"Nodes\":{\"camp\":{\"Options\":[{\"Once\":{}}]}}}");
+                "{\"Start\":{\"First\":[{\"Node\":\"camp\"}]},\"Nodes\":{\"camp\":{\"Options\":[{\"Once\":{}}]}}}");
         assertNotNull(d);
         TestDialogueContext ctx = new TestDialogueContext(d);
 
@@ -234,7 +236,7 @@ class DialogueOnceTest {
 
     @Test
     void aWorldScopedOnceResolvesInThatWorldAndNowhereElse() {
-        DialogueOnce once = DialogueOnce.ofWorld("forgotten_temple");
+        DialogueOnce once = DialogueOnce.ofWhere(WorldSelector.of(new String[] {"forgotten_temple"}, null, null));
 
         assertEquals("once:e:hub:w:forgotten_temple:greet",
                 once.resolveKey("once:e:hub:greet", "Forgotten_Temple"));
@@ -254,8 +256,8 @@ class DialogueOnceTest {
         // The test context cannot read a world at all, which is the same shape as standing in a
         // world the pattern does not match.
         NpcDialogue d = engine.decode("temple_talk",
-                "{\"Start\":[{\"Node\":\"greet\",\"Once\":{\"World\":\"forgotten_temple\"}},"
-                        + "{\"Node\":\"steady\"}],\"Nodes\":{\"greet\":{\"Options\":[]},"
+                "{\"Start\":{\"First\":[{\"Node\":\"greet\",\"Once\":{\"Where\":{\"Match\":[\"forgotten_temple\"]}}},"
+                        + "{\"Node\":\"steady\"}]},\"Nodes\":{\"greet\":{\"Options\":[]},"
                         + "\"steady\":{\"Options\":[]}}}");
         assertNotNull(d);
         TestDialogueContext ctx = new TestDialogueContext(d);

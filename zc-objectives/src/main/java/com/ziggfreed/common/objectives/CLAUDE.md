@@ -41,6 +41,7 @@ nobody claims is fired twice, and a kind wrongly claimed is fired by nobody with
 | `store/` | `ZigProgressComponent` (the persisted state) + `ProgressBlob` (the packing) + `ProgressHandle`/`ProgressSubjects` (the subject) + `ZigQuestStore`/`ZigAchievementStore` (the two adapters) |
 | `producer/` | `ProgressDispatch` plus the four generic producers: block break, mob kill, craft, pickup |
 | `book/` | the in-game two-tab surface and the item that opens it |
+| `questlist/` | the NPC quest page: what one CHARACTER has to offer, list and detail |
 
 ## What these defaults MUST wire, because nothing works without them
 
@@ -198,6 +199,83 @@ reward, by design.
   `items.lang`. All nine locales; see [`i18n/CLAUDE.md`](../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/i18n/CLAUDE.md)
   for why the filename is the prefix and why a key may live in exactly one file.
 
+## The NPC quest page
+
+[`questlist/ZigNpcQuestPage`](questlist/ZigNpcQuestPage.java) is the other surface over the same one
+runtime: the book is what a player reads with nobody in front of them, this is what they read AT a
+character. Two panels, the list on the left and the one quest being read on the right, with every
+lifecycle affordance a character can offer - accept, hand in here, collect, abandon, pin.
+
+- **The HERE list is three questions, asked of two authorities.** What a character HANDS OUT is an
+  authoring-layer association no runtime can read, so it comes from
+  [`quest/NpcOfferProviders`](../../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/quest/CLAUDE.md)
+  asked over the character's whole ANSWER SET. The other two are pure quest state, so the engine
+  answers both itself: what points BACK here (`readyToTurnInAt`) and what was TAKEN here
+  (`acceptSiteOf`, compared case-insensitively against each id the character answers to). **"Given
+  here" is ENGINE DATA - a consumer registers nothing for it**, which is what keeps a quest on its
+  giver's tab while it is being carried even though the offer table has stopped offering it. The rule
+  covers finished-but-uncollected quests as well as active ones, deliberately: a quest parked for
+  collection at the character it was taken from has to be reachable there, or nobody could collect it.
+  The MINE list is `activeAndUnclaimed` and nothing else.
+- **A finished quest whose rewards belong elsewhere reads as PARKED, not Ready.** A quest may name
+  where it is collected, and the engine refuses a claim made anywhere else - so the page asks
+  `canCompleteAt` once per id the character answers to (the engine compares ONE id by design, which is
+  what keeps an identity registry out of the progression module) and shows the status line instead of
+  a button that would refuse. The claim, when it is offered, is made AT the id that answered.
+- **Accept, hand in and collect all thread the SITE.** Accepting records where the quest was taken
+  from, which is what a come-back-to-me quest and the given-here bucketing above both read; handing in
+  names the id the step answered under, so the hand-in that finishes a quest at its own collection
+  site pays out there and then rather than parking it. Passing the site always is deliberate: the
+  content decides whether it matters.
+- **The routed hand-in is a HIGHLIGHT, and a highlight is a pinned first row.** A ready quest never
+  hijacks a conversation on its own, so whatever surfaces one routes here naming it. There is no
+  scroll-to on a page, so pinning that row to the top and opening the detail panel on it IS "take me
+  to it". `NpcQuestPages.open(npcId, questId, ...)` is the routed form; the five-argument form is the
+  plain one.
+- **It keeps instance state and reopens as `this`, unlike the book.** That is what a scroll-preserving
+  `sendUpdate` needs: an update runs against the DOM the last full `build` produced, so a row index
+  must be one that build RECORDED. `builtRowOrder` carries the exact order INCLUDING a marker per
+  section heading, because a recomputed index ignores headings, can land on one, and an unresolved
+  `#StatusDot` selector disconnects the player. Every path falls back to a full reopen when the
+  recorded index is gone.
+- **The five action buttons are bound once per build with no quest id in the binding**, and act on
+  whatever the detail panel shows. A page update can restyle an element that exists but can never add
+  or change a binding, so a partial swap of the panel needs no rebuild.
+- **Rewards are read generically, and a reward nothing can name is DROPPED.**
+  [`questlist/NpcQuestRewardChips`](questlist/NpcQuestRewardChips.java) reads a spec's own
+  `NameKey`/`Icon`, then the kind FILE's `Presentation`, then the item form (an item's own engine
+  display name), in the same order the deferred-payout layer reads them, so one reward cannot read
+  differently on two screens. Nothing branches on a kind id. Painting a raw kind token at a player
+  reads as a promise of something called that, so the honest answer to "nothing names this" is one
+  fewer chip and a two-line `Presentation` on the kind file.
+- **Only THREE accept refusals have a line of their own**, the same three the book keys and for the
+  same reason: those are the three a player can act on. The rest read as the generic line rather than
+  leaking a gate's internal token.
+- **[`questlist/NpcQuestPageDeps`](questlist/NpcQuestPageDeps.java) is everything a consumer may say**
+  and nothing it must: a character's NAME, its ANSWER SET, a THEME, a per-reward chip override, what
+  FOLLOWS a quest settled here, and the completion TOAST. Every default leaves a working page, so a
+  bare server needs no consumer at all. The hand-off is a seam rather than a call because the routing
+  policy lives in the dialogue layer, which sits BESIDE this module in the graph rather than under it.
+- **The detail panel's narrative comes from the shared text seam, per lifecycle state.**
+  `ProgressionTextSource.lore(contentId, state)` is asked with `incomplete` / `active` / `complete`
+  and the flavor line is the fallback, so content carrying per-state paragraphs reads with them and
+  content carrying none is unaffected. It is a DEFAULT-bodied seam addition rather than a schema leaf:
+  the words already exist under the consumer's own convention keys.
+- **Registration is in the wiring root, and it is an OBJECT rather than a method reference** - the
+  hazard is written out in full in the [module router](../../../../../../CLAUDE.md), because the
+  method-reference form compiles and silently drops every highlight. Both `NpcQuestPages.open`
+  overloads match the host interface's two shapes byte-exactly; the root supplies an implementation
+  overriding both. A consumer that wants a different screen registers its own host and outranks
+  nothing - first host to take the screen wins.
+- **`.ui` contract**: `Pages/ZigNpcQuestPage.ui` plus the appended `Pages/ZigNpcQuestRow.ui` (ONE
+  template for both a quest row and a section heading, since a list mixing two templates would give
+  two different child sets at one index) and `Pages/ZigNpcQuestLine.ui` (ONE template for a step, a
+  reward and a refusal). All text on `.TextSpans`; every labeled button is `Button` + `#Label` driven
+  by `ZigRichButton`.
+- **Keys** live beside the book's in `ziggfreedcommon.progression.lang` under `npcquests.`, and the
+  page deliberately REUSES the book's `book.progress` / `book.action.*` / `book.quests.lock.*` /
+  `book.toast.*` lines rather than minting a second wording for the same sentence.
+
 ## Tests
 
 Pure decision cores and author-owned fixtures only, matching the rest of the library.
@@ -217,6 +295,17 @@ and proves a handle standing in for the player is paid while one answering only 
 seams and against one without; `ProgressHandleFacetTest` pins the handle's declaration and what it
 stands in for. `Subject.HandleFacets` itself is pinned in `zc-core` by `SubjectTest`, over the test's own
 types, because the point is the dispatch rather than any player representation.
+
+The NPC quest page is split the same way. `NpcQuestSectionsTest` pins the ordering rules a player
+notices immediately and a refactor breaks silently - which bucket a status lands in, a finished quest
+belonging elsewhere reading as parked rather than offering a button the engine refuses, a repeatable
+waiting out its clock reading as locked rather than vanishing, a routed highlight beating a stale
+selection while a surviving selection beats the first row. `NpcQuestRewardChipsTest` pins how a reward
+READS from strings alone, over kind ids of the test's OWN invention, since naming a real consumer's
+kind would disprove the thing being proved. `NpcQuestPageDepsTest` pins that an unfilled seam leaves a
+working page and that a filled one throwing costs its own contribution rather than the screen. The
+rendering itself, the offer providers and the engine calls behind each button are in-game smoke
+territory.
 
 `ObjectiveBookTextArgsTest` is a SOURCE check over the TEXT SOURCE, and deliberately: reaching a
 rendering would initialize a page whose engine base builds a logger in a static initializer that

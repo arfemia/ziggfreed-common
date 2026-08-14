@@ -85,12 +85,31 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
      */
     @Nullable private String pendingEntryOnceKey;
 
+    /**
+     * The beat {@link DialogueOpener} already worked out, used for the FIRST render and dropped after
+     * it. It is carried rather than re-derived so the ladder is walked once per open, which is what
+     * keeps a {@code Pick} beat from drawing a different variant than the one the open decided on.
+     */
+    @Nullable private DialogueEngine.EntryResolution preResolved;
+
     public DialoguePage(@Nonnull PlayerRef playerRef, @Nonnull String dialogueId,
                         @Nullable String contextNpcId, @Nonnull DialoguePageDeps deps) {
+        this(playerRef, dialogueId, contextNpcId, deps, null);
+    }
+
+    /**
+     * @param preResolved the entry {@link DialogueOpener} resolved for this open, or null to let the
+     *        page work it out itself. Prefer opening through {@code DialogueOpener}: a conversation
+     *        whose {@code Start} routes elsewhere cannot hand the screen over from inside a page.
+     */
+    public DialoguePage(@Nonnull PlayerRef playerRef, @Nonnull String dialogueId,
+                        @Nullable String contextNpcId, @Nonnull DialoguePageDeps deps,
+                        @Nullable DialogueEngine.EntryResolution preResolved) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, DialogueEventData.CODEC);
         this.dialogueId = dialogueId;
         this.contextNpcId = (contextNpcId == null || contextNpcId.isBlank()) ? null : contextNpcId;
         this.deps = deps;
+        this.preResolved = preResolved;
     }
 
     @Override
@@ -156,7 +175,17 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
                 contextNpcId, subject, store, playerRef, player);
 
         if (currentNodeId == null || dialogue.getNode(currentNodeId) == null) {
-            DialogueEngine.EntryResolution entry = engine.resolveEntry(dialogue, ctx);
+            DialogueEngine.EntryResolution entry = preResolved != null ? preResolved
+                    : engine.resolveEntry(dialogue, ctx);
+            preResolved = null;
+            if (entry.routes()) {
+                // The conversation should never have opened: its Start routes somewhere else, and a
+                // page cannot hand the screen over from inside its own build. Whoever opened it went
+                // around DialogueOpener, so say which fix is wanted rather than showing a dead screen.
+                SafeLog.warn("[dialogue] '" + dialogueId + "' routes elsewhere at Start, but it was opened"
+                        + " as a page - open conversations through DialogueOpener so the routed screen"
+                        + " can take over");
+            }
             currentNodeId = entry.nodeId();
             pendingEntryOnceKey = entry.onceKey();
         }

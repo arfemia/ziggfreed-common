@@ -329,18 +329,30 @@ public final class QuestEngine implements QuestStateReader {
         return reasons.isEmpty() ? AcceptCheck.ALLOWED : new AcceptCheck(false, List.copyOf(reasons));
     }
 
+    /** {@link #accept(Subject, Quest, String)} from a surface with no place attached to it. */
+    public boolean accept(@Nonnull Subject subject, @Nonnull Quest quest) {
+        return accept(subject, quest, null);
+    }
+
     /**
      * Take the quest on for this player: mark it active, seed every objective's progress, apply
-     * whatever is already satisfied (see {@link #preSatisfiedFor}), and pin it if the quest asks to
-     * be pinned.
+     * whatever is already satisfied (see {@link #preSatisfiedFor}), record WHERE it was taken, and
+     * pin it if the quest asks to be pinned.
      *
      * <p>Does NOT itself check eligibility beyond the cooldown - call {@link #canAccept} first when
      * the player is choosing. Callers that deliberately force a quest on somebody (a scripted start,
      * an administrator) skip the check on purpose, so it is not baked in here.
      *
+     * <p><b>{@code siteId} is whatever the accepting surface calls the place it is</b> - a character
+     * id at a conversation, the id of a fixture the player is standing at, null from a menu that is
+     * nowhere in particular. It is only ever read back by a {@link QuestTurnInSite.Kind#ACCEPT_SITE}
+     * quest, so a surface may pass it always and let the content decide whether it matters. Taking
+     * the quest again records the new place, which is what makes a repeatable one work at a second
+     * fixture.
+     *
      * @return false only when a repeatable quest's own repeat rules refuse it
      */
-    public boolean accept(@Nonnull Subject subject, @Nonnull Quest quest) {
+    public boolean accept(@Nonnull Subject subject, @Nonnull Quest quest, @Nullable String siteId) {
         if (quest.repeatable()
                 && !QuestLifecycle.repeatCheck(quest, subject, store, now()).available()) {
             return false;
@@ -356,7 +368,7 @@ public final class QuestEngine implements QuestStateReader {
             }
             progress.put(objective.id(), state);
         }
-        saveProgress(subject, quest.id(), progress);
+        saveProgress(subject, quest.id(), progress, recordableSite(quest, siteId));
 
         if (quest.autoTrack()) {
             track(subject, quest.id());
@@ -364,6 +376,28 @@ public final class QuestEngine implements QuestStateReader {
         store.markDirty(subject);
         fireAccepted(quest, subject);
         return true;
+    }
+
+    /**
+     * The site as it will be STORED: null when there is nothing to store, and null with one warning
+     * when the id cannot survive the progress format AND this quest is one that would have read it
+     * back. Warning there rather than dropping it silently is the point - a quest that has to come
+     * back to a place it could not record would refuse every collection later, with nothing anywhere
+     * saying why.
+     */
+    @Nullable
+    private String recordableSite(@Nonnull Quest quest, @Nullable String siteId) {
+        if (siteId == null || siteId.isBlank() || QuestProgressPayload.isRecordableSite(siteId)) {
+            return siteId;
+        }
+        QuestTurnInSite site = quest.turnInAt();
+        if (site != null && site.isAcceptSite()) {
+            warnOnce("site:" + siteId, "Quest '" + quest.id() + "' was taken at '" + siteId
+                    + "', which uses a character the progress format reserves ("
+                    + QuestProgressStore.DEFAULT_RESERVED_CHARACTERS + "), so the place cannot be"
+                    + " remembered and the quest cannot be brought back to it");
+        }
+        return null;
     }
 
     /**
@@ -725,6 +759,21 @@ public final class QuestEngine implements QuestStateReader {
      */
     public int attemptTurnIn(@Nonnull Subject subject, @Nonnull Quest quest,
                              @Nonnull String objectiveId) {
+        return attemptTurnIn(subject, quest, objectiveId, null);
+    }
+
+    /**
+     * {@link #attemptTurnIn(Subject, Quest, String)} performed AT {@code atId} - the character or
+     * fixture the player is standing at.
+     *
+     * <p>Passing it matters for the last step of a quest that names a
+     * {@link Quest#turnInAt() collection site}: the hand-in that finishes such a quest at its own
+     * site pays out there and then, while the same hand-in with nowhere named parks it for the player
+     * to come back and collect. A caller that picked the objective through
+     * {@link #firstActiveTurnIn} already holds the id it should pass here.
+     */
+    public int attemptTurnIn(@Nonnull Subject subject, @Nonnull Quest quest,
+                             @Nonnull String objectiveId, @Nullable String atId) {
         if (!isActive(subject, quest.id())) {
             return 0;
         }
@@ -761,7 +810,7 @@ public final class QuestEngine implements QuestStateReader {
         store.markDirty(subject);
         fireObjectiveProgressed(quest, objective, subject, state, justCompleted);
         if (justCompleted) {
-            checkCompletion(subject, quest);
+            checkCompletion(subject, quest, atId);
         }
         return credited;
     }
@@ -787,24 +836,84 @@ public final class QuestEngine implements QuestStateReader {
         return "TURN_IN".equalsIgnoreCase(objective.kind().trim());
     }
 
+    // ==================== Where a quest may be completed ====================
+
+    /**
+     * May this player complete and collect THIS quest here? The ONE site rule, asked by every surface
+     * that offers a completion and enforced by the engine inside the completion path itself, so a
+     * surface that forgets to ask cannot let a wrong one through.
+     *
+     * <p>It answers the SITE question and nothing else - not whether the objectives are done, not
+     * whether the quest is even active. A caller deciding whether to show a button asks this
+     * ALONGSIDE the state it was already reading, and the engine ANDs it into
+     * {@link #claim(Subject, Quest, String)} and
+     * {@link #checkCompletion(Subject, Quest, String)}.
+     *
+     * <p>The rules, in full:
+     * <ul>
+     *   <li>a quest with no {@link Quest#turnInAt() site} may be completed ANYWHERE, {@code atId} or
+     *   no {@code atId} - that is the default and the great majority of content;</li>
+     *   <li>a site-bound quest refuses a null or blank {@code atId} outright: a claim from a log or a
+     *   book is a claim from nowhere;</li>
+     *   <li>a {@link QuestTurnInSite.Kind#CHARACTER} site passes when the id matches, ignoring case.
+     *   ONE id is compared, so a character answering to several is handled by the caller asking once
+     *   per id it answers to - which is how the rest of the at-a-character reads here work, and why
+     *   this module needs no identity registry of its own;</li>
+     *   <li>a {@link QuestTurnInSite.Kind#ACCEPT_SITE} site passes when {@code atId} matches the place
+     *   this player took the quest from. Progress recorded before the quest carried that form has no
+     *   place stored, so it matches nowhere until the quest is taken again - which is why the form
+     *   belongs to content that comes back round rather than to a one-shot.</li>
+     * </ul>
+     */
+    public boolean canCompleteAt(@Nonnull Subject subject, @Nonnull Quest quest,
+                                 @Nullable String atId) {
+        QuestTurnInSite site = quest.turnInAt();
+        if (site == null) {
+            return true;
+        }
+        return site.matches(atId, site.isAcceptSite() ? acceptSiteOf(subject, quest.id()) : null);
+    }
+
+    /**
+     * Where this player took this quest from, or null when nothing was recorded - an accept from a
+     * surface with no place, or progress that predates the quest asking. Read back out of the same
+     * payload the objective progress lives in.
+     */
+    @Nullable
+    public String acceptSiteOf(@Nonnull Subject subject, @Nonnull String questId) {
+        return QuestProgressPayload.acceptSite(store.progressPayload(subject, questId));
+    }
+
     // ==================== Completion, claim, close-out ====================
+
+    /** {@link #checkCompletion(Subject, Quest, String)} from nowhere in particular. */
+    public void checkCompletion(@Nonnull Subject subject, @Nonnull Quest quest) {
+        checkCompletion(subject, quest, null);
+    }
 
     /**
      * Settle a quest whose objectives may now all be met: nothing happens unless every objective is
      * complete, and then the quest either pays out or parks for the player to collect.
      *
-     * <p>It parks when the quest asks to be collected somewhere ({@link Quest#autoClaim()} off) or
-     * when the consumer says the player cannot receive the rewards right now (a full inventory) -
-     * the second case being what stops a payout from vanishing into nowhere.
+     * <p>It parks when the quest asks to be collected somewhere ({@link Quest#autoClaim()} off), when
+     * the consumer says the player cannot receive the rewards right now (a full inventory - what
+     * stops a payout from vanishing into nowhere), or when the quest names a
+     * {@link Quest#turnInAt() site} that {@code atId} is not. A parked quest is not a lost one: the
+     * player collects it by coming to the place, through {@link #claim(Subject, Quest, String)}.
+     *
+     * <p>{@code atId} is where the player is as the last step lands - the character they are talking
+     * to, the fixture they are standing at - so a quest finished AT its own site still pays out on
+     * the spot. Pass null from anywhere the moment has no place.
      */
-    public void checkCompletion(@Nonnull Subject subject, @Nonnull Quest quest) {
+    public void checkCompletion(@Nonnull Subject subject, @Nonnull Quest quest, @Nullable String atId) {
         if (store.status(subject, quest.id()) != QuestStatus.ACTIVE) {
             return;
         }
         if (!allObjectivesComplete(subject, quest)) {
             return;
         }
-        boolean canReceive = gates.canReceiveRewards(subject, quest);
+        boolean canReceive = gates.canReceiveRewards(subject, quest)
+                && canCompleteAt(subject, quest, atId);
         if (!quest.autoClaim() || !canReceive) {
             markUnclaimed(subject, quest);
             store.markDirty(subject);
@@ -831,13 +940,30 @@ public final class QuestEngine implements QuestStateReader {
     }
 
     /**
-     * Collect a parked quest's rewards. Refuses unless the quest really is waiting to be collected
-     * and the consumer says the player can receive them.
+     * {@link #claim(Subject, Quest, String)} from a surface with no place attached - a log, a book,
+     * a menu. A quest that names a {@link Quest#turnInAt() site} refuses this call by definition:
+     * "anywhere" is precisely what such a quest is not.
+     */
+    public boolean claim(@Nonnull Subject subject, @Nonnull Quest quest) {
+        return claim(subject, quest, null);
+    }
+
+    /**
+     * Collect a parked quest's rewards at {@code atId}. Refuses unless the quest really is waiting to
+     * be collected, the player is somewhere the quest allows ({@link #canCompleteAt}), and the
+     * consumer says the player can receive them.
+     *
+     * <p>The site check lives HERE, in the one method that pays a parked quest out, so a surface
+     * cannot bypass it by forgetting to ask. Every surface should still ASK first, because a refusal
+     * a player was never warned about reads as a broken button.
      *
      * @return true when the rewards were granted
      */
-    public boolean claim(@Nonnull Subject subject, @Nonnull Quest quest) {
+    public boolean claim(@Nonnull Subject subject, @Nonnull Quest quest, @Nullable String atId) {
         if (store.status(subject, quest.id()) != QuestStatus.COMPLETED_UNCLAIMED) {
+            return false;
+        }
+        if (!canCompleteAt(subject, quest, atId)) {
             return false;
         }
         if (!gates.canReceiveRewards(subject, quest)) {
@@ -858,6 +984,10 @@ public final class QuestEngine implements QuestStateReader {
      *
      * <p>Idempotent for a one-shot quest already finished: it is left alone and NOT paid twice, so a
      * double click cannot double-grant.
+     *
+     * <p>It ignores the quest's {@link Quest#turnInAt() site} exactly as it ignores the objectives:
+     * both are the content's rules, and this is the call that exists to set them aside. Nothing a
+     * player can reach comes through here.
      *
      * @return true when this call closed the quest out
      */
@@ -1212,9 +1342,22 @@ public final class QuestEngine implements QuestStateReader {
         return progressOf(subject, questId).get(objectiveId);
     }
 
+    /**
+     * Write this player's progress back, KEEPING whatever place the quest was taken at. The site is
+     * re-read here rather than threaded through every caller, because a save that forgot it would
+     * quietly un-bind the quest from its place on the next step the player took, and nothing would
+     * report it. {@link #accept} is the one caller that supplies a site of its own.
+     */
     private void saveProgress(@Nonnull Subject subject, @Nonnull String questId,
                               @Nonnull Map<String, ObjectiveProgressState> progress) {
-        store.putProgressPayload(subject, questId, QuestProgressPayload.serialize(progress));
+        saveProgress(subject, questId, progress, acceptSiteOf(subject, questId));
+    }
+
+    private void saveProgress(@Nonnull Subject subject, @Nonnull String questId,
+                              @Nonnull Map<String, ObjectiveProgressState> progress,
+                              @Nullable String acceptSite) {
+        store.putProgressPayload(subject, questId,
+                QuestProgressPayload.serialize(progress, acceptSite));
     }
 
     // ==================== The narrow read seam ====================
@@ -1268,6 +1411,22 @@ public final class QuestEngine implements QuestStateReader {
                                       @Nullable String atId) {
         Quest quest = quest(questId);
         return quest != null && canDeliverTurnInAt(subject, quest, atId);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The id-keyed form of {@link #canCompleteAt(Subject, Quest, String)}. An id this engine does
+     * not carry has no site rule to break, so it reads TRUE - the opposite of the readiness reads
+     * beside it, and deliberately: this is a REFUSAL gate whose neutral answer is yes, and answering
+     * no would hide the claim on every quest a surface asked about that this engine happens not to
+     * own. Whether the quest exists at all is answered by the reads that name it.
+     */
+    @Override
+    public boolean canCompleteAt(@Nonnull Subject subject, @Nonnull String questId,
+                                 @Nullable String atId) {
+        Quest quest = quest(questId);
+        return quest == null || canCompleteAt(subject, quest, atId);
     }
 
     /** {@inheritDoc} Walks what the player is carrying, so an empty log answers immediately. */

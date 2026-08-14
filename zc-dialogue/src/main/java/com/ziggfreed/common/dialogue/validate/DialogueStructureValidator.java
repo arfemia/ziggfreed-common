@@ -19,18 +19,22 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.dialogue.DialogueAction;
 import com.ziggfreed.common.dialogue.DialogueCondition;
 import com.ziggfreed.common.dialogue.DialogueEngine;
+import com.ziggfreed.common.dialogue.DialogueFlagScope;
+import com.ziggfreed.common.dialogue.DialogueFragmentConfig;
 import com.ziggfreed.common.dialogue.DialogueMemory;
 import com.ziggfreed.common.dialogue.DialogueNode;
 import com.ziggfreed.common.dialogue.DialogueOnce;
 import com.ziggfreed.common.dialogue.DialogueOption;
+import com.ziggfreed.common.dialogue.DialogueStart;
 import com.ziggfreed.common.dialogue.DialogueStateKeys;
 import com.ziggfreed.common.dialogue.NpcDialogue;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.world.WhereValidator;
-import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
+import com.ziggfreed.common.world.WorldSelector;
 
 /**
  * The content audit for a decoded conversation: everything that is wrong in a way the server would
@@ -124,28 +128,14 @@ public final class DialogueStructureValidator {
         }
 
         Set<String> entryNodes = new HashSet<>();
-        if (dialogue.getStart().isEmpty()) {
+        DialogueStart start = dialogue.getStart();
+        if (start.isEmpty()) {
             out.add(warning("MISSING_START",
-                    "Dialogue '" + id + "' has no Start candidates (falls back to the first node)", id));
+                    "Dialogue '" + id + "' says nothing about which screen it opens on (falls back to the"
+                            + " first node)", id));
             entryNodes.add(dialogue.getNodes().keySet().iterator().next());
-        }
-        int startIndex = 0;
-        for (NpcDialogue.DialogueEntry entry : dialogue.getStart()) {
-            String where = "Start candidate " + startIndex++;
-            checkConditions(entry.getConditions(), where, id, out, factors, engine);
-            checkOnce(entry.getOnce(), null, where, id, out);
-            String node = entry.getNode();
-            if (node == null || node.isBlank()) {
-                out.add(error("START_MISSING_NODE",
-                        "Dialogue '" + id + "' has a Start candidate without a Node", id));
-                continue;
-            }
-            if (dialogue.getNode(node) == null) {
-                out.add(error("START_MISSING_NODE",
-                        "Dialogue '" + id + "' Start references missing node '" + node + "'", id));
-            } else {
-                entryNodes.add(node);
-            }
+        } else {
+            checkStart(dialogue, start, id, out, factors, engine, entryNodes);
         }
 
         Set<String> declaredFragments = dialogue.getFragments().keySet();
@@ -157,10 +147,14 @@ public final class DialogueStructureValidator {
             checkConditions(node.getConditions(), "node '" + nodeId + "'", id, out,
                     factors, engine);
             for (String fragment : node.getIncludeOptions()) {
-                if (fragment == null || !declaredFragments.contains(fragment)) {
+                // A name may be answered by this conversation's own Fragments or by a shared
+                // DialogueFragments file; only one that neither answers is a finding.
+                if (fragment == null || !(declaredFragments.contains(fragment)
+                        || DialogueFragmentConfig.getInstance().declares(fragment))) {
                     out.add(error("UNKNOWN_FRAGMENT",
                             "Dialogue '" + id + "' node '" + nodeId + "' pulls in shared options '"
-                                    + fragment + "', which it does not declare under Fragments", id));
+                                    + fragment + "', which is neither declared under its own Fragments"
+                                    + " nor shipped as a DialogueFragments file", id));
                 }
             }
             // One Once identity per node: two options resolving to the same key share one flag,
@@ -177,6 +171,7 @@ public final class DialogueStructureValidator {
                 for (DialogueAction action : option.getActions()) {
                     checkActionKnown(action, where, id, out, engine);
                     checkQuestAction(action, where, id, out);
+                    checkOpen(action, id, out);
                     if (action instanceof DialogueAction.Goto go) {
                         String target = go.getNode();
                         if (target == null || target.isBlank()) {
@@ -218,6 +213,129 @@ public final class DialogueStructureValidator {
                         "Dialogue '" + id + "' node '" + nodeId + "' is unreachable from Start", id));
             }
         }
+    }
+
+    // ==================== Start ====================
+
+    /**
+     * Audit the opening ladder: every beat of {@code First} and {@code Then}, every quest row, and the
+     * fallback screen. Each screen a beat can open is collected into {@code entryNodes}, which is what
+     * the reachability walk starts from - a screen only a quest row or a draw opens is reachable.
+     */
+    private static void checkStart(@Nonnull NpcDialogue dialogue, @Nonnull DialogueStart start,
+                                   @Nonnull String id, @Nonnull List<Finding> out,
+                                   @Nullable FactorRegistry factors, @Nullable DialogueEngine engine,
+                                   @Nonnull Set<String> entryNodes) {
+        checkBeats(dialogue, start.first(), "Start First", id, out, factors, engine, entryNodes);
+        checkBeats(dialogue, start.then(), "Start Then", id, out, factors, engine, entryNodes);
+
+        for (Map.Entry<String, DialogueStart.QuestRow> row : start.quests().entrySet()) {
+            String questId = row.getKey();
+            if (questId == null || questId.isBlank()) {
+                out.add(error("START_QUEST_NO_ID",
+                        "Dialogue '" + id + "' has a Start quest row with no quest id, so it can never"
+                                + " apply", id));
+                continue;
+            }
+            DialogueStart.QuestRow value = row.getValue();
+            if (value == null) {
+                continue;
+            }
+            for (DialogueStart.Band band : DialogueStart.Band.values()) {
+                checkQuestBeat(dialogue, value.forBand(band), questId, band, id, out, entryNodes);
+            }
+        }
+
+        String fallback = start.fallback();
+        if (fallback == null || fallback.isBlank()) {
+            return;
+        }
+        if (dialogue.getNode(fallback) == null) {
+            out.add(error("START_MISSING_NODE",
+                    "Dialogue '" + id + "' Start Fallback names missing node '" + fallback + "'", id));
+        } else {
+            entryNodes.add(fallback);
+        }
+    }
+
+    private static void checkBeats(@Nonnull NpcDialogue dialogue, @Nonnull List<DialogueStart.Beat> beats,
+                                   @Nonnull String section, @Nonnull String id,
+                                   @Nonnull List<Finding> out, @Nullable FactorRegistry factors,
+                                   @Nullable DialogueEngine engine, @Nonnull Set<String> entryNodes) {
+        int index = 0;
+        for (DialogueStart.Beat beat : beats) {
+            String where = section + " beat " + index++;
+            if (beat == null) {
+                continue;
+            }
+            checkConditions(beat.getWhen(), where, id, out, factors, engine);
+            checkOnce(beat.getOnce(), null, where, id, out);
+
+            if (beat.hasNode() && beat.hasPick()) {
+                out.add(error("START_NODE_AND_PICK",
+                        "Dialogue '" + id + "' " + where + " writes both Node and Pick, so which screen it"
+                                + " opens on is not something a reader can tell - keep one of them", id));
+            }
+            if (beat.hasNode()) {
+                collectStartNode(dialogue, beat.getNode(), where, id, out, entryNodes);
+                continue;
+            }
+            if (!beat.hasPick()) {
+                out.add(error("START_MISSING_NODE",
+                        "Dialogue '" + id + "' " + where + " names no screen at all", id));
+                continue;
+            }
+            if (beat.getPick().isEmpty()) {
+                out.add(error("START_PICK_EMPTY",
+                        "Dialogue '" + id + "' " + where + " has a Pick with nothing in it, so the beat can"
+                                + " never open anything - name the screens to draw between", id));
+                continue;
+            }
+            int variant = 0;
+            for (DialogueStart.Variant option : beat.getPick()) {
+                collectStartNode(dialogue, option == null ? null : option.getNode(),
+                        where + " variant " + variant++, id, out, entryNodes);
+            }
+        }
+    }
+
+    /**
+     * Audit one moment of a quest row. A screen must exist; a destination is audited by whichever mod
+     * registered its type, which is the only layer that knows what its fields mean.
+     */
+    private static void checkQuestBeat(@Nonnull NpcDialogue dialogue,
+                                       @Nullable DialogueStart.QuestBeat beat, @Nonnull String questId,
+                                       @Nonnull DialogueStart.Band band, @Nonnull String id,
+                                       @Nonnull List<Finding> out, @Nonnull Set<String> entryNodes) {
+        if (beat == null) {
+            return;
+        }
+        String where = "Start quest '" + questId + "' " + band.name().toLowerCase(Locale.ROOT);
+        if (beat.getDestination() != null) {
+            out.addAll(Destinations.validate(beat.getDestination(), id));
+            return;
+        }
+        if (beat.isQuestView()) {
+            return;
+        }
+        collectStartNode(dialogue, beat.getNode(), where, id, out, entryNodes);
+    }
+
+    /** One screen a beat can open: it must exist, and it counts as reachable when it does. */
+    private static void collectStartNode(@Nonnull NpcDialogue dialogue, @Nullable String node,
+                                         @Nonnull String where, @Nonnull String id,
+                                         @Nonnull List<Finding> out, @Nonnull Set<String> entryNodes) {
+        if (node == null || node.isBlank()) {
+            out.add(error("START_MISSING_NODE",
+                    "Dialogue '" + id + "' " + where + " names no screen", id));
+            return;
+        }
+        if (dialogue.getNode(node) == null) {
+            out.add(error("START_MISSING_NODE",
+                    "Dialogue '" + id + "' " + where + " names missing node '" + node + "'", id));
+            return;
+        }
+        entryNodes.add(node);
     }
 
     // ==================== shorthand ====================
@@ -324,6 +442,18 @@ public final class DialogueStructureValidator {
         }
     }
 
+    /**
+     * What an {@code Open} line opens is audited by whichever mod REGISTERED that destination type -
+     * only its owner knows whether the skill, the shop or the board it names exists. A type with no
+     * audit of its own reports nothing, which is the honest answer rather than a guess.
+     */
+    private static void checkOpen(@Nonnull DialogueAction action, @Nonnull String id,
+                                  @Nonnull List<Finding> out) {
+        if (action instanceof DialogueAction.OpenPage open) {
+            out.addAll(Destinations.validate(open.getTarget(), id));
+        }
+    }
+
     /** An accept / hand-in line with no quest id does nothing at all when it is chosen. */
     private static void checkQuestAction(@Nonnull DialogueAction action, @Nonnull String where,
                                          @Nonnull String id, @Nonnull List<Finding> out) {
@@ -411,33 +541,31 @@ public final class DialogueStructureValidator {
     // ==================== per-world scope leaves ====================
 
     /**
-     * Audit a {@code World} scope leaf on a {@code Once} or a {@code Memories} declaration. Both
-     * take a world NAME or a pattern, so the two things that can go wrong are the same for either:
-     * a blank string, which reads as a scope that is not there, and a bare {@code *}, which scopes
-     * to every world - identical to no scope at all, so writing it is a statement of intent the
-     * runtime cannot honour and an author would never see refuted.
+     * Audit the per-world {@code Where} on a {@code Once} or a {@code Memories} declaration.
      *
-     * <p>A pattern that matches no world the server has loaded is caught at RUNTIME instead, by
+     * <p>The group's own malformed shapes are the SHARED {@code WhereValidator} findings, reported
+     * under domain {@code where} exactly as a placement carrying the same mistake reports them -
+     * one selector grammar, one set of findings, never a dialogue-flavoured near-duplicate. What is
+     * added here is the one thing only a SCOPE can get wrong: a selector whose only statement is
+     * "every world", which is identical to no scope at all, so writing it is a statement of intent
+     * the runtime cannot honour and an author would never see refuted.
+     *
+     * <p>A selector that matches no world the server has loaded is caught at RUNTIME instead, by
      * {@code DialogueFlagScope}'s warn-once: which worlds exist is not knowable from a decoded
-     * conversation, and an instance world's family is legitimately absent most of the time.
+     * conversation, and an instance world is legitimately absent most of the time.
      */
-    private static void checkWorldScope(@Nullable String world, @Nonnull String leaf,
+    private static void checkWorldScope(@Nullable WorldSelector selector, @Nonnull String leaf,
                                         @Nonnull String where, @Nonnull String id,
                                         @Nonnull List<Finding> out) {
-        if (world == null) {
+        if (selector == null) {
             return;
         }
-        if (world.isBlank()) {
-            out.add(warning("WORLD_SCOPE_BLANK",
-                    "Dialogue '" + id + "' " + where + " has a " + leaf + " with a blank World, which "
-                            + "narrows nothing - remove the key or name a world", id));
-            return;
-        }
-        if (Pattern.parse(world).isDefaultRule()) {
+        out.addAll(WhereValidator.validateSelector(selector, id + " " + where + " " + leaf));
+        if (DialogueFlagScope.matchesEveryWorld(selector)) {
             out.add(warning("WORLD_SCOPE_MATCHES_EVERY_WORLD",
-                    "Dialogue '" + id + "' " + where + " has a " + leaf + " kept per world '" + world
-                            + "', which matches every world and is therefore the same as keeping it "
-                            + "once per character - remove the key, or name the world you meant", id));
+                    "Dialogue '" + id + "' " + where + " has a " + leaf + " kept per world, but its Where "
+                            + "matches every world - which is the same as keeping it once per character. "
+                            + "Remove the Where, or name the worlds you meant", id));
         }
     }
 
@@ -453,7 +581,7 @@ public final class DialogueStructureValidator {
         if (once == null) {
             return;
         }
-        checkWorldScope(once.getWorld(), "Once", where, id, out);
+        checkWorldScope(once.getWhere(), "Once", where, id, out);
         if (option != null && option.onceDiscriminator().isBlank()) {
             out.add(warning("ONCE_NO_IDENTITY",
                     "Dialogue '" + id + "' " + where + " has a Once but no LabelKey or OnceId to"
@@ -508,15 +636,15 @@ public final class DialogueStructureValidator {
                 continue;
             }
             declared.put(name, entry.getValue());
-            checkWorldScope(entry.getValue() == null ? null : entry.getValue().getWorld(),
+            checkWorldScope(entry.getValue() == null ? null : entry.getValue().getWhere(),
                     "memory '" + name + "'", "in Memories", id, out);
         }
 
         Set<String> written = new LinkedHashSet<>();
         Set<String> read = new LinkedHashSet<>();
         boolean blankUse = false;
-        for (NpcDialogue.DialogueEntry entry : dialogue.getStart()) {
-            blankUse |= collectReads(entry.getConditions(), read);
+        for (DialogueStart.Beat beat : startBeats(dialogue)) {
+            blankUse |= collectReads(beat.getWhen(), read);
         }
         for (DialogueNode node : dialogue.getNodes().values()) {
             blankUse |= collectReads(node.getConditions(), read);
@@ -556,6 +684,15 @@ public final class DialogueStructureValidator {
                                 + " with Remembered/NotRemembered", id));
             }
         }
+    }
+
+    /** Every ordered beat of the opening ladder, both sections, as one list to walk. */
+    @Nonnull
+    private static List<DialogueStart.Beat> startBeats(@Nonnull NpcDialogue dialogue) {
+        List<DialogueStart.Beat> beats = new ArrayList<>(dialogue.getStart().first());
+        beats.addAll(dialogue.getStart().then());
+        beats.removeIf(beat -> beat == null);
+        return beats;
     }
 
     /** Collect memory reads from a condition list, recursing through combinators. */

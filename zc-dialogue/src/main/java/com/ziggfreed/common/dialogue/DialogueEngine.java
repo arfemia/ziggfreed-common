@@ -1,12 +1,17 @@
 package com.ziggfreed.common.dialogue;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -19,7 +24,15 @@ import com.ziggfreed.common.dialogue.quest.DialogueQuests;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
 import com.ziggfreed.common.factor.FactorContext;
+import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.quest.NpcOffer;
+import com.ziggfreed.common.quest.NpcOfferProviders;
+import com.ziggfreed.common.quest.QuestStatus;
+import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.route.Destination;
+import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.Destinations;
 
 /**
  * One mod's dialogue runtime: what its actions DO, what its conditions ANSWER, which page its
@@ -42,6 +55,7 @@ public final class DialogueEngine {
     private final Consumer<String> warn;
     @Nullable private final FactorRegistry factors;
     private final DialogueQuests quests;
+    private final DoubleSupplier random;
 
     /** Authoring mistakes that repeat on every render, reported once per distinct case. */
     private final Set<String> warnedOnce = ConcurrentHashMap.newKeySet();
@@ -50,13 +64,14 @@ public final class DialogueEngine {
                            @Nonnull Map<Class<? extends DialogueAction>, DialogueOptionStyle> styles,
                            @Nonnull DialogueActionExecutor executor,
                            @Nonnull Consumer<String> warn, @Nullable FactorRegistry factors,
-                           @Nonnull DialogueQuests quests) {
+                           @Nonnull DialogueQuests quests, @Nonnull DoubleSupplier random) {
         this.evaluators = evaluators;
         this.styles = styles;
         this.executor = executor;
         this.warn = warn;
         this.factors = factors;
         this.quests = quests;
+        this.random = random;
     }
 
     /**
@@ -122,9 +137,25 @@ public final class DialogueEngine {
             d.setId(id);
             return d;
         } catch (Exception e) {
-            warn.accept("Failed to decode dialogue '" + id + "': " + e.getMessage());
+            // The codec's own message is always "Failed to decode"; what an author can act on is at
+            // the bottom of the chain, so report that rather than the wrapper.
+            warn.accept("Failed to decode dialogue '" + id + "': " + rootMessage(e));
             return null;
         }
+    }
+
+    /** The deepest message in a failure chain, which is where a codec puts the actual reason. */
+    @Nonnull
+    private static String rootMessage(@Nonnull Throwable failure) {
+        Throwable cause = failure;
+        String message = String.valueOf(failure.getMessage());
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+            if (cause.getMessage() != null && !cause.getMessage().isBlank()) {
+                message = cause.getMessage();
+            }
+        }
+        return message;
     }
 
     /** AND-combine an option's / entry's conditions for this player (an empty list passes). */
@@ -151,24 +182,48 @@ public final class DialogueEngine {
     }
 
     /**
-     * The chosen entry node plus, when that entry carries a {@link DialogueOnce}, the PENDING key
-     * to write once the player finishes the beat. A null {@code onceKey} means there is nothing to
-     * spend: either the entry has no {@code Once}, or its scope names a world family this world is
-     * not part of (so the write is a deliberate no-op).
+     * What a conversation opens on: a screen of its own, or a destination it routes to instead.
+     *
+     * <p>Exactly one of {@code nodeId} and {@code destination} is ever set. A destination means the
+     * conversation never appears at all - a quest row said "show them this instead" - so the caller
+     * opens that and does not build the page (see
+     * {@code page.DialogueOpener}).
+     *
+     * <p>{@code onceKey} is the PENDING key to write once the player finishes the beat, and only a
+     * {@code First}/{@code Then} beat can carry one. Null means there is nothing to spend: the beat
+     * has no {@code Once}, its scope names a world family this world is not part of (so the write is a
+     * deliberate no-op), or the conversation routed away instead of opening a screen.
      */
-    public record EntryResolution(@Nullable String nodeId, @Nullable String onceKey) {
+    public record EntryResolution(@Nullable String nodeId, @Nullable String onceKey,
+                                  @Nullable Destination destination) {
 
-        /** No node at all (an empty dialogue). */
-        public static final EntryResolution NONE = new EntryResolution(null, null);
+        /** Nothing to show at all (a conversation with no screens). */
+        public static final EntryResolution NONE = new EntryResolution(null, null, null);
+
+        /** A screen of this conversation, with the {@code Once} it will spend on completion. */
+        @Nonnull
+        public static EntryResolution ofNode(@Nullable String nodeId, @Nullable String onceKey) {
+            return new EntryResolution(nodeId, onceKey, null);
+        }
+
+        /** Somewhere else entirely; the conversation does not open. */
+        @Nonnull
+        public static EntryResolution ofDestination(@Nonnull Destination destination) {
+            return new EntryResolution(null, null, destination);
+        }
+
+        /** True when this opens something other than a screen of the conversation. */
+        public boolean routes() {
+            return destination != null;
+        }
     }
 
     /**
-     * Pick the entry node for this player: the first {@code Start} candidate whose
-     * conditions pass, else the first authored node (the validator flags a missing
-     * start). Null only when the dialogue has no nodes at all.
+     * Pick the screen this conversation opens on. Null when it has no screens at all, and ALSO null
+     * when the {@code Start} routed somewhere else - use {@link #resolveEntry} whenever that matters.
      *
-     * <p>Prefer {@link #resolveEntry} when the caller can complete the beat: this overload drops
-     * the pending {@code Once} key, so a first-visit entry resolved through it is never spent.
+     * <p>Prefer {@link #resolveEntry} when the caller can complete the beat: this overload drops the
+     * pending {@code Once} key, so a first-visit beat resolved through it is never spent.
      */
     @Nullable
     public String resolveEntryNodeId(@Nonnull NpcDialogue dialogue, @Nonnull DialogueContext ctx) {
@@ -176,50 +231,299 @@ public final class DialogueEngine {
     }
 
     /**
-     * Pick the entry node AND the pending {@code Once} key for this player. A candidate carrying a
-     * {@code Once} is skipped once that key is set, which is what retires a first-visit beat; the
-     * key is only written when the player completes the beat (see {@link #consumeOnce}), so
-     * leaving mid-conversation shows it again.
+     * Walk the {@code Start} ladder for this player: {@code First} in the order written, then a quest
+     * that is READY to hand in, then one this character can OFFER, then one that is ACTIVE, then
+     * {@code Then} in the order written, then {@code Fallback}. Within one quest band the rows are
+     * read in the order they were written.
+     *
+     * <p>A beat carrying a {@code Once} is skipped once that key is set, which is what retires a
+     * first-visit beat; the key is only written when the player completes the beat (see
+     * {@link #consumeOnce}), so leaving mid-conversation shows it again.
+     *
+     * <p>With nothing in the ladder applying - or no {@code Start} at all - the conversation opens on
+     * the first screen whose own conditions pass, which is what makes a one-screen conversation a file
+     * with nothing but {@code Nodes}.
      */
     @Nonnull
     public EntryResolution resolveEntry(@Nonnull NpcDialogue dialogue, @Nonnull DialogueContext ctx) {
-        for (NpcDialogue.DialogueEntry candidate : dialogue.getStart()) {
-            String nodeId = candidate.getNode();
-            if (nodeId == null || nodeId.isBlank()) {
-                continue;
-            }
-            if (!conditionsPass(candidate.getConditions(), ctx)) {
-                continue;
-            }
-            // The target node may ALSO self-gate (node-level conditions replace the
-            // old (node x state) duplication) - both the candidate's and the node's
-            // conditions must pass for this candidate to win.
-            DialogueNode node = dialogue.getNode(nodeId);
-            if (node != null && node.hasConditions() && !conditionsPass(node.getConditions(), ctx)) {
-                continue;
-            }
-            DialogueOnce once = candidate.getOnce();
-            if (once == null) {
-                return new EntryResolution(nodeId, null);
-            }
-            // Read the Once only after the conditions passed, so a scope warning cannot fire for
-            // an entry the player was never eligible for anyway.
-            String key = once.keyFor(DialogueStateKeys.entryOnce(dialogue.getId(), nodeId), ctx);
-            if (key != null && ctx.flags().has(key)) {
-                continue;
-            }
-            return new EntryResolution(nodeId, key);
+        DialogueStart start = dialogue.getStart();
+
+        EntryResolution first = resolveBeats(dialogue, start.first(), ctx);
+        if (first != null) {
+            return first;
         }
-        // Fallback: the first node whose own conditions pass, else the first node.
+        EntryResolution quest = resolveQuestRows(dialogue, start, ctx);
+        if (quest != null) {
+            return quest;
+        }
+        EntryResolution then = resolveBeats(dialogue, start.then(), ctx);
+        if (then != null) {
+            return then;
+        }
+        String fallback = start.fallback();
+        if (fallback != null && !fallback.isBlank() && nodeUsable(dialogue, fallback, ctx)) {
+            return EntryResolution.ofNode(fallback, null);
+        }
+        // Nothing in the ladder applies: the first screen whose own conditions pass, else the first.
         Map<String, DialogueNode> all = dialogue.getNodes();
         for (Map.Entry<String, DialogueNode> e : all.entrySet()) {
             DialogueNode node = e.getValue();
             if (!node.hasConditions() || conditionsPass(node.getConditions(), ctx)) {
-                return new EntryResolution(e.getKey(), null);
+                return EntryResolution.ofNode(e.getKey(), null);
             }
         }
         return all.isEmpty() ? EntryResolution.NONE
-                : new EntryResolution(all.keySet().iterator().next(), null);
+                : EntryResolution.ofNode(all.keySet().iterator().next(), null);
+    }
+
+    /** The first beat of an ordered section that applies, or null when none of them does. */
+    @Nullable
+    private EntryResolution resolveBeats(@Nonnull NpcDialogue dialogue,
+                                         @Nonnull List<DialogueStart.Beat> beats,
+                                         @Nonnull DialogueContext ctx) {
+        for (DialogueStart.Beat beat : beats) {
+            if (beat == null || !conditionsPass(beat.getWhen(), ctx)) {
+                continue;
+            }
+            String nodeId = chooseNode(dialogue, beat, ctx);
+            if (nodeId == null) {
+                continue;
+            }
+            DialogueOnce once = beat.getOnce();
+            if (once == null) {
+                return EntryResolution.ofNode(nodeId, null);
+            }
+            // Read the Once only after the beat applied, so a scope warning cannot fire for a beat
+            // the player was never eligible for anyway.
+            String key = once.keyFor(DialogueStateKeys.entryOnce(dialogue.getId(), nodeId), ctx);
+            if (key != null && ctx.flags().has(key)) {
+                continue;
+            }
+            return EntryResolution.ofNode(nodeId, key);
+        }
+        return null;
+    }
+
+    /**
+     * The screen a beat opens: the one it names, or one drawn from its {@code Pick}. Null when the
+     * beat cannot open anything here, which lets the ladder carry on to the next one rather than
+     * dead-ending the conversation on a name that no longer exists (the content audit names it).
+     */
+    @Nullable
+    private String chooseNode(@Nonnull NpcDialogue dialogue, @Nonnull DialogueStart.Beat beat,
+                              @Nonnull DialogueContext ctx) {
+        if (beat.hasNode()) {
+            return nodeUsable(dialogue, beat.getNode(), ctx) ? beat.getNode() : null;
+        }
+        List<DialogueStart.Variant> variants = beat.getPick();
+        if (variants.isEmpty()) {
+            return null;
+        }
+        List<String> live = new ArrayList<>(variants.size());
+        List<Double> weights = new ArrayList<>(variants.size());
+        double total = 0.0;
+        for (DialogueStart.Variant variant : variants) {
+            if (variant == null || !nodeUsable(dialogue, variant.getNode(), ctx)) {
+                continue;
+            }
+            double weight = weightOf(variant, ctx);
+            if (!(weight > 0.0)) {
+                // A variant weighted to zero (or below) is out of the draw, which is how one is
+                // parked without deleting it. Every variant out means the beat does not fire.
+                continue;
+            }
+            live.add(variant.getNode());
+            weights.add(weight);
+            total += weight;
+        }
+        if (live.isEmpty() || !(total > 0.0)) {
+            return null;
+        }
+        double roll = clampUnit(random.getAsDouble()) * total;
+        for (int i = 0; i < live.size(); i++) {
+            roll -= weights.get(i);
+            if (roll < 0.0) {
+                return live.get(i);
+            }
+        }
+        return live.get(live.size() - 1);
+    }
+
+    /** A variant's weight: its formula against this engine's factors, or the neutral 1 with none. */
+    private double weightOf(@Nonnull DialogueStart.Variant variant, @Nonnull DialogueContext ctx) {
+        FactorFormula formula = variant.getWeight();
+        if (formula == null || formula.isEmpty()) {
+            // An empty group says nothing at all, and reading it as a constant 0 would quietly take
+            // the variant out of a draw the author meant it to be in.
+            return DialogueStart.Variant.DEFAULT_WEIGHT;
+        }
+        if (factors == null) {
+            return formula.evaluate((id, param) -> null);
+        }
+        return formula.evaluate(factors, factorContext(ctx, null));
+    }
+
+    private static double clampUnit(double roll) {
+        if (!Double.isFinite(roll) || roll < 0.0) {
+            return 0.0;
+        }
+        return roll < 1.0 ? roll : Math.nextDown(1.0);
+    }
+
+    /**
+     * The quest bands, in the engine's own order: every row that is ready to hand in, then every row
+     * this character can offer, then every active row. The rows themselves are read in the order they
+     * were written, which is what settles two quests reaching the same band together.
+     */
+    @Nullable
+    private EntryResolution resolveQuestRows(@Nonnull NpcDialogue dialogue,
+                                             @Nonnull DialogueStart start,
+                                             @Nonnull DialogueContext ctx) {
+        Map<String, DialogueStart.QuestRow> rows = start.quests();
+        if (rows.isEmpty()) {
+            return null;
+        }
+        QuestBandReader bands = new QuestBandReader(quests, ctx);
+        for (DialogueStart.Band band : DialogueStart.Band.values()) {
+            for (Map.Entry<String, DialogueStart.QuestRow> entry : rows.entrySet()) {
+                DialogueStart.QuestRow row = entry.getValue();
+                DialogueStart.QuestBeat beat = row == null ? null : row.forBand(band);
+                String questId = DialogueStart.normalizeQuestId(entry.getKey());
+                if (beat == null || questId == null || !bands.applies(band, questId)) {
+                    continue;
+                }
+                EntryResolution resolved = resolveQuestBeat(dialogue, questId, beat, ctx);
+                if (resolved != null) {
+                    return resolved;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** What one quest row's beat opens: a screen of this conversation, or somewhere else. */
+    @Nullable
+    private EntryResolution resolveQuestBeat(@Nonnull NpcDialogue dialogue, @Nonnull String questId,
+                                             @Nonnull DialogueStart.QuestBeat beat,
+                                             @Nonnull DialogueContext ctx) {
+        if (!beat.routes()) {
+            return nodeUsable(dialogue, beat.getNode(), ctx)
+                    ? EntryResolution.ofNode(beat.getNode(), null) : null;
+        }
+        Destination destination = DialogueQuestView.route(beat.getDestination(), questId);
+        if (destination == null) {
+            warnOnce("quest-view:" + dialogue.getId() + ":" + questId,
+                    "Dialogue '" + dialogue.getId() + "' routes quest '" + questId + "' to this"
+                            + " character's quest list, but nothing on this server can open one - the"
+                            + " beat is skipped");
+            return null;
+        }
+        return EntryResolution.ofDestination(destination);
+    }
+
+    /** Whether a screen exists AND its own conditions pass for this player. */
+    private boolean nodeUsable(@Nonnull NpcDialogue dialogue, @Nullable String nodeId,
+                               @Nonnull DialogueContext ctx) {
+        if (nodeId == null || nodeId.isBlank()) {
+            return false;
+        }
+        DialogueNode node = dialogue.getNode(nodeId);
+        if (node == null) {
+            return false;
+        }
+        // A screen may ALSO self-gate (node-level conditions replace the old (node x state)
+        // duplication) - both the beat's and the screen's conditions must pass.
+        return !node.hasConditions() || conditionsPass(node.getConditions(), ctx);
+    }
+
+    /**
+     * The three quest questions, asked at most once each per resolution.
+     *
+     * <p>They cost real work - a possession-aware hand-in check per answered id, a walk of every
+     * registered offer provider - and the ladder asks about every row in a band, so the subject and
+     * the character's offer list are resolved once and reused.
+     */
+    private static final class QuestBandReader {
+
+        private final DialogueQuests quests;
+        private final DialogueContext ctx;
+        @Nullable private Subject subject;
+        @Nullable private Collection<String> answersTo;
+        @Nullable private Set<String> offered;
+
+        QuestBandReader(@Nonnull DialogueQuests quests, @Nonnull DialogueContext ctx) {
+            this.quests = quests;
+            this.ctx = ctx;
+        }
+
+        boolean applies(@Nonnull DialogueStart.Band band, @Nonnull String questId) {
+            try {
+                switch (band) {
+                    case READY:
+                        return ready(questId);
+                    case OFFERABLE:
+                        return offered().contains(questId);
+                    default:
+                        return quests.reader().status(subject(), questId) == QuestStatus.ACTIVE;
+                }
+            } catch (Throwable t) {
+                // A quest runtime that cannot answer leaves the row out, the same fail-closed rule a
+                // quest CONDITION follows, rather than taking the whole conversation down.
+                return false;
+            }
+        }
+
+        private boolean ready(@Nonnull String questId) {
+            for (String id : answersTo()) {
+                if (quests.reader().canDeliverTurnInAt(subject(), questId, id)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Nonnull
+        private Set<String> offered() {
+            Set<String> cached = offered;
+            if (cached != null) {
+                return cached;
+            }
+            Set<String> ids = new LinkedHashSet<>();
+            if (NpcOfferProviders.hasAny()) {
+                for (NpcOffer offer : NpcOfferProviders.offersAt(subject(), answersTo())) {
+                    // Only what the player could take on RIGHT NOW: a locked offer is something to go
+                    // and earn, not something for the conversation to open on.
+                    if (offer != null && offer.available()) {
+                        String id = DialogueStart.normalizeQuestId(offer.id());
+                        if (id != null) {
+                            ids.add(id);
+                        }
+                    }
+                }
+            }
+            offered = ids;
+            return ids;
+        }
+
+        @Nonnull
+        private Subject subject() {
+            Subject cached = subject;
+            if (cached == null) {
+                cached = quests.subject(ctx);
+                subject = cached;
+            }
+            return cached;
+        }
+
+        @Nonnull
+        private Collection<String> answersTo() {
+            Collection<String> cached = answersTo;
+            if (cached == null) {
+                cached = quests.answersTo(ctx.contextId());
+                answersTo = cached;
+            }
+            return cached;
+        }
     }
 
     /**
@@ -334,18 +638,29 @@ public final class DialogueEngine {
                             + " hidden");
             return false;
         }
+        return condition.getCondition().accepts(factors.resolve(condition.getFactor(),
+                factorContext(ctx, condition.getCondition().getParam())));
+    }
+
+    /**
+     * The question a factor provider is handed from inside a conversation: the player as both the
+     * store owner and the subject, the world they are standing in, and the authored param.
+     *
+     * <p>Guarded exactly like the world read inside it: a context whose engine handles cannot be read
+     * supplies no subject rather than throwing, so the provider sees an honest "nothing to inspect"
+     * and a gate closes on that instead of on an exception.
+     */
+    @Nonnull
+    private FactorContext factorContext(@Nonnull DialogueContext ctx, @Nullable String param) {
         FactorContext.Builder factorCtx = FactorContext.builder()
-                .param(condition.getCondition().getParam())
+                .param(param)
                 .world(DialogueWorlds.currentWorld(ctx));
-        // Guarded exactly like the world read beside it: a context whose engine handles cannot be
-        // read supplies no subject rather than throwing, so the provider sees an honest "nothing
-        // to inspect" and the gate closes on that instead of on an exception.
         try {
             factorCtx.store(ctx.store()).subject(ctx.ref());
         } catch (Throwable ignored) {
             // leave both unset
         }
-        return condition.getCondition().accepts(factors.resolve(condition.getFactor(), factorCtx.build()));
+        return factorCtx.build();
     }
 
     /** Report an authoring mistake that repeats on every render exactly once per distinct case. */
@@ -387,10 +702,10 @@ public final class DialogueEngine {
 
         private final Map<String, DialogueActionType<?>> actions = new LinkedHashMap<>();
         private final Map<String, DialogueConditionType<?>> conditions = new LinkedHashMap<>();
-        private DialoguePageRouter router = DialoguePageRouter.NONE;
         private Consumer<String> warn = DEFAULT_WARN;
         @Nullable private FactorRegistry factors;
         private DialogueQuests quests = DialogueQuests.NONE;
+        private DoubleSupplier random = DEFAULT_RANDOM;
 
         /**
          * The one-slot holder the seeded handlers/evaluators reach the FINISHED engine through
@@ -419,10 +734,14 @@ public final class DialogueEngine {
             return this;
         }
 
-        /** The router the generic {@code OpenPage} action uses (default routes nowhere). */
+        /**
+         * Where a {@code Pick} beat's draw comes from: any source of numbers in {@code [0, 1)}.
+         * Default is this thread's own random. Supply one to make a draw reproducible - a test, or a
+         * consumer that wants a per-player seed so the same player sees the same variant all session.
+         */
         @Nonnull
-        public Builder router(@Nonnull DialoguePageRouter router) {
-            this.router = router;
+        public Builder random(@Nonnull DoubleSupplier random) {
+            this.random = random;
             return this;
         }
 
@@ -458,22 +777,22 @@ public final class DialogueEngine {
 
         @Nonnull
         public DialogueEngine build() {
-            // Generic OpenPage, bound to the FINAL router (added unless a consumer overrode it).
-            final DialoguePageRouter finalRouter = this.router;
+            // Generic OpenPage: the option says WHAT it opens in the shared routing vocabulary, and
+            // whichever mod registered that Type opens it. Nothing here parses a target string.
             actions.putIfAbsent("OpenPage", DialogueActionType.of("OpenPage",
                             DialogueAction.OpenPage.class, DialogueAction.OpenPage.CODEC,
                             (DialogueAction.OpenPage a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) -> {
-                                String target = DialogueActionExecutor.resolveTarget(a.getTarget(), ctx.contextId());
-                                if (target != null && !target.isBlank() && finalRouter.open(target, ctx)) {
+                                if (openDestination(a.getTarget(), ctx)) {
                                     out.markOpenedOtherPage();
                                 }
                             })
                     .withStyle(DialogueOptionStyle.NEUTRAL)
-                    .withSugar(DialogueSugar.string("Open", 50, target -> {
-                        DialogueAction.OpenPage open = new DialogueAction.OpenPage();
-                        open.target = target;
-                        return open;
-                    })));
+                    .withSugar(DialogueSugar.of("Open", 50, Destination.CODEC,
+                            (Destination target, DialogueSugarValues values) -> {
+                                DialogueAction.OpenPage open = new DialogueAction.OpenPage();
+                                open.target = target;
+                                return open;
+                            })));
 
             DialogueTypeTable table = DialogueTypeTable.get();
             Map<Class<? extends DialogueAction>, DialogueActionHandler<?>> handlers = new HashMap<>();
@@ -494,9 +813,28 @@ public final class DialogueEngine {
             registerCombinatorEvaluators(evaluators, self);
 
             DialogueActionExecutor executor = new DialogueActionExecutor(handlers, warn);
-            DialogueEngine engine = new DialogueEngine(evaluators, styles, executor, warn, factors, quests);
+            DialogueEngine engine =
+                    new DialogueEngine(evaluators, styles, executor, warn, factors, quests, random);
             self[0] = engine;
             return engine;
+        }
+
+        /**
+         * Hand a destination to whichever mod registered its {@code Type}, with the character the
+         * conversation is about travelling in the context so a per-character screen never has to be
+         * told who it is for a second time.
+         *
+         * <p>The page is opened on the PLAYER: an option click comes back on the player's own ref, and
+         * the NPC's entity is not something a conversation still holds by then.
+         */
+        private static boolean openDestination(@Nullable Destination destination,
+                @Nonnull DialogueExecContext ctx) {
+            if (destination == null) {
+                return false;
+            }
+            DestinationContext target = new DestinationContext(ctx.store(), ctx.ref(), ctx.playerRef(),
+                    ctx.player(), null, ctx.contextId(), null, null);
+            return Destinations.open(destination, target);
         }
 
         private void seedGenericActions() {
@@ -643,6 +981,9 @@ public final class DialogueEngine {
                 (c, ctx) -> !self[0].conditionsPass(c.getChildren(), ctx);
         evaluators.put(DialogueCondition.Not.class, notEval);
     }
+
+    /** Default draw source for a {@code Pick} beat: this thread's own random, never {@code Math.random}. */
+    private static final DoubleSupplier DEFAULT_RANDOM = () -> ThreadLocalRandom.current().nextDouble();
 
     /** Default warn: logs through the common plugin logger, guarded for log-manager-less unit JVMs. */
     private static final Consumer<String> DEFAULT_WARN = msg -> {

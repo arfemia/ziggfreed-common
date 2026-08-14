@@ -24,7 +24,7 @@ consumer: store.resolveAll(enumerators)           -> expand generators -> decode
 
 | Class | What it is |
 |---|---|
-| `QuestAsset` (+ `Listing`/`Flow`/`Repeat`(+`.Reset`)/`Visibility`/`Npc`) | one authored quest; Pattern A, the codec IS the schema. Its `Text`, `Rewards`, and `Requires` groups are the SHARED ones below. Authoring `Repeat` AT ALL is what makes a quest repeatable, so `"Repeat": {}` is the smallest one; `CompletionDialogue` is a top-level leaf beside `Npc` |
+| `QuestAsset` (+ `Listing`/`Flow`/`Repeat`(+`.Reset`)/`Visibility`/`Npc`) | one authored quest; Pattern A, the codec IS the schema. Its `Text`, `Rewards`, and `Requires` groups are the SHARED ones below. Authoring `Repeat` AT ALL is what makes a quest repeatable, so `"Repeat": {}` is the smallest one; `TurnInAt` and `CompletionDialogue` are top-level leaves beside `Npc` |
 | `QuestObjectiveAsset` | a quest's objective: the shared `progress.asset.ObjectiveLeafAsset` leaves plus the two only a quest has (`Order`, `TurnInNpcId`) |
 | [`progress.gate`](../../progress/gate/CLAUDE.md) `GateClause`, `GateSpec` | the `Requires` block: four shared leaves plus `AllOf`/`AnyOf`. SHARED with achievements |
 | `progress.gate` `GateKind`, `GateKindRegistry` | the OPEN requirement vocabulary a consumer extends |
@@ -33,7 +33,7 @@ consumer: store.resolveAll(enumerators)           -> expand generators -> decode
 | `QuestGeneratorAsset` (+ `Axis`), `QuestGeneratorExpander`, `GeneratedQuestBody` | one file writes a family |
 | `QuestAxisRow`, `QuestValueEnumerator`, `QuestEnumeratorRegistry` | the OPEN value-source vocabulary an axis may name |
 | `QuestAssetStore` | the loaded content, and the fold into a pool |
-| `QuestPoolValidator` | the content audit; reports shared `validation.Finding` values under domain `quest` |
+| `QuestPoolValidator` (+ `.NpcIdProbe`) | the content audit; reports shared `validation.Finding` values under domain `quest`. The probe is the optional seam for "does anything answer to this character id", since who stands where is declared above this module |
 | [`progress.asset`](../../progress/asset/CLAUDE.md) `ContentTextAsset`, `ObjectiveLeafAsset`, `RewardEntryAsset`, `ProgressEditorDataSets` | the groups SHARED with the achievement asset layer, declared once so their field names cannot drift |
 | `codec.JsonTreeCodec` (zc-core) | verbatim capture of an authored JSON subtree (the generator's `Child`, an axis's `Values`) |
 
@@ -44,8 +44,18 @@ consumer: store.resolveAll(enumerators)           -> expand generators -> decode
 - **The generator merges NOTHING.** It writes ordinary child bodies carrying `Parent` and lets the same decode do the rest. `QuestGeneratorTest.ByteEquivalence` is a release gate on that: it authors a quest by hand AND generates it, then compares both the emitted JSON and the folded result. If a change makes that test hard to keep, the change is wrong.
 - **Substitution rules, in full**: every string value, every object KEY, and `IdPattern`; a value that is EXACTLY one token keeps that token's own type (so `"Amount": "{amount}"` lands as a number); a token nothing binds is an ERROR finding and that one quest is skipped rather than shipped half-written.
 - **Gates fail closed, everywhere.** No factor registry, no permission probe, no completion probe, an unregistered `Custom` kind, a kind that throws: all refuse. A quest that authors no requirements needs no wiring at all, which is what keeps the fail-closed default from being a burden.
+- **`TurnInAt` and an objective's `TurnInNpcId` answer different questions, and both stay.** The
+  quest-level leaf says where the finished quest may be COLLECTED and is enforced by the engine's
+  `canCompleteAt` in the completion path itself; an objective's is a delivery STEP locked to a
+  character, enforced when that step is handed in. A quest may have one, the other, both, or neither.
+  The leaf is a dual-form scalar so the commonest answer is one word: `true` (or `giver`) is whoever
+  offers it, a bare id is that character, `@accept` is wherever this player took it from, and an
+  empty string or `false` clears one inherited from a `Parent`. Both sentinels are resolved AT THE
+  FOLD, so the engine only ever sees a resolved site; a `giver` form on a quest with no `Npc.ViewId`
+  folds to a site nobody can be rather than to "anywhere", which is what makes the audit finding
+  possible instead of a quest that silently behaves differently from what it says.
 - **Display text is keys.** `Text.TitleKey`/`FlavorKey` and an objective's `TextKey` are localization keys the player's own client resolves. `Text.DisplayName` exists only as a fallback while a key is being written; never route shipped content through it.
-- **`QuestDefinition` carries what the engine deliberately does not model** (text keys, category, sort order, the NPC ids, the gate block). Do not push presentation into `Quest`; hand the engine `pool.quests()` and read the rest here.
+- **`QuestDefinition` carries what the engine deliberately does not model** (text keys, category, sort order, the NPC ids, the gate block). Do not push presentation into `Quest`; hand the engine `pool.quests()` and read the rest here. The collection site is the exception that proves it: the engine ENFORCES that one, so it lives on `Quest` and this record only reads it back. `withTurnInAt` is the one-line stamp for a consumer whose content declares a site by POLICY rather than per file, so no author writes the leaf on every one of those quests.
 - **A quest's id can carry its folder.** The engine keys an asset by its FILENAME alone, so two
   files of the same name in different folders are one id and the second silently replaces the first.
   A folder marked with a leading underscore contributes its name to the id instead:

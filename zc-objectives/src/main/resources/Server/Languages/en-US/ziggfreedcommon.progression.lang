@@ -39,3 +39,37 @@ book.toast.claimed = Rewards collected.
 book.toast.claim_failed = Nothing to collect right now.
 book.toast.turned_in = Handed in.
 book.toast.turn_in_failed = That cannot be handed in here.
+
+# The NPC quest page. It reuses the book's own progress, action and lock lines above rather than
+# minting a second wording for the same sentence, and adds only what a screen with a character in
+# front of the player needs.
+npcquests.title.none = Quests
+npcquests.count = Quests: {0}
+npcquests.tab.here = Quests here
+npcquests.tab.mine = My quests
+npcquests.empty.here = There is nothing here for you right now.
+npcquests.empty.mine = You are not carrying any quests.
+npcquests.empty.unavailable = Your quests cannot be read right now.
+
+npcquests.section.ready = Ready to collect
+npcquests.section.turn_in = Ready to hand in
+npcquests.section.active = In progress
+npcquests.section.available = Available
+npcquests.section.parked = Collect elsewhere
+npcquests.section.locked = Locked
+npcquests.section.done = Completed
+
+npcquests.header.objectives = OBJECTIVES
+npcquests.header.rewards = REWARDS
+npcquests.header.required = REQUIRED
+
+npcquests.action.complete = Complete
+npcquests.action.abandon = Abandon
+npcquests.action.track = Track
+npcquests.action.untrack = Untrack
+
+npcquests.toast.abandoned = Quest abandoned.
+npcquests.toast.tracked = Quest tracked.
+npcquests.toast.untracked = Quest no longer tracked.
+npcquests.toast.track_full = You are already tracking as many quests as you can.
+npcquests.toast.turn_in_short = Not enough yet: {0}/{1}.

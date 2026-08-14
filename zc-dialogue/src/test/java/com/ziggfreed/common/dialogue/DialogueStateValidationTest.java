@@ -48,7 +48,7 @@ class DialogueStateValidationTest {
     @Test
     void usingAMemoryWithoutDeclaringItIsAnError() {
         DialogueEngine engine = engine();
-        NpcDialogue d = engine.decode("guide", "{\"Start\":[{\"Node\":\"g\"}],"
+        NpcDialogue d = engine.decode("guide", "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},"
                 + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
                 + "\"Conditions\":[{\"Type\":\"Remembered\",\"Memory\":\"helped\"}],"
                 + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]}]}}}");
@@ -62,8 +62,8 @@ class DialogueStateValidationTest {
     void aMemoryNestedInACombinatorIsStillSeen() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide", "{\"Memories\":{\"helped\":{}},"
-                + "\"Start\":[{\"Node\":\"g\",\"Conditions\":[{\"Type\":\"AnyOf\",\"Any\":["
-                + "{\"Type\":\"Remembered\",\"Memory\":\"helped\"}]}]}],"
+                + "\"Start\":{\"First\":[{\"Node\":\"g\",\"When\":[{\"Type\":\"AnyOf\",\"Any\":["
+                + "{\"Type\":\"Remembered\",\"Memory\":\"helped\"}]}]}]},"
                 + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
                 + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]}]}}}");
         assertNotNull(d);
@@ -78,7 +78,7 @@ class DialogueStateValidationTest {
     void aDeclarationNothingWritesWarnsAndOneNothingReadsInforms() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide", "{\"Memories\":{\"unused\":{},\"write_only\":{}},"
-                + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
+                + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
                 + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"write_only\"}]}]}}}");
         assertNotNull(d);
 
@@ -95,7 +95,7 @@ class DialogueStateValidationTest {
     void aBlankMemoryNameIsAnError() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide", "{\"Memories\":{\"  \":{}},"
-                + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
+                + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
                 + "\"Actions\":[{\"Type\":\"Remember\"}]}]}}}");
         assertNotNull(d);
 
@@ -107,7 +107,7 @@ class DialogueStateValidationTest {
     void twoDialoguesDisagreeingAboutASharedMemoryIsAnError() {
         DialogueEngine engine = engine();
         String body = "{\"Memories\":{\"trust\":{\"Shared\":true%s}},"
-                + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
+                + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
                 + "\"Conditions\":[{\"Type\":\"Remembered\",\"Memory\":\"trust\"}],"
                 + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"trust\"}]}]}}}";
         NpcDialogue first = engine.decode("guide_a", String.format(body, ""));
@@ -138,8 +138,8 @@ class DialogueStateValidationTest {
     void aMemoryScopedToEveryWorldIsReported() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Memories\":{\"helped\":{\"World\":\"*\"}},"
-                        + "\"Start\":[{\"Node\":\"g\"}],\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
+                "{\"Memories\":{\"helped\":{\"Where\":{\"Match\":[\"*\"]}}},"
+                        + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
                         + "\"Conditions\":[{\"Type\":\"Remembered\",\"Memory\":\"helped\"}],"
                         + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]}]}}}");
         assertNotNull(d);
@@ -150,22 +150,29 @@ class DialogueStateValidationTest {
         assertTrue(found.message().contains("helped"), "the finding must name the memory");
     }
 
+    /**
+     * A scope's own malformed shapes are the SHARED Where findings, reported under domain 'where'
+     * exactly as a placement carrying the same mistake reports them - an exclusion with nothing
+     * positive beside it can never match a world, so the state it guards exists nowhere.
+     */
     @Test
-    void aBlankWorldOnAnOptionOnceIsReported() {
+    void aScopeThatCanNeverMatchAWorldIsReportedByTheSharedWhereAudit() {
         DialogueEngine engine = engine();
-        NpcDialogue d = engine.decode("guide", "{\"Start\":[{\"Node\":\"g\"}],"
+        NpcDialogue d = engine.decode("guide", "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},"
                 + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
-                + "\"Once\":{\"World\":\"  \"}}]}}}");
+                + "\"Once\":{\"Where\":{\"ExcludeMatch\":[\"arena\"]}}}]}}}");
         assertNotNull(d);
 
-        assertEquals(Severity.WARNING,
-                issue(DialogueStructureValidator.validate(d), "WORLD_SCOPE_BLANK").severity());
+        Finding found = issue(DialogueStructureValidator.validate(d), "EXCLUDE_ONLY");
+        assertEquals(Severity.ERROR, found.severity());
+        assertEquals("where", found.domain(),
+                "one selector grammar means one set of findings, never a dialogue-flavoured copy");
     }
 
     @Test
     void aOnceWithNothingToIdentifyItWarns() {
         DialogueEngine engine = engine();
-        NpcDialogue d = engine.decode("guide", "{\"Start\":[{\"Node\":\"g\"}],"
+        NpcDialogue d = engine.decode("guide", "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},"
                 + "\"Nodes\":{\"g\":{\"Options\":[{\"Once\":{}},{\"LabelKey\":\"fine\",\"Once\":{}}]}}}");
         assertNotNull(d);
 
@@ -179,7 +186,7 @@ class DialogueStateValidationTest {
     @Test
     void twoOnceOptionsSharingOneIdentityInANodeAreAnError() {
         DialogueEngine engine = engine();
-        NpcDialogue d = engine.decode("guide", "{\"Start\":[{\"Node\":\"g\"}],"
+        NpcDialogue d = engine.decode("guide", "{\"Start\":{\"First\":[{\"Node\":\"g\"}]},"
                 + "\"Nodes\":{\"g\":{\"Options\":["
                 + "{\"LabelKey\":\"opt.bread\",\"Once\":{}},"
                 + "{\"LabelKey\":\"OPT.BREAD\",\"Once\":{}},"
@@ -198,8 +205,8 @@ class DialogueStateValidationTest {
     void aCleanTreeReportsNothingAboutItsState() {
         DialogueEngine engine = engine();
         NpcDialogue d = engine.decode("guide",
-                "{\"Memories\":{\"helped\":{\"World\":\"emerald_wilds\"}},"
-                        + "\"Start\":[{\"Node\":\"g\",\"Once\":{\"World\":\"emerald_wilds\"}}],"
+                "{\"Memories\":{\"helped\":{\"Where\":{\"Match\":[\"emerald_wilds\"]}}},"
+                        + "\"Start\":{\"First\":[{\"Node\":\"g\",\"Once\":{\"Where\":{\"Match\":[\"emerald_wilds\"]}}}]},"
                         + "\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Once\":{},"
                         + "\"Conditions\":[{\"Type\":\"NotRemembered\",\"Memory\":\"helped\"}],"

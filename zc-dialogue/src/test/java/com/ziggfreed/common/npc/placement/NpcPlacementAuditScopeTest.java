@@ -27,17 +27,21 @@ import com.ziggfreed.common.world.WorldSelector;
  */
 class NpcPlacementAuditScopeTest {
 
-    /** Every code that needs something outside the placement file to answer. */
+    /**
+     * Every code that needs something outside the placement file to answer. A destination's own
+     * per-type check belongs to the same half - it asks a registry which mod owns the type - but its
+     * codes are the registering mod's to name, so they cannot be listed here.
+     */
     private static final List<String> CROSS_ASSET_CODES = List.of(
             "MATCHES_NO_LOADED_WORLD",
             "UNREGISTERED_FACTOR",
             "UNREGISTERED_ANCHOR_PROVIDER",
-            "UNCLAIMED_BINDING_NAMESPACE");
+            "UNKNOWN_DIALOGUE",
+            "NO_DISPLAY_NAME");
 
     @BeforeEach
     @AfterEach
     void reset() {
-        NpcPlacementBindings.clearForTests();
         PlacementFactorRegistry.clearForTests();
         AnchorResolverRegistry.clearForTests();
         NpcPlacementConfig.getInstance().clearLateAuditForTests();
@@ -64,8 +68,7 @@ class NpcPlacementAuditScopeTest {
                 NpcPlacementAsset.Requires.of(new FactorCondition[]{
                         FactorCondition.of("yourmod:chapter", null, 1.0, null)}),
                 null, null,
-                NpcPlacementAsset.Interact.of(null,
-                        Map.of("yourmod:ui_target", PlacementBinding.value("x"))));
+                NpcPlacementAsset.Interact.of("some_conversation"));
     }
 
     private static List<String> codes(List<Finding> findings) {
@@ -96,7 +99,6 @@ class NpcPlacementAuditScopeTest {
 
         assertTrue(found.contains("UNREGISTERED_FACTOR"));
         assertTrue(found.contains("UNREGISTERED_ANCHOR_PROVIDER"));
-        assertTrue(found.contains("UNCLAIMED_BINDING_NAMESPACE"));
         assertTrue(found.contains("INCOMPLETE_COORDS"),
                 "the full audit is both halves, so the file-local findings must survive the split");
     }
@@ -114,6 +116,21 @@ class NpcPlacementAuditScopeTest {
                 "a factor whose owner registers milliseconds later is not an authoring mistake");
         assertTrue(codes(NpcPlacementValidator.audit(placement)).contains("UNREGISTERED_FACTOR"),
                 "once every mod's setup has run, the same id really is unregistered and must be reported");
+    }
+
+    /**
+     * The two checks whose SOURCE can be absent rather than merely empty: the conversations fold in
+     * from a load event, and role builders live in the NPC plugin's registry. With neither up, both
+     * must say nothing - a null answer read as an answer would name every placement on the server.
+     */
+    @Test
+    void aCheckWhoseSourceIsNotUpYetReportsNothingRatherThanGuessing() {
+        List<String> found = codes(NpcPlacementValidator.audit(placementNamingEverythingUnknown()));
+
+        assertFalse(found.contains("UNKNOWN_DIALOGUE"),
+                "no conversation has loaded, so 'no file carries it' is not something we know");
+        assertFalse(found.contains("NO_DISPLAY_NAME"),
+                "no role registry is up, so 'this role carries no name' is not something we know");
     }
 
     // ==================== the config's two moments ====================

@@ -54,18 +54,23 @@ row, imports the shared frames from `zc-presentation`). `Server/ZiggfreedCommon/
 
 ## Conventions
 
-`Once` is the keyless seen-ness knob on a `Start` entry or an option; named state is a declared
-top-level `Memories` map used by bare name via `Remember`/`Forget` and `Remembered`/`NotRemembered`.
-Option shorthand (`Open`/`Goto`/`Talk`/`Accept`/`TurnIn`/`Reward`/`Close`/`Do`) is a structured
-schema leaf folded post-decode, not a pre-parse rewrite. A base conversation is an ordinary file
-marked `Abstract` used as a native `Parent`, never a second resolver. `NpcPlacementAsset`'s `Where`
-is the shared `{Match, GameplayConfig, ExcludeMatch}` group from `zc-world`, the one spelling of
-"which worlds?" every world-targeting type in the library uses.
+`Start` is declared SECTIONS (`First`/`Quests`/`Then`/`Fallback`) walked in an engine-owned ladder,
+never a hand-sorted list. `Once` is the keyless seen-ness knob on a `Start` beat or an option; named
+state is a declared top-level `Memories` map used by bare name via `Remember`/`Forget` and
+`Remembered`/`NotRemembered`. Option shorthand (`Open`/`Goto`/`Accept`/`TurnIn`/`Reward`/`Close`/
+`Do`) is a structured schema leaf folded post-decode, not a pre-parse rewrite, and `Open`'s value is
+a `ui/route/Destination` rather than a routing string. A base conversation is an ordinary file marked
+`Abstract` used as a native `Parent`, never a second resolver. **`Where` is the shared
+`{Match, GameplayConfig, ExcludeMatch}` group from `zc-world` EVERYWHERE it appears** - an NPC
+placement's, a `World` condition's, and the per-world scope on a `Once` or a `Memories` declaration -
+the one spelling of "which worlds?" in the library.
 
 ## Tests
 
-33 files, the largest test suite in the library: the engine core (`DialogueEngineTest`,
-`DialogueAuthoredFixtureTest`, `DialogueAuthoringAuditTest`), the state/scope model
+35 files, the largest test suite in the library: the engine core (`DialogueEngineTest`,
+`DialogueAuthoredFixtureTest`, `DialogueAuthoringAuditTest`), the opening ladder
+(`DialogueStartTest`: the fixed rung order, the READY rule, the weighted draw against an injected
+number, and the audit's Start findings), the state/scope model
 (`DialogueOnceTest`, `DialogueMemoriesTest`, `DialogueFlagScopeTest`, `DialogueWorldConditionTest`,
 `DialogueFactorConditionTest`, `DialogueStateValidationTest`), the quest vocabulary
 (`DialogueQuestVocabularyTest`, `QuestCompletionDialogueValidatorTest`,

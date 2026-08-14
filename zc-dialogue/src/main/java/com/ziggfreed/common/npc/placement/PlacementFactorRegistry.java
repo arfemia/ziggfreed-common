@@ -40,8 +40,8 @@ import com.ziggfreed.common.registry.RegistryLedger;
  * bookkeeping (who owns an id, how often its provider failed) rides the shared
  * {@link RegistryLedger} inside the {@link FactorRegistry}, labelled {@code placement} so its
  * warnings name this engine. The registry lives in zc-core, so its ledger is the base class rather
- * than {@link PlacementRegistryLedger}; that subclass backs {@link NpcPlacementBindings} and
- * {@link AnchorResolverRegistry}, which hold their own ledgers directly.
+ * than {@link PlacementRegistryLedger}; that subclass backs {@link AnchorResolverRegistry}, which
+ * holds its own ledger directly.
  */
 public final class PlacementFactorRegistry {
 

@@ -88,11 +88,17 @@ public interface DialogueQuests {
     }
 
     /**
-     * Take this quest on for the player. Return true only when it actually started, so a line that
-     * pairs an accept with a jump can tell the difference between "started" and "was refused".
-     * Refuses by default.
+     * Take this quest on for the player, AT the character they are talking to. Return true only when
+     * it actually started, so a line that pairs an accept with a jump can tell the difference between
+     * "started" and "was refused". Refuses by default.
+     *
+     * <p><b>{@code siteId} is where it was taken on</b>, which is not bookkeeping: a quest whose
+     * hand-in is "report back to whoever gave me this" can only resolve that from the place it
+     * started, so a conversation passes the character it is with and a surface with no character
+     * passes null. It is the conversation's own context id rather than an answered alias, because the
+     * character the player is looking at is the one the story means.
      */
-    default boolean accept(@Nonnull Subject subject, @Nonnull String questId) {
+    default boolean accept(@Nonnull Subject subject, @Nonnull String questId, @Nullable String siteId) {
         return false;
     }
 
@@ -151,6 +157,19 @@ public interface DialogueQuests {
             @Override
             public boolean canDeliverTurnInAt(@Nonnull Subject subject, @Nonnull String questId,
                                               @Nullable String atId) {
+                return false;
+            }
+
+            /**
+             * The one read whose interface default is permissive - it is a REFUSAL gate, and "no site
+             * rule to break" is genuinely yes. A stand-in for "there is no quest system here" must
+             * still answer NO: everything else about a quest reads as nothing, so a site check that
+             * alone said yes would offer a hand-in for a quest this reader also says was never
+             * started. Spelled out rather than inherited, because inheriting it is the bug.
+             */
+            @Override
+            public boolean canCompleteAt(@Nonnull Subject subject, @Nonnull String questId,
+                                         @Nullable String atId) {
                 return false;
             }
 
