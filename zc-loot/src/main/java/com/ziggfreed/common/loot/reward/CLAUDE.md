@@ -92,17 +92,27 @@ module or grow a second, subtly different idea of what a reward is.
   same reward cannot read differently on a quest panel, a storefront offer and a results strip.
   **Nothing branches on a kind id**, and a reward nothing can NAME is dropped rather than guessed at -
   painting a raw kind token at a player reads as a promise of something called that, and the fix is a
-  two-line `Presentation` on the kind file. `Plan` is the whole decision over strings alone, so what a
-  chip will say is testable with no server. It lives here rather than on any one screen for the same
-  reason the vocabulary does: every surface that previews a payout has to read one reward the same
-  way.
+  two-line `Presentation` on the kind file. One rung sits between naming and dropping: a kind's OWNER
+  may `RewardChips.contribute(...)` a reading process-wide (asked only where the generic reading found
+  nothing, so an authored `NameKey` or kind-file `Presentation` always wins), which is how a
+  Java-registered kind whose rewards all read one way names them with zero per-reward authoring - the
+  worked example is zc-commerce's `Currency` kind reading as its wallet's own name and icon
+  (`CurrencyChipReading`, contributed by the wiring root). `Plan` is the whole decision over strings
+  alone, so what a chip will say is testable with no server. It lives here rather than on any one
+  screen for the same reason the vocabulary does: every surface that previews a payout has to read one
+  reward the same way.
 
 ## Minting a kind with no Java at all
 
 A kind does not have to be registered by a mod. `Server/ZiggfreedCommon/RewardKinds/<Id>.json`
 declares a parameter schema plus one command line, and the fold registers it exactly like a Java one -
 so a server with an admin command it wants paid out as a reward needs no plugin to say so, and a
-third party extends the vocabulary without shipping code. The store and the fold are wired together
+third party extends the vocabulary without shipping code. A COMMAND-LESS file whose id a
+Java-registered kind already answers is DECORATION rather than a dud: the fold skips it quietly (the
+Java handler keeps the payout), the validator notes it as `PRESENTATION_ONLY` INFO, and its
+`Presentation` group is what every chip surface reads for that kind - the asset-driven way to say how
+a Java kind's rewards look without taking the payout over. A command-less file whose id NOTHING
+answers stays the loud `NO_COMMAND` error it always was. The store and the fold are wired together
 in `FrameworkAssetRegistrar`, in ONE `LoadedAssetsEvent` listener: the fold has to run after the
 layers resolve AND after every mod's `setup()`, and a second listener for the same event would leave
 that order to registration order.

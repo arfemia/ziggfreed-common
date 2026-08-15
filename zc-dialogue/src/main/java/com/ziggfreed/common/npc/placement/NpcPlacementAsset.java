@@ -17,6 +17,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.codec.InheritMapCodec;
+import com.ziggfreed.common.codec.ScalarStringCodec;
 import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
@@ -673,10 +674,11 @@ public final class NpcPlacementAsset
                             (o, v) -> o.provider = v, o -> o.provider, (o, p) -> o.provider = p.provider)
                     .documentation("The namespaced provider id that resolves positions for this anchor. Unregistered "
                             + "means no position, never a crash.").add()
-                    .appendInherited(new KeyedCodec<>("Params", new InheritMapCodec<>(Codec.STRING), false),
+                    .appendInherited(new KeyedCodec<>("Params", new InheritMapCodec<>(ScalarStringCodec.INSTANCE), false),
                             (o, v) -> o.params = v, o -> o.params, (o, p) -> o.params = p.params)
                     .documentation("Free-form arguments passed to the provider verbatim; whatever that provider "
-                            + "documents. Merged per key under Parent inheritance.").add()
+                            + "documents. Merged per key under Parent inheritance. A number or true/false may be "
+                            + "written bare (Radius: 6); other values take quotes.").add()
                     .build();
 
             public Custom() {

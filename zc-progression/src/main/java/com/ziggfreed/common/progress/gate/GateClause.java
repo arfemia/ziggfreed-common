@@ -12,6 +12,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.codec.InheritMapCodec;
+import com.ziggfreed.common.codec.ScalarStringCodec;
 import com.ziggfreed.common.factor.FactorCondition;
 
 /**
@@ -84,10 +85,11 @@ public class GateClause {
                 .documentation("Quest ids that must already be finished. Use it to chain a story in order "
                         + "instead of hiding every later step behind a separate flag.").add()
                 .appendInherited(new KeyedCodec<>("Custom",
-                                new InheritMapCodec<>(new InheritMapCodec<>(Codec.STRING)), false),
+                                new InheritMapCodec<>(new InheritMapCodec<>(ScalarStringCodec.INSTANCE)), false),
                         (o, v) -> o.custom = v, o -> o.custom, (o, p) -> o.custom = p.custom)
                 .documentation("Requirement kinds registered by other mods, keyed by their namespaced id, each "
-                        + "with that kind's own parameters. A kind nothing registered refuses.").add();
+                        + "with that kind's own parameters. A kind nothing registered refuses. A parameter that "
+                        + "is a number or true/false may be written bare; other values take quotes.").add();
     }
 
     public GateClause() {

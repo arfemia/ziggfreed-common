@@ -1,6 +1,7 @@
 package com.ziggfreed.common.commerce.fold;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
@@ -13,6 +14,7 @@ import com.ziggfreed.common.cost.CostEngine;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.shop.ShopEngine;
+import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -37,6 +39,17 @@ import com.ziggfreed.common.util.SafeLog;
  * <pre>{@code
  * CommerceEngines.installGates(() -> myEvaluator);
  * }</pre>
+ *
+ * <p><b>The retry queue is the second seam, and the one that decides whether a half-failed purchase
+ * costs the buyer.</b> A purchase whose first reward lands and whose second throws has already been
+ * charged and has already spent its limit slot, so the engine deliberately does NOT refund it; what
+ * happens to the reward that did not land is entirely down to whether a queue is installed. With
+ * none, {@code RewardGrants} reports it lost. With one, it is spooled as a replayable command for
+ * the owed player's next connect - which is what a consumer that keeps such a spool should install:
+ *
+ * <pre>{@code
+ * CommerceEngines.installRetryQueue(() -> (subject, command) -> mySpool.queue(subject, command));
+ * }</pre>
  */
 public final class CommerceEngines {
 
@@ -44,6 +57,9 @@ public final class CommerceEngines {
 
     /** The fail-closed evaluator a server that installed none is gated by. Built once. */
     private static final AtomicReference<GateEvaluator> FALLBACK_GATES = new AtomicReference<>();
+
+    private static final AtomicReference<Supplier<BiConsumer<Subject, String>>> RETRY =
+            new AtomicReference<>();
 
     private CommerceEngines() {
     }
@@ -85,6 +101,43 @@ public final class CommerceEngines {
                 current -> current != null ? current : GateEvaluator.builder().build());
     }
 
+    // ==================== The retry seam ====================
+
+    /**
+     * Install the spool a reward that failed to grant is replayed from. Call it once at setup with
+     * the same queue every other payout in the consumer uses, so a reward lost at a storefront and
+     * one lost at a hand-in wait in the same place. Passing null goes back to no queue at all, which
+     * is the library default: this module keeps no per-player store of its own, so an uninstalled
+     * seam means a failed reward is reported and lost rather than silently held somewhere nobody
+     * drains.
+     *
+     * <p>A supplier rather than a value for the same reason the gate seam is one: the queue behind
+     * it may not exist yet when this is called, and it is asked for per purchase.
+     */
+    public static void installRetryQueue(@Nullable Supplier<BiConsumer<Subject, String>> queue) {
+        RETRY.set(queue);
+    }
+
+    /**
+     * The spool in force, or null when nothing installed one. Null is the honest answer rather than
+     * a do-nothing consumer, because {@code RewardGrants} treats a null queue as "there is nowhere
+     * to put this" and says so, while a silent no-op would read as queued.
+     */
+    @Nullable
+    public static BiConsumer<Subject, String> retryQueue() {
+        Supplier<BiConsumer<Subject, String>> supplier = RETRY.get();
+        if (supplier == null) {
+            return null;
+        }
+        try {
+            return supplier.get();
+        } catch (Throwable t) {
+            SafeLog.warn("[commerce] the installed retry queue could not be read, so a reward that "
+                    + "fails to grant is reported rather than spooled: " + t.getMessage());
+            return null;
+        }
+    }
+
     // ==================== The engines ====================
 
     /**
@@ -105,6 +158,7 @@ public final class CommerceEngines {
     public static ShopEngine shops() {
         return ShopEngine.builder(costs(), gates())
                 .catalog(CommerceCatalogs.shops())
+                .retryQueue(retryQueue())
                 .build();
     }
 

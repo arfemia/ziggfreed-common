@@ -11,6 +11,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.codec.InheritMapCodec;
+import com.ziggfreed.common.codec.ScalarStringCodec;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 
 /**
@@ -19,8 +20,8 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * one kind of content reads and behaves identically on the next.
  *
  * <pre>{@code
- * "Rewards": [ { "Kind": "Item",         "Params": { "Item": "Sword_Copper", "Count": "1" } },
- *              { "Kind": "Yourmod_Coin", "Params": { "Id": "coin", "Amount": "50" } } ]
+ * "Rewards": [ { "Kind": "Item",         "Params": { "Item": "Sword_Copper", "Count": 1 } },
+ *              { "Kind": "Yourmod_Coin", "Params": { "Id": "coin", "Amount": 50 } } ]
  * }</pre>
  *
  * <p><b>Kind ids read like any other asset id</b>: PascalCase with underscores. The framework's own
@@ -32,7 +33,11 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
  * <p><b>{@code Params} is deliberately an open map of strings.</b> What a reward needs is decided
  * by whichever mod registered the kind, so pinning a field set here would force every payout
  * through one mod's idea of what a reward is. Keys are matched case-insensitively, so authoring
- * {@code "Amount"} and reading {@code "amount"} agree without anyone being told.
+ * {@code "Amount"} and reading {@code "amount"} agree without anyone being told. A VALUE may be
+ * written bare where it is a number or a boolean ({@code "Amount": 50} and {@code "Amount": "50"}
+ * both decode, to the same text), because a count's natural spelling should not fail the file; a
+ * generator substituting a numeric axis value into a parameter slot lands legal for the same
+ * reason.
  *
  * <p>{@code Rewards} is ONE leaf as far as inheritance goes: omit it and the parent's list is
  * inherited whole, author it and the parent's list is replaced whole (an empty array is how a child
@@ -53,10 +58,11 @@ public final class RewardEntryAsset {
                             + "carries that mod's prefix (Yourmod_Coin). A kind nothing registered is reported "
                             + "rather than silently skipped, so an owner can see which mod was expected to "
                             + "provide it.").add()
-                    .appendInherited(new KeyedCodec<>("Params", new InheritMapCodec<>(Codec.STRING), false),
+                    .appendInherited(new KeyedCodec<>("Params", new InheritMapCodec<>(ScalarStringCodec.INSTANCE), false),
                             (o, v) -> o.params = v, o -> o.params, (o, p) -> o.params = p.params)
-                    .documentation("The kind's own parameters, as strings. Which keys matter is documented by "
-                            + "whoever registered the kind; nothing here interprets them.").add()
+                    .documentation("The kind's own parameters. Which keys matter is documented by whoever "
+                            + "registered the kind; nothing here interprets them. A number or true/false may be "
+                            + "written bare (Amount: 50), a value with any other shape takes quotes.").add()
                     .build();
 
     public RewardEntryAsset() {

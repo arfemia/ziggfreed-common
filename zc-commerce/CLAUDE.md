@@ -86,8 +86,11 @@ is its prefix.
 
 - **Reward issuance is not ours.** A payout is ONE call to `RewardGrants.grantAll` over the shared
   kind table, and the room probe is ONE call to `LootRewardKinds.canAddAll`. There is no grant loop
-  in this module, nothing switches on a reward kind, there is no second fit probe and no second
-  queue. A capability the payout needs and zc-loot lacks is added THERE, for every domain at once.
+  in this module, nothing switches on a reward kind, and there is no second fit probe. Nor is there a
+  spool: the retry queue a failed reward is replayed from is a SEAM
+  (`CommerceEngines.installRetryQueue`) a consumer fills with the same queue it uses everywhere else,
+  and an unfilled one means a failed reward is reported lost rather than held somewhere nobody
+  drains. A capability the payout needs and zc-loot lacks is added THERE, for every domain at once.
 - **Requirements are not ours either.** Every gate is a `progress.gate.GateSpec` answered by the
   shared `GateEvaluator`, the same machinery a quest accept uses, and a refusal is passed through in
   the evaluator's own words. No commerce-local requirements shape, walk or evaluator exists; a

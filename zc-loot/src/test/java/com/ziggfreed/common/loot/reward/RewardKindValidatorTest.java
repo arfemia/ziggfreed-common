@@ -69,6 +69,17 @@ class RewardKindValidatorTest {
         }
 
         @Test
+        void aCommandLessFileDecoratingAJavaKindIsANote() {
+            // The kind id is this test's own: registered process-wide so the audit's probe sees a
+            // Java handler answering it, which is what separates decoration from a dud.
+            RewardKinds.shared().register("Zz_Test_Deco_Kind", "test", (spec, subject) -> { });
+            Finding finding = one(
+                    RewardKindValidator.audit(RewardKindAsset.of("Zz_Test_Deco_Kind", params(), null)),
+                    RewardKindValidator.PRESENTATION_ONLY);
+            assertEquals(Severity.INFO, finding.severity());
+        }
+
+        @Test
         void aPlaceholderNothingDeclaresIsAWarning() {
             RewardKindAsset asset = RewardKindAsset.of("Mmo_Xp",
                     params("Amount", RewardKindAsset.Param.of(true, null)),

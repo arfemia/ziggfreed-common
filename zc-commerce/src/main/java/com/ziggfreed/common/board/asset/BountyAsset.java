@@ -41,7 +41,7 @@ import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
  *   "Text": { "TitleKey": "quest.bounty_hunt_trork.title" },
  *   "Boards": [ { "Board": "Daily", "Difficulty": "Hard", "Weight": 1 } ],
  *   "Objectives": { "main": { "Target": "Trork", "Amount": 8 } },
- *   "Rewards": [ { "Kind": "Mmo_Currency", "Params": { "Currency": "Bounty_Token", "Amount": "300" } },
+ *   "Rewards": [ { "Kind": "Currency", "Params": { "Currency": "Bounty_Token", "Amount": "300" } },
  *                { "Kind": "Mmo_Xp",       "Params": { "Skill": "AXES", "Amount": "2500" } } ] }
  * }</pre>
  *

@@ -415,16 +415,31 @@ public final class ProgressionDefaults {
 
     /**
      * The question a factor is answered against for one subject: the live entity behind it, when
-     * there is one. A handle-less subject builds an empty context, which resolves nothing and
-     * therefore writes nothing - the standing-value probe's own contract.
+     * there is one. A subject carrying no live entity at all builds an empty context, which resolves
+     * nothing and therefore writes nothing - the standing-value probe's own contract.
+     *
+     * <p><b>Two ways a subject can carry that entity, and both are asked.</b> This runtime's own
+     * subjects hang a {@link ProgressHandle}, which already holds the store and the ref. Every OTHER
+     * surface driving these same engines - a storefront, a board, a consumer's own screen - hangs
+     * whatever its own vocabulary uses, and the one thing the whole library agrees a handle answers
+     * for is the live {@link Player}. So a handle that is not a {@code ProgressHandle} is asked for
+     * a player, and the store and ref are derived from its own reference. Without that second rung
+     * every subject-reading factor - a stat threshold, a permission, any of the tool readings -
+     * would fail closed on a server whose consumer builds its subjects any other way, which is a
+     * gate shutting on content that is perfectly correct.
      */
     @Nonnull
     private static FactorContext factorContextOf(@Nonnull Subject subject) {
         ProgressHandle handle = subject.handleAs(ProgressHandle.class);
-        if (handle == null) {
+        if (handle != null) {
+            return FactorContext.builder().store(handle.store()).subject(handle.ref()).build();
+        }
+        Player player = subject.handleAs(Player.class);
+        Ref<EntityStore> ref = player == null ? null : player.getReference();
+        if (ref == null || !ref.isValid()) {
             return FactorContext.builder().build();
         }
-        return FactorContext.builder().store(handle.store()).subject(handle.ref()).build();
+        return FactorContext.builder().store(ref.getStore()).subject(ref).build();
     }
 
     // ==================== hand-ins ====================

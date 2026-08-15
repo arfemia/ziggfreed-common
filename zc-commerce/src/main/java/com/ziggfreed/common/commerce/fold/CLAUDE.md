@@ -25,7 +25,7 @@ author may write; each of those already has an owner one package over.
 | [`CurrencyRewardKind`](CurrencyRewardKind.java) | the shared reward table to the currency engine (`{"Kind": "Currency"}`) |
 | [`CommerceDestinations`](CommerceDestinations.java) | the shared routing vocabulary to this module's pages (`Shop` / `Board`) |
 | [`ShelfSpec`](ShelfSpec.java) | one authored rotating shelf to the `ShopShelf` seam a draw asks |
-| [`CommerceEngines`](CommerceEngines.java) | the ONE place an engine is assembled, plus the gate-evaluator seam a consumer fills |
+| [`CommerceEngines`](CommerceEngines.java) | the ONE place an engine is assembled, plus the two seams a consumer fills: the gate evaluator and the reward retry queue |
 
 ## The two rules that shape everything here
 
@@ -76,6 +76,12 @@ author may write; each of those already has an owner one package over.
   answers no factor and a `Requires` naming one fails CLOSED. That is the library's standing rule for
   an unanswerable reading rather than a degrade invented here; the wiring root installs the evaluator
   the progression runtime already uses, and one permission question then has one answer everywhere.
+- **The retry queue is the second seam, and NOT filling it has a price.** This module keeps no
+  per-player spool, so `CommerceEngines.retryQueue()` answers null until a consumer installs one and
+  `RewardGrants` then reports a failed reward LOST. That matters most where a purchase delivered
+  some of what it paid for: the engine does not refund a partial delivery and does count it against
+  the limit, so the undelivered half is exactly what a queue exists to catch. A consumer with a
+  spool of its own installs it with `installRetryQueue` and a half-failed purchase spools instead.
 - **A bounty is a quest only once somebody says so.** `publishBounties()` hands the folded contracts
   to the shared quest runtime as this library's layer; until it runs, a board can draw its contracts
   and name them and still not accept one, because the lifecycle a board drives belongs to the quest

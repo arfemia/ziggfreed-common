@@ -87,9 +87,19 @@ public final class CurrencyEngine {
         return amount <= 0L || balance(subject, currencyId) >= amount;
     }
 
-    /** How much of {@code currencyId} this subject has spent in its lifetime. */
+    /**
+     * How much of {@code currencyId} this subject has spent in its lifetime, and 0 for a currency
+     * nobody defines.
+     *
+     * <p>The DEFINITION is resolved first, exactly as {@link #balance} does, because a spend is
+     * recorded under the catalogue's own spelling of the id and the store behind it matches keys
+     * literally. Passing the caller's raw spelling through would answer 0 for a gate written
+     * {@code Bounty_Token} while the same gate written {@code bounty_token} read correctly - one id
+     * resolving two ways, and the wrong answer is the one that looks like an unmet requirement.
+     */
     public long lifetimeSpent(@Nonnull Subject subject, @Nonnull String currencyId) {
-        return store.get().lifetimeSpent(subject, currencyId);
+        CurrencyDef def = catalog.get(currencyId);
+        return def == null ? 0L : store.get().lifetimeSpent(subject, def.id());
     }
 
     // ==================== Write ====================

@@ -89,6 +89,23 @@ class RewardKindAssetFoldTest {
         }
 
         @Test
+        void aCommandLessFileOverAJavaKindIsQuietDecoration() {
+            // The legitimate command-less shape: the file exists only to give the Java-registered
+            // kind an authored Presentation, so the payout must stay Java's and nothing warns.
+            RewardKindRegistry kinds = new RewardKindRegistry("test");
+            kinds.register("Mmo_Xp", "mymod", (spec, subject) -> { });
+            List<String> warnings = new ArrayList<>();
+
+            RewardKindFold.Result result = RewardKindFold.foldInto(kinds,
+                    List.of(kind("Mmo_Xp", "  ")), new CommandRewardKindTest.Recorder(), warnings::add);
+
+            assertEquals(List.of("Mmo_Xp"), result.skipped());
+            assertFalse(kinds.handler("Mmo_Xp") instanceof CommandRewardKind,
+                    "the Java handler keeps the payout");
+            assertTrue(warnings.isEmpty(), "decoration is a working shape, not a dud to warn about");
+        }
+
+        @Test
         void nothingAuthoredMeansNothingHappens() {
             RewardKindRegistry kinds = new RewardKindRegistry("test");
 

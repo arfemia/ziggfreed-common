@@ -4,6 +4,7 @@ import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
@@ -24,10 +25,32 @@ import com.ziggfreed.common.CommonLog;
  * on the entity's world thread (a system tick or inside {@code world.execute}). Each
  * call is fully try-guarded: a missing component, an invalid ref, or any engine throw
  * degrades to a no-op return (0 / {@code false}), never an exception into the caller.
+ *
+ * <p><b>Every read and write also has a SECTION-SCOPED form.</b> The combined view is the right
+ * default for a resource a player simply carries, and the wrong one for anything that decides what
+ * they can be CHARGED: a price counting what somebody is wearing will happily strip it off their
+ * body, and a balance that includes their armor is not a balance they can spend. A caller that
+ * cares names the sections itself with {@link #spendableSections()} (or its own set) and gets the
+ * same behaviour narrowed to them.
  */
 public final class InventoryUtil {
 
     private InventoryUtil() {
+    }
+
+    /**
+     * The sections a player moves things in and out of freely: backpack, storage, hotbar.
+     *
+     * <p>What it deliberately leaves out is what somebody is WEARING and what is in their utility
+     * slots. Those are worn equipment rather than carried goods, so a price that counted them would
+     * both read as affordable off the strength of a helmet and then take the helmet.
+     *
+     * <p>It is a method rather than a constant because the engine fills the underlying arrays during
+     * its own bootstrap, so a field initialised at class-load could capture nothing.
+     */
+    @Nonnull
+    public static ComponentType<EntityStore, ? extends InventoryComponent>[] spendableSections() {
+        return InventoryComponent.BACKPACK_STORAGE_HOTBAR;
     }
 
     /**
@@ -37,11 +60,19 @@ public final class InventoryUtil {
      */
     public static int count(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
                             @Nonnull String itemId) {
+        return count(store, ref, itemId, InventoryComponent.EVERYTHING);
+    }
+
+    /** {@link #count} narrowed to {@code sections}, e.g. {@link #spendableSections()}. */
+    @SafeVarargs
+    public static int count(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                            @Nonnull String itemId,
+                            @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
         if (!ref.isValid()) {
             return 0;
         }
         try {
-            CombinedItemContainer inv = combined(store, ref);
+            CombinedItemContainer inv = InventoryComponent.getCombined(store, ref, sections);
             if (inv == null) {
                 return 0;
             }
@@ -58,6 +89,14 @@ public final class InventoryUtil {
     public static boolean has(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
                               @Nonnull String itemId, int n) {
         return n <= 0 || count(store, ref, itemId) >= n;
+    }
+
+    /** {@link #has} narrowed to {@code sections}. */
+    @SafeVarargs
+    public static boolean has(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                              @Nonnull String itemId, int n,
+                              @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
+        return n <= 0 || count(store, ref, itemId, sections) >= n;
     }
 
     /**
@@ -120,11 +159,19 @@ public final class InventoryUtil {
      */
     public static int take(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
                            @Nonnull String itemId, int n) {
+        return take(store, ref, itemId, n, InventoryComponent.EVERYTHING);
+    }
+
+    /** {@link #take} narrowed to {@code sections}, so nothing outside them is ever removed. */
+    @SafeVarargs
+    public static int take(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                           @Nonnull String itemId, int n,
+                           @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
         if (!ref.isValid() || n <= 0) {
             return 0;
         }
         try {
-            CombinedItemContainer inv = combined(store, ref);
+            CombinedItemContainer inv = InventoryComponent.getCombined(store, ref, sections);
             if (inv == null) {
                 return 0;
             }
@@ -147,13 +194,24 @@ public final class InventoryUtil {
      */
     public static boolean spend(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
                                 @Nonnull String itemId, int n) {
+        return spend(store, ref, itemId, n, InventoryComponent.EVERYTHING);
+    }
+
+    /**
+     * {@link #spend} narrowed to {@code sections}: the check and the removal read the SAME view, so
+     * a price can never be found affordable in one place and taken from another.
+     */
+    @SafeVarargs
+    public static boolean spend(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                                @Nonnull String itemId, int n,
+                                @Nonnull ComponentType<EntityStore, ? extends InventoryComponent>... sections) {
         if (n <= 0) {
             return true;
         }
-        if (!has(store, ref, itemId, n)) {
+        if (!has(store, ref, itemId, n, sections)) {
             return false;
         }
-        return take(store, ref, itemId, n) >= n;
+        return take(store, ref, itemId, n, sections) >= n;
     }
 
     private static CombinedItemContainer combined(@Nonnull Store<EntityStore> store,

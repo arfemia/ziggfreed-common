@@ -114,6 +114,29 @@ class RewardChipsTest {
     }
 
     @Test
+    void aContributedReadingRescuesWhatWouldOtherwiseDrop() {
+        // A kind's owner contributes the reading once; no reward of that kind authors anything.
+        // The kind id is this test's own so the process-wide registration cannot leak meaningfully.
+        RewardChips.contribute(spec -> "Test_Wallet_Kind".equalsIgnoreCase(spec.kind())
+                ? RewardChip.text(Msg.raw("5 Test Tokens"))
+                : null);
+        assertEquals(1, RewardChips.chipsFor(
+                List.of(RewardSpec.of("Test_Wallet_Kind", Map.of("Currency", "test", "Amount", "5"))),
+                null).size(), "the contributed rung names what the generic reading cannot");
+        assertNull(RewardChips.chipFor(RewardSpec.of("Mod_Mystery", Map.of("Amount", "3"))),
+                "a kind no contribution answers still drops");
+
+        RewardKindConfig.getInstance().loadDefaults(Map.of("test_wallet_kind",
+                RewardKindAsset.of("Test_Wallet_Kind", Map.of(), null,
+                        RewardKindAsset.Presentation.of("mymod.reward.file_says",
+                                RewardKindAsset.Icon.of(null, null, Map.of())))));
+        RewardChips.Plan plan = RewardChips.plan(
+                RewardSpec.of("Test_Wallet_Kind", Map.of("Amount", "5")));
+        assertEquals("mymod.reward.file_says", plan.nameKey(),
+                "a kind FILE's Presentation still wins over the contributed rung");
+    }
+
+    @Test
     void aConsumersOwnReadingWinsAndAThrowingOneCostsNothing() {
         RewardSpec spec = RewardSpec.of("Mod_Mystery", Map.of("Amount", "3"));
         assertEquals(1, RewardChips.chipsFor(List.of(spec),

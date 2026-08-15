@@ -19,10 +19,17 @@ import com.ziggfreed.common.subject.Subject;
  * same answer an empty inventory gives and the right one for an offline grant: an item-backed
  * currency has nowhere to go until its owner is standing somewhere.
  *
- * <p><b>Combined-inventory reads and writes, on the world thread.</b> A take is verified against the
- * whole combined view before anything is removed, so a short balance costs nothing. Every call is
- * try-guarded by the primitives underneath, so a missing component or an engine throw degrades to
- * "nothing moved" rather than an exception into a purchase.
+ * <p><b>A balance is what a player CARRIES, not what they are wearing.</b> Reads and takes are
+ * scoped to the backpack, storage and hotbar; armor and utility slots are deliberately out of
+ * scope. Counting them would let an offer read as affordable on the strength of a helmet and then
+ * take the helmet off the player's body to pay for itself, which is not a price anyone authored. A
+ * payout still lands across the whole inventory, because where a granted item comes to rest is a
+ * question about space rather than about what may be spent.
+ *
+ * <p><b>World-thread reads and writes.</b> A take is verified against the same view it removes
+ * from, so a short balance costs nothing and nothing is ever found in one place and taken from
+ * another. Every call is try-guarded by the primitives underneath, so a missing component or an
+ * engine throw degrades to "nothing moved" rather than an exception into a purchase.
  */
 public final class NativeItemWallet implements ItemWallet {
 
@@ -41,7 +48,7 @@ public final class NativeItemWallet implements ItemWallet {
         if (ref == null) {
             return 0L;
         }
-        return InventoryUtil.count(ref.getStore(), ref, itemId);
+        return InventoryUtil.count(ref.getStore(), ref, itemId, InventoryUtil.spendableSections());
     }
 
     @Override
@@ -56,8 +63,9 @@ public final class NativeItemWallet implements ItemWallet {
         Store<EntityStore> store = ref.getStore();
         int wanted = (int) amount;
         // Verified first, then removed: a partial take is the one outcome a price cannot undo, and
-        // spend() is the primitive that refuses rather than removing what it found.
-        return InventoryUtil.spend(store, ref, itemId, wanted);
+        // spend() is the primitive that refuses rather than removing what it found. Scoped to what
+        // the balance above counted, so the two can never disagree about what is there.
+        return InventoryUtil.spend(store, ref, itemId, wanted, InventoryUtil.spendableSections());
     }
 
     @Override

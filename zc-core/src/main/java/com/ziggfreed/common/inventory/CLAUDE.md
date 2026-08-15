@@ -12,6 +12,12 @@ needs it), so it lives here, not duplicated in a consumer.
   - `give(store, ref, itemId, n)` -> add `n`, returns how many did NOT fit.
   - `take(store, ref, itemId, n)` -> remove up to `n`, returns how many were removed.
   - `spend(store, ref, itemId, n)` -> all-or-nothing remove of exactly `n` (false if too few).
+  - Each of the four also has a SECTION-SCOPED overload taking the sections to read (a trailing
+    varargs of inventory component types), with `spendableSections()` as the ready-made
+    backpack + storage + hotbar set. Use it wherever the answer decides what a player can be
+    CHARGED: the combined view includes worn armor and utility slots, so a price read across it can
+    both look affordable because of a helmet and then take that helmet. A `check` and its `take`
+    must always name the SAME sections. First consumer: the economy's item-backed wallet.
 - **World thread only** (touches the `Store`); every method is try-guarded to a no-op
   return so a missing component / invalid ref / engine throw never escapes into the
   caller. Backed by `CombinedItemContainer.addItemStack`/`removeItemStack`/

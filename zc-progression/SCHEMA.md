@@ -263,7 +263,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `Kind` | `string` | `null` | Which registered reward kind pays this out, by id: Item, Lootable, Stamped_Item, Effect and Droplist come with the framework, and a kind a mod brings carries that mod's prefix (Yourmod_Coin). A kind nothing registered is reported rather than silently skipped, so an owner can see which mod was expected to provide it. |
-| `Params` | map of `string` | `null` | The kind's own parameters, as strings. Which keys matter is documented by whoever registered the kind; nothing here interprets them. |
+| `Params` | map of `scalarString` | `null` | The kind's own parameters. Which keys matter is documented by whoever registered the kind; nothing here interprets them. A number or true/false may be written bare (Amount: 50), a value with any other shape takes quotes. |
 
 <a id="type-requires"></a>
 ## Requires
@@ -273,7 +273,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Factors` | array of [FactorCondition](#type-factorcondition) | `null` | Numeric bounds on the shared factor vocabulary; all of them must pass. A factor no installed mod can answer fails closed, so the content stays locked. |
 | `Permission` | `string` | `null` | A permission node the player must hold, read through the engine's own permission check. It is the short spelling of a hytale:permission factor bound, so both give one answer; where nobody can be asked, it refuses and the content stays locked. |
 | `Quests` | array of `string` | `null` | Quest ids that must already be finished. Use it to chain a story in order instead of hiding every later step behind a separate flag. |
-| `Custom` | map of map of `string` | `null` | Requirement kinds registered by other mods, keyed by their namespaced id, each with that kind's own parameters. A kind nothing registered refuses. |
+| `Custom` | map of map of `scalarString` | `null` | Requirement kinds registered by other mods, keyed by their namespaced id, each with that kind's own parameters. A kind nothing registered refuses. A parameter that is a number or true/false may be written bare; other values take quotes. |
 | `AllOf` | array of [GateClause](#type-gateclause) | `null` | Extra groups that must ALL pass, on top of the leaves above. Use it to keep unrelated requirements readable side by side. |
 | `AnyOf` | array of [GateClause](#type-gateclause) | `null` | Groups of which at least ONE must pass - the way to say 'either route into this will do'. An empty list asks for nothing. |
 
@@ -285,7 +285,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Factors` | array of [FactorCondition](#type-factorcondition) | `null` | Numeric bounds on the shared factor vocabulary; all of them must pass. A factor no installed mod can answer fails closed, so the content stays locked. |
 | `Permission` | `string` | `null` | A permission node the player must hold, read through the engine's own permission check. It is the short spelling of a hytale:permission factor bound, so both give one answer; where nobody can be asked, it refuses and the content stays locked. |
 | `Quests` | array of `string` | `null` | Quest ids that must already be finished. Use it to chain a story in order instead of hiding every later step behind a separate flag. |
-| `Custom` | map of map of `string` | `null` | Requirement kinds registered by other mods, keyed by their namespaced id, each with that kind's own parameters. A kind nothing registered refuses. |
+| `Custom` | map of map of `scalarString` | `null` | Requirement kinds registered by other mods, keyed by their namespaced id, each with that kind's own parameters. A kind nothing registered refuses. A parameter that is a number or true/false may be written bare; other values take quotes. |
 
 <a id="type-factorcondition"></a>
 ## FactorCondition

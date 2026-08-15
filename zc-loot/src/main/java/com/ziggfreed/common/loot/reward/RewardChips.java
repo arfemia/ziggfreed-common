@@ -2,6 +2,7 @@ package com.ziggfreed.common.loot.reward;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,7 +35,10 @@ import com.ziggfreed.common.instance.reward.DeferredRewards;
  * <p><b>A reward nothing can name is DROPPED rather than guessed at.</b> Painting a raw kind token
  * at a player reads as a promise of something called {@code Mmo_Boost_Token}, which is worse than
  * showing one fewer chip; the fix is a two-line {@code Presentation} on the kind file, and the
- * validator that reads kind assets is where an author is told so.
+ * validator that reads kind assets is where an author is told so. One rung sits between those two
+ * outcomes: a kind's OWNER may {@link #contribute} a reading process-wide, which is how a
+ * Java-registered kind whose rewards all read the same way (a wallet kind reading as its wallet's
+ * own name) names them without any reward authoring anything.
  *
  * <p>{@link Plan} is the whole decision and touches nothing but strings, so what a chip WILL say is
  * testable with no server; {@link #chipFor} is the half that reaches an item for its name.
@@ -61,7 +65,25 @@ public final class RewardChips {
     /** No consumer opinion about any reward, so every chip takes the generic reading. */
     public static final Source GENERIC = spec -> null;
 
+    /**
+     * Readings a kind's OWNER contributed process-wide, asked only when the generic reading could
+     * not name a reward - the rung between "nothing names this" and dropping the chip. A wallet
+     * kind reads as its wallet's own name this way, on every surface at once, without a single
+     * reward authoring a {@code NameKey}.
+     */
+    private static final CopyOnWriteArrayList<Source> CONTRIBUTED = new CopyOnWriteArrayList<>();
+
     private RewardChips() {
+    }
+
+    /**
+     * Contribute the reading for a kind this caller OWNS, once at setup. It is asked (in
+     * contribution order, first answer wins) only for a reward the generic reading could not name,
+     * so it can never override a reward's own {@code NameKey}, a kind file's {@code Presentation},
+     * or an item's own display name - it only rescues what would otherwise be dropped.
+     */
+    public static void contribute(@Nonnull Source source) {
+        CONTRIBUTED.add(source);
     }
 
     /**
@@ -115,6 +137,16 @@ public final class RewardChips {
     public static RewardChip chipFor(@Nonnull RewardSpec spec) {
         Plan plan = plan(spec);
         if (!plan.isRenderable()) {
+            for (Source contributed : CONTRIBUTED) {
+                try {
+                    RewardChip chip = contributed.chipFor(spec);
+                    if (chip != null) {
+                        return chip;
+                    }
+                } catch (Throwable ignored) {
+                    // A contributed reading failing costs its own answer, never the panel.
+                }
+            }
             return null;
         }
         String nameKey = plan.nameKey();

@@ -28,6 +28,7 @@ import com.ziggfreed.common.commerce.fold.CommerceDefaults;
 import com.ziggfreed.common.commerce.fold.CommerceDestinations;
 import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.commerce.fold.CurrencyRewardKind;
+import com.ziggfreed.common.commerce.page.CurrencyChipReading;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.shop.asset.ShopConfig;
@@ -40,6 +41,7 @@ import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.LootFactors;
 import com.ziggfreed.common.loot.reward.DroplistRewardKind;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
+import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.stamp.StackStatsStamper;
 import com.ziggfreed.common.loot.stamp.StamperRegistry;
@@ -269,6 +271,11 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * alias that calls through, never a second implementation. Their permission nodes are derived
      * and enforced by the engine itself, so no check is written anywhere in the family.
      *
+     * <p>The chip reading is contributed beside the kind for the same reason the kind is registered
+     * here: a {@code Currency} reward reads as its wallet's own name and icon on every surface at
+     * once, so no reward ever authors a display key for a wallet that already knows what it is
+     * called.
+     *
      * <p>The gate seam is filled with the evaluator the progression runtime's defaults build, so a
      * shop lock and a quest lock answer one {@code Requires} block the same way. It is a supplier
      * read per gate: a consumer that installs its own evaluator at its own setup replaces this one,
@@ -287,6 +294,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             CommerceComponent.register(getEntityStoreRegistry());
             CommerceDefaults.install(this);
             CurrencyRewardKind.registerInto(RewardKinds.shared());
+            RewardChips.contribute(CurrencyChipReading.source());
             CommerceEngines.installGates(ProgressionDefaults::gateEvaluator);
             getCommandRegistry().registerCommand(new ZigCommerceCommand());
             getEventRegistry().registerGlobal(PlayerReadyEvent.class,

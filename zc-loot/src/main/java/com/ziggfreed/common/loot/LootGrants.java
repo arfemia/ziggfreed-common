@@ -14,6 +14,8 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.codecs.map.MapCodec;
+
+import com.ziggfreed.common.codec.ScalarStringCodec;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 
 /**
@@ -184,10 +186,11 @@ public final class LootGrants {
                         (o, v) -> o.kind = v, o -> o.kind, (o, p) -> o.kind = p.kind)
                 .documentation("The registered reward kind that pays this out. A kind nobody registered pays "
                         + "nothing, so a line written for an absent mod costs only that line.").add()
-                .appendInherited(new KeyedCodec<>("Params", new MapCodec<>(Codec.STRING, LinkedHashMap::new), false),
+                .appendInherited(new KeyedCodec<>("Params", new MapCodec<>(ScalarStringCodec.INSTANCE, LinkedHashMap::new), false),
                         (o, v) -> o.params = v, o -> o.params, (o, p) -> o.params = p.params)
-                .documentation("The arguments handed to that kind, as text. Which keys mean what is documented "
-                        + "by whoever owns the kind (the built-in item kind reads Item and Count).").add()
+                .documentation("The arguments handed to that kind. Which keys mean what is documented "
+                        + "by whoever owns the kind (the built-in item kind reads Item and Count). A number or "
+                        + "true/false may be written bare (Count: 3); other values take quotes.").add()
                 .build();
 
         public Reward() {

@@ -78,6 +78,22 @@ class CurrencyRewardKindTest {
     }
 
     @Test
+    @DisplayName("a wallet named the older way is still paid, and still replayable")
+    void theOlderWalletParameterSpellingIsRead() throws Exception {
+        RewardSpec spec = RewardSpec.of(CurrencyRewardKind.KIND,
+                Map.of("CurrencyId", "Bounty_Token", "Amount", "60"));
+
+        kinds().handler(CurrencyRewardKind.KIND).grant(spec, SUBJECT);
+
+        assertEquals(60L, engine.balance(SUBJECT, "bounty_token"),
+                "a consumer arriving with content written the older way must not hit the quiet"
+                        + " failure: loads, validates, previews, then pays nothing");
+        assertNotNull(kinds().handler(CurrencyRewardKind.KIND).retryCommand(spec, SUBJECT, "test"),
+                "and a failed one has to be replayable on the same terms, or the retry queue"
+                        + " refuses exactly the rewards that most need it");
+    }
+
+    @Test
     @DisplayName("a wallet nothing defines fails loudly rather than paying nothing quietly")
     void anUndefinedWalletFails() {
         RewardSpec spec = RewardSpec.of(CurrencyRewardKind.KIND,

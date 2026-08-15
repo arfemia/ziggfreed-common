@@ -9,7 +9,7 @@ item-or-counter question is asked.
 | [`CurrencyCatalog`](CurrencyCatalog.java) | which currencies exist; the seam the authoring layer fills, ids matched case-insensitively |
 | [`CurrencyEngine`](CurrencyEngine.java) | `balance` / `credit` / `debit` / `refund` / `set`, plus the death-loss and decay passes |
 | [`ItemWallet`](ItemWallet.java) | how an item-backed balance is read and moved; a seam, so every pure part of the engine is exercisable with no inventory |
-| [`NativeItemWallet`](NativeItemWallet.java) | the real one, over `inventory/InventoryUtil`, resolving the player off the subject's own handle |
+| [`NativeItemWallet`](NativeItemWallet.java) | the real one, over `inventory/InventoryUtil`, resolving the player off the subject's own handle; reads and takes are scoped to backpack + storage + hotbar |
 | [`CurrencyObserver`](CurrencyObserver.java) | who hears about an earn and a spend; guarded, so a throwing listener never reaches the transaction |
 
 ## Rules to keep
@@ -17,6 +17,11 @@ item-or-counter question is asked.
 - **No caller ever branches on backing.** An item-backed currency's balance IS the inventory count;
   a counter-backed one's lives in the commerce store. Every read and write dispatches on that one
   question inside the engine, and nothing above it may ask.
+- **An item-backed balance is what a player CARRIES.** `NativeItemWallet` counts and takes across
+  backpack + storage + hotbar only; armor and utility slots are out of scope, so an offer can never
+  read as affordable off the strength of a helmet and then take the helmet to pay for itself. A
+  `give` still lands across the whole inventory: where a granted item comes to rest is a question
+  about space, not about what may be spent.
 - **An unknown currency is INERT, not an error.** It reads zero, credits nothing, debits nothing,
   with one line saying so. Content naming a currency whose pack is not installed stays dormant
   rather than inventing a balance - the library's standing unknown-id rule.

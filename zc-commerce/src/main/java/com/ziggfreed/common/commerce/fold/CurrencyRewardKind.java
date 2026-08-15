@@ -42,7 +42,17 @@ public final class CurrencyRewardKind implements RewardHandler {
     public static final String OWNER = "ziggfreedcommon";
 
     /** The parameter naming which wallet is paid. */
-    private static final String PARAM_CURRENCY = "currency";
+    static final String PARAM_CURRENCY = "currency";
+
+    /**
+     * The older spelling of that parameter, still read.
+     *
+     * <p>A consumer arriving from its own wallet system will have content written this way, and the
+     * failure it causes is the quiet kind: the file loads, a validator passes it, a preview promises
+     * the payout, and only the handler finds nothing named. Reading both spellings costs one map
+     * lookup and removes that whole class of report, whatever a consumer's own parse seam does.
+     */
+    static final String PARAM_CURRENCY_LEGACY = "currencyid";
 
     /** The parameter saying how much. */
     private static final String PARAM_AMOUNT = "amount";
@@ -55,9 +65,22 @@ public final class CurrencyRewardKind implements RewardHandler {
         kinds.register(KIND, OWNER, new CurrencyRewardKind());
     }
 
+    /**
+     * Which wallet {@code spec} pays, in either spelling, trimmed; empty when it names none.
+     *
+     * <p>Public because a chip painted for a currency reward has to read the same parameter the
+     * payout does. Two readers disagreeing is the shape where a screen promises a payout the grant
+     * then refuses, and one method is what makes that impossible.
+     */
+    @Nonnull
+    public static String walletOf(@Nonnull RewardSpec spec) {
+        String current = spec.paramOr(PARAM_CURRENCY, "").trim();
+        return current.isEmpty() ? spec.paramOr(PARAM_CURRENCY_LEGACY, "").trim() : current;
+    }
+
     @Override
     public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) throws Exception {
-        String currencyId = spec.paramOr(PARAM_CURRENCY, "").trim();
+        String currencyId = walletOf(spec);
         if (currencyId.isEmpty()) {
             throw new IllegalStateException("a reward of kind '" + KIND
                     + "' named no wallet - it needs a 'Currency' parameter");
@@ -93,7 +116,7 @@ public final class CurrencyRewardKind implements RewardHandler {
     @Nullable
     public String retryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
             @Nonnull String sourceId) {
-        String currencyId = spec.paramOr(PARAM_CURRENCY, "").trim();
+        String currencyId = walletOf(spec);
         long amount = spec.longParam(PARAM_AMOUNT, 0L);
         if (currencyId.isEmpty() || amount <= 0L) {
             return null;

@@ -35,6 +35,7 @@ public final class RewardKindValidator {
 
     // Codes, stable so an owner can grep a boot log for one.
     public static final String NO_COMMAND = "REWARDKIND_NO_COMMAND";
+    public static final String PRESENTATION_ONLY = "REWARDKIND_PRESENTATION_ONLY";
     public static final String UNKNOWN_PARAM = "REWARDKIND_UNKNOWN_PARAM";
     public static final String MISSING_REQUIRED_PARAM = "REWARDKIND_MISSING_REQUIRED_PARAM";
     public static final String UNUSED_PARAM = "REWARDKIND_UNUSED_PARAM";
@@ -43,6 +44,21 @@ public final class RewardKindValidator {
     public static final String UNKNOWN_COMMAND = "REWARDKIND_UNKNOWN_COMMAND";
 
     private RewardKindValidator() {
+    }
+
+    /**
+     * Whether a Java-registered, non-command handler already answers this file's id - the probe
+     * that separates decoration from a dud. Reads the process-wide vocabulary directly, like the
+     * command-head check reads the engine's command registry: it is the one place the answer
+     * exists, and a check that cannot ask answers false rather than guessing.
+     */
+    private static boolean decoratesJavaKind(@Nonnull RewardKindAsset asset) {
+        try {
+            RewardHandler handler = RewardKinds.shared().handler(asset.getId());
+            return handler != null && !(handler instanceof CommandRewardKind);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     /** Audit every loaded kind asset. */
@@ -85,9 +101,18 @@ public final class RewardKindValidator {
         }
         String sourceId = asset.authoredId();
         if (asset.isBlank()) {
-            findings.add(Finding.error(DOMAIN, NO_COMMAND,
-                    "This reward kind names no Command, so nothing is registered for it and any reward "
-                            + "written for it pays out nothing. Add a Command, or delete the file.", sourceId));
+            if (decoratesJavaKind(asset)) {
+                // The one legitimate command-less shape: this file gives an already-working
+                // Java-registered kind its authored Presentation, and the payout stays that mod's.
+                findings.add(Finding.info(DOMAIN, PRESENTATION_ONLY,
+                        "This file decorates a Java-registered kind: its Presentation says how that "
+                                + "kind's rewards read, and the payout stays with the mod that "
+                                + "registered it.", sourceId));
+            } else {
+                findings.add(Finding.error(DOMAIN, NO_COMMAND,
+                        "This reward kind names no Command, so nothing is registered for it and any reward "
+                                + "written for it pays out nothing. Add a Command, or delete the file.", sourceId));
+            }
             return findings;
         }
 
@@ -241,7 +266,7 @@ public final class RewardKindValidator {
     /** Every finding code this validator can emit, for a test that pins the vocabulary. */
     @Nonnull
     public static List<String> codes() {
-        return List.of(NO_COMMAND, UNKNOWN_PARAM, MISSING_REQUIRED_PARAM, UNUSED_PARAM,
-                REQUIRED_WITH_DEFAULT, JAVA_BACKED_KIND_SHADOWED, UNKNOWN_COMMAND);
+        return List.of(NO_COMMAND, PRESENTATION_ONLY, UNKNOWN_PARAM, MISSING_REQUIRED_PARAM,
+                UNUSED_PARAM, REQUIRED_WITH_DEFAULT, JAVA_BACKED_KIND_SHADOWED, UNKNOWN_COMMAND);
     }
 }

@@ -38,9 +38,12 @@ import com.ziggfreed.common.util.SafeLog;
  * <h2>An empty kind is skipped, never registered</h2>
  *
  * <p>A kind asset naming no command is left out entirely rather than registered as a handler that
- * does nothing. Shadowing a working kind with a dud is strictly worse than not shadowing at all, and
- * an empty file is far more often a mistake than an intention - {@link RewardKindValidator} reports
- * it as an error either way.
+ * does nothing. Shadowing a working kind with a dud is strictly worse than not shadowing at all.
+ * There is one legitimate command-less shape: a file whose id a JAVA-registered kind already
+ * answers is DECORATION - it exists to give that kind an authored {@code Presentation} (how its
+ * rewards read on a chip) without taking the payout over, so it is skipped QUIETLY and
+ * {@link RewardKindValidator} reports it as an informational note. A command-less file whose id
+ * nothing answers stays the loud case it always was, because that one really does pay nothing.
  */
 public final class RewardKindFold {
 
@@ -101,8 +104,13 @@ public final class RewardKindFold {
             String authoredId = asset.authoredId();
             if (asset.isBlank()) {
                 skipped.add(authoredId);
-                report(warn, "[reward-kind] '" + authoredId + "' names no command, so it was not registered"
-                        + " and pays out nothing. Add a Command, or delete the file.");
+                RewardHandler existing = kinds.handler(asset.getId());
+                if (existing == null || existing instanceof CommandRewardKind) {
+                    report(warn, "[reward-kind] '" + authoredId + "' names no command, so it was not registered"
+                            + " and pays out nothing. Add a Command, or delete the file.");
+                }
+                // A Java-registered id keeps paying as before; the command-less file is that kind's
+                // authored Presentation, read by every chip surface, and nothing to warn about.
                 continue;
             }
             // A kind this fold already registered on an earlier pass is not a shadow: an asset
