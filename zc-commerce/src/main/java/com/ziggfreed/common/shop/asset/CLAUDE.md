@@ -5,7 +5,7 @@ how a family of offers is written as one file, and what a content audit reports.
 knows none of this.
 
 Store paths (registered ONCE by the root `asset/FrameworkAssetRegistrar`, common OWNS them):
-- `Server/ZiggfreedCommon/Shops/<ns>/<Id>.json` -> `ShopAsset` -> `ShopConfig`
+- `Server/ZiggfreedCommon/Shops/<ns>/<Id>.json` -> `StorefrontAsset` -> `ShopConfig`
 - `Server/ZiggfreedCommon/ShopPools/<ns>/<Id>.json` -> `ShopPoolAsset` -> `ShopPoolConfig`
 - `Server/ZiggfreedCommon/ShopEntries/<ns>/<Id>.json` -> `ShopEntryAsset` -> `ShopAssetStore`
 - `Server/ZiggfreedCommon/ShopEntryGenerators/<ns>/<Id>.json` -> `ShopEntryGeneratorAsset` (loads
@@ -38,7 +38,7 @@ registers are the SAME ones the quest generators read - see
 
 | Class | What it is |
 |---|---|
-| `ShopAsset` | one storefront: text, icon, order, the header wallets, the shelf order, `Requires`, `Where` |
+| `StorefrontAsset` | one storefront: text, icon, order, the header wallets, the shelf order, `Requires`, `Where` |
 | `ShopPoolAsset` | one rotating shelf: the shared `Rotation` / `Selection` / `Reroll` groups plus its slots |
 | `PoolSlotAsset` | one slot of a shelf: the shared slot leaves plus `Tier` |
 | `ShopEntryAsset` (+ `.Listing`/`.Limits`/`.PoolMembership`) | one offer: price, payout, limits, shelf membership, gate |

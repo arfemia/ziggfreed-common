@@ -50,7 +50,7 @@ import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
 import com.ziggfreed.common.commerce.fold.CommerceOwnerLayers;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
-import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopAssetStore;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
@@ -353,11 +353,11 @@ public final class FrameworkAssetRegistrar {
         //     shows, the order its shelves read in. What is for sale is a file per offer naming it,
         //     so adding one thing to a shop never means editing the shop. Owner layer
         //     mods/ziggfreedcommon/shops.json, re-read on the same event and for the same reason. ---
-        AssetStoreRegistrar.registerStore(ShopAsset.class,
-                new DefaultAssetMap<String, ShopAsset>(), ShopAsset.TYPE_ROOT,
-                ShopAsset::getId, ShopAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ShopAsset.class,
-                (LoadedAssetsEvent<String, ShopAsset, DefaultAssetMap<String, ShopAsset>> ev) -> {
+        AssetStoreRegistrar.registerStore(StorefrontAsset.class,
+                new DefaultAssetMap<String, StorefrontAsset>(), StorefrontAsset.TYPE_ROOT,
+                StorefrontAsset::getId, StorefrontAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, StorefrontAsset.class,
+                (LoadedAssetsEvent<String, StorefrontAsset, DefaultAssetMap<String, StorefrontAsset>> ev) -> {
                     ShopConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     CommerceOwnerLayers.reloadShops();
                 });

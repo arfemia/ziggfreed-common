@@ -14,7 +14,7 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BountyAsset;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
-import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
 
@@ -37,9 +37,9 @@ final class CommerceFoldFixtures {
     }
 
     @Nonnull
-    static ShopAsset shop(@Nonnull String path) throws IOException {
-        return ShopAsset.CODEC.decodeAndInheritJsonAsset(reader(path), null,
-                new AssetExtraInfo<>(new AssetExtraInfo.Data(ShopAsset.class, idOf(path), null)));
+    static StorefrontAsset shop(@Nonnull String path) throws IOException {
+        return StorefrontAsset.CODEC.decodeAndInheritJsonAsset(reader(path), null,
+                new AssetExtraInfo<>(new AssetExtraInfo.Data(StorefrontAsset.class, idOf(path), null)));
     }
 
     @Nonnull

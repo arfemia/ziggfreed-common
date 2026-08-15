@@ -15,7 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardConfig;
-import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -138,8 +138,8 @@ public final class CommercePages {
     @Nullable
     public static String firstShopId() {
         try {
-            List<ShopAsset> listed = ShopConfig.getInstance().listed();
-            for (ShopAsset asset : listed) {
+            List<StorefrontAsset> listed = ShopConfig.getInstance().listed();
+            for (StorefrontAsset asset : listed) {
                 if (asset != null && asset.isEnabled() && asset.getId() != null) {
                     return asset.getId();
                 }

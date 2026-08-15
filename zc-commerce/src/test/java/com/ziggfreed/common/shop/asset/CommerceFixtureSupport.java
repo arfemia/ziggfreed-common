@@ -26,9 +26,9 @@ final class CommerceFixtureSupport {
     }
 
     @Nonnull
-    static ShopAsset shop(@Nonnull String json, @Nonnull String id) throws IOException {
-        AssetExtraInfo.Data data = new AssetExtraInfo.Data(ShopAsset.class, id, null);
-        return ShopAsset.CODEC.decodeAndInheritJsonAsset(
+    static StorefrontAsset shop(@Nonnull String json, @Nonnull String id) throws IOException {
+        AssetExtraInfo.Data data = new AssetExtraInfo.Data(StorefrontAsset.class, id, null);
+        return StorefrontAsset.CODEC.decodeAndInheritJsonAsset(
                 RawJsonReader.fromJsonString(json), null, new AssetExtraInfo<>(data));
     }
 

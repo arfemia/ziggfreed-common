@@ -39,7 +39,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.shop.PurchaseLimits;
 import com.ziggfreed.common.shop.ShopEngine;
 import com.ziggfreed.common.shop.ShopOffer;
-import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.UiRetint;
@@ -161,7 +161,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         builtRowOrder.clear();
         shelfOf.clear();
 
-        ShopAsset asset = ShopConfig.getInstance().resolve(shopId);
+        StorefrontAsset asset = ShopConfig.getInstance().resolve(shopId);
         cmd.set("#ShopTitle.TextSpans", CommerceText.title(asset == null ? null : asset.getText(),
                 deps.titleArgs(), text("shop.title")));
         setIcon(cmd, "#ShopIconSlot", "#ShopIcon", asset == null ? null : asset.getIcon());
@@ -271,7 +271,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
      */
     @Nonnull
     private List<Run> runsOf(@Nonnull ShopEngine engine, @Nonnull Subject subject,
-            @Nullable ShopAsset asset, long now) {
+            @Nullable StorefrontAsset asset, long now) {
         List<Run> runs = new ArrayList<>();
         List<String> shelved = new ArrayList<>();
         for (ShelfSpec shelf : CommerceCatalogs.shelvesOf(shopId)) {

@@ -19,7 +19,7 @@ import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.quest.asset.QuestDefinition;
-import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
 
@@ -37,9 +37,9 @@ class CommerceCodecTest {
                 RawJsonReader.fromJsonString(json), parent, new AssetExtraInfo<>(data));
     }
 
-    static ShopAsset shop(String json, String id) throws IOException {
-        AssetExtraInfo.Data data = new AssetExtraInfo.Data(ShopAsset.class, id, null);
-        return ShopAsset.CODEC.decodeAndInheritJsonAsset(
+    static StorefrontAsset shop(String json, String id) throws IOException {
+        AssetExtraInfo.Data data = new AssetExtraInfo.Data(StorefrontAsset.class, id, null);
+        return StorefrontAsset.CODEC.decodeAndInheritJsonAsset(
                 RawJsonReader.fromJsonString(json), null, new AssetExtraInfo<>(data));
     }
 

@@ -75,13 +75,13 @@ public final class ShopValidator {
      */
     @Nonnull
     public static List<Finding> validate(@Nonnull Map<String, ShopEntryAsset> entries,
-            @Nonnull Map<String, ShopAsset> shops, @Nonnull Map<String, ShopPoolAsset> pools,
+            @Nonnull Map<String, StorefrontAsset> shops, @Nonnull Map<String, ShopPoolAsset> pools,
             @Nullable CurrencyProbe currencies, @Nullable Predicate<String> rewardKinds,
             @Nullable GateKindRegistry gateKinds, @Nullable Predicate<String> knownFactors) {
 
         List<Finding> out = new ArrayList<>();
 
-        for (Map.Entry<String, ShopAsset> entry : shops.entrySet()) {
+        for (Map.Entry<String, StorefrontAsset> entry : shops.entrySet()) {
             if (entry.getValue() != null) {
                 validateShop(entry.getKey(), entry.getValue(), currencies, gateKinds, knownFactors, out);
             }
@@ -102,7 +102,7 @@ public final class ShopValidator {
 
     // ==================== storefronts ====================
 
-    private static void validateShop(@Nonnull String id, @Nonnull ShopAsset shop,
+    private static void validateShop(@Nonnull String id, @Nonnull StorefrontAsset shop,
             @Nullable CurrencyProbe currencies, @Nullable GateKindRegistry gateKinds,
             @Nullable Predicate<String> knownFactors, @Nonnull List<Finding> out) {
 
@@ -130,7 +130,7 @@ public final class ShopValidator {
     // ==================== shelves ====================
 
     private static void validatePool(@Nonnull String id, @Nonnull ShopPoolAsset pool,
-            @Nonnull Map<String, ShopAsset> shops, @Nonnull Map<String, ShopEntryAsset> entries,
+            @Nonnull Map<String, StorefrontAsset> shops, @Nonnull Map<String, ShopEntryAsset> entries,
             @Nullable CurrencyProbe currencies, @Nonnull List<Finding> out) {
 
         String shopId = pool.getShop();
@@ -220,7 +220,7 @@ public final class ShopValidator {
     // ==================== offers ====================
 
     private static void validateEntry(@Nonnull String id, @Nonnull ShopEntryAsset offer,
-            @Nonnull Map<String, ShopAsset> shops, @Nonnull Map<String, ShopPoolAsset> pools,
+            @Nonnull Map<String, StorefrontAsset> shops, @Nonnull Map<String, ShopPoolAsset> pools,
             @Nullable CurrencyProbe currencies, @Nullable Predicate<String> rewardKinds,
             @Nullable GateKindRegistry gateKinds, @Nullable Predicate<String> knownFactors,
             @Nonnull List<Finding> out) {

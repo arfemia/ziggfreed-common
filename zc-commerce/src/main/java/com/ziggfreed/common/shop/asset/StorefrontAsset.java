@@ -57,7 +57,7 @@ import com.ziggfreed.common.world.WorldSelector;
  * later pack or in the owner layer {@code mods/ziggfreedcommon/shops.json}), or ship your own with
  * {@code Parent} set to theirs and author only what you change.
  */
-public final class ShopAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, ShopAsset>> {
+public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, StorefrontAsset>> {
 
     /** The store's content path; the folders below it are the author's own grouping. */
     public static final String TYPE_ROOT = "ZiggfreedCommon/Shops";
@@ -75,9 +75,9 @@ public final class ShopAsset implements JsonAssetWithMap<String, DefaultAssetMap
     @Nullable private WorldSelector where;
     @Nullable private Map<String, JsonElement> meta;
 
-    public static final AssetBuilderCodec<String, ShopAsset> CODEC = AssetBuilderCodec.builder(
-                    ShopAsset.class,
-                    ShopAsset::new,
+    public static final AssetBuilderCodec<String, StorefrontAsset> CODEC = AssetBuilderCodec.builder(
+                    StorefrontAsset.class,
+                    StorefrontAsset::new,
                     Codec.STRING,
                     (a, id) -> a.id = id == null ? null : id.toLowerCase(Locale.ROOT),
                     a -> a.id,
@@ -139,7 +139,7 @@ public final class ShopAsset implements JsonAssetWithMap<String, DefaultAssetMap
             .add()
             .build();
 
-    public ShopAsset() {
+    public StorefrontAsset() {
     }
 
     @Override

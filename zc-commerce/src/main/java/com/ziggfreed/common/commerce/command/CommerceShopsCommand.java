@@ -14,7 +14,7 @@ import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
 import com.ziggfreed.common.commerce.fold.CommerceFold;
 import com.ziggfreed.common.commerce.fold.ShopEntryOffer;
 import com.ziggfreed.common.rotation.RotationSpec;
-import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
@@ -47,13 +47,13 @@ final class CommerceShopsCommand extends AbstractAsyncCommand {
     protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx) {
         long nowMs = System.currentTimeMillis();
         String wanted = shopArg.provided(ctx) ? shopArg.get(ctx) : null;
-        List<ShopAsset> shops = ShopConfig.getInstance().listed();
+        List<StorefrontAsset> shops = ShopConfig.getInstance().listed();
         CommerceAdminMessages.heading(ctx, "shops.header", shops.size());
         if (shops.isEmpty()) {
             CommerceAdminMessages.detail(ctx, "shops.none");
             return CompletableFuture.completedFuture(null);
         }
-        for (ShopAsset shop : shops) {
+        for (StorefrontAsset shop : shops) {
             String shopId = shop.getId();
             if (shopId == null || (wanted != null && !wanted.equalsIgnoreCase(shopId))) {
                 continue;

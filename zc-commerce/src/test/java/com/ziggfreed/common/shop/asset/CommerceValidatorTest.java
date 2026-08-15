@@ -46,7 +46,7 @@ class CommerceValidatorTest {
         return CommerceFixtureSupport.pool(json, id);
     }
 
-    static ShopAsset shop(String json, String id) throws IOException {
+    static StorefrontAsset shop(String json, String id) throws IOException {
         return CommerceFixtureSupport.shop(json, id);
     }
 

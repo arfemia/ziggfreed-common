@@ -23,7 +23,7 @@ import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
-import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
@@ -102,7 +102,7 @@ public final class CommerceOwnerLayers {
 
     /** (Re)read {@code shops.json} into the storefront fold's owner layer. */
     public static void reloadShops() {
-        apply(SHOPS_FILE, ShopAsset.class, ShopAsset.CODEC, ShopConfig.getInstance(), "storefront");
+        apply(SHOPS_FILE, StorefrontAsset.class, StorefrontAsset.CODEC, ShopConfig.getInstance(), "storefront");
     }
 
     /** (Re)read {@code boards.json} into the board fold's owner layer. */

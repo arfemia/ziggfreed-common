@@ -58,7 +58,7 @@ import com.ziggfreed.common.progress.asset.GeneratorAxisAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.shop.asset.PoolSlotAsset;
-import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryGeneratorAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
@@ -234,7 +234,7 @@ class AssetCodecInitTest {
 
     @Test
     void shopCodecsInitialize() {
-        assertNotNull(ShopAsset.CODEC, "ShopAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(StorefrontAsset.CODEC, "StorefrontAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(ShopPoolAsset.CODEC, "ShopPoolAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(PoolSlotAsset.CODEC, "PoolSlotAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(ShopEntryAsset.CODEC, "ShopEntryAsset.CODEC must static-init (PascalCase keys)");

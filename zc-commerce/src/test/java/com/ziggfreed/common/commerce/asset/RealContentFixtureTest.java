@@ -30,7 +30,7 @@ import com.ziggfreed.common.factor.DerivedFactorValidator;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.asset.QuestDefinition;
-import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
 import com.ziggfreed.common.validation.Finding;
@@ -71,10 +71,10 @@ class RealContentFixtureTest {
                 new AssetExtraInfo<>(new AssetExtraInfo.Data(CurrencyAsset.class, id, null)));
     }
 
-    private static ShopAsset shop(String path) throws IOException {
+    private static StorefrontAsset shop(String path) throws IOException {
         String id = idOf(path);
-        return ShopAsset.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString(read(path)), null,
-                new AssetExtraInfo<>(new AssetExtraInfo.Data(ShopAsset.class, id, null)));
+        return StorefrontAsset.CODEC.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString(read(path)), null,
+                new AssetExtraInfo<>(new AssetExtraInfo.Data(StorefrontAsset.class, id, null)));
     }
 
     private static ShopPoolAsset pool(String path) throws IOException {
@@ -267,7 +267,7 @@ class RealContentFixtureTest {
 
         @Test
         void theGeneralStorefrontKeepsItsHeaderAndItsShelfOrder() throws Exception {
-            ShopAsset general = shop("Shops/MMOSkillTree/General.json");
+            StorefrontAsset general = shop("Shops/MMOSkillTree/General.json");
 
             assertEquals("general", general.getId());
             assertEquals(List.of("bounty_token", "life_essence"), general.currencyIds());

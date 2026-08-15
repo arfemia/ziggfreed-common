@@ -9,7 +9,7 @@ import javax.annotation.Nonnull;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 
 /**
- * The {@code defaults < pack < owner} fold of every {@link ShopAsset}: which storefronts this server
+ * The {@code defaults < pack < owner} fold of every {@link StorefrontAsset}: which storefronts this server
  * has.
  *
  * <p>Process-wide because the defining ASSETS are: one folder, one set of files, however many mods
@@ -17,7 +17,7 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
  * {@code mods/ziggfreedcommon/shops.json} - closing a shop, reordering its shelves, changing which
  * wallets its header shows - without editing anybody's pack.
  */
-public final class ShopConfig extends AbstractKeyedAssetConfig<ShopAsset> {
+public final class ShopConfig extends AbstractKeyedAssetConfig<StorefrontAsset> {
 
     private static final ShopConfig INSTANCE = new ShopConfig();
 
@@ -34,15 +34,15 @@ public final class ShopConfig extends AbstractKeyedAssetConfig<ShopAsset> {
      * then by id so two storefronts sharing a number never swap places between restarts.
      */
     @Nonnull
-    public List<ShopAsset> listed() {
-        List<ShopAsset> out = new ArrayList<>();
+    public List<StorefrontAsset> listed() {
+        List<StorefrontAsset> out = new ArrayList<>();
         for (String id : ids()) {
-            ShopAsset shop = resolve(id);
+            StorefrontAsset shop = resolve(id);
             if (shop != null && shop.isEnabled()) {
                 out.add(shop);
             }
         }
-        out.sort(Comparator.comparingInt(ShopAsset::order)
+        out.sort(Comparator.comparingInt(StorefrontAsset::order)
                 .thenComparing(shop -> shop.getId() == null ? "" : shop.getId()));
         return out;
     }

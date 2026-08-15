@@ -21,7 +21,7 @@ import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
-import com.ziggfreed.common.shop.asset.ShopAsset;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 
 /**
@@ -75,13 +75,13 @@ class CommerceOwnerLayersTest {
     @Test
     @DisplayName("an override writes one leaf and keeps every other one the pack wrote")
     void anOverrideIsLeafByLeaf() throws IOException {
-        ShopAsset packVersion = ShopConfig.getInstance().resolve("general");
+        StorefrontAsset packVersion = ShopConfig.getInstance().resolve("general");
         write(CommerceOwnerLayers.SHOPS_FILE, """
                 { "general": { "Enabled": false } }
                 """);
 
         CommerceOwnerLayers.reloadShops();
-        ShopAsset owned = ShopConfig.getInstance().resolve("general");
+        StorefrontAsset owned = ShopConfig.getInstance().resolve("general");
 
         assertNotNull(owned);
         assertFalse(owned.isEnabled(), "the owner closed the shop");
