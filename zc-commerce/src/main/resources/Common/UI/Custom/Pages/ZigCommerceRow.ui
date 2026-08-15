@@ -58,7 +58,7 @@ Group #ZigCommerceRow {
       Text: "";
       Visible: false;
       Anchor: (Width: 88, Height: 36);
-      Style: (FontSize: 11, TextColor: #96a9be, HorizontalAlignment: Right, VerticalAlignment: Center);
+      Style: (FontSize: 11, TextColor: #96a9be, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
