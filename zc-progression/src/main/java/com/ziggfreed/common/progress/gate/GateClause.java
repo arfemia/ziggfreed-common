@@ -38,9 +38,11 @@ import com.ziggfreed.common.factor.FactorCondition;
  *       short, evaluated by that same lookup, so the two forms are one requirement with one answer.
  *       Where there is nobody to ask - no live player behind the subject, or a blank node - it
  *       refuses, like any other reading that cannot be taken.</li>
- *   <li><b>{@code Quests}</b> - quest ids that must already be finished. It is a built-in leaf
- *       rather than a registered kind because finished content is something this library owns
- *       the answer to, through the completion probe a consumer wires once.</li>
+ *   <li><b>{@code Quests}</b> - quest ids the player must have finished AND collected the reward
+ *       for (stored status {@code COMPLETED}); a quest still waiting in {@code
+ *       COMPLETED_UNCLAIMED} does not satisfy it. It is a built-in leaf rather than a registered
+ *       kind because a completed quest is something this library owns the answer to, through the
+ *       completion probe a consumer wires once.</li>
  *   <li><b>{@code Custom}</b> - requirement kinds a mod registered under its own namespaced id,
  *       keyed by that id, each carrying whatever parameters the kind documents. This is how a
  *       friendlier form ("the player is this far along in this trade") is authored without every
@@ -82,7 +84,9 @@ public class GateClause {
                         + "answer; where nobody can be asked, it refuses and the content stays locked.").add()
                 .appendInherited(new KeyedCodec<>("Quests", Codec.STRING_ARRAY, false),
                         (o, v) -> o.quests = v, o -> o.quests, (o, p) -> o.quests = p.quests)
-                .documentation("Quest ids that must already be finished. Use it to chain a story in order "
+                .documentation("Quest ids the player must have finished AND collected the reward for (stored "
+                        + "status COMPLETED); a quest sitting finished-but-unclaimed, which is where an "
+                        + "AutoClaim: false quest waits, does not satisfy it. Use it to chain a story in order "
                         + "instead of hiding every later step behind a separate flag.").add()
                 .appendInherited(new KeyedCodec<>("Custom",
                                 new InheritMapCodec<>(new InheritMapCodec<>(ScalarStringCodec.INSTANCE)), false),

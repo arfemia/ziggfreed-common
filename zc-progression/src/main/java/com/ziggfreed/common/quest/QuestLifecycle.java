@@ -210,7 +210,16 @@ public final class QuestLifecycle {
         return status == QuestStatus.ACTIVE;
     }
 
-    /** True when the objectives are done, whether or not the reward has been taken. */
+    /**
+     * True when the objectives are done, whether or not the reward has been taken.
+     *
+     * <p><b>This is not what a PREREQUISITE asks.</b> A {@code Requires} block's {@code Quests} leaf
+     * and the {@code ziggfreedcommon:quest_completed} factor are both satisfied only by
+     * {@link QuestStatus#COMPLETED}, so a quest waiting to be collected does not open a gate. Use
+     * this one where "are the objectives behind them" is genuinely the question - a surface deciding
+     * whether to still show a progress bar, for instance - and compare against
+     * {@link QuestStatus#COMPLETED} where the question is whether the quest is finished with.
+     */
     public static boolean isFinished(@Nullable QuestStatus status) {
         return status == QuestStatus.COMPLETED || status == QuestStatus.COMPLETED_UNCLAIMED;
     }

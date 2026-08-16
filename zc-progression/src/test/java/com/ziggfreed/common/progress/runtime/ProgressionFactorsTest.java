@@ -280,8 +280,10 @@ class ProgressionFactorsTest {
             ProgressionRuntime.defaults("test")
                     .questStore(quests)
                     .achievementStore(achievements);
-            ProgressionRuntime.publishQuests("test",
-                    List.of(Quest.builder("done").build(), Quest.builder("todo").build()));
+            ProgressionRuntime.publishQuests("test", List.of(
+                    Quest.builder("done").build(),
+                    Quest.builder("todo").build(),
+                    Quest.builder("uncollected").build()));
             ProgressionRuntime.publishAchievements("test", List.of(
                     Achievement.builder("earned").points(25).build(),
                     Achievement.builder("locked").points(15).build()));
@@ -337,6 +339,30 @@ class ProgressionFactorsTest {
 
             assertFalse(gate.passes(PLAYER, requiresQuests("todo")));
             assertEquals(0.0, resolve(ProgressionFactors.QUEST_COMPLETED, "todo"));
+        }
+
+        /**
+         * The half of that agreement it is easiest to get wrong. A quest whose objectives are done
+         * but whose reward is still sitting there uncollected - where an {@code AutoClaim: false}
+         * quest lives between finishing it and taking the payout - is not yet a prerequisite,
+         * whichever way the requirement was written.
+         */
+        @Test
+        void aQuestFinishedButNotCollectedIsNotYetAPrerequisite() {
+            GateEvaluator gate = GateEvaluator.builder().factors(factors).build();
+            AssetQuestGates gates = AssetQuestGates.of(gate);
+            gates.useEngine(ProgressionRuntime.quests());
+            quests.setStatus(PLAYER, "uncollected", QuestStatus.COMPLETED_UNCLAIMED);
+
+            assertFalse(gate.passes(PLAYER, requiresQuests("uncollected")),
+                    "the leaf must wait for the reward to be collected");
+            assertEquals(0.0, resolve(ProgressionFactors.QUEST_COMPLETED, "uncollected"),
+                    "and the factor must say the same thing about the same player");
+
+            quests.setStatus(PLAYER, "uncollected", QuestStatus.COMPLETED);
+
+            assertTrue(gate.passes(PLAYER, requiresQuests("uncollected")));
+            assertEquals(1.0, resolve(ProgressionFactors.QUEST_COMPLETED, "uncollected"));
         }
 
         @Test

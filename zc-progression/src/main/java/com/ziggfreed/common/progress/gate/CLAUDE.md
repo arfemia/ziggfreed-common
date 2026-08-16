@@ -56,7 +56,7 @@ by a pinned agreement where it is not:
 | leaf | the same requirement as a factor condition | how they meet |
 |---|---|---|
 | `Permission: "yourmod.vip"` | `{"Factor": "hytale:permission", "Param": "yourmod.vip", "Min": 1}` | ONE code path: the leaf is evaluated AS the condition |
-| `Quests: ["intro_1"]` | `{"Factor": "ziggfreedcommon:quest_completed", "Param": "intro_1", "Min": 1}` | two paths, both over the STORED status, agreement pinned by a test |
+| `Quests: ["intro_1"]` | `{"Factor": "ziggfreedcommon:quest_completed", "Param": "intro_1", "Min": 1}` | two paths, both asking for the stored status `COMPLETED` (a CLAIMED quest), agreement pinned by a test |
 | (no leaf) an earned achievement | `{"Factor": "ziggfreedcommon:achievement_earned", "Param": "first_blood", "Min": 1}` | factor only |
 | (no leaf) a level | `{"Factor": "hytale:stat", "Param": "<a mirrored stat channel>", "Min": 30}` | factor only |
 
@@ -85,8 +85,20 @@ condition. What follows from that:
   the id is resolved through the registry at evaluation time exactly as an authored id is - which is
   what makes this the same requirement rather than two that happen to agree.
 
-Both completion routes still bottom out in `QuestLifecycle.isFinished` over the STORED status, and
-those two ARE separate pieces of code, so their agreement is pinned by a test rather than assumed
-(`ProgressionFactorsTest`). The permission pair needs no such pin for correctness and carries one
-anyway (`QuestGateTest`), because the day somebody re-grows a second answer here is the day it should
-fail the build.
+### A completion prerequisite means a CLAIMED quest
+
+Both completion routes ask for the stored status `COMPLETED` and nothing else. A quest sitting in
+`COMPLETED_UNCLAIMED` - objectives done, reward not yet taken, which is exactly where a quest
+authored `AutoClaim: false` waits - satisfies NEITHER the `Quests` leaf nor the
+`ziggfreedcommon:quest_completed` factor. Write either spelling and a player who has finished a quest
+but walked away without collecting it is still held back, in both places, until they collect.
+
+That is the stricter of the two possible readings, and it is the one both use so an author never has
+to know which spelling they picked. `QuestLifecycle.isFinished` (`COMPLETED || COMPLETED_UNCLAIMED`)
+answers a different question - "are the objectives behind them" - and is deliberately not what a
+prerequisite consults.
+
+The two routes ARE separate pieces of code, so their agreement is pinned by a test rather than
+assumed (`ProgressionFactorsTest`). The permission pair needs no such pin for correctness and carries
+one anyway (`QuestGateTest`), because the day somebody re-grows a second answer here is the day it
+should fail the build.

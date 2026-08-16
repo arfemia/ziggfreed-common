@@ -11,8 +11,8 @@ import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorContributions;
 import com.ziggfreed.common.factor.FactorProvider;
 import com.ziggfreed.common.factor.FactorRegistry;
-import com.ziggfreed.common.quest.QuestLifecycle;
 import com.ziggfreed.common.quest.QuestProgressStore;
+import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -38,7 +38,7 @@ import com.ziggfreed.common.subject.Subject;
  *   <caption>The progression factor ids</caption>
  *   <tr><th>Id</th><th>Param</th><th>Value</th></tr>
  *   <tr><td>{@code ziggfreedcommon:quest_completed}</td><td>a quest id</td>
- *       <td>1 when the player has EVER finished it, else 0</td></tr>
+ *       <td>1 when the player has EVER finished AND collected it, else 0</td></tr>
  *   <tr><td>{@code ziggfreedcommon:quest_completions}</td><td>a quest id</td>
  *       <td>how many times they have finished it, ever</td></tr>
  *   <tr><td>{@code ziggfreedcommon:achievement_earned}</td><td>an achievement id</td>
@@ -61,16 +61,25 @@ import com.ziggfreed.common.subject.Subject;
  *
  * <p><b>The reads are narrow by construction.</b> {@link Reads} names six questions, all of them
  * answers about a player, and nothing here can accept a quest, pay one out or touch a store - the
- * same discipline {@code QuestStateReader} exists to keep for a conversation. "Has this player
- * finished this quest" means the STORED status, the identical rule a {@code Requires} block's
- * {@code Quests} prerequisite is answered by, so both spellings of that requirement agree.
+ * same discipline {@code QuestStateReader} exists to keep for a conversation.
+ *
+ * <p><b>A finished quest means a CLAIMED one, both ways it can be written.</b> A {@code Requires}
+ * block's {@code Quests} prerequisite and the {@code ziggfreedcommon:quest_completed} factor are
+ * both satisfied only by the stored status {@code COMPLETED}. A quest sitting in
+ * {@code COMPLETED_UNCLAIMED} - objectives done, reward not collected, which is where a quest
+ * authored {@code AutoClaim: false} lives until the player takes their payout - satisfies NEITHER.
+ * That is the stricter of the two readings, chosen so an author writing either spelling gets the
+ * same answer about the same player at the same instant.
  */
 public final class ProgressionFactors {
 
     /** Who these registrations are attributed to in the registry ledger. */
     public static final String OWNER = "ziggfreedcommon";
 
-    /** {@code ziggfreedcommon:quest_completed} - 1 when the quest named by Param is finished. */
+    /**
+     * {@code ziggfreedcommon:quest_completed} - 1 when the quest named by Param is finished AND its
+     * reward collected (stored status {@code COMPLETED}).
+     */
     public static final String QUEST_COMPLETED = "ziggfreedcommon:quest_completed";
 
     /** {@code ziggfreedcommon:quest_completions} - lifetime completions of the quest named by Param. */
@@ -145,7 +154,12 @@ public final class ProgressionFactors {
         /** Does any catalogued quest carry this id? */
         boolean questKnown(@Nonnull String questId);
 
-        /** Has this subject EVER finished this quest - claimed or not, cooldown or not? */
+        /**
+         * Has this subject finished this quest AND collected what it paid - the stored status
+         * {@code COMPLETED}, on cooldown or not? A quest whose objectives are done but whose reward
+         * is still waiting to be taken answers {@code false}: a prerequisite is met once the quest
+         * is behind the player, not the moment its last objective ticks over.
+         */
         boolean questFinished(@Nonnull Subject subject, @Nonnull String questId);
 
         /**
@@ -182,8 +196,8 @@ public final class ProgressionFactors {
                 if (!ProgressionRuntime.isBuilt()) {
                     return false;
                 }
-                return QuestLifecycle.isFinished(
-                        ProgressionRuntime.quests().store().status(subject, questId));
+                return ProgressionRuntime.quests().store().status(subject, questId)
+                        == QuestStatus.COMPLETED;
             }
 
             @Override
@@ -257,13 +271,16 @@ public final class ProgressionFactors {
     // ==================== providers ====================
 
     /**
-     * {@code 1} when this player has ever finished the quest named by {@code Param}, {@code 0} when
-     * they have not, {@code null} when nothing on this server knows that quest id (or there is no
-     * player in the question).
+     * {@code 1} when this player has ever finished AND collected the quest named by {@code Param},
+     * {@code 0} when they have not, {@code null} when nothing on this server knows that quest id (or
+     * there is no player in the question).
      *
-     * <p>Finished means the STORED status, so a repeatable sitting on its cooldown still reads
-     * {@code 1} - "have you ever done this" is what a requirement asks, and it is the same answer
-     * the {@code Requires} block's {@code Quests} prerequisite gives for the same quest.
+     * <p>Finished means the STORED status {@code COMPLETED}, so a repeatable sitting on its cooldown
+     * still reads {@code 1} - "have you ever done this" is what a requirement asks - while a quest
+     * whose objectives are done and whose reward is still uncollected reads {@code 0}. That is the
+     * same answer the {@code Requires} block's {@code Quests} prerequisite gives for the same quest,
+     * which is the point: an author who writes the leaf and an author who writes the condition are
+     * asking for one thing.
      *
      * <p>The record is consulted BEFORE the catalogue on purpose: a player who finished a quest that
      * has since been retired from the content still finished it, and hiding that behind a catalogue

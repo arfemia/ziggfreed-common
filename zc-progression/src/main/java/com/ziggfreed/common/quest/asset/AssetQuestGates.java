@@ -10,7 +10,7 @@ import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestGates;
-import com.ziggfreed.common.quest.QuestLifecycle;
+import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -63,12 +63,14 @@ public final class AssetQuestGates implements QuestGates {
 
     /**
      * Let the gates answer {@code Requires.Quests} out of the engine's own records: a prerequisite
-     * counts as met once that quest has been finished, claimed or not. Without this, and without a
-     * completion probe wired on the evaluator, a prerequisite refuses.
+     * counts as met once that quest's STORED status is {@code COMPLETED}, meaning it is finished
+     * AND its reward has been collected. A quest waiting in {@code COMPLETED_UNCLAIMED} does not
+     * satisfy it. Without this, and without a completion probe wired on the evaluator, a
+     * prerequisite refuses.
      *
      * <p>It reads the STORED status rather than the effective one, so a repeatable prerequisite
-     * still counts as done while it sits on cooldown - "have you ever finished this" is the
-     * question a prerequisite asks.
+     * still counts as done while it sits on cooldown - "have you ever finished and
+     * collected this" is the question a prerequisite asks.
      */
     public void useEngine(@Nullable QuestEngine engine) {
         this.engine.set(engine);
@@ -111,17 +113,20 @@ public final class AssetQuestGates implements QuestGates {
      * The completion probe {@link #useEngine} installs. It is kept here rather than on the
      * evaluator so a consumer that never sets an engine still gets the fail-closed default.
      *
-     * <p>What counts as finished is {@link QuestLifecycle#isFinished}, the ONE rule - the same one
-     * the {@code ziggfreedcommon:quest_completed} factor reading answers with - so a prerequisite
-     * written as a {@code Quests} leaf and the same requirement written as a factor condition can
-     * never disagree about one player and one quest.
+     * <p><b>What counts as finished is the stored status {@link QuestStatus#COMPLETED}: the quest is
+     * done AND its reward has been collected.</b> A quest still sitting in
+     * {@link QuestStatus#COMPLETED_UNCLAIMED} - where a quest authored {@code AutoClaim: false}
+     * waits until the player takes their payout - does NOT satisfy a prerequisite. The
+     * {@code ziggfreedcommon:quest_completed} factor reading answers with the same rule, so a
+     * prerequisite written as a {@code Quests} leaf and the same requirement written as a factor
+     * condition can never disagree about one player and one quest.
      */
     @Nonnull
     GateEvaluator.CompletionProbe completionProbe() {
         return (subject, questId) -> {
             QuestEngine current = engine.get();
             return current != null
-                    && QuestLifecycle.isFinished(current.store().status(subject, questId));
+                    && current.store().status(subject, questId) == QuestStatus.COMPLETED;
         };
     }
 }

@@ -82,8 +82,10 @@ Two rules hold them honest, both pinned by `ProgressionFactorsTest`:
   conversation - so nothing here can accept, pay out or write.
 - **An id nothing knows answers nothing.** Record first, catalogue second, then null. A typo must
   never read as "they have not done it", which would open a bounds-less gate authored to mean "only
-  where that content exists". "Finished" is `QuestLifecycle.isFinished`, the same rule the
-  `Requires` block's `Quests` prerequisite is answered by, so the two spellings cannot disagree.
+  where that content exists". "Finished" is the stored status `COMPLETED` - the quest is done AND its
+  reward has been collected - which is the same rule the `Requires` block's `Quests` prerequisite is
+  answered by, so the two spellings cannot disagree. A quest waiting in `COMPLETED_UNCLAIMED`
+  satisfies neither.
 
 ## Where the defaults live
 

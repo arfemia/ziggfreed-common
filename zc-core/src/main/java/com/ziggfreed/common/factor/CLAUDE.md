@@ -195,11 +195,16 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
 
 - **[`ProgressionFactors`](../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/progress/runtime/ProgressionFactors.java)** -
   four `ziggfreedcommon:` ids answering for THE shared progression runtime: `quest_completed`
-  (Param = a quest id, 1 when ever finished), `quest_completions` (Param = a quest id, the lifetime
-  count a repeatable is gated on), `achievement_earned` (Param = an achievement id, 1 when earned,
-  collected or not) and `achievement_points` (Param ignored, the earned points total a milestone
-  gate is written against). They live beside the runtime that answers them because that is the one
-  progression a server has, whoever contributed to it.
+  (Param = a quest id, 1 when the quest has been finished AND its reward collected - stored status
+  `COMPLETED`; a quest waiting in `COMPLETED_UNCLAIMED` reads 0), `quest_completions` (Param = a
+  quest id, the lifetime count a repeatable is gated on), `achievement_earned` (Param = an
+  achievement id, 1 when earned, collected or not) and `achievement_points` (Param ignored, the
+  earned points total a milestone gate is written against). The quest reading and the achievement
+  reading differ on collection DELIBERATELY: a quest prerequisite is the thing a player is sent to
+  go and finish, so it waits for the payout the same way the `Requires.Quests` leaf does, while an
+  achievement is earned the moment its criteria are met and its claim is a separate courtesy. They
+  live beside the runtime that answers them because that is the one progression a server has,
+  whoever contributed to it.
 - **They are CONTRIBUTED, not registered per consumer**: the wiring root calls `contribute()` once,
   so every vocabulary on the server resolves them - a storefront's `Requires`, a board, a placement
   gate, a dialogue condition, a loot roll - with nothing to wire. `registerInto` is the same four
