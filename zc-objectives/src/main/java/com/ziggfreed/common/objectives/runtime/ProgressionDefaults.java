@@ -31,6 +31,7 @@ import com.ziggfreed.common.achievement.asset.AchievementPoolValidator;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.inventory.InventoryUtil;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
@@ -83,10 +84,12 @@ import com.ziggfreed.common.validation.ValidationReport;
  * consumer publishing its own layer outranks this one rung by rung.
  *
  * <p><b>What still happens even when a consumer owns everything</b>, because it has to: the progress
- * component TYPE is registered and the four producer systems are registered, both at {@code setup()}.
- * A component type registered after a world loads cannot be read off entities saved carrying it, and
- * an ECS system is a setup-time registration. Nothing attaches the component and every producer
- * returns on its first line, so the cost is one map read per event.
+ * component TYPE is registered, the component is ATTACHED to every player, and the four producer
+ * systems are registered, all at {@code setup()}. A component type registered after a world loads
+ * cannot be read off entities saved carrying it, and an ECS system is a setup-time registration.
+ * Every producer a consumer claimed returns on its first line, so the cost is one map read per
+ * event; the component stays because it also holds what conversations remember, and the dialogue
+ * engine belongs to every server whoever owns its quests (see {@link #onPlayerConnect}).
  */
 public final class ProgressionDefaults {
 
@@ -375,7 +378,7 @@ public final class ProgressionDefaults {
         private static Message key(@Nullable String localizationKey, @Nullable String displayName,
                 @Nonnull List<String> authoredArgs, long amount) {
             if (localizationKey != null && !localizationKey.isBlank()) {
-                return Msg.key(localizationKey, args(authoredArgs, amount));
+                return ContentKeys.tr(localizationKey, args(authoredArgs, amount));
             }
             return displayName == null || displayName.isBlank() ? null : Msg.raw(displayName);
         }
@@ -471,13 +474,22 @@ public final class ProgressionDefaults {
     /**
      * Create the progress component, the one moment a {@code Holder} is in hand.
      *
-     * <p>Gated on {@link ProgressionRuntime#usesDefaultStores()}: registration is final at setup while
-     * the runtime is only BUILT later, and stamping a component onto every player of a server whose
-     * consumer keeps its own store would be per-player pollution nothing ever reads.
+     * <p><b>Unconditional, and it has to be.</b> This attach used to stand down where a consumer
+     * kept its own quest store, on the grounds that a component nothing reads is per-player
+     * pollution. That stopped being true the moment the component also held what conversations
+     * remember: dialogue is the library's own engine and every mod on the server uses it, so a
+     * server whose quests belong to a consumer still has memories to keep - and a component that
+     * was never attached would read every one of them as forgotten and drop every write, which is
+     * precisely the silent failure this whole storage layer exists to end. A component type
+     * registered after a world has loaded cannot be read off entities saved carrying it, and this
+     * is the only lifecycle hook that carries a holder, so there is no later moment to defer to.
+     *
+     * <p>What that costs a server running its own progression is one component per player carrying
+     * empty quest and achievement leaves, which is a handful of bytes in their save.
      */
     private static void onPlayerConnect(@Nonnull PlayerConnectEvent event) {
         try {
-            if (!ProgressionRuntime.usesDefaultStores() || ZigProgressComponent.TYPE == null) {
+            if (ZigProgressComponent.TYPE == null) {
                 return;
             }
             event.getHolder().ensureAndGetComponent(ZigProgressComponent.TYPE);

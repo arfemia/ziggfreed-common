@@ -79,8 +79,8 @@ class NpcQuestPageDepsTest {
                 .answerSets(null).npcNames(null).theme(null)
                 .rewardChips(null).completion(null).completionToast(null)
                 .build();
-        assertSame(NpcQuestPageDeps.OWN_ID_ONLY, deps.answerSets());
-        assertSame(NpcQuestPageDeps.NO_NAMES, deps.npcNames());
+        assertSame(NpcQuestPageDeps.ASSET_ANSWER_SETS, deps.answerSets());
+        assertSame(NpcQuestPageDeps.ASSET_NAMES, deps.npcNames());
         assertSame(NpcQuestPageDeps.PLAIN_THEME, deps.theme());
         assertSame(NpcQuestPageDeps.GENERIC_CHIPS, deps.rewardChips());
         assertSame(NpcQuestPageDeps.NO_HAND_OFF, deps.completion());

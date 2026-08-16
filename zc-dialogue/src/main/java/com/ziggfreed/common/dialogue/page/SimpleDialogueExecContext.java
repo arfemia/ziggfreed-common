@@ -11,15 +11,21 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.dialogue.DialogueExecContext;
 import com.ziggfreed.common.dialogue.DialogueFlagStore;
+import com.ziggfreed.common.dialogue.DialogueMemories;
 import com.ziggfreed.common.dialogue.NpcDialogue;
 
 /**
  * A ready-made {@link DialogueExecContext} so a consumer's
- * {@link DialogueContextFactory} is a one-liner: hand it the engine handles, the
- * per-player {@link DialogueFlagStore}, and an optional domain payload (retrieved
- * by registered evaluators/handlers via {@link #payload(Class)}). Flag access
- * delegates to the supplied store; {@link #payload(Class)} returns the payload when
- * it is an instance of the requested type, else null.
+ * {@link DialogueContextFactory} is a one-liner: hand it the engine handles and an optional domain
+ * payload (retrieved by registered evaluators/handlers via {@link #payload(Class)}).
+ * {@link #payload(Class)} returns the payload when it is an instance of the requested type, else
+ * null.
+ *
+ * <p><b>State storage is not a parameter.</b> Where a memory is kept is decided by what its author
+ * declared and resolved by {@link DialogueMemories}, so this context asks that surface rather than
+ * taking a store from the consumer. There is deliberately no constructor that accepts one: a mod
+ * supplying its own would be answering a question its authors already answered, per memory, in
+ * their own files.
  */
 public final class SimpleDialogueExecContext implements DialogueExecContext {
 
@@ -36,7 +42,7 @@ public final class SimpleDialogueExecContext implements DialogueExecContext {
 
     public SimpleDialogueExecContext(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
                                      @Nonnull PlayerRef playerRef, @Nonnull Player player,
-                                     @Nullable String contextId, @Nonnull DialogueFlagStore flags,
+                                     @Nullable String contextId,
                                      @Nullable Object payload, @Nonnull NpcDialogue dialogue,
                                      @Nonnull String nodeId, int optionIndex) {
         this.store = store;
@@ -44,7 +50,7 @@ public final class SimpleDialogueExecContext implements DialogueExecContext {
         this.playerRef = playerRef;
         this.player = player;
         this.contextId = contextId;
-        this.flags = flags;
+        this.flags = DialogueMemories.storeFor(store, ref, playerRef);
         this.payload = payload;
         this.dialogue = dialogue;
         this.nodeId = nodeId;

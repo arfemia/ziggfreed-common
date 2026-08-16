@@ -11,24 +11,6 @@ $M = "../Common/ZigButtons.ui";
 // ItemGridSlot (a game item icon by id, the RewardRow pattern) - needs in-game
 // confirmation of the slot render.
 
-@ZigOptIconStyle = ItemGridStyle(
-  SlotSize: 22,
-  SlotIconSize: 20,
-  SlotSpacing: 0,
-  SlotBackground: "../Common/ContainerPanelPatch.png",
-  QuantityPopupSlotOverlay: "../Common/ContainerPanelPatch.png",
-  BrokenSlotBackgroundOverlay: "../Common/ContainerPanelPatch.png",
-  BrokenSlotIconOverlay: "../Common/ContainerPanelPatch.png",
-  DefaultItemIcon: "../Common/ContainerPanelPatch.png",
-  DurabilityBar: "../Common/ContainerPanelPatch.png",
-  DurabilityBarBackground: "../Common/ContainerPanelPatch.png",
-  DurabilityBarAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0),
-  DurabilityBarColorStart: #a63232,
-  DurabilityBarColorEnd: #63b649,
-  CursedIconPatch: "../Common/ContainerPanelPatch.png",
-  CursedIconAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0)
-);
-
 Group #DialogueOptionRow {
   LayoutMode: Left;
   Anchor: (Height: 40, Bottom: 4);
@@ -45,7 +27,7 @@ Group #DialogueOptionRow {
       SlotsPerRow: 1;
       AreItemsDraggable: false;
       DisplayItemQuantity: false;
-      Style: @ZigOptIconStyle;
+      Style: $M.@ZigIconGrid22;
       Visible: false;
     }
   }

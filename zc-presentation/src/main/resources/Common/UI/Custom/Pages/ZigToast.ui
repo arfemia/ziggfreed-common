@@ -1,3 +1,5 @@
+$Z = "../Common/ZigButtons.ui";
+
 // In-menu toast overlay: appended ONCE per page by ToastablePage.renderToastInto as the LAST
 // root sibling, so it overlays the page content. Shipped once in ziggfreed-common; neutral
 // #Zig* ids avoid colliding with a consumer's own Pages/*.ui when both jars are installed.
@@ -18,23 +20,6 @@
 // Label), because a sendUpdate can only restyle existing elements, never append new ones. Rows
 // show/hide via Anchor expand/collapse (Visible cannot ride sendUpdate); the count MUST match
 // ToastRenderer.MAX_LINES.
-@ZigToastRowIconStyle = ItemGridStyle(
-  SlotSize: 24,
-  SlotIconSize: 22,
-  SlotSpacing: 0,
-  SlotBackground: "../Common/ContainerPanelPatch.png",
-  QuantityPopupSlotOverlay: "../Common/ContainerPanelPatch.png",
-  BrokenSlotBackgroundOverlay: "../Common/ContainerPanelPatch.png",
-  BrokenSlotIconOverlay: "../Common/ContainerPanelPatch.png",
-  DefaultItemIcon: "../Common/ContainerPanelPatch.png",
-  DurabilityBar: "../Common/ContainerPanelPatch.png",
-  DurabilityBarBackground: "../Common/ContainerPanelPatch.png",
-  DurabilityBarAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0),
-  DurabilityBarColorStart: #a63232,
-  DurabilityBarColorEnd: #63b649,
-  CursedIconPatch: "../Common/ContainerPanelPatch.png",
-  CursedIconAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0)
-);
 
 Group #ZigToast {
   Anchor: (Top: 107, Width: 460, Height: 0);
@@ -63,7 +48,7 @@ Group #ZigToast {
         SlotsPerRow: 1;
         AreItemsDraggable: false;
         DisplayItemQuantity: false;
-        Style: @ZigToastRowIconStyle;
+        Style: $Z.@ZigIconGrid24;
       }
 
       Group #RowIconGap { Anchor: (Width: 8); }
@@ -84,7 +69,7 @@ Group #ZigToast {
         SlotsPerRow: 1;
         AreItemsDraggable: false;
         DisplayItemQuantity: false;
-        Style: @ZigToastRowIconStyle;
+        Style: $Z.@ZigIconGrid24;
       }
 
       Group #RowIconGap { Anchor: (Width: 8); }
@@ -105,7 +90,7 @@ Group #ZigToast {
         SlotsPerRow: 1;
         AreItemsDraggable: false;
         DisplayItemQuantity: false;
-        Style: @ZigToastRowIconStyle;
+        Style: $Z.@ZigIconGrid24;
       }
 
       Group #RowIconGap { Anchor: (Width: 8); }
@@ -126,7 +111,7 @@ Group #ZigToast {
         SlotsPerRow: 1;
         AreItemsDraggable: false;
         DisplayItemQuantity: false;
-        Style: @ZigToastRowIconStyle;
+        Style: $Z.@ZigIconGrid24;
       }
 
       Group #RowIconGap { Anchor: (Width: 8); }
@@ -147,7 +132,7 @@ Group #ZigToast {
         SlotsPerRow: 1;
         AreItemsDraggable: false;
         DisplayItemQuantity: false;
-        Style: @ZigToastRowIconStyle;
+        Style: $Z.@ZigIconGrid24;
       }
 
       Group #RowIconGap { Anchor: (Width: 8); }
@@ -168,7 +153,7 @@ Group #ZigToast {
         SlotsPerRow: 1;
         AreItemsDraggable: false;
         DisplayItemQuantity: false;
-        Style: @ZigToastRowIconStyle;
+        Style: $Z.@ZigIconGrid24;
       }
 
       Group #RowIconGap { Anchor: (Width: 8); }

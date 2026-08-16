@@ -13,17 +13,21 @@ compiles as `:zc-dialogue`). See the root [`CLAUDE.md`](../CLAUDE.md) for the ag
 ## Dependencies
 
 - **Depends on**: `zc-core`, `zc-presentation`, `zc-world`, `zc-progression`.
-- **Depended on by**: no other library module today. This is a leaf on the consumer side of the
-  graph; a mod that wants dialogue depends on it directly.
+- **Depended on by**: `zc-objectives`, and only for NPC IDENTITY - its NPC quest page names a
+  character through `npc/NpcNames` and folds the character's alias set through `npc/NpcIdentities`,
+  rather than making every consumer say who is standing there. That module is the top of the graph,
+  so the edge closes nothing. Nothing else in the library depends on this one; a mod that wants
+  dialogue depends on it directly.
 - **Reverse-edge trap**: `zc-progression` sits below this module and may never import anything from
   here. The quest-aware conversation vocabulary (`QuestState`/`ReadyToTurnIn`/`Accept`/`TurnIn`) is
   a one-way read through progression's narrow `QuestStateReader` seam and nothing else - never
   `QuestEngine`, which mutates: a dialogue condition that could reach the mutating engine could
   accept a quest while merely rendering a line.
 - **A public signature re-exports a `zc-world` type**: `DialogueCondition.World#getSelector`
-  returns a `world.WorldSelector`. The edge stays `implementation` (not `api`) because nothing
-  depends on this module yet; the day a module depends on `zc-dialogue` AND calls `getSelector`, its
-  own `zc-world` edge must be declared explicitly, or this edge becomes `api`.
+  returns a `world.WorldSelector`. The edge stays `implementation` (not `api`) because the one
+  module that depends on this one reads NPC identity and never calls `getSelector`, so no
+  `world.WorldSelector` has to resolve on its compile classpath; the day a dependent does call it,
+  that dependent declares its own `zc-world` edge explicitly, or this edge becomes `api`.
 
 ## Packages
 

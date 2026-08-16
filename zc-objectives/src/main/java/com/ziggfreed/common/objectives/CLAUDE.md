@@ -4,8 +4,9 @@ Router for `com.ziggfreed.common.objectives`. What a BARE server gets: persisten
 quest and achievement runtime, generic native-event producers feeding it, the asset content folded
 into it, and an ordinary item that reads it in game.
 
-Module edges: `zc-core`, `zc-loot`, `zc-progression`, `zc-presentation`, `zc-cast`, `zc-entity` -
-all one-way `implementation`. Package root `com.ziggfreed.common.objectives`.
+Module edges: `zc-core`, `zc-loot`, `zc-progression`, `zc-presentation`, `zc-cast`, `zc-entity`,
+`zc-dialogue` (NPC identity, for the page at a character) - all one-way `implementation`. Package
+root `com.ziggfreed.common.objectives`.
 
 **Why this module exists at all.** The book needs BOTH the engines and a page. `zc-progression` may
 never import presentation (its own router states the rule), and pushing the engines under
@@ -154,6 +155,12 @@ reward, by design.
 - **It walks the ENGINE, not a pool**, and names each row through `ProgressionTextSource` (first
   non-null wins). A surface reading one mod's catalogue would render the rest of the merged list
   blank.
+- **An authored key is emitted through zc-core's `ContentKeys`, never as written.** `I18nModule`
+  namespaces a key by the `.lang` FILENAME it was defined in, and content authors the key without
+  that namespace, so a key handed over verbatim is one the client cannot resolve and the player
+  reads the key itself. `ProgressionDefaults`'s asset text source and `AchievementGrouping.label`
+  both ask that seam; `Msg.key` remains correct only for a fully-qualified id. A key no registered
+  consumer claims passes through exactly as authored, so a bare server is unchanged.
 - **`canDeliverTurnInAt(subject, quest, null)` is ALWAYS false**, so the hand-in button must not be
   gated on it (`readyToTurnInAt` refuses a null or blank place immediately). The book uses
   `firstActiveTurnIn(subject, quest, null)`, the documented "somewhere unlocked" form, then
@@ -212,8 +219,10 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
   authoring-layer association no runtime can read, so it comes from
   [`quest/NpcOfferProviders`](../../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/quest/CLAUDE.md)
   asked over the character's whole ANSWER SET. The other two are pure quest state, so the engine
-  answers both itself: what points BACK here (`readyToTurnInAt`) and what was TAKEN here
-  (`acceptSiteOf`, compared case-insensitively against each id the character answers to). **"Given
+  answers both itself: what points BACK here (`readyToTurnInAt` - a hand-in handable here, or an
+  outstanding step whose KIND declares a place-typed target naming this whole id, so a step tracking
+  blocks or items points nowhere) and what was TAKEN here (`acceptSiteOf`, compared
+  case-insensitively against each id the character answers to). **"Given
   here" is ENGINE DATA - a consumer registers nothing for it**, which is what keeps a quest on its
   giver's tab while it is being carried even though the offer table has stopped offering it. The rule
   covers finished-but-uncollected quests as well as active ones, deliberately: a quest parked for
@@ -256,8 +265,12 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
 - **[`questlist/NpcQuestPageDeps`](questlist/NpcQuestPageDeps.java) is everything a consumer may say**
   and nothing it must: a character's NAME, its ANSWER SET, a THEME, a per-reward chip override, what
   FOLLOWS a quest settled here, and the completion TOAST. Every default leaves a working page, so a
-  bare server needs no consumer at all. The hand-off is a seam rather than a call because the routing
-  policy lives in the dialogue layer, which sits BESIDE this module in the graph rather than under it.
+  bare server needs no consumer at all. **The two identity defaults are the ASSETS' own answer**
+  (`ASSET_NAMES` reads `NpcNames::nameFor`, `ASSET_ANSWER_SETS` reads
+  `NpcIdentities::answerSetForPrimary`), so the header, the nameplate over the character's head and a
+  "Talk to X" objective cannot disagree, and a consumer fills either seam only to name a character
+  the placement and identity assets do not describe. The hand-off is a seam rather than a call because
+  that decision is the routing layer's policy, never this page's.
 - **The detail panel's narrative comes from the shared text seam, per lifecycle state.**
   `ProgressionTextSource.lore(contentId, state)` is asked with `incomplete` / `active` / `complete`
   and the flavor line is the fallback, so content carrying per-state paragraphs reads with them and

@@ -1,3 +1,5 @@
+$Z = "../Common/ZigButtons.ui";
+
 // One line of the NPC quest page's detail panel (see ZigNpcQuestPage): a step and its count, a
 // reward and its picture, or a reason the quest cannot be taken. ONE template for all three, because
 // the three sections differ in what they SAY rather than in what they are, and a page that appended
@@ -22,6 +24,7 @@ Group #ZigNpcQuestLine {
       SlotsPerRow: 1;
       AreItemsDraggable: false;
       DisplayItemQuantity: false;
+      Style: $Z.@ZigIconGrid20;
     }
   }
 

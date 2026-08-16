@@ -17,15 +17,20 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
   (the engines themselves, their asset stores, and the consumer-claim seam), `zc-presentation` (the
   page base, the shared frames/buttons, the retint engine, the toast engine), `zc-cast` (custom
   interaction-Type registration, for the book item's Use), `zc-entity` (the portable `hytale:`
-  factor standard library, so a `STAT_THRESHOLD` objective settles itself).
+  factor standard library, so a `STAT_THRESHOLD` objective settles itself), `zc-dialogue` (NPC
+  IDENTITY: `npc/NpcNames` for what a character is called and `npc/NpcIdentities` for every id it
+  answers to, both read off the placement + identity assets - which is what lets the page at a
+  character name it and fold its aliases with no consumer filling a seam).
 - **Depended on by**: no other library module. This module sits ABOVE both `zc-progression` and
   `zc-presentation` and nothing sits above it - a progression book needs the engines and a page,
   and neither of those two modules may reach the other (`zc-progression` may never import
   presentation, and pushing the engines under presentation would drag them onto every page consumer
   in the library). A module above both adds no reverse edge at all.
 - **Reverse-edge trap**: none possible - this is the top of the graph. Adding an edge FROM here to
-  anything is fine by construction; the trap that matters is the one above (nothing may depend on
-  this module, or the "above both" position that justifies its existence stops holding).
+  anything is fine by construction, which is exactly what the `zc-dialogue` edge rests on: nothing
+  depends on this module, so an edge out of it can never close a cycle. The trap that matters is the
+  one above (nothing may depend on this module, or the "above both" position that justifies its
+  existence stops holding).
 
 ## Packages
 
@@ -66,9 +71,9 @@ unless it registers its own equivalents through the same surface; the two pages 
 genuinely optional pieces.
 
 **The wiring root registers the NPC quest page as the quest-list host.** The host interface lives in
-`zc-dialogue`, which sits BESIDE this module rather than under it, so both `NpcQuestPages.open`
-overloads are written to that interface's two shapes byte-exactly and the root supplies the object -
-pure delegation, no logic, no edge:
+`zc-dialogue` and the root is the one place a registration joining two domains belongs, so both
+`NpcQuestPages.open` overloads are written to that interface's two shapes byte-exactly and the root
+supplies the object - pure delegation, no logic:
 
 ```java
 NpcQuestListHosts.register(NpcQuestPages.OWNER, NpcQuestPages.OWNER, new NpcQuestListHost() {

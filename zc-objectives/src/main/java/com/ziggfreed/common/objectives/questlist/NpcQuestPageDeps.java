@@ -14,6 +14,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.npc.NpcIdentities;
+import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
@@ -27,12 +29,12 @@ import com.ziggfreed.common.ui.toast.ToastSpec;
  * cannot know, and nothing else.
  *
  * <ul>
- *   <li>{@link NpcNameSource} - what a character is CALLED. The library has no NPC identity of its
- *       own down here, so an unfilled seam renders the character's id and a filled one renders the
- *       one authored name every other surface shows.</li>
- *   <li>{@link AnswerSetSource} - which ids a character ANSWERS TO. The default answers "just its
- *       own id", which is right for a character with no aliases and wrong for one standing in two
- *       worlds, so a consumer with an identity layer fills it.</li>
+ *   <li>{@link NpcNameSource} - what a character is CALLED. The default reads the authored name off
+ *       the placement and identity assets, which is the same one the nameplate and the conversation
+ *       header show, so a consumer fills this only to name a character those assets do not describe.
+ *       </li>
+ *   <li>{@link AnswerSetSource} - which ids a character ANSWERS TO. The default reads the identity
+ *       layer too, so one guide standing in two worlds lists and takes the same quests in both.</li>
  *   <li>{@link RewardChipSource} - how ONE reward reads, when a mod knows something about its own
  *       kind that the generic reading cannot recover. The generic reading is tried when this
  *       returns null, never instead of it.</li>
@@ -110,11 +112,16 @@ public final class NpcQuestPageDeps {
     /** Append and nothing else: the honest default for a server shipping no theme. */
     public static final PageTheme PLAIN_THEME = (cmd, template, frameSelector) -> cmd.append(template);
 
-    /** Nobody knows a name, so the page falls back to the character's own id. */
-    public static final NpcNameSource NO_NAMES = npcId -> null;
+    /**
+     * The name the character's own assets give it. A character nothing describes has no name to
+     * show, and the page falls back to its id.
+     */
+    public static final NpcNameSource ASSET_NAMES = NpcNames::nameFor;
 
-    /** A character answers to its own id and nothing else. */
-    public static final AnswerSetSource OWN_ID_ONLY = Set::of;
+    /**
+     * Every id the character's own identity assets say it answers to, its own always among them.
+     */
+    public static final AnswerSetSource ASSET_ANSWER_SETS = NpcIdentities::answerSetForPrimary;
 
     /** No consumer opinion about any reward; every chip takes the generic reading. */
     public static final RewardChipSource GENERIC_CHIPS = spec -> null;
@@ -216,8 +223,8 @@ public final class NpcQuestPageDeps {
     public static final class Builder {
 
         @Nonnull private PageTheme theme = PLAIN_THEME;
-        @Nonnull private NpcNameSource npcNames = NO_NAMES;
-        @Nonnull private AnswerSetSource answerSets = OWN_ID_ONLY;
+        @Nonnull private NpcNameSource npcNames = ASSET_NAMES;
+        @Nonnull private AnswerSetSource answerSets = ASSET_ANSWER_SETS;
         @Nonnull private RewardChipSource rewardChips = GENERIC_CHIPS;
         @Nonnull private CompletionHandOff completion = NO_HAND_OFF;
         @Nonnull private CompletionToast completionToast = NO_COMPLETION_TOAST;
@@ -233,13 +240,13 @@ public final class NpcQuestPageDeps {
 
         @Nonnull
         public Builder npcNames(@Nullable NpcNameSource value) {
-            this.npcNames = value != null ? value : NO_NAMES;
+            this.npcNames = value != null ? value : ASSET_NAMES;
             return this;
         }
 
         @Nonnull
         public Builder answerSets(@Nullable AnswerSetSource value) {
-            this.answerSets = value != null ? value : OWN_ID_ONLY;
+            this.answerSets = value != null ? value : ASSET_ANSWER_SETS;
             return this;
         }
 

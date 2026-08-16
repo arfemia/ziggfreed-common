@@ -57,8 +57,11 @@ class ObjectiveBookTextArgsTest {
     @Test
     void theKeyReaderHandsThemToTheMessageRatherThanDroppingThem() throws IOException {
         assertTrue(squashed(body("private static Message key(")).contains(
-                        "Msg.key(localizationKey,args(authoredArgs,amount))"),
-                "the one key reader must bind the args it was given to the key it resolves");
+                        "ContentKeys.tr(localizationKey,args(authoredArgs,amount))"),
+                "the one key reader must bind the args it was given to the key it resolves, and it"
+                        + " must resolve that key through the authored-key seam: a key handed over"
+                        + " with no namespace is one the client cannot resolve, so the player reads"
+                        + " the key itself");
     }
 
     @Test
