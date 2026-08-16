@@ -8,8 +8,8 @@ Package root `com.ziggfreed.common.progress.gate`.
 
 | Class | What it is |
 |---|---|
-| `GateClause` (+ `appendLeaves`) | one group of requirements, ALL of which must pass: `Factors` / `Permission` / `Quests` / `Custom` |
-| `GateSpec` | the whole `Requires` block: the leaves plus `AllOf` and `AnyOf` |
+| `GateClause` (+ `appendLeaves`, `of`) | one group of requirements, ALL of which must pass: `Factors` / `Permission` / `Quests` / `Custom` |
+| `GateSpec` (+ `of`) | the whole `Requires` block: the leaves plus `AllOf`, `AnyOf` and `Not` |
 | `GateKind`, `GateKindRegistry` | the OPEN `Requires.Custom` vocabulary a consumer extends, either desugaring to factor conditions or answering directly |
 | `GateEvaluator` | who answers a block for one subject, and the opaque reason token naming what shut it |
 | `GateValidator` | the shared `Requires` audit every domain reports through (blank requirements, unknown factors / prerequisites / gate kinds), so a shop's gate and a quest's gate are checked by ONE pass |
@@ -24,11 +24,21 @@ Package root `com.ziggfreed.common.progress.gate`.
   registry lookup a `Factors` entry takes, so the two spellings cannot drift, and the only thing a
   consumer wires for it is the factor vocabulary it was going to wire anyway.
 - **A refusal is a TOKEN, never a sentence** (`"factor:yourmod:rank"`, `"permission"`,
-  `"quest:intro_1"`, `"gate:yourmod:reputation"`, `"any_of"`). Turning one into text a player reads
-  is the consumer's job, because only the consumer knows the player's language and its own wording.
-- **Nesting stops at one level.** `AllOf` plus `AnyOf` expresses "these, plus one of those", which is
-  the shape real requirements take. A requirement that genuinely needs more is better written as a
-  registered `Custom` kind whose rule lives in code.
+  `"quest:intro_1"`, `"gate:yourmod:reputation"`, `"any_of"`, `"not"`). Turning one into text a
+  player reads is the consumer's job, because only the consumer knows the player's language and its
+  own wording.
+- **Nesting stops at one level.** `AllOf` plus `AnyOf` plus `Not` expresses "these, plus one of
+  those, and none of these", which is the shape real requirements take. A requirement that genuinely
+  needs more is better written as a registered `Custom` kind whose rule lives in code. `Not` takes a
+  list of CLAUSES for that reason, never a nested `GateSpec`.
+- **A `Not` group shuts the gate by PASSING**, and each entry is one whole group that has to fail:
+  one group listing two things means "not both of those", two groups mean "neither of them". A
+  numeric requirement can already be negated with a `Max` bound, but a prerequisite, a permission or
+  a registered kind has no such spelling, which is why the combinator exists.
+- **An EMPTY `Not` group shuts the content for everybody**, because a group asking for nothing
+  passes for everyone. That is a real requirement rather than an absent one, so `isEmpty` counts it
+  and `GateValidator` reports it as `BLANK_REQUIREMENT` - it reads as harmless in the file, which is
+  exactly why it has to be said out loud.
 - **Four leaves, and a new one is a high bar.** Anything narrower is a registered `GateKind`. Only a
   genuinely universal requirement earns a leaf, because a leaf is a field every author sees forever.
 - **The completion probe is settable AFTER the build** on purpose: the usual answer comes from an

@@ -276,6 +276,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Custom` | map of map of `scalarString` | `null` | Requirement kinds registered by other mods, keyed by their namespaced id, each with that kind's own parameters. A kind nothing registered refuses. A parameter that is a number or true/false may be written bare; other values take quotes. |
 | `AllOf` | array of [GateClause](#type-gateclause) | `null` | Extra groups that must ALL pass, on top of the leaves above. Use it to keep unrelated requirements readable side by side. |
 | `AnyOf` | array of [GateClause](#type-gateclause) | `null` | Groups of which at least ONE must pass - the way to say 'either route into this will do'. An empty list asks for nothing. |
+| `Not` | array of [GateClause](#type-gateclause) | `null` | Groups that must NOT pass - the way to say 'only while this is not yet true'. Each entry is one group that has to fail, so listing two things in one group means 'not both', and two separate groups mean 'neither'. |
 
 <a id="type-gateclause"></a>
 ## GateClause

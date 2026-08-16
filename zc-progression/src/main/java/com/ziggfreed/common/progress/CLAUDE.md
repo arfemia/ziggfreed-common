@@ -27,7 +27,7 @@ the server's progression.
 | Class | What it is |
 |---|---|
 | `ObjectiveDef` (+ `.Builder`) | one authored objective: kind, target, match mode, qualifier, amount, zone, order, hand-in lock |
-| `ObjectiveKind`, `ObjectiveKindRegistry` | the open objective vocabulary; 21 engine-generic kinds pre-seeded, per consumer, never a shared mutable global |
+| `ObjectiveKind`, `ObjectiveKindRegistry` | the open objective vocabulary plus the three INDEPENDENT facts a kind carries (`valueBased` which arithmetic a dispatch uses, `producible` whether content may author it, `targetsPlace` whether its target names somewhere to go); 21 engine-generic kinds pre-seeded, per consumer, never a shared mutable global |
 | `StatThresholdProbe` | reads a `STAT_THRESHOLD` objective's stat channel for one subject, so an engine can settle a standing-value objective itself |
 | `MatchFlavor`, `MatchMode`, `ObjectiveMatch` | the matching core - BOTH dialects, verbatim |
 | `ZoneRef` | the zone / region an event happened in, for a zone-scoped objective |
@@ -45,6 +45,13 @@ Twenty-one ids, every one producible. Twenty ACCUMULATE (`BREAK_BLOCK`, `PLACE_B
 `COMPLETE_QUEST`, `TAKE_FALL_DAMAGE`, `PLAYER_DEATH`, `SPRINT_DISTANCE`, `SWIM_DISTANCE`,
 `BREED_ANIMAL`, `FEED_ANIMAL`, `HARVEST_ANIMAL`, `COMPANION_COMBAT`, `REACH_LOCATION`,
 `CONSUME_ITEM`): each names a MOMENT, a producer fires a delta, the tally grows.
+
+**Two of the twenty-one also declare `targetsPlace`**, `TALK_TO_NPC` and `REACH_LOCATION`: their
+TARGET names somewhere a player can stand rather than something an event carries, which is what lets
+a surface say "this step resolves HERE" about a step with no hand-in of its own. The facet is
+orthogonal to the arithmetic - a kind accumulates or tracks a value, and independently does or does
+not point at a place. `TURN_IN` is deliberately not one of them: what its target names is the thing
+being delivered, and where it may be delivered is its own `turnInLockId`.
 
 `STAT_THRESHOLD` is the one VALUE-BASED built-in, and the one that names a STATE rather than a
 moment:
@@ -86,6 +93,12 @@ the high-water arithmetic is identical either way.
   empty TARGET means, and on what an empty QUALIFIER means. Merging them silently changes what
   shipped content matches. `MatchFlavor`'s javadoc carries the argument; do not re-litigate it in
   code.
+- **A PLACE is compared as one whole id against one whole id, never through a match dialect.**
+  `targetsPlace` exists so a reader can ask "does this step point HERE", and that comparison is a
+  case-insensitive whole-id equality plus a non-blank target, nothing else. `MatchMode` stays what it
+  is - the dialect a fired EVENT is matched with, where a target is deliberately written to catch a
+  FAMILY of ids - and a family written to catch block ids would catch character ids too, while a
+  blank target would point every such quest at every place at once.
 - **Orthogonal knobs, never modes.** `DispatchOptions` is two independent booleans with three named
   factories. A new combination must never need a new constant.
 - **The wire forms are byte-stable.** A consumer's store may persist `ObjectiveProgressState`'s
@@ -100,7 +113,10 @@ the high-water arithmetic is identical either way.
   moved here the moment the achievement engine wanted the same side-channel.
 - A new objective kind is a consumer call to `ObjectiveKindRegistry.register`; only add to
   `BUILT_IN_ACCUMULATING` / `BUILT_IN_VALUE_BASED` when the kind is meaningful in ANY game with no
-  assumptions. The two lists are the seeding split, so a kind lands in exactly one of them and
-  `seedBuiltIns` needs no branch.
+  assumptions. Those two lists are the ARITHMETIC split, so a kind lands in exactly one of them;
+  `BUILT_IN_PLACE_TARGETED` is orthogonal to both and names whichever of them also point somewhere.
+  A consumer contributing its own vocabulary skips every id `ObjectiveKindRegistry.isBuiltIn` already
+  names, so a built-in is described once, here, with every flag it carries - including one this class
+  learns to seed after that consumer was written.
 - Tests are mechanics, structure, and invariants only. Fixtures are author-owned; never assert
   numbers that belong to somebody's balance pass.

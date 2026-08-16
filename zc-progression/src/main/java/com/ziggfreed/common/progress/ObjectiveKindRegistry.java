@@ -1,7 +1,9 @@
 package com.ziggfreed.common.progress;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -21,10 +23,16 @@ import com.ziggfreed.common.registry.RegistryLedger;
  * <p><b>Twenty-one engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
  * whose meaning does not depend on any particular game's systems: breaking a block, killing an
  * entity, talking to somebody, handing something in, standing at some measured value. All twenty-one
- * seed as producible, and all but {@link #STAT_THRESHOLD} accumulate; a consumer that has no
+ * seed as producible, all but {@link #STAT_THRESHOLD} accumulate, and two of them
+ * ({@code TALK_TO_NPC}, {@code REACH_LOCATION}) seed as place-targeted; a consumer that has no
  * producer for one can re-register it unproducible so its validator says so. Domain kinds (anything
  * tied to a consumer's own progression, economy, or classes) are the consumer's to add - registering
  * one is a single call and overrides a built-in of the same id.
+ *
+ * <p><b>A consumer registers only what it ADDS.</b> {@link #isBuiltIn} is there so a consumer
+ * walking its own vocabulary can skip the ids this class already states: re-registering one restates
+ * this class's flags in a second place, which holds until this class learns to seed a flag the
+ * consumer has never heard of and silently resets it.
  *
  * <p>Registration bookkeeping (who owns an id, how often it has misbehaved) lives in the shared
  * {@link RegistryLedger}; ids are matched case-insensitively and registration is idempotent per id
@@ -70,6 +78,17 @@ public final class ObjectiveKindRegistry {
      */
     private static final List<String> BUILT_IN_VALUE_BASED = List.of(STAT_THRESHOLD);
 
+    /**
+     * The pre-seeded kinds whose TARGET names somewhere to go rather than something an event
+     * carries, so a listing can say "this step resolves here" for a step with no hand-in of its own.
+     *
+     * <p>Orthogonal to the two arithmetic lists above, which stay the partition: a kind appears in
+     * exactly one of those and independently may or may not appear here. {@code TURN_IN} is
+     * deliberately absent - what its target names is the thing being delivered, and where it may be
+     * delivered is its own hand-in lock.
+     */
+    private static final Set<String> BUILT_IN_PLACE_TARGETED = Set.of("TALK_TO_NPC", "REACH_LOCATION");
+
     /** The owner name the pre-seeded kinds are attributed to in the ledger. */
     public static final String BUILT_IN_OWNER = "built-in";
 
@@ -93,11 +112,26 @@ public final class ObjectiveKindRegistry {
     /** Register the twenty-one engine-generic kinds, all producible, each with its own arithmetic. */
     private void seedBuiltIns() {
         for (String id : BUILT_IN_ACCUMULATING) {
-            ledger.put(id, BUILT_IN_OWNER, ObjectiveKind.of(id));
+            ledger.put(id, BUILT_IN_OWNER, BUILT_IN_PLACE_TARGETED.contains(id)
+                    ? ObjectiveKind.placeTargeted(id)
+                    : ObjectiveKind.of(id));
         }
         for (String id : BUILT_IN_VALUE_BASED) {
             ledger.put(id, BUILT_IN_OWNER, ObjectiveKind.valueBased(id));
         }
+    }
+
+    /**
+     * Is {@code kindId} one of the twenty-one this class seeds? A consumer registering its own
+     * vocabulary asks this to add only what it ADDS, leaving the built-ins stated once, here, with
+     * every flag they carry - including any this class learns to seed later.
+     */
+    public static boolean isBuiltIn(@Nullable String kindId) {
+        if (kindId == null || kindId.isBlank()) {
+            return false;
+        }
+        String id = kindId.trim().toUpperCase(Locale.ROOT);
+        return BUILT_IN_ACCUMULATING.contains(id) || BUILT_IN_VALUE_BASED.contains(id);
     }
 
     /** Register (or replace) an accumulating, producible kind, unattributed. */
@@ -106,9 +140,14 @@ public final class ObjectiveKindRegistry {
     }
 
     /**
-     * Register (or replace) {@code kindId} with both knobs stated, attributed to {@code owner}
-     * ({@link RegistryLedger#UNATTRIBUTED} when null/blank). A blank id is ignored. See
-     * {@link ObjectiveKind} for what each flag decides.
+     * Register (or replace) {@code kindId} with the two arithmetic knobs stated, attributed to
+     * {@code owner} ({@link RegistryLedger#UNATTRIBUTED} when null/blank). A blank id is ignored.
+     * See {@link ObjectiveKind} for what each flag decides.
+     *
+     * <p>The kind registered this way targets a THING. A kind whose target names a place is built
+     * with {@link ObjectiveKind#placeTargeted} and registered through
+     * {@link #register(String, ObjectiveKind)}, so a flag a caller has no opinion about never has to
+     * be spelled out as a bare positional boolean.
      */
     public void register(@Nullable String kindId, @Nullable String owner,
                          boolean valueBased, boolean producible) {
@@ -150,6 +189,16 @@ public final class ObjectiveKindRegistry {
     public boolean isValueBased(@Nullable String kindId) {
         ObjectiveKind kind = ledger.get(kindId);
         return kind != null && kind.valueBased();
+    }
+
+    /**
+     * Does {@code kindId}'s target name a place a player can stand at? False when unknown, which is
+     * what keeps "is this step pointing here" a positive question: a kind nothing registered points
+     * nowhere rather than everywhere.
+     */
+    public boolean isPlaceTargeted(@Nullable String kindId) {
+        ObjectiveKind kind = ledger.get(kindId);
+        return kind != null && kind.targetsPlace();
     }
 
     /** Every registered id, sorted (diagnostics, an authoring hint, a validator message). */

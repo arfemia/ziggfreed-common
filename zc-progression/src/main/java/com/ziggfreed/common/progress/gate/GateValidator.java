@@ -37,7 +37,7 @@ public final class GateValidator {
     }
 
     /**
-     * Audit {@code requires}, including its {@code AllOf} and {@code AnyOf} groups.
+     * Audit {@code requires}, including its {@code AllOf}, {@code AnyOf} and {@code Not} groups.
      *
      * @param requires      the block, or null when the content authored none (nothing is reported)
      * @param domain        which content family the findings belong to
@@ -66,6 +66,17 @@ public final class GateValidator {
         }
         for (GateClause clause : requires.anyOfOrEmpty()) {
             clauses.add(clause);
+        }
+        for (GateClause clause : requires.notOrEmpty()) {
+            clauses.add(clause);
+            // A group asking for nothing passes for everyone, so a Not on it can never be satisfied
+            // and the content is shut to every player forever. It reads as harmless in the file,
+            // which is exactly why it has to be reported.
+            if (clause != null && clause.isEmpty()) {
+                out.add(Finding.warning(domain, "BLANK_REQUIREMENT",
+                        "a Requires.Not group asks for nothing, and a group that asks for nothing always "
+                                + "passes; negating it shuts this " + noun + " for everybody", sourceId));
+            }
         }
 
         for (GateClause clause : clauses) {

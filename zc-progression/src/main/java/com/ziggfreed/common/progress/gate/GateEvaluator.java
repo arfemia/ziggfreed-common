@@ -47,7 +47,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>A refusal is an opaque REASON TOKEN naming what shut the gate ({@code "factor:yourmod:rank"},
  * {@code "permission"}, {@code "quest:intro_1"}, {@code "gate:yourmod:reputation"},
- * {@code "any_of"}), never a sentence: turning one into text a player reads is the consumer's job.
+ * {@code "any_of"}, {@code "not"}), never a sentence: turning one into text a player reads is the
+ * consumer's job.
  */
 public final class GateEvaluator {
 
@@ -65,6 +66,9 @@ public final class GateEvaluator {
 
     /** The reason token for an {@code AnyOf} block where no group passed. */
     public static final String REASON_ANY_OF = "any_of";
+
+    /** The reason token for a {@code Not} group that passed, which is what shuts the gate. */
+    public static final String REASON_NOT = "not";
 
     /**
      * The factor a {@code Permission} leaf is evaluated as: {@code Param} is the node, and the
@@ -143,8 +147,8 @@ public final class GateEvaluator {
 
     /**
      * The reason token for the FIRST requirement that was not met, or null when the whole block
-     * passed. Evaluation order is leaves, then {@code AllOf}, then {@code AnyOf}, so the token
-     * names the most specific thing that shut the gate.
+     * passed. Evaluation order is leaves, then {@code AllOf}, then {@code Not}, then {@code AnyOf},
+     * so the token names the most specific thing that shut the gate.
      */
     @Nullable
     public String firstFailure(@Nonnull Subject subject, @Nullable GateSpec spec) {
@@ -159,6 +163,13 @@ public final class GateEvaluator {
             failure = clauseFailure(subject, clause);
             if (failure != null) {
                 return failure;
+            }
+        }
+        // A Not group shuts the gate by PASSING. An empty group passes for everyone, so a Not on
+        // one shuts the content for everyone - deliberate, and the validator is what warns about it.
+        for (GateClause clause : spec.notOrEmpty()) {
+            if (clause != null && clauseFailure(subject, clause) == null) {
+                return REASON_NOT;
             }
         }
         GateClause[] anyOf = spec.anyOfOrEmpty();

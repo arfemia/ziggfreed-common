@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
+import com.ziggfreed.common.progress.ObjectiveKind;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -223,8 +224,69 @@ class QuestEngineTurnInTest {
         engine.accept(player, q);
 
         assertTrue(engine.readyToTurnInAt(player, q, "Guide"));
-        assertTrue(engine.canDeliverTurnInAt(player, q, "Guide"), "there is nothing to deliver");
+        assertFalse(engine.canDeliverTurnInAt(player, q, "Guide"),
+                "the step resolves here but nothing changes hands, so no hand-in may be offered");
         assertFalse(engine.readyToTurnInAt(player, q, "Somebody"));
+    }
+
+    @Test
+    void aPlaceIsNamedInFullOrNotAtAll() {
+        Quest q = Quest.builder("q_talk")
+                .objective(ObjectiveDef.builder("speak", "TALK_TO_NPC")
+                        .target("Guide").matchMode(MatchMode.CONTAINS).amount(1).build())
+                .build();
+        QuestEngine engine = engineWith(q);
+        engine.accept(player, q);
+
+        assertTrue(engine.readyToTurnInAt(player, q, "GUIDE"), "a place is compared ignoring case");
+        assertFalse(engine.readyToTurnInAt(player, q, "Guide_Of_The_Wilds"),
+                "the authored match mode is the dialect for events, never for naming a place");
+    }
+
+    @Test
+    void aStepNamingNobodyMarksNobody() {
+        Quest q = Quest.builder("q_wildcard")
+                .objective(ObjectiveDef.builder("speak", "TALK_TO_NPC").target("").amount(1).build())
+                .build();
+        QuestEngine engine = engineWith(q);
+        engine.accept(player, q);
+
+        assertFalse(engine.readyToTurnInAt(player, q, "Guide"),
+                "a blank target matches every identifier there is, which is not a destination");
+        assertFalse(engine.canDeliverTurnInAt(player, q, "Guide"));
+    }
+
+    @Test
+    void aStepWhoseTargetIsAThingNeverMarksACharacter() {
+        Quest q = Quest.builder("q_gather")
+                .objective(ObjectiveDef.builder("gather", "BREAK_BLOCK")
+                        .target("Guide").matchMode(MatchMode.EXACT).amount(1).build())
+                .build();
+        QuestEngine engine = engineWith(q);
+        engine.accept(player, q);
+
+        assertFalse(engine.readyToTurnInAt(player, q, "Guide"),
+                "BREAK_BLOCK names a block, so its target can never be somewhere to stand");
+    }
+
+    @Test
+    void aConsumerKindMayDeclareThatItsTargetIsAPlace() {
+        QuestEngine engine = QuestEngine.builder()
+                .store(store)
+                .possessionProbe(bag)
+                .inventoryConsumer(bag)
+                .nativeEvents(false)
+                .warn(message -> { })
+                .build();
+        engine.objectiveKinds().register(null, ObjectiveKind.placeTargeted("ESCORT_NPC"));
+        Quest q = Quest.builder("q_escort")
+                .objective(ObjectiveDef.builder("escort", "ESCORT_NPC")
+                        .target("Guide").matchMode(MatchMode.EXACT).amount(1).build())
+                .build();
+        engine.setQuests(List.of(q));
+        engine.accept(player, q);
+
+        assertTrue(engine.readyToTurnInAt(player, q, "Guide"));
     }
 
     @Test

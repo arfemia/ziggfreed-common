@@ -38,6 +38,46 @@ class ObjectiveKindRegistryTest {
     }
 
     @Test
+    void talkingAndTravellingAreTheBuiltInsWhoseTargetIsAPlace() {
+        ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
+
+        assertTrue(registry.isPlaceTargeted("TALK_TO_NPC"));
+        assertTrue(registry.isPlaceTargeted("REACH_LOCATION"));
+        assertFalse(registry.isPlaceTargeted("TURN_IN"),
+                "a hand-in's target is the thing delivered; where it may be delivered is its own lock");
+
+        for (String id : registry.ids()) {
+            if (!id.equalsIgnoreCase("TALK_TO_NPC") && !id.equalsIgnoreCase("REACH_LOCATION")) {
+                assertFalse(registry.isPlaceTargeted(id), id + " should name a thing, not a place");
+            }
+        }
+        assertFalse(registry.isPlaceTargeted("NOT_A_KIND"),
+                "a kind nobody registered points nowhere rather than everywhere");
+    }
+
+    @Test
+    void aKindBuiltWithoutThePlaceFlagNamesAThing() {
+        assertFalse(new ObjectiveKind("SOMETHING", false, true).targetsPlace());
+        assertTrue(ObjectiveKind.placeTargeted("SOMEWHERE").targetsPlace());
+    }
+
+    @Test
+    void theBuiltInsAreNameableSoAConsumerCanRegisterOnlyWhatItAdds() {
+        assertTrue(ObjectiveKindRegistry.isBuiltIn("TALK_TO_NPC"));
+        assertTrue(ObjectiveKindRegistry.isBuiltIn(ObjectiveKindRegistry.STAT_THRESHOLD));
+        assertTrue(ObjectiveKindRegistry.isBuiltIn("  break_block  "),
+                "the same case-and-whitespace blindness every other lookup here has");
+        assertFalse(ObjectiveKindRegistry.isBuiltIn("RUN_STREAK"));
+        assertFalse(ObjectiveKindRegistry.isBuiltIn(null));
+        assertFalse(ObjectiveKindRegistry.isBuiltIn("  "));
+
+        ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
+        for (String id : registry.ids()) {
+            assertTrue(ObjectiveKindRegistry.isBuiltIn(id), id + " is seeded, so it must answer true");
+        }
+    }
+
+    @Test
     void lookupsAreCaseAndWhitespaceBlindWhileTheCanonicalIdStaysUpperCase() {
         ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
 

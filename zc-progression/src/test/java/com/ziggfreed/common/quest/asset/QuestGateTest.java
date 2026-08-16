@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateKind;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
@@ -69,7 +70,8 @@ class QuestGateTest {
                         "Quests": [ "intro_1", "intro_2" ],
                         "Custom": { "yourmod:reputation": { "Faction": "miners", "Min": "500" } },
                         "AllOf": [ { "Permission": "yourmod.beta" } ],
-                        "AnyOf": [ { "Quests": ["route_a"] }, { "Quests": ["route_b"] } ] } }
+                        "AnyOf": [ { "Quests": ["route_a"] }, { "Quests": ["route_b"] } ],
+                        "Not": [ { "Quests": ["retired_route"] } ] } }
                     """, "q").toDefinition(null).requires();
 
             assertEquals(1, requires.factorsOrEmpty().length);
@@ -82,7 +84,40 @@ class QuestGateTest {
                     requires.customOrEmpty().get("yourmod:reputation"));
             assertEquals(1, requires.allOfOrEmpty().length);
             assertEquals(2, requires.anyOfOrEmpty().length);
+            assertEquals(1, requires.notOrEmpty().length);
+            assertEquals(List.of("retired_route"), List.of(requires.notOrEmpty()[0].questsOrEmpty()));
             assertFalse(requires.isEmpty());
+        }
+
+        @Test
+        void theJavaFactoryBuildsTheSameBlockTheCodecDoes() throws Exception {
+            GateSpec decoded = decodeRoot("""
+                    { "Requires": {
+                        "Factors": [ { "Factor": "yourmod:rank", "Min": 10 } ],
+                        "Permission": "yourmod.beta",
+                        "Quests": [ "intro_1" ],
+                        "AnyOf": [ { "Quests": ["route_a"] } ],
+                        "Not": [ { "Quests": ["retired"] } ] } }
+                    """, "q").toDefinition(null).requires();
+
+            GateSpec built = GateSpec.of(
+                    new FactorCondition[] {FactorCondition.of("yourmod:rank", null, 10.0, null)},
+                    "yourmod.beta",
+                    new String[] {"intro_1"},
+                    null,
+                    null,
+                    new GateClause[] {GateClause.of(null, null, new String[] {"route_a"}, null)},
+                    new GateClause[] {GateClause.of(null, null, new String[] {"retired"}, null)});
+
+            assertEquals(decoded.factorsOrEmpty()[0].getFactor(), built.factorsOrEmpty()[0].getFactor());
+            assertEquals(decoded.factorsOrEmpty()[0].getMin(), built.factorsOrEmpty()[0].getMin());
+            assertEquals(decoded.getPermission(), built.getPermission());
+            assertEquals(List.of(decoded.questsOrEmpty()), List.of(built.questsOrEmpty()));
+            assertEquals(List.of(decoded.anyOfOrEmpty()[0].questsOrEmpty()),
+                    List.of(built.anyOfOrEmpty()[0].questsOrEmpty()));
+            assertEquals(List.of(decoded.notOrEmpty()[0].questsOrEmpty()),
+                    List.of(built.notOrEmpty()[0].questsOrEmpty()));
+            assertEquals(decoded.isEmpty(), built.isEmpty());
         }
 
         @Test
@@ -285,6 +320,46 @@ class QuestGateTest {
             assertFalse(evaluator().passes(PLAYER, spec("""
                     { "AllOf": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] },
                                  { "Factors": [ { "Factor": "yourmod:rank", "Min": 100 } ] } ] }
+                    """)));
+        }
+
+        @Test
+        void aNotGroupShutsTheGateByPassing() {
+            factors.register("yourmod:rank", ctx -> 7.0);
+
+            // The group fails (rank 7 is not 100), so the negation holds and the gate is open.
+            assertTrue(evaluator().passes(PLAYER, spec("""
+                    { "Not": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 100 } ] } ] }
+                    """)));
+            // The group passes, which is exactly what a Not forbids.
+            assertEquals(GateEvaluator.REASON_NOT, evaluator().firstFailure(PLAYER, spec("""
+                    { "Not": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] } ] }
+                    """)));
+        }
+
+        @Test
+        void oneNotGroupMeansNotBothWhileTwoMeanNeither() {
+            factors.register("yourmod:rank", ctx -> 7.0);
+            factors.register("yourmod:fame", ctx -> 1.0);
+
+            // ONE group listing both: it only passes when BOTH hold, and fame is 1, so it fails
+            // and the negation lets the player through.
+            assertTrue(evaluator().passes(PLAYER, spec("""
+                    { "Not": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 },
+                                              { "Factor": "yourmod:fame", "Min": 50 } ] } ] }
+                    """)));
+            // TWO groups: each is negated on its own, and the rank one passes, so the gate shuts.
+            assertEquals(GateEvaluator.REASON_NOT, evaluator().firstFailure(PLAYER, spec("""
+                    { "Not": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] },
+                               { "Factors": [ { "Factor": "yourmod:fame", "Min": 50 } ] } ] }
+                    """)));
+        }
+
+        @Test
+        void anEmptyNotGroupShutsTheContentForEverybody() {
+            // A group asking for nothing passes for everyone, so negating it can never be satisfied.
+            assertEquals(GateEvaluator.REASON_NOT, evaluator().firstFailure(PLAYER, spec("""
+                    { "Not": [ { } ] }
                     """)));
         }
 

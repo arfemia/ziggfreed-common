@@ -53,6 +53,7 @@ a server running two content mods work.
 | `QuestEngine.Builder#factors` / `#factorContext` | the OPTIONAL factor pair, wired the way a gate evaluator's is; unwired, `STAT_THRESHOLD` is purely consumer-fired |
 | `QuestStateReader` | the narrow READ seam: what a conversation may ask, and the whole of what it may reach |
 | `NpcOffer`, `NpcOfferProvider`, `NpcOfferProviders` | the open table answering "what is this character holding out to this player" - the one question the quest runtime genuinely cannot answer alone |
+| `QuestResets` | the outbound RE-ARM seam: who is told that a quest went back to pristine, for state declared to live and die with it that this module sits below and can never call |
 | `event/` | the five native `IEvent<Void>` POJOs + `QuestEvents` fire helper |
 | [`../progress/`](../progress/CLAUDE.md) | the shared cores: `ObjectiveDef`, the vocabulary, matching, `ObjectiveProgressState`, `ObjectiveIndex`, `DispatchOptions`, `ZoneRef` |
 | [`asset/`](asset/CLAUDE.md) | the authoring layer: the quest + generator asset schemas, the pool, the validator |
@@ -90,6 +91,17 @@ a server running two content mods work.
   (`CLAIM` the reward being taken, `COMPLETE` the objectives being met) and toggles nothing else.
   `COMPLETE` is what a quest belonging to a rotating, period-based offer wants, so collecting late
   does not burn a slot in the next period. Do not reintroduce a consumer-specific check in its place.
+- **"Where should I go next" and "may I hand this in" are TWO questions, and the engine answers both
+  itself.** `readyToTurnInAt` is the DESTINATION read: the quest is genuinely ACTIVE and its first
+  outstanding step resolves at this id - either a hand-in that may be handed in here, or a step whose
+  KIND declares a place-typed target (`progress.ObjectiveKind#targetsPlace`) naming this place, whole
+  id against whole id, ignoring case. A step whose kind targets a THING never resolves anywhere, and
+  a blank target resolves nowhere rather than everywhere. `canDeliverTurnInAt` is that plus a live
+  hand-in the player can satisfy, and a quest with NO outstanding hand-in is NOT deliverable however
+  plainly this is where its next step happens: `attemptTurnIn` acts only on hand-in objectives, so
+  answering yes would offer a delivery that provably does nothing while the step is credited by the
+  conversation or the surface where the author put the beat. A caller MARKS on the weak one and
+  OFFERS on the strict one.
 - **WHERE a quest may be collected is ONE predicate, and the engine enforces it itself.**
   `canCompleteAt(subject, quest, atOrNull)` is the whole rule: no `Quest#turnInAt()` means anywhere
   (the default, and most content), a `CHARACTER` site answers to one id case-insensitively, an
@@ -115,6 +127,15 @@ a server running two content mods work.
 - **`clearQuest` re-arms; it does NOT wipe the completion record.** Abandon and the off-cooldown
   reset both go through it, and a lifetime cap either of them wiped would be a cap nobody could ever
   reach. `setCompletions(..., CompletionRecord.NONE)` is the deliberate wipe.
+- **`QuestEngine#clearQuest` is the ONE way a quest is re-armed, and `store().clearQuest` is not a
+  shortcut to it.** The engine's own form does the store's clear AND reports it through
+  `QuestResets`, which is what a layer holding state declared to live only as long as that quest is
+  waiting for - a conversation's memory of it above all. Reaching past the engine re-arms the quest
+  and tells nobody, and the symptom does not appear until an author's content stops behaving with
+  nothing anywhere saying why. Every caller inside this library goes through the engine (the
+  authoring pool's completion resets, and a rotating offer putting a lapsed one back in reach).
+  The seam itself is a courtesy in the same sense the outbound events are: guarded, on the caller's
+  thread, and absent in a bare unit JVM.
 - **A store says what it can hold.** `recordsCompletions()` is the honest capability probe, exactly
   like `usesReservedDelimiter`. A store that answers false leaves `Reset` and `MaxCompletions` inert,
   and `setQuests` says so ONCE per quest at load rather than letting the content quietly not work.
@@ -124,7 +145,7 @@ a server running two content mods work.
   implemented against `QuestStateReader` plus a consumer-supplied answer set and two opt-in write
   methods, all bundled in `dialogue.quest.DialogueQuests`. The edge is one-way: this module may
   never import anything from `zc-dialogue`.
-- **A surface that only LOOKS gets `QuestStateReader`, never the engine.** `QuestEngine` implements it, and a conversation - which decides what to SHOW, dozens of times per render - is handed the interface. The engine mutates; a read seam cannot, so no amount of drift turns a rendering pass into an accept or a claim. Keep the seam narrow: a method belongs there only if a dialogue genuinely asks it AND the runtime can answer it alone. "Does this place have anything to OFFER?" fails the second half (who hands out what is an authoring-layer association plus a gate pass), so it is answered by ASKING `NpcOfferProviders` rather than by widening this seam. `canCompleteAt` is on the seam for the same reason: a quest page, a book and a conversation all decide whether to OFFER a collection, and one predicate is what stops three copies of the rule drifting. It defaults to yes, since a reader modelling no places must not hide every collection in the game and cannot let a wrong one through either. **`resolvesTurnInAt` is the deliberate weaker twin of `canDeliverTurnInAt`**: a marker pointing a player at the character a step is going to, versus a button that completes it. It DEFAULTS to the possession-aware answer, which can only under-report a destination and never offers an impossible hand-in - a runtime where a step can resolve at a character with nothing carried (a "go and speak to them" step is exactly that) overrides it.
+- **A surface that only LOOKS gets `QuestStateReader`, never the engine.** `QuestEngine` implements it, and a conversation - which decides what to SHOW, dozens of times per render - is handed the interface. The engine mutates; a read seam cannot, so no amount of drift turns a rendering pass into an accept or a claim. Keep the seam narrow: a method belongs there only if a dialogue genuinely asks it AND the runtime can answer it alone. "Does this place have anything to OFFER?" fails the second half (who hands out what is an authoring-layer association plus a gate pass), so it is answered by ASKING `NpcOfferProviders` rather than by widening this seam. `canCompleteAt` is on the seam for the same reason: a quest page, a book and a conversation all decide whether to OFFER a collection, and one predicate is what stops three copies of the rule drifting. It defaults to yes, since a reader modelling no places must not hide every collection in the game and cannot let a wrong one through either. **`resolvesTurnInAt` is the deliberate weaker twin of `canDeliverTurnInAt`**: a marker pointing a player at the character a step is going to, versus a button that completes it. The seam DEFAULTS to the possession-aware answer, which is the honest one for a reader that cannot tell the two apart and can only ever under-report a destination; `QuestEngine` CAN tell them apart, so it overrides the seam with its own `readyToTurnInAt` and a "go and speak to them" step marks the character it points at instead of leaving it unmarked.
 - **Events are an outbound courtesy.** Every fire is guarded end to end; a listener blowing up must never take a completion down with it. Fire from the world thread.
 
 ## Adding to it
