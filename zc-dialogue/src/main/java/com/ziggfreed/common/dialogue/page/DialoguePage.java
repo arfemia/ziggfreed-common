@@ -31,8 +31,8 @@ import com.ziggfreed.common.dialogue.DialogueOptionTheme;
 import com.ziggfreed.common.dialogue.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.DialogueNode;
 import com.ziggfreed.common.dialogue.NpcDialogue;
-import com.ziggfreed.common.dialogue.i18n.DialogueI18n;
 import com.ziggfreed.common.dialogue.i18n.DialogueMessages;
+import com.ziggfreed.common.i18n.ContentI18n;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -75,6 +75,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
 
     private final String dialogueId;
     @Nullable private final String contextNpcId;
+    @Nullable private final Ref<EntityStore> npcRef;
     private final DialoguePageDeps deps;
     @Nullable private String currentNodeId;
 
@@ -94,7 +95,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
 
     public DialoguePage(@Nonnull PlayerRef playerRef, @Nonnull String dialogueId,
                         @Nullable String contextNpcId, @Nonnull DialoguePageDeps deps) {
-        this(playerRef, dialogueId, contextNpcId, deps, null);
+        this(playerRef, dialogueId, contextNpcId, null, deps, null);
     }
 
     /**
@@ -105,9 +106,25 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
     public DialoguePage(@Nonnull PlayerRef playerRef, @Nonnull String dialogueId,
                         @Nullable String contextNpcId, @Nonnull DialoguePageDeps deps,
                         @Nullable DialogueEngine.EntryResolution preResolved) {
+        this(playerRef, dialogueId, contextNpcId, null, deps, preResolved);
+    }
+
+    /**
+     * @param npcRef the live NPC entity the player is standing at, when there is one, so the
+     *        header name can be answered from the live role ({@link com.ziggfreed.common.npc.NpcNames}'s
+     *        live-entity form) instead of a static walk. Null for a conversation opened with no
+     *        entity in hand (e.g. a Java call site that only has an id).
+     * @param preResolved the entry {@link DialogueOpener} resolved for this open, or null to let the
+     *        page work it out itself. Prefer opening through {@code DialogueOpener}: a conversation
+     *        whose {@code Start} routes elsewhere cannot hand the screen over from inside a page.
+     */
+    public DialoguePage(@Nonnull PlayerRef playerRef, @Nonnull String dialogueId,
+                        @Nullable String contextNpcId, @Nullable Ref<EntityStore> npcRef,
+                        @Nonnull DialoguePageDeps deps, @Nullable DialogueEngine.EntryResolution preResolved) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, DialogueEventData.CODEC);
         this.dialogueId = dialogueId;
         this.contextNpcId = (contextNpcId == null || contextNpcId.isBlank()) ? null : contextNpcId;
+        this.npcRef = npcRef;
         this.deps = deps;
         this.preResolved = preResolved;
     }
@@ -120,7 +137,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
                 EventData.of("Action", "close"));
 
         DialogueEngine engine = deps.engine();
-        DialogueI18n i18n = deps.i18n();
+        ContentI18n i18n = deps.i18n();
 
         // WHO this render is about: the PLAYER, never whoever opened the page. The ref argument is
         // simply what the opener handed the page manager, and every NPC-action route hands it the
@@ -147,8 +164,11 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             return;
         }
 
-        // The name header + optional annotation, both consumer-supplied (default: none).
-        Message name = deps.npcName().nameFor(contextNpcId);
+        // The name header + optional annotation, both consumer-supplied (default: none). The
+        // three-arg form reaches the live-entity answer when this page was opened with an NPC ref
+        // in hand (world thread: it reads a component); it falls back to the id-only static walk
+        // on a provider that only implements the single-arg form, or when there is no live ref.
+        Message name = deps.npcName().nameFor(contextNpcId, npcRef, store);
         if (name != null) {
             // A Message MUST go on a Label's .TextSpans, NOT .Text (a String sink): a Message on
             // .Text fails the client's set command ("couldn't set value. Selector: #NpcName.Text")
@@ -234,7 +254,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
      * the header close button and Escape are an abandon that spends nothing.
      */
     private void appendFarewellRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                                   @Nonnull DialogueI18n i18n, int row, @Nullable String nodeId) {
+                                   @Nonnull ContentI18n i18n, int row, @Nullable String nodeId) {
         cmd.append("#OptionsList", OPTION_ROW_TEMPLATE);
         String sel = "#OptionsList[" + row + "]";
         cmd.set(sel + " #OptionBtn.Text", DialogueMessages.tr(i18n, "ui.dialogue.farewell"));
@@ -355,7 +375,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
      * use. Plain (markup-free) text renders unchanged. Option rows are {@code TextButton}s
      * (no {@code TextSpans}), so their colour comes from {@link DialogueOptionStyle}, not markup.
      */
-    private static void setNodeText(@Nonnull UICommandBuilder cmd, @Nonnull DialogueI18n i18n,
+    private static void setNodeText(@Nonnull UICommandBuilder cmd, @Nonnull ContentI18n i18n,
                                     @Nonnull NpcDialogue dialogue, @Nonnull String nodeId, @Nonnull DialogueNode node) {
         String conventionKey = "dialogue." + dialogue.getId() + "." + nodeId + ".text";
         Message text = DialogueMessages.resolve(i18n, node.getTextKey(), conventionKey, node.getText());
@@ -363,7 +383,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
     }
 
     @Nonnull
-    private static Message resolveOptionLabel(@Nonnull DialogueI18n i18n, @Nonnull NpcDialogue dialogue,
+    private static Message resolveOptionLabel(@Nonnull ContentI18n i18n, @Nonnull NpcDialogue dialogue,
                                               @Nonnull String nodeId, int optionIndex, @Nonnull DialogueOption option) {
         String conventionKey = "dialogue." + dialogue.getId() + "." + nodeId + ".opt." + optionIndex;
         Message label = DialogueMessages.resolve(i18n, option.getLabelKey(), conventionKey, option.getLabel());

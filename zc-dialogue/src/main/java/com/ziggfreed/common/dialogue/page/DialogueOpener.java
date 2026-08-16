@@ -72,7 +72,7 @@ public final class DialogueOpener {
             @Nullable String npcId, @Nonnull DialoguePageDeps deps,
             @Nullable DialogueEngine.EntryResolution entry) {
         ctx.player().getPageManager().openCustomPage(ctx.pageAnchor(), ctx.store(),
-                new DialoguePage(ctx.playerRef(), dialogueId, npcId, deps, entry));
+                new DialoguePage(ctx.playerRef(), dialogueId, npcId, ctx.npcRef(), deps, entry));
         return true;
     }
 }
