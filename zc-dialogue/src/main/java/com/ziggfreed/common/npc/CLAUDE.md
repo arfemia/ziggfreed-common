@@ -1,6 +1,6 @@
 # npc/ - generic NPC spawn + press-F-opens-a-dialogue primitives
 
-Router for `com.ziggfreed.common.npc`. Lifted config-free from the MMO Skill Tree mod (`MmoNpcSpawnService` + `ActionOpenMmoUi`) so a minigame (or eventually the MMO) gets "spawn an NPC whose press-F opens a branching dialogue" without re-deriving it. The dialogue engine + `page/DialoguePage` already live in [`dialogue/`](../dialogue/CLAUDE.md); this package adds only the spawn + the press-F NPC Action half.
+Router for `com.ziggfreed.common.npc`. Lifted config-free out of a consumer mod's own spawn + press-F plumbing, so a minigame (or the MMO) gets "spawn an NPC whose press-F opens a branching dialogue" without re-deriving it. The dialogue engine + `page/DialoguePage` already live in [`dialogue/`](../dialogue/CLAUDE.md); this package adds only the spawn + the press-F NPC Action half.
 
 ## Identity, credit, and the at-NPC surface
 
