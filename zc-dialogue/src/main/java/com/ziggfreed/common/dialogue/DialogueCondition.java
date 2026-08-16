@@ -138,10 +138,11 @@ public abstract class DialogueCondition {
      * and a condition with NEITHER is a presence check that passes as long as the factor resolves
      * at all - which is how "only where that mod is installed" is written.
      *
-     * <p>The number comes from the {@link com.ziggfreed.common.factor.FactorRegistry} the engine
-     * was built with ({@code DialogueEngine.Builder#factors}). <b>Fail-closed twice over</b>: an
+     * <p>The number comes from the {@link com.ziggfreed.common.factor.FactorRegistry} installed into
+     * the shared engine's one factor slot ({@code DialogueEngine.installFactors}; a test sandbox
+     * built with {@code DialogueEngine.builder()} takes its own). <b>Fail-closed twice over</b>: an
      * unregistered id, a provider that cannot answer, and a THROWING provider all resolve to
-     * nothing and hide the gated content, and so does an engine that was never handed a registry
+     * nothing and hide the gated content, and so does a server where nobody installed a registry
      * at all - so a dialogue authored against a factor vocabulary that is not present shows its
      * ungated lines rather than promising something the server cannot deliver.
      */

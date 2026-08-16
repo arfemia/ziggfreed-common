@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -128,5 +130,60 @@ class RegistryLedgerTest {
 
         assertTrue(ledger.ids().isEmpty());
         assertFalse(ledger.isRegistered("a"));
+    }
+
+    // ==================== putIfAbsent: the singular slot ====================
+
+    @Test
+    void theFirstClaimOnASingularSlotWinsAndALaterOneIsRefusedAndReported() {
+        List<String> reported = new ArrayList<>();
+        RegistryLedger<Object> ledger = new RegistryLedger<>("test", reported::add);
+        Object first = new Object();
+        Object second = new Object();
+
+        assertTrue(ledger.putIfAbsent("seam", "modA", first));
+        assertFalse(ledger.putIfAbsent("seam", "modB", second));
+
+        assertEquals(first, ledger.get("seam"), "the holder keeps the slot");
+        assertEquals("modA", ledger.info().get("seam").owner(), "and keeps the attribution");
+        assertEquals(1, reported.size(), "the refusal is worth exactly one line");
+        assertTrue(reported.get(0).contains("modA") && reported.get(0).contains("modB"),
+                "and that line names both owners: " + reported.get(0));
+    }
+
+    @Test
+    void reOfferingTheSameInstanceToASingularSlotIsSilent() {
+        List<String> reported = new ArrayList<>();
+        RegistryLedger<Object> ledger = new RegistryLedger<>("test", reported::add);
+        Object only = new Object();
+
+        assertTrue(ledger.putIfAbsent("seam", "modA", only));
+        assertFalse(ledger.putIfAbsent("seam", "modA", only),
+                "a mod re-running its own setup does not claim the slot a second time");
+
+        assertTrue(reported.isEmpty(), "and nothing is reported: " + reported);
+        assertEquals(only, ledger.get("seam"));
+    }
+
+    @Test
+    void aRefusedSingularClaimIsReportedOnlyOnceHoweverOftenItRepeats() {
+        List<String> reported = new ArrayList<>();
+        RegistryLedger<Object> ledger = new RegistryLedger<>("test", reported::add);
+        ledger.putIfAbsent("seam", "modA", new Object());
+
+        ledger.putIfAbsent("seam", "modB", new Object());
+        ledger.putIfAbsent("seam", "modC", new Object());
+
+        assertEquals(1, reported.size(), "a flapping re-register can never spam the log");
+    }
+
+    @Test
+    void aBlankIdOrNullValueClaimsNothing() {
+        RegistryLedger<String> ledger = new RegistryLedger<>();
+
+        assertFalse(ledger.putIfAbsent("  ", "modA", "value"));
+        assertFalse(ledger.putIfAbsent("seam", "modA", null));
+
+        assertTrue(ledger.ids().isEmpty());
     }
 }

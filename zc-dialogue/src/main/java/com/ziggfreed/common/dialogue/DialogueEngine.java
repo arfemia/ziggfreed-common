@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -29,23 +30,47 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.quest.NpcOffer;
 import com.ziggfreed.common.quest.NpcOfferProviders;
 import com.ziggfreed.common.quest.QuestStatus;
+import com.ziggfreed.common.registry.RegistryLedger;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.Destinations;
 
 /**
- * One mod's dialogue runtime: what its actions DO, what its conditions ANSWER, which page its
- * {@code OpenPage} reaches, which numbers its {@code Factor} conditions read, and which quest
- * runtime its quest lines talk to. Built once via {@link #builder()}, in the mod's setup.
+ * The dialogue runtime: what an action DOES, what a condition ANSWERS, which page an
+ * {@code OpenPage} reaches, which numbers a {@code Factor} condition reads, and which quest runtime
+ * the quest lines talk to.
  *
- * <p><b>Behaviour is private to an engine; the SCHEMA is shared.</b> Registering a type here teaches
- * this engine what to do with it AND teaches {@link DialogueTypeTable} how to read it, because
- * dialogue files live in one store the server reads once. So two mods can author into that store
- * without either one running the other's code: an action this engine has no handler for does
- * nothing, and a condition it cannot evaluate hides its line.
+ * <p><b>A server has ONE of these, and every mod registers into it.</b> Reach it with
+ * {@link #shared()} and contribute with {@link #registerShared(String, DialogueActionType)} /
+ * {@link #registerShared(String, DialogueConditionType)} from your plugin's {@code setup()},
+ * naming your mod. Contributions STACK: two mods' actions live side by side in one vocabulary, so a
+ * single authored option may carry one of each and both run. Nothing has to be wired in the other
+ * direction and setup order between mods does not matter.
  *
- * <p>Build the engine in setup, before assets load. An engine built later has missed the read.
+ * <p>Registering also teaches {@link DialogueTypeTable} how to READ the type, because dialogue files
+ * live in one store the server reads once. A {@code Type} id is claimed by its first registration; a
+ * second mod naming the same id with a different class is reported there, since only one of the two
+ * shapes can be read.
+ *
+ * <p>Behaviour is claimed per action / condition CLASS, and also first-wins: two mods contributing a
+ * handler for the same class is the one collision stacking cannot absorb, since only one of them can
+ * run. The later contributor is refused, {@code registerShared} answers false, and one line names
+ * the mod holding the class and the mod that asked - which is why a registration names its owner.
+ *
+ * <p><b>Two seams are singular rather than additive</b>, and deliberately: the quest runtime
+ * ({@link #installQuests}) and the factor vocabulary ({@link #installFactors}). Two of either would
+ * be two answers to the same question about one player, which is a contradiction rather than a
+ * composition, so the first install holds the slot and a second one naming a different instance is
+ * logged and ignored.
+ *
+ * <p><b>{@link #builder()} still builds a PRIVATE engine</b> with its own vocabulary, which is what a
+ * test wanting a sandbox needs. Nothing in a running server should build one: a private engine can
+ * only execute its own half of the vocabulary the shared schema already reads, so an action some
+ * other mod authored would silently do nothing.
+ *
+ * <p>Register in setup, before assets load. A type registered later has missed the read, and the
+ * type table says so once.
  */
 public final class DialogueEngine {
 
@@ -53,9 +78,17 @@ public final class DialogueEngine {
     private final Map<Class<? extends DialogueAction>, DialogueOptionStyle> styles;
     private final DialogueActionExecutor executor;
     private final Consumer<String> warn;
-    @Nullable private final FactorRegistry factors;
-    private final DialogueQuests quests;
+    private final Supplier<FactorRegistry> factors;
+    private final Supplier<DialogueQuests> quests;
     private final DoubleSupplier random;
+
+    /**
+     * Which mod owns each action / condition CLASS in this engine's vocabulary, keyed by the class's
+     * own binary name. Behaviour is first-wins per class - a second contributor's handler, evaluator
+     * and style are all refused - and this is what makes that visible: one line per class, naming the
+     * mod that holds it and the mod that asked for it, instead of a silently dropped registration.
+     */
+    private final RegistryLedger<Object> vocabulary;
 
     /** Authoring mistakes that repeat on every render, reported once per distinct case. */
     private final Set<String> warnedOnce = ConcurrentHashMap.newKeySet();
@@ -63,8 +96,8 @@ public final class DialogueEngine {
     private DialogueEngine(@Nonnull Map<Class<? extends DialogueCondition>, DialogueConditionEvaluator<?>> evaluators,
                            @Nonnull Map<Class<? extends DialogueAction>, DialogueOptionStyle> styles,
                            @Nonnull DialogueActionExecutor executor,
-                           @Nonnull Consumer<String> warn, @Nullable FactorRegistry factors,
-                           @Nonnull DialogueQuests quests, @Nonnull DoubleSupplier random) {
+                           @Nonnull Consumer<String> warn, @Nonnull Supplier<FactorRegistry> factors,
+                           @Nonnull Supplier<DialogueQuests> quests, @Nonnull DoubleSupplier random) {
         this.evaluators = evaluators;
         this.styles = styles;
         this.executor = executor;
@@ -72,31 +105,237 @@ public final class DialogueEngine {
         this.factors = factors;
         this.quests = quests;
         this.random = random;
+        // Reports through this engine's own warn, so a sandbox engine's report is capturable the
+        // same way its authoring warnings are.
+        this.vocabulary = new RegistryLedger<>("dialogue-vocabulary", warn);
     }
 
     /**
      * The factor vocabulary the generic {@code Factor} condition resolves against, or null when
-     * the consumer wired none (every {@code Factor} condition then fails closed). Also what a
+     * nobody wired one (every {@code Factor} condition then fails closed). Also what a
      * consumer hands {@code validate.DialogueStructureValidator} so an authored id nobody
      * registered is a startup finding rather than permanently invisible content.
      */
     @Nullable
     public FactorRegistry factors() {
-        return factors;
+        return factors.get();
     }
 
     /**
-     * The quest runtime the quest-aware lines read and act through. Never null: an engine built
-     * without one keeps {@link DialogueQuests#NONE}, which answers nothing and refuses everything.
+     * The quest runtime the quest-aware lines read and act through. Never null: with nobody wired it
+     * stays {@link DialogueQuests#NONE}, which answers nothing and refuses everything.
      */
     @Nonnull
     public DialogueQuests quests() {
-        return quests;
+        DialogueQuests wired = quests.get();
+        return wired == null ? DialogueQuests.NONE : wired;
     }
 
+    /**
+     * A PRIVATE engine with its own vocabulary, for a test that wants a sandbox. A running server
+     * uses {@link #shared()} instead; see this class's own documentation for why.
+     */
     @Nonnull
     public static Builder builder() {
         return new Builder();
+    }
+
+    // ==================== the one shared engine ====================
+
+    /** Guards assembly of the shared engine and every additive registration into it. */
+    private static final Object SHARED_LOCK = new Object();
+
+    /** The one-slot id the singular quest-runtime seam is held under. */
+    private static final String QUESTS_SLOT = "quests";
+
+    /** The one-slot id the singular factor-vocabulary seam is held under. */
+    private static final String FACTORS_SLOT = "factors";
+
+    private static final RegistryLedger<DialogueQuests> SHARED_QUESTS = new RegistryLedger<>("dialogue");
+    private static final RegistryLedger<FactorRegistry> SHARED_FACTORS = new RegistryLedger<>("dialogue");
+
+    /** How the library attributes the generic vocabulary it seeds into the shared engine itself. */
+    private static final String LIBRARY_OWNER = "ziggfreed-common";
+
+    /**
+     * Where the shared engine reports, when something other than the log has to hear it. Null means
+     * the log; {@link #resetSharedForTests(Consumer)} is the only thing that sets it. Read lazily
+     * rather than defaulted here, because {@code DEFAULT_WARN} is declared further down the file.
+     */
+    @Nullable private static volatile Consumer<String> sharedWarn;
+
+    /**
+     * The one-slot holder the seeded handlers and evaluators reach the shared engine through. They
+     * are built while it is being constructed and are only ever invoked long afterwards.
+     */
+    private static final DialogueEngine[] SHARED_SELF = new DialogueEngine[1];
+
+    @Nullable private static volatile DialogueEngine sharedEngine;
+
+    /**
+     * The server's one dialogue engine, assembled on first use with the generic vocabulary already
+     * in it. The SAME instance is returned forever after, so a consumer may hold on to it: later
+     * registrations land in its live maps rather than producing a second engine that leaves the
+     * first one stale.
+     */
+    @Nonnull
+    public static DialogueEngine shared() {
+        DialogueEngine current = sharedEngine;
+        if (current != null) {
+            return current;
+        }
+        synchronized (SHARED_LOCK) {
+            if (sharedEngine == null) {
+                sharedEngine = assembleShared();
+            }
+            return sharedEngine;
+        }
+    }
+
+    @Nonnull
+    private static DialogueEngine assembleShared() {
+        Map<Class<? extends DialogueCondition>, DialogueConditionEvaluator<?>> evaluators =
+                new ConcurrentHashMap<>();
+        Map<Class<? extends DialogueAction>, DialogueOptionStyle> styles = new ConcurrentHashMap<>();
+        Map<Class<? extends DialogueAction>, DialogueActionHandler<?>> handlers = new ConcurrentHashMap<>();
+        Consumer<String> warn = sharedWarn == null ? DEFAULT_WARN : sharedWarn;
+        DialogueEngine engine = new DialogueEngine(evaluators, styles,
+                new DialogueActionExecutor(handlers, warn), warn,
+                () -> SHARED_FACTORS.get(FACTORS_SLOT),
+                () -> SHARED_QUESTS.get(QUESTS_SLOT),
+                DEFAULT_RANDOM);
+        // The seeded handlers and evaluators reach the engine through this holder, and none of them
+        // is INVOKED during seeding, so the instance is only published (below, by the caller) once
+        // its vocabulary is complete: a reader on the fast path sees either nothing or all of it.
+        SHARED_SELF[0] = engine;
+        registerCombinatorEvaluators(evaluators, SHARED_SELF);
+        seedGenericConditions(type -> engine.adopt(LIBRARY_OWNER, type), SHARED_SELF);
+        seedGenericActions(type -> engine.adopt(LIBRARY_OWNER, type), SHARED_SELF);
+        seedQuestVocabulary(type -> engine.adopt(LIBRARY_OWNER, type),
+                type -> engine.adopt(LIBRARY_OWNER, type), SHARED_SELF);
+        engine.adopt(LIBRARY_OWNER, openPageType());
+        return engine;
+    }
+
+    /**
+     * Contribute an action type to the server's dialogue vocabulary, attributed to {@code owner}
+     * (the contributing mod's name). Call once per type from your plugin's {@code setup()}, before
+     * assets load. Additive: it joins every other mod's types rather than replacing them, and the
+     * first registration of a {@code Type} id wins.
+     *
+     * <p>The owner is not decoration. Behaviour is first-wins per action CLASS, so a second
+     * contributor for a class somebody already holds is refused, and the line reporting that is only
+     * worth reading when it can name which mod holds it and which one asked.
+     *
+     * @return true when this call claimed the action class; false when another mod already held it
+     *         and this registration's handler and style are therefore not the live ones
+     */
+    public static boolean registerShared(@Nullable String owner, @Nonnull DialogueActionType<?> type) {
+        synchronized (SHARED_LOCK) {
+            return shared().adopt(owner, type);
+        }
+    }
+
+    /**
+     * Contribute a condition type to the server's dialogue vocabulary; same rules as actions.
+     *
+     * @return true when this call claimed the condition class
+     */
+    public static boolean registerShared(@Nullable String owner, @Nonnull DialogueConditionType<?> type) {
+        synchronized (SHARED_LOCK) {
+            return shared().adopt(owner, type);
+        }
+    }
+
+    /**
+     * Install the quest runtime every quest-aware dialogue line reads and acts through. SINGULAR:
+     * the first install holds the slot for the life of the server, and a second one naming a
+     * different runtime is logged and ignored, because two runtimes would be two versions of one
+     * player's quest state.
+     *
+     * @return true when this call claimed the slot
+     */
+    public static boolean installQuests(@Nullable String owner, @Nonnull DialogueQuests quests) {
+        return SHARED_QUESTS.putIfAbsent(QUESTS_SLOT, owner, quests);
+    }
+
+    /**
+     * Install the factor vocabulary the generic {@code Factor} condition resolves against. SINGULAR
+     * for the same reason as {@link #installQuests}.
+     *
+     * <p>Losing the slot is not free, so it is worth knowing what survives it: whichever registry
+     * holds the slot answers its OWN registrations plus every id in the process-wide
+     * {@code FactorContributions} table, so a mod's conversations keep working only for the ids it
+     * CONTRIBUTED. Contribute any id your own dialogues are gated on; an id you registered only into
+     * your own registry reads as unanswerable, and fails closed, on a server where somebody else got
+     * to the slot first.
+     *
+     * @return true when this call claimed the slot
+     */
+    public static boolean installFactors(@Nullable String owner, @Nonnull FactorRegistry factors) {
+        return SHARED_FACTORS.putIfAbsent(FACTORS_SLOT, owner, factors);
+    }
+
+    /**
+     * Drop the shared engine and both singular seams. For tests, which need a clean vocabulary per
+     * case; nothing in a running server should ever call it. Pair it with
+     * {@link DialogueTypeTable#resetForTests()}, which owns the schema half.
+     */
+    public static void resetSharedForTests() {
+        resetSharedForTests(null);
+    }
+
+    /**
+     * As {@link #resetSharedForTests()}, but the engine assembled next reports through {@code warn}
+     * instead of the log (null restores the log). For the test that has to see WHETHER something was
+     * reported rather than only what survived it - the same reason
+     * {@link RegistryLedger#RegistryLedger(String, Consumer)} takes one.
+     */
+    public static void resetSharedForTests(@Nullable Consumer<String> warn) {
+        synchronized (SHARED_LOCK) {
+            SHARED_QUESTS.clear();
+            SHARED_FACTORS.clear();
+            SHARED_SELF[0] = null;
+            sharedEngine = null;
+            sharedWarn = warn;
+        }
+    }
+
+    /**
+     * Adopt an action type into this engine's live vocabulary AND into the shared decode table.
+     * First-wins per action CLASS: a second contributor never displaces the handler or the style the
+     * first one registered, and the refusal is reported once per class, naming both mods, rather
+     * than dropping a registration silently.
+     *
+     * @return true when this call claimed the class
+     */
+    private boolean adopt(@Nullable String owner, @Nonnull DialogueActionType<?> type) {
+        DialogueTypeTable.get().register(type);
+        // The ledger is the ownership RECORD and the thing that reports a class two mods both want;
+        // the executor's handler map is what actually dispatches. Both refuse a second claim on the
+        // same class, so the record and the dispatch cannot disagree - and re-offering the SAME
+        // handler instance (a mod re-running its own setup) is silent in both.
+        boolean claimed = executor.adoptHandler(type.actionClass(), type.handler());
+        vocabulary.putIfAbsent(type.actionClass().getName(), owner, type.handler());
+        if (claimed && type.style() != null) {
+            // The mod whose handler runs owns the look too: a style from the refused contributor
+            // would dress an option in one mod's colours while another mod's handler ran it.
+            styles.put(type.actionClass(), type.style());
+        }
+        return claimed;
+    }
+
+    /**
+     * Adopt a condition type into this engine's live vocabulary and the shared decode table; same
+     * first-wins-per-class rule and same one-line report as actions.
+     *
+     * @return true when this call claimed the class
+     */
+    private boolean adopt(@Nullable String owner, @Nonnull DialogueConditionType<?> type) {
+        DialogueTypeTable.get().register(type);
+        boolean claimed = evaluators.putIfAbsent(type.conditionClass(), type.evaluator()) == null;
+        vocabulary.putIfAbsent(type.conditionClass().getName(), owner, type.evaluator());
+        return claimed;
     }
 
     /** The shared {@code Start}/{@code Nodes} codec every authored dialogue is read through. */
@@ -357,10 +596,11 @@ public final class DialogueEngine {
             // the variant out of a draw the author meant it to be in.
             return DialogueStart.Variant.DEFAULT_WEIGHT;
         }
-        if (factors == null) {
+        FactorRegistry registry = factors();
+        if (registry == null) {
             return formula.evaluate((id, param) -> null);
         }
-        return formula.evaluate(factors, factorContext(ctx, null));
+        return formula.evaluate(registry, factorContext(ctx, null));
     }
 
     private static double clampUnit(double roll) {
@@ -383,7 +623,7 @@ public final class DialogueEngine {
         if (rows.isEmpty()) {
             return null;
         }
-        QuestBandReader bands = new QuestBandReader(quests, ctx);
+        QuestBandReader bands = new QuestBandReader(quests(), ctx);
         for (DialogueStart.Band band : DialogueStart.Band.values()) {
             for (Map.Entry<String, DialogueStart.QuestRow> entry : rows.entrySet()) {
                 DialogueStart.QuestRow row = entry.getValue();
@@ -631,14 +871,15 @@ public final class DialogueEngine {
      * act on.
      */
     private boolean factorPasses(@Nonnull DialogueCondition.Factor condition, @Nonnull DialogueContext ctx) {
-        if (factors == null) {
+        FactorRegistry registry = factors();
+        if (registry == null) {
             warnOnce("factor-registry",
-                    "A dialogue uses a Factor condition but this engine was built with no factor"
-                            + " registry - every Factor condition fails closed and its content stays"
-                            + " hidden");
+                    "A dialogue uses a Factor condition but no mod installed a factor registry"
+                            + " (DialogueEngine.installFactors) - every Factor condition fails closed"
+                            + " and its content stays hidden");
             return false;
         }
-        return condition.getCondition().accepts(factors.resolve(condition.getFactor(),
+        return condition.getCondition().accepts(registry.resolve(condition.getFactor(),
                 factorContext(ctx, condition.getCondition().getParam())));
     }
 
@@ -715,9 +956,9 @@ public final class DialogueEngine {
         private final DialogueEngine[] self = new DialogueEngine[1];
 
         Builder() {
-            seedGenericConditions();
-            seedGenericActions();
-            seedQuestVocabulary();
+            seedGenericConditions(this::condition, self);
+            seedGenericActions(this::action, self);
+            seedQuestVocabulary(this::action, this::condition, self);
         }
 
         /** Register (or override by Type id) an action type. */
@@ -777,22 +1018,7 @@ public final class DialogueEngine {
 
         @Nonnull
         public DialogueEngine build() {
-            // Generic OpenPage: the option says WHAT it opens in the shared routing vocabulary, and
-            // whichever mod registered that Type opens it. Nothing here parses a target string.
-            actions.putIfAbsent("OpenPage", DialogueActionType.of("OpenPage",
-                            DialogueAction.OpenPage.class, DialogueAction.OpenPage.CODEC,
-                            (DialogueAction.OpenPage a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) -> {
-                                if (openDestination(a.getTarget(), ctx)) {
-                                    out.markOpenedOtherPage();
-                                }
-                            })
-                    .withStyle(DialogueOptionStyle.NEUTRAL)
-                    .withSugar(DialogueSugar.of("Open", 50, Destination.CODEC,
-                            (Destination target, DialogueSugarValues values) -> {
-                                DialogueAction.OpenPage open = new DialogueAction.OpenPage();
-                                open.target = target;
-                                return open;
-                            })));
+            actions.putIfAbsent("OpenPage", openPageType());
 
             DialogueTypeTable table = DialogueTypeTable.get();
             Map<Class<? extends DialogueAction>, DialogueActionHandler<?>> handlers = new HashMap<>();
@@ -813,141 +1039,170 @@ public final class DialogueEngine {
             registerCombinatorEvaluators(evaluators, self);
 
             DialogueActionExecutor executor = new DialogueActionExecutor(handlers, warn);
-            DialogueEngine engine =
-                    new DialogueEngine(evaluators, styles, executor, warn, factors, quests, random);
+            FactorRegistry wiredFactors = factors;
+            DialogueQuests wiredQuests = quests;
+            DialogueEngine engine = new DialogueEngine(evaluators, styles, executor, warn,
+                    () -> wiredFactors, () -> wiredQuests, random);
             self[0] = engine;
             return engine;
         }
 
-        /**
-         * Hand a destination to whichever mod registered its {@code Type}, with the character the
-         * conversation is about travelling in the context so a per-character screen never has to be
-         * told who it is for a second time.
-         *
-         * <p>The page is opened on the PLAYER: an option click comes back on the player's own ref, and
-         * the NPC's entity is not something a conversation still holds by then.
-         */
-        private static boolean openDestination(@Nullable Destination destination,
-                @Nonnull DialogueExecContext ctx) {
-            if (destination == null) {
-                return false;
-            }
-            DestinationContext target = new DestinationContext(ctx.store(), ctx.ref(), ctx.playerRef(),
-                    ctx.player(), null, ctx.contextId(), null, null);
-            return Destinations.open(destination, target);
+    }
+
+    private static void seedGenericActions(@Nonnull Consumer<DialogueActionType<?>> action,
+            @Nonnull DialogueEngine[] self) {
+        action.accept(DialogueActionType.of("Goto", DialogueAction.Goto.class, DialogueAction.Goto.CODEC,
+                        (DialogueAction.Goto a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) ->
+                                out.goTo(a.getNode()))
+                .withStyle(DialogueOptionStyle.CONTINUE)
+                .withSugar(DialogueSugar.string("Goto", 60, node -> {
+                    DialogueAction.Goto go = new DialogueAction.Goto();
+                    go.node = node;
+                    return go;
+                })));
+
+        action.accept(DialogueActionType.of("Close", DialogueAction.Close.class, DialogueAction.Close.CODEC,
+                        (DialogueAction.Close a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) ->
+                                out.requestClose())
+                .withStyle(DialogueOptionStyle.FAREWELL)
+                .withSugar(DialogueSugar.close("Close", 70)));
+
+        // Remember / Forget write a memory the dialogue DECLARED in its Memories map; the
+        // scope and lifetime live in that declaration, so the use site is just the name.
+        // A null key means the memory does not exist here (per world family, wrong world),
+        // which makes the write a deliberate no-op. Orders 32/33 keep the memory writes clear
+        // of the quest band (20/30), so a bare {"TurnIn": ..., "Remember": ...} records the
+        // memory AFTER the turn-in that justifies it rather than before.
+        action.accept(DialogueActionType.of("Remember", DialogueAction.Remember.class,
+                        DialogueAction.Remember.CODEC,
+                        (DialogueAction.Remember a, DialogueExecContext ctx,
+                         DialogueActionExecutor.Mut out) -> {
+                            String key = self[0].memoryKey(a.getMemory(), ctx);
+                            if (key != null) {
+                                ctx.flags().set(key);
+                            }
+                        })
+                .withSugar(DialogueSugar.string("Remember", 32, name -> {
+                    DialogueAction.Remember remember = new DialogueAction.Remember();
+                    remember.memory = name;
+                    return remember;
+                })));
+
+        action.accept(DialogueActionType.of("Forget", DialogueAction.Forget.class,
+                        DialogueAction.Forget.CODEC,
+                        (DialogueAction.Forget a, DialogueExecContext ctx,
+                         DialogueActionExecutor.Mut out) -> {
+                            String key = self[0].memoryKey(a.getMemory(), ctx);
+                            if (key != null) {
+                                ctx.flags().clear(key);
+                            }
+                        })
+                .withSugar(DialogueSugar.string("Forget", 33, name -> {
+                    DialogueAction.Forget forget = new DialogueAction.Forget();
+                    forget.memory = name;
+                    return forget;
+                })));
+
+        // MarkTalked is the credit beat, and it has NO sugar on purpose: crediting a conversation
+        // is a deliberate statement about the story, so it is written out in full rather than
+        // hidden inside a one-word shorthand that reads like a flag. Order 10 keeps it with the
+        // other "record what just happened" writes, ahead of the quest band.
+        action.accept(DialogueActionType.of("MarkTalked", DialogueAction.MarkTalked.class,
+                DialogueAction.MarkTalked.CODEC,
+                (DialogueAction.MarkTalked a, DialogueExecContext ctx,
+                 DialogueActionExecutor.Mut out) ->
+                        DialogueTalk.credit(ctx,
+                                DialogueActionExecutor.resolveTarget(a.getTarget(), ctx.contextId()),
+                                a.getQualifier())));
+    }
+
+    private static void seedGenericConditions(@Nonnull Consumer<DialogueConditionType<?>> condition,
+            @Nonnull DialogueEngine[] self) {
+        // A memory kept per world family does not exist outside it, which reads as forgotten:
+        // Remembered fails (content hidden) and NotRemembered passes.
+        condition.accept(DialogueConditionType.of("Remembered", DialogueCondition.Remembered.class,
+                DialogueCondition.Remembered.CODEC,
+                (DialogueCondition.Remembered c, DialogueContext ctx) -> {
+                    String key = self[0].memoryKey(c.getMemory(), ctx);
+                    return key != null && ctx.flags().has(key);
+                }));
+        condition.accept(DialogueConditionType.of("NotRemembered", DialogueCondition.NotRemembered.class,
+                DialogueCondition.NotRemembered.CODEC,
+                (DialogueCondition.NotRemembered c, DialogueContext ctx) -> {
+                    String key = self[0].memoryKey(c.getMemory(), ctx);
+                    return key == null || !ctx.flags().has(key);
+                }));
+        // The player's current world, scored against an embedded WorldSelector. Fail-closed:
+        // an unreadable world (or a selector with no positive axis) matches nothing, and
+        // WorldSelector.match is itself try-guarded.
+        condition.accept(DialogueConditionType.of("World", DialogueCondition.World.class,
+                DialogueCondition.World.CODEC,
+                (DialogueCondition.World c, DialogueContext ctx) ->
+                        c.getSelector().match(DialogueWorlds.currentWorld(ctx)) != null));
+        // A number some OTHER mod owns, resolved through the registry this engine was built
+        // with. Fail-closed at both altitudes: no registry wired at all, and an id inside one
+        // that nobody registered, both hide the gated content rather than offering a line the
+        // server cannot back up.
+        condition.accept(DialogueConditionType.of("Factor", DialogueCondition.Factor.class,
+                DialogueCondition.Factor.CODEC,
+                (DialogueCondition.Factor c, DialogueContext ctx) -> self[0].factorPasses(c, ctx)));
+    }
+
+    /**
+     * The quest-aware vocabulary, seeded like the rest and reading through whatever the quests seam
+     * answers with. Seeded rather than opt-in because a quest giver with
+     * nothing to say about the state of what it gave out is not a giver, and because a shared
+     * store needs one spelling of "is this quest active" rather than one per mod.
+     */
+    private static void seedQuestVocabulary(@Nonnull Consumer<DialogueActionType<?>> action,
+            @Nonnull Consumer<DialogueConditionType<?>> condition, @Nonnull DialogueEngine[] self) {
+        for (DialogueConditionType<?> type : QuestDialogueConditions.types(() -> self[0].quests())) {
+            condition.accept(type);
         }
-
-        private void seedGenericActions() {
-            action(DialogueActionType.of("Goto", DialogueAction.Goto.class, DialogueAction.Goto.CODEC,
-                            (DialogueAction.Goto a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) ->
-                                    out.goTo(a.getNode()))
-                    .withStyle(DialogueOptionStyle.CONTINUE)
-                    .withSugar(DialogueSugar.string("Goto", 60, node -> {
-                        DialogueAction.Goto go = new DialogueAction.Goto();
-                        go.node = node;
-                        return go;
-                    })));
-
-            action(DialogueActionType.of("Close", DialogueAction.Close.class, DialogueAction.Close.CODEC,
-                            (DialogueAction.Close a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) ->
-                                    out.requestClose())
-                    .withStyle(DialogueOptionStyle.FAREWELL)
-                    .withSugar(DialogueSugar.close("Close", 70)));
-
-            // Remember / Forget write a memory the dialogue DECLARED in its Memories map; the
-            // scope and lifetime live in that declaration, so the use site is just the name.
-            // A null key means the memory does not exist here (per world family, wrong world),
-            // which makes the write a deliberate no-op. Orders 32/33 keep the memory writes clear
-            // of the quest band (20/30), so a bare {"TurnIn": ..., "Remember": ...} records the
-            // memory AFTER the turn-in that justifies it rather than before.
-            action(DialogueActionType.of("Remember", DialogueAction.Remember.class,
-                            DialogueAction.Remember.CODEC,
-                            (DialogueAction.Remember a, DialogueExecContext ctx,
-                             DialogueActionExecutor.Mut out) -> {
-                                String key = self[0].memoryKey(a.getMemory(), ctx);
-                                if (key != null) {
-                                    ctx.flags().set(key);
-                                }
-                            })
-                    .withSugar(DialogueSugar.string("Remember", 32, name -> {
-                        DialogueAction.Remember remember = new DialogueAction.Remember();
-                        remember.memory = name;
-                        return remember;
-                    })));
-
-            action(DialogueActionType.of("Forget", DialogueAction.Forget.class,
-                            DialogueAction.Forget.CODEC,
-                            (DialogueAction.Forget a, DialogueExecContext ctx,
-                             DialogueActionExecutor.Mut out) -> {
-                                String key = self[0].memoryKey(a.getMemory(), ctx);
-                                if (key != null) {
-                                    ctx.flags().clear(key);
-                                }
-                            })
-                    .withSugar(DialogueSugar.string("Forget", 33, name -> {
-                        DialogueAction.Forget forget = new DialogueAction.Forget();
-                        forget.memory = name;
-                        return forget;
-                    })));
-
-            // MarkTalked is the credit beat, and it has NO sugar on purpose: crediting a conversation
-            // is a deliberate statement about the story, so it is written out in full rather than
-            // hidden inside a one-word shorthand that reads like a flag. Order 10 keeps it with the
-            // other "record what just happened" writes, ahead of the quest band.
-            action(DialogueActionType.of("MarkTalked", DialogueAction.MarkTalked.class,
-                    DialogueAction.MarkTalked.CODEC,
-                    (DialogueAction.MarkTalked a, DialogueExecContext ctx,
-                     DialogueActionExecutor.Mut out) ->
-                            DialogueTalk.credit(ctx,
-                                    DialogueActionExecutor.resolveTarget(a.getTarget(), ctx.contextId()),
-                                    a.getQualifier())));
+        for (DialogueActionType<?> type : QuestDialogueActions.types(() -> self[0].quests())) {
+            action.accept(type);
         }
+    }
 
-        private void seedGenericConditions() {
-            // A memory kept per world family does not exist outside it, which reads as forgotten:
-            // Remembered fails (content hidden) and NotRemembered passes.
-            condition(DialogueConditionType.of("Remembered", DialogueCondition.Remembered.class,
-                    DialogueCondition.Remembered.CODEC,
-                    (DialogueCondition.Remembered c, DialogueContext ctx) -> {
-                        String key = self[0].memoryKey(c.getMemory(), ctx);
-                        return key != null && ctx.flags().has(key);
-                    }));
-            condition(DialogueConditionType.of("NotRemembered", DialogueCondition.NotRemembered.class,
-                    DialogueCondition.NotRemembered.CODEC,
-                    (DialogueCondition.NotRemembered c, DialogueContext ctx) -> {
-                        String key = self[0].memoryKey(c.getMemory(), ctx);
-                        return key == null || !ctx.flags().has(key);
-                    }));
-            // The player's current world, scored against an embedded WorldSelector. Fail-closed:
-            // an unreadable world (or a selector with no positive axis) matches nothing, and
-            // WorldSelector.match is itself try-guarded.
-            condition(DialogueConditionType.of("World", DialogueCondition.World.class,
-                    DialogueCondition.World.CODEC,
-                    (DialogueCondition.World c, DialogueContext ctx) ->
-                            c.getSelector().match(DialogueWorlds.currentWorld(ctx)) != null));
-            // A number some OTHER mod owns, resolved through the registry this engine was built
-            // with. Fail-closed at both altitudes: no registry wired at all, and an id inside one
-            // that nobody registered, both hide the gated content rather than offering a line the
-            // server cannot back up.
-            condition(DialogueConditionType.of("Factor", DialogueCondition.Factor.class,
-                    DialogueCondition.Factor.CODEC,
-                    (DialogueCondition.Factor c, DialogueContext ctx) -> self[0].factorPasses(c, ctx)));
-        }
+    /**
+     * The generic {@code OpenPage} action: the option says WHAT it opens in the shared routing
+     * vocabulary, and whichever mod registered that {@code Type} opens it. Nothing here parses a
+     * target string.
+     */
+    @Nonnull
+    private static DialogueActionType<DialogueAction.OpenPage> openPageType() {
+        return DialogueActionType.of("OpenPage",
+                        DialogueAction.OpenPage.class, DialogueAction.OpenPage.CODEC,
+                        (DialogueAction.OpenPage a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) -> {
+                            if (openDestination(a.getTarget(), ctx)) {
+                                out.markOpenedOtherPage();
+                            }
+                        })
+                .withStyle(DialogueOptionStyle.NEUTRAL)
+                .withSugar(DialogueSugar.of("Open", 50, Destination.CODEC,
+                        (Destination target, DialogueSugarValues values) -> {
+                            DialogueAction.OpenPage open = new DialogueAction.OpenPage();
+                            open.target = target;
+                            return open;
+                        }));
+    }
 
-        /**
-         * The quest-aware vocabulary, seeded like the rest and reading through whatever the consumer
-         * later wires with {@link #quests}. Seeded rather than opt-in because a quest giver with
-         * nothing to say about the state of what it gave out is not a giver, and because a shared
-         * store needs one spelling of "is this quest active" rather than one per mod.
-         */
-        private void seedQuestVocabulary() {
-            for (DialogueConditionType<?> type : QuestDialogueConditions.types(() -> self[0].quests())) {
-                condition(type);
-            }
-            for (DialogueActionType<?> type : QuestDialogueActions.types(() -> self[0].quests())) {
-                action(type);
-            }
+    /**
+     * Hand a destination to whichever mod registered its {@code Type}, with the character the
+     * conversation is about travelling in the context so a per-character screen never has to be
+     * told who it is for a second time.
+     *
+     * <p>The page is opened on the PLAYER: an option click comes back on the player's own ref, and
+     * the NPC's entity is not something a conversation still holds by then.
+     */
+    private static boolean openDestination(@Nullable Destination destination,
+            @Nonnull DialogueExecContext ctx) {
+        if (destination == null) {
+            return false;
         }
+        DestinationContext target = new DestinationContext(ctx.store(), ctx.ref(), ctx.playerRef(),
+                ctx.player(), null, ctx.contextId(), null, null);
+        return Destinations.open(destination, target);
     }
 
     /**

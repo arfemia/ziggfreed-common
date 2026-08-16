@@ -245,9 +245,12 @@ and it is gate-able, scale-able and roll-able from that moment on.
   by `PlacementFactorRegistry.firstFailure` with the placement id as the context PAYLOAD and no
   subject (a placement gate is asked before anything stands there to ask about).
 - **`dialogue`** - the generic `{"Type":"Factor", Factor/Param/Min/Max}` condition, resolved against
-  the registry the engine was built with (`DialogueEngine.Builder#factors`); store + subject are
-  both the player. An engine built with NO registry fails every `Factor` condition closed with one
-  warn, so a server missing the vocabulary's owner sees the ungated conversation.
+  the registry installed into the shared engine's ONE factor slot (`DialogueEngine.installFactors`,
+  first-install-wins); store + subject are both the player. With NOBODY installed, every `Factor`
+  condition fails closed after one warn, so a server missing the vocabulary's owner sees the ungated
+  conversation. The slot being singular is also why a mod CONTRIBUTES the ids its own dialogues gate
+  on: the holder answers its own registrations plus the process-wide table, so a locally-registered
+  id is unanswerable on a server where another mod installed first.
 - **a CONTRIBUTING mod** - one that registers ids through `FactorContributions` rather than reading
   any vocabulary of its own, so its numbers reach every consumer's content with no edge in either
   direction (a mob-difficulty mod publishing rarity / difficulty / region readings is the shape).

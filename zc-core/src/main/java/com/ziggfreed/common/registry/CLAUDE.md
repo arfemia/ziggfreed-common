@@ -16,6 +16,13 @@ claim an id in.
   the ledger's - the reward-kind fold names the file that took the id over and says what the swap
   cost, so letting the ledger add "two owners wanted this id" above it would print two lines for one
   event, the less useful one first. Reach for it only with a better line in hand.
+- **`putIfAbsent(id, owner, value)` is the SINGULAR-slot form: first claim wins, every later one is
+  refused.** Reach for it only where two live values would be two answers to one question about one
+  player (one progress store read two ways), never for an ordinary open registry, where a second
+  claim on an id is a genuine overwrite and contributions are meant to stack. Same identity rule as
+  everywhere else: re-offering the SAME instance is silent, a DIFFERENT one warns once naming the
+  holder and the asker, and it returns whether this call claimed the slot. The dialogue engine's
+  `quests` / `factors` seams are the worked example.
 - **Identity, not equality, decides an overwrite warning.** A consumer re-running its own `setup()`
   passes the SAME provider instance, and that must stay silent; only replacing one DISTINCT instance
   with another logs, once per id, naming both owners. A flapping re-register can therefore never
@@ -23,12 +30,17 @@ claim an id in.
 - **`info()` is a fresh snapshot**, so an admin listing command reads a stable map while
   registration continues around it.
 
-Consumers: [`../factor/FactorRegistry`](../factor/CLAUDE.md), and the three placement registries
+Consumers: [`../factor/FactorRegistry`](../factor/CLAUDE.md), the dialogue engine's two singular
+seams plus `dialogue/DialoguePayloads` and `npc/NpcDialogueDepsRegistry`
+([zc-dialogue](../../../../../../../../zc-dialogue/src/main/java/com/ziggfreed/common/dialogue/CLAUDE.md)),
+and the three placement registries
 through their own `npc.placement.PlacementRegistryLedger` (a thin subclass that only fixes the
 `[placement]` log label - every semantic, and the inherited `RegistrationInfo` record, lives here).
 **An import must name THIS class** (`RegistryLedger.RegistrationInfo`); a qualified reference
 through a subclass (`PlacementRegistryLedger.RegistrationInfo`) resolves normally.
 
 Covered by `RegistryLedgerTest` (zc-core): normalization, the identity-vs-equality overwrite rule,
-the quiet put replacing and attributing exactly like the loud one, failure counting, snapshot
-freshness, and the ignored-blank-id/null-value cases.
+the quiet put replacing and attributing exactly like the loud one, `putIfAbsent` refusing a second
+DIFFERENT value while staying silent on a repeat of the same one (asserted through the optional
+warn-sink constructor, which is also what lets a test see a line `SafeLog` would swallow), failure
+counting, snapshot freshness, and the ignored-blank-id/null-value cases.

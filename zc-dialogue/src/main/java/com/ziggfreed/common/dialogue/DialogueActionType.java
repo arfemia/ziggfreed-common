@@ -15,9 +15,12 @@ import com.hypixel.hytale.codec.Codec;
  * the engine wires it into the dispatch codec, the handler map, the style
  * classifier, and the sugar pass.
  *
- * <p>Registering a type whose {@link #typeId} matches a pre-seeded generic type
- * OVERRIDES it (e.g. a consumer can re-register {@code Talk} with a richer
- * handler).
+ * <p>A {@link DialogueEngine.Builder} sandbox is keyed by {@link #typeId}, and a
+ * later {@code action(...)} for an id it already holds replaces it - which is what
+ * lets a test stand up a deliberately different vocabulary. The server's shared
+ * engine is keyed by {@link #actionClass} instead and is first-wins, so a second
+ * contributor for a class another mod already registered is refused and reported
+ * rather than quietly taking over what that mod's options do.
  */
 public final class DialogueActionType<A extends DialogueAction> {
 

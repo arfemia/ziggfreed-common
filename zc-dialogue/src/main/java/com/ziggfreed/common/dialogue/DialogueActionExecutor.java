@@ -74,6 +74,20 @@ public final class DialogueActionExecutor {
         this.warn = warn;
     }
 
+    /**
+     * Adopt a handler for an action class that has none yet, and report whether this call is the one
+     * that claimed it. First-wins: a second contributor of the same action class never displaces the
+     * handler already dispatching for it.
+     *
+     * <p>This is how the server's shared engine grows as each mod registers in its own
+     * {@code setup()}. An engine built through {@code DialogueEngine.builder()} takes its whole
+     * handler map at construction and never reaches this.
+     */
+    boolean adoptHandler(@Nonnull Class<? extends DialogueAction> actionClass,
+                         @Nonnull DialogueActionHandler<?> handler) {
+        return handlers.putIfAbsent(actionClass, handler) == null;
+    }
+
     @Nonnull
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Outcome execute(@Nonnull List<DialogueAction> actions, @Nonnull DialogueExecContext ctx) {

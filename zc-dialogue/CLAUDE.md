@@ -32,10 +32,11 @@ compiles as `:zc-dialogue`). See the root [`CLAUDE.md`](../CLAUDE.md) for the ag
 ## Packages
 
 - [`dialogue/`](src/main/java/com/ziggfreed/common/dialogue/CLAUDE.md) - the generic branching NPC
-  dialogue engine: a per-consumer `DialogueEngine` builder for behaviour over a process-wide
-  `DialogueTypeTable` for the schema. Pre-seeds `Goto`/`Close`/`Remember`/`Forget`/`MarkTalked`/
-  `OpenPage` actions and the `Remembered`/`NotRemembered`/`World`/`Factor` +
-  `AllOf`/`AnyOf`/`Not` conditions. Subpackages `dialogue/asset/` (native `Parent` inheritance,
+  dialogue engine: ONE `DialogueEngine` per server that every mod registers into additively, over
+  the process-wide `DialogueTypeTable` that reads the files. Seeds
+  `Goto`/`Close`/`Remember`/`Forget`/`MarkTalked`/`OpenPage` actions and the
+  `Remembered`/`NotRemembered`/`World`/`Factor` + `AllOf`/`AnyOf`/`Not` conditions once. The
+  builder stays for an isolated test engine. Subpackages `dialogue/asset/` (native `Parent` inheritance,
   `Server/ZiggfreedCommon/Dialogues/`), `dialogue/i18n/`, `dialogue/page/` (`DialoguePage`, the
   `.ui` this module ships), `dialogue/validate/` (the `Finding`-reporting content audit) have no
   routers of their own; the parent `dialogue/` router covers them.
@@ -71,14 +72,19 @@ the one spelling of "which worlds?" in the library.
 
 ## Tests
 
-35 files, the largest test suite in the library: the engine core (`DialogueEngineTest`,
-`DialogueAuthoredFixtureTest`, `DialogueAuthoringAuditTest`), the opening ladder
-(`DialogueStartTest`: the fixed rung order, the READY rule, the weighted draw against an injected
-number, and the audit's Start findings), the state/scope model
+36 test files beside three shared fixtures, the largest suite in the library: the engine core
+(`DialogueEngineTest`, `DialogueAuthoredFixtureTest`, `DialogueAuthoringAuditTest`), the opening
+ladder (`DialogueStartTest`: the fixed rung order, the READY rule, the weighted draw against an
+injected number, and the audit's Start findings), the state/scope model
 (`DialogueOnceTest`, `DialogueMemoriesTest`, `DialogueFlagScopeTest`, `DialogueWorldConditionTest`,
 `DialogueFactorConditionTest`, `DialogueStateValidationTest`), the quest vocabulary
 (`DialogueQuestVocabularyTest`, `QuestCompletionDialogueValidatorTest`,
-`QuestCompletionRoutingTest`), and the placement engine (`NpcPlacementAssetCodecTest`,
+`QuestCompletionRoutingTest`), the one shared engine (`DialogueSharedEngineTest`: two mods' actions
+mixing in one option, a late registration reaching an engine a caller already holds, a second
+contributor for a class already claimed being refused and reported once, the singular quest slot
+refusing a second runtime, and the builder's sandbox staying separate) plus its payload seam
+(`page/SimpleDialogueExecContextPayloadTest`: explicit-first, then the registered supplier), and the
+placement engine (`NpcPlacementAssetCodecTest`,
 `NpcPlacementReconcilerTest`, `NpcPlacementValidatorTest`, `NpcPlacementAuditScopeTest`,
 `PlacementAnchorsTest`,
 `PlacementChanceFormulaTest`, `PlacementGateChainTest`, `PlacementKeepAlivePinsTest`,

@@ -35,9 +35,12 @@ import com.ziggfreed.common.subject.Subject;
  * hand-in beat works wherever the quest says to report back. The default is the literal id, which is
  * the right answer for anyone without an alias scheme.
  *
- * <p>Wire one with {@code DialogueEngine.Builder#quests}. Leaving it unset leaves {@link #NONE} in
- * place: every quest-aware line then reads NOT_STARTED and every gate refuses, so a dialogue written
- * against a quest system this server does not run hides those beats instead of promising them.
+ * <p>Install one with {@code DialogueEngine.installQuests(owner, quests)}, from your plugin's
+ * {@code setup()} (a test sandbox built with {@code DialogueEngine.builder()} takes its own). The
+ * slot is singular and first-install-wins, because two runtimes would be two answers to one question
+ * about one player. Leaving it unset leaves {@link #NONE} in place: every quest-aware line then
+ * reads NOT_STARTED and every gate refuses, so a dialogue written against a quest system this server
+ * does not run hides those beats instead of promising them.
  */
 public interface DialogueQuests {
 

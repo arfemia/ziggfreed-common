@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -63,6 +64,7 @@ public class RegistryLedger<T> {
     private final Map<String, Entry<T>> entries = new ConcurrentHashMap<>();
     private final Set<String> overwriteWarned = ConcurrentHashMap.newKeySet();
     private final String label;
+    private final Consumer<String> warn;
 
     public RegistryLedger() {
         this(DEFAULT_LABEL);
@@ -73,7 +75,17 @@ public class RegistryLedger<T> {
      * overwrite warning can tell which registry it came from.
      */
     public RegistryLedger(@Nullable String label) {
+        this(label, null);
+    }
+
+    /**
+     * As {@link #RegistryLedger(String)}, but reporting through {@code warn} instead of the log.
+     * For a caller that collects registration conflicts into a boot report, and for a test that
+     * needs to see WHETHER a claim was reported rather than only what survived it.
+     */
+    public RegistryLedger(@Nullable String label, @Nullable Consumer<String> warn) {
         this.label = label == null || label.isBlank() ? DEFAULT_LABEL : label.trim();
+        this.warn = warn == null ? SafeLog::warn : warn;
     }
 
     /**
@@ -105,6 +117,39 @@ public class RegistryLedger<T> {
         put(id, owner, value, false);
     }
 
+    /**
+     * Claim {@code id} only if nothing holds it yet: the FIRST registration wins and every later
+     * one is REFUSED rather than replacing it.
+     *
+     * <p>This is for the rare SINGULAR slot, where two live values would be two answers to the same
+     * question about one player (one progress store read two ways) rather than two contributions
+     * that stack. An ordinary open registry uses {@link #put}, where a second claim on an id is a
+     * genuine overwrite.
+     *
+     * <p>Re-offering the SAME instance is silent, so a mod re-running its own setup costs nothing;
+     * a DIFFERENT instance warns once, naming the owner that holds the slot and the one that asked
+     * for it, so a server owner can tell which mod's seam is actually live.
+     *
+     * @return true when this call claimed the slot
+     */
+    public boolean putIfAbsent(@Nullable String id, @Nullable String owner, @Nullable T value) {
+        if (id == null || id.isBlank() || value == null) {
+            return false;
+        }
+        String key = normalize(id);
+        String ownerName = ownerOrUnattributed(owner);
+        Entry<T> previous = entries.putIfAbsent(key, new Entry<>(value, ownerName));
+        if (previous == null) {
+            return true;
+        }
+        if (previous.value != value && overwriteWarned.add(key)) {
+            warn.accept("[" + label + "] '" + key + "' is held by '" + previous.owner
+                    + "' and stays held; '" + ownerName + "' asked for it too, and its own"
+                    + " registration is ignored");
+        }
+        return false;
+    }
+
     private void put(@Nullable String id, @Nullable String owner, @Nullable T value, boolean warnOnOverwrite) {
         if (id == null || id.isBlank() || value == null) {
             return;
@@ -117,7 +162,7 @@ public class RegistryLedger<T> {
             return;
         }
         if (warnOnOverwrite && previous != null && overwriteWarned.add(key)) {
-            SafeLog.warn("[" + label + "] '" + key + "' was registered by '" + previous.owner
+            warn.accept("[" + label + "] '" + key + "' was registered by '" + previous.owner
                     + "' and is now overwritten by '" + ownerName + "'");
         }
         entries.put(key, new Entry<>(value, ownerName));

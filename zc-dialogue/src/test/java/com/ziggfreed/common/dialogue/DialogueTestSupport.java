@@ -35,6 +35,11 @@ final class DialogueTestSupport {
      */
     static void reset() {
         DialogueTypeTable.get().resetForTests();
+        // The server's one engine, and the per-class payload suppliers registered into it, are
+        // process-wide for exactly the same reason the schema is. Dropping the engine beside the
+        // table keeps the two halves of one vocabulary from disagreeing across test classes.
+        DialogueEngine.resetSharedForTests();
+        DialoguePayloads.resetForTests();
         DialogueFragmentConfig.getInstance().mergePackLayer(Map.of());
         // The routing vocabulary is process-wide for the same reason the decode one is, and an
         // option's Open is read through it - so a test that authors one starts from a clean table
