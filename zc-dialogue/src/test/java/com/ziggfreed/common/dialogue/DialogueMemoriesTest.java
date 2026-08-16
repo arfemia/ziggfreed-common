@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -235,6 +236,66 @@ class DialogueMemoriesTest {
 
         assertFalse(flags.has(key), "the quest reset must forget the memory it owns");
         assertTrue(flags.has("mem:d:guide:other"), "and leave every other memory alone");
+    }
+
+    // ==================== The quest-namespace clear ====================
+
+    /**
+     * An administrator resetting a player's WHOLE quest slate has no id left to key on, so the
+     * clear is the {@code q:} namespace. What it must NOT do is take everything: the memories in
+     * shipped content today are greetings and one-shot gifts that no quest owns, and they are not
+     * quest data.
+     */
+    @Test
+    void theQuestNamespaceClearTakesEveryQuestScopedMemoryAndLeavesTheRest() {
+        DialogueFlagStore session = InMemoryDialogueFlagStore.forPlayer(UUID.randomUUID());
+        DialogueFlagStore persistent = InMemoryDialogueFlagStore.forPlayer(UUID.randomUUID());
+        DialogueFlagStore routed = new DialogueMemories.Routed(session, persistent);
+
+        String questScoped = DialogueStateKeys.withQuest("guide_trust",
+                DialogueStateKeys.memory("guide", "helped_refugees", false));
+        String sessionAndQuestScoped = DialogueStateKeys.withSession(true,
+                DialogueStateKeys.withQuest("escort_caravan",
+                        DialogueStateKeys.memory("guide", "mid_escort_banter", false)));
+        // The one memory shipped content actually holds: a greeting, owned by no quest at all.
+        String plain = DialogueStateKeys.memory("mmo_hub_intro", "temple_greeted", false);
+        String sessionPlain = DialogueStateKeys.withSession(true,
+                DialogueStateKeys.memory("guide", "small_talk", false));
+        String sharedPlain = DialogueStateKeys.memory("guide", "knows_my_name", true);
+        String firstVisitBeat = DialogueStateKeys.entryOnce("mmo_hub_intro", "welcome");
+        for (String key : List.of(questScoped, sessionAndQuestScoped, plain, sessionPlain,
+                sharedPlain, firstVisitBeat)) {
+            routed.set(key);
+        }
+
+        routed.clearWithPrefix(DialogueStateKeys.QUEST_NAMESPACE);
+
+        assertFalse(routed.has(questScoped), "a memory a quest owns goes");
+        assertFalse(routed.has(sessionAndQuestScoped),
+                "and so does one that is BOTH session-scoped and quest-scoped, which is filed"
+                        + " ses:q:<questId>: and would escape a clear that only looked for q:");
+        assertTrue(routed.has(plain),
+                "THE POINT: a memory no quest owns - a greeting a character remembers - is not"
+                        + " quest data and must survive a quest reset");
+        assertTrue(routed.has(sessionPlain), "the same holds for a session memory no quest owns");
+        assertTrue(routed.has(sharedPlain), "and for a Shared one");
+        assertTrue(routed.has(firstVisitBeat), "a first-visit beat is not quest state either");
+    }
+
+    /**
+     * The clear for ONE quest and the clear for every quest at once have to agree about where a
+     * quest's state lives, or one of them reaches keys the other cannot see.
+     */
+    @Test
+    void oneQuestsPrefixSitsInsideTheQuestNamespace() {
+        assertEquals("q:", DialogueStateKeys.QUEST_NAMESPACE);
+        assertTrue(DialogueStateKeys.questPrefix("guide_trust")
+                .startsWith(DialogueStateKeys.QUEST_NAMESPACE));
+        assertTrue(DialogueStateKeys.withQuest("guide_trust", "mem:d:guide:helped")
+                .startsWith(DialogueStateKeys.QUEST_NAMESPACE));
+        assertFalse(DialogueStateKeys.memory("guide", "helped", false)
+                .startsWith(DialogueStateKeys.QUEST_NAMESPACE),
+                "an un-owned memory must not sit in the namespace a quest reset clears");
     }
 
     @Test

@@ -56,6 +56,11 @@ import com.ziggfreed.common.util.SafeLog;
  * repeatable coming round, or a bounty re-offered forgets what its conversations remembered on
  * every server, whoever wrote the quest.
  *
+ * <p>There are three clears and they mean three different things, which is the distinction to hold
+ * on to: {@link #forgetQuest} is ONE quest's state, {@link #forgetAllQuests} is every quest's state
+ * and nothing else, and {@link #forgetAll} is genuinely everything. A quest reset reaches for one of
+ * the first two; only somebody asking to start every conversation over wants the third.
+ *
  * <p>World-thread, like everything that reaches a component through a {@code Store}.
  */
 public final class DialogueMemories {
@@ -186,6 +191,32 @@ public final class DialogueMemories {
         forgetQuest(store, ref, playerRef, questId);
     }
 
+    /**
+     * Forget every memory this player holds that SOME quest owns, in both backends, and leave every
+     * other memory standing.
+     *
+     * <p>This is what an administrator wiping a player's whole quest slate reaches for. There is no
+     * one quest id left to key on, but "every quest" is still a far narrower thing than "everything
+     * a conversation remembers": a greeting a character remembers giving, a name a player told
+     * somebody, a one-shot gift already taken are not quest data, and a quest reset that took them
+     * too would be answering a question nobody asked. {@link #forgetAll} is the one that means all
+     * of it, and it exists for the administrator who asks for exactly that.
+     *
+     * <p>The reach is the {@code q:} NAMESPACE rather than a sweep of the ids the player's quest
+     * state happens to carry. A conversation can set a memory about a quest that player never took,
+     * which files it under an id their quest state has no record of, so a per-id sweep walks
+     * straight past it and leaves the reset half done. The namespace is where every one of them is,
+     * known id or not.
+     */
+    public static void forgetAllQuests(@Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef) {
+        try {
+            storeFor(store, ref, playerRef).clearWithPrefix(DialogueStateKeys.QUEST_NAMESPACE);
+        } catch (Throwable t) {
+            SafeLog.warn("[dialogue] could not forget this player's quest-scoped dialogue memories", t);
+        }
+    }
+
     /** Forget every dialogue memory this player holds, in both backends (an admin start-over). */
     public static void forgetAll(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef) {
@@ -240,8 +271,15 @@ public final class DialogueMemories {
      * property of one memory rather than of the quest or the player being reset - so a quest owning
      * one persistent memory and one session memory has both forgotten when it is reset, which is
      * what the author wrote either way.
+     *
+     * <p>The prefix clear is the whole of what {@code ResetWithQuest} and the wider quest-namespace
+     * clear are made of, and its correctness is entirely in the pairing above: a clear that reached
+     * one backend and not the other is a memory outliving the quest it was declared to die with,
+     * with nothing anywhere saying so. So the router is nameable from within this package and can
+     * be driven over two ordinary stores, rather than being reachable only behind three live entity
+     * handles that no correctness question here actually needs.
      */
-    private record Routed(@Nonnull DialogueFlagStore session, @Nonnull DialogueFlagStore persistent)
+    record Routed(@Nonnull DialogueFlagStore session, @Nonnull DialogueFlagStore persistent)
             implements DialogueFlagStore {
 
         @Override

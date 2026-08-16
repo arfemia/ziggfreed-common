@@ -45,6 +45,8 @@ import javax.annotation.Nullable;
  */
 public final class DialogueStateKeys {
 
+    private static final char SEP = DialogueFlagScope.SEPARATOR;
+
     /** The entry-level {@code Once} namespace. */
     public static final String ONCE_ENTRY_PREFIX = "once:e";
 
@@ -61,13 +63,25 @@ public final class DialogueStateKeys {
     public static final String QUEST_PREFIX = "q";
 
     /**
+     * The namespace EVERY quest-scoped key is filed under, whichever quest owns it: the leading
+     * piece {@link #questPrefix} builds each individual quest's prefix on top of.
+     *
+     * <p>Clearing THIS reaches every memory some quest owns and nothing else, because no other key
+     * shape here begins with it: a {@code Once} opens {@code once:}, a memory that no quest owns
+     * opens {@code mem:}, and a session key opens {@code ses:} (whose quest-scoped half is reached
+     * by wrapping this the same way {@link #withSession} wraps anything else). That is what an
+     * administrator resetting a player's QUESTS needs and what forgetting every memory would
+     * overreach: a greeting a conversation remembers is not quest data, and no quest reset should
+     * take it.
+     */
+    public static final String QUEST_NAMESPACE = QUEST_PREFIX + SEP;
+
+    /**
      * The namespace a memory declared {@code Session} is filed under, and the one thing
      * {@link DialogueMemories} reads to route a key to the session backend rather than the
      * persistent one. It wraps everything else, so it is a plain {@code startsWith} test.
      */
     public static final String SESSION_PREFIX = "ses";
-
-    private static final char SEP = DialogueFlagScope.SEPARATOR;
 
     private DialogueStateKeys() {
     }
@@ -115,10 +129,13 @@ public final class DialogueStateKeys {
      * separator so the id segment is EXACT: clearing {@code q1} can never reach {@code q:q10:...}.
      * The id is normalized the same way the key writer normalizes it, or a clear would look for a
      * spelling nothing was ever written under.
+     *
+     * <p>It is built ON {@link #QUEST_NAMESPACE}, so the clear for one quest and the clear for every
+     * quest at once cannot come to disagree about where a quest's state lives.
      */
     @Nonnull
     public static String questPrefix(@Nonnull String questId) {
-        return QUEST_PREFIX + SEP + segment(questId) + SEP;
+        return QUEST_NAMESPACE + segment(questId) + SEP;
     }
 
     /**
