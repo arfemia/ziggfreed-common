@@ -110,7 +110,7 @@ public final class QuestPool {
             if (definition(other) == null && engine.quest(other) == null) {
                 continue;
             }
-            engine.store().clearQuest(subject, other);
+            engine.clearQuest(subject, other);
             reset++;
         }
         return reset;

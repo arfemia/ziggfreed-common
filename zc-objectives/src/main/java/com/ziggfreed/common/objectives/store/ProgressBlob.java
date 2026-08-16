@@ -3,7 +3,9 @@ package com.ziggfreed.common.objectives.store;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -31,6 +33,9 @@ final class ProgressBlob {
 
     private static final char ENTRY_SEPARATOR = '|';
     private static final char PAIR_SEPARATOR = '=';
+
+    /** What separates the entries of a SET, which has no keys and so needs no pair separator. */
+    private static final char SET_SEPARATOR = ',';
 
     private ProgressBlob() {
     }
@@ -130,6 +135,71 @@ final class ProgressBlob {
             }
         });
         return map;
+    }
+
+    // ==================== sets of opaque keys ====================
+
+    /**
+     * Pack a SET as one value: EACH entry base64-encoded, joined with a comma.
+     *
+     * <p>Encoding each entry rather than the joined text is the whole point. Base64 output carries
+     * only {@code A-Za-z0-9+/=}, so no entry can contain the comma that separates them nor either
+     * character this format reserves - which matters here because these entries are not ids. A
+     * dialogue state key is composed from content ids, and one carrying a {@code |} would otherwise
+     * split into two phantom keys, silently re-arming a one-shot gift.
+     */
+    @Nonnull
+    static String serializeSet(@Nullable Set<String> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        for (String entry : entries) {
+            if (entry == null || entry.isBlank()) {
+                continue;
+            }
+            if (out.length() > 0) {
+                out.append(SET_SEPARATOR);
+            }
+            out.append(Base64.getEncoder().encodeToString(entry.getBytes(StandardCharsets.UTF_8)));
+        }
+        return out.toString();
+    }
+
+    /** Unpack what {@link #serializeSet} wrote. An undecodable entry costs that entry alone. */
+    @Nonnull
+    static Set<String> deserializeSet(@Nullable String blob) {
+        Set<String> entries = ConcurrentHashMap.newKeySet();
+        if (blob == null || blob.isBlank()) {
+            return entries;
+        }
+        for (String encoded : blob.trim().split(String.valueOf(SET_SEPARATOR), -1)) {
+            if (encoded.isBlank()) {
+                continue;
+            }
+            try {
+                entries.add(new String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8));
+            } catch (IllegalArgumentException notBase64) {
+                // Same rule as a corrupted number: drop the entry, keep the player.
+            }
+        }
+        return entries;
+    }
+
+    /** An ordered snapshot of a set, so a packed blob is stable enough to eyeball in a saved world. */
+    @Nonnull
+    static Set<String> ordered(@Nonnull Set<String> source) {
+        return new LinkedHashSet<>(source);
+    }
+
+    /** A copy of {@code source} as a fresh concurrent set, for {@code clone()}. */
+    @Nonnull
+    static Set<String> copySet(@Nullable Set<String> source) {
+        Set<String> out = ConcurrentHashMap.newKeySet();
+        if (source != null) {
+            out.addAll(source);
+        }
+        return out;
     }
 
     // ==================== shared plumbing ====================

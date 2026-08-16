@@ -30,6 +30,8 @@ import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.commerce.fold.CurrencyRewardKind;
 import com.ziggfreed.common.commerce.page.CurrencyChipReading;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.dialogue.DialogueMemories;
+import com.ziggfreed.common.quest.QuestResets;
 import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
@@ -62,6 +64,7 @@ import com.ziggfreed.common.npc.placement.PlacementNpcActions;
 import com.ziggfreed.common.objectives.book.ObjectiveBookInteractions;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
+import com.ziggfreed.common.objectives.store.ZigProgressDialogueStore;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.progress.runtime.ProgressionFactors;
 import com.ziggfreed.common.reward.EffectRewardKind;
@@ -106,6 +109,10 @@ import com.ziggfreed.common.util.SafeLog;
  *       and corrupting for one that maintains a reference count, which the placement chunk-pin
  *       bookkeeping does. Common driving it itself, plus the idempotence guard in
  *       {@link WorldEvictors}, makes the count right however many consumers are installed.</li>
+ *   <li><b>the dialogue engine's memory store</b> ({@link #registerDialogueMemories}), because the
+ *       persistent half of it is kept on a component in the module that depends on the dialogue
+ *       one - so the dialogue module declares a seam it structurally cannot fill, and this is the
+ *       one place both ends are visible;</li>
  *   <li><b>the {@link PlayerIdentityCache} lifecycle listeners.</b> The cache is common's own
  *       primitive and the only supported way to identify a player off the world thread, so it has
  *       to be kept current here rather than by whichever consumer happens to read it.</li>
@@ -163,6 +170,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         registerWorldLifecycle();
         registerPlayerIdentity();
         setupProgressionRuntime();
+        registerDialogueMemories();
         registerQuestListHost();
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
@@ -210,6 +218,42 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             ProgressionFactors.contribute();
         } catch (Throwable t) {
             SafeLog.warn("[progression] shared runtime wiring failed", t);
+        }
+    }
+
+    /**
+     * Join the dialogue engine's memory to the place a persistent one is kept, and end a session's
+     * memories when the session does.
+     *
+     * <p>This is the wiring root's whole reason for existing, in one call. A memory whose author did
+     * not declare it {@code Session} outlives a restart, so it needs the persisted progress
+     * component - which lives in the module that DEPENDS on the dialogue one, so the dialogue module
+     * declares a seam and cannot fill it. Only this class can see both ends.
+     *
+     * <p>The disconnect listener is the other half of the same contract: {@code Session} means "for
+     * as long as this player is connected", and something has to be the moment that ends. A consumer
+     * whose own boundary is shorter - a minigame round, an instance visit - calls
+     * {@code DialogueMemories.forgetSession} at that boundary too.
+     *
+     * <p>The quest hook is the third: a memory declared to reset with a quest has to be forgotten
+     * when that quest is re-armed, and the two ends are again in modules that cannot see each other
+     * - the engine reporting the re-arm sits BELOW the dialogue module that holds the memory. So the
+     * progression module declares {@code QuestResets} and this fills it, and a declared lifetime is
+     * honoured on every server rather than by whichever consumer wrote a clear of its own.
+     */
+    private void registerDialogueMemories() {
+        try {
+            DialogueMemories.install(ZigProgressDialogueStore.INSTANCE);
+            QuestResets.install(DialogueMemories::forgetQuest);
+            getEventRegistry().register(PlayerDisconnectEvent.class, event -> {
+                PlayerRef playerRef = event.getPlayerRef();
+                UUID uuid = playerRef == null ? null : playerRef.getUuid();
+                if (uuid != null) {
+                    DialogueMemories.forgetSession(uuid);
+                }
+            });
+        } catch (Throwable t) {
+            SafeLog.warn("[dialogue] could not wire the dialogue memory store", t);
         }
     }
 

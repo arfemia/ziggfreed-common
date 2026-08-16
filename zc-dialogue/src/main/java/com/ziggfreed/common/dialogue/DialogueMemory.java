@@ -20,6 +20,7 @@ import com.ziggfreed.common.world.WorldSelector;
  * "Memories": {
  *   "helped_refugees": { "Where": { "Match": ["emerald_wilds"] }, "ResetWithQuest": "guide_trust" },
  *   "greeted_below":   { "Where": { "GameplayConfig": ["ForgottenTemple"] } },
+ *   "heard_the_rules": { "Session": true },
  *   "knows_my_name":   {}
  * }
  * }</pre>
@@ -44,6 +45,11 @@ import com.ziggfreed.common.world.WorldSelector;
  *       private to this one. Declare it identically in each dialogue that touches it; mismatched
  *       declarations are a validation error, because two dialogues would otherwise disagree about
  *       what the same name means.</li>
+ *   <li><b>{@code Session}</b> - keep it only for as long as the player is connected, instead of
+ *       for good. Reach for it where the memory belongs to something that ends: a round, a visit, a
+ *       run. Leave it out and the memory survives a restart, which is the safe default - a memory
+ *       that outlives its moment is a cosmetic surprise, while one that silently vanishes breaks an
+ *       authored {@code ResetWithQuest} chain with nothing to say so.</li>
  * </ul>
  *
  * <p>The {@code Memories} map decodes through the per-key merging map codec, so a dialogue with a
@@ -78,11 +84,19 @@ public final class DialogueMemory {
                     .documentation("Make the memory visible to every dialogue that declares this name, "
                             + "rather than private to this one. Declare it identically in each.")
                     .add()
+                    .appendInherited(new KeyedCodec<>("Session", Codec.BOOLEAN, false),
+                            (m, v) -> m.session = v, m -> m.session,
+                            (child, parent) -> child.session = parent.session)
+                    .documentation("Keep the memory only for as long as the player is connected, "
+                            + "instead of for good. For state that belongs to something that ends: a "
+                            + "round, a visit, a run. Leave it out and it survives a restart.")
+                    .add()
                     .build();
 
     @Nullable protected WorldSelector where;
     @Nullable protected String resetWithQuest;
     @Nullable protected Boolean shared;
+    @Nullable protected Boolean session;
 
     @Nullable private volatile DialogueFlagScope scope;
 
@@ -93,10 +107,18 @@ public final class DialogueMemory {
     @Nonnull
     public static DialogueMemory of(@Nullable WorldSelector where, @Nullable String resetWithQuest,
                                     @Nullable Boolean shared) {
+        return of(where, resetWithQuest, shared, null);
+    }
+
+    /** {@link #of(WorldSelector, String, Boolean)} with the declared lifetime too. */
+    @Nonnull
+    public static DialogueMemory of(@Nullable WorldSelector where, @Nullable String resetWithQuest,
+                                    @Nullable Boolean shared, @Nullable Boolean session) {
         DialogueMemory memory = new DialogueMemory();
         memory.where = where;
         memory.resetWithQuest = resetWithQuest;
         memory.shared = shared;
+        memory.session = session;
         return memory;
     }
 
@@ -117,12 +139,20 @@ public final class DialogueMemory {
         return Boolean.TRUE.equals(shared);
     }
 
+    /** True when this memory lives only as long as the player's session. */
+    public boolean isSession() {
+        return Boolean.TRUE.equals(session);
+    }
+
     /**
      * True when {@code other} declares the same name the same way. Two dialogues sharing a memory
-     * must agree on all three axes or they are silently talking about different state.
+     * must agree on all four axes or they are silently talking about different state - the lifetime
+     * included, since a name declared {@code Session} in one file and persistent in another is one
+     * word naming two pieces of state in two different places.
      */
     public boolean sameDeclarationAs(@Nonnull DialogueMemory other) {
         return isShared() == other.isShared()
+                && isSession() == other.isSession()
                 && DialogueFlagScope.sameSelector(where, other.where)
                 && Objects.equals(normalized(resetWithQuest), normalized(other.resetWithQuest));
     }
@@ -155,11 +185,15 @@ public final class DialogueMemory {
                 worldGameplayConfig);
     }
 
-    /** The key before any world scope: the namespace plus an optional owning-quest prefix. */
+    /**
+     * The key before any world scope: the namespace, an optional owning-quest prefix, and the
+     * lifetime namespace outside both (which is what {@code DialogueMemories} routes on).
+     */
     @Nonnull
     private String baseKey(@Nonnull String dialogueId, @Nonnull String name) {
-        return DialogueStateKeys.withQuest(resetWithQuest,
-                DialogueStateKeys.memory(dialogueId, name, isShared()));
+        return DialogueStateKeys.withSession(isSession(),
+                DialogueStateKeys.withQuest(resetWithQuest,
+                        DialogueStateKeys.memory(dialogueId, name, isShared())));
     }
 
     @Nonnull

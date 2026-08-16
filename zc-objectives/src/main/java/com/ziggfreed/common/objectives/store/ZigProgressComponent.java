@@ -24,12 +24,21 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The persisted per-player state behind the library's DEFAULT progression stores: one component
- * holding everything both shared engines know about a player.
+ * holding everything both shared engines know about a player, plus everything the shared dialogue
+ * engine remembers about them for good.
  *
- * <p><b>Ten packed string leaves, not ten maps.</b> Each map travels as one string through
- * {@link ProgressBlob}, which is the shape a codec-persisted ECS component reliably supports; the
- * component is the thing that is saved into every world, so the wire format is a contract and a
- * plain string is the least surprising one to keep.
+ * <p><b>Why a conversation's memory lives here.</b> It is the library's one persistent per-player
+ * record, and a dialogue memory declared without {@code Session} means "survives a restart", so it
+ * needs one. The dialogue module cannot hold it - this module depends on THAT one, and the edge
+ * runs one way - so the state lives here and {@code DialogueMemories} reaches it through the seam
+ * the wiring root fills with {@link ZigProgressDialogueStore}. That is also why the component is
+ * attached to every player rather than only where these progression stores are the active ones: a
+ * conversation remembers things on a server whose quests belong to somebody else.
+ *
+ * <p><b>Twelve packed string leaves, not twelve collections.</b> Each one travels as a single
+ * string through {@link ProgressBlob}, which is the shape a codec-persisted ECS component reliably
+ * supports; the component is the thing that is saved into every world, so the wire format is a
+ * contract and a plain string is the least surprising one to keep.
  *
  * <p><b>The maps live here; the two store adapters are thin.</b>
  * {@link com.ziggfreed.common.quest.QuestProgressStore} and {@link AchievementProgressStore}
@@ -91,6 +100,15 @@ public final class ZigProgressComponent implements Component<EntityStore> {
                     (c, v) -> c.questCompletions = decodeCompletions(v),
                     c -> ProgressBlob.serializeStrings(
                             ProgressBlob.ordered(encodeCompletions(c.questCompletions)))).add()
+            // The two SET leaves, appended on the end like every other new one. Each entry travels
+            // base64-encoded because neither holds ids: a dialogue state key is composed from
+            // content ids and may legitimately carry the characters the pair format reserves.
+            .append(new KeyedCodec<>("DialogueMemories", Codec.STRING),
+                    (c, v) -> c.dialogueMemories = ProgressBlob.deserializeSet(v),
+                    c -> ProgressBlob.serializeSet(ProgressBlob.ordered(c.dialogueMemories))).add()
+            .append(new KeyedCodec<>("Migrations", Codec.STRING),
+                    (c, v) -> c.migrations = ProgressBlob.deserializeSet(v),
+                    c -> ProgressBlob.serializeSet(ProgressBlob.ordered(c.migrations))).add()
             .build();
 
     /** questId -> {@link QuestStatus#name()}. */
@@ -132,6 +150,19 @@ public final class ZigProgressComponent implements Component<EntityStore> {
     /** achievementId -> the instant it was pinned, in epoch milliseconds. */
     @Nonnull
     private Map<String, Long> achievementPins = new ConcurrentHashMap<>();
+
+    /**
+     * The dialogue engine's own opaque state keys - a spent {@code Once}, a remembered
+     * {@code Memories} entry, a claimed one-shot gift - for every memory whose author did NOT
+     * declare it {@code Session}. Opaque here on purpose: this component keeps them, and
+     * {@code DialogueMemories} is what knows what any of them mean.
+     */
+    @Nonnull
+    private Set<String> dialogueMemories = ConcurrentHashMap.newKeySet();
+
+    /** One-time moves already performed for this player, by their own namespaced ids. */
+    @Nonnull
+    private Set<String> migrations = ConcurrentHashMap.newKeySet();
 
     public ZigProgressComponent() {
     }
@@ -388,6 +419,57 @@ public final class ZigProgressComponent implements Component<EntityStore> {
         return achievementPins.remove(achievementId) != null;
     }
 
+    // ==================== dialogue state ====================
+
+    /** True when this player currently holds the dialogue state key {@code flag}. */
+    public boolean hasDialogueMemory(@Nonnull String flag) {
+        return dialogueMemories.contains(flag);
+    }
+
+    /** Record one. Idempotent, since a set is what a spent {@code Once} needs. */
+    public void setDialogueMemory(@Nonnull String flag) {
+        if (!flag.isEmpty()) {
+            dialogueMemories.add(flag);
+        }
+    }
+
+    /** Drop one. Returns true when it was actually held. */
+    public boolean clearDialogueMemory(@Nonnull String flag) {
+        return dialogueMemories.remove(flag);
+    }
+
+    /** Drop every key filed under {@code prefix} - what a quest reset forgetting its memories is. */
+    public void clearDialogueMemoriesWithPrefix(@Nonnull String prefix) {
+        dialogueMemories.removeIf(flag -> flag.startsWith(prefix));
+    }
+
+    /** Drop the lot (an administrator's start-over). */
+    public void clearDialogueMemories() {
+        dialogueMemories.clear();
+    }
+
+    /** How many keys are held, for a diagnostic and for a test. */
+    public int dialogueMemoryCount() {
+        return dialogueMemories.size();
+    }
+
+    // ==================== one-time migrations ====================
+
+    /**
+     * Claim {@code migrationId} for this player: true the first time, false ever after, with the
+     * claim recorded before the caller acts. The claim lives beside the state it guards, so a
+     * component that was never attached cannot answer true and hand out a move with nowhere to
+     * write it.
+     */
+    public synchronized boolean claimMigration(@Nonnull String migrationId) {
+        return migrations.add(migrationId);
+    }
+
+    /** True when {@code migrationId} has already been claimed for this player. */
+    public boolean hasMigrated(@Nonnull String migrationId) {
+        return migrations.contains(migrationId);
+    }
+
     @Override
     @SuppressWarnings("CloneDeclaresCloneNotSupported")
     public ZigProgressComponent clone() {
@@ -402,6 +484,8 @@ public final class ZigProgressComponent implements Component<EntityStore> {
         c.milestoneStates = ProgressBlob.copy(this.milestoneStates);
         c.achievementPins = ProgressBlob.copy(this.achievementPins);
         c.questCompletions = ProgressBlob.copy(this.questCompletions);
+        c.dialogueMemories = ProgressBlob.copySet(this.dialogueMemories);
+        c.migrations = ProgressBlob.copySet(this.migrations);
         return c;
     }
 

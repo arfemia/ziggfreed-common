@@ -61,7 +61,7 @@ public final class QuestEngineBoardQuests implements BoardQuests {
         if (isCarried(subject, bountyId)) {
             return;
         }
-        quests.store().clearQuest(subject, bountyId);
+        quests.clearQuest(subject, bountyId);
     }
 
     @Override

@@ -27,7 +27,6 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveIndex;
 import com.ziggfreed.common.progress.ObjectiveKind;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
-import com.ziggfreed.common.progress.ObjectiveMatch;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.ProgressDispatchTap;
 import com.ziggfreed.common.progress.StatThresholdProbe;
@@ -675,7 +674,7 @@ public final class QuestEngine implements QuestStateReader {
      * Is this quest at the point where {@code atId} is where the player should go? True when the
      * quest is genuinely ACTIVE (so a repeatable that has come back around is NOT ready) and its
      * outstanding step resolves here: either a hand-in that can be handed in here, or a first
-     * outstanding objective that names this place as its target.
+     * outstanding objective whose target IS this place.
      *
      * <p>Deliberately ignores the inventory, so a listing can rank a quest as "go here next" even
      * when the player is not carrying everything yet - {@link #canDeliverTurnInAt} is the stricter
@@ -701,9 +700,28 @@ public final class QuestEngine implements QuestStateReader {
                 continue;
             }
             // The FIRST outstanding step decides: a quest mid-way through something else is not ready.
-            return ObjectiveMatch.targetMatches(matchFlavor, objective.target(), objective.matchMode(), atId);
+            return resolvesAt(objective, atId);
         }
         return false;
+    }
+
+    /**
+     * Does this step point AT {@code atId}? Only a step whose kind declares a place-typed target can
+     * (a block id or an item id names a thing, not somewhere to stand), and only when it names one:
+     * a blank target matches every identifier there is, so reading it as a destination would point
+     * every such quest at every place at once.
+     *
+     * <p>The comparison is one whole id against one whole id, ignoring case, exactly as every other
+     * place is compared here. The authored {@link ObjectiveDef#matchMode()} is deliberately not
+     * consulted: it is the dialect a fired EVENT is matched with, where a target is written to catch
+     * a family of ids, and a family written to catch things would catch places too.
+     */
+    private boolean resolvesAt(@Nonnull ObjectiveDef objective, @Nonnull String atId) {
+        if (!objectiveKinds.isPlaceTargeted(objective.kind())) {
+            return false;
+        }
+        String target = objective.target();
+        return !target.isBlank() && target.equalsIgnoreCase(atId);
     }
 
     /**
@@ -711,9 +729,15 @@ public final class QuestEngine implements QuestStateReader {
      * to OFFER a hand-in, so an offer cannot be shown and then silently do nothing; use the looser
      * {@link #readyToTurnInAt} for listing and ranking, which deliberately allows partial delivery.
      *
-     * <p>A step with nothing to deliver (a report-back hand-in with a blank target, or a
-     * talk-to-this-place step) is deliverable with an empty inventory. An item hand-in needs the
-     * WHOLE remaining amount: offering it should mean the step finishes.
+     * <p>A report-back hand-in - one whose target names no item - is deliverable with an empty
+     * inventory. An item hand-in needs the WHOLE remaining amount: offering it should mean the step
+     * finishes.
+     *
+     * <p>A quest with NO outstanding hand-in at all is not deliverable, however plainly this place is
+     * where its next step happens. A step that says "go and speak to them" resolves here without
+     * anything changing hands, and {@link #attemptTurnIn} acts only on hand-in objectives, so
+     * answering yes would offer a delivery that provably does nothing. {@link #readyToTurnInAt} is
+     * the question for "is this where the player should go".
      */
     public boolean canDeliverTurnInAt(@Nonnull Subject subject, @Nonnull Quest quest,
                                       @Nullable String atId) {
@@ -722,7 +746,7 @@ public final class QuestEngine implements QuestStateReader {
         }
         ObjectiveDef objective = firstActiveTurnIn(subject, quest, atId);
         if (objective == null) {
-            return true;
+            return false;
         }
         String itemId = objective.target();
         if (itemId.isEmpty()) {
@@ -1088,11 +1112,30 @@ public final class QuestEngine implements QuestStateReader {
         if (store.status(subject, questId) != QuestStatus.ACTIVE) {
             return false;
         }
-        store.clearQuest(subject, questId);
+        clearQuest(subject, questId);
         store.markDirty(subject);
         Quest quest = quests.get(questId);
         fireAbandoned(questId, subject, quest != null ? quest.tags() : List.of());
         return true;
+    }
+
+    /**
+     * Re-arm one quest for this player: the store's own clear, plus the report every layer keyed on
+     * that quest is owed ({@link QuestResets}).
+     *
+     * <p><b>This is the ONE way a quest is re-armed</b>, and the reason it is public rather than a
+     * private helper: an authoring layer resetting a chained quest, and a rotating offer putting a
+     * lapsed one back within reach, are re-arms exactly like an abandon. Reaching for
+     * {@code store().clearQuest} directly re-arms the quest and tells nobody, which is a state
+     * declared to die with the quest silently outliving it - the failure has no symptom until an
+     * author's content stops behaving and nothing anywhere says why.
+     *
+     * <p>Whether the player was carrying it is the CALLER's question; this does the clear it was
+     * asked for.
+     */
+    public void clearQuest(@Nonnull Subject subject, @Nonnull String questId) {
+        store.clearQuest(subject, questId);
+        QuestResets.fire(subject, questId);
     }
 
     /**
@@ -1124,7 +1167,7 @@ public final class QuestEngine implements QuestStateReader {
             if (!QuestLifecycle.repeatCheck(quest, subject, store, now()).available()) {
                 continue;
             }
-            store.clearQuest(subject, questId);
+            clearQuest(subject, questId);
             changed++;
         }
         // Before the pin sweep, so a quest this settles gives its pin slot back in the same pass.
@@ -1411,6 +1454,24 @@ public final class QuestEngine implements QuestStateReader {
                                       @Nullable String atId) {
         Quest quest = quest(questId);
         return quest != null && canDeliverTurnInAt(subject, quest, atId);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The id-keyed form of {@link #readyToTurnInAt(Subject, Quest, String)}, which is exactly the
+     * weaker question this method names: where the player should GO, whether or not anything changes
+     * hands when they arrive. The inherited default cannot tell those apart and answers the stricter
+     * one, so an engine that can, answers for itself - otherwise a step that says "go and speak to
+     * them" would leave the character it points at unmarked.
+     *
+     * <p>An unknown id fails closed, like every other readiness read here.
+     */
+    @Override
+    public boolean resolvesTurnInAt(@Nonnull Subject subject, @Nonnull String questId,
+                                    @Nullable String atId) {
+        Quest quest = quest(questId);
+        return quest != null && readyToTurnInAt(subject, quest, atId);
     }
 
     /**

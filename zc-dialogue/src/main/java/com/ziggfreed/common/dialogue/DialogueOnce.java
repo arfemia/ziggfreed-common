@@ -39,6 +39,19 @@ import com.ziggfreed.common.world.WorldSelector;
  * the option's {@code LabelKey} (or an explicit {@code OnceId}), never its position, so reordering
  * a node's options never resurrects a spent Once.
  *
+ * <h2>How long it is remembered</h2>
+ *
+ * <p><b>A spent Once is remembered for good.</b> Unlike a {@code Memories} entry, there is no
+ * declaration behind a {@code Once} to read a lifetime from - the knob IS the whole declaration -
+ * so it takes the same answer an undeclared lifetime takes everywhere: persistent. That is also the
+ * only answer that means what the word says. A first-visit beat is called that because there is one
+ * first visit; one that came back after a restart would be a first visit the player has already
+ * had, which is exactly what the knob was written to prevent.
+ *
+ * <p>The one nearby case that is NOT this is a beat belonging to something that ends - a round, a
+ * run. That is state with a name and a scope, so it is a declared {@code Memories} entry carrying
+ * {@code "Session": true}, read by a {@code Remembered} condition, rather than a {@code Once}.
+ *
  * <h2>{@code Where}</h2>
  *
  * <p>The shared world selector - the same {@code {Match, GameplayConfig, ExcludeMatch}} group an NPC

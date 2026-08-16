@@ -8,7 +8,8 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // what the module exists for: a progression BOOK needs the engines and a page, and neither of those
 // two modules may reach the other (zc-progression may never import presentation, and pushing the
 // engines under presentation would drag them onto every page consumer in the library). A module
-// above both adds no reverse edge at all.
+// above both adds no reverse edge at all, which is also what lets this one reach zc-dialogue for NPC
+// identity: nothing depends on this module, so an edge FROM it can never close a cycle.
 //
 // Ships .ui (the book page + its row template) and Server/ assets (the book item), so it needs
 // zc-presentation at RUNTIME as well as at compile time - see the modules table's last column.
@@ -26,4 +27,7 @@ dependencies {
     implementation project(':zc-cast')
     // The portable `hytale:` factor standard library, so a STAT_THRESHOLD objective settles itself.
     implementation project(':zc-entity')
+    // NPC identity: what a character is CALLED and which ids it answers to, both read off the
+    // placement and identity assets, so the page at a character needs no consumer to name it.
+    implementation project(':zc-dialogue')
 }

@@ -8,6 +8,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.dialogue.DialogueMemories;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -23,10 +24,16 @@ import com.ziggfreed.common.subject.Subject;
  * {@code subject.handleAs(Player.class)}, so a handle that answered only for itself would leave a
  * collected quest paying out nothing at all while still reporting success. A rich handle has to say
  * what it can stand in for.
+ *
+ * <p>It declares {@link DialogueMemories.SubjectHandles} for the same reason, and its three
+ * accessors already ARE that whole contract: a conversation's memory declared to last only as long
+ * as a quest is forgotten off the back of that quest being re-armed, and the layer doing the
+ * forgetting has only the subject to work from.
  */
 public record ProgressHandle(@Nonnull Store<EntityStore> store,
                              @Nonnull Ref<EntityStore> ref,
-                             @Nonnull PlayerRef playerRef) implements Subject.HandleFacets {
+                             @Nonnull PlayerRef playerRef)
+        implements Subject.HandleFacets, DialogueMemories.SubjectHandles {
 
     /** This player's progress component, or null when there is none to read. */
     @Nullable

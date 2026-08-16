@@ -3,12 +3,21 @@ package com.ziggfreed.common.dialogue;
 import javax.annotation.Nonnull;
 
 /**
- * Per-player dialogue STATE: a small set of opaque string keys behind the {@code Once} knobs and
- * the declared {@code Memories} (plus the once-only reward guard). The engine never persists or
- * inspects them beyond has/set/clear, and the keys themselves are engine-internal (see
- * {@link DialogueStateKeys}) - an author never writes one. Storage is the consumer's policy (an
- * MMO persists them on a player component, a minigame keeps an in-memory per-round map). Supplied
- * to the engine through a {@link DialogueContext}.
+ * ONE BACKEND behind per-player dialogue STATE: a small set of opaque string keys carrying the
+ * {@code Once} knobs, the declared {@code Memories} and the once-only reward guard. The engine
+ * never inspects them beyond has/set/clear, and the keys themselves are engine-internal (see
+ * {@link DialogueStateKeys}) - an author never writes one.
+ *
+ * <p><b>A consumer does not implement this.</b> The library ships both backends a declared lifetime
+ * can name - {@link InMemoryDialogueFlagStore} for {@code Session} and the progress-component one
+ * for everything else - and {@link DialogueMemories} routes each key to the right one by what its
+ * author declared. A consumer implementing a third would be answering for a lifetime nothing can
+ * declare, which is how one authored word came to mean "survives a restart" in one mod and "gone at
+ * round exit" in another.
+ *
+ * <p>Every method beyond {@link #has} and {@link #set} has a no-op default, because a backend whose
+ * state genuinely cannot drop a key should say so by inheriting rather than by pretending. Both
+ * shipped backends implement all four.
  */
 public interface DialogueFlagStore {
 
@@ -24,6 +33,19 @@ public interface DialogueFlagStore {
      * against it does nothing.
      */
     default void clear(@Nonnull String flag) { }
+
+    /**
+     * Drop every key filed under a leading {@code prefix}. This is what a declared
+     * {@code ResetWithQuest} lifetime is made of: the memory is filed inside its quest's own
+     * namespace, and resetting that quest drops the namespace whole.
+     *
+     * <p>The prefix arrives in its UN-prefixed form ({@code q:<questId>:}); applying the session
+     * namespace on top of it is {@link DialogueMemories}'s job, not a backend's.
+     */
+    default void clearWithPrefix(@Nonnull String prefix) { }
+
+    /** Drop everything this backend holds for the player (an administrator's start-over). */
+    default void clearAll() { }
 
     /** A no-op store: every flag reads as unset, writes are dropped (read-only/stateless contexts). */
     DialogueFlagStore NONE = new DialogueFlagStore() {
