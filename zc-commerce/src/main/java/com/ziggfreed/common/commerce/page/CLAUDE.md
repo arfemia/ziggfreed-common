@@ -18,6 +18,7 @@ this is the second package allowed to see both.
 | [`ZigBoardPage`](ZigBoardPage.java) | the board: what is posted, what the player carries from it, and every lifecycle affordance a contract has |
 | [`ShopSections`](ShopSections.java) / [`BoardSections`](BoardSections.java) | the PURE ordering cores: which run a row belongs in, in what order the page reads, and which row the panel opens on |
 | [`CommerceText`](CommerceText.java) | authored text as a client-resolved message, the title-argument seam, and the countdown |
+| [`CommerceLabels`](CommerceLabels.java) | what a difficulty BAND and a shelf CATEGORY are called, on the one ladder both screens read |
 | [`CommerceRefusals`](CommerceRefusals.java) | one refusal TOKEN as a line a player reads |
 | [`CommerceChips`](CommerceChips.java) | the two repeatable things both pages paint: a chip and a line |
 | [`CurrencyText`](CurrencyText.java) | what a wallet is CALLED, on a three-rung ladder |
@@ -35,6 +36,38 @@ bug no translation can fix, and one that reads as correct in the content file.
 resolver is asked about EVERY authored argument rather than only the `@`-prefixed sentinels, because
 a generated id is written bare; an unanswered one passes through exactly as authored, which is how
 an author finds out they wrote something nothing provides.
+
+## An authored key is never emitted as written
+
+`I18nModule` namespaces a key by the `.lang` FILENAME it was defined in, so an entry written
+`shop.general.title` inside `mmoskilltree.lang` registers as `mmoskilltree.shop.general.title`.
+Content authors the key WITHOUT that namespace, so anything here that hands a client the authored
+key hands it an id nothing resolves - and the player reads the key itself. That shipped once: every
+board title, shop title, contract title and category label rendered raw.
+
+So every authored or convention key on these screens goes through zc-core's `ContentKeys`
+(`CommerceText.title`/`flavor`, `CurrencyText.nameOf`, `ZigBoardPage`'s step keys, and both label
+families through `CommerceLabels`), never `Msg.key`. `Msg.key` stays correct for a FULLY-QUALIFIED id
+only - this module's own `ziggfreedcommon.commerce.*` chrome through `text(...)`, or a native
+`server.*` name. A key nothing claims passes through exactly as authored, so a server with no
+consumer registered behaves as it always did.
+
+## A band and a shelf are named on a LADDER, and this module holds the bottom rung
+
+`board.grade.<id>` and `shop.category.<id>` were synthesized from a word the content invented and
+handed straight to a client, so a band nobody had translated rendered as its own key on the screen.
+`CommerceLabels` is the one answer both screens (and any consumer surface printing a grade) ask:
+
+1. the AUTHORED key - a board slot's `Text` for its band, a storefront's `Categories` entry for its
+   shelf - which is how a pack inventing a band supplies its own word with no Java;
+2. the CONVENTION key when a consumer ships one, so a mod that already wrote `board.grade.veteran`
+   in its own lang file keeps it;
+3. this module's own shipped default for the common bands and shelves;
+4. the raw word, which is readable and is the visible sign that nobody named that band.
+
+Rung 3 is why this module probes its own catalogue DIRECTLY rather than registering itself as a
+`ContentKeys` fill: a library fill would sit in the same queue as its consumers and, since the
+library loads first, would answer ahead of every one of them - which is the wrong way round.
 
 ## Rules to keep
 
@@ -89,10 +122,15 @@ territory until a maintainer opens them.
 ## Keys
 
 `Server/Languages/<locale>/ziggfreedcommon.commerce.lang`, all nine locales, in-file keys dropping
-the `commerce.` segment the filename carries. It holds CHROME ONLY: a shop's name, a category label
-(`shop.category.<id>`), a contract's grade (`board.grade.<id>`) and every offer or contract title are
-CONTENT keys belonging to whoever authored the content. Nothing in that file names a currency, a
-price, or any other balance figure.
+the `commerce.` segment the filename carries. It holds CHROME ONLY: a shop's own name and every offer
+or contract title are CONTENT keys belonging to whoever authored the content. Nothing in that file
+names a currency, a price, or any other balance figure.
+
+The DEFAULT band and shelf labels at the bottom of that file are chrome under the same rule: one word
+for a common band or shelf, carrying nothing about what anything costs or is worth. They are the
+bottom rung of the ladder above, so authored content and a consumer's own key both outrank them; a
+new one is added only when it names a word content commonly invents, and never when it would name a
+wallet, a price, or a tier's worth.
 
 ## Tests
 
@@ -101,4 +139,7 @@ Pure decision cores only, matching the rest of the library. `ShopSectionsTest` a
 `CommerceRefusalsTest` DISCOVERS both engines' `REASON_*` constants by reflection and fails when one
 is unmapped or names a key the English file does not ship, which is what makes a new refusal a
 failing test rather than a quiet degrade; `CommerceTextTest` pins the argument seam and the
-countdown; `ConfirmArmTest` pins the window. The rendering itself is in-game smoke.
+countdown; `CommerceLabelsTest` pins which key a band is printed under, including the one that
+matters - that a band nothing names falls back to the word rather than to a key; `ConfirmArmTest`
+pins the window. The rendering itself is in-game smoke, and so is the shipped-default rung of the
+label ladder, which is an engine catalogue lookup a unit JVM answers "no" to.

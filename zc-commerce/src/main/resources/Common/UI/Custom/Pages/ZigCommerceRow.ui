@@ -16,6 +16,10 @@ $Z = "../Common/ZigButtons.ui";
 // #RowBtn is a Button + inner Label #Label, never a TextButton: a row title is a parameterized
 // Message and only substitutes on .TextSpans. The selected-row accent is set from Java on the
 // button's per-state tints plus the inner label, never by replacing the background wholesale.
+//
+// #RowBtn keeps a right MARGIN and a right PADDING, and #RowBadge keeps a fixed width: the title
+// flexes, the badge does not, and the gap between them is what stops a long title reading as one
+// word with the badge. Widen the badge rather than dropping its width if a longer word has to fit.
 
 Group #ZigCommerceRow {
   LayoutMode: Top;
@@ -33,8 +37,8 @@ Group #ZigCommerceRow {
     Button #RowBtn {
       Style: $Z.@ZigRichRowBtnStyle;
       FlexWeight: 1;
-      Anchor: (Height: 36);
-      Padding: (Left: 14);
+      Anchor: (Height: 36, Right: 10);
+      Padding: (Left: 14, Right: 6);
       LayoutMode: Left;
 
       Label #Label {
@@ -51,14 +55,14 @@ Group #ZigCommerceRow {
       Visible: false;
       Anchor: (Height: 36);
       Padding: (Left: 4);
-      Style: (FontSize: 11, TextColor: #8696a8, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+      Style: (FontSize: 11, TextColor: #c2d4e8, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
     }
 
     Label #RowBadge {
       Text: "";
       Visible: false;
-      Anchor: (Width: 88, Height: 36);
-      Style: (FontSize: 11, TextColor: #96a9be, HorizontalAlignment: End, VerticalAlignment: Center);
+      Anchor: (Width: 96, Height: 36);
+      Style: (FontSize: 11, TextColor: #c8a86a, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
@@ -67,6 +71,6 @@ Group #ZigCommerceRow {
     Visible: false;
     Anchor: (Height: 14);
     Padding: (Left: 4);
-    Style: (FontSize: 10, TextColor: #6f8296, VerticalAlignment: Center);
+    Style: (FontSize: 10, TextColor: #9fb3c8, VerticalAlignment: Center);
   }
 }

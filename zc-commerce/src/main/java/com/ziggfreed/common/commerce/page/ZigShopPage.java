@@ -112,7 +112,12 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     private static final String ROW_PRESSED_TINT = "#344156";
     private static final String ROW_TEXT = "#b6c9de";
 
-    private static final String HEADER_TEXT = "#8696a8";
+    /**
+     * A section heading is a HEADING: it reads at least as brightly as the rows under it, or a
+     * player takes a shelf's name for a greyed-out entry rather than for the run it opens. Kept in
+     * step with the row template's own default for the same element.
+     */
+    private static final String HEADER_TEXT = "#c2d4e8";
 
     // The status dot: what stands between this buyer and this offer, at a glance.
     private static final String DOT_READY = "#7affa0";
@@ -161,7 +166,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         builtRowOrder.clear();
         shelfOf.clear();
 
-        StorefrontAsset asset = ShopConfig.getInstance().resolve(shopId);
+        StorefrontAsset asset = shopAsset();
         cmd.set("#ShopTitle.TextSpans", CommerceText.title(asset == null ? null : asset.getText(),
                 deps.titleArgs(), text("shop.title")));
         setIcon(cmd, "#ShopIconSlot", "#ShopIcon", asset == null ? null : asset.getIcon());
@@ -257,6 +262,21 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         }
     }
 
+    /**
+     * The storefront this page was opened at, or null when this server holds no such file. Read on
+     * demand rather than held, because a reload replaces the asset while the page is open, and
+     * guarded, because a storefront that cannot be read must cost the page its decoration rather than
+     * its contents.
+     */
+    @Nullable
+    private StorefrontAsset shopAsset() {
+        try {
+            return ShopConfig.getInstance().resolve(shopId);
+        } catch (Throwable notLoadedYet) {
+            return null;
+        }
+    }
+
     // ==================== the runs ====================
 
     /** One run of rows: its heading, the clock under it when it has one, and what it holds. */
@@ -317,22 +337,24 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
                 }
             }
             if (!offers.isEmpty()) {
-                runs.add(new Run(categoryHeading(section.id()), null, offers, null));
+                runs.add(new Run(categoryHeading(asset, section.id()), null, offers, null));
             }
         }
         return runs;
     }
 
     /**
-     * What a category run is called: the convention key an author points a translation at, and the
-     * generic catalogue line for the bucket that carries no category at all.
+     * What a category run is called, on the one ladder both screens use: what the storefront wrote
+     * beside that category, then what a consumer ships for it, then this library's own word for the
+     * common shelves, then the category itself. The bucket carrying no category at all is not a
+     * shelf, so it reads as the generic catalogue line instead.
      */
     @Nonnull
-    private Message categoryHeading(@Nonnull String categoryId) {
+    private Message categoryHeading(@Nullable StorefrontAsset shop, @Nonnull String categoryId) {
         if (categoryId.isEmpty()) {
             return text("shop.section.catalogue");
         }
-        return Msg.key("shop.category." + categoryId);
+        return CommerceLabels.category(shop, categoryId, deps.titleArgs());
     }
 
     private void appendRuns(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
@@ -452,7 +474,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         }
         String category = categoryOf(offer);
         if (category != null) {
-            cmd.set("#DetailCategory.TextSpans", Msg.key("shop.category." + category));
+            cmd.set("#DetailCategory.TextSpans", categoryHeading(shopAsset(), category));
             cmd.set("#DetailCategory.Visible", true);
         }
 

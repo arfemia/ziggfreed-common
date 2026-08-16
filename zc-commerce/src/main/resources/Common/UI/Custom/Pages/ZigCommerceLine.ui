@@ -1,3 +1,5 @@
+$Z = "../Common/ZigButtons.ui";
+
 // One line of a commerce detail panel: a step and its count, a reward and its picture, or a reason
 // something is out of reach. ONE template for all three, because the three differ in what they SAY
 // rather than in what they are, and a page that appended three near-identical templates would be
@@ -22,6 +24,7 @@ Group #ZigCommerceLine {
       SlotsPerRow: 1;
       AreItemsDraggable: false;
       DisplayItemQuantity: false;
+      Style: $Z.@ZigIconGrid20;
     }
   }
 

@@ -89,3 +89,14 @@ refuse.no_reroll = Ese no se puede cambiar.
 refuse.reroll_cap = Has gastado todos los cambios de esta rotación.
 refuse.reroll_no_alternative = No hay nada distinto que poner en su lugar.
 refuse.reroll_cannot_pay = No puedes permitirte un cambio.
+
+board.grade.training = Entrenamiento
+board.grade.easy = Fácil
+board.grade.normal = Normal
+board.grade.hard = Difícil
+board.grade.elite = Élite
+
+shop.category.items = Objetos
+shop.category.boosts = Boosts
+shop.category.conversion = Conversión
+shop.category.featured = Destacados

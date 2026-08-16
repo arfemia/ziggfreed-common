@@ -89,3 +89,14 @@ refuse.no_reroll = Esse não pode ser trocado.
 refuse.reroll_cap = Você usou todas as trocas desta rodada.
 refuse.reroll_no_alternative = Não há nada diferente para colocar no lugar.
 refuse.reroll_cannot_pay = Você não pode pagar uma troca.
+
+board.grade.training = Treinamento
+board.grade.easy = Fácil
+board.grade.normal = Normal
+board.grade.hard = Difícil
+board.grade.elite = Elite
+
+shop.category.items = Itens
+shop.category.boosts = Boosts
+shop.category.conversion = Conversão
+shop.category.featured = Destaques

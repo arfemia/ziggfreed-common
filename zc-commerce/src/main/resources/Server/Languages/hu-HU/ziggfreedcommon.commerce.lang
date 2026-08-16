@@ -89,3 +89,14 @@ refuse.no_reroll = Ezt nem lehet cserélni.
 refuse.reroll_cap = Elhasználtad a kör összes cseréjét.
 refuse.reroll_no_alternative = Nincs más, amit a helyére lehetne tenni.
 refuse.reroll_cannot_pay = Egy cserét nem engedhetsz meg magadnak.
+
+board.grade.training = Edzés
+board.grade.easy = Könnyű
+board.grade.normal = Normál
+board.grade.hard = Nehéz
+board.grade.elite = Elit
+
+shop.category.items = Tárgyak
+shop.category.boosts = Boostok
+shop.category.conversion = Átváltás
+shop.category.featured = Kiemelt

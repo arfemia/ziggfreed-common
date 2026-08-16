@@ -38,7 +38,7 @@ registers are the SAME ones the quest generators read - see
 
 | Class | What it is |
 |---|---|
-| `StorefrontAsset` | one storefront: text, icon, order, the header wallets, the shelf order, `Requires`, `Where` |
+| `StorefrontAsset` | one storefront: text, icon, order, the header wallets, the shelf order and what each shelf is called, `Requires`, `Where` |
 | `ShopPoolAsset` | one rotating shelf: the shared `Rotation` / `Selection` / `Reroll` groups plus its slots |
 | `PoolSlotAsset` | one slot of a shelf: the shared slot leaves plus `Tier` |
 | `ShopEntryAsset` (+ `.Listing`/`.Limits`/`.PoolMembership`) | one offer: price, payout, limits, shelf membership, gate |
@@ -78,6 +78,15 @@ registers are the SAME ones the quest generators read - see
 - **Display text is keys.** `Text.TitleKey` / `FlavorKey` are localization keys the player's own
   client resolves; `TextArgs` is how one written line serves a whole ladder. Never route shipped
   content through `DisplayName`.
+- **A SHELF says something too, and the storefront names it.** `Categories` is the ordinary text
+  group keyed by the category's own word, merging per category under `Parent`; a shelf heading and
+  the category line on an offer both read it. It is deliberately SEPARATE from `CategoryOrder` -
+  one decides what a shelf says, the other where it sits, and neither needs the other authored - and
+  it lives on the storefront rather than on each offer, because a dozen offers in one category would
+  otherwise be a dozen chances to name that shelf differently. The library ships a word for the
+  common shelves (items, boosts, conversion, featured); the ladder a screen reads is this
+  `Categories` entry, then the same key from a mod that ships it, then the library's own default,
+  then the category word itself.
 - **An id is what a player's purchase count is filed under**, so renaming one - including by widening
   a generator's `IdPattern` - starts that count over.
 - **A `$Comment` in any of these files is a TIP for the server owner or pack author.**

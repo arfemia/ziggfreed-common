@@ -36,6 +36,7 @@ import com.ziggfreed.common.commerce.fold.CommerceDefaults;
 import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.currency.CurrencyEngine;
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
@@ -124,7 +125,12 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     private static final String ROW_PRESSED_TINT = "#344156";
     private static final String ROW_TEXT = "#b6c9de";
 
-    private static final String HEADER_TEXT = "#8696a8";
+    /**
+     * A section heading is a HEADING: it reads at least as brightly as the rows under it, or a
+     * player takes "Available" and "Locked" for greyed-out entries rather than for the two runs they
+     * divide. Kept in step with the row template's own default for the same element.
+     */
+    private static final String HEADER_TEXT = "#c2d4e8";
 
     @Nonnull private final String boardId;
 
@@ -946,7 +952,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             ObjectiveLeafAsset leaf = authored.asset().objectivesOrEmpty().get(objective.id());
             String key = leaf == null ? null : CommerceText.trimToNull(leaf.getTextKey());
             if (key != null) {
-                return Msg.key(key);
+                return ContentKeys.tr(key);
             }
         }
         return text("board.step.untitled");
@@ -976,13 +982,16 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     }
 
     /**
-     * The grade a contract carries ON THIS BOARD, as the convention key an author points a
-     * translation at. Null when it is ungraded there, which is a normal thing for a contract to be.
+     * The grade a contract carries ON THIS BOARD, read on the one ladder both screens use: what the
+     * board wrote beside that band, then what a consumer ships for it, then this library's own word
+     * for the common bands, then the band itself. Null when the contract is ungraded here, which is a
+     * normal thing for a contract to be.
      */
     @Nullable
     private Message gradeLabel(@Nonnull BountyRef ref, @Nonnull BoardAssetSpec board) {
         String grade = CommerceText.normalize(ref.difficultyOn(board.boardId()));
-        return grade.isEmpty() ? null : Msg.key("board.grade." + grade);
+        return grade.isEmpty() ? null
+                : CommerceLabels.grade(board.asset(), grade, deps.titleArgs());
     }
 
     @Nonnull

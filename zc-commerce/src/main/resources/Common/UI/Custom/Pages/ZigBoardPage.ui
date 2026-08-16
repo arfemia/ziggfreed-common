@@ -52,6 +52,7 @@ $F.@ZigDecoratedFrame {
             SlotsPerRow: 1;
             AreItemsDraggable: false;
             DisplayItemQuantity: false;
+            Style: $Z.@ZigIconGrid22;
           }
         }
 
@@ -67,13 +68,13 @@ $F.@ZigDecoratedFrame {
         Text: "";
         Visible: false;
         Anchor: (Bottom: 6);
-        Style: (FontSize: 11, TextColor: #93a4b8, Wrap: true);
+        Style: (FontSize: 11, TextColor: #b3c4d6, Wrap: true);
       }
 
       Label #RefreshLabel {
         Text: "";
         Anchor: (Height: 18, Bottom: 6);
-        Style: (FontSize: 11, TextColor: #6f8296, VerticalAlignment: Center);
+        Style: (FontSize: 11, TextColor: #9fb3c8, VerticalAlignment: Center);
       }
 
       Group #BalanceRow {
@@ -111,7 +112,7 @@ $F.@ZigDecoratedFrame {
       Label #BountyCount {
         Text: "";
         Anchor: (Height: 18, Bottom: 6);
-        Style: (FontSize: 11, TextColor: #93a4b8, VerticalAlignment: Center);
+        Style: (FontSize: 11, TextColor: #b3c4d6, VerticalAlignment: Center);
       }
 
       Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }

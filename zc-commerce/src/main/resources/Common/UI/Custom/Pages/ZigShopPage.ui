@@ -52,6 +52,7 @@ $F.@ZigDecoratedFrame {
             SlotsPerRow: 1;
             AreItemsDraggable: false;
             DisplayItemQuantity: false;
+            Style: $Z.@ZigIconGrid22;
           }
         }
 
@@ -71,7 +72,7 @@ $F.@ZigDecoratedFrame {
       Label #OfferCount {
         Text: "";
         Anchor: (Height: 18, Bottom: 8);
-        Style: (FontSize: 11, TextColor: #93a4b8, VerticalAlignment: Center);
+        Style: (FontSize: 11, TextColor: #b3c4d6, VerticalAlignment: Center);
       }
 
       Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }

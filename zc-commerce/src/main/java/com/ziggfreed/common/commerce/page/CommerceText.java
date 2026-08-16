@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.util.NumberFormatter;
@@ -18,6 +19,12 @@ import com.ziggfreed.common.util.PeriodMath;
  *
  * <p>Pure - strings and numbers in, {@link Message}s out - so what a shelf title will say and what a
  * countdown will read are both assertable with no server standing.
+ *
+ * <p>An authored key is emitted through {@link ContentKeys}, never as written: the engine namespaces
+ * a key by the {@code .lang} FILENAME it was defined in, while content is authored without that
+ * namespace, so a key handed over verbatim is one the client cannot resolve and the player reads the
+ * key itself. {@link ContentKeys} is where the consumer that owns the key says which namespace it
+ * belongs to.
  *
  * <h2>The title-argument seam, and why it exists</h2>
  *
@@ -72,7 +79,7 @@ public final class CommerceText {
         }
         String key = trimToNull(text.getTitleKey());
         if (key != null) {
-            return Msg.key(key, args(text.titleArgs(), resolver));
+            return ContentKeys.tr(key, args(text.titleArgs(), resolver));
         }
         String display = trimToNull(text.getDisplayName());
         return display != null ? Msg.raw(display) : fallback;
@@ -88,7 +95,7 @@ public final class CommerceText {
             return null;
         }
         String key = trimToNull(text.getFlavorKey());
-        return key == null ? null : Msg.key(key, args(text.flavorArgs(), resolver));
+        return key == null ? null : ContentKeys.tr(key, args(text.flavorArgs(), resolver));
     }
 
     /**

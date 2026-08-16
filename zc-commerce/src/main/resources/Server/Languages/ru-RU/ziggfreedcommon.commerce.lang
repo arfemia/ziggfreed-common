@@ -89,3 +89,14 @@ refuse.no_reroll = Его нельзя заменить.
 refuse.reroll_cap = Все замены на этот раз израсходованы.
 refuse.reroll_no_alternative = Заменить не на что.
 refuse.reroll_cannot_pay = Замена вам не по карману.
+
+board.grade.training = Тренировка
+board.grade.easy = Лёгкий
+board.grade.normal = Обычный
+board.grade.hard = Трудный
+board.grade.elite = Элитный
+
+shop.category.items = Предметы
+shop.category.boosts = Усиления
+shop.category.conversion = Обмен
+shop.category.featured = Избранное

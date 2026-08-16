@@ -1,3 +1,5 @@
+$Z = "../Common/ZigButtons.ui";
+
 // One chip of a commerce strip: a picture and a number, side by side. A balance reading in a page
 // header, one component of a price, one component of a reroll's price - all the same chip, appended
 // into a left-laid-out container and addressed via the INDEXED PARENT ("#BalanceRow[0] #ChipText").
@@ -21,6 +23,7 @@ Group #ZigCommerceChip {
       SlotsPerRow: 1;
       AreItemsDraggable: false;
       DisplayItemQuantity: false;
+      Style: $Z.@ZigIconGrid18;
     }
   }
 

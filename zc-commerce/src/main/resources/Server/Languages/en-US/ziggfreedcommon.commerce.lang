@@ -1,10 +1,14 @@
 # The storefront page and the board page.
 # The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.commerce.<key>.
 #
-# CHROME ONLY. A shop's own name, a category label (shop.category.<id>), a contract's grade
-# (board.grade.<id>) and every offer or contract title are CONTENT keys: they belong to the lang
-# file of whoever authored the content, not here. Nothing in this file names a currency, a price or
-# any other balance figure.
+# CHROME ONLY. A shop's own name and every offer or contract title are CONTENT keys: they belong to
+# the lang file of whoever authored the content, not here. Nothing in this file names a currency, a
+# price or any other balance figure.
+#
+# The band and shelf labels at the bottom are chrome too: they are one WORD for a common band or a
+# common shelf, carrying nothing about what anything costs or is worth. They are defaults, and they
+# are the last rung of the ladder - a board or a storefront that writes its own Text for a band or a
+# category wins, and so does a mod that ships the same key in its own lang file.
 
 action.confirm = Confirm
 
@@ -103,3 +107,21 @@ refuse.no_reroll = This one cannot be rerolled.
 refuse.reroll_cap = You have used every reroll for this rotation.
 refuse.reroll_no_alternative = There is nothing different to swap in.
 refuse.reroll_cannot_pay = You cannot afford a reroll.
+
+# ==================== the words a band and a shelf read as ====================
+#
+# Defaults for the bands and shelves content commonly invents, so a bare server reads in words
+# rather than in keys. A band or category of your own reads as its own word until you name it:
+# either write a Text group beside it in the file that declares it, or ship the same key here in
+# your own lang file.
+
+board.grade.training = Training
+board.grade.easy = Easy
+board.grade.normal = Normal
+board.grade.hard = Hard
+board.grade.elite = Elite
+
+shop.category.items = Items
+shop.category.boosts = Boosts
+shop.category.conversion = Conversion
+shop.category.featured = Featured

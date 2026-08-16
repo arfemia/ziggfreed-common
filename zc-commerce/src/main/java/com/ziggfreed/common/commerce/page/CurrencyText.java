@@ -6,7 +6,9 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 
+import com.ziggfreed.common.commerce.fold.CommerceFold;
 import com.ziggfreed.common.currency.CurrencyDef;
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 
 /**
@@ -26,6 +28,14 @@ import com.ziggfreed.common.i18n.Msg;
  * <p>The raw id is the last resort and reads as itself. That is deliberate rather than a gap: an
  * untranslated word a player can read beats a blank, and a counter-backed wallet with no name key is
  * an authoring omission the id makes visible instead of hiding.
+ *
+ * <p>Rung 2 has one wrinkle worth knowing. A counter-backed wallet that authored no key at all is
+ * given the CONVENTION key {@code currency.<id>.name} by the fold, so by the time it arrives here an
+ * authored key and a synthesized one look alike - and handing a client a synthesized key nobody ships
+ * puts the key itself on the screen, which is the whole failure this layer exists to prevent. So a
+ * key matching the convention exactly is emitted only when something on this server ships it, while
+ * an authored key is emitted as written: an author who wrote a key meant what they wrote, including
+ * when it points at another namespace entirely.
  */
 public final class CurrencyText {
 
@@ -57,8 +67,9 @@ public final class CurrencyText {
             }
         }
         String key = CommerceText.trimToNull(def.nameKey());
-        if (key != null) {
-            return Msg.key(key);
+        if (key != null
+                && (!key.equals(CommerceFold.currencyNameKey(def.id())) || ContentKeys.known(key))) {
+            return ContentKeys.tr(key);
         }
         String item = CommerceText.trimToNull(def.backingItemId());
         if (item != null) {

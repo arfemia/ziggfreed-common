@@ -89,3 +89,14 @@ refuse.no_reroll = Celui-là ne peut pas être relancé.
 refuse.reroll_cap = Tu as utilisé toutes tes relances de ce cycle.
 refuse.reroll_no_alternative = Il n'y a rien d'autre à mettre à la place.
 refuse.reroll_cannot_pay = Tu n'as pas les moyens de relancer.
+
+board.grade.training = Entraînement
+board.grade.easy = Facile
+board.grade.normal = Normale
+board.grade.hard = Difficile
+board.grade.elite = Élite
+
+shop.category.items = Objets
+shop.category.boosts = Boosts
+shop.category.conversion = Conversion
+shop.category.featured = À la une

@@ -89,3 +89,14 @@ refuse.no_reroll = Bu değiştirilemez.
 refuse.reroll_cap = Bu turdaki bütün değişim hakkını kullandın.
 refuse.reroll_no_alternative = Yerine koyacak farklı bir şey yok.
 refuse.reroll_cannot_pay = Bir değişime gücün yetmiyor.
+
+board.grade.training = Eğitim
+board.grade.easy = Kolay
+board.grade.normal = Normal
+board.grade.hard = Zor
+board.grade.elite = Elit
+
+shop.category.items = Eşyalar
+shop.category.boosts = Boostlar
+shop.category.conversion = Dönüşüm
+shop.category.featured = Öne Çıkanlar

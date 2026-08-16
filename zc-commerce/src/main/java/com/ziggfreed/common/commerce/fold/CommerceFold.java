@@ -303,6 +303,19 @@ public final class CommerceFold {
         return builder.build();
     }
 
+    /**
+     * The key a counter-backed wallet that authored none is GIVEN, so a mod can name one by shipping
+     * a line rather than by editing somebody's currency file.
+     *
+     * <p>Public because a render site has to be able to tell this key apart from an authored one: a
+     * key nobody ships is a key the player would read, and only a synthesized one may be dropped in
+     * favour of the wallet's own id.
+     */
+    @Nonnull
+    public static String currencyNameKey(@Nonnull String currencyId) {
+        return "currency." + currencyId + ".name";
+    }
+
     @Nullable
     private static String nameKey(@Nonnull CurrencyAsset asset, @Nonnull String id) {
         ContentTextAsset text = asset.getText();
@@ -310,7 +323,7 @@ public final class CommerceFold {
         if (authored != null && !authored.isBlank()) {
             return authored.trim();
         }
-        return asset.isItemBacked() ? null : "currency." + id + ".name";
+        return asset.isItemBacked() ? null : currencyNameKey(id);
     }
 
     /**

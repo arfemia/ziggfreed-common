@@ -16,6 +16,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
@@ -31,7 +32,8 @@ import com.ziggfreed.common.world.WorldSelector;
  *   "Icon": "Ore_Iron",
  *   "Order": 0,
  *   "Currencies": ["Bounty_Token", "Life_Essence"],
- *   "CategoryOrder": ["Items", "Boosts", "Conversion", "Featured"] }
+ *   "CategoryOrder": ["Items", "Boosts", "Conversion", "Featured"],
+ *   "Categories": { "Relics": { "TitleKey": "shop.category.relics" } } }
  * }</pre>
  *
  * <p>A shop is the PAGE: what it is called, what it looks like, which wallets its header shows, and
@@ -48,6 +50,11 @@ import com.ziggfreed.common.world.WorldSelector;
  * the listed ones alphabetically, and each offer's own sort order still arranges offers WITHIN one
  * category - so "my rare shelf lists before uncommon" is always a CategoryOrder gap, never an offer's
  * order.
+ *
+ * <p><b>{@code Categories} is what each shelf SAYS</b>, keyed by the category's own word. The common
+ * shelves read in every language without it. Author it for a shelf of your own invention and point
+ * its {@code TitleKey} at a line in your own lang file; until you do, the shelf reads as the word you
+ * typed, which is honest but is only in one language.
  *
  * <p><b>{@code Where} decides which worlds this storefront exists in at all</b>, in the one
  * world-targeting grammar every file on this server uses. Leave it out and it exists everywhere,
@@ -71,6 +78,7 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable private Integer order;
     @Nullable private String[] currencies;
     @Nullable private String[] categoryOrder;
+    @Nullable private Map<String, ContentTextAsset> categories;
     @Nullable private GateSpec requires;
     @Nullable private WorldSelector where;
     @Nullable private Map<String, JsonElement> meta;
@@ -121,6 +129,15 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
             .documentation("The order the shelves read in. Unauthored sorts them alphabetically, which puts "
                     + "'rare' ahead of 'uncommon'; a category left off the list follows the named ones "
                     + "alphabetically.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Categories", new InheritMapCodec<>(ContentTextAsset.CODEC), false),
+                    (a, v) -> a.categories = v, a -> a.categories, (a, p) -> a.categories = p.categories)
+            .documentation("What each shelf is CALLED, keyed by the category's own word, as a localization key in "
+                    + "your own lang file. The common shelves already read in words without this; a category you "
+                    + "invented reads as the word you wrote it as until you point a TitleKey at a line of yours. "
+                    + "Separate from CategoryOrder on purpose: one decides what a shelf says, the other where it "
+                    + "sits, and neither needs the other authored. Under Parent this merges per CATEGORY, so a "
+                    + "child storefront can rename one shelf and keep the rest.")
             .add()
             .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
@@ -177,6 +194,25 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
     @Nonnull
     public List<String> categoryOrder() {
         return lowerList(categoryOrder);
+    }
+
+    /**
+     * What this storefront calls the {@code categoryId} shelf, or null when it names none. Matched
+     * however either was capitalized, the same way every other id here compares.
+     */
+    @Nullable
+    public ContentTextAsset categoryText(@Nullable String categoryId) {
+        if (categories == null || categoryId == null || categoryId.isBlank()) {
+            return null;
+        }
+        String wanted = categoryId.trim().toLowerCase(Locale.ROOT);
+        for (Map.Entry<String, ContentTextAsset> entry : categories.entrySet()) {
+            String key = entry.getKey();
+            if (key != null && wanted.equals(key.trim().toLowerCase(Locale.ROOT))) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     /** What must be true before the storefront opens, or null when it is open to everybody. */

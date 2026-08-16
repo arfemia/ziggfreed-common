@@ -89,3 +89,14 @@ refuse.no_reroll = Der lässt sich nicht neu würfeln.
 refuse.reroll_cap = Du hast alle Neuwürfe dieser Runde verbraucht.
 refuse.reroll_no_alternative = Es gibt nichts anderes zum Tauschen.
 refuse.reroll_cannot_pay = Einen Neuwurf kannst du dir nicht leisten.
+
+board.grade.training = Training
+board.grade.easy = Leicht
+board.grade.normal = Normal
+board.grade.hard = Schwer
+board.grade.elite = Elite
+
+shop.category.items = Gegenstände
+shop.category.boosts = Boosts
+shop.category.conversion = Umwandlung
+shop.category.featured = Vorgestellt
