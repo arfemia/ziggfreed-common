@@ -58,8 +58,8 @@ consumer registered behaves as it always did.
 handed straight to a client, so a band nobody had translated rendered as its own key on the screen.
 `CommerceLabels` is the one answer both screens (and any consumer surface printing a grade) ask:
 
-1. the AUTHORED key - a board slot's `Text` for its band, a storefront's `Categories` entry for its
-   shelf - which is how a pack inventing a band supplies its own word with no Java;
+1. the AUTHORED key - a board's own `Grades` entry for its band, a storefront's `Categories` entry for
+   its shelf - which is how a pack inventing a band supplies its own word with no Java;
 2. the CONVENTION key when a consumer ships one, so a mod that already wrote `board.grade.veteran`
    in its own lang file keeps it;
 3. this module's own shipped default for the common bands and shelves;

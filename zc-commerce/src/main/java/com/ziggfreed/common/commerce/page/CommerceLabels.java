@@ -6,7 +6,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 
 import com.ziggfreed.common.board.asset.BoardAsset;
-import com.ziggfreed.common.board.asset.BoardSlotAsset;
 import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
 import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
 import com.ziggfreed.common.i18n.ContentI18n;
@@ -28,9 +27,9 @@ import com.ziggfreed.common.shop.asset.StorefrontAsset;
  * <h2>The ladder</h2>
  *
  * <ol>
- *   <li>the AUTHORED key, from the {@code Text} group beside the band or the category in the file
- *       that declares it - which is how a pack inventing its own band supplies its own word without
- *       anybody writing Java;</li>
+ *   <li>the AUTHORED key, from the board's own {@code Grades} entry for the band or the storefront's
+ *       {@code Categories} entry for the shelf - which is how a pack inventing its own band or shelf
+ *       supplies its own word without anybody writing Java;</li>
  *   <li>the CONVENTION key, when a consumer ships one: a mod that already has
  *       {@code board.grade.veteran} in its own lang file keeps it, and its namespace is whichever
  *       {@link ContentKeys} fill claims the key;</li>
@@ -68,14 +67,13 @@ public final class CommerceLabels {
     // ==================== the two labels ====================
 
     /**
-     * What a contract's grade reads as on {@code board}: the band's authored {@code Text}, else the
-     * ladder above. {@code gradeId} is the band's own word, already normalized.
+     * What a contract's grade reads as on {@code board}: the band's authored {@code Grades} entry,
+     * else the ladder above. {@code gradeId} is the band's own word, already normalized.
      */
     @Nonnull
     public static Message grade(@Nullable BoardAsset board, @Nonnull String gradeId,
             @Nullable CommerceText.ArgResolver resolver) {
-        BoardSlotAsset[] slots = board == null ? null : board.slotsOrEmpty();
-        return label(gradeTextOf(slots, gradeId), GRADE_PREFIX + gradeId, gradeId, resolver);
+        return label(board == null ? null : board.gradeText(gradeId), GRADE_PREFIX + gradeId, gradeId, resolver);
     }
 
     /**
@@ -89,7 +87,10 @@ public final class CommerceLabels {
         return grade(boardOf(boardId), CommerceText.normalize(gradeId), resolver);
     }
 
-    /** What a shelf reads as on {@code shop}: the category's authored {@code Text}, else the ladder. */
+    /**
+     * What a shelf reads as on {@code shop}: the storefront's own {@code Categories} entry for the
+     * shelf, else the ladder above.
+     */
     @Nonnull
     public static Message category(@Nullable StorefrontAsset shop, @Nonnull String categoryId,
             @Nullable CommerceText.ArgResolver resolver) {
@@ -139,29 +140,7 @@ public final class CommerceLabels {
         }
     }
 
-    // ==================== reading the authored group ====================
-
-    /**
-     * The {@code Text} a board wrote beside {@code gradeId}, or null when it named the band without
-     * naming it in words. Matched however either was capitalized, exactly as a slot's band is matched
-     * against a contract's.
-     *
-     * <p>Takes the SLOTS rather than the board, because that is the whole of what this reads and it
-     * keeps the lookup assertable with no asset store standing.
-     */
-    @Nullable
-    public static ContentTextAsset gradeTextOf(@Nullable BoardSlotAsset[] slots,
-            @Nonnull String gradeId) {
-        if (slots == null || gradeId.isEmpty()) {
-            return null;
-        }
-        for (BoardSlotAsset slot : slots) {
-            if (slot != null && gradeId.equals(slot.label())) {
-                return slot.getText();
-            }
-        }
-        return null;
-    }
+    // ==================== resolving a board by id ====================
 
     @Nullable
     private static BoardAsset boardOf(@Nullable String boardId) {

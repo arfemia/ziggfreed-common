@@ -260,6 +260,41 @@ class CommerceValidatorTest {
         }
 
         @Test
+        void namingABandNoSlotEverPostsIsCalledOut() throws Exception {
+            List<Finding> findings = BoardValidator.validate(
+                    one("daily", board("""
+                            { "Slots": [ { "Difficulty": "Training" } ],
+                              "Grades": { "Skrimish": { "TitleKey": "board.grade.skirmish" } } }
+                            """, "Daily")),
+                    one("bounty_easy", bounty("""
+                            { "Boards": [ { "Board": "Daily", "Difficulty": "Training" } ],
+                              "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
+                              "Rewards": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] }
+                            """, "Bounty_Easy")),
+                    WALLETS, null, null, null, null);
+
+            assertEquals(Severity.WARNING, find(findings, "NAME_FOR_UNPOSTED_BAND").severity(),
+                    "a word nothing ever reads is a warning; the band itself may yet arrive with a pack");
+        }
+
+        @Test
+        void anUnslottedBoardMayNameItsBands() throws Exception {
+            List<Finding> findings = BoardValidator.validate(
+                    one("daily", board("""
+                            { "Grades": { "Skirmish": { "TitleKey": "board.grade.skirmish" } } }
+                            """, "Daily")),
+                    one("bounty_easy", bounty("""
+                            { "Boards": [ { "Board": "Daily", "Difficulty": "Skirmish" } ],
+                              "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
+                              "Rewards": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] }
+                            """, "Bounty_Easy")),
+                    WALLETS, null, null, null, null);
+
+            assertFalse(has(findings, "NAME_FOR_UNPOSTED_BAND"),
+                    "a board with no slots posts whatever it holds, so every band it names is one it can post");
+        }
+
+        @Test
         void aRerollPricedInAWalletNobodyDefinesMeansNobodyCanEverReroll() throws Exception {
             List<Finding> findings = BoardValidator.validate(
                     one("daily", board("""

@@ -144,9 +144,11 @@ The PAGES are split the same way, pure halves only: `ShopSectionsTest` and `Boar
 ordering a player notices immediately and a refactor breaks silently), `CommerceRefusalsTest` (the
 token-to-line mapping, DISCOVERING both engines' `REASON_*` constants by reflection so a new refusal
 is a failing test rather than a quiet degrade, and checking each line is actually shipped in
-English), `CommerceTextTest` (the title-argument seam and the countdown) and `ConfirmArmTest` (the
-two-click window). The rendering itself is in-game smoke territory, because `.ui` files are not
-compiled and a green build says nothing about them.
+English), `CommerceTextTest` (the title-argument seam and the countdown), `CommerceLabelsTest` (which
+rung of the label ladder a band or a shelf is printed under, including a board's own `Grades` entry
+outranking every key anybody ships) and `ConfirmArmTest` (the two-click window). The rendering itself
+is in-game smoke territory, because `.ui` files are not compiled and a green build says nothing about
+them.
 
 Tests assert mechanics, structure and invariants. Fixtures are author-owned; never assert numbers
 that belong to somebody's balance pass.

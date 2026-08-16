@@ -387,6 +387,24 @@ class CommerceCodecTest {
         }
 
         @Test
+        void aChildBoardMayRenameOneBandAndKeepTheRest() throws Exception {
+            BoardAsset base = board("""
+                    { "Grades": { "Skirmish": { "TitleKey": "board.grade.skirmish" },
+                                  "Hard":     { "TitleKey": "board.grade.hard" } } }
+                    """, "Daily", null, null);
+
+            BoardAsset hardcore = board("""
+                    { "Grades": { "Hard": { "TitleKey": "board.grade.hard.hardcore" } } }
+                    """, "Daily_Hardcore", "daily", base);
+
+            assertNotNull(hardcore.gradeText("hard"));
+            assertEquals("board.grade.hard.hardcore", hardcore.gradeText("hard").getTitleKey());
+            assertNotNull(hardcore.gradeText("skirmish"),
+                    "the band the child never mentioned survives: the map merges per band");
+            assertEquals("board.grade.skirmish", hardcore.gradeText("skirmish").getTitleKey());
+        }
+
+        @Test
         void theHeaderWalletsAreLowerCasedAndKeepTheirAuthoredOrder() throws Exception {
             BoardAsset daily = board("""
                     { "Currencies": ["Bounty_Token", "Life_Essence"] }

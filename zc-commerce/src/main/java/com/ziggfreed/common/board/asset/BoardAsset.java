@@ -38,11 +38,12 @@ import com.ziggfreed.common.world.WorldSelector;
  *   "Rotation": { "Period": "Daily" },
  *   "Selection": { "Type": "Weighted_Random" },
  *   "Slots": [ { "Difficulty": "Training", "Count": 2 },
- *              { "Difficulty": "Easy" },
+ *              { "Difficulty": "Skirmish" },
  *              { "Difficulty": "Normal", "Count": 2 },
  *              { "Difficulty": "Hard", "Optional": true } ],
  *   "Currencies": ["Bounty_Token", "Life_Essence"],
  *   "Reroll": { "Cost": { "Currencies": { "Bounty_Token": 25 } }, "MaxPerPeriod": 3 },
+ *   "Grades": { "Skirmish": { "TitleKey": "board.grade.skirmish" } },
  *   "AcceptRequires": {
  *     "Normal": { "Factors": [ { "Factor": "hytale:stat", "Param": "MMO_CombatLevel", "Min": 25 } ] },
  *     "Hard":   { "Factors": [ { "Factor": "hytale:stat", "Param": "MMO_CombatLevel", "Min": 60 } ] } } }
@@ -56,6 +57,14 @@ import com.ziggfreed.common.world.WorldSelector;
  * <p><b>The posting is worked out from the clock, not remembered.</b> Every player sees the same
  * board for the same period, a restart changes nothing, and nothing has to be stored anywhere. A
  * player's own rerolls layer on top of that shared draw.
+ *
+ * <p><b>{@code Grades} is what each band is CALLED</b>, keyed by the band's own word. The common
+ * bands (training/easy/normal/hard/elite) already read in every language with no entry here. Author
+ * one for a band of your own invention and point its {@code TitleKey} at a line in your own lang
+ * file; without one, the band reads as the word you typed, which is honest but is only in one
+ * language. The map belongs to the BOARD, so an UNSLOTTED board (one with no {@code Slots} block at
+ * all, posting whatever it holds) names its bands the same way. Under {@code Parent} this merges per
+ * BAND, so a child board can rename one and keep the rest.
  *
  * <p><b>{@code AcceptRequires} gates a whole difficulty band</b>, keyed by the band's own word, and
  * each value is the ordinary {@code Requires} block every gated thing on this server uses. So a band
@@ -87,6 +96,7 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable private BoardSlotAsset[] slots;
     @Nullable private String[] currencies;
     @Nullable private RerollAsset reroll;
+    @Nullable private Map<String, ContentTextAsset> grades;
     @Nullable private Map<String, GateSpec> acceptRequires;
     @Nullable private GateSpec requires;
     @Nullable private WorldSelector where;
@@ -152,6 +162,15 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     (a, v) -> a.reroll = v, a -> a.reroll, (a, p) -> a.reroll = p.reroll)
             .documentation("What it costs a player to swap one posting for another, and how often they may. "
                     + "Unauthored means the board stands as posted until it turns over.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Grades", new InheritMapCodec<>(ContentTextAsset.CODEC), false),
+                    (a, v) -> a.grades = v, a -> a.grades, (a, p) -> a.grades = p.grades)
+            .documentation("What each difficulty band is CALLED, keyed by the band's own word, as a localization "
+                    + "key in your own lang file. The common bands (training/easy/normal/hard/elite) already read "
+                    + "in words with no entry here; author one for a band you invent and point its TitleKey at a "
+                    + "line of yours, and until you do that band reads as the word you typed it as. The map belongs "
+                    + "to the board, so a board with no Slots block names its bands the same way. Under Parent this "
+                    + "merges per BAND, so a child board can rename one band and keep the rest.")
             .add()
             .appendInherited(new KeyedCodec<>("AcceptRequires", new InheritMapCodec<>(GateSpec.CODEC), false),
                     (a, v) -> a.acceptRequires = v, a -> a.acceptRequires,
@@ -243,6 +262,34 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable
     public RerollAsset getReroll() {
         return reroll;
+    }
+
+    /** What each band is CALLED, band words lower-cased; empty when the board names none of them. */
+    @Nonnull
+    public Map<String, ContentTextAsset> grades() {
+        if (grades == null) {
+            return Map.of();
+        }
+        Map<String, ContentTextAsset> out = new LinkedHashMap<>();
+        for (Map.Entry<String, ContentTextAsset> entry : grades.entrySet()) {
+            String band = entry.getKey();
+            if (band != null && !band.isBlank() && entry.getValue() != null) {
+                out.put(band.trim().toLowerCase(Locale.ROOT), entry.getValue());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * What this board calls the {@code gradeId} band, or null when it names none. Matched however
+     * either was capitalized, the same way every other id here compares.
+     */
+    @Nullable
+    public ContentTextAsset gradeText(@Nullable String gradeId) {
+        if (gradeId == null || gradeId.isBlank()) {
+            return null;
+        }
+        return grades().get(gradeId.trim().toLowerCase(Locale.ROOT));
     }
 
     /** The per-band accept gates, band words lower-cased; empty when every band is open. */

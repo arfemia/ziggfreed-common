@@ -42,8 +42,8 @@ Four behaviours are NOT authorable, and each is a bug that would otherwise be on
 
 | Class | What it is |
 |---|---|
-| `BoardAsset` | one board: text, order, the shared `Rotation` / `Selection` / `Reroll` groups, its slots, the header wallets, the per-band `AcceptRequires` map, `Requires`, `Where` |
-| `BoardSlotAsset` | one slot of a posting: the shared slot leaves plus `Difficulty` and the `Text` that band reads as |
+| `BoardAsset` | one board: text, order, the shared `Rotation` / `Selection` / `Reroll` groups, its slots, the header wallets, the per-band `Grades` (what each band is called) and `AcceptRequires` (what each band takes to accept) maps, `Requires`, `Where` |
+| `BoardSlotAsset` | one slot of a posting: the shared slot leaves plus `Difficulty` |
 | `BountyAsset` (+ `.Listing`/`.BoardMembership`) | one contract, and the fold that stamps the policy |
 | `BoardConfig` | the `defaults < pack < owner` fold, owner layer `mods/ziggfreedcommon/boards.json` |
 | `BoardAssetStore` | the loaded contracts, and the fold into runnable definitions |
@@ -65,14 +65,17 @@ Four behaviours are NOT authorable, and each is a bug that would otherwise be on
   which is how a child of a shared skeleton moves boards.
 - **`Difficulty` is a free content word**, matched case-insensitively against a board's slots and used
   as the `AcceptRequires` key. Nothing here enumerates the bands; a pack invents its own ladder.
-- **A band SAYS something, and the slot that declares it is where that is written.** `Slots[].Text` is
-  the ordinary text group, and its `TitleKey` is what a contract's grade reads as wherever one is
-  shown. The library ships a word for the common bands (training, easy, normal, hard, elite), so a
-  board using those needs nothing; a band a pack invented reads as its own word until the slot names
-  it. The ladder a screen reads is: this `Text`, then the same key from a mod that ships it, then the
-  library's own default, then the band itself - so an unnamed band is a readable word rather than a
-  key on the screen. A band no slot declares (an unslotted board posting whatever it holds) can only
-  reach the last three rungs, so declare a slot for a band whose word you want to author.
+- **A band SAYS something, and the board's own `Grades` map is where that is written**, keyed by the
+  band's own word - never a slot. Each value is the ordinary text group, and its `TitleKey` is what a
+  contract's grade reads as wherever one is shown. The library ships a word for the common bands
+  (training, easy, normal, hard, elite), so a board using those needs nothing; a band a pack invented
+  reads as its own word until `Grades` names it. The ladder a screen reads is: this `Grades` entry,
+  then the same key from a mod that ships it, then the library's own default, then the band itself -
+  so an unnamed band is a readable word rather than a key on the screen. Living on the board rather
+  than a slot means an UNSLOTTED board (one posting whatever it holds, with no `Slots` block at all)
+  can name its bands too. Declaring a band (a `Slots[]` entry naming its `Difficulty`) and naming it
+  (a `Grades` entry) are two different authored facts: a board may declare a band with no word of its
+  own, and the ladder still resolves it through the lower rungs.
 - **`Abstract` is the ONE field that must never inherit.** A child of a skeleton is a real contract.
 - **An id is what a player's progress is filed under**, so renaming one starts that contract over -
   and two files landing on one id is reported, naming the id, because the loser takes its progress

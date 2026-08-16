@@ -164,6 +164,14 @@ public final class BoardValidator {
                             + " name this board, so it comes up short every rotation", id));
         }
 
+        for (String band : board.grades().keySet()) {
+            if (!slotBands.isEmpty() && !slotBands.contains(band)) {
+                out.add(Finding.warning(DOMAIN, "NAME_FOR_UNPOSTED_BAND",
+                        "Grades names the band '" + band + "', which none of this board's slots ever posts, so "
+                                + "the word is never read; check the spelling against the slots", id));
+            }
+        }
+
         for (Map.Entry<String, GateSpec> gate : board.acceptRequires().entrySet()) {
             String band = gate.getKey();
             if (!slotBands.isEmpty() && !slotBands.contains(band)) {
