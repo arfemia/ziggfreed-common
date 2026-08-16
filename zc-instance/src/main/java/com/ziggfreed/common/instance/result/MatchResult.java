@@ -5,6 +5,8 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.loot.reward.RewardChip;
+
 /**
  * The immutable snapshot the {@link com.ziggfreed.common.instance.result.ResultsPage}
  * renders: the outcome, the duration, the team-grouped score breakdown, the granted /

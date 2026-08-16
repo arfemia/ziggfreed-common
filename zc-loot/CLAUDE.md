@@ -71,12 +71,13 @@ own router.
 
 ## Tests
 
-24 files: the loot core (`LootEngineTest`, `RollEvaluatorTest`, `LootableAssetCodecTest`,
+25 files: the loot core (`LootEngineTest`, `RollEvaluatorTest`, `LootableAssetCodecTest`,
 `LootableContributionTest`, `LootableValidatorTest`, `LootPoolTest`, `LootFactorGateTest`,
 `LootEntryTest`), the reward vocabulary (`RewardKindRegistryTest`, `RewardKindFoldTest`,
 `RewardKindAssetCodecTest`, `RewardKindAssetFoldTest`, `RewardKindValidatorTest`,
 `RewardGrantsTest`, `CommandRewardKindTest`, `DroplistRewardKindTest`, `FrameworkKindFailLoudTest`,
-`RewardChipsTest` - how one reward READS before it is granted, from strings alone),
+`RewardChipsTest` - how one reward READS before it is granted, from strings alone,
+`CommandRewardFitTest` - which command rewards need inventory room at all),
 the stamp math (`StampCapEngineTest`, `StamperDescribeTest`), and the deferred-payout layer
 (`DeferredRewardsTest`, `InstanceRewardParseTest`, `InstanceRewardMergeTest`,
 `NativeLootServiceTest`). `NativeLootServiceTest`'s unknown-id/disabled-module/throwing-engine

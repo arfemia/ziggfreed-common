@@ -2,6 +2,8 @@ package com.ziggfreed.common.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -114,6 +116,70 @@ class CommandRunnerTest {
         void blankAndNullAreSafe() {
             assertEquals("", CommandRunner.normalizeGive(null));
             assertEquals("   ", CommandRunner.normalizeGive("   "));
+        }
+    }
+
+    @Nested
+    class ReadingAGiveLineBack {
+
+        @Test
+        void aNamedQuantityIsWhatTheLineHandsOver() {
+            CommandRunner.Give give = CommandRunner.readGive("give Bob Wood_Planks --quantity=32");
+
+            assertNotNull(give);
+            assertEquals("Bob", give.target());
+            assertEquals("Wood_Planks", give.itemId());
+            assertEquals(32, give.quantity());
+        }
+
+        @Test
+        void aPositionalCountIsReadLenientlyAsTheAuthorsIntent() {
+            // The ENGINE ignores this form, which is what normalizeGive exists to fix. A reader
+            // asking what the author meant still answers 32, so a preview and a fit probe are not
+            // the two places a misauthored line looks like a single item.
+            assertEquals(32, CommandRunner.readGive("give Bob Wood_Planks 32").quantity());
+        }
+
+        @Test
+        void theNamedFormWinsOverAPositionalOne() {
+            assertEquals(8, CommandRunner.readGive("give Bob Wood_Planks 32 --quantity=8").quantity());
+        }
+
+        @Test
+        void aLeadingSlashAndAnyCasingOfTheVerbAreAccepted() {
+            assertEquals("Wood_Planks", CommandRunner.readGive("/GIVE Bob Wood_Planks").itemId());
+            assertEquals("Wood_Planks", CommandRunner.readGive("  give Bob Wood_Planks  ").itemId());
+        }
+
+        @Test
+        void noCountAtAllIsOne() {
+            assertEquals(1, CommandRunner.readGive("give Bob Wood_Planks").quantity());
+        }
+
+        @Test
+        void anUnreadableCountCostsTheCountAndNotTheLine() {
+            CommandRunner.Give give = CommandRunner.readGive("give Bob Wood_Planks --quantity=lots");
+
+            assertNotNull(give);
+            assertEquals("Wood_Planks", give.itemId());
+            assertEquals(1, give.quantity());
+        }
+
+        @Test
+        void anythingThatIsNotAGiveReadsAsNothing() {
+            assertNull(CommandRunner.readGive("summon Bob Zombie 3"));
+            assertNull(CommandRunner.readGive("xp add Bob 500"));
+            assertNull(CommandRunner.readGive("give Bob"), "no item named, so nothing is handed over");
+            assertNull(CommandRunner.readGive(null));
+            assertNull(CommandRunner.readGive("   "));
+        }
+
+        @Test
+        void aNormalizedLineAndTheRawOneItCameFromReadTheSame() {
+            String raw = "give Bob Wood_Planks 32";
+
+            assertEquals(CommandRunner.readGive(raw),
+                    CommandRunner.readGive(CommandRunner.normalizeGive(raw)));
         }
     }
 

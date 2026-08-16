@@ -145,6 +145,70 @@ public final class CommandRunner {
         return String.join(" ", tokens);
     }
 
+    // ==================== reading a give line back ====================
+
+    /**
+     * What a {@code give} line hands over: who it names, which item, and how many.
+     *
+     * <p>Strings and an int, nothing engine-shaped, so a caller can read a line without an item
+     * system in front of it - a validator with no world, a preview building an icon, an
+     * inventory-fit probe. Whoever needs an actual stack builds one from these three.
+     */
+    public record Give(@Nonnull String target, @Nonnull String itemId, int quantity) {
+    }
+
+    /**
+     * Read an already-resolved {@code give} line back into what it would hand over, or {@code null}
+     * when the line is not a give at all (or names no item).
+     *
+     * <p>The counterpart of {@link #normalizeGive}, and here for the same reason: the engine reads a
+     * count ONLY from {@code --quantity=N}, so anything working out what a give line means has to
+     * know that one rule, and knowing it in two places is how a preview starts promising a different
+     * number than the payout delivers.
+     *
+     * <p>A leading slash is optional and the verb is matched case-insensitively. The named
+     * {@code --quantity=N} wins wherever it appears; a bare count in the third position is still
+     * read - LENIENTLY, so a misauthored line reads as the count its author meant rather than as
+     * one - even though the engine itself would ignore it. Normalize first when what you want is
+     * the line the engine will act on; read leniently here when what you want is the author's
+     * intent. An unparseable count leaves the quantity at 1 rather than refusing the line.
+     */
+    @Nullable
+    public static Give readGive(@Nullable String command) {
+        if (command == null) {
+            return null;
+        }
+        String line = command.trim();
+        if (line.startsWith("/")) {
+            line = line.substring(1);
+        }
+        if (!line.toLowerCase(Locale.ROOT).startsWith("give ")) {
+            return null;
+        }
+        String[] parts = line.split("\\s+");
+        if (parts.length < 3) {
+            return null;
+        }
+        int quantity = 1;
+        for (int i = 3; i < parts.length; i++) {
+            String token = parts[i];
+            if (token.toLowerCase(Locale.ROOT).startsWith("--quantity=")) {
+                try {
+                    quantity = Integer.parseInt(token.substring("--quantity=".length()));
+                } catch (NumberFormatException ignored) {
+                    // A mistyped count costs the count, never the reading of the rest of the line.
+                }
+            } else if (i == 3) {
+                try {
+                    quantity = Integer.parseInt(token);
+                } catch (NumberFormatException ignored) {
+                    // Not a count at all (an item id, a flag's value); leave it at one.
+                }
+            }
+        }
+        return new Give(parts[1], parts[2], quantity);
+    }
+
     private static boolean isPositiveInteger(@Nonnull String token) {
         if (token.isEmpty() || token.length() > 10) {
             return false;

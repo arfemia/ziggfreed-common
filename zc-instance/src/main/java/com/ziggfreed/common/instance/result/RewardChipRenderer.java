@@ -9,10 +9,18 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 
 import com.ziggfreed.common.instance.reward.InstanceReward;
+import com.ziggfreed.common.loot.reward.RewardChip;
 
 /**
- * Builds a results-screen {@link RewardChip} for an {@link InstanceReward}, AUTO-GENERATING the
- * chip label so a pack author no longer needs a hand-authored {@code displayKey}.
+ * Builds a {@link RewardChip} for an {@link InstanceReward}, AUTO-GENERATING the chip label so a
+ * pack author no longer needs a hand-authored {@code displayKey}.
+ *
+ * <p>The chip it hands back is the shared {@link RewardChip} every payout surface in the library
+ * paints - a quest panel, a storefront offer, a board contract, this results strip - so one reward
+ * cannot read one way on a spoils screen and another way everywhere else. What is here rather than
+ * beside that record is the bit only this shape needs: an {@link InstanceReward} names its payout
+ * as an id plus a quantity rather than as a {@code RewardSpec}, so the generic reading has nothing
+ * to work from and the label is composed here instead.
  *
  * <p><b>Mod-agnostic naming.</b> An item's label is the item's own engine-declared display name
  * via {@link ItemStack#getDisplayName()} - a client-resolved {@link Message} that resolves
@@ -32,11 +40,10 @@ public final class RewardChipRenderer {
 
     /**
      * The chip for {@code reward}: an item-icon chip (icon = the item id) with the auto / authored
-     * label, or an icon-less chip for a currency / command reward. {@code pending} marks a reward
-     * blocked by a full inventory (the page tints it).
+     * label, or an icon-less chip for a currency / command reward.
      */
     @Nonnull
-    public static RewardChip toChip(@Nonnull InstanceReward reward, boolean pending,
+    public static RewardChip toChip(@Nonnull InstanceReward reward,
                                     @Nullable BiFunction<String, Integer, Message> displayKeyResolver) {
         Message label = reward.displayKey() != null && displayKeyResolver != null
                 ? displayKeyResolver.apply(reward.displayKey(), reward.quantity())
@@ -44,7 +51,7 @@ public final class RewardChipRenderer {
         // An explicit iconItemId (e.g. a registered token's icon) wins; else an item chip uses its own id.
         String icon = reward.iconItemId() != null ? reward.iconItemId()
                 : (reward.isItem() ? reward.id() : null);
-        return new RewardChip(icon, label, pending);
+        return RewardChip.of(icon, label);
     }
 
     /**

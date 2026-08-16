@@ -159,11 +159,11 @@ public final class LootRewardKinds {
      */
     public static boolean canAdd(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
         Handover handover = roomFor(spec);
-        if (handover == null) {
+        ItemStack stack = handover != null ? stackOf(handover) : commandStackFor(spec, subject, "");
+        if (handover == null && stack == null) {
             return true;
         }
         Player player = playerOf(subject);
-        ItemStack stack = stackOf(handover);
         if (player == null || stack == null) {
             return false;
         }
@@ -193,6 +193,17 @@ public final class LootRewardKinds {
      * not fit.
      */
     public static boolean canAddAll(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject) {
+        return canAddAll(rewards, subject, "");
+    }
+
+    /**
+     * As {@link #canAddAll(List, Subject)}, telling the probe what is paying out so a
+     * {@code Command} reward's line reads exactly as it will at grant time (its {@code {source}}
+     * placeholder among the rest). Any surface that knows its own label passes it; the two-argument
+     * form is the same question asked without one.
+     */
+    public static boolean canAddAll(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject,
+            @Nonnull String sourceId) {
         if (rewards.isEmpty()) {
             return true;
         }
@@ -201,7 +212,7 @@ public final class LootRewardKinds {
             if (spec == null) {
                 continue;
             }
-            ItemStack stack = stackFor(spec);
+            ItemStack stack = stackFor(spec, subject, sourceId);
             if (stack != null) {
                 incoming.add(stack);
             }
@@ -250,6 +261,44 @@ public final class LootRewardKinds {
     @Nullable
     public static ItemStack stackFor(@Nonnull RewardSpec spec) {
         return stackOf(roomFor(spec));
+    }
+
+    /**
+     * The same, for a caller that can also say WHO the payout is for: the item arms as above, plus
+     * a {@code Command} reward whose line is a {@code give}.
+     *
+     * <p>A command that hands over an item is still an item arriving in a bag, and a probe that
+     * could not see that would let a hand-in spend a completion for a reward that lands on the
+     * floor - the exact failure the batch exists to prevent. So the line is resolved exactly as the
+     * grant will resolve it and read back through {@link CommandRunner#readGive}: one place knows
+     * what a give line means, and a preview cannot promise a different count than the payout
+     * delivers. A command that gives nothing (a title, a teleport, a script) still answers null and
+     * needs no room.
+     *
+     * <p>Never throws and never runs anything: a line that cannot be resolved at all is read as
+     * needing no room rather than as a refusal, because refusing a payout on the strength of an
+     * authoring mistake would hide the mistake behind a message about a full bag.
+     */
+    @Nullable
+    public static ItemStack stackFor(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull String sourceId) {
+        ItemStack item = stackOf(roomFor(spec));
+        return item != null ? item : commandStackFor(spec, subject, sourceId);
+    }
+
+    /** What a {@code Command} reward's own line would hand over, or null when it hands over no item. */
+    @Nullable
+    private static ItemStack commandStackFor(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull String sourceId) {
+        if (!KIND_COMMAND.equalsIgnoreCase(spec.kind())) {
+            return null;
+        }
+        try {
+            CommandRunner.Give give = CommandRunner.readGive(resolveCommand(spec, subject, sourceId));
+            return give == null ? null : new ItemStack(give.itemId(), Math.max(1, give.quantity()));
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /** The stack for a resolved handover, or null when there is none or the item cannot be built. */

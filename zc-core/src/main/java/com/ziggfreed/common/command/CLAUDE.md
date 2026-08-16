@@ -19,6 +19,16 @@ Three things have to happen to every authored command, and none is worth getting
    POSITIONAL token parses as a positive integer (flags are skipped; `Block_Stone2` is not a count).
 3. **A per-call guard** - one bad authored line reports itself and the next line still runs.
 
+There is a fourth thing, and it is the same rule read backwards: **what a `give` line HANDS OVER**
+(`readGive` -> `Give(target, itemId, quantity)`). Anything working out what a give means has to know
+that the count lives in `--quantity=N`, and knowing it twice is how a preview starts promising a
+different number than the payout delivers - so an inventory-fit probe, a preview icon and a
+validator all read through this one method. It returns strings and an int, never an engine type, so
+it works in a bare unit JVM and needs no item system in front of it; whoever wants an actual stack
+builds one from the three fields. It is deliberately LENIENT about a positional count (the author's
+intent) where `normalizeGive` is about the line the engine will act on - normalize when you are
+about to run it, read when you are about to describe it.
+
 ## API
 
 - `run(raw, placeholders, failureSink)` / `runAll(raws, ...)` - resolve then dispatch AS THE SERVER
@@ -27,6 +37,9 @@ Three things have to happen to every authored command, and none is worth getting
 - `runWith(dispatcher, ...)` / `runAllWith(...)` - the same through a supplied `Dispatcher`.
 - `resolveAll(raws, placeholders)` - every line as it WOULD be dispatched, running nothing (for a
   validator or an in-game preview).
+- `readGive(line)` -> `Give(target, itemId, quantity)` or `null` - what a give line hands over, for
+  a probe / preview / validator. Null for anything that is not a give or that names no item; an
+  unreadable count costs the count and leaves the reading at one, never the whole line.
 - `CommandRunner.CONSOLE` - the default dispatcher, over `util.CommandExecutor`.
 
 `Dispatcher` is a one-method seam (`boolean dispatch(String) throws Exception`) so the whole class is

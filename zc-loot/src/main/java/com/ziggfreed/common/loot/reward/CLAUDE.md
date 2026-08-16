@@ -65,9 +65,17 @@ module or grow a second, subtly different idea of what a reward is.
   [`inventory/InventoryGrant.canAdd`](../../inventory/CLAUDE.md) - the same machinery a grant lands
   through, and the one fit check every consumer mod shares. **`canAdd` answers about ONE reward.
   Checking a LIST with it in a loop is a bug**: each call asks about the same last free slot, so
-  every reward answers yes and the last one still lands on the floor. Collect `stackFor(spec)` over
-  the list (null = needs no room) and ask `InventoryGrant.canAddAll` once - `RewardFit` in the MMO
-  is the worked example.
+  every reward answers yes and the last one still lands on the floor. `canAddAll(rewards, subject
+  [, sourceId])` is the batch, and it is what a payout site calls; the MMO's `RewardFit` is the
+  worked example of asking it with a player in hand.
+  - **A `Command` reward whose line is a `give` counts as an item**, so `stackFor(spec, subject,
+    sourceId)` reads one back through [`command/CommandRunner.readGive`](../../command/CLAUDE.md)
+    and it joins the same batch. The line is resolved exactly as the grant will resolve it, so the
+    probe and the payout cannot disagree about the item or the count. A command that hands over
+    nothing still answers null and needs no room, and a line that cannot be resolved at all is read
+    as needing no room rather than as a refusal - reporting a full bag for an authoring mistake
+    would hide the mistake, and the grant path already fails loudly on it. `stackFor(spec)` without
+    a subject stays the item-only reading, for a caller that has nobody to resolve a line for.
 - **[`DroplistRewardKind`](DroplistRewardKind.java)** - the fourth framework kind, `Droplist`
   (`Droplist`/`Rolls`/`Position`): rolls a NATIVE Hytale `ItemDropList` asset and spills the stacks on
   the GROUND through the same call the engine drops mob loot with, delegating both halves to
@@ -89,7 +97,10 @@ module or grow a second, subtly different idea of what a reward is.
   before it is granted. A chip is an optional item icon plus one already-composed client-resolved
   line, assembled from the same three sources the deferred-payout layer reads and in the same order
   (the spec's own `NameKey`/`Icon`, then the kind FILE's `Presentation`, then the item form), so the
-  same reward cannot read differently on a quest panel, a storefront offer and a results strip.
+  same reward cannot read differently on a quest panel, a storefront offer and a results strip. An
+  authored `NameKey` is emitted through zc-core's `ContentKeys`, never as written: the engine
+  namespaces a key by the `.lang` FILENAME it was defined in while content is authored without that
+  namespace, so a key handed over verbatim is one no client resolves and the player reads the key.
   **Nothing branches on a kind id**, and a reward nothing can NAME is dropped rather than guessed at -
   painting a raw kind token at a player reads as a promise of something called that, and the fix is a
   two-line `Presentation` on the kind file. One rung sits between naming and dropping: a kind's OWNER
@@ -100,7 +111,11 @@ module or grow a second, subtly different idea of what a reward is.
   (`CurrencyChipReading`, contributed by the wiring root). `Plan` is the whole decision over strings
   alone, so what a chip will say is testable with no server. It lives here rather than on any one
   screen for the same reason the vocabulary does: every surface that previews a payout has to read one
-  reward the same way.
+  reward the same way. **`RewardChip` is the ONE chip record in the library** - a quest panel, a
+  storefront offer, a board contract and an instance results strip all paint this one, so a reward
+  cannot read one way on a spoils screen and another way everywhere else. A surface whose payout is
+  not a `RewardSpec` composes its own label and still hands back this record (zc-instance's
+  `RewardChipRenderer` does exactly that for an `InstanceReward`); it never mints a second shape.
 
 ## Minting a kind with no Java at all
 
