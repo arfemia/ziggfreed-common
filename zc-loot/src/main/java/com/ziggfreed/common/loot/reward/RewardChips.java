@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.reward.DeferredRewards;
 
@@ -151,7 +152,10 @@ public final class RewardChips {
         }
         String nameKey = plan.nameKey();
         if (nameKey != null && !nameKey.isBlank()) {
-            return RewardChip.of(plan.iconItemId(), Msg.key(nameKey, plan.amount()));
+            // Through ContentKeys, never as written: the engine namespaces a key by the .lang FILENAME
+            // it was defined in, while a reward's name key is authored without that namespace, so a key
+            // handed over verbatim is one the client cannot resolve and the player reads the key itself.
+            return RewardChip.of(plan.iconItemId(), ContentKeys.tr(nameKey, plan.amount()));
         }
         return RewardChip.of(plan.iconItemId(), itemLabel(plan.itemId(), plan.amount()));
     }

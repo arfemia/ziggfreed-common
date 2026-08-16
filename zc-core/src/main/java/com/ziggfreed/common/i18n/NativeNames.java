@@ -4,7 +4,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.modules.i18n.I18nModule;
 
 /**
  * Native-namespace item display-name resolution, shared by any consumer mod that must show a
@@ -17,15 +16,12 @@ import com.hypixel.hytale.server.core.modules.i18n.I18nModule;
  * proved necessary - a bare {@link Msg#key} with no existence probe hands the client an
  * unresolvable translation key for any item that isn't in the FIRST namespace tried.
  *
- * <p>Existence is probed against the {@code en-US} catalog only (this library carries no
- * per-player locale seam - the server never reads/caches/persists one, per the MMO's own
- * display-text convention). The returned {@link Message} still resolves in the VIEWER's own
- * locale client-side; the probe only decides WHICH namespace's key to hand the client.
+ * <p>Existence is probed against the English catalog only, through the shared {@link LangCatalog}
+ * (this library carries no per-player locale seam - the server never reads/caches/persists one, per
+ * the MMO's own display-text convention). The returned {@link Message} still resolves in the
+ * VIEWER's own locale client-side; the probe only decides WHICH namespace's key to hand the client.
  */
 public final class NativeNames {
-
-    /** The existence-probe locale (the engine's bundled English catalog, {@link I18nModule#DEFAULT_LANGUAGE}). */
-    private static final String PROBE_LANGUAGE = "en-US";
 
     private NativeNames() {
     }
@@ -43,27 +39,14 @@ public final class NativeNames {
             return Msg.raw("");
         }
         String nativeKey = "server.items." + itemId + ".name";
-        if (hasKey(nativeKey)) {
+        if (LangCatalog.has(nativeKey)) {
             return Msg.key(nativeKey);
         }
         String modKey = "items." + itemId + ".name";
-        if (hasKey(modKey)) {
+        if (LangCatalog.has(modKey)) {
             return Msg.key(modKey);
         }
         return Msg.raw(prettify(itemId));
-    }
-
-    /** True when {@code fullKey} resolves against the {@link #PROBE_LANGUAGE} catalog. Never throws. */
-    private static boolean hasKey(@Nonnull String fullKey) {
-        try {
-            I18nModule i18n = I18nModule.get();
-            return i18n != null && i18n.getMessage(PROBE_LANGUAGE, fullKey) != null;
-        } catch (Throwable t) {
-            // A unit JVM or pre-init window has no module; treat as "no key" so the caller
-            // falls through to the raw fallback rather than throwing (mirrors
-            // dialogue.i18n.I18nModuleDialogueI18n's identical guard).
-            return false;
-        }
     }
 
     /**

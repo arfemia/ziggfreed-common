@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 
 import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 
 /**
@@ -72,7 +73,7 @@ final class AchievementGrouping {
             return Msg.raw(humanize(bucket));
         }
         String titleKey = presentation.getTitleKey();
-        return Msg.key(titleKey != null ? titleKey : CONVENTION_KEY_PREFIX + bucket);
+        return ContentKeys.tr(titleKey != null ? titleKey : CONVENTION_KEY_PREFIX + bucket);
     }
 
     /** {@code boss_fights} read as {@code Boss Fights}: separators become spaces, words open big. */
