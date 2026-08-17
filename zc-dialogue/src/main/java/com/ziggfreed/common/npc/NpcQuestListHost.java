@@ -6,7 +6,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
@@ -45,6 +44,5 @@ public interface NpcQuestListHost {
      * stop the walk: another mod may be able to serve the same list.
      */
     boolean open(@Nullable String npcId, @Nullable String highlightQuestId,
-            @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlayerRef playerRef, @Nonnull Player player);
+            @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
 }

@@ -17,6 +17,7 @@ import com.ziggfreed.common.dialogue.DialogueFlagStore;
 import com.ziggfreed.common.dialogue.DialogueMemories;
 import com.ziggfreed.common.dialogue.DialoguePayloads;
 import com.ziggfreed.common.dialogue.NpcDialogue;
+import com.ziggfreed.common.inventory.PlayerAccess;
 
 /**
  * A ready-made {@link DialogueExecContext} so a consumer's
@@ -28,10 +29,11 @@ import com.ziggfreed.common.dialogue.NpcDialogue;
  * conversation another mod opened.
  *
  * <p><b>Built, read and discarded on the world thread.</b> One context serves a whole render and
- * every condition evaluated during it, so the two answers it can only get by asking somebody else -
- * the memory store behind {@link #flags()} and a fallback payload - are worked out on first use and
- * kept for the rest of its life. Those two fields are the only mutable state here and they carry no
- * synchronization, because a context never leaves the thread that built it.
+ * every condition evaluated during it, so the three answers it can only get by asking somebody else
+ * - the talking {@link PlayerRef}, the memory store behind {@link #flags()} and a fallback payload -
+ * are worked out on first use and kept for the rest of its life. Those three fields are the only
+ * mutable state here and they carry no synchronization, because a context never leaves the thread
+ * that built it.
  *
  * <p><b>State storage is not a parameter.</b> Where a memory is kept is decided by what its author
  * declared and resolved by {@link DialogueMemories}, so this context asks that surface rather than
@@ -46,7 +48,8 @@ public final class SimpleDialogueExecContext implements DialogueExecContext {
 
     private final Store<EntityStore> store;
     private final Ref<EntityStore> ref;
-    private final PlayerRef playerRef;
+    /** Derived from the store on first use, then kept: a render asks for it more than once. */
+    @Nullable private PlayerRef playerRef;
     private final Player player;
     @Nullable private final String contextId;
     @Nullable private DialogueFlagStore flags;
@@ -57,14 +60,12 @@ public final class SimpleDialogueExecContext implements DialogueExecContext {
     private final String nodeId;
     private final int optionIndex;
 
-    public SimpleDialogueExecContext(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-                                     @Nonnull PlayerRef playerRef, @Nonnull Player player,
+    public SimpleDialogueExecContext(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player,
                                      @Nullable String contextId,
                                      @Nullable Object payload, @Nonnull NpcDialogue dialogue,
                                      @Nonnull String nodeId, int optionIndex) {
         this.store = store;
         this.ref = ref;
-        this.playerRef = playerRef;
         this.player = player;
         this.contextId = contextId;
         this.payload = payload;
@@ -77,7 +78,21 @@ public final class SimpleDialogueExecContext implements DialogueExecContext {
 
     @Override @Nonnull public Ref<EntityStore> ref() { return ref; }
 
-    @Override @Nonnull public PlayerRef playerRef() { return playerRef; }
+    /**
+     * The talking player's {@link PlayerRef}, read off their own entity rather than carried beside
+     * it. Resolved on first use and kept for the rest of the context's life, like {@link #flags()}
+     * and a fallback payload: a render asks several times and the context never leaves its thread.
+     */
+    @Override
+    @Nullable
+    public PlayerRef playerRef() {
+        PlayerRef resolved = playerRef;
+        if (resolved == null) {
+            resolved = PlayerAccess.playerRef(store, ref);
+            playerRef = resolved;
+        }
+        return resolved;
+    }
 
     @Override @Nonnull public Player player() { return player; }
 
@@ -93,7 +108,7 @@ public final class SimpleDialogueExecContext implements DialogueExecContext {
     public DialogueFlagStore flags() {
         DialogueFlagStore resolved = flags;
         if (resolved == null) {
-            resolved = DialogueMemories.storeFor(store, ref, playerRef);
+            resolved = DialogueMemories.storeFor(store, ref);
             flags = resolved;
         }
         return resolved;
@@ -125,7 +140,7 @@ public final class SimpleDialogueExecContext implements DialogueExecContext {
         }
         Object known = cache.get(type);
         if (known == null) {
-            Object built = DialoguePayloads.resolve(type, store, ref, playerRef, player);
+            Object built = DialoguePayloads.resolve(type, store, ref, player);
             known = built == null ? NO_PAYLOAD : built;
             cache.put(type, known);
         }

@@ -353,7 +353,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                 PartyQueueHandler handler = deps.queueHandler();
                 if (handler != null) {
                     try {
-                        handler.queue(playerRef, ref, store, presetId);
+                        handler.queue(ref, store, presetId);
                     } catch (Throwable ignored) {
                     }
                     return; // the handler owns the next page (queue screen / close)

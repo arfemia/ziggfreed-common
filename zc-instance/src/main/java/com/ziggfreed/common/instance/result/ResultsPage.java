@@ -215,7 +215,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         ResultsActions actions = deps.actions();
         String action = data.action == null ? "" : data.action;
         if (actions != null && "claim".equals(action)) {
-            boolean allClaimed = actions.claimRewards(playerRef, ref, store);
+            boolean allClaimed = actions.claimRewards(ref, store);
             claimed = true;
             claimAllSucceeded = allClaimed;
             // Re-render in the claimed state (button gone, note shown); prime the toast so this build paints it.
@@ -225,11 +225,11 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
             return;
         }
         if (actions != null && "leaderboard".equals(action)) {
-            actions.viewLeaderboard(playerRef, ref, store, result.leaderboardBucket());
+            actions.viewLeaderboard(ref, store, result.leaderboardBucket());
             return; // the handler owns the next page
         }
         if (actions != null && "again".equals(action)) {
-            actions.playAgain(playerRef, ref, store);
+            actions.playAgain(ref, store);
             return;
         }
         player.getPageManager().setPage(ref, store, Page.None);

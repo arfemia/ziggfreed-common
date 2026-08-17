@@ -5,7 +5,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.progress.DispatchOptions;
@@ -72,13 +71,12 @@ public final class ProgressDispatch {
      * conflict over, because nothing gates it: contributions stack and no producer ever replaces
      * another.
      */
-    public static void fire(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlayerRef playerRef, @Nonnull String kindId, @Nonnull String target,
+    public static void fire(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull String kindId, @Nonnull String target,
             @Nullable String qualifier, long amount) {
         try {
             ProgressionSubjectSource subjects = ProgressionRuntime.subjects();
-            Subject questSubject = subjects.questSubject(store, ref, playerRef);
-            Subject achievementSubject = subjects.achievementSubject(store, ref, playerRef);
+            Subject questSubject = subjects.questSubject(store, ref);
+            Subject achievementSubject = subjects.achievementSubject(store, ref);
             if (questSubject == null && achievementSubject == null) {
                 return;
             }

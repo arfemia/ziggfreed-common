@@ -107,7 +107,7 @@ public class ActionOpenDialogue extends ActionBase {
         // ActionOpenBarterShop - and through the opener, so a conversation whose Start routes to a
         // quest row's destination hands the screen over instead of opening on nothing.
         return DialogueOpener.open(
-                new DestinationContext(store, playerReference, playerRef, player, ref, contextNpc, null, depsKey),
+                new DestinationContext(store, playerReference, player, ref, contextNpc, null, depsKey),
                 dialogueId, contextNpc, deps);
     }
 

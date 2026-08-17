@@ -30,7 +30,7 @@ class TalkCreditsTest {
         List<String> answers = new ArrayList<>();
         answers.add(npcId);
         answers.addAll(List.of(answersTo));
-        return new TalkCredit(null, null, null, null, npcId, answers, null);
+        return new TalkCredit(null, null, null, npcId, answers, null);
     }
 
     @BeforeEach

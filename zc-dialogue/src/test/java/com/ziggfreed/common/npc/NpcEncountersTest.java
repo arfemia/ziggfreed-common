@@ -180,7 +180,7 @@ class NpcEncountersTest {
         }
 
         @Override public boolean open(@Nonnull QuestHandOff handOff, @Nonnull Store<EntityStore> store,
-                @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+                @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
             openedAt.add(handOff.npcId());
             return true;
         }

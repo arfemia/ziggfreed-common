@@ -355,7 +355,7 @@ class DialogueMemoriesTest {
                             + " repeated on the next render, or the next thousand");
 
             DialogueMemories.reset();
-            DialogueMemories.install((store, ref, playerRef) -> DialogueFlagStore.NONE);
+            DialogueMemories.install((store, ref) -> DialogueFlagStore.NONE);
             assertNotNull(DialogueMemories.persistentBackendOrWarn(),
                     "the installed backend answers");
             assertTrue(DialogueMemories.warnNoPersistentOnce(),

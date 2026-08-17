@@ -73,6 +73,6 @@ public final class ZigPickupProducer extends EntityEventSystem<EntityStore, Inte
                 System.identityHashCode(stack))) {
             return;
         }
-        ProgressDispatch.fire(store, ref, playerRef, KIND, itemId, null, 1L);
+        ProgressDispatch.fire(store, ref, KIND, itemId, null, 1L);
     }
 }

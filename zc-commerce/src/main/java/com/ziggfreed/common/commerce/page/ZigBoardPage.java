@@ -299,7 +299,9 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     @Nullable
     private Subject subjectOf(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
         try {
-            return ProgressionRuntime.subjects().questSubject(store, ref, playerRef);
+            // The build argument is the page's ANCHOR, which at a character is that character's own
+            // entity, so the player is resolved from the reference this page was built with.
+            return ProgressionRuntime.subjects().questSubject(store, playerEntityRef(ref));
         } catch (Throwable t) {
             SafeLog.warn("[commerce] no subject could be built for this player: " + t.getMessage());
             return null;
@@ -913,7 +915,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     private boolean handOff(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         try {
-            return deps.completion().handOff(quest.id(), boardId, store, ref, playerRef, player);
+            return deps.completion().handOff(quest.id(), boardId, store, ref, player);
         } catch (Throwable t) {
             SafeLog.warn("[commerce] a contract completion hand-off failed", t);
             return false;

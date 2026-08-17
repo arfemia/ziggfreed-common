@@ -192,7 +192,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         // One eval context for the whole render (conditions ignore node/option, so the placeholders are fine).
         DialogueExecContext ctx = deps.contextFactory().create(
                 dialogue, currentNodeId != null ? currentNodeId : "", -1,
-                contextNpcId, subject, store, playerRef, player);
+                contextNpcId, subject, store, player);
 
         if (currentNodeId == null || dialogue.getNode(currentNodeId) == null) {
             DialogueEngine.EntryResolution entry = preResolved != null ? preResolved
@@ -419,7 +419,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
 
         DialogueOption option = node.getOptions().get(optionIndex);
         DialogueExecContext ctx = deps.contextFactory().create(
-                dialogue, data.node, optionIndex, contextNpcId, ref, store, playerRef, player);
+                dialogue, data.node, optionIndex, contextNpcId, ref, store, player);
 
         // Re-check availability on click: state may have moved since the render, and a spent
         // one-time option must never run twice.
@@ -467,7 +467,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         NpcDialogue dialogue = deps.dialogueResolver().apply(dialogueId);
         if (dialogue != null) {
             DialogueExecContext ctx = deps.contextFactory().create(
-                    dialogue, nodeId, -1, contextNpcId, ref, store, playerRef, player);
+                    dialogue, nodeId, -1, contextNpcId, ref, store, player);
             deps.engine().consumeOnce(pendingEntryOnceKey, dialogue, nodeId, null, ctx);
         }
         pendingEntryOnceKey = null;

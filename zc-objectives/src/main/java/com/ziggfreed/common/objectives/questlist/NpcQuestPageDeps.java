@@ -10,7 +10,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.loot.reward.RewardChips;
@@ -97,8 +96,7 @@ public final class NpcQuestPageDeps {
     public interface CompletionHandOff {
 
         boolean handOff(@Nonnull String questId, @Nullable String npcId,
-                @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-                @Nonnull PlayerRef playerRef, @Nonnull Player player);
+                @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
     }
 
     /** The toast a consumer floats when a quest settles here; null for the library's own line. */
@@ -127,7 +125,7 @@ public final class NpcQuestPageDeps {
     public static final RewardChipSource GENERIC_CHIPS = spec -> null;
 
     /** Nothing follows a settled quest, so the page keeps the screen and refreshes itself. */
-    public static final CompletionHandOff NO_HAND_OFF = (questId, npcId, store, ref, playerRef, player) -> false;
+    public static final CompletionHandOff NO_HAND_OFF = (questId, npcId, store, ref, player) -> false;
 
     /** No consumer toast, so the page floats its own line. */
     public static final CompletionToast NO_COMPLETION_TOAST = quest -> null;

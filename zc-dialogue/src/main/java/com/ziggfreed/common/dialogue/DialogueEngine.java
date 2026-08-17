@@ -1200,7 +1200,7 @@ public final class DialogueEngine {
         if (destination == null) {
             return false;
         }
-        DestinationContext target = new DestinationContext(ctx.store(), ctx.ref(), ctx.playerRef(),
+        DestinationContext target = new DestinationContext(ctx.store(), ctx.ref(),
                 ctx.player(), null, ctx.contextId(), null, null);
         return Destinations.open(destination, target);
     }

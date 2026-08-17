@@ -6,7 +6,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.dialogue.DialogueExecContext;
@@ -31,6 +30,6 @@ public interface DialogueContextFactory {
     @Nonnull
     DialogueExecContext create(@Nonnull NpcDialogue dialogue, @Nonnull String nodeId, int optionIndex,
                                @Nullable String contextId, @Nonnull Ref<EntityStore> ref,
-                               @Nonnull Store<EntityStore> store, @Nonnull PlayerRef playerRef,
+                               @Nonnull Store<EntityStore> store,
                                @Nonnull Player player);
 }

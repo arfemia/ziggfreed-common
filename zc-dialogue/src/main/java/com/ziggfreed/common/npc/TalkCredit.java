@@ -9,6 +9,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.inventory.PlayerAccess;
 
 /**
  * One credited conversation: this player talked to this character, and here is every id that
@@ -27,7 +28,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  */
 public record TalkCredit(@Nonnull Store<EntityStore> store,
                          @Nonnull Ref<EntityStore> playerRef,
-                         @Nonnull PlayerRef player,
                          @Nullable Ref<EntityStore> npcRef,
                          @Nonnull String npcId,
                          @Nonnull List<String> answersTo,
@@ -35,6 +35,15 @@ public record TalkCredit(@Nonnull Store<EntityStore> store,
 
     public TalkCredit {
         answersTo = List.copyOf(answersTo);
+    }
+
+    /**
+     * The player being credited, read off their own entity rather than carried beside it, or null
+     * when {@code playerRef} no longer resolves one (or resolves something that is not a player).
+     */
+    @Nullable
+    public PlayerRef player() {
+        return playerRef.isValid() ? PlayerAccess.playerRef(store, playerRef) : null;
     }
 
     /** Every id this conversation credits EXCEPT the primary, which the caller credits on its own. */

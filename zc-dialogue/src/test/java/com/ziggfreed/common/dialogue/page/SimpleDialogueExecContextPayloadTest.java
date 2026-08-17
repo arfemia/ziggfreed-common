@@ -58,7 +58,7 @@ class SimpleDialogueExecContextPayloadTest {
     }
 
     private SimpleDialogueExecContext contextWith(Object payload) {
-        return new SimpleDialogueExecContext(null, null, null, null, null,
+        return new SimpleDialogueExecContext(null, null, null, null,
                 payload, new NpcDialogue(), "greet", -1);
     }
 
@@ -66,7 +66,7 @@ class SimpleDialogueExecContextPayloadTest {
     void theExplicitPayloadWinsAndTheRegisteredSupplierIsNeverAsked() {
         AtomicInteger built = new AtomicInteger();
         ModAPayload explicit = new ModAPayload("packed in");
-        DialoguePayloads.register(ModAPayload.class, "ModA", (store, ref, player, playerEntity) -> {
+        DialoguePayloads.register(ModAPayload.class, "ModA", (store, ref, playerEntity) -> {
             built.incrementAndGet();
             return new ModAPayload("rebuilt");
         });
@@ -79,7 +79,7 @@ class SimpleDialogueExecContextPayloadTest {
     @Test
     void aNullPayloadFallsThroughToTheRegisteredSupplier() {
         DialoguePayloads.register(ModAPayload.class, "ModA",
-                (store, ref, player, playerEntity) -> new ModAPayload("built for anyone"));
+                (store, ref, playerEntity) -> new ModAPayload("built for anyone"));
 
         ModAPayload resolved = contextWith(null).payload(ModAPayload.class);
 
@@ -90,7 +90,7 @@ class SimpleDialogueExecContextPayloadTest {
     @Test
     void aPayloadOfAnotherModsTypeFallsThroughForTheTypeActuallyAsked() {
         DialoguePayloads.register(ModAPayload.class, "ModA",
-                (store, ref, player, playerEntity) -> new ModAPayload("built for anyone"));
+                (store, ref, playerEntity) -> new ModAPayload("built for anyone"));
 
         SimpleDialogueExecContext ctx = contextWith(new ModBPayload("somebody else's"));
 
@@ -107,7 +107,7 @@ class SimpleDialogueExecContextPayloadTest {
 
     @Test
     void aThrowingSupplierDegradesToNoPayloadRatherThanBreakingTheRender() {
-        DialoguePayloads.register(ModAPayload.class, "ModA", (store, ref, player, playerEntity) -> {
+        DialoguePayloads.register(ModAPayload.class, "ModA", (store, ref, playerEntity) -> {
             throw new IllegalStateException("boom");
         });
 
@@ -117,7 +117,7 @@ class SimpleDialogueExecContextPayloadTest {
     @Test
     void aFallbackIsBuiltOncePerContextNoMatterHowManyLinesAskForIt() {
         AtomicInteger built = new AtomicInteger();
-        DialoguePayloads.register(ModAPayload.class, "ModA", (store, ref, player, playerEntity) -> {
+        DialoguePayloads.register(ModAPayload.class, "ModA", (store, ref, playerEntity) -> {
             built.incrementAndGet();
             return new ModAPayload("built for anyone");
         });
@@ -138,7 +138,7 @@ class SimpleDialogueExecContextPayloadTest {
     @Test
     void aSupplierThatAnswersWithNothingIsAlsoOnlyAskedOnce() {
         AtomicInteger asked = new AtomicInteger();
-        DialoguePayloads.register(ModAPayload.class, "ModA", (store, ref, player, playerEntity) -> {
+        DialoguePayloads.register(ModAPayload.class, "ModA", (store, ref, playerEntity) -> {
             asked.incrementAndGet();
             return null;
         });
@@ -153,9 +153,9 @@ class SimpleDialogueExecContextPayloadTest {
     @Test
     void theFirstSupplierForAClassHoldsItAndASecondIsRefused() {
         DialoguePayloads.register(ModAPayload.class, "ModA",
-                (store, ref, player, playerEntity) -> new ModAPayload("first"));
+                (store, ref, playerEntity) -> new ModAPayload("first"));
         DialoguePayloads.register(ModAPayload.class, "ModB",
-                (store, ref, player, playerEntity) -> new ModAPayload("second"));
+                (store, ref, playerEntity) -> new ModAPayload("second"));
 
         assertEquals(new ModAPayload("first"), contextWith(null).payload(ModAPayload.class),
                 "two answers to 'what is this mod's payload' is a contradiction, not a contribution");

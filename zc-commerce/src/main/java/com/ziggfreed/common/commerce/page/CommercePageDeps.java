@@ -7,7 +7,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.loot.reward.RewardChips;
@@ -90,8 +89,7 @@ public final class CommercePageDeps {
     public interface CompletionHandOff {
 
         boolean handOff(@Nonnull String bountyId, @Nullable String boardId,
-                @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-                @Nonnull PlayerRef playerRef, @Nonnull Player player);
+                @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
     }
 
     /** Append and nothing else: the honest default for a server shipping no theme. */
@@ -105,7 +103,7 @@ public final class CommercePageDeps {
 
     /** Nothing follows a settled contract, so the page keeps the screen and refreshes itself. */
     public static final CompletionHandOff NO_HAND_OFF =
-            (bountyId, boardId, store, ref, playerRef, player) -> false;
+            (bountyId, boardId, store, ref, player) -> false;
 
     /** Everything at its library default: two pages that work on a server running nothing else. */
     public static final CommercePageDeps DEFAULTS = builder().build();

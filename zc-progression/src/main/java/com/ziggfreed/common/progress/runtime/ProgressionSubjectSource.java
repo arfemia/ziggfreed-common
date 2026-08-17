@@ -5,7 +5,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.subject.Subject;
 
@@ -33,11 +32,9 @@ public interface ProgressionSubjectSource {
 
     /** The subject the quest store understands, or null when there is not enough to build one. */
     @Nullable
-    Subject questSubject(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-                         @Nonnull PlayerRef playerRef);
+    Subject questSubject(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref);
 
     /** The subject the achievement store understands, or null. Often the same object. */
     @Nullable
-    Subject achievementSubject(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-                               @Nonnull PlayerRef playerRef);
+    Subject achievementSubject(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref);
 }

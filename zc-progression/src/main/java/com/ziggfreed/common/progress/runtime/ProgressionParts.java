@@ -14,7 +14,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementGates;
@@ -96,16 +95,14 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
 
         @Override
         @Nullable
-        public Subject questSubject(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-                                    @Nonnull PlayerRef playerRef) {
+        public Subject questSubject(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
             return null;
         }
 
         @Override
         @Nullable
         public Subject achievementSubject(@Nonnull Store<EntityStore> store,
-                                          @Nonnull Ref<EntityStore> ref,
-                                          @Nonnull PlayerRef playerRef) {
+                                          @Nonnull Ref<EntityStore> ref) {
             return null;
         }
     };

@@ -5,7 +5,6 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
@@ -40,5 +39,5 @@ public interface QuestDialogueHost {
      * must say so rather than reporting a screen it did not paint.
      */
     boolean open(@Nonnull QuestHandOff handOff, @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player);
+            @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
 }

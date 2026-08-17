@@ -5,7 +5,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.DialogueFlagStore;
 import com.ziggfreed.common.dialogue.DialogueMemories;
@@ -47,14 +46,14 @@ public final class ZigProgressDialogueStore implements DialogueMemories.Persiste
     @Override
     @Nullable
     public DialogueFlagStore forPlayer(@Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef) {
+            @Nonnull Ref<EntityStore> ref) {
         ZigProgressComponent component = componentOf(store, ref);
         // Through the REGISTERED subject source, never this module's own builder: on a server where a
         // consumer registered its own, a memory write has to arrive carrying the same handle a quest
         // write does, or a backend reading its session off the subject hears only half the story.
         return component == null ? null
                 : new ComponentView(component,
-                        ProgressionRuntime.subjects().questSubject(store, ref, playerRef));
+                        ProgressionRuntime.subjects().questSubject(store, ref));
     }
 
     @Nullable

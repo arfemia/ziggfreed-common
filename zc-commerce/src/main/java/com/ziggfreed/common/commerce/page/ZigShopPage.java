@@ -255,7 +255,9 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     @Nullable
     private Subject subjectOf(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
         try {
-            return ProgressionRuntime.subjects().questSubject(store, ref, playerRef);
+            // The build argument is the page's ANCHOR, which at a character is that character's own
+            // entity, so the player is resolved from the reference this page was built with.
+            return ProgressionRuntime.subjects().questSubject(store, playerEntityRef(ref));
         } catch (Throwable t) {
             SafeLog.warn("[commerce] no subject could be built for this player: " + t.getMessage());
             return null;

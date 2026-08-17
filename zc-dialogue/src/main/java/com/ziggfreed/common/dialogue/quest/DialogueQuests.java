@@ -2,6 +2,7 @@ package com.ziggfreed.common.dialogue.quest;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -12,6 +13,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.DialogueContext;
+import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.quest.QuestStateReader;
 import com.ziggfreed.common.quest.QuestStatus;
@@ -44,6 +46,13 @@ import com.ziggfreed.common.subject.Subject;
  */
 public interface DialogueQuests {
 
+    /**
+     * The id an UNIDENTIFIED subject is filed under: a conversation rendered without engine handles
+     * and without a resolvable reference. Nothing keys real state by it, so every read against such
+     * a subject answers empty, which is the right line for a beat that cannot name its player.
+     */
+    UUID UNIDENTIFIED = new UUID(0L, 0L);
+
     /** The quest state this conversation reads. */
     @Nonnull
     QuestStateReader reader();
@@ -56,12 +65,45 @@ public interface DialogueQuests {
     @Nonnull
     default Subject subject(@Nonnull DialogueContext ctx) {
         try {
-            return subjectOf(ctx.store(), ctx.ref(), ctx.playerRef(), ctx.player());
-        } catch (Throwable t) {
+            return subjectOf(ctx.store(), ctx.ref(), ctx.player());
+        } catch (Throwable noEngineHandles) {
             // A context built without engine handles - a preview render, a test double - can still
-            // say who the player is, which is enough for every pure state read.
-            return new Subject(ctx.playerRef().getUuid(), ctx.playerRef().getUsername(), ctx.player());
+            // say who the player is through its OWN derived accessor, which is enough for every
+            // pure state read.
+            return ofContext(ctx);
         }
+    }
+
+    /**
+     * The subject of a conversation whose store and ref could not answer, built from the context's
+     * own derived reference and degrading to an UNIDENTIFIED subject when even that is absent.
+     *
+     * <p>This is a RENDER path: every quest-aware condition in a conversation comes through
+     * {@link #subject(DialogueContext)}, so a context that cannot name its player has to draw a
+     * conversation without quest lines rather than throw into the page that asked for one. An
+     * unidentified subject carries the zero id and a blank name, so a consumer's store finds no
+     * record under it and every state read answers empty - which is exactly the line a beat should
+     * render when nobody can be identified. The loud refusal stays on
+     * {@link #subjectOf(Store, Ref, Player)}, which is reached with real handles in hand.
+     */
+    @Nonnull
+    private static Subject ofContext(@Nonnull DialogueContext ctx) {
+        PlayerRef playerRef = null;
+        Object handle = null;
+        try {
+            playerRef = ctx.playerRef();
+        } catch (Throwable noReferenceEither) {
+            // A stub context answers nothing at all; the empty subject below is still an answer.
+        }
+        try {
+            handle = ctx.player();
+        } catch (Throwable noPlayerEither) {
+            // Same: a subject with no handle reads state and grants nothing, which is correct here.
+        }
+        UUID uuid = playerRef == null ? null : playerRef.getUuid();
+        String username = playerRef == null ? null : playerRef.getUsername();
+        return new Subject(uuid == null ? UNIDENTIFIED : uuid,
+                username == null ? "" : username, handle);
     }
 
     /**
@@ -76,8 +118,32 @@ public interface DialogueQuests {
      * surface with a bare subject your runtime may not accept.
      */
     @Nonnull
-    default Subject subjectOf(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-                              @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+    default Subject subjectOf(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+        PlayerRef playerRef = ref.isValid() ? PlayerAccess.playerRef(store, ref) : null;
+        if (playerRef != null) {
+            return new Subject(playerRef.getUuid(), playerRef.getUsername(), player);
+        }
+        // The ref handed in can name something other than the player's own entity - a page anchor,
+        // a character stood in front of them, a reference that has since gone away. The player is
+        // right there either way, so ask THEM for their reference before giving up.
+        return ofPlayer(player);
+    }
+
+    /**
+     * The subject of a player read off the player alone, for the two moments no ref can answer: a
+     * conversation whose engine handles are absent or stale, and a ref that names something other
+     * than the player's own entity.
+     *
+     * <p>Throws only when the player's own reference cannot be resolved either, which means the
+     * entity behind this {@link Player} is gone. There is nothing honest to answer with at that
+     * point - a subject IS an identity - so this says so rather than crediting a blank one.
+     */
+    @Nonnull
+    private static Subject ofPlayer(@Nonnull Player player) {
+        PlayerRef playerRef = PlayerAccess.playerRef(player);
+        if (playerRef == null) {
+            throw new IllegalStateException("no player behind this conversation to build a subject from");
+        }
         return new Subject(playerRef.getUuid(), playerRef.getUsername(), player);
     }
 

@@ -337,7 +337,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         if ("claim".equals(action)) {
             PlayRewardClaim claim = deps.claim();
             if (claim != null) {
-                claim.claim(playerRef, ref, store);
+                claim.claim(ref, store);
                 primeToast(ToastSpec.of(ToastKind.REWARD, deps.text().toastClaimed()));
             }
             // Re-render the chooser: the claim button hides itself once nothing remains pending.
@@ -366,17 +366,17 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         PlayModeHandler handler = deps.handler();
         switch (mode) {
             case PUBLIC -> {
-                handler.queuePublic(playerRef, ref, store, presetId);
+                handler.queuePublic(ref, store, presetId);
                 // The page reopens itself so it morphs to the live roster (handler owns no page).
                 player.getPageManager().openCustomPage(ref, store, this);
             }
             case PARTY -> {
-                handler.openParty(playerRef, ref, store, presetId);
+                handler.openParty(ref, store, presetId);
                 // The handler owns the next page (the party manager).
             }
             case SOLO -> {
                 detachListener();
-                handler.launchSolo(playerRef, ref, store, presetId);
+                handler.launchSolo(ref, store, presetId);
                 // The round launches immediately; close the screen (the round teleport follows).
                 player.getPageManager().setPage(ref, store, Page.None);
             }

@@ -6,7 +6,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -100,11 +99,11 @@ public final class QuestCompletionRouting {
      */
     public static boolean handOff(@Nonnull String questId, @Nullable String npcContextId,
             @Nonnull DialogueQuests quests, @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+            @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
 
         try {
             QuestHandOff decision = decide(questId, npcContextId, quests);
-            return decision.plays() && QuestDialogueHosts.open(decision, store, ref, playerRef, player);
+            return decision.plays() && QuestDialogueHosts.open(decision, store, ref, player);
         } catch (Throwable t) {
             // This sits directly inside a click handler. A throw here would take the hand-in's own
             // response down with it, which costs the player their screen over a cosmetic beat.

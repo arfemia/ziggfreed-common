@@ -5,7 +5,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
@@ -26,7 +25,7 @@ public interface PlayModeHandler {
      * strangers), then leave the player on the {@link PlayModePage} so it morphs to the
      * live roster - the page reopens itself, so the handler need not open a page.
      */
-    void queuePublic(@Nonnull PlayerRef player, @Nonnull Ref<EntityStore> ref,
+    void queuePublic(@Nonnull Ref<EntityStore> ref,
                      @Nonnull Store<EntityStore> store, @Nullable String presetId);
 
     /**
@@ -34,13 +33,13 @@ public interface PlayModeHandler {
      * {@code presetId}. The round starts at once; the page is closed by the handler or by
      * the round teleport.
      */
-    void launchSolo(@Nonnull PlayerRef player, @Nonnull Ref<EntityStore> ref,
+    void launchSolo(@Nonnull Ref<EntityStore> ref,
                     @Nonnull Store<EntityStore> store, @Nullable String presetId);
 
     /**
      * Open the party manager for {@code presetId}: the player forms / manages a group and
      * the owner's Queue button carries this difficulty. The handler owns the next page.
      */
-    void openParty(@Nonnull PlayerRef player, @Nonnull Ref<EntityStore> ref,
+    void openParty(@Nonnull Ref<EntityStore> ref,
                    @Nonnull Store<EntityStore> store, @Nullable String presetId);
 }

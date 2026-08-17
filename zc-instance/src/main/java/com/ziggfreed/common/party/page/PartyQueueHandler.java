@@ -5,7 +5,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
@@ -23,6 +22,6 @@ public interface PartyQueueHandler {
      * standalone, e.g. a {@code /party} command, so the consumer falls back to its default
      * preset). Runs on the world thread (the page's event handler).
      */
-    void queue(@Nonnull PlayerRef initiator, @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+    void queue(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
                @Nullable String presetId);
 }

@@ -5,7 +5,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.DialogueExecContext;
 import com.ziggfreed.common.dialogue.DialogueTalk;
@@ -32,16 +31,14 @@ public final class NpcTalkDialogue {
             @Nullable String qualifier) {
         Store<EntityStore> store;
         Ref<EntityStore> playerRef;
-        PlayerRef player;
         try {
             store = ctx.store();
             playerRef = ctx.ref();
-            player = ctx.playerRef();
         } catch (Throwable t) {
             // A context built without engine handles (a preview render, a test double) can read a
             // conversation but cannot credit one.
             return false;
         }
-        return TalkCredits.credit(store, playerRef, player, null, npcId, qualifier);
+        return TalkCredits.credit(store, playerRef, null, npcId, qualifier);
     }
 }

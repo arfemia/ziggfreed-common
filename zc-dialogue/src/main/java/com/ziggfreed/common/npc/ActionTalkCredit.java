@@ -73,6 +73,6 @@ public class ActionTalkCredit extends ActionBase {
         }
         // This action IS standing in front of the NPC, so the credit carries its ref - a sink that
         // wants to read something off the character it just credited can.
-        return TalkCredits.credit(store, playerReference, playerRef, ref, npc, qualifier);
+        return TalkCredits.credit(store, playerReference, ref, npc, qualifier);
     }
 }

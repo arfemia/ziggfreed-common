@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -19,7 +20,7 @@ import com.ziggfreed.common.util.SafeLog;
  * a consumer says what it wants that page to know.
  *
  * <p><b>This class is the whole of the wiring root's job.</b> {@link #open(String, Store, Ref,
- * PlayerRef, Player)} is written to the exact shape the quest-list host seam expects, so registering
+ * Player)} is written to the exact shape the quest-list host seam expects, so registering
  * this page as the default screen the shared {@code Quests} destination opens is a method reference
  * and nothing else:
  *
@@ -85,8 +86,8 @@ public final class NpcQuestPages {
      * True means the screen was taken.
      */
     public static boolean open(@Nullable String npcId, @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
-        return open(npcId, null, store, ref, playerRef, player);
+            @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+        return open(npcId, null, store, ref, player);
     }
 
     /**
@@ -98,8 +99,14 @@ public final class NpcQuestPages {
      * the quest they pressed rather than at whichever row happened to sort first.
      */
     public static boolean open(@Nullable String npcId, @Nullable String highlightQuestId,
-            @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+            @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+        // Read the reference off the PLAYER, never off {@code ref}: this seam's ref is the ANCHOR
+        // the page is opened on, which is the character's own entity at a press-F.
+        PlayerRef playerRef = PlayerAccess.playerRef(player);
+        if (playerRef == null) {
+            SafeLog.fine("[progression] a quest list was asked for by an entity that is not a player");
+            return false;
+        }
         try {
             player.getPageManager().openCustomPage(ref, store,
                     new ZigNpcQuestPage(playerRef, npcId, highlightQuestId, resolvedDeps()));

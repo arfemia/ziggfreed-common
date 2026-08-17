@@ -117,8 +117,7 @@ public final class CommerceDestinations {
     }
 
     private static boolean openShop(@Nonnull Shop destination, @Nonnull DestinationContext ctx) {
-        return CommercePages.openShop(destination.getShop(), ctx.store(), ctx.pageAnchor(),
-                ctx.playerRef(), ctx.player());
+        return CommercePages.openShop(destination.getShop(), ctx.store(), ctx.pageAnchor(), ctx.player());
     }
 
     @Nonnull
@@ -167,8 +166,7 @@ public final class CommerceDestinations {
     }
 
     private static boolean openBoard(@Nonnull Board destination, @Nonnull DestinationContext ctx) {
-        return CommercePages.openBoard(destination.getBoard(), ctx.store(), ctx.pageAnchor(),
-                ctx.playerRef(), ctx.player());
+        return CommercePages.openBoard(destination.getBoard(), ctx.store(), ctx.pageAnchor(), ctx.player());
     }
 
     @Nonnull

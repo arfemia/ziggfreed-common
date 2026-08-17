@@ -206,7 +206,7 @@ public final class NpcDestinations {
             npcId = trimToNull(ctx.npcId());
         }
         return NpcQuestListHosts.open(npcId, trimToNull(destination.getHighlight()),
-                ctx.store(), ctx.pageAnchor(), ctx.playerRef(), ctx.player());
+                ctx.store(), ctx.pageAnchor(), ctx.player());
     }
 
     @Nullable

@@ -8,7 +8,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.inventory.InventoryUtil;
@@ -30,15 +29,15 @@ public final class InstanceRewardGranter {
     /** The consumer's executor for the non-item reward kinds (common knows no currency/command engine). */
     public interface Sink {
         /** Grant a currency/token reward. Return true if granted. */
-        boolean grantCurrency(@Nonnull String currencyId, int amount, @Nonnull PlayerRef player,
+        boolean grantCurrency(@Nonnull String currencyId, int amount,
                               @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store);
 
         /**
          * Run a console command reward. The granter has already substituted the {@code {amount}}
          * placeholder from the reward quantity; the consumer substitutes any {@code {player}} placeholder
-         * (from {@code player.getUsername()}). Return true if run.
+         * (the sink reads the player off the ref it is handed). Return true if run.
          */
-        boolean runCommand(@Nonnull String command, @Nonnull PlayerRef player,
+        boolean runCommand(@Nonnull String command,
                            @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store);
     }
 
@@ -46,14 +45,14 @@ public final class InstanceRewardGranter {
     }
 
     /**
-     * Grant {@code rewards} to {@code player}. Item rewards that do not fit are skipped
+     * Grant {@code rewards} to the player behind {@code ref}. Item rewards that do not fit are skipped
      * and collected into {@link GrantOutcome#pending()} (never partially delivered).
      *
      * @param sink the consumer executor for currency/command rewards, or {@code null}
      *             (then those kinds count as failed)
      */
     @Nonnull
-    public static GrantOutcome grantAll(@Nonnull List<InstanceReward> rewards, @Nonnull PlayerRef player,
+    public static GrantOutcome grantAll(@Nonnull List<InstanceReward> rewards,
                                         @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
                                         @Nullable Sink sink) {
         int granted = 0;
@@ -77,7 +76,7 @@ public final class InstanceRewardGranter {
                         }
                     }
                     case CURRENCY -> {
-                        if (sink != null && sink.grantCurrency(r.id(), r.quantity(), player, ref, store)) {
+                        if (sink != null && sink.grantCurrency(r.id(), r.quantity(), ref, store)) {
                             granted++;
                         } else {
                             failed++;
@@ -87,7 +86,7 @@ public final class InstanceRewardGranter {
                         // Substitute the {amount} placeholder from the reward quantity before the sink
                         // runs; the consumer's sink substitutes {player}. Common stays currency/XP-agnostic.
                         String command = r.id().replace("{amount}", Integer.toString(r.quantity()));
-                        if (sink != null && sink.runCommand(command, player, ref, store)) {
+                        if (sink != null && sink.runCommand(command, ref, store)) {
                             granted++;
                         } else {
                             failed++;

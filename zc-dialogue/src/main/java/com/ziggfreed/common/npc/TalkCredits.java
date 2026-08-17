@@ -90,15 +90,14 @@ public final class TalkCredits {
      * Credit a conversation with whoever {@code npcId} names, resolving the alias set for you.
      * Returns false when there was nothing to credit or the re-trigger window swallowed it.
      */
-    public static boolean credit(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> playerRef,
-            @Nonnull PlayerRef player, @Nullable Ref<EntityStore> npcRef, @Nullable String npcId,
+    public static boolean credit(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> playerRef, @Nullable Ref<EntityStore> npcRef, @Nullable String npcId,
             @Nullable String qualifier) {
         if (npcId == null || npcId.isBlank()) {
             return false;
         }
         String primary = npcId.trim();
         List<String> answers = List.copyOf(NpcIdentities.answerSetForPrimary(primary));
-        return fire(new TalkCredit(store, playerRef, player, npcRef, primary, answers, qualifier));
+        return fire(new TalkCredit(store, playerRef, npcRef, primary, answers, qualifier));
     }
 
     /**
@@ -176,7 +175,8 @@ public final class TalkCredits {
     @Nullable
     private static UUID playerIdOf(@Nonnull TalkCredit credit) {
         try {
-            return credit.player().getUuid();
+            PlayerRef player = credit.player();
+            return player == null ? null : player.getUuid();
         } catch (Throwable t) {
             return null;
         }

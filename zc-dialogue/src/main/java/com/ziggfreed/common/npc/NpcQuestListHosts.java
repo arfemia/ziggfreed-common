@@ -8,7 +8,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.registry.RegistryLedger;
 import com.ziggfreed.common.util.SafeLog;
@@ -63,8 +62,8 @@ public final class NpcQuestListHosts {
      * caller still owes the player a response.
      */
     public static boolean open(@Nullable String npcId, @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
-        return open(npcId, null, store, ref, playerRef, player);
+            @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+        return open(npcId, null, store, ref, player);
     }
 
     /**
@@ -73,15 +72,14 @@ public final class NpcQuestListHosts {
      * cannot single a row out still shows the plain list.
      */
     public static boolean open(@Nullable String npcId, @Nullable String highlightQuestId,
-            @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+            @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         for (String id : LEDGER.ids()) {
             NpcQuestListHost host = LEDGER.get(id);
             if (host == null) {
                 continue;
             }
             try {
-                if (host.open(npcId, highlightQuestId, store, ref, playerRef, player)) {
+                if (host.open(npcId, highlightQuestId, store, ref, player)) {
                     return true;
                 }
             } catch (Throwable t) {

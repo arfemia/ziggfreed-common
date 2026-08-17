@@ -666,8 +666,8 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     private Subject subjectFor(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
                                boolean achievementsTab) {
         return achievementsTab
-                ? ProgressionRuntime.subjects().achievementSubject(store, ref, playerRef)
-                : ProgressionRuntime.subjects().questSubject(store, ref, playerRef);
+                ? ProgressionRuntime.subjects().achievementSubject(store, ref)
+                : ProgressionRuntime.subjects().questSubject(store, ref);
     }
 
     /** Which "that did not work" line belongs to a pressed button. */

@@ -3,6 +3,7 @@ package com.ziggfreed.common.dialogue.page;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.DialogueExecContext;
 import com.ziggfreed.common.dialogue.NpcDialogue;
@@ -52,7 +53,7 @@ public final class DialogueOpener {
         DialogueEngine.EntryResolution entry;
         try {
             DialogueExecContext exec = deps.contextFactory().create(dialogue, "", -1, npcId,
-                    ctx.playerReference(), ctx.store(), ctx.playerRef(), ctx.player());
+                    ctx.playerReference(), ctx.store(), ctx.player());
             entry = deps.engine().resolveEntry(dialogue, exec);
         } catch (Throwable t) {
             SafeLog.warn("[dialogue] '" + dialogueId + "' could not work out where to open: "
@@ -71,8 +72,13 @@ public final class DialogueOpener {
     private static boolean openPage(@Nonnull DestinationContext ctx, @Nonnull String dialogueId,
             @Nullable String npcId, @Nonnull DialoguePageDeps deps,
             @Nullable DialogueEngine.EntryResolution entry) {
+        PlayerRef playerRef = ctx.playerRef();
+        if (playerRef == null) {
+            SafeLog.fine("[dialogue] a conversation was asked for on an entity that is not a player");
+            return false;
+        }
         ctx.player().getPageManager().openCustomPage(ctx.pageAnchor(), ctx.store(),
-                new DialoguePage(ctx.playerRef(), dialogueId, npcId, ctx.npcRef(), deps, entry));
+                new DialoguePage(playerRef, dialogueId, npcId, ctx.npcRef(), deps, entry));
         return true;
     }
 }

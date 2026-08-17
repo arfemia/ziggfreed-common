@@ -78,7 +78,7 @@ public final class ZigCraftProducer extends EntityEventSystem<EntityStore, Craft
         }
         Ref<EntityStore> playerEntityRef = playerRef.getReference();
         Ref<EntityStore> ref = playerEntityRef == null ? subjectRef : playerEntityRef;
-        ProgressDispatch.fire(store, ref, playerRef, KIND, target, null,
+        ProgressDispatch.fire(store, ref, KIND, target, null,
                 Math.max(1, event.getQuantity()));
     }
 

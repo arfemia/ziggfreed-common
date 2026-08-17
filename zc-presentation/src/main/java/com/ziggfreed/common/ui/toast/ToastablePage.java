@@ -146,6 +146,27 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
     }
 
     /**
+     * The PLAYER's own entity reference, never whoever this page happens to be anchored to.
+     *
+     * <p>A page is opened ON an anchor, and at a press-F that anchor is the CHARACTER's entity, not
+     * the player's (the engine's own NPC pages behave the same way). So the {@code ref} handed to
+     * {@code build} is the anchor while the one handed to {@code handleDataEvent} is always the
+     * player's, and any player state read off the build argument would be read off an entity that
+     * carries none of it - a quest list reads as empty, a balance reads as zero, and the screen only
+     * corrects itself after the first click. Resolve the player from the reference this page was
+     * built with instead, which is what the dialogue page and the first-party barter page both do.
+     *
+     * @param fallback what to answer with when the player's own reference no longer resolves; pass
+     *                 the ref the caller was handed, so a page opened on the player themselves is
+     *                 unaffected
+     */
+    @Nonnull
+    protected final Ref<EntityStore> playerEntityRef(@Nonnull Ref<EntityStore> fallback) {
+        Ref<EntityStore> own = playerRef.getReference();
+        return own != null && own.isValid() ? own : fallback;
+    }
+
+    /**
      * True once this page instance has been navigated away from / closed / client-dismissed
      * (set by {@link #onDismiss}, cleared on the next {@link #renderToastInto} rebuild). A
      * subclass that pushes an off-thread {@code sendUpdate} (e.g. a live countdown driven by

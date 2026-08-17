@@ -10,7 +10,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.DialogueContext;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
@@ -207,12 +206,11 @@ public final class NpcEncounters {
         @Override
         @Nonnull
         protected Subject subject() {
-            PlayerRef ref = store.getComponent(playerRef, PlayerRef.getComponentType());
             Player player = store.getComponent(playerRef, Player.getComponentType());
-            if (ref == null || player == null) {
+            if (player == null) {
                 throw new IllegalStateException("no live player at this encounter");
             }
-            return quests.subjectOf(store, playerRef, ref, player);
+            return quests.subjectOf(store, playerRef, player);
         }
 
         @Override
@@ -220,21 +218,16 @@ public final class NpcEncounters {
             if (npcId().isEmpty()) {
                 return false;
             }
-            PlayerRef ref = store.getComponent(playerRef, PlayerRef.getComponentType());
-            if (ref == null) {
-                return false;
-            }
-            return TalkCredits.credit(store, playerRef, ref, npcRef, npcId(), qualifier);
+            return TalkCredits.credit(store, playerRef, npcRef, npcId(), qualifier);
         }
 
         @Override
         public boolean playCompletion(@Nonnull String questId) {
-            PlayerRef ref = store.getComponent(playerRef, PlayerRef.getComponentType());
             Player player = store.getComponent(playerRef, Player.getComponentType());
-            if (ref == null || player == null) {
+            if (player == null) {
                 return false;
             }
-            return QuestCompletionRouting.handOff(questId, npcId(), quests, store, playerRef, ref, player);
+            return QuestCompletionRouting.handOff(questId, npcId(), quests, store, playerRef, player);
         }
     }
 
@@ -268,7 +261,7 @@ public final class NpcEncounters {
                 return false;
             }
             try {
-                return TalkCredits.credit(ctx.store(), ctx.ref(), ctx.playerRef(), null, npcId(), qualifier);
+                return TalkCredits.credit(ctx.store(), ctx.ref(), null, npcId(), qualifier);
             } catch (Throwable t) {
                 // A context with no engine handles can read a conversation but cannot credit one.
                 return false;

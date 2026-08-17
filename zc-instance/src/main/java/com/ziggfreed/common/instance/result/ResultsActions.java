@@ -5,7 +5,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
@@ -17,12 +16,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 public interface ResultsActions {
 
     /** Open the leaderboard, deep-linked to {@code bucket} (the just-played bucket). */
-    default void viewLeaderboard(@Nonnull PlayerRef player, @Nonnull Ref<EntityStore> ref,
+    default void viewLeaderboard(@Nonnull Ref<EntityStore> ref,
                                  @Nonnull Store<EntityStore> store, @Nullable String bucket) {
     }
 
     /** Re-queue / re-open the queue screen ("Play Again"). */
-    default void playAgain(@Nonnull PlayerRef player, @Nonnull Ref<EntityStore> ref,
+    default void playAgain(@Nonnull Ref<EntityStore> ref,
                            @Nonnull Store<EntityStore> store) {
     }
 
@@ -32,7 +31,7 @@ public interface ResultsActions {
      * and is held for a later claim (the page then shows the "make space" note). The default
      * grants nothing and reports all-claimed (a consumer with no claimable rewards).
      */
-    default boolean claimRewards(@Nonnull PlayerRef player, @Nonnull Ref<EntityStore> ref,
+    default boolean claimRewards(@Nonnull Ref<EntityStore> ref,
                                  @Nonnull Store<EntityStore> store) {
         return true;
     }

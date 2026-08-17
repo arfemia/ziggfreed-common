@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.quest.QuestStateReader;
 
@@ -40,7 +39,6 @@ class QuestCompletionRoutingTest {
      */
     private static final Store<EntityStore> NO_STORE = null;
     private static final Ref<EntityStore> NO_REF = null;
-    private static final PlayerRef NO_PLAYER_REF = null;
     private static final Player NO_PLAYER = null;
 
     /** A consumer catalogue: which conversation each quest names, and nothing else. */
@@ -78,7 +76,7 @@ class QuestCompletionRoutingTest {
 
         @Override
         public boolean open(@Nonnull QuestHandOff handOff, @Nonnull Store<EntityStore> store,
-                @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+                @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
             opened.add(handOff.dialogueId());
             return takesTheScreen;
         }
@@ -143,7 +141,7 @@ class QuestCompletionRoutingTest {
         QuestDialogueHosts.register("zzz_mod", "C", alsoKnowsIt);
 
         assertTrue(QuestCompletionRouting.handOff("a_quest", "guide", new CatalogueQuests(
-                Map.of("a_quest", "guide_thanks")), NO_STORE, NO_REF, NO_PLAYER_REF, NO_PLAYER));
+                Map.of("a_quest", "guide_thanks")), NO_STORE, NO_REF, NO_PLAYER));
 
         assertTrue(strangerToIt.opened.isEmpty(), "a host is never asked to open what it does not know");
         assertEquals(List.of("guide_thanks"), knowsIt.opened);
@@ -163,14 +161,14 @@ class QuestCompletionRoutingTest {
 
             @Override
             public boolean open(@Nonnull QuestHandOff handOff, @Nonnull Store<EntityStore> store,
-                    @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+                    @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
                 throw new IllegalStateException("this mod's page is broken too");
             }
         });
         QuestDialogueHosts.register("zzz_mod", "B", working);
 
         assertTrue(QuestCompletionRouting.handOff("a_quest", "guide", new CatalogueQuests(
-                Map.of("a_quest", "guide_thanks")), NO_STORE, NO_REF, NO_PLAYER_REF, NO_PLAYER));
+                Map.of("a_quest", "guide_thanks")), NO_STORE, NO_REF, NO_PLAYER));
         assertEquals(List.of("guide_thanks"), working.opened);
         assertTrue(QuestDialogueHosts.info().get("aaa_mod").failures() > 0,
                 "the failure is counted against the mod that owns it, and against nobody else");
@@ -183,7 +181,7 @@ class QuestCompletionRoutingTest {
         QuestDialogueHosts.register("mymod", "A", declines);
 
         assertFalse(QuestCompletionRouting.handOff("a_quest", "guide", new CatalogueQuests(
-                Map.of("a_quest", "guide_thanks")), NO_STORE, NO_REF, NO_PLAYER_REF, NO_PLAYER),
+                Map.of("a_quest", "guide_thanks")), NO_STORE, NO_REF, NO_PLAYER),
                 "false means nothing was painted, so the caller still owes the player a response");
         assertEquals(List.of("guide_thanks"), declines.opened, "it was asked, it simply did not take over");
     }

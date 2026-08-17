@@ -117,7 +117,7 @@ public class ActionPlacementInteract extends ActionBase {
             if (playerRef == null || player == null) {
                 return null;
             }
-            return DestinationContext.of(store, playerReference, playerRef, player)
+            return DestinationContext.of(store, playerReference, player)
                     .withNpc(npcRef, NpcIdentities.npcIdOfPlacement(placementId), placementId)
                     .withDepsKey(depsKey);
         } catch (Throwable t) {

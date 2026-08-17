@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardConfig;
+import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.util.SafeLog;
@@ -84,10 +85,17 @@ public final class CommercePages {
      * it is left out. False means nothing was shown, so the caller still owes the player a response.
      */
     public static boolean openShop(@Nullable String shopId, @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+            @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         String id = shopId != null && !shopId.isBlank() ? shopId : firstShopId();
         if (id == null) {
             SafeLog.fine("[commerce] a storefront was asked for but this server declares none");
+            return false;
+        }
+        // Read the reference off the PLAYER, never off {@code ref}: this seam's ref is the ANCHOR
+        // the page is opened on, which is the shopkeeper's own entity at a press-F.
+        PlayerRef playerRef = PlayerAccess.playerRef(player);
+        if (playerRef == null) {
+            SafeLog.fine("[commerce] a storefront was asked for by an entity that is not a player");
             return false;
         }
         try {
@@ -100,10 +108,10 @@ public final class CommercePages {
         }
     }
 
-    /** {@link #openBoard(String, String, Store, Ref, PlayerRef, Player)} with nothing singled out. */
+    /** {@link #openBoard(String, String, Store, Ref, Player)} with nothing singled out. */
     public static boolean openBoard(@Nullable String boardId, @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
-        return openBoard(boardId, null, store, ref, playerRef, player);
+            @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+        return openBoard(boardId, null, store, ref, player);
     }
 
     /**
@@ -115,11 +123,17 @@ public final class CommercePages {
      * first.
      */
     public static boolean openBoard(@Nullable String boardId, @Nullable String openAtBountyId,
-            @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+            @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         String id = boardId != null && !boardId.isBlank() ? boardId : firstBoardId();
         if (id == null) {
             SafeLog.fine("[commerce] a board was asked for but this server declares none");
+            return false;
+        }
+        // Read the reference off the PLAYER, never off {@code ref}: this seam's ref is the ANCHOR
+        // the page is opened on, which is the board keeper's own entity at a press-F.
+        PlayerRef playerRef = PlayerAccess.playerRef(player);
+        if (playerRef == null) {
+            SafeLog.fine("[commerce] a board was asked for by an entity that is not a player");
             return false;
         }
         try {

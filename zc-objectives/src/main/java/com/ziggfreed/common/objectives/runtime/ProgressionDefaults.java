@@ -20,7 +20,6 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.Achievement;
@@ -713,11 +712,9 @@ public final class ProgressionDefaults {
             if (store == null) {
                 return;
             }
-            PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
-            if (playerRef == null) {
-                return;
-            }
-            Subject subject = ProgressionRuntime.subjects().questSubject(store, ref, playerRef);
+            // The subject source below resolves the player itself and answers null for anything
+            // that is not one, so this asks once rather than reading the component twice.
+            Subject subject = ProgressionRuntime.subjects().questSubject(store, ref);
             if (subject == null) {
                 return;
             }

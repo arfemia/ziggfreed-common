@@ -50,14 +50,15 @@ Package naming to keep as this module grows: the tri-layer shape `<domain>/` + `
   results chip's art. Register at consumer `setup()` (before `LoadedAssetsEvent`); an unregistered token
   parses to `null` (the entry drops), so a spec authored for an absent mod never becomes a phantom
   reward. The granter substitutes `{amount}` from the quantity; the consumer's `Sink` substitutes
-  `{player}`. The MMO registers `xp` -> `/mmoawardxp` so a loot table can author skill-XP rewards with no
+  `{player}`, reading the player off the ref it is handed. The MMO registers `xp` -> `/mmoawardxp` so a loot table can author skill-XP rewards with no
   XP concept in common.
 - **[`WinGate`](WinGate.java)** - `ANY`/`WIN`/`LOSS` per-entry outcome gate on a `LootEntry` (default `WIN`):
   the "pay a consolation/participation reward on a loss without also handing out the win spoils" seam.
-- **[`InstanceRewardGranter`](InstanceRewardGranter.java)** - `grantAll(rewards, player, ref, store, sink)`
+- **[`InstanceRewardGranter`](InstanceRewardGranter.java)** - `grantAll(rewards, ref, store, sink)`
   -> `GrantOutcome`. BLOCK-FIRST full-inventory guard: an `ITEM` is granted only if it all fits
   (`InventoryUtil.canFit`), else held in `GrantOutcome.pending()` (never partially delivered). Non-throwing,
-  isolate-each. Currency/command run through the consumer `Sink`.
+  isolate-each. Currency/command run through the consumer `Sink`, which is handed `(ref, store)` and reads the player off
+  that ref rather than being passed one.
 - **[`GrantOutcome`](GrantOutcome.java)** - `record(granted, blocked, failed, pending)`; `anyGranted`/`anyBlocked`.
 - **[`RewardOnExit`](RewardOnExit.java)** - `NONE`/`ON_WIN`/`ALWAYS` + `grantsOn(win)`: the per-instance
   policy the consumer reads at its resolve choke-point.

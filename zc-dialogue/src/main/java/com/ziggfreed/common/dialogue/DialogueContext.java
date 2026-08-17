@@ -26,7 +26,12 @@ public interface DialogueContext {
 
     @Nonnull Ref<EntityStore> ref();
 
-    @Nonnull PlayerRef playerRef();
+    /**
+     * The talking player, DERIVED from the store rather than carried beside it, or null when the
+     * ref no longer resolves one (or resolves something that is not a player). Read it once and
+     * guard it: a context is built per render and the entity behind it can go away between two.
+     */
+    @Nullable PlayerRef playerRef();
 
     @Nonnull Player player();
 

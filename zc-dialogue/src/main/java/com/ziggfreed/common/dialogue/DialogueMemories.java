@@ -10,6 +10,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -78,8 +79,7 @@ public final class DialogueMemories {
          * which is what a conversation opened before a player's data loaded should do.
          */
         @Nullable
-        DialogueFlagStore forPlayer(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-                @Nonnull PlayerRef playerRef);
+        DialogueFlagStore forPlayer(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref);
     }
 
     /**
@@ -139,8 +139,9 @@ public final class DialogueMemories {
      */
     @Nonnull
     public static DialogueFlagStore storeFor(@Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef) {
-        return new Routed(sessionFor(playerRef), persistentFor(store, ref, playerRef));
+            @Nonnull Ref<EntityStore> ref) {
+        DialogueFlagStore session = sessionFor(store, ref);
+        return new Routed(session, persistentFor(store, ref, session));
     }
 
     /**
@@ -152,12 +153,12 @@ public final class DialogueMemories {
      * are all this layer's business.
      */
     public static void forgetQuest(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlayerRef playerRef, @Nullable String questId) {
+            @Nullable String questId) {
         if (questId == null || questId.isBlank()) {
             return;
         }
         try {
-            storeFor(store, ref, playerRef).clearWithPrefix(DialogueStateKeys.questPrefix(questId));
+            storeFor(store, ref).clearWithPrefix(DialogueStateKeys.questPrefix(questId));
         } catch (Throwable t) {
             SafeLog.warn("[dialogue] could not forget the memories filed under quest '"
                     + questId + "'", t);
@@ -184,11 +185,12 @@ public final class DialogueMemories {
         }
         Store<EntityStore> store = handles.store();
         Ref<EntityStore> ref = handles.ref();
-        PlayerRef playerRef = handles.playerRef();
-        if (store == null || ref == null || playerRef == null) {
+        if (store == null || ref == null) {
             return;
         }
-        forgetQuest(store, ref, playerRef, questId);
+        // No player check here: the store-and-ref form below resolves the player for itself and
+        // no-ops when the entity is not one, so asking twice would only pay the read twice.
+        forgetQuest(store, ref, questId);
     }
 
     /**
@@ -209,19 +211,18 @@ public final class DialogueMemories {
      * known id or not.
      */
     public static void forgetAllQuests(@Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef) {
+            @Nonnull Ref<EntityStore> ref) {
         try {
-            storeFor(store, ref, playerRef).clearWithPrefix(DialogueStateKeys.QUEST_NAMESPACE);
+            storeFor(store, ref).clearWithPrefix(DialogueStateKeys.QUEST_NAMESPACE);
         } catch (Throwable t) {
             SafeLog.warn("[dialogue] could not forget this player's quest-scoped dialogue memories", t);
         }
     }
 
     /** Forget every dialogue memory this player holds, in both backends (an admin start-over). */
-    public static void forgetAll(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlayerRef playerRef) {
+    public static void forgetAll(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
         try {
-            storeFor(store, ref, playerRef).clearAll();
+            storeFor(store, ref).clearAll();
         } catch (Throwable t) {
             SafeLog.warn("[dialogue] could not forget this player's dialogue memories", t);
         }
@@ -238,21 +239,29 @@ public final class DialogueMemories {
         }
     }
 
+    /**
+     * The SESSION half for the player behind this entity. The one place this class reads a
+     * {@link PlayerRef}, so the derive happens once per {@link #storeFor} call and the persistent
+     * half is handed the result rather than repeating it.
+     */
     @Nonnull
-    private static DialogueFlagStore sessionFor(@Nonnull PlayerRef playerRef) {
-        UUID id = playerRef.getUuid();
-        // No uuid is a player mid-teardown; session state has nowhere to live, so it reads unset.
+    private static DialogueFlagStore sessionFor(@Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> ref) {
+        PlayerRef playerRef = PlayerAccess.playerRef(store, ref);
+        // Not a player at all, or one mid-teardown with no uuid left: session state has nowhere to
+        // live, so it reads unset rather than throwing.
+        UUID id = playerRef == null ? null : playerRef.getUuid();
         return id == null ? DialogueFlagStore.NONE : InMemoryDialogueFlagStore.forPlayer(id);
     }
 
     @Nonnull
     private static DialogueFlagStore persistentFor(@Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef) {
+            @Nonnull Ref<EntityStore> ref, @Nonnull DialogueFlagStore sessionFallback) {
         PersistentStore source = persistentBackendOrWarn();
         if (source == null) {
-            return sessionFor(playerRef);
+            return sessionFallback;
         }
-        DialogueFlagStore resolved = source.forPlayer(store, ref, playerRef);
+        DialogueFlagStore resolved = source.forPlayer(store, ref);
         return resolved == null ? DialogueFlagStore.NONE : resolved;
     }
 

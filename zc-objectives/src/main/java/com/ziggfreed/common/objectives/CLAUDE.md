@@ -345,8 +345,10 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
 - **The routed hand-in is a HIGHLIGHT, and a highlight is a pinned first row.** A ready quest never
   hijacks a conversation on its own, so whatever surfaces one routes here naming it. There is no
   scroll-to on a page, so pinning that row to the top and opening the detail panel on it IS "take me
-  to it". `NpcQuestPages.open(npcId, questId, ...)` is the routed form; the five-argument form is the
-  plain one.
+  to it". `NpcQuestPages.open(npcId, questId, store, ref, player)` is the routed form; the one
+  without a quest id is the plain one. Both read the PLAYER's own reference off `player`, never off
+  `ref`: `ref` is the ANCHOR the page is opened on, which at a press-F is the character's entity
+  rather than the player's.
 - **It keeps instance state and reopens as `this`, unlike the book.** That is what a scroll-preserving
   `sendUpdate` needs: an update runs against the DOM the last full `build` produced, so a row index
   must be one that build RECORDED. `builtRowOrder` carries the exact order INCLUDING a marker per

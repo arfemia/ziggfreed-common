@@ -9,6 +9,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.progress.runtime.ProgressionSubjectSource;
 import com.ziggfreed.common.subject.Subject;
 
@@ -34,29 +35,34 @@ public final class ProgressSubjects implements ProgressionSubjectSource {
 
     /** The subject for this player, or null when there is not enough to build one. */
     @Nullable
-    public static Subject of(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlayerRef playerRef) {
+    public static Subject of(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        // Guarded the way every sibling read in this package is: the two-argument PlayerAccess form
+        // is a RAW read that throws on a ref pointing at nothing, and "there is not enough to build
+        // one" is exactly the answer a stale ref deserves.
+        PlayerRef playerRef = ref.isValid() ? PlayerAccess.playerRef(store, ref) : null;
+        if (playerRef == null) {
+            return null;
+        }
         UUID uuid = playerRef.getUuid();
         if (uuid == null) {
             return null;
         }
         String username = playerRef.getUsername();
         return new Subject(uuid, username == null ? "" : username,
-                new ProgressHandle(store, ref, playerRef));
+                new ProgressHandle(store, ref));
     }
 
     /** One handle answers for both engines here, so both sides return the same subject. */
     @Override
     @Nullable
-    public Subject questSubject(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlayerRef playerRef) {
-        return of(store, ref, playerRef);
+    public Subject questSubject(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        return of(store, ref);
     }
 
     @Override
     @Nullable
     public Subject achievementSubject(@Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef) {
-        return of(store, ref, playerRef);
+            @Nonnull Ref<EntityStore> ref) {
+        return of(store, ref);
     }
 }

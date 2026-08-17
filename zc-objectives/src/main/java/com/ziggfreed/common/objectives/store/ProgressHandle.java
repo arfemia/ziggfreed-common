@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.DialogueMemories;
+import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -31,9 +32,21 @@ import com.ziggfreed.common.subject.Subject;
  * forgetting has only the subject to work from.
  */
 public record ProgressHandle(@Nonnull Store<EntityStore> store,
-                             @Nonnull Ref<EntityStore> ref,
-                             @Nonnull PlayerRef playerRef)
+                             @Nonnull Ref<EntityStore> ref)
         implements Subject.HandleFacets, DialogueMemories.SubjectHandles {
+
+    /**
+     * This player's {@link PlayerRef}, read off the entity rather than carried alongside it, or
+     * null when the ref no longer resolves one (or resolves something that is not a player).
+     *
+     * <p>A handle is built per call and read a handful of times, so this stays a plain read rather
+     * than a cached one: the store answers it from the same component array the two accessors
+     * above already go through.
+     */
+    @Nullable
+    public PlayerRef playerRef() {
+        return ref.isValid() ? PlayerAccess.playerRef(store, ref) : null;
+    }
 
     /** This player's progress component, or null when there is none to read. */
     @Nullable
@@ -59,7 +72,7 @@ public record ProgressHandle(@Nonnull Store<EntityStore> store,
         if (type.isAssignableFrom(ZigProgressComponent.class)) {
             return component();
         }
-        return type.isAssignableFrom(PlayerRef.class) ? playerRef : null;
+        return type.isAssignableFrom(PlayerRef.class) ? playerRef() : null;
     }
 
     /**

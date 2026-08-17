@@ -85,12 +85,12 @@ supplies the object - pure delegation, no logic:
 ```java
 NpcQuestListHosts.register(NpcQuestPages.OWNER, NpcQuestPages.OWNER, new NpcQuestListHost() {
     @Override public boolean open(String npcId, Store<EntityStore> store, Ref<EntityStore> ref,
-            PlayerRef playerRef, Player player) {
-        return NpcQuestPages.open(npcId, store, ref, playerRef, player);
+            Player player) {
+        return NpcQuestPages.open(npcId, store, ref, player);
     }
     @Override public boolean open(String npcId, String highlightQuestId, Store<EntityStore> store,
-            Ref<EntityStore> ref, PlayerRef playerRef, Player player) {
-        return NpcQuestPages.open(npcId, highlightQuestId, store, ref, playerRef, player);
+            Ref<EntityStore> ref, Player player) {
+        return NpcQuestPages.open(npcId, highlightQuestId, store, ref, player);
     }
 });
 ```

@@ -11,7 +11,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.registry.RegistryLedger;
@@ -45,8 +44,7 @@ public final class DialoguePayloads {
 
         /** The payload for this player, or null when this mod has nothing to say about them. */
         @Nullable
-        T supply(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-                 @Nonnull PlayerRef playerRef, @Nonnull Player player);
+        T supply(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
     }
 
     @Nonnull
@@ -86,7 +84,7 @@ public final class DialoguePayloads {
     @Nullable
     @SuppressWarnings("unchecked")
     public static <T> T resolve(@Nullable Class<T> type, @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+            @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         if (type == null) {
             return null;
         }
@@ -96,7 +94,7 @@ public final class DialoguePayloads {
             return null;
         }
         try {
-            Object built = ((DialoguePayloadSupplier<T>) supplier).supply(store, ref, playerRef, player);
+            Object built = ((DialoguePayloadSupplier<T>) supplier).supply(store, ref, player);
             return type.isInstance(built) ? type.cast(built) : null;
         } catch (Throwable t) {
             LEDGER.recordFailure(id, String.valueOf(t.getMessage()));

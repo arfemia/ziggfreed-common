@@ -68,7 +68,7 @@ public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
             if (victimId == null || victimId.isBlank()) {
                 victimId = UNKNOWN_VICTIM;
             }
-            ProgressDispatch.fire(store, attackerRef, playerRef, KIND, victimId, null, 1L);
+            ProgressDispatch.fire(store, attackerRef, KIND, victimId, null, 1L);
         } catch (Throwable t) {
             SafeLog.warn("[progression] kill dispatch failed", t);
         }

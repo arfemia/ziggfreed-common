@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
@@ -40,7 +39,7 @@ class QuestCompletionDialogueValidatorTest {
 
             @Override
             public boolean open(@Nonnull QuestHandOff handOff, @Nonnull Store<EntityStore> store,
-                    @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+                    @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
                 return false;
             }
         };

@@ -57,7 +57,7 @@ class NpcQuestPageDepsTest {
         assertNull(NpcQuestPageDeps.DEFAULTS.rewardChips().chipFor(RewardSpec.of("Anything")),
                 "no consumer opinion, so every chip takes the generic reading");
         assertFalse(NpcQuestPageDeps.DEFAULTS.completion().handOff(
-                "quest", "Guide", null, null, null, null),
+                "quest", "Guide", null, null, null),
                 "nothing follows a settled quest, so the page keeps the screen");
         assertNull(NpcQuestPageDeps.DEFAULTS.completionToast().forCompleted(null),
                 "no consumer toast, so the page floats its own line");

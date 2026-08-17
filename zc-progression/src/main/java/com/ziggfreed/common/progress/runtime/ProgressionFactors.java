@@ -139,7 +139,7 @@ public final class ProgressionFactors {
             public Subject questSubject(@Nonnull FactorContext ctx) {
                 LivePlayer player = livePlayer(ctx);
                 return player == null ? null : ProgressionRuntime.subjects()
-                        .questSubject(player.store(), player.ref(), player.playerRef());
+                        .questSubject(player.store(), player.ref());
             }
 
             @Override
@@ -147,7 +147,7 @@ public final class ProgressionFactors {
             public Subject achievementSubject(@Nonnull FactorContext ctx) {
                 LivePlayer player = livePlayer(ctx);
                 return player == null ? null : ProgressionRuntime.subjects()
-                        .achievementSubject(player.store(), player.ref(), player.playerRef());
+                        .achievementSubject(player.store(), player.ref());
             }
         };
     }
@@ -400,9 +400,8 @@ public final class ProgressionFactors {
 
     // ==================== helpers ====================
 
-    /** The three live handles a runtime subject is built from, carried together so none can go missing. */
-    private record LivePlayer(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-                              @Nonnull PlayerRef playerRef) {
+    /** The live handles a runtime subject is built from; the player's own reference is derived from them. */
+    private record LivePlayer(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
     }
 
     /**
@@ -418,7 +417,7 @@ public final class ProgressionFactors {
             return null;
         }
         PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
-        return playerRef == null ? null : new LivePlayer(store, ref, playerRef);
+        return playerRef == null ? null : new LivePlayer(store, ref);
     }
 
     @Nullable

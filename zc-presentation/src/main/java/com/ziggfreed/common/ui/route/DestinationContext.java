@@ -8,12 +8,14 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.inventory.PlayerAccess;
 
 /**
  * Everything a destination handler is told about the moment it was asked to open something.
  *
- * <p>The four player handles are always present, because there is no destination without somebody to
- * show it to. Everything else is an INDEPENDENT nullable leaf, so one context shape serves a press-F
+ * <p>The three player handles are always present, because there is no destination without somebody
+ * to show it to (their {@link PlayerRef} is derived from the store on demand rather than carried
+ * beside it). Everything else is an INDEPENDENT nullable leaf, so one context shape serves a press-F
  * at an NPC, a conversation line, a block, a command and a button on a page without any of them
  * pretending to carry what it has not got:
  *
@@ -34,31 +36,40 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  */
 public record DestinationContext(@Nonnull Store<EntityStore> store,
                                  @Nonnull Ref<EntityStore> playerReference,
-                                 @Nonnull PlayerRef playerRef,
                                  @Nonnull Player player,
                                  @Nullable Ref<EntityStore> npcRef,
                                  @Nullable String npcId,
                                  @Nullable String placementId,
                                  @Nullable String depsKey) {
 
+    /**
+     * The player's {@link PlayerRef}, read off their entity rather than carried beside it, or null
+     * when the ref no longer resolves one. A context lives only for the duration of one
+     * {@code open} call, so this stays a plain read rather than a cached one.
+     */
+    @Nullable
+    public PlayerRef playerRef() {
+        return playerReference.isValid() ? PlayerAccess.playerRef(store, playerReference) : null;
+    }
+
     /** The player-only form: no character in front of them, no placement, no provider key. */
     @Nonnull
     public static DestinationContext of(@Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> playerReference, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
-        return new DestinationContext(store, playerReference, playerRef, player, null, null, null, null);
+            @Nonnull Ref<EntityStore> playerReference, @Nonnull Player player) {
+        return new DestinationContext(store, playerReference, player, null, null, null, null);
     }
 
     /** A copy that also names the character the player is standing at, and where it stands. */
     @Nonnull
     public DestinationContext withNpc(@Nullable Ref<EntityStore> npcRef, @Nullable String npcId,
             @Nullable String placementId) {
-        return new DestinationContext(store, playerReference, playerRef, player, npcRef, npcId, placementId, depsKey);
+        return new DestinationContext(store, playerReference, player, npcRef, npcId, placementId, depsKey);
     }
 
     /** A copy that also names which registered UI-provider a handler should resolve through. */
     @Nonnull
     public DestinationContext withDepsKey(@Nullable String depsKey) {
-        return new DestinationContext(store, playerReference, playerRef, player, npcRef, npcId, placementId, depsKey);
+        return new DestinationContext(store, playerReference, player, npcRef, npcId, placementId, depsKey);
     }
 
     /**

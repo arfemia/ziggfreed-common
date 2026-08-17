@@ -8,7 +8,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.registry.RegistryLedger;
 import com.ziggfreed.common.util.SafeLog;
@@ -94,7 +93,7 @@ public final class QuestDialogueHosts {
      * mod may know the same id and be able to.
      */
     public static boolean open(@Nonnull QuestHandOff handOff, @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull Player player) {
+            @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         String dialogueId = handOff.dialogueId();
         if (dialogueId == null) {
             return false;
@@ -105,7 +104,7 @@ public final class QuestDialogueHosts {
                 continue;
             }
             try {
-                if (host.knows(dialogueId) && host.open(handOff, store, ref, playerRef, player)) {
+                if (host.knows(dialogueId) && host.open(handOff, store, ref, player)) {
                     return true;
                 }
             } catch (Throwable t) {

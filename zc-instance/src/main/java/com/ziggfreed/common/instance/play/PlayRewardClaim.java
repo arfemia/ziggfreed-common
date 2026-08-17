@@ -6,7 +6,6 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
@@ -27,5 +26,5 @@ public interface PlayRewardClaim {
      * Returns {@code true} when everything was delivered (the button then disappears on re-render),
      * {@code false} when some reward is still held (a full inventory).
      */
-    boolean claim(@Nonnull PlayerRef player, @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store);
+    boolean claim(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store);
 }

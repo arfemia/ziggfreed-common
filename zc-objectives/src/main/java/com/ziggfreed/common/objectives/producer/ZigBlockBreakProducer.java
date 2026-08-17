@@ -68,7 +68,7 @@ public final class ZigBlockBreakProducer extends EntityEventSystem<EntityStore, 
             if (placedByBreaker(playerRef, event)) {
                 return;
             }
-            ProgressDispatch.fire(store, ref, playerRef, KIND, blockId, null, 1L);
+            ProgressDispatch.fire(store, ref, KIND, blockId, null, 1L);
         } catch (Throwable t) {
             SafeLog.warn("[progression] block-break dispatch failed", t);
         }

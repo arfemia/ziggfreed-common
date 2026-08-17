@@ -184,7 +184,9 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         cmd.set("#NpcHeader.TextSpans", headerText());
 
         QuestEngine engine = ProgressionRuntime.quests();
-        Subject subject = ProgressionRuntime.subjects().questSubject(store, ref, playerRef);
+        // The build argument is the page's ANCHOR, which at a character is that character's own
+        // entity, so the player is resolved from the reference this page was built with.
+        Subject subject = ProgressionRuntime.subjects().questSubject(store, playerEntityRef(ref));
         if (subject == null) {
             // Nothing can be read for this player, so say so once rather than painting an empty list
             // that reads as "this character has nothing", which is a different sentence.
@@ -782,7 +784,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         }
 
         QuestEngine engine = ProgressionRuntime.quests();
-        Subject subject = ProgressionRuntime.subjects().questSubject(store, ref, playerRef);
+        Subject subject = ProgressionRuntime.subjects().questSubject(store, playerEntityRef(ref));
         Quest quest = selectedQuestId == null ? null : engine.quest(selectedQuestId);
         if (subject == null || quest == null) {
             player.getPageManager().openCustomPage(ref, store, this);
@@ -816,7 +818,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         QuestEngine engine = ProgressionRuntime.quests();
         Quest quest = questId == null ? null : engine.quest(questId);
         int row = questId == null ? -1 : builtRowOrder.indexOf(questId);
-        Subject subject = ProgressionRuntime.subjects().questSubject(store, ref, playerRef);
+        Subject subject = ProgressionRuntime.subjects().questSubject(store, playerEntityRef(ref));
         if (quest == null || row < 0 || subject == null) {
             this.selectedQuestId = questId;
             player.getPageManager().openCustomPage(ref, store, this);
@@ -942,7 +944,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     private boolean handOff(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         try {
-            return deps.completion().handOff(quest.id(), npcId, store, ref, playerRef, player);
+            return deps.completion().handOff(quest.id(), npcId, store, ref, player);
         } catch (Throwable t) {
             SafeLog.warn("[progression] a quest completion hand-off failed", t);
             return false;
