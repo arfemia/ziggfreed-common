@@ -71,7 +71,7 @@ class RepeatEvaluatorTest {
     @Test
     void aSpentWindowRefusesUntilTheNextOneAndNothingHasToSweepIt() {
         Repeat repeat = windowOnly(1);
-        CompletionRecord spent = new CompletionRecord(MIDDAY, 1, 1);
+        CompletionRecord spent = CompletionRecord.withoutCollectedTally(MIDDAY, 1, 1);
 
         QuestLifecycle.RepeatCheck refused = QuestLifecycle.repeatCheck(repeat, 0L, spent, MIDDAY);
         assertFalse(refused.available());
@@ -88,22 +88,67 @@ class RepeatEvaluatorTest {
     void aWindowOfThreeOnlyRefusesOnTheThird() {
         Repeat repeat = windowOnly(3);
         assertTrue(QuestLifecycle.repeatCheck(repeat, 0L,
-                new CompletionRecord(MIDDAY, 2, 2), MIDDAY).available());
+                CompletionRecord.withoutCollectedTally(MIDDAY, 2, 2), MIDDAY).available());
         assertFalse(QuestLifecycle.repeatCheck(repeat, 0L,
-                new CompletionRecord(MIDDAY, 3, 3), MIDDAY).available());
+                CompletionRecord.withoutCollectedTally(MIDDAY, 3, 3), MIDDAY).available());
     }
 
     @Test
     void aSpentLifetimeCapIsPermanent() {
         Repeat repeat = cappedAt(2);
         QuestLifecycle.RepeatCheck check = QuestLifecycle.repeatCheck(repeat, 0L,
-                new CompletionRecord(MIDDAY, 0, 2), MIDDAY);
+                CompletionRecord.withoutCollectedTally(MIDDAY, 0, 2), MIDDAY);
 
         assertFalse(check.available());
         assertEquals(QuestGates.REASON_MAX_COMPLETIONS, check.reason());
         assertTrue(check.permanentlySpent());
-        assertFalse(QuestLifecycle.repeatCheck(repeat, 0L, new CompletionRecord(MIDDAY, 0, 2),
+        assertFalse(QuestLifecycle.repeatCheck(repeat, 0L, CompletionRecord.withoutCollectedTally(MIDDAY, 0, 2),
                 MIDDAY + 3650 * DAY).available(), "no amount of waiting brings it back");
+    }
+
+    /**
+     * The evaluator reads FINISHES, and the two tallies are what makes that testable at all: every
+     * other fixture here is built through {@code withoutCollectedTally}, where the two numbers agree
+     * and either reading would pass. A record whose runs are finished with the rewards still owing
+     * pulls them apart, and the cap has to be spent all the same - a run somebody walked away from
+     * without collecting still happened.
+     */
+    @Test
+    void aLifetimeCapIsSpentByFinishesEvenWhenNothingWasCollected() {
+        Repeat repeat = cappedAt(2);
+
+        QuestLifecycle.RepeatCheck spent = QuestLifecycle.repeatCheck(repeat, 0L,
+                new CompletionRecord(MIDDAY, 0, 2, 0), MIDDAY);
+        assertFalse(spent.available(),
+                "two runs finished spends a cap of two, whether or not anybody came back for either"
+                        + " reward");
+        assertEquals(QuestGates.REASON_MAX_COMPLETIONS, spent.reason());
+
+        assertTrue(QuestLifecycle.repeatCheck(repeat, 0L,
+                new CompletionRecord(MIDDAY, 0, 1, 1), MIDDAY).available(),
+                "one run finished and collected leaves the second, so the refusal above is a real"
+                        + " reading of a spent cap and not this evaluator refusing everything");
+    }
+
+    /**
+     * The same for the calendar allowance. The window tally has no collected twin at all, so what
+     * this pins is that a window whose runs are all still waiting to be collected is spent exactly
+     * like one whose rewards were taken on the spot.
+     */
+    @Test
+    void aCalendarAllowanceIsSpentByFinishesToo() {
+        Repeat repeat = windowOnly(2);
+
+        QuestLifecycle.RepeatCheck spent = QuestLifecycle.repeatCheck(repeat, 0L,
+                new CompletionRecord(MIDDAY, 2, 2, 0), MIDDAY);
+        assertFalse(spent.available(),
+                "both runs this window allows were finished, with neither reward collected");
+        assertEquals(QuestGates.REASON_PERIOD_SPENT, spent.reason());
+
+        assertTrue(QuestLifecycle.repeatCheck(repeat, 0L,
+                new CompletionRecord(MIDDAY, 1, 1, 0), MIDDAY).available(),
+                "one finish leaves the second slot in the window, and no collection is needed to"
+                        + " reach it");
     }
 
     @Test
@@ -112,13 +157,13 @@ class RepeatEvaluatorTest {
         Repeat all = new Repeat(4 * HOUR, CooldownFrom.CLAIM, daily, 2);
 
         assertEquals(QuestGates.REASON_MAX_COMPLETIONS, QuestLifecycle.repeatCheck(all, MIDDAY,
-                new CompletionRecord(MIDDAY, 1, 2), MIDDAY).reason(),
+                CompletionRecord.withoutCollectedTally(MIDDAY, 1, 2), MIDDAY).reason(),
                 "telling somebody to come back in three hours for a quest they can never take"
                         + " again is the worse message");
         assertEquals(QuestGates.REASON_PERIOD_SPENT, QuestLifecycle.repeatCheck(all, MIDDAY,
-                new CompletionRecord(MIDDAY, 1, 1), MIDDAY).reason());
+                CompletionRecord.withoutCollectedTally(MIDDAY, 1, 1), MIDDAY).reason());
         assertEquals(QuestGates.REASON_ON_COOLDOWN, QuestLifecycle.repeatCheck(all, MIDDAY,
-                new CompletionRecord(MIDDAY - 2 * DAY, 1, 1), MIDDAY).reason());
+                CompletionRecord.withoutCollectedTally(MIDDAY - 2 * DAY, 1, 1), MIDDAY).reason());
     }
 
     @Test
@@ -138,7 +183,7 @@ class RepeatEvaluatorTest {
         assertEquals(QuestStatus.NOT_STARTED, QuestLifecycle.effectiveStatus(repeat,
                 QuestStatus.COMPLETED, MIDDAY, CompletionRecord.NONE, MIDDAY + 4 * HOUR));
         assertEquals(QuestStatus.COMPLETED, QuestLifecycle.effectiveStatus(cappedAt(1),
-                QuestStatus.COMPLETED, 0L, new CompletionRecord(MIDDAY, 0, 1), MIDDAY + 4 * HOUR),
+                QuestStatus.COMPLETED, 0L, CompletionRecord.withoutCollectedTally(MIDDAY, 0, 1), MIDDAY + 4 * HOUR),
                 "a spent lifetime cap has genuinely become a one-shot, and reads like one");
     }
 
@@ -148,7 +193,7 @@ class RepeatEvaluatorTest {
         for (QuestStatus stored : new QuestStatus[] {
                 QuestStatus.NOT_STARTED, QuestStatus.ACTIVE, QuestStatus.COMPLETED_UNCLAIMED}) {
             assertEquals(stored, QuestLifecycle.effectiveStatus(repeat, stored, MIDDAY,
-                    new CompletionRecord(MIDDAY, 1, 1), MIDDAY + HOUR));
+                    CompletionRecord.withoutCollectedTally(MIDDAY, 1, 1), MIDDAY + HOUR));
         }
     }
 
@@ -159,6 +204,6 @@ class RepeatEvaluatorTest {
         assertEquals(3 * HOUR, QuestLifecycle.offerableInMs(cooldownOnly(4 * HOUR), MIDDAY,
                 CompletionRecord.NONE, MIDDAY + HOUR));
         assertEquals(Long.MAX_VALUE, QuestLifecycle.offerableInMs(cappedAt(1), 0L,
-                new CompletionRecord(MIDDAY, 0, 1), MIDDAY));
+                CompletionRecord.withoutCollectedTally(MIDDAY, 0, 1), MIDDAY));
     }
 }

@@ -127,7 +127,10 @@ public final class ZigProgressComponent implements Component<EntityStore> {
     @Nonnull
     private Map<String, Long> trackedQuests = new ConcurrentHashMap<>();
 
-    /** questId -> how often the player has finished it, and when they last did. */
+    /**
+     * questId -> how often the player has finished it, how many of those they collected, and when
+     * they last finished it.
+     */
     @Nonnull
     private Map<String, CompletionRecord> questCompletions = new ConcurrentHashMap<>();
 
@@ -492,9 +495,14 @@ public final class ZigProgressComponent implements Component<EntityStore> {
     // ==================== completion packing ====================
 
     /**
-     * One record travels as {@code last,period,total} inside the same {@code key=value|key=value}
-     * frame every other leaf uses. A comma collides with neither reserved character, so the wire
-     * contract and both adapters' inherited id hygiene are untouched.
+     * One record travels as {@code last,period,total,claimed} inside the same
+     * {@code key=value|key=value} frame every other leaf uses. A comma collides with neither
+     * reserved character, so the wire contract and both adapters' inherited id hygiene are
+     * untouched.
+     *
+     * <p>A value with only THREE fields is a save written before the collected tally existed. It
+     * reads back with claimed equal to total, because under the rule those saves were written under
+     * a finish was the payout.
      */
     private static final char FIELD_SEPARATOR = ',';
 
@@ -518,24 +526,30 @@ public final class ZigProgressComponent implements Component<EntityStore> {
         for (Map.Entry<String, CompletionRecord> entry : records.entrySet()) {
             CompletionRecord record = entry.getValue();
             out.put(entry.getKey(), record.lastCompletionMs() + "" + FIELD_SEPARATOR
-                    + record.periodCount() + FIELD_SEPARATOR + record.totalCount());
+                    + record.periodCount() + FIELD_SEPARATOR + record.totalCount()
+                    + FIELD_SEPARATOR + record.claimedCount());
         }
         return out;
     }
 
-    /** A malformed triple costs that entry alone, never the login. */
+    /** A malformed value costs that entry alone, never the login. */
     @Nullable
     private static CompletionRecord parseRecord(@Nullable String value) {
         if (value == null) {
             return null;
         }
         String[] fields = value.split(String.valueOf(FIELD_SEPARATOR), -1);
-        if (fields.length != 3) {
+        if (fields.length != 3 && fields.length != 4) {
             return null;
         }
         try {
-            return new CompletionRecord(Long.parseLong(fields[0].trim()),
-                    Integer.parseInt(fields[1].trim()), Integer.parseInt(fields[2].trim()));
+            long last = Long.parseLong(fields[0].trim());
+            int period = Integer.parseInt(fields[1].trim());
+            int total = Integer.parseInt(fields[2].trim());
+            if (fields.length == 3) {
+                return CompletionRecord.withoutCollectedTally(last, period, total);
+            }
+            return new CompletionRecord(last, period, total, Integer.parseInt(fields[3].trim()));
         } catch (NumberFormatException malformed) {
             return null;
         }

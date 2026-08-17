@@ -2,6 +2,7 @@ package com.ziggfreed.common.progress.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,10 +28,13 @@ import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorContributions;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.progress.MatchMode;
+import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
 import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestProgressStore;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.quest.asset.AssetQuestGates;
@@ -52,6 +56,15 @@ class ProgressionFactorsTest {
 
     private static final Subject PLAYER =
             Subject.of(UUID.nameUUIDFromBytes("player".getBytes()), "Player");
+
+    private static final long HOUR = 3_600_000L;
+
+    /** One block break, the cheapest objective a real engine run can be driven with. */
+    @Nonnull
+    private static ObjectiveDef oneBlock(@Nonnull String id) {
+        return ObjectiveDef.builder(id, "BREAK_BLOCK")
+                .target("Oak_Log").matchMode(MatchMode.EXACT).amount(1).build();
+    }
 
     private FactorRegistry factors;
 
@@ -283,7 +296,16 @@ class ProgressionFactorsTest {
             ProgressionRuntime.publishQuests("test", List.of(
                     Quest.builder("done").build(),
                     Quest.builder("todo").build(),
-                    Quest.builder("uncollected").build()));
+                    Quest.builder("uncollected").build(),
+                    Quest.builder("parked_daily")
+                            .objective(oneBlock("logs"))
+                            .repeat(Quest.Repeat.every(HOUR))
+                            .autoClaim(false)
+                            .build(),
+                    Quest.builder("instant_daily")
+                            .objective(oneBlock("logs"))
+                            .repeat(Quest.Repeat.every(HOUR))
+                            .build()));
             ProgressionRuntime.publishAchievements("test", List.of(
                     Achievement.builder("earned").points(25).build(),
                     Achievement.builder("locked").points(15).build()));
@@ -291,7 +313,7 @@ class ProgressionFactorsTest {
 
             quests.setStatus(PLAYER, "done", QuestStatus.COMPLETED);
             quests.setCompletions(PLAYER, "done",
-                    new QuestProgressStore.CompletionRecord(1L, 1, 4));
+                    new QuestProgressStore.CompletionRecord(1L, 1, 4, 3));
             achievements.setStatus(PLAYER, "earned", AchievementStatus.UNLOCKED);
 
             vocabulary(ALWAYS, ProgressionFactors.Reads.RUNTIME);
@@ -301,7 +323,8 @@ class ProgressionFactorsTest {
         void theEnginesOwnAnswersComeBackAsNumbers() {
             assertEquals(1.0, resolve(ProgressionFactors.QUEST_COMPLETED, "done"));
             assertEquals(0.0, resolve(ProgressionFactors.QUEST_COMPLETED, "todo"));
-            assertEquals(4.0, resolve(ProgressionFactors.QUEST_COMPLETIONS, "done"));
+            assertEquals(3.0, resolve(ProgressionFactors.QUEST_COMPLETIONS, "done"),
+                    "the COLLECTED tally, not the four times the objectives were met");
             assertEquals(1.0, resolve(ProgressionFactors.ACHIEVEMENT_EARNED, "earned"));
             assertEquals(0.0, resolve(ProgressionFactors.ACHIEVEMENT_EARNED, "locked"));
             assertEquals(25.0, resolve(ProgressionFactors.ACHIEVEMENT_POINTS, null),
@@ -371,6 +394,77 @@ class ProgressionFactorsTest {
 
             assertEquals(1.0, resolve(ProgressionFactors.QUEST_COMPLETED, "done"),
                     "'have you ever done this' is what a requirement asks");
+        }
+
+        /**
+         * The COUNT means the same thing the flag does: a run counts once the player has the reward
+         * in hand. A quest that parks its payout is finished and uncounted in between, which is the
+         * whole window an author writing "come back when you have run this three times" would
+         * otherwise be paying out early for.
+         */
+        @Test
+        void aParkedRunIsCountedWhenItIsCollected() {
+            QuestEngine engine = ProgressionRuntime.quests();
+            Quest parked = engine.quest("parked_daily");
+            assertNotNull(parked);
+
+            assertEquals(0.0, resolve(ProgressionFactors.QUEST_COMPLETIONS, "parked_daily"),
+                    "nothing has been run yet");
+
+            engine.accept(PLAYER, parked);
+            engine.dispatch(PLAYER, "BREAK_BLOCK", "Oak_Log", null, 1);
+
+            assertEquals(QuestStatus.COMPLETED_UNCLAIMED, engine.status(PLAYER, parked));
+            assertEquals(0.0, resolve(ProgressionFactors.QUEST_COMPLETIONS, "parked_daily"),
+                    "the objectives are done, but the reward is still sitting there");
+
+            assertTrue(engine.claim(PLAYER, parked));
+
+            assertEquals(1.0, resolve(ProgressionFactors.QUEST_COMPLETIONS, "parked_daily"),
+                    "collecting is what makes it a run they have done");
+        }
+
+        @Test
+        void aRunThatPaysItselfOutIsCountedAtOnce() {
+            QuestEngine engine = ProgressionRuntime.quests();
+            Quest instant = engine.quest("instant_daily");
+            assertNotNull(instant);
+
+            engine.accept(PLAYER, instant);
+            engine.dispatch(PLAYER, "BREAK_BLOCK", "Oak_Log", null, 1);
+
+            assertEquals(QuestStatus.COMPLETED, quests.status(PLAYER, "instant_daily"),
+                    "the STORED status: what the surfaces show is the cooldown on top of it");
+            assertEquals(1.0, resolve(ProgressionFactors.QUEST_COMPLETIONS, "instant_daily"),
+                    "finishing and collecting are one moment here, so it counts once");
+        }
+
+        /**
+         * A value saved before the collected tally existed cannot say that its last run was still
+         * PARKED, so it reads as collected and is one ahead of the truth for that one run. What must
+         * not follow is the count running PAST the number of runs when the player finally collects:
+         * the record clamps collected to finished, so the collection is absorbed.
+         */
+        @Test
+        void aParkedRunSavedBeforeTheCollectedTallyIsStillOnlyCountedOnce() {
+            QuestEngine engine = ProgressionRuntime.quests();
+            Quest parked = engine.quest("parked_daily");
+            assertNotNull(parked);
+
+            quests.setStatus(PLAYER, "parked_daily", QuestStatus.COMPLETED_UNCLAIMED);
+            quests.setCompletions(PLAYER, "parked_daily",
+                    QuestProgressStore.CompletionRecord.withoutCollectedTally(1L, 1, 1));
+
+            assertEquals(1.0, resolve(ProgressionFactors.QUEST_COMPLETIONS, "parked_daily"),
+                    "the older value cannot tell a parked run from a collected one");
+
+            assertTrue(engine.claim(PLAYER, parked));
+
+            QuestProgressStore.CompletionRecord after = quests.completions(PLAYER, "parked_daily");
+            assertEquals(1, after.totalCount());
+            assertEquals(1, after.claimedCount(),
+                    "collecting a run the older value had already credited counts it once, never twice");
+            assertEquals(1.0, resolve(ProgressionFactors.QUEST_COMPLETIONS, "parked_daily"));
         }
     }
 

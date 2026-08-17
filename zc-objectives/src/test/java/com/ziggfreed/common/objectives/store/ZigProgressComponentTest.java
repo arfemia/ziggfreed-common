@@ -129,16 +129,16 @@ class ZigProgressComponentTest {
         ZigProgressComponent original = new ZigProgressComponent();
         original.setQuestStatus("q_first", QuestStatus.ACTIVE);
         original.putAchievementProgress("a_first#0", 3L);
-        original.setQuestCompletions("q_first", new CompletionRecord(5L, 1, 2));
+        original.setQuestCompletions("q_first", CompletionRecord.withoutCollectedTally(5L, 1, 2));
 
         ZigProgressComponent copy = original.clone();
         copy.setQuestStatus("q_first", QuestStatus.COMPLETED);
         copy.putAchievementProgress("a_first#0", 9L);
-        copy.setQuestCompletions("q_first", new CompletionRecord(9L, 3, 4));
+        copy.setQuestCompletions("q_first", CompletionRecord.withoutCollectedTally(9L, 3, 4));
 
         assertEquals(QuestStatus.ACTIVE, original.questStatus("q_first"));
         assertEquals(3L, original.achievementProgress("a_first#0"));
-        assertEquals(new CompletionRecord(5L, 1, 2), original.questCompletions("q_first"));
+        assertEquals(CompletionRecord.withoutCollectedTally(5L, 1, 2), original.questCompletions("q_first"));
     }
 
     @Test
@@ -148,7 +148,7 @@ class ZigProgressComponentTest {
         component.putQuestPayload("q_daily", "packed");
         component.setQuestCooldown("q_daily", 1234L);
         component.setTrackedPin("q_daily", 7L);
-        component.setQuestCompletions("q_daily", new CompletionRecord(1234L, 1, 4));
+        component.setQuestCompletions("q_daily", CompletionRecord.withoutCollectedTally(1234L, 1, 4));
 
         component.clearQuest("q_daily");
 
@@ -156,26 +156,63 @@ class ZigProgressComponentTest {
         assertNull(component.questPayload("q_daily"));
         assertEquals(0L, component.questCooldown("q_daily"));
         assertTrue(component.trackedPins().isEmpty());
-        assertEquals(new CompletionRecord(1234L, 1, 4), component.questCompletions("q_daily"),
+        assertEquals(CompletionRecord.withoutCollectedTally(1234L, 1, 4), component.questCompletions("q_daily"),
                 "a lifetime cap that a re-arm wiped would be a cap nobody could ever reach");
         assertTrue(component.knownQuestIds().contains("q_daily"),
                 "a quest whose only remaining trace is its tally is still one maintenance can see");
     }
 
     @Test
-    void aCompletionRecordRoundTripsAsAThreeNumberTriple() {
+    void aCompletionRecordRoundTripsAsAFourNumberValue() {
         Map<String, CompletionRecord> records = Map.of(
-                "q_daily", new CompletionRecord(1_700_000_000_000L, 2, 9),
-                "q_weekly", new CompletionRecord(5L, 0, 1));
+                "q_daily", new CompletionRecord(1_700_000_000_000L, 2, 9, 8),
+                "q_weekly", new CompletionRecord(5L, 0, 1, 0));
 
         Map<String, String> packed = ZigProgressComponent.encodeCompletions(records);
-        assertEquals("1700000000000,2,9", packed.get("q_daily"));
+        assertEquals("1700000000000,2,9,8", packed.get("q_daily"),
+                "finished and collected are both on the wire, in that order");
 
         Map<String, CompletionRecord> back = ZigProgressComponent.decodeCompletions(
                 String.join("|", packed.get("q_daily").isEmpty() ? "" : "q_daily=" + packed.get("q_daily"),
                         "q_weekly=" + packed.get("q_weekly")));
         assertEquals(records.get("q_daily"), back.get("q_daily"));
+        assertEquals(8, back.get("q_daily").claimedCount());
         assertEquals(records.get("q_weekly"), back.get("q_weekly"));
+        assertEquals(0, back.get("q_weekly").claimedCount(),
+                "a run finished and never collected keeps its uncollected tally through a save");
+    }
+
+    /**
+     * The compatibility half: a value written before the collected tally existed carries three
+     * fields, and every finish it recorded was paid out under the rule it was written under. Reading
+     * it as nothing collected would take a completed prerequisite away from a player who had earned
+     * it, so it reads as collected equal to finished.
+     */
+    @Test
+    void aValueSavedBeforeTheCollectedTallyReadsEveryFinishAsCollected() {
+        Map<String, CompletionRecord> back =
+                ZigProgressComponent.decodeCompletions("q_daily=1700000000000,2,9");
+
+        CompletionRecord legacy = back.get("q_daily");
+        assertNotNull(legacy);
+        assertEquals(9, legacy.totalCount());
+        assertEquals(9, legacy.claimedCount());
+        assertEquals(new CompletionRecord(1_700_000_000_000L, 2, 9, 9), legacy);
+    }
+
+    /**
+     * The fourth field arrives off a save file, so it is the one number here that nothing upstream
+     * vouches for. More collected than finished is not a history a player can have, and the record's
+     * own constructor is what refuses it - the decoder deliberately does not check, so this pins that
+     * the refusal survives the trip through it.
+     */
+    @Test
+    void aCollectedTallyLargerThanTheFinishedOneIsClampedOnTheWayIn() {
+        Map<String, CompletionRecord> back = ZigProgressComponent.decodeCompletions("q_over=5,1,3,9");
+
+        assertEquals(3, back.get("q_over").claimedCount(),
+                "nobody collected more runs than they finished, whatever the value said");
+        assertEquals(3, back.get("q_over").totalCount());
     }
 
     @Test
@@ -187,19 +224,21 @@ class ZigProgressComponentTest {
     }
 
     @Test
-    void aMalformedTripleCostsThatEntryAndNoOther() {
-        Map<String, CompletionRecord> back =
-                ZigProgressComponent.decodeCompletions("q_bad=7,x,2|q_short=1,2|q_good=5,1,3");
+    void aMalformedValueCostsThatEntryAndNoOther() {
+        Map<String, CompletionRecord> back = ZigProgressComponent.decodeCompletions(
+                "q_bad=7,x,2|q_short=1,2|q_long=1,2,3,4,5|q_good=5,1,3");
 
         assertNull(back.get("q_bad"));
         assertNull(back.get("q_short"));
-        assertEquals(new CompletionRecord(5L, 1, 3), back.get("q_good"));
+        assertNull(back.get("q_long"),
+                "three fields and four are the two widths there are; anything longer is unreadable");
+        assertEquals(CompletionRecord.withoutCollectedTally(5L, 1, 3), back.get("q_good"));
     }
 
     @Test
     void wipingACompletionRecordIsAnExplicitAct() {
         ZigProgressComponent component = new ZigProgressComponent();
-        component.setQuestCompletions("q_daily", new CompletionRecord(1234L, 1, 4));
+        component.setQuestCompletions("q_daily", CompletionRecord.withoutCollectedTally(1234L, 1, 4));
 
         component.setQuestCompletions("q_daily", CompletionRecord.NONE);
 

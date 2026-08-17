@@ -679,7 +679,9 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                             + "means Monday. It does nothing on a Daily window.").add()
                     .appendInherited(new KeyedCodec<>("Times", Codec.INTEGER, false),
                             (o, v) -> o.times = v, o -> o.times, (o, p) -> o.times = p.times)
-                    .documentation("How many completions fit inside one window. Unauthored means 1.").add()
+                    .documentation("How many FINISHES fit inside one window. Unauthored means 1. A run "
+                            + "whose reward is still waiting to be collected has already spent its slot "
+                            + "here.").add()
                     .build();
 
             public Reset() {

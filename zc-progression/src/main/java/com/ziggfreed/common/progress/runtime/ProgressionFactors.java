@@ -38,9 +38,13 @@ import com.ziggfreed.common.subject.Subject;
  *   <caption>The progression factor ids</caption>
  *   <tr><th>Id</th><th>Param</th><th>Value</th></tr>
  *   <tr><td>{@code ziggfreedcommon:quest_completed}</td><td>a quest id</td>
- *       <td>1 when the player has EVER finished AND collected it, else 0</td></tr>
+ *       <td>1 when the quest's stored status is {@code COMPLETED} right now - finished AND collected
+ *       - else 0. A CURRENT reading, so a parked reward reads 0, and so does a repeatable a re-arm
+ *       has sent round again</td></tr>
  *   <tr><td>{@code ziggfreedcommon:quest_completions}</td><td>a quest id</td>
- *       <td>how many times they have finished it, ever</td></tr>
+ *       <td>how many times they have finished it AND collected what it paid, ever - the durable
+ *       tally beside that flag, and a REPEATABLE reading, since only a repeatable keeps a completion
+ *       record and a one-shot stays 0</td></tr>
  *   <tr><td>{@code ziggfreedcommon:achievement_earned}</td><td>an achievement id</td>
  *       <td>1 when earned (collected or not), else 0</td></tr>
  *   <tr><td>{@code ziggfreedcommon:achievement_points}</td><td>ignored</td>
@@ -82,7 +86,14 @@ public final class ProgressionFactors {
      */
     public static final String QUEST_COMPLETED = "ziggfreedcommon:quest_completed";
 
-    /** {@code ziggfreedcommon:quest_completions} - lifetime completions of the quest named by Param. */
+    /**
+     * {@code ziggfreedcommon:quest_completions} - lifetime COLLECTED completions of the quest named
+     * by Param. A parked reward has not been completed yet, the same rule {@link #QUEST_COMPLETED}
+     * reads.
+     *
+     * <p>Only a REPEATABLE keeps a completion record, so a one-shot reads 0 here however many times
+     * it was finished and collected; {@link #QUEST_COMPLETED} is what a one-shot is gated on.
+     */
     public static final String QUEST_COMPLETIONS = "ziggfreedcommon:quest_completions";
 
     /** {@code ziggfreedcommon:achievement_earned} - 1 when the achievement named by Param is earned. */
@@ -163,8 +174,10 @@ public final class ProgressionFactors {
         boolean questFinished(@Nonnull Subject subject, @Nonnull String questId);
 
         /**
-         * How many times this subject has finished it, ever, or null when the store cannot remember
-         * completions at all (which is a different thing from never having finished it).
+         * How many times this subject has finished it AND collected what it paid, ever, or null when
+         * the store cannot remember completions at all (which is a different thing from never having
+         * finished it). A quest whose objectives are done but whose reward is still waiting to be
+         * taken has not been completed yet by this count, exactly as {@link #questFinished} reads it.
          */
         @Nullable
         Integer questCompletions(@Nonnull Subject subject, @Nonnull String questId);
@@ -210,7 +223,7 @@ public final class ProgressionFactors {
                 if (!store.recordsCompletions()) {
                     return null;
                 }
-                return Integer.valueOf(store.completions(subject, questId).totalCount());
+                return Integer.valueOf(store.completions(subject, questId).claimedCount());
             }
 
             @Override
@@ -305,8 +318,17 @@ public final class ProgressionFactors {
     }
 
     /**
-     * How many times this player has finished the quest named by {@code Param}, ever - the reading a
+     * How many times this player has COLLECTED the quest named by {@code Param}, ever - the reading a
      * repeatable is gated on ("come back when you have run this board ten times").
+     *
+     * <p>It counts claims rather than finishes, so a run whose objectives are done but whose reward
+     * is still parked has not been done yet under this reading either - which is what stops it
+     * disagreeing with {@link #questCompleted(Subjects, Reads)} about a parked reward. The agreement
+     * is about that window and nothing more. A ONE-SHOT keeps no completion record at all, so it
+     * reads 0 here however many times the flag reads 1; and a repeatable that has come back around
+     * reads 0 on the flag, whose status was re-armed, while this count keeps every run it ever paid
+     * out. Two different questions, deliberately: has it been done RIGHT NOW, and how many times
+     * ever.
      *
      * <p>Null when the runtime's store cannot remember completions at all: a store with no record to
      * keep would report every player as zero, and a "fewer than N" bound would then pass for

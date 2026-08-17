@@ -98,6 +98,23 @@ to know which spelling they picked. `QuestLifecycle.isFinished` (`COMPLETED || C
 answers a different question - "are the objectives behind them" - and is deliberately not what a
 prerequisite consults.
 
+The COUNT reads the same way about a PARKED reward. `ziggfreedcommon:quest_completions` answers how
+many times the reward was COLLECTED, so an author writing "come back once you have run this three
+times" no longer opens on the third finish, ahead of the third payout. The repeat rules underneath
+(`MaxCompletions`, a calendar `Reset` allowance) keep counting FINISHES. No PLAYER can make those two
+readings disagree: a parked quest is not offered and `canAccept` refuses it until it has been
+collected. A deliberate force can - an accept that skips the check on purpose (a scripted start, an
+administrator) or a re-arm that clears the parked status - and counting the FINISH is why that is the
+safe half: the run happened and spent its slot, so a reward nobody came back for cannot buy a second
+one.
+
+What the count and the flag are NOT is interchangeable, and an author writing "run this three times"
+content needs the difference. The flag is a CURRENT status and the count is a LIFETIME tally, so a
+repeatable that has come off its cooldown reads 0 on `quest_completed` (its status was re-armed)
+while `quest_completions` still reads every run it paid out - that divergence is the accepted
+limitation, not a defect. And a ONE-SHOT keeps no completion record at all, so it reads 0 on the
+count however many times the flag reads 1: gate a one-shot on the flag.
+
 The two routes ARE separate pieces of code, so their agreement is pinned by a test rather than
 assumed (`ProgressionFactorsTest`). The permission pair needs no such pin for correctness and carries
 one anyway (`QuestGateTest`), because the day somebody re-grows a second answer here is the day it

@@ -127,6 +127,30 @@ a server running two content mods work.
 - **`clearQuest` re-arms; it does NOT wipe the completion record.** Abandon and the off-cooldown
   reset both go through it, and a lifetime cap either of them wiped would be a cap nobody could ever
   reach. `setCompletions(..., CompletionRecord.NONE)` is the deliberate wipe.
+- **A `CompletionRecord` carries TWO tallies, finished and collected, and exactly two private
+  methods on `QuestEngine` write them.** `recordCompletion` writes a FINISH, and raises the collected
+  tally alongside it when the finish paid out in the same instant; `recordClaim` writes a COLLECTION
+  onto a finish already recorded, and touches nothing else. Two public doors reach them and there are
+  no others: `markUnclaimed` parks a finish uncollected, and `markCompleted` either records a
+  straight-through finish-and-collect or, when the quest was already parked, the collection of it.
+  That second door is the only place a collection is ever counted, which holds because every route to
+  `COMPLETED` (the auto-claim path, the collect of a parked one, an administrator's close-out) pays
+  the quest out immediately afterwards. `repeatCheck` reads the FINISH tallies while
+  `ProgressionFactors`'
+  completion COUNT reads the collected one, so a parked reward is not a run already done under either
+  reading. No PLAYER can make those two disagree at a repeat decision: a parked quest is not offered
+  and `canAccept` refuses it. A deliberate force can - an `accept` that skips the eligibility check on
+  purpose (a scripted start, an administrator) or a re-arm that clears the parked status - and the
+  FINISH is the safe half to cap on, because the run happened and spent its slot whether or not
+  anybody came back for the reward. That is the whole of the agreement: the count is a LIFETIME
+  tally and the flag is a CURRENT status, so a repeatable that has come back around reads 0 on the
+  flag and N on the count, and a ONE-SHOT (no `Repeat` group, so no record is ever written) reads 0
+  on the count whatever the flag says. A store decoding a record with no collected tally reads it as
+  collected equal to finished, through the named `CompletionRecord.withoutCollectedTally` factory:
+  those finishes were paid out under the rule the save was written under, and the factory is the only
+  way to make that claim so a writer cannot make it by accident. Collected is CLAMPED to finished by
+  the record itself, so such a value cannot be talked into counting its parked run twice when
+  somebody finally collects it.
 - **`QuestEngine#clearQuest` is the ONE way a quest is re-armed, and `store().clearQuest` is not a
   shortcut to it.** The engine's own form does the store's clear AND reports it through
   `QuestResets`, which is what a layer holding state declared to live only as long as that quest is

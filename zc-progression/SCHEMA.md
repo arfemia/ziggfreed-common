@@ -108,7 +108,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Period` | `string` | `null` | Daily or Weekly. Unauthored means Daily. |
 | `AtMinutes` | `integer` | `null` | How many minutes past the boundary the window rolls over, on the server clock in UTC. Unauthored means midnight UTC; 240 moves it to 04:00, which is how a server whose players are all in one part of the world stops a daily flipping over in the middle of their evening. |
 | `Weekday` | `string` | `null` | Which day a Weekly window starts on (Monday, Tuesday, ...). Unauthored means Monday. It does nothing on a Daily window. |
-| `Times` | `integer` | `null` | How many completions fit inside one window. Unauthored means 1. |
+| `Times` | `integer` | `null` | How many FINISHES fit inside one window. Unauthored means 1. A run whose reward is still waiting to be collected has already spent its slot here. |
 
 <a id="type-questobjective"></a>
 ## QuestObjective

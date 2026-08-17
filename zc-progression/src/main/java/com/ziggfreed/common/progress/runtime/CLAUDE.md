@@ -75,7 +75,9 @@ resolve the same ids without a single registration between them, and a consumer 
 its own engine answered instead uses `registerInto` on its own registry, which always outranks a
 contribution.
 
-Two rules hold them honest, both pinned by `ProgressionFactorsTest`:
+Three rules hold them honest, pinned by `ProgressionFactorsTest` - with the finish-counting half of
+the third pinned by `RepeatEvaluatorTest`, which is where the repeat rules are actually driven, and
+the clamp underneath it by `CompletionRecordTest`:
 
 - **The reads are NARROW** (`Reads`: six questions, every one an answer about a player). A factor
   read may never reach a mutating engine - the same discipline `QuestStateReader` keeps for a
@@ -86,6 +88,19 @@ Two rules hold them honest, both pinned by `ProgressionFactorsTest`:
   reward has been collected - which is the same rule the `Requires` block's `Quests` prerequisite is
   answered by, so the two spellings cannot disagree. A quest waiting in `COMPLETED_UNCLAIMED`
   satisfies neither.
+- **The COUNT means the same thing the flag does.** `quest_completions` reads the completion
+  record's CLAIMED tally, so a run whose objectives are done and whose reward is still parked has not
+  been done yet by either reading. The repeat rules (`MaxCompletions`, a calendar `Reset` allowance)
+  deliberately keep counting FINISHES, and no PLAYER can make the two tallies disagree at a repeat
+  decision: a parked quest is not offered and `canAccept` refuses it. A deliberate force can - an
+  accept that skips the check on purpose (a scripted start, an administrator) or a re-arm that clears
+  the parked status - and the finish is the safe half to count, because a run somebody walked away
+  from without collecting still spent its slot. A record saved before the claimed tally existed
+  reads back with claimed equal to finished, because those finishes were paid out under the rule
+  they were written under, and the record clamps collected to finished so such a value cannot count
+  its parked run twice. The agreement is about a PARKED reward and nothing wider: the flag is a
+  current status and the count a lifetime tally, so a re-armed repeatable reads 0 and N, and a
+  one-shot keeps no record at all and reads 0 on the count whatever the flag says.
 
 ## Where the defaults live
 

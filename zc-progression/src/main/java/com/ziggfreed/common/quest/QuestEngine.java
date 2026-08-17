@@ -1029,13 +1029,27 @@ public final class QuestEngine implements QuestStateReader {
 
     /**
      * The ONE "this quest is finished" rule: set the terminal status, record the completion unless
-     * it was already recorded when the quest parked, and start a {@code CLAIM}-anchored cooldown.
+     * it was already recorded when the quest parked, count the CLAIM, and start a
+     * {@code CLAIM}-anchored cooldown.
      *
      * <p>Reading the PRIOR status is what tells the two apart with no bookkeeping flag anywhere. A
      * prior {@link QuestStatus#COMPLETED_UNCLAIMED} means this call is the collect of an
      * already-parked quest, so the completion is on the record already and the clock, if it is
      * anchored to {@code COMPLETE}, was started back then. Anything else - the auto-claim path, an
      * administrator, a scripted skip - is the moment the quest finished.
+     *
+     * <p><b>Every route to {@link QuestStatus#COMPLETED} pays the quest out</b> (the auto-claim
+     * path, the collect of a parked one, and the administrator's close-out all grant immediately
+     * after calling this), so this method is the one instant a CLAIM happens and the only place
+     * {@link QuestProgressStore.CompletionRecord#claimedCount()} is raised. A caller reaching this
+     * from OUTSIDE the engine takes on the same obligation: it records a payout, so a surface that
+     * owes the player a reward must hand it over, and one that does not owe them anything has no
+     * business calling it.
+     *
+     * <p><b>A one-shot keeps no completion record at all.</b> The record exists for the rules a
+     * {@link Quest.Repeat} group carries, so a quest with no repeat group returns here before either
+     * tally moves, and the completion COUNT reads zero for it however many times it was finished.
+     * The terminal STATUS is what a one-shot is asked about instead.
      */
     public void markCompleted(@Nonnull Subject subject, @Nonnull Quest quest) {
         QuestStatus prior = store.status(subject, quest.id());
@@ -1046,8 +1060,10 @@ public final class QuestEngine implements QuestStateReader {
             return;
         }
         long nowMs = now();
-        if (!alreadyParked) {
-            recordCompletion(subject, quest, repeat, nowMs);
+        if (alreadyParked) {
+            recordClaim(subject, quest);
+        } else {
+            recordCompletion(subject, quest, repeat, nowMs, true);
         }
         if (repeat.cooldownFrom() == Quest.Repeat.CooldownFrom.CLAIM) {
             store.setCooldownStamp(subject, quest.id(), nowMs);
@@ -1075,20 +1091,23 @@ public final class QuestEngine implements QuestStateReader {
             return;
         }
         long nowMs = now();
-        recordCompletion(subject, quest, repeat, nowMs);
+        recordCompletion(subject, quest, repeat, nowMs, false);
         if (repeat.cooldownFrom() == Quest.Repeat.CooldownFrom.COMPLETE) {
             store.setCooldownStamp(subject, quest.id(), nowMs);
         }
     }
 
     /**
-     * The ONE writer of a {@link QuestProgressStore.CompletionRecord}, so the window roll-over rule
-     * lives in exactly one place: a completion inside the same window as the last one adds to that
-     * window's tally, and a completion in a new window starts the tally at one. The lifetime tally
-     * saturates rather than wrapping negative.
+     * The writer of a FINISH, so the window roll-over rule lives in exactly one place: a completion
+     * inside the same window as the last one adds to that window's tally, and a completion in a new
+     * window starts the tally at one. Both LIFETIME tallies saturate rather than wrapping negative.
+     *
+     * <p>{@code claimedNow} says whether the reward went with it. A quest that pays out the instant
+     * its objectives are met finishes and is collected in one moment; one that parks finishes here
+     * and is collected later, through {@link #recordClaim}, which is the only other writer.
      */
     private void recordCompletion(@Nonnull Subject subject, @Nonnull Quest quest,
-                                  @Nonnull Quest.Repeat repeat, long nowMs) {
+                                  @Nonnull Quest.Repeat repeat, long nowMs, boolean claimedNow) {
         QuestProgressStore.CompletionRecord prior = store.completions(subject, quest.id());
         Quest.Repeat.Reset reset = repeat.reset();
         int periodCount = 1;
@@ -1097,10 +1116,42 @@ public final class QuestEngine implements QuestStateReader {
         } else if (reset == null) {
             periodCount = 0;
         }
-        int total = prior.totalCount() == Integer.MAX_VALUE
-                ? Integer.MAX_VALUE : prior.totalCount() + 1;
+        int total = raised(prior.totalCount());
+        int claimed = claimedNow ? raised(prior.claimedCount()) : prior.claimedCount();
         store.setCompletions(subject, quest.id(),
-                new QuestProgressStore.CompletionRecord(nowMs, periodCount, total));
+                new QuestProgressStore.CompletionRecord(nowMs, periodCount, total, claimed));
+    }
+
+    /**
+     * The writer of a CLAIM on a finish that was already recorded: the player has come back for a
+     * parked reward, so only the collected tally moves and the instant the objectives were met stays
+     * exactly as it was.
+     *
+     * <p>It never has to look at the finish tally: the record clamps a collected count to it, so a
+     * value that could not remember which of its finishes were still parked absorbs this collection
+     * rather than counting it a second time.
+     *
+     * <p>The same clamp means an EMPTY prior record absorbs the collection entirely, since a
+     * collected count cannot rise above a finish count of zero. <b>That is what an UPGRADE looks
+     * like</b>, and it is the ordinary case rather than an exotic one: no released build ever wrote
+     * a completion record, so a player arriving from one has none for any quest, and a reward they
+     * parked before the upgrade pays out afterwards while this tally stays at zero. That is the
+     * wanted answer - the run predates the tally entirely, so it neither counts nor over-counts, and
+     * the count simply starts from their first finish after the upgrade. The same absorption covers
+     * the one in-play route to it, a quest parked while it carried no {@link Quest.Repeat} group and
+     * then given one before the player came back: recording the collection alone would claim a
+     * payout for a run this record has no memory of.
+     */
+    private void recordClaim(@Nonnull Subject subject, @Nonnull Quest quest) {
+        QuestProgressStore.CompletionRecord prior = store.completions(subject, quest.id());
+        store.setCompletions(subject, quest.id(), new QuestProgressStore.CompletionRecord(
+                prior.lastCompletionMs(), prior.periodCount(), prior.totalCount(),
+                raised(prior.claimedCount())));
+    }
+
+    /** One more, unless the tally has already run out of room. */
+    private static int raised(int tally) {
+        return tally == Integer.MAX_VALUE ? Integer.MAX_VALUE : tally + 1;
     }
 
     /**

@@ -197,7 +197,8 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
   four `ziggfreedcommon:` ids answering for THE shared progression runtime: `quest_completed`
   (Param = a quest id, 1 when the quest has been finished AND its reward collected - stored status
   `COMPLETED`; a quest waiting in `COMPLETED_UNCLAIMED` reads 0), `quest_completions` (Param = a
-  quest id, the lifetime count a repeatable is gated on), `achievement_earned` (Param = an
+  quest id, the lifetime count a repeatable is gated on - CLAIMS, the same rule, so a parked run
+  counts only once its reward is collected), `achievement_earned` (Param = an
   achievement id, 1 when earned, collected or not) and `achievement_points` (Param ignored, the
   earned points total a milestone gate is written against). The quest reading and the achievement
   reading differ on collection DELIBERATELY: a quest prerequisite is the thing a player is sent to

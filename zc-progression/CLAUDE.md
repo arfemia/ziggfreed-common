@@ -76,9 +76,12 @@ asserted directly in the engine test.
 
 ## Tests
 
-28 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
+33 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
 `ObjectiveProgressStateTest`, `ContentMetaTest`), the quest engine (`QuestEngineFlowTest`,
-`QuestEngineTurnInTest`, `QuestLifecycleTest`, `QuestGateTest`, `QuestGeneratorTest`,
+`QuestEngineTurnInTest`, `QuestLifecycleTest`, `RepeatEvaluatorTest` (the ONE repeat evaluator, and
+where the "the repeat rules count FINISHES, not collections" half of the completion record is
+pinned), `CompletionRecordTest` (the record's own invariants, the collected-clamp above all),
+`QuestGateTest`, `QuestGeneratorTest`,
 `QuestAssetCodecTest`, `QuestPoolValidatorTest`, `QuestStateReaderTest`, `QuestNestedIdTest`,
 `QuestModuleAgnosticismTest`, `AssetQuestGatesFailOpenTest`), the achievement engine
 (`AchievementEngineTest`, `AchievementAssetCodecTest`, `AchievementPoolValidatorTest`,

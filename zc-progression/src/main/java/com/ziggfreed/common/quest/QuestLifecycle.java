@@ -82,6 +82,16 @@ public final class QuestLifecycle {
      * <p>A one-shot ({@code repeat == null}) and an EMPTY group both answer
      * {@link RepeatCheck#AVAILABLE}: the first is never asked (only a repeatable is re-offered at
      * all), and the second is the externally governed quest, which holds nothing back on purpose.
+     *
+     * <p><b>Both tallies here count FINISHES, not collections</b>
+     * ({@link CompletionRecord#totalCount()} and {@link CompletionRecord#periodCount()}). A PLAYER
+     * choosing a quest can never make the two readings disagree: a finished quest waiting to be
+     * collected sits in {@link QuestStatus#COMPLETED_UNCLAIMED}, which no offer lists and which
+     * {@code QuestEngine.canAccept} refuses. What CAN reach past that is a deliberate force - an
+     * accept that skips the eligibility check on purpose (a scripted start, an administrator), or a
+     * re-arm that clears the parked status - and counting the FINISH is exactly why that is the safe
+     * half: the run happened and spent its slot, so a reward nobody came back for cannot buy a
+     * second one.
      */
     @Nonnull
     public static RepeatCheck repeatCheck(@Nullable Repeat repeat, long cooldownStampMs,

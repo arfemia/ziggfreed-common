@@ -97,8 +97,13 @@ single class can implement both.
   line. The single create path is `PlayerConnectEvent`, the one lifecycle hook carrying a `Holder`.
 - **A new leaf is APPENDED, never inserted.** A blob saved before `QuestCompletions` existed simply
   has no value for it and decodes to an empty map, which reads as "this player has finished nothing"
-  everywhere. One completion record travels as `last,period,total`; a comma collides with neither
-  reserved character, so nothing about the wire contract or the inherited id hygiene moved.
+  everywhere. One completion record travels as `last,period,total,claimed`; a comma collides with
+  neither reserved character, so nothing about the wire contract or the inherited id hygiene moved.
+  A value with only THREE fields was saved before the collected tally existed and reads back with
+  claimed equal to total, because those finishes were paid out under the rule they were written
+  under - through the named `CompletionRecord.withoutCollectedTally` factory, which is the only way
+  to say that and exists so no writer can say it by accident. Any other field count is unreadable
+  and costs that entry alone.
 - **`clearQuest` re-arms and KEEPS the completion record.** Abandon and the off-cooldown reset both
   go through it, and a lifetime cap either of them wiped could never be reached. The wipe is an
   explicit `setQuestCompletions(id, CompletionRecord.NONE)`.
