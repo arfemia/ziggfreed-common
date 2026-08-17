@@ -4,6 +4,51 @@ Router for `inventory/`. The mod-root `CLAUDE.md` PARADIGM applies: this is a ge
 mod-agnostic Hytale primitive (any minigame granting/spending a custom resource item
 needs it), so it lives here, not duplicated in a consumer.
 
+- **[`PlayerAccess`](PlayerAccess.java)** (unguarded-accessor convergence) - the ONE SHARED
+  non-deprecated replacement for the five `Inventory#getStorage`/`getHotbar`/`getActiveHotbarItem`/
+  `getCombinedBackpackStorageHotbar` and `Player#getPlayerRef` accessors, all
+  `@Deprecated(forRemoval = true)`: `storage`/`hotbar`/`activeHotbarItem`/
+  `combinedBackpackStorageHotbar`/`playerRef`, each a `(ComponentAccessor<EntityStore>,
+  Ref<EntityStore>)` two-argument form plus a `Player` convenience overload. Converged out of
+  two independently-drifted mod-local copies (the MMO's `util/InventoryAccessUtil`, RpgStations'
+  `util/InventoryAccess`), both deleted; every `Player` overload resolves its own ref through the
+  shared package-private `usable(Ref)` guard checking BOTH `null` and `!isValid()`.
+  `activeHotbarItem` reads
+  `Hotbar#getActiveItem()` directly with no extra emptiness re-check (an empty native slot is
+  already real Java `null`, never an `EMPTY` sentinel); `combinedBackpackStorageHotbar`'s `Player`
+  overload is `@Nullable` (closes a latent NPE ONE of the two old copies, the MMO's, carried on a
+  NULL ref -
+  `Entity#getReference()` is itself `@Nullable` and the old copy dereferenced it to reach the
+  store; a non-null but INVALID ref threw `IllegalStateException` from the engine's own ref
+  validation, which the same guard closes).
+  - **The two-argument forms are RAW reads**: world-thread only, and an invalid ref reaches
+    `Store#getComponent`, which THROWS rather than answering null. That is deliberate (a system
+    tick already holds a live ref), but it is the one behavioural difference from
+    `entity/HeldItemUtil.heldStack`, which pre-checks the ref and swallows a throw. Pass a
+    two-argument form a ref you know is live; a caller reading straight off a `Player` gets the
+    guard for free. `usable(Ref)` stays PACKAGE-PRIVATE until a real consumer asks for it - a
+    shared library gains no public surface with no caller.
+  - **"Shared", not "the only copy anywhere."** A caller already holding the section component
+    still reads it directly - `entity/HeldItemUtil` in this library, and a handful of MMO sites
+    (`util/CombatWeaponUtil`, `interaction/MmoDamageInteraction`, `command/ItemEnhanceCommand`,
+    `ability/GearAbilityModSource`). What this class guarantees is that the accessor SHAPE has one
+    home, so a deprecated engine accessor's replacement is never re-derived. `InventoryGrant`'s
+    own `hotbarOf`/`storageOf` fold onto it and keep only the unwrap to the section's container.
+  - Pure DRY convergence plus the module-graph constraint that forces it here (zc-core sits below
+    zc-entity, so it reads native components directly rather than delegating to `HeldItemUtil`) -
+    it is NOT a gameplay fix; see the `1-6-0-progression-dry-wave` plan's ruling 30 in the hyMMO
+    root if a "fixes unarmed XP" claim resurfaces, since that diagnosis did not verify under code
+    tracing.
+  - Test: **`PlayerAccessTest`** asserts `usable`'s own answers (null ref, ref pointing at no
+    entity) plus the declared API SHAPE every consumer compiles against: all five accessors carry
+    both forms, every `Player` overload is `@Nullable`, and the two-argument combined view stays
+    `@Nonnull` while its `Player` twin is `@Nullable`. The accessors cannot be CALLED from a unit
+    JVM - each resolves its `ComponentType` through `EntityModule.get()`, which needs a booted
+    server, and no `Player` can be fabricated without one - so reflection is used to read the
+    shape (it RESOLVES the engine parameter types without INITIALIZING them). NO test anywhere
+    executes an accessor BODY, so the held 1.6.0 in-game smoke pass is the first thing that ever
+    will: pick up an item, break a block, hand in a turn-in quest, and run a station Consume step
+    are the four moments that cover them, and they belong on that checklist by name.
 - **[`InventoryUtil`](InventoryUtil.java)** - static helpers keyed by item id, operating
   across ALL inventory sections at once via `InventoryComponent.getCombined(store, ref,
   InventoryComponent.EVERYTHING)`:

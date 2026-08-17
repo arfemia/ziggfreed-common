@@ -6,12 +6,10 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.CommonLog;
 
 /**
@@ -130,32 +128,18 @@ public final class InventoryGrant {
         return Landed.FALLBACK;
     }
 
+    // The section reads themselves go through PlayerAccess (same package), so the ref guard and
+    // the component fetch have one home; only the unwrap to the section's own container is here.
     @Nullable
     private static ItemContainer hotbarOf(@Nonnull Player player) {
-        Ref<EntityStore> ref = refOf(player);
-        if (ref == null) {
-            return null;
-        }
-        InventoryComponent.Hotbar hotbar = ref.getStore()
-                .getComponent(ref, InventoryComponent.Hotbar.getComponentType());
+        InventoryComponent.Hotbar hotbar = PlayerAccess.hotbar(player);
         return hotbar != null ? hotbar.getInventory() : null;
     }
 
     @Nullable
     private static ItemContainer storageOf(@Nonnull Player player) {
-        Ref<EntityStore> ref = refOf(player);
-        if (ref == null) {
-            return null;
-        }
-        InventoryComponent.Storage storage = ref.getStore()
-                .getComponent(ref, InventoryComponent.Storage.getComponentType());
+        InventoryComponent.Storage storage = PlayerAccess.storage(player);
         return storage != null ? storage.getInventory() : null;
-    }
-
-    @Nullable
-    private static Ref<EntityStore> refOf(@Nonnull Player player) {
-        Ref<EntityStore> ref = player.getReference();
-        return (ref != null && ref.isValid()) ? ref : null;
     }
 
     @Nonnull

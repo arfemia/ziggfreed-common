@@ -52,10 +52,13 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
   validator); it sits at the bottom so a consumer needs no zc-world edge to speak the grammar.
 - [`i18n/`](src/main/java/com/ziggfreed/common/i18n/CLAUDE.md) - `Msg`, the mod-agnostic
   client-resolved `Message` factory (caller-prefixed `tr`, `raw`, `join`, `cat`, `bold`/`color`).
-- [`inventory/`](src/main/java/com/ziggfreed/common/inventory/CLAUDE.md) - `InventoryUtil`
-  (give/count/take/spend across combined inventory sections) + `InventoryGrant` (hotbar-first
-  single-stack grant ordering). The inventory-snapshot half (`InventorySnapshot` and friends) has
-  one consumer only and is on notice per the root admission table.
+- [`inventory/`](src/main/java/com/ziggfreed/common/inventory/CLAUDE.md) - `PlayerAccess` (the
+  shared non-deprecated replacements for the engine's deprecated `Inventory` section accessors and
+  `Player#getPlayerRef`; here rather than in zc-entity so a consumer needing only the accessor
+  shape pulls in no puppet/performer stack) + `InventoryUtil` (give/count/take/spend across
+  combined inventory sections) + `InventoryGrant` (hotbar-first single-stack grant ordering, whose
+  own section unwraps fold onto `PlayerAccess`). The inventory-snapshot half (`InventorySnapshot`
+  and friends) has one consumer only and is on notice per the root admission table.
 - [`registry/`](src/main/java/com/ziggfreed/common/registry/CLAUDE.md) - `RegistryLedger`, the
   shared open-registry bookkeeping engine (normalized ids, owner attribution, warn-once overwrite).
 - `stats/` - `StackStats` only (a pure item-metadata value record: codecs, an `ItemStack`, nothing
