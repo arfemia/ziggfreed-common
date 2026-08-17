@@ -28,6 +28,8 @@ match). They are the wrong tool for a mod that wants the server's progression.
 | `ProgressionSystemGate` + `ProgressionSystem` | the owner's own "quests off on this server" / "achievements off until launch" switches, per player and per system (`QUEST` / `ACHIEVEMENT`). A CONTRIBUTION: every gate is asked, they AND, none registered means open, and one that THROWS is read as OPEN with one warn. The COMPOSED gate reaches three places: every produced moment (`ProgressDispatch.fire`, through `systemEnabled`), and BOTH engines through their `systemGate` builder knob (`ProgressionParts.SYSTEM_GATE`, read live), so `QuestEngine.canAccept` refuses a switched-off player with `QuestGates.REASON_SYSTEM_DISABLED` standing alone, `autoAcceptAvailable` accepts nothing for them, and `AchievementEngine.selfHeal` earns nothing for them - the maintenance pass re-reads live standing values and would otherwise hand out every met achievement at login |
 | `ProgressionCallScope` | what a consumer publishes around a mutating call, so a shared surface fires what its own menu would |
 | `ProgressionFeedbackHook` | "this lifecycle moment just happened to this subject, and here is what was in scope" - a free-string moment id plus a `Map<String,Object>` of named values, so a reaction reads the consumer's own handle off the `Subject` instead of finding the player again off a uuid. A CONTRIBUTION: every hook sees every moment, each guarded, order irrelevant, and a moment announced into a fan-out NOBODY filled says so once through the warn sink rather than vanishing. Seven moments today, six from inside the engines: `quest.objective_progressed`, `quest.completed`, `quest.parked`, `quest.claimed`, `achievement.unlocked`, `achievement.claimed`, plus `achievement.server_first_lost` from `FirstClaims`. `ProgressionRuntime.feedback()` hands out the live fan-out for a moment the engines do not own |
+| `MomentListener` + `Moment` + `MomentPayload` | "this just happened to this player" - a REACTION to a PRODUCED moment (a block broken, a mob killed, an item crafted / picked up / placed, or anything a fourth-party producer fires through `ProgressDispatch.fire`), carrying the tuple both engines get (kind, target, qualifier, amount, zone) PLUS what a reaction needs and an engine never does: the `Store` / `Ref` / producer `CommandBuffer` to write against, both subjects as resolved (either may be null), and the producer's own typed `MomentPayload` (an OPEN marker, never sealed; the records live beside the producers in zc-objectives). A CONTRIBUTION registered through `ProgressionRegistrar.momentListener`: every listener sees every moment, each guarded, order irrelevant, late registration fires (`ProgressionRuntime.momentListener()` is the live fan-out). **Fanned FIRST from `ProgressDispatch.fire`, before the subject test and both system gates, unconditionally** - a consumer's reaction is its own product, not a progression half, so a player with no quest subject and an owner with a system switched off still get it. **It is NOT the tap** (the tap says "an engine considered this", fires inside each engine after its subject and its gate, once per action) **and it is NOT a gate** (nothing a listener does can refuse a moment or stand a producer down) |
+| `KillAttribution` | "this non-player attacker acts for THAT player" - the seam a kill producer asks before it credits nobody for a kill a turret, a summon or a pet landed, so the moment fires for the owner. A CONTRIBUTION registered through `ProgressionRegistrar.killAttribution`: every one asked in registration order, first non-null answer wins, a throwing one skipped with a warn, nothing registered means a non-player attacker credits nobody (`ProgressionRuntime.killAttribution()` is the live composed answer). Answer only ever a PLAYER's ref; the producer checks |
 | `ProgressionTextSource` | how a surface with no catalogue NAMES a piece of content. Its `lore` DEFAULT is the shared `quest.<id>.md.<state>` convention, so the narrative rule is one rule rather than one per source |
 | `ProgressionGates` | THE `GateEvaluator` and the ONE `RequiresGates` over it, built on first ask and holding no registration - the vocabulary, the context and the requirement kinds are read live off the runtime, so a surface asking during another mod's setup and one asking in play are on the same instance |
 | `ProgressionFactors` | the four `ziggfreedcommon:` READINGS of this runtime, claimed process-wide so any content can gate on finished progression with no Java |
@@ -57,10 +59,12 @@ match). They are the wrong tool for a mod that wants the server's progression.
     batch, because they arrive in BULK and one commit apiece turns a login into a write per entry
     the player already had. Both engine routers (`quest/CLAUDE.md`, `achievement/CLAUDE.md`) carry
     the obligation, because that is where the code being added lives.
-- **contribution** (gates, system gates, taps, feedback hooks, text sources): every registration
+- **contribution** (gates, system gates, taps, moment listeners, kill attributions, feedback hooks,
+  text sources): every registration
   applies. Gates AND with `accepts` collecting EVERY reason (no short-circuit),
   `preSatisfiedAmount` folding as a MAX; system gates AND with every gate asked, so registration
-  order cannot decide the answer; taps and feedback hooks fan out, each individually guarded; text
+  order cannot decide the answer; taps, moment listeners and feedback hooks fan out, each
+  individually guarded; kill attributions and text
   sources answer in order, first non-null wins.
 
 The three shared VOCABULARIES are not registrar methods - `objectiveKinds()`, `rewardKinds()` and
@@ -72,6 +76,14 @@ conflict over, which is what a registry is for.
 - **A producer always fires.** There is no claim and no stand-down: a consumer never registers a
   competing producer for a native event zc-objectives already covers, and a mod firing a NET NEW
   moment calls `ProgressDispatch.fire` from its own event system with no registration at all.
+- **A consumer REACTS to a produced moment; it does not re-detect it.** What a consumer does when a
+  block breaks or a mob dies (its own currency, a lifetime counter, a bonus roll) is a
+  `MomentListener` registered here, never a second ECS system on the same native event beside the
+  library's producer: two authorities on one event re-resolve the target, the zone, the placed guard
+  and the owner twice and drift. The listener fires FIRST, before the subject test and both system
+  gates, so nothing about either progression system can cost a reaction; and it can refuse nothing.
+  A consumer that spawns things that fight for a player contributes a `KillAttribution` so the kill
+  producer credits the owner, rather than keeping a kill system of its own for that case.
 - **A surface asks the runtime for its subject.** Building one locally works on the server it was
   written against and silently drops every write on a server where another mod's store is active.
 - **An owner's system switch is a GATE, not a producer claim, and gates STACK.** "Quests are off on

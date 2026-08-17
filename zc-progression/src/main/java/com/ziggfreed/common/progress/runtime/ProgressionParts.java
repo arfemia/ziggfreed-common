@@ -61,6 +61,8 @@ import com.ziggfreed.common.util.SafeLog;
  * @param achievementGates          every registered achievement gate, composed
  * @param systemGate                every registered system gate, ANDed
  * @param tap                       every registered dispatch tap, fanned out
+ * @param momentListener            every registered moment listener, fanned out
+ * @param killAttribution           every registered kill attribution, first real answer wins
  * @param feedbackHook              every registered feedback hook, fanned out
  * @param textSources               every registered text source, in registration order
  */
@@ -80,6 +82,8 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                         @Nonnull AchievementGates achievementGates,
                         @Nonnull ProgressionSystemGate systemGate,
                         @Nonnull ProgressDispatchTap tap,
+                        @Nonnull MomentListener momentListener,
+                        @Nonnull KillAttribution killAttribution,
                         @Nonnull ProgressionFeedbackHook feedbackHook,
                         @Nonnull List<ProgressionTextSource> textSources) {
 
@@ -117,8 +121,8 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
             EMPTY_FACTOR_CONTEXT, EMPTY_FACTOR_CONTEXT, NO_SUBJECTS,
             ProgressionCallScope.DIRECT, ProgressionCallScope.DIRECT,
             null, DEFAULT_WARN, QuestGates.OPEN, AchievementGates.OPEN,
-            ProgressionSystemGate.OPEN, ProgressDispatchTap.NONE, ProgressionFeedbackHook.NONE,
-            List.of());
+            ProgressionSystemGate.OPEN, ProgressDispatchTap.NONE, MomentListener.NONE,
+            KillAttribution.NONE, ProgressionFeedbackHook.NONE, List.of());
 
     // ==================== the forwarders the engines are built over ====================
 
@@ -324,6 +328,17 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
 
     static final ProgressDispatchTap TAP = (subject, kind, target, qualifier, amount, zone) ->
             ProgressionRuntime.parts().tap().observe(subject, kind, target, qualifier, amount, zone);
+
+    /**
+     * The composed reaction fan-out, read LIVE, so a listener registered after the runtime was
+     * built still sees every produced moment.
+     */
+    static final MomentListener MOMENT_LISTENER = moment ->
+            ProgressionRuntime.parts().momentListener().react(moment);
+
+    /** The composed kill attribution, read LIVE. */
+    static final KillAttribution KILL_ATTRIBUTION = (store, attackerRef) ->
+            ProgressionRuntime.parts().killAttribution().actsFor(store, attackerRef);
 
     /**
      * The composed owner switch, read LIVE, so a system gate registered after the engines were built
@@ -619,6 +634,63 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                     warn.accept("a progress tap failed on '" + kind + "': " + t.getMessage());
                 }
             }
+        };
+    }
+
+    /**
+     * Every registered moment listener, fanned out, each call individually guarded: one mod's
+     * throwing reaction costs its own reaction and nobody else's, and never the dispatch that
+     * produced the moment.
+     *
+     * <p>Order is not a precedence. Every listener sees every moment, so nothing here can decide
+     * that a moment has already been "handled" - which is what lets a second mod award its own
+     * currency for a kill beside the one paying out its own.
+     */
+    @Nonnull
+    static MomentListener composeMomentListeners(@Nonnull List<MomentListener> listeners,
+                                                 @Nonnull Consumer<String> warn) {
+        if (listeners.isEmpty()) {
+            return MomentListener.NONE;
+        }
+        List<MomentListener> frozen = List.copyOf(listeners);
+        return moment -> {
+            for (MomentListener listener : frozen) {
+                try {
+                    listener.react(moment);
+                } catch (Throwable t) {
+                    warn.accept("a moment listener failed on '" + moment.kindId() + "': "
+                            + t.getMessage());
+                }
+            }
+        };
+    }
+
+    /**
+     * Every registered kill attribution, asked in registration order; the first non-null answer
+     * wins. A THROWING attribution is skipped with a warn and the next is asked, so one mod's broken
+     * resolver cannot cost another mod's turret its kills - and can never cost the plain
+     * player-landed kill anything, because the producer only asks here for an attacker that is not
+     * a player.
+     */
+    @Nonnull
+    static KillAttribution composeKillAttributions(@Nonnull List<KillAttribution> attributions,
+                                                   @Nonnull Consumer<String> warn) {
+        if (attributions.isEmpty()) {
+            return KillAttribution.NONE;
+        }
+        List<KillAttribution> frozen = List.copyOf(attributions);
+        return (store, attackerRef) -> {
+            for (KillAttribution attribution : frozen) {
+                try {
+                    Ref<EntityStore> actsFor = attribution.actsFor(store, attackerRef);
+                    if (actsFor != null) {
+                        return actsFor;
+                    }
+                } catch (Throwable t) {
+                    warn.accept("a kill attribution failed: " + t.getMessage());
+                }
+            }
+            return null;
         };
     }
 

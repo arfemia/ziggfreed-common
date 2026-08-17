@@ -27,7 +27,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * no output.
  *
  * <p><b>The engine fires ONE event per batch</b>, so the batch size IS the objective amount: a
- * ten-at-once craft has to finish a "craft ten" objective.
+ * ten-at-once craft has to finish a "craft ten" objective. The moment carries a
+ * {@link CraftPayload} naming the RECIPE beside the output-item target, for a consumer keying
+ * something per recipe (an XP table, a blacklist) rather than per thing made.
  *
  * <p><b>Known limitation.</b> The ECS subject of this event may be a workstation rather than the
  * player, and {@code CraftRecipeEvent.Post} carries no accessor naming the crafter (verified against
@@ -78,8 +80,18 @@ public final class ZigCraftProducer extends EntityEventSystem<EntityStore, Craft
         }
         Ref<EntityStore> playerEntityRef = playerRef.getReference();
         Ref<EntityStore> ref = playerEntityRef == null ? subjectRef : playerEntityRef;
-        ProgressDispatch.fire(store, ref, KIND, target, null,
-                Math.max(1, event.getQuantity()));
+        ProgressDispatch.fire(store, ref, commandBuffer, KIND, target, null,
+                craftBatchAmount(event.getQuantity()), new CraftPayload(event, recipeId));
+    }
+
+    /**
+     * The moment's amount for one craft event: every unit of the batch, and never less than one.
+     * The engine fires ONE event per batch action, so a ten-at-once craft has to finish a "craft
+     * ten" objective; and a quantity the engine reports as zero or negative is still one thing
+     * crafted, not nothing. Package-visible so the clamp is pinned with no store anywhere near it.
+     */
+    static long craftBatchAmount(int rawQuantity) {
+        return Math.max(1, rawQuantity);
     }
 
     /** The output item id an objective is authored against, falling back to the recipe's own id. */

@@ -36,8 +36,9 @@ import com.ziggfreed.common.subject.Subject;
  *   take a slot another consumer already holds is REFUSED and named: two mods each wanting their own
  *   quest store is unresolvable, and quietly picking one is the same double-tracking failure one
  *   level up.
- *   <li><b>Contribution</b> - gates, system gates, taps, text sources. Every registration applies;
- *   gates AND, taps fan out, text sources answer in order.
+ *   <li><b>Contribution</b> - gates, system gates, taps, moment listeners, kill attributions, text
+ *   sources. Every registration applies; gates AND, taps and listeners fan out, attributions and
+ *   text sources answer in order.
  * </ul>
  *
  * <p><b>CONTENT is not registered here at all, and needs no claim.</b> Every reader folds the whole
@@ -273,6 +274,33 @@ public final class ProgressionRegistrar {
     @Nonnull
     public ProgressionRegistrar dispatchTap(@Nonnull ProgressDispatchTap tap) {
         ProgressionRuntime.addDispatchTap(this, tap);
+        return this;
+    }
+
+    /**
+     * Add this mod's REACTION to a produced moment - a payout, a lifetime counter, a bonus drop.
+     *
+     * <p>Every registered listener is called on every moment any producer fires, each inside its
+     * own guard, BEFORE either engine is asked about it: a player with no quest subject and a server
+     * with a system switched off still get their reactions. Registration order is not a precedence
+     * and nothing here can refuse a moment; see {@link MomentListener} for what a listener is not.
+     */
+    @Nonnull
+    public ProgressionRegistrar momentListener(@Nonnull MomentListener listener) {
+        ProgressionRuntime.addMomentListener(this, listener);
+        return this;
+    }
+
+    /**
+     * Add this mod's answer to "this non-player attacker acts for that player", so a kill by a
+     * turret, a summon or a pet this mod spawned produces the moment for its owner.
+     *
+     * <p>Every registered attribution is asked in registration order and the first non-null answer
+     * stands; one that throws is skipped with a warn. See {@link KillAttribution}.
+     */
+    @Nonnull
+    public ProgressionRegistrar killAttribution(@Nonnull KillAttribution attribution) {
+        ProgressionRuntime.addKillAttribution(this, attribution);
         return this;
     }
 

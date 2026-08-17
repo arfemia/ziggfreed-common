@@ -26,8 +26,10 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
  * instead.
  *
  * <p>A block the breaker put down themselves is NOT credited: the shared
- * {@link PlacedBlockLedger} is asked first, and it is the same ledger every consumer's own XP path
- * reads, so progress and XP can never disagree about whether a block was placed.
+ * {@link PlacedBlockLedger} is asked first, and a placed block produces no moment at all. That is
+ * what makes it ONE guard for everybody: a consumer awarding XP or a bonus drop reacts to the moment
+ * this producer fires (through the {@link BlockBreakPayload} it carries), so progress, XP and
+ * drops can never disagree about whether a block was placed.
  */
 public final class ZigBlockBreakProducer extends EntityEventSystem<EntityStore, BreakBlockEvent> {
 
@@ -68,7 +70,8 @@ public final class ZigBlockBreakProducer extends EntityEventSystem<EntityStore, 
             if (placedByBreaker(playerRef, event)) {
                 return;
             }
-            ProgressDispatch.fire(store, ref, KIND, blockId, null, 1L);
+            ProgressDispatch.fire(store, ref, commandBuffer, KIND, blockId, null, 1L,
+                    new BlockBreakPayload(event));
         } catch (Throwable t) {
             SafeLog.warn("[progression] block-break dispatch failed", t);
         }

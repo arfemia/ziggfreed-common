@@ -23,7 +23,7 @@ into it - store, subjects, factor vocabulary, asset gate, both halves of a hand-
 surface names content by - all at LIBRARY-DEFAULT rank, so a consumer that brings its own is silently
 in charge. Nothing here decides whether to run.
 
-**Registration AND dispatching are unconditional.** The progress component TYPE and the four
+**Registration AND dispatching are unconditional.** The progress component TYPE and the five
 producer systems are registered at `setup()`, because a component type registered after a world has
 loaded cannot be read off entities saved carrying it and an ECS system is a setup-time registration.
 The connect-time ATTACH is unconditional too, even where a consumer owns the stores: the component
@@ -34,7 +34,10 @@ only the player-ready maintenance pass (the self-heal and auto-accept sweep), ne
 native event covered here, so a moment is dispatched exactly once and double-counting cannot
 happen. **The producer surface is OPEN and ADDITIVE**: a mod with a NET NEW moment registers the
 kind through `ObjectiveKindRegistry` if it is not already known and calls `ProgressDispatch.fire`
-from its own ECS event system. No registrar call, no claim, nothing to resolve.
+from its own ECS event system. No registrar call, no claim, nothing to resolve. **And a consumer
+REACTS to a produced moment rather than re-detecting it**: XP, a lifetime counter, a bonus drop hang
+off `progress/runtime/MomentListener` (registered through `ProgressionRegistrar.momentListener`),
+never off a second ECS system on the same native event beside the producer.
 
 **What `ProgressDispatch` carries that a producer never has to think about.** Three things travel
 with every fired moment, and each one is a silent-failure mode if it is dropped: the SUBJECT each
@@ -49,11 +52,40 @@ costs is exactly the half it names, unwritten to that engine for that player; th
 untouched. There is one quest engine and one achievement engine per server, so today that IS the
 whole of the refused half.
 
+**The moment goes to every REACTION first, then to the engines.** `ProgressDispatch.fire` builds one
+`progress/runtime/Moment` (kind, target, qualifier, amount, zone, store, ref, the producer's command
+buffer, both subjects as resolved - either may be null - and the producer's typed `MomentPayload`)
+and hands it to the composed `MomentListener` fan-out BEFORE the one early return and BEFORE both
+system gates, unconditionally: a player with no subject on either side and a server with both
+systems switched off still get every reaction. That placement is the whole point - a reaction is a
+consumer's own product, not a progression half - and it is what makes the listener NOT the tap: the
+tap says "an engine considered this" (fires inside each engine, after its subject and its gate, once
+per action); the listener says "this happened". Nothing a listener does can refuse a moment. The
+payload records live beside the producers (`BlockBreakPayload(event)`, `PickupPayload(event)`,
+`CraftPayload(event, recipeId)`, `MobKillPayload(victimRef, death)`, `PlaceBlockPayload(event)`);
+`MomentPayload` is an OPEN marker, never sealed, so a fourth-party producer ships its own record on
+equal terms. The 6-arg `fire` stays the stable net-new entry point (no buffer, no payload); the
+producers use the payload overload; and `fire(..., DispatchOptions)` is the ALIAS route - the same
+action re-dispatched under a second kind or id, ENGINES ONLY, never re-entering the fan-out (a
+reaction that already saw the action would otherwise pay twice). `ProgressDispatchTest` pins all of
+it: null-subject and gate-refused moments reach the listener, a throwing listener costs only itself,
+order is not a precedence, late registration fires, and the alias route reaches no listener.
+
 **There is deliberately no "is anything listening?" short-circuit in the dispatch.** Both engines can
 answer that cheaply (`index().forKind(kind)`), but the observer tap is fed on a dispatch that matched
-NOTHING on purpose - a lifetime counter has to count a block broken while no content wanted it - so a
-skip here would take exactly those events away from every registered tap. The cheap skip lives inside
-each engine, after the tap has been fed.
+NOTHING on purpose - a lifetime counter has to count a block broken while no content wanted it - and
+the moment listeners are fed on every moment for the same reason, so a skip here would take exactly
+those events away from every registered tap and every reaction. The cheap skip lives inside each
+engine, after the tap has been fed.
+
+**A kill nothing player-shaped landed is ASKED about before it credits nobody.** A turret, a summon
+or a pet carries itself as the damage source, so the attacker has no `PlayerRef`; `ZigMobKillProducer`
+asks the composed `progress/runtime/KillAttribution` (registered through
+`ProgressionRegistrar.killAttribution`; every one asked in order, first real answer wins, a throwing
+one skipped with a warn) which player it acts for, checks the answer really is a player, and fires
+the moment for THAT player with the same payload. Nothing registered, no answer, and the kill
+credits nobody, which is what a bare server has always done. `KillAttributionProducerTest` pins the
+seam.
 
 ## The pieces
 
@@ -61,7 +93,7 @@ each engine, after the tap has been fed.
 |---|---|
 | `runtime/` | `ProgressionDefaults`: the default registrations, the asset fold + its audit, the text source, the player lifecycle, and the `onProgressDirty` / `onProgressFlush` persistence contributions |
 | `store/` | `ZigProgressComponent` (the persisted state) + `ProgressBlob` (the packing) + `ProgressHandle`/`ProgressSubjects` (the subject) + `ZigQuestStore`/`ZigAchievementStore` (the two adapters) |
-| `producer/` | `ProgressDispatch` plus the four generic producers: block break, mob kill, craft, pickup |
+| `producer/` | `ProgressDispatch` plus the five generic producers (block break, mob kill, craft, pickup, place block) and their five typed `MomentPayload` records |
 | `book/` | the in-game two-tab surface and the item that opens it |
 | `questlist/` | the NPC quest page: what one CHARACTER has to offer, list and detail |
 | `command/` | `/zigprogress`: the admin family over THE runtime - quest, achievement and memories groups; see [its router](command/CLAUDE.md) |
@@ -195,21 +227,32 @@ single class can implement both.
 
 ## The producers
 
-All four register unconditionally and all four fire unconditionally; nothing stands one down. The
+All five register unconditionally and all five fire unconditionally; nothing stands one down. The
 two that credit a WORLD action first ask zc-world's `world/placed/PlacedBlockLedger` and skip a
-block or an item the player put down themselves, which is the same ledger a consumer's own XP path
-reads, so progress and XP can never disagree about it. They never touch an engine - everything goes
-through
-[`producer/ProgressDispatch`](producer/ProgressDispatch.java), which builds the subject, feeds both
-engines, and swallows nothing silently. World-thread throughout, which is where an ECS system
-already is.
+block or an item the player put down themselves - and since a consumer's XP is a REACTION to the
+moment they fire, a placed block produces no moment and nothing reacts, so progress and XP can never
+disagree about it. They never touch an engine - everything goes through
+[`producer/ProgressDispatch`](producer/ProgressDispatch.java), which builds the subject, fans the
+moment to every reaction, feeds both engines, and swallows nothing silently. World-thread
+throughout, which is where an ECS system already is. Each hands its own typed payload record to the
+dispatch, so a reaction reaches what the tuple cannot carry.
 
-| Producer | Kind | Target | Amount |
-|---|---|---|---|
-| `ZigBlockBreakProducer` | `BREAK_BLOCK` | the broken block's id | 1 |
-| `ZigMobKillProducer` | `KILL_ENTITY` | the dead entity's id | 1 |
-| `ZigCraftProducer` | `CRAFT_ITEM` | the crafted OUTPUT item's id | the batch size |
-| `ZigPickupProducer` | `PICKUP_ITEM` | the picked-up item's id | 1 |
+| Producer | Kind | Target | Amount | Payload |
+|---|---|---|---|---|
+| `ZigBlockBreakProducer` | `BREAK_BLOCK` | the broken block's id | 1 | `BlockBreakPayload(event)` |
+| `ZigMobKillProducer` | `KILL_ENTITY` | the dead entity's id | 1 | `MobKillPayload(victimRef, death)` |
+| `ZigCraftProducer` | `CRAFT_ITEM` | the crafted OUTPUT item's id | the batch size (`craftBatchAmount`, at least 1) | `CraftPayload(event, recipeId)` |
+| `ZigPickupProducer` | `PICKUP_ITEM` | the picked-up item's id | 1 | `PickupPayload(event)` |
+| `ZigPlaceBlockProducer` | `PLACE_BLOCK` | the placed item's id | 1 | `PlaceBlockPayload(event)` |
+
+- **The place-block producer counts exactly what the placement recorder records**, through the
+  recorder's own `PlacedBlockRecorder.placementCounts` predicate (a cancelled placement never
+  happened, an empty or blank item is nothing, a creative-mode placement is exempt), so what is
+  remembered as "placed" and what is produced as a moment can never drift. `ZigPlaceBlockProducerTest`
+  pins the three filters.
+- **The kill producer's credited player may not be the raw attacker**: for a non-player attacker it
+  asks the composed `KillAttribution` and fires for the owner it names (see above); the payload's
+  death still names the raw attacker, so a reaction can tell the two apart.
 
 - **`STAT_THRESHOLD` has no producer and never will.** It names a STATE rather than a moment, so
   nothing may fire for it; both engines read it themselves through the optional `factors` /
@@ -408,10 +451,16 @@ consumer-versus-consumer refusal, gate composition, layer merging;
 corrupted entry costs that entry rather than the login; `ZigProgressComponentTest` pins the persisted
 state machine, the completion record surviving a re-arm, and the deep `clone`; `ProgressDispatchTest`
 drives a real quest engine and a real achievement engine over in-memory stores and proves one fired
-moment reaches both. `PlacedGuardProducerTest` pins the anti-exploit half: a placed-then-broken
-block and a placed-then-picked-up item both decline, while a fresh one credits. The
-engine-touching halves - the ECS producers themselves, the component
-attach, the asset fold - land behind in-game smoke.
+moment reaches both, and that every registered reaction sees it first (a null-subject moment, a
+gate-refused moment, a throwing listener costing only itself, order not a precedence, late
+registration, and the alias route reaching NO listener). `PlacedGuardProducerTest` pins the
+anti-exploit half - the SOLE home of that guarantee now that no consumer reads the ledger for a
+break or a pickup: a placed-then-broken block and a placed-then-picked-up item both decline, while a
+fresh one credits. `KillAttributionProducerTest` pins the attribution seam (a non-player attacker
+with a registered attribution fires for the answered player, none registered credits nobody, first
+real answer wins, a throwing one is skipped); `ZigPlaceBlockProducerTest` pins the three placement
+filters; `ZigCraftProducerTest` pins the batch-amount clamp. The engine-touching halves - the ECS
+producers themselves, the component attach, the asset fold - land behind in-game smoke.
 
 The three seams above are pinned by their own failure mode, since each one reports success while
 delivering nothing. `DefaultPartsRewardGrantTest` walks a real collect through the real payout pass

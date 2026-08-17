@@ -39,6 +39,7 @@ import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
 import com.ziggfreed.common.objectives.producer.ZigMobKillProducer;
 import com.ziggfreed.common.objectives.producer.ZigPickupProducer;
+import com.ziggfreed.common.objectives.producer.ZigPlaceBlockProducer;
 import com.ziggfreed.common.objectives.store.ProgressHandle;
 import com.ziggfreed.common.objectives.store.ProgressSubjects;
 import com.ziggfreed.common.objectives.store.ZigAchievementStore;
@@ -88,10 +89,10 @@ import com.ziggfreed.common.validation.ValidationReport;
  * consumer publishing its own layer outranks this one rung by rung.
  *
  * <p><b>What still happens even when a consumer owns everything</b>, because it has to: the progress
- * component TYPE is registered, the component is ATTACHED to every player, and the four producer
+ * component TYPE is registered, the component is ATTACHED to every player, and the five producer
  * systems are registered, all at {@code setup()}. A component type registered after a world loads
  * cannot be read off entities saved carrying it, and an ECS system is a setup-time registration.
- * Those four producers always run, unconditionally, and nothing stands them down; the component
+ * Those five producers always run, unconditionally, and nothing stands them down; the component
  * stays because it also holds what conversations remember, and the dialogue engine belongs to every
  * server whoever owns its quests (see {@link #onPlayerConnect}).
  */
@@ -171,7 +172,7 @@ public final class ProgressionDefaults {
 
     /**
      * Register everything that has to exist whoever ends up owning the runtime: the player lifecycle
-     * listeners and the four producer systems. All of it is unconditional, and so is every dispatch
+     * listeners and the five producer systems. All of it is unconditional, and so is every dispatch
      * those producers make.
      */
     public static void install(@Nonnull PluginBase plugin) {
@@ -182,6 +183,7 @@ public final class ProgressionDefaults {
         plugin.getEntityStoreRegistry().registerSystem(new ZigMobKillProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigCraftProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPickupProducer());
+        plugin.getEntityStoreRegistry().registerSystem(new ZigPlaceBlockProducer());
         SafeLog.info("[progression] producers always-on: " + producedKinds()
                 + " (a mod firing a new moment calls ProgressDispatch.fire directly, no registration"
                 + " needed)");
@@ -197,7 +199,7 @@ public final class ProgressionDefaults {
     @Nonnull
     public static String producedKinds() {
         return String.join(", ", ZigBlockBreakProducer.KIND, ZigMobKillProducer.KIND,
-                ZigCraftProducer.KIND, ZigPickupProducer.KIND);
+                ZigCraftProducer.KIND, ZigPickupProducer.KIND, ZigPlaceBlockProducer.KIND);
     }
 
     // ==================== persistence notifications ====================
@@ -741,7 +743,7 @@ public final class ProgressionDefaults {
      * THE requirement evaluator, which lives one module down beside the runtime it reads.
      *
      * <p>It is kept there rather than here so a surface that only wants to answer a {@code Requires}
-     * block never has to load this class, whose own statics reach the four producer systems. A seam
+     * block never has to load this class, whose own statics reach the five producer systems. A seam
      * taking a SUPPLIER (the commerce gate seam) points at this method, and gets the same one
      * instance every other surface has.
      */

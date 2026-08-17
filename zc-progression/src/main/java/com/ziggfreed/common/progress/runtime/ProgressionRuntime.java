@@ -127,6 +127,8 @@ public final class ProgressionRuntime {
     private static final List<Contribution<AchievementGates>> ACHIEVEMENT_GATES = new ArrayList<>();
     private static final List<Contribution<ProgressionSystemGate>> SYSTEM_GATES = new ArrayList<>();
     private static final List<Contribution<ProgressDispatchTap>> TAPS = new ArrayList<>();
+    private static final List<Contribution<MomentListener>> MOMENT_LISTENERS = new ArrayList<>();
+    private static final List<Contribution<KillAttribution>> KILL_ATTRIBUTIONS = new ArrayList<>();
     private static final List<Contribution<ProgressionFeedbackHook>> FEEDBACK_HOOKS = new ArrayList<>();
     private static final List<Contribution<ProgressionTextSource>> TEXT_SOURCES = new ArrayList<>();
 
@@ -304,6 +306,20 @@ public final class ProgressionRuntime {
         }
     }
 
+    static synchronized void addMomentListener(@Nonnull ProgressionRegistrar registrar,
+                                               @Nonnull MomentListener listener) {
+        if (addContribution(MOMENT_LISTENERS, registrar.owner(), listener)) {
+            rederive();
+        }
+    }
+
+    static synchronized void addKillAttribution(@Nonnull ProgressionRegistrar registrar,
+                                                @Nonnull KillAttribution attribution) {
+        if (addContribution(KILL_ATTRIBUTIONS, registrar.owner(), attribution)) {
+            rederive();
+        }
+    }
+
     static synchronized void addFeedbackHook(@Nonnull ProgressionRegistrar registrar,
                                              @Nonnull ProgressionFeedbackHook hook) {
         if (addContribution(FEEDBACK_HOOKS, registrar.owner(), hook)) {
@@ -465,6 +481,41 @@ public final class ProgressionRuntime {
     @Nonnull
     public static synchronized List<String> feedbackHookOwners() {
         return ownerNames(FEEDBACK_HOOKS);
+    }
+
+    /**
+     * THE reaction fan-out over every produced moment, read LIVE: every registered
+     * {@link MomentListener}, each guarded, in one call.
+     *
+     * <p>Handed out so the shared dispatch - and any producer of a net-new moment that routes
+     * through it - reaches every reaction with one call, and so a listener registered after the
+     * runtime was built still fires.
+     */
+    @Nonnull
+    public static MomentListener momentListener() {
+        return ProgressionParts.MOMENT_LISTENER;
+    }
+
+    /** Who registered a moment listener, in registration order. */
+    @Nonnull
+    public static synchronized List<String> momentListenerOwners() {
+        return ownerNames(MOMENT_LISTENERS);
+    }
+
+    /**
+     * THE composed answer to "this non-player attacker acts for that player", read LIVE: every
+     * registered {@link KillAttribution} asked in order, first non-null answer wins, a throwing one
+     * skipped with a warn. Answers null for an attacker nobody claims.
+     */
+    @Nonnull
+    public static KillAttribution killAttribution() {
+        return ProgressionParts.KILL_ATTRIBUTION;
+    }
+
+    /** Who registered a kill attribution, in registration order. */
+    @Nonnull
+    public static synchronized List<String> killAttributionOwners() {
+        return ownerNames(KILL_ATTRIBUTIONS);
     }
 
     /** Who registered a SYSTEM gate, in registration order. */
@@ -678,6 +729,8 @@ public final class ProgressionRuntime {
         ACHIEVEMENT_GATES.clear();
         SYSTEM_GATES.clear();
         TAPS.clear();
+        MOMENT_LISTENERS.clear();
+        KILL_ATTRIBUTIONS.clear();
         FEEDBACK_HOOKS.clear();
         ProgressionParts.FEEDBACK_SILENCE_REPORTED.set(false);
         TEXT_SOURCES.clear();
@@ -716,6 +769,8 @@ public final class ProgressionRuntime {
                 ProgressionParts.composeAchievementGates(values(ACHIEVEMENT_GATES)),
                 ProgressionParts.composeSystemGates(values(SYSTEM_GATES), warn),
                 ProgressionParts.composeTaps(values(TAPS), warn),
+                ProgressionParts.composeMomentListeners(values(MOMENT_LISTENERS), warn),
+                ProgressionParts.composeKillAttributions(values(KILL_ATTRIBUTIONS), warn),
                 ProgressionParts.composeFeedbackHooks(values(FEEDBACK_HOOKS), warn),
                 ProgressionParts.freezeTextSources(values(TEXT_SOURCES)));
     }
@@ -778,7 +833,9 @@ public final class ProgressionRuntime {
                 + ", gate kinds=" + gateKinds.ids().size()
                 + ", factors=" + ownerOf(Slots.FACTORS)
                 + ", text sources=" + owners(TEXT_SOURCES)
-                + ", feedback hooks=" + owners(FEEDBACK_HOOKS));
+                + ", feedback hooks=" + owners(FEEDBACK_HOOKS)
+                + ", moment listeners=" + owners(MOMENT_LISTENERS)
+                + ", kill attributions=" + owners(KILL_ATTRIBUTIONS));
         SafeLog.info("[progression]   content     quests=" + counts(QUEST_LAYERS)
                 + ", achievements=" + counts(ACHIEVEMENT_LAYERS)
                 + ", milestones=" + counts(MILESTONE_LAYERS));

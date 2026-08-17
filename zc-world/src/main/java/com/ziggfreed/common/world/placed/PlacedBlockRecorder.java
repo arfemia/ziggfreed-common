@@ -51,24 +51,16 @@ public final class PlacedBlockRecorder extends EntityEventSystem<EntityStore, Pl
             @Nonnull final Store<EntityStore> store,
             @Nonnull final CommandBuffer<EntityStore> commandBuffer,
             @Nonnull final PlaceBlockEvent event) {
-        if (event.isCancelled()) {
-            return;
-        }
         var placed = event.getItemInHand();
-        if (placed == null) {
-            return;
-        }
-        String itemId = placed.getItemId();
-        if (itemId == null || itemId.isBlank() || EMPTY_ITEM_ID.equals(itemId)) {
-            return;
-        }
+        String itemId = placed == null ? null : placed.getItemId();
         Ref<EntityStore> ref = archetypeChunk.getReferenceTo(index);
+        Player player = store.getComponent(ref, Player.getComponentType());
+        if (!placementCounts(event.isCancelled(), itemId,
+                player == null ? null : player.getGameMode())) {
+            return;
+        }
         PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
         if (playerRef == null) {
-            return;
-        }
-        Player player = store.getComponent(ref, Player.getComponentType());
-        if (player != null && player.getGameMode() == GameMode.Creative) {
             return;
         }
         var position = event.getTargetBlock();
@@ -76,5 +68,27 @@ public final class PlacedBlockRecorder extends EntityEventSystem<EntityStore, Pl
         ledger.trackPlacement(playerRef.getUuid(), playerRef.getWorldUuid(),
                 position.x, position.y, position.z);
         ledger.trackPlacedItem(playerRef.getUuid(), itemId);
+    }
+
+    /**
+     * Was a block actually put down here, by a player whose placements count? The ONE reading of
+     * the three filters in the class javadoc - a cancelled placement never happened, an empty or
+     * blank item is nothing, and a creative-mode placement is exempt - shared with the library's own
+     * {@code PLACE_BLOCK} producer, so what is recorded here and what is produced as a moment can
+     * never drift apart: a placement one of them counts is a placement the other counts.
+     *
+     * @param cancelled whether something in the chain refused the placement
+     * @param itemId    the placed item's id, or null when nothing was in hand
+     * @param gameMode  the placer's game mode, or null when it could not be read
+     */
+    public static boolean placementCounts(boolean cancelled, @Nullable String itemId,
+            @Nullable GameMode gameMode) {
+        if (cancelled) {
+            return false;
+        }
+        if (itemId == null || itemId.isBlank() || EMPTY_ITEM_ID.equals(itemId)) {
+            return false;
+        }
+        return gameMode != GameMode.Creative;
     }
 }

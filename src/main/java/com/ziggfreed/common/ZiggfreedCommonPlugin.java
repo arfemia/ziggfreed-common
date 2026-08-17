@@ -213,7 +213,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * runtime per server whoever is on it; a consumer that brings its own store or gates registers
      * them at its own {@code setup()} and outranks the defaults registered here. A component type
      * registered after a world has loaded cannot be read off entities saved carrying it, and an ECS
-     * system is a setup-time registration, so neither can wait for that. The four generic producers
+     * system is a setup-time registration, so neither can wait for that. The five generic producers
      * always run into whichever store is registered, and the component is attached to every player
      * either way, because it also holds what conversations remember.
      *

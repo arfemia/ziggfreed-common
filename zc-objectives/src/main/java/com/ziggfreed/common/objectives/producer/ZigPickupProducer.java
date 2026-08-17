@@ -22,8 +22,9 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
  * competing producer for the same native event, so a pickup is dispatched here exactly once.
  *
  * <p>An item the player put down themselves is NOT credited: the shared {@link PlacedBlockLedger}
- * is asked first, and it is the same ledger every consumer's own XP path reads, so progress and XP
- * can never disagree about whether an item was placed.
+ * is asked first, and a placed item produces no moment at all. A consumer awarding XP or a bonus
+ * roll reacts to the moment this producer fires (through the {@link PickupPayload} it carries), so
+ * progress and XP can never disagree about whether an item was placed.
  *
  * <p>One event is one pickup, so the amount is always one.
  */
@@ -73,6 +74,7 @@ public final class ZigPickupProducer extends EntityEventSystem<EntityStore, Inte
                 System.identityHashCode(stack))) {
             return;
         }
-        ProgressDispatch.fire(store, ref, KIND, itemId, null, 1L);
+        ProgressDispatch.fire(store, ref, commandBuffer, KIND, itemId, null, 1L,
+                new PickupPayload(event));
     }
 }

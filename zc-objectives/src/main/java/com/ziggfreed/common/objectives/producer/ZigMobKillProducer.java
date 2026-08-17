@@ -11,8 +11,10 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathSystems;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.inventory.PlayerAccess;
+import com.ziggfreed.common.progress.runtime.KillAttribution;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.util.EntityIdentifierUtil;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -25,7 +27,15 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>Death is the moment, not a hit, so this hangs off the death component rather than the damage
  * pipeline. Player deaths are skipped (this is the "something was killed" moment, and a player is
- * not one of them), and a kill nothing player-shaped caused credits nobody.
+ * not one of them).
+ *
+ * <p><b>A kill nothing player-shaped landed is asked about before it credits nobody.</b> A turret,
+ * a totem, a summoned creature carries ITSELF as the damage source, so the attacker has no
+ * {@code PlayerRef}. The composed {@link KillAttribution} - every registered one, first real answer
+ * wins - names the player it acts for, and the moment fires for THAT player, credited exactly as if
+ * they had landed the blow. Nothing registered, or no answer, and the kill credits nobody, which is
+ * what a bare server has always done. The moment carries a {@link MobKillPayload} either way, so a
+ * reaction still reaches the victim and the raw attacker.
  */
 public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
 
@@ -57,8 +67,8 @@ public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
             if (attackerRef == null) {
                 return;
             }
-            PlayerRef playerRef = store.getComponent(attackerRef, PlayerRef.getComponentType());
-            if (playerRef == null) {
+            Ref<EntityStore> credited = creditedPlayer(store, attackerRef);
+            if (credited == null) {
                 return;
             }
             // An unreadable id still credits a kill: content authored as "kill anything" matches
@@ -68,10 +78,30 @@ public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
             if (victimId == null || victimId.isBlank()) {
                 victimId = UNKNOWN_VICTIM;
             }
-            ProgressDispatch.fire(store, attackerRef, KIND, victimId, null, 1L);
+            ProgressDispatch.fire(store, credited, commandBuffer, KIND, victimId, null, 1L,
+                    new MobKillPayload(victimRef, death));
         } catch (Throwable t) {
             SafeLog.warn("[progression] kill dispatch failed", t);
         }
+    }
+
+    /**
+     * Who this kill is credited to: the attacker itself when it is a player; otherwise whoever the
+     * composed attribution says the attacker acts for, provided THAT is a player; otherwise nobody.
+     * The answered entity is checked rather than trusted, because a contribution's "acts for" is
+     * an opinion about ownership and the producer's promise is a PLAYER's ref.
+     */
+    @Nullable
+    private static Ref<EntityStore> creditedPlayer(@Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> attackerRef) {
+        if (PlayerAccess.playerRef(store, attackerRef) != null) {
+            return attackerRef;
+        }
+        Ref<EntityStore> actsFor = ProgressionRuntime.killAttribution().actsFor(store, attackerRef);
+        if (actsFor == null || !actsFor.isValid()) {
+            return null;
+        }
+        return PlayerAccess.playerRef(store, actsFor) != null ? actsFor : null;
     }
 
     /**
