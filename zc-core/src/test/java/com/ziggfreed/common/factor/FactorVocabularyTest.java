@@ -155,6 +155,53 @@ class FactorVocabularyTest {
     }
 
     @Test
+    void allFailuresReportsEveryUnmetConditionAndSkipsThePassingOnes() {
+        FactorRegistry registry = new FactorRegistry();
+        registry.register("yourmod:low", c -> 1.0);
+        registry.register("yourmod:high", c -> 10.0);
+
+        List<FactorCondition> conditions = List.of(
+                FactorCondition.of("yourmod:high", null, 5.0, null),
+                FactorCondition.of("yourmod:low", null, 5.0, null),
+                FactorCondition.of(null, null, 5.0, null),
+                FactorCondition.of("yourmod:missing", null, null, null));
+
+        List<FactorCondition> failed = FactorConditions.allFailures(conditions, registry, ctx(null));
+
+        assertEquals(2, failed.size());
+        assertEquals("yourmod:low", failed.get(0).getFactor());
+        assertEquals("yourmod:missing", failed.get(1).getFactor());
+    }
+
+    @Test
+    void allFailuresIsEmptyWhenNothingFailedAndWhenThereWasNothingToEvaluate() {
+        FactorRegistry registry = new FactorRegistry();
+        registry.register("yourmod:high", c -> 10.0);
+
+        FactorCondition[] conditions = {FactorCondition.of("yourmod:high", null, 5.0, null)};
+
+        assertTrue(FactorConditions.allFailures(conditions, registry, ctx(null)).isEmpty());
+        assertTrue(FactorConditions.allFailures((List<FactorCondition>) null, registry, ctx(null)).isEmpty());
+        assertTrue(FactorConditions.allFailures(List.of(), registry, ctx(null)).isEmpty());
+    }
+
+    @Test
+    void allFailuresKeepsTwoBoundsOnOneFactorApartByTheirOwnParam() {
+        FactorRegistry registry = new FactorRegistry();
+        registry.register("yourmod:stat", c -> "mining".equals(c.param()) ? 1.0 : 2.0);
+
+        List<FactorCondition> conditions = List.of(
+                FactorCondition.of("yourmod:stat", "mining", 5.0, null),
+                FactorCondition.of("yourmod:stat", "combat", 5.0, null));
+
+        List<FactorCondition> failed = FactorConditions.allFailures(conditions, registry, ctx(null));
+
+        assertEquals(2, failed.size());
+        assertEquals("mining", failed.get(0).getParam());
+        assertEquals("combat", failed.get(1).getParam());
+    }
+
+    @Test
     void anEmptyOrAbsentArrayPassesVacuously() {
         FactorRegistry registry = new FactorRegistry();
 

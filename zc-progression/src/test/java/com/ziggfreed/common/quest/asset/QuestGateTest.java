@@ -363,6 +363,118 @@ class QuestGateTest {
                     """)));
         }
 
+        // ==================== the collect-all walk ====================
+
+        @Test
+        void allFailuresCollectsTheTopLevelLeavesAndEveryAllOfClauseTogether() {
+            factors.register("yourmod:rank", ctx -> 7.0);
+            factors.register("yourmod:fame", ctx -> 1.0);
+
+            List<String> failures = evaluator().allFailures(PLAYER, spec("""
+                    { "Factors": [ { "Factor": "yourmod:rank", "Min": 100 } ],
+                      "Quests": ["intro_1"],
+                      "AllOf": [ { "Factors": [ { "Factor": "yourmod:fame", "Min": 50 } ] } ] }
+                    """));
+
+            assertEquals(List.of(GateEvaluator.REASON_FACTOR + "yourmod:rank",
+                    GateEvaluator.REASON_QUEST + "intro_1",
+                    GateEvaluator.REASON_FACTOR + "yourmod:fame"), failures,
+                    "everything still in the way, in leaf-then-AllOf order");
+        }
+
+        @Test
+        void allFailuresIsEmptyForABlockThatPasses() {
+            factors.register("yourmod:rank", ctx -> 7.0);
+
+            assertTrue(evaluator().allFailures(PLAYER, spec("""
+                    { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] }
+                    """)).isEmpty());
+            assertTrue(evaluator().allFailures(PLAYER, null).isEmpty());
+        }
+
+        @Test
+        void withNoVocabularyWiredBothWalksAgreeTheBlockIsShut() {
+            GateEvaluator unwired = GateEvaluator.builder().gateKinds(gateKinds).build();
+
+            // The ordinary shape: a named bound with nothing behind it refuses on both walks.
+            GateSpec named = spec("""
+                    { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] }
+                    """);
+            assertFalse(unwired.passes(PLAYER, named));
+            assertEquals(List.of(GateEvaluator.REASON_FACTOR + "yourmod:rank"),
+                    unwired.allFailures(PLAYER, named));
+
+            // And the shape where nothing is nameable at all: every entry blank, so neither walk
+            // has a factor id to report. The short-circuit walk still refuses, so the collect-all
+            // walk must too - one surface calling the content open while another calls it locked
+            // is worse than either answer on its own.
+            GateSpec blank = spec("""
+                    { "Factors": [ { "Min": 5 }, { "Min": 10 } ] }
+                    """);
+            assertFalse(unwired.passes(PLAYER, blank));
+            assertFalse(unwired.allFailures(PLAYER, blank).isEmpty(),
+                    "an unevaluable clause may never read as open on the collect-all walk");
+
+            // And they agree about WHICH requirement shut it, not merely that something did: with
+            // no vocabulary the collect-all walk stops at the Factors leaf exactly as the
+            // short-circuit walk does, so it never reports a permission it never evaluated.
+            GateSpec withPermission = spec("""
+                    { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ],
+                      "Permission": "some.node" }
+                    """);
+            assertEquals(GateEvaluator.REASON_FACTOR + "yourmod:rank",
+                    unwired.firstFailure(PLAYER, withPermission));
+            assertEquals(List.of(GateEvaluator.REASON_FACTOR + "yourmod:rank"),
+                    unwired.allFailures(PLAYER, withPermission),
+                    "the leaves past the unevaluable one were never checked, so none may be named");
+        }
+
+        @Test
+        void twoBoundsOnOneFactorStayTwoAnswersThroughTheirParam() {
+            factors.register("yourmod:stat", ctx -> "mining".equals(ctx.param()) ? 1.0 : 2.0);
+
+            assertEquals(List.of(GateEvaluator.REASON_FACTOR + "yourmod:stat@mining",
+                    GateEvaluator.REASON_FACTOR + "yourmod:stat@combat"),
+                    evaluator().allFailures(PLAYER, spec("""
+                            { "Factors": [ { "Factor": "yourmod:stat", "Param": "mining", "Min": 50 },
+                                           { "Factor": "yourmod:stat", "Param": "combat", "Min": 50 } ] }
+                            """)),
+                    "a consumer looking each condition back up by bare id could not tell them apart");
+        }
+
+        @Test
+        void anAnyOfBlockContributesExactlyOneFailureHoweverManyRoutesItOffers() {
+            factors.register("yourmod:rank", ctx -> 7.0);
+
+            assertEquals(List.of(GateEvaluator.REASON_ANY_OF), evaluator().allFailures(PLAYER, spec("""
+                    { "AnyOf": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 100 } ] },
+                                 { "Factors": [ { "Factor": "yourmod:rank", "Min": 200 } ] },
+                                 { "Quests": ["route_c"] } ] }
+                    """)), "the routes are alternatives, so they are one choice rather than three chores");
+
+            assertTrue(evaluator().allFailures(PLAYER, spec("""
+                    { "AnyOf": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 100 } ] },
+                                 { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] } ] }
+                    """)).isEmpty(), "one route open is the whole AnyOf satisfied");
+        }
+
+        @Test
+        void everyPassingNotGroupContributesItsOwnFailure() {
+            factors.register("yourmod:rank", ctx -> 7.0);
+            factors.register("yourmod:fame", ctx -> 60.0);
+
+            assertEquals(List.of(GateEvaluator.REASON_NOT, GateEvaluator.REASON_NOT),
+                    evaluator().allFailures(PLAYER, spec("""
+                            { "Not": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] },
+                                       { "Factors": [ { "Factor": "yourmod:fame", "Min": 50 } ] } ] }
+                            """)));
+
+            assertEquals(List.of(GateEvaluator.REASON_NOT), evaluator().allFailures(PLAYER, spec("""
+                    { "Not": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] },
+                               { "Factors": [ { "Factor": "yourmod:fame", "Min": 500 } ] } ] }
+                    """)), "only the group that PASSES shuts the gate");
+        }
+
         private GateSpec spec(String requiresJson) {
             try {
                 return decodeRoot("{ \"Requires\": " + requiresJson + " }", "q").toDefinition(null).requires();

@@ -124,13 +124,19 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
   FACTORY**, `codec(dataSetId)`, because every consumer wants its OWN Asset Editor pick list on the
   `Factor` field; `CODEC` is the no-dropdown instance. Only name a dataset your mod actually serves
   - an unserved id renders an EMPTY pick list, which is worse for an author than free text.
-- **[`FactorConditions`](FactorConditions.java)** - the ONE array evaluator:
-  `firstFailure(conditions, registry, ctx)` returns the first failing factor id (so the caller can
-  name it in the gate reason), `pass(...)` is the boolean wrapper, both in `List` and array form. A
-  BLANK entry (no factor id) is SKIPPED rather than failing - a half-authored line is an authoring
-  slip, and hiding working content behind it makes that slip much harder to find than a validator
-  finding does. Each entry is re-scoped with its OWN `Param`, so two entries can address one factor
-  differently.
+- **[`FactorConditions`](FactorConditions.java)** - the ONE array evaluator, in THREE shapes, all in
+  `List` and array form. `firstFailure(conditions, registry, ctx)` SHORT-CIRCUITS and returns the
+  first failing factor id (so the caller can name it in the gate reason); `pass(...)` is the boolean
+  wrapper over the same walk; `allFailures(...)` walks the WHOLE array instead and returns every
+  failing CONDITION, in authored order, for a caller listing everything still in the way rather than
+  naming the next thing to go and do. It hands back the conditions rather than their factor ids
+  precisely because a caller writing several sentences needs each one's own `Param` and bound, and
+  looking a condition back up by bare id is ambiguous the moment one array bounds a factor twice.
+  Pick by what the surface is for: a per-row boolean check in a loop wants `pass`, a detail panel
+  wants `allFailures`. A BLANK entry (no factor id) is SKIPPED by all three rather than failing - a
+  half-authored line is an authoring slip, and hiding working content behind it makes that slip much
+  harder to find than a validator finding does. Each entry is re-scoped with its OWN `Param`, so two
+  entries can address one factor differently.
 
 ## The portable standard library (zc-entity)
 

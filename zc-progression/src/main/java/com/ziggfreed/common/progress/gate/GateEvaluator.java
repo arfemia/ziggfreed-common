@@ -1,5 +1,6 @@
 package com.ziggfreed.common.progress.gate;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,14 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code "permission"}, {@code "quest:intro_1"}, {@code "gate:yourmod:reputation"},
  * {@code "any_of"}, {@code "not"}), never a sentence: turning one into text a player reads is the
  * consumer's job.
+ *
+ * <p>There are TWO ways to ask. {@link #passes} and {@link #firstFailure} short-circuit at the first
+ * unmet requirement, which is what a per-row boolean check in a loop wants. {@link #allFailures}
+ * walks the whole block and reports every unmet requirement, which is what a detail panel listing
+ * what still stands between a player and the content wants. A {@code factor:} token from the
+ * collect-all walk carries the condition's {@code Param} after an {@code @} when one is authored
+ * ({@code "factor:yourmod:stat@mining"}), so two bounds on the SAME factor id stay two
+ * distinguishable answers.
  */
 public final class GateEvaluator {
 
@@ -244,6 +253,138 @@ public final class GateEvaluator {
             }
         }
         return null;
+    }
+
+    /**
+     * EVERY unmet requirement in {@code spec} as reason tokens, in the same leaf-then-{@code AllOf}
+     * -then-{@code Not}-then-{@code AnyOf} order {@link #firstFailure} walks, empty when the block
+     * passed. This is the list a locked-content panel shows; {@link #firstFailure} stays the cheap
+     * answer for a boolean check.
+     *
+     * <p>A {@code factor:} token here carries the condition's {@code Param} after an {@code @} when
+     * one is authored, because a block may bound one factor id twice under two different
+     * {@code Param}s, and a consumer looking the condition back up by bare id would render one of
+     * them twice and drop the other.
+     *
+     * <p>An {@code AnyOf} block contributes exactly ONE token however many routes it offers: the
+     * routes are alternatives, so listing each one as its own unmet requirement would read as
+     * several separate things to go and do rather than one choice.
+     */
+    @Nonnull
+    public List<String> allFailures(@Nonnull Subject subject, @Nullable GateSpec spec) {
+        if (spec == null) {
+            return List.of();
+        }
+        List<String> failures = new ArrayList<>();
+        clauseFailures(subject, spec, failures);
+        for (GateClause clause : spec.allOfOrEmpty()) {
+            clauseFailures(subject, clause, failures);
+        }
+        // A Not group shuts the gate by PASSING, exactly as in the short-circuit walk.
+        for (GateClause clause : spec.notOrEmpty()) {
+            if (clause != null && clauseFailure(subject, clause) == null) {
+                failures.add(REASON_NOT);
+            }
+        }
+        GateClause[] anyOf = spec.anyOfOrEmpty();
+        if (anyOf.length == 0) {
+            return failures;
+        }
+        for (GateClause clause : anyOf) {
+            if (clauseFailure(subject, clause) == null) {
+                return failures;
+            }
+        }
+        failures.add(REASON_ANY_OF);
+        return failures;
+    }
+
+    /** Every unmet requirement in ONE group, in leaf order, appended to {@code out}. */
+    private void clauseFailures(@Nonnull Subject subject, @Nullable GateClause clause,
+            @Nonnull List<String> out) {
+        if (clause == null || clause.isEmpty()) {
+            return;
+        }
+
+        FactorCondition[] conditions = clause.factorsOrEmpty();
+        if (conditions.length > 0) {
+            FactorRegistry vocabulary = factors.get();
+            if (vocabulary == null) {
+                // No vocabulary wired: every bound refuses, exactly as the short-circuit walk fails
+                // closed, and each one is named so the answer stays the whole list.
+                int before = out.size();
+                for (FactorCondition condition : conditions) {
+                    if (condition != null && !condition.isBlank()) {
+                        out.add(factorToken(condition));
+                    }
+                }
+                if (out.size() == before) {
+                    // Nothing here was nameable (every entry blank), and the short-circuit walk
+                    // still refuses that clause. The two must agree about whether a block is shut,
+                    // so name the same bare token it does rather than reading as open.
+                    out.add(REASON_FACTOR + firstFactorId(conditions));
+                }
+                // Stop where the short-circuit walk stops. Reading on into the permission, quest and
+                // custom leaves would report requirements that were never evaluated at all, and
+                // would run every registered kind on a server whose vocabulary is not even wired.
+                return;
+            } else {
+                for (FactorCondition condition
+                        : FactorConditions.allFailures(conditions, vocabulary, contextFor(subject))) {
+                    out.add(factorToken(condition));
+                }
+            }
+        }
+
+        String permission = clause.getPermission();
+        if (permission != null && !factorsPass(subject, List.of(permissionCondition(permission)))) {
+            out.add(REASON_PERMISSION);
+        }
+
+        for (String questId : clause.questsOrEmpty()) {
+            if (questId != null && !questId.isBlank() && !completion.hasCompleted(subject, questId.trim())) {
+                out.add(REASON_QUEST + questId.trim());
+            }
+        }
+
+        GateKindRegistry kinds = gateKinds();
+        for (Map.Entry<String, Map<String, String>> entry : clause.customOrEmpty().entrySet()) {
+            String kindId = entry.getKey();
+            GateKind kind = kinds.kind(kindId);
+            if (kind == null) {
+                out.add(REASON_CUSTOM + kindId);
+                continue;
+            }
+            Map<String, String> params = entry.getValue() == null ? Map.of() : entry.getValue();
+            try {
+                if (!kind.passes(subject, params, support)) {
+                    out.add(REASON_CUSTOM + kindId);
+                }
+            } catch (Exception e) {
+                kinds.recordFailure(kindId, e.getMessage());
+                warn.accept("requirement kind '" + kindId + "' threw, so the gate stays shut: " + e.getMessage());
+                out.add(REASON_CUSTOM + kindId);
+            }
+        }
+    }
+
+    /**
+     * The token naming one unmet bound: the factor id, plus the authored {@code Param} after an
+     * {@code @} when there is one. A param-less condition keeps the bare spelling, which a consumer
+     * reads back as "the bound that authored no param" rather than as any bound on the id.
+     *
+     * <p>A consumer splits at the FIRST {@code @}, so a {@code Param} may contain any number of its
+     * own and still round-trip. What the spelling relies on is that a namespaced FACTOR ID never
+     * contains one; nothing enforces that, so a factor id carrying an {@code @} would have its token
+     * read back truncated.
+     */
+    @Nonnull
+    private static String factorToken(@Nonnull FactorCondition condition) {
+        String factorId = condition.getFactor() == null ? "" : condition.getFactor();
+        String param = condition.getParam();
+        return param == null || param.isBlank()
+                ? REASON_FACTOR + factorId
+                : REASON_FACTOR + factorId + "@" + param;
     }
 
     /** The shared factor answer, also handed to every desugaring requirement kind. */

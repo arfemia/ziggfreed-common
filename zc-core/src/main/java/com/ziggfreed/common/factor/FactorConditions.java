@@ -1,5 +1,6 @@
 package com.ziggfreed.common.factor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -57,6 +58,46 @@ public final class FactorConditions {
         return null;
     }
 
+    /**
+     * EVERY condition that did not pass, in authored order, empty when they all did. The whole array
+     * is walked rather than short-circuited, for a caller listing everything still in the way
+     * instead of naming the next thing to go and do.
+     *
+     * <p>The failing CONDITION comes back rather than its factor id, so the caller already holds the
+     * {@code Param} and the bound it needs to write the sentence, and never has to look a condition
+     * back up by id - which is ambiguous the moment one block bounds the same factor twice.
+     */
+    @Nonnull
+    public static List<FactorCondition> allFailures(@Nullable List<FactorCondition> conditions,
+            @Nonnull FactorRegistry registry, @Nonnull FactorContext ctx) {
+        if (conditions == null || conditions.isEmpty()) {
+            return List.of();
+        }
+        List<FactorCondition> failed = new ArrayList<>();
+        for (FactorCondition condition : conditions) {
+            if (fails(condition, registry, ctx)) {
+                failed.add(condition);
+            }
+        }
+        return failed;
+    }
+
+    /** The array form of {@link #allFailures(List, FactorRegistry, FactorContext)}. */
+    @Nonnull
+    public static List<FactorCondition> allFailures(@Nullable FactorCondition[] conditions,
+            @Nonnull FactorRegistry registry, @Nonnull FactorContext ctx) {
+        if (conditions == null || conditions.length == 0) {
+            return List.of();
+        }
+        List<FactorCondition> failed = new ArrayList<>();
+        for (FactorCondition condition : conditions) {
+            if (fails(condition, registry, ctx)) {
+                failed.add(condition);
+            }
+        }
+        return failed;
+    }
+
     /** True when every entry passed - the boolean wrapper for a caller with no reason to report. */
     public static boolean pass(@Nullable List<FactorCondition> conditions,
             @Nonnull FactorRegistry registry, @Nonnull FactorContext ctx) {
@@ -83,5 +124,11 @@ public final class FactorConditions {
         return condition.accepts(registry.resolve(condition.getFactor(), scoped))
                 ? null
                 : condition.getFactor();
+    }
+
+    /** The same single-entry decision as a boolean, for the collect-all walk. */
+    private static boolean fails(@Nullable FactorCondition condition,
+            @Nonnull FactorRegistry registry, @Nonnull FactorContext ctx) {
+        return firstFailure(condition, registry, ctx) != null;
     }
 }

@@ -11,7 +11,7 @@ Package root `com.ziggfreed.common.progress.gate`.
 | `GateClause` (+ `appendLeaves`, `of`) | one group of requirements, ALL of which must pass: `Factors` / `Permission` / `Quests` / `Custom` |
 | `GateSpec` (+ `of`) | the whole `Requires` block: the leaves plus `AllOf`, `AnyOf` and `Not` |
 | `GateKind`, `GateKindRegistry` | the OPEN `Requires.Custom` vocabulary a consumer extends, either desugaring to factor conditions or answering directly |
-| `GateEvaluator` | who answers a block for one subject, and the opaque reason token naming what shut it. There is ONE per server, held by [`../runtime/ProgressionGates`](../runtime/CLAUDE.md) over the runtime's REGISTERED factor registry, factor context and gate kinds, all read LIVE so a consumer registering its own vocabulary feeds it; `builder()` is for a test or a genuinely private evaluator, and a consumer building a second one is building a second DECISION over one model |
+| `GateEvaluator` | who answers a block for one subject, and the opaque reason token naming what shut it (`firstFailure` stops at the first, `allFailures` reports every one). There is ONE per server, held by [`../runtime/ProgressionGates`](../runtime/CLAUDE.md) over the runtime's REGISTERED factor registry, factor context and gate kinds, all read LIVE so a consumer registering its own vocabulary feeds it; `builder()` is for a test or a genuinely private evaluator, and a consumer building a second one is building a second DECISION over one model |
 | `GateValidator` | the shared `Requires` audit every domain reports through (blank requirements, unknown factors / prerequisites / gate kinds), so a shop's gate and a quest's gate are checked by ONE pass |
 
 ## Rules to keep
@@ -27,6 +27,45 @@ Package root `com.ziggfreed.common.progress.gate`.
   `"quest:intro_1"`, `"gate:yourmod:reputation"`, `"any_of"`, `"not"`). Turning one into text a
   player reads is the consumer's job, because only the consumer knows the player's language and its
   own wording.
+- **TWO ways to ask, and they answer different questions.** `passes` / `firstFailure` SHORT-CIRCUIT
+  at the first unmet requirement, which is what a per-row boolean check in a loop wants and what
+  every gate consumer in this library takes. `allFailures` walks the whole block and returns EVERY
+  unmet requirement as a list of tokens, in the same leaf-then-`AllOf`-then-`Not`-then-`AnyOf` order,
+  for a consumer painting a locked-content detail panel: somebody planning a long-term goal needs the
+  whole picture rather than one line at a time as they clear each requirement. The short-circuit pair
+  is not a legacy path, and routing a boolean check through the collect-all walk buys nothing and
+  costs the rest of the block. **What the two may never do is disagree about whether a block is
+  shut**: an empty `allFailures` means exactly what a null `firstFailure` means. That has to be held
+  deliberately at the fail-closed branches, where there is no failing condition to name - a clause
+  whose every `Factors` entry is blank, evaluated with no vocabulary wired, still contributes one
+  bare token on both walks rather than reading as open on one of them. With NO vocabulary wired the
+  collect-all walk also STOPS at the `Factors` leaf exactly as the short-circuit walk does, rather
+  than reading on into `Permission`/`Quests`/`Custom`: reporting a requirement that was never
+  evaluated is worse than reporting fewer.
+- **The collect-all walk EVALUATES every leaf in a clause, including ones an earlier failure would
+  have spared.** So a registered `Custom` kind sitting behind an already-failing bound is now
+  actually called: if it throws, its failure is recorded on the `GateKindRegistry` (what a validate
+  command reads) and warned once per collect-all call, where the short-circuit walk would never have
+  reached it. That is inherent to answering "everything that is unmet", and it is a second reason a
+  per-row boolean check must take `firstFailure` rather than this.
+- **A `factor:` token from the collect-all walk carries the condition's `Param` after an `@`**
+  (`"factor:yourmod:stat@mining"`), because one clause may bound one factor id twice under two
+  different `Param`s. Without the suffix a consumer looking the failing condition back up by bare id
+  answers both tokens with whichever was written first, rendering that one twice and dropping the
+  other, which is WORSE than reporting one reason. A `Param`-less condition keeps the bare spelling,
+  which a consumer reads back as "the bound that authored no `Param`" rather than as any bound on the
+  id. `Quests` and `Custom` tokens embed their own id and need nothing. A consumer splits at the
+  FIRST `@`, so a `Param` may contain any number of its own and still round-trips; what the spelling
+  relies on is that a namespaced FACTOR ID never contains one, and nothing enforces that. The suffix
+  separates conditions by `Param`, and by nothing finer: two bounds sharing one factor id AND one
+  `Param` across two clauses still answer with whichever was written first. Author one bound
+  per `(Factor, Param)` pair in a block - a second is redundant, since the tighter of two `Min`s is
+  the only one that can ever be the binding requirement.
+- **An `AnyOf` block contributes exactly ONE token however many routes it offers**, on both paths.
+  The routes are alternatives, so one token per route would read as several separate things to go and
+  do rather than one choice. A passing `Not` group and an unresolved `Custom` kind DO contribute one
+  token each, so two different passing `Not` groups legitimately render as the same generic line
+  twice - there is no richer wording to offer about either, which is not the same as the factor case.
 - **Nesting stops at one level.** `AllOf` plus `AnyOf` plus `Not` expresses "these, plus one of
   those, and none of these", which is the shape real requirements take. A requirement that genuinely
   needs more is better written as a registered `Custom` kind whose rule lives in code. `Not` takes a
