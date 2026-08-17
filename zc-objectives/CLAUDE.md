@@ -106,14 +106,19 @@ take the screen wins.
 
 ## Tests
 
-10 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
+14 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
 this module's own suite covers the parts it contributes - `DefaultPartsHandInTest`,
 `DefaultPartsRewardGrantTest` (the registered store + producer parts pulling their weight inside a
 real runtime), `ZigProgressComponentTest`, `ProgressBlobTest` (the persisted per-player codec),
-`ProgressDispatchTest`, `ProgressHandleFacetTest`, `PlacedGuardProducerTest` (a placed-then-broken
-block dispatches no BREAK_BLOCK progress and a placed-then-picked-up item no PICKUP_ITEM, while a
-fresh one still does - the ledger and the producer decision, no live engine), plus the NPC quest
-page's two pure halves - `NpcQuestSectionsTest`
-(bucketing, ordering, which quest the detail panel opens on), `NpcQuestPageDepsTest` (the defaults,
-and a consumer seam that throws). How a reward chip reads is pinned in `zc-loot`'s
+`ZigProgressBlobCompatTest` + `ZigProgressBlobFixture`/`ZigProgressBlobFixtureGenerator` (the GOLDEN
+PIN on that codec's wire format, since a consumer's database backend stores the component in
+exactly that form; the checked-in blob is never regenerated), `ProgressStoreContributionTest` (the
+dirty/flush fan-out, what it covers, and the two ways a subject can hand the stores their
+component), `ProgressDispatchTest`, `ProgressHandleFacetTest`, `PlacedGuardProducerTest` (a
+placed-then-broken block dispatches no BREAK_BLOCK progress and a placed-then-picked-up item no
+PICKUP_ITEM, while a fresh one still does - the ledger and the producer decision, no live engine),
+`AchievementGroupingTest` (the book's category headers: the label ladder and where an undescribed
+or uncategorised run reads), plus the NPC quest page's two pure halves - `NpcQuestSectionsTest`
+(bucketing, ordering, which quest the detail panel opens on) and `NpcQuestPageDepsTest` (the
+defaults, and a consumer seam that throws). How a reward chip reads is pinned in `zc-loot`'s
 `RewardChipsTest`, beside the shared vocabulary it belongs to.

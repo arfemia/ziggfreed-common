@@ -454,6 +454,11 @@ public final class AchievementEngine {
             store.setStatus(subject, achievement.id(), AchievementStatus.CLAIMED);
             fireClaimed(achievement, subject, outcome);
         }
+        // Reported as a change, NOT committed. Earning is something the engine decides rather than
+        // something the subject asked for, and it arrives in bulk: a self-heal walks the whole
+        // catalogue, cascadeMeta walks a chain of metas off one earn, and a dispatch can earn
+        // several at once. A commit per earn turns a login into one write per achievement the
+        // subject already has. Collecting is the boundary, and it commits.
         store.markDirty(subject);
 
         cascadeMeta(subject, achievement.id());
@@ -577,6 +582,9 @@ public final class AchievementEngine {
             reached++;
         }
         if (reached > 0) {
+            // Reported, not committed, for the same reason earning is: this is idempotent
+            // maintenance that runs on login and after every earn, so a commit here rides along
+            // with each of those. Collecting a milestone is the boundary.
             store.markDirty(subject);
         }
         return reached;
@@ -600,6 +608,7 @@ public final class AchievementEngine {
         }
         grantMilestone(subject, milestone, milestone.claimRewards());
         store.setMilestoneStatus(subject, threshold, AchievementStatus.CLAIMED);
+        // Collecting is a subject-owned transaction boundary, so the writes are committed here.
         store.markDirty(subject);
         store.flush(subject);
         return true;
@@ -639,9 +648,19 @@ public final class AchievementEngine {
         return true;
     }
 
-    /** Unpin. Returns true when a pin was actually there. */
+    /**
+     * Unpin. Returns true when a pin was actually there.
+     *
+     * <p>Marked dirty exactly as {@link #pin} is: a pin is a display preference rather than
+     * progress, but it is SAVED state, and a store that persists one half of a pair and not the
+     * other hands the player back a pin they took off.
+     */
     public boolean unpin(@Nonnull Subject subject, @Nonnull String achievementId) {
-        return store.clearPin(subject, achievementId);
+        if (!store.clearPin(subject, achievementId)) {
+            return false;
+        }
+        store.markDirty(subject);
+        return true;
     }
 
     /** The subject's pinned ids, oldest pin first, capped at {@link #maxPinned()}. */

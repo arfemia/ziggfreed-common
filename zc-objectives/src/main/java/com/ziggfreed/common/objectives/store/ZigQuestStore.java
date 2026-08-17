@@ -6,6 +6,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.quest.QuestProgressStore;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
@@ -20,11 +21,23 @@ import com.ziggfreed.common.util.SafeLog;
  * line. The component is created once, at connect, by the library's own player hook; a store that created one
  * on demand would stamp a component onto anything that so much as asked a question.
  *
- * <p>{@code markDirty} / {@code flush} stay the interface no-ops: the component's own codec persists
- * a live component at tick end, so there is no transaction boundary to report.
+ * <p><b>Where the component comes from.</b> A {@link ZigProgressComponent} the subject's handle
+ * answers for DIRECTLY is used first, and a {@link ProgressHandle} is the fallback. The direct
+ * answer is what lets a consumer supplying its own subject source keep these stores as THE store:
+ * its handle declares {@link Subject.HandleFacets} and offers the component, and everything below
+ * reads it without knowing whose handle it came out of. Two stores would be two versions of one
+ * player's state, so the seam that avoids needing a second one is worth the extra lookup - which is
+ * paid only when there is nothing to find, since a handle that answers with a component answers on
+ * the first ask.
  *
- * <p>Every default on the interface is inherited on purpose, {@code usesReservedDelimiter} included:
- * {@link ProgressBlob} reserves exactly the characters that default already rejects.
+ * <p>{@code markDirty} / {@code flush} write nothing themselves - the component's own codec persists
+ * a live component at tick end - and instead FAN OUT to whatever registered through
+ * {@link ProgressionDefaults#onProgressDirty} / {@link ProgressionDefaults#onProgressFlush}. That is
+ * the seam a consumer holding a copy of this state somewhere else (a fleet database, a write-behind
+ * cache) fills, again so that it never has to bring a second store.
+ *
+ * <p>Every OTHER default on the interface is inherited on purpose, {@code usesReservedDelimiter}
+ * included: {@link ProgressBlob} reserves exactly the characters that default already rejects.
  */
 public final class ZigQuestStore implements QuestProgressStore {
 
@@ -36,6 +49,10 @@ public final class ZigQuestStore implements QuestProgressStore {
 
     @Nullable
     private static ZigProgressComponent componentOf(@Nonnull Subject subject) {
+        ZigProgressComponent direct = subject.handleAs(ZigProgressComponent.class);
+        if (direct != null) {
+            return direct;
+        }
         ProgressHandle handle = subject.handleAs(ProgressHandle.class);
         return handle == null ? null : handle.component();
     }
@@ -43,6 +60,18 @@ public final class ZigQuestStore implements QuestProgressStore {
     private static void dropped(@Nonnull Subject subject, @Nonnull String what) {
         SafeLog.fine("[progression] dropped a quest " + what + " for '" + subject.name()
                 + "': no progress component");
+    }
+
+    /** Fan the change out to every registered dirty listener. This store persists nothing itself. */
+    @Override
+    public void markDirty(@Nonnull Subject subject) {
+        ProgressionDefaults.fireProgressDirty(subject);
+    }
+
+    /** Fan the transaction boundary out to every registered flush listener. */
+    @Override
+    public void flush(@Nonnull Subject subject) {
+        ProgressionDefaults.fireProgressFlush(subject);
     }
 
     @Nonnull

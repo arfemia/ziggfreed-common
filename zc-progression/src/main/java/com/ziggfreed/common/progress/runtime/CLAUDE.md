@@ -36,6 +36,27 @@ match). They are the wrong tool for a mod that wants the server's progression.
 
 - **one-slot** (store, subjects, factor context, scopes, ...): consumer beats library default silently;
   a SECOND consumer is REFUSED with a SEVERE naming both. Never resolve that silently.
+  - **Wanting your own PERSISTENCE is not a reason to take the store slot.** `zc-objectives`'
+    default stores fan `markDirty` / `flush` out to `ProgressionDefaults.onProgressDirty` /
+    `onProgressFlush` (additive, every listener guarded) and read the component off a subject handle
+    that merely ANSWERS for one, so a consumer with a database backend registers a hook and supplies
+    its own subjects while the default stores stay THE store. Replace the store only when the state
+    genuinely does not live in that component. The dirty fan-out covers every write an ENGINE makes
+    onto that component - both adapters, pins and unpins included, the public re-arm and completion
+    doors an authoring layer calls, plus the dialogue memories riding the same component - so the
+    hook is a complete answer for anything reached through an engine; the objectives router lists the
+    two around-the-engine doors that report for themselves (a direct component write, and a caller
+    driving the store adapter itself).
+  - **A new mutating engine path owes `markDirty`. It almost certainly does NOT owe `flush`.**
+    There are exactly FIVE flush points across both engines and they are all a player-owned
+    transaction closing: a quest collected (`QuestEngine.claim`), an achievement collected
+    (`AchievementEngine.claim`), a milestone collected (`claimMilestone`) - those three
+    unconditional - plus the auto-claim payout (`checkCompletion`) and an administrator's close-out
+    (`forceComplete`), each only when a reward was actually delivered. Earning, reaching a
+    milestone, a self-heal, a re-arm, a prune and a pin sweep all report dirty and wait for the
+    batch, because they arrive in BULK and one commit apiece turns a login into a write per entry
+    the player already had. Both engine routers (`quest/CLAUDE.md`, `achievement/CLAUDE.md`) carry
+    the obligation, because that is where the code being added lives.
 - **contribution** (gates, system gates, taps, feedback hooks, text sources): every registration
   applies. Gates AND with `accepts` collecting EVERY reason (no short-circuit),
   `preSatisfiedAmount` folding as a MAX; system gates AND with every gate asked, so registration

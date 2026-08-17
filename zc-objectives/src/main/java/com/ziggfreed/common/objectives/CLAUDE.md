@@ -58,7 +58,7 @@ each engine, after the tap has been fed.
 
 | Package | What it is |
 |---|---|
-| `runtime/` | `ProgressionDefaults`: the default registrations, the asset fold + its audit, the text source, the player lifecycle |
+| `runtime/` | `ProgressionDefaults`: the default registrations, the asset fold + its audit, the text source, the player lifecycle, and the `onProgressDirty` / `onProgressFlush` persistence contributions |
 | `store/` | `ZigProgressComponent` (the persisted state) + `ProgressBlob` (the packing) + `ProgressHandle`/`ProgressSubjects` (the subject) + `ZigQuestStore`/`ZigAchievementStore` (the two adapters) |
 | `producer/` | `ProgressDispatch` plus the four generic producers: block break, mob kill, craft, pickup |
 | `book/` | the in-game two-tab surface and the item that opens it |
@@ -106,7 +106,7 @@ single class can implement both.
 
 - The maps live on [`store/ZigProgressComponent`](store/ZigProgressComponent.java) and the adapters
   are a lookup plus a call, which is what keeps the behaviour unit-testable with no server.
-- **Ten packed string leaves, not ten map codecs.** Each map travels through
+- **Twelve packed string leaves, not twelve map codecs.** Each map travels through
   [`store/ProgressBlob`](store/ProgressBlob.java) as `key=value|key=value`, values base64-encoded
   where they are opaque (a quest payload may itself contain both separators). **That wire form is a
   contract** - it is what every saved world holds - so changing the spelling is a data migration.
@@ -127,8 +127,69 @@ single class can implement both.
 - **`clearQuest` re-arms and KEEPS the completion record.** Abandon and the off-cooldown reset both
   go through it, and a lifetime cap either of them wiped could never be reached. The wipe is an
   explicit `setQuestCompletions(id, CompletionRecord.NONE)`.
-- `markDirty` / `flush` stay the interface no-ops: the component's own codec persists a live
-  component at tick end.
+- **`markDirty` / `flush` write nothing and FAN OUT.** The component's own codec persists a live
+  component at tick end, so neither adapter has anything of its own to do; both instead call
+  `ProgressionDefaults.fireProgressDirty` / `fireProgressFlush`, which walk every consumer registered
+  through `ProgressionDefaults.onProgressDirty(Consumer<Subject>)` /
+  `onProgressFlush(Consumer<Subject>)`. **Both are CONTRIBUTIONS**: registering one never displaces
+  another, every listener is asked, a listener that throws is warned about by name and the rest still
+  run, and `ProgressionDefaults.reset()` clears both. A null listener is refused at REGISTRATION, so
+  a consumer that offers one is named at its own setup rather than inside somebody else's hand-in.
+  Dirty and flush are kept apart on purpose - dirty says "this player changed", flush says "commit
+  it before a crash costs them what they just earned", and a batching backend needs to hear those
+  separately.
+- **What the dirty fan-out COVERS, exactly.** A backend that only ever hears about some of the
+  writes is worse than one that hears about none, because the gap is invisible until a player's
+  state reverts on the next hydrate. Three sources land on this one component and all three report:
+  every write the two adapters make for the quest and achievement engines (pins and unpins
+  included - `QuestEngine.track` / `untrack` / `pruneStaleTracked` and `AchievementEngine.pin` /
+  `unpin` / `prunePins` all mark dirty, so a tracker a player tidied stays tidy), and every dialogue
+  memory `ZigProgressDialogueStore` remembers or forgets, which fans out from the view itself
+  because the memories ride this same component. Each ENGINE method that writes reports its OWN
+  write, the public ones an authoring layer calls included (`QuestEngine.clearQuest`,
+  `markCompleted`, `markUnclaimed`), so a re-arm from a rotating offer or a chained quest's pool is
+  not a silent one.
+- **The two doors that do NOT report, and why.** Both are a caller going AROUND the engine. One is a
+  caller holding the component and writing it directly: `ZigProgressComponent.claimMigration` is the
+  only instance today, and whoever claims a migration marks the player dirty itself, since it is the
+  only side that knows a claim was made. The other is a caller reaching the store ADAPTER itself
+  (`store().clearQuest`, `setStatus`, `putProgress`) rather than the engine call that owns that
+  write, which the forwarding stores in `progress/runtime/ProgressionParts` make reachable from
+  anywhere. Neither is reported for, and both carry the engine's own obligation: whoever makes the
+  write says so. Add a further source and it reports here too, or it silently does not survive a
+  restart on a consumer's backend.
+- **What FLUSH means here, and the FIVE points it means it at.** Dirty is every change; flush is the
+  narrow subset where a player-owned transaction closed, so a crash in the next second cannot cost
+  them what they just collected. The whole list, because a backend sizes its write budget on it:
+  a quest COLLECTED (`QuestEngine.claim`), an achievement COLLECTED (`AchievementEngine.claim`) and a
+  points milestone COLLECTED (`claimMilestone`) - all three unconditional, the player pressed the
+  button - plus a quest that paid out the instant it finished (`checkCompletion`'s auto-claim path)
+  and an administrator's close-out (`forceComplete`), those two ONLY when a reward was actually
+  delivered.
+- **What does NOT flush, which is the load-bearing half.** Earning an achievement, reaching a points
+  milestone, and any payout that delivered nothing report dirty and wait for the batch. Earning is
+  something the engine DECIDES rather than something a player asked for, and it arrives in bulk: a
+  self-heal walks the whole catalogue on login, one earn cascades through a chain of metas, and each
+  earn re-checks the milestones - so committing at any of those turns one login into a write per
+  achievement the player already had. **Nothing inside a self-heal, a re-arm, a prune or a pin sweep
+  commits, and no single engine call commits twice.** A quest that finishes and PARKS has paid
+  nothing yet, so it waits, and commits when the player comes to collect it. Adding a sixth flush
+  point means arguing it past that paragraph first.
+- **The component comes from a bare `ZigProgressComponent` handle FIRST**, and from a
+  `ProgressHandle` only as the fallback. `ProgressHandle` itself answers for the component through
+  `Subject.HandleFacets`, so both routes end in the same place. This is the seam that lets a consumer
+  supplying its OWN `ProgressionSubjectSource` keep these two adapters as THE store: its handle
+  offers the component and nothing else has to change. **A consumer must never bring a second store**
+  (runtime router rule: two stores is two versions of one player's state), and these two seams
+  together are why it never needs to.
+- **The wire format is GOLDEN-PINNED.** `store/ZigProgressBlobCompatTest` decodes a checked-in blob
+  at `src/test/resources/fixtures/zig-progress-blob-1-6-0.bin` covering all twelve leaves, built by
+  `ZigProgressBlobFixture` and written once by the gated `ZigProgressBlobFixtureGenerator`
+  (`-DexportProgressFixture=true`, forwarded by `gradle/zc-module.gradle`). **The file is NEVER
+  regenerated**: a codec change has to keep decoding it, because a consumer's database backend
+  stores this component in exactly that form. Byte-equality is deliberately not asserted (the maps
+  are `ConcurrentHashMap`s and iteration order is not a contract); what is pinned is that old bytes
+  decode to the same state, plus a lossless decode-encode-decode loop.
 
 ## The producers
 
@@ -352,9 +413,20 @@ The three seams above are pinned by their own failure mode, since each one repor
 delivering nothing. `DefaultPartsRewardGrantTest` walks a real collect through the real payout pass
 and proves a handle standing in for the player is paid while one answering only for itself is not;
 `DefaultPartsHandInTest` runs the book's own press sequence against an engine with the inventory
-seams and against one without; `ProgressHandleFacetTest` pins the handle's declaration and what it
-stands in for. `Subject.HandleFacets` itself is pinned in `zc-core` by `SubjectTest`, over the test's own
-types, because the point is the dispatch rather than any player representation.
+seams and against one without; `ProgressHandleFacetTest` pins the handle's declaration and all three
+things it stands in for. `Subject.HandleFacets` itself is pinned in `zc-core` by `SubjectTest`, over
+the test's own types, because the point is the dispatch rather than any player representation.
+
+`ProgressStoreContributionTest` pins the persistence half: that the dirty and flush fan-outs stack
+rather than displace, that a listener throwing an exception OR an error is guarded and costs only
+its own notification, that a null listener is refused at registration, that `reset` clears both, and
+that the two routes a subject can hand these adapters their component - a bare `ZigProgressComponent`
+handle and a consumer handle answering for one - both read and write. It then drives a real
+`QuestEngine` and a real `AchievementEngine` over the real default stores to pin the COVERAGE that is
+easiest to lose in a refactor: a quest pin, an unpin, a stale-pin sweep and an achievement unpin all
+reach the fan-out, and a sweep that dropped nothing reports nothing. The one covered write no test
+can reach is a dialogue memory, since that view needs a live component type and a world; it is in-game
+smoke like the rest of this module's engine-touching half.
 
 The NPC quest page is split the same way. `NpcQuestSectionsTest` pins the ordering rules a player
 notices immediately and a refactor breaks silently - which bucket a status lands in, a finished quest

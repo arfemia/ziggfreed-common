@@ -9,6 +9,9 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.DialogueFlagStore;
 import com.ziggfreed.common.dialogue.DialogueMemories;
+import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -25,6 +28,12 @@ import com.ziggfreed.common.util.SafeLog;
  * attached remembers nothing rather than taking the render down. The component is attached when the
  * player connects, the one moment the engine hands anybody a holder.
  *
+ * <p><b>Every write here is a change to the player's PROGRESS state</b>, because that is the
+ * component it lands on, so a remembered or forgotten memory reports through the same dirty fan-out
+ * a quest or an achievement write does ({@link ProgressionDefaults#onProgressDirty}). A consumer
+ * with its own persistence backend would otherwise see a conversation's memory as the one saved
+ * thing nothing ever told it about, and every remembered beat would revert on the next hydrate.
+ *
  * <p>World-thread, like every component read.
  */
 public final class ZigProgressDialogueStore implements DialogueMemories.PersistentStore {
@@ -40,7 +49,12 @@ public final class ZigProgressDialogueStore implements DialogueMemories.Persiste
     public DialogueFlagStore forPlayer(@Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef) {
         ZigProgressComponent component = componentOf(store, ref);
-        return component == null ? null : new ComponentView(component);
+        // Through the REGISTERED subject source, never this module's own builder: on a server where a
+        // consumer registered its own, a memory write has to arrive carrying the same handle a quest
+        // write does, or a backend reading its session off the subject hears only half the story.
+        return component == null ? null
+                : new ComponentView(component,
+                        ProgressionRuntime.subjects().questSubject(store, ref, playerRef));
     }
 
     @Nullable
@@ -55,9 +69,15 @@ public final class ZigProgressDialogueStore implements DialogueMemories.Persiste
         }
     }
 
-    /** One player's live component, answered in the dialogue engine's own vocabulary. */
-    private record ComponentView(@Nonnull ZigProgressComponent component)
-            implements DialogueFlagStore {
+    /**
+     * One player's live component, answered in the dialogue engine's own vocabulary.
+     *
+     * <p>The subject travels with it purely so a WRITE can be reported to the dirty fan-out. It is
+     * nullable because a player whose uuid cannot be read yet has no subject to build - the memory
+     * write still lands on the component, and only the notification is skipped.
+     */
+    private record ComponentView(@Nonnull ZigProgressComponent component,
+                                 @Nullable Subject subject) implements DialogueFlagStore {
 
         @Override
         public boolean has(@Nonnull String flag) {
@@ -67,21 +87,40 @@ public final class ZigProgressDialogueStore implements DialogueMemories.Persiste
         @Override
         public void set(@Nonnull String flag) {
             component.setDialogueMemory(flag);
+            changed();
         }
 
         @Override
         public void clear(@Nonnull String flag) {
-            component.clearDialogueMemory(flag);
+            if (component.clearDialogueMemory(flag)) {
+                changed();
+            }
         }
 
         @Override
         public void clearWithPrefix(@Nonnull String prefix) {
             component.clearDialogueMemoriesWithPrefix(prefix);
+            changed();
         }
 
         @Override
         public void clearAll() {
             component.clearDialogueMemories();
+            changed();
+        }
+
+        /**
+         * Tell every registered backend the player's saved state moved. Reads never call this.
+         *
+         * <p>The two bulk clears and {@link #set} report unconditionally, because neither the
+         * component nor an idempotent set can say whether anything actually moved. A dirty
+         * notification is idempotent, so the cost of an occasional redundant one is a backend
+         * looking again at a player it already knew about.
+         */
+        private void changed() {
+            if (subject != null) {
+                ProgressionDefaults.fireProgressDirty(subject);
+            }
         }
     }
 }

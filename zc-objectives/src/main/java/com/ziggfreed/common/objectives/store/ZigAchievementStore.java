@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.achievement.AchievementProgressStore;
 import com.ziggfreed.common.achievement.AchievementStatus;
+import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -18,11 +19,17 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>Two adapters rather than one because the two seams declare {@code status(Subject, String)} with
  * the same erasure and different return types, so no single class can implement both.
  *
- * <p>Same rules as its peer: a read never creates, a missing component reads neutral and drops
- * writes with one fine-level line, and every interface default is inherited - including the
- * composite criterion key with its one-way legacy fallback, {@code clearAchievement}, and
- * {@code usesReservedDelimiter} (whose default already rejects everything
- * {@link ProgressBlob} reserves, plus the criterion separator).
+ * <p>Same rules as its peer, and for the same reasons. A read never creates, a missing component
+ * reads neutral and drops writes with one fine-level line. The component is taken from a
+ * {@link ZigProgressComponent} the subject's handle answers for DIRECTLY where there is one, and
+ * from a {@link ProgressHandle} otherwise, so a consumer supplying its own subject source keeps
+ * these stores as THE store rather than bringing a second version of one player's state.
+ * {@code markDirty} / {@code flush} fan out to whatever registered through
+ * {@link ProgressionDefaults#onProgressDirty} / {@link ProgressionDefaults#onProgressFlush}.
+ *
+ * <p>Every other interface default is inherited - including the composite criterion key with its
+ * one-way legacy fallback, {@code clearAchievement}, and {@code usesReservedDelimiter} (whose
+ * default already rejects everything {@link ProgressBlob} reserves, plus the criterion separator).
  */
 public final class ZigAchievementStore implements AchievementProgressStore {
 
@@ -34,6 +41,10 @@ public final class ZigAchievementStore implements AchievementProgressStore {
 
     @Nullable
     private static ZigProgressComponent componentOf(@Nonnull Subject subject) {
+        ZigProgressComponent direct = subject.handleAs(ZigProgressComponent.class);
+        if (direct != null) {
+            return direct;
+        }
         ProgressHandle handle = subject.handleAs(ProgressHandle.class);
         return handle == null ? null : handle.component();
     }
@@ -41,6 +52,18 @@ public final class ZigAchievementStore implements AchievementProgressStore {
     private static void dropped(@Nonnull Subject subject, @Nonnull String what) {
         SafeLog.fine("[progression] dropped an achievement " + what + " for '" + subject.name()
                 + "': no progress component");
+    }
+
+    /** Fan the change out to every registered dirty listener. This store persists nothing itself. */
+    @Override
+    public void markDirty(@Nonnull Subject subject) {
+        ProgressionDefaults.fireProgressDirty(subject);
+    }
+
+    /** Fan the transaction boundary out to every registered flush listener. */
+    @Override
+    public void flush(@Nonnull Subject subject) {
+        ProgressionDefaults.fireProgressFlush(subject);
     }
 
     @Override

@@ -34,6 +34,8 @@ which one shared instance cannot afford, and it is exactly why that method exist
 
 ## Rules to keep
 
+- **Every engine path that MUTATES the store calls `store.markDirty(subject)` before it returns.** A consumer's persistence backend is driven entirely off that call (zc-objectives' default stores fan it out to `ProgressionDefaults.onProgressDirty`), so a write that skips it reverts on the player's next hydrate with nothing reporting it. That includes the pin half - `pin` / `unpin` / `prunePins` - because a pin is saved state too. Report it inside the method that made the write, not at each caller.
+- **`store.flush(subject)` is a much narrower thing, and this engine has exactly TWO: `claim` and `claimMilestone`.** Both are a player COLLECTING, both commit unconditionally, and that is the whole list. **`unlock` does NOT flush, and neither does `checkMilestones`** - earning is something this engine DECIDES rather than something the player asked for, and it arrives in bulk: `selfHeal` walks the whole catalogue on login, `cascadeMeta` chains one earn into a run of metas, and every earn re-checks the milestones. A commit at any of those turns one login into a database write per achievement the player already had. Nothing in a self-heal, a cascade or a pin sweep commits; nothing commits twice in one engine call. A third flush point needs that paragraph argued past first.
 - **The criteria order is PERMANENT.** Progress is stored per criterion by its POSITION
   (`"<id>#<index>"`), so appending is safe while inserting, removing, or reordering moves every
   player's progress onto a different criterion. `AchievementEngineTest` asserts the hazard directly:

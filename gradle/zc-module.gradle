@@ -71,4 +71,8 @@ javadoc {
 
 test {
     useJUnitPlatform()
+    // Forward gradlew-level -Dexport* system properties into the test JVM, so a one-shot gated
+    // generator (a golden-fixture capture, say) can be triggered from the command line without
+    // anybody editing a build file to do it.
+    systemProperties System.properties.findAll { it.key.toString().startsWith('export') }
 }

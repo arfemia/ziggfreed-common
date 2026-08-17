@@ -5,6 +5,9 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
@@ -107,6 +110,12 @@ public final class ProgressionDefaults {
     /** Registration is once per boot: a second pass would mint parts nothing is holding. */
     private static boolean registered;
 
+    /** Every listener told when a player's progress state changed. See {@link #onProgressDirty}. */
+    private static final List<Consumer<Subject>> DIRTY_LISTENERS = new CopyOnWriteArrayList<>();
+
+    /** Every listener told to commit a player's pending writes. See {@link #onProgressFlush}. */
+    private static final List<Consumer<Subject>> FLUSH_LISTENERS = new CopyOnWriteArrayList<>();
+
     private ProgressionDefaults() {
     }
 
@@ -190,6 +199,124 @@ public final class ProgressionDefaults {
     public static String producedKinds() {
         return String.join(", ", ZigBlockBreakProducer.KIND, ZigMobKillProducer.KIND,
                 ZigCraftProducer.KIND, ZigPickupProducer.KIND);
+    }
+
+    // ==================== persistence notifications ====================
+
+    /**
+     * Be told whenever a player's progress state CHANGED, so a consumer with a persistence backend
+     * of its own can mark that player dirty without having to replace the store.
+     *
+     * <p>This is the seam a mod keeping progress somewhere other than the saved world needs. The
+     * library's own default stores write straight onto the persisted component and have nothing to
+     * report, so the notification exists purely for whoever else is holding a copy: a fleet database,
+     * a write-behind cache, a live export. Register a consumer's own dirty hook here and the default
+     * stores stay THE store, which is the whole point - two stores would be two versions of one
+     * player's state.
+     *
+     * <p><b>What counts as a change.</b> Every write the two default stores make on the shared
+     * quest and achievement engines' behalf, pins, unpins and re-arms included, plus every dialogue
+     * memory a conversation remembers or forgets - all three land on the one persisted component,
+     * so all three report here. Each ENGINE method that writes reports its own write, including the
+     * public ones an outside layer calls ({@code QuestEngine.clearQuest}, {@code markCompleted},
+     * {@code markUnclaimed}), so a re-arm arriving from a rotating offer or a chained quest's pool
+     * is not a silent one.
+     *
+     * <p><b>What does NOT report is a caller going AROUND the engine</b>, and there are two such
+     * doors. One is a caller holding the component and writing it directly:
+     * {@code ZigProgressComponent.claimMigration} is the only instance today, and whoever claims a
+     * migration marks the player dirty itself, since it is the only side that knows a claim was
+     * made. The other is a caller reaching the store adapter itself - {@code store().clearQuest},
+     * {@code setStatus}, {@code putProgress} - instead of the engine call that owns that write.
+     * Neither is reported for it, and both carry the same obligation the engine carries: whoever
+     * makes the write says so.
+     *
+     * <p><b>Contributions STACK.</b> Every registered listener is called on every change, in
+     * registration order, and registering one never displaces another. A listener that THROWS is
+     * reported by name and the remaining listeners still run, so one misbehaving backend cannot
+     * silence another's writes. Registration order is the order they are ASKED in, never a
+     * precedence: no listener can consume a notification or stop the next one hearing it.
+     *
+     * <p>Called on the world thread the change happened on. Keep the body short: hand the work to
+     * whatever queue the backend already has rather than doing IO here.
+     *
+     * @throws NullPointerException when {@code listener} is null, at the consumer's own setup rather
+     *         than mid-transition inside somebody else's quest hand-in
+     */
+    public static void onProgressDirty(@Nonnull Consumer<Subject> listener) {
+        DIRTY_LISTENERS.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /**
+     * Be told when a player's pending writes should be COMMITTED NOW, at a transaction boundary the
+     * engines name themselves. There are exactly FIVE of them, and the list is the whole contract -
+     * a backend sizes its write budget on it:
+     *
+     * <ul>
+     *   <li>a quest COLLECTED ({@code QuestEngine.claim}), whether or not that quest had anything to
+     *       hand over: the player pressed the button, so the outcome sticks;</li>
+     *   <li>a points milestone COLLECTED ({@code AchievementEngine.claimMilestone}), same rule;</li>
+     *   <li>an achievement COLLECTED ({@code AchievementEngine.claim}), same rule;</li>
+     *   <li>a quest that paid out the instant it finished (the auto-claim path in
+     *       {@code QuestEngine.checkCompletion}), <b>only when a reward was actually delivered</b>;</li>
+     *   <li>an administrator's close-out ({@code QuestEngine.forceComplete}), on the same
+     *       delivered-something condition.</li>
+     * </ul>
+     *
+     * <p><b>What deliberately does NOT flush, and why the list is short.</b> Earning an achievement,
+     * reaching a points milestone, and a payout that delivered nothing all report dirty and wait for
+     * the batch. Earning is something the engine DECIDES rather than something the player asked for,
+     * and it arrives in bulk: a self-heal walks the whole catalogue on login, one earn cascades
+     * through a chain of meta achievements, and each earn re-checks the milestones. Committing at
+     * any of those turns one login into a write per achievement the player already had. Nothing in a
+     * self-heal, a re-arm, a prune, or a pin sweep commits, and no single engine call commits twice.
+     * A quest that finishes and PARKS for collection has paid nothing yet, so it waits too - and
+     * then commits when the player comes to collect it, which is the first bullet.
+     *
+     * <p>Same shape and same rules as {@link #onProgressDirty} - additive, every listener asked in
+     * registration order, every listener guarded - and it exists beside it rather than being folded
+     * into it because the two say different things. Dirty says "this player changed, get to it";
+     * flush says "do not let a crash in the next second cost this player the thing they just
+     * earned". A backend that batches its writes needs both, and one that does not can register
+     * only the first.
+     *
+     * @throws NullPointerException when {@code listener} is null, for the same reason as its peer
+     */
+    public static void onProgressFlush(@Nonnull Consumer<Subject> listener) {
+        FLUSH_LISTENERS.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /**
+     * Tell every dirty listener about {@code subject}. The library's own default stores call this
+     * from their {@code markDirty}; it is not a consumer entry point (a consumer REGISTERS through
+     * {@link #onProgressDirty} and lets its own store seam decide when a change happened).
+     */
+    public static void fireProgressDirty(@Nonnull Subject subject) {
+        fire(DIRTY_LISTENERS, subject, "dirty");
+    }
+
+    /**
+     * Tell every flush listener about {@code subject}. The library's own default stores call this
+     * from their {@code flush}; like its peer it is a dispatch point, not a consumer entry point.
+     */
+    public static void fireProgressFlush(@Nonnull Subject subject) {
+        fire(FLUSH_LISTENERS, subject, "flush");
+    }
+
+    /**
+     * One listener at a time, each in its own guard: a backend that throws is a backend that failed,
+     * not a reason for the next one never to hear about the change.
+     */
+    private static void fire(@Nonnull List<Consumer<Subject>> listeners, @Nonnull Subject subject,
+            @Nonnull String what) {
+        for (Consumer<Subject> listener : listeners) {
+            try {
+                listener.accept(subject);
+            } catch (Throwable t) {
+                SafeLog.warn("[progression] a progress " + what + " listener ("
+                        + listener.getClass().getName() + ") failed for '" + subject.name() + "'", t);
+            }
+        }
     }
 
     // ==================== content ====================
@@ -631,5 +758,7 @@ public final class ProgressionDefaults {
         QUEST_POOL = QuestPool.EMPTY;
         ACHIEVEMENT_POOL = null;
         registered = false;
+        DIRTY_LISTENERS.clear();
+        FLUSH_LISTENERS.clear();
     }
 }

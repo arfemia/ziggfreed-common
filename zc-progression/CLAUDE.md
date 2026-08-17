@@ -81,7 +81,7 @@ asserted directly in the engine test.
 
 ## Tests
 
-34 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
+36 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
 `ObjectiveProgressStateTest`, `ContentMetaTest`), the quest engine (`QuestEngineFlowTest`,
 `QuestEngineTurnInTest`, `QuestLifecycleTest`, `RepeatEvaluatorTest` (the ONE repeat evaluator, and
 where the "the repeat rules count FINISHES, not collections" half of the completion record is
@@ -90,7 +90,12 @@ pinned), `CompletionRecordTest` (the record's own invariants, the collected-clam
 `QuestAssetCodecTest`, `QuestPoolValidatorTest`, `QuestStateReaderTest`, `QuestNestedIdTest`,
 `QuestModuleAgnosticismTest`, `RequiresGatesTest` - the ONE gate both engines share: fail-open for
 content that asks for nothing, one answer whichever layer folded it, the server-first claim, and the
-live cap and availability seams), the achievement engine
+live cap and availability seams), what each engine OWES a consumer's persistence
+(`QuestEnginePersistenceReportTest` and `AchievementEnginePersistenceReportTest` - a re-arm, the two
+"this quest is finished" rules and the runtime forwarder all report their own writes, while the
+COMMIT half is pinned with exact counts: collecting commits exactly once, a payout commits only when
+it delivered something, and earning, a reached milestone, a re-arm and a catalogue-wide self-heal
+commit nothing at all), the achievement engine
 (`AchievementEngineTest`, `AchievementAssetCodecTest`, `AchievementPoolValidatorTest`,
 `AchievementProgressStoreTest`, `AchievementStatThresholdTest`, `AchievementTaxonomyCodecTest`),
 the shared runtime (`ProgressionRuntimeTest`, `ProgressionFeedbackHookTest` - which moments each

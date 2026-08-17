@@ -984,6 +984,13 @@ public final class QuestEngine implements QuestStateReader {
         fireCompleted(quest, subject, false);
         RewardGrants.GrantOutcome outcome = grantRewards(subject, quest);
         store.markDirty(subject);
+        // A quest that pays out the instant it finishes is a transaction boundary exactly like a
+        // collected one - but only when something was actually paid. A quest carrying no rewards
+        // has nothing a crash could cost the player, so it waits for the batch like any other
+        // change, and a sweep that settles several such quests costs a backend nothing.
+        if (outcome.anyDelivered()) {
+            store.flush(subject);
+        }
         fireClaimed(quest, subject, outcome);
     }
 
@@ -1031,7 +1038,9 @@ public final class QuestEngine implements QuestStateReader {
         }
         markCompleted(subject, quest);
         RewardGrants.GrantOutcome outcome = grantRewards(subject, quest);
-        // Collecting is a player-owned transaction boundary, so the writes are committed here.
+        // Collecting is a player-owned transaction boundary: they pressed the button and it must
+        // stick, whether or not this particular quest had anything to hand over. Unlike the
+        // payout paths, which the engine reaches on its own and which commit only when they paid.
         store.markDirty(subject);
         store.flush(subject);
         fireClaimed(quest, subject, outcome);
@@ -1059,6 +1068,10 @@ public final class QuestEngine implements QuestStateReader {
         fireCompleted(quest, subject, false);
         RewardGrants.GrantOutcome outcome = grantRewards(subject, quest);
         store.markDirty(subject);
+        // Commits when it paid, on the same rule as the auto-claim path above.
+        if (outcome.anyDelivered()) {
+            store.flush(subject);
+        }
         fireClaimed(quest, subject, outcome);
         return true;
     }
@@ -1091,6 +1104,10 @@ public final class QuestEngine implements QuestStateReader {
         QuestStatus prior = store.status(subject, quest.id());
         boolean alreadyParked = prior == QuestStatus.COMPLETED_UNCLAIMED;
         store.setStatus(subject, quest.id(), QuestStatus.COMPLETED);
+        // Reported here rather than at each caller: this method is public precisely so a surface
+        // outside the engine can close a quest out, and every path below returns from a different
+        // place.
+        store.markDirty(subject);
         Quest.Repeat repeat = quest.repeat();
         if (repeat == null) {
             return;
@@ -1122,6 +1139,8 @@ public final class QuestEngine implements QuestStateReader {
      */
     public void markUnclaimed(@Nonnull Subject subject, @Nonnull Quest quest) {
         store.setStatus(subject, quest.id(), QuestStatus.COMPLETED_UNCLAIMED);
+        // Reported here for the same reason as its peer above.
+        store.markDirty(subject);
         Quest.Repeat repeat = quest.repeat();
         if (repeat == null) {
             return;
@@ -1219,9 +1238,15 @@ public final class QuestEngine implements QuestStateReader {
      *
      * <p>Whether the player was carrying it is the CALLER's question; this does the clear it was
      * asked for.
+     *
+     * <p>The clear REPORTS itself to the store, so a re-arm arriving from outside the engine - a
+     * chained quest reset by its pool, a rotating offer putting a lapsed quest back - is saved like
+     * any other write. A caller that also marks the player dirty around this simply says so twice,
+     * which costs a backend one redundant look at a player it was already going to write.
      */
     public void clearQuest(@Nonnull Subject subject, @Nonnull String questId) {
         store.clearQuest(subject, questId);
+        store.markDirty(subject);
         QuestResets.fire(subject, questId);
     }
 
@@ -1410,12 +1435,23 @@ public final class QuestEngine implements QuestStateReader {
             return false;
         }
         store.setTrackedPin(subject, questId, now());
+        store.markDirty(subject);
         return true;
     }
 
-    /** Unpin a quest. Returns true when a pin was actually there. */
+    /**
+     * Unpin a quest. Returns true when a pin was actually there.
+     *
+     * <p>A pin is a display preference rather than progress, but it is SAVED state like any other,
+     * so a store that batches its writes is told about it. A store keeping nothing of its own reads
+     * that as the no-op it inherits.
+     */
     public boolean untrack(@Nonnull Subject subject, @Nonnull String questId) {
-        return store.clearTrackedPin(subject, questId);
+        if (!store.clearTrackedPin(subject, questId)) {
+            return false;
+        }
+        store.markDirty(subject);
+        return true;
     }
 
     /** The player's pinned quest ids, oldest pin first. */
@@ -1464,6 +1500,9 @@ public final class QuestEngine implements QuestStateReader {
             if (!isActive(subject, questId) && store.clearTrackedPin(subject, questId)) {
                 dropped++;
             }
+        }
+        if (dropped > 0) {
+            store.markDirty(subject);
         }
         return dropped;
     }

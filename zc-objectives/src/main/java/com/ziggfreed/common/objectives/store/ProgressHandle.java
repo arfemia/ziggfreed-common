@@ -56,18 +56,27 @@ public record ProgressHandle(@Nonnull Store<EntityStore> store,
         if (type.isAssignableFrom(Player.class)) {
             return player();
         }
+        if (type.isAssignableFrom(ZigProgressComponent.class)) {
+            return component();
+        }
         return type.isAssignableFrom(PlayerRef.class) ? playerRef : null;
     }
 
     /**
-     * The foreign types this handle stands in for: the live {@link Player} and the
-     * {@link PlayerRef}, and nothing else. The second is what lets a reward that runs a command
-     * with the PLAYER's own authority find somebody to run it as, over a subject carrying this
-     * richer handle instead of a bare ref. Everything else a reader might ask for is either the
-     * handle itself (answered by the direct cast before this is ever consulted) or genuinely not
-     * ours to answer.
+     * The foreign types this handle stands in for: the live {@link Player}, the
+     * {@link ZigProgressComponent} it can reach, and the {@link PlayerRef}, and nothing else.
+     *
+     * <p>The PlayerRef is what lets a reward that runs a command with the PLAYER's own authority
+     * find somebody to run it as, over a subject carrying this richer handle instead of a bare ref.
+     * The component is the shape the two default stores ask for first, so that a consumer bringing
+     * its OWN handle needs only to answer for the component to keep those stores working - which is
+     * the same courtesy this handle is extending by answering here. Everything else a reader might
+     * ask for is either the handle itself (answered by the direct cast before this is ever
+     * consulted) or genuinely not ours to answer.
      */
     static boolean answersFor(@Nonnull Class<?> type) {
-        return type.isAssignableFrom(Player.class) || type.isAssignableFrom(PlayerRef.class);
+        return type.isAssignableFrom(Player.class)
+                || type.isAssignableFrom(ZigProgressComponent.class)
+                || type.isAssignableFrom(PlayerRef.class);
     }
 }
