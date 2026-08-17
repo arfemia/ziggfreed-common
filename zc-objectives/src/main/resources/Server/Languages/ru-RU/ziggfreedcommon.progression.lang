@@ -67,3 +67,5 @@ npcquests.toast.tracked = Квест отслеживается.
 npcquests.toast.untracked = Квест больше не отслеживается.
 npcquests.toast.track_full = Вы уже отслеживаете максимум квестов.
 npcquests.toast.turn_in_short = Пока недостаточно: {0}/{1}.
+
+tracked.empty = Отслеживайте квест, чтобы видеть его здесь.

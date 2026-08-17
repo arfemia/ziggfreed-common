@@ -1,0 +1,238 @@
+// The tracked-quest HUD (ziggfreed-common, zc-objectives: objectives/hud/TrackedQuestHud), drawn to
+// match the NATIVE objective HUD (client Data/Game/Interface/InGame/Hud/ObjectivePanel + ObjectiveSlot
+// + ObjectivePanelTask + ObjectiveCommon): a content-sized top-right panel (NO fixed height - it hugs
+// the tracked quests), the ObjectivePanelContainer frame, uppercase-gray objective titles, per-task
+// default/complete icon glyphs, gold task text, and a right-aligned completion count. Textures are the
+// native ones, copied alongside this file so the server-shipped Custom UI can resolve them by name.
+//
+// The document path and every top-level id are prefixed Zig*: the client's UI namespace is flat
+// across mods, so a generic name could be clobbered by another mod's HUD document. Slots are
+// positional (#ZigQuest0..4, each #ObjRow0..3) and addressed by index from Java; the counts MUST
+// match TrackedQuestSnapshot.MAX_QUESTS / MAX_ROWS. Text is pushed on .TextSpans, colours on
+// .Style.TextColor, and a theme may retint #ZigQuestHudPanel.Background.Color.
+
+@QuestTitleStyle = (FontSize: 15, RenderBold: true, RenderUppercase: true, TextColor: #b7b8b9, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
+
+@TaskTextStyle = (FontSize: 15, RenderBold: true, LetterSpacing: 1, TextColor: #ca9f37, VerticalAlignment: Center, Wrap: true);
+
+@TaskCountStyle = (FontSize: 15, RenderBold: true, LetterSpacing: 1, TextColor: #b7b8b9, HorizontalAlignment: End, VerticalAlignment: Center);
+
+@TaskIconDefault = PatchStyle(TexturePath: "ObjectiveTaskIconDefault.png");
+
+@TaskIconComplete = PatchStyle(TexturePath: "ObjectiveTaskIconComplete.png");
+
+// The #ParentPanel wrapper MUST carry LayoutMode: Top (mirrors the native ObjectivePanel structure):
+// it is what makes the inner heightless-anchored panel size to its content instead of stretching from
+// its Top anchor to the screen bottom. Without it, a (Width + Right + Top, no Height) anchor fills.
+Group #ZigQuestHudParent {
+  LayoutMode: Top;
+
+  Group #ZigQuestHudPanel {
+    // Static fallback anchor only (NO Height - content-sized); the runtime applyConfiguredPosition
+    // (content-height variant) always wins. Width + Top + Right mirror the native ObjectivePanel.
+    Anchor: (Width: 350, Right: 24, Top: 120);
+    Padding: (Horizontal: 20, Top: 20);
+    Background: (TexturePath: "ObjectivePanelContainer.png", Border: 15);
+    LayoutMode: Top;
+
+    Group #ZigQuest0 {
+      LayoutMode: Top;
+      Padding: (Bottom: 20);
+
+      Label #Title { Text: ""; Style: @QuestTitleStyle; }
+
+      Group #Tasks {
+        LayoutMode: Top;
+
+        Group #ObjRow0 {
+          Anchor: (Top: 12);
+          Group #IcoDefault0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj0 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count0 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow1 {
+          Anchor: (Top: 12);
+          Group #IcoDefault1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj1 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count1 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow2 {
+          Anchor: (Top: 12);
+          Group #IcoDefault2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj2 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count2 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow3 {
+          Anchor: (Top: 12);
+          Group #IcoDefault3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj3 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count3 { Text: ""; Style: @TaskCountStyle; }
+        }
+      }
+    }
+
+    Group #ZigQuest1 {
+      LayoutMode: Top;
+      Padding: (Bottom: 20);
+
+      Label #Title { Text: ""; Style: @QuestTitleStyle; }
+
+      Group #Tasks {
+        LayoutMode: Top;
+
+        Group #ObjRow0 {
+          Anchor: (Top: 12);
+          Group #IcoDefault0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj0 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count0 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow1 {
+          Anchor: (Top: 12);
+          Group #IcoDefault1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj1 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count1 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow2 {
+          Anchor: (Top: 12);
+          Group #IcoDefault2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj2 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count2 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow3 {
+          Anchor: (Top: 12);
+          Group #IcoDefault3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj3 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count3 { Text: ""; Style: @TaskCountStyle; }
+        }
+      }
+    }
+
+    Group #ZigQuest2 {
+      LayoutMode: Top;
+      Padding: (Bottom: 20);
+
+      Label #Title { Text: ""; Style: @QuestTitleStyle; }
+
+      Group #Tasks {
+        LayoutMode: Top;
+
+        Group #ObjRow0 {
+          Anchor: (Top: 12);
+          Group #IcoDefault0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj0 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count0 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow1 {
+          Anchor: (Top: 12);
+          Group #IcoDefault1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj1 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count1 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow2 {
+          Anchor: (Top: 12);
+          Group #IcoDefault2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj2 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count2 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow3 {
+          Anchor: (Top: 12);
+          Group #IcoDefault3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj3 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count3 { Text: ""; Style: @TaskCountStyle; }
+        }
+      }
+    }
+
+    Group #ZigQuest3 {
+      LayoutMode: Top;
+      Padding: (Bottom: 20);
+
+      Label #Title { Text: ""; Style: @QuestTitleStyle; }
+
+      Group #Tasks {
+        LayoutMode: Top;
+
+        Group #ObjRow0 {
+          Anchor: (Top: 12);
+          Group #IcoDefault0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj0 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count0 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow1 {
+          Anchor: (Top: 12);
+          Group #IcoDefault1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj1 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count1 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow2 {
+          Anchor: (Top: 12);
+          Group #IcoDefault2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj2 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count2 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow3 {
+          Anchor: (Top: 12);
+          Group #IcoDefault3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj3 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count3 { Text: ""; Style: @TaskCountStyle; }
+        }
+      }
+    }
+
+    Group #ZigQuest4 {
+      LayoutMode: Top;
+      Padding: (Bottom: 20);
+
+      Label #Title { Text: ""; Style: @QuestTitleStyle; }
+
+      Group #Tasks {
+        LayoutMode: Top;
+
+        Group #ObjRow0 {
+          Anchor: (Top: 12);
+          Group #IcoDefault0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj0 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count0 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow1 {
+          Anchor: (Top: 12);
+          Group #IcoDefault1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj1 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count1 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow2 {
+          Anchor: (Top: 12);
+          Group #IcoDefault2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj2 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count2 { Text: ""; Style: @TaskCountStyle; }
+        }
+        Group #ObjRow3 {
+          Anchor: (Top: 12);
+          Group #IcoDefault3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
+          Group #IcoComplete3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
+          Label #Obj3 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
+          Label #Count3 { Text: ""; Style: @TaskCountStyle; }
+        }
+      }
+    }
+  }
+}

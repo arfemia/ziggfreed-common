@@ -2,17 +2,19 @@
 
 Router for `com.ziggfreed.common.objectives`. What a BARE server gets: persistence for the shared
 quest and achievement runtime, generic native-event producers feeding it, the asset content folded
-into it, an ordinary item that reads it in game, and the `/zigprogress` admin family that drives it.
+into it, an ordinary item that reads it in game, the `/zigprogress` admin family that drives it, and the
+in-world tracked-quest HUD that repaints off the quest engine's own events.
 
 Module edges: `zc-core`, `zc-loot`, `zc-progression`, `zc-presentation`, `zc-cast`, `zc-entity`,
 `zc-dialogue` (NPC identity, for the page at a character; `DialogueMemories`, for the admin verbs that
 forget them) - all one-way `implementation`. Package
 root `com.ziggfreed.common.objectives`.
 
-**Why this module exists at all.** The book needs BOTH the engines and a page. `zc-progression` may
-never import presentation (its own router states the rule), and pushing the engines under
-presentation would drag them onto every page consumer in the library. A module sitting ABOVE both
-adds no reverse edge, which is the only shape that contradicts nothing.
+**Why this module exists at all.** The book needs BOTH the engines and a page, and the tracked-quest
+HUD needs BOTH the quest events and the HUD base. `zc-progression` may never import presentation
+(its own router states the rule), and pushing the engines under presentation would drag them onto
+every page consumer in the library. A module sitting ABOVE both adds no reverse edge, which is the
+only shape that contradicts nothing.
 
 ## The one runtime: the book, the producers and every consumer read the same pair
 
@@ -97,6 +99,7 @@ seam.
 | `book/` | the in-game two-tab surface and the item that opens it |
 | `questlist/` | the NPC quest page: what one CHARACTER has to offer, list and detail |
 | `command/` | `/zigprogress`: the admin family over THE runtime - quest, achievement and memories groups; see [its router](command/CLAUDE.md) |
+| `hud/` | the tracked-quest HUD (`TrackedQuestHud` + `TrackedQuestHuds` + `TrackedQuestHudDeps` + `TrackedQuestSnapshot` + `RepaintCoalescer`) and the tracked-quests side-panel renderer a page embeds (`TrackedQuestPanelRenderer`) |
 
 ## What these defaults MUST wire, because nothing works without them
 
@@ -442,6 +445,64 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
   page deliberately REUSES the book's `book.progress` / `book.action.*` / `book.quests.lock.*` /
   `book.toast.*` lines rather than minting a second wording for the same sentence.
 
+## The tracked-quest HUD
+
+[`hud/TrackedQuestHud`](hud/TrackedQuestHud.java) is the in-world panel of a player's pinned quests,
+drawn to match the native objective HUD (`Common/UI/Custom/Hud/ZigQuestTracker.ui` plus the three
+native textures copied beside it, since a server-shipped document resolves a texture by name next to
+itself). Attached to EVERY player at ready and dropped at disconnect by
+[`hud/TrackedQuestHuds`](hud/TrackedQuestHuds.java), which `ProgressionDefaults.install` calls last;
+it reads the runtime's own subject, so it shows the right list whoever owns the stores, and its attach
+is deliberately NOT behind the `usesDefaultStores()` gate (it rides the ready event at LATE priority,
+after the maintenance pass has hopped to the world thread, so the first paint shows what that pass did).
+
+- **It repaints on the quest engine's native events, and there is no tick anywhere.** Six
+  subscriptions - `QuestTracked` (the pin event, fired by the engine on a real change only),
+  `QuestAccepted`, `QuestObjectiveProgressed`, `QuestCompleted`, `QuestClaimed`, `QuestAbandoned` -
+  each look the player up by the uuid the event carries in `TrackedQuestHuds.LIVE`, a
+  `ConcurrentHashMap` written at attach and cleared at detach, and ask that tracker to repaint. Every
+  event handler is one map read plus one queue offer, safe from any thread.
+- **A burst paints once.** [`hud/RepaintCoalescer`](hud/RepaintCoalescer.java) queues the paint on
+  the player's own `World` (an `Executor`) and folds every request that arrives before it runs; the
+  world drains its task queue inside the same tick, so a swing of the pickaxe with five gathering
+  quests pinned is one paint at the end of that tick. It is not a poller: nothing runs when nothing
+  was asked for. The objective event is additionally pre-filtered against what the tracker LAST
+  SHOWED (`Tracker.shows`), so a quest the player is not watching costs no paint at all.
+- **World thread, by construction.** A repaint may be ASKED for from anywhere; the paint itself
+  runs where the coalescer queued it, on the player's world thread, and resolves the subject per
+  paint off the live reference (a player crossing worlds gets a new one). Reading the tracked state
+  resolves the player's entity, which is why the hop is not optional.
+- **What it shows is a value first, commands second.** [`hud/TrackedQuestSnapshot`](hud/TrackedQuestSnapshot.java)
+  is one paint worked out from the engine: hidden when nothing is pinned or the deps say so, one
+  block per pinned quest (capped at the document's five), only the CURRENT step's rows (capped at
+  four), the count blank on a report-back hand-in, `complete` flipping the glyph and the colours.
+  Titles and lines come from `ProgressionTexts` (the registered text sources, else the book's own
+  placeholder lines), so the HUD speaks NO key of its own. The drawing onto the document's fixed,
+  positional slots is the mechanical half and is in-game smoke.
+- **The consumer's part is [`hud/TrackedQuestHudDeps`](hud/TrackedQuestHudDeps.java)**, registered
+  once through `TrackedQuestHuds.deps(Supplier)` and asked lazily on every paint: a `HudTheme` paint
+  over the appended document (default nothing, which IS the native look; a theme retints through
+  `ui/UiRetint` on the tracker's own selectors and must never be pointed at a page-frame painter,
+  whose selectors this document does not carry), a `HudAudience` asked per subject on every repaint
+  (default everyone), the position and the enabled flag as SUPPLIERS a consumer answers off its own
+  layout file so its existing admin surfaces keep working, and the four native text colours as
+  independent knobs. Every reader is guarded: a seam that throws costs its own answer, never the
+  tracker.
+- **Two moments no quest event announces**: a player hiding the HUD for themselves, and a rule of the
+  world they walked into. Both are the CONSUMER's to know, and it pushes
+  `TrackedQuestHuds.repaint(PlayerRef)` from those two sites. Owner-wide changes go through
+  `repaintAllOnline()` (switched on or off) and `refreshPositionForAllOnline(HudPosition)` (moved).
+- **The install line names the six subscriptions.** The engine dispatches an event only when
+  something is listening, so a subscription that silently failed to register would be a tracker
+  that silently never updates; the one INFO at install is the only place that shows.
+- **[`hud/TrackedQuestPanelRenderer`](hud/TrackedQuestPanelRenderer.java) is NOT the HUD.** It is
+  the shared renderer for a tracked-quests SIDE PANEL a page embeds - one `Pages/ZigTrackedQuestRow.ui`
+  row per pinned quest inside the host page's `#TrackedQuestsList` plus its `#TrackedQuestsEmpty`
+  note (`tracked.empty`) - reading the same runtime, so a page's panel and the HUD can never disagree.
+  Every `maxTracked()` slot is addressed on every paint (appended on a full build, hidden when
+  surplus) so a `sendUpdate` repaints by index; the host page's header label, if any, stays with the
+  page.
+
 ## Tests
 
 Pure decision cores and author-owned fixtures only, matching the rest of the library.
@@ -496,6 +557,21 @@ The admin family is pinned the way the commerce one is: `command/ProgressAdminKe
 command package and fails on a key with nothing to resolve it from, on a verb or group with no help
 line, and on a runtime status with no word; the engine calls behind each verb (`wipeQuest`,
 `wipeAllQuests`, `resetAll`) are pinned one module down beside the engines that own them.
+
+The tracked-quest HUD is split the same way. `TrackedQuestSnapshotTest` pins what a paint SHOWS
+over an in-memory engine (hidden when nothing is pinned, one block per pin, only the current step's
+rows and the list advancing, a report-back hand-in with no count, a finished row reading complete,
+the slot caps, the deps' switches hiding the panel, titles and lines from the registered sources);
+`TrackedQuestHudEventTest` drives the six static event handlers over a recording tracker and pins
+one repaint per event for the named player only, the objective event skipped for an unshown quest,
+and the uuid registry (a player who left is never repainted, a reconnect replaces the stale one);
+`RepaintCoalescerTest` pins the fold (a burst is one paint at the end of the tick, the next request
+after it starts a new one, a refusing world leaves nothing phantom-queued, a request during the paint
+queues one more); `TrackedQuestHudDepsTest` pins the theme seam (an empty theme is the native look, a
+filled colour changes only itself) and every guarded reader. The pin event itself is pinned one
+module down in `zc-progression`'s `QuestTrackedEventTest`, through `QuestEvents.publishTo`. The
+attach on the native `HudManager`, the paint onto the document and the disconnect handler are in-game
+smoke like the rest of this module's engine-touching half.
 
 The text a row is NAMED by is pinned one module down, in `zc-progression`'s `ContentTextArgsTest`,
 next to the shared schema that carries it: the args an author bound, the step line a fold composed,

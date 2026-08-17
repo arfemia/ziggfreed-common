@@ -2,8 +2,10 @@
 
 The STANDALONE progression experience: the fallback quest + achievement runtime a bare server gets
 when no consumer mod runs one of its own, its persisted per-player progress store, the generic
-native-event producers that feed it, and the two in-game surfaces that show it - the two-tab objective
-book a player reads on their own, and the NPC quest page they read at a character.
+native-event producers that feed it, and the three in-game surfaces that show it - the two-tab
+objective book a player reads on their own, the NPC quest page they read at a character, and the
+tracked-quest HUD that follows their pinned quests around the world, repainting off the quest
+engine's own native events.
 
 ## Build
 
@@ -55,27 +57,36 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
     call a wiring root makes. Reward chips read through `zc-loot`'s shared `RewardChips` (the
     `RewardChipSource` seam IS its `Source` shape), so this page, a storefront and a results strip
     all read one reward the same way.
+  - `objectives/hud/` - the tracked-quest HUD (`TrackedQuestHud` over `zc-presentation`'s
+    `KeyedCustomHud`, attached to every player by `TrackedQuestHuds`, repainting on the SIX quest
+    events with a per-tick `RepaintCoalescer` and no tick anywhere; `TrackedQuestHudDeps` is the
+    consumer's theme / audience / position / enabled seams), plus `TrackedQuestPanelRenderer`, the
+    shared renderer for a tracked-quests side panel a page embeds.
   - `objectives/runtime/` - this module's own registration glue over `zc-progression`'s
     `ProgressionRegistrar`.
   - `objectives/store/` - the persisted per-player progress component + its codec.
 
-  None of the five subpackages has its own router; the parent `objectives/` router covers them all.
+  None of the six subpackages has its own router; the parent `objectives/` router covers them all.
 
 ## Shipped resources
 
 `Common/UI/Custom/Pages/{ZigObjectiveBookPage.ui, ZigObjectiveRow.ui, ZigNpcQuestPage.ui,
-ZigNpcQuestRow.ui, ZigNpcQuestLine.ui}` (needs `zc-presentation` at RUNTIME as well as compile time,
-since a page's `.ui` imports the shared frames by path).
+ZigNpcQuestRow.ui, ZigNpcQuestLine.ui, ZigTrackedQuestRow.ui}` (needs `zc-presentation` at RUNTIME
+as well as compile time, since a page's `.ui` imports the shared frames by path), and
+`Common/UI/Custom/Hud/ZigQuestTracker.ui` with the three native objective-HUD textures copied
+beside it (`ObjectivePanelContainer.png`, `ObjectiveTaskIconDefault.png`,
+`ObjectiveTaskIconComplete.png`), which a server-shipped document resolves by name next to itself.
 `Server/Item/Items/Consumables/Ziggfreed_Objective_Book.json` (the book item, whose Use opens the
 page via the `zc-cast` interaction-Type registration). `Server/Languages/<locale>/{items.lang,
 ziggfreedcommon.progression.lang}`, 9 locales.
 
 ## Conventions
 
-Both surfaces read the ONE runtime, so they show whatever any mod on the server contributed, never a
-private copy. A consumer that wants neither still gets the runtime registration (store + producers)
-unless it registers its own equivalents through the same surface; the two pages are the only
-genuinely optional pieces.
+All three surfaces read the ONE runtime, so they show whatever any mod on the server contributed,
+never a private copy. A consumer that wants none of them still gets the runtime registration (store +
+producers) unless it registers its own equivalents through the same surface; the two pages are the
+only genuinely optional pieces (the HUD attaches to every player and hides itself when nothing is
+pinned; an owner switches it off through the `enabled` supplier on its deps).
 
 **The wiring root registers the NPC quest page as the quest-list host.** The host interface lives in
 `zc-dialogue` and the root is the one place a registration joining two domains belongs, so both
@@ -106,7 +117,7 @@ take the screen wins.
 
 ## Tests
 
-14 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
+18 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
 this module's own suite covers the parts it contributes - `DefaultPartsHandInTest`,
 `DefaultPartsRewardGrantTest` (the registered store + producer parts pulling their weight inside a
 real runtime), `ZigProgressComponentTest`, `ProgressBlobTest` (the persisted per-player codec),
@@ -120,5 +131,10 @@ PICKUP_ITEM, while a fresh one still does - the ledger and the producer decision
 `AchievementGroupingTest` (the book's category headers: the label ladder and where an undescribed
 or uncategorised run reads), plus the NPC quest page's two pure halves - `NpcQuestSectionsTest`
 (bucketing, ordering, which quest the detail panel opens on) and `NpcQuestPageDepsTest` (the
-defaults, and a consumer seam that throws). How a reward chip reads is pinned in `zc-loot`'s
-`RewardChipsTest`, beside the shared vocabulary it belongs to.
+defaults, and a consumer seam that throws), and the tracked-quest HUD's four -
+`TrackedQuestSnapshotTest` (what one paint shows, over an in-memory engine),
+`TrackedQuestHudEventTest` (each of the six events repaints the named player once, the objective
+event skipped for an unshown quest, the uuid registry), `RepaintCoalescerTest` (a burst is one
+paint) and `TrackedQuestHudDepsTest` (the theme seam and every guarded reader). How a reward chip
+reads is pinned in `zc-loot`'s `RewardChipsTest`, beside the shared vocabulary it belongs to; the pin
+event is pinned in `zc-progression`'s `QuestTrackedEventTest`.

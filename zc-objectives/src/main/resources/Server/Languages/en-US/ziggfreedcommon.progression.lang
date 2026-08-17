@@ -73,3 +73,7 @@ npcquests.toast.tracked = Quest tracked.
 npcquests.toast.untracked = Quest no longer tracked.
 npcquests.toast.track_full = You are already tracking as many quests as you can.
 npcquests.toast.turn_in_short = Not enough yet: {0}/{1}.
+
+# The tracked-quests side panel a page embeds (objectives/hud/TrackedQuestPanelRenderer): the note
+# shown when nothing is pinned. The HUD itself speaks no line of its own.
+tracked.empty = Track a quest to see it here.

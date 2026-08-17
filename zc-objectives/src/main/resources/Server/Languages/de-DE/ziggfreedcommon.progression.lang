@@ -67,3 +67,5 @@ npcquests.toast.tracked = Quest wird verfolgt.
 npcquests.toast.untracked = Quest wird nicht mehr verfolgt.
 npcquests.toast.track_full = Du verfolgst bereits so viele Quests wie möglich.
 npcquests.toast.turn_in_short = Noch nicht genug: {0}/{1}.
+
+tracked.empty = Verfolge eine Quest, um sie hier zu sehen.

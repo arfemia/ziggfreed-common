@@ -67,3 +67,5 @@ npcquests.toast.tracked = Misión en seguimiento.
 npcquests.toast.untracked = Misión fuera de seguimiento.
 npcquests.toast.track_full = Ya sigues todas las misiones que puedes.
 npcquests.toast.turn_in_short = Todavía no es suficiente: {0}/{1}.
+
+tracked.empty = Sigue una misión para verla aquí.

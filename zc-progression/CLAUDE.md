@@ -51,7 +51,7 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
   `quest/event/`) - the QUEST lifecycle: accept/track/hand-in/claim/cooldown, ships zero content,
   enforced by `QuestModuleAgnosticismTest`. `quest/asset/` is the authoring layer (native `Parent`
   inheritance, `Server/ZiggfreedCommon/Quests/`, the generator, the pool + validator); `quest/event/`
-  is five native `IEvent<Void>` POJOs.
+  is six native `IEvent<Void>` POJOs (the pin event included).
 - [`achievement/`](src/main/java/com/ziggfreed/common/achievement/CLAUDE.md) (+
   `achievement/asset/`, `achievement/event/`) - the ALWAYS-ON peer lifecycle: nothing is accepted,
   nothing is abandoned, every criterion listens from the first event. Criterion progress is keyed

@@ -35,6 +35,7 @@ import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.inventory.InventoryUtil;
+import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
 import com.ziggfreed.common.objectives.producer.ZigMobKillProducer;
@@ -172,8 +173,12 @@ public final class ProgressionDefaults {
 
     /**
      * Register everything that has to exist whoever ends up owning the runtime: the player lifecycle
-     * listeners and the five producer systems. All of it is unconditional, and so is every dispatch
-     * those producers make.
+     * listeners, the five producer systems, and the tracked-quest HUD with its six event
+     * subscriptions. All of it is unconditional, and so is every dispatch those producers make.
+     *
+     * <p>The HUD installs itself LAST and guards itself, so a failure there costs the tracker and
+     * nothing registered before it. Its attach rides the ready event at a LATER priority than the
+     * maintenance pass registered here, so a player's first paint already shows what that pass did.
      */
     public static void install(@Nonnull PluginBase plugin) {
         register();
@@ -187,6 +192,7 @@ public final class ProgressionDefaults {
         SafeLog.info("[progression] producers always-on: " + producedKinds()
                 + " (a mod firing a new moment calls ProgressDispatch.fire directly, no registration"
                 + " needed)");
+        TrackedQuestHuds.install(plugin);
     }
 
     /**

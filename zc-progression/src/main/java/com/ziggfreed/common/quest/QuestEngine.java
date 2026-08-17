@@ -1536,11 +1536,17 @@ public final class QuestEngine implements QuestStateReader {
         }
         pruneStaleTracked(subject);
         Map<String, Long> pins = store.trackedPins(subject);
-        if (!pins.containsKey(questId) && pins.size() >= maxTracked) {
+        boolean fresh = !pins.containsKey(questId);
+        if (fresh && pins.size() >= maxTracked) {
             return false;
         }
         store.setTrackedPin(subject, questId, now());
         store.markDirty(subject);
+        // A pin that was already there is merely re-stamped: nothing about what the player is
+        // watching changed, so nothing is announced.
+        if (fresh) {
+            fireTracked(questId, subject, true);
+        }
         return true;
     }
 
@@ -1556,6 +1562,7 @@ public final class QuestEngine implements QuestStateReader {
             return false;
         }
         store.markDirty(subject);
+        fireTracked(questId, subject, false);
         return true;
     }
 
@@ -1604,6 +1611,9 @@ public final class QuestEngine implements QuestStateReader {
         for (String questId : store.trackedPins(subject).keySet()) {
             if (!isActive(subject, questId) && store.clearTrackedPin(subject, questId)) {
                 dropped++;
+                // Announced per pin rather than once per sweep: a tracker keyed on the quest id
+                // learns exactly which quest left, and a sweep that dropped nothing says nothing.
+                fireTracked(questId, subject, false);
             }
         }
         if (dropped > 0) {
@@ -1889,6 +1899,19 @@ public final class QuestEngine implements QuestStateReader {
                                @Nonnull List<String> tags) {
         if (nativeEvents) {
             QuestEvents.fireAbandoned(questId, subject.id(), tags);
+        }
+    }
+
+    /**
+     * A pin changed. The pin write paths hold only an id, so the quest is looked up for its tags
+     * here; a pin on an id the catalogue no longer carries (a stale one being swept) rides with
+     * none rather than being dropped from the announcement.
+     */
+    private void fireTracked(@Nonnull String questId, @Nonnull Subject subject, boolean tracked) {
+        if (nativeEvents) {
+            Quest quest = quests.get(questId);
+            QuestEvents.fireTracked(questId, subject.id(), tracked,
+                    quest != null ? quest.tags() : List.of());
         }
     }
 

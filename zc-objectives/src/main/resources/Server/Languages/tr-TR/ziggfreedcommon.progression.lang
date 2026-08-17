@@ -67,3 +67,5 @@ npcquests.toast.tracked = Görev takip ediliyor.
 npcquests.toast.untracked = Görev artık takip edilmiyor.
 npcquests.toast.track_full = Zaten takip edebileceğin kadar görev takip ediyorsun.
 npcquests.toast.turn_in_short = Henüz yeterli değil: {0}/{1}.
+
+tracked.empty = Burada görmek için bir görevi takibe al.

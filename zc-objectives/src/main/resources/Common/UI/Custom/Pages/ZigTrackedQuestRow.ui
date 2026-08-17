@@ -1,0 +1,56 @@
+$Z = "../Common/ZigButtons.ui";
+
+// One row of a tracked-quests SIDE PANEL (appended into a host page's #TrackedQuestsList by
+// objectives/hud/TrackedQuestPanelRenderer; addressed per row via the INDEXED PARENT,
+// "#TrackedQuestsList[0] #TrackedQuestNameBtn", so the bare descendant ids are safe across rows
+// and across mods). `Button` + inner `Label #Label` (not a TextButton): the quest title is a
+// Message that only substitutes on a Label's .TextSpans (pushed via ZigRichButton.text). The
+// button uses the shared $Z.@ZigRichRowBtnStyle; the bar textures are the client's own.
+@TrackedQuestLabelStyle = (FontSize: 12, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+
+Group #ZigTrackedQuestRow {
+  LayoutMode: Top;
+  Background: #1a2233;
+  Padding: (Full: 8);
+  Anchor: (Bottom: 6);
+
+  Button #TrackedQuestNameBtn {
+    Anchor: (Height: 24);
+    Padding: (Horizontal: 6);
+    LayoutMode: Left;
+    Style: $Z.@ZigRichRowBtnStyle;
+
+    Label #Label {
+      Text: "";
+      FlexWeight: 1;
+      Anchor: (Height: 24);
+      Style: @TrackedQuestLabelStyle;
+    }
+  }
+
+  Group { Anchor: (Height: 4); }
+
+  Group #ProgressRow {
+    LayoutMode: Left;
+    Anchor: (Height: 12);
+
+    Group #ProgressBarOuter {
+      FlexWeight: 1;
+      Anchor: (Height: 8);
+      Background: "../Common/ProgressBar.png";
+
+      ProgressBar #TrackedQuestProgress {
+        BarTexturePath: "../Common/ProgressBarFill.png";
+        Value: 0.0;
+      }
+    }
+
+    Group { Anchor: (Width: 6); }
+
+    Label #TrackedQuestProgressText {
+      Text: "0/0";
+      Anchor: (Width: 80, Height: 12);
+      Style: (FontSize: 10, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
+    }
+  }
+}

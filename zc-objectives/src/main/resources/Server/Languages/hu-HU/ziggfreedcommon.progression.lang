@@ -67,3 +67,5 @@ npcquests.toast.tracked = Küldetés követése bekapcsolva.
 npcquests.toast.untracked = Küldetés követése kikapcsolva.
 npcquests.toast.track_full = Már annyi küldetést követsz, amennyit csak lehet.
 npcquests.toast.turn_in_short = Még nem elég: {0}/{1}.
+
+tracked.empty = Kövess egy küldetést, hogy itt lásd.
