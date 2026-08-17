@@ -40,7 +40,9 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
     `ProgressionRegistrar` (what a consumer calls), `ProgressionParts`,
     `ContentLayers`, `ProgressionSubjectSource`, `ProgressionSystemGate`/`ProgressionSystem` (an
     owner's per-player "quests off" switch, contributed and ANDed), `ProgressionCallScope`,
-    `ProgressionTextSource`,
+    `ProgressionTextSource`, `ProgressionFeedbackHook` (the contributed reaction seam both engines
+    announce their lifecycle moments through, so a toast, a jingle or a broadcast is somebody
+    else's job entirely),
     and `ProgressionFactors` (the four `ziggfreedcommon:` readings OF that runtime - finished quest,
     completion count, earned achievement, points total - claimed process-wide so any content
     anywhere can gate on progression with no Java and no edge to this module).
@@ -91,7 +93,10 @@ content that asks for nothing, one answer whichever layer folded it, the server-
 live cap and availability seams), the achievement engine
 (`AchievementEngineTest`, `AchievementAssetCodecTest`, `AchievementPoolValidatorTest`,
 `AchievementProgressStoreTest`, `AchievementStatThresholdTest`, `AchievementTaxonomyCodecTest`),
-the shared runtime (`ProgressionRuntimeTest`, `ProgressionFactorsTest` - each factor ladder over a
+the shared runtime (`ProgressionRuntimeTest`, `ProgressionFeedbackHookTest` - which moments each
+engine announces, exactly once, with the subject and the values in scope, plus the contribution
+properties (a late hook still fires, two hooks both fire, a throwing one costs only itself),
+`ProgressionFactorsTest` - each factor ladder over a
 double AND over the real engines on in-memory stores, plus the leaf-and-factor agreement),
 `ContentTextArgsTest` (an authored key's numbered slots reach the runtime object, for BOTH content
 kinds), and `SchemaDocDriftTest` guarding the committed `SCHEMA.md`.

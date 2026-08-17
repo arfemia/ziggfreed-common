@@ -27,10 +27,30 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
 
 - [`camera/`](src/main/java/com/ziggfreed/common/camera/CLAUDE.md) - `CameraShakeService` +
   `ServerCameraService`.
-- `feedback/` - `Notify` (Default/Danger/Warning/Success toasts + the item-keyed stacking form),
-  `EventTitles` (centered banner), `PickupMimic` (native-pickup-mimic notifier for a programmatic
-  item grant that never went through a real ground pickup), `ObjectiveHud`. No router of its own
-  (four files); see the root router's `feedback/` bullet for the full primitive list.
+- `feedback/` - `Notify` (Default/Danger/Warning/Success toasts, the item-keyed stacking form, and
+  `withIcon` for a two-line toast ILLUSTRATED by an item with no quantity badge and no client-side
+  stacking), `EventTitles` (centered banner), `PickupMimic` (native-pickup-mimic notifier for a
+  programmatic item grant that never went through a real ground pickup), `ObjectiveHud`. No router
+  of its own; see the root router's `feedback/` bullet for the full primitive list.
+  - `feedback/moment/` - the authored-feedback engine: `FeedbackMomentAsset` (Pattern A, the file
+    name IS the moment id, at `Server/ZiggfreedCommon/FeedbackMoments/`, with four independent
+    groups - `Toast` / `Broadcast` / `Sound` / `Command` - and one reused `Line` leaf of
+    `{Key, Args, Color}`), `FeedbackMomentConfig` (the `defaults < pack < owner` fold) and
+    `FeedbackEngine.fire(momentId, Subject, args)`. It knows nothing about what PRODUCED a moment,
+    which is what lets a quest engine, a shop and a mod that does not exist yet share one authoring
+    surface; joining the two ends is the wiring root's job. A moment nobody authored a file for does
+    nothing, a line naming a value the moment did not carry is skipped, and a part that throws costs
+    its own part. A `Key` is authored WITHOUT a namespace and resolved through `i18n/ContentKeys`,
+    exactly like every other authored key in this library. The toast's PICTURE is not a leaf: it is
+    read from the one fixed argument name `icon`, so a producer with a picture to offer supplies one
+    and every authored toast gets it with nothing written for it. `FeedbackEngine.answers(momentId)`
+    is the cheap "is there a file for this at all" question a producer asks before composing what an
+    expensive moment would carry, and the wiring root pairs it with the reaction through
+    `ProgressionFeedbackHook.of`. `FeedbackAudience` is the one thing a
+    static file cannot answer: the SUBJECT's own handle says whether this player wants the personal
+    notification for this moment (a handle with no opinion wants what was authored), and only the
+    toast is gated that way - a banner, a sound and a command are not one player's screen. No router
+    of its own; see the asset's javadoc, which is the authoring reference.
 - [`sound/`](src/main/java/com/ziggfreed/common/sound/CLAUDE.md) - `Sound3D`.
 - `ui/` - `CustomHudHelper`, `ZigRichButton` (the clickable-rich-text primitive every labeled
   button in the library uses), `UiRetint` (the generic palette-to-selector retint primitive),
@@ -84,4 +104,6 @@ bare-string form as the same value, an unknown or mis-cased `Type` failing the r
 registration still taking effect, a throwing handler counted against its owner). The toast engine,
 retint engine,
 and rich-button primitive have no unit coverage here; they are validated in-game per the general
-`.ui` rule (`.ui` files are not compiled, validate in-game).
+`.ui` rule (`.ui` files are not compiled, validate in-game). `FeedbackEngineTest` covers the moment
+schema's decode and inheritance plus everything a broken authoring file or an absent player could
+turn into a throw; the drawing itself is packets and is validated in game.

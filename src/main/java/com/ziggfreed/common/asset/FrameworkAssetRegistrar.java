@@ -63,6 +63,8 @@ import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
 import com.ziggfreed.common.achievement.asset.AchievementCategoryConfig;
 import com.ziggfreed.common.achievement.asset.AchievementMilestoneAsset;
 import com.ziggfreed.common.achievement.asset.AchievementMilestoneConfig;
+import com.ziggfreed.common.feedback.moment.FeedbackMomentAsset;
+import com.ziggfreed.common.feedback.moment.FeedbackMomentConfig;
 import com.ziggfreed.common.quest.asset.QuestAsset;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
@@ -280,6 +282,20 @@ public final class FrameworkAssetRegistrar {
                                 AssetMergeAdapter.layer(ev.getAssetMap(),
                                         (id, a) -> a.getFormula() == null ? new FactorFormula() : a.getFormula())));
 
+        // --- Feedback moments (Pattern A) - what this server DOES when one lifecycle moment
+        //     happens: a toast, a server banner, a jingle, a command. The asset id IS the moment id
+        //     (quest.completed, achievement.unlocked, ...), and a moment nobody wrote a file for
+        //     does nothing, so the capability ships with no content and an owner switches a piece of
+        //     it off by deleting a file. No cache to invalidate: the engine resolves through the
+        //     config on every moment, so a re-import lands on the next one. ---
+        AssetStoreRegistrar.registerStore(FeedbackMomentAsset.class,
+                new DefaultAssetMap<String, FeedbackMomentAsset>(), FeedbackMomentAsset.TYPE_ROOT,
+                FeedbackMomentAsset::getId, FeedbackMomentAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, FeedbackMomentAsset.class,
+                (LoadedAssetsEvent<String, FeedbackMomentAsset, DefaultAssetMap<String, FeedbackMomentAsset>> ev) ->
+                        FeedbackMomentConfig.getInstance().mergePackLayer(
+                                AssetMergeAdapter.layer(ev.getAssetMap())));
+
         // --- Quests (Pattern A) - one authored quest per file, with native Parent inheritance and a
         //     per-objective-id merge, so a child quest retunes one step and keeps its siblings.
         //     Common ships no quest CONTENT; every entry is consumer pack JSON, and each consumer
@@ -430,7 +446,7 @@ public final class FrameworkAssetRegistrar {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
                             + "Lootables, RollPools, RewardKinds, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
-                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, "
+                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, "
                             + "Quests, QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "
                             + "ShopEntryGenerators, Boards, Bounties).");

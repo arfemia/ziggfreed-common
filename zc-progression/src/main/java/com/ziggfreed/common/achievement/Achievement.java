@@ -50,6 +50,7 @@ public final class Achievement {
     private final boolean serverFirst;
     @Nullable private final GateSpec requires;
     private final ContentText text;
+    @Nullable private final String icon;
 
     private Achievement(@Nonnull Builder b) {
         this.id = b.id;
@@ -65,19 +66,21 @@ public final class Achievement {
         this.serverFirst = b.serverFirst;
         this.requires = b.requires;
         this.text = b.text;
+        this.icon = b.icon;
     }
 
     /**
      * This achievement with the AUTHORING facts the engine does not run but a shared surface needs:
-     * the requirement block one gate answers, the words one text source reads, and whether only one
-     * subject on the server may ever own it. Everything else carries over untouched.
+     * the requirement block one gate answers, the words one text source reads, whether only one
+     * subject on the server may ever own it, and the item that illustrates it. Everything else
+     * carries over untouched.
      *
      * <p>A copy rather than a setter, and it lives here beside the fields so a leaf added later
      * cannot be silently dropped by a copy written somewhere else.
      */
     @Nonnull
     public Achievement withAuthoring(@Nullable GateSpec requires, @Nullable ContentText text,
-            boolean serverFirst) {
+            boolean serverFirst, @Nullable String icon) {
         return builder(id)
                 .criteria(criteria)
                 .metaChildren(metaChildren)
@@ -91,6 +94,7 @@ public final class Achievement {
                 .serverFirst(serverFirst)
                 .requires(requires)
                 .text(text)
+                .icon(icon)
                 .build();
     }
 
@@ -194,6 +198,20 @@ public final class Achievement {
         return text;
     }
 
+    /**
+     * The item id that illustrates this, or null when it carries none.
+     *
+     * <p>Written by whoever FOLDED the catalogue, which is the layer that knows the whole authoring
+     * ladder a picture comes out of - an authored leaf, a picture shared by a whole ladder of
+     * related entries, one derived from what the entry is about. The engine never resolves one, so
+     * a surface that paints it is painting a decision already taken rather than re-taking it per
+     * moment.
+     */
+    @Nullable
+    public String icon() {
+        return icon;
+    }
+
     /** Keep it off open listings until it is earned, for a surprise or a retired one-off. */
     public boolean hidden() {
         return hidden;
@@ -259,6 +277,7 @@ public final class Achievement {
         private boolean serverFirst;
         @Nullable private GateSpec requires;
         private ContentText text = ContentText.EMPTY;
+        @Nullable private String icon;
 
         private Builder(@Nonnull String id) {
             this.id = id;
@@ -346,6 +365,13 @@ public final class Achievement {
         @Nonnull
         public Builder requires(@Nullable GateSpec requires) {
             this.requires = requires;
+            return this;
+        }
+
+        /** The item that illustrates it; null (the default) means it carries no picture. */
+        @Nonnull
+        public Builder icon(@Nullable String icon) {
+            this.icon = icon == null || icon.isBlank() ? null : icon.trim();
             return this;
         }
 

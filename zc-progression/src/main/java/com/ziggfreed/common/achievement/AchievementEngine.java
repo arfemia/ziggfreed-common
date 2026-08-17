@@ -33,6 +33,7 @@ import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.ProgressDispatchTap;
 import com.ziggfreed.common.progress.StatThresholdProbe;
 import com.ziggfreed.common.progress.ZoneRef;
+import com.ziggfreed.common.progress.runtime.ProgressionFeedbackHook;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -79,6 +80,7 @@ public final class AchievementEngine {
     private final MatchFlavor matchFlavor;
     private final AchievementGates gates;
     private final ProgressDispatchTap tap;
+    private final ProgressionFeedbackHook feedbackHook;
     /** Null when no factor vocabulary was wired, which switches the threshold re-check off. */
     @Nullable private final StatThresholdProbe statProbe;
     @Nullable private final BiConsumer<Subject, String> rewardRetryQueue;
@@ -105,6 +107,7 @@ public final class AchievementEngine {
         this.matchFlavor = b.matchFlavor;
         this.gates = b.gates;
         this.tap = b.tap;
+        this.feedbackHook = b.feedbackHook;
         this.statProbe = StatThresholdProbe.of(b.factors, b.factorContext, b.warn);
         this.rewardRetryQueue = b.rewardRetryQueue;
         this.warn = b.warn;
@@ -825,12 +828,22 @@ public final class AchievementEngine {
         }
     }
 
+    /**
+     * It is EARNED. The icon travels with the moment under the fixed key {@code icon}, because it is
+     * the achievement's own - written onto the definition when the catalogue was folded, so nothing
+     * downstream has to go looking for one.
+     */
     private void fireUnlocked(@Nonnull Achievement achievement, @Nonnull Subject subject,
                               boolean awaitingClaim) {
         if (nativeEvents) {
             AchievementEvents.fireUnlocked(achievement.id(), subject.id(), achievement.points(),
                     awaitingClaim, achievement.tags());
         }
+        ProgressionFeedbackHook.fire(feedbackHook, warn, "achievement.unlocked", subject,
+                "achievement", achievement.id(), "title", achievement.text().titleOr(achievement.id()),
+                "icon", achievement.icon(),
+                "points", Integer.valueOf(achievement.points()),
+                "awaiting_claim", Boolean.valueOf(awaitingClaim));
     }
 
     private void fireClaimed(@Nonnull Achievement achievement, @Nonnull Subject subject,
@@ -839,6 +852,13 @@ public final class AchievementEngine {
             AchievementEvents.fireClaimed(achievement.id(), subject.id(), outcome.granted(),
                     outcome.queued(), outcome.failed(), achievement.tags());
         }
+        ProgressionFeedbackHook.fire(feedbackHook, warn, "achievement.claimed", subject,
+                "achievement", achievement.id(), "title", achievement.text().titleOr(achievement.id()),
+                "icon", achievement.icon(),
+                "points", Integer.valueOf(achievement.points()),
+                "granted", Integer.valueOf(outcome.granted()),
+                "queued", Integer.valueOf(outcome.queued()),
+                "failed", Integer.valueOf(outcome.failed()));
     }
 
     /** Report an authoring mistake that would otherwise repeat on every event exactly once. */
@@ -866,6 +886,7 @@ public final class AchievementEngine {
         @Nullable private FactorRegistry factors;
         @Nullable private Function<Subject, FactorContext> factorContext;
         @Nullable private BiConsumer<Subject, String> rewardRetryQueue;
+        private ProgressionFeedbackHook feedbackHook = ProgressionFeedbackHook.NONE;
         private Consumer<String> warn = DEFAULT_WARN;
         private LongSupplier clock = System::currentTimeMillis;
         private int maxPinned = 5;
@@ -961,6 +982,17 @@ public final class AchievementEngine {
         @Nonnull
         public Builder warn(@Nonnull Consumer<String> warn) {
             this.warn = warn;
+            return this;
+        }
+
+        /**
+         * Where a lifecycle MOMENT goes, for whatever reacts to one. Unlike the outbound native
+         * events this is not switchable: a server that suppressed the cross-mod event bus still
+         * wants its own toasts and jingles, which are what this carries.
+         */
+        @Nonnull
+        public Builder feedbackHook(@Nonnull ProgressionFeedbackHook feedbackHook) {
+            this.feedbackHook = feedbackHook;
             return this;
         }
 

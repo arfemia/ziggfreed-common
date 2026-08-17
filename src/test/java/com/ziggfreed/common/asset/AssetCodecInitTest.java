@@ -36,6 +36,7 @@ import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.feedback.moment.FeedbackMomentAsset;
 import com.ziggfreed.common.npc.placement.PlacedNpcComponent;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.ui.route.Destination;
@@ -171,6 +172,17 @@ class AssetCodecInitTest {
     @Test
     void dialogueOptionThemeAssetCodecInitializes() {
         assertNotNull(DialogueOptionThemeAsset.CODEC, "DialogueOptionThemeAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void feedbackMomentCodecsInitialize() {
+        assertNotNull(FeedbackMomentAsset.CODEC, "FeedbackMomentAsset.CODEC must static-init (PascalCase keys)");
+        // The four groups and their shared line leaf are embedded, so a lower-case key at any level
+        // would fail at a consumer's decode instead of at this build.
+        assertNotNull(FeedbackMomentAsset.Line.CODEC, "FeedbackMomentAsset.Line.CODEC must static-init (PascalCase keys)");
+        assertNotNull(FeedbackMomentAsset.Toast.CODEC, "FeedbackMomentAsset.Toast.CODEC must static-init (PascalCase keys)");
+        assertNotNull(FeedbackMomentAsset.Broadcast.CODEC, "FeedbackMomentAsset.Broadcast.CODEC must static-init (PascalCase keys)");
+        assertNotNull(FeedbackMomentAsset.Sound.CODEC, "FeedbackMomentAsset.Sound.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

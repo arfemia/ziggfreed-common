@@ -255,6 +255,20 @@ public final class ProgressionRegistrar {
         return this;
     }
 
+    /**
+     * Add this mod's REACTION to a lifecycle moment - a toast, a jingle, a broadcast, a command.
+     *
+     * <p>Every registered hook is called on every moment, each inside its own guard, so registration
+     * order is not a precedence and nothing here can mark a moment as already handled. A hook
+     * registered after the engines were built still fires, because they call through a live
+     * forwarder over whatever is registered right now.
+     */
+    @Nonnull
+    public ProgressionRegistrar feedbackHook(@Nonnull ProgressionFeedbackHook hook) {
+        ProgressionRuntime.addFeedbackHook(this, hook);
+        return this;
+    }
+
     /** Watch every tapped progress event, whether or not any content wanted it. */
     @Nonnull
     public ProgressionRegistrar dispatchTap(@Nonnull ProgressDispatchTap tap) {

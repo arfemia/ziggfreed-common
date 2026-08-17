@@ -57,11 +57,12 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
         meta = Map.copyOf(meta);
         // The engine object carries what the SHARED parts need to answer for this achievement
         // without ever seeing this record: one gate reads the requirement block off it, one text
-        // source reads the words. Stamped at the one place every folded definition passes through.
+        // source reads the words, and a feedback moment paints the picture. Stamped at the one place
+        // every folded definition passes through.
         achievement = achievement.withAuthoring(requires,
                 textOf(achievement, titleKey, flavorKey, displayName, titleArgs, flavorArgs,
                         criterionTextKeys),
-                achievement.serverFirst());
+                achievement.serverFirst(), icon);
     }
 
     /** The words this achievement carries, as the shared runtime object holds them. */

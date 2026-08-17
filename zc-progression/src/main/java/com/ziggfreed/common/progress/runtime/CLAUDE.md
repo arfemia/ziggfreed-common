@@ -27,6 +27,7 @@ match). They are the wrong tool for a mod that wants the server's progression.
 | `ProgressionSubjectSource` | how a player becomes the subject the ACTIVE stores understand, and nothing else. Whether a SYSTEM is on for that player is a separate contribution, because a subject is also what a storefront, a board and a conversation are built over, so refusing to build one would take a wallet away with the quest log |
 | `ProgressionSystemGate` + `ProgressionSystem` | the owner's own "quests off on this server" / "achievements off until launch" switches, per player and per system (`QUEST` / `ACHIEVEMENT`). A CONTRIBUTION: every gate is asked, they AND, none registered means open, and one that THROWS is read as OPEN with one warn |
 | `ProgressionCallScope` | what a consumer publishes around a mutating call, so a shared surface fires what its own menu would |
+| `ProgressionFeedbackHook` | "this lifecycle moment just happened to this subject, and here is what was in scope" - a free-string moment id plus a `Map<String,Object>` of named values, so a reaction reads the consumer's own handle off the `Subject` instead of finding the player again off a uuid. A CONTRIBUTION: every hook sees every moment, each guarded, order irrelevant, and a moment announced into a fan-out NOBODY filled says so once through the warn sink rather than vanishing. Seven moments today, six from inside the engines: `quest.objective_progressed`, `quest.completed`, `quest.parked`, `quest.claimed`, `achievement.unlocked`, `achievement.claimed`, plus `achievement.server_first_lost` from `FirstClaims`. `ProgressionRuntime.feedback()` hands out the live fan-out for a moment the engines do not own |
 | `ProgressionTextSource` | how a surface with no catalogue NAMES a piece of content. Its `lore` DEFAULT is the shared `quest.<id>.md.<state>` convention, so the narrative rule is one rule rather than one per source |
 | `ProgressionGates` | THE `GateEvaluator` and the ONE `RequiresGates` over it, built on first ask and holding no registration - the vocabulary, the context and the requirement kinds are read live off the runtime, so a surface asking during another mod's setup and one asking in play are on the same instance |
 | `ProgressionFactors` | the four `ziggfreedcommon:` READINGS of this runtime, claimed process-wide so any content can gate on finished progression with no Java |
@@ -35,10 +36,11 @@ match). They are the wrong tool for a mod that wants the server's progression.
 
 - **one-slot** (store, subjects, factor context, scopes, ...): consumer beats library default silently;
   a SECOND consumer is REFUSED with a SEVERE naming both. Never resolve that silently.
-- **contribution** (gates, system gates, taps, text sources): every registration applies. Gates AND
-  with `accepts` collecting EVERY reason (no short-circuit), `preSatisfiedAmount` folding as a MAX;
-  system gates AND with every gate asked, so registration order cannot decide the answer; taps
-  fan out, each individually guarded; text sources answer in order, first non-null wins.
+- **contribution** (gates, system gates, taps, feedback hooks, text sources): every registration
+  applies. Gates AND with `accepts` collecting EVERY reason (no short-circuit),
+  `preSatisfiedAmount` folding as a MAX; system gates AND with every gate asked, so registration
+  order cannot decide the answer; taps and feedback hooks fan out, each individually guarded; text
+  sources answer in order, first non-null wins.
 
 The three shared VOCABULARIES are not registrar methods - `objectiveKinds()`, `rewardKinds()` and
 `gateKinds()` hand out the live registries and a consumer registers into them. There is no slot to
@@ -68,6 +70,24 @@ conflict over, which is what a registry is for.
   registers is the factor VOCABULARY and the factor CONTEXT; `ProgressionGates` reads both live, so
   its answer is that consumer's answer everywhere without a second evaluator existing. A consumer
   building its own is the defect this arrangement exists to remove.
+- **A feedback moment is announced UNCONDITIONALLY, unlike the native events.** The `nativeEvents`
+  switch turns off the cross-mod event bus; it does not turn off a server's own toasts and jingles,
+  which is what the hook carries. Every value goes into ONE map: a localized value as a `Message`
+  and stays one, anything else as plain data, and a value nobody could supply is OMITTED rather than
+  passed as null so a reader can tell "nothing to say" from "say this, and it is empty".
+- **An expensive value rides as a `Supplier` and a hook says whether it ANSWERS the moment.**
+  `ProgressionFeedbackHook.answers(momentId)` defaults to yes (the honest answer for a hook that
+  cannot tell), and a hook reading authored files knows for free - `ProgressionFeedbackHook.of(fire,
+  answers)` pairs the two when they live in different modules, which is exactly the wiring root's
+  case. `fire` asks the question BEFORE it builds the argument map, so a moment nobody authored
+  costs the engine nothing; that is what lets `quest.objective_progressed` be announced on every
+  block broken, with its title and its step sentence composed only when a reader exists. It is an
+  optimisation and never a decision: answering yes and doing nothing is correct, answering no is a
+  promise the producer takes at its word.
+- **`quest.completed` and `quest.parked` are two moments, not one flag.** A quest that settled and
+  one waiting to be collected somewhere want their own words and their own sound, and an authored
+  file cannot branch. Both carry `parked` in their arguments as well, so a hook handed either one
+  can tell which case it is without reading meaning into the id it was called with.
 - **The engines are never rebuilt.** Everything they reach the world through is a forwarder over the
   parts snapshot, so late registration is live AND every cached engine reference stays valid.
 - **A factor READ never builds the runtime.** `ProgressionFactors` answers nothing until

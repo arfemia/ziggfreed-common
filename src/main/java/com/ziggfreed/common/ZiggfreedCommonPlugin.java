@@ -39,6 +39,7 @@ import com.ziggfreed.common.entity.PlayerIdentityCache;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
+import com.ziggfreed.common.feedback.moment.FeedbackEngine;
 import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.LootFactors;
 import com.ziggfreed.common.loot.reward.DroplistRewardKind;
@@ -67,6 +68,8 @@ import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.objectives.store.ZigProgressDialogueStore;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.progress.runtime.ProgressionFactors;
+import com.ziggfreed.common.progress.runtime.ProgressionFeedbackHook;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.placed.PlacedBlockLedger;
@@ -173,6 +176,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         registerPlayerIdentity();
         setupPlacedBlockLedger();
         setupProgressionRuntime();
+        registerFeedbackMoments();
         registerDialogueMemories();
         registerQuestListHost();
 
@@ -226,6 +230,39 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             SafeLog.warn("[progression] shared runtime wiring failed - some or all of "
                     + ProgressionDefaults.producedKinds()
                     + " will not produce quest or achievement progress this boot", t);
+        }
+    }
+
+    /**
+     * Join the progression engines' lifecycle MOMENTS to the engine that answers them from authored
+     * JSON, so a quest completing or an achievement being earned draws its toast, plays its jingle
+     * and runs its command with no Java anywhere.
+     *
+     * <p>The wiring root's job again, and for the same reason as the memory store: the two ends sit
+     * in modules that structurally cannot see each other. The progression module produces a moment
+     * and must never learn what a notification is; the presentation module knows what a
+     * notification is and must never learn what a quest is. This class is the one place both are
+     * visible.
+     *
+     * <p>It is a CONTRIBUTION, so a consumer mod that wants to react to the same moments registers
+     * its own hook beside this one and both fire. Nothing here can be displaced, and nothing here
+     * displaces anybody.
+     *
+     * <p>Registered through the same LIBRARY-DEFAULT registrar the rest of this library's own
+     * registrations use. Rank decides nothing for a contribution, but the rank recorded against an
+     * owner NAME is decided by whichever registration under it ran first, and this library's name
+     * must always read as a library default whoever got there first.
+     *
+     * <p>It is registered with its own "do I answer this moment?" question beside its reaction, so a
+     * moment nobody authored a file for costs the engine that announced it nothing - which is what
+     * lets one be announced on every objective tick.
+     */
+    private void registerFeedbackMoments() {
+        try {
+            ProgressionRuntime.defaults(ProgressionDefaults.OWNER).feedbackHook(
+                    ProgressionFeedbackHook.of(FeedbackEngine::fire, FeedbackEngine::answers));
+        } catch (Throwable t) {
+            SafeLog.warn("[feedback] could not wire the authored feedback moments", t);
         }
     }
 

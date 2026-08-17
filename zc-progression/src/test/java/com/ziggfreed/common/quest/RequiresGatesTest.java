@@ -25,6 +25,7 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -47,6 +48,7 @@ class RequiresGatesTest {
     @BeforeEach
     void setUp() {
         FirstClaims.resetForTests();
+        ProgressionRuntime.resetForTests();
         factors = new FactorRegistry("test");
         factors.register("yourmod:rank", "test", ctx -> Double.valueOf(1.0));
         evaluator = GateEvaluator.builder().factors(factors).build();
@@ -56,6 +58,7 @@ class RequiresGatesTest {
     @AfterEach
     void tearDown() {
         FirstClaims.resetForTests();
+        ProgressionRuntime.resetForTests();
     }
 
     private static GateSpec rankAtLeast(int min) {
@@ -270,17 +273,21 @@ class RequiresGatesTest {
                 "and the claim is still there for a real player afterwards");
     }
 
-    /** A loss is announced, so a consumer can tell the player without the gate knowing any words. */
+    /**
+     * A loss is announced as a MOMENT, so a consumer tells the player without the gate knowing any
+     * words - and only the loser is announced, because the winner had nothing go wrong.
+     */
     @Test
-    void aLostRaceIsAnnouncedToWhoeverIsListening() {
+    void aLostRaceIsAnnouncedAsAMoment() {
         List<String> told = new ArrayList<>();
-        FirstClaims.onLost((subject, achievement) -> told.add(subject.name() + ":" + achievement.id()));
+        ProgressionRuntime.registrar("test").feedbackHook((momentId, subject, args) ->
+                told.add(momentId + ":" + subject.name() + ":" + args.get("achievement")));
         Achievement first = Achievement.builder("first").serverFirst(true).build();
 
         gates.canUnlock(Subject.of(UUID.randomUUID(), "winner"), first);
         gates.canUnlock(Subject.of(UUID.randomUUID(), "loser"), first);
 
-        assertEquals(List.of("loser:first"), told);
+        assertEquals(List.of("achievement.server_first_lost:loser:first"), told);
     }
 
     // ==================== the live seams the consumer supplies ====================

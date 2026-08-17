@@ -94,6 +94,18 @@ public final class ContentText {
         return resolve(titleKey, titleConventionKey, displayName, titleArgs);
     }
 
+    /**
+     * What this content is called, falling back to its own id written out.
+     *
+     * <p>For a reader that has to say SOMETHING: a moment announcing an achievement or a quest reads
+     * far better naming an id than going silent, which is what a null title would cost it.
+     */
+    @Nonnull
+    public Message titleOr(@Nonnull String id) {
+        Message title = title();
+        return title != null ? title : Msg.raw(id);
+    }
+
     /** The line under the title, or null. */
     @Nullable
     public Message flavor() {

@@ -3,6 +3,7 @@ package com.ziggfreed.common.feedback;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.protocol.ItemWithAllMetadata;
 import com.hypixel.hytale.protocol.packets.interface_.NotificationStyle;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
@@ -52,6 +53,34 @@ public final class Notify {
             NotificationUtil.sendNotification(handler, message, style);
         } catch (Throwable t) {
             CommonLog.LOGGER.atFine().log("Notify.send failed: " + t.getMessage());
+        }
+    }
+
+    /**
+     * A two-line notification illustrated by an item, with NO quantity badge and no client-side
+     * stacking: the item is a picture here, not a pickup.
+     *
+     * <p>Quantity zero is what suppresses both - a badge reading "x1" beside an achievement's
+     * trophy is noise, and letting two of them coalesce would replace the second one's words with
+     * the first one's. Use {@link #itemKeyed} instead when the item really is a thing the player
+     * just gained and consecutive ones SHOULD merge.
+     *
+     * <p>A null or blank {@code iconItemId} simply sends the same notification without a picture.
+     * Try-guarded so it never throws into the caller.
+     */
+    public static void withIcon(@Nonnull PlayerRef playerRef, @Nonnull Message title,
+            @Nullable Message secondary, @Nullable String iconItemId) {
+        try {
+            ItemWithAllMetadata icon = null;
+            if (iconItemId != null && !iconItemId.isBlank()) {
+                icon = new ItemWithAllMetadata();
+                icon.itemId = iconItemId.trim();
+                icon.quantity = 0;
+            }
+            NotificationUtil.sendNotification(playerRef.getPacketHandler(), title, secondary,
+                    null, icon, NotificationStyle.Default);
+        } catch (Throwable t) {
+            CommonLog.LOGGER.atFine().log("Notify.withIcon failed: " + t.getMessage());
         }
     }
 

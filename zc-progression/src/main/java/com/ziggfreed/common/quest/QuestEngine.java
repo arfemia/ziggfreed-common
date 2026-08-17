@@ -14,6 +14,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -32,6 +33,7 @@ import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.ProgressDispatchTap;
 import com.ziggfreed.common.progress.StatThresholdProbe;
 import com.ziggfreed.common.progress.ZoneRef;
+import com.ziggfreed.common.progress.runtime.ProgressionFeedbackHook;
 import com.ziggfreed.common.quest.event.QuestEvents;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -98,6 +100,7 @@ public final class QuestEngine implements QuestStateReader {
     private final QuestInventoryConsumer inventory;
     private final QuestGates gates;
     private final ProgressDispatchTap tap;
+    private final ProgressionFeedbackHook feedbackHook;
     /** Null when no factor vocabulary was wired, which switches every threshold re-check off. */
     @Nullable private final StatThresholdProbe statProbe;
     private final QuestI18n i18n;
@@ -127,6 +130,7 @@ public final class QuestEngine implements QuestStateReader {
         this.inventory = b.inventory;
         this.gates = b.gates;
         this.tap = b.tap;
+        this.feedbackHook = b.feedbackHook;
         this.statProbe = StatThresholdProbe.of(b.factors, b.factorContext, b.warn);
         this.i18n = b.i18n;
         this.rewardRetryQueue = b.rewardRetryQueue;
@@ -1663,12 +1667,37 @@ public final class QuestEngine implements QuestStateReader {
             QuestEvents.fireObjectiveProgressed(quest.id(), objective.id(), subject.id(),
                     state.current(), state.required(), justCompleted, quest.tags());
         }
+        // The two SENTENCES are deferred: this moment is announced on every tick of every tracked
+        // objective, so on every block broken and every mob killed, and composing a step's wording
+        // for a moment nobody authored would be the most expensive thing on that path. A supplier
+        // is asked for only once a hook says it answers this moment.
+        ProgressionFeedbackHook.fire(feedbackHook, warn, "quest.objective_progressed", subject,
+                "quest", quest.id(),
+                "title", (Supplier<?>) () -> quest.text().titleOr(quest.id()),
+                "objective", objective.id(),
+                "step", (Supplier<?>) () -> quest.text().objective(objective.id()),
+                "current", Integer.valueOf(state.current()),
+                "required", Integer.valueOf(state.required()),
+                "finished", Boolean.valueOf(justCompleted));
     }
 
+    /**
+     * Every objective is met.
+     *
+     * <p>Two moment ids rather than one flag on a single moment, because they are two different
+     * things to say: a quest that paid out is finished, a quest that PARKED is waiting to be
+     * collected somewhere, and a server author writing the second one wants their own words and
+     * their own sound for it rather than a variant of the first.
+     */
     private void fireCompleted(@Nonnull Quest quest, @Nonnull Subject subject, boolean parked) {
         if (nativeEvents) {
             QuestEvents.fireCompleted(quest.id(), subject.id(), parked, quest.tags());
         }
+        ProgressionFeedbackHook.fire(feedbackHook, warn, parked ? "quest.parked" : "quest.completed",
+                subject, "quest", quest.id(), "title", quest.text().titleOr(quest.id()),
+                // Carried on BOTH ids, so a hook handed either one can tell which case it is
+                // without reading meaning into the id it was called with.
+                "parked", Boolean.valueOf(parked));
     }
 
     private void fireClaimed(@Nonnull Quest quest, @Nonnull Subject subject,
@@ -1677,6 +1706,11 @@ public final class QuestEngine implements QuestStateReader {
             QuestEvents.fireClaimed(quest.id(), subject.id(), outcome.granted(), outcome.queued(),
                     outcome.failed(), quest.tags());
         }
+        ProgressionFeedbackHook.fire(feedbackHook, warn, "quest.claimed", subject,
+                "quest", quest.id(), "title", quest.text().titleOr(quest.id()),
+                "granted", Integer.valueOf(outcome.granted()),
+                "queued", Integer.valueOf(outcome.queued()),
+                "failed", Integer.valueOf(outcome.failed()));
     }
 
     private void fireAbandoned(@Nonnull String questId, @Nonnull Subject subject,
@@ -1714,6 +1748,7 @@ public final class QuestEngine implements QuestStateReader {
         @Nullable private Function<Subject, FactorContext> factorContext;
         private QuestI18n i18n = QuestI18n.NONE;
         @Nullable private BiConsumer<Subject, String> rewardRetryQueue;
+        private ProgressionFeedbackHook feedbackHook = ProgressionFeedbackHook.NONE;
         private Consumer<String> warn = DEFAULT_WARN;
         private LongSupplier clock = System::currentTimeMillis;
         private int maxTracked = 5;
@@ -1837,6 +1872,17 @@ public final class QuestEngine implements QuestStateReader {
         @Nonnull
         public Builder warn(@Nonnull Consumer<String> warn) {
             this.warn = warn;
+            return this;
+        }
+
+        /**
+         * Where a lifecycle MOMENT goes, for whatever reacts to one. Unlike the outbound native
+         * events this is not switchable: a server that suppressed the cross-mod event bus still
+         * wants its own toasts and jingles, which are what this carries.
+         */
+        @Nonnull
+        public Builder feedbackHook(@Nonnull ProgressionFeedbackHook feedbackHook) {
+            this.feedbackHook = feedbackHook;
             return this;
         }
 

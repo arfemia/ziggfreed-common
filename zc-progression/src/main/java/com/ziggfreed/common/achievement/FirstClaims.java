@@ -1,17 +1,16 @@
 package com.ziggfreed.common.achievement;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.progress.runtime.ProgressionFeedbackHook;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -26,8 +25,11 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>The loss is announced, not handled.</b> The rule ("exactly one, and a loser keeps their
  * criteria met") is settled here; what a player is TOLD about it is presentation, which nothing in
- * this module can write. So a loss is fanned out to every registered listener, each guarded, in
- * registration order - additive, so a second mod listening never displaces the first.
+ * this module can write. So a loss is announced as the {@code achievement.server_first_lost}
+ * feedback MOMENT, which a server author answers with an authored file and no Java at all, and
+ * which any mod wanting to react itself reaches through the progression registrar's feedback
+ * contribution - one announcement, additively read by everybody, rather than a second fan-out of
+ * its own beside it.
  */
 public final class FirstClaims {
 
@@ -51,8 +53,6 @@ public final class FirstClaims {
     private static final InMemory DEFAULT = new InMemory();
 
     private static volatile FirstClaimStore installed = DEFAULT;
-
-    private static final List<BiConsumer<Subject, Achievement>> LOST = new CopyOnWriteArrayList<>();
 
     /** One report per process that the boot-lifetime table is the one arbitrating. */
     private static final AtomicBoolean REPORTED_DEFAULT = new AtomicBoolean();
@@ -94,36 +94,22 @@ public final class FirstClaims {
     }
 
     /**
-     * Hear about a subject who met the criteria and lost the race. Additive: every listener is told,
-     * each inside its own guard, so one mod's broken notice costs nobody else's.
+     * Announce that {@code subject} met the criteria and was beaten to {@code achievement}.
      *
-     * <p><b>Registering once is the CALLER's business.</b> Nothing here can dedupe for them: the
-     * usual listener is a method reference, and a fresh one of those is a different object every
-     * time it is written, so a guard comparing listeners would look like protection while catching
-     * nothing. Register from setup, guarded the way the rest of a mod's registration is.
+     * <p>Announced from here rather than from the gate that decides it, because this is the one
+     * place that knows a race was lost however the decision was reached. It deliberately carries no
+     * picture: a loss is a quiet note, and an icon would make it read like the unlock it is not.
      */
-    public static void onLost(@Nullable BiConsumer<Subject, Achievement> listener) {
-        if (listener != null) {
-            LOST.add(listener);
-        }
-    }
-
-    /** Tell every listener that {@code subject} was beaten to {@code achievement}. */
     public static void fireLost(@Nonnull Subject subject, @Nonnull Achievement achievement) {
-        for (BiConsumer<Subject, Achievement> listener : LOST) {
-            try {
-                listener.accept(subject, achievement);
-            } catch (Throwable t) {
-                SafeLog.warn("[achievements] a server-first loss listener failed: " + t.getMessage());
-            }
-        }
+        ProgressionFeedbackHook.fire(ProgressionRuntime.feedback(), SafeLog::warn,
+                "achievement.server_first_lost", subject, "achievement", achievement.id(),
+                "title", achievement.text().titleOr(achievement.id()));
     }
 
-    /** Drop every claim and every listener. For a test resetting between cases. */
+    /** Drop every claim. For a test resetting between cases. */
     public static void resetForTests() {
         DEFAULT.clear();
         installed = DEFAULT;
-        LOST.clear();
         REPORTED_DEFAULT.set(false);
     }
 }

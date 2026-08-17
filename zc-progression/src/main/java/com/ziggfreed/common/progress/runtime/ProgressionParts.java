@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -61,6 +62,7 @@ import com.ziggfreed.common.util.SafeLog;
  * @param achievementGates          every registered achievement gate, composed
  * @param systemGate                every registered system gate, ANDed
  * @param tap                       every registered dispatch tap, fanned out
+ * @param feedbackHook              every registered feedback hook, fanned out
  * @param textSources               every registered text source, in registration order
  */
 record ProgressionParts(@Nonnull QuestProgressStore questStore,
@@ -79,6 +81,7 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                         @Nonnull AchievementGates achievementGates,
                         @Nonnull ProgressionSystemGate systemGate,
                         @Nonnull ProgressDispatchTap tap,
+                        @Nonnull ProgressionFeedbackHook feedbackHook,
                         @Nonnull List<ProgressionTextSource> textSources) {
 
     /** Default warn sink, guarded so a log-manager-less test JVM cannot crash on it. */
@@ -117,7 +120,8 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
             EMPTY_FACTOR_CONTEXT, EMPTY_FACTOR_CONTEXT, NO_SUBJECTS,
             ProgressionCallScope.DIRECT, ProgressionCallScope.DIRECT,
             null, DEFAULT_WARN, QuestGates.OPEN, AchievementGates.OPEN,
-            ProgressionSystemGate.OPEN, ProgressDispatchTap.NONE, List.of());
+            ProgressionSystemGate.OPEN, ProgressDispatchTap.NONE, ProgressionFeedbackHook.NONE,
+            List.of());
 
     // ==================== the forwarders the engines are built over ====================
 
@@ -323,6 +327,28 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
 
     static final ProgressDispatchTap TAP = (subject, kind, target, qualifier, amount, zone) ->
             ProgressionRuntime.parts().tap().observe(subject, kind, target, qualifier, amount, zone);
+
+    static final ProgressionFeedbackHook FEEDBACK_HOOK = new ProgressionFeedbackHook() {
+
+        @Override
+        public void fire(@Nonnull String momentId, @Nonnull Subject subject,
+                @Nonnull Map<String, Object> args) {
+            ProgressionRuntime.parts().feedbackHook().fire(momentId, subject, args);
+        }
+
+        @Override
+        public boolean listening() {
+            return ProgressionRuntime.parts().feedbackHook().listening();
+        }
+
+        @Override
+        public boolean answers(@Nonnull String momentId) {
+            return ProgressionRuntime.parts().feedbackHook().answers(momentId);
+        }
+    };
+
+    /** Said once, the first time a moment is announced into a fan-out nobody filled. */
+    static final AtomicBoolean FEEDBACK_SILENCE_REPORTED = new AtomicBoolean();
 
     static final Consumer<String> WARN = message -> ProgressionRuntime.parts().warn().accept(message);
 
@@ -586,6 +612,58 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                 } catch (Throwable t) {
                     warn.accept("a progress tap failed on '" + kind + "': " + t.getMessage());
                 }
+            }
+        };
+    }
+
+    /**
+     * Every registered feedback hook, fanned out, each call individually guarded: one mod's broken
+     * reaction costs its own toast and nobody else's, and never the transition it was watching.
+     *
+     * <p>Order is not a precedence. Every hook sees every moment, so nothing here can decide that a
+     * moment has already been "handled" - which is the property that lets a second mod react to a
+     * quest completing beside the one that draws the toast.
+     */
+    @Nonnull
+    static ProgressionFeedbackHook composeFeedbackHooks(@Nonnull List<ProgressionFeedbackHook> hooks,
+                                                       @Nonnull Consumer<String> warn) {
+        if (hooks.isEmpty()) {
+            return ProgressionFeedbackHook.NONE;
+        }
+        List<ProgressionFeedbackHook> frozen = List.copyOf(hooks);
+        return new ProgressionFeedbackHook() {
+
+            @Override
+            public void fire(@Nonnull String momentId, @Nonnull Subject subject,
+                             @Nonnull Map<String, Object> args) {
+                for (ProgressionFeedbackHook hook : frozen) {
+                    try {
+                        hook.fire(momentId, subject, args);
+                    } catch (Throwable t) {
+                        warn.accept("a feedback hook failed on '" + momentId + "': " + t.getMessage());
+                    }
+                }
+            }
+
+            /**
+             * ONE hook that reacts to this moment is enough to build its arguments for; a hook that
+             * cannot tell in advance says yes, so the fan-out only stays quiet when every member of
+             * it can prove it has nothing to do.
+             */
+            @Override
+            public boolean answers(@Nonnull String momentId) {
+                for (ProgressionFeedbackHook hook : frozen) {
+                    try {
+                        if (hook.answers(momentId)) {
+                            return true;
+                        }
+                    } catch (Throwable t) {
+                        // A hook that cannot answer the question is assumed to want the moment,
+                        // which costs an argument map and never a missed reaction.
+                        return true;
+                    }
+                }
+                return false;
             }
         };
     }

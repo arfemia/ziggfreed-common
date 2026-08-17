@@ -127,6 +127,7 @@ public final class ProgressionRuntime {
     private static final List<Contribution<AchievementGates>> ACHIEVEMENT_GATES = new ArrayList<>();
     private static final List<Contribution<ProgressionSystemGate>> SYSTEM_GATES = new ArrayList<>();
     private static final List<Contribution<ProgressDispatchTap>> TAPS = new ArrayList<>();
+    private static final List<Contribution<ProgressionFeedbackHook>> FEEDBACK_HOOKS = new ArrayList<>();
     private static final List<Contribution<ProgressionTextSource>> TEXT_SOURCES = new ArrayList<>();
 
     private record Contribution<T>(@Nonnull String owner, @Nonnull T value) {
@@ -303,6 +304,13 @@ public final class ProgressionRuntime {
         }
     }
 
+    static synchronized void addFeedbackHook(@Nonnull ProgressionRegistrar registrar,
+                                             @Nonnull ProgressionFeedbackHook hook) {
+        if (addContribution(FEEDBACK_HOOKS, registrar.owner(), hook)) {
+            rederive();
+        }
+    }
+
     static synchronized void addTextSource(@Nonnull ProgressionRegistrar registrar,
                                            @Nonnull ProgressionTextSource source) {
         if (addContribution(TEXT_SOURCES, registrar.owner(), source)) {
@@ -439,6 +447,24 @@ public final class ProgressionRuntime {
     public static boolean systemEnabled(@Nonnull ProgressionSystem system,
                                         @Nonnull Subject subject) {
         return parts.systemGate().enabled(system, subject);
+    }
+
+    /**
+     * THE feedback fan-out, read LIVE: every registered hook, each guarded, in one call.
+     *
+     * <p>Handed out so a lifecycle moment the ENGINES do not own can still reach the same
+     * reactions - a server-first race lost inside a gate is one - rather than growing a second way
+     * of announcing a moment beside this one.
+     */
+    @Nonnull
+    public static ProgressionFeedbackHook feedback() {
+        return ProgressionParts.FEEDBACK_HOOK;
+    }
+
+    /** Who registered a feedback hook, in registration order. */
+    @Nonnull
+    public static synchronized List<String> feedbackHookOwners() {
+        return ownerNames(FEEDBACK_HOOKS);
     }
 
     /** Who registered a SYSTEM gate, in registration order. */
@@ -605,6 +631,7 @@ public final class ProgressionRuntime {
                     .possessionProbe(ProgressionParts.POSSESSION)
                     .inventoryConsumer(ProgressionParts.INVENTORY)
                     .dispatchTap(ProgressionParts.TAP)
+                    .feedbackHook(ProgressionParts.FEEDBACK_HOOK)
                     .factors(factors)
                     .factorContext(ProgressionParts.QUEST_FACTOR_CONTEXT)
                     .i18n(ProgressionParts.QUEST_I18N)
@@ -621,6 +648,7 @@ public final class ProgressionRuntime {
                     .gates(ProgressionParts.ACHIEVEMENT_GATES)
                     .matchFlavor(slotOr(Slots.ACHIEVEMENT_MATCH_FLAVOR, MatchFlavor.LENIENT))
                     .dispatchTap(ProgressionParts.TAP)
+                    .feedbackHook(ProgressionParts.FEEDBACK_HOOK)
                     .factors(factors)
                     .factorContext(ProgressionParts.ACHIEVEMENT_FACTOR_CONTEXT)
                     .rewardRetryQueue(retryQueue)
@@ -644,6 +672,8 @@ public final class ProgressionRuntime {
         ACHIEVEMENT_GATES.clear();
         SYSTEM_GATES.clear();
         TAPS.clear();
+        FEEDBACK_HOOKS.clear();
+        ProgressionParts.FEEDBACK_SILENCE_REPORTED.set(false);
         TEXT_SOURCES.clear();
         REGISTRARS.clear();
         QUEST_LAYERS.clear();
@@ -680,6 +710,7 @@ public final class ProgressionRuntime {
                 ProgressionParts.composeAchievementGates(values(ACHIEVEMENT_GATES)),
                 ProgressionParts.composeSystemGates(values(SYSTEM_GATES), warn),
                 ProgressionParts.composeTaps(values(TAPS), warn),
+                ProgressionParts.composeFeedbackHooks(values(FEEDBACK_HOOKS), warn),
                 ProgressionParts.freezeTextSources(values(TEXT_SOURCES)));
     }
 
@@ -740,7 +771,8 @@ public final class ProgressionRuntime {
                 + ", reward kinds=" + RewardKinds.shared().ids().size()
                 + ", gate kinds=" + gateKinds.ids().size()
                 + ", factors=" + ownerOf(Slots.FACTORS)
-                + ", text sources=" + owners(TEXT_SOURCES));
+                + ", text sources=" + owners(TEXT_SOURCES)
+                + ", feedback hooks=" + owners(FEEDBACK_HOOKS));
         SafeLog.info("[progression]   content     quests=" + counts(QUEST_LAYERS)
                 + ", achievements=" + counts(ACHIEVEMENT_LAYERS)
                 + ", milestones=" + counts(MILESTONE_LAYERS));

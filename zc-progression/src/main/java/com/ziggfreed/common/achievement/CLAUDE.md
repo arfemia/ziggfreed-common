@@ -64,9 +64,18 @@ which one shared instance cannot afford, and it is exactly why that method exist
 - **A refusal loses nothing.** `canUnlock` refusing leaves the criteria MET, so `selfHeal` earns it
   the moment the answer changes. That is what makes a race arbitrable without a rollback.
 - **`serverFirst` is a FLAG on the achievement and the arbitration is the gate's.** A consumer
-  supplies the claim table through `FirstClaims` (an in-memory one ships, correct for one boot) and
-  hears about a loss through `FirstClaims.onLost`, which is where a notice belongs: nothing in this
-  module can write words a player reads.
+  supplies the claim table through `FirstClaims` (an in-memory one ships, correct for one boot). The
+  loss is ANNOUNCED rather than handled, as the `achievement.server_first_lost` feedback moment,
+  which a server answers with an authored file and no Java. Nothing in this module can write words a
+  player reads. **There is no second fan-out beside it**: a mod that wants to do something other
+  than tell the player - log a race, hand out a consolation - registers a feedback hook through the
+  progression registrar and reads the same announcement additively, which is strictly more than a
+  listener of its own would have carried (it gets the `Subject` and the argument map, guarded).
+  The moment deliberately carries no `icon`: a loss is a quiet note, not a second unlock.
+- **`icon` is written by the FOLD, never resolved by the engine.** The picture an achievement is
+  shown with comes out of a whole authoring ladder only the layer that folded the catalogue can
+  walk, so it is decided once there and carried on the runtime object; a surface that paints it -
+  the unlock moment above all - is painting a decision already taken.
 - **The engine never names a consumer's world.** No feature flags, no class ids, no progression
   vocabulary. Everything of that shape is a question asked of `AchievementGates`. The module
   agnosticism test scans this package.

@@ -1,0 +1,277 @@
+package com.ziggfreed.common.feedback.moment;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.ziggfreed.common.i18n.ContentI18n;
+import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.subject.Subject;
+
+/**
+ * What an authored moment decodes to, and what the engine does with a subject it cannot draw
+ * anything for.
+ *
+ * <p>The drawing itself is packets, so it is validated in game rather than here; what is pinned
+ * here is everything a broken authoring file or an absent player could otherwise turn into a throw
+ * on the path of a state transition.
+ */
+class FeedbackEngineTest {
+
+    private Subject handleless;
+
+    @BeforeEach
+    void setUp() {
+        FeedbackMomentConfig.getInstance().mergePackLayer(Map.of());
+        ContentKeys.reset();
+        handleless = Subject.of(UUID.randomUUID(), "tester");
+    }
+
+    @AfterEach
+    void tearDown() {
+        FeedbackMomentConfig.getInstance().mergePackLayer(Map.of());
+        ContentKeys.reset();
+    }
+
+    @Nonnull
+    private static FeedbackMomentAsset moment(@Nonnull String id, @Nonnull String json)
+            throws IOException {
+        AssetExtraInfo.Data data = new AssetExtraInfo.Data(FeedbackMomentAsset.class, id, null);
+        return FeedbackMomentAsset.CODEC.decodeAndInheritJsonAsset(
+                RawJsonReader.fromJsonString(json), null, new AssetExtraInfo<>(data));
+    }
+
+    private static void install(@Nonnull String id, @Nonnull FeedbackMomentAsset asset) {
+        FeedbackMomentConfig.getInstance().mergePackLayer(Map.of(id, asset));
+    }
+
+    private static void install(@Nonnull String id, @Nonnull String json) throws IOException {
+        install(id, moment(id, json));
+    }
+
+    // ==================== the authoring surface ====================
+
+    @Test
+    void everyGroupIsOptionalAndTheAuthoredOnesDecode() throws IOException {
+        FeedbackMomentAsset asset = moment("quest.completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"],
+                                        "Color": "#FFFF00" } },
+                  "Sound": { "Id": "SFX_Discovery_Z2_Short" } }
+                """);
+
+        assertNotNull(asset.getToast());
+        assertNotNull(asset.getToast().getTitle());
+        assertEquals("notify.quest_complete", asset.getToast().getTitle().getKey());
+        assertEquals(List.of("title"), List.of(asset.getToast().getTitle().getArgs()));
+        assertEquals("#FFFF00", asset.getToast().getTitle().getColor());
+        assertNull(asset.getToast().getSecondary(), "a one-line toast authors no second line");
+        assertNotNull(asset.getSound());
+        assertEquals("SFX_Discovery_Z2_Short", asset.getSound().getId());
+        assertNull(asset.getBroadcast(), "a group nobody authored stays absent, not empty");
+        assertNull(asset.getCommand());
+    }
+
+    @Test
+    void aChildInheritsGroupByGroupFromItsParent() throws IOException {
+        FeedbackMomentAsset parent = moment("quest.completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"] } },
+                  "Sound": { "Id": "SFX_Discovery_Z2_Short" } }
+                """);
+        AssetExtraInfo.Data data =
+                new AssetExtraInfo.Data(FeedbackMomentAsset.class, "quest.parked", "quest.completed");
+        FeedbackMomentAsset child = FeedbackMomentAsset.CODEC.decodeAndInheritJsonAsset(
+                RawJsonReader.fromJsonString("{ \"Sound\": { \"Id\": \"SFX_Discovery_Z1_Short\" } }"),
+                parent, new AssetExtraInfo<>(data));
+
+        assertNotNull(child.getSound());
+        assertEquals("SFX_Discovery_Z1_Short", child.getSound().getId());
+        assertNotNull(child.getToast(), "the group the child said nothing about carries over");
+        assertNotNull(child.getToast().getTitle());
+        assertEquals("notify.quest_complete", child.getToast().getTitle().getKey());
+    }
+
+    // ==================== what the engine does ====================
+
+    @Test
+    void aMomentNobodyAuthoredIsSilentRatherThanAFailure() {
+        assertDoesNotThrow(() ->
+                FeedbackEngine.fire("nothing.authored.this", handleless, Map.of("title", "x")));
+    }
+
+    @Test
+    void aSubjectWithNoPlayerHandleIsAskedForOneAndThenLeftAlone() throws IOException {
+        install("quest.completed", moment("quest.completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"] } } }
+                """));
+        AskedHandle handle = new AskedHandle();
+        Subject subject = new Subject(UUID.randomUUID(), "tester", handle);
+
+        assertDoesNotThrow(() ->
+                FeedbackEngine.fire("quest.completed", subject, Map.of("title", "A Quest")));
+
+        assertTrue(handle.asked.contains(PlayerRef.class),
+                "the toast resolves its player through the subject's own handle");
+    }
+
+    @Test
+    void aMomentNamingAnArgumentItDidNotCarryIsStillHarmless() throws IOException {
+        install("quest.completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"] },
+                             "Secondary": { "Key": "notify.quest_flavor", "Args": ["nobody"] } },
+                  "Sound": { "Id": "SFX_Discovery_Z2_Short" } }
+                """);
+        AskedHandle handle = new AskedHandle();
+        Subject subject = new Subject(UUID.randomUUID(), "tester", handle);
+
+        assertDoesNotThrow(() -> FeedbackEngine.fire("quest.completed", subject, Map.of()));
+        assertEquals(List.of(PlayerRef.class), handle.asked,
+                "one player resolution for the whole moment however many parts it has, and no"
+                        + " audience question at all for a subject there is no screen to ask about");
+    }
+
+    /**
+     * The picture is read from ONE fixed argument name and nothing else. It is not an authored leaf,
+     * so a moment file can neither point it somewhere else nor mis-spell it; a producer with a
+     * picture offers one under that name, and a moment with none draws a toast without one.
+     */
+    @Test
+    void theToastPictureComesFromTheFixedArgumentNameOrNowhere() {
+        assertEquals("Trophy_Gold", FeedbackEngine.icon(Map.of("icon", "Trophy_Gold")));
+        assertNull(FeedbackEngine.icon(Map.of("IconArg", "Trophy_Gold")),
+                "no other name is read, so an authored pointer at one cannot exist");
+        assertNull(FeedbackEngine.icon(Map.of("title", "A Quest")),
+                "a moment carrying no picture draws a toast without one");
+        assertNull(FeedbackEngine.icon(Map.of("icon", Msg.raw("A Quest"))),
+                "a localized value is a sentence somebody's client renders, never an item id");
+    }
+
+    /**
+     * The authored key is UNPREFIXED, the way content is written everywhere else in this library,
+     * and the consumer whose catalogue ships it lends it the namespace its client actually
+     * registered. Handing the client the key as written is how a player ends up reading the key
+     * itself instead of the sentence.
+     */
+    @Test
+    void anAuthoredKeyIsResolvedThroughTheConsumerThatShipsIt() throws IOException {
+        ContentKeys.install(new Fill("mmoskilltree.", "notify.quest_complete"));
+        FeedbackMomentAsset asset = moment("quest.completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"] } } }
+                """);
+
+        Message title = FeedbackEngine.line(asset.getToast().getTitle(),
+                Map.of("title", "A Quest"));
+
+        assertNotNull(title);
+        assertEquals("mmoskilltree.notify.quest_complete", title.getMessageId());
+    }
+
+    /** A key nobody claims goes out exactly as authored, for a consumer pointing at a native id. */
+    @Test
+    void aKeyNoConsumerClaimsGoesOutAsWritten() throws IOException {
+        FeedbackMomentAsset asset = moment("quest.completed", """
+                { "Toast": { "Title": { "Key": "some.native.key", "Args": ["title"] } } }
+                """);
+
+        Message title = FeedbackEngine.line(asset.getToast().getTitle(),
+                Map.of("title", "A Quest"));
+
+        assertNotNull(title);
+        assertEquals("some.native.key", title.getMessageId());
+    }
+
+    /**
+     * A player who turned this consumer's own notifications down loses the personal toast and
+     * nothing else: the subject's handle answers, because no authored file can read a setting that
+     * lives on one player. Asserted on the ANSWER rather than on the asking, so deleting the branch
+     * that honours it fails here.
+     */
+    @Test
+    void aSubjectsOwnAnswerDecidesWhetherItIsToasted() {
+        Subject quiet = new Subject(UUID.randomUUID(), "tester", new QuietHandle());
+        Subject noisy = new Subject(UUID.randomUUID(), "tester", (Subject.HandleFacets)
+                type -> type == FeedbackAudience.class ? (FeedbackAudience) momentId -> true : null);
+
+        assertFalse(FeedbackEngine.wantsNotification(quiet, "quest.completed"),
+                "a handle that says no is honoured");
+        assertTrue(FeedbackEngine.wantsNotification(noisy, "quest.completed"),
+                "and a handle that says yes is too");
+    }
+
+    /** No opinion is not a refusal: a subject that answers for nothing gets whatever was authored. */
+    @Test
+    void aSubjectWithNoOpinionIsToasted() {
+        assertTrue(FeedbackEngine.wantsNotification(handleless, "quest.completed"));
+    }
+
+    /** An opinion that throws is not allowed to cost the moment the toast it was authored to draw. */
+    @Test
+    void anOpinionThatThrowsStillLeavesTheToastAuthored() {
+        Subject broken = new Subject(UUID.randomUUID(), "tester", (Subject.HandleFacets)
+                type -> type == FeedbackAudience.class
+                        ? (FeedbackAudience) momentId -> {
+                            throw new IllegalStateException("no");
+                        }
+                        : null);
+
+        assertTrue(FeedbackEngine.wantsNotification(broken, "quest.completed"));
+    }
+
+    /** A consumer catalogue claiming exactly the keys it was built with. */
+    private record Fill(@Nonnull String prefix, @Nonnull String key) implements ContentI18n {
+
+        @Override
+        @Nonnull
+        public String keyPrefix() {
+            return prefix;
+        }
+
+        @Override
+        public boolean hasKey(@Nonnull String unprefixedKey) {
+            return key.equals(unprefixedKey);
+        }
+    }
+
+    /** A handle whose player wants no personal notifications at all. */
+    private static final class QuietHandle implements Subject.HandleFacets {
+
+        @Override
+        @Nullable
+        public Object facet(@Nonnull Class<?> type) {
+            return type == FeedbackAudience.class ? (FeedbackAudience) momentId -> false : null;
+        }
+    }
+
+    /** A handle that answers for nothing, and records what it was asked for. */
+    private static final class AskedHandle implements Subject.HandleFacets {
+
+        private final List<Class<?>> asked = new ArrayList<>();
+
+        @Override
+        @Nullable
+        public Object facet(@Nonnull Class<?> type) {
+            asked.add(type);
+            return null;
+        }
+    }
+}
