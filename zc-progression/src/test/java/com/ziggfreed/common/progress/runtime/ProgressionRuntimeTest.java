@@ -138,6 +138,59 @@ class ProgressionRuntimeTest {
                 .preSatisfiedAmount(player, quest, objective));
     }
 
+    // ==================== system gates ====================
+
+    @Test
+    void aSystemNobodyGatedIsOpen() {
+        assertTrue(ProgressionRuntime.systemEnabled(ProgressionSystem.QUEST, player));
+        assertTrue(ProgressionRuntime.systemEnabled(ProgressionSystem.ACHIEVEMENT, player));
+    }
+
+    /**
+     * Gates AND, and a refusal costs exactly the system it names. Registered in both orders,
+     * because an owner switch whose answer depended on load order would be off on some boots.
+     */
+    @Test
+    void systemGatesAndSoOneRefusalClosesThatSystemAlone() {
+        ProgressionRuntime.registrar(CONSUMER)
+                .systemGate((system, subject) -> system != ProgressionSystem.QUEST);
+        ProgressionRuntime.registrar(OTHER).systemGate((system, subject) -> true);
+
+        assertFalse(ProgressionRuntime.systemEnabled(ProgressionSystem.QUEST, player));
+        assertTrue(ProgressionRuntime.systemEnabled(ProgressionSystem.ACHIEVEMENT, player),
+                "the other system is untouched by a refusal aimed at quests");
+
+        ProgressionRuntime.resetForTests();
+        ProgressionRuntime.registrar(OTHER).systemGate((system, subject) -> true);
+        ProgressionRuntime.registrar(CONSUMER)
+                .systemGate((system, subject) -> system != ProgressionSystem.QUEST);
+
+        assertFalse(ProgressionRuntime.systemEnabled(ProgressionSystem.QUEST, player),
+                "registration order cannot decide whether a system is on");
+    }
+
+    /**
+     * A broken switch must not turn a whole system off for everybody in silence: it is read as
+     * OPEN, it says so once, and the gates registered beside it still get their say.
+     */
+    @Test
+    void aThrowingSystemGateIsReadAsOpenAndSaysSo() {
+        List<String> warnings = new ArrayList<>();
+        ProgressionRuntime.registrar(LIBRARY).warn(warnings::add);
+        ProgressionRuntime.registrar(CONSUMER).systemGate((system, subject) -> {
+            throw new IllegalStateException("boom");
+        });
+
+        assertTrue(ProgressionRuntime.systemEnabled(ProgressionSystem.QUEST, player));
+        assertEquals(1, warnings.size(), "one warn for the one gate that failed");
+        assertTrue(warnings.get(0).contains("quest"), warnings.get(0));
+
+        ProgressionRuntime.registrar(OTHER)
+                .systemGate((system, subject) -> system != ProgressionSystem.QUEST);
+        assertFalse(ProgressionRuntime.systemEnabled(ProgressionSystem.QUEST, player),
+                "a throwing neighbour must not swallow a gate that answered");
+    }
+
     @Test
     void aThrowingTapCostsOnlyItsOwnObservation() {
         List<String> seen = new ArrayList<>();
@@ -159,20 +212,6 @@ class ProgressionRuntimeTest {
 
         assertEquals(2, ProgressionRuntime.textSources().size());
         assertEquals("second", ((StubText) ProgressionRuntime.textSources().get(1)).answer);
-    }
-
-    // ==================== keyed claims ====================
-
-    @Test
-    void aProducerStandsDownPerKindRatherThanAltogether() {
-        assertTrue(ProgressionRuntime.defaultProducesKind("BREAK_BLOCK"));
-        ProgressionRuntime.registrar(CONSUMER).producesKinds(List.of("BREAK_BLOCK", "KILL_ENTITY"));
-
-        assertFalse(ProgressionRuntime.defaultProducesKind("BREAK_BLOCK"));
-        assertFalse(ProgressionRuntime.defaultProducesKind("break_block"), "ids are normalized");
-        assertFalse(ProgressionRuntime.defaultProducesKind("KILL_ENTITY"));
-        assertTrue(ProgressionRuntime.defaultProducesKind("CRAFT_ITEM"),
-                "a kind nobody claimed is still the library's to fire");
     }
 
     /**

@@ -69,6 +69,8 @@ import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.progress.runtime.ProgressionFactors;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.placed.PlacedBlockLedger;
+import com.ziggfreed.common.world.placed.PlacedBlockRecorder;
 
 /**
  * Entry point for Ziggfreed Common, a shared, mod-agnostic Hytale utility mod.
@@ -169,6 +171,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         setupTalkCredit();
         registerWorldLifecycle();
         registerPlayerIdentity();
+        setupPlacedBlockLedger();
         setupProgressionRuntime();
         registerDialogueMemories();
         registerQuestListHost();
@@ -196,12 +199,12 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * lifecycle and generic producer systems behind {@link ProgressionDefaults#install}.
      *
      * <p>Every registration is unconditional, and none of them decides anything. There is one
-     * runtime per server whoever is on it; a consumer that brings its own store, gates or producers
-     * registers them at its own {@code setup()} and outranks the defaults registered here. A
-     * component type registered after a world has loaded cannot be read off entities saved carrying
-     * it, and an ECS system is a setup-time registration, so neither can wait for that. Where a
-     * consumer owns the stores, nothing attaches the component and every producer it replaced
-     * returns on its first line.
+     * runtime per server whoever is on it; a consumer that brings its own store or gates registers
+     * them at its own {@code setup()} and outranks the defaults registered here. A component type
+     * registered after a world has loaded cannot be read off entities saved carrying it, and an ECS
+     * system is a setup-time registration, so neither can wait for that. The four generic producers
+     * always run into whichever store is registered, and the component is attached to every player
+     * either way, because it also holds what conversations remember.
      *
      * <p>The last one is the progression READINGS ({@link ProgressionFactors#contribute()}): four
      * factor ids claimed process-wide, so any content anywhere - a storefront, a board, a placement,
@@ -217,7 +220,12 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             ProgressionDefaults.install(this);
             ProgressionFactors.contribute();
         } catch (Throwable t) {
-            SafeLog.warn("[progression] shared runtime wiring failed", t);
+            // Naming the kinds because this is the one failure nothing downstream reports: the
+            // producers are registered one after another, so a throw part way leaves the rest
+            // unregistered and their moments simply stop happening, in silence, for the whole boot.
+            SafeLog.warn("[progression] shared runtime wiring failed - some or all of "
+                    + ProgressionDefaults.producedKinds()
+                    + " will not produce quest or achievement progress this boot", t);
         }
     }
 
@@ -533,8 +541,49 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         }
     }
 
+    /**
+     * Wire the placed-block ledger: the ONE writer into it, plus the saved placements from the last
+     * run. The ledger is the library's answer to "did the breaker put that there themselves", read
+     * by this library's own producers and by every consumer's XP path, so common owns both the
+     * recording system and the file rather than asking a consumer to register another mod's
+     * plumbing.
+     *
+     * <p>The system registers at {@code setup()} because an ECS system is a setup-time
+     * registration, and the load happens here so the first break after a restart is answered from
+     * the same ledger the last one was.
+     *
+     * <p>The two halves are guarded SEPARATELY on purpose. Shared under one try, a failed recorder
+     * registration would skip the load as well, and the ledger would then answer "nobody placed
+     * that" for every position saved by the last run - the exploit the ledger exists to close,
+     * silently reopened for one boot by a failure in the other half.
+     */
+    private void setupPlacedBlockLedger() {
+        try {
+            getEntityStoreRegistry().registerSystem(new PlacedBlockRecorder());
+        } catch (Throwable t) {
+            SafeLog.warn("[placed] the placed-block recorder could not be registered: nothing will"
+                    + " be remembered this boot, so place-then-break pays out", t);
+        }
+        try {
+            PlacedBlockLedger.getInstance().load();
+        } catch (Throwable t) {
+            SafeLog.warn("[placed] the saved placements could not be loaded: everything placed"
+                    + " before this restart reads as never placed", t);
+        }
+    }
+
     @Override
     protected void shutdown() {
+        savePlacedBlockLedger();
         LOGGER.atInfo().log("ZiggfreedCommon shutdown complete.");
+    }
+
+    /** Write the remembered placements out, so a restart does not hand every one of them back. */
+    private void savePlacedBlockLedger() {
+        try {
+            PlacedBlockLedger.getInstance().save();
+        } catch (Throwable t) {
+            SafeLog.warn("[placed] could not save the placed-block ledger", t);
+        }
     }
 }

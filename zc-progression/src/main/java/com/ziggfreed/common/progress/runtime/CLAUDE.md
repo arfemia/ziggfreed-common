@@ -23,23 +23,22 @@ match). They are the wrong tool for a mod that wants the server's progression.
 | `ProgressionRuntime` | the holder: registration entry points, the engine pair, content publishing, `ensureBuilt`, the boot diagnostic |
 | `ProgressionRegistrar` | what a consumer calls; fluent, idempotent, conflict-policed |
 | `ProgressionParts` | the resolved snapshot + the FORWARDERS the engines are built over + gate/tap composition |
-| `ProducerClaims` | the keyed claim: which objective kinds a consumer fires, so the library's own generic producer stands down for exactly those |
 | `ContentLayers` | per-owner content layers and the merge, so a reload replaces one owner's layer |
-| `ProgressionSubjectSource` | how a player becomes the subject the ACTIVE stores understand |
+| `ProgressionSubjectSource` | how a player becomes the subject the ACTIVE stores understand, and nothing else. Whether a SYSTEM is on for that player is a separate contribution, because a subject is also what a storefront, a board and a conversation are built over, so refusing to build one would take a wallet away with the quest log |
+| `ProgressionSystemGate` + `ProgressionSystem` | the owner's own "quests off on this server" / "achievements off until launch" switches, per player and per system (`QUEST` / `ACHIEVEMENT`). A CONTRIBUTION: every gate is asked, they AND, none registered means open, and one that THROWS is read as OPEN with one warn |
 | `ProgressionCallScope` | what a consumer publishes around a mutating call, so a shared surface fires what its own menu would |
 | `ProgressionTextSource` | how a surface with no catalogue NAMES a piece of content. Its `lore` DEFAULT is the shared `quest.<id>.md.<state>` convention, so the narrative rule is one rule rather than one per source |
 | `ProgressionGates` | THE `GateEvaluator` and the ONE `RequiresGates` over it, built on first ask and holding no registration - the vocabulary, the context and the requirement kinds are read live off the runtime, so a surface asking during another mod's setup and one asking in play are on the same instance |
 | `ProgressionFactors` | the four `ziggfreedcommon:` READINGS of this runtime, claimed process-wide so any content can gate on finished progression with no Java |
 
-## Three shapes of registration, and they behave differently
+## Two shapes of registration, and they behave differently
 
 - **one-slot** (store, subjects, factor context, scopes, ...): consumer beats library default silently;
   a SECOND consumer is REFUSED with a SEVERE naming both. Never resolve that silently.
-- **contribution** (gates, taps, text sources): every registration applies. Gates AND with
-  `accepts` collecting EVERY reason (no short-circuit), `preSatisfiedAmount` folding as a MAX; taps
+- **contribution** (gates, system gates, taps, text sources): every registration applies. Gates AND
+  with `accepts` collecting EVERY reason (no short-circuit), `preSatisfiedAmount` folding as a MAX;
+  system gates AND with every gate asked, so registration order cannot decide the answer; taps
   fan out, each individually guarded; text sources answer in order, first non-null wins.
-- **keyed replacement** (`producesKind`): the library's own generic producer stands down
-  for exactly that key.
 
 The three shared VOCABULARIES are not registrar methods - `objectiveKinds()`, `rewardKinds()` and
 `gateKinds()` hand out the live registries and a consumer registers into them. There is no slot to
@@ -47,12 +46,18 @@ conflict over, which is what a registry is for.
 
 ## Rules that bite
 
-- **A producer's claim set is written out EXPLICITLY**, never derived from what content may author.
-  Those are different questions, and deriving it stands a producer down for a kind nobody fires - the
-  progress then simply stops with nothing logged. **The day a fifth generic producer ships, every
-  consumer's claim set must be extended in the same change.**
+- **A producer always fires.** There is no claim and no stand-down: a consumer never registers a
+  competing producer for a native event zc-objectives already covers, and a mod firing a NET NEW
+  moment calls `ProgressDispatch.fire` from its own event system with no registration at all.
 - **A surface asks the runtime for its subject.** Building one locally works on the server it was
   written against and silently drops every write on a server where another mod's store is active.
+- **An owner's system switch is a GATE, not a producer claim, and gates STACK.** "Quests are off on
+  this server" is a per-player, per-system question every producer honours equally: the producer
+  still runs and still reaches the dispatch, and a refusal costs exactly the half it names. It is a
+  contribution so two mods can each keep their own switch without either being able to re-open a
+  system the other shut. **Default OPEN, and a gate that throws is read as OPEN too** - an
+  unreadable switch must never turn a whole system off for every player on the strength of a bug,
+  where failing open costs at most the one refusal that gate meant to make.
 - **A surface wraps mutating calls in the registered scope**, or a claim from it pays out in silence
   while the same claim from the owning mod's own menu does everything.
 - **Sealed parts** (`factors`, both match flavors, `maxTracked`, `maxPinned`) are read ONCE, when the

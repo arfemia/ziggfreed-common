@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
@@ -90,9 +89,9 @@ import com.ziggfreed.common.validation.ValidationReport;
  * component TYPE is registered, the component is ATTACHED to every player, and the four producer
  * systems are registered, all at {@code setup()}. A component type registered after a world loads
  * cannot be read off entities saved carrying it, and an ECS system is a setup-time registration.
- * Every producer a consumer claimed returns on its first line, so the cost is one map read per
- * event; the component stays because it also holds what conversations remember, and the dialogue
- * engine belongs to every server whoever owns its quests (see {@link #onPlayerConnect}).
+ * Those four producers always run, unconditionally, and nothing stands them down; the component
+ * stays because it also holds what conversations remember, and the dialogue engine belongs to every
+ * server whoever owns its quests (see {@link #onPlayerConnect}).
  */
 public final class ProgressionDefaults {
 
@@ -104,10 +103,6 @@ public final class ProgressionDefaults {
 
     /** How many achievements a player may pin, unless a consumer says otherwise. */
     private static final int MAX_PINNED = 5;
-
-    /** The objective kinds the four producers below fire, for the boot diagnostic's stand-down count. */
-    private static final Set<String> PRODUCER_KINDS = Set.of(ZigBlockBreakProducer.KIND,
-            ZigMobKillProducer.KIND, ZigCraftProducer.KIND, ZigPickupProducer.KIND);
 
     /** Registration is once per boot: a second pass would mint parts nothing is holding. */
     private static boolean registered;
@@ -161,7 +156,6 @@ public final class ProgressionDefaults {
                     .warn(SafeLog::warn);
 
             NpcOfferProviders.register(OWNER, OWNER, RuntimeOffers.INSTANCE);
-            ProgressionRuntime.declareDefaultProducerKinds(PRODUCER_KINDS);
         } catch (Throwable t) {
             SafeLog.warn("[progression] the library's default parts could not be registered", t);
         }
@@ -169,7 +163,8 @@ public final class ProgressionDefaults {
 
     /**
      * Register everything that has to exist whoever ends up owning the runtime: the player lifecycle
-     * listeners and the four producer systems. Registration is unconditional and dispatching is not.
+     * listeners and the four producer systems. All of it is unconditional, and so is every dispatch
+     * those producers make.
      */
     public static void install(@Nonnull PluginBase plugin) {
         register();
@@ -179,6 +174,22 @@ public final class ProgressionDefaults {
         plugin.getEntityStoreRegistry().registerSystem(new ZigMobKillProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigCraftProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPickupProducer());
+        SafeLog.info("[progression] producers always-on: " + producedKinds()
+                + " (a mod firing a new moment calls ProgressDispatch.fire directly, no registration"
+                + " needed)");
+    }
+
+    /**
+     * The kinds this library's own producers fire, as one readable list.
+     *
+     * <p>Named rather than counted because the wiring root's failure line uses it too: if
+     * {@link #install} throws part way, the producers after the throw were never registered and
+     * their moments simply stop happening, which is the one failure here nothing else reports.
+     */
+    @Nonnull
+    public static String producedKinds() {
+        return String.join(", ", ZigBlockBreakProducer.KIND, ZigMobKillProducer.KIND,
+                ZigCraftProducer.KIND, ZigPickupProducer.KIND);
     }
 
     // ==================== content ====================

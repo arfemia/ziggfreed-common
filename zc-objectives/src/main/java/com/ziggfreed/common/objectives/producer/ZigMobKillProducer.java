@@ -13,13 +13,15 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathSystems;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.util.EntityIdentifierUtil;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Fires {@code KILL_ENTITY} for the fallback runtime, targeted at the dead entity's id and credited
  * to the player who dealt the killing blow.
+ *
+ * <p><b>This producer always runs.</b> There is no claim and no stand-down: nothing may register a
+ * competing producer for the same native event, so a kill is dispatched here exactly once.
  *
  * <p>Death is the moment, not a hit, so this hangs off the death component rather than the damage
  * pipeline. Player deaths are skipped (this is the "something was killed" moment, and a player is
@@ -29,6 +31,9 @@ public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
 
     /** The objective kind this producer feeds. */
     public static final String KIND = "KILL_ENTITY";
+
+    /** What a victim whose id will not resolve is called, so a match-all objective still counts. */
+    private static final String UNKNOWN_VICTIM = "unknown";
 
     @Nonnull
     @Override
@@ -41,9 +46,6 @@ public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
     public void onComponentAdded(@Nonnull Ref<EntityStore> victimRef, @Nonnull DeathComponent death,
             @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         try {
-            if (!ProgressionRuntime.defaultProducesKind(KIND)) {
-                return;
-            }
             if (store.getComponent(victimRef, Player.getComponentType()) != null) {
                 return;
             }
@@ -59,9 +61,12 @@ public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
             if (playerRef == null) {
                 return;
             }
+            // An unreadable id still credits a kill: content authored as "kill anything" matches
+            // on a blank target, so returning here would quietly cost the player that objective
+            // rather than merely naming the victim vaguely.
             String victimId = EntityIdentifierUtil.getMobId(store, victimRef);
             if (victimId == null || victimId.isBlank()) {
-                return;
+                victimId = UNKNOWN_VICTIM;
             }
             ProgressDispatch.fire(store, attackerRef, playerRef, KIND, victimId, null, 1L);
         } catch (Throwable t) {

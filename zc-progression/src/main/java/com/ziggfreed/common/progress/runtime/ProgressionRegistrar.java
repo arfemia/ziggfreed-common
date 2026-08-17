@@ -1,6 +1,5 @@
 package com.ziggfreed.common.progress.runtime;
 
-import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -30,23 +29,21 @@ import com.ziggfreed.common.subject.Subject;
  * <p>Every method is fluent, idempotent, and conflict-policed. The names deliberately mirror the two
  * engine builders, because that is the vocabulary a consumer already writes.
  *
- * <p><b>Three shapes of registration, and the difference matters.</b>
+ * <p><b>Two shapes of registration, and the difference matters.</b>
  * <ul>
  *   <li><b>One-slot</b> - somebody's store, somebody's subject source. Exactly one answer is
  *   possible, so a consumer outranks a library default silently, and a SECOND consumer trying to
  *   take a slot another consumer already holds is REFUSED and named: two mods each wanting their own
  *   quest store is unresolvable, and quietly picking one is the same double-tracking failure one
  *   level up.
- *   <li><b>Contribution</b> - gates, taps, text sources. Every registration applies; gates AND, taps
- *   fan out, text sources answer in order.
- *   <li><b>Keyed replacement</b> - {@link #producesKind}. The claim is per key, so the library's
- *   own generic producer stands down for exactly that kind.
+ *   <li><b>Contribution</b> - gates, system gates, taps, text sources. Every registration applies;
+ *   gates AND, taps fan out, text sources answer in order.
  * </ul>
  *
  * <p><b>CONTENT is not registered here at all, and needs no claim.</b> Every reader folds the whole
  * shared store and publishes what it folded; the layers merge with library defaults first and
  * consumers after, so a consumer's version of an id silently replaces the library's. Rank settles
- * it, which is why there is no content-ownership method beside {@code producesKind}.
+ * it, which is why there is no content-ownership method here at all.
  *
  * <p><b>The three shared VOCABULARIES are not here on purpose.</b> Objective kinds, reward kinds and
  * gate kinds are already open registries with their own owner attribution and overwrite policy, and
@@ -245,6 +242,19 @@ public final class ProgressionRegistrar {
         return this;
     }
 
+    /**
+     * Add this mod's owner switch for whether a SYSTEM is on for a player at all.
+     *
+     * <p>Every gate applies and they AND, so any refusal wins and registration order cannot change
+     * the answer; with none registered every system is open. It is not a producer claim - see
+     * {@link ProgressionSystemGate} for what a refusal does and does not cost.
+     */
+    @Nonnull
+    public ProgressionRegistrar systemGate(@Nonnull ProgressionSystemGate gate) {
+        ProgressionRuntime.addSystemGate(this, gate);
+        return this;
+    }
+
     /** Watch every tapped progress event, whether or not any content wanted it. */
     @Nonnull
     public ProgressionRegistrar dispatchTap(@Nonnull ProgressDispatchTap tap) {
@@ -256,31 +266,6 @@ public final class ProgressionRegistrar {
     @Nonnull
     public ProgressionRegistrar textSource(@Nonnull ProgressionTextSource source) {
         ProgressionRuntime.addTextSource(this, source);
-        return this;
-    }
-
-    // ==================== keyed replacement ====================
-
-    /**
-     * Declare that this mod's own event systems fire {@code objectiveKindId}, so the library's
-     * generic producer for it stands down.
-     *
-     * <p>State it EXPLICITLY, one kind at a time, and never derive the set from what content is
-     * allowed to author: those are different questions, and deriving it stands a producer down for a
-     * kind nobody fires, which stops progress with nothing logged.
-     */
-    @Nonnull
-    public ProgressionRegistrar producesKind(@Nonnull String objectiveKindId) {
-        ProgressionRuntime.claimKind(this, objectiveKindId);
-        return this;
-    }
-
-    /** {@link #producesKind} for several at once. */
-    @Nonnull
-    public ProgressionRegistrar producesKinds(@Nonnull Collection<String> objectiveKindIds) {
-        for (String kindId : objectiveKindIds) {
-            ProgressionRuntime.claimKind(this, kindId);
-        }
         return this;
     }
 

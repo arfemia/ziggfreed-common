@@ -6,8 +6,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -127,6 +125,7 @@ public final class ProgressionRuntime {
 
     private static final List<Contribution<QuestGates>> QUEST_GATES = new ArrayList<>();
     private static final List<Contribution<AchievementGates>> ACHIEVEMENT_GATES = new ArrayList<>();
+    private static final List<Contribution<ProgressionSystemGate>> SYSTEM_GATES = new ArrayList<>();
     private static final List<Contribution<ProgressDispatchTap>> TAPS = new ArrayList<>();
     private static final List<Contribution<ProgressionTextSource>> TEXT_SOURCES = new ArrayList<>();
 
@@ -135,8 +134,6 @@ public final class ProgressionRuntime {
 
     /** Every registrar that registered anything, in first-registration order. */
     private static final Map<String, Boolean> REGISTRARS = new LinkedHashMap<>();
-
-    private static final ProducerClaims CLAIMS = new ProducerClaims();
 
     private static final ContentLayers<Quest> QUEST_LAYERS =
             new ContentLayers<>(Quest::id, "quest");
@@ -292,6 +289,13 @@ public final class ProgressionRuntime {
         }
     }
 
+    static synchronized void addSystemGate(@Nonnull ProgressionRegistrar registrar,
+                                           @Nonnull ProgressionSystemGate gate) {
+        if (addContribution(SYSTEM_GATES, registrar.owner(), gate)) {
+            rederive();
+        }
+    }
+
     static synchronized void addDispatchTap(@Nonnull ProgressionRegistrar registrar,
                                             @Nonnull ProgressDispatchTap tap) {
         if (addContribution(TAPS, registrar.owner(), tap)) {
@@ -315,15 +319,6 @@ public final class ProgressionRuntime {
         }
         into.add(new Contribution<>(owner, value));
         return true;
-    }
-
-    static synchronized void claimKind(@Nonnull ProgressionRegistrar registrar,
-                                       @Nonnull String objectiveKindId) {
-        String clash = CLAIMS.claimKind(objectiveKindId, registrar.owner());
-        if (clash != null) {
-            SafeLog.warn("[progression] '" + registrar.owner() + "' also claims to fire '"
-                    + objectiveKindId + "', which '" + clash + "' already claims; both will fire it");
-        }
     }
 
     // ==================== the shared vocabularies ====================
@@ -434,6 +429,25 @@ public final class ProgressionRuntime {
     }
 
     /**
+     * Is {@code system} switched on for this player at all, per every registered owner switch?
+     *
+     * <p>The ONE read behind an owner's "quests off on this server" toggle. Gates AND, a refusal
+     * from any of them wins, a runtime nobody registered one into answers true, and a gate that
+     * throws is read as OPEN with one warn - see {@link ProgressionSystemGate} for why failing
+     * closed would be the worse of the two failures.
+     */
+    public static boolean systemEnabled(@Nonnull ProgressionSystem system,
+                                        @Nonnull Subject subject) {
+        return parts.systemGate().enabled(system, subject);
+    }
+
+    /** Who registered a SYSTEM gate, in registration order. */
+    @Nonnull
+    public static synchronized List<String> systemGateOwners() {
+        return ownerNames(SYSTEM_GATES);
+    }
+
+    /**
      * Who registered a QUEST gate, in registration order. An admin read, and the one a boot check
      * asks: a progression engine with an empty list is an engine nothing gates.
      */
@@ -535,26 +549,14 @@ public final class ProgressionRuntime {
         }
     }
 
-    // ==================== the claim a producer reads ====================
-
-    /**
-     * Is {@code kindId} still the library's own generic producer's to fire? A producer's first line.
-     * Registration is final at setup, so this is safe to read from an event handler.
-     */
-    public static boolean defaultProducesKind(@Nonnull String kindId) {
-        return CLAIMS.defaultProduces(kindId);
-    }
-
-    // A content namespace claim used to sit here beside the producer claim, so the library's own
-    // default source could drop every definition a consumer said it would fold itself. RANK does
-    // that job on its own and does it better, which is why there is nothing to claim: every reader
-    // folds the whole store, both publish what they folded, and ContentLayers merges LIBRARY
-    // DEFAULTS FIRST, then consumers in registration order. A consumer's entry therefore replaces
-    // the library's for the same id, SILENTLY - that branch is written out in ContentLayers.compose
-    // as the claim contract working - so a definition a consumer folded into something richer wins
-    // wherever the two meet, and a definition only the library folded still reaches the engines.
-    // Only two CONSUMERS landing on one id is a real clash, and that is the case compose warns
-    // about, naming both. Milestones resolve the same way, rung by rung, by threshold.
+    // Nothing here claims a content namespace, because RANK already does that job and does it
+    // better: every reader folds the whole store, both publish what they folded, and ContentLayers
+    // merges LIBRARY DEFAULTS FIRST, then consumers in registration order. A consumer's entry
+    // therefore replaces the library's for the same id, SILENTLY - that branch is written out in
+    // ContentLayers.compose - so a definition a consumer folded into something richer wins wherever
+    // the two meet, and a definition only the library folded still reaches the engines. Only two
+    // CONSUMERS landing on one id is a real clash, and that is the case compose warns about, naming
+    // both. Milestones resolve the same way, rung by rung, by threshold.
 
     /**
      * Is the LIBRARY DEFAULT quest store still the active one? Final at setup, so it is safe to read
@@ -635,15 +637,15 @@ public final class ProgressionRuntime {
         }
     }
 
-    /** Drop every registration, claim, layer and engine. Test reset, and the shutdown path. */
+    /** Drop every registration, layer and engine. Test reset, and the shutdown path. */
     public static synchronized void resetForTests() {
         SLOTS.clear();
         QUEST_GATES.clear();
         ACHIEVEMENT_GATES.clear();
+        SYSTEM_GATES.clear();
         TAPS.clear();
         TEXT_SOURCES.clear();
         REGISTRARS.clear();
-        CLAIMS.clear();
         QUEST_LAYERS.clear();
         ACHIEVEMENT_LAYERS.clear();
         MILESTONE_LAYERS.clear();
@@ -676,6 +678,7 @@ public final class ProgressionRuntime {
                 warn,
                 ProgressionParts.composeQuestGates(values(QUEST_GATES)),
                 ProgressionParts.composeAchievementGates(values(ACHIEVEMENT_GATES)),
+                ProgressionParts.composeSystemGates(values(SYSTEM_GATES), warn),
                 ProgressionParts.composeTaps(values(TAPS), warn),
                 ProgressionParts.freezeTextSources(values(TEXT_SOURCES)));
     }
@@ -714,7 +717,7 @@ public final class ProgressionRuntime {
     }
 
     /**
-     * The one boot diagnostic: six stable lines naming WHO answered for what.
+     * The one boot diagnostic: five stable lines naming WHO answered for what.
      *
      * <p>At info, not debug, because it is the answer to "why is my quest not advancing" and that
      * question is asked from a log somebody already has rather than from a run they can redo. A
@@ -731,18 +734,8 @@ public final class ProgressionRuntime {
         SafeLog.info("[progression]   stores      quest=" + ownerOf(Slots.QUEST_STORE)
                 + ", achievement=" + ownerOf(Slots.ACHIEVEMENT_STORE));
         SafeLog.info("[progression]   gates       quest=" + owners(QUEST_GATES)
-                + ", achievement=" + owners(ACHIEVEMENT_GATES));
-
-        Map<String, String> claimedKinds = CLAIMS.claimedKinds();
-        Set<String> producible = defaultProducerKinds();
-        List<String> producerLine = new ArrayList<>();
-        for (Map.Entry<String, String> entry : claimedKinds.entrySet()) {
-            producerLine.add(entry.getKey().toUpperCase(Locale.ROOT) + "=" + entry.getValue());
-        }
-        SafeLog.info("[progression]   producers   "
-                + (producerLine.isEmpty() ? "none claimed" : String.join(", ", producerLine))
-                + " (" + CLAIMS.claimedCount(producible) + " of " + producible.size()
-                + " library defaults standing down)");
+                + ", achievement=" + owners(ACHIEVEMENT_GATES)
+                + ", system switches=" + owners(SYSTEM_GATES));
         SafeLog.info("[progression]   vocabulary  objective kinds=" + objectiveKinds.ids().size()
                 + ", reward kinds=" + RewardKinds.shared().ids().size()
                 + ", gate kinds=" + gateKinds.ids().size()
@@ -751,30 +744,6 @@ public final class ProgressionRuntime {
         SafeLog.info("[progression]   content     quests=" + counts(QUEST_LAYERS)
                 + ", achievements=" + counts(ACHIEVEMENT_LAYERS)
                 + ", milestones=" + counts(MILESTONE_LAYERS));
-    }
-
-    /**
-     * The kinds the library's own generic producers cover, so the diagnostic can say how many of them
-     * stood down. Registered by whoever installs them; an empty set simply prints "0 of 0".
-     */
-    @Nonnull
-    private static Set<String> defaultProducerKinds() {
-        return new TreeSet<>(DEFAULT_PRODUCER_KINDS);
-    }
-
-    /** The normalized kind ids the library's own producers fire, filled in by whoever installs them. */
-    private static final Set<String> DEFAULT_PRODUCER_KINDS = new TreeSet<>();
-
-    /**
-     * Tell the runtime which kinds the library's own generic producers cover, so the boot diagnostic
-     * can report how many of them a consumer stood down. Purely a reporting fact.
-     */
-    public static synchronized void declareDefaultProducerKinds(@Nonnull Collection<String> kindIds) {
-        for (String kindId : kindIds) {
-            if (kindId != null && !kindId.isBlank()) {
-                DEFAULT_PRODUCER_KINDS.add(kindId.trim().toLowerCase(Locale.ROOT));
-            }
-        }
     }
 
     @Nonnull

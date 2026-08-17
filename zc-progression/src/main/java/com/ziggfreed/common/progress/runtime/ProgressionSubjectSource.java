@@ -22,6 +22,12 @@ import com.ziggfreed.common.subject.Subject;
  * <p>Both methods may answer null, and null always means "not this pass" rather than an error - a
  * player whose identity is not readable yet is a normal moment, and every caller treats it as a
  * reason to do nothing.
+ *
+ * <p><b>Whether a system is switched ON for a player is asked somewhere else.</b> A subject is also
+ * what a storefront, a board and a conversation are built over, so answering an owner's "quests
+ * off" switch by refusing to build one would take a wallet away along with the quest log. That
+ * question is a {@link ProgressionSystemGate} contribution instead, asked per system once the
+ * subject exists.
  */
 public interface ProgressionSubjectSource {
 

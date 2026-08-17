@@ -14,13 +14,17 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
 
 - **Depends on**: `zc-core` (`SafeLog`, `Subject`, validation, the `Msg` factory, the factor
   model), `zc-loot` (the shared reward vocabulary both engines pay out through), `zc-progression`
-  (the engines themselves, their asset stores, and the consumer-claim seam), `zc-presentation` (the
+  (the engines themselves, their asset stores, and the registration surface every part is contributed
+  through), `zc-presentation` (the
   page base, the shared frames/buttons, the retint engine, the toast engine), `zc-cast` (custom
   interaction-Type registration, for the book item's Use), `zc-entity` (the portable `hytale:`
   factor standard library, so a `STAT_THRESHOLD` objective settles itself), `zc-dialogue` (NPC
   IDENTITY: `npc/NpcNames` for what a character is called and `npc/NpcIdentities` for every id it
   answers to, both read off the placement + identity assets - which is what lets the page at a
-  character name it and fold its aliases with no consumer filling a seam).
+  character name it and fold its aliases with no consumer filling a seam), `zc-world` (`world.placed`
+  ONLY: the shared placed-block ledger the break and pickup producers consult, so neither credits a
+  block or an item the player put down themselves). One-way in every case; zc-world sits below this
+  module and never reaches back.
 - **Depended on by**: no other library module. This module sits ABOVE both `zc-progression` and
   `zc-presentation` and nothing sits above it - a progression book needs the engines and a page,
   and neither of those two modules may reach the other (`zc-progression` may never import
@@ -42,7 +46,10 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
   own progression REPLACES the parts it answers for through the same registration surface, so
   double-tracking cannot exist rather than being switched off.
   - `objectives/book/` - the objective book's rendering + text-arg model.
-  - `objectives/producer/` - the four native-event producers.
+  - `objectives/producer/` - the four native-event producers plus `ProgressDispatch`, the one route
+    from any producer to both engines (it resolves each engine's own subject, the zone, and the
+    consumer's registered call scope, and asks every contributed `ProgressionSystemGate` per half,
+    so an owner who switched a system off for a player still has it off).
   - `objectives/questlist/` - the NPC quest page (`ZigNpcQuestPage`), its consumer seams
     (`NpcQuestPageDeps`), the pure ordering core (`NpcQuestSections`), and `NpcQuestPages`, the one
     call a wiring root makes. Reward chips read through `zc-loot`'s shared `RewardChips` (the
@@ -99,11 +106,14 @@ take the screen wins.
 
 ## Tests
 
-9 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
+10 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
 this module's own suite covers the parts it contributes - `DefaultPartsHandInTest`,
 `DefaultPartsRewardGrantTest` (the registered store + producer parts pulling their weight inside a
 real runtime), `ZigProgressComponentTest`, `ProgressBlobTest` (the persisted per-player codec),
-`ProgressDispatchTest`, `ProgressHandleFacetTest`, plus the NPC quest page's two pure halves - `NpcQuestSectionsTest`
+`ProgressDispatchTest`, `ProgressHandleFacetTest`, `PlacedGuardProducerTest` (a placed-then-broken
+block dispatches no BREAK_BLOCK progress and a placed-then-picked-up item no PICKUP_ITEM, while a
+fresh one still does - the ledger and the producer decision, no live engine), plus the NPC quest
+page's two pure halves - `NpcQuestSectionsTest`
 (bucketing, ordering, which quest the detail panel opens on), `NpcQuestPageDepsTest` (the defaults,
 and a consumer seam that throws). How a reward chip reads is pinned in `zc-loot`'s
 `RewardChipsTest`, beside the shared vocabulary it belongs to.

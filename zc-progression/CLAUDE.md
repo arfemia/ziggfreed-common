@@ -26,7 +26,8 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
 
 - [`progress/`](src/main/java/com/ziggfreed/common/progress/CLAUDE.md) - the shared lifecycle
   cores: `ObjectiveDef`, `ObjectiveKind`/`ObjectiveKindRegistry`, `MatchFlavor`/`MatchMode`/
-  `ObjectiveMatch`/`ZoneRef`, `ObjectiveProgressState`, `ObjectiveIndex`, `DispatchOptions`.
+  `ObjectiveMatch`/`ZoneRef`/`ZoneLocator` (the ONE read of where a player is, off the engine's
+  `WorldMapTracker`), `ObjectiveProgressState`, `ObjectiveIndex`, `DispatchOptions`.
   - `progress/asset/` - the authoring groups both engines share (`ContentTextAsset`,
     `ObjectiveLeafAsset`, `RewardEntryAsset`, `ProgressEditorDataSets`), declared once so their
     field names cannot drift between quest and achievement files. No router of its own.
@@ -36,8 +37,10 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
     ONE requirement model behind every `Requires` block. No router of its own.
   - `progress/runtime/` - THE shared progression runtime: one `QuestEngine` + `AchievementEngine`
     pair per server however many mods contribute to it. `ProgressionRuntime` (the holder),
-    `ProgressionRegistrar` (what a consumer calls), `ProgressionParts`, `ProducerClaims`,
-    `ContentLayers`, `ProgressionSubjectSource`, `ProgressionCallScope`, `ProgressionTextSource`,
+    `ProgressionRegistrar` (what a consumer calls), `ProgressionParts`,
+    `ContentLayers`, `ProgressionSubjectSource`, `ProgressionSystemGate`/`ProgressionSystem` (an
+    owner's per-player "quests off" switch, contributed and ANDed), `ProgressionCallScope`,
+    `ProgressionTextSource`,
     and `ProgressionFactors` (the four `ziggfreedcommon:` readings OF that runtime - finished quest,
     completion count, earned achievement, points total - claimed process-wide so any content
     anywhere can gate on progression with no Java and no edge to this module).

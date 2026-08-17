@@ -1,7 +1,7 @@
 apply from: "$rootDir/gradle/zc-module.gradle"
 
-// World identity (selectors, name index, match ranking), atmosphere and placement helpers, and the
-// world-map POI/discovery layer.
+// World identity (selectors, name index, match ranking), atmosphere and placement helpers, the
+// world-map POI/discovery layer, and the placed-block ledger every anti-exploit reader shares.
 
 dependencies {
     implementation project(':zc-core')

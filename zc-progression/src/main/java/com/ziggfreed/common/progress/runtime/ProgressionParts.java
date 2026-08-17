@@ -59,6 +59,7 @@ import com.ziggfreed.common.util.SafeLog;
  * @param warn                      where warnings go
  * @param questGates                every registered quest gate, composed
  * @param achievementGates          every registered achievement gate, composed
+ * @param systemGate                every registered system gate, ANDed
  * @param tap                       every registered dispatch tap, fanned out
  * @param textSources               every registered text source, in registration order
  */
@@ -76,6 +77,7 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                         @Nonnull Consumer<String> warn,
                         @Nonnull QuestGates questGates,
                         @Nonnull AchievementGates achievementGates,
+                        @Nonnull ProgressionSystemGate systemGate,
                         @Nonnull ProgressDispatchTap tap,
                         @Nonnull List<ProgressionTextSource> textSources) {
 
@@ -115,7 +117,7 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
             EMPTY_FACTOR_CONTEXT, EMPTY_FACTOR_CONTEXT, NO_SUBJECTS,
             ProgressionCallScope.DIRECT, ProgressionCallScope.DIRECT,
             null, DEFAULT_WARN, QuestGates.OPEN, AchievementGates.OPEN,
-            ProgressDispatchTap.NONE, List.of());
+            ProgressionSystemGate.OPEN, ProgressDispatchTap.NONE, List.of());
 
     // ==================== the forwarders the engines are built over ====================
 
@@ -533,6 +535,36 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                 }
                 return true;
             }
+        };
+    }
+
+    /**
+     * Every registered system gate, ANDed: any refusal wins, so registration order cannot change
+     * the answer and no mod can re-open a system another mod shut.
+     *
+     * <p>Each call is individually guarded and a THROWING gate counts as OPEN, with one warn. An
+     * owner switch that failed to answer must never read as "off": that would turn a whole system
+     * off for every player on the server on the strength of one bug, in silence, where failing open
+     * costs at most the single refusal that gate meant to make.
+     */
+    @Nonnull
+    static ProgressionSystemGate composeSystemGates(@Nonnull List<ProgressionSystemGate> gates,
+                                                   @Nonnull Consumer<String> warn) {
+        if (gates.isEmpty()) {
+            return ProgressionSystemGate.OPEN;
+        }
+        List<ProgressionSystemGate> frozen = List.copyOf(gates);
+        return (system, subject) -> {
+            boolean enabled = true;
+            for (ProgressionSystemGate gate : frozen) {
+                try {
+                    enabled &= gate.enabled(system, subject);
+                } catch (Throwable t) {
+                    warn.accept("a " + system.label() + " system gate failed and is read as open: "
+                            + t.getMessage());
+                }
+            }
+            return enabled;
         };
     }
 

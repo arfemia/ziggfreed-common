@@ -31,6 +31,7 @@ the server's progression.
 | `StatThresholdProbe` | reads a `STAT_THRESHOLD` objective's stat channel for one subject, so an engine can settle a standing-value objective itself |
 | `MatchFlavor`, `MatchMode`, `ObjectiveMatch` | the matching core - BOTH dialects, verbatim |
 | `ZoneRef` | the zone / region an event happened in, for a zone-scoped objective |
+| `ZoneLocator` | WHERE a player is right now, as that `ZoneRef`, read off the engine's own `WorldMapTracker`. ONE authority, because an event dispatched with no zone never matches an objective that names one: a caller that forgets to resolve one does not lose precision, it silently switches that content off |
 | `ObjectiveProgressState` | how far along one objective is, plus its `"current/required"` wire form |
 | `ObjectiveIndex` | the inverted kind -> objectives index the dispatch hot path walks |
 | `DispatchOptions` | the two independent dispatch switches (`tapObservers`, `targetedOnly`) with three named combinations |

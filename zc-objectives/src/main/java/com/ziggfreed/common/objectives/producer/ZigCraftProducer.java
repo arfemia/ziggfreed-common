@@ -14,10 +14,12 @@ import com.hypixel.hytale.server.core.asset.type.item.config.CraftingRecipe;
 import com.hypixel.hytale.server.core.event.events.ecs.CraftRecipeEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 
 /**
  * Fires {@code CRAFT_ITEM} for the fallback runtime, targeted at the crafted OUTPUT item's id.
+ *
+ * <p><b>This producer always runs.</b> There is no claim and no stand-down: nothing may register a
+ * competing producer for the same native event, so a craft is dispatched here exactly once.
  *
  * <p><b>The output item, not the recipe id.</b> A recipe id is a separate asset key, while the
  * output item id is what an author writes a "craft ten planks" objective against and what the
@@ -56,17 +58,19 @@ public final class ZigCraftProducer extends EntityEventSystem<EntityStore, Craft
             @Nonnull final Store<EntityStore> store,
             @Nonnull final CommandBuffer<EntityStore> commandBuffer,
             @Nonnull final CraftRecipeEvent.Post event) {
-        if (!ProgressionRuntime.defaultProducesKind(KIND)) {
-            return;
-        }
         CraftingRecipe recipe = event.getCraftedRecipe();
         if (recipe == null) {
             return;
         }
-        String target = craftedTarget(recipe);
-        if (target == null) {
+        // A recipe with no id of its own is not one this counts, even where an output resolves. A
+        // consumer's own statistics half reads the same recipe and stops on the same test, and one
+        // craft counted as an objective but never as a statistic is exactly how the two halves of
+        // a single action come to disagree about what happened.
+        String recipeId = recipe.getId();
+        if (recipeId == null || recipeId.isBlank()) {
             return;
         }
+        String target = craftedTarget(recipe, recipeId);
         Ref<EntityStore> subjectRef = archetypeChunk.getReferenceTo(index);
         PlayerRef playerRef = store.getComponent(subjectRef, PlayerRef.getComponentType());
         if (playerRef == null) {
@@ -78,9 +82,9 @@ public final class ZigCraftProducer extends EntityEventSystem<EntityStore, Craft
                 Math.max(1, event.getQuantity()));
     }
 
-    /** The output item id an objective is authored against, or the recipe id when there is none. */
-    @Nullable
-    private static String craftedTarget(@Nonnull CraftingRecipe recipe) {
+    /** The output item id an objective is authored against, falling back to the recipe's own id. */
+    @Nonnull
+    private static String craftedTarget(@Nonnull CraftingRecipe recipe, @Nonnull String recipeId) {
         var primary = recipe.getPrimaryOutput();
         String primaryId = primary == null ? null : primary.getItemId();
         if (primaryId != null && !primaryId.isBlank()) {
@@ -94,7 +98,6 @@ public final class ZigCraftProducer extends EntityEventSystem<EntityStore, Craft
                 }
             }
         }
-        String recipeId = recipe.getId();
-        return recipeId == null || recipeId.isBlank() ? null : recipeId;
+        return recipeId;
     }
 }

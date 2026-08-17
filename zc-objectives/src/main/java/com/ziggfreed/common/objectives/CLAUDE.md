@@ -22,17 +22,37 @@ into it - store, subjects, factor vocabulary, asset gate, both halves of a hand-
 surface names content by - all at LIBRARY-DEFAULT rank, so a consumer that brings its own is silently
 in charge. Nothing here decides whether to run.
 
-**Registration is unconditional; DISPATCHING is not.** The progress component TYPE and the four
+**Registration AND dispatching are unconditional.** The progress component TYPE and the four
 producer systems are registered at `setup()`, because a component type registered after a world has
 loaded cannot be read off entities saved carrying it and an ECS system is a setup-time registration.
-Where a consumer owns the stores, nothing attaches the component (the connect handler checks
-`ProgressionRuntime.usesDefaultStores()`, which is final at setup) and each producer it REPLACED
-returns on its first line, so the cost is one map read per event.
+The connect-time ATTACH is unconditional too, even where a consumer owns the stores: the component
+also carries what conversations remember, so it has to exist either way. `usesDefaultStores()` gates
+only the player-ready maintenance pass (the self-heal and auto-accept sweep), never the attach.
 
-**The stand-down is PER KIND, not global.** A consumer claims the objective kinds its own event
-systems fire (`producesKind`), and only those producers stand down. **The day a fifth generic
-producer is added here, every consumer's claim set must be extended in the same change** - a kind
-nobody claims is fired twice, and a kind wrongly claimed is fired by nobody with nothing logged.
+**There is no claim and no stand-down.** A consumer never registers a competing producer for a
+native event covered here, so a moment is dispatched exactly once and double-counting cannot
+happen. **The producer surface is OPEN and ADDITIVE**: a mod with a NET NEW moment registers the
+kind through `ObjectiveKindRegistry` if it is not already known and calls `ProgressDispatch.fire`
+from its own ECS event system. No registrar call, no claim, nothing to resolve.
+
+**What `ProgressDispatch` carries that a producer never has to think about.** Three things travel
+with every fired moment, and each one is a silent-failure mode if it is dropped: the SUBJECT each
+engine's own store understands (`questSubject` / `achievementSubject`, not one for both); the ZONE,
+resolved through `progress/ZoneLocator` off the engine's `WorldMapTracker`, without which a
+zone-scoped objective can never be satisfied; and the registered CALL SCOPE around each engine call,
+without which a consumer's own listeners fire with no context and a completion pays out in silence.
+A fourth thing is ASKED rather than carried: every registered `ProgressionSystemGate`, per half, so
+an owner who has switched their quest or achievement system off for a player still has it off. None
+of that is a producer veto: the producer always runs and always reaches the dispatch. What a refusal
+costs is exactly the half it names, unwritten to that engine for that player; the other half is
+untouched. There is one quest engine and one achievement engine per server, so today that IS the
+whole of the refused half.
+
+**There is deliberately no "is anything listening?" short-circuit in the dispatch.** Both engines can
+answer that cheaply (`index().forKind(kind)`), but the observer tap is fed on a dispatch that matched
+NOTHING on purpose - a lifetime counter has to count a block broken while no content wanted it - so a
+skip here would take exactly those events away from every registered tap. The cheap skip lives inside
+each engine, after the tap has been fed.
 
 ## The pieces
 
@@ -112,9 +132,11 @@ single class can implement both.
 
 ## The producers
 
-All four register unconditionally and all four start with
-`if (!ProgressionRuntime.defaultProducesKind(KIND)) return;` - a per-domain stand-down rather than a
-global switch. They never touch an engine - everything goes through
+All four register unconditionally and all four fire unconditionally; nothing stands one down. The
+two that credit a WORLD action first ask zc-world's `world/placed/PlacedBlockLedger` and skip a
+block or an item the player put down themselves, which is the same ledger a consumer's own XP path
+reads, so progress and XP can never disagree about it. They never touch an engine - everything goes
+through
 [`producer/ProgressDispatch`](producer/ProgressDispatch.java), which builds the subject, feeds both
 engines, and swallows nothing silently. World-thread throughout, which is where an ECS system
 already is.
@@ -316,12 +338,14 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
 
 Pure decision cores and author-owned fixtures only, matching the rest of the library.
 `ProgressionRuntimeTest` (in `zc-progression`) pins the registration surface - rank precedence, the
-consumer-versus-consumer refusal, gate composition, the per-kind stand-down, layer merging;
+consumer-versus-consumer refusal, gate composition, layer merging;
 `ProgressBlobTest` pins the wire form, the reserved characters inside an encoded value, and that a
 corrupted entry costs that entry rather than the login; `ZigProgressComponentTest` pins the persisted
 state machine, the completion record surviving a re-arm, and the deep `clone`; `ProgressDispatchTest`
 drives a real quest engine and a real achievement engine over in-memory stores and proves one fired
-moment reaches both. The engine-touching halves - the ECS producers themselves, the component
+moment reaches both. `PlacedGuardProducerTest` pins the anti-exploit half: a placed-then-broken
+block and a placed-then-picked-up item both decline, while a fresh one credits. The
+engine-touching halves - the ECS producers themselves, the component
 attach, the asset fold - land behind in-game smoke.
 
 The three seams above are pinned by their own failure mode, since each one reports success while

@@ -19,7 +19,8 @@ dependencies {
     implementation project(':zc-core')
     // The shared reward vocabulary both engines pay out through.
     implementation project(':zc-loot')
-    // The engines themselves, their asset stores, and the consumer-claim seam.
+    // The engines themselves, their asset stores, and the registration surface every part is
+    // contributed through.
     implementation project(':zc-progression')
     // The page base, the shared frames/buttons, the retint engine, the toast engine.
     implementation project(':zc-presentation')
@@ -30,4 +31,8 @@ dependencies {
     // NPC identity: what a character is CALLED and which ids it answers to, both read off the
     // placement and identity assets, so the page at a character needs no consumer to name it.
     implementation project(':zc-dialogue')
+    // The placed-block ledger, so the block-break and pickup producers refuse to credit a block
+    // the breaker put down a moment ago. One-way: zc-world sits below this module and never
+    // reaches back up to it.
+    implementation project(':zc-world')
 }
