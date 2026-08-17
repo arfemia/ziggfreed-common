@@ -12,6 +12,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 
 import javax.annotation.Nonnull;
@@ -104,7 +105,10 @@ public final class QuestEngine implements QuestStateReader {
     private final Consumer<String> warn;
     private final LongSupplier clock;
     private final int maxTracked;
-    private final int maxActive;
+    private final IntSupplier maxActive;
+
+    /** No limit at all, which is what makes the log-full refusal unreachable rather than switched off. */
+    private static final IntSupplier NO_CAP = () -> 0;
     private final boolean nativeEvents;
 
     /** The catalogue and its index, replaced together so a dispatch never sees a half-loaded pair. */
@@ -175,9 +179,14 @@ public final class QuestEngine implements QuestStateReader {
         return maxTracked;
     }
 
-    /** How many quests a player may carry at once, or {@code 0} for no limit. */
+    /**
+     * How many quests a player may carry at once RIGHT NOW, or {@code 0} for no limit.
+     *
+     * <p>Read live rather than held, because the cap is usually an owner's config value and a reload
+     * has to move it. Nothing caches the answer.
+     */
     public int maxActive() {
-        return maxActive;
+        return Math.max(0, maxActive.getAsInt());
     }
 
     /** The engine's clock, in epoch milliseconds. Injected, so cooldown boundaries are testable. */
@@ -274,6 +283,29 @@ public final class QuestEngine implements QuestStateReader {
         return count;
     }
 
+    /**
+     * How many of this player's active quests are spending a quest-log SLOT, which is the number the
+     * registered cap is measured against.
+     *
+     * <p>It is deliberately not {@link #activeCount}: an errand kept on a list of its own - a board
+     * contract, say - is carried without ever appearing in a quest log, so counting it here would
+     * quietly take slots away from a player who would have nothing on their log screen to explain
+     * where they went, and would refuse them the next contract for a log they are not filling. What
+     * makes the difference is the quest's own {@link Quest#occupiesLog()} switch, so whoever folds
+     * the content says which it is.
+     */
+    public int logSlotsUsed(@Nonnull Subject subject) {
+        int count = 0;
+        for (String questId : store.knownQuestIds(subject)) {
+            Quest quest = quests.get(questId);
+            if (quest != null && quest.occupiesLog()
+                    && store.status(subject, questId) == QuestStatus.ACTIVE) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     /** Every quest this player is carrying or has finished but not collected. */
     @Nonnull
     public List<Quest> activeAndUnclaimed(@Nonnull Subject subject) {
@@ -316,13 +348,13 @@ public final class QuestEngine implements QuestStateReader {
         } else if (status != QuestStatus.NOT_STARTED) {
             reasons.add(QuestGates.REASON_ALREADY_STARTED);
         }
-        if (maxActive > 0 && activeCount(subject) >= maxActive) {
+        int cap = maxActive.getAsInt();
+        if (cap > 0 && quest.occupiesLog() && logSlotsUsed(subject) >= cap) {
             reasons.add(QuestGates.REASON_LOG_FULL);
         }
-        if (quest.visibility().requirePrerequisites() && !gates.prerequisitesMet(subject, quest)) {
-            reasons.add(QuestGates.REASON_PREREQUISITES);
-        }
-        if (!gates.accepts(subject, quest, reasons) && reasons.isEmpty()) {
+        // ONE gate question, not two: a gate answering both off the same requirement block reads it
+        // once here, and accept is asked per quest every time a giver's list or a quest log renders.
+        if (!gates.opensFor(subject, quest, reasons) && reasons.isEmpty()) {
             reasons.add(QuestGates.REASON_PREREQUISITES);
         }
         return reasons.isEmpty() ? AcceptCheck.ALLOWED : new AcceptCheck(false, List.copyOf(reasons));
@@ -1329,6 +1361,32 @@ public final class QuestEngine implements QuestStateReader {
         return !quest.visibility().requirePrerequisites() || gates.prerequisitesMet(subject, quest);
     }
 
+    /**
+     * Should this quest be listed by the CHARACTER authored to hand it out? A different question
+     * from {@link #isVisible}, and the difference is the whole point of the two.
+     *
+     * <p>{@link Quest.Visibility#hidden()} means "not on an open listing" - a browsable log, a book, any
+     * surface enumerating the world's quests. At the quest's OWN giver there is no browsing going
+     * on: the player walked up to the one character whose business this quest is, and hiding it
+     * there leaves a character standing silently beside a quest they exist to hand out, with nothing
+     * anywhere saying why. So a giver listing asks only whether the quest is switched on and whether
+     * the player is past whatever the quest asks for first, which is exactly what an author means by
+     * "keep this out of sight until it is relevant".
+     *
+     * <p>A quest the player has already started is listed either way, for the same reason it is
+     * visible: somebody must be able to see what they are in the middle of.
+     */
+    public boolean isOfferable(@Nonnull Subject subject, @Nonnull Quest quest) {
+        QuestStatus stored = store.status(subject, quest.id());
+        if (stored != QuestStatus.NOT_STARTED) {
+            return true;
+        }
+        if (!quest.available()) {
+            return false;
+        }
+        return !quest.visibility().requirePrerequisites() || gates.prerequisitesMet(subject, quest);
+    }
+
     // ==================== Tracking ====================
 
     /**
@@ -1659,7 +1717,7 @@ public final class QuestEngine implements QuestStateReader {
         private Consumer<String> warn = DEFAULT_WARN;
         private LongSupplier clock = System::currentTimeMillis;
         private int maxTracked = 5;
-        private int maxActive;
+        private IntSupplier maxActive = NO_CAP;
         private boolean nativeEvents = true;
 
         Builder() {
@@ -1799,7 +1857,18 @@ public final class QuestEngine implements QuestStateReader {
         /** How many quests a player may carry at once. Defaults to 0, meaning no limit. */
         @Nonnull
         public Builder maxActive(int maxActive) {
-            this.maxActive = Math.max(0, maxActive);
+            int fixed = Math.max(0, maxActive);
+            this.maxActive = () -> fixed;
+            return this;
+        }
+
+        /**
+         * The same cap read LIVE, for a consumer whose limit lives in a config an owner reloads. The
+         * consumer supplies the number; the {@code log_full} refusal built on it stays the engine's.
+         */
+        @Nonnull
+        public Builder maxActive(@Nullable IntSupplier maxActive) {
+            this.maxActive = maxActive == null ? NO_CAP : maxActive;
             return this;
         }
 

@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 
 import javax.annotation.Nonnull;
 
@@ -201,10 +202,23 @@ public final class ProgressionRegistrar {
         return this;
     }
 
-    /** How many quests a player may carry at once, 0 for no limit. SEALED. */
+    /** How many quests a player may carry at once, 0 for no limit. */
     @Nonnull
     public ProgressionRegistrar maxActiveQuests(int max) {
         ProgressionRuntime.putSlot(ProgressionRuntime.Slots.MAX_ACTIVE, this, Integer.valueOf(max));
+        return this;
+    }
+
+    /**
+     * The same cap read LIVE, for a consumer whose limit is an owner config value a reload moves.
+     *
+     * <p>What the consumer supplies is a NUMBER; the refusal built on it - the engine's own
+     * {@code log_full} - stays the engine's, so there is one place that decides a quest log is full
+     * rather than one per consumer.
+     */
+    @Nonnull
+    public ProgressionRegistrar maxActiveQuests(@Nonnull IntSupplier max) {
+        ProgressionRuntime.putSlot(ProgressionRuntime.Slots.MAX_ACTIVE, this, max);
         return this;
     }
 

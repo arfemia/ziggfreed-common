@@ -33,6 +33,14 @@ a server running two content mods work.
   of them rather than resolving aliases itself.
 - `hasOffersAt` stops at the first yes because it runs wherever a surface decides whether to show a
   marker or a greeting - a per-character cost, not a per-click one.
+- **A giver listing asks `QuestEngine#isOfferable`, NEVER `isVisible`.** They answer different
+  questions and a hidden quest is where they part: `Visibility#hidden` keeps content off an OPEN,
+  browsable listing, while at the one character authored to hand it out there is no browsing going
+  on. Filtering a giver's list on the open-listing read leaves that character standing silently
+  beside the thing they exist to hand out, and a whole authored chain becomes unreachable with
+  nothing anywhere reporting it. The giver read asks only whether the quest is switched on and
+  whether the player is past what it asks for first, which is what an author means by "keep this out
+  of sight until it is relevant".
 
 ## The hygiene rule that governs this whole package
 
@@ -43,16 +51,17 @@ a server running two content mods work.
 | Class | What it is |
 |---|---|
 | `QuestEngine` (+ `.Builder`) | the runtime; every operation and every seam hangs off it. THE instance comes from [`../progress/runtime/`](../progress/runtime/CLAUDE.md); `builder()` is for tests and for a consumer that genuinely wants a private engine |
-| `Quest` (+ `.Repeat`, `.Visibility`) | the RESOLVED quest definition an authoring layer produces; its objectives are `progress.ObjectiveDef` |
+| `Quest` (+ `.Repeat`, `.Visibility`) | the RESOLVED quest definition an authoring layer produces; its objectives are `progress.ObjectiveDef`, and it CARRIES what the shared parts need to answer for it - the authored `Requires` block, the `progress.ContentText` words, the giver id, the listing order, `available` as a LIVE predicate, and `occupiesLog` |
+| `RequiresGates` | ONE gate for BOTH engines, reading `requires()` off the runtime object. Registered by `zc-objectives`' defaults for the quest side AND the achievement side, so a consumer answering a `Requires` block a second way is answering it twice |
 | `QuestTurnInSite` | WHERE a quest may be collected: a named character, or wherever this player took it from. Nullable on `Quest`, and its presence is the restriction |
 | `QuestProgressPayload` | packs one quest's whole `progress.ObjectiveProgressState` map into the opaque string a store persists |
 | `QuestStatus`, `QuestLifecycle` | the state machine, the effective-status rule, and `repeatCheck` - the ONE evaluator for whether a repeatable may be taken again |
 | `RepeatPeriod` | the pure calendar arithmetic behind a `Repeat.Reset` window (UTC, `floorDiv`-indexed, saturating) |
 | `QuestProgressStore` (+ `.CompletionRecord`), `InMemoryQuestProgressStore` | THE persistence seam and a ready-made in-memory one |
-| `QuestGates`, `QuestPossessionProbe`, `QuestInventoryConsumer`, `QuestI18n` | the consumer seams (the dispatch tap is shared: `progress.ProgressDispatchTap`) |
+| `QuestGates`, `QuestPossessionProbe`, `QuestInventoryConsumer`, `QuestI18n` | the consumer seams (the dispatch tap is shared: `progress.ProgressDispatchTap`). `QuestGates` is FILLED by `RequiresGates` above: a consumer implementing it again is registering a second decision over one model. Accepting asks it ONE question, `opensFor`, which the default answers by asking `prerequisitesMet` and `accepts` in turn; a gate reading both off one requirement block overrides it and reads once |
 | `QuestEngine.Builder#factors` / `#factorContext` | the OPTIONAL factor pair, wired the way a gate evaluator's is; unwired, `STAT_THRESHOLD` is purely consumer-fired |
 | `QuestStateReader` | the narrow READ seam: what a conversation may ask, and the whole of what it may reach |
-| `NpcOffer`, `NpcOfferProvider`, `NpcOfferProviders` | the open table answering "what is this character holding out to this player" - the one question the quest runtime genuinely cannot answer alone |
+| `NpcOffer`, `NpcOfferProvider`, `NpcOfferProviders` | the open table answering "what is this character holding out to this player". `zc-objectives` ships the DEFAULT provider over the runtime catalogue - the giver id rides `Quest.npcViewId()`, so nothing else has to be registered for a character to have something to say |
 | `QuestResets` | the outbound RE-ARM seam: who is told that a quest went back to pristine, for state declared to live and die with it that this module sits below and can never call |
 | `event/` | the five native `IEvent<Void>` POJOs + `QuestEvents` fire helper |
 | [`../progress/`](../progress/CLAUDE.md) | the shared cores: `ObjectiveDef`, the vocabulary, matching, `ObjectiveProgressState`, `ObjectiveIndex`, `DispatchOptions`, `ZoneRef` |
@@ -75,7 +84,23 @@ a server running two content mods work.
   `QuestGates.preSatisfiedAmount` and the engine's own reading. That is not a tie-break: both are
   high-water values applied through the same `applyValue`, where applying two in turn leaves exactly
   the larger, so the max is the same result in one write. Ordering is deliberately not consulted
-  there (matching what the gate's answer has always done), while the later re-check honours it.
+  there (matching what the gate's answer has always done), while the later re-check honours it. A
+  consumer whose saved records ARE readable through its registered factor vocabulary needs no
+  gate-side answer at all: the engine's own reading covers it, and that is the shape to prefer.
+- **`available` and `maxActive` are the consumer's NUMBER and PREDICATE, never its decision.** The
+  cap a player's quest log holds and whether a quest is switched on are both things only the consumer
+  knows and both things that move while the server is up, so each is a live supplier
+  (`Quest#available()`, `ProgressionRegistrar#maxActiveQuests(IntSupplier)`) and the refusal built on
+  either - `unavailable`, `log_full` - stays here. A consumer re-checking one in its own gate is
+  making the same refusal twice, and the two will disagree the day one is fixed.
+- **The cap is measured against `logSlotsUsed`, not `activeCount`, and `Quest#occupiesLog()` is what
+  separates them.** An errand a player picks up somewhere that keeps its OWN list - a board contract
+  above all - is carried without ever appearing in a quest log, so counting it against the cap would
+  take slots away from a player with nothing on their log screen to account for them AND refuse them
+  the next errand for a log they are not filling. Both halves are the same switch, so it is one
+  boolean rather than two. `activeCount` still answers "how many catalogued quests is this player
+  carrying" and is not the cap read; a surface painting an "X of Y" header should ask
+  `logSlotsUsed`, or its number and the engine's refusal will tell one player two things.
 - **`Quest#repeat()` is NULLABLE and its PRESENCE is the repeatable flag.** There is no boolean
   inside and no `NONE` sentinel: either would re-create the "it says false but the object exists"
   ambiguity. `quest.repeatable()` is the one-line read. An EMPTY group means externally governed -

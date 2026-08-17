@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import com.google.gson.JsonElement;
 import com.ziggfreed.common.achievement.Achievement;
+import com.ziggfreed.common.progress.ContentText;
 import com.ziggfreed.common.progress.asset.ContentListingAsset.ChainMembership;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -19,7 +20,7 @@ import com.ziggfreed.common.progress.gate.GateSpec;
  *
  * <p>Splitting it this way is what keeps the engine free of presentation and free of any gate
  * vocabulary: it is handed {@link #achievement()} and nothing else, while a consumer's UI reads the
- * keys here and its gates read {@link #requires()}.
+ * keys here and the shared {@code RequiresGates} reads {@link #requires()}.
  *
  * @param id               the achievement id, lower-cased (the asset filename, folders folded in)
  * @param achievement      the engine's runnable definition
@@ -54,6 +55,34 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
         chains = List.copyOf(chains);
         criterionTextKeys = Map.copyOf(criterionTextKeys);
         meta = Map.copyOf(meta);
+        // The engine object carries what the SHARED parts need to answer for this achievement
+        // without ever seeing this record: one gate reads the requirement block off it, one text
+        // source reads the words. Stamped at the one place every folded definition passes through.
+        achievement = achievement.withAuthoring(requires,
+                textOf(achievement, titleKey, flavorKey, displayName, titleArgs, flavorArgs,
+                        criterionTextKeys),
+                achievement.serverFirst());
+    }
+
+    /** The words this achievement carries, as the shared runtime object holds them. */
+    @Nonnull
+    private static ContentText textOf(@Nonnull Achievement achievement, @Nullable String titleKey,
+            @Nullable String flavorKey, @Nullable String displayName,
+            @Nonnull List<String> titleArgs, @Nonnull List<String> flavorArgs,
+            @Nonnull Map<Integer, String> criterionTextKeys) {
+        long amount = achievement.criteria().isEmpty() ? 0L : achievement.criteria().get(0).amount();
+        ContentText.Builder text = ContentText.builder()
+                .titleKey(titleKey)
+                .displayName(displayName)
+                .titleArgs(ContentText.amountArgs(titleArgs, amount))
+                .flavorKey(flavorKey)
+                .flavorArgs(ContentText.amountArgs(flavorArgs, amount));
+        // A criterion is addressed by its POSITION written out, which is the id the engine gives it
+        // and therefore the id a surface asks about.
+        for (Map.Entry<Integer, String> entry : criterionTextKeys.entrySet()) {
+            text.objectiveKey(Integer.toString(entry.getKey().intValue()), entry.getValue());
+        }
+        return text.build();
     }
 
     /**

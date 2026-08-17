@@ -196,10 +196,11 @@ reward, by design.
   player.
 - **An authored key's `TextArgs` are passed to the message, never dropped.** A ladder is usually one
   translated line per rung with the number coming from `TextArgs`, so resolving the key without them
-  empties that slot everywhere at once while the content file still reads as correct. That expansion
-  lives in the TEXT SOURCE now (`ProgressionDefaults.AssetText`), because that is the layer that
-  still has the catalogue the args were authored in; `@amount` is answered with the first step's
-  amount, grouped, as a RAW value, since a digit needs no translating.
+  empties that slot everywhere at once while the content file still reads as correct. The args are
+  BOUND ONCE where the content is folded, onto `progress/ContentText`, because everything they can
+  say is fixed per row; the text source (`ProgressionDefaults.RuntimeText`) just reads the runtime
+  object. `@amount` is answered with the first step's amount, grouped, as a RAW value, since a digit
+  needs no translating.
 - **STATELESS across events.** Every binding round-trips the full next state and `handleDataEvent`
   reopens the page with it; EVERY exit path sends a response, or the client spins forever.
 - **`.ui` contract**: `Pages/ZigObjectiveBookPage.ui` plus the appended `Pages/ZigObjectiveRow.ui`.
@@ -222,7 +223,7 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
 
 - **The HERE list is three questions, asked of two authorities.** What a character HANDS OUT is an
   authoring-layer association no runtime can read, so it comes from
-  [`quest/NpcOfferProviders`](../../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/quest/CLAUDE.md)
+  [`quest/NpcOfferProviders`](../../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/quest/CLAUDE.md) (this module registers the DEFAULT provider, over the runtime catalogue and each quest's own giver id; it answers the cheap "anything for me" read separately, stopping at the first takeable quest, because that one is asked once per character on screen)
   asked over the character's whole ANSWER SET. The other two are pure quest state, so the engine
   answers both itself: what points BACK here (`readyToTurnInAt` - a hand-in handable here, or an
   outstanding step whose KIND declares a place-typed target naming this whole id, so a step tracking
@@ -233,6 +234,21 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
   covers finished-but-uncollected quests as well as active ones, deliberately: a quest parked for
   collection at the character it was taken from has to be reachable there, or nobody could collect it.
   The MINE list is `activeAndUnclaimed` and nothing else.
+- **What the default provider costs, and why it is not indexed.** `RuntimeOffers` walks the whole
+  runtime quest catalogue on every ask and filters on `Quest.npcViewId()`, so the per-ask cost is one
+  null check plus one `equalsIgnoreCase` per quest on the server against the character's answer set
+  (`quests()` is a live map view, so nothing is allocated to walk it). Building the panel then reads
+  the requirement block TWICE for each not-started quest that reaches the list: once for `isOfferable`
+  (is it listed at all) and once for `canAccept` (is it takeable now or shown locked). Neither has
+  been optimised, deliberately. **An index by giver id would need an invalidation signal the engine
+  does not publish** - a catalogue re-fold replaces `setQuests` wholesale with no generation to
+  observe - and a giver index left stale is a character holding out quests that are no longer theirs,
+  which is worse than the walk. **Collapsing the two reads means deciding offerability from the accept
+  check's reason TOKENS**, which puts a second copy of the `isOfferable` rule in this file, to drift
+  the first time that rule moves. The cheap read is already separate: `hasOffersAt` never calls
+  `isOfferable` and stops at the first takeable quest, because that is the one asked once per
+  character on screen; `offersAt` runs when a player has opened a panel. Fix the index the day the
+  engine publishes a catalogue generation, and not before.
 - **A finished quest whose rewards belong elsewhere reads as PARKED, not Ready.** A quest may name
   where it is collected, and the engine refuses a claim made anywhere else - so the page asks
   `canCompleteAt` once per id the character answers to (the engine compares ONE id by design, which is
@@ -327,8 +343,10 @@ working page and that a filled one throwing costs its own contribution rather th
 rendering itself, the offer providers and the engine calls behind each button are in-game smoke
 territory.
 
-`ObjectiveBookTextArgsTest` is a SOURCE check over the TEXT SOURCE, and deliberately: reaching a
-rendering would initialize a page whose engine base builds a logger in a static initializer that
-refuses to load in a JVM whose log manager is already up. `zc-dialogue`'s page render guard is written the same way
-for the same reason. Behaviour that CAN be exercised belongs beside the thing it exercises: the
-`TextArgs` expansion itself is pinned in `zc-progression`, next to the shared schema.
+The text a row is NAMED by is pinned one module down, in `zc-progression`'s `ContentTextArgsTest`,
+next to the shared schema that carries it: the args an author bound, the step line a fold composed,
+and the resolution through the authored-key seam are all properties of the runtime object now, so
+they can be asserted on real values rather than by reading source. That matters here because a page
+CANNOT be reached from a test at all - initializing one builds a logger in a static initializer that
+refuses to load in a JVM whose log manager is already up, which is why `zc-dialogue`'s page render
+guard is written the way it is too.

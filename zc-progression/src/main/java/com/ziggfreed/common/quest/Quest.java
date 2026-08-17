@@ -3,12 +3,15 @@ package com.ziggfreed.common.quest;
 import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.progress.ContentText;
 import com.ziggfreed.common.progress.ObjectiveDef;
+import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
  * A RESOLVED quest definition: the shape the engine runs, after any authoring layer has finished
@@ -139,8 +142,13 @@ public final class Quest {
     private final boolean autoAccept;
     private final boolean autoTrack;
     private final boolean autoClaim;
-    private final boolean available;
+    private final boolean occupiesLog;
+    private final BooleanSupplier available;
     private final List<String> tags;
+    @Nullable private final GateSpec requires;
+    private final ContentText text;
+    @Nullable private final String npcViewId;
+    private final int listOrder;
 
     private Quest(@Nonnull Builder b) {
         this.id = b.id;
@@ -153,8 +161,13 @@ public final class Quest {
         this.autoAccept = b.autoAccept;
         this.autoTrack = b.autoTrack;
         this.autoClaim = b.autoClaim;
+        this.occupiesLog = b.occupiesLog;
         this.available = b.available;
         this.tags = List.copyOf(b.tags);
+        this.requires = b.requires;
+        this.text = b.text;
+        this.npcViewId = b.npcViewId;
+        this.listOrder = b.listOrder;
     }
 
     /**
@@ -176,7 +189,44 @@ public final class Quest {
                 .autoAccept(autoAccept)
                 .autoTrack(autoTrack)
                 .autoClaim(autoClaim)
+                .occupiesLog(occupiesLog)
                 .available(available)
+                .requires(requires)
+                .text(text)
+                .npcViewId(npcViewId)
+                .listOrder(listOrder)
+                .build();
+    }
+
+    /**
+     * This quest with the AUTHORING facts an engine does not run but a shared surface needs: the
+     * requirement block one gate answers, the words one text source reads, and the character that
+     * hands it out. Everything else carries over untouched.
+     *
+     * <p>It is a copy rather than a setter for the same reason {@link #withTurnInAt} is: a quest is
+     * immutable, and keeping the copy here beside the fields means a leaf added later cannot be
+     * silently dropped by a copy written somewhere else.
+     */
+    @Nonnull
+    public Quest withAuthoring(@Nullable GateSpec requires, @Nullable ContentText text,
+            @Nullable String npcViewId, int listOrder) {
+        return builder(id)
+                .objectives(objectives)
+                .rewards(rewards)
+                .tags(tags)
+                .repeat(repeat)
+                .visibility(visibility)
+                .turnInAt(turnInAt)
+                .sequential(sequential)
+                .autoAccept(autoAccept)
+                .autoTrack(autoTrack)
+                .autoClaim(autoClaim)
+                .occupiesLog(occupiesLog)
+                .available(available)
+                .requires(requires)
+                .text(text)
+                .npcViewId(npcViewId)
+                .listOrder(listOrder)
                 .build();
     }
 
@@ -250,9 +300,70 @@ public final class Quest {
         return autoClaim;
     }
 
-    /** A switch an owner can flip to take the quest out of circulation without deleting it. */
+    /**
+     * Whether carrying this quest spends one of the player's quest-log slots, and so counts against
+     * the cap a consumer registers with {@code maxActiveQuests}. True by default: an ordinary quest
+     * is a quest log entry.
+     *
+     * <p>Turn it OFF for an errand a player picks up somewhere that keeps its own list - a board
+     * contract above all. Those are read, taken and collected at that board, they are never listed
+     * in a quest log, and a player working three of them would otherwise find three of their quest
+     * slots gone with nothing on the log screen to explain it. It is an independent switch rather
+     * than something inferred from {@link #turnInAt()}: an ordinary quest handed in at a specific
+     * character is still a log entry.
+     */
+    public boolean occupiesLog() {
+        return occupiesLog;
+    }
+
+    /**
+     * A switch an owner can flip to take the quest out of circulation without deleting it, READ LIVE
+     * every time the engine asks.
+     *
+     * <p>It is a predicate rather than a stored boolean because what answers it usually moves while
+     * the server is up - a feature toggle, an owner file reloaded, a dependency that came back - and
+     * the catalogue is only rebuilt when content reloads. A consumer supplies the predicate; the
+     * decision to refuse an accept on it stays the engine's.
+     */
     public boolean available() {
-        return available;
+        return available.getAsBoolean();
+    }
+
+    /**
+     * What must be true of a player before this quest may be taken or seen, or null when nothing is
+     * asked. Every fold puts the authored {@code Requires} block here, so ONE gate answers for
+     * content authored in any format rather than one gate per authoring layer.
+     */
+    @Nullable
+    public GateSpec requires() {
+        return requires;
+    }
+
+    /** What this quest is CALLED, for a surface with no catalogue of its own. Never null. */
+    @Nonnull
+    public ContentText text() {
+        return text;
+    }
+
+    /**
+     * The character that hands this quest out, or null when nothing does. It is the whole of what a
+     * generic offer listing needs: which quests a place offers is an authoring-layer association,
+     * and carrying it here is what lets the library answer "has this character anything for me"
+     * without a per-mod provider.
+     */
+    @Nullable
+    public String npcViewId() {
+        return npcViewId;
+    }
+
+    /**
+     * Where this quest reads among the others a listing shows, lower first; {@code 0} for content
+     * that expressed no preference. It rides here because the one surface that needs it - a generic
+     * listing of what a character is holding out - has nothing else to sort by, and a list whose
+     * order changes between two mods' content is a list an author cannot arrange.
+     */
+    public int listOrder() {
+        return listOrder;
     }
 
     /** Free classification carried onto the outbound events; the engine never reads their meaning. */
@@ -303,6 +414,12 @@ public final class Quest {
         return "Quest[" + id + " x" + objectives.size() + "]";
     }
 
+    /** Switched on, for the ordinary quest whose availability never moves. */
+    private static final BooleanSupplier ALWAYS = () -> true;
+
+    /** Switched off outright. */
+    private static final BooleanSupplier NEVER = () -> false;
+
     @Nonnull
     public static Builder builder(@Nonnull String id) {
         return new Builder(id);
@@ -322,7 +439,12 @@ public final class Quest {
         private boolean autoAccept;
         private boolean autoTrack;
         private boolean autoClaim = true;
-        private boolean available = true;
+        private boolean occupiesLog = true;
+        private BooleanSupplier available = ALWAYS;
+        @Nullable private GateSpec requires;
+        private ContentText text = ContentText.EMPTY;
+        @Nullable private String npcViewId;
+        private int listOrder;
 
         private Builder(@Nonnull String id) {
             this.id = id;
@@ -408,9 +530,58 @@ public final class Quest {
             return this;
         }
 
+        /**
+         * Whether carrying it spends a quest-log slot, so it counts against the registered cap.
+         * Leave it true for an ordinary quest; turn it OFF for an errand kept on a list of its own.
+         */
+        @Nonnull
+        public Builder occupiesLog(boolean occupiesLog) {
+            this.occupiesLog = occupiesLog;
+            return this;
+        }
+
         @Nonnull
         public Builder available(boolean available) {
-            this.available = available;
+            this.available = available ? ALWAYS : NEVER;
+            return this;
+        }
+
+        /**
+         * Availability as a LIVE predicate, re-asked every time the engine looks. What a consumer
+         * supplies here is data - "is this switched on right now" - and the refusal built on it
+         * stays the engine's own.
+         */
+        @Nonnull
+        public Builder available(@Nullable BooleanSupplier available) {
+            this.available = available == null ? ALWAYS : available;
+            return this;
+        }
+
+        /** The authored requirement block; null (the default) leaves the quest open to everyone. */
+        @Nonnull
+        public Builder requires(@Nullable GateSpec requires) {
+            this.requires = requires;
+            return this;
+        }
+
+        /** What this quest is called; null resets to carrying no words at all. */
+        @Nonnull
+        public Builder text(@Nullable ContentText text) {
+            this.text = text == null ? ContentText.EMPTY : text;
+            return this;
+        }
+
+        /** The character that hands this quest out; null (the default) leaves it unattached. */
+        @Nonnull
+        public Builder npcViewId(@Nullable String npcViewId) {
+            this.npcViewId = npcViewId == null || npcViewId.isBlank() ? null : npcViewId.trim();
+            return this;
+        }
+
+        /** Where this quest reads among the others in a listing, lower first. */
+        @Nonnull
+        public Builder listOrder(int listOrder) {
+            this.listOrder = listOrder;
             return this;
         }
 

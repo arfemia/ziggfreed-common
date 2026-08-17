@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -86,7 +87,9 @@ public final class ProgressionRuntime {
         QUEST_MATCH_FLAVOR("quest match flavor", LatePolicy.REFUSE_SEVERE),
         ACHIEVEMENT_MATCH_FLAVOR("achievement match flavor", LatePolicy.REFUSE_SEVERE),
         MAX_TRACKED("max tracked quests", LatePolicy.REFUSE_WARN),
-        MAX_ACTIVE("max active quests", LatePolicy.REFUSE_WARN),
+        // Read LIVE, because the cap it names is an owner's config value: a reload has to move it,
+        // and an engine holding the number it was built with would refuse against a stale one.
+        MAX_ACTIVE("max active quests", LatePolicy.LIVE),
         MAX_PINNED("max pinned achievements", LatePolicy.REFUSE_WARN);
 
         private final String label;
@@ -343,6 +346,73 @@ public final class ProgressionRuntime {
         return gateKinds;
     }
 
+    /**
+     * The ONE factor vocabulary registered on this server, or null when nobody registered one.
+     *
+     * <p>Read LIVE by whatever answers a {@code Requires} block, so a consumer's vocabulary feeds
+     * the same evaluator every gated surface consults rather than each surface building its own -
+     * two vocabularies over one requirement model is how a shop row and a quest end up disagreeing
+     * about the same player's mining level.
+     */
+    @Nullable
+    public static FactorRegistry factors() {
+        return slot(Slots.FACTORS);
+    }
+
+    /**
+     * The active quest store, WITHOUT building the engines.
+     *
+     * <p>The forwarder, so a late store registration is honoured; and no {@code ensureBuilt}, so a
+     * gate evaluated during another mod's setup reads player records without sealing the runtime
+     * before every mod has registered into it.
+     */
+    @Nonnull
+    public static QuestProgressStore questStore() {
+        return ProgressionParts.QUEST_STORE;
+    }
+
+    /**
+     * The context a REQUIREMENT is read against for one subject.
+     *
+     * <p>A {@code Requires} block is asked about a PLAYER rather than about an engine, so there is
+     * one answer here even though the two engines each register their own. The quest reading is
+     * asked first and the achievement reading covers the case it cannot answer, which is what a
+     * consumer whose two engine subjects are shaped differently needs; a consumer registering one
+     * function for both - the ordinary case - sees exactly that function either way.
+     */
+    @Nonnull
+    public static FactorContext gateFactorContext(@Nonnull Subject subject) {
+        ProgressionParts live = parts;
+        FactorContext primary = live.questFactorContext().apply(subject);
+        if (informative(primary)) {
+            return primary;
+        }
+        FactorContext secondary = live.achievementFactorContext().apply(subject);
+        if (informative(secondary)) {
+            return secondary;
+        }
+        return primary != null ? primary : FactorContext.builder().build();
+    }
+
+    /** Does this context carry anything a provider could read a player out of? */
+    private static boolean informative(@Nullable FactorContext ctx) {
+        return ctx != null && (ctx.payload() != null || ctx.hasLiveSubject());
+    }
+
+    /**
+     * How many quests a player may carry at once, read LIVE. Zero means no cap at all, which is what
+     * makes the engine's own log-full refusal unreachable rather than switched off.
+     */
+    public static int maxActiveQuests() {
+        Held held = SLOTS.get(Slots.MAX_ACTIVE);
+        if (held == null) {
+            return 0;
+        }
+        Object value = held.value();
+        return value instanceof IntSupplier supplier ? Math.max(0, supplier.getAsInt())
+                : ((Integer) value).intValue();
+    }
+
     // ==================== the resolved parts a surface reads back ====================
 
     /** How a player becomes the subject the ACTIVE stores understand. Never null. */
@@ -361,6 +431,30 @@ public final class ProgressionRuntime {
     @Nonnull
     public static ProgressionCallScope achievementScope() {
         return parts.achievementScope();
+    }
+
+    /**
+     * Who registered a QUEST gate, in registration order. An admin read, and the one a boot check
+     * asks: a progression engine with an empty list is an engine nothing gates.
+     */
+    @Nonnull
+    public static synchronized List<String> questGateOwners() {
+        return ownerNames(QUEST_GATES);
+    }
+
+    /** Who registered an ACHIEVEMENT gate, on the same terms. */
+    @Nonnull
+    public static synchronized List<String> achievementGateOwners() {
+        return ownerNames(ACHIEVEMENT_GATES);
+    }
+
+    @Nonnull
+    private static <T> List<String> ownerNames(@Nonnull List<Contribution<T>> contributions) {
+        List<String> names = new ArrayList<>(contributions.size());
+        for (Contribution<T> contribution : contributions) {
+            names.add(contribution.owner());
+        }
+        return List.copyOf(names);
     }
 
     /** Every registered text source, in registration order; first non-null wins. */
@@ -515,7 +609,7 @@ public final class ProgressionRuntime {
                     .rewardRetryQueue(retryQueue)
                     .warn(ProgressionParts.WARN)
                     .maxTracked(intSlot(Slots.MAX_TRACKED, 5))
-                    .maxActive(intSlot(Slots.MAX_ACTIVE, 0))
+                    .maxActive(ProgressionRuntime::maxActiveQuests)
                     .build();
 
             AchievementEngine achievements = AchievementEngine.builder()

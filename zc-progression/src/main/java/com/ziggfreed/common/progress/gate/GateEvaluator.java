@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -109,10 +110,10 @@ public final class GateEvaluator {
         return FactorCondition.of(PERMISSION_FACTOR, node, MUST_HOLD, null);
     }
 
-    @Nullable private final FactorRegistry factors;
+    private final Supplier<FactorRegistry> factors;
     private final Function<Subject, FactorContext> factorContext;
     private volatile CompletionProbe completion;
-    private final GateKindRegistry gateKinds;
+    private final Supplier<GateKindRegistry> gateKinds;
     private final Consumer<String> warn;
     private final GateKind.GateSupport support;
 
@@ -125,10 +126,18 @@ public final class GateEvaluator {
         this.support = (subject, conditions) -> factorsPass(subject, conditions);
     }
 
+    /**
+     * This evaluator's OWN empty vocabulary, for a live supplier that answers null. It is per
+     * evaluator rather than shared: the registry is mutable, and one instance behind every
+     * default-built evaluator in the process would be a table they all wrote into.
+     */
+    private final GateKindRegistry emptyKinds = new GateKindRegistry();
+
     /** The registered requirement vocabulary this evaluator reads. */
     @Nonnull
     public GateKindRegistry gateKinds() {
-        return gateKinds;
+        GateKindRegistry kinds = gateKinds.get();
+        return kinds == null ? emptyKinds : kinds;
     }
 
     /**
@@ -193,10 +202,11 @@ public final class GateEvaluator {
 
         FactorCondition[] conditions = clause.factorsOrEmpty();
         if (conditions.length > 0) {
-            if (factors == null) {
+            FactorRegistry vocabulary = factors.get();
+            if (vocabulary == null) {
                 return REASON_FACTOR + firstFactorId(conditions);
             }
-            String failed = FactorConditions.firstFailure(conditions, factors, contextFor(subject));
+            String failed = FactorConditions.firstFailure(conditions, vocabulary, contextFor(subject));
             if (failed != null) {
                 return REASON_FACTOR + failed;
             }
@@ -215,9 +225,10 @@ public final class GateEvaluator {
             }
         }
 
+        GateKindRegistry kinds = gateKinds();
         for (Map.Entry<String, Map<String, String>> entry : clause.customOrEmpty().entrySet()) {
             String kindId = entry.getKey();
-            GateKind kind = gateKinds.kind(kindId);
+            GateKind kind = kinds.kind(kindId);
             if (kind == null) {
                 return REASON_CUSTOM + kindId;
             }
@@ -227,7 +238,7 @@ public final class GateEvaluator {
                     return REASON_CUSTOM + kindId;
                 }
             } catch (Exception e) {
-                gateKinds.recordFailure(kindId, e.getMessage());
+                kinds.recordFailure(kindId, e.getMessage());
                 warn.accept("requirement kind '" + kindId + "' threw, so the gate stays shut: " + e.getMessage());
                 return REASON_CUSTOM + kindId;
             }
@@ -240,7 +251,8 @@ public final class GateEvaluator {
         if (conditions == null || conditions.isEmpty()) {
             return true;
         }
-        return factors != null && FactorConditions.pass(conditions, factors, contextFor(subject));
+        FactorRegistry vocabulary = factors.get();
+        return vocabulary != null && FactorConditions.pass(conditions, vocabulary, contextFor(subject));
     }
 
     @Nonnull
@@ -266,10 +278,14 @@ public final class GateEvaluator {
     /** Assembles a {@link GateEvaluator}; every seam has a fail-closed default. */
     public static final class Builder {
 
-        @Nullable private FactorRegistry factors;
+        private Supplier<FactorRegistry> factors = () -> null;
         private Function<Subject, FactorContext> factorContext = subject -> FactorContext.builder().build();
         private CompletionProbe completion = CompletionProbe.NONE;
-        private GateKindRegistry gateKinds = new GateKindRegistry();
+        // Its OWN empty vocabulary, so every kind refuses until one is registered. One shared
+        // instance would be a mutable table every default-built evaluator in the process wrote its
+        // failures into.
+        private final GateKindRegistry ownKinds = new GateKindRegistry();
+        private Supplier<GateKindRegistry> gateKinds = () -> ownKinds;
         private Consumer<String> warn = msg -> SafeLog.warn("[quest-gate] " + msg);
 
         private Builder() {
@@ -281,6 +297,20 @@ public final class GateEvaluator {
          */
         @Nonnull
         public Builder factors(@Nullable FactorRegistry factors) {
+            this.factors = () -> factors;
+            return this;
+        }
+
+        /**
+         * The same vocabulary, read LIVE per evaluation rather than captured at build.
+         *
+         * <p>An evaluator is usually built at setup, before the consumer that OWNS the vocabulary
+         * has registered it, and a shared server has exactly one of each - so the way to have one
+         * evaluator over one vocabulary is to look the vocabulary up when the question is asked
+         * instead of holding whatever existed first.
+         */
+        @Nonnull
+        public Builder factorsLive(@Nonnull Supplier<FactorRegistry> factors) {
             this.factors = factors;
             return this;
         }
@@ -310,6 +340,13 @@ public final class GateEvaluator {
         /** The registered {@code Custom} requirement vocabulary. Unset means an empty one. */
         @Nonnull
         public Builder gateKinds(@Nonnull GateKindRegistry gateKinds) {
+            this.gateKinds = () -> gateKinds;
+            return this;
+        }
+
+        /** The same vocabulary, read LIVE per evaluation; see {@link #factorsLive}. */
+        @Nonnull
+        public Builder gateKindsLive(@Nonnull Supplier<GateKindRegistry> gateKinds) {
             this.gateKinds = gateKinds;
             return this;
         }

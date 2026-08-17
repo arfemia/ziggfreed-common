@@ -248,21 +248,52 @@ public final class DialogueMemories {
     @Nonnull
     private static DialogueFlagStore persistentFor(@Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef) {
-        PersistentStore source = persistent;
+        PersistentStore source = persistentBackendOrWarn();
         if (source == null) {
-            warnNoPersistentOnce();
             return sessionFor(playerRef);
         }
         DialogueFlagStore resolved = source.forPlayer(store, ref, playerRef);
         return resolved == null ? DialogueFlagStore.NONE : resolved;
     }
 
-    private static void warnNoPersistentOnce() {
-        if (WARNED_NO_PERSISTENT.compareAndSet(false, true)) {
-            SafeLog.warn("[dialogue] no persistent memory backend is installed, so every memory"
-                    + " lasts only as long as the player's session. A conversation's first-visit"
-                    + " beats and one-shot gifts will come back on their next login.");
+    /**
+     * The installed persistent backend, or null having REPORTED that there is none.
+     *
+     * <p>The decision is here rather than inline above so it can be driven without three live
+     * entity handles: whether a declared lifetime is actually being honoured is a question about
+     * the seam, not about any one player, and a check reachable only behind a live world is a check
+     * nothing runs until a server is up.
+     */
+    @Nullable
+    static PersistentStore persistentBackendOrWarn() {
+        PersistentStore source = persistent;
+        if (source == null) {
+            warnNoPersistentOnce();
         }
+        return source;
+    }
+
+    /**
+     * Say once, out loud, that a lifetime this layer promises to honour is not being honoured.
+     *
+     * <p>This is the seam's own report on itself. A memory declared to outlive a restart quietly
+     * becoming a login-lived one is invisible from every side: the dialogue file is correct, the
+     * declaration is correct, and the player simply gets the first-visit beat again. Nothing but
+     * this layer is in a position to notice, so it says so the first time it has to fall back,
+     * rather than leaving the omission to be discovered as a bug report weeks later.
+     *
+     * @return true when this call is the one that reported it, false when it was already said
+     */
+    static boolean warnNoPersistentOnce() {
+        if (!WARNED_NO_PERSISTENT.compareAndSet(false, true)) {
+            return false;
+        }
+        SafeLog.warn("[dialogue] no persistent memory backend is installed, so every memory"
+                + " lasts only as long as the player's session. A conversation's first-visit"
+                + " beats and one-shot gifts will come back on their next login. The fill is"
+                + " DialogueMemories.install(PersistentStore) from the wiring root's setup();"
+                + " a unit JVM with no server anywhere near it is the one place this is expected.");
+        return true;
     }
 
     /**

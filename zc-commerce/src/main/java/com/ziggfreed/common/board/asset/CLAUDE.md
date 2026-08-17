@@ -29,7 +29,7 @@ through one lifecycle.
 
 ## The TYPE stamps the policy, and that is the other half
 
-Four behaviours are NOT authorable, and each is a bug that would otherwise be one careless file away:
+Five behaviours are NOT authorable, and each is a bug that would otherwise be one careless file away:
 
 | stamped | why no file may author it |
 |---|---|
@@ -37,6 +37,7 @@ Four behaviours are NOT authorable, and each is a bug that would otherwise be on
 | hidden from open listings | a contract is read at its board; listing it as an open quest is a second, wrong door |
 | externally governed repeat, clocked from FINISHING | a private cooldown outliving a posting burns the next period's slot |
 | collected at the accept SITE | any board of that id answers, and nowhere else does |
+| carried beside the quest log, not inside it | a contract is read, taken and collected at its board, so it must not spend a quest-log slot |
 
 ## The pieces
 

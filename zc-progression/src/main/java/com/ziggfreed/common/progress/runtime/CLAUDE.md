@@ -27,7 +27,8 @@ match). They are the wrong tool for a mod that wants the server's progression.
 | `ContentLayers` | per-owner content layers and the merge, so a reload replaces one owner's layer |
 | `ProgressionSubjectSource` | how a player becomes the subject the ACTIVE stores understand |
 | `ProgressionCallScope` | what a consumer publishes around a mutating call, so a shared surface fires what its own menu would |
-| `ProgressionTextSource` | how a surface with no catalogue NAMES a piece of content |
+| `ProgressionTextSource` | how a surface with no catalogue NAMES a piece of content. Its `lore` DEFAULT is the shared `quest.<id>.md.<state>` convention, so the narrative rule is one rule rather than one per source |
+| `ProgressionGates` | THE `GateEvaluator` and the ONE `RequiresGates` over it, built on first ask and holding no registration - the vocabulary, the context and the requirement kinds are read live off the runtime, so a surface asking during another mod's setup and one asking in play are on the same instance |
 | `ProgressionFactors` | the four `ziggfreedcommon:` READINGS of this runtime, claimed process-wide so any content can gate on finished progression with no Java |
 
 ## Three shapes of registration, and they behave differently
@@ -54,9 +55,14 @@ conflict over, which is what a registry is for.
   written against and silently drops every write on a server where another mod's store is active.
 - **A surface wraps mutating calls in the registered scope**, or a claim from it pays out in silence
   while the same claim from the owning mod's own menu does everything.
-- **Sealed parts** (`factors`, both match flavors, the three caps) are read ONCE, when the engines
-  are built. A late one is refused, loudly. An identical value is silent, which is why two mods
-  agreeing costs nothing.
+- **Sealed parts** (`factors`, both match flavors, `maxTracked`, `maxPinned`) are read ONCE, when the
+  engines are built. A late one is refused, loudly. An identical value is silent, which is why two
+  mods agreeing costs nothing. `maxActive` is deliberately NOT sealed: it is an owner's config value
+  a reload has to move, so it is read live and a consumer may register an `IntSupplier` for it.
+- **There is ONE evaluator and ONE gate, and a consumer registers neither.** What a consumer
+  registers is the factor VOCABULARY and the factor CONTEXT; `ProgressionGates` reads both live, so
+  its answer is that consumer's answer everywhere without a second evaluator existing. A consumer
+  building its own is the defect this arrangement exists to remove.
 - **The engines are never rebuilt.** Everything they reach the world through is a forwarder over the
   parts snapshot, so late registration is live AND every cached engine reference stays valid.
 - **A factor READ never builds the runtime.** `ProgressionFactors` answers nothing until

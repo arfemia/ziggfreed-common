@@ -76,16 +76,19 @@ asserted directly in the engine test.
 
 ## Tests
 
-33 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
+34 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
 `ObjectiveProgressStateTest`, `ContentMetaTest`), the quest engine (`QuestEngineFlowTest`,
 `QuestEngineTurnInTest`, `QuestLifecycleTest`, `RepeatEvaluatorTest` (the ONE repeat evaluator, and
 where the "the repeat rules count FINISHES, not collections" half of the completion record is
 pinned), `CompletionRecordTest` (the record's own invariants, the collected-clamp above all),
 `QuestGateTest`, `QuestGeneratorTest`,
 `QuestAssetCodecTest`, `QuestPoolValidatorTest`, `QuestStateReaderTest`, `QuestNestedIdTest`,
-`QuestModuleAgnosticismTest`, `AssetQuestGatesFailOpenTest`), the achievement engine
+`QuestModuleAgnosticismTest`, `RequiresGatesTest` - the ONE gate both engines share: fail-open for
+content that asks for nothing, one answer whichever layer folded it, the server-first claim, and the
+live cap and availability seams), the achievement engine
 (`AchievementEngineTest`, `AchievementAssetCodecTest`, `AchievementPoolValidatorTest`,
 `AchievementProgressStoreTest`, `AchievementStatThresholdTest`, `AchievementTaxonomyCodecTest`),
 the shared runtime (`ProgressionRuntimeTest`, `ProgressionFactorsTest` - each factor ladder over a
-double AND over the real engines on in-memory stores, plus the leaf-and-factor agreement), and
-`SchemaDocDriftTest` guarding the committed `SCHEMA.md`.
+double AND over the real engines on in-memory stores, plus the leaf-and-factor agreement),
+`ContentTextArgsTest` (an authored key's numbered slots reach the runtime object, for BOTH content
+kinds), and `SchemaDocDriftTest` guarding the committed `SCHEMA.md`.

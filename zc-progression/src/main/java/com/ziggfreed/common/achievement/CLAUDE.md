@@ -25,7 +25,8 @@ which one shared instance cannot afford, and it is exactly why that method exist
 | `AchievementEngine` (+ `.Builder`) | the runtime: dispatch, earn, collect, revoke, points, milestones, pins, self-heal |
 | `AchievementProgressStore` | THE persistence seam. Composite `"<id>#<index>"` keys, the legacy fallback, and the reserved-character check all live here as DEFAULTS |
 | `InMemoryAchievementProgressStore` | the complete store that dies with the process |
-| `AchievementGates` | the consumer's say: `canProgress` / `canUnlock` / `canReceiveRewards` / `visible`, all default-yes |
+| `AchievementGates` | the consumer's say: `canProgress` / `canUnlock` / `canReceiveRewards` / `visible`, all default-yes. FILLED by `quest.RequiresGates`, the same gate the quest side reads, so one `Requires` block means one thing |
+| `FirstClaimStore`, `FirstClaims` | the server-first claim TABLE, and where a consumer installs a durable one. The RULE (exactly one winner, a loser keeps their criteria met) is the gate's; only the table and the words a loser reads are the consumer's |
 | `AchievementEngine.Builder#factors` / `#factorContext` | the OPTIONAL factor pair, the same two knobs the quest engine takes; unwired, `STAT_THRESHOLD` is purely consumer-fired |
 | `AchievementMilestone` | a reward for a points TOTAL rather than for any one achievement |
 | `event/` | `AchievementEvents` + the three native `IEvent<Void>` POJOs (progressed / unlocked / claimed) |
@@ -62,6 +63,10 @@ which one shared instance cannot afford, and it is exactly why that method exist
   rather than quietly bypassing the gate through a path no producer fired.
 - **A refusal loses nothing.** `canUnlock` refusing leaves the criteria MET, so `selfHeal` earns it
   the moment the answer changes. That is what makes a race arbitrable without a rollback.
+- **`serverFirst` is a FLAG on the achievement and the arbitration is the gate's.** A consumer
+  supplies the claim table through `FirstClaims` (an in-memory one ships, correct for one boot) and
+  hears about a loss through `FirstClaims.onLost`, which is where a notice belongs: nothing in this
+  module can write words a player reads.
 - **The engine never names a consumer's world.** No feature flags, no class ids, no progression
   vocabulary. Everything of that shape is a question asked of `AchievementGates`. The module
   agnosticism test scans this package.

@@ -273,6 +273,10 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                 .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.COMPLETE, null, 0))
                 // Out of the quest log until it is taken: a board is where contracts are read.
                 .visibility(new Quest.Visibility(true, false))
+                // And out of it afterwards too. A contract is read, taken and collected at its
+                // board, so it never spends one of the quest-log slots a player's own quests share:
+                // somebody working three contracts still has their whole log for questing.
+                .occupiesLog(false)
                 // Collected at whatever posted it, so any board of that id answers.
                 .turnInAt(QuestTurnInSite.ACCEPT_SITE)
                 .tags(listing == null ? List.of() : listing.tagList());

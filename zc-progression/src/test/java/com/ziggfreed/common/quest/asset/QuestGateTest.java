@@ -28,6 +28,7 @@ import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
+import com.ziggfreed.common.quest.RequiresGates;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -249,8 +250,7 @@ class QuestGateTest {
             InMemoryQuestProgressStore store = new InMemoryQuestProgressStore();
             QuestEngine engine = QuestEngine.builder().store(store).nativeEvents(false).build();
             GateEvaluator evaluator = evaluator();
-            AssetQuestGates gates = AssetQuestGates.of(evaluator);
-            gates.useEngine(engine);
+            evaluator.completedQuests(RequiresGates.completionProbe(store));
 
             assertEquals(GateEvaluator.REASON_QUEST + "intro_1",
                     evaluator.firstFailure(PLAYER, spec("{ \"Quests\": [\"intro_1\"] }")));
@@ -386,8 +386,7 @@ class QuestGateTest {
                       "Objectives": { "collect": { "Kind": "PICKUP_ITEM", "Target": "Ore" } } }
                     """, "gated").toDefinition(null)));
 
-            AssetQuestGates gates = AssetQuestGates.of(evaluator());
-            gates.pool(pool);
+            RequiresGates gates = RequiresGates.of(evaluator());
             QuestEngine engine = QuestEngine.builder().gates(gates).nativeEvents(false).build();
             engine.setQuests(pool.quests());
 
@@ -409,8 +408,7 @@ class QuestGateTest {
                     { "Objectives": { "collect": { "Kind": "PICKUP_ITEM", "Target": "Ore" } } }
                     """, "open").toDefinition(null)));
 
-            AssetQuestGates gates = AssetQuestGates.of(GateEvaluator.builder().build());
-            gates.pool(pool);
+            RequiresGates gates = RequiresGates.of(GateEvaluator.builder().build());
             QuestEngine engine = QuestEngine.builder().gates(gates).nativeEvents(false).build();
             engine.setQuests(pool.quests());
 
@@ -418,8 +416,8 @@ class QuestGateTest {
         }
 
         @Test
-        void aQuestTheGatesHaveNoPoolEntryForIsNotGated() throws Exception {
-            AssetQuestGates gates = AssetQuestGates.of(evaluator());
+        void aQuestCarryingNoRequirementBlockIsNotGated() throws Exception {
+            RequiresGates gates = RequiresGates.of(evaluator());
             QuestEngine engine = QuestEngine.builder().gates(gates).nativeEvents(false).build();
             Quest quest = decodeRoot("{ }", "unknown").toDefinition(null).quest();
             engine.setQuests(List.of(quest));

@@ -35,6 +35,7 @@ the server's progression.
 | `ObjectiveIndex` | the inverted kind -> objectives index the dispatch hot path walks |
 | `DispatchOptions` | the two independent dispatch switches (`tapObservers`, `targetedOnly`) with three named combinations |
 | `ProgressDispatchTap` | the side-channel that sees every tapped event, whether or not anything was listening - what a lifetime counter needs |
+| `ContentText` (+ `.Builder`) | what a piece of content is CALLED, carried on the runtime object every fold builds: title / flavor keys with their convention twins and bound args, a per-step key, per-state lore, and a per-step LINE a fold may compose for a step that authored no key. KEYS, not sentences - the one composed leaf is that step line, and it is a `Supplier` because whatever composes it is often installed later in a boot than the catalogue is folded. A name falls back to whichever key was written when nothing resolves one, so a row is traceable to its file rather than blank. It is what lets ONE text source answer for content authored in any format |
 | [`asset/`](asset/CLAUDE.md) | the authoring GROUPS both engines share (text, objective leaves, reward entry, editor pick lists) |
 | [`gate/`](gate/CLAUDE.md) | the ONE requirement model behind every `Requires` block in the module |
 

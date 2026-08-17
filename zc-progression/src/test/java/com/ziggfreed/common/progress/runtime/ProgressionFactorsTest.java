@@ -37,7 +37,7 @@ import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestProgressStore;
 import com.ziggfreed.common.quest.QuestStatus;
-import com.ziggfreed.common.quest.asset.AssetQuestGates;
+import com.ziggfreed.common.quest.RequiresGates;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -354,8 +354,7 @@ class ProgressionFactorsTest {
         @Test
         void theQuestsPrerequisiteLeafAndTheFactorAgree() {
             GateEvaluator gate = GateEvaluator.builder().factors(factors).build();
-            AssetQuestGates gates = AssetQuestGates.of(gate);
-            gates.useEngine(ProgressionRuntime.quests());
+            gate.completedQuests(RequiresGates.completionProbe(quests));
 
             assertTrue(gate.passes(PLAYER, requiresQuests("done")));
             assertEquals(1.0, resolve(ProgressionFactors.QUEST_COMPLETED, "done"));
@@ -373,8 +372,7 @@ class ProgressionFactorsTest {
         @Test
         void aQuestFinishedButNotCollectedIsNotYetAPrerequisite() {
             GateEvaluator gate = GateEvaluator.builder().factors(factors).build();
-            AssetQuestGates gates = AssetQuestGates.of(gate);
-            gates.useEngine(ProgressionRuntime.quests());
+            gate.completedQuests(RequiresGates.completionProbe(quests));
             quests.setStatus(PLAYER, "uncollected", QuestStatus.COMPLETED_UNCLAIMED);
 
             assertFalse(gate.passes(PLAYER, requiresQuests("uncollected")),

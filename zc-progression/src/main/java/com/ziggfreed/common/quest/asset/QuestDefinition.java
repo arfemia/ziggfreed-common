@@ -7,6 +7,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.google.gson.JsonElement;
+import com.ziggfreed.common.progress.ContentText;
 import com.ziggfreed.common.progress.asset.ContentListingAsset.ChainMembership;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -20,7 +21,7 @@ import com.ziggfreed.common.quest.QuestTurnInSite;
  *
  * <p>Splitting it this way is what keeps the engine free of presentation and free of any gate
  * vocabulary: it is handed {@link #quest()} and nothing else, while a consumer's UI reads the keys
- * here and its {@link AssetQuestGates} reads {@link #requires()}.
+ * here and the shared {@code RequiresGates} reads {@link #requires()}.
  *
  * @param id               the quest id, lower-cased (the asset filename, or the generated id)
  * @param quest            the engine's runnable definition
@@ -61,6 +62,34 @@ public record QuestDefinition(@Nonnull String id, @Nonnull Quest quest, @Nullabl
         objectiveTextKeys = Map.copyOf(objectiveTextKeys);
         resetsOnComplete = List.copyOf(resetsOnComplete);
         meta = Map.copyOf(meta);
+        // The engine object carries what the SHARED parts need to answer for this quest without
+        // ever seeing this record: one gate reads the requirement block off it, one text source
+        // reads the words, one offer provider reads the giver. Stamped here, at the one place every
+        // folded definition passes through, so a definition built by a generator or by a consumer's
+        // own adapter cannot arrive without them.
+        quest = quest.withAuthoring(requires,
+                textOf(quest, titleKey, flavorKey, displayName, titleArgs, flavorArgs,
+                        objectiveTextKeys),
+                npcViewId, sortOrder);
+    }
+
+    /** The words this quest carries, as the shared runtime object holds them. */
+    @Nonnull
+    private static ContentText textOf(@Nonnull Quest quest, @Nullable String titleKey,
+            @Nullable String flavorKey, @Nullable String displayName,
+            @Nonnull List<String> titleArgs, @Nonnull List<String> flavorArgs,
+            @Nonnull Map<String, String> objectiveTextKeys) {
+        long amount = quest.objectives().isEmpty() ? 0L : quest.objectives().get(0).amount();
+        ContentText.Builder text = ContentText.builder()
+                .titleKey(titleKey)
+                .displayName(displayName)
+                .titleArgs(ContentText.amountArgs(titleArgs, amount))
+                .flavorKey(flavorKey)
+                .flavorArgs(ContentText.amountArgs(flavorArgs, amount));
+        for (Map.Entry<String, String> entry : objectiveTextKeys.entrySet()) {
+            text.objectiveKey(entry.getKey(), entry.getValue());
+        }
+        return text.build();
     }
 
     /**

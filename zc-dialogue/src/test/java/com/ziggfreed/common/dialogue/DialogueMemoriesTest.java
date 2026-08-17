@@ -326,4 +326,43 @@ class DialogueMemoriesTest {
         assertFalse(engine.conditionsPass(options.get(1).getConditions(), ctx));
         assertTrue(engine.conditionsPass(options.get(2).getConditions(), ctx));
     }
+
+    // ==================== The seam reports on itself ====================
+
+    /**
+     * A declared lifetime this layer promises to honour and cannot is REPORTED, once, and only when
+     * it actually cannot.
+     *
+     * <p>This is the one failure in the whole memory model that is invisible from every other side:
+     * the dialogue file is correct, the declaration is correct, and a memory declared to outlive a
+     * restart quietly becomes a login-lived one, so the player simply gets the first-visit beat
+     * again. Nothing outside this class is in a position to notice, which is why the report lives
+     * here rather than in whatever wires the server up.
+     *
+     * <p>Both halves are the test. Reporting more than once would put the line on every render of
+     * every conversation on a server that is merely missing an optional fill; reporting at all when
+     * the seam IS filled would train a reader to ignore it.
+     */
+    @Test
+    void aMissingPersistentBackendIsReportedOnceAndOnlyWhenItIsMissing() {
+        try {
+            DialogueMemories.reset();
+            assertNull(DialogueMemories.persistentBackendOrWarn(),
+                    "with nothing installed there is no persistent half, and the fall-back is the"
+                            + " session backend");
+            assertFalse(DialogueMemories.warnNoPersistentOnce(),
+                    "the report is spent, so it was made on that first fall-back and will not be"
+                            + " repeated on the next render, or the next thousand");
+
+            DialogueMemories.reset();
+            DialogueMemories.install((store, ref, playerRef) -> DialogueFlagStore.NONE);
+            assertNotNull(DialogueMemories.persistentBackendOrWarn(),
+                    "the installed backend answers");
+            assertTrue(DialogueMemories.warnNoPersistentOnce(),
+                    "and the report is still unspent, which is how this pins that nothing was said"
+                            + " about a seam that is filled");
+        } finally {
+            DialogueMemories.reset();
+        }
+    }
 }

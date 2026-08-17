@@ -478,6 +478,56 @@ class QuestEngineFlowTest {
             assertTrue(engine.isVisible(player, hidden));
         }
 
+        /**
+         * The two visibility reads answer DIFFERENT questions, and a hidden quest is exactly where
+         * they part. Out of sight belongs to an open, browsable listing; at the one character
+         * authored to hand this quest out there is no browsing going on, and hiding it there leaves
+         * them standing silently beside the thing they exist to hand out - a whole authored chain
+         * unreachable with nothing anywhere reporting it.
+         */
+        @Test
+        void aHiddenQuestIsOffTheOpenListingAndStillOfferedAtItsGiver() {
+            Quest hidden = quest("q_hidden_offer")
+                    .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
+                    .visibility(new Quest.Visibility(true, true))
+                    .build();
+            QuestEngine engine = engine().build();
+            engine.setQuests(List.of(hidden));
+
+            assertFalse(engine.isVisible(player, hidden),
+                    "it is deliberately absent from a listing of everything in the world");
+            assertTrue(engine.isOfferable(player, hidden),
+                    "but the character whose quest it is has it to hand out");
+        }
+
+        /** The giver read still respects what a quest asks for first, and whether it is switched on. */
+        @Test
+        void theGiverReadStillHonoursPrerequisitesAndAvailability() {
+            Quest gated = quest("q_gated_offer")
+                    .visibility(new Quest.Visibility(true, true))
+                    .build();
+            QuestEngine engine = engine().gates(new QuestGates() {
+                @Override
+                public boolean prerequisitesMet(@Nonnull Subject subject, @Nonnull Quest quest) {
+                    return false;
+                }
+            }).build();
+            engine.setQuests(List.of(gated));
+
+            assertFalse(engine.isOfferable(player, gated),
+                    "a quest the player is not up to yet is not being handed out yet either");
+
+            Quest off = quest("q_switched_off")
+                    .visibility(new Quest.Visibility(true, true))
+                    .available(() -> false)
+                    .build();
+            QuestEngine plain = engine().build();
+            plain.setQuests(List.of(off));
+
+            assertFalse(plain.isOfferable(player, off),
+                    "and content switched off on this server is not offered anywhere");
+        }
+
         @Test
         void anAutoAcceptQuestStartsItselfOnTheFirstQualifyingAction() {
             Quest q = quest("q_tutorial")

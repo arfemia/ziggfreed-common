@@ -1,6 +1,8 @@
 package com.ziggfreed.common.objectives.runtime;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -31,8 +33,6 @@ import com.ziggfreed.common.achievement.asset.AchievementPoolValidator;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
-import com.ziggfreed.common.i18n.ContentKeys;
-import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.inventory.InventoryUtil;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
@@ -43,24 +43,27 @@ import com.ziggfreed.common.objectives.store.ProgressSubjects;
 import com.ziggfreed.common.objectives.store.ZigAchievementStore;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.objectives.store.ZigQuestStore;
+import com.ziggfreed.common.progress.ContentText;
 import com.ziggfreed.common.progress.MatchFlavor;
-import com.ziggfreed.common.progress.ObjectiveDef;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
+import com.ziggfreed.common.progress.gate.GateEvaluator;
+import com.ziggfreed.common.progress.runtime.ProgressionGates;
 import com.ziggfreed.common.progress.runtime.ProgressionRegistrar;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTextSource;
-import com.ziggfreed.common.progress.gate.GateEvaluator;
+import com.ziggfreed.common.quest.NpcOffer;
+import com.ziggfreed.common.quest.NpcOfferProvider;
+import com.ziggfreed.common.quest.NpcOfferProviders;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestInventoryConsumer;
 import com.ziggfreed.common.quest.QuestPossessionProbe;
-import com.ziggfreed.common.quest.asset.AssetQuestGates;
+import com.ziggfreed.common.quest.QuestStatus;
+import com.ziggfreed.common.quest.RequiresGates;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.quest.asset.QuestPool;
 import com.ziggfreed.common.quest.asset.QuestPoolValidator;
 import com.ziggfreed.common.subject.Subject;
-import com.ziggfreed.common.util.NumberFormatter;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.ValidationReport;
@@ -106,18 +109,6 @@ public final class ProgressionDefaults {
     private static final Set<String> PRODUCER_KINDS = Set.of(ZigBlockBreakProducer.KIND,
             ZigMobKillProducer.KIND, ZigCraftProducer.KIND, ZigPickupProducer.KIND);
 
-    /** The gate that reads a quest's own authored {@code Requires} block; held so it can be re-pooled. */
-    @Nullable
-    private static volatile AssetQuestGates assetGates;
-
-    /**
-     * The evaluator behind that gate, held so the wiring root can hand the SAME one to every other
-     * seam that answers a {@code Requires} block (the commerce engines above all), and one
-     * permission question then has one answer everywhere.
-     */
-    @Nullable
-    private static volatile GateEvaluator gateEvaluator;
-
     /** Registration is once per boot: a second pass would mint parts nothing is holding. */
     private static boolean registered;
 
@@ -140,15 +131,7 @@ public final class ProgressionDefaults {
             HytaleFactors.registerInto(factors, OWNER);
             Function<Subject, FactorContext> factorContext = ProgressionDefaults::factorContextOf;
 
-            // A Requires block's Permission leaf is a hytale:permission factor bound, so the
-            // vocabulary and the context above are the whole of what answers it.
-            GateEvaluator gate = GateEvaluator.builder()
-                    .factors(factors)
-                    .factorContext(factorContext)
-                    .build();
-            AssetQuestGates gates = AssetQuestGates.of(gate);
-            assetGates = gates;
-            gateEvaluator = gate;
+            RequiresGates gates = ProgressionGates.gates();
 
             ProgressionRegistrar registrar = ProgressionRuntime.defaults(OWNER);
             registrar.questStore(ZigQuestStore.INSTANCE)
@@ -161,8 +144,12 @@ public final class ProgressionDefaults {
                     // which would leave the book's Hand in button dead for every item delivery.
                     .questPossession((QuestPossessionProbe) ProgressionDefaults::holdsItems)
                     .questInventory((QuestInventoryConsumer) ProgressionDefaults::takeItems)
+                    // ONE gate for BOTH engines: a quest's Requires block and an achievement's are
+                    // the same question about the same player, so two implementations could only
+                    // ever answer them two ways.
                     .questGates(gates)
-                    .textSource(AssetText.INSTANCE)
+                    .achievementGates(gates)
+                    .textSource(RuntimeText.INSTANCE)
                     .questMatchFlavor(MatchFlavor.STRICT)
                     .achievementMatchFlavor(MatchFlavor.LENIENT)
                     .maxTrackedQuests(MAX_TRACKED)
@@ -173,6 +160,7 @@ public final class ProgressionDefaults {
                     .maxPinnedAchievements(MAX_PINNED)
                     .warn(SafeLog::warn);
 
+            NpcOfferProviders.register(OWNER, OWNER, RuntimeOffers.INSTANCE);
             ProgressionRuntime.declareDefaultProducerKinds(PRODUCER_KINDS);
         } catch (Throwable t) {
             SafeLog.warn("[progression] the library's default parts could not be registered", t);
@@ -216,12 +204,6 @@ public final class ProgressionDefaults {
             AchievementPool achievements = AchievementAssetStore.getInstance().resolveAll();
             QUEST_POOL = quests;
             ACHIEVEMENT_POOL = achievements;
-
-            AssetQuestGates gates = assetGates;
-            if (gates != null) {
-                gates.pool(quests);
-                gates.useEngine(ProgressionRuntime.quests());
-            }
 
             ProgressionRuntime.publishQuests(OWNER, engineQuests(quests));
             ProgressionRuntime.publishAchievements(OWNER, engineAchievements(achievements));
@@ -309,108 +291,170 @@ public final class ProgressionDefaults {
     private static volatile AchievementPool ACHIEVEMENT_POOL;
 
     /**
-     * Names the content the shared schema carries, which is everything this library itself folded.
-     * Registered LAST among the defaults' contributions so a consumer's own source answers first for
-     * whatever it owns.
+     * Names EVERY piece of content in the shared catalogue, whoever folded it and in whatever format
+     * they authored it.
+     *
+     * <p>It reads the runtime object rather than this module's own pool, and that is the whole point:
+     * every fold puts a content's words onto the object it publishes, so one source answers for a
+     * shared-schema file and for a consumer's older format alike. A source per format was how half a
+     * merged list rendered blank while the other half read normally.
      */
-    private static final class AssetText implements ProgressionTextSource {
+    private static final class RuntimeText implements ProgressionTextSource {
 
-        static final AssetText INSTANCE = new AssetText();
+        static final RuntimeText INSTANCE = new RuntimeText();
 
         @Override
         @Nullable
         public Message title(@Nonnull String contentId) {
-            QuestDefinition quest = QUEST_POOL.definition(contentId);
-            if (quest != null) {
-                return key(quest.titleKey(), quest.displayName(), quest.titleArgs(),
-                        primaryAmount(quest.quest().objectives()));
-            }
-            AchievementDefinition earned = achievement(contentId);
-            return earned == null ? null : key(earned.titleKey(), earned.displayName(),
-                    earned.titleArgs(), primaryAmount(earned.achievement().criteria()));
+            ContentText text = textOf(contentId);
+            return text == null ? null : text.title();
         }
 
         @Override
         @Nullable
         public Message flavor(@Nonnull String contentId) {
-            QuestDefinition quest = QUEST_POOL.definition(contentId);
-            if (quest != null) {
-                return key(quest.flavorKey(), null, quest.flavorArgs(),
-                        primaryAmount(quest.quest().objectives()));
-            }
-            AchievementDefinition earned = achievement(contentId);
-            return earned == null ? null : key(earned.flavorKey(), null, earned.flavorArgs(),
-                    primaryAmount(earned.achievement().criteria()));
+            ContentText text = textOf(contentId);
+            return text == null ? null : text.flavor();
         }
 
         /**
          * A quest names its steps by id; an achievement numbers its criteria, so its "objective id"
-         * is the position written out. A caller that hands a number for a quest, or a name for an
-         * achievement, simply gets null and the next source has its turn.
+         * is the position written out. Either way the answer is whichever key the content carried
+         * for that step, and null when it carried none.
          */
         @Override
         @Nullable
         public Message objective(@Nonnull String contentId, @Nonnull String objectiveId) {
-            QuestDefinition quest = QUEST_POOL.definition(contentId);
+            ContentText text = textOf(contentId);
+            return text == null ? null : text.objective(objectiveId);
+        }
+
+        /**
+         * The narrative for a lifecycle state: the shared {@code quest.<id>.md.<state>} convention
+         * first, then whatever the content itself wrote for that state. The key wins because a key
+         * is resolved by the player's own client in their own language while an authored paragraph
+         * is one language typed into a file.
+         */
+        @Override
+        @Nullable
+        public Message lore(@Nonnull String contentId, @Nonnull String state) {
+            Message byConvention = ProgressionTextSource.loreByConvention(contentId, state);
+            if (byConvention != null) {
+                return byConvention;
+            }
+            ContentText text = textOf(contentId);
+            return text == null ? null : text.lore(state);
+        }
+
+        /**
+         * The words behind an id, quest side first. Nothing is resolved before the runtime is built,
+         * because a text read during another mod's setup would seal every sealed part early.
+         */
+        @Nullable
+        private static ContentText textOf(@Nonnull String contentId) {
+            if (!ProgressionRuntime.isBuilt()) {
+                return null;
+            }
+            Quest quest = ProgressionRuntime.quests().quest(contentId);
             if (quest != null) {
-                return key(quest.objectiveTextKey(objectiveId), null, List.of(), 0L);
+                return quest.text().isEmpty() ? null : quest.text();
             }
-            AchievementDefinition earned = achievement(contentId);
-            if (earned == null) {
+            Achievement achievement = ProgressionRuntime.achievements().achievement(contentId);
+            if (achievement == null) {
                 return null;
             }
-            try {
-                return key(earned.criterionTextKey(Integer.parseInt(objectiveId.trim())), null,
-                        List.of(), 0L);
-            } catch (NumberFormatException notAnIndex) {
-                return null;
-            }
+            return achievement.text().isEmpty() ? null : achievement.text();
         }
+    }
 
-        @Nullable
-        private static AchievementDefinition achievement(@Nonnull String contentId) {
-            AchievementPool pool = ACHIEVEMENT_POOL;
-            return pool == null ? null : pool.definition(contentId);
-        }
+    /**
+     * What a character is holding out, answered off the shared catalogue.
+     *
+     * <p>Which quests a place hands out is an authoring-layer association and whether the player may
+     * take one is a gate pass; both now ride the runtime object, so this needs no pool and no
+     * consumer provider. Every quest a character was authored to hand out is reported in WHATEVER
+     * state the player has it - takeable now, gated until later, being carried, finished - because
+     * that is the character's whole business with this player; {@code available} stays the narrow
+     * "can this be taken right now", which is what the hail and marker surfaces read.
+     *
+     * <p>It filters on {@link QuestEngine#isOfferable}, NOT on the open-listing read beside it. A
+     * quest marked out of sight is marked out of sight on a BROWSABLE list; at the one character
+     * whose business it is, hiding it leaves them standing silently beside the thing they exist to
+     * hand out. The giver read asks only whether the quest is switched on and whether the player is
+     * past what it asks for first.
+     *
+     * <p>The lock reasons are left empty deliberately: the accept check answers a boolean plus the
+     * engine's own opaque tokens, and turning those into words is the consumer's job, so inventing
+     * a reason here would be a second copy of somebody else's vocabulary.
+     */
+    private static final class RuntimeOffers implements NpcOfferProvider {
 
-        /** A key resolves on the player's own client; a plain name is the fallback while one is written. */
-        @Nullable
-        private static Message key(@Nullable String localizationKey, @Nullable String displayName,
-                @Nonnull List<String> authoredArgs, long amount) {
-            if (localizationKey != null && !localizationKey.isBlank()) {
-                return ContentKeys.tr(localizationKey, args(authoredArgs, amount));
-            }
-            return displayName == null || displayName.isBlank() ? null : Msg.raw(displayName);
-        }
+        static final RuntimeOffers INSTANCE = new RuntimeOffers();
 
-        /**
-         * What an authored {@code TextArgs} list binds to a key's {@code {0}/{1}/...} slots.
-         *
-         * <p>A whole ladder of content is usually ONE translated line with each rung supplying its
-         * own number, so a key resolved WITHOUT its args renders that line with an empty slot on
-         * every rung at once - and the content file still reads as perfectly correct.
-         *
-         * <p>{@code @amount} is the one sentinel the shared content schema names, and its VALUE is a
-         * rendering decision: here it is the number the content asks for, grouped for readability
-         * and passed as a raw value rather than a translated one, since a digit needs no
-         * translating. Anything else an author wrote is passed through exactly as typed, so a
-         * sentinel nothing answers shows up in the line instead of leaving a blank nobody can
-         * diagnose.
-         */
+        @Override
         @Nonnull
-        private static Object[] args(@Nonnull List<String> authored, long amount) {
-            return ContentTextAsset.expand(authored, sentinel ->
-                    ContentTextAsset.ARG_AMOUNT.equals(sentinel)
-                            ? NumberFormatter.grouped(amount) : null);
+        public List<NpcOffer> offersAt(@Nonnull Subject subject,
+                @Nonnull Collection<String> answersTo) {
+            if (answersTo.isEmpty() || !ProgressionRuntime.isBuilt()) {
+                return List.of();
+            }
+            QuestEngine engine = ProgressionRuntime.quests();
+            List<Quest> given = new ArrayList<>();
+            for (Quest quest : engine.quests()) {
+                String giver = quest.npcViewId();
+                if (giver != null && containsIgnoreCase(answersTo, giver)
+                        && engine.isOfferable(subject, quest)) {
+                    given.add(quest);
+                }
+            }
+            given.sort(Comparator.comparingInt(Quest::listOrder).thenComparing(Quest::id));
+            List<NpcOffer> out = new ArrayList<>(given.size());
+            for (Quest quest : given) {
+                String titleKey = quest.text().resolvableTitleKey();
+                boolean takeable = engine.status(subject, quest) == QuestStatus.NOT_STARTED
+                        && engine.canAccept(subject, quest).allowed();
+                out.add(takeable ? NpcOffer.available(quest.id(), titleKey)
+                        : NpcOffer.locked(quest.id(), titleKey, List.of()));
+            }
+            return out;
         }
 
         /**
-         * The number a piece of content asks for, for {@code @amount}: the first step's, since a
-         * ladder written as one translated line is a ladder whose rungs differ in exactly that
-         * number. Content with no steps at all asks for nothing.
+         * The cheap answer, which is the one a render path actually asks for.
+         *
+         * <p>"Has this character anything for me" is asked once per character on screen, so it stops
+         * at the FIRST quest that is takeable now instead of building the whole list: no titles
+         * resolved, no locked entries assembled, and no gate evaluated for a quest the player is
+         * already carrying. A quest they have started can never make this true anyway - it is
+         * reported as locked in the full list, and the boolean asks only about what is on offer.
          */
-        private static long primaryAmount(@Nonnull List<ObjectiveDef> objectives) {
-            return objectives.isEmpty() ? 0L : objectives.get(0).amount();
+        @Override
+        public boolean hasOffersAt(@Nonnull Subject subject, @Nonnull Collection<String> answersTo) {
+            if (answersTo.isEmpty() || !ProgressionRuntime.isBuilt()) {
+                return false;
+            }
+            QuestEngine engine = ProgressionRuntime.quests();
+            for (Quest quest : engine.quests()) {
+                String giver = quest.npcViewId();
+                if (giver == null || !containsIgnoreCase(answersTo, giver)) {
+                    continue;
+                }
+                if (engine.status(subject, quest) == QuestStatus.NOT_STARTED
+                        && engine.canAccept(subject, quest).allowed()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static boolean containsIgnoreCase(@Nonnull Collection<String> answersTo,
+                @Nonnull String giver) {
+            for (String answered : answersTo) {
+                if (answered != null && answered.equalsIgnoreCase(giver)) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
@@ -559,22 +603,22 @@ public final class ProgressionDefaults {
     }
 
     /**
-     * The requirement evaluator these defaults built, or null before {@link #register} has run. A
-     * seam that takes a SUPPLIER (the commerce gate seam) points here rather than copying the
-     * evaluator, so a null before registration reads as "not yet" and falls to that seam's own
-     * fail-closed default.
+     * THE requirement evaluator, which lives one module down beside the runtime it reads.
+     *
+     * <p>It is kept there rather than here so a surface that only wants to answer a {@code Requires}
+     * block never has to load this class, whose own statics reach the four producer systems. A seam
+     * taking a SUPPLIER (the commerce gate seam) points at this method, and gets the same one
+     * instance every other surface has.
      */
-    @Nullable
+    @Nonnull
     public static GateEvaluator gateEvaluator() {
-        return gateEvaluator;
+        return ProgressionGates.evaluator();
     }
 
     /** Forget this module's own folded catalogues and registrations (test reset, and shutdown). */
     public static synchronized void reset() {
         QUEST_POOL = QuestPool.EMPTY;
         ACHIEVEMENT_POOL = null;
-        assetGates = null;
-        gateEvaluator = null;
         registered = false;
     }
 }

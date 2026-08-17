@@ -16,7 +16,7 @@ consumer: store.resolveAll(enumerators)           -> expand generators -> decode
                                                      body against its Base through THE SAME codec
                      |
                   QuestPool  -> engine.setQuests(pool.quests())
-                             -> AssetQuestGates.pool(pool)   (the Requires block becomes the gate)
+                             -> the Requires block rides the runtime Quest, and RequiresGates reads it
                              -> QuestPoolValidator.validate(pool, engine, gateKinds)
 ```
 
@@ -28,7 +28,7 @@ consumer: store.resolveAll(enumerators)           -> expand generators -> decode
 | `QuestObjectiveAsset` | a quest's objective: the shared `progress.asset.ObjectiveLeafAsset` leaves plus the two only a quest has (`Order`, `TurnInNpcId`) |
 | [`progress.gate`](../../progress/gate/CLAUDE.md) `GateClause`, `GateSpec` | the `Requires` block: four shared leaves plus `AllOf`/`AnyOf`. SHARED with achievements |
 | `progress.gate` `GateKind`, `GateKindRegistry` | the OPEN requirement vocabulary a consumer extends |
-| `progress.gate` `GateEvaluator`, `AssetQuestGates` | what answers a `Requires` block, and the quest-engine bridge |
+| `progress.gate` `GateEvaluator`, `quest.RequiresGates` | what answers a `Requires` block, and the ONE gate both engines read it through |
 | `QuestDefinition`, `QuestPool` | the folded quest (engine model + presentation + gates) and the set of them |
 | `QuestGeneratorAsset` (+ `Axis`), `QuestGeneratorExpander`, `GeneratedQuestBody` | one file writes a family |
 | `QuestAxisRow`, `QuestValueEnumerator`, `QuestEnumeratorRegistry` | the OPEN value-source vocabulary an axis may name |

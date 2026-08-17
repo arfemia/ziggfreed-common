@@ -99,12 +99,11 @@ take the screen wins.
 
 ## Tests
 
-10 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
+9 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
 this module's own suite covers the parts it contributes - `DefaultPartsHandInTest`,
 `DefaultPartsRewardGrantTest` (the registered store + producer parts pulling their weight inside a
 real runtime), `ZigProgressComponentTest`, `ProgressBlobTest` (the persisted per-player codec),
-`ProgressDispatchTest`, `ProgressHandleFacetTest`, and `ObjectiveBookTextArgsTest` (the book's
-render-text argument model), plus the NPC quest page's two pure halves - `NpcQuestSectionsTest`
+`ProgressDispatchTest`, `ProgressHandleFacetTest`, plus the NPC quest page's two pure halves - `NpcQuestSectionsTest`
 (bucketing, ordering, which quest the detail panel opens on), `NpcQuestPageDepsTest` (the defaults,
 and a consumer seam that throws). How a reward chip reads is pinned in `zc-loot`'s
 `RewardChipsTest`, beside the shared vocabulary it belongs to.

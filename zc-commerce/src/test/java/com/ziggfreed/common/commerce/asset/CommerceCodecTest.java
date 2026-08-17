@@ -319,6 +319,10 @@ class CommerceCodecTest {
                     "nothing on the contract holds it back: whatever posts it decides");
             assertEquals(QuestTurnInSite.ACCEPT_SITE, folded.turnInAt(),
                     "a contract is collected wherever it was taken from");
+            assertFalse(folded.quest().occupiesLog(),
+                    "and it is carried BESIDE the quest log rather than inside it, so somebody"
+                            + " working several contracts still has their whole log and is never"
+                            + " refused the next one for a log they are not filling");
             assertFalse(folded.quest().autoAccept());
         }
 

@@ -66,6 +66,35 @@ public interface QuestGates {
     }
 
     /**
+     * Both accept-time questions at once: is the player past what the quest asks for first, and does
+     * the gate let them take it? The engine asks this ONE method when somebody is trying to accept,
+     * and the default answers it exactly as asking the two separately would.
+     *
+     * <p><b>Override it when a gate answers both from the same reading.</b> A gate evaluating an
+     * authored requirement block answers both questions off one pass, so asking it twice per accept
+     * doubles the work for one decision, and accept is asked per quest on listing and render paths.
+     * Overriding lets it read once and still add every token it would have added.
+     *
+     * <p>An override owes the same tokens: {@link #REASON_PREREQUISITES} when a quest that requires
+     * them is not past them, plus whatever {@link #accepts} would have added, and it must not add a
+     * token twice.
+     */
+    default boolean opensFor(@Nonnull Subject subject, @Nonnull Quest quest,
+                             @Nonnull List<String> reasons) {
+        boolean open = true;
+        if (quest.visibility().requirePrerequisites() && !prerequisitesMet(subject, quest)) {
+            if (!reasons.contains(REASON_PREREQUISITES)) {
+                reasons.add(REASON_PREREQUISITES);
+            }
+            open = false;
+        }
+        if (!accepts(subject, quest, reasons)) {
+            open = false;
+        }
+        return open;
+    }
+
+    /**
      * Can this player physically receive the quest's rewards right now (typically: is there room)?
      * Answering false makes a finished quest park for manual claim instead of paying out into
      * nowhere, and the player can collect once they have made space.

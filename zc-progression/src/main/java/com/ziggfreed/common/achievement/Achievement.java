@@ -2,12 +2,15 @@ package com.ziggfreed.common.achievement;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.progress.ContentText;
 import com.ziggfreed.common.progress.ObjectiveDef;
+import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
  * A RESOLVED achievement definition: the shape the engine runs, after any authoring layer has
@@ -41,9 +44,12 @@ public final class Achievement {
     private final List<RewardSpec> claimRewards;
     private final List<String> tags;
     private final int points;
-    private final boolean available;
+    private final BooleanSupplier available;
     private final boolean hidden;
     private final boolean countsTowardTotal;
+    private final boolean serverFirst;
+    @Nullable private final GateSpec requires;
+    private final ContentText text;
 
     private Achievement(@Nonnull Builder b) {
         this.id = b.id;
@@ -56,6 +62,36 @@ public final class Achievement {
         this.available = b.available;
         this.hidden = b.hidden;
         this.countsTowardTotal = b.countsTowardTotal;
+        this.serverFirst = b.serverFirst;
+        this.requires = b.requires;
+        this.text = b.text;
+    }
+
+    /**
+     * This achievement with the AUTHORING facts the engine does not run but a shared surface needs:
+     * the requirement block one gate answers, the words one text source reads, and whether only one
+     * subject on the server may ever own it. Everything else carries over untouched.
+     *
+     * <p>A copy rather than a setter, and it lives here beside the fields so a leaf added later
+     * cannot be silently dropped by a copy written somewhere else.
+     */
+    @Nonnull
+    public Achievement withAuthoring(@Nullable GateSpec requires, @Nullable ContentText text,
+            boolean serverFirst) {
+        return builder(id)
+                .criteria(criteria)
+                .metaChildren(metaChildren)
+                .autoRewards(autoRewards)
+                .claimRewards(claimRewards)
+                .tags(tags)
+                .points(points)
+                .available(available)
+                .hidden(hidden)
+                .countsTowardTotal(countsTowardTotal)
+                .serverFirst(serverFirst)
+                .requires(requires)
+                .text(text)
+                .build();
     }
 
     @Nonnull
@@ -124,9 +160,38 @@ public final class Achievement {
         return points;
     }
 
-    /** A switch an owner can flip to take it out of circulation without deleting it. */
+    /**
+     * A switch an owner can flip to take it out of circulation without deleting it, READ LIVE every
+     * time the engine asks - a feature toggle moves it while the server is up, and the catalogue is
+     * only rebuilt when content reloads.
+     */
     public boolean available() {
-        return available;
+        return available.getAsBoolean();
+    }
+
+    /**
+     * Only ONE subject on the server may ever own this. The engine arbitrates it at the moment of
+     * earning, and a subject that loses keeps its criteria met, so the decision can be revisited
+     * without anything being lost.
+     */
+    public boolean serverFirst() {
+        return serverFirst;
+    }
+
+    /**
+     * What must be true of a subject before progress counts, or null when nothing is asked. Every
+     * fold puts the authored {@code Requires} block here, so ONE gate answers for content authored
+     * in any format.
+     */
+    @Nullable
+    public GateSpec requires() {
+        return requires;
+    }
+
+    /** What this is CALLED, for a surface with no catalogue of its own. Never null. */
+    @Nonnull
+    public ContentText text() {
+        return text;
     }
 
     /** Keep it off open listings until it is earned, for a surprise or a retired one-off. */
@@ -167,6 +232,12 @@ public final class Achievement {
         return "Achievement[" + id + " x" + criteria.size() + "]";
     }
 
+    /** Switched on, for the ordinary achievement whose availability never moves. */
+    private static final BooleanSupplier ALWAYS = () -> true;
+
+    /** Switched off outright. */
+    private static final BooleanSupplier NEVER = () -> false;
+
     @Nonnull
     public static Builder builder(@Nonnull String id) {
         return new Builder(id);
@@ -182,9 +253,12 @@ public final class Achievement {
         private final List<RewardSpec> claimRewards = new ArrayList<>();
         private final List<String> tags = new ArrayList<>();
         private int points = 10;
-        private boolean available = true;
+        private BooleanSupplier available = ALWAYS;
         private boolean hidden;
         private boolean countsTowardTotal = true;
+        private boolean serverFirst;
+        @Nullable private GateSpec requires;
+        private ContentText text = ContentText.EMPTY;
 
         private Builder(@Nonnull String id) {
             this.id = id;
@@ -247,7 +321,38 @@ public final class Achievement {
 
         @Nonnull
         public Builder available(boolean available) {
-            this.available = available;
+            this.available = available ? ALWAYS : NEVER;
+            return this;
+        }
+
+        /**
+         * Availability as a LIVE predicate, re-asked every time the engine looks. The consumer
+         * supplies the reading; the refusal built on it stays the engine's own.
+         */
+        @Nonnull
+        public Builder available(@Nullable BooleanSupplier available) {
+            this.available = available == null ? ALWAYS : available;
+            return this;
+        }
+
+        /** Only one subject on the server may ever own this. */
+        @Nonnull
+        public Builder serverFirst(boolean serverFirst) {
+            this.serverFirst = serverFirst;
+            return this;
+        }
+
+        /** The authored requirement block; null (the default) leaves it open to everyone. */
+        @Nonnull
+        public Builder requires(@Nullable GateSpec requires) {
+            this.requires = requires;
+            return this;
+        }
+
+        /** What this is called; null resets to carrying no words at all. */
+        @Nonnull
+        public Builder text(@Nullable ContentText text) {
+            this.text = text == null ? ContentText.EMPTY : text;
             return this;
         }
 

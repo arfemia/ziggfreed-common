@@ -365,6 +365,12 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
         }
 
         @Override
+        public boolean opensFor(@Nonnull Subject subject, @Nonnull Quest quest,
+                                @Nonnull List<String> reasons) {
+            return ProgressionRuntime.parts().questGates().opensFor(subject, quest, reasons);
+        }
+
+        @Override
         public boolean canReceiveRewards(@Nonnull Subject subject, @Nonnull Quest quest) {
             return ProgressionRuntime.parts().questGates().canReceiveRewards(subject, quest);
         }
@@ -439,6 +445,19 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                     }
                 }
                 return true;
+            }
+
+            @Override
+            public boolean opensFor(@Nonnull Subject subject, @Nonnull Quest quest,
+                                    @Nonnull List<String> reasons) {
+                // Each contributor answers its OWN pair, so a gate that reads both from one pass
+                // keeps doing so here. Like accepts, it does not short-circuit: a player is told
+                // every contributor's refusal rather than the first one.
+                boolean open = true;
+                for (QuestGates gate : frozen) {
+                    open &= gate.opensFor(subject, quest, reasons);
+                }
+                return open;
             }
 
             @Override

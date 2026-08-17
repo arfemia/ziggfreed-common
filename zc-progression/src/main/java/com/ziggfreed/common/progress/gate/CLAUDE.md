@@ -11,7 +11,7 @@ Package root `com.ziggfreed.common.progress.gate`.
 | `GateClause` (+ `appendLeaves`, `of`) | one group of requirements, ALL of which must pass: `Factors` / `Permission` / `Quests` / `Custom` |
 | `GateSpec` (+ `of`) | the whole `Requires` block: the leaves plus `AllOf`, `AnyOf` and `Not` |
 | `GateKind`, `GateKindRegistry` | the OPEN `Requires.Custom` vocabulary a consumer extends, either desugaring to factor conditions or answering directly |
-| `GateEvaluator` | who answers a block for one subject, and the opaque reason token naming what shut it |
+| `GateEvaluator` | who answers a block for one subject, and the opaque reason token naming what shut it. There is ONE per server, held by [`../runtime/ProgressionGates`](../runtime/CLAUDE.md) over the runtime's REGISTERED factor registry, factor context and gate kinds, all read LIVE so a consumer registering its own vocabulary feeds it; `builder()` is for a test or a genuinely private evaluator, and a consumer building a second one is building a second DECISION over one model |
 | `GateValidator` | the shared `Requires` audit every domain reports through (blank requirements, unknown factors / prerequisites / gate kinds), so a shop's gate and a quest's gate are checked by ONE pass |
 
 ## Rules to keep
@@ -69,9 +69,11 @@ registry every other factor condition goes through, so one permission question h
 wherever it is asked: a quest's `Requires`, a storefront's, an NPC placement gate, a dialogue
 condition. What follows from that:
 
-- **Nothing is wired for it.** Register the portable `hytale:` standard library into the registry you
-  hand `GateEvaluator.Builder#factors`, give `factorContext` a context carrying the player's store
-  and ref, and the leaf works. There is no probe to supply and none to forget.
+- **Nothing is wired for it.** Register the portable `hytale:` standard library as the runtime's
+  factor vocabulary and register a factor context carrying the player's store and ref, and the leaf
+  works - the ONE evaluator reads both slots live. (On a private evaluator the same two go to
+  `GateEvaluator.Builder#factors` / `#factorContext`.) There is no probe to supply and none to
+  forget.
 - **It fails closed the way the factor does**, which is the same set of refusals as before: no
   vocabulary, nothing registered under `hytale:permission`, no live player behind the subject, a
   subject that is not a player at all, or a blank node. Any of them reads as "cannot tell", and

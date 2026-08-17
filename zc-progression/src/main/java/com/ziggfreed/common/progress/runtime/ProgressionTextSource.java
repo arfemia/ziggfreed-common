@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.i18n.ContentKeys;
 
 /**
  * How a surface with no catalogue of its own NAMES a piece of content.
@@ -45,11 +46,29 @@ public interface ProgressionTextSource {
      * source that has nothing for a state answers null and the surface falls back to
      * {@link #flavor}, which is what the great majority of content has and all of it may have.
      *
-     * <p>DEFAULT-BODIED: a source written before this existed answers null for every state, which is
-     * the honest answer for one that carries no narrative at all.
+     * <p>DEFAULT-BODIED, and the default IS the convention: it answers whichever
+     * {@code quest.<id>.md.<state>} key a registered catalogue actually ships, and null when none
+     * does. That is what makes the convention one rule rather than one per source - a mod that
+     * writes the keys gets its narrative rendered without registering anything, and a source with
+     * something better to say still overrides this.
      */
     @Nullable
     default Message lore(@Nonnull String contentId, @Nonnull String state) {
-        return null;
+        return loreByConvention(contentId, state);
+    }
+
+    /**
+     * The shared narrative convention, as a plain lookup: {@code quest.<id>.md.<state>}, answered
+     * only when some registered catalogue really ships that key so a missing one falls through to
+     * whatever the surface shows instead of painting a raw key at the player.
+     */
+    @Nullable
+    static Message loreByConvention(@Nonnull String contentId, @Nonnull String state) {
+        String key = "quest." + contentId + ".md." + state;
+        try {
+            return ContentKeys.known(key) ? ContentKeys.tr(key) : null;
+        } catch (Throwable notLoaded) {
+            return null;
+        }
     }
 }
