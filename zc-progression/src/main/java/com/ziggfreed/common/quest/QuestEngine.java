@@ -34,6 +34,8 @@ import com.ziggfreed.common.progress.ProgressDispatchTap;
 import com.ziggfreed.common.progress.StatThresholdProbe;
 import com.ziggfreed.common.progress.ZoneRef;
 import com.ziggfreed.common.progress.runtime.ProgressionFeedbackHook;
+import com.ziggfreed.common.progress.runtime.ProgressionSystem;
+import com.ziggfreed.common.progress.runtime.ProgressionSystemGate;
 import com.ziggfreed.common.quest.event.QuestEvents;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -99,6 +101,8 @@ public final class QuestEngine implements QuestStateReader {
     private final QuestPossessionProbe possession;
     private final QuestInventoryConsumer inventory;
     private final QuestGates gates;
+    /** Is the quest system switched on for this player at all - the owner's switch, composed. */
+    private final ProgressionSystemGate systemGate;
     private final ProgressDispatchTap tap;
     private final ProgressionFeedbackHook feedbackHook;
     /** Null when no factor vocabulary was wired, which switches every threshold re-check off. */
@@ -129,6 +133,7 @@ public final class QuestEngine implements QuestStateReader {
         this.possession = b.possession;
         this.inventory = b.inventory;
         this.gates = b.gates;
+        this.systemGate = b.systemGate;
         this.tap = b.tap;
         this.feedbackHook = b.feedbackHook;
         this.statProbe = StatThresholdProbe.of(b.factors, b.factorContext, b.warn);
@@ -330,12 +335,23 @@ public final class QuestEngine implements QuestStateReader {
     // ==================== Accept ====================
 
     /**
-     * May this player take this quest, and if not, why not? Checks the mechanical rules the engine
-     * owns (available, not already started, off cooldown, room in the log) and then asks the
-     * consumer's {@link QuestGates}, keeping every reason from both.
+     * May this player take this quest, and if not, why not? Asks the owner's system switch first,
+     * then checks the mechanical rules the engine owns (available, not already started, off
+     * cooldown, room in the log) and then asks the consumer's {@link QuestGates}, keeping every
+     * reason from both.
+     *
+     * <p><b>A switched-off system is refused with {@link QuestGates#REASON_SYSTEM_DISABLED}, and
+     * that reason stands alone.</b> The switch is the same composed gate every produced moment is
+     * checked against, so a server with quests off refuses an accept the same way it refuses the
+     * progress that would have followed it, rather than taking the quest and then advancing it
+     * nowhere; and no other reason is gathered beside it, because a prerequisite the player could go
+     * and meet is no route into a system that is off.
      */
     @Nonnull
     public AcceptCheck canAccept(@Nonnull Subject subject, @Nonnull Quest quest) {
+        if (!systemGate.enabled(ProgressionSystem.QUEST, subject)) {
+            return new AcceptCheck(false, List.of(QuestGates.REASON_SYSTEM_DISABLED));
+        }
         List<String> reasons = new ArrayList<>();
         if (!quest.available()) {
             reasons.add(QuestGates.REASON_UNAVAILABLE);
@@ -440,9 +456,18 @@ public final class QuestEngine implements QuestStateReader {
      * then immediately settle any whose objectives are already met. Call once when a player becomes
      * ready, after {@link #selfHeal}, so a repeatable that has come back around reads offerable.
      *
+     * <p>Skipped outright for a player the owner's system switch has quests OFF for: an auto-accept
+     * is an accept the player never asked for, so on a server with quests switched off it would
+     * quietly hand out a quest that then advances nowhere. {@link #canAccept} refuses each one for
+     * the same reason; asking the switch once here is what keeps a switched-off login from walking
+     * the whole catalogue to be told no per quest.
+     *
      * @return how many were accepted
      */
     public int autoAcceptAvailable(@Nonnull Subject subject) {
+        if (!systemGate.enabled(ProgressionSystem.QUEST, subject)) {
+            return 0;
+        }
         int accepted = 0;
         for (Quest quest : quests.values()) {
             if (!quest.autoAccept() || !quest.available()) {
@@ -1782,6 +1807,7 @@ public final class QuestEngine implements QuestStateReader {
         private QuestPossessionProbe possession = QuestPossessionProbe.NONE;
         private QuestInventoryConsumer inventory = QuestInventoryConsumer.NONE;
         private QuestGates gates = QuestGates.OPEN;
+        private ProgressionSystemGate systemGate = ProgressionSystemGate.OPEN;
         private ProgressDispatchTap tap = ProgressDispatchTap.NONE;
         @Nullable private FactorRegistry factors;
         @Nullable private Function<Subject, FactorContext> factorContext;
@@ -1852,6 +1878,18 @@ public final class QuestEngine implements QuestStateReader {
         @Nonnull
         public Builder gates(@Nonnull QuestGates gates) {
             this.gates = gates;
+            return this;
+        }
+
+        /**
+         * The owner's "quests are switched off for this player" switch, asked before an accept and
+         * before the join-time auto-accept. The shared runtime hands in its COMPOSED gate (every
+         * registered owner switch, ANDed) so an accept and a produced moment are refused by the same
+         * answer. Defaults to {@link ProgressionSystemGate#OPEN}: an engine nobody switched off.
+         */
+        @Nonnull
+        public Builder systemGate(@Nonnull ProgressionSystemGate systemGate) {
+            this.systemGate = systemGate;
             return this;
         }
 

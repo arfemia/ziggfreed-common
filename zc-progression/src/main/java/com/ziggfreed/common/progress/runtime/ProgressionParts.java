@@ -325,6 +325,15 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
     static final ProgressDispatchTap TAP = (subject, kind, target, qualifier, amount, zone) ->
             ProgressionRuntime.parts().tap().observe(subject, kind, target, qualifier, amount, zone);
 
+    /**
+     * The composed owner switch, read LIVE, so a system gate registered after the engines were built
+     * still refuses a quest accept, the join-time auto-accept and the achievement self-heal - the
+     * same answer every produced moment is checked against through
+     * {@link ProgressionRuntime#systemEnabled}.
+     */
+    static final ProgressionSystemGate SYSTEM_GATE = (system, subject) ->
+            ProgressionRuntime.parts().systemGate().enabled(system, subject);
+
     static final ProgressionFeedbackHook FEEDBACK_HOOK = new ProgressionFeedbackHook() {
 
         @Override

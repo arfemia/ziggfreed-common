@@ -42,6 +42,14 @@ public interface QuestGates {
     /** The consumer's prerequisite check said no. */
     String REASON_PREREQUISITES = "prerequisites";
 
+    /**
+     * The whole quest system is switched off for this player, per the owner's registered system
+     * gate. The engine's own refusal, so an accept asked of a switched-off system is told no with a
+     * reason rather than quietly taken - and it stands alone: no other reason is gathered beside
+     * it, since a prerequisite the player could go and meet is no route into a system that is off.
+     */
+    String REASON_SYSTEM_DISABLED = "system_disabled";
+
     /** No gates at all: everything passes, nothing is pre-satisfied. */
     QuestGates OPEN = new QuestGates() {
     };

@@ -34,6 +34,8 @@ import com.ziggfreed.common.progress.ProgressDispatchTap;
 import com.ziggfreed.common.progress.StatThresholdProbe;
 import com.ziggfreed.common.progress.ZoneRef;
 import com.ziggfreed.common.progress.runtime.ProgressionFeedbackHook;
+import com.ziggfreed.common.progress.runtime.ProgressionSystem;
+import com.ziggfreed.common.progress.runtime.ProgressionSystemGate;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -79,6 +81,8 @@ public final class AchievementEngine {
     private final AchievementProgressStore store;
     private final MatchFlavor matchFlavor;
     private final AchievementGates gates;
+    /** Is the achievement system switched on for this player at all - the owner's switch, composed. */
+    private final ProgressionSystemGate systemGate;
     private final ProgressDispatchTap tap;
     private final ProgressionFeedbackHook feedbackHook;
     /** Null when no factor vocabulary was wired, which switches the threshold re-check off. */
@@ -106,6 +110,7 @@ public final class AchievementEngine {
         this.store = b.store != null ? b.store : new InMemoryAchievementProgressStore();
         this.matchFlavor = b.matchFlavor;
         this.gates = b.gates;
+        this.systemGate = b.systemGate;
         this.tap = b.tap;
         this.feedbackHook = b.feedbackHook;
         this.statProbe = StatThresholdProbe.of(b.factors, b.factorContext, b.warn);
@@ -714,9 +719,18 @@ public final class AchievementEngine {
      * <p>Deliberately non-destructive: an achievement whose definition has gone is LEFT alone (it may
      * come back), and nothing already earned is ever revisited.
      *
+     * <p><b>Skipped outright for a player the owner's system switch has achievements OFF for.</b>
+     * The threshold re-read below reads live standing values and the sweep after it EARNS, so on a
+     * server with achievements switched off a login would otherwise hand out every level-shaped
+     * achievement the player already qualifies for, rewards and all - progress the switch exists to
+     * refuse, arriving by the one path a produced moment never takes.
+     *
      * @return how many entries changed
      */
     public int selfHeal(@Nonnull Subject subject) {
+        if (!systemGate.enabled(ProgressionSystem.ACHIEVEMENT, subject)) {
+            return 0;
+        }
         int changed = prunePins(subject);
         changed += refreshStatThresholds(subject);
         for (Achievement achievement : List.copyOf(achievements.values())) {
@@ -901,6 +915,7 @@ public final class AchievementEngine {
         @Nullable private AchievementProgressStore store;
         private MatchFlavor matchFlavor = MatchFlavor.LENIENT;
         private AchievementGates gates = AchievementGates.OPEN;
+        private ProgressionSystemGate systemGate = ProgressionSystemGate.OPEN;
         private ProgressDispatchTap tap = ProgressDispatchTap.NONE;
         @Nullable private FactorRegistry factors;
         @Nullable private Function<Subject, FactorContext> factorContext;
@@ -950,6 +965,19 @@ public final class AchievementEngine {
         @Nonnull
         public Builder gates(@Nonnull AchievementGates gates) {
             this.gates = gates;
+            return this;
+        }
+
+        /**
+         * The owner's "achievements are switched off for this player" switch, asked before the
+         * maintenance pass earns anything on its own. The shared runtime hands in its COMPOSED gate
+         * (every registered owner switch, ANDed) so a self-heal and a produced moment are refused
+         * by the same answer. Defaults to {@link ProgressionSystemGate#OPEN}: an engine nobody
+         * switched off.
+         */
+        @Nonnull
+        public Builder systemGate(@Nonnull ProgressionSystemGate systemGate) {
+            this.systemGate = systemGate;
             return this;
         }
 

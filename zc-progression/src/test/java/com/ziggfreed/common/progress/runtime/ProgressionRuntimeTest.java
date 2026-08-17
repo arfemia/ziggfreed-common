@@ -7,7 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -17,13 +19,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.achievement.Achievement;
+import com.ziggfreed.common.achievement.AchievementEngine;
+import com.ziggfreed.common.achievement.AchievementGates;
 import com.ziggfreed.common.progress.MatchFlavor;
+import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestGates;
 import com.ziggfreed.common.quest.QuestProgressStore;
+import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -189,6 +196,91 @@ class ProgressionRuntimeTest {
                 .systemGate((system, subject) -> system != ProgressionSystem.QUEST);
         assertFalse(ProgressionRuntime.systemEnabled(ProgressionSystem.QUEST, player),
                 "a throwing neighbour must not swallow a gate that answered");
+    }
+
+    /**
+     * The switch reaches an ACCEPT, not only a produced moment. An auto-accept is an accept the
+     * player never asked for, so a server with quests off must not hand one out at login and then
+     * refuse every moment that would have advanced it; and a deliberate accept asked of the same
+     * switched-off system is told no with the engine's own reason rather than quietly taken.
+     */
+    @Test
+    void anAutoAcceptQuestIsNotAcceptedForAPlayerWhoseQuestsAreSwitchedOff() {
+        Subject other = Subject.of(UUID.randomUUID(), "other");
+        ProgressionRuntime.registrar(CONSUMER).systemGate((system, subject) ->
+                !(system == ProgressionSystem.QUEST && subject.id().equals(player.id())));
+        Quest tutorial = Quest.builder("tutorial")
+                .objective(ObjectiveDef.builder("x", "BREAK_BLOCK").target("Oak_Log")
+                        .matchMode(MatchMode.EXACT).amount(1).build())
+                .autoAccept(true)
+                .build();
+        ProgressionRuntime.publishQuests(CONSUMER, List.of(tutorial));
+        QuestEngine engine = ProgressionRuntime.quests();
+
+        assertEquals(0, engine.autoAcceptAvailable(player),
+                "quests are off for this player, so nothing is accepted on their behalf");
+        assertEquals(QuestStatus.NOT_STARTED, engine.status(player, tutorial));
+        QuestEngine.AcceptCheck refused = engine.canAccept(player, tutorial);
+        assertFalse(refused.allowed());
+        assertEquals(List.of(QuestGates.REASON_SYSTEM_DISABLED), refused.reasons(),
+                "the engine's own reason, standing alone");
+
+        assertEquals(1, engine.autoAcceptAvailable(other),
+                "the same gate answers per player, and this one has quests on");
+        assertEquals(QuestStatus.ACTIVE, engine.status(other, tutorial));
+    }
+
+    @Test
+    void anAutoAcceptQuestIsAcceptedWhenNoSystemGateIsRegistered() {
+        Quest tutorial = Quest.builder("tutorial")
+                .objective(ObjectiveDef.builder("x", "BREAK_BLOCK").target("Oak_Log")
+                        .matchMode(MatchMode.EXACT).amount(1).build())
+                .autoAccept(true)
+                .build();
+        ProgressionRuntime.publishQuests(CONSUMER, List.of(tutorial));
+        QuestEngine engine = ProgressionRuntime.quests();
+
+        assertTrue(engine.canAccept(player, tutorial).allowed());
+        assertEquals(1, engine.autoAcceptAvailable(player),
+                "a runtime nobody switched off accepts on the player's behalf");
+        assertEquals(QuestStatus.ACTIVE, engine.status(player, tutorial));
+    }
+
+    /**
+     * The achievement side of the same rule. The maintenance pass EARNS whatever it finds met, so a
+     * login on a server with achievements switched off would otherwise hand out every achievement
+     * the player already qualifies for; the switch refuses that pass exactly as it refuses a moment.
+     */
+    @Test
+    void theAchievementSelfHealEarnsNothingForAPlayerWhoseAchievementsAreSwitchedOff() {
+        Subject other = Subject.of(UUID.randomUUID(), "other");
+        ProgressionRuntime.registrar(CONSUMER).systemGate((system, subject) ->
+                !(system == ProgressionSystem.ACHIEVEMENT && subject.id().equals(player.id())));
+        // Held back at unlock time so the criterion is MET but not yet earned: that is the state
+        // self-heal exists to revisit, and the one this test needs it to be asked about.
+        Set<String> heldBack = new HashSet<>(Set.of("first_ore"));
+        ProgressionRuntime.registrar(CONSUMER).achievementGates(new AchievementGates() {
+            @Override
+            public boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+                return !heldBack.contains(achievement.id());
+            }
+        });
+        Achievement firstOre = Achievement.builder("first_ore")
+                .criterion(ObjectiveDef.builder("0", "BREAK_BLOCK").target("Copper_Ore")
+                        .matchMode(MatchMode.EXACT).amount(1).build())
+                .build();
+        ProgressionRuntime.publishAchievements(CONSUMER, List.of(firstOre));
+        AchievementEngine engine = ProgressionRuntime.achievements();
+        engine.dispatch(player, "BREAK_BLOCK", "Copper_Ore", null, 1L);
+        engine.dispatch(other, "BREAK_BLOCK", "Copper_Ore", null, 1L);
+        heldBack.clear();
+
+        assertEquals(0, engine.selfHeal(player),
+                "achievements are off for this player, so the pass earns nothing for them");
+        assertFalse(engine.isUnlocked(player, "first_ore"));
+
+        assertEquals(1, engine.selfHeal(other), "and on for this one, so the met criterion is earned");
+        assertTrue(engine.isUnlocked(other, "first_ore"));
     }
 
     @Test

@@ -627,6 +627,11 @@ public final class ProgressionRuntime {
                     .rewardKinds(RewardKinds.shared())
                     .store(ProgressionParts.QUEST_STORE)
                     .gates(ProgressionParts.QUEST_GATES)
+                    // The owner's system switch reaches an ACCEPT here (and the achievement
+                    // self-heal below), and every produced moment through systemEnabled: one
+                    // composed answer, so a server with a system off neither takes a quest for a
+                    // player, nor earns them an achievement at login, nor advances either.
+                    .systemGate(ProgressionParts.SYSTEM_GATE)
                     .matchFlavor(slotOr(Slots.QUEST_MATCH_FLAVOR, MatchFlavor.STRICT))
                     .possessionProbe(ProgressionParts.POSSESSION)
                     .inventoryConsumer(ProgressionParts.INVENTORY)
@@ -646,6 +651,7 @@ public final class ProgressionRuntime {
                     .rewardKinds(RewardKinds.shared())
                     .store(ProgressionParts.ACHIEVEMENT_STORE)
                     .gates(ProgressionParts.ACHIEVEMENT_GATES)
+                    .systemGate(ProgressionParts.SYSTEM_GATE)
                     .matchFlavor(slotOr(Slots.ACHIEVEMENT_MATCH_FLAVOR, MatchFlavor.LENIENT))
                     .dispatchTap(ProgressionParts.TAP)
                     .feedbackHook(ProgressionParts.FEEDBACK_HOOK)
