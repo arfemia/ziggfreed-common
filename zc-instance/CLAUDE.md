@@ -13,11 +13,15 @@ compiles as `:zc-instance`). See the root [`CLAUDE.md`](../CLAUDE.md) for the ag
 
 - **Depends on**: `zc-core`, `zc-presentation` (every screen here is a page), `zc-loot` (rewards
   and the reward model the results screen renders).
-- **Depended on by**: no other library module. A consumer minigame (Kweebec is the exemplar)
-  depends on this module directly for its end-game layer.
-- **Reverse-edge trap**: none declared today. This module is domain content (matches, arenas,
-  parties), so an edge upward to `zc-dialogue`, `zc-progression`, or `zc-objectives` would be a
-  domain module reaching into a peer domain rather than through the wiring root.
+- **Depended on by**: `zc-objectives`, for the round-completion seam below and nothing else (its
+  `ZigInstanceRoundProducer` listens for `InstanceRoundCompletedEvent`). A consumer minigame
+  (Kweebec is the exemplar) depends on this module directly for its end-game layer.
+- **Reverse-edge trap**: `zc-objectives` now sits ABOVE this module, so an import of anything under
+  `objectives` from here would close a cycle - a round moment travels OUT as a native event and
+  never as a call into the progression runtime. The same holds for `zc-dialogue` and
+  `zc-progression`: this module is domain content (matches, arenas, parties), so an edge upward to
+  any of the three would be a domain module reaching into a peer domain rather than through the
+  wiring root.
 
 ## Packages
 
@@ -35,7 +39,7 @@ compiles as `:zc-instance`). See the root [`CLAUDE.md`](../CLAUDE.md) for the ag
   - [`instance/match/`](src/main/java/com/ziggfreed/common/instance/match/CLAUDE.md) - match rules
     + verdict.
   - [`instance/metadata/`](src/main/java/com/ziggfreed/common/instance/metadata/CLAUDE.md) -
-    `RoundMetadata`, the outbound integration envelope.
+    `RoundMetadata`, the outbound integration envelope, plus the round-completion seam below.
   - [`instance/play/`](src/main/java/com/ziggfreed/common/instance/play/CLAUDE.md) - `PlayModePage`,
     the asset-driven Public/Party/Solo chooser that morphs into a live launch-timer roster.
   - `instance/preset/` - `InstancePresetAsset`, the codec-asset-driven instance preset (names a
@@ -50,6 +54,24 @@ compiles as `:zc-instance`). See the root [`CLAUDE.md`](../CLAUDE.md) for the ag
 - [`party/`](src/main/java/com/ziggfreed/common/party/CLAUDE.md) - `Party`/`PartyService` +
   `PartyInvitePage`, `PartySettingsAsset`. `party/page/` (the invite-page rendering split) has no
   router of its own; the parent `party/` router covers it.
+
+## The round completion seam
+
+`InstanceRoundCompletedEvent` + `InstanceRounds.fireCompleted` (both in
+[`instance/metadata/`](src/main/java/com/ziggfreed/common/instance/metadata/CLAUDE.md)) are the ONE
+generic "a round is over" moment any minigame built on this module fires. It carries the flat
+`RoundMetadata` envelope plus `participants` and `winners` (immutable copies; `winners` equals
+`participants` on a co-op win, the winning team on PvP, EMPTY on a loss or an abort, which is what
+makes `isWin()` answerable with no outcome enum to interpret).
+
+**Fire it on the instance world thread.** Dispatch is synchronous on the calling thread and guarded
+on `hasListener()`, so a server with nobody listening pays nothing; a listener that needs a `Store`
+hops with `world.execute` itself rather than assuming which world it woke up on. A consumer keeps
+firing its own richer event beside this one - the two are not alternatives.
+
+The first listener is zc-objectives' `ZigInstanceRoundProducer`, which turns a completion into
+`INSTANCE_ROUND_ENDED` per participant and `INSTANCE_ROUND_WON` per winner. That direction is the
+only one allowed: this module announces, and never asks anything about progression.
 
 ## Shipped resources
 

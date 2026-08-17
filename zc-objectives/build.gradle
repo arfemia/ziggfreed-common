@@ -35,4 +35,9 @@ dependencies {
     // the breaker put down a moment ago. One-way: zc-world sits below this module and never
     // reaches back up to it.
     implementation project(':zc-world')
+    // The generic round-completion event, so a finished minigame round feeds the same engines every
+    // other moment feeds. One-way and cycle-free by position: nothing in the library depends on
+    // zc-objectives, so an edge FROM it can never close a loop, and zc-instance carries no
+    // progression vocabulary to reach back for.
+    implementation project(':zc-instance')
 }

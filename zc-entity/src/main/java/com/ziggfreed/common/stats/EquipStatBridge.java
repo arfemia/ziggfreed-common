@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
@@ -85,6 +86,10 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
  *   recompute there is safe and is the hydrate authority).</li>
  * </ol>
  *
+ * <p>A consumer keeping DERIVED state in step with these channels registers an {@link
+ * AppliedListener} via {@link #addAppliedListener} rather than re-deriving the equip triggers: the
+ * seam fires after every recompute, so every equip path the bridge already watches is covered once.
+ *
  * <p><b>Triggers</b> (E6-proven, non-deprecated ONLY): {@link ActiveSlotTrigger} mirrors {@code
  * InventorySystems.ActiveSlotChangedEntityEventSystem} (fires on {@link
  * InventorySetActiveSlotEvent} for ANY section - hotbar OR the utility section id {@code -5} - and
@@ -116,6 +121,22 @@ public final class EquipStatBridge {
         boolean test(@Nonnull String namespace, @Nonnull String statId);
     }
 
+    /**
+     * Notified after a completed {@link #recomputeAll} apply pass, on the world thread, with the
+     * entity whose modifiers were just written. The generic post-apply seam: a consumer that keeps
+     * DERIVED state in step with the bridge's channels (an effect mirroring a resistance channel, a
+     * HUD line, a cached fold) hangs it here instead of re-deriving the equip triggers, so it
+     * cannot miss an equip path the bridge already watches.
+     *
+     * <p>Contract: cheap and idempotent - it runs on every slot switch and content change. A
+     * throwing listener is isolated (logged, the remaining listeners still run), so one consumer's
+     * failure never leaves another's state stale.
+     */
+    @FunctionalInterface
+    public interface AppliedListener {
+        void onApplied(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref);
+    }
+
     @Nonnull
     private static final Set<String> WARNED_UNKNOWN_STATS = ConcurrentHashMap.newKeySet();
 
@@ -124,6 +145,10 @@ public final class EquipStatBridge {
 
     @Nullable
     private final EntryFilter entryFilter;
+
+    /** Post-apply listeners, in registration order. Copy-on-write: read on every recompute. */
+    @Nonnull
+    private final List<AppliedListener> appliedListeners = new CopyOnWriteArrayList<>();
 
     private EquipStatBridge(@Nonnull String namespace, @Nullable EntryFilter entryFilter) {
         this.namespace = namespace;
@@ -145,6 +170,40 @@ public final class EquipStatBridge {
     @Nonnull
     public String getNamespace() {
         return namespace;
+    }
+
+    /**
+     * Register a {@link AppliedListener} notified after every {@link #recomputeAll} pass on this
+     * bridge instance. Dedup is by OBJECT IDENTITY: passing the exact same reference twice (a
+     * listener held in a field and reused) is a no-op the second time. It does NOT dedup two
+     * separately-created instances that happen to do the same thing - a fresh lambda or instance
+     * method reference literal evaluated twice (a capturing one always, a non-capturing static
+     * reference on some JVMs) is a new object each time and adds a second, duplicate listener. A
+     * consumer whose setup can re-run on the SAME bridge instance should store the listener once
+     * and pass that stored reference, not re-evaluate the lambda/method-reference expression.
+     */
+    public void addAppliedListener(@Nullable AppliedListener listener) {
+        if (listener != null && !appliedListeners.contains(listener)) {
+            appliedListeners.add(listener);
+        }
+    }
+
+    /** Drop a previously registered {@link AppliedListener}; unknown listeners are ignored. */
+    public void removeAppliedListener(@Nullable AppliedListener listener) {
+        if (listener != null) {
+            appliedListeners.remove(listener);
+        }
+    }
+
+    /**
+     * The live post-apply roster. Package-private on purpose: it lets a same-package test assert
+     * the registration semantics ({@link #addAppliedListener} deduping by identity,
+     * {@link #removeAppliedListener} dropping) against the REAL list instead of a hand-built
+     * stand-in that would pass whatever the bridge did. Not part of the public surface.
+     */
+    @Nonnull
+    List<AppliedListener> appliedListenersView() {
+        return appliedListeners;
     }
 
     /**
@@ -173,6 +232,9 @@ public final class EquipStatBridge {
         } catch (Throwable t) {
             warn("recomputeAll", t);
         }
+        // Post-apply seam, OUTSIDE the apply try so a listener still runs after a partial apply -
+        // derived state tracking a channel is more wrong when it is stale than when it is late.
+        forEachIsolated(appliedListeners, l -> l.onApplied(store, ref), "appliedListener");
     }
 
     /**
@@ -572,6 +634,22 @@ public final class EquipStatBridge {
                 CommonLog.LOGGER.atWarning().log("EquipStatBridge: unknown stat channel '" + statId
                         + "' - skipping (not registered yet, or misspelled)");
             } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    /**
+     * Run {@code action} for every listener, isolating a throwing one so the rest still run.
+     * Generic over the listener type (and so unit-testable with no live store) because the
+     * isolation rule, not the listener shape, is what has to hold.
+     */
+    static <L> void forEachIsolated(@Nonnull Iterable<L> listeners, @Nonnull Consumer<L> action,
+            @Nonnull String label) {
+        for (L listener : listeners) {
+            try {
+                action.accept(listener);
+            } catch (Throwable t) {
+                warn(label, t);
             }
         }
     }

@@ -41,14 +41,15 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
 ## Packages
 
 - [`objectives/`](src/main/java/com/ziggfreed/common/objectives/CLAUDE.md) - `ProgressionDefaults`
-  (the default per-player component store plus the four generic native-event producers: block
-  break, mob kill, craft, pickup) and the two-tab objective book page. **There is no second
+  (the default per-player component store plus the six generic producers: block break, mob kill,
+  craft, pickup and place block off native ECS events, and a finished instance round off the
+  shared bus) and the two-tab objective book page. **There is no second
   runtime here** - these are contributions like any other, registered into
   `progress.runtime.ProgressionRuntime` from this module's `setup()`; a consumer mod running its
   own progression REPLACES the parts it answers for through the same registration surface, so
   double-tracking cannot exist rather than being switched off.
   - `objectives/book/` - the objective book's rendering + text-arg model.
-  - `objectives/producer/` - the four native-event producers plus `ProgressDispatch`, the one route
+  - `objectives/producer/` - the six producers plus `ProgressDispatch`, the one route
     from any producer to both engines (it resolves each engine's own subject, the zone, and the
     consumer's registered call scope, and asks every contributed `ProgressionSystemGate` per half,
     so an owner who switched a system off for a player still has it off).

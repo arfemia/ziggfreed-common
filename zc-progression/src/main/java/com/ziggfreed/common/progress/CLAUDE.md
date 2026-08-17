@@ -27,7 +27,7 @@ the server's progression.
 | Class | What it is |
 |---|---|
 | `ObjectiveDef` (+ `.Builder`) | one authored objective: kind, target, match mode, qualifier, amount, zone, order, hand-in lock |
-| `ObjectiveKind`, `ObjectiveKindRegistry` | the open objective vocabulary plus the three INDEPENDENT facts a kind carries (`valueBased` which arithmetic a dispatch uses, `producible` whether content may author it, `targetsPlace` whether its target names somewhere to go); 21 engine-generic kinds pre-seeded, per consumer, never a shared mutable global |
+| `ObjectiveKind`, `ObjectiveKindRegistry` | the open objective vocabulary plus the three INDEPENDENT facts a kind carries (`valueBased` which arithmetic a dispatch uses, `producible` whether content may author it, `targetsPlace` whether its target names somewhere to go); 23 engine-generic kinds pre-seeded, per consumer, never a shared mutable global |
 | `StatThresholdProbe` | reads a `STAT_THRESHOLD` objective's stat channel for one subject, so an engine can settle a standing-value objective itself |
 | `MatchFlavor`, `MatchMode`, `ObjectiveMatch` | the matching core - BOTH dialects, verbatim |
 | `ZoneRef` | the zone / region an event happened in, for a zone-scoped objective |
@@ -42,13 +42,21 @@ the server's progression.
 
 ## The pre-seeded vocabulary
 
-Twenty-one ids, every one producible. Twenty ACCUMULATE (`BREAK_BLOCK`, `PLACE_BLOCK`, `CRAFT_ITEM`,
-`KILL_ENTITY`, `DEAL_DAMAGE`, `PICKUP_ITEM`, `TALK_TO_NPC`, `CATCH_FISH`, `TURN_IN`,
+Twenty-three ids, every one producible. Twenty-two ACCUMULATE (`BREAK_BLOCK`, `PLACE_BLOCK`,
+`CRAFT_ITEM`, `KILL_ENTITY`, `DEAL_DAMAGE`, `PICKUP_ITEM`, `TALK_TO_NPC`, `CATCH_FISH`, `TURN_IN`,
 `COMPLETE_QUEST`, `TAKE_FALL_DAMAGE`, `PLAYER_DEATH`, `SPRINT_DISTANCE`, `SWIM_DISTANCE`,
 `BREED_ANIMAL`, `FEED_ANIMAL`, `HARVEST_ANIMAL`, `COMPANION_COMBAT`, `REACH_LOCATION`,
-`CONSUME_ITEM`): each names a MOMENT, a producer fires a delta, the tally grows.
+`CONSUME_ITEM`, `INSTANCE_ROUND_WON`, `INSTANCE_ROUND_ENDED`): each names a MOMENT, a producer fires
+a delta, the tally grows.
 
-**Two of the twenty-one also declare `targetsPlace`**, `TALK_TO_NPC` and `REACH_LOCATION`: their
+The last two describe a finished instance ROUND and share one contract: `Target` is
+`<modId>:<modeId>` (so the prefix `kweebec:` matches any mode of that mod), `Qualifier` is the preset
+id, `Amount` is 1 per round. `INSTANCE_ROUND_ENDED` fires per PARTICIPANT on every completion and
+`INSTANCE_ROUND_WON` per WINNER only on a win, so "play ten rounds" and "win ten rounds" are two
+objectives rather than one with a flag. Fed by zc-objectives' `ZigInstanceRoundProducer` off
+zc-instance's `InstanceRoundCompletedEvent`.
+
+**Two of the twenty-three also declare `targetsPlace`**, `TALK_TO_NPC` and `REACH_LOCATION`: their
 TARGET names somewhere a player can stand rather than something an event carries, which is what lets
 a surface say "this step resolves HERE" about a step with no hand-in of its own. The facet is
 orthogonal to the arithmetic - a kind accumulates or tracks a value, and independently does or does

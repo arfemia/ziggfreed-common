@@ -20,9 +20,9 @@ import com.ziggfreed.common.registry.RegistryLedger;
  * that reads it, so there is no registration race and one consumer's vocabulary never leaks into
  * another's.
  *
- * <p><b>Twenty-one engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
+ * <p><b>Twenty-three engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
  * whose meaning does not depend on any particular game's systems: breaking a block, killing an
- * entity, talking to somebody, handing something in, standing at some measured value. All twenty-one
+ * entity, talking to somebody, handing something in, standing at some measured value. All twenty-three
  * seed as producible, all but {@link #STAT_THRESHOLD} accumulate, and two of them
  * ({@code TALK_TO_NPC}, {@code REACH_LOCATION}) seed as place-targeted; a consumer that has no
  * producer for one can re-register it unproducible so its validator says so. Domain kinds (anything
@@ -33,6 +33,14 @@ import com.ziggfreed.common.registry.RegistryLedger;
  * walking its own vocabulary can skip the ids this class already states: re-registering one restates
  * this class's flags in a second place, which holds until this class learns to seed a flag the
  * consumer has never heard of and silently resets it.
+ *
+ * <p><b>Two of them describe a finished INSTANCE ROUND</b> - a minigame match, a co-op session, a
+ * dungeon clear - and share one contract. {@code Target} is {@code <modId>:<modeId>} (e.g.
+ * {@code kweebec:chase}), so the PREFIX {@code kweebec:} matches any mode of that mod;
+ * {@code Qualifier} is the preset id; {@code Amount} is 1 per round.
+ * {@code INSTANCE_ROUND_ENDED} fires once per PARTICIPANT on every completion, win or lose,
+ * and {@code INSTANCE_ROUND_WON} fires once per WINNER and only on a win - so "play ten
+ * rounds" and "win ten rounds" are two different objectives rather than one with a flag.
  *
  * <p>Registration bookkeeping (who owns an id, how often it has misbehaved) lives in the shared
  * {@link RegistryLedger}; ids are matched case-insensitively and registration is idempotent per id
@@ -70,7 +78,8 @@ public final class ObjectiveKindRegistry {
             "PICKUP_ITEM", "TALK_TO_NPC", "CATCH_FISH", "TURN_IN", "COMPLETE_QUEST",
             "TAKE_FALL_DAMAGE", "PLAYER_DEATH", "SPRINT_DISTANCE", "SWIM_DISTANCE",
             "BREED_ANIMAL", "FEED_ANIMAL", "HARVEST_ANIMAL", "COMPANION_COMBAT",
-            "REACH_LOCATION", "CONSUME_ITEM");
+            "REACH_LOCATION", "CONSUME_ITEM",
+            "INSTANCE_ROUND_WON", "INSTANCE_ROUND_ENDED");
 
     /**
      * The pre-seeded kinds whose producers fire a CURRENT value rather than an increment, so a
@@ -109,7 +118,7 @@ public final class ObjectiveKindRegistry {
         seedBuiltIns();
     }
 
-    /** Register the twenty-one engine-generic kinds, all producible, each with its own arithmetic. */
+    /** Register the twenty-three engine-generic kinds, all producible, each with its own arithmetic. */
     private void seedBuiltIns() {
         for (String id : BUILT_IN_ACCUMULATING) {
             ledger.put(id, BUILT_IN_OWNER, BUILT_IN_PLACE_TARGETED.contains(id)
@@ -122,7 +131,7 @@ public final class ObjectiveKindRegistry {
     }
 
     /**
-     * Is {@code kindId} one of the twenty-one this class seeds? A consumer registering its own
+     * Is {@code kindId} one of the twenty-three this class seeds? A consumer registering its own
      * vocabulary asks this to add only what it ADDS, leaving the built-ins stated once, here, with
      * every flag they carry - including any this class learns to seed later.
      */

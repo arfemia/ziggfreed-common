@@ -20,9 +20,15 @@ import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
  *
  * <p><b>An unresolvable factor FAILS CLOSED.</b> {@link #accepts} rejects {@code null}, and the
  * registry answers null for an unregistered id, a throwing provider, and a provider that cannot
- * answer alike - so content gated on a mod that is not installed stays gated rather than opening
- * unconditionally. A condition with NEITHER bound is therefore a presence check: it passes as
- * long as the factor resolves at all, which is how "only where this mod is installed" is written.
+ * answer alike - so content gated on an id nobody claimed stays gated rather than opening
+ * unconditionally. A condition with NEITHER bound therefore passes as long as the factor resolves
+ * to ANY non-null finite value - a presence check ONLY for a factor whose absent-case reading is
+ * itself {@code null}, which is most of this package's vocabulary but not all of it: a factor id
+ * that deliberately answers a definite non-null number for its own "absent" case (see
+ * {@link ModFactors}'s {@code hytale:mod_installed}, which resolves a definite {@code 0} rather
+ * than {@code null} when the named mod is not installed) is NOT gated by a bounds-less condition -
+ * author {@code Min}/{@code Max} explicitly against that id's own documented reading instead of
+ * relying on the bounds-less shortcut.
  *
  * <p><b>The codec is a FACTORY, not a single static.</b> Every consumer wants its OWN Asset
  * Editor pick list on the {@code Factor} field - the ids a placement may gate on are not the ids

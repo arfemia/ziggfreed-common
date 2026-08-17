@@ -95,7 +95,7 @@ seam.
 |---|---|
 | `runtime/` | `ProgressionDefaults`: the default registrations, the asset fold + its audit, the text source, the player lifecycle, and the `onProgressDirty` / `onProgressFlush` persistence contributions |
 | `store/` | `ZigProgressComponent` (the persisted state) + `ProgressBlob` (the packing) + `ProgressHandle`/`ProgressSubjects` (the subject) + `ZigQuestStore`/`ZigAchievementStore` (the two adapters) |
-| `producer/` | `ProgressDispatch` plus the five generic producers (block break, mob kill, craft, pickup, place block) and their five typed `MomentPayload` records |
+| `producer/` | `ProgressDispatch` plus the six generic producers (block break, mob kill, craft, pickup, place block, and the instance-round listener off zc-instance's `InstanceRoundCompletedEvent`) and their six typed `MomentPayload` records |
 | `book/` | the in-game two-tab surface and the item that opens it |
 | `questlist/` | the NPC quest page: what one CHARACTER has to offer, list and detail |
 | `command/` | `/zigprogress`: the admin family over THE runtime - quest, achievement and memories groups; see [its router](command/CLAUDE.md) |
@@ -230,15 +230,17 @@ single class can implement both.
 
 ## The producers
 
-All five register unconditionally and all five fire unconditionally; nothing stands one down. The
+All six register unconditionally and all six fire unconditionally; nothing stands one down. The
 two that credit a WORLD action first ask zc-world's `world/placed/PlacedBlockLedger` and skip a
 block or an item the player put down themselves - and since a consumer's XP is a REACTION to the
 moment they fire, a placed block produces no moment and nothing reacts, so progress and XP can never
 disagree about it. They never touch an engine - everything goes through
 [`producer/ProgressDispatch`](producer/ProgressDispatch.java), which builds the subject, fans the
 moment to every reaction, feeds both engines, and swallows nothing silently. World-thread
-throughout, which is where an ECS system already is. Each hands its own typed payload record to the
-dispatch, so a reaction reaches what the tuple cannot carry.
+throughout, which is where an ECS system already is; the one producer that is a BUS listener rather
+than an ECS system (`ZigInstanceRoundProducer`, off zc-instance's `InstanceRoundCompletedEvent`)
+resolves each named player's own live world and hops there when it is not already on it. Each hands
+its own typed payload record to the dispatch, so a reaction reaches what the tuple cannot carry.
 
 | Producer | Kind | Target | Amount | Payload |
 |---|---|---|---|---|
@@ -247,6 +249,7 @@ dispatch, so a reaction reaches what the tuple cannot carry.
 | `ZigCraftProducer` | `CRAFT_ITEM` | the crafted OUTPUT item's id | the batch size (`craftBatchAmount`, at least 1) | `CraftPayload(event, recipeId)` |
 | `ZigPickupProducer` | `PICKUP_ITEM` | the picked-up item's id | 1 | `PickupPayload(event)` |
 | `ZigPlaceBlockProducer` | `PLACE_BLOCK` | the placed item's id | 1 | `PlaceBlockPayload(event)` |
+| `ZigInstanceRoundProducer` | `INSTANCE_ROUND_ENDED` per participant, `INSTANCE_ROUND_WON` per winner | `<modId>:<modeId>` (the `<modId>:` prefix matches any mode), qualifier the preset id | 1 | `InstanceRoundPayload(event)` |
 
 - **The place-block producer counts exactly what the placement recorder records**, through the
   recorder's own `PlacedBlockRecorder.placementCounts` predicate (a cancelled placement never

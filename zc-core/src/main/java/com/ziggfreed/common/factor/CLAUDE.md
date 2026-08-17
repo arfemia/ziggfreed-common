@@ -19,10 +19,13 @@ condition whatever the bounds say:
 | the provider answered NaN/infinite | `null` | fails | **fails** |
 | the provider answered `0.0` | `0.0` | fails | passes |
 
-The bounds-less form is the one to keep in mind: it is how "only where that mod is installed" is
-written, so a zero DEFAULT would spring it open in precisely the case it exists to close. That is
-why [`FactorProvider`](FactorProvider.java) returns a nullable `Double` rather than a `double`, and
-why nothing in this package substitutes a value for an absent one.
+The last row is the one to keep in mind: a bounds-less gate PASSES on a `0.0` reading, so it is
+NEVER how "only where that mod is installed" is written (`ModFactors`' `0.0` for an absent mod is
+exactly this row - a bounds-less `hytale:mod_installed` condition passes whether the mod is
+installed or not; `Min: 1` is required). That is why [`FactorProvider`](FactorProvider.java) returns
+a nullable `Double` rather than a `double`, and why nothing in this package substitutes a value for
+an absent one - a provider that defaulted an unanswerable reading to `0` instead of `null` would
+spring every bounds-less gate on it open.
 
 **The VALUE side inverts it on purpose.** A [`FactorFormula`](FactorFormula.java) term that cannot
 resolve contributes `0` and the sum still produces a number. The two rules answer different
@@ -137,6 +140,17 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
   half-authored line is an authoring slip, and hiding working content behind it makes that slip much
   harder to find than a validator finding does. Each entry is re-scoped with its OWN `Param`, so two
   entries can address one factor differently.
+- **[`ModFactors`](ModFactors.java)** - `hytale:mod_installed`, the one `hytale:` id that lives
+  HERE rather than in zc-entity because it reads no entity at all: `Param` is another mod's
+  `Group:Name` and the engine's own plugin table answers it. **The presence-check idiom**: `Min: 1`
+  reads as "only where that mod is installed" and `Max: 0` as "only where it is NOT" - a
+  BOUNDS-LESS condition is NOT the same as `Min: 1` here, because it passes on ANY finite reading
+  including the absent-mod `0`, so it never actually gates on presence. An absent mod is a definite
+  `0` rather than this package's usual unanswerable `null` precisely so `Max: 0` has something to
+  match - a `null` would shut the `Max: 0` gate on the very servers it exists for - but that same
+  `0` is why the bounds-less shortcut fails for this id where it works for every other one. A
+  MALFORMED `Param` still reads `null`. Contributed once from the wiring root, so every vocabulary
+  on the server resolves it with nothing to wire.
 
 ## The portable standard library (zc-entity)
 

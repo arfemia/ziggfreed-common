@@ -3,6 +3,8 @@ package com.ziggfreed.common.instance.metadata;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.instance.result.ResultKind;
+
 /**
  * A generic, immutable telemetry envelope describing one finished instance round (a co-op session,
  * a minigame match, a dungeon clear). PURE DATA: no engine types, no i18n, no hardcoded ids - the
@@ -18,8 +20,12 @@ import javax.annotation.Nullable;
  *   <li>{@code difficulty} - a numeric difficulty tier (the consumer's scale; 0 if not used).</li>
  *   <li>{@code playerCount} - how many players were in the round.</li>
  *   <li>{@code durationSeconds} - wall-clock length of the round in seconds.</li>
- *   <li>{@code resultKind} - a free outcome tag (e.g. {@code "win"} / {@code "loss"} / {@code "abandon"}),
- *       optional.</li>
+ *   <li>{@code resultKind} - the outcome tag, optional. It stays a free STRING so a consumer with an
+ *       outcome this library has never heard of can still say what happened, but the CONVENTION is a
+ *       {@link com.ziggfreed.common.instance.result.ResultKind} name ({@code WIN} / {@code LOSS} /
+ *       {@code DRAW} / {@code ABORT}), which is what a cross-mod listener will try to read. Pass the
+ *       enum to {@link Builder#resultKind(com.ziggfreed.common.instance.result.ResultKind)} and it is
+ *       by construction.</li>
  * </ul>
  *
  * <p>Build it via the all-args canonical constructor, the {@link #of} factory, or the fluent
@@ -116,6 +122,23 @@ public record RoundMetadata(
         @Nonnull
         public Builder resultKind(@Nullable String resultKind) {
             this.resultKind = resultKind;
+            return this;
+        }
+
+        /**
+         * The conventional form: writes the {@link ResultKind}'s own {@code name()}, so the envelope
+         * carries the tag a cross-mod listener knows how to read without the caller having to
+         * remember the spelling. A {@code null} kind leaves the tag absent, which is the
+         * builder default too, so there is never a reason to pass a bare {@code null} here
+         * (an untyped one would not compile, with two overloads to choose between).
+         *
+         * <p>The string overload above stays, and stays public: this library's four outcomes are the
+         * convention rather than the limit, and a consumer whose outcome is genuinely none of them
+         * must still be able to name it.
+         */
+        @Nonnull
+        public Builder resultKind(@Nullable ResultKind kind) {
+            this.resultKind = kind == null ? null : kind.name();
             return this;
         }
 

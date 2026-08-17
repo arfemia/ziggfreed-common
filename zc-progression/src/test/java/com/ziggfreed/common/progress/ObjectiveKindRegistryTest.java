@@ -14,7 +14,7 @@ class ObjectiveKindRegistryTest {
     void theBuiltInVocabularyIsPresentAndEveryKindIsProducible() {
         ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
 
-        assertEquals(21, registry.ids().size(), "the engine-generic vocabulary");
+        assertEquals(23, registry.ids().size(), "the engine-generic vocabulary");
         for (String id : registry.ids()) {
             ObjectiveKind kind = registry.kind(id);
             assertTrue(kind.producible(), id + " should be authorable");

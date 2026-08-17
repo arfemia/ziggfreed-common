@@ -40,6 +40,7 @@ import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
+import com.ziggfreed.common.factor.ModFactors;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
 import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.LootFactors;
@@ -215,14 +216,22 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * registered after a world has loaded cannot be read off entities saved carrying it, and an ECS
      * system is a setup-time registration, so neither can wait for that. The five generic producers
      * always run into whichever store is registered, and the component is attached to every player
-     * either way, because it also holds what conversations remember.
+     * either way, because it also holds what conversations remember. The sixth producer, the
+     * instance-round listener, is not an ECS system at all (a round ending is announced about a group
+     * of players on the shared bus rather than happening to one entity) and is registered by the same
+     * {@code install} beside the five, so one place says what the library produces.
      *
-     * <p>The last one is the progression READINGS ({@link ProgressionFactors#contribute()}): four
-     * factor ids claimed process-wide, so any content anywhere - a storefront, a board, a placement,
-     * a conversation, a loot roll - can gate on a finished quest or an earned achievement with no
-     * Java and no dependency on the engine that owns the answer. It is a contribution rather than a
+     * <p>The progression READINGS ({@link ProgressionFactors#contribute()}) come next: four factor
+     * ids claimed process-wide, so any content anywhere - a storefront, a board, a placement, a
+     * conversation, a loot roll - can gate on a finished quest or an earned achievement with no Java
+     * and no dependency on the engine that owns the answer. It is a contribution rather than a
      * registration into one vocabulary, which is why it belongs beside the runtime it reads and not
      * inside any consumer's own setup.
+     *
+     * <p>{@link ModFactors#contribute()} runs right after it, claiming {@code hytale:mod_installed},
+     * the presence reading that lets one authored file be correct both on a server carrying some other
+     * mod and on a server without it. It is contributed from here for the same reason: a claim on an
+     * id belongs beside the thing that answers it, and the engine plugin table answers for everybody.
      */
     private void setupProgressionRuntime() {
         try {
@@ -230,6 +239,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             ObjectiveBookInteractions.register(this);
             ProgressionDefaults.install(this);
             ProgressionFactors.contribute();
+            ModFactors.contribute();
             getCommandRegistry().registerCommand(new ZigProgressCommand());
         } catch (Throwable t) {
             // Naming the kinds because this is the one failure nothing downstream reports: the

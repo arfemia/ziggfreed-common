@@ -63,6 +63,12 @@ onto a channel through `StatMirror` - not a merged package.
   consumers/namespaces sharing one class will collide** - and (b) call `recomputeAll(store, ref)`
   once at `PlayerReadyEvent` (inventory components are ensured/hydrated strictly before that event,
   E6-proven, so a full recompute there is the safe hydrate authority).
+  - **Post-apply seam** - `addAppliedListener(AppliedListener)` fires `onApplied(store, ref)` after
+    every `recomputeAll` pass, world-thread. A consumer keeping DERIVED state in step with these
+    channels (the MMO's per-school resist effect sync) hangs it HERE instead of registering a
+    fourth trigger subclass on the same three events: one seam covers every equip path the bridge
+    already watches. Listeners must be cheap + idempotent (it fires on every slot switch); a
+    throwing listener is isolated by the generic `forEachIsolated` helper so the rest still run.
   - **Triggers** (E6-proven, non-deprecated ONLY): `ActiveSlotTrigger` mirrors
     `InventorySystems.ActiveSlotChangedEntityEventSystem` (fires on `InventorySetActiveSlotEvent`
     for ANY section - hotbar OR the utility section id `-5` - and recomputes every source, so a

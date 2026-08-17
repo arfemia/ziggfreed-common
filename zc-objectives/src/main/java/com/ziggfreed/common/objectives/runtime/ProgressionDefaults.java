@@ -38,6 +38,7 @@ import com.ziggfreed.common.inventory.InventoryUtil;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
+import com.ziggfreed.common.objectives.producer.ZigInstanceRoundProducer;
 import com.ziggfreed.common.objectives.producer.ZigMobKillProducer;
 import com.ziggfreed.common.objectives.producer.ZigPickupProducer;
 import com.ziggfreed.common.objectives.producer.ZigPlaceBlockProducer;
@@ -173,7 +174,9 @@ public final class ProgressionDefaults {
 
     /**
      * Register everything that has to exist whoever ends up owning the runtime: the player lifecycle
-     * listeners, the five producer systems, and the tracked-quest HUD with its six event
+     * listeners, the five producer systems plus the one producer that is an event-bus listener
+     * (a finished instance round is announced about a group of players rather than happening to an
+     * entity, so it arrives on the shared bus), and the tracked-quest HUD with its six event
      * subscriptions. All of it is unconditional, and so is every dispatch those producers make.
      *
      * <p>The HUD installs itself LAST and guards itself, so a failure there costs the tracker and
@@ -189,6 +192,7 @@ public final class ProgressionDefaults {
         plugin.getEntityStoreRegistry().registerSystem(new ZigCraftProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPickupProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPlaceBlockProducer());
+        ZigInstanceRoundProducer.install(plugin);
         SafeLog.info("[progression] producers always-on: " + producedKinds()
                 + " (a mod firing a new moment calls ProgressDispatch.fire directly, no registration"
                 + " needed)");
@@ -205,7 +209,8 @@ public final class ProgressionDefaults {
     @Nonnull
     public static String producedKinds() {
         return String.join(", ", ZigBlockBreakProducer.KIND, ZigMobKillProducer.KIND,
-                ZigCraftProducer.KIND, ZigPickupProducer.KIND, ZigPlaceBlockProducer.KIND);
+                ZigCraftProducer.KIND, ZigPickupProducer.KIND, ZigPlaceBlockProducer.KIND,
+                ZigInstanceRoundProducer.KIND_ENDED, ZigInstanceRoundProducer.KIND_WON);
     }
 
     // ==================== persistence notifications ====================
