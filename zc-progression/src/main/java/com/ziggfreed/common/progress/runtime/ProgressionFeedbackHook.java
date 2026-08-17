@@ -132,6 +132,18 @@ public interface ProgressionFeedbackHook {
      */
     static void fire(@Nullable ProgressionFeedbackHook hook, @Nonnull Consumer<String> warn,
             @Nonnull String momentId, @Nonnull Subject subject, @Nonnull Object... keyValues) {
+        fire(hook, warn, momentId, subject, Map.of(), keyValues);
+    }
+
+    /**
+     * {@link #fire(ProgressionFeedbackHook, Consumer, String, Subject, Object...)} with a map of
+     * values CARRIED by the content the moment is about laid under the engine's own pairs: the
+     * pairs are bound after the map, so an engine's own name wins on a clash and a fold can never
+     * shadow {@code title} or {@code icon}. A null value in the map is dropped like a null pair.
+     */
+    static void fire(@Nullable ProgressionFeedbackHook hook, @Nonnull Consumer<String> warn,
+            @Nonnull String momentId, @Nonnull Subject subject, @Nonnull Map<String, ?> carried,
+            @Nonnull Object... keyValues) {
         if (hook == null) {
             return;
         }
@@ -148,6 +160,12 @@ public interface ProgressionFeedbackHook {
                 return;
             }
             Map<String, Object> args = new LinkedHashMap<>();
+            for (Map.Entry<String, ?> entry : carried.entrySet()) {
+                Object value = resolve(entry.getValue());
+                if (value != null && entry.getKey() != null) {
+                    args.put(entry.getKey(), value);
+                }
+            }
             for (int i = 0; i + 1 < keyValues.length; i += 2) {
                 Object value = resolve(keyValues[i + 1]);
                 if (value != null) {

@@ -34,23 +34,39 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
   of its own; see the root router's `feedback/` bullet for the full primitive list.
   - `feedback/moment/` - the authored-feedback engine: `FeedbackMomentAsset` (Pattern A, the file
     name IS the moment id, at `Server/ZiggfreedCommon/FeedbackMoments/`, with four independent
-    groups - `Toast` / `Broadcast` / `Sound` / `Command` - and one reused `Line` leaf of
-    `{Key, Args, Color}`), `FeedbackMomentConfig` (the `defaults < pack < owner` fold) and
+    groups - `Toast` / `Broadcast` / `Sound` / `Command` - over one reused `Line` leaf of
+    `{Key, KeyArg, Args, Color}`, plus `Variants`: an ordered list of `{When, <groups>}` entries
+    where the first whose `When` values all match the moment's arguments overlays only the groups
+    it restates, so ONE file says "your bags are full" and "collect it where you took it" for two
+    cases of the same moment), `FeedbackMomentConfig` (the `defaults < pack < owner` fold) and
     `FeedbackEngine.fire(momentId, Subject, args)`. It knows nothing about what PRODUCED a moment,
     which is what lets a quest engine, a shop and a mod that does not exist yet share one authoring
     surface; joining the two ends is the wiring root's job. A moment nobody authored a file for does
     nothing, a line naming a value the moment did not carry is skipped, and a part that throws costs
     its own part. A `Key` is authored WITHOUT a namespace and resolved through `i18n/ContentKeys`,
-    exactly like every other authored key in this library. The toast's PICTURE is not a leaf: it is
-    read from the one fixed argument name `icon`, so a producer with a picture to offer supplies one
-    and every authored toast gets it with nothing written for it. `FeedbackEngine.answers(momentId)`
-    is the cheap "is there a file for this at all" question a producer asks before composing what an
-    expensive moment would carry, and the wiring root pairs it with the reaction through
-    `ProgressionFeedbackHook.of`. `FeedbackAudience` is the one thing a
-    static file cannot answer: the SUBJECT's own handle says whether this player wants the personal
-    notification for this moment (a handle with no opinion wants what was authored), and only the
-    toast is gated that way - a banner, a sound and a command are not one player's screen. No router
-    of its own; see the asset's javadoc, which is the authoring reference.
+    exactly like every other authored key in this library (a full registered id passes through
+    untouched, which is how the library's own defaults name their lang file); a `KeyArg` reads the
+    key from one of the moment's own values instead, falling back to `Key`, so a per-content wording
+    (an achievement's own announcement) needs no file per achievement. The name `player` always
+    answers with the subject's name. The toast's PICTURE is not a leaf: it is read from the one
+    fixed argument name `icon`, so a producer with a picture to offer supplies one and every
+    authored toast gets it with nothing written for it. `Toast.EveryPercent` keeps a progress moment
+    from chattering: an ordinary tick shows only when it crosses a multiple of that many percent
+    (the finish always shows). `FeedbackEngine.answers(momentId)` is the cheap "is there a file for
+    this at all" question a producer asks before composing what an expensive moment would carry,
+    and the wiring root pairs it with the reaction through `ProgressionFeedbackHook.of`.
+    `FeedbackAudience` is the one thing a static file cannot answer: the SUBJECT's own handle says
+    whether this player wants the personal notification for this moment, told the moment's values
+    plus `milestone` (whether a progress tick crossed the authored mark) so a consumer's own
+    "every tick / milestones / finishes / nothing" setting is answered from them (a handle with no
+    opinion gets what was authored), and only the toast is gated that way - a banner, a sound and a
+    command are not one player's screen. **This module SHIPS the library's neutral default file for
+    each of the seven moments the progression engines announce** (`quest.completed`, `quest.parked`,
+    `quest.claimed`, `quest.objective_progressed`, `achievement.unlocked`, `achievement.claimed`,
+    `achievement.server_first_lost`) plus their wording in `ziggfreedcommon.feedback.lang` (nine
+    locales); a consumer's same-id file wins by pack order (`FeedbackMomentOverrideOrderTest` pins
+    it through the engine map). No router of its own; see the asset's javadoc, which is the
+    authoring reference.
 - [`sound/`](src/main/java/com/ziggfreed/common/sound/CLAUDE.md) - `Sound3D`.
 - `ui/` - `CustomHudHelper`, `ZigRichButton` (the clickable-rich-text primitive every labeled
   button in the library uses), `UiRetint` (the generic palette-to-selector retint primitive),
@@ -85,15 +101,20 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
 `Common/UI/Custom/Common/{ZigButtons.ui, ZigFrames.ui}` (the shared neutral button/frame styles
 every page in the library imports), `Common/UI/Custom/Pages/{ZigFormDropdownRow.ui,
 ZigFormFieldRow.ui, ZigFormHeaderRow.ui, ZigFormNoteRow.ui, ZigFormToggleRow.ui, ZigListRow.ui,
-ZigToast.ui}` plus `ZigToastFrame.png`. No `Server/` content; this module ships presentation only.
+ZigToast.ui}` plus `ZigToastFrame.png`. Under `Server/`: the seven neutral default feedback moments
+at `Server/ZiggfreedCommon/FeedbackMoments/<moment id>.json` and their wording at
+`Server/Languages/<locale>/ziggfreedcommon.feedback.lang` (nine locales) - the library's own default
+CONTENT a consumer overrides by id, every file carrying a public-facing `$Comment` naming the
+arguments the moment carries and how to override it.
 
 ## Conventions
 
 Every labeled clickable button is a `ZigRichButton` (a `Button` + inner `#Label` set via
 `.TextSpans`), never a `TextButton` whose `.Text` is set from Java - see the root router's hard
 rule under Conventions for why. Colour/bold/param substitution only render on `.TextSpans`, never
-`.Text`. i18n is parameterized OUT of every primitive here (pre-built `Message`s only); nothing in
-this module owns a namespace prefix.
+`.Text`. i18n is parameterized OUT of every primitive here (pre-built `Message`s only); no Java in
+this module owns a namespace prefix - the shipped default moment files name their own lang ids in
+full (`ziggfreedcommon.feedback.<key>`), which the moment engine passes through untouched.
 
 ## Tests
 
@@ -105,5 +126,9 @@ registration still taking effect, a throwing handler counted against its owner).
 retint engine,
 and rich-button primitive have no unit coverage here; they are validated in-game per the general
 `.ui` rule (`.ui` files are not compiled, validate in-game). `FeedbackEngineTest` covers the moment
-schema's decode and inheritance plus everything a broken authoring file or an absent player could
-turn into a throw; the drawing itself is packets and is validated in game.
+schema's decode and inheritance, variant selection, `KeyArg`, the `EveryPercent` mark and the
+audience question, plus everything a broken authoring file or an absent player could turn into a
+throw; `ShippedFeedbackMomentsTest` decodes every shipped default and checks each line's key against
+the shipped en-US lang file; `FeedbackMomentOverrideOrderTest` pins that a consumer's same-id file
+replaces the library's through the engine map's own pack chain. The drawing itself is packets and is
+validated in game.

@@ -20,9 +20,11 @@ import javax.annotation.Nullable;
  * <p>Per-id resolution: {@link #resolve} returns the owner entry, else the pack entry,
  * else the jar default, else {@code null}. Each layer is rebuilt WHOLESALE from its
  * source (the pack layer from {@link AssetMergeAdapter#layer} on every load), so a hot
- * re-import is idempotent. Common's framework stores ship ZERO jar defaults (all content
- * is consumer pack JSON), so {@link #loadDefaults} is optional; a consumer with a Java
- * baseline calls it once at setup.
+ * re-import is idempotent. Common's framework stores keep the {@code defaults} layer for a
+ * consumer with a JAVA baseline ({@link #loadDefaults} is optional and called once at
+ * setup); a neutral default this library itself ships is an ordinary JSON file in its own
+ * jar's asset pack, so it rides the PACK layer and a consumer's same-id file replaces it by
+ * pack order rather than by layer.
  *
  * <p>Ids are lower-cased on every layer so author casing never splits an entry. All
  * writes are synchronized; the maps are concurrent for lock-free reads. The instance is

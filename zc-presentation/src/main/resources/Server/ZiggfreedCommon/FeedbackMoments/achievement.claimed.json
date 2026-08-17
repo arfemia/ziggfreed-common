@@ -1,0 +1,29 @@
+{
+  "$Comment": [
+    "What a player sees and hears when an achievement's rewards are paid to them.",
+    "",
+    "It fires both for an achievement that settles as it is earned and for one whose reward the",
+    "player came back to collect. 'collected' tells them apart (true for the collect), which is",
+    "what the Variants entry below reads: an achievement that settled at once already had its",
+    "achievement.unlocked notice, so only a collect is announced here.",
+    "",
+    "This is the library's own neutral default. A mod that ships a file with this same name in its",
+    "own pack replaces it, and a server owner can do the same from the owner layer.",
+    "",
+    "The moment carries 'achievement' (its id), 'title' (its name in the reader's language),",
+    "'points', 'collected', the outcome as 'granted' / 'queued' / 'failed' reward counts, and",
+    "anything the mod that catalogued it attached under its own names. 'player' is always the",
+    "name of who was paid. Add a Sound group to the Variants entry to give collecting a jingle."
+  ],
+  "Variants": [
+    {
+      "When": { "collected": true },
+      "Toast": {
+        "Title": {
+          "Key": "ziggfreedcommon.feedback.achievement.claimed",
+          "Args": ["title"]
+        }
+      }
+    }
+  ]
+}

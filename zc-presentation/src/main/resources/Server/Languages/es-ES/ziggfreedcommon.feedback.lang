@@ -1,0 +1,13 @@
+# The library's own default feedback moments (Server/ZiggfreedCommon/FeedbackMoments/*.json).
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.feedback.<key>.
+
+quest.completed = Misión completada: {0}
+quest.parked = Misión completada: {0}. Vuelve para recoger tu recompensa.
+quest.parked.no_space = Misión completada: {0}. Haz sitio para recoger tu recompensa.
+quest.claimed = Recompensas recogidas: {0}
+quest.objective_progressed = {0} ({1}/{2})
+quest.objective_finished = Objetivo completado: {0}
+achievement.unlocked = Logro conseguido: {0}
+achievement.points = {0} puntos
+achievement.claimed = Recompensas del logro recogidas: {0}
+achievement.server_first_lost = Alguien llegó antes: {0}

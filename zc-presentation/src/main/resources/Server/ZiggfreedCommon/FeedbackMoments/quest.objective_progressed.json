@@ -1,0 +1,40 @@
+{
+  "$Comment": [
+    "What a player sees each time one step of a quest they are carrying moves: an ordinary tick",
+    "shows the step and how far along it is, and the tick that finishes the step says so instead.",
+    "",
+    "This is the library's own neutral default. A mod that ships a file with this same name in its",
+    "own pack replaces it, and a server owner can do the same from the owner layer.",
+    "",
+    "The moment carries 'quest' (its id), 'title' (its name in the reader's language), 'objective'",
+    "(the step's id), 'step' (the step's own sentence in the reader's language, for instance",
+    "'Break 12 logs'), 'current' and 'required' (how far along, out of how many) and 'finished'",
+    "(true on the tick that completes the step). 'player' is always the name of who moved it.",
+    "",
+    "EveryPercent on the Toast keeps a long step from chattering: an ordinary tick shows only when",
+    "it crosses a multiple of that many percent of the way (25 gives the quarter marks); the",
+    "finishing tick always shows. Delete it to show every tick. A mod that lets each player pick",
+    "how chatty their own screen is decides for them and is told whether the tick crossed a mark.",
+    "",
+    "The Variants entry swaps the whole Toast for the finishing tick, so its wording and colour",
+    "can differ from an ordinary tick's without a second file."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.feedback.quest.objective_progressed",
+      "Args": ["step", "current", "required"]
+    },
+    "EveryPercent": 25
+  },
+  "Variants": [
+    {
+      "When": { "finished": true },
+      "Toast": {
+        "Title": {
+          "Key": "ziggfreedcommon.feedback.quest.objective_finished",
+          "Args": ["step"]
+        }
+      }
+    }
+  ]
+}

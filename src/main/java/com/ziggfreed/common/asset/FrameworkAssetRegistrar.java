@@ -80,12 +80,16 @@ import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
  * those paths and READS the resolved config back; it must NOT re-register these classes
  * (Hytale's {@code AssetRegistry} keys stores by class and throws on a duplicate).
  *
- * <p>Common ships no jar CONTENT for these stores (content is consumer pack JSON), so there
- * is no add/replace pack-control gate: a later pack's same-id file simply wins
- * (last-pack-wins by id). One store type is a deliberate exception, and it ships STRUCTURE
- * rather than content: {@code DialogueOptionTheme} (the neutral look per option kind, so a
- * page renders before anyone authors a theme). It rides the jar's own asset pack, so an owner
- * overrides it by dropping a same-id file.
+ * <p>Common ships neutral DEFAULT content for these stores where a bare server would otherwise
+ * get nothing, and a consumer overrides it BY ID: there is no add/replace pack-control gate, a
+ * later pack's same-id file simply wins (last-pack-wins by id, and packs load in manifest
+ * dependency order, so a consumer that lists this library as a dependency loads after it). The
+ * first such store is {@code FeedbackMoments}: one file per moment the library's own engines
+ * announce, so a quest completing on a bare server still draws a notice, and a consumer's
+ * {@code quest.completed.json} replaces the library's outright. {@code DialogueOptionTheme} is
+ * the older instance of the same rule (the neutral look per option kind, so a page renders
+ * before anyone authors a theme). Both ride the jar's own asset pack, so an owner overrides
+ * either by dropping a same-id file. Everything else in these stores is consumer pack JSON.
  *
  * <p><b>REGISTRATION ONLY (build-enforced).</b> This registrar reaches into every domain, which is
  * exactly why it must never grow a decision: whatever lands here is unreachable from any module's
@@ -284,10 +288,11 @@ public final class FrameworkAssetRegistrar {
 
         // --- Feedback moments (Pattern A) - what this server DOES when one lifecycle moment
         //     happens: a toast, a server banner, a jingle, a command. The asset id IS the moment id
-        //     (quest.completed, achievement.unlocked, ...), and a moment nobody wrote a file for
-        //     does nothing, so the capability ships with no content and an owner switches a piece of
-        //     it off by deleting a file. No cache to invalidate: the engine resolves through the
-        //     config on every moment, so a re-import lands on the next one. ---
+        //     (quest.completed, achievement.unlocked, ...). The library ships a neutral default file
+        //     for each moment its own engines announce (zc-presentation's resources); a consumer's
+        //     same-id file replaces it by pack order, and a moment nobody authored does nothing. No
+        //     cache to invalidate: the engine resolves through the config on every moment, so a
+        //     re-import lands on the next one. ---
         AssetStoreRegistrar.registerStore(FeedbackMomentAsset.class,
                 new DefaultAssetMap<String, FeedbackMomentAsset>(), FeedbackMomentAsset.TYPE_ROOT,
                 FeedbackMomentAsset::getId, FeedbackMomentAsset.CODEC, null);

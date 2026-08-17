@@ -1,5 +1,7 @@
 package com.ziggfreed.common.feedback.moment;
 
+import java.util.Map;
+
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.subject.Subject;
@@ -18,13 +20,20 @@ import com.ziggfreed.common.subject.Subject;
  * sound is the moment being audible, and a command is server business; a player turning their own
  * notifications down is a statement about their own screen and nothing else. That split is
  * deliberate and matches what consumers already do by hand.
+ *
+ * <p><b>The moment's values come with the question</b>, so a consumer whose setting is finer than
+ * on-or-off can read them: a moment reporting progress carries {@code current}, {@code required}
+ * and {@code finished}, and when the authored toast set an {@code EveryPercent} the engine adds
+ * {@link FeedbackEngine#MILESTONE_ARG} saying whether this tick crossed one of those marks. A
+ * consumer that lets a player choose "every tick", "the milestones", "only finishes" or "nothing"
+ * answers from exactly those.
  */
 @FunctionalInterface
 public interface FeedbackAudience {
 
     /**
-     * Does this subject want the personal notification for {@code momentId}? Answer true when in
-     * doubt: a moment nobody has an opinion about is one the author asked for.
+     * Does this subject want the personal notification for {@code momentId}, given what it carries?
+     * Answer true when in doubt: a moment nobody has an opinion about is one the author asked for.
      */
-    boolean wantsNotification(@Nonnull String momentId);
+    boolean wantsNotification(@Nonnull String momentId, @Nonnull Map<String, Object> args);
 }

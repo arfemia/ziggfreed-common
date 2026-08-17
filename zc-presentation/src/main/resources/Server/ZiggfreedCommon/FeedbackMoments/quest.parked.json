@@ -1,0 +1,42 @@
+{
+  "$Comment": [
+    "What a player sees and hears when a quest's last objective is met but the reward WAITS to be",
+    "collected instead of paying out on the spot: a quest authored to be collected somewhere, a",
+    "player with no room for the reward, or one who finished away from the place it is collected.",
+    "",
+    "This is the library's own neutral default. A mod that ships a file with this same name in its",
+    "own pack replaces it, and a server owner can do the same from the owner layer.",
+    "",
+    "The moment carries 'quest' (its id), 'title' (its name in the reader's language), 'parked'",
+    "(true here), 'reason' (why it waits: collect for a quest meant to be collected, no_space when",
+    "the reward would not fit, away when they finished somewhere other than where it is collected)",
+    "and, for a quest collected somewhere in particular, 'turnIn' (character or accept_site).",
+    "'player' is always the name of who finished it.",
+    "",
+    "Variants is how ONE file says different things for different cases: each entry names, under",
+    "When, the values it applies to and restates only the groups that differ. The first entry that",
+    "matches wins. Below, a full-bag park says so and stays quiet; every other park gets the same",
+    "notice and jingle."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.feedback.quest.parked",
+      "Args": ["title"]
+    }
+  },
+  "Sound": {
+    "Id": "SFX_Discovery_Z1_Short"
+  },
+  "Variants": [
+    {
+      "When": { "reason": "no_space" },
+      "Toast": {
+        "Title": {
+          "Key": "ziggfreedcommon.feedback.quest.parked.no_space",
+          "Args": ["title"]
+        }
+      },
+      "Sound": {}
+    }
+  ]
+}

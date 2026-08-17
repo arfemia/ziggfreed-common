@@ -106,9 +106,15 @@ conflict over, which is what a registry is for.
   optimisation and never a decision: answering yes and doing nothing is correct, answering no is a
   promise the producer takes at its word.
 - **`quest.completed` and `quest.parked` are two moments, not one flag.** A quest that settled and
-  one waiting to be collected somewhere want their own words and their own sound, and an authored
-  file cannot branch. Both carry `parked` in their arguments as well, so a hook handed either one
-  can tell which case it is without reading meaning into the id it was called with.
+  one waiting to be collected somewhere want their own words and their own sound. Both carry
+  `parked` in their arguments as well, so a hook handed either one can tell which case it is
+  without reading meaning into the id it was called with; a parked one also carries `reason`
+  (`collect` / `no_space` / `away`, the `QuestEngine.PARKED_*` tokens) and, for a quest collected
+  somewhere in particular, `turnIn` (`character` / `accept_site`), so ONE authored file can say
+  "your bags are full" and "collect it where you took it" as two cases of the same moment.
+  `quest.claimed` and `achievement.claimed` carry `collected` (true when the subject came back for
+  a reward that waited, false when it paid out as it finished). An achievement's two moments also
+  carry whatever its fold attached under `Achievement.momentArgs`, beneath the engine's own names.
 - **The engines are never rebuilt.** Everything they reach the world through is a forwarder over the
   parts snapshot, so late registration is live AND every cached engine reference stays valid.
 - **A factor READ never builds the runtime.** `ProgressionFactors` answers nothing until

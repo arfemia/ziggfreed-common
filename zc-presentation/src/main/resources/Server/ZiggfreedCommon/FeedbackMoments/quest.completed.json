@@ -1,0 +1,28 @@
+{
+  "$Comment": [
+    "What a player sees and hears the instant a quest's last objective is met and it pays out on",
+    "the spot. A quest that has to be collected somewhere is the separate quest.parked moment.",
+    "",
+    "This is the library's own neutral default, so a bare server gets a notice and a jingle out of",
+    "the box. A mod that ships a file with this same name in its own pack replaces it (a pack that",
+    "lists this library as a dependency loads after it), and a server owner can do the same from",
+    "the owner layer. Override the whole file rather than editing this one.",
+    "",
+    "The moment carries 'quest' (its id), 'title' (its name, already in the reader's language),",
+    "'parked' (false here) and, for a quest collected somewhere in particular, 'turnIn' (the kind",
+    "of place: character or accept_site). 'player' is always the name of who finished it.",
+    "",
+    "Key is a line from a .lang file; Args names which of those values fill its blanks, in order.",
+    "Sound is any SoundEvent id, played at the player's own position. Delete either group in your",
+    "override to drop that half; add a Broadcast group to tell the whole server."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.feedback.quest.completed",
+      "Args": ["title"]
+    }
+  },
+  "Sound": {
+    "Id": "SFX_Discovery_Z2_Short"
+  }
+}

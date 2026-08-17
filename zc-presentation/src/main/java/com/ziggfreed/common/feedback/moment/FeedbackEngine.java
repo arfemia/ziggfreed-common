@@ -49,6 +49,30 @@ public final class FeedbackEngine {
      */
     static final String ICON_ARG = "icon";
 
+    /**
+     * The name of whoever the moment is about, always available to a line, a variant and a
+     * command placeholder. A producer that carries its own value under this name keeps it.
+     */
+    public static final String PLAYER_ARG = "player";
+
+    /** A progress moment's position, read for the toast's {@code EveryPercent}. */
+    public static final String CURRENT_ARG = "current";
+
+    /** A progress moment's goal, read for the toast's {@code EveryPercent}. */
+    public static final String REQUIRED_ARG = "required";
+
+    /** A progress moment's "this tick finished the step" flag; a finish always shows. */
+    public static final String FINISHED_ARG = "finished";
+
+    /**
+     * Added to the values a {@link FeedbackAudience} is asked with, when the authored toast set an
+     * {@code EveryPercent} and the moment carries {@link #CURRENT_ARG} and {@link #REQUIRED_ARG}:
+     * {@code true} when this tick crossed one of those marks (or finished the step), {@code false}
+     * for an ordinary tick between them. Never present otherwise, so a reader can tell "no mark was
+     * authored" from "not a mark".
+     */
+    public static final String MILESTONE_ARG = "milestone";
+
     private FeedbackEngine() {
     }
 
@@ -81,17 +105,19 @@ public final class FeedbackEngine {
         if (moment == null) {
             return;
         }
+        Map<String, Object> values = withPlayer(subject, args);
+        FeedbackMomentAsset.Resolved resolved = moment.resolve(values);
         PlayerRef playerRef = subject.handleAs(PlayerRef.class);
-        FeedbackMomentAsset.Toast toastSpec = moment.getToast();
+        FeedbackMomentAsset.Toast toastSpec = resolved.toast();
         // Only a moment that actually draws a personal notification, to a subject there IS a screen
         // for, asks whether this player wanted one; the other three parts are not one player's
         // screen, and a subject with no screen is nobody to ask.
         if (toastSpec != null && playerRef != null) {
-            toast(toastSpec, playerRef, args, wantsNotification(subject, momentId));
+            toast(toastSpec, playerRef, values, wantsToast(subject, momentId, toastSpec, values));
         }
-        broadcast(moment.getBroadcast(), args);
-        sound(moment.getSound(), playerRef);
-        command(moment.getCommand(), subject, args);
+        broadcast(resolved.broadcast(), values);
+        sound(resolved.sound(), playerRef);
+        command(resolved.command(), subject, values);
     }
 
     // ==================== the four parts ====================
@@ -168,7 +194,6 @@ public final class FeedbackEngine {
         }
         try {
             Map<String, String> placeholders = new LinkedHashMap<>();
-            placeholders.put("player", subject.name());
             for (Map.Entry<String, Object> entry : args.entrySet()) {
                 String value = text(entry.getValue());
                 if (value != null) {
@@ -184,14 +209,42 @@ public final class FeedbackEngine {
     // ==================== internals ====================
 
     /**
-     * Does this subject want the personal notification for this moment? Its own handle answers when
-     * it has an opinion ({@link FeedbackAudience}); a handle that offers none is a player who wants
-     * whatever was authored, and an opinion that throws is not allowed to cost the moment.
+     * The moment's values with {@link #PLAYER_ARG} answering for the subject's name, so a line, a
+     * variant and a command can all reach it. A producer that carried its own {@code player} keeps
+     * it: the subject's name is the fallback, never an override.
      */
-    static boolean wantsNotification(@Nonnull Subject subject, @Nonnull String momentId) {
+    @Nonnull
+    static Map<String, Object> withPlayer(@Nonnull Subject subject, @Nonnull Map<String, Object> args) {
+        if (args.containsKey(PLAYER_ARG)) {
+            return args;
+        }
+        Map<String, Object> values = new LinkedHashMap<>(args.size() + 1);
+        values.put(PLAYER_ARG, subject.name());
+        values.putAll(args);
+        return values;
+    }
+
+    /**
+     * Should this toast be drawn for this subject? Its own handle answers when it has an opinion
+     * ({@link FeedbackAudience}), told everything the moment carries plus whether a progress tick
+     * crossed the authored {@code EveryPercent} mark; a handle that offers none gets what was
+     * authored - every tick when no mark was set, the marks and the finish when one was - and an
+     * opinion that throws is not allowed to cost the moment.
+     */
+    static boolean wantsToast(@Nonnull Subject subject, @Nonnull String momentId,
+            @Nonnull FeedbackMomentAsset.Toast spec, @Nonnull Map<String, Object> args) {
+        Boolean crossed = crossedMark(spec.getEveryPercent(), args);
         try {
             FeedbackAudience audience = subject.handleAs(FeedbackAudience.class);
-            return audience == null || audience.wantsNotification(momentId);
+            if (audience == null) {
+                return crossed == null || crossed;
+            }
+            Map<String, Object> asked = args;
+            if (crossed != null) {
+                asked = new LinkedHashMap<>(args);
+                asked.put(MILESTONE_ARG, crossed);
+            }
+            return audience.wantsNotification(momentId, asked);
         } catch (Throwable t) {
             SafeLog.fine("moment audience check failed: " + t.getMessage());
             return true;
@@ -199,10 +252,39 @@ public final class FeedbackEngine {
     }
 
     /**
+     * Did this progress tick cross a multiple of {@code everyPercent} of the way, or finish the
+     * step? Null when there is nothing to ask: no mark authored, or a moment that does not report
+     * progress at all.
+     *
+     * <p>A tick crosses a mark when the whole-mark count of {@code current} exceeds that of the
+     * value just before it, so a jump over several marks still counts once and the last tick, at
+     * one hundred percent, always does.
+     */
+    @Nullable
+    static Boolean crossedMark(@Nullable Integer everyPercent, @Nonnull Map<String, Object> args) {
+        if (everyPercent == null) {
+            return null;
+        }
+        Long current = number(args.get(CURRENT_ARG));
+        Long required = number(args.get(REQUIRED_ARG));
+        if (current == null || required == null || required <= 0L) {
+            return null;
+        }
+        if (Boolean.TRUE.equals(args.get(FINISHED_ARG))) {
+            return true;
+        }
+        long percentNow = current * 100L / required;
+        long percentBefore = (current - 1L) * 100L / required;
+        return percentNow / everyPercent > percentBefore / everyPercent;
+    }
+
+    /**
      * One authored line as a client-resolved message, or null when it cannot be built.
      *
      * <p>The authored key carries no namespace - a moment file is written the way the content beside
      * it is - so the owning consumer's own catalogue lends it one before the client ever sees it.
+     * A line whose key comes from one of the moment's own values ({@code KeyArg}) reads it the same
+     * way.
      *
      * <p>Each named argument is bound TWICE, once under its own name and once under its position,
      * so a lang value written {@code {0}} and one written {@code {title}} both fill. An argument the
@@ -212,7 +294,11 @@ public final class FeedbackEngine {
     @Nullable
     static Message line(@Nullable FeedbackMomentAsset.Line spec,
             @Nonnull Map<String, Object> args) {
-        if (spec == null || spec.getKey() == null) {
+        if (spec == null) {
+            return null;
+        }
+        String key = spec.keyFor(args);
+        if (key == null) {
             return null;
         }
         Map<String, Object> bound = new LinkedHashMap<>();
@@ -228,7 +314,7 @@ public final class FeedbackEngine {
         }
         // The key is authored WITHOUT a namespace, the way every other authored key in this library
         // is written; the seam turns it into the id the owning consumer actually registered.
-        Message message = Msg.keyNamed(ContentKeys.resolved(spec.getKey()), bound);
+        Message message = Msg.keyNamed(ContentKeys.resolved(key), bound);
         String color = spec.getColor();
         return color == null ? message : Msg.color(message, color);
     }
@@ -256,5 +342,21 @@ public final class FeedbackEngine {
         }
         String raw = value.toString();
         return raw.isBlank() ? null : raw;
+    }
+
+    /** One argument as a whole number, or null when it is not one. */
+    @Nullable
+    private static Long number(@Nullable Object value) {
+        if (value instanceof Number n) {
+            return n.longValue();
+        }
+        if (value instanceof String s) {
+            try {
+                return Long.parseLong(s.trim());
+            } catch (NumberFormatException notANumber) {
+                return null;
+            }
+        }
+        return null;
     }
 }

@@ -183,6 +183,8 @@ class AssetCodecInitTest {
         assertNotNull(FeedbackMomentAsset.Toast.CODEC, "FeedbackMomentAsset.Toast.CODEC must static-init (PascalCase keys)");
         assertNotNull(FeedbackMomentAsset.Broadcast.CODEC, "FeedbackMomentAsset.Broadcast.CODEC must static-init (PascalCase keys)");
         assertNotNull(FeedbackMomentAsset.Sound.CODEC, "FeedbackMomentAsset.Sound.CODEC must static-init (PascalCase keys)");
+        assertNotNull(FeedbackMomentAsset.Command.CODEC, "FeedbackMomentAsset.Command.CODEC must static-init (PascalCase keys)");
+        assertNotNull(FeedbackMomentAsset.Variant.CODEC, "FeedbackMomentAsset.Variant.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

@@ -1,0 +1,13 @@
+# The library's own default feedback moments (Server/ZiggfreedCommon/FeedbackMoments/*.json).
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.feedback.<key>.
+
+quest.completed = Küldetés teljesítve: {0}
+quest.parked = Küldetés teljesítve: {0}. Gyere vissza a jutalmadért.
+quest.parked.no_space = Küldetés teljesítve: {0}. Csinálj helyet, hogy átvehesd a jutalmadat.
+quest.claimed = Jutalmak átvéve: {0}
+quest.objective_progressed = {0} ({1}/{2})
+quest.objective_finished = Cél teljesítve: {0}
+achievement.unlocked = Eredmény megszerezve: {0}
+achievement.points = {0} pont
+achievement.claimed = Eredmény jutalmai átvéve: {0}
+achievement.server_first_lost = Valaki megelőzött: {0}

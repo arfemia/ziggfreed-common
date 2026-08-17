@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -71,6 +72,24 @@ import com.ziggfreed.common.util.SafeLog;
  * seam, so no amount of drift can turn a rendering pass into an accept or a claim.
  */
 public final class QuestEngine implements QuestStateReader {
+
+    /**
+     * The {@code reason} a {@code quest.parked} moment carries for a quest authored to be collected
+     * rather than paid out the instant it finishes ({@link Quest#autoClaim()} off).
+     */
+    public static final String PARKED_COLLECT = "collect";
+
+    /**
+     * The {@code reason} a {@code quest.parked} moment carries when the consumer said the player
+     * cannot receive the rewards right now (no room for them, in the usual case).
+     */
+    public static final String PARKED_NO_SPACE = "no_space";
+
+    /**
+     * The {@code reason} a {@code quest.parked} moment carries when the quest names a
+     * {@link Quest#turnInAt() site} and the player finished it somewhere else.
+     */
+    public static final String PARKED_AWAY = "away";
 
     /** Whether a player may take a quest, and every reason they may not. */
     public record AcceptCheck(boolean allowed, @Nonnull List<String> reasons) {
@@ -997,16 +1016,15 @@ public final class QuestEngine implements QuestStateReader {
         if (!allObjectivesComplete(subject, quest)) {
             return;
         }
-        boolean canReceive = gates.canReceiveRewards(subject, quest)
-                && canCompleteAt(subject, quest, atId);
-        if (!quest.autoClaim() || !canReceive) {
+        String parkedReason = parkedReason(subject, quest, atId);
+        if (parkedReason != null) {
             markUnclaimed(subject, quest);
             store.markDirty(subject);
-            fireCompleted(quest, subject, true);
+            fireCompleted(quest, subject, parkedReason);
             return;
         }
         markCompleted(subject, quest);
-        fireCompleted(quest, subject, false);
+        fireCompleted(quest, subject, null);
         RewardGrants.GrantOutcome outcome = grantRewards(subject, quest);
         store.markDirty(subject);
         // A quest that pays out the instant it finishes is a transaction boundary exactly like a
@@ -1016,7 +1034,34 @@ public final class QuestEngine implements QuestStateReader {
         if (outcome.anyDelivered()) {
             store.flush(subject);
         }
-        fireClaimed(quest, subject, outcome);
+        fireClaimed(quest, subject, outcome, false);
+    }
+
+    /**
+     * Why a finished quest parks instead of paying out, as the token the {@code quest.parked}
+     * moment carries under {@code reason}, or null when it pays out now.
+     *
+     * <p>Three causes, reported in the order they are decided: {@link #PARKED_COLLECT} when the
+     * quest is authored to be collected rather than paid on the spot ({@link Quest#autoClaim()}
+     * off), {@link #PARKED_NO_SPACE} when the consumer says the player cannot receive the rewards
+     * right now, {@link #PARKED_AWAY} when the quest names a {@link Quest#turnInAt() site} and
+     * {@code atId} is not it. A quest that is both authored to be collected and out of room reads
+     * as collected: that is the case that was always going to park, and the room will matter when
+     * they come to collect.
+     */
+    @Nullable
+    private String parkedReason(@Nonnull Subject subject, @Nonnull Quest quest,
+                                @Nullable String atId) {
+        if (!quest.autoClaim()) {
+            return PARKED_COLLECT;
+        }
+        if (!gates.canReceiveRewards(subject, quest)) {
+            return PARKED_NO_SPACE;
+        }
+        if (!canCompleteAt(subject, quest, atId)) {
+            return PARKED_AWAY;
+        }
+        return null;
     }
 
     /** Are all of this quest's objectives complete for this player? */
@@ -1068,7 +1113,7 @@ public final class QuestEngine implements QuestStateReader {
         // payout paths, which the engine reaches on its own and which commit only when they paid.
         store.markDirty(subject);
         store.flush(subject);
-        fireClaimed(quest, subject, outcome);
+        fireClaimed(quest, subject, outcome, true);
         return true;
     }
 
@@ -1090,14 +1135,14 @@ public final class QuestEngine implements QuestStateReader {
             return false;
         }
         markCompleted(subject, quest);
-        fireCompleted(quest, subject, false);
+        fireCompleted(quest, subject, null);
         RewardGrants.GrantOutcome outcome = grantRewards(subject, quest);
         store.markDirty(subject);
         // Commits when it paid, on the same rule as the auto-claim path above.
         if (outcome.anyDelivered()) {
             store.flush(subject);
         }
-        fireClaimed(quest, subject, outcome);
+        fireClaimed(quest, subject, outcome, false);
         return true;
     }
 
@@ -1752,8 +1797,18 @@ public final class QuestEngine implements QuestStateReader {
      * things to say: a quest that paid out is finished, a quest that PARKED is waiting to be
      * collected somewhere, and a server author writing the second one wants their own words and
      * their own sound for it rather than a variant of the first.
+     *
+     * <p>Both carry {@code parked} and, when the quest names one, {@code turnIn} (the kind of place
+     * it is collected at, {@code character} or {@code accept_site}); a parked one also carries
+     * {@code reason} ({@link #PARKED_COLLECT} / {@link #PARKED_NO_SPACE} / {@link #PARKED_AWAY}),
+     * so ONE authored file can say "your bags are full" and "collect it where you took it" as two
+     * cases of the same moment.
+     *
+     * @param parkedReason why it parked, or null for a quest paying out now
      */
-    private void fireCompleted(@Nonnull Quest quest, @Nonnull Subject subject, boolean parked) {
+    private void fireCompleted(@Nonnull Quest quest, @Nonnull Subject subject,
+                               @Nullable String parkedReason) {
+        boolean parked = parkedReason != null;
         if (nativeEvents) {
             QuestEvents.fireCompleted(quest.id(), subject.id(), parked, quest.tags());
         }
@@ -1761,20 +1816,38 @@ public final class QuestEngine implements QuestStateReader {
                 subject, "quest", quest.id(), "title", quest.text().titleOr(quest.id()),
                 // Carried on BOTH ids, so a hook handed either one can tell which case it is
                 // without reading meaning into the id it was called with.
-                "parked", Boolean.valueOf(parked));
+                "parked", Boolean.valueOf(parked),
+                "reason", parkedReason,
+                "turnIn", turnInToken(quest));
     }
 
+    /**
+     * The rewards were paid, either the instant the quest finished or when the player came to
+     * collect them; {@code collected} tells the two apart, so a jingle authored for collecting a
+     * parked reward does not also play over the completion jingle of one that settled on the spot.
+     */
     private void fireClaimed(@Nonnull Quest quest, @Nonnull Subject subject,
-                             @Nonnull RewardGrants.GrantOutcome outcome) {
+                             @Nonnull RewardGrants.GrantOutcome outcome, boolean collected) {
         if (nativeEvents) {
             QuestEvents.fireClaimed(quest.id(), subject.id(), outcome.granted(), outcome.queued(),
                     outcome.failed(), quest.tags());
         }
         ProgressionFeedbackHook.fire(feedbackHook, warn, "quest.claimed", subject,
                 "quest", quest.id(), "title", quest.text().titleOr(quest.id()),
+                "collected", Boolean.valueOf(collected),
                 "granted", Integer.valueOf(outcome.granted()),
                 "queued", Integer.valueOf(outcome.queued()),
                 "failed", Integer.valueOf(outcome.failed()));
+    }
+
+    /**
+     * The kind of place this quest is collected at, as the lower-case token a moment carries under
+     * {@code turnIn}, or null for a quest collected from anywhere (which is then omitted).
+     */
+    @Nullable
+    private static String turnInToken(@Nonnull Quest quest) {
+        QuestTurnInSite site = quest.turnInAt();
+        return site == null ? null : site.kind().name().toLowerCase(Locale.ROOT);
     }
 
     private void fireAbandoned(@Nonnull String questId, @Nonnull Subject subject,

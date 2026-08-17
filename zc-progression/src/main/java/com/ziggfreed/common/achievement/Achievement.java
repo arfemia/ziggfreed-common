@@ -1,7 +1,9 @@
 package com.ziggfreed.common.achievement;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nonnull;
@@ -51,6 +53,7 @@ public final class Achievement {
     @Nullable private final GateSpec requires;
     private final ContentText text;
     @Nullable private final String icon;
+    private final Map<String, Object> momentArgs;
 
     private Achievement(@Nonnull Builder b) {
         this.id = b.id;
@@ -67,6 +70,7 @@ public final class Achievement {
         this.requires = b.requires;
         this.text = b.text;
         this.icon = b.icon;
+        this.momentArgs = Map.copyOf(b.momentArgs);
     }
 
     /**
@@ -95,6 +99,7 @@ public final class Achievement {
                 .requires(requires)
                 .text(text)
                 .icon(icon)
+                .momentArgs(momentArgs)
                 .build();
     }
 
@@ -212,6 +217,21 @@ public final class Achievement {
         return icon;
     }
 
+    /**
+     * Named values this achievement carries into every feedback moment about it, beside the ones
+     * the engine composes itself (which win on a clash). Empty when it carries none.
+     *
+     * <p>Written by whoever FOLDED the catalogue, for whatever its own files authored that a moment
+     * might want to say: an announcement's own key, the subject a ladder rung is about, a number
+     * already formatted. The engine never reads them; it only carries them, so an authored moment
+     * file can reach a per-achievement value by name without the engine learning what it means.
+     * A localized value goes in as a {@code Message} and stays one; anything else is plain data.
+     */
+    @Nonnull
+    public Map<String, Object> momentArgs() {
+        return momentArgs;
+    }
+
     /** Keep it off open listings until it is earned, for a surprise or a retired one-off. */
     public boolean hidden() {
         return hidden;
@@ -278,6 +298,7 @@ public final class Achievement {
         @Nullable private GateSpec requires;
         private ContentText text = ContentText.EMPTY;
         @Nullable private String icon;
+        private final Map<String, Object> momentArgs = new LinkedHashMap<>();
 
         private Builder(@Nonnull String id) {
             this.id = id;
@@ -372,6 +393,29 @@ public final class Achievement {
         @Nonnull
         public Builder icon(@Nullable String icon) {
             this.icon = icon == null || icon.isBlank() ? null : icon.trim();
+            return this;
+        }
+
+        /**
+         * One named value every feedback moment about this achievement carries; see
+         * {@link Achievement#momentArgs()}. A null value carries nothing under that name.
+         */
+        @Nonnull
+        public Builder momentArg(@Nonnull String name, @Nullable Object value) {
+            if (value == null) {
+                momentArgs.remove(name);
+            } else {
+                momentArgs.put(name, value);
+            }
+            return this;
+        }
+
+        /** Every entry of {@code values} through {@link #momentArg}, keeping what was already set. */
+        @Nonnull
+        public Builder momentArgs(@Nonnull Map<String, ?> values) {
+            for (Map.Entry<String, ?> entry : values.entrySet()) {
+                momentArg(entry.getKey(), entry.getValue());
+            }
             return this;
         }
 

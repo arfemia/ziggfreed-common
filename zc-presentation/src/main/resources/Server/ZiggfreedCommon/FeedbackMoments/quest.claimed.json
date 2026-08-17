@@ -1,0 +1,29 @@
+{
+  "$Comment": [
+    "What a player sees and hears when a quest's rewards are paid to them.",
+    "",
+    "It fires both for a quest that pays out the instant it finishes and for one the player came",
+    "back to collect. 'collected' tells them apart (true for the collect), which is what the",
+    "Variants entry below reads: a quest that settled on the spot already had its quest.completed",
+    "notice, so only a collect is announced here, and it is announced quietly.",
+    "",
+    "This is the library's own neutral default. A mod that ships a file with this same name in its",
+    "own pack replaces it, and a server owner can do the same from the owner layer.",
+    "",
+    "The moment carries 'quest' (its id), 'title' (its name in the reader's language),",
+    "'collected', and the outcome as 'granted' / 'queued' / 'failed' reward counts. 'player' is",
+    "always the name of who was paid. Add a Sound group to the Variants entry to give collecting a",
+    "jingle of its own."
+  ],
+  "Variants": [
+    {
+      "When": { "collected": true },
+      "Toast": {
+        "Title": {
+          "Key": "ziggfreedcommon.feedback.quest.claimed",
+          "Args": ["title"]
+        }
+      }
+    }
+  ]
+}

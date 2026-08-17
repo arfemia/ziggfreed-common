@@ -46,7 +46,15 @@ which one shared instance cannot afford, and it is exactly why that method exist
   reset criterion would resurrect a pre-migration value.
 - **Two reward lists, two moments.** `autoRewards` land on earning; `claimRewards` wait. An
   achievement with no claim rewards settles in ONE step, which is what makes CLAIMED reachable with
-  no second interaction. Never collapse them into one list plus a flag.
+  no second interaction. Never collapse them into one list plus a flag. The `achievement.claimed`
+  feedback moment carries `collected` (true when the subject came back for what waited, false when
+  it settled as it was earned) so a jingle authored for collecting never plays over the unlock.
+- **A fold may attach values a moment about the achievement should carry.** `Achievement.momentArgs`
+  (builder `momentArg(name, value)`) rides into `achievement.unlocked` and `achievement.claimed`
+  under the fold's own names, beneath the engine's own (`title`, `icon`, `points`, ... win on a
+  clash). That is how a consumer's per-achievement authoring - an announcement's own key, the thing
+  a ladder rung is about - reaches an authored moment file by name without the engine learning what
+  any of it means. The engine never reads them.
 - **Never a mode.** `available` / `hidden` / `countsTowardTotal` are three independent switches; a
   retired one-off is hidden-or-not, counting-or-not, earnable-or-not in any combination. A new
   achievement "type" constant is the smell this exists to prevent.

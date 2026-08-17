@@ -457,7 +457,7 @@ public final class AchievementEngine {
         RewardGrants.GrantOutcome outcome = grant(subject, achievement, achievement.autoRewards());
         if (!achievement.requiresClaim()) {
             store.setStatus(subject, achievement.id(), AchievementStatus.CLAIMED);
-            fireClaimed(achievement, subject, outcome);
+            fireClaimed(achievement, subject, outcome, false);
         }
         // Reported as a change, NOT committed. Earning is something the engine decides rather than
         // something the subject asked for, and it arrives in bulk: a self-heal walks the whole
@@ -489,7 +489,7 @@ public final class AchievementEngine {
         // Collecting is a subject-owned transaction boundary, so the writes are committed here.
         store.markDirty(subject);
         store.flush(subject);
-        fireClaimed(achievement, subject, outcome);
+        fireClaimed(achievement, subject, outcome, true);
         return true;
     }
 
@@ -864,7 +864,8 @@ public final class AchievementEngine {
     /**
      * It is EARNED. The icon travels with the moment under the fixed key {@code icon}, because it is
      * the achievement's own - written onto the definition when the catalogue was folded, so nothing
-     * downstream has to go looking for one.
+     * downstream has to go looking for one - and so does everything else the fold attached under
+     * {@link Achievement#momentArgs()}, beneath the engine's own names.
      */
     private void fireUnlocked(@Nonnull Achievement achievement, @Nonnull Subject subject,
                               boolean awaitingClaim) {
@@ -873,22 +874,30 @@ public final class AchievementEngine {
                     awaitingClaim, achievement.tags());
         }
         ProgressionFeedbackHook.fire(feedbackHook, warn, "achievement.unlocked", subject,
+                achievement.momentArgs(),
                 "achievement", achievement.id(), "title", achievement.text().titleOr(achievement.id()),
                 "icon", achievement.icon(),
                 "points", Integer.valueOf(achievement.points()),
                 "awaiting_claim", Boolean.valueOf(awaitingClaim));
     }
 
+    /**
+     * The rewards were paid, either as it was earned or when the subject came to collect them;
+     * {@code collected} tells the two apart, so a jingle authored for collecting does not also
+     * play over the unlock jingle of one that settled in the same breath.
+     */
     private void fireClaimed(@Nonnull Achievement achievement, @Nonnull Subject subject,
-                             @Nonnull RewardGrants.GrantOutcome outcome) {
+                             @Nonnull RewardGrants.GrantOutcome outcome, boolean collected) {
         if (nativeEvents) {
             AchievementEvents.fireClaimed(achievement.id(), subject.id(), outcome.granted(),
                     outcome.queued(), outcome.failed(), achievement.tags());
         }
         ProgressionFeedbackHook.fire(feedbackHook, warn, "achievement.claimed", subject,
+                achievement.momentArgs(),
                 "achievement", achievement.id(), "title", achievement.text().titleOr(achievement.id()),
                 "icon", achievement.icon(),
                 "points", Integer.valueOf(achievement.points()),
+                "collected", Boolean.valueOf(collected),
                 "granted", Integer.valueOf(outcome.granted()),
                 "queued", Integer.valueOf(outcome.queued()),
                 "failed", Integer.valueOf(outcome.failed()));

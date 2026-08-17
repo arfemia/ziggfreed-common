@@ -1,0 +1,34 @@
+{
+  "$Comment": [
+    "What a player sees and hears the moment an achievement is earned.",
+    "",
+    "This is the library's own neutral default. A mod that ships a file with this same name in its",
+    "own pack replaces it, and a server owner can do the same from the owner layer.",
+    "",
+    "The picture beside the words is the achievement's own, decided when the catalogue loaded, so",
+    "there is nothing to name here per achievement; an achievement with no picture gets a notice",
+    "without one.",
+    "",
+    "The moment carries 'achievement' (its id), 'title' (its name in the reader's language),",
+    "'points' (what it is worth), 'awaiting_claim' (true when a reward still waits to be",
+    "collected) and anything the mod that catalogued it attached under its own names. 'player' is",
+    "always the name of who earned it.",
+    "",
+    "Add a Broadcast group to tell the whole server; a line whose Key is a KeyArg reads its key",
+    "from one of the moment's own values, which is how a mod announces some achievements with",
+    "their own words and stays quiet about the rest."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.feedback.achievement.unlocked",
+      "Args": ["title"]
+    },
+    "Secondary": {
+      "Key": "ziggfreedcommon.feedback.achievement.points",
+      "Args": ["points"]
+    }
+  },
+  "Sound": {
+    "Id": "SFX_Capture_Crate_Capture_Succeed_Local"
+  }
+}

@@ -26,6 +26,9 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
 import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.quest.QuestEngine;
+import com.ziggfreed.common.quest.QuestGates;
+import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.quest.RequiresGates;
 import com.ziggfreed.common.subject.Subject;
 
@@ -90,6 +93,9 @@ class ProgressionFeedbackHookTest {
                         .target("Oak_Log").matchMode(MatchMode.EXACT).amount(1).build())
                 .points(25)
                 .icon("Ingredient_Bar_Iron")
+                .momentArg("announceKey", "yourmod.announce.first_log")
+                // A fold cannot shadow a name the engine composes itself.
+                .momentArg("title", "not the title")
                 .build();
     }
 
@@ -156,9 +162,67 @@ class ProgressionFeedbackHookTest {
         assertEquals("q_parked", parked.args().get("quest"));
         assertEquals(Boolean.TRUE, parked.args().get("parked"),
                 "and it says so in its arguments too, so a hook never has to read the id");
-        assertEquals("q_parked", only("quest.claimed").args().get("quest"));
+        assertEquals(QuestEngine.PARKED_COLLECT, parked.args().get("reason"),
+                "a quest authored to be collected parks for that reason, so one authored file can"
+                        + " word it apart from a full bag");
+        assertNull(parked.args().get("turnIn"),
+                "a quest collected from anywhere names no kind of place, and omits rather than"
+                        + " nulls");
+        Moment claimed = only("quest.claimed");
+        assertEquals("q_parked", claimed.args().get("quest"));
+        assertEquals(Boolean.TRUE, claimed.args().get("collected"),
+                "collecting a parked reward says so, so a jingle for collecting can be authored"
+                        + " apart from the completion of one that settled on the spot");
         assertTrue(!momentIds().contains("quest.completed"),
                 "a quest waiting to be collected is a different moment from one that settled");
+    }
+
+    /**
+     * The three ways a finished quest can park each carry their own reason token, and a quest
+     * collected somewhere in particular carries the kind of place: that is what lets ONE authored
+     * {@code quest.parked} file say "your bags are full", "collect it where you took it" and "come
+     * back to collect it" as three cases of the same moment.
+     */
+    @Test
+    void aParkedQuestSaysWhyItParkedAndWhereItIsCollected() {
+        ProgressionRuntime.registrar(CONSUMER).feedbackHook(recorder());
+        Quest fullBag = Quest.builder("q_full")
+                .objective(ObjectiveDef.builder("kills", "KILL_ENTITY")
+                        .target("Wolf").matchMode(MatchMode.EXACT).amount(1).build())
+                .build();
+        Quest atACharacter = Quest.builder("q_hand_in")
+                .objective(ObjectiveDef.builder("kills", "KILL_ENTITY")
+                        .target("Wolf").matchMode(MatchMode.EXACT).amount(1).build())
+                .turnInAt(QuestTurnInSite.character("innkeeper"))
+                .build();
+        ProgressionRuntime.publishQuests(CONSUMER, List.of(fullBag, atACharacter));
+        ProgressionRuntime.registrar(CONSUMER).questGates(new QuestGates() {
+            @Override
+            public boolean canReceiveRewards(@Nonnull Subject subject, @Nonnull Quest quest) {
+                return !"q_full".equals(quest.id());
+            }
+        });
+        ProgressionRuntime.quests().accept(player, fullBag);
+        ProgressionRuntime.quests().accept(player, atACharacter);
+
+        ProgressionRuntime.quests().dispatch(player, "KILL_ENTITY", "Wolf", null, 1);
+
+        List<Moment> parked = new ArrayList<>();
+        for (Moment moment : seen) {
+            if (moment.id().equals("quest.parked")) {
+                parked.add(moment);
+            }
+        }
+        assertEquals(2, parked.size(), "both parked, each for its own reason: " + momentIds());
+        Map<String, Moment> byQuest = new java.util.HashMap<>();
+        for (Moment moment : parked) {
+            byQuest.put(String.valueOf(moment.args().get("quest")), moment);
+        }
+        assertEquals(QuestEngine.PARKED_NO_SPACE, byQuest.get("q_full").args().get("reason"));
+        assertNull(byQuest.get("q_full").args().get("turnIn"));
+        assertEquals(QuestEngine.PARKED_AWAY, byQuest.get("q_hand_in").args().get("reason"),
+                "finished nowhere in particular, so it waits for the character");
+        assertEquals("character", byQuest.get("q_hand_in").args().get("turnIn"));
     }
 
     @Test
@@ -176,6 +240,9 @@ class ProgressionFeedbackHookTest {
         Moment completed = only("quest.completed");
         assertEquals("q_auto", completed.args().get("quest"));
         assertEquals(Boolean.FALSE, completed.args().get("parked"));
+        assertNull(completed.args().get("reason"), "a quest that paid out has no reason to park");
+        assertEquals(Boolean.FALSE, only("quest.claimed").args().get("collected"),
+                "paid on the spot is not collected: nothing waited");
         assertTrue(!momentIds().contains("quest.parked"));
     }
 
@@ -197,6 +264,10 @@ class ProgressionFeedbackHookTest {
         assertEquals(Integer.valueOf(25), unlocked.args().get("points"));
         assertEquals(Boolean.FALSE, unlocked.args().get("awaiting_claim"),
                 "nothing is owed, so it is collected in the same breath");
+        assertEquals("yourmod.announce.first_log", unlocked.args().get("announceKey"),
+                "whatever the fold attached rides into the moment under its own name");
+        assertTrue(!"not the title".equals(unlocked.args().get("title")),
+                "and the engine's own names win over anything a fold attached");
 
         // An achievement owing nothing settles as it is earned, so the payout moment rides along
         // and carries the outcome triple whichever way it was reached.
@@ -204,6 +275,9 @@ class ProgressionFeedbackHookTest {
         assertSame(player, claimed.subject());
         assertEquals("a_first_log", claimed.args().get("achievement"));
         assertEquals("Ingredient_Bar_Iron", claimed.args().get("icon"));
+        assertEquals(Boolean.FALSE, claimed.args().get("collected"),
+                "settled as it was earned, not collected later");
+        assertEquals("yourmod.announce.first_log", claimed.args().get("announceKey"));
         assertEquals(Integer.valueOf(0), claimed.args().get("granted"));
         assertEquals(Integer.valueOf(0), claimed.args().get("queued"));
         assertEquals(Integer.valueOf(0), claimed.args().get("failed"));

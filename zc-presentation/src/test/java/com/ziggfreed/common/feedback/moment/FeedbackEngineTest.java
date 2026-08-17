@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -35,7 +36,8 @@ import com.ziggfreed.common.subject.Subject;
  *
  * <p>The drawing itself is packets, so it is validated in game rather than here; what is pinned
  * here is everything a broken authoring file or an absent player could otherwise turn into a throw
- * on the path of a state transition.
+ * on the path of a state transition, plus the pure decisions the file drives: which variant a
+ * moment resolves to, which key a line reads, and whether a progress tick is worth a toast.
  */
 class FeedbackEngineTest {
 
@@ -86,10 +88,12 @@ class FeedbackEngineTest {
         assertEquals(List.of("title"), List.of(asset.getToast().getTitle().getArgs()));
         assertEquals("#FFFF00", asset.getToast().getTitle().getColor());
         assertNull(asset.getToast().getSecondary(), "a one-line toast authors no second line");
+        assertNull(asset.getToast().getEveryPercent(), "no mark means every tick shows");
         assertNotNull(asset.getSound());
         assertEquals("SFX_Discovery_Z2_Short", asset.getSound().getId());
         assertNull(asset.getBroadcast(), "a group nobody authored stays absent, not empty");
         assertNull(asset.getCommand());
+        assertEquals(0, asset.getVariants().length, "no variants means one reading for every case");
     }
 
     @Test
@@ -109,6 +113,76 @@ class FeedbackEngineTest {
         assertNotNull(child.getToast(), "the group the child said nothing about carries over");
         assertNotNull(child.getToast().getTitle());
         assertEquals("notify.quest_complete", child.getToast().getTitle().getKey());
+    }
+
+    /**
+     * ONE file says two things: the first variant whose {@code When} matches lays its authored
+     * groups over the file's own and leaves the rest alone. A value under {@code When} may be
+     * written bare (a boolean, a number) and is compared as text.
+     */
+    @Test
+    void theFirstMatchingVariantOverlaysOnlyTheGroupsItRestates() throws IOException {
+        FeedbackMomentAsset asset = moment("quest.parked", """
+                { "Toast": { "Title": { "Key": "ready", "Args": ["title"], "Color": "#FFFF00" } },
+                  "Sound": { "Id": "SFX_Discovery_Z1_Short" },
+                  "Variants": [
+                    { "When": { "reason": "no_space" },
+                      "Toast": { "Title": { "Key": "full", "Args": ["title"], "Color": "#FF0000" } },
+                      "Sound": {} },
+                    { "When": { "turnIn": "accept_site", "parked": true },
+                      "Toast": { "Title": { "Key": "board", "Args": ["title"] } } }
+                  ] }
+                """);
+
+        FeedbackMomentAsset.Resolved full = asset.resolve(
+                Map.of("reason", "no_space", "turnIn", "accept_site", "parked", Boolean.TRUE));
+        assertEquals("full", full.toast().getTitle().getKey(), "the first match wins");
+        assertNotNull(full.sound(), "an empty group is authored, so it replaces the file's own");
+        assertNull(full.sound().getId(), "and it means silence for this case");
+
+        FeedbackMomentAsset.Resolved board = asset.resolve(
+                Map.of("reason", "collect", "turnIn", "ACCEPT_SITE", "parked", Boolean.TRUE));
+        assertEquals("board", board.toast().getTitle().getKey(), "matched ignoring case");
+        assertEquals("SFX_Discovery_Z1_Short", board.sound().getId(),
+                "a group the variant did not restate is the file's own");
+
+        FeedbackMomentAsset.Resolved plain = asset.resolve(Map.of("reason", "collect"));
+        assertEquals("ready", plain.toast().getTitle().getKey(),
+                "a moment matching no variant reads the file's own groups");
+
+        FeedbackMomentAsset.Resolved sentence = asset.resolve(
+                Map.of("reason", Msg.raw("no_space")));
+        assertEquals("ready", sentence.toast().getTitle().getKey(),
+                "a localized value is a sentence and never matches a When");
+    }
+
+    /**
+     * A line may read its key from one of the moment's own values, so a per-content wording (an
+     * achievement's own announcement) needs no file per achievement; a moment carrying no such
+     * value falls back to the fixed key, and with neither the line shows nothing.
+     */
+    @Test
+    void aLineReadsItsKeyFromANamedValueBeforeTheFixedOne() throws IOException {
+        FeedbackMomentAsset asset = moment("achievement.unlocked", """
+                { "Broadcast": { "Title": { "KeyArg": "announceKey", "Args": ["title"] },
+                                 "Secondary": { "KeyArg": "bodyKey", "Key": "default.body",
+                                                "Args": ["player", "title"] } } }
+                """);
+        FeedbackMomentAsset.Line title = asset.getBroadcast().getTitle();
+        FeedbackMomentAsset.Line body = asset.getBroadcast().getSecondary();
+
+        assertEquals("their.own.key", title.keyFor(Map.of("announceKey", "their.own.key")));
+        assertNull(title.keyFor(Map.of("title", "x")),
+                "no value and no fixed key: this line shows nothing for this achievement");
+        assertNull(title.keyFor(Map.of("announceKey", Msg.raw("a sentence"))),
+                "a localized value is not a key");
+        assertEquals("default.body", body.keyFor(Map.of("title", "x")),
+                "the fixed key answers when the moment carries no named value");
+        assertEquals("theirs", body.keyFor(Map.of("bodyKey", "theirs")));
+
+        Message line = FeedbackEngine.line(title, Map.of("announceKey", "their.own.key", "title", "T"));
+        assertNotNull(line);
+        assertEquals("their.own.key", line.getMessageId());
     }
 
     // ==================== what the engine does ====================
@@ -166,6 +240,18 @@ class FeedbackEngineTest {
                 "a localized value is a sentence somebody's client renders, never an item id");
     }
 
+    /** The subject's name is always reachable as {@code player}, unless the producer carried its own. */
+    @Test
+    void thePlayerNameIsAlwaysAvailableToALine() {
+        Map<String, Object> values = FeedbackEngine.withPlayer(handleless, Map.of("title", "T"));
+        assertEquals("tester", values.get(FeedbackEngine.PLAYER_ARG));
+        assertEquals("T", values.get("title"));
+
+        Map<String, Object> theirs = Map.of("player", "somebody else");
+        assertSame(theirs, FeedbackEngine.withPlayer(handleless, theirs),
+                "a producer's own value is kept, untouched");
+    }
+
     /**
      * The authored key is UNPREFIXED, the way content is written everywhere else in this library,
      * and the consumer whose catalogue ships it lends it the namespace its client actually
@@ -200,6 +286,17 @@ class FeedbackEngineTest {
         assertEquals("some.native.key", title.getMessageId());
     }
 
+    // ==================== who is toasted ====================
+
+    @Nonnull
+    private static FeedbackMomentAsset.Toast toastWith(@Nullable Integer everyPercent)
+            throws IOException {
+        String mark = everyPercent == null ? "" : ", \"EveryPercent\": " + everyPercent;
+        return moment("quest.objective_progressed", """
+                { "Toast": { "Title": { "Key": "tick", "Args": ["step"] }%s } }
+                """.formatted(mark)).getToast();
+    }
+
     /**
      * A player who turned this consumer's own notifications down loses the personal toast and
      * nothing else: the subject's handle answers, because no authored file can read a setting that
@@ -207,34 +304,93 @@ class FeedbackEngineTest {
      * that honours it fails here.
      */
     @Test
-    void aSubjectsOwnAnswerDecidesWhetherItIsToasted() {
+    void aSubjectsOwnAnswerDecidesWhetherItIsToasted() throws IOException {
         Subject quiet = new Subject(UUID.randomUUID(), "tester", new QuietHandle());
         Subject noisy = new Subject(UUID.randomUUID(), "tester", (Subject.HandleFacets)
-                type -> type == FeedbackAudience.class ? (FeedbackAudience) momentId -> true : null);
+                type -> type == FeedbackAudience.class
+                        ? (FeedbackAudience) (momentId, args) -> true : null);
+        FeedbackMomentAsset.Toast toast = toastWith(null);
 
-        assertFalse(FeedbackEngine.wantsNotification(quiet, "quest.completed"),
+        assertFalse(FeedbackEngine.wantsToast(quiet, "quest.completed", toast, Map.of()),
                 "a handle that says no is honoured");
-        assertTrue(FeedbackEngine.wantsNotification(noisy, "quest.completed"),
+        assertTrue(FeedbackEngine.wantsToast(noisy, "quest.completed", toast, Map.of()),
                 "and a handle that says yes is too");
     }
 
     /** No opinion is not a refusal: a subject that answers for nothing gets whatever was authored. */
     @Test
-    void aSubjectWithNoOpinionIsToasted() {
-        assertTrue(FeedbackEngine.wantsNotification(handleless, "quest.completed"));
+    void aSubjectWithNoOpinionIsToasted() throws IOException {
+        assertTrue(FeedbackEngine.wantsToast(handleless, "quest.completed", toastWith(null), Map.of()));
     }
 
     /** An opinion that throws is not allowed to cost the moment the toast it was authored to draw. */
     @Test
-    void anOpinionThatThrowsStillLeavesTheToastAuthored() {
+    void anOpinionThatThrowsStillLeavesTheToastAuthored() throws IOException {
         Subject broken = new Subject(UUID.randomUUID(), "tester", (Subject.HandleFacets)
                 type -> type == FeedbackAudience.class
-                        ? (FeedbackAudience) momentId -> {
+                        ? (FeedbackAudience) (momentId, args) -> {
                             throw new IllegalStateException("no");
                         }
                         : null);
 
-        assertTrue(FeedbackEngine.wantsNotification(broken, "quest.completed"));
+        assertTrue(FeedbackEngine.wantsToast(broken, "quest.completed", toastWith(null), Map.of()));
+    }
+
+    /**
+     * {@code EveryPercent} is the authored answer for a subject with no opinion: an ordinary tick
+     * shows only when it crosses a mark, the finishing tick always does, and a moment that does not
+     * report progress at all is untouched by it.
+     */
+    @Test
+    void anAuthoredMarkDecidesWhichTicksASubjectWithNoOpinionSees() throws IOException {
+        FeedbackMomentAsset.Toast quarters = toastWith(25);
+
+        assertTrue(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(1, 4, false)),
+                "1 of 4 crosses the first quarter");
+        assertFalse(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(1, 8, false)),
+                "1 of 8 is between marks");
+        assertTrue(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(2, 8, false)),
+                "2 of 8 crosses it");
+        assertTrue(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(3, 3, true)),
+                "the finishing tick always shows");
+        assertTrue(FeedbackEngine.wantsToast(handleless, "m", quarters, Map.of("title", "x")),
+                "a moment reporting no progress is not filtered by a mark it cannot measure");
+        assertTrue(FeedbackEngine.wantsToast(handleless, "m", toastWith(null), progress(1, 8, false)),
+                "no mark authored means every tick");
+    }
+
+    /**
+     * A subject WITH an opinion is told whether the tick crossed the authored mark, under a fixed
+     * name, and decides for itself: that is how a consumer offers "every tick", "the milestones",
+     * "only finishes" or "nothing" as its own setting without the engine learning any of them.
+     */
+    @Test
+    void aSubjectWithAnOpinionIsToldWhetherTheTickCrossedTheMark() throws IOException {
+        List<Map<String, Object>> asked = new ArrayList<>();
+        Subject curious = new Subject(UUID.randomUUID(), "tester", (Subject.HandleFacets)
+                type -> type == FeedbackAudience.class
+                        ? (FeedbackAudience) (momentId, args) -> {
+                            asked.add(args);
+                            return Boolean.TRUE.equals(args.get(FeedbackEngine.MILESTONE_ARG));
+                        }
+                        : null);
+        FeedbackMomentAsset.Toast quarters = toastWith(25);
+
+        assertFalse(FeedbackEngine.wantsToast(curious, "m", quarters, progress(1, 8, false)));
+        assertTrue(FeedbackEngine.wantsToast(curious, "m", quarters, progress(2, 8, false)));
+        assertEquals(Boolean.FALSE, asked.get(0).get(FeedbackEngine.MILESTONE_ARG));
+        assertEquals(Boolean.TRUE, asked.get(1).get(FeedbackEngine.MILESTONE_ARG));
+        assertEquals(1, asked.get(0).get("current"), "and everything the moment carried is there too");
+
+        FeedbackEngine.wantsToast(curious, "m", toastWith(null), progress(1, 8, false));
+        assertFalse(asked.get(2).containsKey(FeedbackEngine.MILESTONE_ARG),
+                "no mark authored, nothing to report: absent rather than false");
+    }
+
+    @Nonnull
+    private static Map<String, Object> progress(int current, int required, boolean finished) {
+        return Map.of("step", "Break logs", "current", current, "required", required,
+                "finished", finished);
     }
 
     /** A consumer catalogue claiming exactly the keys it was built with. */
@@ -258,7 +414,7 @@ class FeedbackEngineTest {
         @Override
         @Nullable
         public Object facet(@Nonnull Class<?> type) {
-            return type == FeedbackAudience.class ? (FeedbackAudience) momentId -> false : null;
+            return type == FeedbackAudience.class ? (FeedbackAudience) (momentId, args) -> false : null;
         }
     }
 
