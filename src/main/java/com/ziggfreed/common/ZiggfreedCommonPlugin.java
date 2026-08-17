@@ -36,6 +36,7 @@ import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.entity.PlayerIdentityCache;
+import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
@@ -88,7 +89,7 @@ import com.ziggfreed.common.world.placed.PlacedBlockRecorder;
  * server jar.
  *
  * <p>The static primitives register nothing (a consumer calls them directly), but this plugin DOES
- * own eight registrations of its own:
+ * own nine registrations of its own:
  * <ul>
  *   <li>the two per-player COMPONENT types the library's own default stores are kept on (progress
  *       and commerce), because a component type registered after a world has loaded cannot be read
@@ -121,6 +122,9 @@ import com.ziggfreed.common.world.placed.PlacedBlockRecorder;
  *   <li><b>the {@link PlayerIdentityCache} lifecycle listeners.</b> The cache is common's own
  *       primitive and the only supported way to identify a player off the world thread, so it has
  *       to be kept current here rather than by whichever consumer happens to read it.</li>
+ *   <li>the {@link PerformerIdentityComponent} station-performer identity type, for the same reason
+ *       as the other component types above: a consumer must not be trusted to remember to register
+ *       another library's component before any world loads.</li>
  * </ul>
  *
  * <p><b>REGISTRATION ONLY (build-enforced).</b> This class registers, wires and populates; it never
@@ -171,6 +175,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         registerLootVocabulary();
         registerCommerce();
         setupPlacementEngine();
+        registerPerformerIdentity();
         setupTalkCredit();
         registerWorldLifecycle();
         registerPlayerIdentity();
@@ -491,6 +496,21 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     event -> NpcPlacementConfig.getInstance().runLateAudit());
         } catch (Throwable t) {
             SafeLog.warn("[placement] engine setup failed", t);
+        }
+    }
+
+    /**
+     * Register the station-performer identity component ({@link PerformerIdentityComponent}), so a
+     * server running any performer-driven consumer (RPG Stations today) gets working orphan-reconcile
+     * without that consumer having to remember to register another library's component itself. A
+     * component registered after a world has loaded cannot be read off entities that were saved
+     * carrying it, so this cannot wait for a consumer's own {@code setup()} to decide whether it will.
+     */
+    private void registerPerformerIdentity() {
+        try {
+            PerformerIdentityComponent.register(getEntityStoreRegistry());
+        } catch (Throwable t) {
+            SafeLog.warn("[performer] could not register PerformerIdentityComponent", t);
         }
     }
 

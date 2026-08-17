@@ -39,3 +39,7 @@ Package root `com.ziggfreed.common.counter`. Depends on `subject.Subject` and no
   aggregate share one summing authority.
 - Any consumer keeping per-subject lifetime numbers builds a `Counters` over its own
   `CounterStore` (an ECS component, a database row) and keeps the key vocabulary on its own side.
+- The MMO Skill Tree mod's `statistics.StatisticsComponent` is the production exemplar of exactly
+  that: it implements `CounterStore` directly (a persisted per-player ECS component IS the store)
+  and wires a fresh `Counters` engine over itself for every read/write, keeping every stat key name
+  on the MMO's own side.

@@ -22,11 +22,14 @@ import com.ziggfreed.common.CommonLog;
  * {@link PerformerReconciler#sweep}) instead of tracking refs in per-session maps that go stale
  * across a restart.
  *
- * <p><b>Registration.</b> A library component has no plugin of its own that owns it, so a consumer
- * plugin registers it ONCE in {@code setup()} via {@link #register(ComponentRegistryProxy)} (which
- * sets {@link #TYPE}). Every attach/query site guards on {@code TYPE != null}, so a performer still
- * spawns/despawns cleanly even if a consumer never registers it - it just loses the reconcile
- * capability (the identity component is never attached, the sweep finds nothing).
+ * <p><b>Registration.</b> ZiggfreedCommon's own wiring root registers this component in its
+ * {@code setup()} (matching the library's other component types) via
+ * {@link #register(ComponentRegistryProxy)} (which sets {@link #TYPE}), so a server running any
+ * performer-driven consumer gets working identity/reconcile without that consumer having to
+ * remember to register another library's component itself. Every attach/query site still guards on
+ * {@code TYPE != null}, so a performer still spawns/despawns cleanly even in the hypothetical case
+ * the registration failed - it just loses the reconcile capability (the identity component is never
+ * attached, the sweep finds nothing).
  *
  * <p><b>Attach point.</b> {@code preAddToWorld} - the pre-commit {@code Holder}, before the entity
  * enters the store (no live-ref race). The bare-{@code Holder} backend attaches it via
@@ -87,10 +90,11 @@ public final class PerformerIdentityComponent implements Component<EntityStore> 
     }
 
     /**
-     * Registers this component type on {@code registry} (a consumer plugin's
-     * {@code getEntityStoreRegistry()}), setting {@link #TYPE}. Idempotent from the caller's view:
-     * call ONCE at plugin {@code setup()}. Never throws - a registration failure logs and leaves
-     * {@link #TYPE} unset (performers still work, just without reconcile).
+     * Registers this component type on {@code registry} (the library wiring root's
+     * {@code getEntityStoreRegistry()}), setting {@link #TYPE}. The ONE caller is
+     * {@code ZiggfreedCommonPlugin.registerPerformerIdentity()} at the library's own
+     * {@code setup()}; a consumer never calls this. Never throws - a registration failure logs and
+     * leaves {@link #TYPE} unset (performers still work, just without reconcile).
      *
      * @return the registered type, or {@code null} on failure.
      */

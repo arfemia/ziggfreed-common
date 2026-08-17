@@ -2,7 +2,23 @@
 
 Router for `com.ziggfreed.common.util`. Small, config-free, reusable helpers; no Kweebec/MMO imports, no i18n. Engine-touching helpers are world-thread only (caller's responsibility) and try-guarded.
 
-- **[`SafeLog`](SafeLog.java)** - the ONE guarded logging facade for ziggfreed-common: `info`/`warn`/`severe`/`fine`, each with an optional `Throwable`-cause overload, every message prefixed `[ziggfreed-common]`. Each method wraps the raw `CommonLog.LOGGER` fluent chain in `try/catch (Throwable)` - the flogger LOGGER throws an `Error` in a log-manager-less unit JVM that escapes a plain `catch (Exception)`, so the guard is what lets an engine-touching primitive be unit-tested at all; zero cost when nothing throws. New code routes through it; the roughly 90 pre-existing raw `CommonLog.LOGGER` call sites each re-rolling their own private guard are NOT retrofitted (a pending follow-up, not a rule exemption).
+- **[`GuardedLogger`](GuardedLogger.java)** - the ONE shared guarded-logging IMPLEMENTATION: an
+  instantiable wrapper over a `Supplier<HytaleLogger>` plus an optional prefix, exposing `info`/
+  `warn`/`severe`/`fine`/`finer`, each with a `(String)` and a `(String, Throwable)` overload, each
+  wrapping its logger call in `try/catch (Throwable)` - the flogger LOGGER throws an `Error` in a
+  log-manager-less unit JVM that escapes a plain `catch (Exception)`, so the guard is what lets an
+  engine-touching primitive be unit-tested at all; zero cost when nothing throws (an empty prefix
+  passes the caller's own String straight through, no concatenation). The logger is SUPPLIED, not
+  resolved: the first touch of the underlying flogger field then happens inside the guard rather
+  than in a caller's static initializer, where the same failure would escape as an
+  `ExceptionInInitializerError` and poison the facade class for the rest of the JVM's life. The
+  logging facade of every mod that depends on this library (this module's own `SafeLog` below, the
+  MMO's `util.SafeLog`, Kweebec Nightmare's `util.SafeLog`, RPG Stations' `util.Log`) is a thin
+  static wrapper over ONE `GuardedLogger` instance holding its own plugin's logger + prefix - each
+  facade keeps its own name, ownership and call sites; only the guard shape is shared. The
+  zero-dependency `command-interactions` mod keeps its own hand-rolled copy by design (it takes no
+  ziggfreed-common dependency at all), so do not "finish the convergence" there.
+- **[`SafeLog`](SafeLog.java)** - the ONE guarded logging facade for ziggfreed-common: `info`/`warn`/`severe`/`fine`, each with an optional `Throwable`-cause overload, every message prefixed `[ziggfreed-common]`. A thin static wrapper over one `GuardedLogger` instance (`CommonLog.LOGGER` + the prefix). New code routes through it; the roughly 90 pre-existing raw `CommonLog.LOGGER` call sites each re-rolling their own private guard are NOT retrofitted (a pending follow-up, not a rule exemption).
 - **[`AssetIndexCache`](AssetIndexCache.java)** - `AssetIndexCache<T>.of(id, lookup)` / `ofCandidates(ids, lookup)` -> `resolve()`: memoize an asset id (or first candidate) to its map index, caching ONLY a strictly-positive index (the engine's `MIN_VALUE`/`0` are "not ready" and re-resolve). One instance per logical asset (e.g. a sound). Thread-safe (`volatile`).
 - **[`DamageCauseCache`](DamageCauseCache.java)** - `getCauseIndex(causeId)`: memoize `DamageCause.getAssetMap().getIndex(id)` in a `ConcurrentHashMap`, caching ONLY a resolved (`>= 0`) index (the cause asset registers AFTER class load); try-guarded, returns `UNRESOLVED` (-1) on miss / not-ready map. Lets a damage observer ID a custom (or vanilla) cause by a cheap integer compare vs `damage.getDamageCauseIndex()`. Generalizes Kweebec's `KweebecDamageSystem.isMoonbloomCause` cache; `invalidate(id)` / `invalidateAll()` drop entries.
 - **[`NumberFormatter`](NumberFormatter.java)** - `grouped(amount)` (`1200 -> "1,200"`) / `compact(value, kThreshold)` (`-> "1.2M"`/`"1.2k"`): the single numeric-display source. Pure Java, zero engine coupling.

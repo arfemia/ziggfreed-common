@@ -17,8 +17,9 @@ spawning a transient one.
   `playClip`/`isAlive`, Hide stays OFF it) with TWO backends - `HolderPerformer` (the shipped bare-
   `Holder` puppet re-expressed over `PlayerPuppetService`/`PuppetNav`, byte-parity) and
   `NpcRolePerformer` (the spike-proven Role-driven `NPCEntity`, native gait + engine A*) - plus the
-  registered `PerformerIdentityComponent` (owner/station/kind binding a consumer registers once) and
-  the `PerformerReconciler` orphan sweep (boot/engage policies + a persistent-performer seam). A
+  registered `PerformerIdentityComponent` (owner/station/kind binding, registered once by this
+  library's own wiring root at its `setup()`, never by a consumer) and the `PerformerReconciler`
+  orphan sweep (boot/engage policies + a persistent-performer seam). A
   station-puppet controller drives ONE object and never branches on the look source. See its router.
 
 **Lift-review note (station entity-anchor spawn, SKIPPED this leg)**: RPG Stations' `station.StationEntityMountController#spawnAnchor` (the `Hold.Mount.Surface: "Entity"` standing-work-mount anchor) was evaluated and NOT lifted - its own class javadoc self-describes as "a phase-2 SPIKE component set, iterate in-game", the feature is flagged in-game-unverified, and this same session's R6 fix wave just moved the shipped Anvil OFF this route back onto the proven effect-mode hold pending further verification. Lifting an actively-unstable, still-changing component shape into a "generic" common primitive would freeze a spike shape prematurely; revisit once the standing-mount route is proven and its component list stabilizes.
