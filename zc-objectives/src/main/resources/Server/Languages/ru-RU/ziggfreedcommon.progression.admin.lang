@@ -1,0 +1,110 @@
+# Семейство команд /zigprogress: справка, списки и ответы.
+# Имя файла является ПРЕФИКСОМ ключа: запись здесь разрешается как ziggfreedcommon.progression.admin.<key>.
+# Ключи desc.* использует встроенная справка сервера, описывая команду или аргумент.
+
+desc.family = Просмотр и управление квестами, достижениями и памятью диалогов этого сервера.
+desc.reload = Заново прочитать и опубликовать общие ассеты квестов и достижений.
+desc.quest = Квесты: каталог, журнал игрока и административные действия над ним.
+desc.quest.list = Перечислить все квесты общего каталога.
+desc.quest.give = Запустить квест игроку независимо от того, выполняет ли он условия.
+desc.quest.reset = Стереть запись игрока об одном квесте или обо всех.
+desc.quest.complete = Закрыть квест игроку и выплатить награду.
+desc.quest.status = Показать, на каком этапе каждый квест у игрока.
+desc.quest.accept = Взять квест, если игрок выполняет условия.
+desc.quest.claim = Получить награду за завершённый квест.
+desc.quest.abandon = Отказаться от квеста, который игрок выполняет.
+desc.achievement = Достижения: каталог, запись игрока и административные действия над ней.
+desc.achievement.list = Перечислить все достижения общего каталога.
+desc.achievement.status = Показать, на каком этапе каждое достижение у игрока.
+desc.achievement.unlock = Выдать игроку достижение независимо от того, выполнены ли его критерии.
+desc.achievement.revoke = Отозвать у игрока одно достижение.
+desc.achievement.reset = Стереть всю запись достижений игрока.
+desc.memories = Память диалогов: то, что беседы помнят об игроке.
+desc.memories.forget = Забыть всё, что любая беседа помнит об игроке.
+desc.arg.player = Игрок, к которому применяется команда. По умолчанию: вы сами.
+desc.arg.quest = Идентификатор квеста.
+desc.arg.quest_or_all = Идентификатор квеста или 'all'.
+desc.arg.quest_filter = Показать только этот квест.
+desc.arg.achievement = Идентификатор достижения.
+desc.arg.tag = Показать только содержимое с этим тегом.
+desc.arg.everyone = Все игроки онлайн, во всех мирах.
+
+player.needed = Укажите игрока: --player=<имя>.
+player.offline = Этот игрок не в сети, а его прогресс хранится на его собственной сущности.
+player.no_record = У {0} нет записи прогресса, которую может прочитать активное хранилище.
+
+reload.done = Общие ассеты квестов и достижений опубликованы заново. Теперь в каталоге {0} квестов и {1} достижений.
+
+quest.needed = Укажите квест: --quest=<id>.
+quest.unknown = Под '{0}' не значится ни одного квеста.
+quest.list.header = Квесты ({0}):
+quest.list.none = В каталоге нет ни одного квеста.
+quest.list.row = {0} - {1}, шагов: {2}{3}
+quest.list.off = , отключён
+quest.list.hidden = , скрыт в открытых списках
+quest.list.repeatable = , повторяемый
+quest.list.tags = теги: {0}
+
+quest.given = Квест {0} запущен для {1}.
+quest.given.everyone = Квест {0} запущен для {1} игроков.
+quest.give.refused = Квест {0} сейчас нельзя запустить для {1}: не позволяют его собственные правила повторения.
+quest.reset.one = Квест {0} стёрт у {1}, включая запись о прохождениях.
+quest.reset.all = У {0} стёрты все квесты ({1} записей) и вся память диалогов, привязанная к квестам.
+quest.completed = Квест {0} закрыт для {1}, награда выплачена.
+quest.complete.already = {1} уже завершил квест {0}, а одноразовый квест дважды не оплачивается.
+
+quest.status.header = Квесты игрока {0}:
+quest.status.none = записей нет
+quest.status.row = {0} ({1}): {2}{3}
+quest.status.stored = , сохранён как {0}
+quest.status.back_in = , вернётся через {0}
+quest.status.orphan = {0}: {1}, и квеста с таким идентификатором в каталоге больше нет
+quest.step.done = - [X] {0} {1}/{2}
+quest.step.open = - [ ] {0} {1}/{2}
+
+quest.accepted = {1} взял квест {0}.
+quest.accept.refused = {1} сейчас не может взять квест {0} ({2}).
+quest.claimed = Награда за квест {0} получена для {1}.
+quest.claimed.all = Получены награды за {0} квестов для {1}.
+quest.claim.not_parked = Квест {0} у {1} не ожидает получения награды.
+quest.claim.at_site = Награда за квест {0} получается там, куда он относится, а не отсюда.
+quest.claim.refused = Не удалось выплатить награду за квест {0} игроку {1}; возможно, для неё нет места.
+quest.claim.refused.some = Не удалось выплатить награды за {0} квестов игроку {1}; возможно, для них нет места.
+quest.claim.nothing = У {0} ничто не ожидает получения награды.
+quest.abandoned = {1} отказался от квеста {0}.
+quest.abandon.not_active = {1} не выполняет квест {0}.
+
+achievement.needed = Укажите достижение: --achievement=<id>.
+achievement.unknown = Под '{0}' не значится ни одного достижения.
+achievement.list.header = Достижения ({0}):
+achievement.list.none = В каталоге нет ни одного достижения.
+achievement.list.row = {0} - {1}, критериев: {2}, очков: {3}{4}
+achievement.list.off = , отключено
+achievement.list.hidden = , скрыто
+achievement.list.server_first = , первое на сервере
+achievement.list.meta = , венчающее
+
+achievement.status.header = Достижения игрока {0}: очков: {1}
+achievement.status.none = записей нет
+achievement.status.row = {0} ({1}): {2}, критериев {3}/{4}
+achievement.status.orphan = {0}: {1}, и достижения с таким идентификатором в каталоге больше нет
+achievement.status.milestone = рубеж {0}: {1}
+
+achievement.unlocked = Достижение {0} выдано {1}.
+achievement.unlock.already = {1} уже получил достижение {0}.
+achievement.unlock.refused = Сервер отказал в достижении {0} для {1}; одна из возможных причин - первое на сервере, которое уже держит кто-то другой.
+achievement.revoked = Достижение {0} отозвано у {1}.
+achievement.revoke.nothing = У {1} нет ничего под {0}.
+achievement.reset = У {0} стёрты все достижения и рубежи ({1} записей).
+achievement.reset.first_claims = Первое на сервере, выигранное этим игроком, по-прежнему числится в установленной таблице заявок; снимите его там.
+
+memories.forgot = Забыто всё, что любая беседа помнит о {0}, в обоих сроках хранения.
+
+status.quest.not_started = не начат
+status.quest.active = активен
+status.quest.completed = завершён
+status.quest.completed_unclaimed = выполнен, ожидает получения награды
+status.quest.on_cooldown = на перезарядке
+status.achievement.locked = закрыто
+status.achievement.unlocked = получено, ожидает получения награды
+status.achievement.claimed = получено

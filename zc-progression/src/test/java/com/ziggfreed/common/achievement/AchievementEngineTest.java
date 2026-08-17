@@ -253,6 +253,33 @@ class AchievementEngineTest {
                 "a capstone standing on a revoked achievement cannot keep standing");
     }
 
+    @Test
+    void resetAllWipesEveryRecordAndEveryMilestoneAndReportsHowMany() {
+        AchievementEngine engine = engine()
+                .milestone(AchievementMilestone.auto(25, List.of(RewardSpec.of("test:pay", "Id", "bronze"))))
+                .build();
+        Achievement earned = Achievement.builder("earned").points(30)
+                .criterion(criterion(0, "BREAK_BLOCK", "A", 1)).build();
+        Achievement halfway = Achievement.builder("halfway")
+                .criterion(criterion(0, "BREAK_BLOCK", "B", 2)).build();
+        engine.setAchievements(List.of(earned, halfway));
+        engine.dispatch(ALICE, "BREAK_BLOCK", "A", null, 1L);
+        engine.dispatch(ALICE, "BREAK_BLOCK", "B", null, 1L);
+        assertTrue(engine.pin(ALICE, "halfway"));
+        assertTrue(engine.isUnlocked(ALICE, "earned"));
+        assertEquals(AchievementStatus.CLAIMED, engine.milestoneStatus(ALICE, 25));
+
+        assertEquals(3, engine.resetAll(ALICE), "two achievement ids and one milestone had a record");
+
+        assertFalse(engine.isUnlocked(ALICE, "earned"), "the earn is gone");
+        assertEquals(0L, engine.unlockedAt(ALICE, "earned"), "and so is the instant it was earned");
+        assertEquals(0, engine.progressOf(ALICE, halfway, 0).current(), "partial progress is gone");
+        assertTrue(engine.pinned(ALICE).isEmpty(), "and so is the pin");
+        assertEquals(AchievementStatus.LOCKED, engine.milestoneStatus(ALICE, 25),
+                "the milestone reads as never reached");
+        assertEquals(0, engine.resetAll(ALICE), "a second wipe finds nothing left to wipe");
+    }
+
     // ==================== Meta cascade ====================
 
     @Test

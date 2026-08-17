@@ -64,6 +64,7 @@ import com.ziggfreed.common.npc.placement.PlacementMarkerSystem;
 import com.ziggfreed.common.npc.placement.PlacementFactorRegistry;
 import com.ziggfreed.common.npc.placement.PlacementNpcActions;
 import com.ziggfreed.common.objectives.book.ObjectiveBookInteractions;
+import com.ziggfreed.common.objectives.command.ZigProgressCommand;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.objectives.store.ZigProgressDialogueStore;
@@ -204,8 +205,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     /**
      * Wire this library's parts of THE shared progression runtime: the persisted per-player progress
      * component, the Objective Book's interaction Type (which the shipped book item names, so it
-     * must be registered before any asset decode), and the default registrations plus the player
-     * lifecycle and generic producer systems behind {@link ProgressionDefaults#install}.
+     * must be registered before any asset decode), the default registrations plus the player
+     * lifecycle and generic producer systems behind {@link ProgressionDefaults#install}, and the
+     * {@code /zigprogress} admin family that drives the runtime ({@link ZigProgressCommand}).
      *
      * <p>Every registration is unconditional, and none of them decides anything. There is one
      * runtime per server whoever is on it; a consumer that brings its own store or gates registers
@@ -228,6 +230,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             ObjectiveBookInteractions.register(this);
             ProgressionDefaults.install(this);
             ProgressionFactors.contribute();
+            getCommandRegistry().registerCommand(new ZigProgressCommand());
         } catch (Throwable t) {
             // Naming the kinds because this is the one failure nothing downstream reports: the
             // producers are registered one after another, so a throw part way leaves the rest

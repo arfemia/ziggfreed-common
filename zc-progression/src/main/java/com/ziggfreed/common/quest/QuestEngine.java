@@ -1321,6 +1321,41 @@ public final class QuestEngine implements QuestStateReader {
     }
 
     /**
+     * An ADMINISTRATOR's reset of one quest: start this player over on it completely.
+     *
+     * <p>Two different things happen here, and collapsing them would lose one. The
+     * {@link QuestProgressStore.CompletionRecord} goes, which an in-play re-arm deliberately never
+     * does (a re-arm that wiped the record would leave a lifetime cap no player could ever reach)
+     * and which is what "start over" means to an administrator. Then the quest is re-armed through
+     * {@link #clearQuest}, so status, progress, cooldown stamp and pin go too and the re-arm is
+     * REPORTED like any other: a memory a conversation was told to keep only as long as this quest
+     * is forgotten with it. The record is dropped first so the one dirty mark covers both writes.
+     */
+    public void wipeQuest(@Nonnull Subject subject, @Nonnull String questId) {
+        store.setCompletions(subject, questId, QuestProgressStore.CompletionRecord.NONE);
+        clearQuest(subject, questId);
+    }
+
+    /**
+     * An ADMINISTRATOR's reset of EVERY quest this player has any record of, each one wiped exactly
+     * as {@link #wipeQuest} wipes it, record included and re-arm reported.
+     *
+     * <p>It reaches the ids the STORE knows. Anything else declared to die with "all quests" but
+     * filed under an id this player never carried - a conversation can remember something about a
+     * quest they never took - is the caller's to clear, and the shared dialogue engine offers the
+     * quest-scoped sweep for exactly that.
+     *
+     * @return how many quest ids had a record to wipe
+     */
+    public int wipeAllQuests(@Nonnull Subject subject) {
+        List<String> known = List.copyOf(store.knownQuestIds(subject));
+        for (String questId : known) {
+            wipeQuest(subject, questId);
+        }
+        return known.size();
+    }
+
+    /**
      * Idempotent per-player maintenance, safe to run on login and whenever a quest surface opens: a
      * finished repeatable that is off cooldown is reset to pristine, so what is stored agrees with
      * what every surface shows, and dead pins are reclaimed.

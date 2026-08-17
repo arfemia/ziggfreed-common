@@ -1,0 +1,110 @@
+# La famiglia di comandi /zigprogress: testi di aiuto, elenchi e risposte.
+# Il nome del file è il PREFISSO della chiave: una voce qui si risolve come ziggfreedcommon.progression.admin.<key>.
+# Le chiavi desc.* sono quelle con cui l'aiuto del server descrive un comando o un argomento.
+
+desc.family = Consultare e amministrare le missioni, i traguardi e i ricordi di dialogo di questo server.
+desc.reload = Rileggere e ripubblicare gli asset condivisi di missioni e traguardi.
+desc.quest = Missioni: il catalogo, il diario di un giocatore e gli interventi di amministrazione su di esso.
+desc.quest.list = Elencare tutte le missioni del catalogo condiviso.
+desc.quest.give = Avviare una missione per un giocatore, che ne soddisfi i requisiti o no.
+desc.quest.reset = Cancellare quanto un giocatore ha su una missione, o su tutte.
+desc.quest.complete = Chiudere una missione per un giocatore e pagarla.
+desc.quest.status = Mostrare a che punto è ogni missione per un giocatore.
+desc.quest.accept = Accettare una missione, se il giocatore ne soddisfa i requisiti.
+desc.quest.claim = Riscuotere le ricompense di una missione terminata.
+desc.quest.abandon = Abbandonare una missione che il giocatore ha in corso.
+desc.achievement = Traguardi: il catalogo, il registro di un giocatore e gli interventi di amministrazione su di esso.
+desc.achievement.list = Elencare tutti i traguardi del catalogo condiviso.
+desc.achievement.status = Mostrare a che punto è ogni traguardo per un giocatore.
+desc.achievement.unlock = Assegnare un traguardo a un giocatore, che i criteri siano soddisfatti o no.
+desc.achievement.revoke = Ritirare un traguardo a un giocatore.
+desc.achievement.reset = Cancellare l'intero registro dei traguardi di un giocatore.
+desc.memories = Ricordi di dialogo: ciò che le conversazioni ricordano di un giocatore.
+desc.memories.forget = Dimenticare tutto ciò che ogni conversazione ricorda di un giocatore.
+desc.arg.player = Il giocatore su cui agire. Per impostazione predefinita, tu.
+desc.arg.quest = L'id della missione.
+desc.arg.quest_or_all = Un id di missione, oppure 'all'.
+desc.arg.quest_filter = Mostrare solo questa missione.
+desc.arg.achievement = L'id del traguardo.
+desc.arg.tag = Mostrare solo il contenuto con questa etichetta.
+desc.arg.everyone = Tutti i giocatori online, in ogni mondo.
+
+player.needed = Indica un giocatore con --player=<nome>.
+player.offline = Quel giocatore non è online, e i suoi progressi vivono sulla sua stessa entità.
+player.no_record = {0} non ha alcun registro dei progressi che l'archivio attivo possa leggere.
+
+reload.done = Gli asset condivisi di missioni e traguardi sono stati ripubblicati. Il catalogo ora contiene {0} missioni e {1} traguardi.
+
+quest.needed = Indica una missione con --quest=<id>.
+quest.unknown = Nessuna missione è catalogata come '{0}'.
+quest.list.header = Missioni ({0}):
+quest.list.none = Nessuna missione è catalogata.
+quest.list.row = {0} - {1}, {2} passi{3}
+quest.list.off = , disattivata
+quest.list.hidden = , nascosta negli elenchi aperti
+quest.list.repeatable = , ripetibile
+quest.list.tags = etichette: {0}
+
+quest.given = {0} avviata per {1}.
+quest.given.everyone = {0} avviata per {1} giocatori.
+quest.give.refused = {0} non può essere avviata per {1} adesso: le sue stesse regole di ripetizione lo impediscono.
+quest.reset.one = {0} cancellata per {1}, storico dei completamenti compreso.
+quest.reset.all = Cancellate tutte le missioni di {0} ({1} voci) e ogni ricordo di dialogo legato alle missioni.
+quest.completed = {0} chiusa per {1} e pagata.
+quest.complete.already = {1} ha già terminato {0}, e una missione a colpo singolo non si paga due volte.
+
+quest.status.header = Missioni di {0}:
+quest.status.none = niente registrato
+quest.status.row = {0} ({1}): {2}{3}
+quest.status.stored = , salvata come {0}
+quest.status.back_in = , torna tra {0}
+quest.status.orphan = {0}: {1}, e nessuna missione è più catalogata con quell'id
+quest.step.done = - [X] {0} {1}/{2}
+quest.step.open = - [ ] {0} {1}/{2}
+
+quest.accepted = {1} ha accettato {0}.
+quest.accept.refused = {1} non può accettare {0} adesso ({2}).
+quest.claimed = {0} riscossa per {1}.
+quest.claimed.all = {0} missioni riscosse per {1}.
+quest.claim.not_parked = {0} non è in attesa di riscossione per {1}.
+quest.claim.at_site = {0} si riscuote nel luogo a cui appartiene, non da qui.
+quest.claim.refused = Non è stato possibile pagare {0} a {1}; forse non c'è spazio per le sue ricompense.
+quest.claim.refused.some = Non è stato possibile pagare {0} missioni a {1}; forse non c'è spazio per le loro ricompense.
+quest.claim.nothing = Niente è in attesa di riscossione per {0}.
+quest.abandoned = {1} ha abbandonato {0}.
+quest.abandon.not_active = {1} non ha {0} in corso.
+
+achievement.needed = Indica un traguardo con --achievement=<id>.
+achievement.unknown = Nessun traguardo è catalogato come '{0}'.
+achievement.list.header = Traguardi ({0}):
+achievement.list.none = Nessun traguardo è catalogato.
+achievement.list.row = {0} - {1}, {2} criteri, {3} punti{4}
+achievement.list.off = , disattivato
+achievement.list.hidden = , nascosto
+achievement.list.server_first = , primo del server
+achievement.list.meta = , coronamento
+
+achievement.status.header = Traguardi di {0}: {1} punti
+achievement.status.none = niente registrato
+achievement.status.row = {0} ({1}): {2}, {3}/{4} criteri
+achievement.status.orphan = {0}: {1}, e nessun traguardo è più catalogato con quell'id
+achievement.status.milestone = tappa {0}: {1}
+
+achievement.unlocked = {0} assegnato a {1}.
+achievement.unlock.already = {1} ha già ottenuto {0}.
+achievement.unlock.refused = Il server ha rifiutato {0} per {1}; un primo del server già detenuto da qualcun altro è una delle possibili ragioni.
+achievement.revoked = {0} ritirato a {1}.
+achievement.revoke.nothing = {1} non ha nulla sotto {0}.
+achievement.reset = Cancellati tutti i traguardi e le tappe di {0} ({1} voci).
+achievement.reset.first_claims = Un primo del server vinto da questo giocatore resta annotato nella tabella delle rivendicazioni installata; liberalo lì.
+
+memories.forgot = Dimenticato tutto ciò che ogni conversazione ricorda di {0}, in entrambe le durate.
+
+status.quest.not_started = non iniziata
+status.quest.active = attiva
+status.quest.completed = completata
+status.quest.completed_unclaimed = terminata, in attesa di riscossione
+status.quest.on_cooldown = in ricarica
+status.achievement.locked = bloccato
+status.achievement.unlocked = ottenuto, in attesa di riscossione
+status.achievement.claimed = ottenuto

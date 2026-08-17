@@ -1,0 +1,110 @@
+# A família de comandos /zigprogress: textos de ajuda, listagens e respostas.
+# O nome do arquivo é o PREFIXO da chave: uma entrada aqui resolve como ziggfreedcommon.progression.admin.<key>.
+# As chaves desc.* são as que a ajuda do servidor usa para descrever um comando ou um argumento.
+
+desc.family = Consultar e administrar as missões, as conquistas e as memórias de diálogo deste servidor.
+desc.reload = Reler e republicar os assets compartilhados de missões e conquistas.
+desc.quest = Missões: o catálogo, o diário de um jogador e as ações de administração sobre ele.
+desc.quest.list = Listar todas as missões do catálogo compartilhado.
+desc.quest.give = Iniciar uma missão para um jogador, atenda ele aos requisitos ou não.
+desc.quest.reset = Apagar o registro de um jogador sobre uma missão, ou sobre todas.
+desc.quest.complete = Encerrar uma missão para um jogador e pagá-la.
+desc.quest.status = Mostrar em que ponto cada missão está para um jogador.
+desc.quest.accept = Aceitar uma missão, se o jogador atender aos requisitos.
+desc.quest.claim = Receber as recompensas de uma missão terminada.
+desc.quest.abandon = Abandonar uma missão que o jogador está carregando.
+desc.achievement = Conquistas: o catálogo, o registro de um jogador e as ações de administração sobre ele.
+desc.achievement.list = Listar todas as conquistas do catálogo compartilhado.
+desc.achievement.status = Mostrar em que ponto cada conquista está para um jogador.
+desc.achievement.unlock = Conceder uma conquista a um jogador, estejam os critérios cumpridos ou não.
+desc.achievement.revoke = Retirar uma conquista de um jogador.
+desc.achievement.reset = Apagar todo o registro de conquistas de um jogador.
+desc.memories = Memórias de diálogo: o que as conversas lembram sobre um jogador.
+desc.memories.forget = Esquecer tudo o que cada conversa lembra sobre um jogador.
+desc.arg.player = O jogador em questão. Por padrão, você.
+desc.arg.quest = O id da missão.
+desc.arg.quest_or_all = Um id de missão, ou 'all'.
+desc.arg.quest_filter = Mostrar só esta missão.
+desc.arg.achievement = O id da conquista.
+desc.arg.tag = Mostrar só o conteúdo que carrega esta tag.
+desc.arg.everyone = Todos os jogadores online, em todos os mundos.
+
+player.needed = Informe um jogador com --player=<nome>.
+player.offline = Esse jogador não está online, e o progresso dele vive na sua própria entidade.
+player.no_record = {0} não tem nenhum registro de progresso que o armazenamento ativo consiga ler.
+
+reload.done = Os assets compartilhados de missões e conquistas foram republicados. O catálogo agora tem {0} missões e {1} conquistas.
+
+quest.needed = Informe uma missão com --quest=<id>.
+quest.unknown = Nenhuma missão está catalogada como '{0}'.
+quest.list.header = Missões ({0}):
+quest.list.none = Nenhuma missão está catalogada.
+quest.list.row = {0} - {1}, {2} etapas{3}
+quest.list.off = , desligada
+quest.list.hidden = , oculta nas listagens abertas
+quest.list.repeatable = , repetível
+quest.list.tags = tags: {0}
+
+quest.given = {0} iniciada para {1}.
+quest.given.everyone = {0} iniciada para {1} jogadores.
+quest.give.refused = {0} não pode ser iniciada para {1} agora: as próprias regras de repetição dela impedem.
+quest.reset.one = {0} apagada para {1}, histórico de conclusões incluído.
+quest.reset.all = Todas as missões de {0} apagadas ({1} registros), junto com toda memória de diálogo ligada a missões.
+quest.completed = {0} encerrada para {1} e paga.
+quest.complete.already = {1} já terminou {0}, e uma missão de uma vez só não é paga duas vezes.
+
+quest.status.header = Missões de {0}:
+quest.status.none = nada registrado
+quest.status.row = {0} ({1}): {2}{3}
+quest.status.stored = , salva como {0}
+quest.status.back_in = , volta em {0}
+quest.status.orphan = {0}: {1}, e não há mais nenhuma missão catalogada com esse id
+quest.step.done = - [X] {0} {1}/{2}
+quest.step.open = - [ ] {0} {1}/{2}
+
+quest.accepted = {1} aceitou {0}.
+quest.accept.refused = {1} não pode aceitar {0} agora ({2}).
+quest.claimed = {0} recebida para {1}.
+quest.claimed.all = {0} missões recebidas para {1}.
+quest.claim.not_parked = {0} não está aguardando recebimento para {1}.
+quest.claim.at_site = {0} é recebida no lugar ao qual pertence, não daqui.
+quest.claim.refused = Não foi possível pagar {0} a {1}; talvez não haja espaço para as recompensas dela.
+quest.claim.refused.some = Não foi possível pagar {0} missões a {1}; talvez não haja espaço para as recompensas delas.
+quest.claim.nothing = Nada está aguardando recebimento para {0}.
+quest.abandoned = {1} abandonou {0}.
+quest.abandon.not_active = {1} não está carregando {0}.
+
+achievement.needed = Informe uma conquista com --achievement=<id>.
+achievement.unknown = Nenhuma conquista está catalogada como '{0}'.
+achievement.list.header = Conquistas ({0}):
+achievement.list.none = Nenhuma conquista está catalogada.
+achievement.list.row = {0} - {1}, {2} critérios, {3} pontos{4}
+achievement.list.off = , desligada
+achievement.list.hidden = , oculta
+achievement.list.server_first = , primeira do servidor
+achievement.list.meta = , coroamento
+
+achievement.status.header = Conquistas de {0}: {1} pontos
+achievement.status.none = nada registrado
+achievement.status.row = {0} ({1}): {2}, {3}/{4} critérios
+achievement.status.orphan = {0}: {1}, e não há mais nenhuma conquista catalogada com esse id
+achievement.status.milestone = marco {0}: {1}
+
+achievement.unlocked = {0} concedida a {1}.
+achievement.unlock.already = {1} já conquistou {0}.
+achievement.unlock.refused = O servidor recusou {0} para {1}; uma primeira do servidor que outra pessoa já detém é um dos motivos possíveis.
+achievement.revoked = {0} retirada de {1}.
+achievement.revoke.nothing = {1} não tem nada sob {0}.
+achievement.reset = Todas as conquistas e marcos de {0} apagados ({1} registros).
+achievement.reset.first_claims = Uma primeira do servidor vencida por este jogador continua anotada na tabela de reivindicações instalada; libere-a lá.
+
+memories.forgot = Esquecido tudo o que cada conversa lembra sobre {0}, nas duas durações.
+
+status.quest.not_started = não iniciada
+status.quest.active = ativa
+status.quest.completed = concluída
+status.quest.completed_unclaimed = terminada, aguardando recebimento
+status.quest.on_cooldown = em recarga
+status.achievement.locked = bloqueada
+status.achievement.unlocked = conquistada, aguardando recebimento
+status.achievement.claimed = conquistada

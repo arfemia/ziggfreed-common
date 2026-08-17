@@ -1,0 +1,110 @@
+# La famille de commandes /zigprogress : textes d'aide, listes et réponses.
+# Le nom du fichier est le PRÉFIXE de clé : une entrée ici se résout en ziggfreedcommon.progression.admin.<key>.
+# Les clés desc.* sont celles par lesquelles l'aide du serveur décrit une commande ou un argument.
+
+desc.family = Consulter et administrer les quêtes, les succès et les souvenirs de dialogue de ce serveur.
+desc.reload = Relire et republier les assets partagés de quêtes et de succès.
+desc.quest = Quêtes : le catalogue, le journal d'un joueur et les gestes d'administration dessus.
+desc.quest.list = Lister toutes les quêtes du catalogue partagé.
+desc.quest.give = Lancer une quête pour un joueur, qu'il remplisse les conditions ou non.
+desc.quest.reset = Effacer ce qu'un joueur a sur une quête, ou sur toutes.
+desc.quest.complete = Clore une quête pour un joueur et la payer.
+desc.quest.status = Afficher où en est chaque quête pour un joueur.
+desc.quest.accept = Accepter une quête, si le joueur remplit les conditions.
+desc.quest.claim = Récupérer les récompenses d'une quête terminée.
+desc.quest.abandon = Abandonner une quête que le joueur porte.
+desc.achievement = Succès : le catalogue, le dossier d'un joueur et les gestes d'administration dessus.
+desc.achievement.list = Lister tous les succès du catalogue partagé.
+desc.achievement.status = Afficher où en est chaque succès pour un joueur.
+desc.achievement.unlock = Attribuer un succès à un joueur, que ses critères soient remplis ou non.
+desc.achievement.revoke = Reprendre un succès à un joueur.
+desc.achievement.reset = Effacer tout le dossier de succès d'un joueur.
+desc.memories = Souvenirs de dialogue : ce que les conversations retiennent d'un joueur.
+desc.memories.forget = Oublier tout ce que chaque conversation retient d'un joueur.
+desc.arg.player = Le joueur concerné. Par défaut : vous.
+desc.arg.quest = L'id de la quête.
+desc.arg.quest_or_all = Un id de quête, ou 'all'.
+desc.arg.quest_filter = N'afficher que cette quête.
+desc.arg.achievement = L'id du succès.
+desc.arg.tag = N'afficher que le contenu portant cette étiquette.
+desc.arg.everyone = Tous les joueurs connectés, dans tous les mondes.
+
+player.needed = Nommez un joueur avec --player=<nom>.
+player.offline = Ce joueur n'est pas connecté, et sa progression vit sur sa propre entité.
+player.no_record = {0} n'a aucun dossier de progression que le stockage actif puisse lire.
+
+reload.done = Les assets partagés de quêtes et de succès ont été republiés. Le catalogue compte maintenant {0} quêtes et {1} succès.
+
+quest.needed = Nommez une quête avec --quest=<id>.
+quest.unknown = Aucune quête n'est cataloguée sous '{0}'.
+quest.list.header = Quêtes ({0}) :
+quest.list.none = Aucune quête n'est cataloguée.
+quest.list.row = {0} - {1}, {2} étapes{3}
+quest.list.off = , désactivée
+quest.list.hidden = , masquée des listes ouvertes
+quest.list.repeatable = , répétable
+quest.list.tags = étiquettes : {0}
+
+quest.given = {0} lancée pour {1}.
+quest.given.everyone = {0} lancée pour {1} joueurs.
+quest.give.refused = {0} ne peut pas être lancée pour {1} maintenant : ses propres règles de répétition s'y opposent.
+quest.reset.one = {0} effacée pour {1}, historique d'achèvement compris.
+quest.reset.all = Toutes les quêtes de {0} effacées ({1} entrées), ainsi que chaque souvenir de dialogue lié à une quête.
+quest.completed = {0} close pour {1} et payée.
+quest.complete.already = {1} a déjà terminé {0}, et une quête à usage unique n'est pas payée deux fois.
+
+quest.status.header = Quêtes de {0} :
+quest.status.none = rien d'enregistré
+quest.status.row = {0} ({1}) : {2}{3}
+quest.status.stored = , enregistrée comme {0}
+quest.status.back_in = , de retour dans {0}
+quest.status.orphan = {0} : {1}, et plus aucune quête n'est cataloguée sous cet id
+quest.step.done = - [X] {0} {1}/{2}
+quest.step.open = - [ ] {0} {1}/{2}
+
+quest.accepted = {1} a accepté {0}.
+quest.accept.refused = {1} ne peut pas accepter {0} maintenant ({2}).
+quest.claimed = {0} récupérée pour {1}.
+quest.claimed.all = {0} quêtes récupérées pour {1}.
+quest.claim.not_parked = {0} n'attend pas d'être récupérée pour {1}.
+quest.claim.at_site = {0} se récupère à l'endroit auquel elle appartient, pas d'ici.
+quest.claim.refused = {0} n'a pas pu être payée à {1} ; il n'y a peut-être pas de place pour ses récompenses.
+quest.claim.refused.some = {0} quêtes n'ont pas pu être payées à {1} ; il n'y a peut-être pas de place pour leurs récompenses.
+quest.claim.nothing = Rien n'attend d'être récupéré pour {0}.
+quest.abandoned = {1} a abandonné {0}.
+quest.abandon.not_active = {1} ne porte pas {0}.
+
+achievement.needed = Nommez un succès avec --achievement=<id>.
+achievement.unknown = Aucun succès n'est catalogué sous '{0}'.
+achievement.list.header = Succès ({0}) :
+achievement.list.none = Aucun succès n'est catalogué.
+achievement.list.row = {0} - {1}, {2} critères, {3} points{4}
+achievement.list.off = , désactivé
+achievement.list.hidden = , masqué
+achievement.list.server_first = , premier du serveur
+achievement.list.meta = , couronnement
+
+achievement.status.header = Succès de {0} : {1} points
+achievement.status.none = rien d'enregistré
+achievement.status.row = {0} ({1}) : {2}, {3}/{4} critères
+achievement.status.orphan = {0} : {1}, et plus aucun succès n'est catalogué sous cet id
+achievement.status.milestone = palier {0} : {1}
+
+achievement.unlocked = {0} attribué à {1}.
+achievement.unlock.already = {1} a déjà obtenu {0}.
+achievement.unlock.refused = Le serveur a refusé {0} pour {1} ; un premier du serveur détenu par quelqu'un d'autre en est une raison possible.
+achievement.revoked = {0} repris à {1}.
+achievement.revoke.nothing = {1} n'a rien sous {0}.
+achievement.reset = Tous les succès et paliers de {0} effacés ({1} entrées).
+achievement.reset.first_claims = Un premier du serveur remporté par ce joueur reste inscrit dans la table de revendications installée ; libérez-le là-bas.
+
+memories.forgot = Oublié tout ce que chaque conversation retient de {0}, dans les deux durées de vie.
+
+status.quest.not_started = pas commencée
+status.quest.active = active
+status.quest.completed = terminée
+status.quest.completed_unclaimed = achevée, en attente de récupération
+status.quest.on_cooldown = en récupération
+status.achievement.locked = verrouillé
+status.achievement.unlocked = obtenu, en attente de récupération
+status.achievement.claimed = obtenu

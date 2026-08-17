@@ -1,0 +1,110 @@
+# The /zigprogress admin command family: help text, listings and answers.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.progression.admin.<key>.
+# The desc.* keys are what the engine's own help resolves a command or an argument through.
+
+desc.family = Inspect and administer this server's quests, achievements and dialogue memories.
+desc.reload = Fold the shared quest and achievement assets again and publish them.
+desc.quest = Quests: the catalogue, one player's log, and the admin moves on it.
+desc.quest.list = List every quest in the shared catalogue.
+desc.quest.give = Start a quest for a player, whether or not they qualify.
+desc.quest.reset = Wipe a player's record of one quest, or of every quest.
+desc.quest.complete = Close a quest out for a player and pay it.
+desc.quest.status = Show where every quest stands for one player.
+desc.quest.accept = Take a quest on, if the player qualifies.
+desc.quest.claim = Collect a finished quest's rewards.
+desc.quest.abandon = Give up a quest the player is carrying.
+desc.achievement = Achievements: the catalogue, one player's record, and the admin moves on it.
+desc.achievement.list = List every achievement in the shared catalogue.
+desc.achievement.status = Show where every achievement stands for one player.
+desc.achievement.unlock = Earn an achievement for a player, whether or not its criteria are met.
+desc.achievement.revoke = Take one achievement back off a player.
+desc.achievement.reset = Wipe a player's whole achievement record.
+desc.memories = Dialogue memories: what conversations remember about a player.
+desc.memories.forget = Forget everything every conversation remembers about a player.
+desc.arg.player = The player to act on. Defaults to you.
+desc.arg.quest = The quest id.
+desc.arg.quest_or_all = A quest id, or 'all'.
+desc.arg.quest_filter = Show only this quest.
+desc.arg.achievement = The achievement id.
+desc.arg.tag = Show only content carrying this tag.
+desc.arg.everyone = Every player online, in every world.
+
+player.needed = Name a player with --player=<name>.
+player.offline = That player is not online, and their progress lives on their own entity.
+player.no_record = {0} has no progress record the active store can read.
+
+reload.done = Published the shared quest and achievement assets again. The catalogue now holds {0} quests and {1} achievements.
+
+quest.needed = Name a quest with --quest=<id>.
+quest.unknown = No quest is catalogued under '{0}'.
+quest.list.header = Quests ({0}):
+quest.list.none = No quest is catalogued.
+quest.list.row = {0} - {1}, {2} steps{3}
+quest.list.off = , switched off
+quest.list.hidden = , hidden from open listings
+quest.list.repeatable = , repeatable
+quest.list.tags = tags: {0}
+
+quest.given = Started {0} for {1}.
+quest.given.everyone = Started {0} for {1} players.
+quest.give.refused = {0} cannot be started for {1} right now: its own repeat rules refuse it.
+quest.reset.one = Wiped {0} for {1}, completion record included.
+quest.reset.all = Wiped every quest for {0} ({1} records) and every quest-scoped dialogue memory.
+quest.completed = Closed {0} out for {1} and paid it.
+quest.complete.already = {1} has already finished {0}, and a one-shot is not paid twice.
+
+quest.status.header = Quests for {0}:
+quest.status.none = nothing recorded
+quest.status.row = {0} ({1}): {2}{3}
+quest.status.stored = , stored as {0}
+quest.status.back_in = , back in {0}
+quest.status.orphan = {0}: {1}, and no quest is catalogued under that id any more
+quest.step.done = - [X] {0} {1}/{2}
+quest.step.open = - [ ] {0} {1}/{2}
+
+quest.accepted = {1} took {0} on.
+quest.accept.refused = {1} cannot take {0} right now ({2}).
+quest.claimed = Collected {0} for {1}.
+quest.claimed.all = Collected {0} quests for {1}.
+quest.claim.not_parked = {0} is not waiting to be collected for {1}.
+quest.claim.at_site = {0} is collected at the place it belongs to, not from here.
+quest.claim.refused = {0} could not be paid to {1}; there may be no room for its rewards.
+quest.claim.refused.some = {0} quests could not be paid to {1}; there may be no room for their rewards.
+quest.claim.nothing = Nothing is waiting to be collected for {0}.
+quest.abandoned = {1} gave {0} up.
+quest.abandon.not_active = {1} is not carrying {0}.
+
+achievement.needed = Name an achievement with --achievement=<id>.
+achievement.unknown = No achievement is catalogued under '{0}'.
+achievement.list.header = Achievements ({0}):
+achievement.list.none = No achievement is catalogued.
+achievement.list.row = {0} - {1}, {2} criteria, {3} points{4}
+achievement.list.off = , switched off
+achievement.list.hidden = , hidden
+achievement.list.server_first = , server-first
+achievement.list.meta = , capstone
+
+achievement.status.header = Achievements for {0}: {1} points
+achievement.status.none = nothing recorded
+achievement.status.row = {0} ({1}): {2}, {3}/{4} criteria
+achievement.status.orphan = {0}: {1}, and no achievement is catalogued under that id any more
+achievement.status.milestone = milestone {0}: {1}
+
+achievement.unlocked = Earned {0} for {1}.
+achievement.unlock.already = {1} has already earned {0}.
+achievement.unlock.refused = The server refused {0} for {1}; a server-first somebody else holds is one reason.
+achievement.revoked = Took {0} back off {1}.
+achievement.revoke.nothing = {1} holds nothing under {0}.
+achievement.reset = Wiped every achievement and milestone for {0} ({1} records).
+achievement.reset.first_claims = A server-first this player won is still recorded in the installed claim table; release it there.
+
+memories.forgot = Forgot everything every conversation remembers about {0}, in both lifetimes.
+
+status.quest.not_started = not started
+status.quest.active = active
+status.quest.completed = completed
+status.quest.completed_unclaimed = finished, waiting to be collected
+status.quest.on_cooldown = on cooldown
+status.achievement.locked = locked
+status.achievement.unlocked = earned, waiting to be collected
+status.achievement.claimed = earned

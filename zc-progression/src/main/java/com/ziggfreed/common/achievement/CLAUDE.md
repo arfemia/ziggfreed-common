@@ -22,7 +22,7 @@ which one shared instance cannot afford, and it is exactly why that method exist
 |---|---|
 | `Achievement` (+ `.Builder`) | the resolved definition: ORDERED criteria, meta children, two reward lists, points, and four independent switches |
 | `AchievementStatus` | LOCKED / UNLOCKED / CLAIMED - three states, because "in progress" is a count, not a status |
-| `AchievementEngine` (+ `.Builder`) | the runtime: dispatch, earn, collect, revoke, points, milestones, pins, self-heal |
+| `AchievementEngine` (+ `.Builder`) | the runtime: dispatch, earn, collect, revoke, points, milestones, pins, self-heal, and `resetAll` (the administrator's whole-record wipe over the store's `clearAll`; it does not release a server-first the subject won, since `FirstClaimStore` offers no release) |
 | `AchievementProgressStore` | THE persistence seam. Composite `"<id>#<index>"` keys, the legacy fallback, and the reserved-character check all live here as DEFAULTS |
 | `InMemoryAchievementProgressStore` | the complete store that dies with the process |
 | `AchievementGates` | the consumer's say: `canProgress` / `canUnlock` / `canReceiveRewards` / `visible`, all default-yes. FILLED by `quest.RequiresGates`, the same gate the quest side reads, so one `Requires` block means one thing |

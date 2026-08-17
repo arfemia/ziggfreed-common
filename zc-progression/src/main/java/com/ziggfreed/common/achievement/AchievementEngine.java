@@ -515,6 +515,26 @@ public final class AchievementEngine {
     }
 
     /**
+     * Take EVERYTHING back off a subject: every achievement's state, progress, unlock instant and
+     * pin, and every points milestone. For a tester re-running a session end to end, or an
+     * administrator starting somebody over. Reported as one change; nothing here is a payout, so
+     * nothing commits.
+     *
+     * <p>Whether a {@link Achievement#serverFirst() server-first} claim this subject WON is released
+     * is not decided here. The {@link FirstClaimStore} seam records who won and offers no release,
+     * so whoever installed a durable table releases what it recorded, on its own terms; the
+     * library's boot-lifetime default forgets everything at restart anyway.
+     *
+     * @return how many achievement ids and milestones had a record to wipe
+     */
+    public int resetAll(@Nonnull Subject subject) {
+        int wiped = store.knownAchievementIds(subject).size() + store.knownMilestones(subject).size();
+        store.clearAll(subject);
+        store.markDirty(subject);
+        return wiped;
+    }
+
+    /**
      * Earn every meta achievement that was waiting on {@code childId} and is now complete, then keep
      * going for a meta standing on that meta. Bounded by the catalogue size, so a cycle in authored
      * content cannot spin here.

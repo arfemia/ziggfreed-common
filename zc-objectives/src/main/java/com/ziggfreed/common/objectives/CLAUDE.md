@@ -2,10 +2,11 @@
 
 Router for `com.ziggfreed.common.objectives`. What a BARE server gets: persistence for the shared
 quest and achievement runtime, generic native-event producers feeding it, the asset content folded
-into it, and an ordinary item that reads it in game.
+into it, an ordinary item that reads it in game, and the `/zigprogress` admin family that drives it.
 
 Module edges: `zc-core`, `zc-loot`, `zc-progression`, `zc-presentation`, `zc-cast`, `zc-entity`,
-`zc-dialogue` (NPC identity, for the page at a character) - all one-way `implementation`. Package
+`zc-dialogue` (NPC identity, for the page at a character; `DialogueMemories`, for the admin verbs that
+forget them) - all one-way `implementation`. Package
 root `com.ziggfreed.common.objectives`.
 
 **Why this module exists at all.** The book needs BOTH the engines and a page. `zc-progression` may
@@ -63,6 +64,7 @@ each engine, after the tap has been fed.
 | `producer/` | `ProgressDispatch` plus the four generic producers: block break, mob kill, craft, pickup |
 | `book/` | the in-game two-tab surface and the item that opens it |
 | `questlist/` | the NPC quest page: what one CHARACTER has to offer, list and detail |
+| `command/` | `/zigprogress`: the admin family over THE runtime - quest, achievement and memories groups; see [its router](command/CLAUDE.md) |
 
 ## What these defaults MUST wire, because nothing works without them
 
@@ -440,6 +442,11 @@ real consumer's kind would disprove the thing being proved. `NpcQuestPageDepsTes
 working page and that a filled one throwing costs its own contribution rather than the screen. The
 rendering itself, the offer providers and the engine calls behind each button are in-game smoke
 territory.
+
+The admin family is pinned the way the commerce one is: `command/ProgressAdminKeysTest` walks the
+command package and fails on a key with nothing to resolve it from, on a verb or group with no help
+line, and on a runtime status with no word; the engine calls behind each verb (`wipeQuest`,
+`wipeAllQuests`, `resetAll`) are pinned one module down beside the engines that own them.
 
 The text a row is NAMED by is pinned one module down, in `zc-progression`'s `ContentTextArgsTest`,
 next to the shared schema that carries it: the args an author bound, the step line a fold composed,

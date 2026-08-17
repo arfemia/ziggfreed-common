@@ -154,7 +154,10 @@ a server running two content mods work.
   one warning rather than stored in half.
 - **`clearQuest` re-arms; it does NOT wipe the completion record.** Abandon and the off-cooldown
   reset both go through it, and a lifetime cap either of them wiped would be a cap nobody could ever
-  reach. `setCompletions(..., CompletionRecord.NONE)` is the deliberate wipe.
+  reach. `setCompletions(..., CompletionRecord.NONE)` is the deliberate wipe, and `QuestEngine#wipeQuest`
+  / `wipeAllQuests` are the ADMINISTRATOR's form of it: drop the record, then re-arm through
+  `clearQuest` so the re-arm is still reported. An admin surface (the `/zigprogress` family, a
+  consumer's alias) calls those rather than reaching for the store.
 - **A `CompletionRecord` carries TWO tallies, finished and collected, and exactly two private
   methods on `QuestEngine` write them.** `recordCompletion` writes a FINISH, and raises the collected
   tally alongside it when the finish paid out in the same instant; `recordClaim` writes a COLLECTION

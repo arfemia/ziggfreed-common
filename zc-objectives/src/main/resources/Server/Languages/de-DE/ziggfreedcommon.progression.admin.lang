@@ -1,0 +1,110 @@
+# Die Befehlsfamilie /zigprogress: Hilfetexte, Listen und Antworten.
+# Der Dateiname ist das Schlüssel-PRÄFIX: ein Eintrag hier heißt ziggfreedcommon.progression.admin.<key>.
+# Die desc.*-Schlüssel sind das, worüber die Hilfe des Servers einen Befehl oder ein Argument auflöst.
+
+desc.family = Quests, Errungenschaften und Dialog-Erinnerungen dieses Servers ansehen und verwalten.
+desc.reload = Die gemeinsamen Quest- und Errungenschafts-Assets neu einlesen und veröffentlichen.
+desc.quest = Quests: der Katalog, das Logbuch eines Spielers und die Admin-Eingriffe darauf.
+desc.quest.list = Alle Quests des gemeinsamen Katalogs auflisten.
+desc.quest.give = Eine Quest für einen Spieler starten, ob er die Voraussetzungen erfüllt oder nicht.
+desc.quest.reset = Den Stand eines Spielers zu einer Quest oder zu allen Quests löschen.
+desc.quest.complete = Eine Quest für einen Spieler abschließen und auszahlen.
+desc.quest.status = Anzeigen, wo jede Quest bei einem Spieler steht.
+desc.quest.accept = Eine Quest annehmen, wenn der Spieler die Voraussetzungen erfüllt.
+desc.quest.claim = Die Belohnung einer abgeschlossenen Quest abholen.
+desc.quest.abandon = Eine Quest aufgeben, die der Spieler gerade trägt.
+desc.achievement = Errungenschaften: der Katalog, der Stand eines Spielers und die Admin-Eingriffe darauf.
+desc.achievement.list = Alle Errungenschaften des gemeinsamen Katalogs auflisten.
+desc.achievement.status = Anzeigen, wo jede Errungenschaft bei einem Spieler steht.
+desc.achievement.unlock = Einem Spieler eine Errungenschaft verleihen, ob ihre Bedingungen erfüllt sind oder nicht.
+desc.achievement.revoke = Einem Spieler eine Errungenschaft wieder aberkennen.
+desc.achievement.reset = Den gesamten Errungenschafts-Stand eines Spielers löschen.
+desc.memories = Dialog-Erinnerungen: was Gespräche über einen Spieler wissen.
+desc.memories.forget = Alles vergessen, was jedes Gespräch über einen Spieler weiß.
+desc.arg.player = Der betroffene Spieler. Standard: du selbst.
+desc.arg.quest = Die Quest-ID.
+desc.arg.quest_or_all = Eine Quest-ID oder 'all'.
+desc.arg.quest_filter = Nur diese Quest anzeigen.
+desc.arg.achievement = Die ID der Errungenschaft.
+desc.arg.tag = Nur Inhalte mit diesem Tag anzeigen.
+desc.arg.everyone = Jeder Spieler, der gerade online ist, in jeder Welt.
+
+player.needed = Nenne einen Spieler mit --player=<name>.
+player.offline = Dieser Spieler ist nicht online, und sein Fortschritt liegt auf seiner eigenen Entität.
+player.no_record = {0} hat keinen Fortschrittsdatensatz, den der aktive Speicher lesen kann.
+
+reload.done = Die gemeinsamen Quest- und Errungenschafts-Assets wurden neu veröffentlicht. Der Katalog enthält jetzt {0} Quests und {1} Errungenschaften.
+
+quest.needed = Nenne eine Quest mit --quest=<id>.
+quest.unknown = Unter '{0}' ist keine Quest katalogisiert.
+quest.list.header = Quests ({0}):
+quest.list.none = Es ist keine Quest katalogisiert.
+quest.list.row = {0} - {1}, {2} Schritte{3}
+quest.list.off = , abgeschaltet
+quest.list.hidden = , in offenen Listen verborgen
+quest.list.repeatable = , wiederholbar
+quest.list.tags = Tags: {0}
+
+quest.given = {0} für {1} gestartet.
+quest.given.everyone = {0} für {1} Spieler gestartet.
+quest.give.refused = {0} kann für {1} gerade nicht gestartet werden: die eigenen Wiederholungsregeln lassen es nicht zu.
+quest.reset.one = {0} für {1} gelöscht, Abschlussprotokoll eingeschlossen.
+quest.reset.all = Alle Quests für {0} gelöscht ({1} Einträge) sowie jede quest-bezogene Dialog-Erinnerung.
+quest.completed = {0} für {1} abgeschlossen und ausgezahlt.
+quest.complete.already = {1} hat {0} bereits abgeschlossen, und eine einmalige Quest wird nicht zweimal ausgezahlt.
+
+quest.status.header = Quests von {0}:
+quest.status.none = nichts vermerkt
+quest.status.row = {0} ({1}): {2}{3}
+quest.status.stored = , gespeichert als {0}
+quest.status.back_in = , wieder in {0}
+quest.status.orphan = {0}: {1}, und unter dieser ID ist keine Quest mehr katalogisiert
+quest.step.done = - [X] {0} {1}/{2}
+quest.step.open = - [ ] {0} {1}/{2}
+
+quest.accepted = {1} hat {0} angenommen.
+quest.accept.refused = {1} kann {0} gerade nicht annehmen ({2}).
+quest.claimed = {0} für {1} abgeholt.
+quest.claimed.all = {0} Quests für {1} abgeholt.
+quest.claim.not_parked = {0} wartet bei {1} nicht auf das Abholen.
+quest.claim.at_site = {0} wird an dem Ort abgeholt, zu dem sie gehört, nicht von hier.
+quest.claim.refused = {0} konnte an {1} nicht ausgezahlt werden; womöglich ist kein Platz für die Belohnung.
+quest.claim.refused.some = {0} Quests konnten an {1} nicht ausgezahlt werden; womöglich ist kein Platz für die Belohnungen.
+quest.claim.nothing = Bei {0} wartet nichts auf das Abholen.
+quest.abandoned = {1} hat {0} aufgegeben.
+quest.abandon.not_active = {1} trägt {0} nicht.
+
+achievement.needed = Nenne eine Errungenschaft mit --achievement=<id>.
+achievement.unknown = Unter '{0}' ist keine Errungenschaft katalogisiert.
+achievement.list.header = Errungenschaften ({0}):
+achievement.list.none = Es ist keine Errungenschaft katalogisiert.
+achievement.list.row = {0} - {1}, {2} Bedingungen, {3} Punkte{4}
+achievement.list.off = , abgeschaltet
+achievement.list.hidden = , verborgen
+achievement.list.server_first = , Server-Erster
+achievement.list.meta = , Schlussstein
+
+achievement.status.header = Errungenschaften von {0}: {1} Punkte
+achievement.status.none = nichts vermerkt
+achievement.status.row = {0} ({1}): {2}, {3}/{4} Bedingungen
+achievement.status.orphan = {0}: {1}, und unter dieser ID ist keine Errungenschaft mehr katalogisiert
+achievement.status.milestone = Meilenstein {0}: {1}
+
+achievement.unlocked = {0} an {1} verliehen.
+achievement.unlock.already = {1} hat {0} bereits erhalten.
+achievement.unlock.refused = Der Server hat {0} für {1} abgelehnt; ein Server-Erster, den jemand anderes hält, ist ein möglicher Grund.
+achievement.revoked = {0} wurde {1} wieder aberkannt.
+achievement.revoke.nothing = {1} hat nichts unter {0}.
+achievement.reset = Alle Errungenschaften und Meilensteine für {0} gelöscht ({1} Einträge).
+achievement.reset.first_claims = Ein Server-Erster, den dieser Spieler gewonnen hat, steht weiterhin in der installierten Anspruchstabelle; gib ihn dort frei.
+
+memories.forgot = Alles vergessen, was jedes Gespräch über {0} weiß, in beiden Lebensdauern.
+
+status.quest.not_started = nicht begonnen
+status.quest.active = aktiv
+status.quest.completed = abgeschlossen
+status.quest.completed_unclaimed = erledigt, wartet auf das Abholen
+status.quest.on_cooldown = in Abklingzeit
+status.achievement.locked = gesperrt
+status.achievement.unlocked = erhalten, wartet auf das Abholen
+status.achievement.claimed = erhalten

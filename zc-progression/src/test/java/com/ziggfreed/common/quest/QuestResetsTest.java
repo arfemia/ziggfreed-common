@@ -91,6 +91,40 @@ class QuestResetsTest {
     }
 
     @Test
+    void anAdminWipeDropsTheCompletionRecordAndStillReportsTheReArm() {
+        Quest daily = Quest.builder("daily").repeat(Quest.Repeat.every(60_000L)).build();
+        QuestEngine engine = engineWith(daily);
+        store.setStatus(player, "daily", QuestStatus.COMPLETED);
+        store.setCooldownStamp(player, "daily", clock.get());
+        store.setCompletions(player, "daily",
+                new QuestProgressStore.CompletionRecord(clock.get(), 1, 4, 4));
+
+        engine.wipeQuest(player, "daily");
+
+        assertEquals(QuestStatus.NOT_STARTED, store.status(player, "daily"), "re-armed");
+        assertEquals(QuestProgressStore.CompletionRecord.NONE, store.completions(player, "daily"),
+                "an administrator's wipe drops the record an in-play re-arm keeps");
+        assertEquals(List.of("daily"), reArmed, "and the re-arm is reported like any other");
+    }
+
+    @Test
+    void wipingEverythingWipesEachKnownQuestAndReportsEachOne() {
+        Quest first = Quest.builder("first").build();
+        Quest second = Quest.builder("second").build();
+        QuestEngine engine = engineWith(first, second);
+        assertTrue(engine.accept(player, first), "accepted");
+        assertTrue(engine.accept(player, second), "accepted");
+
+        assertEquals(2, engine.wipeAllQuests(player), "both known ids were wiped");
+
+        assertEquals(QuestStatus.NOT_STARTED, store.status(player, "first"));
+        assertEquals(QuestStatus.NOT_STARTED, store.status(player, "second"));
+        assertEquals(2, reArmed.size(), "every wiped quest reported its re-arm");
+        assertTrue(reArmed.containsAll(List.of("first", "second")));
+        assertEquals(0, engine.wipeAllQuests(player), "a second wipe finds nothing left");
+    }
+
+    @Test
     void aThrowingListenerCostsOnlyItself() {
         QuestResets.install((subject, questId) -> {
             throw new IllegalStateException("listener is broken");

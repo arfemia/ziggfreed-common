@@ -1,0 +1,110 @@
+# A /zigprogress parancscsalád: súgószövegek, listák és válaszok.
+# A fájlnév a kulcs ELŐTAGJA: egy itteni bejegyzés ziggfreedcommon.progression.admin.<key> néven oldódik fel.
+# A desc.* kulcsokon keresztül írja le a szerver saját súgója a parancsokat és az argumentumokat.
+
+desc.family = A szerver küldetéseinek, teljesítményeinek és párbeszéd-emlékeinek megtekintése és kezelése.
+desc.reload = A megosztott küldetés- és teljesítmény-assetek újraolvasása és újbóli közzététele.
+desc.quest = Küldetések: a katalógus, egy játékos naplója és az adminisztrátori beavatkozások.
+desc.quest.list = A megosztott katalógus minden küldetésének listázása.
+desc.quest.give = Küldetés indítása egy játékosnak, akár teljesíti a feltételeket, akár nem.
+desc.quest.reset = Egy játékos egy küldetéshez vagy minden küldetéshez tartozó bejegyzésének törlése.
+desc.quest.complete = Küldetés lezárása és kifizetése egy játékosnak.
+desc.quest.status = Megmutatja, hol tart minden küldetés egy játékosnál.
+desc.quest.accept = Küldetés felvétele, ha a játékos teljesíti a feltételeket.
+desc.quest.claim = Egy befejezett küldetés jutalmának átvétele.
+desc.quest.abandon = Egy folyamatban lévő küldetés feladása.
+desc.achievement = Teljesítmények: a katalógus, egy játékos nyilvántartása és az adminisztrátori beavatkozások.
+desc.achievement.list = A megosztott katalógus minden teljesítményének listázása.
+desc.achievement.status = Megmutatja, hol tart minden teljesítmény egy játékosnál.
+desc.achievement.unlock = Teljesítmény megadása egy játékosnak, akár teljesülnek a feltételei, akár nem.
+desc.achievement.revoke = Egy teljesítmény visszavonása egy játékostól.
+desc.achievement.reset = Egy játékos teljes teljesítmény-nyilvántartásának törlése.
+desc.memories = Párbeszéd-emlékek: amit a beszélgetések egy játékosról megjegyeznek.
+desc.memories.forget = Minden elfelejtése, amit bármely beszélgetés egy játékosról megjegyzett.
+desc.arg.player = Az érintett játékos. Alapértelmezés: te magad.
+desc.arg.quest = A küldetés azonosítója.
+desc.arg.quest_or_all = Egy küldetés-azonosító vagy 'all'.
+desc.arg.quest_filter = Csak ez a küldetés jelenjen meg.
+desc.arg.achievement = A teljesítmény azonosítója.
+desc.arg.tag = Csak az ezzel a címkével ellátott tartalom jelenjen meg.
+desc.arg.everyone = Minden online játékos, minden világban.
+
+player.needed = Adj meg egy játékost: --player=<név>.
+player.offline = Ez a játékos nincs online, a haladása pedig a saját entitásán él.
+player.no_record = {0} játékosnak nincs olyan haladási bejegyzése, amelyet az aktív tároló olvasni tudna.
+
+reload.done = A megosztott küldetés- és teljesítmény-assetek újra közzétéve. A katalógus most {0} küldetést és {1} teljesítményt tartalmaz.
+
+quest.needed = Adj meg egy küldetést: --quest=<azonosító>.
+quest.unknown = Nincs '{0}' néven katalogizált küldetés.
+quest.list.header = Küldetések ({0}):
+quest.list.none = Nincs katalogizált küldetés.
+quest.list.row = {0} - {1}, {2} lépés{3}
+quest.list.off = , kikapcsolva
+quest.list.hidden = , a nyílt listákban rejtett
+quest.list.repeatable = , ismételhető
+quest.list.tags = címkék: {0}
+
+quest.given = {0} elindítva {1} számára.
+quest.given.everyone = {0} elindítva {1} játékosnak.
+quest.give.refused = {0} most nem indítható el {1} számára: a saját ismétlési szabályai nem engedik.
+quest.reset.one = {0} törölve {1} játékosnál, a teljesítési nyilvántartással együtt.
+quest.reset.all = {0} minden küldetése törölve ({1} bejegyzés), a küldetésekhez kötött párbeszéd-emlékekkel együtt.
+quest.completed = {0} lezárva és kifizetve {1} számára.
+quest.complete.already = {1} már befejezte a(z) {0} küldetést, egy egyszeri küldetés pedig nem fizet kétszer.
+
+quest.status.header = {0} küldetései:
+quest.status.none = nincs bejegyzés
+quest.status.row = {0} ({1}): {2}{3}
+quest.status.stored = , tárolva mint {0}
+quest.status.back_in = , visszatér {0} múlva
+quest.status.orphan = {0}: {1}, és ezen az azonosítón már nincs katalogizált küldetés
+quest.step.done = - [X] {0} {1}/{2}
+quest.step.open = - [ ] {0} {1}/{2}
+
+quest.accepted = {1} felvette a(z) {0} küldetést.
+quest.accept.refused = {1} most nem veheti fel a(z) {0} küldetést ({2}).
+quest.claimed = {0} átvéve {1} számára.
+quest.claimed.all = {0} küldetés átvéve {1} számára.
+quest.claim.not_parked = {0} nem vár átvételre {1} játékosnál.
+quest.claim.at_site = {0} azon a helyen vehető át, ahová tartozik, nem innen.
+quest.claim.refused = {0} nem volt kifizethető {1} számára; talán nincs hely a jutalmainak.
+quest.claim.refused.some = {0} küldetés nem volt kifizethető {1} számára; talán nincs hely a jutalmaiknak.
+quest.claim.nothing = Semmi sem vár átvételre {0} játékosnál.
+quest.abandoned = {1} feladta a(z) {0} küldetést.
+quest.abandon.not_active = {1} nem viszi a(z) {0} küldetést.
+
+achievement.needed = Adj meg egy teljesítményt: --achievement=<azonosító>.
+achievement.unknown = Nincs '{0}' néven katalogizált teljesítmény.
+achievement.list.header = Teljesítmények ({0}):
+achievement.list.none = Nincs katalogizált teljesítmény.
+achievement.list.row = {0} - {1}, {2} feltétel, {3} pont{4}
+achievement.list.off = , kikapcsolva
+achievement.list.hidden = , rejtett
+achievement.list.server_first = , szerver-első
+achievement.list.meta = , zárókő
+
+achievement.status.header = {0} teljesítményei: {1} pont
+achievement.status.none = nincs bejegyzés
+achievement.status.row = {0} ({1}): {2}, {3}/{4} feltétel
+achievement.status.orphan = {0}: {1}, és ezen az azonosítón már nincs katalogizált teljesítmény
+achievement.status.milestone = mérföldkő {0}: {1}
+
+achievement.unlocked = {0} megadva {1} számára.
+achievement.unlock.already = {1} már megszerezte a(z) {0} teljesítményt.
+achievement.unlock.refused = A szerver elutasította a(z) {0} teljesítményt {1} számára; egy másvalaki által birtokolt szerver-első lehet az egyik ok.
+achievement.revoked = {0} visszavonva {1} játékostól.
+achievement.revoke.nothing = {1} játékosnak nincs semmije {0} alatt.
+achievement.reset = {0} minden teljesítménye és mérföldköve törölve ({1} bejegyzés).
+achievement.reset.first_claims = Egy szerver-első, amelyet ez a játékos nyert, továbbra is a telepített igénytáblában szerepel; ott oldd fel.
+
+memories.forgot = Minden elfelejtve, amit bármely beszélgetés {0} játékosról megjegyzett, mindkét élettartamban.
+
+status.quest.not_started = nem kezdett
+status.quest.active = aktív
+status.quest.completed = teljesítve
+status.quest.completed_unclaimed = befejezve, átvételre vár
+status.quest.on_cooldown = várakozási időn
+status.achievement.locked = zárolva
+status.achievement.unlocked = megszerezve, átvételre vár
+status.achievement.claimed = megszerezve

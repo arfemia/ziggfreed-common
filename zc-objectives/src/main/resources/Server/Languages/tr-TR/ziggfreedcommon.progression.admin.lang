@@ -1,0 +1,110 @@
+# /zigprogress komut ailesi: yardım metinleri, listeler ve yanıtlar.
+# Dosya adı anahtar ÖN EKİDİR: buradaki bir girdi ziggfreedcommon.progression.admin.<key> olarak çözülür.
+# desc.* anahtarları, sunucunun kendi yardımının bir komutu veya argümanı tanımlarken kullandığı anahtarlardır.
+
+desc.family = Bu sunucunun görevlerini, başarımlarını ve diyalog anılarını incele ve yönet.
+desc.reload = Paylaşılan görev ve başarım varlıklarını yeniden okuyup yayımla.
+desc.quest = Görevler: katalog, bir oyuncunun günlüğü ve üzerindeki yönetici işlemleri.
+desc.quest.list = Paylaşılan katalogdaki her görevi listele.
+desc.quest.give = Koşulları sağlasın ya da sağlamasın, bir oyuncu için görev başlat.
+desc.quest.reset = Bir oyuncunun bir görev ya da tüm görevler için kaydını sil.
+desc.quest.complete = Bir oyuncu için görevi kapat ve ödülünü ver.
+desc.quest.status = Bir oyuncu için her görevin durumunu göster.
+desc.quest.accept = Oyuncu koşulları sağlıyorsa görevi üstlen.
+desc.quest.claim = Tamamlanmış bir görevin ödüllerini al.
+desc.quest.abandon = Oyuncunun sürdürdüğü bir görevi bırak.
+desc.achievement = Başarımlar: katalog, bir oyuncunun kaydı ve üzerindeki yönetici işlemleri.
+desc.achievement.list = Paylaşılan katalogdaki her başarımı listele.
+desc.achievement.status = Bir oyuncu için her başarımın durumunu göster.
+desc.achievement.unlock = Ölçütleri karşılansın ya da karşılanmasın, bir oyuncuya başarım ver.
+desc.achievement.revoke = Bir oyuncudan bir başarımı geri al.
+desc.achievement.reset = Bir oyuncunun tüm başarım kaydını sil.
+desc.memories = Diyalog anıları: konuşmaların bir oyuncu hakkında hatırladıkları.
+desc.memories.forget = Her konuşmanın bir oyuncu hakkında hatırladığı her şeyi unut.
+desc.arg.player = İşlem yapılacak oyuncu. Varsayılan: sen.
+desc.arg.quest = Görev kimliği.
+desc.arg.quest_or_all = Bir görev kimliği ya da 'all'.
+desc.arg.quest_filter = Yalnızca bu görevi göster.
+desc.arg.achievement = Başarım kimliği.
+desc.arg.tag = Yalnızca bu etiketi taşıyan içeriği göster.
+desc.arg.everyone = Her dünyadaki çevrimiçi tüm oyuncular.
+
+player.needed = --player=<ad> ile bir oyuncu belirt.
+player.offline = Bu oyuncu çevrimiçi değil ve ilerlemesi kendi varlığı üzerinde yaşıyor.
+player.no_record = {0} için etkin deponun okuyabileceği bir ilerleme kaydı yok.
+
+reload.done = Paylaşılan görev ve başarım varlıkları yeniden yayımlandı. Katalog artık {0} görev ve {1} başarım içeriyor.
+
+quest.needed = --quest=<id> ile bir görev belirt.
+quest.unknown = '{0}' altında kayıtlı bir görev yok.
+quest.list.header = Görevler ({0}):
+quest.list.none = Kayıtlı görev yok.
+quest.list.row = {0} - {1}, {2} adım{3}
+quest.list.off = , kapalı
+quest.list.hidden = , açık listelerde gizli
+quest.list.repeatable = , tekrarlanabilir
+quest.list.tags = etiketler: {0}
+
+quest.given = {0} görevi {1} için başlatıldı.
+quest.given.everyone = {0} görevi {1} oyuncu için başlatıldı.
+quest.give.refused = {0} görevi {1} için şu anda başlatılamıyor: kendi tekrar kuralları izin vermiyor.
+quest.reset.one = {0} görevi {1} için silindi, tamamlama kaydı dahil.
+quest.reset.all = {0} için tüm görevler ({1} kayıt) ve göreve bağlı tüm diyalog anıları silindi.
+quest.completed = {0} görevi {1} için kapatıldı ve ödülü verildi.
+quest.complete.already = {1} zaten {0} görevini bitirdi ve tek seferlik bir görevin ödülü iki kez verilmez.
+
+quest.status.header = {0} oyuncusunun görevleri:
+quest.status.none = kayıt yok
+quest.status.row = {0} ({1}): {2}{3}
+quest.status.stored = , kayıtlı hali: {0}
+quest.status.back_in = , {0} sonra geri döner
+quest.status.orphan = {0}: {1}, ve bu kimlikle kayıtlı bir görev artık yok
+quest.step.done = - [X] {0} {1}/{2}
+quest.step.open = - [ ] {0} {1}/{2}
+
+quest.accepted = {1}, {0} görevini üstlendi.
+quest.accept.refused = {1} şu anda {0} görevini üstlenemez ({2}).
+quest.claimed = {0} görevinin ödülü {1} için alındı.
+quest.claimed.all = {0} görevin ödülü {1} için alındı.
+quest.claim.not_parked = {0} görevi {1} için alınmayı beklemiyor.
+quest.claim.at_site = {0} görevinin ödülü buradan değil, ait olduğu yerde alınır.
+quest.claim.refused = {0} görevinin ödülü {1} oyuncusuna verilemedi; ödüllerine yer olmayabilir.
+quest.claim.refused.some = {0} görevin ödülü {1} oyuncusuna verilemedi; ödüllerine yer olmayabilir.
+quest.claim.nothing = {0} için alınmayı bekleyen bir şey yok.
+quest.abandoned = {1}, {0} görevini bıraktı.
+quest.abandon.not_active = {1}, {0} görevini sürdürmüyor.
+
+achievement.needed = --achievement=<id> ile bir başarım belirt.
+achievement.unknown = '{0}' altında kayıtlı bir başarım yok.
+achievement.list.header = Başarımlar ({0}):
+achievement.list.none = Kayıtlı başarım yok.
+achievement.list.row = {0} - {1}, {2} ölçüt, {3} puan{4}
+achievement.list.off = , kapalı
+achievement.list.hidden = , gizli
+achievement.list.server_first = , sunucuda ilk
+achievement.list.meta = , taç başarım
+
+achievement.status.header = {0} oyuncusunun başarımları: {1} puan
+achievement.status.none = kayıt yok
+achievement.status.row = {0} ({1}): {2}, {3}/{4} ölçüt
+achievement.status.orphan = {0}: {1}, ve bu kimlikle kayıtlı bir başarım artık yok
+achievement.status.milestone = kilometre taşı {0}: {1}
+
+achievement.unlocked = {0} başarımı {1} oyuncusuna verildi.
+achievement.unlock.already = {1} zaten {0} başarımını kazandı.
+achievement.unlock.refused = Sunucu {0} başarımını {1} için reddetti; başkasının elinde olan bir sunucuda-ilk olası nedenlerden biri.
+achievement.revoked = {0} başarımı {1} oyuncusundan geri alındı.
+achievement.revoke.nothing = {1} oyuncusunun {0} altında hiçbir şeyi yok.
+achievement.reset = {0} için tüm başarımlar ve kilometre taşları silindi ({1} kayıt).
+achievement.reset.first_claims = Bu oyuncunun kazandığı bir sunucuda-ilk, kurulu talep tablosunda kayıtlı kalır; orada serbest bırak.
+
+memories.forgot = Her konuşmanın {0} hakkında hatırladığı her şey, her iki ömürde de unutuldu.
+
+status.quest.not_started = başlanmadı
+status.quest.active = etkin
+status.quest.completed = tamamlandı
+status.quest.completed_unclaimed = bitti, alınmayı bekliyor
+status.quest.on_cooldown = bekleme süresinde
+status.achievement.locked = kilitli
+status.achievement.unlocked = kazanıldı, alınmayı bekliyor
+status.achievement.claimed = kazanıldı

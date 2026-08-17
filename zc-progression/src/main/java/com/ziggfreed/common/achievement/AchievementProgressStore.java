@@ -145,6 +145,27 @@ public interface AchievementProgressStore {
     }
 
     /**
+     * Forget EVERYTHING this store holds for the subject: every achievement's progress, status,
+     * unlock instant and pin, plus every points milestone. An administrator's start-over.
+     *
+     * <p>The default walks the per-item operations above, so it is correct for any implementation;
+     * one that can drop a subject's whole record at once may override it. The bare progress sweep
+     * after the id walk is deliberate: it catches a key no derived id reaches, so nothing is left
+     * behind for the legacy fallback in {@link #criterionProgress} to resurrect.
+     */
+    default void clearAll(@Nonnull Subject subject) {
+        for (String achievementId : Set.copyOf(knownAchievementIds(subject))) {
+            clearAchievement(subject, achievementId);
+        }
+        for (String key : Set.copyOf(progressKeys(subject))) {
+            putProgress(subject, key, 0L);
+        }
+        for (Integer threshold : Set.copyOf(knownMilestones(subject))) {
+            setMilestoneStatus(subject, threshold.intValue(), AchievementStatus.LOCKED);
+        }
+    }
+
+    /**
      * Does {@code id} contain a character this store's format reserves, making it unsafe as an
      * achievement id? The default rejects {@link #DEFAULT_RESERVED_CHARACTERS} plus any blank id.
      */
