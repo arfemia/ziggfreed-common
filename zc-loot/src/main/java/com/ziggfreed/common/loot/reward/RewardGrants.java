@@ -1,5 +1,6 @@
 package com.ziggfreed.common.loot.reward;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -24,6 +25,21 @@ import com.ziggfreed.common.subject.Subject;
  * payout and gets part of it, with nothing anywhere saying so.
  */
 public final class RewardGrants {
+
+    /**
+     * The parameter naming what paid a reward out. Every kind reads the same one - it is what a
+     * {@code {source}} placeholder in a command line resolves to, and what a log line names - so it
+     * is written once here rather than spelled separately by each payout site.
+     */
+    public static final String P_SOURCE = "source";
+
+    /**
+     * The parameter saying whether a reward is worth waiting for. A reward authored
+     * {@code queueifoffline: false} is only worth anything in the moment - a celebration effect, a
+     * command that positions the player - so it is dropped rather than parked when nobody is there
+     * to receive it. Absent reads as false.
+     */
+    public static final String P_QUEUE_IF_OFFLINE = "queueifoffline";
 
     /**
      * What became of a payout pass. {@code granted} reached the player now, {@code queued} will on
@@ -91,6 +107,78 @@ public final class RewardGrants {
             }
         }
         return new GrantOutcome(granted, queued, failed);
+    }
+
+    /**
+     * The same pass with the two questions every payout site was asking in front of it folded in:
+     * whether a reward should even be attempted with nobody there to receive it, and what it should
+     * say paid it out.
+     *
+     * <p>Both are statements about the REWARD rather than about whoever is granting it, so asking
+     * them here is what keeps them meaning one thing. The alternative is each payout site (or worse,
+     * each handler) remembering to ask, which is how one of them stops asking and a flag quietly
+     * means nothing on that path.
+     *
+     * @param playerOnline whether the receiving player is here right now; false drops the rewards
+     *                     authored {@link #P_QUEUE_IF_OFFLINE} false before any handler sees them
+     */
+    @Nonnull
+    public static GrantOutcome grantAll(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject,
+                                        @Nonnull String sourceId, @Nonnull RewardKindRegistry kinds,
+                                        boolean playerOnline,
+                                        @Nullable BiConsumer<Subject, String> retryQueue,
+                                        @Nonnull Consumer<String> warn) {
+        return grantAll(stamped(deliverable(rewards, playerOnline, sourceId, warn), sourceId),
+                subject, sourceId, kinds, retryQueue, warn);
+    }
+
+    /**
+     * The rewards a pass should even attempt. Everything, when the player is here; when they are
+     * not, everything EXCEPT the ones authored {@link #P_QUEUE_IF_OFFLINE} false, each dropped with
+     * one warning naming what was skipped and why.
+     *
+     * <p>Package-private: the only caller is the {@code playerOnline} {@link #grantAll} overload
+     * above, which folds it in front of {@link #stamped}. {@code stamped} stays public - a test
+     * exercises it on its own to pin the source-stamping rule in isolation - but this one has no
+     * caller that needs to ask the question by itself.
+     */
+    @Nonnull
+    static List<RewardSpec> deliverable(@Nonnull List<RewardSpec> rewards, boolean playerOnline,
+                                        @Nonnull String sourceId, @Nonnull Consumer<String> warn) {
+        if (playerOnline) {
+            return rewards;
+        }
+        List<RewardSpec> out = new ArrayList<>(rewards.size());
+        for (RewardSpec spec : rewards) {
+            if (spec == null) {
+                continue;
+            }
+            if (spec.flagParam(P_QUEUE_IF_OFFLINE, false)) {
+                out.add(spec);
+            } else {
+                warn.accept("[grant] " + sourceId + ": skipping a '" + spec.kind()
+                        + "' reward, because the player is offline and it is authored"
+                        + " queueIfOffline: false");
+            }
+        }
+        return out;
+    }
+
+    /**
+     * The rewards with the real payout source written onto them, so a log line and a
+     * {@code {source}} placeholder name what actually paid out rather than the word the handler was
+     * registered under. A reward that already names its own source keeps it.
+     */
+    @Nonnull
+    public static List<RewardSpec> stamped(@Nonnull List<RewardSpec> rewards, @Nonnull String sourceId) {
+        List<RewardSpec> out = new ArrayList<>(rewards.size());
+        for (RewardSpec spec : rewards) {
+            if (spec == null) {
+                continue;
+            }
+            out.add(spec.param(P_SOURCE) == null ? spec.with(P_SOURCE, sourceId) : spec);
+        }
+        return out;
     }
 
     /**

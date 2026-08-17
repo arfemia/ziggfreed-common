@@ -66,8 +66,9 @@ module or grow a second, subtly different idea of what a reward is.
   through, and the one fit check every consumer mod shares. **`canAdd` answers about ONE reward.
   Checking a LIST with it in a loop is a bug**: each call asks about the same last free slot, so
   every reward answers yes and the last one still lands on the floor. `canAddAll(rewards, subject
-  [, sourceId])` is the batch, and it is what a payout site calls; the MMO's `RewardFit` is the
-  worked example of asking it with a player in hand.
+  [, sourceId])` is the batch, and it is what a payout site calls, straight - a consumer with a
+  player in hand builds a `Subject` for them and asks this, rather than wrapping it in a probe of
+  its own.
   - **A `Command` reward whose line is a `give` counts as an item**, so `stackFor(spec, subject,
     sourceId)` reads one back through [`command/CommandRunner.readGive`](../../command/CLAUDE.md)
     and it joins the same batch. The line is resolved exactly as the grant will resolve it, so the
@@ -92,7 +93,36 @@ module or grow a second, subtly different idea of what a reward is.
 - **[`RewardGrants`](RewardGrants.java)** - `grantAll(rewards, subject, sourceId, kinds, retryQueue,
   warn)` -> `GrantOutcome(granted, queued, failed)`. Per-reward isolation: one handler throwing never
   costs the player the rest, a replayable failure becomes a queued retry, and only a reward that can
-  be neither granted nor queued counts as lost. Never throws.
+  be neither granted nor queued counts as lost. Never throws. The overload taking a `playerOnline`
+  flag is the one a payout site should reach for: it asks the two questions that belong to the
+  REWARD in front of the pass, `deliverable` then `stamped`, so neither is left to a consumer to
+  remember.
+  - **`deliverable(rewards, playerOnline, sourceId, warn)`** drops the rewards authored
+    `P_QUEUE_IF_OFFLINE` false when nobody is there to receive them, one warning each. That flag is
+    the author saying "this one is only worth anything in the moment" - a celebration effect, a
+    command that positions the player - and the honest reading is to drop it rather than park it for
+    a connect where it would fire out of context. Absent reads as false.
+  - **`stamped(rewards, sourceId)`** writes `P_SOURCE` onto every reward that does not already name
+    one, so a log line and a `{source}` placeholder name what actually paid out rather than the word
+    the handler was registered under.
+  - Both are asked ONCE, in front of every kind, because both are statements about the REWARD and
+    not about who is paying it out: the alternative is each handler remembering to ask, which is how
+    one of them stops asking and the flag quietly means nothing on that path. `P_SOURCE` and
+    `P_QUEUE_IF_OFFLINE` are declared here for the same reason - they are the two parameters every
+    kind reads, so there is one spelling of each.
+- **[`RewardJson`](RewardJson.java)** - reads a reward written as `type` plus flat fields, for the
+  authoring formats no codec decodes (an override config, a hand-written content file, a JSON body
+  carried on something else). `type` names the KIND and every other field becomes a parameter of the
+  same name, so content authors a kind this library never heard of with nothing here changing;
+  nested objects and arrays are skipped, because a parameter is a single value whichever kind reads
+  it. **Three things vary per consumer and none of them can live here**, so a reader is built once
+  with `using(kinds, paramKeys, refusals, warn)` and reused: which historical kind spellings still
+  have to parse, which historical field spellings do, and what that consumer's own kinds REFUSE to
+  be authored without. A consumer with no compat history passes `identity()` twice and a null rule.
+  **A refusal happens at LOAD and that is the point**: the reward is skipped with a warning naming
+  the file, so whoever authored it finds out at boot and in a content audit rather than a player
+  finishing something and receiving nothing. A kind the dialect has no opinion about is never
+  refused - the mod defining it may simply not be installed, which is an audit's job to report.
 - **[`RewardChips`](RewardChips.java) + [`RewardChip`](RewardChip.java)** - how one reward READS,
   before it is granted. A chip is an optional item icon plus one already-composed client-resolved
   line, assembled from the same three sources the deferred-payout layer reads and in the same order
@@ -216,7 +246,9 @@ that order to registration order.
   every authored kind's real surface unknowable, and the validator reports the stray parameter
   instead.
 - Tests are mechanics and invariants: `RewardGrantsTest` (isolation, retry queueing, unhandled kinds,
-  the typed parameter reads), `FrameworkKindFailLoudTest` (an unpayable spec is reported failed, never
+  the typed parameter reads, the offline drop and the source stamp), `RewardJsonTest` (what becomes
+  the kind, what becomes a parameter, what the dialect gets to change, and that a refusal lands at
+  load with the file named), `FrameworkKindFailLoudTest` (an unpayable spec is reported failed, never
   granted), `RewardKindRegistryTest` (empty start, registration, lookup),
   `RewardKindFoldTest` (the two facets keyed together, and both compact grammars reading one table),
   and `DroplistRewardKindTest` (the whole parameter fold - which id, how many rolls, where they land -

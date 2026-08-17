@@ -211,6 +211,72 @@ class RewardGrantsTest {
         assertEquals(0L, spec.longParam("ratio", 1L), "a fraction truncates rather than inventing a count");
     }
 
+    // ==================== the two questions asked in front of a pass ====================
+
+    /**
+     * A reward that says it is only worth anything in the moment is DROPPED when nobody is there to
+     * receive it, and dropping it is not losing it: nothing is owed to anybody afterwards.
+     */
+    @Test
+    void aRewardNotWorthWaitingForIsDroppedRatherThanQueued() {
+        kinds.register("BROKEN", (spec, subject) -> {
+            throw new IllegalStateException("no");
+        });
+
+        RewardGrants.GrantOutcome outcome = RewardGrants.grantAll(
+                List.of(RewardSpec.of("BROKEN", RewardGrants.P_QUEUE_IF_OFFLINE, "false")),
+                player, "quest:demo", kinds, false,
+                (subject, command) -> queued.add(command), warnings::add);
+
+        assertTrue(queued.isEmpty(), "nothing waits for a player it was never worth waiting for");
+        assertEquals(0, outcome.granted());
+        assertEquals(0, outcome.queued());
+        assertEquals(0, outcome.failed(), "dropped because its author said so is not lost");
+        assertFalse(outcome.anyDelivered());
+    }
+
+    /** The same reward with the player standing there is attempted like any other. */
+    @Test
+    void thatSameRewardIsAttemptedWhenThePlayerIsHere() {
+        RewardGrants.GrantOutcome outcome = RewardGrants.grantAll(
+                List.of(RewardSpec.of("GOOD", Map.of("id", "now",
+                        RewardGrants.P_QUEUE_IF_OFFLINE, "false"))),
+                player, "quest:demo", kinds, true,
+                (subject, command) -> queued.add(command), warnings::add);
+
+        assertEquals(List.of("now"), granted);
+        assertEquals(1, outcome.granted());
+    }
+
+    /**
+     * A reward with nobody there and no opinion about waiting is dropped too: the flag is absent, so
+     * it reads false, and a payout nobody asked to be parked is not parked.
+     */
+    @Test
+    void aRewardSayingNothingAboutWaitingIsDroppedWhenNobodyIsThere() {
+        RewardGrants.GrantOutcome outcome = RewardGrants.grantAll(
+                List.of(RewardSpec.of("GOOD", "id", "silent")), player, "quest:demo", kinds, false,
+                (subject, command) -> queued.add(command), warnings::add);
+
+        assertTrue(granted.isEmpty());
+        assertEquals(0, outcome.granted());
+        assertEquals(0, outcome.failed());
+    }
+
+    /** What paid out is written onto every reward that does not already name its own source. */
+    @Test
+    void thePayoutSourceIsStampedOnEveryRewardThatDoesNotNameOne() {
+        List<RewardSpec> stamped = RewardGrants.stamped(List.of(
+                RewardSpec.of("GOOD", "id", "a"),
+                RewardSpec.of("GOOD", Map.of("id", "b", RewardGrants.P_SOURCE, "mine"))),
+                "quest:demo");
+
+        assertEquals("quest:demo", stamped.get(0).param(RewardGrants.P_SOURCE),
+                "a reward that names no source is labelled with what actually paid it out");
+        assertEquals("mine", stamped.get(1).param(RewardGrants.P_SOURCE),
+                "a reward that already names one keeps it");
+    }
+
     @Test
     void withReturnsACopyAndLeavesTheOriginalAlone() {
         RewardSpec original = RewardSpec.of("GOOD", "id", "first");

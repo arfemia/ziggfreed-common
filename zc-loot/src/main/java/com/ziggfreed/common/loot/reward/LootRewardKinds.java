@@ -462,7 +462,7 @@ public final class LootRewardKinds {
     public static final String P_DELAY_TICKS = "delayticks";
 
     /** What paid out, offered to the template as {@code {source}} whether or not it was stamped on. */
-    private static final String P_SOURCE = "source";
+    private static final String P_SOURCE = RewardGrants.P_SOURCE;
 
     /** The one {@code RunAs} value that is not the console. */
     private static final String RUN_AS_PLAYER = "player";
