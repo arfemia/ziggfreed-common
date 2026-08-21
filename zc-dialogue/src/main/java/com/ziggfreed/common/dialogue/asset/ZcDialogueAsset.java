@@ -1,5 +1,6 @@
 package com.ziggfreed.common.dialogue.asset;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -12,6 +13,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.ziggfreed.common.dialogue.DeferredCodec;
+import com.ziggfreed.common.dialogue.DialogueChrome;
 import com.ziggfreed.common.dialogue.DialogueMemory;
 import com.ziggfreed.common.dialogue.DialogueNode;
 import com.ziggfreed.common.dialogue.DialogueOption;
@@ -66,6 +68,8 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable private Map<String, DialogueNode> nodes;
     @Nullable private Map<String, DialogueMemory> memories;
     @Nullable private Map<String, DialogueOption[]> fragments;
+    @Nullable private String[] header;
+    @Nullable private DialogueChrome chrome;
 
     /** The conversation assembled from the fields above, once the whole file has been read. */
     @Nullable private NpcDialogue dialogue;
@@ -131,6 +135,20 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
                     (a, v) -> a.fragments = v, a -> a.fragments, (a, p) -> a.fragments = p.fragments)
             .documentation(DialogueTypeTable.FRAGMENTS_DOC)
             .add()
+            .appendInherited(new KeyedCodec<>("Header", Codec.STRING_ARRAY, false),
+                    (a, v) -> a.header = v, a -> a.header, (a, p) -> a.header = p.header)
+            .documentation("Where the one-line note under the speaker's name comes from, in order: the "
+                    + "first source with something to say is the line drawn. ActiveObjective reads the "
+                    + "player's current step on a quest this character gives. Leave it out and the "
+                    + "conversation shows no note at all, which is what a character who never talks "
+                    + "about quests wants.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Chrome", DialogueChrome.CODEC, false),
+                    (a, v) -> a.chrome = v, a -> a.chrome, (a, p) -> a.chrome = p.chrome)
+            .documentation("This conversation's own wording for the two lines the page supplies rather "
+                    + "than the author: the exit row and the nothing-to-say line. Unauthored uses the "
+                    + "library's wording, which is what most conversations want.")
+            .add()
             .afterDecode((asset, extraInfo) -> asset.assemble())
             .build();
 
@@ -144,7 +162,8 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
      * groups they name here rather than at every render.
      */
     private void assemble() {
-        if (start == null && nodes == null && memories == null && fragments == null) {
+        if (start == null && nodes == null && memories == null && fragments == null
+                && header == null && chrome == null) {
             dialogue = null;
             return;
         }
@@ -155,6 +174,8 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
         built.setTree(start, nodes);
         built.setMemories(memories);
         built.setFragments(fragments);
+        built.setHeaderSources(header == null ? null : List.of(header));
+        built.setChrome(chrome);
         built.spliceFragments();
         dialogue = built;
     }

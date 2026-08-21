@@ -10,7 +10,6 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.dialogue.DialogueQuestView;
 import com.ziggfreed.common.dialogue.page.DialogueOpener;
-import com.ziggfreed.common.dialogue.page.DialoguePageDeps;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.DestinationType;
@@ -130,16 +129,9 @@ public final class NpcDestinations {
             SafeLog.warn("[destination] a Dialogue destination names no conversation, so it opens nothing");
             return false;
         }
-        Supplier<DialoguePageDeps> supplier = NpcDialogueDepsRegistry.get(ctx.depsKey());
-        DialoguePageDeps deps = supplier == null ? null : supplier.get();
-        if (deps == null) {
-            SafeLog.warn("[destination] no dialogue deps are registered, so the conversation '" + dialogueId
-                    + "' cannot open");
-            return false;
-        }
         // Through the opener, never straight to the page: a conversation whose Start routes to a quest
         // row's destination has to hand the screen over before the page is built.
-        return DialogueOpener.open(ctx, dialogueId, ctx.npcId(), deps);
+        return DialogueOpener.open(ctx, dialogueId, ctx.npcId());
     }
 
     // ==================== Quests ====================

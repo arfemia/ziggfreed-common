@@ -13,7 +13,6 @@ import com.hypixel.hytale.server.npc.corecomponents.ActionBase;
 import com.hypixel.hytale.server.npc.role.Role;
 import com.hypixel.hytale.server.npc.sensorinfo.InfoProvider;
 import com.ziggfreed.common.npc.NpcDestinations;
-import com.ziggfreed.common.npc.NpcDialogueDepsRegistry;
 import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
@@ -46,14 +45,8 @@ import com.ziggfreed.common.util.SafeLog;
  */
 public class ActionPlacementInteract extends ActionBase {
 
-    /** Which registered dialogue-deps provider to use ({@code DEFAULT_KEY} when blank). */
-    @Nonnull
-    protected final String depsKey;
-
     public ActionPlacementInteract(@Nonnull BuilderActionPlacementInteract builder, @Nonnull BuilderSupport support) {
         super(builder);
-        String key = builder.getDepsKey(support);
-        this.depsKey = (key == null || key.isBlank()) ? NpcDialogueDepsRegistry.DEFAULT_KEY : key.trim();
     }
 
     @Override
@@ -118,8 +111,7 @@ public class ActionPlacementInteract extends ActionBase {
                 return null;
             }
             return DestinationContext.of(store, playerReference, player)
-                    .withNpc(npcRef, NpcIdentities.npcIdOfPlacement(placementId), placementId)
-                    .withDepsKey(depsKey);
+                    .withNpc(npcRef, NpcIdentities.npcIdOfPlacement(placementId), placementId);
         } catch (Throwable t) {
             SafeLog.warn("[placement] could not read the interacting player: " + t.getMessage());
             return null;

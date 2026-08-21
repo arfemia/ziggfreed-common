@@ -24,6 +24,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.ui.UiRetint;
+import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.util.NumberFormatter;
 
 /**
@@ -216,7 +217,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
 
-        cmd.set("#Title.Text", t.title());
+        UiText.setText(cmd, "#Title.Text", t.title());
         boolean hasStats = !deps.statColumns().isEmpty();
 
         // Leading row labels (optional; clarify what each selector row drives).
@@ -232,9 +233,9 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
 
         // Sort toggle (Rankings only) + view toggle.
         String viewStr = statsView ? "stats" : "rankings";
-        cmd.set("#SortBest.Text", t.sortScore());
-        cmd.set("#SortTotal.Text", t.sortTotal());
-        cmd.set("#SortTime.Text", t.sortTime());
+        UiText.setText(cmd, "#SortBest.Text", t.sortScore());
+        UiText.setText(cmd, "#SortTotal.Text", t.sortTotal());
+        UiText.setText(cmd, "#SortTime.Text", t.sortTime());
         bind(events, "#SortBest", "sort", activePrimary, activeSecondary, SortMode.BEST_SCORE.name(), statSort, viewStr);
         bind(events, "#SortTotal", "sort", activePrimary, activeSecondary, SortMode.TOTAL_POINTS.name(), statSort, viewStr);
         bind(events, "#SortTime", "sort", activePrimary, activeSecondary, SortMode.BEST_TIME.name(), statSort, viewStr);
@@ -244,8 +245,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         cmd.set("#SortGroup.Visible", !statsView);
         cmd.set("#SortLabel.Visible", !statsView && t.sortLabel() != null);
 
-        cmd.set("#ViewRankings.Text", t.viewRankings());
-        cmd.set("#ViewStats.Text", t.viewStats());
+        UiText.setText(cmd, "#ViewRankings.Text", t.viewRankings());
+        UiText.setText(cmd, "#ViewStats.Text", t.viewStats());
         bind(events, "#ViewRankings", "view", activePrimary, activeSecondary, sort.name(), statSort, "rankings");
         bind(events, "#ViewStats", "view", activePrimary, activeSecondary, sort.name(), statSort, "stats");
         cmd.set("#ViewGroup.Visible", hasStats);
@@ -265,12 +266,12 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     private void buildRankings(@Nonnull UICommandBuilder cmd, @Nonnull LeaderboardScreenMessages t) {
         cmd.set("#TableHeader.Visible", true);
         cmd.set("#StatsHeader.Visible", false);
-        cmd.set("#HdrRank.Text", t.colRank());
-        cmd.set("#HdrPlayer.Text", t.colPlayer());
-        cmd.set("#HdrTotal.Text", t.colTotal());
-        cmd.set("#HdrScore.Text", t.colScore());
-        cmd.set("#HdrTime.Text", t.colTime());
-        cmd.set("#HdrPlays.Text", t.colPlays());
+        UiText.setText(cmd, "#HdrRank.Text", t.colRank());
+        UiText.setText(cmd, "#HdrPlayer.Text", t.colPlayer());
+        UiText.setText(cmd, "#HdrTotal.Text", t.colTotal());
+        UiText.setText(cmd, "#HdrScore.Text", t.colScore());
+        UiText.setText(cmd, "#HdrTime.Text", t.colTime());
+        UiText.setText(cmd, "#HdrPlays.Text", t.colPlays());
 
         Map<UUID, LeaderboardEntry> bucket = deps.board().forBuckets(effectiveBuckets());
         List<Map.Entry<UUID, LeaderboardEntry>> sorted = new ArrayList<>(bucket.entrySet());
@@ -278,7 +279,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
 
         UUID self = playerRef.getUuid();
         if (sorted.isEmpty()) {
-            cmd.set("#EmptyState.Text", t.empty());
+            UiText.setText(cmd, "#EmptyState.Text", t.empty());
             cmd.set("#EmptyState.Visible", true);
         } else {
             int max = Math.min(sorted.size(), MAX_ROWS);
@@ -297,12 +298,12 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         // Plain data (rank / name / numbers) is a plain String, NOT a raw Message: a Label's .Text
         // accepts a string (and resolves a translation key) but cannot wrap a raw-Message object,
         // which would abort the whole CustomUI update. Numbers + a proper-noun username are data.
-        cmd.set(sel + " #Rank.Text", "#" + rank);
-        cmd.set(sel + " #Player.Text", resolveName(uuid, e));
-        cmd.set(sel + " #Total.Text", NumberFormatter.grouped(e.totalPoints()));
-        cmd.set(sel + " #Score.Text", NumberFormatter.grouped(e.bestScore));
-        cmd.set(sel + " #Time.Text", e.bestTimeSeconds > 0 ? formatTime(e.bestTimeSeconds) : "-");
-        cmd.set(sel + " #Plays.Text", Integer.toString(e.plays));
+        UiText.setText(cmd, sel + " #Rank.Text", "#" + rank);
+        UiText.setText(cmd, sel + " #Player.Text", resolveName(uuid, e));
+        UiText.setText(cmd, sel + " #Total.Text", NumberFormatter.grouped(e.totalPoints()));
+        UiText.setText(cmd, sel + " #Score.Text", NumberFormatter.grouped(e.bestScore));
+        UiText.setText(cmd, sel + " #Time.Text", e.bestTimeSeconds > 0 ? formatTime(e.bestTimeSeconds) : "-");
+        UiText.setText(cmd, sel + " #Plays.Text", Integer.toString(e.plays));
         paintRank(cmd, sel, rank, isSelf);
     }
 
@@ -312,8 +313,8 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                             @Nonnull LeaderboardScreenMessages t) {
         cmd.set("#TableHeader.Visible", false);
         cmd.set("#StatsHeader.Visible", true);
-        cmd.set("#SHdrRank.Text", t.colRank());
-        cmd.set("#SHdrPlayer.Text", t.colPlayer());
+        UiText.setText(cmd, "#SHdrRank.Text", t.colRank());
+        UiText.setText(cmd, "#SHdrPlayer.Text", t.colPlayer());
 
         // Stat column headers are clickable: a click re-sorts the list by that column's metric and
         // highlights the active header (the same active/inactive tint as the tabs).
@@ -323,7 +324,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             String hdr = "#SHdrCol" + c;
             if (c < shown) {
                 String key = cols.get(c).statKey();
-                cmd.set(hdr + ".Text", cols.get(c).label());
+                UiText.setText(cmd, hdr + ".Text", cols.get(c).label());
                 cmd.set(hdr + ".Visible", true);
                 style(cmd, hdr, statSort.equals(key));
                 bindStatSort(events, hdr, key);
@@ -332,7 +333,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             }
         }
         // The Plays column is sortable too (reserved "plays" key).
-        cmd.set("#SHdrPlays.Text", t.colPlays());
+        UiText.setText(cmd, "#SHdrPlays.Text", t.colPlays());
         style(cmd, "#SHdrPlays", statSort.equals("plays"));
         bindStatSort(events, "#SHdrPlays", "plays");
 
@@ -344,7 +345,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
 
         UUID self = playerRef.getUuid();
         if (sorted.isEmpty()) {
-            cmd.set("#EmptyState.Text", t.empty());
+            UiText.setText(cmd, "#EmptyState.Text", t.empty());
             cmd.set("#EmptyState.Visible", true);
         } else {
             int max = Math.min(sorted.size(), MAX_ROWS);
@@ -361,14 +362,14 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                                 boolean isSelf) {
         cmd.append("#LeaderboardList", STATS_ROW_TEMPLATE);
         String sel = "#LeaderboardList[" + index + "]";
-        cmd.set(sel + " #Rank.Text", "#" + rank);
-        cmd.set(sel + " #Player.Text", resolveName(uuid, e));
-        cmd.set(sel + " #Plays.Text", Integer.toString(e.plays));
+        UiText.setText(cmd, sel + " #Rank.Text", "#" + rank);
+        UiText.setText(cmd, sel + " #Player.Text", resolveName(uuid, e));
+        UiText.setText(cmd, sel + " #Plays.Text", Integer.toString(e.plays));
         for (int c = 0; c < StatColumnDef.MAX_STAT_COLUMNS; c++) {
             String cell = sel + " #Col" + c;
             if (c < shown) {
                 StatColumnDef def = cols.get(c);
-                cmd.set(cell + ".Text", def.format().render(e.stat(def.statKey())));
+                UiText.setText(cmd, cell + ".Text", def.format().render(e.stat(def.statKey())));
                 cmd.set(cell + ".Visible", true);
             } else {
                 cmd.set(cell + ".Visible", false);
@@ -394,7 +395,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             LeaderboardBucketTab tab = display.get(i);
             cmd.append(container, TAB_TEMPLATE);
             String sel = container + "[" + i + "]";
-            cmd.set(sel + " #TabBtn.Text", tab.label());
+            UiText.setText(cmd, sel + " #TabBtn.Text", tab.label());
             style(cmd, sel + " #TabBtn", tab.bucketKey().equals(active));
             String group = action.equals("group") ? tab.bucketKey() : activePrimary;
             String bucket = action.equals("group") ? activeSecondary : tab.bucketKey();
@@ -431,7 +432,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
 
     private static void setLabel(@Nonnull UICommandBuilder cmd, @Nonnull String sel, @Nullable Message label) {
         if (label != null) {
-            cmd.set(sel + ".Text", label);
+            UiText.setText(cmd, sel + ".Text", label);
             cmd.set(sel + ".Visible", true);
         } else {
             cmd.set(sel + ".Visible", false);
@@ -458,11 +459,11 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                 long metric = statsView
                         ? SortMode.statMetric(sorted.get(i).getValue(), statSort)
                         : sort.metric(sorted.get(i).getValue());
-                cmd.set("#YourRank.Text", t.yourRank(i + 1, metric));
+                UiText.setText(cmd, "#YourRank.Text", t.yourRank(i + 1, metric));
                 return;
             }
         }
-        cmd.set("#YourRank.Text", t.yourRankNone());
+        UiText.setText(cmd, "#YourRank.Text", t.yourRankNone());
     }
 
     @Override

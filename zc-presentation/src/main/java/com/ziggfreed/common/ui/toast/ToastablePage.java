@@ -92,6 +92,16 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
      * spec is {@link ToastSpec#silent()}). A no-op when the player has no toastable page open - the
      * toast is simply not shown, and the caller's other channels (e.g. a sound) are unaffected.
      */
+    /**
+     * Whether this player has a toastable page open right now, which is what a page-less caller asks
+     * before deciding between drawing INTO the screen and sending a HUD toast that would sit behind
+     * it. Racy by nature - a page can close between the question and the answer being acted on - and
+     * that is harmless: {@link #showOnActive} is a no-op when the page has gone.
+     */
+    public static boolean isShowing(@Nonnull UUID playerId) {
+        return ACTIVE.get(playerId) != null;
+    }
+
     public static void showOnActive(@Nonnull UUID playerId, @Nonnull ToastSpec spec) {
         ToastablePage<?> active = ACTIVE.get(playerId);
         if (active != null) {

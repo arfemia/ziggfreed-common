@@ -76,7 +76,7 @@ class FeedbackEngineTest {
 
     @Test
     void everyGroupIsOptionalAndTheAuthoredOnesDecode() throws IOException {
-        FeedbackMomentAsset asset = moment("quest.completed", """
+        FeedbackMomentAsset asset = moment("Quest_Completed", """
                 { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"],
                                         "Color": "#FFFF00" } },
                   "Sound": { "Id": "SFX_Discovery_Z2_Short" } }
@@ -98,12 +98,12 @@ class FeedbackEngineTest {
 
     @Test
     void aChildInheritsGroupByGroupFromItsParent() throws IOException {
-        FeedbackMomentAsset parent = moment("quest.completed", """
+        FeedbackMomentAsset parent = moment("Quest_Completed", """
                 { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"] } },
                   "Sound": { "Id": "SFX_Discovery_Z2_Short" } }
                 """);
         AssetExtraInfo.Data data =
-                new AssetExtraInfo.Data(FeedbackMomentAsset.class, "quest.parked", "quest.completed");
+                new AssetExtraInfo.Data(FeedbackMomentAsset.class, "Quest_Parked", "Quest_Completed");
         FeedbackMomentAsset child = FeedbackMomentAsset.CODEC.decodeAndInheritJsonAsset(
                 RawJsonReader.fromJsonString("{ \"Sound\": { \"Id\": \"SFX_Discovery_Z1_Short\" } }"),
                 parent, new AssetExtraInfo<>(data));
@@ -122,7 +122,7 @@ class FeedbackEngineTest {
      */
     @Test
     void theFirstMatchingVariantOverlaysOnlyTheGroupsItRestates() throws IOException {
-        FeedbackMomentAsset asset = moment("quest.parked", """
+        FeedbackMomentAsset asset = moment("Quest_Parked", """
                 { "Toast": { "Title": { "Key": "ready", "Args": ["title"], "Color": "#FFFF00" } },
                   "Sound": { "Id": "SFX_Discovery_Z1_Short" },
                   "Variants": [
@@ -163,7 +163,7 @@ class FeedbackEngineTest {
      */
     @Test
     void aLineReadsItsKeyFromANamedValueBeforeTheFixedOne() throws IOException {
-        FeedbackMomentAsset asset = moment("achievement.unlocked", """
+        FeedbackMomentAsset asset = moment("Achievement_Unlocked", """
                 { "Broadcast": { "Title": { "KeyArg": "announceKey", "Args": ["title"] },
                                  "Secondary": { "KeyArg": "bodyKey", "Key": "default.body",
                                                 "Args": ["player", "title"] } } }
@@ -195,14 +195,14 @@ class FeedbackEngineTest {
 
     @Test
     void aSubjectWithNoPlayerHandleIsAskedForOneAndThenLeftAlone() throws IOException {
-        install("quest.completed", moment("quest.completed", """
+        install("Quest_Completed", moment("Quest_Completed", """
                 { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"] } } }
                 """));
         AskedHandle handle = new AskedHandle();
         Subject subject = new Subject(UUID.randomUUID(), "tester", handle);
 
         assertDoesNotThrow(() ->
-                FeedbackEngine.fire("quest.completed", subject, Map.of("title", "A Quest")));
+                FeedbackEngine.fire("Quest_Completed", subject, Map.of("title", "A Quest")));
 
         assertTrue(handle.asked.contains(PlayerRef.class),
                 "the toast resolves its player through the subject's own handle");
@@ -210,7 +210,7 @@ class FeedbackEngineTest {
 
     @Test
     void aMomentNamingAnArgumentItDidNotCarryIsStillHarmless() throws IOException {
-        install("quest.completed", """
+        install("Quest_Completed", """
                 { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"] },
                              "Secondary": { "Key": "notify.quest_flavor", "Args": ["nobody"] } },
                   "Sound": { "Id": "SFX_Discovery_Z2_Short" } }
@@ -218,7 +218,7 @@ class FeedbackEngineTest {
         AskedHandle handle = new AskedHandle();
         Subject subject = new Subject(UUID.randomUUID(), "tester", handle);
 
-        assertDoesNotThrow(() -> FeedbackEngine.fire("quest.completed", subject, Map.of()));
+        assertDoesNotThrow(() -> FeedbackEngine.fire("Quest_Completed", subject, Map.of()));
         assertEquals(List.of(PlayerRef.class), handle.asked,
                 "one player resolution for the whole moment however many parts it has, and no"
                         + " audience question at all for a subject there is no screen to ask about");
@@ -261,7 +261,7 @@ class FeedbackEngineTest {
     @Test
     void anAuthoredKeyIsResolvedThroughTheConsumerThatShipsIt() throws IOException {
         ContentKeys.install(new Fill("mmoskilltree.", "notify.quest_complete"));
-        FeedbackMomentAsset asset = moment("quest.completed", """
+        FeedbackMomentAsset asset = moment("Quest_Completed", """
                 { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"] } } }
                 """);
 
@@ -275,7 +275,7 @@ class FeedbackEngineTest {
     /** A key nobody claims goes out exactly as authored, for a consumer pointing at a native id. */
     @Test
     void aKeyNoConsumerClaimsGoesOutAsWritten() throws IOException {
-        FeedbackMomentAsset asset = moment("quest.completed", """
+        FeedbackMomentAsset asset = moment("Quest_Completed", """
                 { "Toast": { "Title": { "Key": "some.native.key", "Args": ["title"] } } }
                 """);
 
@@ -292,7 +292,7 @@ class FeedbackEngineTest {
     private static FeedbackMomentAsset.Toast toastWith(@Nullable Integer everyPercent)
             throws IOException {
         String mark = everyPercent == null ? "" : ", \"EveryPercent\": " + everyPercent;
-        return moment("quest.objective_progressed", """
+        return moment("Quest_Objective_Progressed", """
                 { "Toast": { "Title": { "Key": "tick", "Args": ["step"] }%s } }
                 """.formatted(mark)).getToast();
     }
@@ -311,16 +311,16 @@ class FeedbackEngineTest {
                         ? (FeedbackAudience) (momentId, args) -> true : null);
         FeedbackMomentAsset.Toast toast = toastWith(null);
 
-        assertFalse(FeedbackEngine.wantsToast(quiet, "quest.completed", toast, Map.of()),
+        assertFalse(FeedbackEngine.wantsToast(quiet, "Quest_Completed", toast, Map.of()),
                 "a handle that says no is honoured");
-        assertTrue(FeedbackEngine.wantsToast(noisy, "quest.completed", toast, Map.of()),
+        assertTrue(FeedbackEngine.wantsToast(noisy, "Quest_Completed", toast, Map.of()),
                 "and a handle that says yes is too");
     }
 
     /** No opinion is not a refusal: a subject that answers for nothing gets whatever was authored. */
     @Test
     void aSubjectWithNoOpinionIsToasted() throws IOException {
-        assertTrue(FeedbackEngine.wantsToast(handleless, "quest.completed", toastWith(null), Map.of()));
+        assertTrue(FeedbackEngine.wantsToast(handleless, "Quest_Completed", toastWith(null), Map.of()));
     }
 
     /** An opinion that throws is not allowed to cost the moment the toast it was authored to draw. */
@@ -333,7 +333,7 @@ class FeedbackEngineTest {
                         }
                         : null);
 
-        assertTrue(FeedbackEngine.wantsToast(broken, "quest.completed", toastWith(null), Map.of()));
+        assertTrue(FeedbackEngine.wantsToast(broken, "Quest_Completed", toastWith(null), Map.of()));
     }
 
     /**

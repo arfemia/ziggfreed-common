@@ -16,6 +16,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 
 /**
@@ -77,7 +78,7 @@ public final class TrackedQuestPanelRenderer {
                         : Math.min(1.0, (double) tally.completed() / tally.total());
                 cmd.set(slot + " #TrackedQuestProgress.Value", pct);
                 // "X/Y" is pure data (two numbers), not localized text.
-                cmd.set(slot + " #TrackedQuestProgressText.Text", tally.completed() + "/" + tally.total());
+                UiText.setText(cmd, slot + " #TrackedQuestProgressText.Text", tally.completed() + "/" + tally.total());
                 if (events != null && clickAction != null) {
                     events.addEventBinding(CustomUIEventBindingType.Activating,
                             slot + " #TrackedQuestNameBtn",

@@ -33,6 +33,8 @@ public class NpcDialogue {
     @Nullable Map<String, DialogueNode> nodes;
     @Nullable Map<String, DialogueMemory> memories;
     @Nullable Map<String, DialogueOption[]> fragments;
+    @Nullable List<String> headerSources;
+    @Nullable DialogueChrome chrome;
 
     public NpcDialogue() {
     }
@@ -203,6 +205,34 @@ public class NpcDialogue {
             return null;
         }
         return getNodes().get(nodeId);
+    }
+
+    /**
+     * The header sources this conversation shows under the speaker's name, in order; the first that
+     * has something to say is the line drawn. Empty means no header, which is the default.
+     */
+    @Nonnull
+    public List<String> getHeaderSources() {
+        return headerSources == null ? List.of() : headerSources;
+    }
+
+    /** Direct (non-codec) construction: declare the header sources from Java. */
+    public void setHeaderSources(@Nullable List<String> sources) {
+        this.headerSources = sources == null || sources.isEmpty() ? null : List.copyOf(sources);
+    }
+
+    /**
+     * This conversation's own wording for the page's built-in lines, or null for the library's. Only
+     * a character with a voice of their own needs it; see {@link DialogueChrome}.
+     */
+    @Nullable
+    public DialogueChrome getChrome() {
+        return chrome;
+    }
+
+    /** Direct (non-codec) construction: declare the chrome wording from Java. */
+    public void setChrome(@Nullable DialogueChrome chrome) {
+        this.chrome = chrome;
     }
 
     @Nonnull

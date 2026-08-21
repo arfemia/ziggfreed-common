@@ -31,9 +31,13 @@ import com.ziggfreed.common.dialogue.DialogueOptionTheme;
 import com.ziggfreed.common.dialogue.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.DialogueNode;
 import com.ziggfreed.common.dialogue.NpcDialogue;
+import com.ziggfreed.common.dialogue.DialogueChrome;
+import com.ziggfreed.common.dialogue.DialogueHeaders;
+import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.dialogue.i18n.DialogueMessages;
-import com.ziggfreed.common.i18n.ContentI18n;
+import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.ui.UiRetint;
+import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
@@ -47,9 +51,14 @@ import com.ziggfreed.common.util.SafeLog;
  * so a currently-hidden Close option still yields the implicit row).
  * Conditions re-evaluate on EVERY render (state changes show immediately) and
  * AGAIN on click before actions run.
- * All consumer policy (per-player state, the npc name, the annotation, the router,
- * the i18n namespace) is supplied through {@link DialoguePageDeps}; the page itself
- * is mod-agnostic.
+ *
+ * <p><b>Nothing about this page belongs to one mod.</b> It reads the process-wide dialogue
+ * vocabulary ({@link DialogueEngine#shared()}), the one conversation store, the header sources a
+ * conversation names, and the name the character's own role authored. Authored keys resolve in the
+ * namespace of whichever mod ships them and every mod's payload is reachable through
+ * {@link com.ziggfreed.common.dialogue.DialoguePayloads}, so a conversation reads the same whoever
+ * opened it - which is the whole point: a server running two talking mods has one dialogue system,
+ * not one per mod with the last one to start up deciding for everybody.
  *
  * <p>Every handler exit path sends a response (openCustomPage / setPage) - the page
  * manager does not wrap build/handleDataEvent and the client spins forever
@@ -63,10 +72,10 @@ import com.ziggfreed.common.util.SafeLog;
  * way first-party {@code BarterPage} does. Click renders come back through the player's ref already
  * (the client's page event names the player), so the two paths agree.
  *
- * <p>Extends {@link ToastablePage} so a dialogue can float an in-menu completion toast: when an
- * action reports a just-completed thing ({@code Outcome.completedId}) and the consumer wired
- * a {@code completionToast} into {@link DialoguePageDeps}, the page shows it before reopening.
- * The toast overlay is inert (no toast configured / reported) for every other dialogue.
+ * <p>Extends {@link ToastablePage} so an in-menu toast can float over the conversation. The page
+ * raises none of its own: a lifecycle notice is a feedback moment, and a moment draws into whatever
+ * page is open, so finishing a quest mid-conversation shows its toast here without the page knowing
+ * a quest exists.
  */
 public class DialoguePage extends ToastablePage<DialogueEventData> {
 
@@ -76,7 +85,6 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
     private final String dialogueId;
     @Nullable private final String contextNpcId;
     @Nullable private final Ref<EntityStore> npcRef;
-    private final DialoguePageDeps deps;
     @Nullable private String currentNodeId;
 
     /**
@@ -94,8 +102,8 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
     @Nullable private DialogueEngine.EntryResolution preResolved;
 
     public DialoguePage(@Nonnull PlayerRef playerRef, @Nonnull String dialogueId,
-                        @Nullable String contextNpcId, @Nonnull DialoguePageDeps deps) {
-        this(playerRef, dialogueId, contextNpcId, null, deps, null);
+                        @Nullable String contextNpcId) {
+        this(playerRef, dialogueId, contextNpcId, null, null);
     }
 
     /**
@@ -104,9 +112,9 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
      *        whose {@code Start} routes elsewhere cannot hand the screen over from inside a page.
      */
     public DialoguePage(@Nonnull PlayerRef playerRef, @Nonnull String dialogueId,
-                        @Nullable String contextNpcId, @Nonnull DialoguePageDeps deps,
+                        @Nullable String contextNpcId,
                         @Nullable DialogueEngine.EntryResolution preResolved) {
-        this(playerRef, dialogueId, contextNpcId, null, deps, preResolved);
+        this(playerRef, dialogueId, contextNpcId, null, preResolved);
     }
 
     /**
@@ -120,12 +128,11 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
      */
     public DialoguePage(@Nonnull PlayerRef playerRef, @Nonnull String dialogueId,
                         @Nullable String contextNpcId, @Nullable Ref<EntityStore> npcRef,
-                        @Nonnull DialoguePageDeps deps, @Nullable DialogueEngine.EntryResolution preResolved) {
+                        @Nullable DialogueEngine.EntryResolution preResolved) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, DialogueEventData.CODEC);
         this.dialogueId = dialogueId;
         this.contextNpcId = (contextNpcId == null || contextNpcId.isBlank()) ? null : contextNpcId;
         this.npcRef = npcRef;
-        this.deps = deps;
         this.preResolved = preResolved;
     }
 
@@ -136,8 +143,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         eventBuilder.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton",
                 EventData.of("Action", "close"));
 
-        DialogueEngine engine = deps.engine();
-        ContentI18n i18n = deps.i18n();
+        DialogueEngine engine = DialogueEngine.shared();
 
         // WHO this render is about: the PLAYER, never whoever opened the page. The ref argument is
         // simply what the opener handed the page manager, and every NPC-action route hands it the
@@ -158,8 +164,8 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             // Nobody to read and nobody to talk to. Still SEND something: the page manager does not
             // wrap build(), so a silent return leaves the client loading forever.
             SafeLog.warn("[dialogue] '" + dialogueId + "' opened with no reachable player - showing nothing");
-            commandBuilder.set("#NodeText.TextSpans", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
-            appendFarewellRow(commandBuilder, eventBuilder, i18n, 0, null);
+            commandBuilder.set("#NodeText.TextSpans", missingText(null));
+            appendFarewellRow(commandBuilder, eventBuilder, null, 0, null);
             renderToastInto(commandBuilder);
             return;
         }
@@ -168,31 +174,36 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         // three-arg form reaches the live-entity answer when this page was opened with an NPC ref
         // in hand (world thread: it reads a component); it falls back to the id-only static walk
         // on a provider that only implements the single-arg form, or when there is no live ref.
-        Message name = deps.npcName().nameFor(contextNpcId, npcRef, store);
+        Message name = NpcNames.nameFor(contextNpcId, npcRef, store);
         if (name != null) {
-            // A Message MUST go on a Label's .TextSpans, NOT .Text (a String sink): a Message on
-            // .Text fails the client's set command ("couldn't set value. Selector: #NpcName.Text")
-            // and disconnects. Matches #NodeText.TextSpans below. See hytale-rich-text-textspans.
+            // A Label's Message goes on .TextSpans, never .Text: .Text is a client-side String sink
+            // that resolves a translation and nothing else, so a raw or composed Message there fails
+            // the set command ("couldn't set value. Selector: #NpcName.Text") and disconnects the
+            // player. TextSpans takes a whole message tree and has none of that. The option rows
+            // below have no TextSpans to use, so they go through UiText, which enforces the same
+            // rule the other way round. Matches #NodeText.TextSpans; see hytale-rich-text-textspans.
             commandBuilder.set("#NpcName.TextSpans", name);
         }
-        Message annotation = deps.headerAnnotation().annotationFor(contextNpcId, subject, store);
-        if (annotation != null) {
-            commandBuilder.set("#ActiveQuestHint.Visible", true);
-            commandBuilder.set("#HintText.TextSpans", annotation);
+        NpcDialogue dialogue = DialogueAssetStore.getInstance().dialogue(dialogueId);
+        if (dialogue != null) {
+            // The note under the name comes from the sources the CONVERSATION names, so a character
+            // who never talks about quests shows none and no mod decides that for another's screen.
+            Message annotation = DialogueHeaders.lineFor(dialogue, contextNpcId, subject, store);
+            if (annotation != null) {
+                commandBuilder.set("#ActiveQuestHint.Visible", true);
+                commandBuilder.set("#HintText.TextSpans", annotation);
+            }
         }
-
-        NpcDialogue dialogue = deps.dialogueResolver().apply(dialogueId);
         if (dialogue == null) {
-            commandBuilder.set("#NodeText.TextSpans", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
-            appendFarewellRow(commandBuilder, eventBuilder, i18n, 0, null);
+            commandBuilder.set("#NodeText.TextSpans", missingText(dialogue));
+            appendFarewellRow(commandBuilder, eventBuilder, dialogue, 0, null);
             renderToastInto(commandBuilder);
             return;
         }
 
         // One eval context for the whole render (conditions ignore node/option, so the placeholders are fine).
-        DialogueExecContext ctx = deps.contextFactory().create(
-                dialogue, currentNodeId != null ? currentNodeId : "", -1,
-                contextNpcId, subject, store, player);
+        DialogueExecContext ctx = context(dialogue, currentNodeId != null ? currentNodeId : "", -1,
+                subject, store, player);
 
         if (currentNodeId == null || dialogue.getNode(currentNodeId) == null) {
             DialogueEngine.EntryResolution entry = preResolved != null ? preResolved
@@ -212,13 +223,13 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         String nodeId = currentNodeId;
         DialogueNode node = dialogue.getNode(nodeId);
         if (node == null || nodeId == null) {
-            commandBuilder.set("#NodeText.TextSpans", DialogueMessages.tr(i18n, "ui.dialogue.missing"));
-            appendFarewellRow(commandBuilder, eventBuilder, i18n, 0, null);
+            commandBuilder.set("#NodeText.TextSpans", missingText(dialogue));
+            appendFarewellRow(commandBuilder, eventBuilder, dialogue, 0, null);
             renderToastInto(commandBuilder);
             return;
         }
 
-        setNodeText(commandBuilder, i18n, dialogue, nodeId, node);
+        setNodeText(commandBuilder, dialogue, nodeId, node);
 
         List<DialogueOption> options = node.getOptions();
         int row = 0;
@@ -230,7 +241,8 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             }
             commandBuilder.append("#OptionsList", OPTION_ROW_TEMPLATE);
             String sel = "#OptionsList[" + row + "]";
-            commandBuilder.set(sel + " #OptionBtn.Text", resolveOptionLabel(i18n, dialogue, nodeId, i, option));
+            UiText.setText(commandBuilder, sel + " #OptionBtn.Text",
+                    resolveOptionLabel(dialogue, nodeId, i, option));
             DialogueOptionStyle style = engine.classifyOption(option);
             applyOptionLook(commandBuilder, sel, style, themeFor(style), option.getPresentation());
             eventBuilder.addEventBinding(CustomUIEventBindingType.Activating, sel + " #OptionBtn",
@@ -242,7 +254,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             row++;
         }
         if (!DialogueOption.anyCloses(renderedOptions)) {
-            appendFarewellRow(commandBuilder, eventBuilder, i18n, row, nodeId);
+            appendFarewellRow(commandBuilder, eventBuilder, dialogue, row, nodeId);
         }
         // LAST: the toast overlay draws over the dialogue; inert unless a completion toast is live.
         renderToastInto(commandBuilder);
@@ -254,16 +266,45 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
      * the header close button and Escape are an abandon that spends nothing.
      */
     private void appendFarewellRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                                   @Nonnull ContentI18n i18n, int row, @Nullable String nodeId) {
+                                   @Nullable NpcDialogue dialogue, int row, @Nullable String nodeId) {
         cmd.append("#OptionsList", OPTION_ROW_TEMPLATE);
         String sel = "#OptionsList[" + row + "]";
-        cmd.set(sel + " #OptionBtn.Text", DialogueMessages.tr(i18n, "ui.dialogue.farewell"));
+        UiText.setText(cmd, sel + " #OptionBtn.Text", farewellText(dialogue));
         applyOptionLook(cmd, sel, DialogueOptionStyle.FAREWELL, themeFor(DialogueOptionStyle.FAREWELL), null);
         EventData data = EventData.of("Action", "farewell");
         if (nodeId != null) {
             data = data.append("Node", nodeId);
         }
         events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #OptionBtn", data);
+    }
+
+    /**
+     * The per-player context every render and click is evaluated in. It packs NO payload of its own:
+     * each mod says how to build its own through
+     * {@link com.ziggfreed.common.dialogue.DialoguePayloads}, and the context asks for one by class
+     * when an action or condition reaches for it. So a line belonging to any mod on the server
+     * answers correctly here, whoever's character the player happens to be standing at.
+     */
+    @Nonnull
+    private DialogueExecContext context(@Nonnull NpcDialogue dialogue, @Nonnull String nodeId,
+                                        int optionIndex, @Nonnull Ref<EntityStore> ref,
+                                        @Nonnull Store<EntityStore> store, @Nonnull Player player) {
+        return new SimpleDialogueExecContext(store, ref, player, contextNpcId, null,
+                dialogue, nodeId, optionIndex);
+    }
+
+    /** The exit row's words: this conversation's own when it authored some, else the library's. */
+    @Nonnull
+    private static Message farewellText(@Nullable NpcDialogue dialogue) {
+        DialogueChrome chrome = dialogue == null ? null : dialogue.getChrome();
+        return DialogueMessages.page(chrome == null ? null : chrome.getFarewellKey(), "farewell");
+    }
+
+    /** The nothing-to-say line, same precedence as {@link #farewellText}. */
+    @Nonnull
+    private static Message missingText(@Nullable NpcDialogue dialogue) {
+        DialogueChrome chrome = dialogue == null ? null : dialogue.getChrome();
+        return DialogueMessages.page(chrome == null ? null : chrome.getMissingKey(), "missing");
     }
 
     /** The data-driven {@link DialogueOptionTheme} for a style kind, or null when no layer authored it. */
@@ -375,18 +416,18 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
      * use. Plain (markup-free) text renders unchanged. Option rows are {@code TextButton}s
      * (no {@code TextSpans}), so their colour comes from {@link DialogueOptionStyle}, not markup.
      */
-    private static void setNodeText(@Nonnull UICommandBuilder cmd, @Nonnull ContentI18n i18n,
+    private static void setNodeText(@Nonnull UICommandBuilder cmd,
                                     @Nonnull NpcDialogue dialogue, @Nonnull String nodeId, @Nonnull DialogueNode node) {
         String conventionKey = "dialogue." + dialogue.getId() + "." + nodeId + ".text";
-        Message text = DialogueMessages.resolve(i18n, node.getTextKey(), conventionKey, node.getText());
+        Message text = DialogueMessages.resolve(node.getTextKey(), conventionKey, node.getText());
         cmd.set("#NodeText.TextSpans", text != null ? text : DialogueMessages.raw(conventionKey));
     }
 
     @Nonnull
-    private static Message resolveOptionLabel(@Nonnull ContentI18n i18n, @Nonnull NpcDialogue dialogue,
+    private static Message resolveOptionLabel(@Nonnull NpcDialogue dialogue,
                                               @Nonnull String nodeId, int optionIndex, @Nonnull DialogueOption option) {
         String conventionKey = "dialogue." + dialogue.getId() + "." + nodeId + ".opt." + optionIndex;
-        Message label = DialogueMessages.resolve(i18n, option.getLabelKey(), conventionKey, option.getLabel());
+        Message label = DialogueMessages.resolve(option.getLabelKey(), conventionKey, option.getLabel());
         return label != null ? label : DialogueMessages.raw(conventionKey);
     }
 
@@ -408,7 +449,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             return;
         }
 
-        NpcDialogue dialogue = deps.dialogueResolver().apply(dialogueId);
+        NpcDialogue dialogue = DialogueAssetStore.getInstance().dialogue(dialogueId);
         DialogueNode node = dialogue != null ? dialogue.getNode(data.node) : null;
         int optionIndex = parseIndex(data.option);
         if (dialogue == null || node == null
@@ -418,19 +459,19 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         }
 
         DialogueOption option = node.getOptions().get(optionIndex);
-        DialogueExecContext ctx = deps.contextFactory().create(
-                dialogue, data.node, optionIndex, contextNpcId, ref, store, player);
+        DialogueExecContext ctx = context(dialogue, data.node, optionIndex, ref, store, player);
 
         // Re-check availability on click: state may have moved since the render, and a spent
         // one-time option must never run twice.
-        if (!deps.engine().optionAvailable(dialogue, data.node, option, ctx)) {
+        if (!DialogueEngine.shared().optionAvailable(dialogue, data.node, option, ctx)) {
             player.getPageManager().openCustomPage(ref, store, this);
             return;
         }
 
-        DialogueActionExecutor.Outcome outcome = deps.engine().executor().execute(option.getActions(), ctx);
+        DialogueActionExecutor.Outcome outcome =
+                DialogueEngine.shared().executor().execute(option.getActions(), ctx);
         // The beat is done: spend the entry's first-visit Once and the option's own.
-        deps.engine().consumeOnce(pendingEntryOnceKey, dialogue, data.node, option, ctx);
+        DialogueEngine.shared().consumeOnce(pendingEntryOnceKey, dialogue, data.node, option, ctx);
         pendingEntryOnceKey = null;
 
         if (outcome.openedOtherPage()) {
@@ -443,14 +484,8 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         if (outcome.gotoNode() != null && dialogue.getNode(outcome.gotoNode()) != null) {
             currentNodeId = outcome.gotoNode();
         }
-        // A handler reported a just-completed thing: float the consumer's completion toast over the
-        // dialogue (it paints on the reopen below). Inert when no toast is wired or none applies.
-        if (outcome.completedId() != null) {
-            ToastSpec spec = deps.completionToast(outcome.completedId());
-            if (spec != null) {
-                showToast(spec);
-            }
-        }
+        // Nothing to raise here: whatever just finished announced its own feedback moment, and a
+        // moment draws into the page that is open, so its toast is already on its way to this screen.
         player.getPageManager().openCustomPage(ref, store, this);
     }
 
@@ -464,11 +499,10 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             pendingEntryOnceKey = null;
             return;
         }
-        NpcDialogue dialogue = deps.dialogueResolver().apply(dialogueId);
+        NpcDialogue dialogue = DialogueAssetStore.getInstance().dialogue(dialogueId);
         if (dialogue != null) {
-            DialogueExecContext ctx = deps.contextFactory().create(
-                    dialogue, nodeId, -1, contextNpcId, ref, store, player);
-            deps.engine().consumeOnce(pendingEntryOnceKey, dialogue, nodeId, null, ctx);
+            DialogueExecContext ctx = context(dialogue, nodeId, -1, ref, store, player);
+            DialogueEngine.shared().consumeOnce(pendingEntryOnceKey, dialogue, nodeId, null, ctx);
         }
         pendingEntryOnceKey = null;
     }

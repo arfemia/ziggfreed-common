@@ -893,7 +893,7 @@ public final class AchievementEngine {
             AchievementEvents.fireUnlocked(achievement.id(), subject.id(), achievement.points(),
                     awaitingClaim, achievement.tags());
         }
-        ProgressionFeedbackHook.fire(feedbackHook, warn, "achievement.unlocked", subject,
+        ProgressionFeedbackHook.fire(feedbackHook, warn, "Achievement_Unlocked", subject,
                 achievement.momentArgs(),
                 "achievement", achievement.id(), "title", achievement.text().titleOr(achievement.id()),
                 "icon", achievement.icon(),
@@ -912,7 +912,7 @@ public final class AchievementEngine {
             AchievementEvents.fireClaimed(achievement.id(), subject.id(), outcome.granted(),
                     outcome.queued(), outcome.failed(), achievement.tags());
         }
-        ProgressionFeedbackHook.fire(feedbackHook, warn, "achievement.claimed", subject,
+        ProgressionFeedbackHook.fire(feedbackHook, warn, "Achievement_Claimed", subject,
                 achievement.momentArgs(),
                 "achievement", achievement.id(), "title", achievement.text().titleOr(achievement.id()),
                 "icon", achievement.icon(),

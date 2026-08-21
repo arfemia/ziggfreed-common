@@ -86,7 +86,7 @@ import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
  * dependency order, so a consumer that lists this library as a dependency loads after it). The
  * first such store is {@code FeedbackMoments}: one file per moment the library's own engines
  * announce, so a quest completing on a bare server still draws a notice, and a consumer's
- * {@code quest.completed.json} replaces the library's outright. {@code DialogueOptionTheme} is
+ * {@code Quest_Completed.json} replaces the library's outright. {@code DialogueOptionTheme} is
  * the older instance of the same rule (the neutral look per option kind, so a page renders
  * before anyone authors a theme). Both ride the jar's own asset pack, so an owner overrides
  * either by dropping a same-id file. Everything else in these stores is consumer pack JSON.
@@ -288,7 +288,7 @@ public final class FrameworkAssetRegistrar {
 
         // --- Feedback moments (Pattern A) - what this server DOES when one lifecycle moment
         //     happens: a toast, a server banner, a jingle, a command. The asset id IS the moment id
-        //     (quest.completed, achievement.unlocked, ...). The library ships a neutral default file
+        //     (Quest_Completed, Achievement_Unlocked, ...). The library ships a neutral default file
         //     for each moment its own engines announce (zc-presentation's resources); a consumer's
         //     same-id file replaces it by pack order, and a moment nobody authored does nothing. No
         //     cache to invalidate: the engine resolves through the config on every moment, so a

@@ -20,9 +20,9 @@ import com.ziggfreed.common.dialogue.NpcDialogue;
 import com.ziggfreed.common.inventory.PlayerAccess;
 
 /**
- * A ready-made {@link DialogueExecContext} so a consumer's
- * {@link DialogueContextFactory} is a one-liner: hand it the engine handles and an optional domain
- * payload (retrieved by registered evaluators/handlers via {@link #payload(Class)}).
+ * A ready-made {@link DialogueExecContext}: hand it the engine handles and an optional domain
+ * payload (retrieved by registered evaluators/handlers via {@link #payload(Class)}). The page packs
+ * NO payload of its own, so in practice every payload arrives through the fallback below.
  * {@link #payload(Class)} returns that payload when it is an instance of the requested type; on a
  * miss it falls through to whatever the requested type's owner registered with
  * {@link DialoguePayloads}, so a mod's own actions and conditions still answer correctly in a

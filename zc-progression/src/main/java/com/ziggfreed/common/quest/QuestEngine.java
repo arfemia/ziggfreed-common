@@ -74,19 +74,19 @@ import com.ziggfreed.common.util.SafeLog;
 public final class QuestEngine implements QuestStateReader {
 
     /**
-     * The {@code reason} a {@code quest.parked} moment carries for a quest authored to be collected
+     * The {@code reason} a {@code Quest_Parked} moment carries for a quest authored to be collected
      * rather than paid out the instant it finishes ({@link Quest#autoClaim()} off).
      */
     public static final String PARKED_COLLECT = "collect";
 
     /**
-     * The {@code reason} a {@code quest.parked} moment carries when the consumer said the player
+     * The {@code reason} a {@code Quest_Parked} moment carries when the consumer said the player
      * cannot receive the rewards right now (no room for them, in the usual case).
      */
     public static final String PARKED_NO_SPACE = "no_space";
 
     /**
-     * The {@code reason} a {@code quest.parked} moment carries when the quest names a
+     * The {@code reason} a {@code Quest_Parked} moment carries when the quest names a
      * {@link Quest#turnInAt() site} and the player finished it somewhere else.
      */
     public static final String PARKED_AWAY = "away";
@@ -1038,7 +1038,7 @@ public final class QuestEngine implements QuestStateReader {
     }
 
     /**
-     * Why a finished quest parks instead of paying out, as the token the {@code quest.parked}
+     * Why a finished quest parks instead of paying out, as the token the {@code Quest_Parked}
      * moment carries under {@code reason}, or null when it pays out now.
      *
      * <p>Three causes, reported in the order they are decided: {@link #PARKED_COLLECT} when the
@@ -1825,7 +1825,7 @@ public final class QuestEngine implements QuestStateReader {
         // objective, so on every block broken and every mob killed, and composing a step's wording
         // for a moment nobody authored would be the most expensive thing on that path. A supplier
         // is asked for only once a hook says it answers this moment.
-        ProgressionFeedbackHook.fire(feedbackHook, warn, "quest.objective_progressed", subject,
+        ProgressionFeedbackHook.fire(feedbackHook, warn, "Quest_Objective_Progressed", subject,
                 "quest", quest.id(),
                 "title", (Supplier<?>) () -> quest.text().titleOr(quest.id()),
                 "objective", objective.id(),
@@ -1857,7 +1857,7 @@ public final class QuestEngine implements QuestStateReader {
         if (nativeEvents) {
             QuestEvents.fireCompleted(quest.id(), subject.id(), parked, quest.tags());
         }
-        ProgressionFeedbackHook.fire(feedbackHook, warn, parked ? "quest.parked" : "quest.completed",
+        ProgressionFeedbackHook.fire(feedbackHook, warn, parked ? "Quest_Parked" : "Quest_Completed",
                 subject, "quest", quest.id(), "title", quest.text().titleOr(quest.id()),
                 // Carried on BOTH ids, so a hook handed either one can tell which case it is
                 // without reading meaning into the id it was called with.
@@ -1877,7 +1877,7 @@ public final class QuestEngine implements QuestStateReader {
             QuestEvents.fireClaimed(quest.id(), subject.id(), outcome.granted(), outcome.queued(),
                     outcome.failed(), quest.tags());
         }
-        ProgressionFeedbackHook.fire(feedbackHook, warn, "quest.claimed", subject,
+        ProgressionFeedbackHook.fire(feedbackHook, warn, "Quest_Claimed", subject,
                 "quest", quest.id(), "title", quest.text().titleOr(quest.id()),
                 "collected", Boolean.valueOf(collected),
                 "granted", Integer.valueOf(outcome.granted()),

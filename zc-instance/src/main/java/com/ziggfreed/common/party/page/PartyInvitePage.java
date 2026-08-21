@@ -28,6 +28,7 @@ import com.ziggfreed.common.party.PartyInvite;
 import com.ziggfreed.common.party.PartyService;
 import com.ziggfreed.common.party.PartySnapshot;
 import com.ziggfreed.common.ui.UiRetint;
+import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 
@@ -92,10 +93,10 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         PartyScreenMessages t = deps.text();
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
-        cmd.set("#Title.Text", t.title());
+        UiText.setText(cmd, "#Title.Text", t.title());
 
-        cmd.set("#TabParty.Text", t.tabParty());
-        cmd.set("#TabInvite.Text", t.tabInvite());
+        UiText.setText(cmd, "#TabParty.Text", t.tabParty());
+        UiText.setText(cmd, "#TabInvite.Text", t.tabInvite());
         events.addEventBinding(CustomUIEventBindingType.Activating, "#TabParty",
                 EventData.of("Action", "tab").append("Target", TAB_PARTY), false);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#TabInvite",
@@ -143,7 +144,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         if (snap != null) {
             boolean viewerOwns = snap.isOwner(viewer);
             cmd.set("#MemberCount.Visible", true);
-            cmd.set("#MemberCount.Text", t.memberCount(snap.size(), snap.maxSize()));
+            UiText.setText(cmd, "#MemberCount.Text", t.memberCount(snap.size(), snap.maxSize()));
             for (UUID m : snap.members()) {
                 if (row >= MAX_ROWS) {
                     break;
@@ -160,27 +161,27 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
             cmd.set("#FooterRow.Visible", true);
             if (viewerOwns && deps.queueHandler() != null) {
                 cmd.set("#QueueBtn.Visible", true);
-                cmd.set("#QueueBtn.Text", t.queueButton());
+                UiText.setText(cmd, "#QueueBtn.Text", t.queueButton());
                 events.addEventBinding(CustomUIEventBindingType.Activating, "#QueueBtn", EventData.of("Action", "queue"));
             }
             if (viewerOwns) {
                 // Public/private pill: label shows the current state; clicking flips it.
                 cmd.set("#PrivacyBtn.Visible", true);
-                cmd.set("#PrivacyBtn.Text", snap.privateLobby() ? t.privacyPrivate() : t.privacyPublic());
+                UiText.setText(cmd, "#PrivacyBtn.Text", snap.privateLobby() ? t.privacyPrivate() : t.privacyPublic());
                 events.addEventBinding(CustomUIEventBindingType.Activating, "#PrivacyBtn", EventData.of("Action", "privacy"));
                 cmd.set("#DisbandBtn.Visible", true);
-                cmd.set("#DisbandBtn.Text", t.disbandButton());
+                UiText.setText(cmd, "#DisbandBtn.Text", t.disbandButton());
                 events.addEventBinding(CustomUIEventBindingType.Activating, "#DisbandBtn", EventData.of("Action", "disband"));
             } else {
                 cmd.set("#LeaveBtn.Visible", true);
-                cmd.set("#LeaveBtn.Text", t.leaveButton());
+                UiText.setText(cmd, "#LeaveBtn.Text", t.leaveButton());
                 events.addEventBinding(CustomUIEventBindingType.Activating, "#LeaveBtn", EventData.of("Action", "leave"));
             }
         }
 
         if (row == 0) {
             cmd.set("#EmptyState.Visible", true);
-            cmd.set("#EmptyState.Text", t.emptyParty());
+            UiText.setText(cmd, "#EmptyState.Text", t.emptyParty());
         }
     }
 
@@ -228,7 +229,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         }
         if (row == 0) {
             cmd.set("#EmptyState.Visible", true);
-            cmd.set("#EmptyState.Text", t.emptyInviteList());
+            UiText.setText(cmd, "#EmptyState.Text", t.emptyInviteList());
         }
     }
 
@@ -241,10 +242,10 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         // Name is a plain String (a proper-noun username): .Text is a client String property that
         // cannot construct from a raw-Message object. The badge (a localized ownerBadge) stays a
         // translation Message, which .Text DOES resolve.
-        cmd.set(sel + " #RowName.Text", name);
+        UiText.setText(cmd, sel + " #RowName.Text", name);
         if (badge != null) {
             cmd.set(sel + " #RowBadge.Visible", true);
-            cmd.set(sel + " #RowBadge.Text", badge);
+            UiText.setText(cmd, sel + " #RowBadge.Text", badge);
         }
         return sel;
     }
@@ -253,7 +254,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                                @Nonnull String btnId, @Nonnull Message label, @Nonnull String action,
                                @Nullable String target, @Nullable String partyId) {
         cmd.set(sel + " " + btnId + ".Visible", true);
-        cmd.set(sel + " " + btnId + ".Text", label);
+        UiText.setText(cmd, sel + " " + btnId + ".Text", label);
         EventData ev = EventData.of("Action", action);
         if (target != null) {
             ev = ev.append("Target", target);

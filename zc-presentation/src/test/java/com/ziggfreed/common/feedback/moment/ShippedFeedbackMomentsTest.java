@@ -47,8 +47,8 @@ class ShippedFeedbackMomentsTest {
 
     /** The moments the two progression engines and the claim table announce today. */
     private static final Set<String> ANNOUNCED = Set.of(
-            "quest.completed", "quest.parked", "quest.claimed", "quest.objective_progressed",
-            "achievement.unlocked", "achievement.claimed", "achievement.server_first_lost");
+            "Quest_Completed", "Quest_Parked", "Quest_Claimed", "Quest_Objective_Progressed",
+            "Achievement_Unlocked", "Achievement_Claimed", "Achievement_Server_First_Lost");
 
     @Test
     void everyAnnouncedMomentShipsADefaultThatDecodes() throws IOException {
@@ -93,7 +93,7 @@ class ShippedFeedbackMomentsTest {
     /** The parked default branches on the reason the engine carries, so ONE file says both things. */
     @Test
     void theParkedDefaultSaysSomethingDifferentForAFullBag() throws IOException {
-        FeedbackMomentAsset parked = shipped().get("quest.parked");
+        FeedbackMomentAsset parked = shipped().get("Quest_Parked");
         assertNotNull(parked);
 
         FeedbackMomentAsset.Resolved full = parked.resolve(Map.of("reason", "no_space"));

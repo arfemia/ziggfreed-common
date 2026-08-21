@@ -64,6 +64,7 @@ import com.ziggfreed.common.npc.placement.PlacedNpcComponent;
 import com.ziggfreed.common.npc.placement.PlacementMarkerSystem;
 import com.ziggfreed.common.npc.placement.PlacementFactorRegistry;
 import com.ziggfreed.common.npc.placement.PlacementNpcActions;
+import com.ziggfreed.common.objectives.dialogue.ActiveObjectiveHeader;
 import com.ziggfreed.common.objectives.book.ObjectiveBookInteractions;
 import com.ziggfreed.common.objectives.command.ZigProgressCommand;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
@@ -140,6 +141,9 @@ import com.ziggfreed.common.world.placed.PlacedBlockRecorder;
  * it should feel like a defeat.
  */
 public class ZiggfreedCommonPlugin extends JavaPlugin {
+
+    /** Who the library attributes its own registrations to in every shared ledger. */
+    private static final String LIBRARY_OWNER = "ziggfreed-common";
 
     /**
      * The library's logger, kept here as a convenience for anything already holding the plugin
@@ -502,6 +506,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         try {
             PlacedNpcComponent.register(getEntityStoreRegistry());
             PlacementNpcActions.register();
+            // The header note a conversation can show under the speaker's name. Contributed here
+            // rather than by a consumer because it reads the library's own quest engine, so it
+            // answers for every mod's quests and no mod has to ship one to get it.
+            ActiveObjectiveHeader.register(LIBRARY_OWNER);
             getEntityStoreRegistry().registerSystem(new PlacementMarkerSystem());
             NpcPlacementOverrides.getInstance().load();
             NpcPlacementLedger.getInstance().load();

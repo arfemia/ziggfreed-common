@@ -63,20 +63,20 @@ class FeedbackMomentOverrideOrderTest {
     @Test
     void aConsumersSameIdFileReplacesTheLibrarysDefault() throws IOException {
         TwoPackMap map = new TwoPackMap();
-        map.load(LIBRARY_PACK, "quest.completed", moment("quest.completed", "SFX_Library"));
-        map.load(LIBRARY_PACK, "quest.parked", moment("quest.parked", "SFX_Library_Parked"));
-        map.load(CONSUMER_PACK, "quest.completed", moment("quest.completed", "SFX_Consumer"));
+        map.load(LIBRARY_PACK, "Quest_Completed", moment("Quest_Completed", "SFX_Library"));
+        map.load(LIBRARY_PACK, "Quest_Parked", moment("Quest_Parked", "SFX_Library_Parked"));
+        map.load(CONSUMER_PACK, "Quest_Completed", moment("Quest_Completed", "SFX_Consumer"));
 
         FeedbackMomentConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(map));
 
-        FeedbackMomentAsset completed = FeedbackMomentConfig.getInstance().resolve("quest.completed");
+        FeedbackMomentAsset completed = FeedbackMomentConfig.getInstance().resolve("Quest_Completed");
         assertNotNull(completed);
         assertEquals("SFX_Consumer", completed.getSound().getId(),
                 "the later-loaded consumer pack's file answers for the shared id");
-        assertEquals(CONSUMER_PACK, map.getAssetPack("quest.completed"),
+        assertEquals(CONSUMER_PACK, map.getAssetPack("Quest_Completed"),
                 "and the engine map itself attributes the id to that pack");
 
-        FeedbackMomentAsset parked = FeedbackMomentConfig.getInstance().resolve("quest.parked");
+        FeedbackMomentAsset parked = FeedbackMomentConfig.getInstance().resolve("Quest_Parked");
         assertNotNull(parked);
         assertEquals("SFX_Library_Parked", parked.getSound().getId(),
                 "a moment the consumer left alone keeps the library's default");

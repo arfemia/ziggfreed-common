@@ -1,6 +1,5 @@
 package com.ziggfreed.common.npc;
 
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -17,7 +16,6 @@ import com.hypixel.hytale.server.npc.sensorinfo.InfoProvider;
 import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.dialogue.page.DialogueOpener;
 import com.ziggfreed.common.dialogue.page.DialoguePage;
-import com.ziggfreed.common.dialogue.page.DialoguePageDeps;
 import com.ziggfreed.common.ui.route.DestinationContext;
 
 /**
@@ -27,16 +25,15 @@ import com.ziggfreed.common.ui.route.DestinationContext;
  * NPC role's {@code InteractionInstruction}
  * ({@code { "Type": "ZigOpenDialogue", "Dialogue": "<id>" }}).
  *
- * <p>Modeled on the engine's own {@code ActionOpenBarterShop}. It carries only data
- * (the dialogue id, an optional {@code ContextNpc} for {@code @self} resolution, and
- * an optional {@code DepsKey}); the consumer's {@link DialoguePageDeps} are resolved
- * LAZILY at press-F time from {@link NpcDialogueDepsRegistry}, so this engine class
- * stays decoupled from any one consumer's wiring. Only runs inside an
+ * <p>Modeled on the engine's own {@code ActionOpenBarterShop}. It carries only data: the dialogue
+ * id, and an optional {@code ContextNpc} for {@code @self} resolution. Everything the screen needs
+ * beyond that is process-wide, so a role naming a conversation is the whole of the wiring and no mod
+ * has to be asked which conversation system this NPC belongs to. Only runs inside an
  * {@code InteractionInstruction} (enforced by {@link BuilderActionOpenDialogue#readConfig}).
  */
 public class ActionOpenDialogue extends ActionBase {
 
-    /** The dialogue id to open (the page resolves its nodes through the consumer's resolver). */
+    /** The dialogue id to open; the page reads it from the one conversation store. */
     @Nonnull
     protected final String dialogueId;
 
@@ -44,18 +41,12 @@ public class ActionOpenDialogue extends ActionBase {
     @Nullable
     protected final String contextNpc;
 
-    /** Which registered deps provider to resolve at open time ({@link NpcDialogueDepsRegistry#DEFAULT_KEY} if blank). */
-    @Nonnull
-    protected final String depsKey;
-
     public ActionOpenDialogue(@Nonnull BuilderActionOpenDialogue builder, @Nonnull BuilderSupport support) {
         super(builder);
         String d = builder.getDialogue(support);
         this.dialogueId = (d == null) ? "" : d.trim();
         String c = builder.getContextNpc(support);
         this.contextNpc = (c == null || c.isBlank()) ? null : c.trim();
-        String k = builder.getDepsKey(support);
-        this.depsKey = (k == null || k.isBlank()) ? NpcDialogueDepsRegistry.DEFAULT_KEY : k.trim();
     }
 
     @Override
@@ -90,25 +81,12 @@ public class ActionOpenDialogue extends ActionBase {
             return false;
         }
 
-        // Resolve the consumer's deps lazily (the action was decoded from a role asset
-        // long before the consumer registered its provider).
-        Supplier<DialoguePageDeps> supplier = NpcDialogueDepsRegistry.get(depsKey);
-        if (supplier == null) {
-            warn("[NpcDialogue] no DialoguePageDeps provider registered for key '" + depsKey + "'");
-            return false;
-        }
-        DialoguePageDeps deps = supplier.get();
-        if (deps == null) {
-            warn("[NpcDialogue] DialoguePageDeps provider for key '" + depsKey + "' returned null");
-            return false;
-        }
-
         // Open on the NPC's own ref (the page manager is the interacting player's), exactly like
         // ActionOpenBarterShop - and through the opener, so a conversation whose Start routes to a
         // quest row's destination hands the screen over instead of opening on nothing.
         return DialogueOpener.open(
-                new DestinationContext(store, playerReference, player, ref, contextNpc, null, depsKey),
-                dialogueId, contextNpc, deps);
+                new DestinationContext(store, playerReference, player, ref, contextNpc, null),
+                dialogueId, contextNpc);
     }
 
     private static void warn(@Nonnull String msg) {

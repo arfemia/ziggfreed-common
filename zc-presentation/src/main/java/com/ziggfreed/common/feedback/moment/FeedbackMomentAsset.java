@@ -20,12 +20,12 @@ import com.ziggfreed.common.codec.ScalarStringCodec;
 /**
  * What a server does when one lifecycle moment happens: float a toast, banner the whole server,
  * play a sound, run a command. The FILE NAME is the moment id, so
- * {@code quest.completed.json} answers the moment called {@code quest.completed}.
+ * {@code Quest_Completed.json} answers the moment called {@code Quest_Completed}.
  *
  * <p>Authored at {@code Server/ZiggfreedCommon/FeedbackMoments/<moment id>.json} (this codec IS the
  * schema):
  * <pre>{@code
- * // Server/ZiggfreedCommon/FeedbackMoments/quest.completed.json
+ * // Server/ZiggfreedCommon/FeedbackMoments/Quest_Completed.json
  * { "Toast":  { "Title": { "Key": "notify.quest_complete", "Args": ["title"],
  *                          "Color": "#FFFF00" } },
  *   "Sound":  { "Id": "SFX_Discovery_Z2_Short" } }

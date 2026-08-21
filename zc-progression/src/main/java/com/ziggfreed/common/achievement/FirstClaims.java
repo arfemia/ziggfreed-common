@@ -25,7 +25,7 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>The loss is announced, not handled.</b> The rule ("exactly one, and a loser keeps their
  * criteria met") is settled here; what a player is TOLD about it is presentation, which nothing in
- * this module can write. So a loss is announced as the {@code achievement.server_first_lost}
+ * this module can write. So a loss is announced as the {@code Achievement_Server_First_Lost}
  * feedback MOMENT, which a server author answers with an authored file and no Java at all, and
  * which any mod wanting to react itself reaches through the progression registrar's feedback
  * contribution - one announcement, additively read by everybody, rather than a second fan-out of
@@ -102,7 +102,7 @@ public final class FirstClaims {
      */
     public static void fireLost(@Nonnull Subject subject, @Nonnull Achievement achievement) {
         ProgressionFeedbackHook.fire(ProgressionRuntime.feedback(), SafeLog::warn,
-                "achievement.server_first_lost", subject, "achievement", achievement.id(),
+                "Achievement_Server_First_Lost", subject, "achievement", achievement.id(),
                 "title", achievement.text().titleOr(achievement.id()));
     }
 

@@ -61,7 +61,7 @@ class CommerceDestinationsTest {
 
     /** A context carrying no live handles; nothing under test reads one. */
     private static DestinationContext noHandles() {
-        return new DestinationContext(null, null, null, null, null, null, null);
+        return new DestinationContext(null, null, null, null, null, null);
     }
 
     @Test

@@ -33,6 +33,7 @@ import com.ziggfreed.common.lobby.QueueKey;
 import com.ziggfreed.common.lobby.QueueListener;
 import com.ziggfreed.common.lobby.QueueSnapshot;
 import com.ziggfreed.common.lobby.QueueState;
+import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -92,7 +93,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         PlayScreenMessages t = deps.text();
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
-        cmd.set("#Title.Text", t.title());
+        UiText.setText(cmd, "#Title.Text", t.title());
 
         MatchmakingQueue queue = deps.lobby().currentQueueOf(playerRef.getUuid());
         if (queue == null) {
@@ -131,8 +132,8 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
             } else {
                 cmd.set(sel + " #CardIcon.Visible", false);
             }
-            cmd.set(sel + " #CardBtn.Text", labelFor(e, t));
-            cmd.set(sel + " #CardSub.Text", t.modeDesc(e.mode()));
+            UiText.setText(cmd, sel + " #CardBtn.Text", labelFor(e, t));
+            UiText.setText(cmd, sel + " #CardSub.Text", t.modeDesc(e.mode()));
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #CardBtn",
                     EventData.of("Action", "pick").append("Mode", e.mode().wire()), false);
         }
@@ -142,7 +143,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         PlayRewardClaim claim = deps.claim();
         if (claim != null && claim.hasPending(playerRef.getUuid())) {
             cmd.set("#ClaimBtn.Visible", true);
-            cmd.set("#ClaimBtn.Text", t.claimButton());
+            UiText.setText(cmd, "#ClaimBtn.Text", t.claimButton());
             events.addEventBinding(CustomUIEventBindingType.Activating, "#ClaimBtn", EventData.of("Action", "claim"));
         }
     }
@@ -169,23 +170,23 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         // TextSpans (not .Text): the nested preset-name Message param resolves only on TextSpans
         // (see buildChooser).
         cmd.set("#Subtitle.TextSpans", t.difficulty(deps.presetName().apply(snap.key().presetId())));
-        cmd.set("#PlayerCount.Text", t.playerCount(snap.size(), cfg.maxParty()));
-        cmd.set("#Status.Text", statusFor(t, snap));
-        cmd.set("#WaitEstimate.Text", t.waitEstimate(cfg.fillTimeoutSeconds() + cfg.countdownSeconds()));
+        UiText.setText(cmd, "#PlayerCount.Text", t.playerCount(snap.size(), cfg.maxParty()));
+        UiText.setText(cmd, "#Status.Text", statusFor(t, snap));
+        UiText.setText(cmd, "#WaitEstimate.Text", t.waitEstimate(cfg.fillTimeoutSeconds() + cfg.countdownSeconds()));
 
         List<UUID> members = snap.members();
         for (int i = 0; i < members.size() && i < MAX_ROWS; i++) {
             cmd.append("#RosterList", ROW_TEMPLATE);
             String sel = "#RosterList[" + i + "]";
             // Plain String (a proper-noun username): .Text cannot construct from a raw-Message object.
-            cmd.set(sel + " #RowName.Text", name(members.get(i)));
+            UiText.setText(cmd, sel + " #RowName.Text", name(members.get(i)));
             if (i == 0) {
                 cmd.set(sel + " #RowName.Style.TextColor", INITIATOR_COLOR); // initiator
             }
         }
 
         cmd.set("#LeaveBtn.Visible", true);
-        cmd.set("#LeaveBtn.Text", t.leaveButton());
+        UiText.setText(cmd, "#LeaveBtn.Text", t.leaveButton());
         events.addEventBinding(CustomUIEventBindingType.Activating, "#LeaveBtn", EventData.of("Action", "leave"));
 
         if (!queuedToastPrimed) {
@@ -260,8 +261,8 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
             PlayScreenMessages t = deps.text();
             LobbyConfig cfg = snap.config();
             UICommandBuilder cmd = new UICommandBuilder();
-            cmd.set("#PlayerCount.Text", t.playerCount(snap.size(), cfg.maxParty()));
-            cmd.set("#Status.Text", statusFor(t, snap));
+            UiText.setText(cmd, "#PlayerCount.Text", t.playerCount(snap.size(), cfg.maxParty()));
+            UiText.setText(cmd, "#Status.Text", statusFor(t, snap));
             pushStatus(cmd);
         } catch (Throwable ignored) {
             // a malformed push must never corrupt the queue's listener fan-out
@@ -274,7 +275,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         }
         try {
             UICommandBuilder cmd = new UICommandBuilder();
-            cmd.set("#Status.Text", deps.text().statusLaunching());
+            UiText.setText(cmd, "#Status.Text", deps.text().statusLaunching());
             pushStatus(cmd);
         } catch (Throwable ignored) {
         }

@@ -23,6 +23,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.loot.reward.RewardChip;
+import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -79,9 +80,9 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         cmd.append(PAGE_TEMPLATE);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
 
-        cmd.set("#OutcomeTitle.Text", t.outcomeTitle(result.kind()));
+        UiText.setText(cmd, "#OutcomeTitle.Text", t.outcomeTitle(result.kind()));
         cmd.set("#OutcomeTitle.Style.TextColor", outcomeColor(result.kind()));
-        cmd.set("#Duration.Text", t.duration(result.durationSeconds()));
+        UiText.setText(cmd, "#Duration.Text", t.duration(result.durationSeconds()));
 
         // Team-grouped per-player rows.
         boolean multiTeam = result.teams().size() > 1;
@@ -105,7 +106,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         }
 
         // Viewer's point-breakdown (how the score was earned).
-        cmd.set("#BreakdownTitle.Text", t.breakdownTitle());
+        UiText.setText(cmd, "#BreakdownTitle.Text", t.breakdownTitle());
         if (viewerRow != null) {
             int b = 0;
             for (ScoreColumn col : viewerRow.columns()) {
@@ -117,7 +118,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         }
 
         // Viewer's run-stats breakdown (raw per-run activity, a second section below the points).
-        cmd.set("#StatsTitle.Text", t.statsTitle());
+        UiText.setText(cmd, "#StatsTitle.Text", t.statsTitle());
         if (viewerRow != null) {
             int s = 0;
             for (ScoreColumn col : viewerRow.statColumns()) {
@@ -130,14 +131,14 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
 
         // Reward strip: a preview note (in-instance), the no-spoils line, or the claimable spoils chips.
         // Nothing is granted on render - the player presses Claim (a manual claim, full-inventory guarded).
-        cmd.set("#RewardsTitle.Text", t.rewardsTitle());
+        UiText.setText(cmd, "#RewardsTitle.Text", t.rewardsTitle());
         List<RewardChip> chips = result.rewards();
         if (rewardsPreviewNote != null) {
             cmd.set("#NoRewards.Visible", true);
-            cmd.set("#NoRewards.Text", rewardsPreviewNote);
+            UiText.setText(cmd, "#NoRewards.Text", rewardsPreviewNote);
         } else if (chips.isEmpty()) {
             cmd.set("#NoRewards.Visible", true);
-            cmd.set("#NoRewards.Text", t.noRewards());
+            UiText.setText(cmd, "#NoRewards.Text", t.noRewards());
         } else {
             for (int i = 0; i < chips.size(); i++) {
                 RewardChip chip = chips.get(i);
@@ -154,7 +155,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
             // amber = some held for a later claim (a full inventory at claim time).
             if (claimed) {
                 cmd.set("#PendingNote.Visible", true);
-                cmd.set("#PendingNote.Text", claimAllSucceeded ? t.claimedNote() : t.pendingNote());
+                UiText.setText(cmd, "#PendingNote.Text", claimAllSucceeded ? t.claimedNote() : t.pendingNote());
                 cmd.set("#PendingNote.Style.TextColor", claimAllSucceeded ? "#7ad17a" : "#e0a030");
             }
         }
@@ -163,17 +164,17 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         ResultsActions actions = deps.actions();
         if (rewardsPreviewNote == null && actions != null && !claimed && !chips.isEmpty()) {
             cmd.set("#ClaimBtn.Visible", true);
-            cmd.set("#ClaimBtn.Text", t.claimButton());
+            UiText.setText(cmd, "#ClaimBtn.Text", t.claimButton());
             events.addEventBinding(CustomUIEventBindingType.Activating, "#ClaimBtn", EventData.of("Action", "claim"));
         }
         if (actions != null && result.leaderboardBucket() != null) {
             cmd.set("#ViewLbBtn.Visible", true);
-            cmd.set("#ViewLbBtn.Text", t.viewLeaderboardButton());
+            UiText.setText(cmd, "#ViewLbBtn.Text", t.viewLeaderboardButton());
             events.addEventBinding(CustomUIEventBindingType.Activating, "#ViewLbBtn", EventData.of("Action", "leaderboard"));
         }
         if (actions != null) {
             cmd.set("#PlayAgainBtn.Visible", true);
-            cmd.set("#PlayAgainBtn.Text", t.playAgainButton());
+            UiText.setText(cmd, "#PlayAgainBtn.Text", t.playAgainButton());
             events.addEventBinding(CustomUIEventBindingType.Activating, "#PlayAgainBtn", EventData.of("Action", "again"));
         }
 
@@ -201,7 +202,7 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
         if (value instanceof Message m) {
             cmd.set(elem + ".TextSpans", m);
         } else {
-            cmd.set(elem + ".Text", String.valueOf(value));
+            UiText.setText(cmd, elem + ".Text", String.valueOf(value));
         }
     }
 

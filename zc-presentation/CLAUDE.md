@@ -61,9 +61,9 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     "every tick / milestones / finishes / nothing" setting is answered from them (a handle with no
     opinion gets what was authored), and only the toast is gated that way - a banner, a sound and a
     command are not one player's screen. **This module SHIPS the library's neutral default file for
-    each of the seven moments the progression engines announce** (`quest.completed`, `quest.parked`,
-    `quest.claimed`, `quest.objective_progressed`, `achievement.unlocked`, `achievement.claimed`,
-    `achievement.server_first_lost`) plus their wording in `ziggfreedcommon.feedback.lang` (nine
+    each of the seven moments the progression engines announce** (`Quest_Completed`, `Quest_Parked`,
+    `Quest_Claimed`, `Quest_Objective_Progressed`, `Achievement_Unlocked`, `Achievement_Claimed`,
+    `Achievement_Server_First_Lost`) plus their wording in `ziggfreedcommon.feedback.lang` (nine
     locales); a consumer's same-id file wins by pack order (`FeedbackMomentOverrideOrderTest` pins
     it through the engine map). No router of its own; see the asset's javadoc, which is the
     authoring reference.

@@ -1,0 +1,7 @@
+# The conversation page's own lines: the ones the PAGE supplies rather than the author.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.dialogue.<key>.
+# A conversation with a voice of its own overrides either line with a Chrome block.
+
+farewell = Adieu.
+missing = Il n'y a rien à dire pour le moment.
+active_objective = En cours : {0}

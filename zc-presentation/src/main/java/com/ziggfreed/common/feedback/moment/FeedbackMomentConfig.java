@@ -16,7 +16,7 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
  * server gets a toast and a jingle out of the box. Those files ride the PACK layer like any other
  * pack's, and a consumer's same-id file wins because packs load in dependency order and a
  * later-loaded pack's file replaces an earlier one's by id: a mod that lists this library as a
- * dependency loads after it, so its {@code quest.completed.json} is the one that answers. The owner
+ * dependency loads after it, so its {@code Quest_Completed.json} is the one that answers. The owner
  * layer, when a server writes one, wins over both.
  *
  * <p>No cache to invalidate on a reload: {@link FeedbackEngine} resolves through this config on

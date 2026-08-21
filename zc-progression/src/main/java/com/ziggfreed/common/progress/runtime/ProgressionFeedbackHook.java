@@ -63,7 +63,7 @@ public interface ProgressionFeedbackHook {
     /**
      * One lifecycle moment.
      *
-     * @param momentId what happened, as a stable free string (for instance {@code quest.completed})
+     * @param momentId what happened, as a stable free string (for instance {@code Quest_Completed})
      * @param subject  who it happened to, with the consumer's own handle still attached
      * @param args     what was in scope, keyed; see the class javadoc for the one-map convention
      */

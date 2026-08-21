@@ -16,6 +16,7 @@ import com.ziggfreed.common.objectives.hud.TrackedQuestSnapshot.Block;
 import com.ziggfreed.common.objectives.hud.TrackedQuestSnapshot.Row;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.common.ui.hud.KeyedCustomHud;
 import com.ziggfreed.common.util.SafeLog;
@@ -226,7 +227,7 @@ public final class TrackedQuestHud extends KeyedCustomHud implements TrackedQues
                 cmd.set(rowSel + " #Obj" + oi + ".TextSpans", row.text());
                 cmd.set(rowSel + " #Obj" + oi + ".Style.TextColor", deps.taskColor(row.complete()));
                 // The count is two numbers, pure data, so it goes on the plain String sink.
-                cmd.set(rowSel + " #Count" + oi + ".Text", row.count());
+                UiText.setText(cmd, rowSel + " #Count" + oi + ".Text", row.count());
                 cmd.set(rowSel + " #Count" + oi + ".Style.TextColor", deps.countColor(row.complete()));
                 cmd.set(rowSel + " #IcoDefault" + oi + ".Visible", !row.complete());
                 cmd.set(rowSel + " #IcoComplete" + oi + ".Visible", row.complete());

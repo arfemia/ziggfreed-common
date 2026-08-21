@@ -16,9 +16,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * generic flag store. A consumer's evaluators reach their own domain state
  * (quest/skill components, ...) via {@link #payload(Class)}.
  *
- * <p>Built per render by a {@code DialogueContextFactory}; the richer
- * {@link DialogueExecContext} (adds dialogue/node/option) is built per click for
- * action execution.
+ * <p>Built per render by the page itself; the richer {@link DialogueExecContext} (adds
+ * dialogue/node/option) is built per click for action execution.
  */
 public interface DialogueContext {
 

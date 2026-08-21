@@ -68,7 +68,7 @@ class DestinationsTest {
      * handler that really opens a page is smoke territory, like every other engine-touching path.
      */
     private static DestinationContext noHandles() {
-        return new DestinationContext(null, null, null, null, null, null, null);
+        return new DestinationContext(null, null, null, null, null, null);
     }
 
     @BeforeEach

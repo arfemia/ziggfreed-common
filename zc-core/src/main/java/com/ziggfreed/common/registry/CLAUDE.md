@@ -31,7 +31,7 @@ claim an id in.
   registration continues around it.
 
 Consumers: [`../factor/FactorRegistry`](../factor/CLAUDE.md), the dialogue engine's two singular
-seams plus `dialogue/DialoguePayloads` and `npc/NpcDialogueDepsRegistry`
+seams plus `dialogue/DialoguePayloads` and `dialogue/DialogueHeaders`
 ([zc-dialogue](../../../../../../../../zc-dialogue/src/main/java/com/ziggfreed/common/dialogue/CLAUDE.md)),
 and the three placement registries
 through their own `npc.placement.PlacementRegistryLedger` (a thin subclass that only fixes the

@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.DialogueExecContext;
 import com.ziggfreed.common.dialogue.NpcDialogue;
+import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.util.SafeLog;
@@ -41,20 +42,20 @@ public final class DialogueOpener {
      * @return true when a screen was taken over, false when nothing could be opened at all
      */
     public static boolean open(@Nonnull DestinationContext ctx, @Nonnull String dialogueId,
-            @Nullable String contextNpcId, @Nonnull DialoguePageDeps deps) {
+            @Nullable String contextNpcId) {
         String npcId = contextNpcId == null || contextNpcId.isBlank() ? ctx.npcId() : contextNpcId;
-        NpcDialogue dialogue = deps.dialogueResolver().apply(dialogueId);
+        NpcDialogue dialogue = DialogueAssetStore.getInstance().dialogue(dialogueId);
         if (dialogue == null) {
             // The page says so on its own screen, which is a better answer than a press-F that does
             // nothing: the player sees that this character has nothing to say and can walk away.
-            return openPage(ctx, dialogueId, npcId, deps, null);
+            return openPage(ctx, dialogueId, npcId, null);
         }
 
         DialogueEngine.EntryResolution entry;
         try {
-            DialogueExecContext exec = deps.contextFactory().create(dialogue, "", -1, npcId,
-                    ctx.playerReference(), ctx.store(), ctx.player());
-            entry = deps.engine().resolveEntry(dialogue, exec);
+            DialogueExecContext exec = new SimpleDialogueExecContext(ctx.store(), ctx.playerReference(),
+                    ctx.player(), npcId, null, dialogue, "", -1);
+            entry = DialogueEngine.shared().resolveEntry(dialogue, exec);
         } catch (Throwable t) {
             SafeLog.warn("[dialogue] '" + dialogueId + "' could not work out where to open: "
                     + t.getMessage());
@@ -66,19 +67,18 @@ public final class DialogueOpener {
                     : ctx.withNpc(ctx.npcRef(), npcId, ctx.placementId());
             return Destinations.open(entry.destination(), routed);
         }
-        return openPage(ctx, dialogueId, npcId, deps, entry);
+        return openPage(ctx, dialogueId, npcId, entry);
     }
 
     private static boolean openPage(@Nonnull DestinationContext ctx, @Nonnull String dialogueId,
-            @Nullable String npcId, @Nonnull DialoguePageDeps deps,
-            @Nullable DialogueEngine.EntryResolution entry) {
+            @Nullable String npcId, @Nullable DialogueEngine.EntryResolution entry) {
         PlayerRef playerRef = ctx.playerRef();
         if (playerRef == null) {
             SafeLog.fine("[dialogue] a conversation was asked for on an entity that is not a player");
             return false;
         }
         ctx.player().getPageManager().openCustomPage(ctx.pageAnchor(), ctx.store(),
-                new DialoguePage(playerRef, dialogueId, npcId, ctx.npcRef(), deps, entry));
+                new DialoguePage(playerRef, dialogueId, npcId, ctx.npcRef(), entry));
         return true;
     }
 }

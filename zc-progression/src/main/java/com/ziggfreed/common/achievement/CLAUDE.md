@@ -46,11 +46,11 @@ which one shared instance cannot afford, and it is exactly why that method exist
   reset criterion would resurrect a pre-migration value.
 - **Two reward lists, two moments.** `autoRewards` land on earning; `claimRewards` wait. An
   achievement with no claim rewards settles in ONE step, which is what makes CLAIMED reachable with
-  no second interaction. Never collapse them into one list plus a flag. The `achievement.claimed`
+  no second interaction. Never collapse them into one list plus a flag. The `Achievement_Claimed`
   feedback moment carries `collected` (true when the subject came back for what waited, false when
   it settled as it was earned) so a jingle authored for collecting never plays over the unlock.
 - **A fold may attach values a moment about the achievement should carry.** `Achievement.momentArgs`
-  (builder `momentArg(name, value)`) rides into `achievement.unlocked` and `achievement.claimed`
+  (builder `momentArg(name, value)`) rides into `Achievement_Unlocked` and `Achievement_Claimed`
   under the fold's own names, beneath the engine's own (`title`, `icon`, `points`, ... win on a
   clash). That is how a consumer's per-achievement authoring - an announcement's own key, the thing
   a ladder rung is about - reaches an authored moment file by name without the engine learning what
@@ -75,7 +75,7 @@ which one shared instance cannot afford, and it is exactly why that method exist
   the moment the answer changes. That is what makes a race arbitrable without a rollback.
 - **`serverFirst` is a FLAG on the achievement and the arbitration is the gate's.** A consumer
   supplies the claim table through `FirstClaims` (an in-memory one ships, correct for one boot). The
-  loss is ANNOUNCED rather than handled, as the `achievement.server_first_lost` feedback moment,
+  loss is ANNOUNCED rather than handled, as the `Achievement_Server_First_Lost` feedback moment,
   which a server answers with an authored file and no Java. Nothing in this module can write words a
   player reads. **There is no second fan-out beside it**: a mod that wants to do something other
   than tell the player - log a race, hand out a consolation - registers a feedback hook through the

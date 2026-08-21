@@ -2,6 +2,7 @@ package com.ziggfreed.common.feedback.moment;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -14,6 +15,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.feedback.EventTitles;
 import com.ziggfreed.common.feedback.Notify;
+import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastSpec;
+import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.sound.Sound3D;
@@ -138,7 +142,21 @@ public final class FeedbackEngine {
             if (title == null) {
                 return;
             }
-            Notify.withIcon(playerRef, title, line(spec.getSecondary(), args), icon(args));
+            Message secondary = line(spec.getSecondary(), args);
+            // A notice belongs where the player is looking. With a page open the HUD toast would be
+            // behind it, so the same words are drawn INTO the page; with no page open it is the HUD
+            // toast as before. That is also why a page needs no notice hook of its own: finishing a
+            // quest mid-conversation shows its toast on the conversation without the page knowing a
+            // quest exists.
+            UUID viewer = playerRef.getUuid();
+            if (viewer != null && ToastablePage.isShowing(viewer)) {
+                ToastSpec inPage = ToastSpec.of(ToastKind.INFO, secondary != null ? secondary : title)
+                        .withTitle(secondary != null ? title : null)
+                        .withIcon(icon(args));
+                ToastablePage.showOnActive(viewer, inPage);
+                return;
+            }
+            Notify.withIcon(playerRef, title, secondary, icon(args));
         } catch (Throwable t) {
             SafeLog.fine("moment toast failed: " + t.getMessage());
         }

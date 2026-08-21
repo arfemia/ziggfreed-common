@@ -28,8 +28,6 @@ import com.ziggfreed.common.inventory.PlayerAccess;
  *       id from being spelled twice.</li>
  *   <li>{@code placementId} - which placement the moment came from, for a handler that keeps
  *       per-placement state.</li>
- *   <li>{@code depsKey} - which registered UI-provider a handler that has several should use; null
- *       means its default.</li>
  * </ul>
  *
  * <p>The handles are LIVE and valid only for the duration of the {@code open} call. World thread.
@@ -39,8 +37,7 @@ public record DestinationContext(@Nonnull Store<EntityStore> store,
                                  @Nonnull Player player,
                                  @Nullable Ref<EntityStore> npcRef,
                                  @Nullable String npcId,
-                                 @Nullable String placementId,
-                                 @Nullable String depsKey) {
+                                 @Nullable String placementId) {
 
     /**
      * The player's {@link PlayerRef}, read off their entity rather than carried beside it, or null
@@ -52,24 +49,18 @@ public record DestinationContext(@Nonnull Store<EntityStore> store,
         return playerReference.isValid() ? PlayerAccess.playerRef(store, playerReference) : null;
     }
 
-    /** The player-only form: no character in front of them, no placement, no provider key. */
+    /** The player-only form: no character in front of them and no placement. */
     @Nonnull
     public static DestinationContext of(@Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> playerReference, @Nonnull Player player) {
-        return new DestinationContext(store, playerReference, player, null, null, null, null);
+        return new DestinationContext(store, playerReference, player, null, null, null);
     }
 
     /** A copy that also names the character the player is standing at, and where it stands. */
     @Nonnull
     public DestinationContext withNpc(@Nullable Ref<EntityStore> npcRef, @Nullable String npcId,
             @Nullable String placementId) {
-        return new DestinationContext(store, playerReference, player, npcRef, npcId, placementId, depsKey);
-    }
-
-    /** A copy that also names which registered UI-provider a handler should resolve through. */
-    @Nonnull
-    public DestinationContext withDepsKey(@Nullable String depsKey) {
-        return new DestinationContext(store, playerReference, player, npcRef, npcId, placementId, depsKey);
+        return new DestinationContext(store, playerReference, player, npcRef, npcId, placementId);
     }
 
     /**

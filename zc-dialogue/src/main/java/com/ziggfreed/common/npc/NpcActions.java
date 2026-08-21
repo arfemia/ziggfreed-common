@@ -12,10 +12,10 @@ import com.ziggfreed.common.CommonLog;
  * the engine's own {@code OpenBarterShop} registration).
  *
  * <p>The two entry points differ in WHO calls them, and it is not arbitrary.
- * {@link #register()} is CONSUMER-called from its own plugin {@code setup()}, because
- * opening a dialogue needs that consumer's {@link NpcDialogueDepsRegistry} wiring to mean
- * anything. {@link #registerTalkCredit()} is COMMON-called from this library's own plugin,
- * because crediting a conversation needs nothing from anybody.
+ * {@link #register()} is CONSUMER-called from its own plugin {@code setup()}, because the role
+ * assets that name {@code ZigOpenDialogue} are that consumer's and must not decode before the type
+ * exists. {@link #registerTalkCredit()} is COMMON-called from this library's own plugin, because
+ * crediting a conversation needs nothing from anybody.
  *
  * <p>Both are idempotent and guarded: a second call (a second consumer mod that also
  * depends on this lib) is a no-op, and a failure degrades to a logged warning rather than

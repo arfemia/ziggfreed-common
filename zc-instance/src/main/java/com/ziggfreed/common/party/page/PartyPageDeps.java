@@ -6,8 +6,8 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.party.PartyService;
 
 /**
- * The immutable consumer-policy bundle a {@link PartyInvitePage} is built from (the
- * dialogue page's {@code DialoguePageDeps} twin): the {@link PartyService} the page
+ * The immutable consumer-policy bundle a {@link PartyInvitePage} is built from: the
+ * {@link PartyService} the page
  * drives, the locale-free {@link PartyScreenMessages} chrome, and an optional
  * {@link PartyQueueHandler} for the Queue button. Built once at the consumer's startup
  * and reused for every page, so the page stays mod-agnostic.

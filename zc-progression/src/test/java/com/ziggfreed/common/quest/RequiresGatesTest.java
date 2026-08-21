@@ -287,7 +287,7 @@ class RequiresGatesTest {
         gates.canUnlock(Subject.of(UUID.randomUUID(), "winner"), first);
         gates.canUnlock(Subject.of(UUID.randomUUID(), "loser"), first);
 
-        assertEquals(List.of("achievement.server_first_lost:loser:first"), told);
+        assertEquals(List.of("Achievement_Server_First_Lost:loser:first"), told);
     }
 
     // ==================== the live seams the consumer supplies ====================

@@ -147,7 +147,7 @@ class ProgressionFeedbackHookTest {
         ProgressionRuntime.quests().dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
         ProgressionRuntime.quests().claim(player, quest);
 
-        Moment progressed = last("quest.objective_progressed");
+        Moment progressed = last("Quest_Objective_Progressed");
         assertSame(player, progressed.subject(), "the hook is handed the subject that moved");
         assertEquals("q_parked", progressed.args().get("quest"));
         assertEquals("logs", progressed.args().get("objective"));
@@ -155,10 +155,10 @@ class ProgressionFeedbackHookTest {
         assertEquals(Integer.valueOf(2), progressed.args().get("required"));
         assertEquals(Boolean.TRUE, progressed.args().get("finished"));
 
-        assertEquals(2, countOf("quest.objective_progressed"),
+        assertEquals(2, countOf("Quest_Objective_Progressed"),
                 "one moment per objective movement, no more and no fewer");
 
-        Moment parked = only("quest.parked");
+        Moment parked = only("Quest_Parked");
         assertEquals("q_parked", parked.args().get("quest"));
         assertEquals(Boolean.TRUE, parked.args().get("parked"),
                 "and it says so in its arguments too, so a hook never has to read the id");
@@ -168,12 +168,12 @@ class ProgressionFeedbackHookTest {
         assertNull(parked.args().get("turnIn"),
                 "a quest collected from anywhere names no kind of place, and omits rather than"
                         + " nulls");
-        Moment claimed = only("quest.claimed");
+        Moment claimed = only("Quest_Claimed");
         assertEquals("q_parked", claimed.args().get("quest"));
         assertEquals(Boolean.TRUE, claimed.args().get("collected"),
                 "collecting a parked reward says so, so a jingle for collecting can be authored"
                         + " apart from the completion of one that settled on the spot");
-        assertTrue(!momentIds().contains("quest.completed"),
+        assertTrue(!momentIds().contains("Quest_Completed"),
                 "a quest waiting to be collected is a different moment from one that settled");
     }
 
@@ -209,7 +209,7 @@ class ProgressionFeedbackHookTest {
 
         List<Moment> parked = new ArrayList<>();
         for (Moment moment : seen) {
-            if (moment.id().equals("quest.parked")) {
+            if (moment.id().equals("Quest_Parked")) {
                 parked.add(moment);
             }
         }
@@ -237,13 +237,13 @@ class ProgressionFeedbackHookTest {
 
         ProgressionRuntime.quests().dispatch(player, "KILL_ENTITY", "Wolf", null, 1);
 
-        Moment completed = only("quest.completed");
+        Moment completed = only("Quest_Completed");
         assertEquals("q_auto", completed.args().get("quest"));
         assertEquals(Boolean.FALSE, completed.args().get("parked"));
         assertNull(completed.args().get("reason"), "a quest that paid out has no reason to park");
-        assertEquals(Boolean.FALSE, only("quest.claimed").args().get("collected"),
+        assertEquals(Boolean.FALSE, only("Quest_Claimed").args().get("collected"),
                 "paid on the spot is not collected: nothing waited");
-        assertTrue(!momentIds().contains("quest.parked"));
+        assertTrue(!momentIds().contains("Quest_Parked"));
     }
 
     // ==================== what the achievement engine announces ====================
@@ -256,7 +256,7 @@ class ProgressionFeedbackHookTest {
 
         ProgressionRuntime.achievements().dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
 
-        Moment unlocked = only("achievement.unlocked");
+        Moment unlocked = only("Achievement_Unlocked");
         assertSame(player, unlocked.subject());
         assertEquals("a_first_log", unlocked.args().get("achievement"));
         assertEquals("Ingredient_Bar_Iron", unlocked.args().get("icon"),
@@ -271,7 +271,7 @@ class ProgressionFeedbackHookTest {
 
         // An achievement owing nothing settles as it is earned, so the payout moment rides along
         // and carries the outcome triple whichever way it was reached.
-        Moment claimed = only("achievement.claimed");
+        Moment claimed = only("Achievement_Claimed");
         assertSame(player, claimed.subject());
         assertEquals("a_first_log", claimed.args().get("achievement"));
         assertEquals("Ingredient_Bar_Iron", claimed.args().get("icon"));
@@ -300,7 +300,7 @@ class ProgressionFeedbackHookTest {
         gates.canUnlock(Subject.of(UUID.randomUUID(), "winner"), onlyOnce);
         gates.canUnlock(player, onlyOnce);
 
-        Moment lost = only("achievement.server_first_lost");
+        Moment lost = only("Achievement_Server_First_Lost");
         assertSame(player, lost.subject(), "the moment is about whoever was beaten");
         assertEquals("a_first_blood", lost.args().get("achievement"));
         assertNotNull(lost.args().get("title"), "a moment with nothing to name reads as nothing");
@@ -323,7 +323,7 @@ class ProgressionFeedbackHookTest {
                 ProgressionFeedbackHook.of(recorder(), momentId -> false));
 
         ProgressionFeedbackHook.fire(ProgressionRuntime.feedback(), message -> { },
-                "quest.objective_progressed", player, "step", (Supplier<?>) () -> {
+                "Quest_Objective_Progressed", player, "step", (Supplier<?>) () -> {
                     composed.add("step");
                     return "Break 2 logs";
                 });
@@ -339,13 +339,13 @@ class ProgressionFeedbackHookTest {
         ProgressionRuntime.registrar(CONSUMER).feedbackHook(recorder());
 
         ProgressionFeedbackHook.fire(ProgressionRuntime.feedback(), message -> { },
-                "quest.objective_progressed", player, "step", (Supplier<?>) () -> {
+                "Quest_Objective_Progressed", player, "step", (Supplier<?>) () -> {
                     composed.add("step");
                     return "Break 2 logs";
                 });
 
         assertEquals(List.of("step"), composed);
-        assertEquals("Break 2 logs", only("quest.objective_progressed").args().get("step"),
+        assertEquals("Break 2 logs", only("Quest_Objective_Progressed").args().get("step"),
                 "a reader is handed the composed value, never the supplier that made it");
     }
 
@@ -361,13 +361,13 @@ class ProgressionFeedbackHookTest {
         ProgressionRuntime.registrar(CONSUMER).feedbackHook(recorder());
 
         ProgressionFeedbackHook.fire(ProgressionRuntime.feedback(), message -> { },
-                "quest.objective_progressed", player, "step", (Supplier<?>) () -> {
+                "Quest_Objective_Progressed", player, "step", (Supplier<?>) () -> {
                     composed.add("step");
                     return "Break 2 logs";
                 });
 
         assertEquals(List.of("step"), composed);
-        assertTrue(momentIds().contains("quest.objective_progressed"));
+        assertTrue(momentIds().contains("Quest_Objective_Progressed"));
     }
 
     /** A hook that cannot say is assumed to want the moment: silence is never inferred from a throw. */
@@ -379,9 +379,9 @@ class ProgressionFeedbackHookTest {
                 }));
 
         ProgressionFeedbackHook.fire(ProgressionRuntime.feedback(), message -> { },
-                "quest.objective_progressed", player, "quest", "q_parked");
+                "Quest_Objective_Progressed", player, "quest", "q_parked");
 
-        assertTrue(momentIds().contains("quest.objective_progressed"));
+        assertTrue(momentIds().contains("Quest_Objective_Progressed"));
     }
 
     // ==================== the contribution properties ====================
@@ -407,7 +407,7 @@ class ProgressionFeedbackHookTest {
         ProgressionRuntime.registrar(CONSUMER).feedbackHook(recorder());
         ProgressionRuntime.quests().dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 2);
 
-        assertTrue(momentIds().contains("quest.parked"),
+        assertTrue(momentIds().contains("Quest_Parked"),
                 "the engines call through a live forwarder, so a late hook is honoured");
     }
 
@@ -426,7 +426,7 @@ class ProgressionFeedbackHookTest {
         ProgressionRuntime.quests().dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 2);
 
         assertEquals(first, second, "nothing can mark a moment as already handled");
-        assertTrue(first.contains("quest.parked"));
+        assertTrue(first.contains("Quest_Parked"));
         assertEquals(List.of(CONSUMER, OTHER), ProgressionRuntime.feedbackHookOwners());
     }
 
@@ -442,7 +442,7 @@ class ProgressionFeedbackHookTest {
         ProgressionRuntime.quests().accept(player, quest);
         ProgressionRuntime.quests().dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 2);
 
-        assertTrue(momentIds().contains("quest.parked"),
+        assertTrue(momentIds().contains("Quest_Parked"),
                 "the second hook still ran, and the quest still completed");
     }
 

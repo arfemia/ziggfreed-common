@@ -45,8 +45,7 @@ class DialoguePageRenderSubjectTest {
     @Test
     void theEvaluationContextIsNotBuiltOnTheRefTheOpenerHandedIn() throws IOException {
         String build = buildBody();
-        Matcher call = Pattern.compile("contextFactory\\(\\)\\.create\\(([^;]*)\\);", Pattern.DOTALL)
-                .matcher(build);
+        Matcher call = Pattern.compile("\\bcontext\\(([^;]*)\\);", Pattern.DOTALL).matcher(build);
         assertTrue(call.find(), "DialoguePage.build no longer builds an exec context - revisit this guard");
         String arguments = call.group(1);
         assertFalse(Pattern.compile("[,(]\\s*ref\\s*,").matcher(arguments).find(),

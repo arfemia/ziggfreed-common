@@ -7,8 +7,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
+import com.google.gson.JsonObject;
+
+import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.NpcDialogue;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Every conversation the server has loaded, ready to open.
@@ -37,6 +42,9 @@ public final class DialogueAssetStore {
     /** id -> the loaded asset (the decoded conversation plus its switches). */
     private final Map<String, ZcDialogueAsset> loaded = new ConcurrentHashMap<>();
 
+    /** id -> the owner's own conversation, decoded from {@code mods/ziggfreedcommon/dialogues.json}. */
+    private final Map<String, NpcDialogue> owner = new ConcurrentHashMap<>();
+
     private DialogueAssetStore() {
     }
 
@@ -53,6 +61,51 @@ public final class DialogueAssetStore {
             }
             loaded.put(e.getKey().toLowerCase(Locale.ROOT), asset);
         }
+        applyOwnerLayer();
+    }
+
+    /**
+     * Re-read the owner's own conversations and decode them through the SAME codec the files use, so
+     * there is one schema whichever layer a body was written in. Called after every load, because an
+     * override only means something once the engine's vocabulary is in and the layer under it exists.
+     *
+     * <p>A body that will not decode is reported by id and skipped, which leaves the stored
+     * conversation of that id standing rather than taking the character out of circulation.
+     */
+    public synchronized void applyOwnerLayer() {
+        DialogueOverrides overrides = DialogueOverrides.getInstance();
+        overrides.reload();
+        owner.clear();
+        for (Map.Entry<String, JsonObject> entry : overrides.bodies().entrySet()) {
+            NpcDialogue decoded = DialogueEngine.shared().decode(entry.getKey(), entry.getValue().toString());
+            if (decoded == null) {
+                SafeLog.warn("[dialogue] the owner conversation '" + entry.getKey() + "' could not be read"
+                        + " and was skipped; the one already in circulation (if any) stands");
+                continue;
+            }
+            owner.put(entry.getKey(), decoded);
+        }
+    }
+
+    /**
+     * The conversation to open for {@code id}: the owner's own if they wrote one, else the one in
+     * circulation. Null when nothing answers, which the page says on its own screen.
+     */
+    @Nullable
+    public NpcDialogue dialogue(@Nullable String id) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+        String key = id.toLowerCase(Locale.ROOT);
+        NpcDialogue own = owner.get(key);
+        if (own != null) {
+            return own;
+        }
+        ZcDialogueAsset asset = loaded.get(key);
+        if (asset == null || asset.isAbstract() || !asset.isEnabled()) {
+            return null;
+        }
+        return asset.getDialogue();
     }
 
     /**
@@ -75,6 +128,8 @@ public final class DialogueAssetStore {
             }
             out.put(entry.getKey(), dialogue);
         }
+        // The owner's own conversations sit on top, so a listing shows what would actually open.
+        out.putAll(owner);
         return out;
     }
 
