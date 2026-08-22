@@ -15,7 +15,6 @@ import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.hypixel.hytale.server.npc.asset.builder.Builder;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.role.Role;
-import com.hypixel.hytale.server.npc.role.builders.BuilderRoleVariant;
 import com.hypixel.hytale.server.npc.util.expression.ExecutionContext;
 import com.hypixel.hytale.server.npc.util.expression.Scope;
 import com.hypixel.hytale.server.spawning.ISpawnableWithModel;
@@ -68,12 +67,6 @@ import com.ziggfreed.common.util.SafeLog;
  * anywhere.
  */
 public final class NpcNames {
-
-    /**
-     * The bound on a {@code Variant} chain walk. The engine itself ships no cycle detector, so a
-     * pair of roles referencing each other would spin here forever.
-     */
-    private static final int MAX_ROLE_CHAIN = 16;
 
     /** Lower-cased role id -> its resolved key. Positive answers only. */
     private static final Map<String, String> KEY_BY_ROLE = new ConcurrentHashMap<>();
@@ -251,29 +244,25 @@ public final class NpcNames {
     }
 
     /**
-     * The whole static resolution, in ONE guarded method on purpose.
+     * The whole static resolution, in ONE guarded method on purpose: one wrong assumption about
+     * the builder framework must cost a blank name and a fine-level line, never a throw into a
+     * page render. That is what the single try/catch around the entire body buys.
      *
-     * <p>It is assembled from the engine's own pieces rather than copied from a first-party caller
-     * that does exactly this - nothing in the engine resolves a role's name without an entity - so
-     * one wrong assumption about the builder framework must cost a blank name and a fine-level line,
-     * never a throw into a page render. That is what the single try/catch around the entire body
-     * buys, and why the walk is not spread across helpers that could each escape it.
-     *
-     * <p>The walk itself:
+     * <p>The sequence is the engine's own off-entity read (the memories module's NPC-name provider
+     * runs exactly these four lines): resolve the cached BUILDER, seed the context with THAT
+     * builder's own execution scope, build the modifier scope, then ask the builder for the key.
+     * Two parts of the order are load-bearing:
      * <ol>
-     *   <li>the role id becomes a builder index, and the index a cached role BUILDER (declarative,
-     *       never a built {@code Role} - building one needs a live entity);</li>
-     *   <li>a {@code Variant} builds its MERGED modifier scope, which accumulates every hop's
-     *       {@code Modify} block up the chain. The engine restores the context's previous scope
-     *       before handing that scope back, so setting it on the context afterwards is load-bearing
-     *       rather than tidy;</li>
-     *   <li>the chain's reference indexes are walked to the terminal non-{@code Variant} base, since
-     *       that is the builder whose field actually holds the key;</li>
-     *   <li>a plain role skips both of those and simply gets its own parameters' scope, mirroring
-     *       what the engine does at spawn;</li>
-     *   <li>the base is asked for the key against that scope. The scope is what resolves a
-     *       {@code {"Compute": "NameTranslationKey"}} binding, which is how a shared template lets
-     *       each variant name itself.</li>
+     *   <li><b>the seed comes FIRST.</b> A {@code Variant}'s {@code Modify} block may bind a field
+     *       with {@code {"Compute": X}}, and that expression resolves against whatever scope is
+     *       LIVE on the context at the moment {@code createModifierScope} evaluates it. The
+     *       variant's own {@code Parameters} - where the computed value is authored - are exactly
+     *       what {@code createExecutionScope()} answers, so an unseeded context fails the symbol
+     *       lookup and the whole walk with it;</li>
+     *   <li><b>the TOP builder is asked, never a manually-resolved base.</b> A Variant's own
+     *       {@code getNameTranslationKey} delegates through its chain itself, with the merged
+     *       scope in place, so a plain role, a variant, and a variant of an {@code Abstract}
+     *       template all take the same four lines.</li>
      * </ol>
      */
     @Nullable
@@ -288,36 +277,12 @@ public final class NpcNames {
                 return null;
             }
             Builder<Role> builder = plugin.tryGetCachedValidRole(index);
-            if (builder == null) {
+            if (!(builder instanceof ISpawnableWithModel spawnable)) {
                 return null;
             }
-
             ExecutionContext context = new ExecutionContext();
-            Scope scope;
-            Builder<Role> base = builder;
-            if (builder instanceof BuilderRoleVariant variant) {
-                scope = variant.createModifierScope(context);
-                int guard = 0;
-                while (base instanceof BuilderRoleVariant hop && guard++ < MAX_ROLE_CHAIN) {
-                    Builder<Role> referenced = plugin.tryGetCachedValidRole(hop.getReferenceIndex());
-                    if (referenced == null) {
-                        return null; // A chain that does not land anywhere names nobody.
-                    }
-                    base = referenced;
-                }
-                if (base instanceof BuilderRoleVariant) {
-                    SafeLog.fine("[names] the role chain of '" + roleName + "' does not reach a base role "
-                            + "within " + MAX_ROLE_CHAIN + " hops");
-                    return null;
-                }
-            } else {
-                var parameters = builder.getBuilderParameters();
-                scope = parameters == null ? null : parameters.createScope();
-            }
-            if (!(base instanceof ISpawnableWithModel spawnable)) {
-                return null;
-            }
-            context.setScope(scope);
+            context.setScope(spawnable.createExecutionScope());
+            Scope scope = spawnable.createModifierScope(context);
             return spawnable.getNameTranslationKey(context, scope);
         } catch (Throwable t) {
             SafeLog.fine("[names] could not resolve the name key of role '" + roleName + "': " + t.getMessage());

@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.ziggfreed.common.dialogue.DialogueMemories;
+import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
@@ -52,6 +53,7 @@ final class QuestResetCommand extends TargetPlayerSubCommand {
         if (ProgressCommandLine.ALL.equalsIgnoreCase(questId)) {
             int wiped = ProgressionRuntime.questScope().around(subject, engine::wipeAllQuests);
             DialogueMemories.forgetAllQuests(target.store(), target.ref());
+            rearm(target, subject, engine);
             ProgressAdminMessages.done(ctx, "quest.reset.all", target.name(), wiped);
             return;
         }
@@ -64,6 +66,24 @@ final class QuestResetCommand extends TargetPlayerSubCommand {
             return;
         }
         ProgressionRuntime.questScope().run(subject, s -> engine.wipeQuest(s, questId));
+        rearm(target, subject, engine);
         ProgressAdminMessages.done(ctx, "quest.reset.one", questId, target.name());
+    }
+
+    /**
+     * A wipe puts the player back at day one for whatever it wiped, so the same maintenance a
+     * fresh login runs is run here too: re-arm every auto-accept quest the wipe re-opened, and
+     * repaint the tracker - which otherwise keeps showing the wiped quests, because an
+     * administrative wipe is not one of the quest events it repaints on. Without this, "reset and
+     * run the opening again" leaves the player with no starter quest until they relog and a
+     * tracker lying about what they carry.
+     */
+    private static void rearm(@Nonnull Target target, @Nonnull Subject subject,
+            @Nonnull QuestEngine engine) {
+        ProgressionRuntime.questScope().run(subject, s -> {
+            engine.selfHeal(s);
+            engine.autoAcceptAvailable(s);
+        });
+        TrackedQuestHuds.repaint(target.playerRef());
     }
 }

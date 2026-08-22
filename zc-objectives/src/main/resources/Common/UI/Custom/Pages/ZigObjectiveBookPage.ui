@@ -50,6 +50,70 @@ $F.@ZigDecoratedFrame {
       }
     }
 
+    // The quest-list filter bar (hidden on the achievements tab): a row of category buttons the
+    // page appends into #CategoryBar, then a search field + button + clear, the tag dropdown, and
+    // the status buttons appended into #StatusBar. Every control is bound from Java with the full
+    // filter state.
+    Group #FilterBar {
+      Visible: false;
+      LayoutMode: Top;
+      Anchor: (Height: 72, Bottom: 6);
+
+      Group #CategoryBar {
+        LayoutMode: Left;
+        Anchor: (Height: 28, Bottom: 8);
+      }
+
+      Group #SearchRow {
+        LayoutMode: Left;
+        Anchor: (Height: 28);
+
+        $C.@TextField #SearchField {
+          Anchor: (Width: 170, Height: 26);
+          Padding: (Left: 8, Right: 8);
+          Style: (FontSize: 12, TextColor: #b6c9de);
+        }
+
+        Group { Anchor: (Width: 4); }
+
+        Button #SearchBtn {
+          Style: $Z.@ZigRichRowBtnStyle;
+          Anchor: (Width: 74, Height: 26);
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+
+        Group { Anchor: (Width: 4); }
+
+        Button #ClearSearchBtn {
+          Style: $Z.@ZigRichRowBtnStyle;
+          Anchor: (Width: 26, Height: 26);
+          Visible: false;
+          Label #Label {
+            FlexWeight: 1;
+            Text: "";
+            Style: (FontSize: 12, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
+          }
+        }
+
+        Group { Anchor: (Width: 8); }
+
+        $C.@DropdownBox #TagFilter {
+          Anchor: (Width: 140, Height: 26);
+        }
+
+        Group { Anchor: (Width: 8); }
+
+        Group #StatusBar {
+          FlexWeight: 1;
+          LayoutMode: Left;
+        }
+      }
+    }
+
     // A one-line summary above the list (the achievement tab shows earned/total points here).
     Label #Summary {
       Text: "";

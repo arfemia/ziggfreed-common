@@ -2,7 +2,6 @@ package com.ziggfreed.common.objectives.questlist;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,6 +26,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
+import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Entry;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Section;
@@ -38,7 +38,6 @@ import com.ziggfreed.common.quest.NpcOffer;
 import com.ziggfreed.common.quest.NpcOfferProviders;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
-import com.ziggfreed.common.quest.QuestGates;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.UiRetint;
@@ -181,7 +180,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
                 EventData.of("Action", "close"));
 
         this.answersTo = deps.answerSetOrOwn(npcId);
-        cmd.set("#NpcHeader.TextSpans", headerText());
+        cmd.set("#NpcHeader.TextSpans", headerText(store, ref));
 
         QuestEngine engine = ProgressionRuntime.quests();
         // The build argument is the page's ANCHOR, which at a character is that character's own
@@ -281,14 +280,27 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         }
     }
 
-    /** The character's name, else its raw id, else a plain title for a list with nobody in front of it. */
+    /**
+     * The character's name, else its raw id, else a plain title for a list with nobody in front of
+     * it.
+     *
+     * <p>The consumer's naming seam answers first (it exists to override), then the LIVE entity
+     * this page was opened on: at a press-F the build anchor is the character itself, and the key
+     * its built role carries is byte-for-byte what the nameplate over its head renders - which
+     * also covers a role shape the static asset walk cannot resolve. The raw id is the last
+     * resort, not an answer.
+     */
     @Nonnull
-    private Message headerText() {
+    private Message headerText(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        if (npcId == null) {
+            return text("npcquests.title.none");
+        }
         Message name = deps.nameOrNull(npcId);
         if (name != null) {
             return name;
         }
-        return npcId != null ? Msg.raw(npcId) : text("npcquests.title.none");
+        name = NpcNames.nameFor(npcId, ref, store);
+        return name != null ? name : Msg.raw(npcId);
     }
 
     /**
@@ -686,22 +698,12 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     /**
      * Why a visible quest cannot be taken, so a locked row explains itself instead of sitting inert.
      *
-     * <p>Only the refusals a player can ACT on have a line of their own; anything else - a spent
-     * calendar window, a spent lifetime cap, a gate evaluator's own reason, which belongs to whoever
-     * authored the gate - reads as the generic line rather than leaking an internal token at a
-     * player. The same three the objective book keys, so the two surfaces cannot disagree.
+     * <p>The token-to-line mapping is {@link LockReasons}, the same one the objective book reads,
+     * so the two surfaces cannot disagree - and a gate shut by another quest names that quest
+     * instead of reading as a generic "not available".
      */
     private void renderRefusals(@Nonnull UICommandBuilder cmd, @Nonnull List<String> reasons) {
-        // Several refusals can map to one line, and a list repeating the same sentence three times
-        // reads as a bug rather than as emphasis.
-        Set<String> keys = new LinkedHashSet<>();
-        for (String reason : reasons) {
-            keys.add(lockKey(reason));
-        }
-        List<Message> lines = new ArrayList<>();
-        for (String key : keys) {
-            lines.add(text(key));
-        }
+        List<Message> lines = LockReasons.lines(reasons);
         if (lines.isEmpty()) {
             return;
         }
@@ -715,20 +717,6 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             setLine(cmd, appendLine(cmd, "#RequirementsSection", index), line, LINE_REFUSAL);
             index++;
         }
-    }
-
-    @Nonnull
-    private static String lockKey(@Nullable String reason) {
-        if (QuestGates.REASON_UNAVAILABLE.equals(reason)) {
-            return "book.quests.lock.unavailable";
-        }
-        if (QuestGates.REASON_ON_COOLDOWN.equals(reason)) {
-            return "book.quests.lock.on_cooldown";
-        }
-        if (QuestGates.REASON_PREREQUISITES.equals(reason)) {
-            return "book.quests.lock.prerequisites";
-        }
-        return "book.quests.lock.other";
     }
 
     @Nonnull

@@ -149,6 +149,7 @@ public final class Quest {
     private final ContentText text;
     @Nullable private final String npcViewId;
     private final int listOrder;
+    @Nullable private final String category;
 
     private Quest(@Nonnull Builder b) {
         this.id = b.id;
@@ -168,6 +169,7 @@ public final class Quest {
         this.text = b.text;
         this.npcViewId = b.npcViewId;
         this.listOrder = b.listOrder;
+        this.category = b.category;
     }
 
     /**
@@ -195,6 +197,7 @@ public final class Quest {
                 .text(text)
                 .npcViewId(npcViewId)
                 .listOrder(listOrder)
+                .category(category)
                 .build();
     }
 
@@ -209,7 +212,7 @@ public final class Quest {
      */
     @Nonnull
     public Quest withAuthoring(@Nullable GateSpec requires, @Nullable ContentText text,
-            @Nullable String npcViewId, int listOrder) {
+            @Nullable String npcViewId, int listOrder, @Nullable String category) {
         return builder(id)
                 .objectives(objectives)
                 .rewards(rewards)
@@ -227,6 +230,7 @@ public final class Quest {
                 .text(text)
                 .npcViewId(npcViewId)
                 .listOrder(listOrder)
+                .category(category)
                 .build();
     }
 
@@ -366,6 +370,17 @@ public final class Quest {
         return listOrder;
     }
 
+    /**
+     * The listing category the quest was authored under ({@code Listing.Category}), lower-case by
+     * the asset codec's own normalization, or null for content that expressed none. Pure display
+     * grouping for a listing surface (the objective book's category filter); the engine never
+     * reads it.
+     */
+    @Nullable
+    public String category() {
+        return category;
+    }
+
     /** Free classification carried onto the outbound events; the engine never reads their meaning. */
     @Nonnull
     public List<String> tags() {
@@ -445,9 +460,17 @@ public final class Quest {
         private ContentText text = ContentText.EMPTY;
         @Nullable private String npcViewId;
         private int listOrder;
+        @Nullable private String category;
 
         private Builder(@Nonnull String id) {
             this.id = id;
+        }
+
+        /** The listing category ({@link Quest#category()}); null (the default) means none. */
+        @Nonnull
+        public Builder category(@Nullable String category) {
+            this.category = category == null || category.isBlank() ? null : category.trim();
+            return this;
         }
 
         @Nonnull

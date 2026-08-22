@@ -3,6 +3,7 @@ package com.ziggfreed.common.objectives.book;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
@@ -17,6 +18,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.ui.Anchor;
+import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
 import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
@@ -35,14 +37,16 @@ import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
+import com.ziggfreed.common.objectives.questlist.LockReasons;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTextSource;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
-import com.ziggfreed.common.quest.QuestGates;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.UiRetint;
+import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -75,6 +79,7 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
 
     private static final String PAGE_TEMPLATE = "Pages/ZigObjectiveBookPage.ui";
     private static final String ROW_TEMPLATE = "Pages/ZigObjectiveRow.ui";
+    private static final String FILTER_BUTTON_TEMPLATE = "Pages/ZigBookFilterBtn.ui";
 
     /** This library's own lang namespace; {@link Msg#tr} concatenates it with the key verbatim. */
     private static final String PREFIX = "ziggfreedcommon.";
@@ -107,15 +112,20 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     private static final String SUBHEADER_TINT = "#18212b";
     private static final String SUBHEADER_TEXT = "#6c7c8e";
 
-    /** Where a quest sits for this player, which is also the order the sections render in. */
-    private enum QuestSection { ACTIVE, READY, AVAILABLE, LOCKED }
+    /**
+     * Where a quest sits for this player, which is also the order the sections render in.
+     * {@code DONE} (finished and collected) is classified but shown ONLY under the "completed"
+     * status filter: the default view stays what the player can still act on, while the filter is
+     * where "what have I finished" has a place to be answered.
+     */
+    private enum QuestSection { ACTIVE, READY, AVAILABLE, LOCKED, DONE }
 
     /** Where an achievement sits for this player, which is also the order the sections render in. */
     private enum AchievementSection { READY, IN_PROGRESS, EARNED }
 
     /** One painted quest line: the engine's quest plus the text the runtime resolved for it. */
     private record QuestRow(@Nonnull Quest quest, @Nonnull Message name, @Nullable Message flavor,
-                            @Nonnull QuestSection section, @Nullable String lockReason) {
+                            @Nonnull QuestSection section, @Nonnull List<String> lockReasons) {
     }
 
     /**
@@ -131,7 +141,17 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                                   @Nonnull String category, int categoryRank) {
     }
 
+    /** The category / status value meaning "no filter"; never rendered, only compared. */
+    private static final String FILTER_ALL = "all";
+
+    /** The status-filter values, in the order their buttons render. */
+    private static final String[] STATUS_FILTERS = {FILTER_ALL, "active", "available", "completed"};
+
     private final String tab;
+    @Nonnull private final String filterCategory;
+    @Nonnull private final String filterStatus;
+    @Nonnull private final String searchText;
+    @Nonnull private final String filterTag;
 
     /** Open the book on the quests tab. */
     public ObjectiveBookPage(@Nonnull PlayerRef playerRef) {
@@ -139,9 +159,25 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     }
 
     public ObjectiveBookPage(@Nonnull PlayerRef playerRef, @Nullable String tab) {
+        this(playerRef, tab, null, null, null, null);
+    }
+
+    /** The full-state form every filter binding round-trips; null filters mean "off". */
+    public ObjectiveBookPage(@Nonnull PlayerRef playerRef, @Nullable String tab,
+                             @Nullable String filterCategory, @Nullable String filterStatus,
+                             @Nullable String searchText, @Nullable String filterTag) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction,
                 ObjectiveBookEventData.CODEC);
         this.tab = TAB_ACHIEVEMENTS.equals(tab) ? TAB_ACHIEVEMENTS : TAB_QUESTS;
+        this.filterCategory = normalizeFilter(filterCategory);
+        this.filterStatus = normalizeFilter(filterStatus);
+        this.searchText = searchText == null ? "" : searchText.trim();
+        this.filterTag = filterTag == null ? "" : filterTag.trim();
+    }
+
+    @Nonnull
+    private static String normalizeFilter(@Nullable String value) {
+        return value == null || value.isBlank() ? FILTER_ALL : value.trim();
     }
 
     // ==================== build ====================
@@ -149,7 +185,7 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     @Override
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
                       @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
-        cmd.append(PAGE_TEMPLATE);
+        appendTemplate(cmd);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton",
                 EventData.of("Action", "close"));
         cmd.set("#Title.TextSpans", text("book.title"));
@@ -189,6 +225,23 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         renderToastInto(cmd);
     }
 
+    /**
+     * Get the page's markup onto the screen, through a consumer's theme where there is one.
+     * Guarded with the plain append as the fallback: a theme is decoration, and a decoration that
+     * throws must not cost the player the whole screen. A theme that threw AFTER appending would
+     * append twice, so the retry only runs when nothing landed.
+     */
+    private static void appendTemplate(@Nonnull UICommandBuilder cmd) {
+        try {
+            ObjectiveBookPages.resolvedTheme().appendThemed(cmd, PAGE_TEMPLATE, "#Content");
+            return;
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] a page theme failed, so the objective book renders plain: "
+                    + t.getMessage());
+        }
+        cmd.append(PAGE_TEMPLATE);
+    }
+
     private void selfHeal(@Nonnull QuestEngine questEngine,
                           @Nonnull AchievementEngine achievementEngine, @Nonnull Subject subject) {
         try {
@@ -211,14 +264,19 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             if (section == null) {
                 continue;
             }
-            String lockReason = section == QuestSection.LOCKED
-                    ? engine.canAccept(subject, quest).firstReason() : null;
+            if (!matchesFilters(quest, section)) {
+                continue;
+            }
+            List<String> lockReasons = section == QuestSection.LOCKED
+                    ? engine.canAccept(subject, quest).reasons() : List.of();
             entries.add(new QuestRow(quest,
                     nameOf(quest.id(), "book.quests.untitled"),
-                    flavorOf(quest.id()), section, lockReason));
+                    flavorOf(quest.id()), section, lockReasons));
         }
         entries.sort(Comparator.comparingInt((QuestRow r) -> r.section().ordinal())
+                .thenComparingInt(r -> r.quest().listOrder())
                 .thenComparing(r -> r.quest().id()));
+        renderFilterBar(cmd, events, subject, engine);
 
         int index = 0;
         HeaderWalk<QuestSection> walk = new HeaderWalk<>();
@@ -256,7 +314,218 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         // A repeatable waiting out its clock is still the player's quest. Leaving it out entirely
         // would make a daily disappear from the book between runs, which reads as content having
         // been taken away rather than as a wait.
-        return status == QuestStatus.ON_COOLDOWN ? QuestSection.LOCKED : null;
+        if (status == QuestStatus.ON_COOLDOWN) {
+            return QuestSection.LOCKED;
+        }
+        // Finished for good. Classified so the "completed" filter can list it; the default view
+        // leaves it out (see QuestSection).
+        return status == QuestStatus.COMPLETED ? QuestSection.DONE : null;
+    }
+
+    // ==================== the quest-list filter bar ====================
+
+    /**
+     * The filter bar over the quest list: category buttons, a search field, a tag dropdown and
+     * the status filters, every control binding the FULL next state so no click loses another
+     * filter. Rendered only on the quests tab; the achievements tab hides the whole bar.
+     */
+    private void renderFilterBar(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+                                 @Nonnull Subject subject, @Nonnull QuestEngine engine) {
+        cmd.set("#FilterBar.Visible", true);
+
+        // Category buttons: "All" first, then every category the player's visible quests carry,
+        // sorted so two mods' content interleaves stably.
+        List<String> categories = new ArrayList<>();
+        List<String> tags = new ArrayList<>();
+        for (Quest quest : engine.quests()) {
+            QuestSection section = sectionFor(subject, engine, quest);
+            if (section == null) {
+                continue;
+            }
+            String category = quest.category();
+            if (category != null && !containsIgnoreCase(categories, category)) {
+                categories.add(category);
+            }
+            for (String tag : quest.tags()) {
+                if (!containsIgnoreCase(tags, tag)) {
+                    tags.add(tag);
+                }
+            }
+        }
+        categories.sort(String.CASE_INSENSITIVE_ORDER);
+        tags.sort(String.CASE_INSENSITIVE_ORDER);
+
+        int index = appendFilterButton(cmd, events, "#CategoryBar", 0,
+                text("book.quests.filter.all"), FILTER_ALL.equalsIgnoreCase(filterCategory),
+                "category", FILTER_ALL);
+        for (String category : categories) {
+            index = appendFilterButton(cmd, events, "#CategoryBar", index,
+                    categoryLabel(category), category.equalsIgnoreCase(filterCategory),
+                    "category", category);
+        }
+
+        // The search field: the button captures the live field value at click, so what was typed
+        // is what runs, with no per-keystroke traffic.
+        cmd.set("#SearchField.Value", searchText);
+        events.addEventBinding(CustomUIEventBindingType.Activating, "#SearchBtn",
+                fullState("search").append("@SearchInput", "#SearchField.Value"), false);
+        ZigRichButton.text(cmd, "#SearchBtn", text("book.quests.filter.search"));
+        if (!searchText.isEmpty()) {
+            cmd.set("#ClearSearchBtn.Visible", true);
+            ZigRichButton.text(cmd, "#ClearSearchBtn", text("book.quests.filter.clear"));
+            events.addEventBinding(CustomUIEventBindingType.Activating, "#ClearSearchBtn",
+                    fullState("clear_search"), false);
+        }
+
+        // The tag dropdown. Entries are the tags on the player's visible quests; labels are the
+        // authored tags themselves (free labels, data by contract) behind one localized "all" row
+        // flattened to the default language - a dropdown entry is a String-only sink.
+        List<DropdownEntryInfo> tagEntries = new ArrayList<>(tags.size() + 1);
+        tagEntries.add(SettingsUiUtil.entry(UiText.flatten(text("book.quests.filter.all_tags")), ""));
+        for (String tag : tags) {
+            tagEntries.add(SettingsUiUtil.entry(tag, tag));
+        }
+        SettingsUiUtil.populate(cmd, "#TagFilter", tagEntries, filterTag.isEmpty() ? null : filterTag);
+        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#TagFilter",
+                fullState("tag").append("@DropdownValue", "#TagFilter.Value"), false);
+
+        // Status filters, appended with the same button template the categories use.
+        int statusIndex = 0;
+        for (String status : STATUS_FILTERS) {
+            statusIndex = appendFilterButton(cmd, events, "#StatusBar", statusIndex,
+                    statusLabel(status), status.equalsIgnoreCase(filterStatus), "status", status);
+        }
+    }
+
+    /** One filter button: append the shared template, label it, tint it, bind the full state. */
+    private int appendFilterButton(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+                                   @Nonnull String container, int index, @Nonnull Message label,
+                                   boolean active, @Nonnull String action, @Nonnull String value) {
+        cmd.append(container, FILTER_BUTTON_TEMPLATE);
+        String sel = container + "[" + index + "]";
+        ZigRichButton.text(cmd, sel, label);
+        styleTab(cmd, sel, active);
+        events.addEventBinding(CustomUIEventBindingType.Activating, sel,
+                fullState(action).append("Id", value), false);
+        return index + 1;
+    }
+
+    /**
+     * A category's label: the three the library itself keys are localized, anything else renders
+     * its authored id prettified - a pack's own category is its own vocabulary, the same contract
+     * tags carry, and a wrong localized guess would read as a name somebody chose.
+     */
+    @Nonnull
+    private Message categoryLabel(@Nonnull String category) {
+        String id = category.toLowerCase(Locale.ROOT);
+        if ("main".equals(id) || "daily".equals(id) || "misc".equals(id)) {
+            return text("book.quests.category." + id);
+        }
+        return Msg.raw(prettify(category));
+    }
+
+    @Nonnull
+    private Message statusLabel(@Nonnull String status) {
+        return FILTER_ALL.equalsIgnoreCase(status)
+                ? text("book.quests.filter.all")
+                : text("book.quests.filter.status." + status.toLowerCase(Locale.ROOT));
+    }
+
+    /** {@code "wilds_side"} reads as {@code "Wilds Side"}: word breaks on {@code _-}, title case. */
+    @Nonnull
+    private static String prettify(@Nonnull String id) {
+        StringBuilder out = new StringBuilder(id.length());
+        boolean startWord = true;
+        for (char c : id.toCharArray()) {
+            if (c == '_' || c == '-') {
+                out.append(' ');
+                startWord = true;
+            } else {
+                out.append(startWord ? Character.toUpperCase(c) : c);
+                startWord = false;
+            }
+        }
+        return out.toString();
+    }
+
+    private static boolean containsIgnoreCase(@Nonnull List<String> list, @Nonnull String value) {
+        for (String entry : list) {
+            if (entry.equalsIgnoreCase(value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Every binding carries the WHOLE filter state, so no click - a filter, an action button, a
+     * tab switch - resets what the player had narrowed the list to.
+     */
+    @Nonnull
+    private EventData fullState(@Nonnull String action) {
+        return fullState(action, tab);
+    }
+
+    /** {@link #fullState(String)} with the tab overridden - the tab buttons' own form. */
+    @Nonnull
+    private EventData fullState(@Nonnull String action, @Nonnull String forTab) {
+        return EventData.of("Action", action)
+                .append("Tab", forTab)
+                .append("Category", filterCategory)
+                .append("Status", filterStatus)
+                .append("Search", searchText)
+                .append("Tag", filterTag);
+    }
+
+    /** Does this quest survive the four quest-list filters in force? */
+    private boolean matchesFilters(@Nonnull Quest quest, @Nonnull QuestSection section) {
+        // The completed filter shows ONLY finished quests, and no other view shows any of them.
+        boolean wantDone = "completed".equalsIgnoreCase(filterStatus);
+        if (section == QuestSection.DONE) {
+            if (!wantDone) {
+                return false;
+            }
+        } else if (wantDone) {
+            return false;
+        }
+        if (!FILTER_ALL.equalsIgnoreCase(filterCategory)
+                && !filterCategory.equalsIgnoreCase(quest.category())) {
+            return false;
+        }
+        if ("active".equalsIgnoreCase(filterStatus)
+                && section != QuestSection.ACTIVE && section != QuestSection.READY) {
+            return false;
+        }
+        if ("available".equalsIgnoreCase(filterStatus) && section != QuestSection.AVAILABLE) {
+            return false;
+        }
+        if (!filterTag.isEmpty() && !quest.hasTag(filterTag)) {
+            return false;
+        }
+        if (!searchText.isEmpty()) {
+            String needle = searchText.toLowerCase(Locale.ROOT);
+            if (!searchHaystack(quest).contains(needle)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The text a search matches against: the title and flavor FLATTENED to the server's default
+     * language plus the raw tags. A String contains-check, not display - display stays
+     * client-resolved everywhere; a per-player-locale search would need the server to know a
+     * locale it deliberately never reads.
+     */
+    @Nonnull
+    private static String searchHaystack(@Nonnull Quest quest) {
+        StringBuilder hay = new StringBuilder();
+        hay.append(UiText.flatten(ask(source -> source.title(quest.id())))).append('\n');
+        hay.append(UiText.flatten(ask(source -> source.flavor(quest.id())))).append('\n');
+        for (String tag : quest.tags()) {
+            hay.append(tag).append('\n');
+        }
+        return hay.toString().toLowerCase(Locale.ROOT);
     }
 
     private int appendQuestRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
@@ -276,6 +545,14 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 if (engine.firstActiveTurnIn(subject, quest, null) != null) {
                     setAction(cmd, events, sel, text("book.action.turn_in"), "turn_in", quest.id());
                 }
+                // The track labels are the NPC quest list's own, so the two surfaces cannot
+                // drift apart about what pinning is called.
+                boolean tracked = engine.store().trackedPins(subject).containsKey(quest.id());
+                setSmallButton(cmd, events, sel + " #Track",
+                        text(tracked ? "npcquests.action.untrack" : "npcquests.action.track"),
+                        "track", quest.id());
+                setSmallButton(cmd, events, sel + " #Abandon", text("book.action.abandon"),
+                        "abandon", quest.id());
             }
             case READY -> {
                 setStatus(cmd, sel, text("book.quests.section.ready"));
@@ -283,9 +560,20 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             }
             case AVAILABLE ->
                 setAction(cmd, events, sel, text("book.action.accept"), "accept", quest.id());
-            case LOCKED -> setStatus(cmd, sel, lockText(entry.lockReason()));
+            case LOCKED -> setStatus(cmd, sel, LockReasons.bestLine(entry.lockReasons()));
+            case DONE -> setStatus(cmd, sel, text("book.quests.section.done"));
         }
         return index + 1;
+    }
+
+    /** A row's secondary button (track / abandon): label, show, bind with the full state. */
+    private void setSmallButton(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+                                @Nonnull String selector, @Nonnull Message label,
+                                @Nonnull String action, @Nonnull String id) {
+        ZigRichButton.text(cmd, selector, label);
+        cmd.set(selector + ".Visible", true);
+        events.addEventBinding(CustomUIEventBindingType.Activating, selector,
+                fullState(action).append("Id", id), false);
     }
 
     /**
@@ -322,31 +610,8 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             case READY -> text("book.quests.section.ready");
             case AVAILABLE -> text("book.quests.section.available");
             case LOCKED -> text("book.quests.section.locked");
+            case DONE -> text("book.quests.section.done");
         };
-    }
-
-    /**
-     * The refusals this book can actually receive map to their own lines; anything else - a gate
-     * evaluator's own reason, which belongs to whoever authored the gate - reads as the generic one
-     * rather than leaking an internal token at a player.
-     *
-     * <p>The three with their own line are the three a player can do something about. A quest held
-     * back by a spent calendar window or a spent lifetime cap reads as the generic line rather than
-     * gaining two more keys nine translators would maintain; the count beside it is the real answer
-     * there, and it is already on the row.
-     */
-    @Nonnull
-    private Message lockText(@Nullable String reason) {
-        if (QuestGates.REASON_UNAVAILABLE.equals(reason)) {
-            return text("book.quests.lock.unavailable");
-        }
-        if (QuestGates.REASON_ON_COOLDOWN.equals(reason)) {
-            return text("book.quests.lock.on_cooldown");
-        }
-        if (QuestGates.REASON_PREREQUISITES.equals(reason)) {
-            return text("book.quests.lock.prerequisites");
-        }
-        return text("book.quests.lock.other");
     }
 
     // ==================== achievements ====================
@@ -572,7 +837,7 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         ZigRichButton.text(cmd, sel + " #Action", label);
         cmd.set(sel + " #Action.Visible", true);
         events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #Action",
-                EventData.of("Action", action).append("Tab", tab).append("Id", id), false);
+                fullState(action).append("Id", id), false);
     }
 
     /** The bar is decoration over the count in {@code #Progress}, which is the real reading. */
@@ -592,13 +857,27 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
 
     @Nonnull
     private Message emptyText() {
-        return TAB_ACHIEVEMENTS.equals(tab) ? text("book.empty.achievements") : text("book.empty.quests");
+        if (TAB_ACHIEVEMENTS.equals(tab)) {
+            return text("book.empty.achievements");
+        }
+        // An empty FILTERED list is not an empty catalogue: say the filters hid everything rather
+        // than telling a player with forty quests that there is nothing here.
+        return anyFilterActive() ? text("book.quests.filter.none") : text("book.empty.quests");
+    }
+
+    private boolean anyFilterActive() {
+        return !FILTER_ALL.equalsIgnoreCase(filterCategory)
+                || !FILTER_ALL.equalsIgnoreCase(filterStatus)
+                || !searchText.isEmpty()
+                || !filterTag.isEmpty();
     }
 
     private void bindTab(@Nonnull UIEventBuilder events, @Nonnull String selector,
                          @Nonnull String target) {
+        // The filter state rides along so switching away and back does not reset what the player
+        // had narrowed the quest list to.
         events.addEventBinding(CustomUIEventBindingType.Activating, selector,
-                EventData.of("Action", "tab").append("Tab", target).append("Id", ""), false);
+                fullState("tab", target).append("Id", ""), false);
     }
 
     private static void styleTab(@Nonnull UICommandBuilder cmd, @Nonnull String selector, boolean active) {
@@ -628,10 +907,25 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         }
         String nextTab = TAB_ACHIEVEMENTS.equals(data.tab) ? TAB_ACHIEVEMENTS
                 : TAB_QUESTS.equals(data.tab) ? TAB_QUESTS : tab;
-        if (!"tab".equals(data.action)) {
-            act(ref, store, data, nextTab);
+
+        // The carried filter state, then whatever this click changes about it. A filter click's
+        // TARGET value rides Id (its own field carries the CURRENT state), the dropdown's rides
+        // the captured @DropdownValue, and the search button's the captured @SearchInput.
+        String category = data.category != null ? data.category : filterCategory;
+        String status = data.status != null ? data.status : filterStatus;
+        String search = data.search != null ? data.search : searchText;
+        String tagFilter = data.tag != null ? data.tag : filterTag;
+        switch (data.action) {
+            case "category" -> category = data.id;
+            case "status" -> status = data.id;
+            case "search" -> search = data.searchInput != null ? data.searchInput : "";
+            case "clear_search" -> search = "";
+            case "tag" -> tagFilter = data.dropdownValue != null ? data.dropdownValue : "";
+            case "tab" -> { /* nothing to change beyond nextTab */ }
+            default -> act(ref, store, data, nextTab);
         }
-        player.getPageManager().openCustomPage(ref, store, new ObjectiveBookPage(playerRef, nextTab));
+        player.getPageManager().openCustomPage(ref, store,
+                new ObjectiveBookPage(playerRef, nextTab, category, status, search, tagFilter));
     }
 
     /**
@@ -710,6 +1004,19 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 return Boolean.valueOf(step != null && engine.attemptTurnIn(s, quest, step.id()) > 0);
             }));
             toast(ok, "book.toast.turned_in", "book.toast.turn_in_failed", ToastKind.SUCCESS);
+        } else if ("abandon".equals(action)) {
+            boolean ok = Boolean.TRUE.equals(
+                    scope.around(subject, s -> Boolean.valueOf(engine.abandon(s, quest.id()))));
+            toast(ok, "book.toast.abandoned", "book.toast.abandon_failed", ToastKind.INFO);
+        } else if ("track".equals(action)) {
+            // A toggle: the row's label already said which way it flips. Only a refusal toasts -
+            // the one a player hits is the tracker being full.
+            boolean tracked = engine.store().trackedPins(subject).containsKey(quest.id());
+            boolean ok = Boolean.TRUE.equals(scope.around(subject, s ->
+                    Boolean.valueOf(tracked ? engine.untrack(s, quest.id()) : engine.track(s, quest.id()))));
+            if (!ok && !tracked) {
+                showToast(ToastKind.WARNING, text("npcquests.toast.track_full"));
+            }
         }
     }
 

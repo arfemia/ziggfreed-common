@@ -63,6 +63,30 @@ Group #ZigObjectiveRow {
         Style: (FontSize: 12, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
       }
     }
+
+    // Secondary per-row buttons an ACTIVE quest offers: pin/unpin on the tracker, and drop the
+    // quest. Hidden unless the page shows them.
+    Button #Track {
+      Style: $Z.@ZigRichRowBtnStyle;
+      Anchor: (Width: 76, Height: 26, Left: 6);
+      Visible: false;
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: (FontSize: 11, TextColor: #cfe0f2, HorizontalAlignment: Center, VerticalAlignment: Center);
+      }
+    }
+
+    Button #Abandon {
+      Style: $Z.@ZigRichRowBtnStyle;
+      Anchor: (Width: 26, Height: 26, Left: 6);
+      Visible: false;
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: (FontSize: 12, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
+      }
+    }
   }
 
   Label #Flavor {

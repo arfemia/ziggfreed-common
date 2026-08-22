@@ -70,7 +70,7 @@ public record QuestDefinition(@Nonnull String id, @Nonnull Quest quest, @Nullabl
         quest = quest.withAuthoring(requires,
                 textOf(quest, titleKey, flavorKey, displayName, titleArgs, flavorArgs,
                         objectiveTextKeys),
-                npcViewId, sortOrder);
+                npcViewId, sortOrder, category);
     }
 
     /** The words this quest carries, as the shared runtime object holds them. */

@@ -144,6 +144,12 @@ public final class QuestEngine implements QuestStateReader {
     /** Authoring mistakes that would otherwise repeat on every event, reported once per case. */
     private final Set<String> warnedOnce = ConcurrentHashMap.newKeySet();
 
+    /** Backstop on {@link #armAutoAccepts}'s repeat passes; far above any real content chain. */
+    private static final int MAX_ARM_PASSES = 16;
+
+    /** True while {@link #armAutoAccepts} runs on this thread, so a nested settlement skips it. */
+    private final ThreadLocal<Boolean> arming = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
     private QuestEngine(@Nonnull Builder b) {
         this.objectiveKinds = b.objectiveKinds != null ? b.objectiveKinds : new ObjectiveKindRegistry();
         this.rewardKinds = b.rewardKinds != null ? b.rewardKinds : new RewardKindRegistry();
@@ -474,6 +480,8 @@ public final class QuestEngine implements QuestStateReader {
      * Accept every available auto-accept quest this player is eligible for and not already past,
      * then immediately settle any whose objectives are already met. Call once when a player becomes
      * ready, after {@link #selfHeal}, so a repeatable that has come back around reads offerable.
+     * The engine also re-runs it itself whenever a quest completes, so an auto-accept quest gated
+     * on the one that just finished arms in the same moment rather than on the next login.
      *
      * <p>Skipped outright for a player the owner's system switch has quests OFF for: an auto-accept
      * is an accept the player never asked for, so on a server with quests switched off it would
@@ -495,13 +503,44 @@ public final class QuestEngine implements QuestStateReader {
             if (status(subject, quest) != QuestStatus.NOT_STARTED) {
                 continue;
             }
-            if (!canAccept(subject, quest).allowed() || !accept(subject, quest)) {
+            // The giver is recorded as the accept site: an auto-accept is the giver handing the
+            // quest over without being walked to, so an ACCEPT_SITE hand-in resolves at the giver
+            // instead of nowhere, and the giver's own list counts the quest as taken there.
+            if (!canAccept(subject, quest).allowed() || !accept(subject, quest, quest.npcViewId())) {
                 continue;
             }
             checkCompletion(subject, quest);
             accepted++;
         }
         return accepted;
+    }
+
+    /**
+     * Arm whatever a completion just unlocked: run the auto-accept pass again, repeated until a
+     * pass arms nothing, so a chain of auto-accept quests each gated on the one before it arms as
+     * far as it can the moment a link finishes - not on the player's next login.
+     *
+     * <p>Re-entrancy-guarded per thread rather than per subject: an armed quest whose objectives
+     * are already met settles inside the pass, and that settlement lands back here. The outer
+     * loop's next iteration is the one that picks up what that settlement unlocked, so the nested
+     * call has nothing to add and is skipped instead of stacking.
+     */
+    private void armAutoAccepts(@Nonnull Subject subject) {
+        if (Boolean.TRUE.equals(arming.get())) {
+            return;
+        }
+        arming.set(Boolean.TRUE);
+        try {
+            int passes = 0;
+            while (autoAcceptAvailable(subject) > 0 && ++passes < MAX_ARM_PASSES) {
+                // Each pass consumes at least one NOT_STARTED quest, so this terminates on its
+                // own; the cap is a backstop against a store that cannot hold what accept wrote.
+            }
+        } catch (Throwable t) {
+            warn.accept("auto-accept arming after a completion failed: " + t.getMessage());
+        } finally {
+            arming.set(Boolean.FALSE);
+        }
     }
 
     // ==================== Dispatch ====================
@@ -1021,6 +1060,9 @@ public final class QuestEngine implements QuestStateReader {
             markUnclaimed(subject, quest);
             store.markDirty(subject);
             fireCompleted(quest, subject, parkedReason);
+            // Parking records the completion, so whatever this quest was gating is unlocked NOW,
+            // not when the reward is eventually collected.
+            armAutoAccepts(subject);
             return;
         }
         markCompleted(subject, quest);
@@ -1035,6 +1077,7 @@ public final class QuestEngine implements QuestStateReader {
             store.flush(subject);
         }
         fireClaimed(quest, subject, outcome, false);
+        armAutoAccepts(subject);
     }
 
     /**
@@ -1143,6 +1186,7 @@ public final class QuestEngine implements QuestStateReader {
             store.flush(subject);
         }
         fireClaimed(quest, subject, outcome, false);
+        armAutoAccepts(subject);
         return true;
     }
 

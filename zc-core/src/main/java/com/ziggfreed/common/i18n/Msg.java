@@ -141,6 +141,12 @@ public final class Msg {
         return m.bold(true);
     }
 
+    /** Italic wrapper, on the same terms as {@link #bold}. */
+    @Nonnull
+    public static Message italic(@Nonnull Message m) {
+        return m.italic(true);
+    }
+
     /** Color wrapper for a hex string (e.g. {@code "#FFAA00"}). */
     @Nonnull
     public static Message color(@Nonnull Message m, @Nonnull String hex) {
