@@ -6,23 +6,23 @@ $Z = "../Common/ZigButtons.ui";
 
 Group #ZigBookRewardRow {
   LayoutMode: Left;
-  Anchor: (Height: 22, Bottom: 2);
+  Anchor: (Height: 26, Bottom: 2);
 
   Group #RewardIconSlot {
-    Anchor: (Width: 20, Height: 20, Right: 6);
+    Anchor: (Width: 24, Height: 24, Right: 6);
     Visible: false;
     ItemGrid #RewardIcon {
-      Anchor: (Width: 20, Height: 20);
+      Anchor: (Width: 24, Height: 24);
       SlotsPerRow: 1;
       AreItemsDraggable: false;
       DisplayItemQuantity: false;
-      Style: $Z.@ZigIconGrid20;
+      Style: $Z.@ZigIconGrid24;
     }
   }
 
   Label #RewardName {
     Text: "";
     FlexWeight: 1;
-    Style: (FontSize: 11, TextColor: #b6c9de, VerticalAlignment: Center);
+    Style: (FontSize: 14, TextColor: #b6c9de, VerticalAlignment: Center);
   }
 }

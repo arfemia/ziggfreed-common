@@ -84,7 +84,7 @@ Group #ZigAchRow {
         Text: "";
         FlexWeight: 1;
         Anchor: (Height: 28);
-        Style: (FontSize: 13, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+        Style: (FontSize: 14, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
       }
     }
 
@@ -93,7 +93,7 @@ Group #ZigAchRow {
     Label #Points {
       Text: "";
       Anchor: (Width: 62);
-      Style: (FontSize: 11, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: 12, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
     }
 
     Group { Anchor: (Width: 4); }
@@ -101,7 +101,7 @@ Group #ZigAchRow {
     Label #Date {
       Text: "";
       Anchor: (Width: 78);
-      Style: (FontSize: 10, TextColor: #96a9be, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: 11, TextColor: #96a9be, HorizontalAlignment: End, VerticalAlignment: Center);
     }
 
     Group { Anchor: (Width: 4); }
@@ -109,13 +109,13 @@ Group #ZigAchRow {
     Label #Status {
       Text: "";
       Anchor: (Width: 92);
-      Style: (FontSize: 11, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: 12, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
   Group #BarRow {
     LayoutMode: Left;
-    Anchor: (Height: 12, Top: 4);
+    Anchor: (Height: 14, Top: 4);
     Padding: (Left: 11);
 
     Group #BarOuter {
@@ -130,23 +130,23 @@ Group #ZigAchRow {
     Group { Anchor: (Width: 8); }
     Label #BarText {
       Text: "";
-      Anchor: (Width: 120, Height: 12);
-      Style: (FontSize: 10, TextColor: #8fa6bd, HorizontalAlignment: End, VerticalAlignment: Center);
+      Anchor: (Width: 120, Height: 14);
+      Style: (FontSize: 11, TextColor: #8fa6bd, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
   Group #ClaimRow {
     LayoutMode: Right;
-    Anchor: (Height: 24, Top: 4);
+    Anchor: (Height: 26, Top: 4);
     Visible: false;
 
     Button #ClaimBtn {
       Style: $Z.@ZigRichPrimaryBtnStyle;
-      Anchor: (Width: 150, Height: 22);
+      Anchor: (Width: 150, Height: 24);
       Label #Label {
         FlexWeight: 1;
         Text: "";
-        Style: (FontSize: 11, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+        Style: (FontSize: 12, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
       }
     }
   }

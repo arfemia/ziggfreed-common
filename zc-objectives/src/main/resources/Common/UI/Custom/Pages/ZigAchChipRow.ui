@@ -11,7 +11,7 @@ Group #ZigAchChipRow {
   Anchor: (Bottom: 2);
 
   Button #ChildBtn {
-    Anchor: (Height: 24);
+    Anchor: (Height: 26);
     Padding: (Horizontal: 8);
     LayoutMode: Left;
     Style: $Z.@ZigRichRowBtnStyle;
@@ -19,8 +19,8 @@ Group #ZigAchChipRow {
     Label #Label {
       Text: "";
       FlexWeight: 1;
-      Anchor: (Height: 24);
-      Style: (FontSize: 11, TextColor: #96a9be, HorizontalAlignment: Start, VerticalAlignment: Center);
+      Anchor: (Height: 26);
+      Style: (FontSize: 12, TextColor: #96a9be, HorizontalAlignment: Start, VerticalAlignment: Center);
     }
   }
 }

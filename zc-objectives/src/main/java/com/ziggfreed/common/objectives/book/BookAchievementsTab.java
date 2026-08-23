@@ -45,10 +45,10 @@ import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CATEGOR
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CHIP_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CRITERION_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_ROW_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MAX_CATEGORY_CHIPS;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MAX_ROWS;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MILESTONE_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.REWARD_ROW_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.WIDE_TAB_OUTER_WIDTH;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.WIDE_TAB_TEMPLATE;
 
 /**
@@ -194,7 +194,8 @@ final class BookAchievementsTab {
         List<String> categories = orderedCategories(counts);
 
         boolean allActive = ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory());
-        if (categories.size() > MAX_CATEGORY_CHIPS) {
+        if (!ObjectiveBookPage.categoryChipsFit(categories.size(), WIDE_TAB_OUTER_WIDTH,
+                page.stripWidthBudget())) {
             cmd.set("#ACategoryDropdown.Visible", true);
             List<DropdownEntryInfo> entries = new ArrayList<>(categories.size() + 1);
             entries.add(SettingsUiUtil.entry(
@@ -255,11 +256,15 @@ final class BookAchievementsTab {
             events.addEventBinding(CustomUIEventBindingType.Activating, "#AClearSearchBtn",
                     page.fullState("clear_search"), false);
         }
-        int sortIndex = 0;
+        // Sort is a single choice, so it rides the native dropdown and every label renders
+        // whole. A dropdown entry is a String-only sink, so labels flatten here.
+        List<DropdownEntryInfo> sortEntries = new ArrayList<>(SORT_MODES.length);
         for (String mode : SORT_MODES) {
-            sortIndex = appendBarChip(page, cmd, events, "#ASortBar", sortIndex,
-                    page.text(sortKey(mode)), mode.equals(page.sortMode()), "sort", mode);
+            sortEntries.add(SettingsUiUtil.entry(UiText.flatten(page.text(sortKey(mode))), mode));
         }
+        SettingsUiUtil.populate(cmd, "#ASortDropdown", sortEntries, page.sortMode());
+        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#ASortDropdown",
+                page.fullState("sort").append("@DropdownValue", "#ASortDropdown.Value"), false);
         int statusIndex = 0;
         for (String status : STATUS_FILTERS) {
             boolean active = "all".equals(status)

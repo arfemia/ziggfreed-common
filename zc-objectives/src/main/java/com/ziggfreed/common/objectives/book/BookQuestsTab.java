@@ -39,8 +39,8 @@ import com.ziggfreed.common.ui.TagColors;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 
+import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.CAT_TAB_OUTER_WIDTH;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.CAT_TAB_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MAX_CATEGORY_CHIPS;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MAX_ROWS;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.OBJECTIVE_ROW_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.QUEST_ROW_TEMPLATE;
@@ -261,9 +261,11 @@ final class BookQuestsTab {
         categories.sort(String.CASE_INSENSITIVE_ORDER);
 
         boolean allActive = ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory());
-        if (categories.size() > MAX_CATEGORY_CHIPS) {
-            // Too many for a chip strip: the native dropdown carries them (its panel scrolls by
-            // itself). A dropdown entry is a String-only sink, so labels flatten here.
+        if (!ObjectiveBookPage.categoryChipsFit(categories.size(), CAT_TAB_OUTER_WIDTH,
+                page.stripWidthBudget())) {
+            // The rendered chips cannot fit the strip: the native dropdown carries them (its
+            // panel scrolls by itself). A dropdown entry is a String-only sink, so labels
+            // flatten here.
             cmd.set("#QCategoryDropdown.Visible", true);
             List<DropdownEntryInfo> entries = new ArrayList<>(categories.size() + 1);
             entries.add(SettingsUiUtil.entry(
@@ -301,21 +303,31 @@ final class BookQuestsTab {
         }
 
         // The tag dropdown, collected pre-tag-filter; labels ride the consumer's tag reading.
+        // With no tag anywhere in the visible set it stays hidden whole - an empty dropdown
+        // filtering on nothing is noise, not an affordance. An ACTIVE tag filter always keeps
+        // it (and its own tag listed), or there would be no way to clear the filter.
         Set<String> uniqueTags = new LinkedHashSet<>();
         for (Quest quest : preTagQuests) {
             uniqueTags.addAll(quest.tags());
         }
-        List<DropdownEntryInfo> tagEntries = new ArrayList<>(uniqueTags.size() + 1);
-        tagEntries.add(SettingsUiUtil.entry(
-                UiText.flatten(page.text("book.quests.filter.all_tags")), ""));
-        for (String tag : uniqueTags) {
-            tagEntries.add(SettingsUiUtil.entry(
-                    UiText.flatten(page.deps().tagLabelGuarded(tag)), tag));
+        if (!page.filterTag().isEmpty()) {
+            uniqueTags.add(page.filterTag());
         }
-        SettingsUiUtil.populate(cmd, "#QTagFilter", tagEntries,
-                page.filterTag().isEmpty() ? "" : page.filterTag());
-        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#QTagFilter",
-                page.fullState("tag").append("@DropdownValue", "#QTagFilter.Value"), false);
+        if (!uniqueTags.isEmpty()) {
+            cmd.set("#QTagSpacer.Visible", true);
+            cmd.set("#QTagFilter.Visible", true);
+            List<DropdownEntryInfo> tagEntries = new ArrayList<>(uniqueTags.size() + 1);
+            tagEntries.add(SettingsUiUtil.entry(
+                    UiText.flatten(page.text("book.quests.filter.all_tags")), ""));
+            for (String tag : uniqueTags) {
+                tagEntries.add(SettingsUiUtil.entry(
+                        UiText.flatten(page.deps().tagLabelGuarded(tag)), tag));
+            }
+            SettingsUiUtil.populate(cmd, "#QTagFilter", tagEntries,
+                    page.filterTag().isEmpty() ? "" : page.filterTag());
+            events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#QTagFilter",
+                    page.fullState("tag").append("@DropdownValue", "#QTagFilter.Value"), false);
+        }
 
         // Status chips, appended with the same template the categories use.
         int statusIndex = 0;
@@ -644,7 +656,7 @@ final class BookQuestsTab {
                     cmd.set(stepSel + " #ObjText.TextSpans",
                             page.text("book.quests.objectives.step", objective.order()));
                     cmd.set(stepSel + " #ObjText.Style.TextColor", "#4a6a8e");
-                    cmd.set(stepSel + " #ObjText.Style.FontSize", 10);
+                    cmd.set(stepSel + " #ObjText.Style.FontSize", 11);
                     cmd.set(stepSel + " #ObjText.Style.RenderBold", true);
                     cmd.set(stepSel + " #ObjText.Style.LetterSpacing", 1);
                     appendIndex++;

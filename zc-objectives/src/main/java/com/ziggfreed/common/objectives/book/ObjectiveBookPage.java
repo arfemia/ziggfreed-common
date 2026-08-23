@@ -93,8 +93,21 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     /** A hard ceiling on rendered rows per list, so a huge catalogue cannot build an unbounded page. */
     static final int MAX_ROWS = 200;
 
-    /** Category chips beyond this collapse into the native dropdown instead of overflowing the strip. */
-    static final int MAX_CATEGORY_CHIPS = 6;
+    // The filter strips' width geometry, from the page's own template
+    // (Pages/ZigObjectiveBookPage.ui): the 1800 frame minus the #Content padding (12 a side),
+    // then per open minus the consumer rail (250) and the side panel (320) where painted, and
+    // the #RightPanel padding (20 a side). Each chip is its template's FIXED #CatBtn width plus
+    // its 6px leading spacer, so a fit check against these numbers is exact, not a guess.
+    private static final int FRAME_INNER_WIDTH = 1800 - 24;
+    private static final int RAIL_WIDTH = 250;
+    private static final int SIDE_PANEL_WIDTH = 320;
+    private static final int RIGHT_PANEL_PADDING = 40;
+
+    /** {@code Pages/ZigBookCatTab.ui}'s #CatBtn width (96) plus its leading spacer (6). */
+    static final int CAT_TAB_OUTER_WIDTH = 102;
+
+    /** {@code Pages/ZigBookWideTab.ui}'s #CatBtn width (160) plus its leading spacer (6). */
+    static final int WIDE_TAB_OUTER_WIDTH = 166;
 
     // The book's own tab strip contrast, shared with the leaderboard page's treatment.
     private static final String TAB_ACTIVE_TINT = "#5e86bd";
@@ -127,6 +140,10 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
 
     /** Which browse rows are open; per-instance UI memory, exactly what a partial toggle needs. */
     private final Set<String> expandedQuestIds = new HashSet<>();
+
+    /** Whether the consumer's rail / side column painted THIS open; they narrow the strips. */
+    private boolean railPainted;
+    private boolean sidePanelPainted;
 
     /** The deps resolved for THIS open, so build and its partial updates read one consistent set. */
     @Nonnull private ObjectiveBookDeps deps = ObjectiveBookDeps.DEFAULTS;
@@ -221,6 +238,32 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         return deps;
     }
 
+    /**
+     * The width the ACTIVE tab's filter strip actually gets this open, from the template's own
+     * geometry minus whichever consumer columns painted. Both tabs size their chips-vs-dropdown
+     * decision against it.
+     */
+    int stripWidthBudget() {
+        int width = FRAME_INNER_WIDTH - RIGHT_PANEL_PADDING;
+        if (railPainted) {
+            width -= RAIL_WIDTH;
+        }
+        if (sidePanelPainted) {
+            width -= SIDE_PANEL_WIDTH;
+        }
+        return width;
+    }
+
+    /**
+     * The ONE chips-vs-dropdown rule, shared by both tabs: chips render only when every chip -
+     * the All chip included - fits the strip's width budget on a single line; otherwise the
+     * native dropdown carries the categories. The chip containers never wrap, so a wrong count
+     * can only clip at the strip's right edge, never paint over the row below.
+     */
+    static boolean categoryChipsFit(int categoryCount, int chipOuterWidth, int widthBudget) {
+        return (categoryCount + 1) * chipOuterWidth <= widthBudget;
+    }
+
     @Nonnull
     PlayerRef viewer() {
         return playerRef;
@@ -260,14 +303,19 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                     player, tab, (selector, extId) ->
                             events.addEventBinding(CustomUIEventBindingType.Activating, selector,
                                     fullState("ext").append("Id", extId), false));
-            boolean railPainted = deps.paintGuarded(deps.railPainter(), chrome, "rail");
+            railPainted = deps.paintGuarded(deps.railPainter(), chrome, "rail");
             cmd.set("#LeftPanel.Visible", railPainted);
             if (achievementsTab) {
-                boolean sidePainted = deps.paintGuarded(deps.sidePanelPainter(), chrome, "side panel");
-                cmd.set("#SidePanel.Visible", sidePainted);
-                cmd.set("#AchSideContent.Visible", sidePainted);
+                sidePanelPainted = deps.paintGuarded(deps.sidePanelPainter(), chrome, "side panel");
+                cmd.set("#SidePanel.Visible", sidePanelPainted);
+                cmd.set("#AchSideContent.Visible", sidePanelPainted);
+            } else {
+                // The quests tab's third column is the tracked-quests panel, always on.
+                sidePanelPainted = true;
             }
         } else {
+            railPainted = false;
+            sidePanelPainted = !achievementsTab;
             cmd.set("#LeftPanel.Visible", false);
             if (achievementsTab) {
                 cmd.set("#SidePanel.Visible", false);
@@ -476,7 +524,7 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                     filterTag, filterSubcategory, sortMode, selectedId));
             case "sort" -> open(player, ref, store, new ObjectiveBookPage(playerRef, tab,
                     filterCategory, filterStatus, liveSearch, filterTag, filterSubcategory,
-                    data.id == null ? "" : data.id, selectedId));
+                    data.dropdownValue == null ? "" : data.dropdownValue, selectedId));
             case "search" -> open(player, ref, store, new ObjectiveBookPage(playerRef, tab,
                     filterCategory, filterStatus,
                     data.searchInput != null ? data.searchInput : "", filterTag,

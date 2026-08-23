@@ -82,7 +82,7 @@ Group #ZigQuestLogRow {
     Label #QuestStatus {
       Text: "";
       Anchor: (Width: 130);
-      Style: (FontSize: 12, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
+      Style: (FontSize: 13, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
     }
   }
 
@@ -90,13 +90,13 @@ Group #ZigQuestLogRow {
     Text: "";
     Anchor: (Top: 4);
     Padding: (Left: 11);
-    Style: (FontSize: 12, TextColor: #b6c9de, Wrap: true);
+    Style: (FontSize: 14, TextColor: #b6c9de, Wrap: true);
   }
 
   // Compact per-row objective progress; hidden for rows with nothing under way.
   Group #RowBarRow {
     LayoutMode: Left;
-    Anchor: (Height: 10, Top: 4);
+    Anchor: (Height: 12, Top: 4);
     Padding: (Left: 11);
     Visible: false;
 
@@ -112,8 +112,8 @@ Group #ZigQuestLogRow {
     Group { Anchor: (Width: 8); }
     Label #RowBarText {
       Text: "";
-      Anchor: (Width: 70, Height: 10);
-      Style: (FontSize: 10, TextColor: #8fa6bd, HorizontalAlignment: End, VerticalAlignment: Center);
+      Anchor: (Width: 70, Height: 12);
+      Style: (FontSize: 11, TextColor: #8fa6bd, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
@@ -121,8 +121,10 @@ Group #ZigQuestLogRow {
     LayoutMode: Top;
     Visible: false;
 
+    // Left-flow, never wrap-centered: the chips share the description's own left edge.
     Group #TagsRow {
-      LayoutMode: LeftCenterWrap;
+      LayoutMode: Left;
+      Anchor: (Height: 22);
       Padding: (Left: 11);
       Visible: false;
     }
@@ -132,17 +134,17 @@ Group #ZigQuestLogRow {
       Anchor: (Bottom: 4);
       Padding: (Left: 11);
       Visible: false;
-      Style: (FontSize: 11, TextColor: #96a9be, Wrap: true);
+      Style: (FontSize: 12, TextColor: #96a9be, Wrap: true);
     }
 
     Group { Anchor: (Height: 4); }
 
     Label #ObjectivesHint {
       Text: "";
-      Anchor: (Height: 16);
+      Anchor: (Height: 18);
       Padding: (Left: 11);
       Visible: false;
-      Style: (FontSize: 10, TextColor: #6a7a8e, RenderBold: true, LetterSpacing: 1);
+      Style: (FontSize: 11, TextColor: #6a7a8e, RenderBold: true, LetterSpacing: 1);
     }
 
     Group #ObjectivesContainer {
@@ -160,7 +162,7 @@ Group #ZigQuestLogRow {
       Label #RewardsHeader {
         Text: "";
         Anchor: (Bottom: 2);
-        Style: (FontSize: 11, TextColor: #a07fff, RenderBold: true, RenderUppercase: true, LetterSpacing: 1);
+        Style: (FontSize: 12, TextColor: #a07fff, RenderBold: true, RenderUppercase: true, LetterSpacing: 1);
       }
 
       Group #RewardsList {
@@ -172,17 +174,17 @@ Group #ZigQuestLogRow {
 
     Group #ActionRow {
       LayoutMode: Left;
-      Anchor: (Height: 28);
+      Anchor: (Height: 30);
       Padding: (Left: 11);
 
       Button #TurnInBtn {
         Style: $Z.@ZigRichPrimaryBtnStyle;
-        Anchor: (Width: 100, Height: 26);
+        Anchor: (Width: 100, Height: 28);
         Visible: false;
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: 12, TextColor: #4aff7f, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: (FontSize: 14, TextColor: #4aff7f, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
         }
       }
 
@@ -190,30 +192,30 @@ Group #ZigQuestLogRow {
 
       Label #TurnInHint {
         Text: "";
-        Anchor: (Height: 26);
+        Anchor: (Height: 28);
         Visible: false;
-        Style: (FontSize: 11, TextColor: #96a9be, VerticalAlignment: Center);
+        Style: (FontSize: 12, TextColor: #96a9be, VerticalAlignment: Center);
       }
 
       Button #ActionBtn {
         Style: $Z.@ZigRichPrimaryBtnStyle;
-        Anchor: (Width: 100, Height: 26);
+        Anchor: (Width: 100, Height: 28);
         Visible: false;
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: 12, TextColor: #eef4fb, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: (FontSize: 14, TextColor: #eef4fb, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
         }
       }
 
       Button #AbandonBtn {
         Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 100, Height: 26);
+        Anchor: (Width: 100, Height: 28);
         Visible: false;
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: 12, TextColor: #ff6b6b, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: (FontSize: 14, TextColor: #ff6b6b, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
         }
       }
 
@@ -221,18 +223,18 @@ Group #ZigQuestLogRow {
 
       Label #MaxQuestsNote {
         Text: "";
-        Anchor: (Height: 26);
+        Anchor: (Height: 28);
         Visible: false;
-        Style: (FontSize: 11, TextColor: #ff9944, VerticalAlignment: Center);
+        Style: (FontSize: 12, TextColor: #ff9944, VerticalAlignment: Center);
       }
 
       Group { Anchor: (Width: 8); }
 
       Label #CooldownText {
         Text: "";
-        Anchor: (Width: 200, Height: 26);
+        Anchor: (Width: 200, Height: 28);
         Visible: false;
-        Style: (FontSize: 11, TextColor: #96a9be, VerticalAlignment: Center);
+        Style: (FontSize: 12, TextColor: #96a9be, VerticalAlignment: Center);
       }
     }
 

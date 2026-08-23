@@ -296,9 +296,15 @@ by design.
 - **It walks the ENGINE, not a pool**, and names each row through `ProgressionTextSource` (first
   non-null wins). A surface reading one mod's catalogue would render the rest of the merged list
   blank.
-- **The QUESTS tab** is category chips (a native `DropdownBox` once they overflow), a search field
-  with a native placeholder, a tag dropdown collected BEFORE the tag filter is applied (so it never
-  collapses to one entry), status chips (active = carried or ready to collect; available = offered
+- **The QUESTS tab** is category chips (a native `DropdownBox` once the rendered chips cannot fit
+  the strip: the ONE shared `ObjectiveBookPage.categoryChipsFit` rule both tabs use counts every
+  chip, the All chip included, at its template's fixed width against the page's per-open
+  `stripWidthBudget()` - the frame minus whichever consumer columns painted - and the chip
+  containers never wrap, so an overflow can only clip at the strip edge, never paint over the row
+  below), a search field with a native placeholder, a tag dropdown collected BEFORE the tag filter
+  is applied (so it never collapses to one entry) and hidden entirely when no visible quest
+  carries a tag (an active tag filter keeps it, or it could not be cleared), status chips
+  (active = carried or ready to collect; available = offered
   and takeable; completed = finished or waiting out a clock), then ONE scrolling region: the
   pre-expanded Active section above the browse list. Rows expand in place and carry inline
   objectives (order groups locked until earlier groups land, step headings between them), tag
@@ -309,7 +315,9 @@ by design.
   state-dispatched button (accept, or a gold Claim), pre-bound even while hidden, so a completing
   hand-in morphs it in place with no re-bind.
 - **The ACHIEVEMENTS tab** is two panels. LEFT: category tabs with unlocked/total counts (feat-only
-  categories skipped), subcategory chips, search, sort (default / A-Z / progress) and status chips
+  categories skipped; the same chips-fit rule falls them to the dropdown), subcategory chips
+  (rendered only when the picked category has a second level), search, a sort DROPDOWN
+  (default / A-Z / % progress - a single choice, so every label renders whole) and status chips
   over compact rows plus the earned-only feats section, each LADDER collapsed to the rung being
   climbed (pinned rungs and a live search bypass the collapse). RIGHT: the selected achievement's
   whole story - header, meta line, description, native progress bar, criteria, what a capstone

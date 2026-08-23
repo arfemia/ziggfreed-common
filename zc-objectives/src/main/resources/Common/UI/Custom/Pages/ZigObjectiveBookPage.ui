@@ -8,12 +8,13 @@ $Z = "../Common/ZigButtons.ui";
 // Quests | Achievements tab strip over one surface per tab, and #SidePanel shows the tracked-quests
 // panel on the quests tab or a consumer-painted column on the achievements tab.
 //
-// The quests tab is a filterable quest log: category chips (or a dropdown once they overflow),
-// search, a tag dropdown, status chips, then ONE scrolling region holding the pre-expanded Active
-// section above the browse list (rows are Pages/ZigQuestLogRow.ui). The achievements tab is a
-// two-panel browser: a filter strip + compact rows (Pages/ZigAchListRow.ui) on the left, the
-// selected achievement's detail on the right, and an overview (recent / nearest / pinned /
-// categories / milestones) filling the right panel while nothing is selected.
+// The quests tab is a filterable quest log: category chips (or a dropdown once the rendered
+// chips cannot fit the strip), search, a tag dropdown (shown only when a visible quest carries a
+// tag), status chips, then ONE scrolling region holding the pre-expanded Active section above the
+// browse list (rows are Pages/ZigQuestLogRow.ui). The achievements tab is a two-panel browser: a
+// filter strip + compact rows (Pages/ZigAchListRow.ui) on the left, the selected achievement's
+// detail on the right, and an overview (recent / nearest / pinned / categories / milestones)
+// filling the right panel while nothing is selected.
 //
 // The Full: 12 padding on #Content is load-bearing: at 0 the #LeftPanel / #SidePanel bevels stack
 // against the frame bevel and read as a heavy dark shadow down the menu edges.
@@ -23,7 +24,7 @@ $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
   @Ornaments = true;
-  Anchor: (Width: 1570, Height: 1000);
+  Anchor: (Width: 1800, Height: 1000);
 
   #Content {
     Anchor: (Top: 0);
@@ -95,7 +96,7 @@ $F.@ZigDecoratedFrame {
             Label #Label {
               FlexWeight: 1;
               Text: "";
-              Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+              Style: (FontSize: 14, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
             }
           }
 
@@ -105,7 +106,7 @@ $F.@ZigDecoratedFrame {
             Label #Label {
               FlexWeight: 1;
               Text: "";
-              Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+              Style: (FontSize: 14, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
             }
           }
         }
@@ -127,8 +128,8 @@ $F.@ZigDecoratedFrame {
             }
             Label #Stat0Label {
               Text: "";
-              Anchor: (Height: 14);
-              Style: (...$C.@DefaultLabelStyle, FontSize: 10);
+              Anchor: (Height: 16);
+              Style: (...$C.@DefaultLabelStyle, FontSize: 11);
             }
           }
 
@@ -142,8 +143,8 @@ $F.@ZigDecoratedFrame {
             }
             Label #Stat1Label {
               Text: "";
-              Anchor: (Height: 14);
-              Style: (...$C.@DefaultLabelStyle, FontSize: 10);
+              Anchor: (Height: 16);
+              Style: (...$C.@DefaultLabelStyle, FontSize: 11);
             }
           }
 
@@ -154,12 +155,12 @@ $F.@ZigDecoratedFrame {
             Label #Stat2Value {
               Text: "";
               Anchor: (Height: 24);
-              Style: (FontSize: 16, TextColor: #ffd24a, RenderBold: true);
+              Style: (FontSize: 18, TextColor: #ffd24a, RenderBold: true);
             }
             Label #Stat2Label {
               Text: "";
-              Anchor: (Height: 14);
-              Style: (...$C.@DefaultLabelStyle, FontSize: 10);
+              Anchor: (Height: 16);
+              Style: (...$C.@DefaultLabelStyle, FontSize: 11);
             }
           }
         }
@@ -168,8 +169,8 @@ $F.@ZigDecoratedFrame {
       Label #BrandingDescriptionRight {
         Text: "";
         Visible: false;
-        Anchor: (Height: 18, Bottom: 4);
-        Style: (...$C.@DefaultLabelStyle, FontSize: 11);
+        Anchor: (Height: 20, Bottom: 4);
+        Style: (...$C.@DefaultLabelStyle, FontSize: 12);
       }
 
       $C.@ContentSeparator { Anchor: (Bottom: 8); }
@@ -182,13 +183,13 @@ $F.@ZigDecoratedFrame {
 
         Group #QCategoryRow {
           LayoutMode: Left;
-          Anchor: (Height: 36);
+          Anchor: (Height: 36, Bottom: 6);
 
           Group #QDynamicCategories {
             LayoutMode: Left;
           }
 
-          // Swapped in for the chip row once categories overflow the strip.
+          // Swapped in for the chip row once the rendered chips cannot fit the strip.
           $C.@DropdownBox #QCategoryDropdown {
             Anchor: (Width: 220, Height: $C.@SmallButtonHeight);
             Visible: false;
@@ -196,8 +197,6 @@ $F.@ZigDecoratedFrame {
 
           Group { FlexWeight: 1; }
         }
-
-        Group { Anchor: (Height: 6); }
 
         Group #QSearchRow {
           LayoutMode: Left;
@@ -207,7 +206,7 @@ $F.@ZigDecoratedFrame {
             Anchor: (Width: 200, Height: $C.@SmallButtonHeight);
             Padding: (Left: 8, Right: 8);
             PlaceholderText: %ziggfreedcommon.progression.book.quests.filter.searchPlaceholder;
-            Style: (FontSize: 12, TextColor: #b6c9de);
+            Style: (FontSize: 13, TextColor: #b6c9de);
           }
 
           Group { Anchor: (Width: 4); }
@@ -218,7 +217,7 @@ $F.@ZigDecoratedFrame {
             Label #Label {
               FlexWeight: 1;
               Text: "";
-              Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+              Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
             }
           }
 
@@ -231,14 +230,17 @@ $F.@ZigDecoratedFrame {
             Label #Label {
               FlexWeight: 1;
               Text: "";
-              Style: (FontSize: 12, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
+              Style: (FontSize: 13, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
             }
           }
 
-          Group { Anchor: (Width: 8); }
+          // The tag filter shows only when a visible quest actually carries a tag; an empty
+          // dropdown filtering on nothing is noise, so the spacer hides with it.
+          Group #QTagSpacer { Anchor: (Width: 8); Visible: false; }
 
           $C.@DropdownBox #QTagFilter {
             Anchor: (Width: 160, Height: $C.@SmallButtonHeight);
+            Visible: false;
           }
 
           Group { Anchor: (Width: 12); }
@@ -295,24 +297,27 @@ $F.@ZigDecoratedFrame {
         LayoutMode: Top;
         Visible: false;
 
+        // The chip container never wraps: the page falls to the dropdown once the rendered chips
+        // cannot fit the strip's width, so a chip overflow can never paint over the row below.
         Group #ACategoryRow {
           LayoutMode: Left;
-          Anchor: (Height: 34);
+          Anchor: (Height: 36, Bottom: 6);
 
           Group #ACategoryTabs {
-            FlexWeight: 1;
-            LayoutMode: LeftCenterWrap;
+            LayoutMode: Left;
           }
 
           $C.@DropdownBox #ACategoryDropdown {
             Anchor: (Width: 240, Height: $C.@SmallButtonHeight);
             Visible: false;
           }
+
+          Group { FlexWeight: 1; }
         }
 
         Group #ASubcatRow {
           LayoutMode: Left;
-          Anchor: (Height: 32);
+          Anchor: (Height: 36, Bottom: 6);
           Visible: false;
 
           Group #ASubcategoryTabs {
@@ -324,13 +329,13 @@ $F.@ZigDecoratedFrame {
 
         Group #ASearchRow {
           LayoutMode: Left;
-          Anchor: (Height: 34);
+          Anchor: (Height: 36);
 
           $C.@TextField #ASearchField {
-            Anchor: (Width: 180, Height: $C.@SmallButtonHeight);
+            Anchor: (Width: 200, Height: $C.@SmallButtonHeight);
             Padding: (Left: 8, Right: 8);
             PlaceholderText: %ziggfreedcommon.progression.book.achievements.searchPlaceholder;
-            Style: (FontSize: 12, TextColor: #b6c9de);
+            Style: (FontSize: 13, TextColor: #b6c9de);
           }
 
           Group { Anchor: (Width: 4); }
@@ -341,7 +346,7 @@ $F.@ZigDecoratedFrame {
             Label #Label {
               FlexWeight: 1;
               Text: "";
-              Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+              Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
             }
           }
 
@@ -354,14 +359,16 @@ $F.@ZigDecoratedFrame {
             Label #Label {
               FlexWeight: 1;
               Text: "";
-              Style: (FontSize: 12, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
+              Style: (FontSize: 13, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
             }
           }
 
           Group { Anchor: (Width: 10); }
 
-          Group #ASortBar {
-            LayoutMode: Left;
+          // Sort is a single choice, so it rides the native dropdown; every sort label renders
+          // whole where a fixed-width chip would truncate it.
+          $C.@DropdownBox #ASortDropdown {
+            Anchor: (Width: 190, Height: $C.@SmallButtonHeight);
           }
 
           Group { Anchor: (Width: 10); }
@@ -379,14 +386,14 @@ $F.@ZigDecoratedFrame {
           LayoutMode: Left;
 
           Group #AListPane {
-            Anchor: (Width: 540);
+            Anchor: (Width: 580);
             LayoutMode: Top;
 
             Label #AEmptyMessage {
               Text: "";
               Anchor: (Height: 30);
               Visible: false;
-              Style: (...$C.@DefaultLabelStyle, FontSize: 13, HorizontalAlignment: Center, VerticalAlignment: Center);
+              Style: (...$C.@DefaultLabelStyle, FontSize: 14, HorizontalAlignment: Center, VerticalAlignment: Center);
             }
 
             Group #AListScroll {
@@ -437,9 +444,9 @@ $F.@ZigDecoratedFrame {
               Group #RecentList { LayoutMode: Top; }
               Label #RecentEmpty {
                 Text: "";
-                Anchor: (Height: 22);
+                Anchor: (Height: 24);
                 Visible: false;
-                Style: (FontSize: 11, TextColor: #6a7a8e, VerticalAlignment: Center);
+                Style: (FontSize: 12, TextColor: #6a7a8e, VerticalAlignment: Center);
               }
 
               Label #OvNearestHeader {
@@ -450,9 +457,9 @@ $F.@ZigDecoratedFrame {
               Group #NearestList { LayoutMode: Top; }
               Label #NearestEmpty {
                 Text: "";
-                Anchor: (Height: 22);
+                Anchor: (Height: 24);
                 Visible: false;
-                Style: (FontSize: 11, TextColor: #6a7a8e, VerticalAlignment: Center);
+                Style: (FontSize: 12, TextColor: #6a7a8e, VerticalAlignment: Center);
               }
 
               Label #OvPinnedHeader {
@@ -509,40 +516,40 @@ $F.@ZigDecoratedFrame {
                 Label #DTitle {
                   Text: "";
                   FlexWeight: 1;
-                  Style: (FontSize: 16, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+                  Style: (FontSize: 18, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
                 }
                 Label #DFirstBadge {
                   Text: "";
                   Anchor: (Width: 110);
-                  Style: (FontSize: 11, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+                  Style: (FontSize: 12, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
                 }
                 Group { Anchor: (Width: 6); }
                 Label #DPoints {
                   Text: "";
                   Anchor: (Width: 70);
-                  Style: (FontSize: 12, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+                  Style: (FontSize: 13, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
                 }
               }
 
               Group #DMetaRow {
                 LayoutMode: Left;
-                Anchor: (Height: 20, Top: 4);
+                Anchor: (Height: 22, Top: 4);
                 Padding: (Left: 11);
 
                 Label #DCategoryChip {
                   Text: "";
                   Anchor: (Width: 220);
-                  Style: (FontSize: 11, TextColor: #96a9be, VerticalAlignment: Center);
+                  Style: (FontSize: 12, TextColor: #96a9be, VerticalAlignment: Center);
                 }
                 Label #DDate {
                   Text: "";
                   FlexWeight: 1;
-                  Style: (FontSize: 11, TextColor: #96a9be, VerticalAlignment: Center);
+                  Style: (FontSize: 12, TextColor: #96a9be, VerticalAlignment: Center);
                 }
                 Label #DStatus {
                   Text: "";
                   Anchor: (Width: 110);
-                  Style: (FontSize: 12, TextColor: #ffaa4a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+                  Style: (FontSize: 13, TextColor: #ffaa4a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
                 }
               }
 
@@ -551,19 +558,19 @@ $F.@ZigDecoratedFrame {
                 Anchor: (Top: 2);
                 Padding: (Left: 11);
                 Visible: false;
-                Style: (FontSize: 10, TextColor: #96a9be, Wrap: true);
+                Style: (FontSize: 11, TextColor: #96a9be, Wrap: true);
               }
 
               Label #DDescription {
                 Text: "";
                 Anchor: (Top: 4);
                 Padding: (Left: 11);
-                Style: (FontSize: 12, TextColor: #b6c9de, Wrap: true);
+                Style: (FontSize: 14, TextColor: #b6c9de, Wrap: true);
               }
 
               Group #DProgressRow {
                 LayoutMode: Left;
-                Anchor: (Height: 14, Top: 6);
+                Anchor: (Height: 16, Top: 6);
                 Padding: (Left: 11);
 
                 Group #DBarOuter {
@@ -578,8 +585,8 @@ $F.@ZigDecoratedFrame {
                 Group { Anchor: (Width: 8); }
                 Label #DBarText {
                   Text: "";
-                  Anchor: (Width: 140, Height: 14);
-                  Style: (FontSize: 11, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
+                  Anchor: (Width: 140, Height: 16);
+                  Style: (FontSize: 12, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
                 }
               }
 
@@ -640,7 +647,7 @@ $F.@ZigDecoratedFrame {
                     Label #Label {
                       FlexWeight: 1;
                       Text: "";
-                      Style: (FontSize: 12, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+                      Style: (FontSize: 14, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
                     }
                   }
                 }
@@ -676,7 +683,7 @@ $F.@ZigDecoratedFrame {
           Text: "";
           Visible: false;
           Anchor: (Height: 40);
-          Style: (FontSize: 11, TextColor: #6a7a8e, Wrap: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: (FontSize: 12, TextColor: #6a7a8e, Wrap: true, HorizontalAlignment: Center, VerticalAlignment: Center);
         }
 
         Group #TrackedQuestsList {

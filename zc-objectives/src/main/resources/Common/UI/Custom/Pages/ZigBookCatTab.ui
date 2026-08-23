@@ -14,8 +14,8 @@ Group {
   Group { Anchor: (Width: 6); }
 
   Button #CatBtn {
-    Anchor: (Width: 80, Height: $C.@SmallButtonHeight);
-    Padding: (Horizontal: 8);
+    Anchor: (Width: 96, Height: $C.@SmallButtonHeight);
+    Padding: (Horizontal: 6);
     LayoutMode: CenterMiddle;
     Style: $C.@TertiaryButtonStyle;
 
@@ -23,7 +23,7 @@ Group {
       Text: "";
       FlexWeight: 1;
       Anchor: (Height: $C.@SmallButtonHeight);
-      Style: (FontSize: 12, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (FontSize: 13, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
     }
   }
 }

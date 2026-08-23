@@ -1,14 +1,18 @@
-// One tag chip on a quest-log row (appended into #TagsRow). The page sets the chip's
-// .Background and #TagText colour per tag from the shared deterministic table, so the same tag
-// reads the same colour everywhere.
+// One tag chip on a quest-log row (appended into #TagsRow, a left-laid-out strip). The page sets
+// the chip's .Background and #TagText colour per tag from the shared deterministic table, so the
+// same tag reads the same colour everywhere. Deliberately FIXED-width so a strip of chips reads
+// as a uniform row; a long tag label truncates rather than stretching the pill.
 
 Group #ZigBookTagChip {
-  Anchor: (Height: 18);
-  Padding: (Left: 6, Right: 6, Top: 2, Bottom: 4);
+  LayoutMode: Left;
+  Anchor: (Width: 104, Height: 20, Right: 6);
+  Padding: (Left: 6, Right: 6);
   Background: #1a2a3a;
 
   Label #TagText {
     Text: "";
-    Style: (FontSize: 10, TextColor: #6a8aaa, VerticalAlignment: Center);
+    FlexWeight: 1;
+    Anchor: (Height: 20);
+    Style: (FontSize: 11, TextColor: #6a8aaa, HorizontalAlignment: Center, VerticalAlignment: Center);
   }
 }

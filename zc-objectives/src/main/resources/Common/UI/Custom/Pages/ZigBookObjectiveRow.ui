@@ -4,11 +4,11 @@
 
 Group {
   LayoutMode: Left;
-  Anchor: (Height: 20);
+  Anchor: (Height: 22);
 
   Label #ObjText {
     Text: "";
     FlexWeight: 1;
-    Style: (FontSize: 12, TextColor: #b6c9de, VerticalAlignment: Center);
+    Style: (FontSize: 14, TextColor: #b6c9de, VerticalAlignment: Center);
   }
 }
