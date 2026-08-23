@@ -42,14 +42,14 @@ $F.@ZigDecoratedFrame {
 
       Label #NpcHeader {
         Text: "";
-        Anchor: (Height: 30, Bottom: 4);
-        Style: (FontSize: 18, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+        Anchor: (Height: 32, Bottom: 4);
+        Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
       }
 
       Label #QuestCount {
         Text: "";
-        Anchor: (Height: 18, Bottom: 8);
-        Style: (FontSize: 11, TextColor: #93a4b8, VerticalAlignment: Center);
+        Anchor: (Height: 20, Bottom: 8);
+        Style: (FontSize: 12, TextColor: #93a4b8, VerticalAlignment: Center);
       }
 
       Group #TabBar {
@@ -63,7 +63,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 
@@ -74,7 +74,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
       }
@@ -92,7 +92,7 @@ $F.@ZigDecoratedFrame {
         Text: "";
         Visible: false;
         Anchor: (Height: 40, Top: 8);
-        Style: (FontSize: 12, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+        Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
       }
     }
 
@@ -103,14 +103,14 @@ $F.@ZigDecoratedFrame {
 
       Label #DetailTitle {
         Text: "";
-        Anchor: (Height: 28, Bottom: 4);
-        Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+        Anchor: (Height: 30, Bottom: 4);
+        Style: (FontSize: 22, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
       }
 
       Label #DetailStatus {
         Text: "";
-        Anchor: (Height: 18, Bottom: 8);
-        Style: (FontSize: 12, TextColor: #96a9be, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+        Anchor: (Height: 20, Bottom: 8);
+        Style: (FontSize: 13, TextColor: #96a9be, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
       }
 
       Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
@@ -119,13 +119,13 @@ $F.@ZigDecoratedFrame {
         Text: "";
         Visible: false;
         Anchor: (Bottom: 12);
-        Style: (FontSize: 12, TextColor: #b6c9de, Wrap: true);
+        Style: (FontSize: 14, TextColor: #b6c9de, Wrap: true);
       }
 
       Label #ObjectivesHeader {
         Text: "";
-        Anchor: (Height: 18, Bottom: 6);
-        Style: (FontSize: 11, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+        Anchor: (Height: 20, Bottom: 6);
+        Style: (FontSize: 12, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
       }
 
       Group #ObjectivesSection {
@@ -136,8 +136,8 @@ $F.@ZigDecoratedFrame {
       Label #RewardsHeader {
         Text: "";
         Visible: false;
-        Anchor: (Height: 18, Bottom: 6);
-        Style: (FontSize: 11, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+        Anchor: (Height: 20, Bottom: 6);
+        Style: (FontSize: 12, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
       }
 
       Group #RewardsList {
@@ -148,8 +148,8 @@ $F.@ZigDecoratedFrame {
       Label #RequirementsHeader {
         Text: "";
         Visible: false;
-        Anchor: (Height: 18, Bottom: 6);
-        Style: (FontSize: 11, TextColor: #ff9944, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+        Anchor: (Height: 20, Bottom: 6);
+        Style: (FontSize: 12, TextColor: #ff9944, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
       }
 
       Group #RequirementsSection {
@@ -170,7 +170,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 13, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: 14, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 
@@ -181,7 +181,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 13, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: 14, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 
@@ -192,7 +192,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 13, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: 14, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 
@@ -203,7 +203,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 13, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: 14, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 
@@ -214,7 +214,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 13, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: 14, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 

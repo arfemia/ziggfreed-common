@@ -33,7 +33,7 @@ Group #ZigNpcQuestRow {
       FlexWeight: 1;
       Text: "";
       Anchor: (Height: 36);
-      Style: (FontSize: 13, TextColor: #b6c9de, VerticalAlignment: Center);
+      Style: (FontSize: 14, TextColor: #b6c9de, VerticalAlignment: Center);
     }
   }
 
@@ -43,6 +43,6 @@ Group #ZigNpcQuestRow {
     Visible: false;
     Anchor: (Height: 36);
     Padding: (Left: 4);
-    Style: (FontSize: 11, TextColor: #8696a8, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+    Style: (FontSize: 12, TextColor: #8696a8, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
   }
 }
