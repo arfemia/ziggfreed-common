@@ -372,7 +372,10 @@ by design.
   (a `.Text` sink neither substitutes `{0}` nor renders markup; the expand toggle's bare glyph
   goes through `UiText.setText`), every labeled button is a `Button` + inner `#Label` driven by
   `ZigRichButton`, and the pin / track glyph is BAKED in the template (Java toggles the off/on
-  variants and retints the pill; a TexturePath pushed from Java renders a red X).
+  variants and retints the pill; a TexturePath pushed from Java renders a red X). A lang key
+  referenced INLINE from a `.ui` file (`PlaceholderText: %...;`) must use camelCase segments: the
+  parser's `%...;` token grammar rejects underscores, and one unparseable document disconnects
+  every client at load (which is why the two placeholder keys are `searchPlaceholder`).
 - **Keys** live in `Server/Languages/<locale>/ziggfreedcommon.progression.lang` (in-file keys drop
   the `progression.` segment the filename carries) and the item's name/description in the sibling
   `items.lang`. All nine locales; see [`i18n/CLAUDE.md`](../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/i18n/CLAUDE.md)

@@ -206,7 +206,7 @@ $F.@ZigDecoratedFrame {
           $C.@TextField #QSearchField {
             Anchor: (Width: 200, Height: $C.@SmallButtonHeight);
             Padding: (Left: 8, Right: 8);
-            PlaceholderText: %ziggfreedcommon.progression.book.quests.filter.search_placeholder;
+            PlaceholderText: %ziggfreedcommon.progression.book.quests.filter.searchPlaceholder;
             Style: (FontSize: 12, TextColor: #b6c9de);
           }
 
@@ -329,7 +329,7 @@ $F.@ZigDecoratedFrame {
           $C.@TextField #ASearchField {
             Anchor: (Width: 180, Height: $C.@SmallButtonHeight);
             Padding: (Left: 8, Right: 8);
-            PlaceholderText: %ziggfreedcommon.progression.book.achievements.search_placeholder;
+            PlaceholderText: %ziggfreedcommon.progression.book.achievements.searchPlaceholder;
             Style: (FontSize: 12, TextColor: #b6c9de);
           }
 
