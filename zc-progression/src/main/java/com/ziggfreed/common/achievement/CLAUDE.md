@@ -20,7 +20,7 @@ which one shared instance cannot afford, and it is exactly why that method exist
 
 | Class | What it is |
 |---|---|
-| `Achievement` (+ `.Builder`) | the resolved definition: ORDERED criteria, meta children, two reward lists, points, and four independent switches |
+| `Achievement` (+ `.Builder`) | the resolved definition: ORDERED criteria, meta children, two reward lists, points, four independent switches, and the LISTING facts a browsing surface reads (category / subcategory / sort order / chain memberships / feat-of-strength, beside the icon) - carried, never run |
 | `AchievementStatus` | LOCKED / UNLOCKED / CLAIMED - three states, because "in progress" is a count, not a status |
 | `AchievementEngine` (+ `.Builder`) | the runtime: dispatch, earn, collect, revoke, points, milestones, pins, self-heal, and `resetAll` (the administrator's whole-record wipe over the store's `clearAll`; it does not release a server-first the subject won, since `FirstClaimStore` offers no release) |
 | `AchievementProgressStore` | THE persistence seam. Composite `"<id>#<index>"` keys, the legacy fallback, and the reserved-character check all live here as DEFAULTS |

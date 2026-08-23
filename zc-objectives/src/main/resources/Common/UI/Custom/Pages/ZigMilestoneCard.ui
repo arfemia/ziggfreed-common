@@ -1,0 +1,75 @@
+// One points-milestone card in the achievements overview: title, a status word or a running
+// count, the description, reward lines (Pages/ZigBookRewardRow.ui appended into
+// #MilestoneRewardsList), a progress bar, and a Claim button once its rewards wait.
+
+$C = "../Common.ui";
+$Z = "../Common/ZigButtons.ui";
+
+Group #ZigMilestoneCard {
+  LayoutMode: Top;
+  Background: #1a2630;
+  Padding: (Full: 10);
+  Anchor: (Bottom: 4);
+
+  Group #HeaderRow {
+    LayoutMode: Left;
+    Anchor: (Height: 22);
+
+    Label #MilestoneName {
+      Text: "";
+      FlexWeight: 1;
+      Style: (FontSize: 13, TextColor: #ffd24a, RenderBold: true, VerticalAlignment: Center);
+    }
+
+    Label #MilestoneStatus {
+      Text: "";
+      Anchor: (Width: 120);
+      Style: (FontSize: 11, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+    }
+  }
+
+  Label #MilestoneDescription {
+    Text: "";
+    Anchor: (Top: 2);
+    Style: (FontSize: 10, TextColor: #96a9be, Wrap: true);
+  }
+
+  Label #MilestoneRewardsHeader {
+    Text: "";
+    Anchor: (Top: 4);
+    Visible: false;
+    Style: (FontSize: 10, TextColor: #ffd24a, RenderBold: true, RenderUppercase: true, LetterSpacing: 1);
+  }
+
+  Group #MilestoneRewardsList {
+    LayoutMode: Top;
+    Anchor: (Top: 4);
+  }
+
+  Group { Anchor: (Height: 4); }
+
+  Group #MilestoneBarOuter {
+    Anchor: (Height: 6);
+    Background: "../Common/ProgressBar.png";
+    ProgressBar #MilestoneProgress {
+      BarTexturePath: "../Common/ProgressBarFill.png";
+      Value: 0.0;
+    }
+  }
+
+  Group #ClaimRow {
+    LayoutMode: Right;
+    Anchor: (Height: 28, Top: 6);
+    Visible: false;
+
+    Button #MilestoneClaimBtn {
+      Style: $Z.@ZigRichPrimaryBtnStyle;
+      Anchor: (Width: 120, Height: 26);
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: (FontSize: 11, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+      }
+    }
+  }
+}

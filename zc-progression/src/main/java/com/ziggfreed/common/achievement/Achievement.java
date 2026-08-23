@@ -3,6 +3,7 @@ package com.ziggfreed.common.achievement;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
 
@@ -12,6 +13,7 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.ContentText;
 import com.ziggfreed.common.progress.ObjectiveDef;
+import com.ziggfreed.common.progress.asset.ContentListingAsset.ChainMembership;
 import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
@@ -53,6 +55,12 @@ public final class Achievement {
     @Nullable private final GateSpec requires;
     private final ContentText text;
     @Nullable private final String icon;
+    @Nullable private final String category;
+    @Nullable private final String subcategory;
+    private final int sortOrder;
+    private final List<ChainMembership> chains;
+    private final boolean featOfStrength;
+    @Nullable private final String legacySince;
     private final Map<String, Object> momentArgs;
 
     private Achievement(@Nonnull Builder b) {
@@ -70,6 +78,12 @@ public final class Achievement {
         this.requires = b.requires;
         this.text = b.text;
         this.icon = b.icon;
+        this.category = b.category;
+        this.subcategory = b.subcategory;
+        this.sortOrder = b.sortOrder;
+        this.chains = List.copyOf(b.chains);
+        this.featOfStrength = b.featOfStrength;
+        this.legacySince = b.legacySince;
         this.momentArgs = Map.copyOf(b.momentArgs);
     }
 
@@ -99,6 +113,46 @@ public final class Achievement {
                 .requires(requires)
                 .text(text)
                 .icon(icon)
+                .category(category)
+                .subcategory(subcategory)
+                .sortOrder(sortOrder)
+                .chains(chains)
+                .featOfStrength(featOfStrength)
+                .legacySince(legacySince)
+                .momentArgs(momentArgs)
+                .build();
+    }
+
+    /**
+     * This achievement with the LISTING facts a browsing surface reads and the engine deliberately
+     * does not run: where it is grouped, how it sorts inside that group, and which tiered ladders it
+     * is a rung of. Everything else carries over untouched. A copy beside {@link #withAuthoring} for
+     * the same reason that one lives here: a leaf added later cannot be silently dropped by a copy
+     * written somewhere else.
+     */
+    @Nonnull
+    public Achievement withListing(@Nullable String category, @Nullable String subcategory,
+            int sortOrder, @Nonnull List<ChainMembership> chains) {
+        return builder(id)
+                .criteria(criteria)
+                .metaChildren(metaChildren)
+                .autoRewards(autoRewards)
+                .claimRewards(claimRewards)
+                .tags(tags)
+                .points(points)
+                .available(available)
+                .hidden(hidden)
+                .countsTowardTotal(countsTowardTotal)
+                .serverFirst(serverFirst)
+                .requires(requires)
+                .text(text)
+                .icon(icon)
+                .category(category)
+                .subcategory(subcategory)
+                .sortOrder(sortOrder)
+                .chains(chains)
+                .featOfStrength(featOfStrength)
+                .legacySince(legacySince)
                 .momentArgs(momentArgs)
                 .build();
     }
@@ -218,6 +272,60 @@ public final class Achievement {
     }
 
     /**
+     * The listing category this filed itself under, lower-case, or null for none. Written by
+     * whoever folded the catalogue (the shared schema's {@code Listing.Category}); the engine never
+     * reads it - it is what lets a shared browsing surface group a merged catalogue without a
+     * per-consumer lookup.
+     */
+    @Nullable
+    public String category() {
+        return category;
+    }
+
+    /** A second grouping level inside {@link #category()}, lower-case, or null for none. */
+    @Nullable
+    public String subcategory() {
+        return subcategory;
+    }
+
+    /** Where this reads inside its category; lower sorts first, 0 when unauthored. */
+    public int sortOrder() {
+        return sortOrder;
+    }
+
+    /** The tiered ladders this is a rung of, in authored order; the FIRST is the primary one. */
+    @Nonnull
+    public List<ChainMembership> chains() {
+        return chains;
+    }
+
+    /** The primary ladder membership, or null when this is a rung of none. */
+    @Nullable
+    public ChainMembership primaryChain() {
+        return chains.isEmpty() ? null : chains.get(0);
+    }
+
+    /**
+     * A feat of strength: a trophy listed in its own earned-only section rather than browsed, worth
+     * bragging rather than points. A LISTING fact like {@link #category()} - the engine never reads
+     * it, and authors pair it with {@code hidden} / {@code countsTowardTotal} as they see fit (the
+     * knobs stay independent rather than bundled into a type).
+     */
+    public boolean featOfStrength() {
+        return featOfStrength;
+    }
+
+    /**
+     * The version this was retired to a feat of strength, or null when it was never retired. A
+     * LISTING fact like {@link #category()} - the engine never reads it, and a browsing surface pairs
+     * it with {@link #featOfStrength()} to show "Feat of Strength since {0}" on a retired one-off.
+     */
+    @Nullable
+    public String legacySince() {
+        return legacySince;
+    }
+
+    /**
      * Named values this achievement carries into every feedback moment about it, beside the ones
      * the engine composes itself (which win on a clash). Empty when it carries none.
      *
@@ -298,6 +406,12 @@ public final class Achievement {
         @Nullable private GateSpec requires;
         private ContentText text = ContentText.EMPTY;
         @Nullable private String icon;
+        @Nullable private String category;
+        @Nullable private String subcategory;
+        private int sortOrder;
+        private final List<ChainMembership> chains = new ArrayList<>();
+        private boolean featOfStrength;
+        @Nullable private String legacySince;
         private final Map<String, Object> momentArgs = new LinkedHashMap<>();
 
         private Builder(@Nonnull String id) {
@@ -393,6 +507,51 @@ public final class Achievement {
         @Nonnull
         public Builder icon(@Nullable String icon) {
             this.icon = icon == null || icon.isBlank() ? null : icon.trim();
+            return this;
+        }
+
+        /** The listing category ({@link Achievement#category()}); null (the default) means none. */
+        @Nonnull
+        public Builder category(@Nullable String category) {
+            this.category = category == null || category.isBlank()
+                    ? null : category.trim().toLowerCase(Locale.ROOT);
+            return this;
+        }
+
+        /** The second grouping level ({@link Achievement#subcategory()}); null means none. */
+        @Nonnull
+        public Builder subcategory(@Nullable String subcategory) {
+            this.subcategory = subcategory == null || subcategory.isBlank()
+                    ? null : subcategory.trim().toLowerCase(Locale.ROOT);
+            return this;
+        }
+
+        /** Where it reads inside its category; lower sorts first. */
+        @Nonnull
+        public Builder sortOrder(int sortOrder) {
+            this.sortOrder = sortOrder;
+            return this;
+        }
+
+        /** Append the ladders this is a rung of, in the order authored; the first is primary. */
+        @Nonnull
+        public Builder chains(@Nonnull List<ChainMembership> chains) {
+            this.chains.addAll(chains);
+            return this;
+        }
+
+        /** Mark it a feat of strength ({@link Achievement#featOfStrength()}). */
+        @Nonnull
+        public Builder featOfStrength(boolean featOfStrength) {
+            this.featOfStrength = featOfStrength;
+            return this;
+        }
+
+        /** The version this was retired to a feat; null (the default) means it never was. */
+        @Nonnull
+        public Builder legacySince(@Nullable String legacySince) {
+            this.legacySince = legacySince == null || legacySince.isBlank()
+                    ? null : legacySince.trim();
             return this;
         }
 

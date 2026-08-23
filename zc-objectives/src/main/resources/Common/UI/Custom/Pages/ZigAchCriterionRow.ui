@@ -1,0 +1,26 @@
+// One criterion line in the achievement detail column: a met/unmet tick, the criterion's own
+// line, and its count. Colours are set from Java per state.
+
+Group #ZigAchCriterionRow {
+  LayoutMode: Left;
+  Anchor: (Height: 16, Bottom: 2);
+  Padding: (Left: 11, Right: 4);
+
+  Label #StatusTick {
+    Text: "";
+    Anchor: (Width: 14);
+    Style: (FontSize: 11, TextColor: #6a7a8e, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+  }
+
+  Label #CritText {
+    Text: "";
+    FlexWeight: 1;
+    Style: (FontSize: 11, TextColor: #96a9be, VerticalAlignment: Center);
+  }
+
+  Label #CritProgress {
+    Text: "";
+    Anchor: (Width: 90, Height: 16);
+    Style: (FontSize: 11, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
+  }
+}

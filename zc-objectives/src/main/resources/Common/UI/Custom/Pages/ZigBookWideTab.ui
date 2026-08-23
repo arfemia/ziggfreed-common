@@ -1,0 +1,25 @@
+$C = "../Common.ui";
+
+// The wide sibling of ZigBookCatTab.ui, for a chip that carries a name PLUS a count (the
+// achievements tab's category tabs, "Combat  12/40"). Same Button + inner #Label shape, same
+// Java-side fill and active styling; only the width differs.
+
+Group {
+  LayoutMode: Left;
+
+  Group { Anchor: (Width: 6); }
+
+  Button #CatBtn {
+    Anchor: (Width: 150, Height: $C.@SmallButtonHeight);
+    Padding: (Horizontal: 8);
+    LayoutMode: CenterMiddle;
+    Style: $C.@TertiaryButtonStyle;
+
+    Label #Label {
+      Text: "";
+      FlexWeight: 1;
+      Anchor: (Height: $C.@SmallButtonHeight);
+      Style: (FontSize: 12, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+    }
+  }
+}

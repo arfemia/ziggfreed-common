@@ -1,0 +1,58 @@
+// One category card in the achievements overview's completion grid: the category's accent strip
+// and name, its unlocked/total count, a completion bar, and a Browse button that filters the list
+// to that category.
+
+$C = "../Common.ui";
+$Z = "../Common/ZigButtons.ui";
+
+Group #ZigAchCategoryCard {
+  LayoutMode: Top;
+  Background: #1a2233;
+  Padding: (Full: 8);
+  Anchor: (Width: 210, Height: 74, Right: 6, Bottom: 6);
+
+  Group #CardHead {
+    LayoutMode: Left;
+    Anchor: (Height: 18);
+
+    Group #CategoryStrip {
+      Anchor: (Width: 3, Height: 14);
+      Background: #4a9eff;
+    }
+    Group { Anchor: (Width: 6); }
+    Label #CategoryName {
+      Text: "";
+      FlexWeight: 1;
+      Style: (FontSize: 12, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+    }
+    Label #Counts {
+      Text: "";
+      Anchor: (Width: 62);
+      Style: (FontSize: 11, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
+    }
+  }
+
+  Group #CardBarOuter {
+    Anchor: (Height: 6, Top: 6);
+    Background: "../Common/ProgressBar.png";
+    ProgressBar #CategoryProgress {
+      BarTexturePath: "../Common/ProgressBarFill.png";
+      Value: 0.0;
+    }
+  }
+
+  Group #CardActions {
+    LayoutMode: Right;
+    Anchor: (Height: 22, Top: 6);
+
+    Button #BrowseBtn {
+      Style: $Z.@ZigRichRowBtnStyle;
+      Anchor: (Width: 96, Height: 20);
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: (FontSize: 11, TextColor: #cfe0f2, HorizontalAlignment: Center, VerticalAlignment: Center);
+      }
+    }
+  }
+}

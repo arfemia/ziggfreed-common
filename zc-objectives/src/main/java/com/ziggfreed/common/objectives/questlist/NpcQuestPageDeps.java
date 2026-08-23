@@ -56,9 +56,14 @@ public final class NpcQuestPageDeps {
     @FunctionalInterface
     public interface PageTheme {
 
-        /** Append {@code template} and paint whatever theme the consumer has for {@code frameSelector}. */
+        /**
+         * Append {@code template} and paint whatever theme the consumer has for the named inner
+         * panels. A page with one bordered panel passes one selector; a multi-panel page (the
+         * objective book's rail and side panel) passes every panel its frame carries, so a theme
+         * covering "the frame plus its inner panels" hears about all of them in one call.
+         */
         void appendThemed(@Nonnull UICommandBuilder cmd, @Nonnull String template,
-                @Nonnull String frameSelector);
+                @Nonnull String... frameSelectors);
     }
 
     /** What a character is called, as a client-resolved message; null when nothing knows. */
@@ -108,7 +113,7 @@ public final class NpcQuestPageDeps {
     }
 
     /** Append and nothing else: the honest default for a server shipping no theme. */
-    public static final PageTheme PLAIN_THEME = (cmd, template, frameSelector) -> cmd.append(template);
+    public static final PageTheme PLAIN_THEME = (cmd, template, frameSelectors) -> cmd.append(template);
 
     /**
      * The name the character's own assets give it. A character nothing describes has no name to

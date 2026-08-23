@@ -1,0 +1,26 @@
+$Z = "../Common/ZigButtons.ui";
+
+// One related-achievement chip in the detail column (a meta capstone's required list, the
+// capstones this one is part of, a ladder's tiers). `Button` + inner `Label #Label`: the chip
+// text is a glue Message (marker + achievement title), which only substitutes on .TextSpans,
+// pushed from Java via ZigRichButton.text(). Clicking it selects that achievement.
+
+Group #ZigAchChipRow {
+  LayoutMode: Top;
+  Padding: (Left: 11, Right: 4);
+  Anchor: (Bottom: 2);
+
+  Button #ChildBtn {
+    Anchor: (Height: 24);
+    Padding: (Horizontal: 8);
+    LayoutMode: Left;
+    Style: $Z.@ZigRichRowBtnStyle;
+
+    Label #Label {
+      Text: "";
+      FlexWeight: 1;
+      Anchor: (Height: 24);
+      Style: (FontSize: 11, TextColor: #96a9be, HorizontalAlignment: Start, VerticalAlignment: Center);
+    }
+  }
+}

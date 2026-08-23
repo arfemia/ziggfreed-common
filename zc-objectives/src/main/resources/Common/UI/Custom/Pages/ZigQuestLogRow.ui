@@ -1,0 +1,241 @@
+$C = "../Common.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// One quest-log entry (appended into #ActiveQuestList / #QuestList; see ObjectiveBookPage).
+// Addressed per row via the INDEXED PARENT ("#QuestList[0] #QuestName"), so the bare descendant
+// ids below are safe across many rows.
+//
+// The header line always shows; #ExpandableContent opens per row (Active rows come pre-opened).
+// The compact bar under the header mirrors the row's objective tally so a collapsed row still
+// reads how far along it is. #ActionBtn is ONE state-dispatched button (Accept, or a gold-tinted
+// Claim); pre-bound even while hidden so a partial update can morph it without a re-bind.
+
+@ZigExpandToggleStyle = TextButtonStyle(
+  Default: (Background: #1e2a38, LabelStyle: (FontSize: 14, TextColor: #96a9be, RenderBold: true, VerticalAlignment: Center, HorizontalAlignment: Center)),
+  Hovered: (Background: #2a3a4e, LabelStyle: (FontSize: 14, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center, HorizontalAlignment: Center)),
+  Pressed: (Background: #142030, LabelStyle: (FontSize: 14, TextColor: #4a9eff, RenderBold: true, VerticalAlignment: Center, HorizontalAlignment: Center)),
+  Sounds: $C.@ButtonSounds
+);
+
+// Track button pill (Button, no LabelStyle): the real waypoint-marker icon lives in the
+// nested #PinIconOff / #PinIconOn groups, retinted per-state from Java.
+@ZigTrackBtnStyle = ButtonStyle(
+  Default: (Background: #1a2233),
+  Hovered: (Background: #243144),
+  Pressed: (Background: #0f1723),
+  Sounds: $C.@ButtonSounds
+);
+
+Group #ZigQuestLogRow {
+  LayoutMode: Top;
+  Background: #1a2233;
+  Padding: (Full: 12);
+  Anchor: (Bottom: 4);
+
+  Group #QuestHeaderRow {
+    LayoutMode: Left;
+    Anchor: (Height: 24);
+
+    Group #CategoryStrip {
+      Anchor: (Width: 3, Height: 20);
+      Background: #4a9eff;
+    }
+
+    Group { Anchor: (Width: 8); }
+
+    Label #QuestName {
+      Text: "";
+      FlexWeight: 1;
+      Style: (FontSize: 14, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+    }
+
+    Button #TrackBtn {
+      Anchor: (Width: 36, Height: 24);
+      Visible: false;
+      Style: @ZigTrackBtnStyle;
+
+      // Baked icon variants (waypoint marker), centered via absolute anchors. Java toggles
+      // .Visible + retints the pill, and never pushes a TexturePath from Java (that renders a
+      // red X).
+      Group #PinIconOff {
+        Anchor: (Width: 14, Height: 14, Left: 11, Top: 5);
+        Background: (TexturePath: "RespawnPointArrow.png", Color: #6f7d8c);
+        Visible: true;
+      }
+      Group #PinIconOn {
+        Anchor: (Width: 14, Height: 14, Left: 11, Top: 5);
+        Background: (TexturePath: "RespawnPointArrow.png", Color: #ffffff);
+        Visible: false;
+      }
+    }
+
+    Group #TrackBtnSpacer { Anchor: (Width: 4); Visible: false; }
+
+    TextButton #ExpandToggle {
+      Text: "+";
+      Anchor: (Width: 36, Height: 24);
+      Style: @ZigExpandToggleStyle;
+    }
+
+    Group { Anchor: (Width: 4); }
+
+    Label #QuestStatus {
+      Text: "";
+      Anchor: (Width: 130);
+      Style: (FontSize: 12, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
+    }
+  }
+
+  Label #QuestDescription {
+    Text: "";
+    Anchor: (Top: 4);
+    Padding: (Left: 11);
+    Style: (FontSize: 12, TextColor: #b6c9de, Wrap: true);
+  }
+
+  // Compact per-row objective progress; hidden for rows with nothing under way.
+  Group #RowBarRow {
+    LayoutMode: Left;
+    Anchor: (Height: 10, Top: 4);
+    Padding: (Left: 11);
+    Visible: false;
+
+    Group #RowBarOuter {
+      FlexWeight: 1;
+      Anchor: (Height: 6);
+      Background: "../Common/ProgressBar.png";
+      ProgressBar #RowBar {
+        BarTexturePath: "../Common/ProgressBarFill.png";
+        Value: 0.0;
+      }
+    }
+    Group { Anchor: (Width: 8); }
+    Label #RowBarText {
+      Text: "";
+      Anchor: (Width: 70, Height: 10);
+      Style: (FontSize: 10, TextColor: #8fa6bd, HorizontalAlignment: End, VerticalAlignment: Center);
+    }
+  }
+
+  Group #ExpandableContent {
+    LayoutMode: Top;
+    Visible: false;
+
+    Group #TagsRow {
+      LayoutMode: LeftCenterWrap;
+      Padding: (Left: 11);
+      Visible: false;
+    }
+
+    Label #RequirementsLabel {
+      Text: "";
+      Anchor: (Bottom: 4);
+      Padding: (Left: 11);
+      Visible: false;
+      Style: (FontSize: 11, TextColor: #96a9be, Wrap: true);
+    }
+
+    Group { Anchor: (Height: 4); }
+
+    Label #ObjectivesHint {
+      Text: "";
+      Anchor: (Height: 16);
+      Padding: (Left: 11);
+      Visible: false;
+      Style: (FontSize: 10, TextColor: #6a7a8e, RenderBold: true, LetterSpacing: 1);
+    }
+
+    Group #ObjectivesContainer {
+      LayoutMode: Top;
+      Padding: (Left: 11);
+      Visible: false;
+    }
+
+    Group #RewardsRow {
+      LayoutMode: Top;
+      Anchor: (Bottom: 4);
+      Padding: (Left: 11);
+      Visible: false;
+
+      Label #RewardsHeader {
+        Text: "";
+        Anchor: (Bottom: 2);
+        Style: (FontSize: 11, TextColor: #a07fff, RenderBold: true, RenderUppercase: true, LetterSpacing: 1);
+      }
+
+      Group #RewardsList {
+        LayoutMode: Top;
+      }
+    }
+
+    Group { Anchor: (Height: 4); }
+
+    Group #ActionRow {
+      LayoutMode: Left;
+      Anchor: (Height: 28);
+      Padding: (Left: 11);
+
+      Button #TurnInBtn {
+        Style: $Z.@ZigRichPrimaryBtnStyle;
+        Anchor: (Width: 100, Height: 26);
+        Visible: false;
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: 12, TextColor: #4aff7f, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+
+      Group #TurnInSpacer { Anchor: (Width: 8); Visible: false; }
+
+      Label #TurnInHint {
+        Text: "";
+        Anchor: (Height: 26);
+        Visible: false;
+        Style: (FontSize: 11, TextColor: #96a9be, VerticalAlignment: Center);
+      }
+
+      Button #ActionBtn {
+        Style: $Z.@ZigRichPrimaryBtnStyle;
+        Anchor: (Width: 100, Height: 26);
+        Visible: false;
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: 12, TextColor: #eef4fb, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+
+      Button #AbandonBtn {
+        Style: $Z.@ZigRichRowBtnStyle;
+        Anchor: (Width: 100, Height: 26);
+        Visible: false;
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: 12, TextColor: #ff6b6b, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+
+      Group { Anchor: (Width: 8); }
+
+      Label #MaxQuestsNote {
+        Text: "";
+        Anchor: (Height: 26);
+        Visible: false;
+        Style: (FontSize: 11, TextColor: #ff9944, VerticalAlignment: Center);
+      }
+
+      Group { Anchor: (Width: 8); }
+
+      Label #CooldownText {
+        Text: "";
+        Anchor: (Width: 200, Height: 26);
+        Visible: false;
+        Style: (FontSize: 11, TextColor: #96a9be, VerticalAlignment: Center);
+      }
+    }
+
+    Group { Anchor: (Height: 4); }
+  }
+}

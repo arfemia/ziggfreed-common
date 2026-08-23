@@ -7,7 +7,7 @@ fields (Pattern A) with native `Parent` inheritance.
 | Class | What it is |
 |---|---|
 | `AchievementAsset` (+ nested `Listing`, `Scoring`) | the schema. The codec IS the schema; there is no hand parser beside it |
-| `AchievementDefinition` | the folded result: the engine's `Achievement` plus the presentation and gate data the engine has no opinion about |
+| `AchievementDefinition` | the folded result: the engine's `Achievement` plus the presentation and gate data the engine has no opinion about; its constructor STAMPS the requires / text / icon AND the listing (category / subcategory / sort order / chains) onto the runtime object, so a shared surface reads them with no definition lookup |
 | `AchievementPool` | every folded achievement, ready for `engine.setAchievements(pool.achievements())` |
 | `AchievementAssetStore` | the process-wide loaded layer; `resolveAll()` folds ALL of it |
 | `AchievementPoolValidator` | the load-time audit, on the shared `Finding` core, `DOMAIN = "achievement"` |

@@ -48,7 +48,10 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
   `progress.runtime.ProgressionRuntime` from this module's `setup()`; a consumer mod running its
   own progression REPLACES the parts it answers for through the same registration surface, so
   double-tracking cannot exist rather than being switched off.
-  - `objectives/book/` - the objective book's rendering + text-arg model.
+  - `objectives/book/` - the objective book: the full-screen two-tab progression menu
+    (`ObjectiveBookPage` the host + verbs, `BookQuestsTab` the quest log, `BookAchievementsTab`
+    the two-panel achievements browser), its consumer seams (`ObjectiveBookDeps`, registered via
+    `ObjectiveBookPages.deps`), and the item interaction that opens it.
   - `objectives/producer/` - the six producers plus `ProgressDispatch`, the one route
     from any producer to both engines (it resolves each engine's own subject, the zone, and the
     consumer's registered call scope, and asks every contributed `ProgressionSystemGate` per half,
@@ -71,7 +74,10 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
 
 ## Shipped resources
 
-`Common/UI/Custom/Pages/{ZigObjectiveBookPage.ui, ZigObjectiveRow.ui, ZigNpcQuestPage.ui,
+`Common/UI/Custom/Pages/{ZigObjectiveBookPage.ui, ZigQuestLogRow.ui, ZigBookObjectiveRow.ui,
+ZigBookTagChip.ui, ZigBookCatTab.ui, ZigBookWideTab.ui, ZigBookRewardRow.ui, ZigAchListRow.ui,
+ZigAchChipRow.ui, ZigAchCriterionRow.ui, ZigAchCategoryCard.ui, ZigMilestoneCard.ui,
+ZigNpcQuestPage.ui,
 ZigNpcQuestRow.ui, ZigNpcQuestLine.ui, ZigTrackedQuestRow.ui}` (needs `zc-presentation` at RUNTIME
 as well as compile time, since a page's `.ui` imports the shared frames by path), and
 `Common/UI/Custom/Hud/ZigQuestTracker.ui` with the three native objective-HUD textures copied
@@ -130,7 +136,9 @@ component), `ProgressDispatchTest`, `ProgressHandleFacetTest`, `PlacedGuardProdu
 placed-then-broken block dispatches no BREAK_BLOCK progress and a placed-then-picked-up item no
 PICKUP_ITEM, while a fresh one still does - the ledger and the producer decision, no live engine),
 `AchievementGroupingTest` (the book's category headers: the label ladder and where an undescribed
-or uncategorised run reads), plus the NPC quest page's two pure halves - `NpcQuestSectionsTest`
+or uncategorised run reads), `ObjectiveBookDepsTest` (the book's consumer seams: every default
+leaves a working page, a null fill falls to the default, a throwing seam costs its own answer),
+plus the NPC quest page's two pure halves - `NpcQuestSectionsTest`
 (bucketing, ordering, which quest the detail panel opens on) and `NpcQuestPageDepsTest` (the
 defaults, and a consumer seam that throws), and the tracked-quest HUD's four -
 `TrackedQuestSnapshotTest` (what one paint shows, over an in-memory engine),

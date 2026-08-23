@@ -159,9 +159,17 @@ class AchievementGroupingTest {
      */
     @Test
     void theUncategorisedHeaderIsALocalizedLineThisPageShips() throws IOException {
-        String page = Files.readString(Path.of("src", "main", "java", "com", "ziggfreed", "common",
-                "objectives", "book", "ObjectiveBookPage.java"), StandardCharsets.UTF_8);
-        assertTrue(page.replaceAll("\\s+", "")
+        // The book renders across a small family of sources; the rule holds wherever the header
+        // is painted from, so the whole package is scanned rather than one named file.
+        Path bookDir = Path.of("src", "main", "java", "com", "ziggfreed", "common",
+                "objectives", "book");
+        StringBuilder sources = new StringBuilder();
+        try (var files = Files.list(bookDir)) {
+            for (Path source : files.filter(p -> p.toString().endsWith(".java")).toList()) {
+                sources.append(Files.readString(source, StandardCharsets.UTF_8));
+            }
+        }
+        assertTrue(sources.toString().replaceAll("\\s+", "")
                         .contains("text(\"" + UNCATEGORISED_KEY + "\")"),
                 "the uncategorised header must go through a translation key like every other line"
                         + " on this page");

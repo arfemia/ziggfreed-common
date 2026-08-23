@@ -393,9 +393,9 @@ public final class ProgressionDefaults {
     }
 
     /**
-     * The item an achievement is illustrated with, when this library folded it. Presentation the
-     * engine model deliberately does not carry, so a surface asks here and simply gets null for
-     * content somebody else folded.
+     * The item an achievement is illustrated with, when this library folded it. The runtime object
+     * carries the picture too ({@code Achievement.icon()}), so a surface reads the model first and
+     * asks here only as the fallback for content whose fold predates the model carrying it.
      */
     @Nullable
     public static String achievementIcon(@Nonnull String achievementId) {
@@ -406,8 +406,8 @@ public final class ProgressionDefaults {
 
     /**
      * The grouping label an achievement filed itself under, when this library folded it. Like the
-     * icon, this is presentation the engine model deliberately does not carry, so content somebody
-     * else folded simply reads as belonging to no group.
+     * icon, the runtime object carries this too ({@code Achievement.category()}); this read stays
+     * as the fallback for content whose fold predates the model carrying it.
      */
     @Nullable
     public static String achievementCategory(@Nonnull String achievementId) {

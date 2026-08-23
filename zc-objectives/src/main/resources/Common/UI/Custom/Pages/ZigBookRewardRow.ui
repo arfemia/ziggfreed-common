@@ -1,0 +1,28 @@
+$Z = "../Common/ZigButtons.ui";
+
+// One reward line (a quest row's rewards, the achievement detail's rewards, a milestone card's
+// rewards): an optional item icon plus the reward's own line. The icon slot hovers with the
+// item's native tooltip; a text-only reward simply leaves the slot hidden.
+
+Group #ZigBookRewardRow {
+  LayoutMode: Left;
+  Anchor: (Height: 22, Bottom: 2);
+
+  Group #RewardIconSlot {
+    Anchor: (Width: 20, Height: 20, Right: 6);
+    Visible: false;
+    ItemGrid #RewardIcon {
+      Anchor: (Width: 20, Height: 20);
+      SlotsPerRow: 1;
+      AreItemsDraggable: false;
+      DisplayItemQuantity: false;
+      Style: $Z.@ZigIconGrid20;
+    }
+  }
+
+  Label #RewardName {
+    Text: "";
+    FlexWeight: 1;
+    Style: (FontSize: 11, TextColor: #b6c9de, VerticalAlignment: Center);
+  }
+}

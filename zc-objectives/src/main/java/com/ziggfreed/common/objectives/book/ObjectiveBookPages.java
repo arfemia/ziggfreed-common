@@ -33,15 +33,44 @@ public final class ObjectiveBookPages {
     private static final AtomicReference<Supplier<NpcQuestPageDeps.PageTheme>> THEME =
             new AtomicReference<>();
 
+    private static final AtomicReference<Supplier<ObjectiveBookDeps>> DEPS =
+            new AtomicReference<>();
+
     private ObjectiveBookPages() {
     }
 
     /**
      * Say how this book's frame is painted. Call once from a consumer's setup; pass null to go
-     * back to the plain append.
+     * back to the plain append. The narrow, theme-only registration - a consumer with more to say
+     * registers {@link #deps(Supplier)} instead, whose default theme falls through to this one.
      */
     public static void theme(@Nullable Supplier<NpcQuestPageDeps.PageTheme> supplier) {
         THEME.set(supplier);
+    }
+
+    /**
+     * Say everything a consumer may about the book ({@link ObjectiveBookDeps}: rail, side panel,
+     * board-managed quests, milestones, ...). Call once from a consumer's setup; pass null to go
+     * back to the library defaults. Resolved lazily on each open.
+     */
+    public static void deps(@Nullable Supplier<ObjectiveBookDeps> supplier) {
+        DEPS.set(supplier);
+    }
+
+    /** The deps in force right now: the registered consumer's, else the library defaults. Guarded. */
+    @Nonnull
+    static ObjectiveBookDeps resolvedDeps() {
+        Supplier<ObjectiveBookDeps> supplier = DEPS.get();
+        if (supplier == null) {
+            return ObjectiveBookDeps.DEFAULTS;
+        }
+        try {
+            ObjectiveBookDeps deps = supplier.get();
+            return deps != null ? deps : ObjectiveBookDeps.DEFAULTS;
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] objective book deps failed to resolve: " + t.getMessage());
+            return ObjectiveBookDeps.DEFAULTS;
+        }
     }
 
     /** The theme in force right now: the registered consumer's, else the plain append. Guarded. */

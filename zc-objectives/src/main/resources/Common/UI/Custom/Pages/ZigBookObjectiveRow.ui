@@ -1,0 +1,14 @@
+// One objective line inside a quest-log row's expanded content (appended into
+// #ObjectivesContainer). Also reused as a step-group heading: the page restyles #ObjText
+// (size / colour / bold) for that, so this stays the ONE template a container mixes.
+
+Group {
+  LayoutMode: Left;
+  Anchor: (Height: 20);
+
+  Label #ObjText {
+    Text: "";
+    FlexWeight: 1;
+    Style: (FontSize: 12, TextColor: #b6c9de, VerticalAlignment: Center);
+  }
+}

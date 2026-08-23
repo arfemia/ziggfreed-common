@@ -70,8 +70,11 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
 - [`sound/`](src/main/java/com/ziggfreed/common/sound/CLAUDE.md) - `Sound3D`.
 - `ui/` - `CustomHudHelper`, `ZigRichButton` (the clickable-rich-text primitive every labeled
   button in the library uses), `UiRetint` (the generic palette-to-selector retint primitive),
-  `SettingsUiUtil` (settings-form binding helper). No router at this top level (mixed
-  single-file primitives); the four structured subpackages below each have their own:
+  `SettingsUiUtil` (settings-form binding helper), `StatusTones` (the six-tone status-colour
+  vocabulary progression and commerce surfaces paint state with: ready / available / in progress /
+  soft block / limited / locked), `TagColors` (the deterministic keyword + hash colour table for
+  free-string tag chips, so one tag reads one colour everywhere). No router at this top level
+  (mixed single-file primitives); the four structured subpackages below each have their own:
   - [`ui/form/`](src/main/java/com/ziggfreed/common/ui/form/CLAUDE.md) - `FieldSpec` +
     `SettingsForm`, the generic settings-form engine.
   - [`ui/hud/`](src/main/java/com/ziggfreed/common/ui/hud/CLAUDE.md) - `KeyedCustomHud` +

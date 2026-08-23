@@ -96,7 +96,7 @@ live cap and availability seams), what each engine OWES a consumer's persistence
 COMMIT half is pinned with exact counts: collecting commits exactly once, a payout commits only when
 it delivered something, and earning, a reached milestone, a re-arm and a catalogue-wide self-heal
 commit nothing at all), the achievement engine
-(`AchievementEngineTest`, `AchievementAssetCodecTest`, `AchievementPoolValidatorTest`,
+(`AchievementEngineTest`, `AchievementListingTest`, `AchievementAssetCodecTest`, `AchievementPoolValidatorTest`,
 `AchievementProgressStoreTest`, `AchievementStatThresholdTest`, `AchievementTaxonomyCodecTest`),
 the shared runtime (`ProgressionRuntimeTest`, `ProgressionFeedbackHookTest` - which moments each
 engine announces, exactly once, with the subject and the values in scope, plus the contribution

@@ -1,0 +1,29 @@
+$C = "../Common.ui";
+
+// One filter chip of the Objective Book (quest categories, status filters, achievement sort /
+// status / subcategory chips), appended into its bar and addressed by index.
+//
+// `Button` (clickable container) + inner `Label #Label`, NOT a TextButton: the chip text is a
+// localized Message (a built-in key or a raw authored name), which only substitutes on a Label's
+// .TextSpans, pushed from Java via ZigRichButton.text(). The active chip's label colour / bold is
+// set from Java.
+
+Group {
+  LayoutMode: Left;
+
+  Group { Anchor: (Width: 6); }
+
+  Button #CatBtn {
+    Anchor: (Width: 80, Height: $C.@SmallButtonHeight);
+    Padding: (Horizontal: 8);
+    LayoutMode: CenterMiddle;
+    Style: $C.@TertiaryButtonStyle;
+
+    Label #Label {
+      Text: "";
+      FlexWeight: 1;
+      Anchor: (Height: $C.@SmallButtonHeight);
+      Style: (FontSize: 12, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+    }
+  }
+}

@@ -2,140 +2,696 @@ $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
 
-// The Objective Book page (com.ziggfreed.common.objectives.book.ObjectiveBookPage): a two-tab
-// menu of this server's quests and achievements. A title, a two-button tab bar (#TabQuests /
-// #TabAchievements, each a rich Button + inner #Label so its text substitutes params), an
-// optional summary line, a scrollable list that the page appends Pages/ZigObjectiveRow.ui into,
-// and a single empty-state line used both for "nothing here yet" and for "another mod runs
-// progression on this server".
-// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+// The Objective Book (com.ziggfreed.common.objectives.book.ObjectiveBookPage): a full-screen
+// two-tab progression menu. Three columns: #LeftPanel is a host column a consumer mod may paint
+// its own navigation rail into (hidden when nothing paints it), #RightPanel carries the
+// Quests | Achievements tab strip over one surface per tab, and #SidePanel shows the tracked-quests
+// panel on the quests tab or a consumer-painted column on the achievements tab.
+//
+// The quests tab is a filterable quest log: category chips (or a dropdown once they overflow),
+// search, a tag dropdown, status chips, then ONE scrolling region holding the pre-expanded Active
+// section above the browse list (rows are Pages/ZigQuestLogRow.ui). The achievements tab is a
+// two-panel browser: a filter strip + compact rows (Pages/ZigAchListRow.ui) on the left, the
+// selected achievement's detail on the right, and an overview (recent / nearest / pinned /
+// categories / milestones) filling the right panel while nothing is selected.
+//
+// The Full: 12 padding on #Content is load-bearing: at 0 the #LeftPanel / #SidePanel bevels stack
+// against the frame bevel and read as a heavy dark shadow down the menu edges.
 
 $C.@PageOverlay {}
+
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 760, Height: 620);
+  @Ornaments = true;
+  Anchor: (Width: 1570, Height: 1000);
 
   #Content {
-    Label #Title {
-      Text: "";
-      Anchor: (Height: 30, Bottom: 8);
-      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
-    }
+    Anchor: (Top: 0);
+    LayoutMode: Left;
+    Padding: (Full: 12);
 
-    // Tab bar: quests on the left, achievements on the right. The page tints the active tab
-    // from Java (UiRetint.retintButtonStates + the inner #Label colour), so there is no second
-    // "active" style to drift out of sync.
-    Group #TabBar {
-      LayoutMode: Left;
-      Anchor: (Height: 34, Bottom: 8);
-
-      Button #TabQuests {
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 180, Height: 34, Right: 6);
-        Label #Label {
-          FlexWeight: 1;
-          Text: "";
-          Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
-        }
-      }
-
-      Button #TabAchievements {
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 180, Height: 34);
-        Label #Label {
-          FlexWeight: 1;
-          Text: "";
-          Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
-        }
-      }
-    }
-
-    // The quest-list filter bar (hidden on the achievements tab): a row of category buttons the
-    // page appends into #CategoryBar, then a search field + button + clear, the tag dropdown, and
-    // the status buttons appended into #StatusBar. Every control is bound from Java with the full
-    // filter state.
-    Group #FilterBar {
-      Visible: false;
+    // Consumer-painted navigation rail. The page shows it only when the registered rail painter
+    // painted something, so a bare server gets the two-column look with no empty gutter.
+    Group #LeftPanel {
+      Anchor: (Width: 250);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
       LayoutMode: Top;
-      Anchor: (Height: 72, Bottom: 6);
+      Padding: (Full: 16);
+      Visible: false;
 
-      Group #CategoryBar {
-        LayoutMode: Left;
-        Anchor: (Height: 28, Bottom: 8);
+      Group #BrandingContainerLeft {
+        Visible: false;
       }
 
-      Group #SearchRow {
+      Label #BrandingServerName {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 20, Bottom: 2);
+        Style: (...$C.@DefaultLabelStyle, FontSize: 14, TextColor: #ffffff, RenderBold: true);
+      }
+
+      Label #BrandingDescription {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 18, Bottom: 8);
+        Style: (...$C.@DefaultLabelStyle, FontSize: 11);
+      }
+
+      // Everything below the branding block is appended by the rail painter.
+      Group #RailContent {
+        FlexWeight: 1;
+        LayoutMode: Top;
+      }
+    }
+
+    Group #RightPanel {
+      FlexWeight: 1;
+      LayoutMode: Top;
+      Padding: (Full: 20);
+
+      Group #HeaderSection {
         LayoutMode: Left;
-        Anchor: (Height: 28);
+        Anchor: (Height: 50);
 
-        $C.@TextField #SearchField {
-          Anchor: (Width: 170, Height: 26);
-          Padding: (Left: 8, Right: 8);
-          Style: (FontSize: 12, TextColor: #b6c9de);
-        }
-
-        Group { Anchor: (Width: 4); }
-
-        Button #SearchBtn {
-          Style: $Z.@ZigRichRowBtnStyle;
-          Anchor: (Width: 74, Height: 26);
-          Label #Label {
-            FlexWeight: 1;
-            Text: "";
-            Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
-          }
-        }
-
-        Group { Anchor: (Width: 4); }
-
-        Button #ClearSearchBtn {
-          Style: $Z.@ZigRichRowBtnStyle;
-          Anchor: (Width: 26, Height: 26);
-          Visible: false;
-          Label #Label {
-            FlexWeight: 1;
-            Text: "";
-            Style: (FontSize: 12, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
-          }
-        }
-
-        Group { Anchor: (Width: 8); }
-
-        $C.@DropdownBox #TagFilter {
-          Anchor: (Width: 140, Height: 26);
-        }
-
-        Group { Anchor: (Width: 8); }
-
-        Group #StatusBar {
+        Group #TitleContainer {
           FlexWeight: 1;
           LayoutMode: Left;
+
+          Label #PanelTitle {
+            Text: "";
+            FlexWeight: 1;
+            Style: (...$C.@TitleStyle, FontSize: 24);
+          }
+        }
+
+        // The book's own tab strip.
+        Group #TabBar {
+          LayoutMode: Left;
+          Anchor: (Width: 300);
+
+          Button #TabQuests {
+            Style: $Z.@ZigRichRowBtnStyle;
+            Anchor: (Width: 144, Height: 34, Right: 6);
+            Label #Label {
+              FlexWeight: 1;
+              Text: "";
+              Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+          }
+
+          Button #TabAchievements {
+            Style: $Z.@ZigRichRowBtnStyle;
+            Anchor: (Width: 144, Height: 34);
+            Label #Label {
+              FlexWeight: 1;
+              Text: "";
+              Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+          }
+        }
+
+        // Up to three stat blocks; the page fills values, colours and labels per tab and hides
+        // the third where the tab has only two numbers to show.
+        Group #HeaderStats {
+          LayoutMode: Left;
+          Anchor: (Width: 360);
+          Padding: (Left: 12);
+
+          Group #Stat0Block {
+            FlexWeight: 1;
+            LayoutMode: Top;
+            Label #Stat0Value {
+              Text: "";
+              Anchor: (Height: 24);
+              Style: (FontSize: 22, TextColor: #4a9eff, RenderBold: true);
+            }
+            Label #Stat0Label {
+              Text: "";
+              Anchor: (Height: 14);
+              Style: (...$C.@DefaultLabelStyle, FontSize: 10);
+            }
+          }
+
+          Group #Stat1Block {
+            FlexWeight: 1;
+            LayoutMode: Top;
+            Label #Stat1Value {
+              Text: "";
+              Anchor: (Height: 24);
+              Style: (FontSize: 22, TextColor: #ffaa4a, RenderBold: true);
+            }
+            Label #Stat1Label {
+              Text: "";
+              Anchor: (Height: 14);
+              Style: (...$C.@DefaultLabelStyle, FontSize: 10);
+            }
+          }
+
+          Group #Stat2Block {
+            FlexWeight: 1;
+            LayoutMode: Top;
+            Visible: false;
+            Label #Stat2Value {
+              Text: "";
+              Anchor: (Height: 24);
+              Style: (FontSize: 16, TextColor: #ffd24a, RenderBold: true);
+            }
+            Label #Stat2Label {
+              Text: "";
+              Anchor: (Height: 14);
+              Style: (...$C.@DefaultLabelStyle, FontSize: 10);
+            }
+          }
+        }
+      }
+
+      Label #BrandingDescriptionRight {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 18, Bottom: 4);
+        Style: (...$C.@DefaultLabelStyle, FontSize: 11);
+      }
+
+      $C.@ContentSeparator { Anchor: (Bottom: 8); }
+
+      // ==================== QUESTS TAB ====================
+      Group #QuestsTab {
+        FlexWeight: 1;
+        LayoutMode: Top;
+        Visible: false;
+
+        Group #QCategoryRow {
+          LayoutMode: Left;
+          Anchor: (Height: 36);
+
+          Group #QDynamicCategories {
+            LayoutMode: Left;
+          }
+
+          // Swapped in for the chip row once categories overflow the strip.
+          $C.@DropdownBox #QCategoryDropdown {
+            Anchor: (Width: 220, Height: $C.@SmallButtonHeight);
+            Visible: false;
+          }
+
+          Group { FlexWeight: 1; }
+        }
+
+        Group { Anchor: (Height: 6); }
+
+        Group #QSearchRow {
+          LayoutMode: Left;
+          Anchor: (Height: 36);
+
+          $C.@TextField #QSearchField {
+            Anchor: (Width: 200, Height: $C.@SmallButtonHeight);
+            Padding: (Left: 8, Right: 8);
+            PlaceholderText: %ziggfreedcommon.progression.book.quests.filter.search_placeholder;
+            Style: (FontSize: 12, TextColor: #b6c9de);
+          }
+
+          Group { Anchor: (Width: 4); }
+
+          Button #QSearchBtn {
+            Style: $Z.@ZigRichRowBtnStyle;
+            Anchor: (Width: 74, Height: $C.@SmallButtonHeight);
+            Label #Label {
+              FlexWeight: 1;
+              Text: "";
+              Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+          }
+
+          Group { Anchor: (Width: 4); }
+
+          Button #QClearSearchBtn {
+            Style: $Z.@ZigRichRowBtnStyle;
+            Anchor: (Width: 26, Height: $C.@SmallButtonHeight);
+            Visible: false;
+            Label #Label {
+              FlexWeight: 1;
+              Text: "";
+              Style: (FontSize: 12, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+          }
+
+          Group { Anchor: (Width: 8); }
+
+          $C.@DropdownBox #QTagFilter {
+            Anchor: (Width: 160, Height: $C.@SmallButtonHeight);
+          }
+
+          Group { Anchor: (Width: 12); }
+
+          Group #QStatusBar {
+            FlexWeight: 1;
+            LayoutMode: Left;
+          }
+        }
+
+        $C.@ContentSeparator { Anchor: (Top: 8, Bottom: 8); }
+
+        Label #QEmptyMessage {
+          Text: "";
+          Anchor: (Height: 30);
+          Visible: false;
+          Style: (...$C.@DefaultLabelStyle, FontSize: 14, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+
+        // The ONE scroll region: the pre-expanded Active section rides above the browse list so
+        // both scroll together.
+        Group #QuestListContainer {
+          FlexWeight: 1;
+          LayoutMode: TopScrolling;
+          ScrollbarStyle: $C.@DefaultScrollbarStyle;
+          Padding: (Right: 8);
+
+          Group #ActiveSection {
+            LayoutMode: Top;
+            Visible: false;
+
+            Label #ActiveHeader {
+              Text: "";
+              Anchor: (Height: 22, Bottom: 6);
+              Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2, TextColor: #4a9eff);
+            }
+
+            Group #ActiveQuestList {
+              LayoutMode: Top;
+            }
+
+            $C.@ContentSeparator { Anchor: (Top: 8, Bottom: 8); }
+          }
+
+          Group #QuestList {
+            LayoutMode: Top;
+          }
+        }
+      }
+
+      // ==================== ACHIEVEMENTS TAB ====================
+      Group #AchievementsTab {
+        FlexWeight: 1;
+        LayoutMode: Top;
+        Visible: false;
+
+        Group #ACategoryRow {
+          LayoutMode: Left;
+          Anchor: (Height: 34);
+
+          Group #ACategoryTabs {
+            FlexWeight: 1;
+            LayoutMode: LeftCenterWrap;
+          }
+
+          $C.@DropdownBox #ACategoryDropdown {
+            Anchor: (Width: 240, Height: $C.@SmallButtonHeight);
+            Visible: false;
+          }
+        }
+
+        Group #ASubcatRow {
+          LayoutMode: Left;
+          Anchor: (Height: 32);
+          Visible: false;
+
+          Group #ASubcategoryTabs {
+            LayoutMode: Left;
+          }
+
+          Group { FlexWeight: 1; }
+        }
+
+        Group #ASearchRow {
+          LayoutMode: Left;
+          Anchor: (Height: 34);
+
+          $C.@TextField #ASearchField {
+            Anchor: (Width: 180, Height: $C.@SmallButtonHeight);
+            Padding: (Left: 8, Right: 8);
+            PlaceholderText: %ziggfreedcommon.progression.book.achievements.search_placeholder;
+            Style: (FontSize: 12, TextColor: #b6c9de);
+          }
+
+          Group { Anchor: (Width: 4); }
+
+          Button #ASearchBtn {
+            Style: $Z.@ZigRichRowBtnStyle;
+            Anchor: (Width: 74, Height: $C.@SmallButtonHeight);
+            Label #Label {
+              FlexWeight: 1;
+              Text: "";
+              Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+          }
+
+          Group { Anchor: (Width: 4); }
+
+          Button #AClearSearchBtn {
+            Style: $Z.@ZigRichRowBtnStyle;
+            Anchor: (Width: 26, Height: $C.@SmallButtonHeight);
+            Visible: false;
+            Label #Label {
+              FlexWeight: 1;
+              Text: "";
+              Style: (FontSize: 12, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+          }
+
+          Group { Anchor: (Width: 10); }
+
+          Group #ASortBar {
+            LayoutMode: Left;
+          }
+
+          Group { Anchor: (Width: 10); }
+
+          Group #AStatusBar {
+            FlexWeight: 1;
+            LayoutMode: Left;
+          }
+        }
+
+        $C.@ContentSeparator { Anchor: (Top: 8, Bottom: 8); }
+
+        Group #ASplit {
+          FlexWeight: 1;
+          LayoutMode: Left;
+
+          Group #AListPane {
+            Anchor: (Width: 540);
+            LayoutMode: Top;
+
+            Label #AEmptyMessage {
+              Text: "";
+              Anchor: (Height: 30);
+              Visible: false;
+              Style: (...$C.@DefaultLabelStyle, FontSize: 13, HorizontalAlignment: Center, VerticalAlignment: Center);
+            }
+
+            Group #AListScroll {
+              FlexWeight: 1;
+              LayoutMode: TopScrolling;
+              ScrollbarStyle: $C.@DefaultScrollbarStyle;
+              Padding: (Right: 6);
+
+              Group #AchList {
+                LayoutMode: Top;
+              }
+
+              Label #FeatsHeader {
+                Text: "";
+                Anchor: (Height: 22, Top: 8, Bottom: 4);
+                Visible: false;
+                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2, TextColor: #ffd24a);
+              }
+
+              Group #FeatsList {
+                LayoutMode: Top;
+              }
+            }
+          }
+
+          $C.@VerticalSeparator {}
+
+          Group #ADetailPane {
+            FlexWeight: 1;
+            LayoutMode: Top;
+            Padding: (Left: 12);
+
+            // The overview fills the detail column while no row is selected: what was earned
+            // lately, what is closest, what is pinned, how each category stands, and the points
+            // milestones.
+            Group #AOverview {
+              FlexWeight: 1;
+              LayoutMode: TopScrolling;
+              ScrollbarStyle: $C.@DefaultScrollbarStyle;
+              Padding: (Right: 6);
+              Visible: false;
+
+              Label #OvRecentHeader {
+                Text: "";
+                Anchor: (Height: 20, Bottom: 4);
+                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+              }
+              Group #RecentList { LayoutMode: Top; }
+              Label #RecentEmpty {
+                Text: "";
+                Anchor: (Height: 22);
+                Visible: false;
+                Style: (FontSize: 11, TextColor: #6a7a8e, VerticalAlignment: Center);
+              }
+
+              Label #OvNearestHeader {
+                Text: "";
+                Anchor: (Height: 20, Top: 8, Bottom: 4);
+                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+              }
+              Group #NearestList { LayoutMode: Top; }
+              Label #NearestEmpty {
+                Text: "";
+                Anchor: (Height: 22);
+                Visible: false;
+                Style: (FontSize: 11, TextColor: #6a7a8e, VerticalAlignment: Center);
+              }
+
+              Label #OvPinnedHeader {
+                Text: "";
+                Anchor: (Height: 20, Top: 8, Bottom: 4);
+                Visible: false;
+                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+              }
+              Group #PinnedList { LayoutMode: Top; }
+
+              Label #OvCategoriesHeader {
+                Text: "";
+                Anchor: (Height: 20, Top: 8, Bottom: 4);
+                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+              }
+              Group #CategoriesGrid { LayoutMode: LeftCenterWrap; }
+
+              Label #OvMilestoneHeader {
+                Text: "";
+                Anchor: (Height: 20, Top: 8, Bottom: 4);
+                Visible: false;
+                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2, TextColor: #ffd24a);
+              }
+              Group #MilestoneList { LayoutMode: Top; }
+            }
+
+            // The selected achievement's detail column.
+            Group #ADetail {
+              FlexWeight: 1;
+              LayoutMode: Top;
+              Visible: false;
+
+              Group #DHeaderRow {
+                LayoutMode: Left;
+                Anchor: (Height: 34);
+
+                Group #DStrip {
+                  Anchor: (Width: 3, Height: 28);
+                  Background: #4a9eff;
+                }
+                Group { Anchor: (Width: 8); }
+                Group #DIconSlot {
+                  Anchor: (Width: 28, Height: 28);
+                  Visible: false;
+                  ItemGrid #DIcon {
+                    Anchor: (Width: 28, Height: 28);
+                    SlotsPerRow: 1;
+                    AreItemsDraggable: false;
+                    DisplayItemQuantity: false;
+                    Style: $Z.@ZigIconGrid28;
+                  }
+                }
+                Group { Anchor: (Width: 8); }
+                Label #DTitle {
+                  Text: "";
+                  FlexWeight: 1;
+                  Style: (FontSize: 16, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+                }
+                Label #DFirstBadge {
+                  Text: "";
+                  Anchor: (Width: 110);
+                  Style: (FontSize: 11, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+                }
+                Group { Anchor: (Width: 6); }
+                Label #DPoints {
+                  Text: "";
+                  Anchor: (Width: 70);
+                  Style: (FontSize: 12, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+                }
+              }
+
+              Group #DMetaRow {
+                LayoutMode: Left;
+                Anchor: (Height: 20, Top: 4);
+                Padding: (Left: 11);
+
+                Label #DCategoryChip {
+                  Text: "";
+                  Anchor: (Width: 220);
+                  Style: (FontSize: 11, TextColor: #96a9be, VerticalAlignment: Center);
+                }
+                Label #DDate {
+                  Text: "";
+                  FlexWeight: 1;
+                  Style: (FontSize: 11, TextColor: #96a9be, VerticalAlignment: Center);
+                }
+                Label #DStatus {
+                  Text: "";
+                  Anchor: (Width: 110);
+                  Style: (FontSize: 12, TextColor: #ffaa4a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+                }
+              }
+
+              Label #DFirstClaimed {
+                Text: "";
+                Anchor: (Top: 2);
+                Padding: (Left: 11);
+                Visible: false;
+                Style: (FontSize: 10, TextColor: #96a9be, Wrap: true);
+              }
+
+              Label #DDescription {
+                Text: "";
+                Anchor: (Top: 4);
+                Padding: (Left: 11);
+                Style: (FontSize: 12, TextColor: #b6c9de, Wrap: true);
+              }
+
+              Group #DProgressRow {
+                LayoutMode: Left;
+                Anchor: (Height: 14, Top: 6);
+                Padding: (Left: 11);
+
+                Group #DBarOuter {
+                  FlexWeight: 1;
+                  Anchor: (Height: 8);
+                  Background: "../Common/ProgressBar.png";
+                  ProgressBar #DBar {
+                    BarTexturePath: "../Common/ProgressBarFill.png";
+                    Value: 0.0;
+                  }
+                }
+                Group { Anchor: (Width: 8); }
+                Label #DBarText {
+                  Text: "";
+                  Anchor: (Width: 140, Height: 14);
+                  Style: (FontSize: 11, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
+                }
+              }
+
+              Group #DBodyScroll {
+                FlexWeight: 1;
+                LayoutMode: TopScrolling;
+                ScrollbarStyle: $C.@DefaultScrollbarStyle;
+                Padding: (Right: 6);
+
+                Label #DCriteriaHeader {
+                  Text: "";
+                  Anchor: (Height: 20, Top: 8, Bottom: 2);
+                  Visible: false;
+                  Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                }
+                Group #DCriteriaList { LayoutMode: Top; }
+
+                Label #DRequiresHeader {
+                  Text: "";
+                  Anchor: (Height: 20, Top: 8, Bottom: 2);
+                  Visible: false;
+                  Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                }
+                Group #DRequiresList { LayoutMode: Top; }
+
+                Label #DPartOfHeader {
+                  Text: "";
+                  Anchor: (Height: 20, Top: 8, Bottom: 2);
+                  Visible: false;
+                  Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                }
+                Group #DPartOfList { LayoutMode: Top; }
+
+                Label #DChainHeader {
+                  Text: "";
+                  Anchor: (Height: 20, Top: 8, Bottom: 2);
+                  Visible: false;
+                  Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                }
+                Group #DChainList { LayoutMode: Top; }
+
+                Label #DRewardsHeader {
+                  Text: "";
+                  Anchor: (Height: 20, Top: 8, Bottom: 2);
+                  Visible: false;
+                  Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2, TextColor: #ffd24a);
+                }
+                Group #DRewardsList { LayoutMode: Top; }
+
+                Group #DClaimRow {
+                  LayoutMode: Right;
+                  Anchor: (Height: 30, Top: 8);
+                  Visible: false;
+
+                  Button #DClaimBtn {
+                    Style: $Z.@ZigRichPrimaryBtnStyle;
+                    Anchor: (Width: 180, Height: 28);
+                    Label #Label {
+                      FlexWeight: 1;
+                      Text: "";
+                      Style: (FontSize: 12, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
 
-    // A one-line summary above the list (the achievement tab shows earned/total points here).
-    Label #Summary {
-      Text: "";
-      Visible: false;
-      Anchor: (Height: 20, Bottom: 6);
-      Style: (FontSize: 13, TextColor: #b6c9de, VerticalAlignment: Center);
-    }
+    // The third column: the tracked-quests panel on the quests tab, a consumer-painted column on
+    // the achievements tab. Hidden whole when the active tab has nothing to put in it.
+    Group #SidePanel {
+      Anchor: (Width: 320);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+      LayoutMode: Top;
+      Padding: (Full: 14);
 
-    Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
+      Group #QuestSideContent {
+        FlexWeight: 1;
+        LayoutMode: Top;
+        Visible: false;
 
-    Group #List {
-      FlexWeight: 1;
-      LayoutMode: TopScrolling;
-      ScrollbarStyle: $C.@DefaultScrollbarStyle;
-      Padding: (Right: 4);
-    }
+        Label #TrackedQuestHeader {
+          Text: "";
+          Anchor: (Height: 22, Bottom: 4);
+          Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+        }
 
-    Label #EmptyState {
-      Text: "";
-      Visible: false;
-      Anchor: (Height: 22, Top: 6);
-      Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+        $C.@ContentSeparator { Anchor: (Bottom: 8); }
+
+        Label #TrackedQuestsEmpty {
+          Text: "";
+          Visible: false;
+          Anchor: (Height: 40);
+          Style: (FontSize: 11, TextColor: #6a7a8e, Wrap: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+
+        Group #TrackedQuestsList {
+          FlexWeight: 1;
+          LayoutMode: TopScrolling;
+          ScrollbarStyle: $C.@DefaultScrollbarStyle;
+          Padding: (Right: 6);
+        }
+      }
+
+      Group #AchSideContent {
+        FlexWeight: 1;
+        LayoutMode: Top;
+        Visible: false;
+      }
     }
   }
 }

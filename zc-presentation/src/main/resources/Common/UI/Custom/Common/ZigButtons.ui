@@ -145,7 +145,7 @@ $C = "../Common.ui";
 
 // Blank-icon-slot fix: an ItemGrid with no Style renders nothing. This ladder gives every
 // ItemGrid in the library a ready-made style; a page picks the rung matching its own
-// ItemGrid's Anchor Width/Height (18, 20, 22, or 24). Imported per page as:
+// ItemGrid's Anchor Width/Height (18, 20, 22, 24, or 28). Imported per page as:
 // $Z = "../Common/ZigButtons.ui";  then  Style: $Z.@ZigIconGrid20;
 @ZigIconGrid18 = ItemGridStyle(
   SlotSize: 18,
@@ -204,6 +204,24 @@ $C = "../Common.ui";
 @ZigIconGrid24 = ItemGridStyle(
   SlotSize: 24,
   SlotIconSize: 22,
+  SlotSpacing: 0,
+  SlotBackground: "../Common/ContainerPanelPatch.png",
+  QuantityPopupSlotOverlay: "../Common/ContainerPanelPatch.png",
+  BrokenSlotBackgroundOverlay: "../Common/ContainerPanelPatch.png",
+  BrokenSlotIconOverlay: "../Common/ContainerPanelPatch.png",
+  DefaultItemIcon: "../Common/ContainerPanelPatch.png",
+  DurabilityBar: "../Common/ContainerPanelPatch.png",
+  DurabilityBarBackground: "../Common/ContainerPanelPatch.png",
+  DurabilityBarAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0),
+  DurabilityBarColorStart: #a63232,
+  DurabilityBarColorEnd: #63b649,
+  CursedIconPatch: "../Common/ContainerPanelPatch.png",
+  CursedIconAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0)
+);
+
+@ZigIconGrid28 = ItemGridStyle(
+  SlotSize: 28,
+  SlotIconSize: 24,
   SlotSpacing: 0,
   SlotBackground: "../Common/ContainerPanelPatch.png",
   QuantityPopupSlotOverlay: "../Common/ContainerPanelPatch.png",

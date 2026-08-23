@@ -63,6 +63,9 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
                 textOf(achievement, titleKey, flavorKey, displayName, titleArgs, flavorArgs,
                         criterionTextKeys),
                 achievement.serverFirst(), icon);
+        // The LISTING facts ride the runtime object too, so a shared browsing surface can group,
+        // sort and collapse a merged catalogue without a per-consumer definition lookup.
+        achievement = achievement.withListing(category, subcategory, sortOrder, chains);
     }
 
     /** The words this achievement carries, as the shared runtime object holds them. */

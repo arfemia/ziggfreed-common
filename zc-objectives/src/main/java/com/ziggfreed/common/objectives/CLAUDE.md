@@ -277,13 +277,15 @@ its own typed payload record to the dispatch, so a reaction reaches what the tup
 
 ## The book
 
-[`book/ObjectiveBookPage`](book/ObjectiveBookPage.java) is a `ToastablePage`: a Quests tab and an
-Achievements tab over THE shared runtime's merged catalogue, whoever authored each entry, with the
-minimal lifecycle affordances a page with no character in front of it can offer (accept an offered
-quest, collect a finished one, hand in a step). `book/ObjectiveBookOpenInteraction` (`Type` name `ZigOpenObjectiveBook`) is what opens it,
-registered from the wiring root; the shipped `Server/Item/Items/Consumables/Ziggfreed_Objective_Book.json`
-chains it off a short Charging hold. Nothing hands the item out: it is a `/give` or an authored
-reward, by design.
+[`book/ObjectiveBookPage`](book/ObjectiveBookPage.java) is the full-screen two-tab progression
+menu over THE shared runtime's merged catalogue, whoever authored each entry: the QUESTS tab is
+the whole quest log, the ACHIEVEMENTS tab a two-panel browser. `ObjectiveBookPage` is the host
+(frame, tab strip, consumer chrome, every verb and partial update); [`book/BookQuestsTab`](book/BookQuestsTab.java)
+and [`book/BookAchievementsTab`](book/BookAchievementsTab.java) paint the two surfaces.
+`book/ObjectiveBookOpenInteraction` (`Type` name `ZigOpenObjectiveBook`) opens it, registered from
+the wiring root; the shipped `Server/Item/Items/Consumables/Ziggfreed_Objective_Book.json` chains
+it off a short Charging hold. Nothing hands the item out: it is a `/give` or an authored reward,
+by design.
 
 - **It is not a second opinion about anybody's progress.** The engines, the SUBJECT and the display
   text all come from the runtime. The subject matters most: one built locally reads neutral through
@@ -294,12 +296,57 @@ reward, by design.
 - **It walks the ENGINE, not a pool**, and names each row through `ProgressionTextSource` (first
   non-null wins). A surface reading one mod's catalogue would render the rest of the merged list
   blank.
-- **An authored key is emitted through zc-core's `ContentKeys`, never as written.** `I18nModule`
-  namespaces a key by the `.lang` FILENAME it was defined in, and content authors the key without
-  that namespace, so a key handed over verbatim is one the client cannot resolve and the player
-  reads the key itself. `ProgressionDefaults`'s asset text source and `AchievementGrouping.label`
-  both ask that seam; `Msg.key` remains correct only for a fully-qualified id. A key no registered
-  consumer claims passes through exactly as authored, so a bare server is unchanged.
+- **The QUESTS tab** is category chips (a native `DropdownBox` once they overflow), a search field
+  with a native placeholder, a tag dropdown collected BEFORE the tag filter is applied (so it never
+  collapses to one entry), status chips (active = carried or ready to collect; available = offered
+  and takeable; completed = finished or waiting out a clock), then ONE scrolling region: the
+  pre-expanded Active section above the browse list. Rows expand in place and carry inline
+  objectives (order groups locked until earlier groups land, step headings between them), tag
+  chips coloured by the shared `ui/TagColors` table, a requirements line for a quest not yet taken
+  (the consumer's reading first, else the generic gate reading, else `LockReasons.bestLine`),
+  reward chips through the shared `RewardChips` reading, a compact native per-row progress bar,
+  and the accept / gold-claim / hand-in / abandon / track affordances. `#ActionBtn` is ONE
+  state-dispatched button (accept, or a gold Claim), pre-bound even while hidden, so a completing
+  hand-in morphs it in place with no re-bind.
+- **The ACHIEVEMENTS tab** is two panels. LEFT: category tabs with unlocked/total counts (feat-only
+  categories skipped), subcategory chips, search, sort (default / A-Z / progress) and status chips
+  over compact rows plus the earned-only feats section, each LADDER collapsed to the rung being
+  climbed (pinned rungs and a live search bypass the collapse). RIGHT: the selected achievement's
+  whole story - header, meta line, description, native progress bar, criteria, what a capstone
+  requires, what this feeds, the whole ladder, rewards with their auto / pending / claimed /
+  locked tags and the ONE claim button - or, while nothing is selected, the OVERVIEW: recent
+  unlocks, nearest-to-complete, pinned, the category completion grid, and the consumer's points
+  milestones. Selecting a row repaints the right panel alone.
+- **Scroll-preserving partial updates are the STANDARD** for accept, collect, hand-in, abandon,
+  track, pin, expand and select: the pattern is clear the repainted hosts, re-append, bind ONLY
+  the fresh elements in the partial update's own event builder, `sendUpdate(cmd, events, false)`.
+  A full reopen happens only where a partial cannot tell the truth: filter / search / sort / tab
+  changes, a cap or completion that re-ranks every row, and a board-managed quest dropping back to
+  not-started (its row must never flash an Accept the board owns).
+- **State model**: the FILTER state is stateless (every binding round-trips the full next state,
+  the live search text captured via `@SearchInput` on every one, so typed-but-unsubmitted text
+  survives any click); row expansion and the selected achievement are per-instance UI memory the
+  reopened instance is threaded, the same way the NPC quest page keeps its selection. EVERY exit
+  path sends a response, or the client spins forever.
+- **[`book/ObjectiveBookDeps`](book/ObjectiveBookDeps.java) is everything a consumer may say** and
+  nothing it must - every default leaves the book working on a bare server. The seams: the
+  `PageTheme` (now varargs over the inner panels, `#LeftPanel` + `#SidePanel`), a RAIL painter
+  over `#LeftPanel` (branding + navigation; the column hides when nothing paints it) and a SIDE
+  painter over the achievements tab's third column, both binding their controls back through
+  `Chrome.bindExt` to the one `ext` action channel the `ExtHandler` answers; board-managed-quest
+  presentation (the predicate, the substitute pills, the at-the-board hint - a managed quest lists
+  only while carried or ready to collect); the requirements line; tag labels; reward chips (the
+  shared `RewardChips.Source` shape); server-first claims (who claimed, is it the viewer); the
+  points-milestone ladder (`MilestoneView` list + a claim callback; an empty ladder hides the
+  block and the third header stat); accept/abandon feedback hooks (a FILLED seam owns those
+  announcements and the book's own accepted/abandoned toasts stand down, so one action is one
+  toast); and a quest-claim pre-check
+  (`QuestClaimPreCheck`, consulted before the engine's own claim call - a refusal Message stops the
+  claim cold and answers the client as an error toast, never reaching `engine.claim`). Registered
+  once via `ObjectiveBookPages.deps(Supplier)`; the narrow `theme(...)` registration keeps working
+  and is what the default theme falls through to.
+- **Status colours are the shared `ui/StatusTones`** (zc-presentation), the same six tones the NPC
+  quest list's dots read, so "ready", "in progress" and "locked" are one colour everywhere.
 - **`canDeliverTurnInAt(subject, quest, null)` is ALWAYS false**, so the hand-in button must not be
   gated on it (`readyToTurnInAt` refuses a null or blank place immediately). The book uses
   `firstActiveTurnIn(subject, quest, null)`, the documented "somewhere unlocked" form, then
@@ -308,41 +355,24 @@ reward, by design.
 - **Self-heal runs on every open**, before anything is read: it is what settles a standing-value
   step and what re-offers a repeatable whose cooldown has elapsed, so the list is never one open
   behind.
-- **Achievement rows sort by CATEGORY inside each lifecycle section and carry a HEADER per run**,
-  in the order the folded taxonomy declares, so a long list reads as combat things together and
-  gathering things together rather than alphabetically. A header's label is a three-rung ladder
-  (`AchievementGrouping.label`): an authored `TitleKey` first, because somebody said in so many
-  words what the group is called; else the `achievement.category.<id>` convention key the schema
-  points an author at; else the category id humanized (`boss_fights` reads as `Boss Fights`), since
-  an untranslated word a player can read beats a raw key they cannot. That last rung is what lets a
-  category ANOTHER mod folded and nothing describes still head its own run. Rank follows the same
-  shape: a described category reads where its file says, an undescribed one after every described
-  one, and content with NO category at all lands in one uncategorised bucket that reads last, with
-  a line of the page's own. A header is budgeted together with the row it heads, so a list cut
-  short by the row cap never ends on a heading with nothing under it.
-- **A quest waiting out a cooldown is drawn in the locked section**, with the line its refusal names.
-  Leaving it out makes a daily disappear between runs, which reads as content having been taken away
-  rather than as a wait.
-- **Only THREE accept refusals have a line of their own**, and that is a rule rather than an
-  oversight: those three are the ones a player can act on. A key nothing can usefully say is a key
-  nine translators maintain for nobody. Anything else - a spent calendar window, a spent lifetime
-  cap, a gate evaluator's own reason - reads as the generic line rather than leaking a token at a
-  player.
-- **An authored key's `TextArgs` are passed to the message, never dropped.** A ladder is usually one
-  translated line per rung with the number coming from `TextArgs`, so resolving the key without them
-  empties that slot everywhere at once while the content file still reads as correct. The args are
-  BOUND ONCE where the content is folded, onto `progress/ContentText`, because everything they can
-  say is fixed per row; the text source (`ProgressionDefaults.RuntimeText`) just reads the runtime
-  object. `@amount` is answered with the first step's amount, grouped, as a RAW value, since a digit
-  needs no translating.
-- **STATELESS across events.** Every binding round-trips the full next state and `handleDataEvent`
-  reopens the page with it; EVERY exit path sends a response, or the client spins forever.
-- **`.ui` contract**: `Pages/ZigObjectiveBookPage.ui` plus the appended `Pages/ZigObjectiveRow.ui`.
-  A row's four step slots (`#StepRow0..3` / `#Step0..3` / `#StepProgress0..3`) are FIXED because an
-  update can restyle an element that exists but never add one, so `MAX_STEPS` in Java MUST match the
-  slot count; anything past it is summarised by `#StepMore`. All text is pushed on `.TextSpans`
-  (a `.Text` sink neither substitutes `{0}` nor renders markup), and both tabs plus the row action
-  are `Button` + inner `#Label` driven by `ZigRichButton`, never a `TextButton`.
+- **An authored key is emitted through zc-core's `ContentKeys`, never as written** (via the
+  registered text sources and `AchievementGrouping.label`); a category header's label ladder and
+  rank rules live in `book/AchievementGrouping`, unchanged: an authored `TitleKey`, else the
+  `achievement.category.<id>` convention key, else the id humanized, with undescribed categories
+  after described ones and the uncategorised bucket last, on a line of the page's own.
+- **`.ui` contract**: `Pages/ZigObjectiveBookPage.ui` is the frame (the `Padding: (Full: 12)` on
+  `#Content` is load-bearing: at 0 the `#LeftPanel`/`#SidePanel` bevels stack against the frame
+  bevel and read as heavy shadow), plus the appended row family: `ZigQuestLogRow.ui` (a quest),
+  `ZigBookObjectiveRow.ui` (one objective line, restyled for step headings), `ZigBookTagChip.ui`,
+  `ZigBookCatTab.ui` / `ZigBookWideTab.ui` (filter chips, narrow and name+count), `ZigAchListRow.ui`
+  (a compact achievement, reused by the overview's recent / nearest / pinned blocks),
+  `ZigAchChipRow.ui` (a related-achievement chip), `ZigAchCriterionRow.ui`,
+  `ZigAchCategoryCard.ui`, `ZigMilestoneCard.ui` and `ZigBookRewardRow.ui` (one reward line,
+  shared by quest rows, the detail column and milestone cards). All text is pushed on `.TextSpans`
+  (a `.Text` sink neither substitutes `{0}` nor renders markup; the expand toggle's bare glyph
+  goes through `UiText.setText`), every labeled button is a `Button` + inner `#Label` driven by
+  `ZigRichButton`, and the pin / track glyph is BAKED in the template (Java toggles the off/on
+  variants and retints the pill; a TexturePath pushed from Java renders a red X).
 - **Keys** live in `Server/Languages/<locale>/ziggfreedcommon.progression.lang` (in-file keys drop
   the `progression.` segment the filename carries) and the item's name/description in the sibling
   `items.lang`. All nine locales; see [`i18n/CLAUDE.md`](../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/i18n/CLAUDE.md)

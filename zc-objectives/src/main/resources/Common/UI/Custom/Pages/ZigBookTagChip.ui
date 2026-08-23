@@ -1,0 +1,14 @@
+// One tag chip on a quest-log row (appended into #TagsRow). The page sets the chip's
+// .Background and #TagText colour per tag from the shared deterministic table, so the same tag
+// reads the same colour everywhere.
+
+Group #ZigBookTagChip {
+  Anchor: (Height: 18);
+  Padding: (Left: 6, Right: 6, Top: 2, Bottom: 4);
+  Background: #1a2a3a;
+
+  Label #TagText {
+    Text: "";
+    Style: (FontSize: 10, TextColor: #6a8aaa, VerticalAlignment: Center);
+  }
+}

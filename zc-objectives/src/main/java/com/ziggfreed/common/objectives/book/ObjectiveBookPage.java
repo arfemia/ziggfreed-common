@@ -1,10 +1,7 @@
 package com.ziggfreed.common.objectives.book;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
-import java.util.function.Function;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -16,11 +13,6 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.ui.Anchor;
-import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
-import com.hypixel.hytale.server.core.ui.ItemGridSlot;
-import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -29,45 +21,47 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
-import com.ziggfreed.common.achievement.AchievementStatus;
-import com.ziggfreed.common.achievement.asset.AchievementCategoryConfig;
 import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.objectives.book.AchievementGrouping.HeaderWalk;
-import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
+import com.ziggfreed.common.objectives.hud.TrackedQuestPanelRenderer;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
-import com.ziggfreed.common.objectives.questlist.LockReasons;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
-import com.ziggfreed.common.progress.runtime.ProgressionTextSource;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
-import com.ziggfreed.common.ui.SettingsUiUtil;
+import com.ziggfreed.common.ui.StatusTones;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.i18n.NativeNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The Objective Book: a two-tab menu (quests, achievements) over THE shared progression runtime.
+ * The Objective Book: the full-screen two-tab progression menu (quests, achievements) over THE
+ * shared progression runtime. The quests tab is the quest log - category / search / tag / status
+ * filters, a pre-expanded Active section over the browse list, per-row expand, accept / claim /
+ * hand-in / abandon / track, and the tracked-quests side panel. The achievements tab is a
+ * two-panel browser - a filter strip and compact rows on the left, the selected achievement's
+ * whole story on the right, and an overview (recent, nearest, pinned, categories, milestones)
+ * filling the right panel while nothing is selected.
  *
- * <p>It reads the one merged catalogue, whoever authored each entry, and offers the minimal
- * lifecycle affordances a book can offer without a character in front of the player: take on an
- * offered quest, collect a finished one, and hand in a step that is not locked to somebody.
- * Achievements are always on, so they only ever need collecting.
+ * <p>It reads the one merged catalogue, whoever authored each entry, and every mutating call is
+ * wrapped in the registered {@link ProgressionCallScope} - so a quest claimed here fires exactly
+ * what the owning mod's own menu would have fired. What the library cannot know - a consumer's
+ * menu rail, its board-managed quests, its milestone ladder, who claimed a server-first - rides
+ * {@link ObjectiveBookDeps}, and every seam's default leaves the book working on a bare server.
  *
- * <p><b>It is not a second opinion about anybody's progress.</b> The engines, the subject and the
- * display text all come from the runtime, and every mutating call is wrapped in the registered
- * {@link com.ziggfreed.common.progress.runtime.ProgressionCallScope} - so a quest claimed here fires
- * exactly what the owning mod's own menu would have fired, down to the toast.
- *
- * <p>STATELESS across events, the same contract the shared leaderboard page keeps: every binding
- * round-trips the full next state, {@link #handleDataEvent} reopens the page with it, and every
- * exit path sends a response (a path that does not leaves the client spinning forever).
+ * <p><b>State model.</b> The FILTER state is stateless across events: every binding round-trips
+ * the full next state (the live search text captured on every one), and {@link #handleDataEvent}
+ * reopens the page with it. Two things are per-instance UI memory instead, the way the NPC quest
+ * page keeps its selection: which browse rows are expanded, and which achievement is selected -
+ * both exist so a partial update can answer a click without asking the client what it shows, and
+ * both are threaded into the reopened instance so a filter click does not lose them. EVERY exit
+ * path sends a response; one that does not leaves the client spinning forever.
  */
 public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventData> {
 
@@ -77,9 +71,18 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     /** The achievements tab id. */
     public static final String TAB_ACHIEVEMENTS = "achievements";
 
-    private static final String PAGE_TEMPLATE = "Pages/ZigObjectiveBookPage.ui";
-    private static final String ROW_TEMPLATE = "Pages/ZigObjectiveRow.ui";
-    private static final String FILTER_BUTTON_TEMPLATE = "Pages/ZigBookFilterBtn.ui";
+    static final String PAGE_TEMPLATE = "Pages/ZigObjectiveBookPage.ui";
+    static final String QUEST_ROW_TEMPLATE = "Pages/ZigQuestLogRow.ui";
+    static final String OBJECTIVE_ROW_TEMPLATE = "Pages/ZigBookObjectiveRow.ui";
+    static final String TAG_CHIP_TEMPLATE = "Pages/ZigBookTagChip.ui";
+    static final String CAT_TAB_TEMPLATE = "Pages/ZigBookCatTab.ui";
+    static final String WIDE_TAB_TEMPLATE = "Pages/ZigBookWideTab.ui";
+    static final String ACH_ROW_TEMPLATE = "Pages/ZigAchListRow.ui";
+    static final String ACH_CHIP_TEMPLATE = "Pages/ZigAchChipRow.ui";
+    static final String ACH_CRITERION_TEMPLATE = "Pages/ZigAchCriterionRow.ui";
+    static final String ACH_CATEGORY_CARD_TEMPLATE = "Pages/ZigAchCategoryCard.ui";
+    static final String MILESTONE_TEMPLATE = "Pages/ZigMilestoneCard.ui";
+    static final String REWARD_ROW_TEMPLATE = "Pages/ZigBookRewardRow.ui";
 
     /** This library's own lang namespace; {@link Msg#tr} concatenates it with the key verbatim. */
     private static final String PREFIX = "ziggfreedcommon.";
@@ -87,71 +90,46 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     /** The domain segment every key on this page carries (the {@code ziggfreedcommon.progression.lang} file). */
     private static final String DOMAIN = "progression.";
 
-    /** Step slots baked into {@code ZigObjectiveRow.ui}; anything past this is summarised. */
-    private static final int MAX_STEPS = 4;
+    /** A hard ceiling on rendered rows per list, so a huge catalogue cannot build an unbounded page. */
+    static final int MAX_ROWS = 200;
 
-    /** A hard ceiling on rendered rows, so a very large catalogue cannot build an unbounded page. */
-    private static final int MAX_ROWS = 200;
+    /** Category chips beyond this collapse into the native dropdown instead of overflowing the strip. */
+    static final int MAX_CATEGORY_CHIPS = 6;
 
-    /** Pixel width of a row's progress track, matching the row template's usable width. */
-    private static final int BAR_WIDTH = 700;
+    // The book's own tab strip contrast, shared with the leaderboard page's treatment.
+    private static final String TAB_ACTIVE_TINT = "#5e86bd";
+    private static final String TAB_ACTIVE_HOVER = "#6f97cf";
+    private static final String TAB_ACTIVE_TEXT = "#ffffff";
+    private static final String TAB_INACTIVE_TINT = "#2f3b49";
+    private static final String TAB_INACTIVE_HOVER = "#445364";
+    private static final String TAB_INACTIVE_TEXT = "#9fb0c2";
 
-    private static final int BAR_HEIGHT = 4;
+    /** The selected achievement row's tint, and the resting row fill it swaps against. */
+    static final String ROW_SELECTED_TINT = "#1a2d44";
+    static final String ROW_TINT = "#1a2233";
 
-    // Active/inactive tab contrast, the same treatment the shared leaderboard page uses.
-    private static final String ACTIVE_TINT = "#5e86bd";
-    private static final String ACTIVE_HOVER = "#6f97cf";
-    private static final String ACTIVE_TEXT = "#ffffff";
-    private static final String INACTIVE_TINT = "#2f3b49";
-    private static final String INACTIVE_HOVER = "#445364";
-    private static final String INACTIVE_TEXT = "#9fb0c2";
-    private static final String HEADER_TINT = "#1e2a36";
-    private static final String HEADER_TEXT = "#8696a8";
-    // The category tier sits INSIDE a lifecycle heading, so it is drawn quieter than one: a row
-    // template has no indent to give, and contrast is what is left to say "this is a sub-heading".
-    private static final String SUBHEADER_TINT = "#18212b";
-    private static final String SUBHEADER_TEXT = "#6c7c8e";
-
-    /**
-     * Where a quest sits for this player, which is also the order the sections render in.
-     * {@code DONE} (finished and collected) is classified but shown ONLY under the "completed"
-     * status filter: the default view stays what the player can still act on, while the filter is
-     * where "what have I finished" has a place to be answered.
-     */
-    private enum QuestSection { ACTIVE, READY, AVAILABLE, LOCKED, DONE }
-
-    /** Where an achievement sits for this player, which is also the order the sections render in. */
-    private enum AchievementSection { READY, IN_PROGRESS, EARNED }
-
-    /** One painted quest line: the engine's quest plus the text the runtime resolved for it. */
-    private record QuestRow(@Nonnull Quest quest, @Nonnull Message name, @Nullable Message flavor,
-                            @Nonnull QuestSection section, @Nonnull List<String> lockReasons) {
-    }
-
-    /**
-     * One achievement's row. {@code category} and {@code categoryRank} are read once, at build, and
-     * carried on the row: they are what makes a list of forty achievements read as combat things
-     * together and gathering things together, in the order the taxonomy declares, instead of
-     * alphabetically, and each run of them carries a header naming the group. Content belonging to
-     * no category, and content another mod folded (whose category this library cannot see), share
-     * ONE bucket that reads after every named group rather than in front of them.
-     */
-    private record AchievementRow(@Nonnull Achievement achievement, @Nonnull Message name,
-                                  @Nullable Message flavor, @Nonnull AchievementSection section,
-                                  @Nonnull String category, int categoryRank) {
-    }
-
-    /** The category / status value meaning "no filter"; never rendered, only compared. */
-    private static final String FILTER_ALL = "all";
-
-    /** The status-filter values, in the order their buttons render. */
-    private static final String[] STATUS_FILTERS = {FILTER_ALL, "active", "available", "completed"};
+    /** The category / status / sort value meaning "no filter"; never rendered, only compared. */
+    static final String FILTER_ALL = "all";
 
     private final String tab;
     @Nonnull private final String filterCategory;
     @Nonnull private final String filterStatus;
     @Nonnull private final String searchText;
     @Nonnull private final String filterTag;
+    @Nonnull private final String filterSubcategory;
+    @Nonnull private final String sortMode;
+
+    /** The achievement the detail column shows; per-instance, threaded through reopens. */
+    @Nullable private String selectedId;
+
+    /** The selected list row's selector, so a partial selection swap can untint the old row. */
+    @Nullable private String selectedRowSel;
+
+    /** Which browse rows are open; per-instance UI memory, exactly what a partial toggle needs. */
+    private final Set<String> expandedQuestIds = new HashSet<>();
+
+    /** The deps resolved for THIS open, so build and its partial updates read one consistent set. */
+    @Nonnull private ObjectiveBookDeps deps = ObjectiveBookDeps.DEFAULTS;
 
     /** Open the book on the quests tab. */
     public ObjectiveBookPage(@Nonnull PlayerRef playerRef) {
@@ -162,10 +140,19 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         this(playerRef, tab, null, null, null, null);
     }
 
-    /** The full-state form every filter binding round-trips; null filters mean "off". */
+    /** The quests-tab full-state form; null filters mean "off". */
     public ObjectiveBookPage(@Nonnull PlayerRef playerRef, @Nullable String tab,
                              @Nullable String filterCategory, @Nullable String filterStatus,
                              @Nullable String searchText, @Nullable String filterTag) {
+        this(playerRef, tab, filterCategory, filterStatus, searchText, filterTag, null, null, null);
+    }
+
+    /** The whole-state form every filter binding round-trips. */
+    public ObjectiveBookPage(@Nonnull PlayerRef playerRef, @Nullable String tab,
+                             @Nullable String filterCategory, @Nullable String filterStatus,
+                             @Nullable String searchText, @Nullable String filterTag,
+                             @Nullable String filterSubcategory, @Nullable String sortMode,
+                             @Nullable String selectedId) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction,
                 ObjectiveBookEventData.CODEC);
         this.tab = TAB_ACHIEVEMENTS.equals(tab) ? TAB_ACHIEVEMENTS : TAB_QUESTS;
@@ -173,6 +160,9 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         this.filterStatus = normalizeFilter(filterStatus);
         this.searchText = searchText == null ? "" : searchText.trim();
         this.filterTag = filterTag == null ? "" : filterTag.trim();
+        this.filterSubcategory = filterSubcategory == null ? "" : filterSubcategory.trim();
+        this.sortMode = sortMode == null || sortMode.isBlank() ? "" : sortMode.trim();
+        this.selectedId = selectedId == null || selectedId.isBlank() ? null : selectedId.trim();
     }
 
     @Nonnull
@@ -180,17 +170,80 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         return value == null || value.isBlank() ? FILTER_ALL : value.trim();
     }
 
+    // ==================== state reads for the tab renderers ====================
+
+    @Nonnull
+    String filterCategory() {
+        return filterCategory;
+    }
+
+    @Nonnull
+    String filterStatus() {
+        return filterStatus;
+    }
+
+    @Nonnull
+    String searchText() {
+        return searchText;
+    }
+
+    @Nonnull
+    String filterTag() {
+        return filterTag;
+    }
+
+    @Nonnull
+    String filterSubcategory() {
+        return filterSubcategory;
+    }
+
+    @Nonnull
+    String sortMode() {
+        return sortMode;
+    }
+
+    @Nullable
+    String selectedId() {
+        return selectedId;
+    }
+
+    void rememberSelectedRow(@Nullable String rowSelector) {
+        this.selectedRowSel = rowSelector;
+    }
+
+    @Nonnull
+    Set<String> expandedQuestIds() {
+        return expandedQuestIds;
+    }
+
+    @Nonnull
+    ObjectiveBookDeps deps() {
+        return deps;
+    }
+
+    @Nonnull
+    PlayerRef viewer() {
+        return playerRef;
+    }
+
+    /** A tab renderer's way to send a partial update; the base method is not its to call. */
+    void pushUpdate(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
+        this.sendUpdate(cmd, events, false);
+    }
+
     // ==================== build ====================
 
     @Override
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
                       @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
+        deps = ObjectiveBookPages.resolvedDeps();
         appendTemplate(cmd);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton",
                 EventData.of("Action", "close"));
-        cmd.set("#Title.TextSpans", text("book.title"));
 
         boolean achievementsTab = TAB_ACHIEVEMENTS.equals(tab);
+        cmd.set("#PanelTitle.TextSpans",
+                text(achievementsTab ? "book.tab.achievements" : "book.tab.quests"));
         ZigRichButton.text(cmd, "#TabQuests", text("book.tab.quests"));
         ZigRichButton.text(cmd, "#TabAchievements", text("book.tab.achievements"));
         bindTab(events, "#TabQuests", TAB_QUESTS);
@@ -198,42 +251,76 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         styleTab(cmd, "#TabQuests", !achievementsTab);
         styleTab(cmd, "#TabAchievements", achievementsTab);
 
+        Player player = store.getComponent(ref, Player.getComponentType());
+
+        // Consumer chrome: the rail, and (on the achievements tab) the side column. Painted before
+        // the tab body so a painter's title suppression wins over the default title above.
+        if (player != null) {
+            ObjectiveBookDeps.Chrome chrome = new ObjectiveBookDeps.Chrome(cmd, events, store, ref,
+                    player, tab, (selector, extId) ->
+                            events.addEventBinding(CustomUIEventBindingType.Activating, selector,
+                                    fullState("ext").append("Id", extId), false));
+            boolean railPainted = deps.paintGuarded(deps.railPainter(), chrome, "rail");
+            cmd.set("#LeftPanel.Visible", railPainted);
+            if (achievementsTab) {
+                boolean sidePainted = deps.paintGuarded(deps.sidePanelPainter(), chrome, "side panel");
+                cmd.set("#SidePanel.Visible", sidePainted);
+                cmd.set("#AchSideContent.Visible", sidePainted);
+            }
+        } else {
+            cmd.set("#LeftPanel.Visible", false);
+            if (achievementsTab) {
+                cmd.set("#SidePanel.Visible", false);
+            }
+        }
+
+        cmd.set(achievementsTab ? "#AchievementsTab.Visible" : "#QuestsTab.Visible", true);
+
         QuestEngine questEngine = ProgressionRuntime.quests();
         AchievementEngine achievementEngine = ProgressionRuntime.achievements();
-        // The subject comes from the runtime, never built here: with somebody else's store active, a
-        // subject carrying the wrong handle reads neutral and drops every write, so an accept or a
-        // claim from this page would silently do nothing at all.
+        // The subject comes from the runtime, never built here: with somebody else's store active,
+        // a subject carrying the wrong handle reads neutral and drops every write, so an accept or
+        // a claim from this page would silently do nothing at all.
         Subject subject = subjectFor(store, ref, achievementsTab);
         if (subject == null) {
-            cmd.set("#Summary.Visible", false);
-            showEmpty(cmd, emptyText());
+            cmd.set(achievementsTab ? "#AEmptyMessage.Visible" : "#QEmptyMessage.Visible", true);
+            cmd.set(achievementsTab ? "#AEmptyMessage.TextSpans" : "#QEmptyMessage.TextSpans",
+                    text(achievementsTab ? "book.empty.achievements" : "book.empty.quests"));
+            if (!achievementsTab) {
+                cmd.set("#SidePanel.Visible", false);
+            }
             renderToastInto(cmd);
             return;
         }
 
-        // Both engines document self-heal as "whenever a surface opens": it is what settles a
-        // standing-value step and what re-offers a repeatable whose cooldown has elapsed, so the
-        // list below is read AFTER it rather than one open behind.
+        // Both engines document self-heal as "whenever a surface opens": it settles a
+        // standing-value step and re-offers a repeatable whose cooldown has elapsed, so the lists
+        // below read current rather than one open behind.
         selfHeal(questEngine, achievementEngine, subject);
 
-        int rows = achievementsTab
-                ? renderAchievements(cmd, events, subject, achievementEngine)
-                : renderQuests(cmd, events, subject, questEngine);
-        if (rows == 0) {
-            showEmpty(cmd, emptyText());
+        if (achievementsTab) {
+            BookAchievementsTab.render(this, cmd, events, store, ref, subject, achievementEngine);
+        } else {
+            cmd.set("#QuestSideContent.Visible", true);
+            cmd.set("#TrackedQuestHeader.TextSpans", text("book.quests.tracked_header"));
+            // Pre-allocates the engine's tracked-slot rows so a later partial update can repaint
+            // them by index; rows, progress and the empty note come from the one shared panel
+            // renderer, reading the same runtime the HUD reads.
+            TrackedQuestPanelRenderer.render(cmd, null, subject, true, null);
+            BookQuestsTab.render(this, cmd, events, subject, questEngine);
         }
         renderToastInto(cmd);
     }
 
     /**
-     * Get the page's markup onto the screen, through a consumer's theme where there is one.
+     * Get the page's markup onto the screen, through the consumer's theme where there is one.
      * Guarded with the plain append as the fallback: a theme is decoration, and a decoration that
      * throws must not cost the player the whole screen. A theme that threw AFTER appending would
      * append twice, so the retry only runs when nothing landed.
      */
-    private static void appendTemplate(@Nonnull UICommandBuilder cmd) {
+    private void appendTemplate(@Nonnull UICommandBuilder cmd) {
         try {
-            ObjectiveBookPages.resolvedTheme().appendThemed(cmd, PAGE_TEMPLATE, "#Content");
+            deps.theme().appendThemed(cmd, PAGE_TEMPLATE, "#LeftPanel", "#SidePanel");
             return;
         } catch (Throwable t) {
             SafeLog.warn("[progression] a page theme failed, so the objective book renders plain: "
@@ -252,707 +339,92 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         }
     }
 
-    // ==================== quests ====================
+    // ==================== shared painting helpers ====================
 
-    private int renderQuests(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                             @Nonnull Subject subject, @Nonnull QuestEngine engine) {
-        cmd.set("#Summary.Visible", false);
-
-        List<QuestRow> entries = new ArrayList<>();
-        for (Quest quest : engine.quests()) {
-            QuestSection section = sectionFor(subject, engine, quest);
-            if (section == null) {
-                continue;
-            }
-            if (!matchesFilters(quest, section)) {
-                continue;
-            }
-            List<String> lockReasons = section == QuestSection.LOCKED
-                    ? engine.canAccept(subject, quest).reasons() : List.of();
-            entries.add(new QuestRow(quest,
-                    nameOf(quest.id(), "book.quests.untitled"),
-                    flavorOf(quest.id()), section, lockReasons));
-        }
-        entries.sort(Comparator.comparingInt((QuestRow r) -> r.section().ordinal())
-                .thenComparingInt(r -> r.quest().listOrder())
-                .thenComparing(r -> r.quest().id()));
-        renderFilterBar(cmd, events, subject, engine);
-
-        int index = 0;
-        HeaderWalk<QuestSection> walk = new HeaderWalk<>();
-        for (QuestRow entry : entries) {
-            boolean opensSection = walk.enterSection(entry.section());
-            // The header and the row it heads are budgeted TOGETHER, so a list cut short by the row
-            // ceiling never ends on a heading with nothing under it.
-            if (index + (opensSection ? 1 : 0) >= MAX_ROWS) {
-                break;
-            }
-            if (opensSection) {
-                index = appendHeader(cmd, index, questSectionText(entry.section()),
-                        HEADER_TINT, HEADER_TEXT);
-            }
-            index = appendQuestRow(cmd, events, index, subject, engine, entry);
-        }
-        return index;
-    }
-
-    /** Where this quest sits for this player, or null when it does not belong on the list at all. */
-    @Nullable
-    private static QuestSection sectionFor(@Nonnull Subject subject, @Nonnull QuestEngine engine,
-                                           @Nonnull Quest quest) {
-        QuestStatus status = engine.status(subject, quest);
-        if (status == QuestStatus.ACTIVE) {
-            return QuestSection.ACTIVE;
-        }
-        if (status == QuestStatus.COMPLETED_UNCLAIMED) {
-            return QuestSection.READY;
-        }
-        if (status == QuestStatus.NOT_STARTED && engine.isVisible(subject, quest)) {
-            return engine.canAccept(subject, quest).allowed()
-                    ? QuestSection.AVAILABLE : QuestSection.LOCKED;
-        }
-        // A repeatable waiting out its clock is still the player's quest. Leaving it out entirely
-        // would make a daily disappear from the book between runs, which reads as content having
-        // been taken away rather than as a wait.
-        if (status == QuestStatus.ON_COOLDOWN) {
-            return QuestSection.LOCKED;
-        }
-        // Finished for good. Classified so the "completed" filter can list it; the default view
-        // leaves it out (see QuestSection).
-        return status == QuestStatus.COMPLETED ? QuestSection.DONE : null;
-    }
-
-    // ==================== the quest-list filter bar ====================
-
-    /**
-     * The filter bar over the quest list: category buttons, a search field, a tag dropdown and
-     * the status filters, every control binding the FULL next state so no click loses another
-     * filter. Rendered only on the quests tab; the achievements tab hides the whole bar.
-     */
-    private void renderFilterBar(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                                 @Nonnull Subject subject, @Nonnull QuestEngine engine) {
-        cmd.set("#FilterBar.Visible", true);
-
-        // Category buttons: "All" first, then every category the player's visible quests carry,
-        // sorted so two mods' content interleaves stably.
-        List<String> categories = new ArrayList<>();
-        List<String> tags = new ArrayList<>();
-        for (Quest quest : engine.quests()) {
-            QuestSection section = sectionFor(subject, engine, quest);
-            if (section == null) {
-                continue;
-            }
-            String category = quest.category();
-            if (category != null && !containsIgnoreCase(categories, category)) {
-                categories.add(category);
-            }
-            for (String tag : quest.tags()) {
-                if (!containsIgnoreCase(tags, tag)) {
-                    tags.add(tag);
-                }
-            }
-        }
-        categories.sort(String.CASE_INSENSITIVE_ORDER);
-        tags.sort(String.CASE_INSENSITIVE_ORDER);
-
-        int index = appendFilterButton(cmd, events, "#CategoryBar", 0,
-                text("book.quests.filter.all"), FILTER_ALL.equalsIgnoreCase(filterCategory),
-                "category", FILTER_ALL);
-        for (String category : categories) {
-            index = appendFilterButton(cmd, events, "#CategoryBar", index,
-                    categoryLabel(category), category.equalsIgnoreCase(filterCategory),
-                    "category", category);
-        }
-
-        // The search field: the button captures the live field value at click, so what was typed
-        // is what runs, with no per-keystroke traffic.
-        cmd.set("#SearchField.Value", searchText);
-        events.addEventBinding(CustomUIEventBindingType.Activating, "#SearchBtn",
-                fullState("search").append("@SearchInput", "#SearchField.Value"), false);
-        ZigRichButton.text(cmd, "#SearchBtn", text("book.quests.filter.search"));
-        if (!searchText.isEmpty()) {
-            cmd.set("#ClearSearchBtn.Visible", true);
-            ZigRichButton.text(cmd, "#ClearSearchBtn", text("book.quests.filter.clear"));
-            events.addEventBinding(CustomUIEventBindingType.Activating, "#ClearSearchBtn",
-                    fullState("clear_search"), false);
-        }
-
-        // The tag dropdown. Entries are the tags on the player's visible quests; labels are the
-        // authored tags themselves (free labels, data by contract) behind one localized "all" row
-        // flattened to the default language - a dropdown entry is a String-only sink.
-        List<DropdownEntryInfo> tagEntries = new ArrayList<>(tags.size() + 1);
-        tagEntries.add(SettingsUiUtil.entry(UiText.flatten(text("book.quests.filter.all_tags")), ""));
-        for (String tag : tags) {
-            tagEntries.add(SettingsUiUtil.entry(tag, tag));
-        }
-        SettingsUiUtil.populate(cmd, "#TagFilter", tagEntries, filterTag.isEmpty() ? null : filterTag);
-        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#TagFilter",
-                fullState("tag").append("@DropdownValue", "#TagFilter.Value"), false);
-
-        // Status filters, appended with the same button template the categories use.
-        int statusIndex = 0;
-        for (String status : STATUS_FILTERS) {
-            statusIndex = appendFilterButton(cmd, events, "#StatusBar", statusIndex,
-                    statusLabel(status), status.equalsIgnoreCase(filterStatus), "status", status);
-        }
-    }
-
-    /** One filter button: append the shared template, label it, tint it, bind the full state. */
-    private int appendFilterButton(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                                   @Nonnull String container, int index, @Nonnull Message label,
-                                   boolean active, @Nonnull String action, @Nonnull String value) {
-        cmd.append(container, FILTER_BUTTON_TEMPLATE);
-        String sel = container + "[" + index + "]";
-        ZigRichButton.text(cmd, sel, label);
-        styleTab(cmd, sel, active);
-        events.addEventBinding(CustomUIEventBindingType.Activating, sel,
-                fullState(action).append("Id", value), false);
-        return index + 1;
+    @Nonnull
+    Message text(@Nonnull String key, @Nonnull Object... args) {
+        return Msg.tr(PREFIX, DOMAIN + key, args);
     }
 
     /**
-     * A category's label: the three the library itself keys are localized, anything else renders
-     * its authored id prettified - a pack's own category is its own vocabulary, the same contract
-     * tags carry, and a wrong localized guess would read as a name somebody chose.
+     * Every binding carries the WHOLE filter state - plus the live search-field text - so no click
+     * resets what the player had narrowed a list to, and typed-but-unsubmitted search text
+     * survives any action.
      */
     @Nonnull
-    private Message categoryLabel(@Nonnull String category) {
-        String id = category.toLowerCase(Locale.ROOT);
-        if ("main".equals(id) || "daily".equals(id) || "misc".equals(id)) {
-            return text("book.quests.category." + id);
-        }
-        return Msg.raw(prettify(category));
-    }
-
-    @Nonnull
-    private Message statusLabel(@Nonnull String status) {
-        return FILTER_ALL.equalsIgnoreCase(status)
-                ? text("book.quests.filter.all")
-                : text("book.quests.filter.status." + status.toLowerCase(Locale.ROOT));
-    }
-
-    /** {@code "wilds_side"} reads as {@code "Wilds Side"}: word breaks on {@code _-}, title case. */
-    @Nonnull
-    private static String prettify(@Nonnull String id) {
-        StringBuilder out = new StringBuilder(id.length());
-        boolean startWord = true;
-        for (char c : id.toCharArray()) {
-            if (c == '_' || c == '-') {
-                out.append(' ');
-                startWord = true;
-            } else {
-                out.append(startWord ? Character.toUpperCase(c) : c);
-                startWord = false;
-            }
-        }
-        return out.toString();
-    }
-
-    private static boolean containsIgnoreCase(@Nonnull List<String> list, @Nonnull String value) {
-        for (String entry : list) {
-            if (entry.equalsIgnoreCase(value)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Every binding carries the WHOLE filter state, so no click - a filter, an action button, a
-     * tab switch - resets what the player had narrowed the list to.
-     */
-    @Nonnull
-    private EventData fullState(@Nonnull String action) {
+    EventData fullState(@Nonnull String action) {
         return fullState(action, tab);
     }
 
     /** {@link #fullState(String)} with the tab overridden - the tab buttons' own form. */
     @Nonnull
-    private EventData fullState(@Nonnull String action, @Nonnull String forTab) {
+    EventData fullState(@Nonnull String action, @Nonnull String forTab) {
         return EventData.of("Action", action)
                 .append("Tab", forTab)
                 .append("Category", filterCategory)
                 .append("Status", filterStatus)
                 .append("Search", searchText)
-                .append("Tag", filterTag);
+                .append("Tag", filterTag)
+                .append("Subcategory", filterSubcategory)
+                .append("Sort", sortMode)
+                .append("@SearchInput", activeSearchField() + ".Value");
     }
 
-    /** Does this quest survive the four quest-list filters in force? */
-    private boolean matchesFilters(@Nonnull Quest quest, @Nonnull QuestSection section) {
-        // The completed filter shows ONLY finished quests, and no other view shows any of them.
-        boolean wantDone = "completed".equalsIgnoreCase(filterStatus);
-        if (section == QuestSection.DONE) {
-            if (!wantDone) {
-                return false;
-            }
-        } else if (wantDone) {
-            return false;
-        }
-        if (!FILTER_ALL.equalsIgnoreCase(filterCategory)
-                && !filterCategory.equalsIgnoreCase(quest.category())) {
-            return false;
-        }
-        if ("active".equalsIgnoreCase(filterStatus)
-                && section != QuestSection.ACTIVE && section != QuestSection.READY) {
-            return false;
-        }
-        if ("available".equalsIgnoreCase(filterStatus) && section != QuestSection.AVAILABLE) {
-            return false;
-        }
-        if (!filterTag.isEmpty() && !quest.hasTag(filterTag)) {
-            return false;
-        }
-        if (!searchText.isEmpty()) {
-            String needle = searchText.toLowerCase(Locale.ROOT);
-            if (!searchHaystack(quest).contains(needle)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * The text a search matches against: the title and flavor FLATTENED to the server's default
-     * language plus the raw tags. A String contains-check, not display - display stays
-     * client-resolved everywhere; a per-player-locale search would need the server to know a
-     * locale it deliberately never reads.
-     */
+    /** The active tab's search field, the one whose live text every binding captures. */
     @Nonnull
-    private static String searchHaystack(@Nonnull Quest quest) {
-        StringBuilder hay = new StringBuilder();
-        hay.append(UiText.flatten(ask(source -> source.title(quest.id())))).append('\n');
-        hay.append(UiText.flatten(ask(source -> source.flavor(quest.id())))).append('\n');
-        for (String tag : quest.tags()) {
-            hay.append(tag).append('\n');
-        }
-        return hay.toString().toLowerCase(Locale.ROOT);
-    }
-
-    private int appendQuestRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                               int index, @Nonnull Subject subject, @Nonnull QuestEngine engine,
-                               @Nonnull QuestRow entry) {
-        String sel = appendRow(cmd, index);
-        Quest quest = entry.quest();
-        cmd.set(sel + " #Name.TextSpans", entry.name());
-        setFlavor(cmd, sel, entry.flavor());
-
-        switch (entry.section()) {
-            case ACTIVE -> {
-                QuestEngine.ObjectiveTally tally = engine.tally(subject, quest);
-                setProgress(cmd, sel, tally.completed(), tally.total());
-                paintBar(cmd, sel, tally.fraction());
-                renderQuestSteps(cmd, sel, subject, engine, quest);
-                if (engine.firstActiveTurnIn(subject, quest, null) != null) {
-                    setAction(cmd, events, sel, text("book.action.turn_in"), "turn_in", quest.id());
-                }
-                // The track labels are the NPC quest list's own, so the two surfaces cannot
-                // drift apart about what pinning is called.
-                boolean tracked = engine.store().trackedPins(subject).containsKey(quest.id());
-                setSmallButton(cmd, events, sel + " #Track",
-                        text(tracked ? "npcquests.action.untrack" : "npcquests.action.track"),
-                        "track", quest.id());
-                setSmallButton(cmd, events, sel + " #Abandon", text("book.action.abandon"),
-                        "abandon", quest.id());
-            }
-            case READY -> {
-                setStatus(cmd, sel, text("book.quests.section.ready"));
-                setAction(cmd, events, sel, text("book.action.claim"), "claim", quest.id());
-            }
-            case AVAILABLE ->
-                setAction(cmd, events, sel, text("book.action.accept"), "accept", quest.id());
-            case LOCKED -> setStatus(cmd, sel, LockReasons.bestLine(entry.lockReasons()));
-            case DONE -> setStatus(cmd, sel, text("book.quests.section.done"));
-        }
-        return index + 1;
-    }
-
-    /** A row's secondary button (track / abandon): label, show, bind with the full state. */
-    private void setSmallButton(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                                @Nonnull String selector, @Nonnull Message label,
-                                @Nonnull String action, @Nonnull String id) {
-        ZigRichButton.text(cmd, selector, label);
-        cmd.set(selector + ".Visible", true);
-        events.addEventBinding(CustomUIEventBindingType.Activating, selector,
-                fullState(action).append("Id", id), false);
-    }
-
-    /**
-     * The CURRENT step only, so an ordered quest's list advances by itself as each step lands
-     * rather than showing a wall of steps the player cannot work on yet.
-     */
-    private void renderQuestSteps(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
-                                  @Nonnull Subject subject, @Nonnull QuestEngine engine,
-                                  @Nonnull Quest quest) {
-        List<ObjectiveDef> steps = engine.activeStepObjectives(subject, quest);
-        int shown = Math.min(steps.size(), MAX_STEPS);
-        for (int i = 0; i < shown; i++) {
-            ObjectiveDef step = steps.get(i);
-            Message line = objectiveText(quest.id(), step.id());
-            cmd.set(sel + " #Step" + i + ".TextSpans",
-                    line != null ? line : text("book.quests.step.untitled"));
-            ObjectiveProgressState state = engine.progressOf(subject, quest.id(), step.id());
-            int current = state != null ? state.current() : 0;
-            int required = state != null ? state.required() : step.amountAsInt();
-            cmd.set(sel + " #StepProgress" + i + ".TextSpans", text("book.progress", current, required));
-            cmd.set(sel + " #StepRow" + i + ".Visible", true);
-        }
-        int overflow = steps.size() - shown;
-        if (overflow > 0) {
-            cmd.set(sel + " #StepMore.TextSpans", text("book.more", overflow));
-            cmd.set(sel + " #StepMore.Visible", true);
-        }
-    }
-
-    @Nonnull
-    private Message questSectionText(@Nonnull QuestSection section) {
-        return switch (section) {
-            case ACTIVE -> text("book.quests.section.active");
-            case READY -> text("book.quests.section.ready");
-            case AVAILABLE -> text("book.quests.section.available");
-            case LOCKED -> text("book.quests.section.locked");
-            case DONE -> text("book.quests.section.done");
-        };
-    }
-
-    // ==================== achievements ====================
-
-    private int renderAchievements(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                                   @Nonnull Subject subject, @Nonnull AchievementEngine engine) {
-        int earned = engine.points(subject);
-        cmd.set("#Summary.TextSpans",
-                text("book.achievements.points", earned, earned + engine.pointsAvailable(subject)));
-        cmd.set("#Summary.Visible", true);
-
-        List<AchievementRow> entries = new ArrayList<>();
-        for (Achievement achievement : engine.achievements()) {
-            AchievementStatus status = engine.status(subject, achievement.id());
-            AchievementSection section;
-            if (status == AchievementStatus.UNLOCKED) {
-                section = AchievementSection.READY;
-            } else if (status == AchievementStatus.CLAIMED) {
-                section = AchievementSection.EARNED;
-            } else if (engine.isVisible(subject, achievement)) {
-                section = AchievementSection.IN_PROGRESS;
-            } else {
-                continue;
-            }
-            String category = ProgressionDefaults.achievementCategory(achievement.id());
-            entries.add(new AchievementRow(achievement,
-                    nameOf(achievement.id(), "book.achievements.untitled"),
-                    flavorOf(achievement.id()), section,
-                    AchievementGrouping.bucketOf(category),
-                    AchievementGrouping.rankOf(category,
-                            ProgressionDefaults.categoryRank(category))));
-        }
-        entries.sort(Comparator.comparingInt((AchievementRow r) -> r.section().ordinal())
-                .thenComparingInt(AchievementRow::categoryRank)
-                .thenComparing(r -> r.category())
-                .thenComparing(r -> r.achievement().id()));
-
-        // TWO tiers of heading, the category one nested inside the lifecycle one. Both are drawn at
-        // the first row that needs them and the rows are sorted to match, so a category with
-        // nothing ready to collect simply has no header in the Ready to collect section.
-        int index = 0;
-        HeaderWalk<AchievementSection> walk = new HeaderWalk<>();
-        for (AchievementRow entry : entries) {
-            boolean opensSection = walk.enterSection(entry.section());
-            boolean opensCategory = walk.enterCategory(entry.category());
-            int headers = (opensSection ? 1 : 0) + (opensCategory ? 1 : 0);
-            // Headers and the row they head are budgeted TOGETHER, so a list cut short by the row
-            // ceiling never ends on a heading with nothing under it.
-            if (index + headers >= MAX_ROWS) {
-                break;
-            }
-            if (opensSection) {
-                index = appendHeader(cmd, index, achievementSectionText(entry.section()),
-                        HEADER_TINT, HEADER_TEXT);
-            }
-            if (opensCategory) {
-                index = appendHeader(cmd, index, categoryText(entry.category()),
-                        SUBHEADER_TINT, SUBHEADER_TEXT);
-            }
-            index = appendAchievementRow(cmd, events, index, subject, engine, entry);
-        }
-        return index;
-    }
-
-    /**
-     * What one category's header says. The uncategorised bucket has a line of this page's own, since
-     * there is no category word to translate or tidy up; every other bucket is named by the folded
-     * taxonomy through {@link AchievementGrouping#label}.
-     */
-    @Nonnull
-    private Message categoryText(@Nonnull String category) {
-        if (AchievementGrouping.UNCATEGORISED.equals(category)) {
-            return text("book.achievements.category.uncategorised");
-        }
-        return AchievementGrouping.label(category,
-                AchievementCategoryConfig.getInstance().category(category));
-    }
-
-    private int appendAchievementRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                                     int index, @Nonnull Subject subject,
-                                     @Nonnull AchievementEngine engine,
-                                     @Nonnull AchievementRow entry) {
-        String sel = appendRow(cmd, index);
-        Achievement achievement = entry.achievement();
-        cmd.set(sel + " #Name.TextSpans", entry.name());
-        setFlavor(cmd, sel, entry.flavor());
-        setIcon(cmd, sel, ProgressionDefaults.achievementIcon(achievement.id()));
-
-        switch (entry.section()) {
-            case READY ->
-                setAction(cmd, events, sel, text("book.action.claim"), "claim", achievement.id());
-            case IN_PROGRESS -> {
-                AchievementEngine.CriterionTally tally = engine.tally(subject, achievement);
-                setProgress(cmd, sel, tally.completed(), tally.total());
-                paintBar(cmd, sel, tally.fraction());
-                renderCriteria(cmd, sel, subject, engine, achievement);
-            }
-            case EARNED -> setStatus(cmd, sel, text("book.achievements.status.earned"));
-        }
-        return index + 1;
-    }
-
-    private void renderCriteria(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
-                                @Nonnull Subject subject, @Nonnull AchievementEngine engine,
-                                @Nonnull Achievement achievement) {
-        List<ObjectiveDef> criteria = achievement.criteria();
-        int shown = Math.min(criteria.size(), MAX_STEPS);
-        for (int i = 0; i < shown; i++) {
-            // An achievement numbers its criteria, so the position IS the step id a text source is
-            // asked for; a quest names its steps instead.
-            Message line = objectiveText(achievement.id(), Integer.toString(i));
-            cmd.set(sel + " #Step" + i + ".TextSpans",
-                    line != null ? line : text("book.achievements.criterion.untitled"));
-            ObjectiveProgressState state = engine.progressOf(subject, achievement, i);
-            cmd.set(sel + " #StepProgress" + i + ".TextSpans",
-                    text("book.progress", state.current(), state.required()));
-            cmd.set(sel + " #StepRow" + i + ".Visible", true);
-        }
-        int overflow = criteria.size() - shown;
-        if (overflow > 0) {
-            cmd.set(sel + " #StepMore.TextSpans", text("book.more", overflow));
-            cmd.set(sel + " #StepMore.Visible", true);
-        }
-    }
-
-    @Nonnull
-    private Message achievementSectionText(@Nonnull AchievementSection section) {
-        return switch (section) {
-            case READY -> text("book.achievements.section.ready");
-            case IN_PROGRESS -> text("book.achievements.section.in_progress");
-            case EARNED -> text("book.achievements.section.earned");
-        };
-    }
-
-    // ==================== shared row painting ====================
-
-    @Nonnull
-    private static String appendRow(@Nonnull UICommandBuilder cmd, int index) {
-        cmd.append("#List", ROW_TEMPLATE);
-        return "#List[" + index + "]";
-    }
-
-    /**
-     * A heading, rendered as a row with everything but its name left hidden. The two tiers differ
-     * only in their colours, which is the whole of the nesting a fixed row template can express.
-     */
-    private static int appendHeader(@Nonnull UICommandBuilder cmd, int index, @Nonnull Message label,
-                                    @Nonnull String tint, @Nonnull String textColor) {
-        String sel = appendRow(cmd, index);
-        cmd.set(sel + " #Name.TextSpans", label);
-        cmd.set(sel + " #Name.Style.TextColor", textColor);
-        cmd.set(sel + ".Background.Color", tint);
-        return index + 1;
-    }
-
-    /**
-     * What this content is called, asked of every registered text source in order, first non-null
-     * winning. A merged catalogue is exactly where this matters: whoever folded an entry kept its
-     * words, so without asking them half the list would render blank.
-     */
-    @Nonnull
-    private Message nameOf(@Nonnull String contentId, @Nonnull String fallbackKey) {
-        Message name = ask(source -> source.title(contentId));
-        return name != null ? name : text(fallbackKey);
-    }
-
-    @Nullable
-    private static Message flavorOf(@Nonnull String contentId) {
-        return ask(source -> source.flavor(contentId));
-    }
-
-    @Nullable
-    private static Message objectiveText(@Nonnull String contentId, @Nonnull String objectiveId) {
-        return ask(source -> source.objective(contentId, objectiveId));
-    }
-
-    @Nullable
-    private static Message ask(@Nonnull Function<ProgressionTextSource, Message> question) {
-        for (ProgressionTextSource source : ProgressionRuntime.textSources()) {
-            try {
-                Message answer = question.apply(source);
-                if (answer != null) {
-                    return answer;
-                }
-            } catch (Throwable t) {
-                SafeLog.warn("[progression] a text source failed while painting the book: "
-                        + t.getMessage());
-            }
-        }
-        return null;
-    }
-
-    private static void setFlavor(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
-                                  @Nullable Message flavor) {
-        if (flavor != null) {
-            cmd.set(sel + " #Flavor.TextSpans", flavor);
-            cmd.set(sel + " #Flavor.Visible", true);
-        }
-    }
-
-    private static void setIcon(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
-                                @Nullable String itemId) {
-        if (itemId != null && !itemId.isBlank()) {
-            cmd.set(sel + " #Icon.Slots", List.of(new ItemGridSlot(new ItemStack(itemId, 1))));
-            cmd.set(sel + " #IconSlot.Visible", true);
-        }
-    }
-
-    private void setProgress(@Nonnull UICommandBuilder cmd, @Nonnull String sel, int done, int total) {
-        cmd.set(sel + " #Progress.TextSpans", text("book.progress", done, total));
-        cmd.set(sel + " #Progress.Visible", true);
-    }
-
-    private static void setStatus(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
-                                  @Nonnull Message status) {
-        cmd.set(sel + " #Status.TextSpans", status);
-        cmd.set(sel + " #Status.Visible", true);
-    }
-
-    private void setAction(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                           @Nonnull String sel, @Nonnull Message label,
-                           @Nonnull String action, @Nonnull String id) {
-        ZigRichButton.text(cmd, sel + " #Action", label);
-        cmd.set(sel + " #Action.Visible", true);
-        events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #Action",
-                fullState(action).append("Id", id), false);
-    }
-
-    /** The bar is decoration over the count in {@code #Progress}, which is the real reading. */
-    private void paintBar(@Nonnull UICommandBuilder cmd, @Nonnull String sel, double fraction) {
-        int filled = (int) Math.round(Math.max(0.0, Math.min(1.0, fraction)) * BAR_WIDTH);
-        Anchor anchor = new Anchor();
-        anchor.setWidth(Value.of(filled));
-        anchor.setHeight(Value.of(BAR_HEIGHT));
-        cmd.setObject(sel + " #BarFill.Anchor", anchor);
-        cmd.set(sel + " #BarTrack.Visible", true);
-    }
-
-    private static void showEmpty(@Nonnull UICommandBuilder cmd, @Nonnull Message message) {
-        cmd.set("#EmptyState.TextSpans", message);
-        cmd.set("#EmptyState.Visible", true);
-    }
-
-    @Nonnull
-    private Message emptyText() {
-        if (TAB_ACHIEVEMENTS.equals(tab)) {
-            return text("book.empty.achievements");
-        }
-        // An empty FILTERED list is not an empty catalogue: say the filters hid everything rather
-        // than telling a player with forty quests that there is nothing here.
-        return anyFilterActive() ? text("book.quests.filter.none") : text("book.empty.quests");
-    }
-
-    private boolean anyFilterActive() {
-        return !FILTER_ALL.equalsIgnoreCase(filterCategory)
-                || !FILTER_ALL.equalsIgnoreCase(filterStatus)
-                || !searchText.isEmpty()
-                || !filterTag.isEmpty();
+    private String activeSearchField() {
+        return TAB_ACHIEVEMENTS.equals(tab) ? "#ASearchField" : "#QSearchField";
     }
 
     private void bindTab(@Nonnull UIEventBuilder events, @Nonnull String selector,
                          @Nonnull String target) {
-        // The filter state rides along so switching away and back does not reset what the player
-        // had narrowed the quest list to.
         events.addEventBinding(CustomUIEventBindingType.Activating, selector,
                 fullState("tab", target).append("Id", ""), false);
     }
 
-    private static void styleTab(@Nonnull UICommandBuilder cmd, @Nonnull String selector, boolean active) {
-        String base = active ? ACTIVE_TINT : INACTIVE_TINT;
+    private static void styleTab(@Nonnull UICommandBuilder cmd, @Nonnull String selector,
+                                 boolean active) {
+        String base = active ? TAB_ACTIVE_TINT : TAB_INACTIVE_TINT;
         UiRetint.retintButtonStates(cmd, selector, base,
-                active ? ACTIVE_HOVER : INACTIVE_HOVER, base);
-        ZigRichButton.color(cmd, selector, active ? ACTIVE_TEXT : INACTIVE_TEXT);
-    }
-
-    @Nonnull
-    private Message text(@Nonnull String key, @Nonnull Object... args) {
-        return Msg.tr(PREFIX, DOMAIN + key, args);
-    }
-
-    // ==================== events ====================
-
-    @Override
-    public void handleDataEvent(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
-                                @Nonnull ObjectiveBookEventData data) {
-        Player player = store.getComponent(ref, Player.getComponentType());
-        if (player == null) {
-            return;
-        }
-        if (data.action == null || "close".equals(data.action)) {
-            player.getPageManager().setPage(ref, store, Page.None);
-            return;
-        }
-        String nextTab = TAB_ACHIEVEMENTS.equals(data.tab) ? TAB_ACHIEVEMENTS
-                : TAB_QUESTS.equals(data.tab) ? TAB_QUESTS : tab;
-
-        // The carried filter state, then whatever this click changes about it. A filter click's
-        // TARGET value rides Id (its own field carries the CURRENT state), the dropdown's rides
-        // the captured @DropdownValue, and the search button's the captured @SearchInput.
-        String category = data.category != null ? data.category : filterCategory;
-        String status = data.status != null ? data.status : filterStatus;
-        String search = data.search != null ? data.search : searchText;
-        String tagFilter = data.tag != null ? data.tag : filterTag;
-        switch (data.action) {
-            case "category" -> category = data.id;
-            case "status" -> status = data.id;
-            case "search" -> search = data.searchInput != null ? data.searchInput : "";
-            case "clear_search" -> search = "";
-            case "tag" -> tagFilter = data.dropdownValue != null ? data.dropdownValue : "";
-            case "tab" -> { /* nothing to change beyond nextTab */ }
-            default -> act(ref, store, data, nextTab);
-        }
-        player.getPageManager().openCustomPage(ref, store,
-                new ObjectiveBookPage(playerRef, nextTab, category, status, search, tagFilter));
+                active ? TAB_ACTIVE_HOVER : TAB_INACTIVE_HOVER, base);
+        ZigRichButton.color(cmd, selector, active ? TAB_ACTIVE_TEXT : TAB_INACTIVE_TEXT);
     }
 
     /**
-     * Perform the one engine call the pressed button stands for and toast the outcome. Every
-     * failure path toasts too: a button that silently does nothing reads as a broken menu.
+     * Active / inactive styling for an appended filter chip's {@code #CatBtn} (a {@code Button} +
+     * inner {@code #Label}): the active chip's label goes accent-blue + bold; an inactive one
+     * keeps its authored colour and drops bold. The pill's own hover / press stays its style's.
      */
-    private void act(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
-                     @Nonnull ObjectiveBookEventData data, @Nonnull String nextTab) {
-        String id = data.id;
-        if (id == null || id.isBlank()) {
-            return;
+    static void styleChipActive(@Nonnull UICommandBuilder cmd, @Nonnull String btnSelector,
+                                boolean active) {
+        ZigRichButton.color(cmd, btnSelector, active ? StatusTones.IN_PROGRESS.hex() : null);
+        cmd.set(btnSelector + " #Label.Style.RenderBold", active);
+    }
+
+    /**
+     * Paint the shared pin / track glyph button: toggle the baked {@code #PinIconOff} /
+     * {@code #PinIconOn} variants and retint the pill (gold when on, steel when off). The icon is
+     * baked in the template - a TexturePath pushed from Java renders a red X.
+     */
+    static void paintPinIcon(@Nonnull UICommandBuilder cmd, @Nonnull String buttonSelector,
+                             boolean on) {
+        cmd.set(buttonSelector + " #PinIconOff.Visible", !on);
+        cmd.set(buttonSelector + " #PinIconOn.Visible", on);
+        if (on) {
+            cmd.set(buttonSelector + ".Style.Default.Background", "#3a2d10");
+            cmd.set(buttonSelector + ".Style.Hovered.Background", "#4a3a18");
+            cmd.set(buttonSelector + ".Style.Pressed.Background", "#2a1d08");
+        } else {
+            cmd.set(buttonSelector + ".Style.Default.Background", "#1a2233");
+            cmd.set(buttonSelector + ".Style.Hovered.Background", "#243144");
+            cmd.set(buttonSelector + ".Style.Pressed.Background", "#0f1723");
         }
-        boolean achievementsTab = TAB_ACHIEVEMENTS.equals(nextTab);
-        Subject subject = subjectFor(store, ref, achievementsTab);
-        if (subject == null) {
-            return;
-        }
-        try {
-            if (achievementsTab) {
-                actOnAchievement(subject, data.action, id);
-            } else {
-                actOnQuest(subject, data.action, id);
-            }
-        } catch (Throwable t) {
-            SafeLog.warn("[progression] objective book action '" + data.action + "' failed", t);
-            showToast(ToastKind.WARNING, text(failKeyFor(data.action)));
-        }
+    }
+
+    /** The gold Claim tint, shared by every collect button (row morphs included). */
+    static void applyGoldClaim(@Nonnull UICommandBuilder cmd, @Nonnull String buttonSelector) {
+        UiRetint.retintButtonStates(cmd, buttonSelector, "#6b5a2e", "#8a7440", "#57481f");
+        ZigRichButton.color(cmd, buttonSelector, "#ffcc4a");
     }
 
     /** The subject the ACTIVE store understands, for whichever side of the book is being read. */
@@ -964,79 +436,451 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 : ProgressionRuntime.subjects().questSubject(store, ref);
     }
 
-    /** Which "that did not work" line belongs to a pressed button. */
+    // ==================== events ====================
+
+    @Override
+    public void handleDataEvent(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+                                @Nonnull ObjectiveBookEventData data) {
+        Player player = store.getComponent(ref, Player.getComponentType());
+        if (player == null) {
+            return;
+        }
+        String action = data.action == null ? "" : data.action;
+        if (action.isEmpty() || "close".equals(action)) {
+            player.getPageManager().setPage(ref, store, Page.None);
+            return;
+        }
+
+        // The live field value is the search truth on EVERY action: it holds whatever the player
+        // typed, seeded from the carried state, so unsubmitted text survives any click.
+        String liveSearch = data.searchInput != null ? data.searchInput
+                : (data.search != null ? data.search : searchText);
+
+        switch (action) {
+            case "tab" -> {
+                // A tab switch is a fresh view: the two tabs speak different filter vocabularies,
+                // so nothing but the tab carries across.
+                open(player, ref, store, new ObjectiveBookPage(playerRef, data.tab));
+            }
+            case "category" -> {
+                String value = firstNonBlank(data.id, data.dropdownValue, FILTER_ALL);
+                // A new category resets the subcategory: the old one belongs to the old category.
+                open(player, ref, store, new ObjectiveBookPage(playerRef, tab, value, filterStatus,
+                        liveSearch, filterTag, null, sortMode, selectedId));
+            }
+            case "subfilter" -> open(player, ref, store, new ObjectiveBookPage(playerRef, tab,
+                    filterCategory, filterStatus, liveSearch, filterTag,
+                    data.id == null ? "" : data.id, sortMode, selectedId));
+            case "status" -> open(player, ref, store, new ObjectiveBookPage(playerRef, tab,
+                    filterCategory, firstNonBlank(data.id, FILTER_ALL, FILTER_ALL), liveSearch,
+                    filterTag, filterSubcategory, sortMode, selectedId));
+            case "sort" -> open(player, ref, store, new ObjectiveBookPage(playerRef, tab,
+                    filterCategory, filterStatus, liveSearch, filterTag, filterSubcategory,
+                    data.id == null ? "" : data.id, selectedId));
+            case "search" -> open(player, ref, store, new ObjectiveBookPage(playerRef, tab,
+                    filterCategory, filterStatus,
+                    data.searchInput != null ? data.searchInput : "", filterTag,
+                    filterSubcategory, sortMode, selectedId));
+            case "clear_search" -> open(player, ref, store, new ObjectiveBookPage(playerRef, tab,
+                    filterCategory, filterStatus, "", filterTag, filterSubcategory, sortMode,
+                    selectedId));
+            case "tag" -> open(player, ref, store, new ObjectiveBookPage(playerRef, tab,
+                    filterCategory, filterStatus, liveSearch,
+                    data.dropdownValue != null ? data.dropdownValue : "", filterSubcategory,
+                    sortMode, selectedId));
+            case "ext" -> {
+                boolean took = false;
+                try {
+                    took = deps.extHandler().handle(data.id == null ? "" : data.id, store, ref, player);
+                } catch (Throwable t) {
+                    SafeLog.warn("[progression] the book's ext handler failed: " + t.getMessage());
+                }
+                if (!took) {
+                    // The handler kept us on screen: answer the client so it never hangs.
+                    this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
+                }
+            }
+            case "toggle" -> handleToggle(data);
+            case "primary" -> handlePrimary(ref, store, player, data, liveSearch);
+            case "abandon" -> handleAbandon(ref, store, player, data, liveSearch);
+            case "toggletrack" -> handleToggleTrack(ref, store, data);
+            case "turn_in" -> handleTurnIn(ref, store, data);
+            case "select" -> handleSelect(ref, store, data);
+            case "togglepin" -> handleTogglePin(ref, store, data);
+            case "claim" -> handleAchievementClaim(ref, store);
+            case "claim_milestone" -> handleMilestoneClaim(ref, store, player, data);
+            default -> this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
+        }
+    }
+
+    private void open(@Nonnull Player player, @Nonnull Ref<EntityStore> ref,
+                      @Nonnull Store<EntityStore> store, @Nonnull ObjectiveBookPage next) {
+        player.getPageManager().openCustomPage(ref, store, next);
+    }
+
+    /** Reopen with the SAME state, for the paths where a partial repaint cannot tell the truth. */
+    private void reopenSame(@Nonnull Player player, @Nonnull Ref<EntityStore> ref,
+                            @Nonnull Store<EntityStore> store, @Nonnull String liveSearch) {
+        open(player, ref, store, new ObjectiveBookPage(playerRef, tab, filterCategory, filterStatus,
+                liveSearch, filterTag, filterSubcategory, sortMode, selectedId));
+    }
+
     @Nonnull
-    private static String failKeyFor(@Nullable String action) {
-        if ("claim".equals(action)) {
-            return "book.toast.claim_failed";
+    private static String firstNonBlank(@Nullable String a, @Nullable String b, @Nonnull String fallback) {
+        if (a != null && !a.isBlank()) {
+            return a;
         }
-        if ("turn_in".equals(action)) {
-            return "book.toast.turn_in_failed";
+        if (b != null && !b.isBlank()) {
+            return b;
         }
-        return "book.toast.accept_failed";
+        return fallback;
+    }
+
+    // ==================== quest actions ====================
+
+    private void handleToggle(@Nonnull ObjectiveBookEventData data) {
+        UICommandBuilder cmd = new UICommandBuilder();
+        if (data.id != null && data.selector != null) {
+            boolean wasExpanded = expandedQuestIds.contains(data.id);
+            if (wasExpanded) {
+                expandedQuestIds.remove(data.id);
+            } else {
+                expandedQuestIds.add(data.id);
+            }
+            cmd.set(data.selector + " #ExpandableContent.Visible", !wasExpanded);
+            UiText.setText(cmd, data.selector + " #ExpandToggle.Text", wasExpanded ? "+" : "-");
+        }
+        this.sendUpdate(cmd, new UIEventBuilder(), false);
     }
 
     /**
-     * Every mutating call goes through the registered scope, so a claim made from this book fires
-     * exactly what the owning mod's own menu would have fired - its toast, its follow-on grants, its
-     * bookkeeping. Without it a book-driven claim would pay out in silence.
+     * The ONE state-dispatched row button: Claim when the row is ready to collect, else Accept.
+     * Dispatching on the LIVE state (not a baked-in binding) is what lets a completing hand-in
+     * morph Hand in into a gold Claim in place with no re-bind.
      */
-    private void actOnQuest(@Nonnull Subject subject, @Nullable String action, @Nonnull String id) {
+    private void handlePrimary(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+                               @Nonnull Player player, @Nonnull ObjectiveBookEventData data,
+                               @Nonnull String liveSearch) {
         QuestEngine engine = ProgressionRuntime.quests();
-        Quest quest = engine.quest(id);
-        if (quest == null) {
+        Quest quest = engine.quest(data.id);
+        Subject subject = ProgressionRuntime.subjects().questSubject(store, ref);
+        if (quest == null || subject == null) {
+            reopenSame(player, ref, store, liveSearch);
             return;
         }
         ProgressionCallScope scope = ProgressionRuntime.questScope();
-        if ("accept".equals(action)) {
-            boolean ok = Boolean.TRUE.equals(scope.around(subject, s ->
-                    Boolean.valueOf(engine.canAccept(s, quest).allowed() && engine.accept(s, quest))));
-            toast(ok, "book.toast.accepted", "book.toast.accept_failed", ToastKind.SUCCESS);
-        } else if ("claim".equals(action)) {
+        if (engine.status(subject, quest) == QuestStatus.COMPLETED_UNCLAIMED) {
+            Message preCheckRefusal = deps.claimPreCheckGuarded(quest, store, ref, player);
+            if (preCheckRefusal != null) {
+                // A consumer refusal short-circuits before the engine ever sees this claim - no
+                // state change - and still answers the client so it never hangs.
+                UICommandBuilder cmd = new UICommandBuilder();
+                showToast(ToastKind.ERROR, preCheckRefusal);
+                BookQuestsTab.updateHeaderCounts(this, cmd, subject, engine);
+                this.sendUpdate(cmd, new UIEventBuilder(), false);
+                return;
+            }
             boolean ok = Boolean.TRUE.equals(
                     scope.around(subject, s -> Boolean.valueOf(engine.claim(s, quest))));
-            toast(ok, "book.toast.claimed", "book.toast.claim_failed", ToastKind.REWARD);
-        } else if ("turn_in".equals(action)) {
-            // The book has no character in front of the player, so the "somewhere unlocked" form is
-            // the only one that can answer here; a hand-in locked to somebody is not offered.
-            boolean ok = Boolean.TRUE.equals(scope.around(subject, s -> {
-                ObjectiveDef step = engine.firstActiveTurnIn(s, quest, null);
-                return Boolean.valueOf(step != null && engine.attemptTurnIn(s, quest, step.id()) > 0);
-            }));
-            toast(ok, "book.toast.turned_in", "book.toast.turn_in_failed", ToastKind.SUCCESS);
-        } else if ("abandon".equals(action)) {
-            boolean ok = Boolean.TRUE.equals(
-                    scope.around(subject, s -> Boolean.valueOf(engine.abandon(s, quest.id()))));
-            toast(ok, "book.toast.abandoned", "book.toast.abandon_failed", ToastKind.INFO);
-        } else if ("track".equals(action)) {
-            // A toggle: the row's label already said which way it flips. Only a refusal toasts -
-            // the one a player hits is the tracker being full.
-            boolean tracked = engine.store().trackedPins(subject).containsKey(quest.id());
-            boolean ok = Boolean.TRUE.equals(scope.around(subject, s ->
-                    Boolean.valueOf(tracked ? engine.untrack(s, quest.id()) : engine.track(s, quest.id()))));
-            if (!ok && !tracked) {
-                showToast(ToastKind.WARNING, text("npcquests.toast.track_full"));
+            UICommandBuilder cmd = new UICommandBuilder();
+            if (ok) {
+                showToast(ToastKind.REWARD, text("book.toast.quest_complete",
+                        BookQuestsTab.nameOf(quest)));
+                // The claimed quest leaves the pinned Active list. Hide its row in place - hide,
+                // NOT remove, so the sibling #ActiveQuestList[i] selectors do not drift - and
+                // refresh the counts + the tracked panel.
+                if (data.selector != null) {
+                    cmd.set(data.selector + ".Visible", false);
+                }
+                BookQuestsTab.updateHeaderCounts(this, cmd, subject, engine);
+                TrackedQuestPanelRenderer.render(cmd, null, subject, false, null);
+            } else {
+                // The engine refuses a placeless payout for a site-bound quest: say where instead
+                // of failing silently. Either way the client gets a definite response.
+                showToast(ToastKind.ERROR, text(quest.turnInAt() != null
+                        ? "book.quests.claim_at_site" : "book.toast.claim_failed"));
+                BookQuestsTab.updateHeaderCounts(this, cmd, subject, engine);
+            }
+            this.sendUpdate(cmd, new UIEventBuilder(), false);
+            return;
+        }
+
+        // ACCEPT (not started). Cannot accept any more (cap reached, prerequisites moved) - a full
+        // repaint re-renders the row through the corrected branch.
+        if (!engine.canAccept(subject, quest).allowed()) {
+            reopenSame(player, ref, store, liveSearch);
+            return;
+        }
+        boolean ok = Boolean.TRUE.equals(scope.around(subject, s -> {
+            boolean accepted = engine.canAccept(s, quest).allowed() && engine.accept(s, quest);
+            if (accepted) {
+                // Retroactive completions (a standing value already met) finish it at once.
+                engine.checkCompletion(s, quest);
+            }
+            return Boolean.valueOf(accepted);
+        }));
+        if (!ok) {
+            reopenSame(player, ref, store, liveSearch);
+            return;
+        }
+        try {
+            deps.actionFeedback().accepted(quest, store, ref, player);
+        } catch (Throwable ignored) {
+            // A consumer's feedback failing costs its own moment, never the page.
+        }
+        if (!deps.announcesActions()) {
+            // A filled feedback seam owns the announcement; two toasts for one accept
+            // would double-report the same moment.
+            showToast(ToastKind.SUCCESS, text("book.toast.accepted"));
+        }
+        QuestStatus newState = engine.status(subject, quest);
+        boolean atMax = engine.maxActive() > 0 && engine.logSlotsUsed(subject) >= engine.maxActive();
+        if (newState == QuestStatus.COMPLETED || newState == QuestStatus.COMPLETED_UNCLAIMED || atMax) {
+            // Completed immediately, or the cap state changed for every other row - reopen.
+            reopenSame(player, ref, store, liveSearch);
+        } else {
+            BookQuestsTab.sendQuestAcceptedUpdate(this, data.selector, quest, subject, engine);
+        }
+    }
+
+    private void handleAbandon(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+                               @Nonnull Player player, @Nonnull ObjectiveBookEventData data,
+                               @Nonnull String liveSearch) {
+        QuestEngine engine = ProgressionRuntime.quests();
+        Quest quest = engine.quest(data.id);
+        Subject subject = ProgressionRuntime.subjects().questSubject(store, ref);
+        if (quest == null || subject == null) {
+            reopenSame(player, ref, store, liveSearch);
+            return;
+        }
+        ProgressionCallScope scope = ProgressionRuntime.questScope();
+        boolean ok = Boolean.TRUE.equals(scope.around(subject, s -> {
+            boolean abandoned = engine.abandon(s, quest.id());
+            engine.untrack(s, quest.id());
+            return Boolean.valueOf(abandoned);
+        }));
+        if (ok) {
+            try {
+                deps.actionFeedback().abandoned(quest, store, ref, player);
+            } catch (Throwable ignored) {
+                // A consumer's feedback failing costs its own moment, never the page.
+            }
+            if (!deps.announcesActions()) {
+                // Same stand-down as the accept path: the filled seam is the announcement.
+                showToast(ToastKind.INFO, text("book.toast.abandoned"));
+            }
+        } else {
+            showToast(ToastKind.WARNING, text("book.toast.abandon_failed"));
+        }
+        // A board-managed quest drops back to not-started, which the log must NOT render with an
+        // Accept button (board-accepted only); a full repaint renders it through the corrected
+        // branch instead of the pre-bound partial flashing Accept.
+        if (deps.managedGuarded(quest)) {
+            reopenSame(player, ref, store, liveSearch);
+        } else {
+            BookQuestsTab.sendQuestAbandonedUpdate(this, data.selector, subject, engine);
+        }
+    }
+
+    private void handleToggleTrack(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+                                   @Nonnull ObjectiveBookEventData data) {
+        QuestEngine engine = ProgressionRuntime.quests();
+        Quest quest = engine.quest(data.id);
+        Subject subject = ProgressionRuntime.subjects().questSubject(store, ref);
+        UICommandBuilder cmd = new UICommandBuilder();
+        if (quest != null && subject != null) {
+            Message name = BookQuestsTab.nameOf(quest);
+            boolean wasTracked = engine.tracked(subject).contains(quest.id());
+            ProgressionCallScope scope = ProgressionRuntime.questScope();
+            boolean nowTracked;
+            if (wasTracked) {
+                scope.around(subject, s -> Boolean.valueOf(engine.untrack(s, quest.id())));
+                showToast(ToastKind.INFO, text("book.toast.untracked", name));
+                nowTracked = false;
+            } else {
+                boolean ok = Boolean.TRUE.equals(scope.around(subject,
+                        s -> Boolean.valueOf(engine.track(s, quest.id()))));
+                if (ok) {
+                    showToast(ToastKind.INFO, text("book.toast.tracked", name));
+                } else {
+                    showToast(ToastKind.ERROR, text("book.quests.track_cap", engine.maxTracked()));
+                }
+                nowTracked = ok;
+            }
+            // Tracking never moves a row, so no reopen: flip the pin glyph and repaint the
+            // pre-allocated tracked side panel in place. The list keeps its scroll.
+            if (data.selector != null) {
+                paintPinIcon(cmd, data.selector + " #TrackBtn", nowTracked);
+            }
+            TrackedQuestPanelRenderer.render(cmd, null, subject, false, null);
+        }
+        this.sendUpdate(cmd, new UIEventBuilder(), false);
+    }
+
+    private void handleTurnIn(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+                              @Nonnull ObjectiveBookEventData data) {
+        QuestEngine engine = ProgressionRuntime.quests();
+        Quest quest = engine.quest(data.id);
+        Subject subject = ProgressionRuntime.subjects().questSubject(store, ref);
+        UICommandBuilder cmd = new UICommandBuilder();
+        if (quest != null && subject != null && data.objectiveId != null) {
+            ProgressionCallScope scope = ProgressionRuntime.questScope();
+            Integer turnedIn = scope.around(subject,
+                    s -> Integer.valueOf(engine.attemptTurnIn(s, quest, data.objectiveId)));
+            int handed = turnedIn == null ? 0 : turnedIn.intValue();
+            ObjectiveDef objective = quest.objective(data.objectiveId);
+            Message itemName = objective == null || objective.target() == null
+                    ? Msg.raw("") : NativeNames.itemNameMsg(objective.target());
+            if (handed > 0) {
+                int amount = objective == null ? 0 : objective.amountAsInt();
+                // Counts are data; the item name is a NESTED client-resolved Message.
+                showToast(ToastKind.SUCCESS, text("book.toast.turn_in", handed, amount, itemName));
+                // Scroll-preserving in-place refresh for the new state (morph Hand in into a gold
+                // Claim on completion, hide the row when it leaves the active bucket, else repaint
+                // objective progress).
+                if (data.selector != null) {
+                    BookQuestsTab.refreshTurnedInRow(this, cmd, data.selector, quest, subject, engine);
+                }
+            } else {
+                ObjectiveProgressState progress = engine.progressOf(subject, quest.id(), data.objectiveId);
+                int current = progress != null ? progress.current() : 0;
+                int required = objective == null ? 0 : objective.amountAsInt();
+                showToast(ToastKind.ERROR,
+                        text("book.quests.turn_in_fail", itemName, current, required));
+            }
+            BookQuestsTab.updateHeaderCounts(this, cmd, subject, engine);
+        }
+        this.sendUpdate(cmd, new UIEventBuilder(), false);
+    }
+
+    // ==================== achievement actions ====================
+
+    private void handleSelect(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+                              @Nonnull ObjectiveBookEventData data) {
+        AchievementEngine engine = ProgressionRuntime.achievements();
+        Subject subject = ProgressionRuntime.subjects().achievementSubject(store, ref);
+        UICommandBuilder cmd = new UICommandBuilder();
+        UIEventBuilder events = new UIEventBuilder();
+        if (subject != null && data.id != null && !data.id.isBlank()) {
+            // The id round-trips exactly as the row's achievement carried it; no re-casing here.
+            String next = data.id.trim();
+            Achievement achievement = engine.achievement(next);
+            if (achievement != null) {
+                // Swap the list highlight in place, then repaint ONLY the right panel: clear its
+                // hosts, re-append, and bind the fresh chips in this update's own event builder.
+                if (selectedRowSel != null) {
+                    BookAchievementsTab.tintRowSelected(cmd, selectedRowSel, false);
+                }
+                if (data.selector != null) {
+                    BookAchievementsTab.tintRowSelected(cmd, data.selector, true);
+                }
+                selectedRowSel = data.selector;
+                selectedId = next;
+                BookAchievementsTab.repaintDetailPartial(this, cmd, events, store, ref, subject,
+                        engine, achievement);
             }
         }
+        this.sendUpdate(cmd, events, false);
     }
 
-    private void actOnAchievement(@Nonnull Subject subject, @Nullable String action,
-                                  @Nonnull String id) {
-        if (!"claim".equals(action)) {
-            return;
-        }
+    /**
+     * The pin button is a TOGGLE dispatched on live state (like the quest track button), so a
+     * scroll-preserving partial flip never leaves a stale verb baked into the binding.
+     */
+    private void handleTogglePin(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+                                 @Nonnull ObjectiveBookEventData data) {
         AchievementEngine engine = ProgressionRuntime.achievements();
-        Achievement achievement = engine.achievement(id);
-        if (achievement == null) {
-            return;
+        Subject subject = ProgressionRuntime.subjects().achievementSubject(store, ref);
+        UICommandBuilder cmd = new UICommandBuilder();
+        if (subject != null && data.id != null && !data.id.isBlank()) {
+            Achievement achievement = engine.achievement(data.id);
+            Message name = achievement != null
+                    ? BookAchievementsTab.nameOf(achievement) : Msg.raw(data.id);
+            try {
+                ProgressionCallScope scope = ProgressionRuntime.achievementScope();
+                boolean wasPinned = engine.pinned(subject).contains(data.id);
+                boolean nowPinned;
+                if (wasPinned) {
+                    scope.around(subject, s -> Boolean.valueOf(engine.unpin(s, data.id)));
+                    showToast(ToastKind.INFO, text("book.toast.unpinned", name));
+                    nowPinned = false;
+                } else {
+                    nowPinned = Boolean.TRUE.equals(scope.around(subject,
+                            s -> Boolean.valueOf(engine.pin(s, data.id))));
+                    if (nowPinned) {
+                        showToast(ToastKind.INFO, text("book.toast.pinned", name));
+                    } else {
+                        showToast(ToastKind.ERROR,
+                                text("book.achievements.pin_cap", engine.maxPinned()));
+                    }
+                }
+                if (data.selector != null) {
+                    paintPinIcon(cmd, data.selector + " #PinBtn", nowPinned);
+                }
+            } catch (Throwable t) {
+                SafeLog.warn("[progression] the book's pin toggle failed: " + t.getMessage());
+            }
         }
-        boolean ok = Boolean.TRUE.equals(ProgressionRuntime.achievementScope()
-                .around(subject, s -> Boolean.valueOf(engine.claim(s, achievement))));
-        toast(ok, "book.toast.claimed", "book.toast.claim_failed", ToastKind.REWARD);
+        this.sendUpdate(cmd, new UIEventBuilder(), false);
     }
 
-    private void toast(boolean ok, @Nonnull String okKey, @Nonnull String failKey,
-                       @Nonnull ToastKind okKind) {
-        showToast(ok ? okKind : ToastKind.WARNING, text(ok ? okKey : failKey));
+    private void handleAchievementClaim(@Nonnull Ref<EntityStore> ref,
+                                        @Nonnull Store<EntityStore> store) {
+        AchievementEngine engine = ProgressionRuntime.achievements();
+        Subject subject = ProgressionRuntime.subjects().achievementSubject(store, ref);
+        UICommandBuilder cmd = new UICommandBuilder();
+        UIEventBuilder events = new UIEventBuilder();
+        String id = selectedId;
+        if (subject != null && id != null) {
+            Achievement achievement = engine.achievement(id);
+            if (achievement != null) {
+                boolean ok = Boolean.TRUE.equals(ProgressionRuntime.achievementScope()
+                        .around(subject, s -> Boolean.valueOf(engine.claim(s, achievement))));
+                if (ok) {
+                    showToast(ToastKind.REWARD, text("book.achievements.claim_success"));
+                } else {
+                    showToast(ToastKind.WARNING, text("book.toast.claim_failed"));
+                }
+                // Repaint the detail column so the reward tags and the claim button tell the new
+                // truth; the list row's status has not changed (claiming never locks anything).
+                BookAchievementsTab.repaintDetailPartial(this, cmd, events, store, ref, subject,
+                        engine, achievement);
+            }
+        }
+        this.sendUpdate(cmd, events, false);
+    }
+
+    private void handleMilestoneClaim(@Nonnull Ref<EntityStore> ref,
+                                      @Nonnull Store<EntityStore> store, @Nonnull Player player,
+                                      @Nonnull ObjectiveBookEventData data) {
+        AchievementEngine engine = ProgressionRuntime.achievements();
+        Subject subject = ProgressionRuntime.subjects().achievementSubject(store, ref);
+        UICommandBuilder cmd = new UICommandBuilder();
+        UIEventBuilder events = new UIEventBuilder();
+        int threshold = -1;
+        try {
+            threshold = Integer.parseInt(data.threshold);
+        } catch (NumberFormatException ignored) {
+            // A malformed threshold falls through to the no-op response below.
+        }
+        if (subject != null && threshold > 0) {
+            ObjectiveBookDeps.MilestoneClaimOutcome outcome;
+            try {
+                outcome = deps.milestoneClaim().claim(threshold, store, ref, player);
+            } catch (Throwable t) {
+                SafeLog.warn("[progression] the book's milestone claim failed: " + t.getMessage());
+                outcome = ObjectiveBookDeps.MilestoneClaimOutcome.NOT_READY;
+            }
+            switch (outcome) {
+                case SUCCESS -> showToast(ToastKind.REWARD, text("book.achievements.claim_success"));
+                case INVENTORY_FULL ->
+                        showToast(ToastKind.ERROR, text("book.achievements.inventory_full"));
+                case NOT_READY -> showToast(ToastKind.WARNING, text("book.toast.claim_failed"));
+            }
+            // Repaint the overview's milestone block + the header stat in place, so the claimed
+            // card reads claimed without the list losing its scroll.
+            BookAchievementsTab.repaintMilestonesPartial(this, cmd, events, store, ref, subject, engine);
+        }
+        this.sendUpdate(cmd, events, false);
     }
 }

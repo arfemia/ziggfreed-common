@@ -40,6 +40,7 @@ import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.StatusTones;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -1001,17 +1002,18 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         };
     }
 
-    /** One colour palette for a row's dot and the detail panel's status line, so they cannot drift. */
+    /**
+     * One colour vocabulary for a row's dot and the detail panel's status line: the shared
+     * {@link StatusTones}, so this list, the objective book's rows and any other progression
+     * surface say "ready" and "locked" in the same colour.
+     */
     @Nonnull
     private static String dotColor(@Nonnull Section section) {
         return switch (section) {
-            case READY -> "#ffcc4a";
-            case TURN_IN -> "#ffcc4a";
-            case ACTIVE -> "#4a9eff";
-            case AVAILABLE -> "#ffaa4a";
-            case PARKED -> "#c8a86a";
-            case LOCKED -> "#96a9be";
-            case DONE -> "#4aff7f";
+            case READY, TURN_IN, DONE -> StatusTones.READY.hex();
+            case ACTIVE -> StatusTones.IN_PROGRESS.hex();
+            case AVAILABLE -> StatusTones.AVAILABLE.hex();
+            case PARKED, LOCKED -> StatusTones.SOFT_BLOCK.hex();
         };
     }
 
