@@ -100,6 +100,17 @@ achievement.reset.first_claims = Ein Server-Erster, den dieser Spieler gewonnen 
 
 memories.forgot = Alles vergessen, was jedes Gespräch über {0} weiß, in beiden Lebensdauern.
 
+page.title = Progressionssysteme
+page.subtitle = Server-weite Schalter für die registrierten Progressionssysteme. Eine Änderung wirkt sich sofort auf jeden Spieler aus.
+page.empty = Kein Progressionssystem hat einen Schalter auf diesem Server registriert.
+page.on = An
+page.off = Aus
+page.unknown = ?
+page.readonly = Wird anderswo gesteuert; hier schreibgeschützt angezeigt.
+page.changed = {0} ist jetzt {1}.
+page.refused = {0} konnte nicht geändert werden und behält seinen Zustand.
+page.back = Zurück
+
 status.quest.not_started = nicht begonnen
 status.quest.active = aktiv
 status.quest.completed = abgeschlossen

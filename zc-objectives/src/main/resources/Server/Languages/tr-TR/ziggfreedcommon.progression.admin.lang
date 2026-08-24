@@ -1,6 +1,7 @@
-# /zigprogress komut ailesi: yardım metinleri, listeler ve yanıtlar.
+# /zigprogress komut ailesi VE ilerleme yönetim sayfası: yardım metinleri, listeler ve yanıtlar.
 # Dosya adı anahtar ÖN EKİDİR: buradaki bir girdi ziggfreedcommon.progression.admin.<key> olarak çözülür.
-# desc.* anahtarları, sunucunun kendi yardımının bir komutu veya argümanı tanımlarken kullandığı anahtarlardır.
+# desc.* anahtarları, sunucunun kendi yardımının bir komutu veya argümanı tanımlarken kullandığı anahtarlardır; ise
+# page.* anahtarları yönetim sayfasının kendi satırlarıdır.
 
 desc.family = Bu sunucunun görevlerini, başarımlarını ve diyalog anılarını incele ve yönet.
 desc.reload = Paylaşılan görev ve başarım varlıklarını yeniden okuyup yayımla.
@@ -99,6 +100,17 @@ achievement.reset = {0} için tüm başarımlar ve kilometre taşları silindi (
 achievement.reset.first_claims = Bu oyuncunun kazandığı bir sunucuda-ilk, kurulu talep tablosunda kayıtlı kalır; orada serbest bırak.
 
 memories.forgot = Her konuşmanın {0} hakkında hatırladığı her şey, her iki ömürde de unutuldu.
+
+page.title = İlerleme Sistemleri
+page.subtitle = Kayıtlı ilerleme sistemleri için sunucu geneli anahtarlar. Değişiklik tüm oyunculara aynı anda uygulanır.
+page.empty = Bu sunucuda bir ilerleme sistemi anahtar kaydetmedi.
+page.on = Açık
+page.off = Kapalı
+page.unknown = ?
+page.readonly = Başka yerde yönetilir; burada salt okunur gösterilir.
+page.changed = {0} şimdi {1}.
+page.refused = {0} değiştirilemedi ve durumunu korudu.
+page.back = Geri
 
 status.quest.not_started = başlanmadı
 status.quest.active = etkin

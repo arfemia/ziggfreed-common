@@ -1,6 +1,7 @@
-# A família de comandos /zigprogress: textos de ajuda, listagens e respostas.
+# A família de comandos /zigprogress E a página de administração de progressão: textos de ajuda, listagens e respostas.
 # O nome do arquivo é o PREFIXO da chave: uma entrada aqui resolve como ziggfreedcommon.progression.admin.<key>.
-# As chaves desc.* são as que a ajuda do servidor usa para descrever um comando ou um argumento.
+# As chaves desc.* são as que a ajuda do próprio engine usa para descrever um comando ou um argumento; as
+# chaves page.* são as linhas próprias da página de administração.
 
 desc.family = Consultar e administrar as missões, as conquistas e as memórias de diálogo deste servidor.
 desc.reload = Reler e republicar os assets compartilhados de missões e conquistas.
@@ -99,6 +100,17 @@ achievement.reset = Todas as conquistas e marcos de {0} apagados ({1} registros)
 achievement.reset.first_claims = Uma primeira do servidor vencida por este jogador continua anotada na tabela de reivindicações instalada; libere-a lá.
 
 memories.forgot = Esquecido tudo o que cada conversa lembra sobre {0}, nas duas durações.
+
+page.title = Sistemas de Progressão
+page.subtitle = Interruptores de todo o servidor para os sistemas de progressão registrados. Uma mudança se aplica a todos os jogadores de uma vez.
+page.empty = Nenhum sistema de progressão registrou um interruptor neste servidor.
+page.on = Ligado
+page.off = Desligado
+page.unknown = ?
+page.readonly = Governado em outro lugar; mostrado aqui somente leitura.
+page.changed = {0} agora é {1}.
+page.refused = {0} não pôde ser alterado e mantém seu estado.
+page.back = Voltar
 
 status.quest.not_started = não iniciada
 status.quest.active = ativa

@@ -48,6 +48,13 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
   `progress.runtime.ProgressionRuntime` from this module's `setup()`; a consumer mod running its
   own progression REPLACES the parts it answers for through the same registration surface, so
   double-tracking cannot exist rather than being switched off.
+  - `objectives/admin/` - the progression admin page: `SystemSwitch` (one registered server-wide
+    progression-system switch: label, live read, optional writer) + `SystemSwitches` (the additive
+    registry over `zc-core`'s `RegistryLedger`, with the guarded read that answers UNKNOWN rather
+    than OFF on a throw and the guarded write that refuses rather than throws), and
+    `ProgressionAdminPage` / `ProgressionAdminPages` / `ProgressionAdminDeps` (audience seam
+    DEFAULT DENY; opened only by the direct static `ProgressionAdminPages.open`, deliberately not
+    a registered destination).
   - `objectives/book/` - the objective book: the full-screen two-tab progression menu
     (`ObjectiveBookPage` the host + verbs, `BookQuestsTab` the quest log, `BookAchievementsTab`
     the two-panel achievements browser), its consumer seams (`ObjectiveBookDeps`, registered via
@@ -70,7 +77,8 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
     `ProgressionRegistrar`.
   - `objectives/store/` - the persisted per-player progress component + its codec.
 
-  None of the six subpackages has its own router; the parent `objectives/` router covers them all.
+  None of the seven subpackages above has its own router; the parent `objectives/` router covers
+  them all.
 
 ## Shipped resources
 
@@ -78,7 +86,9 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
 ZigBookTagChip.ui, ZigBookCatTab.ui, ZigBookWideTab.ui, ZigBookRewardRow.ui, ZigAchListRow.ui,
 ZigAchChipRow.ui, ZigAchCriterionRow.ui, ZigAchCategoryCard.ui, ZigMilestoneCard.ui,
 ZigNpcQuestPage.ui,
-ZigNpcQuestRow.ui, ZigNpcQuestLine.ui, ZigTrackedQuestRow.ui}` (needs `zc-presentation` at RUNTIME
+ZigNpcQuestRow.ui, ZigNpcQuestLine.ui, ZigTrackedQuestRow.ui, ZigProgressionAdminPage.ui}` (the
+admin page's rows are zc-presentation's shared `ZigFormToggleRow.ui`, appended, not a template of
+this module's own; needs `zc-presentation` at RUNTIME
 as well as compile time, since a page's `.ui` imports the shared frames by path), and
 `Common/UI/Custom/Hud/ZigQuestTracker.ui` with the three native objective-HUD textures copied
 beside it (`ObjectivePanelContainer.png`, `ObjectiveTaskIconDefault.png`,
@@ -124,7 +134,7 @@ take the screen wins.
 
 ## Tests
 
-18 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
+19 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
 this module's own suite covers the parts it contributes - `DefaultPartsHandInTest`,
 `DefaultPartsRewardGrantTest` (the registered store + producer parts pulling their weight inside a
 real runtime), `ZigProgressComponentTest`, `ProgressBlobTest` (the persisted per-player codec),
@@ -144,6 +154,9 @@ defaults, and a consumer seam that throws), and the tracked-quest HUD's four -
 `TrackedQuestSnapshotTest` (what one paint shows, over an in-memory engine),
 `TrackedQuestHudEventTest` (each of the six events repaints the named player once, the objective
 event skipped for an unshown quest, the uuid registry), `RepaintCoalescerTest` (a burst is one
-paint) and `TrackedQuestHudDepsTest` (the theme seam and every guarded reader). How a reward chip
+paint) and `TrackedQuestHudDepsTest` (the theme seam and every guarded reader), plus
+`SystemSwitchesTest` (the admin switch registry: additive + live registration, order-then-id
+ordering, a throwing read answering unknown rather than off, an absent or throwing writer refusing
+without a throw). How a reward chip
 reads is pinned in `zc-loot`'s `RewardChipsTest`, beside the shared vocabulary it belongs to; the pin
 event is pinned in `zc-progression`'s `QuestTrackedEventTest`.

@@ -100,6 +100,17 @@ achievement.reset.first_claims = Un primero del servidor que este jugador ganó 
 
 memories.forgot = Olvidado todo lo que cada conversación recuerda de {0}, en ambas duraciones.
 
+page.title = Sistemas de Progresión
+page.subtitle = Interruptores de todo el servidor para los sistemas de progresión registrados. Un cambio se aplica a todos los jugadores a la vez.
+page.empty = Ningún sistema de progresión ha registrado un interruptor en este servidor.
+page.on = Activado
+page.off = Desactivado
+page.unknown = ?
+page.readonly = Gobernado en otro lugar; se muestra aquí de solo lectura.
+page.changed = {0} ahora es {1}.
+page.refused = {0} no se ha podido cambiar y mantiene su estado.
+page.back = Atrás
+
 status.quest.not_started = no empezada
 status.quest.active = activa
 status.quest.completed = completada

@@ -1,6 +1,7 @@
-# La famiglia di comandi /zigprogress: testi di aiuto, elenchi e risposte.
+# La famiglia di comandi /zigprogress E la pagina di amministrazione della progressione: testi di aiuto, elenchi e risposte.
 # Il nome del file è il PREFISSO della chiave: una voce qui si risolve come ziggfreedcommon.progression.admin.<key>.
-# Le chiavi desc.* sono quelle con cui l'aiuto del server descrive un comando o un argomento.
+# Le chiavi desc.* sono quelle con cui l'aiuto del server descrive un comando o un argomento; le
+# chiavi page.* sono le righe proprie della pagina di amministrazione della progressione.
 
 desc.family = Consultare e amministrare le missioni, i traguardi e i ricordi di dialogo di questo server.
 desc.reload = Rileggere e ripubblicare gli asset condivisi di missioni e traguardi.
@@ -99,6 +100,17 @@ achievement.reset = Cancellati tutti i traguardi e le tappe di {0} ({1} voci).
 achievement.reset.first_claims = Un primo del server vinto da questo giocatore resta annotato nella tabella delle rivendicazioni installata; liberalo lì.
 
 memories.forgot = Dimenticato tutto ciò che ogni conversazione ricorda di {0}, in entrambe le durate.
+
+page.title = Sistemi di Progressione
+page.subtitle = Interruttori a livello di server per i sistemi di progressione registrati. Una modifica si applica a tutti i giocatori contemporaneamente.
+page.empty = Nessun sistema di progressione ha registrato un interruttore su questo server.
+page.on = Attivo
+page.off = Disattivo
+page.unknown = ?
+page.readonly = Controllato altrove; mostrato qui di sola lettura.
+page.changed = {0} è ora {1}.
+page.refused = {0} non poteva essere cambiato e mantiene il suo stato.
+page.back = Indietro
 
 status.quest.not_started = non iniziata
 status.quest.active = attiva

@@ -1,0 +1,81 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// The progression admin page (com.ziggfreed.common.objectives.admin.ProgressionAdminPage): one row
+// per registered progression-system switch, each an appended Pages/ZigFormToggleRow.ui (the shared
+// settings-form toggle row) painted from Java - label, live server-wide state, and an on/off toggle
+// where the switch is writable (a read-only row is tinted locked and carries no binding).
+//
+// #Rows is the appendable list container and MUST stay childless here: rows are addressed by
+// indexed parent ("#Rows[0] #Toggle"), so a pre-authored child would shift every index. #Empty is
+// the page-level note an empty registry shows instead of rows. All text is set from Java on
+// .TextSpans (no inline %key; placeholders), and every labeled button is a Button + inner #Label.
+//
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  @Ornaments = true;
+  Anchor: (Width: 700, Height: 620);
+
+  #Content {
+    Anchor: (Top: 0);
+    LayoutMode: Top;
+    Padding: (Full: 18);
+
+    Label #Title {
+      Text: "";
+      Anchor: (Height: 32, Bottom: 2);
+      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+    }
+
+    Label #Subtitle {
+      Text: "";
+      Anchor: (Height: 20, Bottom: 10);
+      Style: (FontSize: 12, TextColor: #93a4b8, VerticalAlignment: Center);
+    }
+
+    Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
+
+    Group #SwitchPanel {
+      FlexWeight: 1;
+      LayoutMode: Top;
+      Padding: (Full: 12);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+
+      Group #Rows {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 4);
+      }
+
+      Label #Empty {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 40, Top: 8);
+        Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+      }
+    }
+
+    Group #Footer {
+      Anchor: (Height: 36, Top: 12);
+      LayoutMode: Left;
+
+      Group { FlexWeight: 1; }
+
+      Button #BackButton {
+        Style: $Z.@ZigRichRowBtnStyle;
+        Anchor: (Width: 140, Height: 32);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+    }
+  }
+}

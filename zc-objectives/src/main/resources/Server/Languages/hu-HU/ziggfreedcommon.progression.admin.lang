@@ -1,6 +1,7 @@
 # A /zigprogress parancscsalád: súgószövegek, listák és válaszok.
 # A fájlnév a kulcs ELŐTAGJA: egy itteni bejegyzés ziggfreedcommon.progression.admin.<key> néven oldódik fel.
-# A desc.* kulcsokon keresztül írja le a szerver saját súgója a parancsokat és az argumentumokat.
+# A desc.* kulcsokon keresztül írja le a szerver saját súgója a parancsokat és az argumentumokat; a
+# page.* kulcsok a progresszió-adminisztráció oldal saját sorai.
 
 desc.family = A szerver küldetéseinek, teljesítményeinek és párbeszéd-emlékeinek megtekintése és kezelése.
 desc.reload = A megosztott küldetés- és teljesítmény-assetek újraolvasása és újbóli közzététele.
@@ -99,6 +100,17 @@ achievement.reset = {0} minden teljesítménye és mérföldköve törölve ({1}
 achievement.reset.first_claims = Egy szerver-első, amelyet ez a játékos nyert, továbbra is a telepített igénytáblában szerepel; ott oldd fel.
 
 memories.forgot = Minden elfelejtve, amit bármely beszélgetés {0} játékosról megjegyzett, mindkét élettartamban.
+
+page.title = Progresszió-rendszerek
+page.subtitle = Szerver-szintű kapcsolók a regisztrált progresszió-rendszerekhez. A módosítás azonnal érvényes lesz mindegyik játékos számára.
+page.empty = Ezen a szerveren egyetlen progresszió-rendszer sem regisztrált kapcsolót.
+page.on = Be
+page.off = Ki
+page.unknown = ?
+page.readonly = Máshol szabályozva; itt csak olvasható.
+page.changed = {0} most {1}.
+page.refused = {0} nem lehetett módosítani, az állapota megmaradt.
+page.back = Vissza
 
 status.quest.not_started = nem kezdett
 status.quest.active = aktív

@@ -99,6 +99,7 @@ seam.
 | `book/` | the in-game two-tab surface and the item that opens it |
 | `questlist/` | the NPC quest page: what one CHARACTER has to offer, list and detail |
 | `command/` | `/zigprogress`: the admin family over THE runtime - quest, achievement and memories groups; see [its router](command/CLAUDE.md) |
+| `admin/` | the progression admin page: `SystemSwitch` + `SystemSwitches` (the registered server-wide system switches) and `ProgressionAdminPage`/`Pages`/`Deps` (audience DEFAULT DENY, opened only by direct static call) - see below |
 | `hud/` | the tracked-quest HUD (`TrackedQuestHud` + `TrackedQuestHuds` + `TrackedQuestHudDeps` + `TrackedQuestSnapshot` + `RepaintCoalescer`) and the tracked-quests side-panel renderer a page embeds (`TrackedQuestPanelRenderer`) |
 
 ## What these defaults MUST wire, because nothing works without them
@@ -562,6 +563,39 @@ after the maintenance pass has hopped to the world thread, so the first paint sh
   surplus) so a `sendUpdate` repaints by index; the host page's header label, if any, stays with the
   page.
 
+## The admin page
+
+[`admin/ProgressionAdminPage`](admin/ProgressionAdminPage.java) is the third surface, and the one
+that is NOT for players: one row per registered [`admin/SystemSwitch`](admin/SystemSwitch.java) -
+a consumer's server-wide progression-system switch (which `ProgressionSystem`, a pre-built
+client-resolved label + optional hint, a server-wide `BooleanSupplier` read, an optional `Writer`,
+a render order) - registered additively through
+[`admin/SystemSwitches`](admin/SystemSwitches.java) over `zc-core`'s `RegistryLedger`.
+
+- **The switch registry lives HERE, not in zc-progression**: a switch carries a `Message` label,
+  and a Message is presentation, which zc-progression must stay free of. The runtime's
+  `ProgressionSystemGate` stays the per-player DECISION; a `SystemSwitch` is typically what such a
+  gate reads, and the page never asks the gates.
+- **Three honest toggle paints.** On / Off for a value that read cleanly; a locked tint (and no
+  binding) plus a "governed elsewhere" hint line for a switch with no writer; and "?" for a read
+  that threw - never Off, the gate posture mirrored per side's own failure cost
+  (`SystemSwitches.readGuarded` answers null on a throw, one warn per id; `writeGuarded` refuses
+  with false on an absent or throwing writer, and the page answers the refusal as a toast).
+  An EMPTY registry renders a page-level note, not rows.
+- **Opened ONLY by the direct static `ProgressionAdminPages.open`**, never a registered
+  destination - an admin screen must not be pack-addressable - and refused unless the registered
+  [`admin/ProgressionAdminDeps`](admin/ProgressionAdminDeps.java) audience passes. The audience
+  DEFAULTS TO DENY and a throwing audience denies too (fail-closed, the one deliberate exception to
+  the every-default-leaves-a-working-page rule: the library cannot know what "is an admin" means).
+  The deps also carry the ONE shared `NpcQuestPageDeps.PageTheme` and a Back handler (default:
+  the page closes).
+- **Rows are zc-presentation's shared `Pages/ZigFormToggleRow.ui`**, appended directly (not
+  through `SettingsForm`, whose toggle knows only on/off and always binds); the page's own frame is
+  `Pages/ZigProgressionAdminPage.ui`. Every line resolves from the admin family's own
+  `ziggfreedcommon.progression.admin.lang` under `page.*`, beside the command family's keys.
+- **Stateless across events**: the full state a binding round-trips is an action and a switch id;
+  a toggle writes, toasts the result, and reopens so every row repaints from a live read.
+
 ## Tests
 
 Pure decision cores and author-owned fixtures only, matching the rest of the library.
@@ -616,6 +650,9 @@ The admin family is pinned the way the commerce one is: `command/ProgressAdminKe
 command package and fails on a key with nothing to resolve it from, on a verb or group with no help
 line, and on a runtime status with no word; the engine calls behind each verb (`wipeQuest`,
 `wipeAllQuests`, `resetAll`) are pinned one module down beside the engines that own them.
+`admin/SystemSwitchesTest` pins the admin page's registry half - additive + live registration,
+order-then-id ordering, the unknown-on-throw read, the refuse-without-throw write - while the page
+itself is in-game smoke like every other page here.
 
 The tracked-quest HUD is split the same way. `TrackedQuestSnapshotTest` pins what a paint SHOWS
 over an in-memory engine (hidden when nothing is pinned, one block per pin, only the current step's

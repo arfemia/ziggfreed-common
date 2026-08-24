@@ -1,6 +1,7 @@
-# The /zigprogress admin command family: help text, listings and answers.
+# The /zigprogress admin command family AND the progression admin page: help text, listings and answers.
 # The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.progression.admin.<key>.
-# The desc.* keys are what the engine's own help resolves a command or an argument through.
+# The desc.* keys are what the engine's own help resolves a command or an argument through; the
+# page.* keys are the admin page's own lines.
 
 desc.family = Inspect and administer this server's quests, achievements and dialogue memories.
 desc.reload = Fold the shared quest and achievement assets again and publish them.
@@ -99,6 +100,17 @@ achievement.reset = Wiped every achievement and milestone for {0} ({1} records).
 achievement.reset.first_claims = A server-first this player won is still recorded in the installed claim table; release it there.
 
 memories.forgot = Forgot everything every conversation remembers about {0}, in both lifetimes.
+
+page.title = Progression Systems
+page.subtitle = Server-wide switches for the registered progression systems. A change applies to every player at once.
+page.empty = No progression system has registered a switch on this server.
+page.on = On
+page.off = Off
+page.unknown = ?
+page.readonly = Governed elsewhere; shown here read-only.
+page.changed = {0} is now {1}.
+page.refused = {0} could not be changed and keeps its state.
+page.back = Back
 
 status.quest.not_started = not started
 status.quest.active = active
