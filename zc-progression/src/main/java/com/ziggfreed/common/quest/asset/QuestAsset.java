@@ -367,7 +367,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .sequential(flow != null && flow.isSequential())
                 .autoAccept(flow != null && flow.isAutoAccept())
                 .autoTrack(flow != null && flow.isAutoTrack())
-                .autoClaim(flow == null || flow.isAutoClaim())
+                .autoClaim(flow != null && flow.isAutoClaim())
                 .repeat(repeat == null ? null : repeat.toRepeat())
                 .visibility(visibility == null ? Quest.Visibility.OPEN : visibility.toVisibility())
                 .turnInAt(turnInSite(giverId))
@@ -450,8 +450,9 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                         + "player chose. Unauthored means false.").add()
                 .appendInherited(new KeyedCodec<>("AutoClaim", Codec.BOOLEAN, false),
                         (o, v) -> o.autoClaim = v, o -> o.autoClaim, (o, p) -> o.autoClaim = p.autoClaim)
-                .documentation("Pay out the moment the steps are done; unauthored means true. Set false for a "
-                        + "quest whose reward is collected somewhere specific: it waits, finished, until then.").add()
+                .documentation("Pay out the moment the steps are done; unauthored means false, so a finished "
+                        + "quest waits in the quest log until the player claims it. Set true for a quest whose "
+                        + "reward should land the instant its steps are done, with nothing further to collect.").add()
                 .appendInherited(new KeyedCodec<>("Sequential", Codec.BOOLEAN, false),
                         (o, v) -> o.sequential = v, o -> o.sequential, (o, p) -> o.sequential = p.sequential)
                 .documentation("Run the steps strictly one after another in authored order. Ignored the moment "
@@ -480,9 +481,9 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             return autoTrack != null && autoTrack;
         }
 
-        /** Unauthored means true, matching the engine's own default. */
+        /** Unauthored means false, matching AutoAccept/AutoTrack/Sequential. */
         public boolean isAutoClaim() {
-            return autoClaim == null || autoClaim;
+            return autoClaim != null && autoClaim;
         }
 
         public boolean isSequential() {

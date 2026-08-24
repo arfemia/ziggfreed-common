@@ -62,7 +62,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `AutoAccept` | `boolean` | `null` | Start the quest as soon as the player is eligible, with no action from them. Unauthored means false. |
 | `AutoTrack` | `boolean` | `null` | Pin it to the tracker on accept if there is room. It never displaces a pin the player chose. Unauthored means false. |
-| `AutoClaim` | `boolean` | `null` | Pay out the moment the steps are done; unauthored means true. Set false for a quest whose reward is collected somewhere specific: it waits, finished, until then. |
+| `AutoClaim` | `boolean` | `null` | Pay out the moment the steps are done; unauthored means false, so a finished quest waits in the quest log until the player claims it. Set true for a quest whose reward should land the instant its steps are done, with nothing further to collect. |
 | `Sequential` | `boolean` | `null` | Run the steps strictly one after another in authored order. Ignored the moment any objective authors its own Order, which is the finer-grained way to say the same. |
 
 <a id="field-questasset-repeat"></a>

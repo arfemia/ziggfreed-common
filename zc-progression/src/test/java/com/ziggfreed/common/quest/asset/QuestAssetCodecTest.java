@@ -267,7 +267,7 @@ class QuestAssetCodecTest {
             QuestDefinition definition = decodeRoot("{ }", "bare").toDefinition(null);
 
             assertTrue(definition.quest().available(), "unauthored Enabled means in circulation");
-            assertTrue(definition.quest().autoClaim(), "unauthored AutoClaim matches the engine default");
+            assertFalse(definition.quest().autoClaim(), "unauthored AutoClaim is false, like AutoAccept/AutoTrack/Sequential");
             assertFalse(definition.quest().autoAccept());
             assertFalse(definition.quest().autoTrack());
             assertFalse(definition.quest().sequential());
