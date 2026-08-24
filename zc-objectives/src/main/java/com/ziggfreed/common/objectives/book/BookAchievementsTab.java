@@ -121,6 +121,11 @@ final class BookAchievementsTab {
         ZigRichButton.text(cmd, "#DClaimBtn", page.text("book.achievements.claim_button"));
         ObjectiveBookPage.applyGoldClaim(cmd, "#DClaimBtn");
 
+        // The detail header's pin toggle, bound the same way: once, id-less, acting on the live
+        // selection. paintDetail repaints its glyph and hides it for a feat.
+        events.addEventBinding(CustomUIEventBindingType.Activating, "#DPinBtn",
+                page.fullState("togglepin"));
+
         // The right panel: the selected achievement's detail, else the overview.
         Achievement selected = page.selectedId() == null ? null
                 : engine.achievement(page.selectedId());
@@ -682,12 +687,22 @@ final class BookAchievementsTab {
         boolean claimed = status == AchievementStatus.CLAIMED;
         String bucket = bucketOf(achievement);
 
-        // Header: strip, icon, title, the server-first badge, the worth.
+        // Header: strip, pin, icon, title, the server-first badge, the worth.
         cmd.set("#DStrip.Background", categoryColor(bucket));
         Message title = nameOf(achievement);
         cmd.set("#DTitle.TextSpans", title);
         paintIcon(cmd, "#DIconSlot", "#DIcon", achievement, title);
         cmd.set("#DPoints.TextSpans", pointsTag(page, achievement));
+
+        // The header's pin toggle mirrors the list rows': hidden for a feat (an earned trophy
+        // tracks nothing), else painted to the live pin state. The binding is build-time and
+        // id-less, so this repaint never re-binds.
+        boolean pinnable = !achievement.featOfStrength();
+        cmd.set("#DPinBtn.Visible", pinnable);
+        if (pinnable) {
+            ObjectiveBookPage.paintPinIcon(cmd, "#DPinBtn",
+                    engine.pinned(subject).contains(achievement.id()));
+        }
 
         ObjectiveBookDeps.FirstClaim claim = achievement.serverFirst()
                 ? page.deps().claimOfGuarded(achievement.id(), page.viewer().getUuid()) : null;

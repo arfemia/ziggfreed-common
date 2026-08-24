@@ -320,7 +320,10 @@ by design.
   (default / A-Z / % progress - a single choice, so every label renders whole) and status chips
   over compact rows plus the earned-only feats section, each LADDER collapsed to the rung being
   climbed (pinned rungs and a live search bypass the collapse). RIGHT: the selected achievement's
-  whole story - header, meta line, description, native progress bar, criteria, what a capstone
+  whole story - header (with a pin toggle of its own: bound once id-less like the claim button so
+  it acts on the live selection, hidden for a feat, and repainted IN SYNC with the list row's pin
+  glyph in the one partial update whichever of the two was clicked), meta line, description,
+  native progress bar, criteria, what a capstone
   requires, what this feeds, the whole ladder, rewards with their auto / pending / claimed /
   locked tags and the ONE claim button - or, while nothing is selected, the OVERVIEW: recent
   unlocks, nearest-to-complete, pinned, the category completion grid, and the consumer's points
@@ -339,7 +342,11 @@ by design.
 - **[`book/ObjectiveBookDeps`](book/ObjectiveBookDeps.java) is everything a consumer may say** and
   nothing it must - every default leaves the book working on a bare server. The seams: the
   `PageTheme` (now varargs over the inner panels, `#LeftPanel` + `#SidePanel`), a RAIL painter
-  over `#LeftPanel` (branding + navigation; the column hides when nothing paints it) and a SIDE
+  over `#LeftPanel` (branding + navigation; the column hides when nothing paints it, and with it
+  PAINTED the book's own Quests | Achievements strip hides too - the rail carries its own two tab
+  entries, so the strip would be a second switcher; the rail's highlight is the one tab indicator,
+  the header row reflows with the title growing into the space, and a bare server keeps the strip
+  as its only switcher) and a SIDE
   painter over the achievements tab's third column, both binding their controls back through
   `Chrome.bindExt` to the one `ext` action channel the `ExtHandler` answers; board-managed-quest
   presentation (the predicate, the substitute pills, the at-the-board hint - a managed quest lists
@@ -368,6 +375,12 @@ by design.
   rank rules live in `book/AchievementGrouping`, unchanged: an authored `TitleKey`, else the
   `achievement.category.<id>` convention key, else the id humanized, with undescribed categories
   after described ones and the uncategorised bucket last, on a line of the page's own.
+- **A String-only sink never shows a raw key**: everything the book flattens - an item slot's
+  hover name, a dropdown entry's label, the search haystacks, the A-Z sort keys - goes through
+  `UiText.flatten`, which resolves a translation through the server's default-language catalogue
+  with its params substituted (zc-core's `PlainText`; an id with no value still degrades to the
+  id, the traceable form). Display text everywhere else stays a client-resolved Message on
+  `.TextSpans`; never flatten for a sink that can take a Message.
 - **`.ui` contract**: `Pages/ZigObjectiveBookPage.ui` is the frame (the `Padding: (Full: 12)` on
   `#Content` is load-bearing: at 0 the `#LeftPanel`/`#SidePanel` bevels stack against the frame
   bevel and read as heavy shadow), plus the appended row family: `ZigQuestLogRow.ui` (a quest),
@@ -380,7 +393,9 @@ by design.
   (a `.Text` sink neither substitutes `{0}` nor renders markup; the expand toggle's bare glyph
   goes through `UiText.setText`), every labeled button is a `Button` + inner `#Label` driven by
   `ZigRichButton`, and the pin / track glyph is BAKED in the template (Java toggles the off/on
-  variants and retints the pill; a TexturePath pushed from Java renders a red X). A lang key
+  variants and retints the pill, whose `ButtonStyle` is the shared `$Z.@ZigPinBtnStyle` on every
+  face - the quest row's track button, the achievement row's pin, the detail header's `#DPinBtn`;
+  a TexturePath pushed from Java renders a red X). A lang key
   referenced INLINE from a `.ui` file (`PlaceholderText: %...;`) must use camelCase segments: the
   parser's `%...;` token grammar rejects underscores, and one unparseable document disconnects
   every client at load (which is why the two placeholder keys are `searchPlaceholder`).

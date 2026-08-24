@@ -17,15 +17,6 @@ $Z = "../Common/ZigButtons.ui";
   Sounds: $C.@ButtonSounds
 );
 
-// Track button pill (Button, no LabelStyle): the real waypoint-marker icon lives in the
-// nested #PinIconOff / #PinIconOn groups, retinted per-state from Java.
-@ZigTrackBtnStyle = ButtonStyle(
-  Default: (Background: #1a2233),
-  Hovered: (Background: #243144),
-  Pressed: (Background: #0f1723),
-  Sounds: $C.@ButtonSounds
-);
-
 Group #ZigQuestLogRow {
   LayoutMode: Top;
   Background: #1a2233;
@@ -49,10 +40,11 @@ Group #ZigQuestLogRow {
       Style: (FontSize: 14, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
     }
 
+    // Track pill: the shared $Z.@ZigPinBtnStyle (backgrounds + Sounds, no LabelStyle).
     Button #TrackBtn {
       Anchor: (Width: 36, Height: 24);
       Visible: false;
-      Style: @ZigTrackBtnStyle;
+      Style: $Z.@ZigPinBtnStyle;
 
       // Baked icon variants (waypoint marker), centered via absolute anchors. Java toggles
       // .Visible + retints the pill, and never pushes a TexturePath from Java (that renders a

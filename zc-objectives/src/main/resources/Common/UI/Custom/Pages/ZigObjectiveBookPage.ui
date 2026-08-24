@@ -85,7 +85,9 @@ $F.@ZigDecoratedFrame {
           }
         }
 
-        // The book's own tab strip.
+        // The book's own tab strip. Java hides it whole when a consumer rail painted (the rail
+        // carries its own Quests / Achievements entries, so this would be a second switcher);
+        // hidden it takes no layout space, so the title grows into the gap.
         Group #TabBar {
           LayoutMode: Left;
           Anchor: (Width: 300);
@@ -501,6 +503,26 @@ $F.@ZigDecoratedFrame {
                   Background: #4a9eff;
                 }
                 Group { Anchor: (Width: 8); }
+                // The detail header's pin toggle, mirroring the list rows': the shared pill
+                // style, the baked #PinIconOff / #PinIconOn glyph variants Java flips and
+                // retints. Bound once id-less (it toggles the live selection); hidden for a feat.
+                Button #DPinBtn {
+                  Anchor: (Width: 22, Height: 22);
+                  Visible: false;
+                  Style: $Z.@ZigPinBtnStyle;
+
+                  Group #PinIconOff {
+                    Anchor: (Width: 14, Height: 14, Left: 4, Top: 4);
+                    Background: (TexturePath: "RespawnPointArrow.png", Color: #6f7d8c);
+                    Visible: true;
+                  }
+                  Group #PinIconOn {
+                    Anchor: (Width: 14, Height: 14, Left: 4, Top: 4);
+                    Background: (TexturePath: "RespawnPointArrow.png", Color: #ffffff);
+                    Visible: false;
+                  }
+                }
+                Group { Anchor: (Width: 6); }
                 Group #DIconSlot {
                   Anchor: (Width: 28, Height: 28);
                   Visible: false;

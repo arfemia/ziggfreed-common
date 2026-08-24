@@ -1,12 +1,12 @@
 package com.ziggfreed.common.ui;
 
-import java.util.List;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
+
+import com.ziggfreed.common.i18n.PlainText;
 
 /**
  * The ONE way a page writes a {@code .Text} property, because that property is not the forgiving
@@ -87,37 +87,16 @@ public final class UiText {
     }
 
     /**
-     * The plain characters behind a message that a {@code .Text} sink cannot resolve: its raw text,
-     * then each child's, in order. A part that carries only an unresolvable {@code MessageId}
-     * contributes the id itself, so a missing translation shows up on screen as the key that needs
-     * writing rather than as a blank line nobody can trace.
+     * The plain characters behind a message, for a {@code String}-only sink or a server-side read
+     * (an item slot's hover name, a dropdown entry, a search haystack, an A-Z sort key): raw text
+     * as written, each child in order, and a translation part RESOLVED through the server's
+     * default-language catalogue with its params substituted - see {@link PlainText}, the one
+     * resolver behind this. A part whose id has no value contributes the id itself, so a missing
+     * translation shows up on screen as the key that needs writing rather than as a blank line
+     * nobody can trace.
      */
     @Nonnull
     public static String flatten(@Nullable Message value) {
-        StringBuilder out = new StringBuilder();
-        append(value, out);
-        return out.toString();
-    }
-
-    private static void append(@Nullable Message value, @Nonnull StringBuilder out) {
-        if (value == null) {
-            return;
-        }
-        String raw = value.getRawText();
-        if (raw != null && !raw.isEmpty()) {
-            out.append(raw);
-        } else if (raw == null) {
-            String messageId = value.getMessageId();
-            if (messageId != null && !messageId.isEmpty()) {
-                out.append(messageId);
-            }
-        }
-        List<Message> children = value.getChildren();
-        if (children == null) {
-            return;
-        }
-        for (Message child : children) {
-            append(child, out);
-        }
+        return PlainText.of(value);
     }
 }

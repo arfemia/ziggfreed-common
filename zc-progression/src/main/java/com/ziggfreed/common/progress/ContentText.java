@@ -28,7 +28,8 @@ import com.ziggfreed.common.util.NumberFormatter;
  * {@code description} are the plain fallbacks for content whose key is not written yet - they reach
  * every player in the one language they were typed in, so anything shipping to players carries a key.
  * The one composed leaf is a STEP's line, which a fold may hand over already built from its own keys
- * for a step that authored none; see {@link #objective(String)} for why that is not a sentence.
+ * (an authored step key included, resolved with the arguments its slots need); see
+ * {@link #objective(String)} for why that is not a sentence and why it outranks the bare key.
  *
  * <p><b>Two keys per line, because most content has a convention.</b> An EXPLICIT key is what the
  * file literally says; a CONVENTION key is what a mod's own naming rule would call it
@@ -113,8 +114,8 @@ public final class ContentText {
     }
 
     /**
-     * What one step is called: the authored key when the step carries one, else whatever line the
-     * fold composed for it, else null.
+     * What one step is called: the line the fold composed for it when there is one, else the
+     * authored key, else null.
      *
      * <p>Nothing is INVENTED here - this carries words, it does not write them. But a fold that
      * already knows how its own steps read is the one layer that can say so, and a step with no line
@@ -124,28 +125,29 @@ public final class ContentText {
      * later in a boot than the catalogue is folded. A supplier that throws, or that answers null
      * because it has nothing to say yet, costs its own line and nothing else: the authored key takes
      * over exactly as if no line had been offered.
+     *
+     * <p>The composed line is asked FIRST, unlike the title ladder, because it is not a rival to
+     * the authored key - it is the fold's fuller reading of the same authorship. A fold's composer
+     * resolves the step's own key itself, WITH the arguments the key's slots need (a hand-in's
+     * character name, a kill or collect count) and any wrapping the step declares; this seam holds
+     * no per-step arguments, so resolving a parameterized key here paints its {@code {0}} literally
+     * on every shared surface at once. The bare key resolution is the fallback, for the step whose
+     * fold composed nothing.
      */
     @Nullable
     public Message objective(@Nonnull String objectiveId) {
-        String key = objectiveKeys.get(objectiveId);
-        // The same ladder the title and flavor take, and for the same reason: a key nobody has
-        // translated yet paints as the key itself, so a composed line the fold already has in hand
-        // is the better answer. Only when there is no line either does the key go out as it stands.
-        if (key != null && ContentKeys.known(key)) {
-            return ContentKeys.tr(key);
-        }
         Supplier<Message> line = objectiveLines.get(objectiveId);
-        if (line == null) {
-            return key == null ? null : ContentKeys.tr(key);
-        }
-        try {
-            Message composed = line.get();
-            if (composed != null) {
-                return composed;
+        if (line != null) {
+            try {
+                Message composed = line.get();
+                if (composed != null) {
+                    return composed;
+                }
+            } catch (Throwable composerFailed) {
+                // Costs its own line, never the screen.
             }
-        } catch (Throwable composerFailed) {
-            // Costs its own line, never the screen.
         }
+        String key = objectiveKeys.get(objectiveId);
         return key == null ? null : ContentKeys.tr(key);
     }
 
@@ -332,8 +334,9 @@ public final class ContentText {
         }
 
         /**
-         * The line one step reads with when it authored no key of its own, composed by the fold and
-         * asked for on demand. A blank id or a null supplier is ignored rather than stored.
+         * The line one step reads with, composed by the fold (its authored key resolved with its
+         * arguments, or a generated sentence for a step that authored none) and asked for on
+         * demand. A blank id or a null supplier is ignored rather than stored.
          */
         @Nonnull
         public Builder objectiveLine(@Nullable String objectiveId, @Nullable Supplier<Message> line) {

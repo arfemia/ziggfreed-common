@@ -16,15 +16,6 @@ $Z = "../Common/ZigButtons.ui";
   Sounds: $C.@ButtonSounds
 );
 
-// Pin button pill (Button, no LabelStyle): the waypoint-marker icon lives in the nested
-// #PinIconOff / #PinIconOn groups, retinted per-state from Java.
-@ZigAchPinStyle = ButtonStyle(
-  Default: (Background: #1a2233),
-  Hovered: (Background: #243144),
-  Pressed: (Background: #0f1723),
-  Sounds: $C.@ButtonSounds
-);
-
 Group #ZigAchRow {
   LayoutMode: Top;
   Background: #1a2233;
@@ -42,9 +33,11 @@ Group #ZigAchRow {
 
     Group { Anchor: (Width: 8); }
 
+    // Pin pill: the shared $Z.@ZigPinBtnStyle; the waypoint-marker icon lives in the nested
+    // #PinIconOff / #PinIconOn groups, retinted per-state from Java.
     Button #PinBtn {
       Anchor: (Width: 22, Height: 22);
-      Style: @ZigAchPinStyle;
+      Style: $Z.@ZigPinBtnStyle;
 
       Group #PinIconOff {
         Anchor: (Width: 14, Height: 14, Left: 4, Top: 4);

@@ -112,6 +112,32 @@ class ContentTextArgsTest {
     }
 
     /**
+     * Where a step carries BOTH an authored key and a composed line, the line wins: the composer
+     * resolves that same key itself WITH the arguments its slots need, while this seam holds no
+     * per-step arguments - so the bare key resolution would paint a parameterized key's {@code {0}}
+     * literally on every shared surface at once (the shipped instance: a report-back hand-in step
+     * reading "Go to {0}" in the quest log).
+     */
+    @Test
+    void aComposedLineOutranksTheBareAuthoredKey() {
+        ContentKeys.reset();
+        ContentText both = ContentText.builder()
+                .objectiveKey("turn_in", "objective.text.turn_in.find")
+                .objectiveLine("turn_in", () -> Msg.raw("Go to Ranger Wren"))
+                .build();
+        assertEquals("Go to Ranger Wren", both.objective("turn_in").getRawText());
+
+        ContentText composerDown = ContentText.builder()
+                .objectiveKey("turn_in", "objective.text.turn_in.find")
+                .objectiveLine("turn_in", () -> null)
+                .build();
+        assertEquals("objective.text.turn_in.find",
+                composerDown.objective("turn_in").getMessageId(),
+                "a composer with nothing to say yet falls back to the key exactly as if no line"
+                        + " had been offered");
+    }
+
+    /**
      * The words are resolved THROUGH the authored-key seam, not handed over as typed. A key with no
      * namespace is one the client cannot resolve, so the player reads the key itself - and the file
      * it came from still looks perfectly correct.

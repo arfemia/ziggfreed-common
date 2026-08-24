@@ -80,6 +80,22 @@ $C = "../Common.ui";
   }
 };
 
+// ── ziggfreed-common shared PIN / TRACK glyph pill ────────────────────────────
+// Imported per page as:  $Z = "../Common/ZigButtons.ui";  then  Style: $Z.@ZigPinBtnStyle;
+//
+// The small square pill behind a pin / track toggle (a quest row's track button, an
+// achievement row's pin, the achievement detail header's pin). A `ButtonStyle`
+// (backgrounds + Sounds only, NO LabelStyle): the glyph itself is BAKED in each
+// consumer's template as nested #PinIconOff / #PinIconOn groups (a TexturePath pushed
+// from Java renders a red X), and Java flips the variants + retints these per-state
+// backgrounds (gold when on, steel when off). Keep Sounds or the pill is silent.
+@ZigPinBtnStyle = ButtonStyle(
+  Default: (Background: #1a2233),
+  Hovered: (Background: #243144),
+  Pressed: (Background: #0f1723),
+  Sounds: $C.@ButtonSounds
+);
+
 // ── ziggfreed-common shared dialogue option button style (de-MMO'd) ───────────
 // Imported per page as:  $M = "../Common/ZigButtons.ui";  then  Style: $M.@ZigOptionBtnStyle;
 //

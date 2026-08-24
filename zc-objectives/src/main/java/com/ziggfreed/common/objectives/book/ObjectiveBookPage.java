@@ -322,6 +322,12 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             }
         }
 
+        // A painted rail carries its own Quests / Achievements entries, so the in-panel strip is
+        // redundant chrome there: it hides, the rail's highlight is the one tab indicator, and the
+        // header row reflows (the title grows into the space, the stats stay right-aligned). A bare
+        // server keeps the strip - it is the only switcher then.
+        cmd.set("#TabBar.Visible", !railPainted);
+
         cmd.set(achievementsTab ? "#AchievementsTab.Visible" : "#QuestsTab.Visible", true);
 
         QuestEngine questEngine = ProgressionRuntime.quests();
@@ -833,28 +839,32 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
 
     /**
      * The pin button is a TOGGLE dispatched on live state (like the quest track button), so a
-     * scroll-preserving partial flip never leaves a stale verb baked into the binding.
+     * scroll-preserving partial flip never leaves a stale verb baked into the binding. A list row's
+     * pin carries its own id; the detail column's pin binds none and acts on the live selection,
+     * the way the claim button does. Every visible face of the toggled pin - the row's glyph, the
+     * detail header's - repaints in this same update, so the two can never disagree on screen.
      */
     private void handleTogglePin(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
                                  @Nonnull ObjectiveBookEventData data) {
         AchievementEngine engine = ProgressionRuntime.achievements();
         Subject subject = ProgressionRuntime.subjects().achievementSubject(store, ref);
         UICommandBuilder cmd = new UICommandBuilder();
-        if (subject != null && data.id != null && !data.id.isBlank()) {
-            Achievement achievement = engine.achievement(data.id);
+        String id = data.id != null && !data.id.isBlank() ? data.id.trim() : selectedId;
+        if (subject != null && id != null) {
+            Achievement achievement = engine.achievement(id);
             Message name = achievement != null
-                    ? BookAchievementsTab.nameOf(achievement) : Msg.raw(data.id);
+                    ? BookAchievementsTab.nameOf(achievement) : Msg.raw(id);
             try {
                 ProgressionCallScope scope = ProgressionRuntime.achievementScope();
-                boolean wasPinned = engine.pinned(subject).contains(data.id);
+                boolean wasPinned = engine.pinned(subject).contains(id);
                 boolean nowPinned;
                 if (wasPinned) {
-                    scope.around(subject, s -> Boolean.valueOf(engine.unpin(s, data.id)));
+                    scope.around(subject, s -> Boolean.valueOf(engine.unpin(s, id)));
                     showToast(ToastKind.INFO, text("book.toast.unpinned", name));
                     nowPinned = false;
                 } else {
                     nowPinned = Boolean.TRUE.equals(scope.around(subject,
-                            s -> Boolean.valueOf(engine.pin(s, data.id))));
+                            s -> Boolean.valueOf(engine.pin(s, id))));
                     if (nowPinned) {
                         showToast(ToastKind.INFO, text("book.toast.pinned", name));
                     } else {
@@ -864,6 +874,12 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 }
                 if (data.selector != null) {
                     paintPinIcon(cmd, data.selector + " #PinBtn", nowPinned);
+                }
+                if (id.equalsIgnoreCase(selectedId == null ? "" : selectedId)) {
+                    paintPinIcon(cmd, "#DPinBtn", nowPinned);
+                    if (data.selector == null && selectedRowSel != null) {
+                        paintPinIcon(cmd, selectedRowSel + " #PinBtn", nowPinned);
+                    }
                 }
             } catch (Throwable t) {
                 SafeLog.warn("[progression] the book's pin toggle failed: " + t.getMessage());
