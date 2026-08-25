@@ -474,7 +474,7 @@ public final class NpcRolePerformer implements StationPerformer {
                 return finish(accessor, State.FAILED);
             }
             if (!bound) {
-                tryBind(accessor, n);
+                tryBind(accessor, ref, n);
                 // Not yet bound (role brain not ticked): stay WALKING and retry next poll.
                 if (!bound) {
                     return state;
@@ -521,7 +521,7 @@ public final class NpcRolePerformer implements StationPerformer {
             return terminal;
         }
 
-        private void tryBind(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull NPCEntity n) {
+        private void tryBind(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref, @Nonnull NPCEntity n) {
             Role role = n.getRole();
             if (role == null) {
                 return;
@@ -533,7 +533,7 @@ public final class NpcRolePerformer implements StationPerformer {
                     return;
                 }
                 markerRef = marker;
-                role.setMarkedTarget(MOVE_TARGET_SLOT, marker);
+                role.setMarkedTarget(ref, accessor, MOVE_TARGET_SLOT, marker);
                 n.setLeashPoint(new Vector3d(target));
                 bound = true;
             } catch (Throwable t) {

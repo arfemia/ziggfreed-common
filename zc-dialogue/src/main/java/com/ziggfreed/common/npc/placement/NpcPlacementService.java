@@ -19,6 +19,9 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntitySta
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.ChunkFlag;
+import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.npc.NpcSpawnService;
 import com.ziggfreed.common.util.SafeLog;
@@ -240,11 +243,26 @@ public final class NpcPlacementService {
      */
     public static boolean isChunkLoaded(@Nonnull World world, double x, double z) {
         try {
-            return world.getChunkIfLoaded(ChunkUtil.indexChunkFromBlock(x, z)) != null;
+            return chunkIfLoaded(world, ChunkUtil.indexChunkFromBlock(x, z)) != null;
         } catch (Throwable t) {
             SafeLog.fine("[placement] chunk-loaded check failed: " + t.getMessage());
             return false;
         }
+    }
+
+    /**
+     * The {@code WorldChunk} at {@code index}, or {@code null} when it is not resident or is
+     * resident but not ticking. Package-visible so {@link PlacementKeepAlivePins} shares the same
+     * read instead of re-deriving it.
+     */
+    @Nullable
+    static WorldChunk chunkIfLoaded(@Nonnull World world, long index) {
+        Ref<ChunkStore> chunkRef = world.getChunkStore().getChunkReference(index);
+        if (chunkRef == null || !chunkRef.isValid()) {
+            return null;
+        }
+        WorldChunk chunk = world.getChunkStore().getStore().getComponent(chunkRef, WorldChunk.getComponentType());
+        return chunk != null && chunk.is(ChunkFlag.TICKING) ? chunk : null;
     }
 
     // ==================== helpers ====================

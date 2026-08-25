@@ -116,7 +116,7 @@ settings.gradle / gradle.properties / build.gradle    thirteen zc-* modules + th
 gradle/zc-module.gradle                                the shared build convention every zc-* module applies
 build.ps1                                              build + auto-install
 src/main/resources/manifest.json                       root-only, and the ONLY resource at the root. Group:Ziggfreed,
-                                                        ServerVersion ">=0.5.0-pre.0 <0.6.0", IncludesAssetPack:true, NO Dependencies
+                                                        ServerVersion ">=0.6.0-pre.0 <0.7.0", IncludesAssetPack:true, NO Dependencies
 src/main/java/com/ziggfreed/common/                    the root's whole source: ZiggfreedCommonPlugin (JavaPlugin entry -
                                                         LOGGER, setup/shutdown), asset/FrameworkAssetRegistrar (registers every
                                                         framework store), reward/EffectRewardKind. Registration only, build-enforced

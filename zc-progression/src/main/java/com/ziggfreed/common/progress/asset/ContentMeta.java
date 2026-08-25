@@ -11,6 +11,7 @@ import org.bson.BsonValue;
 
 import com.google.gson.JsonElement;
 import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.CollectingExtraInfo;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.JsonTreeCodec;
@@ -114,7 +115,7 @@ public final class ContentMeta {
         if (block == null || !block.isJsonObject()) {
             return null;
         }
-        ExtraInfo extraInfo = new ExtraInfo();
+        ExtraInfo extraInfo = new CollectingExtraInfo();
         BsonValue bson = JsonTreeCodec.object().encode(block, extraInfo);
         T decoded = codec.decode(bson, extraInfo);
         if (onUnknownKey != null) {

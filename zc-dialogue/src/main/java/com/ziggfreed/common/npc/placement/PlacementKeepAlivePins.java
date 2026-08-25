@@ -199,7 +199,7 @@ public final class PlacementKeepAlivePins {
 
     private static boolean addKeepLoaded(@Nonnull World world, long index) {
         try {
-            WorldChunk chunk = world.getChunkIfLoaded(index);
+            WorldChunk chunk = NpcPlacementService.chunkIfLoaded(world, index);
             if (chunk == null) {
                 return false;
             }
@@ -213,7 +213,7 @@ public final class PlacementKeepAlivePins {
 
     private static void removeKeepLoaded(@Nonnull World world, long index) {
         try {
-            WorldChunk chunk = world.getChunkIfLoaded(index);
+            WorldChunk chunk = NpcPlacementService.chunkIfLoaded(world, index);
             if (chunk != null) {
                 chunk.removeKeepLoaded();
             }

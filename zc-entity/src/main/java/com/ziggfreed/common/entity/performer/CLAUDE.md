@@ -52,7 +52,7 @@ sections 4b-4d) + decisions 46-54 in `rpg-stations-extraction-design.md`.
   identity (+ `NonSerialized` when not persisting), `postSpawn` re-applies the skin clone + SEEDS the
   leash. `spawnEntity` needs a concrete unlocked `Store`: it uses `ctx.store()` when a caller
   provided one (synchronous), else DEFERS the whole spawn to `world.execute` (a lock-held caller had
-  only a `CommandBuffer`) - one-tick latency, `isAlive()`/`ref()` honestly null during the window. `walkTo` spawns an invisible marker, `Role.setMarkedTarget("MoveTarget", ref)`, re-anchors
+  only a `CommandBuffer`) - one-tick latency, `isAlive()`/`ref()` honestly null during the window. `walkTo` spawns an invisible marker, `Role.setMarkedTarget(ref, accessor, "MoveTarget", marker)`, re-anchors
   the leash, and handles the `getRole()`-null-until-first-tick race by retrying the bind on each poll.
   `setProp` = `InventoryHelper.useItem` (NPC-native hotbar; UNPROVEN render). `playClip` =
   `AnimationUtils.playAnimation` DIRECT (NEVER `NPCEntity.playAnimation`, the Emote-gate landmine;

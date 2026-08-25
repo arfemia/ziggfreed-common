@@ -3,19 +3,15 @@ package com.ziggfreed.common.util;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.component.ComponentAccessor;
-import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.asset.type.attitude.Attitude;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.npc.blackboard.Blackboard;
-import com.hypixel.hytale.server.npc.blackboard.view.attitude.AttitudeView;
-import com.hypixel.hytale.server.npc.entities.NPCEntity;
-import com.hypixel.hytale.server.npc.role.Role;
+import com.hypixel.hytale.server.npc.role.support.WorldSupport;
 import com.ziggfreed.common.CommonLog;
 
 /**
- * Hostility query using the NPC Blackboard {@link AttitudeView}.
+ * Hostility query using the NPC's {@link WorldSupport} attitude cache.
  *
  * <p>{@code Attitude} is an enum: IGNORE, HOSTILE, NEUTRAL, FRIENDLY, REVERED.
  * World-thread only (reads the store + NPC role); fully try-guarded.
@@ -34,38 +30,21 @@ public final class HostilityUtil {
             @Nonnull Ref<EntityStore> targetRef
     ) {
         try {
-            Blackboard blackboard = store.getResource(Blackboard.getResourceType());
-            if (blackboard == null) {
-                return false;
+            ComponentAccessor<EntityStore> accessor = store;
+            WorldSupport worldSupport = WorldSupport.get(npcRef, accessor);
+            if (worldSupport == null) {
+                return false; // not a role-driven NPC (WorldSupport.get is a bare getComponent)
             }
-
-            AttitudeView attitudeView = blackboard.getView(AttitudeView.class, npcRef, store);
-            if (attitudeView == null) {
-                return false;
-            }
-
-            ComponentType<EntityStore, NPCEntity> npcType = NPCEntity.getComponentType();
-            if (npcType == null) {
-                return false;
-            }
-
-            NPCEntity npc = store.getComponent(npcRef, npcType);
-            if (npc == null) {
-                return false;
-            }
-
-            Role role = npc.getRole();
-            if (role == null) {
-                return false;
-            }
-
-            Attitude attitude = attitudeView.getAttitude(
-                    npcRef, role, targetRef, (ComponentAccessor<EntityStore>) store);
+            // getAttitude dereferences the support's attitude cache, which only exists once an
+            // attitude-consuming sensor primed it; prime it ourselves like every first-party
+            // caller does, so a role with no such sensor answers instead of throwing.
+            worldSupport.requireAttitudeCache();
+            Attitude attitude = worldSupport.getAttitude(npcRef, targetRef, accessor);
 
             return attitude == Attitude.HOSTILE;
 
         } catch (Throwable t) {
-            CommonLog.LOGGER.atWarning().log("HostilityUtil failed: " + t);
+            CommonLog.LOGGER.atFine().log("HostilityUtil failed: " + t);
             return false;
         }
     }
