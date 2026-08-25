@@ -1208,8 +1208,9 @@ final class BookAchievementsTab {
         if (epochMillis <= 0) {
             return page.text("book.achievements.unlock_date_unknown");
         }
-        // An ISO date is locale-neutral data.
-        return Msg.raw(new SimpleDateFormat("yyyy-MM-dd").format(new Date(epochMillis)));
+        // An ISO date is locale-neutral data; Locale.ROOT pins ASCII digits and the Gregorian
+        // calendar whatever the JVM's default locale is.
+        return Msg.raw(new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(new Date(epochMillis)));
     }
 
     /** One progress reading per achievement, shared by the row bar, the detail bar and the sorts. */

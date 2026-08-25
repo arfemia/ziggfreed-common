@@ -44,6 +44,8 @@ class PlacedBlockLedgerTest {
 
     @AfterEach
     void tearDown() {
+        // Join any background write first, so a writer cannot race the TempDir cleanup.
+        ledger.awaitBackgroundWrite();
         ledger.clear();
         ledger.setPolicy(OWNER, null);
         ledger.setFile(shippedFile);
@@ -262,5 +264,85 @@ class PlacedBlockLedgerTest {
 
         assertFalse(Files.exists(file));
         assertEquals(0, ledger.trackedPlayerCount());
+    }
+
+    // ==================== the debounced off-thread flush ====================
+
+    @Test
+    void mutatorsMarkTheLedgerDirtyButAConsumedAtBumpAloneDoesNot(@TempDir Path dir) throws Exception {
+        ledger.setFile(dir.resolve("placed-blocks.json"));
+        ledger.save(); // pins the beat clock so no internal beat fires mid-test
+        assertFalse(ledger.isDirty());
+
+        ledger.trackPlacement(PLACER, WORLD, 1, 2, 3);
+        assertTrue(ledger.isDirty(), "a placement is file-visible state");
+        ledger.save();
+        assertFalse(ledger.isDirty(), "a save leaves the ledger clean");
+
+        assertTrue(ledger.consumePlacement(PLACER, WORLD, 1, 2, 3));
+        assertFalse(ledger.isDirty(),
+                "a first consumption only bumps the in-memory consumedAt, which the file never carries");
+
+        ledger.trackPlacement(PLACER, WORLD, 4, 5, 6);
+        ledger.save();
+        ledger.clearPlayer(PLACER);
+        assertTrue(ledger.isDirty(), "clearing a player drops file-visible rows");
+    }
+
+    @Test
+    void theTrafficBeatFlushesOffThreadOnlyAfterTheIntervalCap(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("placed-blocks.json");
+        ledger.setFile(file);
+        ledger.save(); // pins the beat clock so only this test's own beats fire
+        long base = System.currentTimeMillis() + PlacedBlockLedger.FLUSH_INTERVAL_MS + 1_000L;
+
+        ledger.trackPlacement(PLACER, WORLD, 1, 2, 3);
+        ledger.maybeFlush(base);
+        ledger.awaitBackgroundWrite();
+        assertTrue(Files.exists(file), "an elapsed interval flushes the dirty ledger");
+
+        Files.delete(file);
+        ledger.trackPlacement(PLACER, WORLD, 4, 5, 6);
+        ledger.maybeFlush(base + PlacedBlockLedger.FLUSH_INTERVAL_MS - 1);
+        ledger.awaitBackgroundWrite();
+        assertFalse(Files.exists(file), "inside the cap the beat must not write");
+
+        ledger.maybeFlush(base + PlacedBlockLedger.FLUSH_INTERVAL_MS);
+        ledger.awaitBackgroundWrite();
+        assertTrue(Files.exists(file), "once the cap elapses the beat flushes again");
+    }
+
+    @Test
+    void saveWritesUnconditionallyEvenWhenClean(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("placed-blocks.json");
+        ledger.setFile(file);
+        ledger.trackPlacement(PLACER, WORLD, 1, 2, 3);
+        ledger.save();
+        assertTrue(Files.exists(file));
+        assertFalse(ledger.isDirty());
+
+        Files.delete(file);
+        ledger.save();
+        assertTrue(Files.exists(file), "the shutdown save writes even when nothing is dirty");
+    }
+
+    @Test
+    void aShutdownSaveIsNeverRolledBackByAnInFlightBackgroundFlush(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("placed-blocks.json");
+        ledger.setFile(file);
+        ledger.save(); // pins the beat clock
+        long base = System.currentTimeMillis() + PlacedBlockLedger.FLUSH_INTERVAL_MS + 1_000L;
+
+        ledger.trackPlacement(PLACER, WORLD, 1, 2, 3);
+        ledger.maybeFlush(base); // hands the one-row snapshot to the background writer
+        ledger.trackPlacement(PLACER, WORLD, 4, 5, 6);
+        ledger.save(); // awaits the writer, then writes the newer two-row state, stamped newest
+
+        ledger.awaitBackgroundWrite();
+        ledger.clear();
+        ledger.load();
+        assertTrue(ledger.isPlaced(PLACER, WORLD, 1, 2, 3));
+        assertTrue(ledger.isPlaced(PLACER, WORLD, 4, 5, 6),
+                "the save's newer snapshot must be the one on disk; a background straggler may not roll it back");
     }
 }

@@ -48,8 +48,16 @@ removes the disagreement structurally rather than by everybody remembering to ag
 
 ## Persistence
 
-Blocks only, to `mods/ziggfreedcommon/placed-blocks.json`, written at shutdown and loaded at setup.
-Items are forgotten in minutes and a restart takes longer than that, so saving them would only
-restore rows that were already stale. The load and the recorder registration are guarded
-SEPARATELY at the wiring root: a failure in one must not silently skip the other, because a ledger
-that loaded nothing answers "nobody placed that" for every position saved by the last run.
+Blocks only, to `mods/ziggfreedcommon/placed-blocks.json`, loaded at setup. Two write paths share
+one stamped, lock-serialized writer: a debounced traffic beat (riding `trackPlacement` AND
+`consumePlacement`, at most one flush per `FLUSH_INTERVAL_MS`, CAS-claimed) snapshots the block
+state on the world thread and hands it to a single-flight background writer (latest snapshot wins,
+serialization + disk I/O off the world thread, fine-level logging), so a crash loses at most one
+interval of placements; `save()` at shutdown stays synchronous and unconditional (a clean ledger
+still writes, INFO-logged), awaits any in-flight background write first, and carries the newest
+stamp so a background straggler can never roll the file back. A first consumption sets no dirty
+flag: `consumedAt` is in-memory only and never serialized. Items are forgotten in minutes and a
+restart takes longer than that, so saving them would only restore rows that were already stale.
+The load and the recorder registration are guarded SEPARATELY at the wiring root: a failure in one
+must not silently skip the other, because a ledger that loaded nothing answers "nobody placed
+that" for every position saved by the last run.

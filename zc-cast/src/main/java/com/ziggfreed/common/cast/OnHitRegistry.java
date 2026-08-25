@@ -1,6 +1,7 @@
 package com.ziggfreed.common.cast;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -106,7 +107,7 @@ public final class OnHitRegistry {
      * type id (case-insensitive, last write wins).
      */
     public void register(@Nonnull String type, @Nonnull OnHitBuilder builder) {
-        builders.put(type.toUpperCase(), builder);
+        builders.put(type.toUpperCase(Locale.ROOT), builder);
     }
 
     /**
@@ -116,7 +117,7 @@ public final class OnHitRegistry {
      * and others as {@code HitAction} without the two colliding.
      */
     public void registerAction(@Nonnull String type, @Nonnull HitActionBuilder builder) {
-        actionBuilders.put(type.toUpperCase(), builder);
+        actionBuilders.put(type.toUpperCase(Locale.ROOT), builder);
     }
 
     /**
@@ -169,7 +170,7 @@ public final class OnHitRegistry {
             @Nullable UUID sourcePlayerId) {
         Object typeObj = entry.get("type");
         if (!(typeObj instanceof String typeStr)) return NO_OP;
-        OnHitBuilder builder = builders.get(typeStr.toUpperCase());
+        OnHitBuilder builder = builders.get(typeStr.toUpperCase(Locale.ROOT));
         if (builder == null) {
             fine("OnHitRegistry: unknown onHit.type '" + typeStr + "'");
             return NO_OP;
@@ -229,7 +230,7 @@ public final class OnHitRegistry {
             @Nullable UUID sourcePlayerId) {
         Object typeObj = entry.get("type");
         if (!(typeObj instanceof String typeStr)) return NO_OP_ACTION;
-        HitActionBuilder builder = actionBuilders.get(typeStr.toUpperCase());
+        HitActionBuilder builder = actionBuilders.get(typeStr.toUpperCase(Locale.ROOT));
         if (builder == null) {
             fine("OnHitRegistry: unknown onHit.type '" + typeStr + "' (action)");
             return NO_OP_ACTION;

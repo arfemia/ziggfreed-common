@@ -16,8 +16,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Pure coverage for {@link GeneratedLangPack}'s file-writing core + the filename-prefix key
- * convention. Registration ({@link GeneratedLangPack#registerZipPack}) needs a live
- * {@code AssetModule} and is engine-plumbing, untested here.
+ * convention, plus the unregister decision core through the {@code PackRegistry} seam (an
+ * in-memory registry standing in for the engine, which cannot be stood up in a unit JVM).
+ * Registration ({@link GeneratedLangPack#registerZipPack}) needs a live {@code AssetModule} and
+ * is engine-plumbing, untested here.
  */
 class GeneratedLangPackTest {
 
@@ -98,6 +100,55 @@ class GeneratedLangPackTest {
         assertEquals("a\\nb", GeneratedLangPack.escapeValue("a\nb"));
         // Leading whitespace forces quote-wrapping (its inner quotes then escaped).
         assertEquals("\" padded\"", GeneratedLangPack.escapeValue(" padded"));
+    }
+
+    // --- unregisterZipPack: the decision core through the PackRegistry seam ---
+
+    /** In-memory stand-in for the engine's pack registry, counting engine-unregister calls. */
+    private static final class FakeRegistry implements GeneratedLangPack.PackRegistry {
+        final Map<String, Object> packs = new LinkedHashMap<>();
+        int unregisterCalls;
+
+        @Override
+        public Object getAssetPack(String packId) {
+            return packs.get(packId);
+        }
+
+        @Override
+        public void unregisterPack(String packId) {
+            unregisterCalls++;
+            packs.remove(packId);
+        }
+    }
+
+    @Test
+    void unregister_afterARegistration_unregistersAndReturnsTrue() {
+        FakeRegistry registry = new FakeRegistry();
+        registry.packs.put("com.example:Overlay", new Object());
+
+        assertTrue(GeneratedLangPack.unregisterZipPack(registry, "com.example", "Overlay"));
+        assertTrue(registry.packs.isEmpty(), "the registered pack must be gone");
+        assertEquals(1, registry.unregisterCalls);
+    }
+
+    @Test
+    void doubleUnregister_isIdempotent_returnsFalseWithoutTouchingTheEngineAgain() {
+        FakeRegistry registry = new FakeRegistry();
+        registry.packs.put("com.example:Overlay", new Object());
+
+        assertTrue(GeneratedLangPack.unregisterZipPack(registry, "com.example", "Overlay"));
+        // Second call: nothing registered any more - false, and the engine's own unregister (which
+        // WARNs on an unknown id) must NOT be called again.
+        assertFalse(GeneratedLangPack.unregisterZipPack(registry, "com.example", "Overlay"));
+        assertEquals(1, registry.unregisterCalls, "the engine unregister must run exactly once");
+    }
+
+    @Test
+    void unregister_withNoAssetModule_returnsFalseWithoutThrowing() {
+        // A null registry is the AssetModule-unavailable path (the live seam returns null then);
+        // in this unit JVM the public overload takes exactly that path too.
+        assertFalse(GeneratedLangPack.unregisterZipPack(null, "com.example", "Overlay"));
+        assertFalse(GeneratedLangPack.unregisterZipPack("com.example", "Overlay"));
     }
 
     // --- fixtures ---

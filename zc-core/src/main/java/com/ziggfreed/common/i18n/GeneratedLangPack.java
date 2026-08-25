@@ -114,7 +114,8 @@ public final class GeneratedLangPack {
      * from {@code perLocale} (locale bcp47 -> an ORDERED {@code entryKey -> value} map; iteration
      * order is the written line order). Idempotent: each call overwrites the file wholesale, so a
      * boot-time regeneration always reflects current state and stale entries vanish. An
-     * empty-value entry is skipped (Hytale's {@code LangFileParser} throws on an empty value). The
+     * empty-value entry is skipped (Hytale's {@code LangFileParser} drops an empty-value line as
+     * malformed, so the key would silently never ship). The
      * caller owns key namespacing - {@code filename}'s prefix (see {@link #storedKeyPrefix}) is
      * prepended by the engine, not here.
      *
@@ -205,6 +206,93 @@ public final class GeneratedLangPack {
             return ok;
         } catch (Throwable t) {
             warn("registerZipPack", t.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Unregister a pack previously registered by {@link #registerZipPack} under the same
+     * {@code group}/{@code name}, which also closes the open zip {@code FileSystem} the engine
+     * holds on it ({@code AssetModule.unregisterPack} closes the pack's filesystem before
+     * dispatching the unregister event). Call from the owning plugin's {@code shutdown()}: an
+     * unload-reload cycle that leaves the registration behind strands the zip handle - Windows
+     * then refuses the next boot's rebuild-move with an {@code AccessDeniedException} - and plugin
+     * unloading cascades through dependents, so an unload is a normal event, not a rarity.
+     *
+     * <p>Guarded like {@link #registerZipPack}: a missing {@code AssetModule}, no registration
+     * under that id, or an engine throw all return {@code false} (logged at fine level) rather
+     * than propagate.
+     *
+     * @return {@code true} when a registered pack was found and unregistered.
+     */
+    public static boolean unregisterZipPack(@Nonnull String group, @Nonnull String name) {
+        PackRegistry registry;
+        try {
+            registry = liveRegistry();
+        } catch (Throwable t) {
+            // Even the engine singleton's class load must not propagate out of a guarded API.
+            warn("unregisterZipPack", t.getMessage());
+            return false;
+        }
+        return unregisterZipPack(registry, group, name);
+    }
+
+    /**
+     * The two engine touches {@link #unregisterZipPack(String, String)} makes, as a seam: the live
+     * implementation ({@link #liveRegistry()}) wraps {@link AssetModule}; the unit test substitutes
+     * an in-memory registry, because the engine singleton cannot be stood up in a unit JVM.
+     */
+    interface PackRegistry {
+
+        /** The registered pack under {@code packId}, or {@code null} when none is. */
+        @Nullable
+        Object getAssetPack(@Nonnull String packId);
+
+        /** Unregister the pack (the engine closes its open zip {@code FileSystem} first). */
+        void unregisterPack(@Nonnull String packId);
+    }
+
+    /** The {@link AssetModule}-backed registry, or {@code null} when the engine is unavailable. */
+    @Nullable
+    private static PackRegistry liveRegistry() {
+        AssetModule am = AssetModule.get();
+        if (am == null) {
+            return null;
+        }
+        return new PackRegistry() {
+            @Override
+            @Nullable
+            public Object getAssetPack(@Nonnull String packId) {
+                return am.getAssetPack(packId);
+            }
+
+            @Override
+            public void unregisterPack(@Nonnull String packId) {
+                am.unregisterPack(packId);
+            }
+        };
+    }
+
+    /**
+     * The decision core behind {@link #unregisterZipPack(String, String)}, package-visible for the
+     * unit test. A {@code null} registry is the AssetModule-unavailable path; an id with nothing
+     * registered returns {@code false} WITHOUT touching the engine's own unregister (which would
+     * WARN on an unknown id), so a double-unregister is a quiet no-op.
+     */
+    static boolean unregisterZipPack(@Nullable PackRegistry registry, @Nonnull String group, @Nonnull String name) {
+        try {
+            String packId = new PluginIdentifier(group, name).toString();
+            if (registry == null) {
+                warn("unregisterZipPack", "AssetModule unavailable - '" + packId + "' not unregistered");
+                return false;
+            }
+            if (registry.getAssetPack(packId) == null) {
+                return false; // nothing registered under this id; skip the engine's own WARN
+            }
+            registry.unregisterPack(packId);
+            return true;
+        } catch (Throwable t) {
+            warn("unregisterZipPack", t.getMessage());
             return false;
         }
     }

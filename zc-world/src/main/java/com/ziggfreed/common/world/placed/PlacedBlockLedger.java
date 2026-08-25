@@ -12,8 +12,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -66,6 +71,16 @@ public final class PlacedBlockLedger {
 
     /** How rarely housekeeping runs off ordinary placement traffic. */
     private static final long CLEANUP_INTERVAL_MS = 60_000L;
+
+    /**
+     * How often the traffic-driven beat is allowed to flush a dirty ledger to disk. The ledger
+     * otherwise persists only at shutdown, and a crashed server never reaches shutdown - every
+     * placement since boot would be forgotten, reopening the place-and-break payout this record
+     * exists to close. Thirty seconds keeps the exploit window shorter than any deliberate farm
+     * cycle while costing at most two small writes a minute under constant traffic. Package-visible
+     * so the test can drive the beat with its own clock.
+     */
+    static final long FLUSH_INTERVAL_MS = 30_000L;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
@@ -167,6 +182,42 @@ public final class PlacedBlockLedger {
     /** When housekeeping last ran, so a long session reclaims spent rows without a scheduler. */
     private volatile long lastCleanup = System.currentTimeMillis();
 
+    /** True while the in-memory block state has changes the file does not; cleared by a save. */
+    private volatile boolean dirty;
+
+    /** When the ledger last flushed, CAS-guarded so two traffic threads never double-write. */
+    private final AtomicLong lastFlush = new AtomicLong(System.currentTimeMillis());
+
+    /** One consistent copy of the block state, stamped so an older copy can never overwrite a newer one. */
+    private record Snapshot(long seq, @Nonnull Map<String, List<SavedBlock>> document) {
+    }
+
+    /** Stamps each snapshot; monotonically increasing, so write order is decidable under the lock. */
+    private final AtomicLong snapshotSeq = new AtomicLong();
+
+    /**
+     * The newest snapshot awaiting a background write. Latest-wins: a beat firing while a write is
+     * in flight REPLACES an unwritten older snapshot instead of queueing behind it, so the writer
+     * coalesces bursts into one write of the freshest state.
+     */
+    private final AtomicReference<Snapshot> pendingSnapshot = new AtomicReference<>();
+
+    /** True while the single background writer is running (single-flight; see {@link #requestBackgroundWrite}). */
+    private final AtomicBoolean flushInFlight = new AtomicBoolean(false);
+
+    /** Completes when the current background writer exits; {@link #save()} awaits it before writing. */
+    @Nonnull
+    private volatile CompletableFuture<Void> backgroundWrite = CompletableFuture.completedFuture(null);
+
+    /**
+     * Serializes the actual file write plus the {@link #lastWrittenSeq} check, so the shutdown
+     * {@link #save()} and an in-flight background flush can never interleave writers on one file.
+     */
+    private final Object writeLock = new Object();
+
+    /** The seq of the last snapshot actually written; guarded by {@link #writeLock}. */
+    private long lastWrittenSeq;
+
     @Nullable
     private volatile Path dataPath = Paths.get("mods", "ziggfreedcommon", "placed-blocks.json");
 
@@ -221,6 +272,7 @@ public final class PlacedBlockLedger {
         if (previous != null && !(previous.placer().equals(placerUuid) && previous.placedTime() == now)) {
             forgetFromPlacerSet(pos, previous);
         }
+        dirty = true;
     }
 
     /**
@@ -233,6 +285,9 @@ public final class PlacedBlockLedger {
         if (!policy.enabled()) {
             return false;
         }
+        // The housekeeping/flush beat rides break traffic too: a session of pure breaking (no
+        // placements) must still flush its row drops within the interval cap.
+        maybeCleanup();
         BlockPosition pos = new BlockPosition(worldUuid.toString(), x, y, z);
         IndexEntry entry = placedByPosition.get(pos);
         if (entry == null || !answersFor(entry, breakerUuid)) {
@@ -244,12 +299,16 @@ public final class PlacedBlockLedger {
                 return true;
             }
             drop(pos, entry);
+            dirty = true;
             return false;
         }
         if (blockExpired(entry, now)) {
             drop(pos, entry);
+            dirty = true;
             return false;
         }
+        // No dirty mark: consumedAt is in-memory only (SavedBlock never serializes it), so this
+        // bump changes nothing the file would carry.
         placedByPosition.replace(pos, entry, entry.consumedAt(now));
         return true;
     }
@@ -285,6 +344,7 @@ public final class PlacedBlockLedger {
             for (TrackedBlock placement : placements) {
                 dropIfStillOwnedBy(placement, playerUuid);
             }
+            dirty = true;
         }
         playerPlacedItems.remove(playerUuid);
     }
@@ -388,16 +448,87 @@ public final class PlacedBlockLedger {
 
     /**
      * Housekeeping on a slow beat, driven by ordinary traffic rather than by a scheduler. Every
-     * placement is a chance to reclaim rows that were spent or aged out minutes ago, so a
-     * long-running server does not hold every placement it ever saw until shutdown.
+     * placement AND every break-time ask is a chance to reclaim rows that were spent or aged out
+     * minutes ago, so a long-running server does not hold every placement it ever saw until
+     * shutdown - and a chance to flush a dirty ledger to disk, so a crash (which never reaches the
+     * shutdown save) loses at most {@link #FLUSH_INTERVAL_MS} of placements instead of the whole
+     * session.
      */
     private void maybeCleanup() {
         long now = System.currentTimeMillis();
-        if (now - lastCleanup < CLEANUP_INTERVAL_MS) {
+        if (now - lastCleanup >= CLEANUP_INTERVAL_MS) {
+            lastCleanup = now;
+            cleanupExpired();
+        }
+        maybeFlush(now);
+    }
+
+    /**
+     * The crash-durability half of the beat: when the ledger is dirty and the last flush is at
+     * least {@link #FLUSH_INTERVAL_MS} old, take a cheap in-memory snapshot of the block state and
+     * hand it to the background writer - serialization and disk I/O never run on the world thread.
+     * The timestamp is claimed by CAS first, so two traffic threads arriving together produce one
+     * snapshot; quiet (fine-level) logging, because under steady traffic this runs twice a minute
+     * and the shutdown save's INFO line is the one an operator wants to see. Package-visible so
+     * the test can drive the beat with its own clock.
+     */
+    void maybeFlush(long now) {
+        if (!dirty) {
             return;
         }
-        lastCleanup = now;
+        long last = lastFlush.get();
+        if (now - last < FLUSH_INTERVAL_MS || !lastFlush.compareAndSet(last, now)) {
+            return;
+        }
+        // Clear BEFORE snapshotting, so a mutation landing mid-snapshot re-arms the flag and is
+        // picked up by the next beat rather than lost.
+        dirty = false;
         cleanupExpired();
+        requestBackgroundWrite(takeSnapshot());
+    }
+
+    /**
+     * Post {@code snapshot} for the single-flight background writer. Exactly one writer runs at a
+     * time; a snapshot posted while it runs REPLACES any unwritten older one (latest wins), and
+     * the writer picks it up before exiting. The writer runs on the JVM's common pool (daemon
+     * threads, no executor of this class's own to shut down or strand).
+     */
+    private void requestBackgroundWrite(@Nonnull Snapshot snapshot) {
+        pendingSnapshot.set(snapshot);
+        if (!flushInFlight.compareAndSet(false, true)) {
+            return; // the in-flight writer drains the newer snapshot (or the re-check reclaims it)
+        }
+        backgroundWrite = CompletableFuture.runAsync(this::drainPendingSnapshots);
+    }
+
+    /** The background writer body: write every pending snapshot until none is left, then retire. */
+    private void drainPendingSnapshots() {
+        for (;;) {
+            Snapshot snapshot = pendingSnapshot.getAndSet(null);
+            if (snapshot != null) {
+                writeSnapshot(snapshot, true);
+                continue;
+            }
+            flushInFlight.set(false);
+            // A snapshot posted between the null read above and the flag clear would otherwise
+            // wait a whole beat: re-check, and reclaim the flag when it is still free.
+            if (pendingSnapshot.get() == null || !flushInFlight.compareAndSet(false, true)) {
+                return;
+            }
+        }
+    }
+
+    /**
+     * Await the in-flight background write (bounded), so a caller about to write synchronously
+     * knows the writer has retired. Package-visible so the test can join its background writes.
+     */
+    void awaitBackgroundWrite() {
+        CompletableFuture<Void> inFlight = backgroundWrite;
+        try {
+            inFlight.get(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            SafeLog.warn("[placed] awaiting the in-flight background ledger write failed", e);
+        }
     }
 
     /** How many placements are remembered right now. */
@@ -471,6 +602,7 @@ public final class PlacedBlockLedger {
     public void load() {
         playerPlacedBlocks.clear();
         placedByPosition.clear();
+        dirty = false;
         Path path = dataPath;
         if (path == null || !Files.exists(path)) {
             return;
@@ -506,44 +638,82 @@ public final class PlacedBlockLedger {
         }
     }
 
-    /** Write the placements out. Placed items are deliberately not saved; they expire in minutes. */
+    /**
+     * Write the placements out, synchronously and unconditionally (a clean ledger still writes) -
+     * the shutdown/manual save, INFO-logged. Any in-flight background write is awaited first, and
+     * this save's snapshot carries the newest stamp, so a background straggler can never put an
+     * older copy back over the file (see {@link #writeSnapshot}). Placed items are deliberately
+     * not saved; they expire in minutes.
+     */
     public void save() {
+        lastFlush.set(System.currentTimeMillis());
+        awaitBackgroundWrite();
+        cleanupExpired();
+        dirty = false;
+        writeSnapshot(takeSnapshot(), false);
+    }
+
+    /** One consistent, stamped copy of the block state, cheap plain-object rows (no Gson here). */
+    @Nonnull
+    private Snapshot takeSnapshot() {
+        Map<String, List<SavedBlock>> document = new HashMap<>();
+        for (Map.Entry<UUID, Set<TrackedBlock>> entry : playerPlacedBlocks.entrySet()) {
+            List<SavedBlock> rows = new ArrayList<>();
+            for (TrackedBlock placement : entry.getValue()) {
+                rows.add(new SavedBlock(
+                        placement.position().worldUuid(),
+                        placement.position().x(),
+                        placement.position().y(),
+                        placement.position().z(),
+                        placement.placedTime()));
+            }
+            if (!rows.isEmpty()) {
+                document.put(entry.getKey().toString(), rows);
+            }
+        }
+        return new Snapshot(snapshotSeq.incrementAndGet(), document);
+    }
+
+    /**
+     * The one writer behind both {@link #save()} (INFO-logged) and the background flush (quiet).
+     * Serialized on {@link #writeLock} so the two can never interleave on the file, and stamped:
+     * a snapshot older than the last one written is refused, so a background write finishing after
+     * the shutdown save cannot roll the file back.
+     */
+    private void writeSnapshot(@Nonnull Snapshot snapshot, boolean quiet) {
         Path path = dataPath;
         if (path == null) {
             return;
         }
-        try {
-            cleanupExpired();
-            if (playerPlacedBlocks.isEmpty()) {
-                Files.deleteIfExists(path);
+        synchronized (writeLock) {
+            if (snapshot.seq() <= lastWrittenSeq) {
                 return;
             }
-            Map<String, List<SavedBlock>> document = new HashMap<>();
-            for (Map.Entry<UUID, Set<TrackedBlock>> entry : playerPlacedBlocks.entrySet()) {
-                List<SavedBlock> rows = new ArrayList<>();
-                for (TrackedBlock placement : entry.getValue()) {
-                    rows.add(new SavedBlock(
-                            placement.position().worldUuid(),
-                            placement.position().x(),
-                            placement.position().y(),
-                            placement.position().z(),
-                            placement.placedTime()));
+            lastWrittenSeq = snapshot.seq();
+            Map<String, List<SavedBlock>> document = snapshot.document();
+            try {
+                if (document.isEmpty()) {
+                    Files.deleteIfExists(path);
+                    return;
                 }
-                if (!rows.isEmpty()) {
-                    document.put(entry.getKey().toString(), rows);
+                Path parent = path.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
                 }
+                try (Writer writer = Files.newBufferedWriter(path)) {
+                    GSON.toJson(document, SAVE_TYPE, writer);
+                }
+                int rows = document.values().stream().mapToInt(List::size).sum();
+                String summary = "[placed] ledger saved: " + rows + " placements for "
+                        + document.size() + " players";
+                if (quiet) {
+                    SafeLog.fine(summary);
+                } else {
+                    SafeLog.info(summary);
+                }
+            } catch (Exception e) {
+                SafeLog.warn("[placed] could not write the ledger", e);
             }
-            Path parent = path.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            try (Writer writer = Files.newBufferedWriter(path)) {
-                GSON.toJson(document, SAVE_TYPE, writer);
-            }
-            SafeLog.info("[placed] ledger saved: " + trackedBlockCount() + " placements for "
-                    + playerPlacedBlocks.size() + " players");
-        } catch (Exception e) {
-            SafeLog.warn("[placed] could not write the ledger", e);
         }
     }
 
@@ -552,6 +722,13 @@ public final class PlacedBlockLedger {
         playerPlacedBlocks.clear();
         placedByPosition.clear();
         playerPlacedItems.clear();
+        pendingSnapshot.set(null);
+        dirty = false;
+    }
+
+    /** Is there in-memory block state the file does not have yet? Package-visible for the test. */
+    boolean isDirty() {
+        return dirty;
     }
 
     // ==================== internals ====================
