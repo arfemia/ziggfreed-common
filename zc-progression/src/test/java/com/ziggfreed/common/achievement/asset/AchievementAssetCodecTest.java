@@ -19,13 +19,12 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 
 /**
  * {@link AchievementAsset}'s decode contract, and above all what native {@code Parent} inheritance
- * does to an ORDERED array.
+ * does to the {@code Criteria} map.
  *
- * <p>The load-bearing case is {@code Criteria}. It is an ARRAY rather than a map because progress is
- * keyed by POSITION, and an array is a single leaf as far as inheritance goes - a child that authors
- * Criteria replaces the parent's whole list. That is the deliberate choice (a per-index merge would
- * let a parent edit silently re-point every child's stored progress), so it is proved here rather
- * than assumed.
+ * <p>The load-bearing case is {@code Criteria}: a map keyed by criterion id, merged PER KEY under
+ * inheritance exactly like a quest's {@code Objectives} - a child may retune one criterion by key
+ * and keeps every criterion it did not mention, and the KEY is what progress is stored under, so a
+ * re-authoring can never silently re-point a player's tally. Proved here rather than assumed.
  */
 class AchievementAssetCodecTest {
 
@@ -40,7 +39,7 @@ class AchievementAssetCodecTest {
         return decode(json, id, null, null);
     }
 
-    // ==================== Criteria: the ordered-array decision, proved ====================
+    // ==================== Criteria: the keyed-map decision, proved ====================
 
     @Nested
     class CriteriaInheritance {
@@ -48,8 +47,8 @@ class AchievementAssetCodecTest {
         @Test
         void aChildThatAuthorsNoCriteriaInheritsThemWhole() throws Exception {
             AchievementAsset parent = decodeRoot("""
-                    { "Criteria": [ { "Kind": "BREAK_BLOCK", "Target": "Copper_Ore", "Amount": 500 },
-                                    { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 500 } ] }
+                    { "Criteria": { "mine":   { "Kind": "BREAK_BLOCK", "Target": "Copper_Ore", "Amount": 500 },
+                                    "gather": { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 500 } } }
                     """, "prospector_base");
 
             AchievementAsset child = decode("""
@@ -57,27 +56,33 @@ class AchievementAssetCodecTest {
                     """, "prospector", "prospector_base", parent);
 
             Achievement achievement = child.toDefinition().achievement();
-            assertEquals(2, achievement.criteria().size(), "an untouched array carries over whole");
+            assertEquals(2, achievement.criteria().size(), "an untouched map carries over whole");
             assertEquals(500L, achievement.criteria().get(0).amount());
             assertEquals(40, achievement.points());
         }
 
         @Test
-        void aChildThatAuthorsCriteriaReplacesTheWholeList() throws Exception {
+        void aChildRetunesOneCriterionByKeyAndKeepsTheRest() throws Exception {
             AchievementAsset parent = decodeRoot("""
-                    { "Criteria": [ { "Kind": "BREAK_BLOCK", "Target": "Copper_Ore", "Amount": 500 },
-                                    { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 500 } ] }
+                    { "Criteria": { "mine":   { "Kind": "BREAK_BLOCK", "Target": "Copper_Ore", "Amount": 500 },
+                                    "gather": { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 500 } } }
                     """, "prospector_base");
 
             AchievementAsset child = decode("""
-                    { "Criteria": [ { "Kind": "BREAK_BLOCK", "Target": "Iron_Ore", "Amount": 100 } ] }
+                    { "Criteria": { "mine": { "Target": "Iron_Ore", "Amount": 100 } } }
                     """, "iron_prospector", "prospector_base", parent);
 
             Achievement achievement = child.toDefinition().achievement();
-            assertEquals(1, achievement.criteria().size(),
-                    "authoring the array replaces it whole - there is no per-index merge, on purpose");
-            assertEquals("Iron_Ore", achievement.criteria().get(0).target());
-            assertEquals(100L, achievement.criteria().get(0).amount());
+            assertEquals(2, achievement.criteria().size(),
+                    "the map merges per key: the untouched criterion survives");
+            int mine = achievement.indexOf("mine");
+            assertEquals("Iron_Ore", achievement.criteria().get(mine).target(),
+                    "the child's own leaf wins inside the criterion it retuned");
+            assertEquals(100L, achievement.criteria().get(mine).amount());
+            assertEquals("BREAK_BLOCK", achievement.criteria().get(mine).kind(),
+                    "a leaf the child did not author is inherited from the parent's criterion");
+            int gather = achievement.indexOf("gather");
+            assertEquals(500L, achievement.criteria().get(gather).amount());
         }
 
         @Test
@@ -104,38 +109,37 @@ class AchievementAssetCodecTest {
         }
     }
 
-    // ==================== The criterion index ====================
+    // ==================== The criterion id ====================
 
     @Test
-    void eachCriterionsEngineIdIsItsPositionSoTheIndexIsUnambiguous() throws Exception {
+    void eachCriterionsEngineIdIsItsAuthoredKeyWhichIsWhatProgressIsKeyedBy() throws Exception {
         AchievementAsset asset = decodeRoot("""
-                { "Criteria": [ { "Kind": "BREAK_BLOCK", "Target": "A", "Amount": 1, "TextKey": "k.a" },
-                                { "Kind": "BREAK_BLOCK", "Target": "B", "Amount": 2 },
-                                { "Kind": "BREAK_BLOCK", "Target": "C", "Amount": 3, "TextKey": "k.c" } ] }
+                { "Criteria": { "a": { "Kind": "BREAK_BLOCK", "Target": "A", "Amount": 1, "TextKey": "k.a" },
+                                "b": { "Kind": "BREAK_BLOCK", "Target": "B", "Amount": 2 },
+                                "c": { "Kind": "BREAK_BLOCK", "Target": "C", "Amount": 3, "TextKey": "k.c" } } }
                 """, "prospector");
 
         AchievementDefinition definition = asset.toDefinition();
         Achievement achievement = definition.achievement();
 
-        for (int i = 0; i < achievement.criteria().size(); i++) {
-            ObjectiveDef criterion = achievement.criteria().get(i);
-            assertEquals(String.valueOf(i), criterion.id(),
-                    "a criterion's engine id IS its position, which is what progress is keyed by");
-            assertEquals(i, achievement.indexOf(criterion.id()));
-        }
-        assertEquals("k.a", definition.criterionTextKey(0));
-        assertNull(definition.criterionTextKey(1), "a criterion with no key carries none");
-        assertEquals("k.c", definition.criterionTextKey(2));
+        assertEquals(3, achievement.criteria().size());
+        List<String> ids = achievement.criteria().stream().map(ObjectiveDef::id).toList();
+        assertEquals(List.of("a", "b", "c"), ids,
+                "criteria keep authored order, and each engine id is the authored KEY");
+        assertEquals(1, achievement.indexOf("b"));
+        assertEquals("k.a", definition.criterionTextKey("a"));
+        assertNull(definition.criterionTextKey("b"), "a criterion with no key carries none");
+        assertEquals("k.c", definition.criterionTextKey("c"));
     }
 
     // ==================== The rest of the schema ====================
 
     @Test
-    void theTwoRewardListsAreTheTwoMoments() throws Exception {
+    void theTwoRewardBucketsAreTheTwoMoments() throws Exception {
         AchievementAsset asset = decodeRoot("""
-                { "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ],
-                  "Rewards":      [ { "Kind": "yourmod:currency", "Params": { "Id": "coin", "Amount": "50" } } ],
-                  "ClaimRewards": [ { "Kind": "yourmod:item", "Params": { "Item": "Sword_Copper" } } ] }
+                { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } },
+                  "Rewards": { "Auto":  [ { "Kind": "yourmod:currency", "Params": { "Id": "coin", "Amount": "50" } } ],
+                               "Claim": [ { "Kind": "yourmod:item", "Params": { "Item": "Sword_Copper" } } ] } }
                 """, "prospector");
 
         Achievement achievement = asset.toDefinition().achievement();
@@ -149,8 +153,8 @@ class AchievementAssetCodecTest {
     @Test
     void anAchievementWithNoClaimRewardsHasNothingToComeBackFor() throws Exception {
         AchievementAsset asset = decodeRoot("""
-                { "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ],
-                  "Rewards": [ { "Kind": "yourmod:currency" } ] }
+                { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } },
+                  "Rewards": { "Auto": [ { "Kind": "yourmod:currency" } ] } }
                 """, "prospector");
         assertFalse(asset.toDefinition().achievement().requiresClaim());
     }
@@ -158,7 +162,7 @@ class AchievementAssetCodecTest {
     @Test
     void unauthoredKnobsTakeTheirDocumentedDefaults() throws Exception {
         AchievementAsset asset = decodeRoot("""
-                { "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ] }
+                { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } } }
                 """, "prospector");
 
         Achievement achievement = asset.toDefinition().achievement();
@@ -173,7 +177,7 @@ class AchievementAssetCodecTest {
     @Test
     void abstractDeliberatelyDoesNotCarryDownToAChild() throws Exception {
         AchievementAsset parent = decodeRoot("""
-                { "Abstract": true, "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ] }
+                { "Abstract": true, "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } } }
                 """, "prospector_base");
         assertTrue(parent.isAbstract());
 
@@ -197,7 +201,7 @@ class AchievementAssetCodecTest {
     @Test
     void aRequiresBlockDecodesThroughTheSharedGateSchema() throws Exception {
         AchievementAsset asset = decodeRoot("""
-                { "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ],
+                { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } },
                   "Requires": { "Permission": "yourmod.ach.advanced",
                                 "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] } }
                 """, "prospector");
@@ -213,7 +217,7 @@ class AchievementAssetCodecTest {
     void tagsRideThroughUntouchedInMeaningButNormalizedInForm() throws Exception {
         AchievementAsset asset = decodeRoot("""
                 { "Listing": { "Tags": [ "gathering", " ", "capstone" ] },
-                  "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ] }
+                  "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } } }
                 """, "prospector");
 
         assertEquals(List.of("gathering", "capstone"), asset.toDefinition().achievement().tags(),

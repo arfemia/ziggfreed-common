@@ -221,7 +221,9 @@ class RealContentFixtureTest {
             BountyAsset trork = bounty("Bounties/MMOSkillTree/Bounty_Hunt_Trork.json", base, "bounty_kill");
 
             QuestDefinition folded = trork.toDefinition(null);
-            assertFalse(folded.quest().autoClaim());
+            assertTrue(folded.quest().requiresClaim(),
+                    "a contract's pay rides the Claim bucket, so a finished one PARKS and a reward"
+                            + " cannot be lost to the board rotating");
             assertTrue(folded.quest().visibility().hidden());
             assertNotNull(folded.turnInAt());
             assertTrue(folded.turnInAt().isAcceptSite());

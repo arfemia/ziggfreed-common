@@ -63,7 +63,7 @@ public final class RequiresGates implements QuestGates, AchievementGates {
      *
      * <p><b>What counts as finished is the stored status {@link QuestStatus#COMPLETED}: the quest is
      * done AND its reward has been collected.</b> A quest still sitting in
-     * {@link QuestStatus#COMPLETED_UNCLAIMED} - where a quest authored {@code AutoClaim: false}
+     * {@link QuestStatus#COMPLETED_UNCLAIMED} - where a quest with {@code Claim} rewards
      * waits until the player takes their payout - does NOT satisfy a prerequisite. The
      * {@code ziggfreedcommon:quest_completed} factor reading answers with the same rule, so a
      * prerequisite written as a {@code Quests} leaf and the same requirement written as a factor

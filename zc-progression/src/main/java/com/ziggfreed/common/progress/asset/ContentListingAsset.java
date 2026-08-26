@@ -28,7 +28,7 @@ import com.ziggfreed.common.validation.Finding;
  * and the moment their field names drift an author has to remember which spelling belongs to which
  * kind of content, while a shared renderer starts needing two branches. Declaring these leaves ONCE
  * and appending them into both makes that drift impossible rather than merely discouraged. An engine
- * adds its own on top ({@code Icon} and {@code Hidden} belong to the engine that has them).
+ * adds its own on top (a second grouping level belongs to the engine that has one).
  *
  * <p>Every leaf is {@code appendInherited}, so content with a {@code Parent} can be re-sorted
  * without losing the category it did not mention.
@@ -39,9 +39,12 @@ public class ContentListingAsset {
     @Nullable protected Integer sortOrder;
     @Nullable protected String[] tags;
     @Nullable protected ChainMembership[] chains;
+    @Nullable protected String icon;
+    @Nullable protected Boolean hidden;
+    @Nullable protected Boolean requirePrerequisites;
 
     /**
-     * Register the four shared listing leaves on {@code builder}. Every engine's own listing codec
+     * Register the seven shared listing leaves on {@code builder}. Every engine's own listing codec
      * starts from this call, which is what keeps the field names from drifting apart.
      */
     @Nonnull
@@ -67,7 +70,22 @@ public class ContentListingAsset {
                         + "one entry instead of a row of near-identical ones. A piece of content may be a rung "
                         + "of SEVERAL ladders at once, each with its own tier - a mining achievement can be "
                         + "rung 3 of the copper ladder and rung 1 of the whole-game one. This is ONE leaf: "
-                        + "author it and an inherited list is replaced whole.").add();
+                        + "author it and an inherited list is replaced whole.").add()
+                .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
+                        (o, v) -> o.icon = v, o -> o.icon, (o, p) -> o.icon = p.icon)
+                .documentation("An item id to illustrate it with. Unauthored leaves the choice to whatever "
+                        + "renders it.").add()
+                .appendInherited(new KeyedCodec<>("Hidden", Codec.BOOLEAN, false),
+                        (o, v) -> o.hidden = v, o -> o.hidden, (o, p) -> o.hidden = p.hidden)
+                .documentation("Keep it off open listings, for content reached some other way (a chain step, "
+                        + "an event, a surprise). It still progresses; only the listing is affected, and "
+                        + "anything a player already holds or has earned always shows.").add()
+                .appendInherited(new KeyedCodec<>("RequirePrerequisites", Codec.BOOLEAN, false),
+                        (o, v) -> o.requirePrerequisites = v, o -> o.requirePrerequisites,
+                        (o, p) -> o.requirePrerequisites = p.requirePrerequisites)
+                .documentation("Hide it until its Requires block passes, instead of showing it locked. "
+                        + "Unauthored means shown locked, which is usually kinder: a player can see what to "
+                        + "work towards.").add();
     }
 
     public ContentListingAsset() {
@@ -106,6 +124,22 @@ public class ContentListingAsset {
             }
         }
         return out;
+    }
+
+    /** The item id that illustrates this, or null when it authors none. */
+    @Nullable
+    public String getIcon() {
+        return icon == null || icon.isBlank() ? null : icon.trim();
+    }
+
+    /** Kept off open listings? Unauthored means listed. */
+    public boolean isHidden() {
+        return hidden != null && hidden;
+    }
+
+    /** Hidden until its Requires block passes? Unauthored means shown locked. */
+    public boolean isRequirePrerequisites() {
+        return requirePrerequisites != null && requirePrerequisites;
     }
 
     /** The ladders this is a rung of, in authored order; the FIRST is the primary one. */

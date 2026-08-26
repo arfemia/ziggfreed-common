@@ -16,19 +16,18 @@ import com.ziggfreed.common.subject.Subject;
  * <p>There are five kinds of per-subject state:
  * <ul>
  *   <li><b>criterion progress</b> - one long per criterion, keyed
- *   {@code "<achievementId>#<criterionIndex>"} by {@link #criterionKey};
+ *   {@code "<achievementId>#<criterionId>"} by {@link #criterionKey};
  *   <li><b>status</b> per achievement ({@link AchievementStatus});
  *   <li><b>unlock instant</b> per achievement - epoch milliseconds, {@code 0} for none;
  *   <li><b>milestone status</b> per points threshold;
  *   <li><b>pins</b> - the achievements the subject pinned, each with the instant they pinned it.
  * </ul>
  *
- * <p><b>The composite key and its legacy fallback are DEFAULTS here, so every store gets them
- * right.</b> A store implements the flat {@link #progress}/{@link #putProgress} pair and inherits
- * the rule: a read of criterion 0 with nothing under the composite key falls back to the bare
- * achievement id, which is where a store that predates per-criterion keys wrote its single number.
- * The first WRITE at index 0 clears that bare key, so the fallback is a one-way migration rather
- * than a value that can come back later - which it would, the moment a criterion were reset.
+ * <p><b>The composite key is a DEFAULT here, so every store gets it right.</b> A store implements
+ * the flat {@link #progress}/{@link #putProgress} pair and inherits the keying. The criterion id is
+ * the AUTHORED key of the criterion (a legacy authoring layer that numbers its criteria simply has
+ * decimal ids), so re-authoring an achievement's criteria never silently re-points a subject's
+ * stored progress.
  *
  * <p><b>Id hygiene is the STORE's call, not the engine's</b> ({@link #usesReservedDelimiter}). The
  * engine cannot know which characters a given backing format chokes on, so it asks. The default
@@ -42,7 +41,7 @@ import com.ziggfreed.common.subject.Subject;
  */
 public interface AchievementProgressStore {
 
-    /** Joins an achievement id to a criterion position inside one progress key. */
+    /** Joins an achievement id to a criterion id inside one progress key. */
     String CRITERION_SEPARATOR = "#";
 
     /** The characters the default {@link #usesReservedDelimiter} rejects inside an id. */
@@ -50,8 +49,8 @@ public interface AchievementProgressStore {
 
     /** The progress key one criterion is stored under. */
     @Nonnull
-    static String criterionKey(@Nonnull String achievementId, int criterionIndex) {
-        return achievementId + CRITERION_SEPARATOR + criterionIndex;
+    static String criterionKey(@Nonnull String achievementId, @Nonnull String criterionId) {
+        return achievementId + CRITERION_SEPARATOR + criterionId;
     }
 
     /** The raw stored tally under {@code key}, or {@code 0} when nothing is recorded. */
@@ -103,29 +102,16 @@ public interface AchievementProgressStore {
     /** Drop a pin. Returns true when one was actually there. */
     boolean clearPin(@Nonnull Subject subject, @Nonnull String achievementId);
 
-    /**
-     * One criterion's progress, with the legacy fallback: a read of criterion 0 that finds nothing
-     * under the composite key falls back to the bare achievement id. See the class javadoc.
-     */
+    /** One criterion's progress, under the composite key. See the class javadoc. */
     default long criterionProgress(@Nonnull Subject subject, @Nonnull String achievementId,
-                                   int criterionIndex) {
-        long value = progress(subject, criterionKey(achievementId, criterionIndex));
-        if (value == 0L && criterionIndex == 0) {
-            return progress(subject, achievementId);
-        }
-        return value;
+                                   @Nonnull String criterionId) {
+        return progress(subject, criterionKey(achievementId, criterionId));
     }
 
-    /**
-     * Record one criterion's progress. Writing criterion 0 also clears the bare legacy key, so the
-     * fallback above cannot resurrect an old number after a reset.
-     */
+    /** Record one criterion's progress under the composite key. */
     default void setCriterionProgress(@Nonnull Subject subject, @Nonnull String achievementId,
-                                      int criterionIndex, long value) {
-        putProgress(subject, criterionKey(achievementId, criterionIndex), value);
-        if (criterionIndex == 0) {
-            putProgress(subject, achievementId, 0L);
-        }
+                                      @Nonnull String criterionId, long value) {
+        putProgress(subject, criterionKey(achievementId, criterionId), value);
     }
 
     /**
@@ -150,8 +136,8 @@ public interface AchievementProgressStore {
      *
      * <p>The default walks the per-item operations above, so it is correct for any implementation;
      * one that can drop a subject's whole record at once may override it. The bare progress sweep
-     * after the id walk is deliberate: it catches a key no derived id reaches, so nothing is left
-     * behind for the legacy fallback in {@link #criterionProgress} to resurrect.
+     * after the id walk is deliberate: it catches a key no derived id reaches, so a stray entry
+     * cannot outlive the start-over.
      */
     default void clearAll(@Nonnull Subject subject) {
         for (String achievementId : Set.copyOf(knownAchievementIds(subject))) {

@@ -76,12 +76,12 @@ public final class ProgressCommandLine {
         public static final String STATUS = "status";
 
         /** Earn an achievement for a player whether or not its criteria are met. */
-        public static final String UNLOCK = "unlock";
+        public static final String GIVE = "give";
 
-        /** Take one achievement back off a player. */
-        public static final String REVOKE = "revoke";
+        /** Collect an earned achievement's waiting rewards. */
+        public static final String CLAIM = "claim";
 
-        /** Wipe a player's whole achievement record. */
+        /** Wipe a player's record of one achievement, or of every achievement. */
         public static final String RESET = "reset";
 
         private Achievement() {

@@ -319,7 +319,7 @@ class QuestGeneratorTest {
                   "Npc": { "ViewId": "guide", "TurnInId": "giver" },
                   "Objectives": { "collect": { "Kind": "PICKUP_ITEM", "Amount": 10, "Order": 1 },
                                   "hand_in": { "Kind": "TURN_IN", "Amount": 10, "Order": 2 } },
-                  "Rewards": [ { "Kind": "yourmod:currency", "Params": { "Id": "coin", "Amount": "50" } } ] }
+                  "Rewards": { "Claim": [ { "Kind": "yourmod:currency", "Params": { "Id": "coin", "Amount": "50" } } ] } }
                 """;
 
         /** What a person writes for the copper tier-two quest. */
@@ -439,7 +439,7 @@ class QuestGeneratorTest {
                     + " turnIn=" + definition.turnInNpcId()
                     + " tags=" + definition.quest().tags()
                     + " autoTrack=" + definition.quest().autoTrack()
-                    + " autoClaim=" + definition.quest().autoClaim()
+                    + " requiresClaim=" + definition.quest().requiresClaim()
                     + " sequential=" + definition.quest().sequential()
                     + " repeat=" + definition.quest().repeat()
                     + " rewards=" + definition.quest().rewards()

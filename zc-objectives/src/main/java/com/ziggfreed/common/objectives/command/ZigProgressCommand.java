@@ -19,12 +19,18 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
  * /zigprogress quest claim --quest=&lt;id|all&gt; [--player=&lt;name&gt;]         collect a finished quest's rewards
  * /zigprogress quest abandon --quest=&lt;id&gt; [--player=&lt;name&gt;]           give a carried quest up
  * /zigprogress achievement list [--tag=&lt;tag&gt;]                        the merged achievement catalogue
- * /zigprogress achievement status [--player=&lt;name&gt;]                  where every achievement stands, and the points
- * /zigprogress achievement unlock --achievement=&lt;id&gt; [--player=&lt;name&gt;] earn one, whether or not its criteria are met
- * /zigprogress achievement revoke --achievement=&lt;id&gt; [--player=&lt;name&gt;] take one back
- * /zigprogress achievement reset [--player=&lt;name&gt;]                   wipe the whole achievement record
+ * /zigprogress achievement status [--achievement=&lt;id&gt;] [--player=&lt;name&gt;] where every achievement stands, and the points
+ * /zigprogress achievement give --achievement=&lt;id&gt; [--player=&lt;name&gt;]  earn one, whether or not its criteria are met
+ * /zigprogress achievement claim --achievement=&lt;id|all&gt; [--player=&lt;name&gt;] collect an earned achievement's waiting rewards
+ * /zigprogress achievement reset --achievement=&lt;id|all&gt; [--player=&lt;name&gt;] wipe one achievement, or the whole record
  * /zigprogress memories forget [--player=&lt;name&gt;]                     forget everything every conversation remembers
  * </pre>
+ *
+ * <p><b>The two groups conjugate the same way on purpose:</b> {@code give} is the force-it verb on
+ * both (start it / earn it, whatever the gates say), {@code claim} collects what waits on both,
+ * {@code reset} takes {@code <id|all>} on both, and {@code status} takes the same one-id filter on
+ * both. A verb that exists on one side only names a lifecycle the other side does not have
+ * ({@code accept}/{@code abandon}/{@code complete} - achievements are always on).
  *
  * <p>Arguments bind by NAME, never by position - that is the engine's parser, not a house style. A
  * verb that acts on a player defaults to the sender when {@code --player} is left out, and needs
@@ -38,7 +44,9 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
  * the family, {@code ...zigprogress.<group>} for a group and {@code ...zigprogress.<group>.<verb>}
  * for each verb; a verb needs all of its ancestors, and nobody holds any of them until a server
  * grants it. The console holds everything, which is what makes this usable from a startup script
- * and from a wrapper with no permissions plugin installed at all.
+ * and from a wrapper with no permissions plugin installed at all. Node depth follows nesting:
+ * {@code reload}, the one family-level verb (it republishes BOTH catalogues), sits directly under
+ * the family, and every group verb sits under its group.
  *
  * <p>One permission question, one answer: a second check inside these bodies would be a second
  * vocabulary a server owner has to discover, and the first one to drift.
@@ -93,8 +101,8 @@ public final class ZigProgressCommand extends AbstractCommandCollection {
                     ProgressAdminMessages.desc(ProgressCommandLine.Achievement.GROUP));
             addSubCommand(new AchievementListCommand());
             addSubCommand(new AchievementStatusCommand());
-            addSubCommand(new AchievementMarkCommand(AchievementMarkCommand.Op.UNLOCK));
-            addSubCommand(new AchievementMarkCommand(AchievementMarkCommand.Op.REVOKE));
+            addSubCommand(new AchievementGiveCommand());
+            addSubCommand(new AchievementClaimCommand());
             addSubCommand(new AchievementResetCommand());
         }
     }

@@ -54,6 +54,7 @@ import com.ziggfreed.common.commerce.asset.RotationAsset;
 import com.ziggfreed.common.commerce.asset.SelectionAsset;
 import com.ziggfreed.common.commerce.asset.SlotAsset;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
+import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.asset.GeneratorAxisAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
@@ -211,7 +212,6 @@ class AssetCodecInitTest {
         assertNotNull(QuestAsset.Repeat.CODEC, "QuestAsset.Repeat.CODEC must static-init (PascalCase keys)");
         assertNotNull(QuestAsset.Repeat.Reset.CODEC,
                 "QuestAsset.Repeat.Reset.CODEC must static-init (PascalCase keys)");
-        assertNotNull(QuestAsset.Visibility.CODEC, "QuestAsset.Visibility.CODEC must static-init (PascalCase keys)");
         assertNotNull(QuestAsset.Npc.CODEC, "QuestAsset.Npc.CODEC must static-init (PascalCase keys)");
         assertNotNull(QuestObjectiveAsset.CODEC, "QuestObjectiveAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(RewardEntryAsset.CODEC, "RewardEntryAsset.CODEC must static-init (PascalCase keys)");
@@ -298,8 +298,8 @@ class AssetCodecInitTest {
                 "AchievementCategoryAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(AchievementMilestoneAsset.CODEC,
                 "AchievementMilestoneAsset.CODEC must static-init (PascalCase keys)");
-        assertNotNull(AchievementMilestoneAsset.Rewards.CODEC,
-                "AchievementMilestoneAsset.Rewards.CODEC must static-init (PascalCase keys)");
+        assertNotNull(ContentRewardsAsset.CODEC,
+                "ContentRewardsAsset.CODEC must static-init (PascalCase keys)");
     }
     @Test
     void lootCodecsInitialize() {

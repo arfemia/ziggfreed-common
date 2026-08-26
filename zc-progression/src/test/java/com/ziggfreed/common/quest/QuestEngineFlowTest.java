@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.DispatchOptions;
-import com.ziggfreed.common.progress.MatchFlavor;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
@@ -84,7 +83,6 @@ class QuestEngineFlowTest {
             Quest q = quest("q_gather")
                     .objective(objective("logs", "BREAK_BLOCK", "Oak_Log", 3))
                     .reward(RewardSpec.of("NOTE", "text", "paid"))
-                    .autoClaim(false)
                     .build();
             QuestEngine engine = engine().build();
             engine.setQuests(List.of(q));
@@ -107,10 +105,10 @@ class QuestEngineFlowTest {
         }
 
         @Test
-        void anAutoClaimQuestPaysTheMomentItsObjectivesAreMet() {
+        void anAutoRewardQuestPaysTheMomentItsObjectivesAreMet() {
             Quest q = quest("q_auto")
                     .objective(objective("kills", "KILL_ENTITY", "Wolf", 1))
-                    .reward(RewardSpec.of("NOTE", "text", "paid"))
+                    .autoReward(RewardSpec.of("NOTE", "text", "paid"))
                     .build();
             QuestEngine engine = engine().build();
             engine.setQuests(List.of(q));
@@ -126,7 +124,7 @@ class QuestEngineFlowTest {
         void progressPastTheRequirementNeitherOverCountsNorRePays() {
             Quest q = quest("q_over")
                     .objective(objective("kills", "KILL_ENTITY", "Wolf", 2))
-                    .reward(RewardSpec.of("NOTE", "text", "paid"))
+                    .autoReward(RewardSpec.of("NOTE", "text", "paid"))
                     .build();
             QuestEngine engine = engine().build();
             engine.setQuests(List.of(q));
@@ -334,23 +332,15 @@ class QuestEngineFlowTest {
         }
 
         @Test
-        void theEngineFlavorDecidesHowTargetsCompare() {
+        void targetsCompareCaseInsensitively() {
             Quest q = quest("q_case").objective(objective("kills", "KILL_ENTITY", "Wolf", 1)).build();
 
-            QuestEngine strict = engine().matchFlavor(MatchFlavor.STRICT).build();
-            strict.setQuests(List.of(q));
-            strict.accept(player, q);
-            strict.dispatch(player, "KILL_ENTITY", "wolf", null, 1);
-            assertEquals(0, strict.progressOf(player, "q_case", "kills").current());
-
-            InMemoryQuestProgressStore other = new InMemoryQuestProgressStore();
-            QuestEngine lenient = QuestEngine.builder().store(other).clock(clock::get)
-                    .nativeEvents(false).warn(message -> { })
-                    .matchFlavor(MatchFlavor.LENIENT).build();
-            lenient.setQuests(List.of(q));
-            lenient.accept(player, q);
-            lenient.dispatch(player, "KILL_ENTITY", "wolf", null, 1);
-            assertEquals(1, lenient.progressOf(player, "q_case", "kills").current());
+            QuestEngine engine = engine().build();
+            engine.setQuests(List.of(q));
+            engine.accept(player, q);
+            engine.dispatch(player, "KILL_ENTITY", "wolf", null, 1);
+            assertEquals(1, engine.progressOf(player, "q_case", "kills").current(),
+                    "one forgiving rule: a differently-cased id still counts the thing it names");
         }
 
         @Test
@@ -623,7 +613,8 @@ class QuestEngineFlowTest {
         void maintenanceLeavesAParkedRewardAlone() {
             Quest parked = quest("q_parked")
                     .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
-                    .repeat(Quest.Repeat.every(HOUR)).autoClaim(false)
+                    .repeat(Quest.Repeat.every(HOUR))
+                    .reward(RewardSpec.of("NOTE", "text", "parked"))
                     .build();
             QuestEngine engine = engine().build();
             engine.setQuests(List.of(parked));
@@ -660,7 +651,7 @@ class QuestEngineFlowTest {
             Quest rotating = quest("q_rotating")
                     .objective(objective("x", "BREAK_BLOCK", "Stone", 1))
                     .repeat(new Quest.Repeat(4 * HOUR, Quest.Repeat.CooldownFrom.COMPLETE, null, 0))
-                    .autoClaim(false)
+                    .reward(RewardSpec.of("NOTE", "text", "parked"))
                     .build();
             QuestEngine engine = engine().build();
             engine.setQuests(List.of(rotating));
@@ -682,7 +673,8 @@ class QuestEngineFlowTest {
         void aClaimAnchoredQuestStartsItsClockWhenTheRewardIsTaken() {
             Quest parked = quest("q_parked")
                     .objective(objective("x", "BREAK_BLOCK", "Stone", 1))
-                    .repeat(Quest.Repeat.every(4 * HOUR)).autoClaim(false)
+                    .repeat(Quest.Repeat.every(4 * HOUR))
+                    .reward(RewardSpec.of("NOTE", "text", "parked"))
                     .build();
             QuestEngine engine = engine().build();
             engine.setQuests(List.of(parked));
@@ -908,7 +900,8 @@ class QuestEngineFlowTest {
     void activeAndUnclaimedListsWhatThePlayerStillHasInHand() {
         Quest running = quest("q_running").objective(objective("x", "BREAK_BLOCK", "Oak_Log", 5)).build();
         Quest waiting = quest("q_waiting")
-                .objective(objective("x", "BREAK_BLOCK", "Stone", 1)).autoClaim(false).build();
+                .objective(objective("x", "BREAK_BLOCK", "Stone", 1))
+                .reward(RewardSpec.of("NOTE", "text", "parked")).build();
         Quest done = quest("q_done").objective(objective("x", "BREAK_BLOCK", "Sand", 1)).build();
         QuestEngine engine = engine().build();
         engine.setQuests(List.of(running, waiting, done));

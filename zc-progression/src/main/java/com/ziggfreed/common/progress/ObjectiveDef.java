@@ -54,7 +54,7 @@ public final class ObjectiveDef {
         return kind;
     }
 
-    /** What specifically counts. Never null; EMPTY means "unstated" - see {@link MatchFlavor}. */
+    /** What specifically counts. Never null; EMPTY means match-all - see {@link ObjectiveMatch}. */
     @Nonnull
     public String target() {
         return target;
@@ -102,10 +102,10 @@ public final class ObjectiveDef {
         return turnInLockId;
     }
 
-    /** Does the identifier + qualifier an event carries satisfy this objective, in {@code flavor}? */
-    public boolean matches(@Nonnull MatchFlavor flavor, @Nonnull String eventTarget,
+    /** Does the identifier + qualifier an event carries satisfy this objective? */
+    public boolean matches(@Nonnull String eventTarget,
                            @Nullable String eventQualifier) {
-        return ObjectiveMatch.matches(flavor, target, matchMode, qualifier, eventTarget, eventQualifier);
+        return ObjectiveMatch.matches(target, matchMode, qualifier, eventTarget, eventQualifier);
     }
 
     /** Does this objective's zone scope admit an event that happened at {@code eventZone}? */

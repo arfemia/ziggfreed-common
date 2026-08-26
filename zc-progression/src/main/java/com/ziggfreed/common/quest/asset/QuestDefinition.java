@@ -33,6 +33,7 @@ import com.ziggfreed.common.quest.QuestTurnInSite;
  * @param category         free grouping label, or null
  * @param sortOrder        lower sorts first within a category
  * @param chains           the ladders this is a rung of, in authored order; the first is primary
+ * @param icon             an item id to illustrate it with, or null
  * @param npcViewId        who offers the quest, or null
  * @param turnInNpcId      where it is handed in, sentinel already resolved, or null for anywhere
  * @param completionDialogue the conversation that follows this quest settling at a character, or
@@ -47,7 +48,8 @@ public record QuestDefinition(@Nonnull String id, @Nonnull Quest quest, @Nullabl
                               @Nullable String flavorKey, @Nullable String displayName,
                               @Nonnull List<String> titleArgs, @Nonnull List<String> flavorArgs,
                               @Nullable String category, int sortOrder,
-                              @Nonnull List<ChainMembership> chains, @Nullable String npcViewId,
+                              @Nonnull List<ChainMembership> chains, @Nullable String icon,
+                              @Nullable String npcViewId,
                               @Nullable String turnInNpcId, @Nullable String completionDialogue,
                               @Nonnull GateSpec requires,
                               @Nonnull Map<String, String> objectiveTextKeys,
@@ -70,7 +72,7 @@ public record QuestDefinition(@Nonnull String id, @Nonnull Quest quest, @Nullabl
         quest = quest.withAuthoring(requires,
                 textOf(quest, titleKey, flavorKey, displayName, titleArgs, flavorArgs,
                         objectiveTextKeys),
-                npcViewId, sortOrder, category);
+                npcViewId, sortOrder, category, icon);
     }
 
     /** The words this quest carries, as the shared runtime object holds them. */
@@ -125,7 +127,7 @@ public record QuestDefinition(@Nonnull String id, @Nonnull Quest quest, @Nullabl
     @Nonnull
     public QuestDefinition withTurnInAt(@Nullable QuestTurnInSite site) {
         return new QuestDefinition(id, quest.withTurnInAt(site), titleKey, flavorKey, displayName,
-                titleArgs, flavorArgs, category, sortOrder, chains, npcViewId, turnInNpcId,
+                titleArgs, flavorArgs, category, sortOrder, chains, icon, npcViewId, turnInNpcId,
                 completionDialogue, requires, objectiveTextKeys, resetsOnComplete, generatedBy, meta);
     }
 

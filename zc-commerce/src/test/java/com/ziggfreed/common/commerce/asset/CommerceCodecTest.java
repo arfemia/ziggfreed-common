@@ -310,8 +310,9 @@ class CommerceCodecTest {
 
             QuestDefinition folded = contract.toDefinition(null);
 
-            assertFalse(folded.quest().autoClaim(),
-                    "a contract PARKS when it finishes, so a reward cannot be lost to the board rotating");
+            assertNotNull(folded.quest().turnInAt(),
+                    "a contract is collected AT its board, so a finished one parks there rather"
+                            + " than settling in the field");
             assertTrue(folded.quest().visibility().hidden(),
                     "a contract is read at its board, never listed as an open quest");
             assertNotNull(folded.quest().repeat(), "a contract always comes round again");

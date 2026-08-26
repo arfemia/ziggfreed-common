@@ -48,7 +48,6 @@ import com.ziggfreed.common.objectives.store.ZigAchievementStore;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.objectives.store.ZigQuestStore;
 import com.ziggfreed.common.progress.ContentText;
-import com.ziggfreed.common.progress.MatchFlavor;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.runtime.ProgressionGates;
 import com.ziggfreed.common.progress.runtime.ProgressionRegistrar;
@@ -156,8 +155,6 @@ public final class ProgressionDefaults {
                     .questGates(gates)
                     .achievementGates(gates)
                     .textSource(RuntimeText.INSTANCE)
-                    .questMatchFlavor(MatchFlavor.STRICT)
-                    .achievementMatchFlavor(MatchFlavor.LENIENT)
                     .maxTrackedQuests(MAX_TRACKED)
                     // No cap on how many quests may be carried at once. Capping it would make the
                     // engine's log_full refusal reachable, and a surface would then need a line for

@@ -41,7 +41,7 @@ import com.ziggfreed.common.world.WorldSelector;
  *   "Identity": { "Role": "MyMod_Guide", "NpcId": "guide" },
  *   "Where":    { "Match": ["default"] },
  *   "Anchor":   { "WorldSpawn": { "Offset": {"X": 2.5}, "Yaw": 180 } },
- *   "Requires": { "Conditions": [ {"Factor": "yourmod:feature", "Param": "shop", "Min": 1} ] },
+ *   "Requires": { "Factors": [ {"Factor": "yourmod:feature", "Param": "shop", "Min": 1} ] },
  *   "Limits":   { "SpawnChance": 1.0, "OncePerWorld": true },
  *   "Lifecycle":{ "KeepAlive": true, "Fortify": true },
  *   "Interact": { "Dialogue": "guide_intro" } }
@@ -722,7 +722,9 @@ public final class NpcPlacementAsset
         @Nullable protected FactorCondition[] conditions;
 
         public static final BuilderCodec<Requires> CODEC = BuilderCodec.builder(Requires.class, Requires::new)
-                .appendInherited(new KeyedCodec<>("Conditions",
+                // "Factors", matching the Requires block on quests and achievements: one spelling
+                // for "the factor bounds that must all pass", wherever it gates.
+                .appendInherited(new KeyedCodec<>("Factors",
                                 new ArrayCodec<>(FactorCondition.codec(EditorDataSets.PLACEMENT_FACTORS),
                                         FactorCondition[]::new), false),
                         (o, v) -> o.conditions = v, o -> o.conditions, (o, p) -> o.conditions = p.conditions)

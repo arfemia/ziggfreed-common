@@ -25,6 +25,7 @@ import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestGates;
@@ -82,7 +83,7 @@ class ProgressionFeedbackHookTest {
         return Quest.builder("q_parked")
                 .objective(ObjectiveDef.builder("logs", "BREAK_BLOCK")
                         .target("Oak_Log").matchMode(MatchMode.EXACT).amount(2).build())
-                .autoClaim(false)
+                .reward(RewardSpec.of("NOTE", "text", "parked"))
                 .build();
     }
 

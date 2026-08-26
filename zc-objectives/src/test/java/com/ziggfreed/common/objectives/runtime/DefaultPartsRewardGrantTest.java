@@ -83,7 +83,6 @@ class DefaultPartsRewardGrantTest {
                 .objective(ObjectiveDef.builder("step", STEP_KIND)
                         .target(STEP_TARGET).matchMode(MatchMode.EXACT).amount(1).build())
                 .reward(RewardSpec.of(KIND, "Item", "Coin_Gold"))
-                .autoClaim(false)
                 .build();
         engine = QuestEngine.builder()
                 .store(new InMemoryQuestProgressStore())

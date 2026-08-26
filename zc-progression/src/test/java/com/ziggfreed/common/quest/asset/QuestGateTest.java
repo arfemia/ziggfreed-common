@@ -494,7 +494,7 @@ class QuestGateTest {
             factors.register("yourmod:rank", ctx -> 1.0);
             QuestPool pool = new QuestPool(Map.of("gated", decodeRoot("""
                     { "Requires": { "Factors": [ { "Factor": "yourmod:rank", "Min": 10 } ] },
-                      "Visibility": { "RequirePrerequisites": true },
+                      "Listing": { "RequirePrerequisites": true },
                       "Objectives": { "collect": { "Kind": "PICKUP_ITEM", "Target": "Ore" } } }
                     """, "gated").toDefinition(null)));
 

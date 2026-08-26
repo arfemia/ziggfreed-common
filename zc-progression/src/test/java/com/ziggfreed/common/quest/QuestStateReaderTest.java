@@ -15,6 +15,7 @@ import javax.annotation.Nonnull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
@@ -56,7 +57,7 @@ class QuestStateReaderTest {
         return Quest.builder("q_gather")
                 .objective(ObjectiveDef.builder("logs", "BREAK_BLOCK")
                         .target("Oak_Log").matchMode(MatchMode.EXACT).amount(2).build())
-                .autoClaim(false)
+                .reward(RewardSpec.of("NOTE", "text", "parked"))
                 .build();
     }
 

@@ -6,7 +6,7 @@ import javax.annotation.Nullable;
 /**
  * How an objective's authored target is compared against the identifier an event carries.
  *
- * <p>The comparison itself is NOT here: it depends on the {@link MatchFlavor} the engine runs, and
+ * <p>The comparison itself is NOT here: it lives in {@link ObjectiveMatch}, and
  * both flavors live in {@link ObjectiveMatch}. This enum only names the three shapes an author can
  * ask for.
  *

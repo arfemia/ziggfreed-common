@@ -264,9 +264,6 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                 // Never handed out on its own: a contract exists because a board posted it.
                 .autoAccept(false)
                 .autoTrack(false)
-                // PARK, never auto-claim. A finished contract waits to be collected, so a reward
-                // cannot be lost to the board turning over between finishing and coming back.
-                .autoClaim(false)
                 // Externally governed: whatever posts it decides when it comes round again, and the
                 // clock that matters runs from FINISHING rather than from collecting, so a late
                 // collection never eats into the next posting.
@@ -293,6 +290,9 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
             }
         }
 
+        // Every reward is a CLAIM reward: a finished contract PARKS and waits to be collected at
+        // its board, so a payout cannot be lost to the board turning over between finishing and
+        // coming back.
         for (RewardEntryAsset reward : rewardsOrEmpty()) {
             RewardSpec spec = reward == null ? null : reward.toSpec();
             if (spec != null) {
@@ -309,6 +309,7 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                 listing == null ? null : listing.getCategory(),
                 listing == null ? 0 : listing.sortOrderOrZero(),
                 listing == null ? List.of() : listing.chainList(),
+                listing == null ? null : listing.getIcon(),
                 null, null, null,
                 requires == null ? GateSpec.OPEN : requires,
                 objectiveText,

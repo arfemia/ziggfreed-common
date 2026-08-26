@@ -23,17 +23,15 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.NestedAssetId;
 import com.ziggfreed.common.codec.InheritMapCodec;
-import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
+import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
-import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestTurnInSite;
@@ -52,17 +50,17 @@ import com.ziggfreed.common.time.DurationGroup;
  * { "Parent": "gather_base",
  *   "Enabled": true,
  *   "Text":       { "TitleKey": "quest.gather_copper.title", "FlavorKey": "quest.gather_copper.flavor" },
- *   "Listing":    { "Category": "gathering", "SortOrder": 10, "Tags": ["daily"] },
+ *   "Listing":    { "Category": "gathering", "SortOrder": 10, "Tags": ["daily"],
+ *                   "Icon": "Copper_Ore", "Hidden": false, "RequirePrerequisites": true },
  *   "Flow":       { "AutoTrack": true, "Sequential": true },
  *   "Repeat":     { "Cooldown": { "Hours": 24 } },
- *   "Visibility": { "Hidden": false, "RequirePrerequisites": true },
  *   "Npc":        { "ViewId": "guide", "TurnInId": "giver" },
  *   "TurnInAt":   true,
  *   "CompletionDialogue": "guide_thanks",
  *   "Requires":   { "Factors": [ {"Factor": "yourmod:trade_rank", "Min": 5} ] },
  *   "Objectives": { "collect": { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 10 },
  *                   "hand_in": { "Kind": "TURN_IN", "Target": "Copper_Ore", "Amount": 10, "Order": 2 } },
- *   "Rewards":    [ { "Kind": "yourmod:currency", "Params": { "Id": "coin", "Amount": "50" } } ],
+ *   "Rewards":    { "Claim": [ { "Kind": "yourmod:currency", "Params": { "Id": "coin", "Amount": "50" } } ] },
  *   "Meta":       { "yourmod": { "Faction": "wardens" } } }
  * }</pre>
  *
@@ -95,13 +93,12 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable private Listing listing;
     @Nullable private Flow flow;
     @Nullable private Repeat repeat;
-    @Nullable private Visibility visibility;
     @Nullable private Npc npc;
     @Nullable private String turnInAt;
     @Nullable private String completionDialogue;
     @Nullable private GateSpec requires;
     @Nullable private Map<String, QuestObjectiveAsset> objectives;
-    @Nullable private RewardEntryAsset[] rewards;
+    @Nullable private ContentRewardsAsset rewards;
     @Nullable private Map<String, JsonElement> meta;
 
     public static final AssetBuilderCodec<String, QuestAsset> CODEC = AssetBuilderCodec.builder(
@@ -140,21 +137,20 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .add()
             .appendInherited(new KeyedCodec<>("Listing", Listing.CODEC, false),
                     (a, v) -> a.listing = v, a -> a.listing, (a, p) -> a.listing = p.listing)
-            .documentation("How the quest is grouped and ordered wherever quests are listed.")
+            .documentation("How the quest is grouped, ordered and illustrated wherever quests are listed, "
+                    + "and who may SEE it before taking it (Hidden, RequirePrerequisites). A quest already in "
+                    + "progress ignores both visibility knobs, because a player must always see what they are "
+                    + "in the middle of.")
             .add()
             .appendInherited(new KeyedCodec<>("Flow", Flow.CODEC, false),
                     (a, v) -> a.flow = v, a -> a.flow, (a, p) -> a.flow = p.flow)
-            .documentation("How much the player has to do by hand: take it, track it, collect the reward, and "
-                    + "whether the steps run in order.")
+            .documentation("How much the player has to do by hand: take it, track it, and whether the steps "
+                    + "run in order. Whether the reward is collected by hand is not a switch here; it follows "
+                    + "from which Rewards bucket the payout is authored in.")
             .add()
             .appendInherited(new KeyedCodec<>("Repeat", Repeat.CODEC, false),
                     (a, v) -> a.repeat = v, a -> a.repeat, (a, p) -> a.repeat = p.repeat)
             .documentation("Whether the quest comes back around, how long the wait is, and what else it resets.")
-            .add()
-            .appendInherited(new KeyedCodec<>("Visibility", Visibility.CODEC, false),
-                    (a, v) -> a.visibility = v, a -> a.visibility, (a, p) -> a.visibility = p.visibility)
-            .documentation("Who may SEE the quest before taking it. A quest already in progress ignores both "
-                    + "knobs, because a player must always see what they are in the middle of.")
             .add()
             .appendInherited(new KeyedCodec<>("Npc", Npc.CODEC, false),
                     (a, v) -> a.npc = v, a -> a.npc, (a, p) -> a.npc = p.npc)
@@ -192,11 +188,12 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     + "renaming one starts that step over. A child quest may retune one step by id and keeps every "
                     + "step it did not mention.")
             .add()
-            .appendInherited(new KeyedCodec<>("Rewards",
-                            new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
+            .appendInherited(new KeyedCodec<>("Rewards", ContentRewardsAsset.CODEC, false),
                     (a, v) -> a.rewards = v, a -> a.rewards, (a, p) -> a.rewards = p.rewards)
-            .documentation("What the player gets. This is ONE leaf: author it and an inherited list is replaced "
-                    + "whole, omit it and the inherited list carries over (an empty array pays out nothing).")
+            .documentation("What the player gets, split by the two moments a payout can land in. Anything in "
+                    + "Claim waits to be collected, and having any is what makes the finished quest wait; a "
+                    + "quest paying only Auto settles on the spot, its reward landing the instant the steps "
+                    + "are done.")
             .add()
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
@@ -275,11 +272,6 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
     }
 
     @Nullable
-    public Visibility getVisibility() {
-        return visibility;
-    }
-
-    @Nullable
     public Npc getNpc() {
         return npc;
     }
@@ -338,10 +330,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return objectives == null ? Map.of() : objectives;
     }
 
-    /** The authored rewards, in authored order. */
-    @Nonnull
-    public RewardEntryAsset[] rewardsOrEmpty() {
-        return rewards == null ? new RewardEntryAsset[0] : rewards;
+    /** The authored rewards group, or null when the quest pays nothing. */
+    @Nullable
+    public ContentRewardsAsset getRewards() {
+        return rewards;
     }
 
     /** The per-namespace extra facts, exactly as authored; empty when the file carried none. */
@@ -367,9 +359,9 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .sequential(flow != null && flow.isSequential())
                 .autoAccept(flow != null && flow.isAutoAccept())
                 .autoTrack(flow != null && flow.isAutoTrack())
-                .autoClaim(flow != null && flow.isAutoClaim())
                 .repeat(repeat == null ? null : repeat.toRepeat())
-                .visibility(visibility == null ? Quest.Visibility.OPEN : visibility.toVisibility())
+                .visibility(listing == null ? Quest.Visibility.OPEN
+                        : new Quest.Visibility(listing.isHidden(), listing.isRequirePrerequisites()))
                 .turnInAt(turnInSite(giverId))
                 .tags(listing == null ? List.of() : listing.tagList());
 
@@ -385,11 +377,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             }
         }
 
-        for (RewardEntryAsset reward : rewardsOrEmpty()) {
-            RewardSpec spec = reward == null ? null : reward.toSpec();
-            if (spec != null) {
-                quest.reward(spec);
-            }
+        ContentRewardsAsset pay = rewards;
+        if (pay != null) {
+            quest.autoRewards(pay.auto());
+            quest.claimRewards(pay.claim());
         }
 
         return new QuestDefinition(questId, quest.build(),
@@ -401,6 +392,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 listing == null ? null : listing.getCategory(),
                 listing == null ? 0 : listing.sortOrderOrZero(),
                 listing == null ? List.of() : listing.chainList(),
+                listing == null ? null : listing.getIcon(),
                 giverId, questTurnIn, getCompletionDialogue(),
                 requires == null ? GateSpec.OPEN : requires,
                 objectiveText,
@@ -431,12 +423,15 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
 
     // ==================== Flow ====================
 
-    /** How much of the quest the player drives by hand, and whether its steps run in order. */
+    /**
+     * How much of the quest the player drives by hand, and whether its steps run in order. Whether
+     * the reward is collected by hand is not decided here: it follows from which {@code Rewards}
+     * bucket the payout is authored in.
+     */
     public static final class Flow {
 
         @Nullable protected Boolean autoAccept;
         @Nullable protected Boolean autoTrack;
-        @Nullable protected Boolean autoClaim;
         @Nullable protected Boolean sequential;
 
         public static final BuilderCodec<Flow> CODEC = BuilderCodec.builder(Flow.class, Flow::new)
@@ -448,11 +443,6 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                         (o, v) -> o.autoTrack = v, o -> o.autoTrack, (o, p) -> o.autoTrack = p.autoTrack)
                 .documentation("Pin it to the tracker on accept if there is room. It never displaces a pin the "
                         + "player chose. Unauthored means false.").add()
-                .appendInherited(new KeyedCodec<>("AutoClaim", Codec.BOOLEAN, false),
-                        (o, v) -> o.autoClaim = v, o -> o.autoClaim, (o, p) -> o.autoClaim = p.autoClaim)
-                .documentation("Pay out the moment the steps are done; unauthored means false, so a finished "
-                        + "quest waits in the quest log until the player claims it. Set true for a quest whose "
-                        + "reward should land the instant its steps are done, with nothing further to collect.").add()
                 .appendInherited(new KeyedCodec<>("Sequential", Codec.BOOLEAN, false),
                         (o, v) -> o.sequential = v, o -> o.sequential, (o, p) -> o.sequential = p.sequential)
                 .documentation("Run the steps strictly one after another in authored order. Ignored the moment "
@@ -464,11 +454,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
 
         @Nonnull
         public static Flow of(@Nullable Boolean autoAccept, @Nullable Boolean autoTrack,
-                @Nullable Boolean autoClaim, @Nullable Boolean sequential) {
+                @Nullable Boolean sequential) {
             Flow f = new Flow();
             f.autoAccept = autoAccept;
             f.autoTrack = autoTrack;
-            f.autoClaim = autoClaim;
             f.sequential = sequential;
             return f;
         }
@@ -479,11 +468,6 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
 
         public boolean isAutoTrack() {
             return autoTrack != null && autoTrack;
-        }
-
-        /** Unauthored means false, matching AutoAccept/AutoTrack/Sequential. */
-        public boolean isAutoClaim() {
-            return autoClaim != null && autoClaim;
         }
 
         public boolean isSequential() {
@@ -765,53 +749,6 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                         parsedWeekday == null ? DayOfWeek.MONDAY : parsedWeekday,
                         times == null ? 1 : times.intValue());
             }
-        }
-    }
-
-    // ==================== Visibility ====================
-
-    /** Who may SEE the quest before taking it. */
-    public static final class Visibility {
-
-        @Nullable protected Boolean hidden;
-        @Nullable protected Boolean requirePrerequisites;
-
-        public static final BuilderCodec<Visibility> CODEC =
-                BuilderCodec.builder(Visibility.class, Visibility::new)
-                        .appendInherited(new KeyedCodec<>("Hidden", Codec.BOOLEAN, false),
-                                (o, v) -> o.hidden = v, o -> o.hidden, (o, p) -> o.hidden = p.hidden)
-                        .documentation("Keep it off open listings entirely, for a quest handed out some other way "
-                                + "(a chain step, an event). Unauthored means listed.").add()
-                        .appendInherited(new KeyedCodec<>("RequirePrerequisites", Codec.BOOLEAN, false),
-                                (o, v) -> o.requirePrerequisites = v, o -> o.requirePrerequisites,
-                                (o, p) -> o.requirePrerequisites = p.requirePrerequisites)
-                        .documentation("Hide it until its Requires block passes, instead of showing it locked. "
-                                + "Unauthored means shown locked, which is usually kinder: a player can see what "
-                                + "to work towards.").add()
-                        .build();
-
-        public Visibility() {
-        }
-
-        @Nonnull
-        public static Visibility of(@Nullable Boolean hidden, @Nullable Boolean requirePrerequisites) {
-            Visibility v = new Visibility();
-            v.hidden = hidden;
-            v.requirePrerequisites = requirePrerequisites;
-            return v;
-        }
-
-        public boolean isHidden() {
-            return hidden != null && hidden;
-        }
-
-        public boolean isRequirePrerequisites() {
-            return requirePrerequisites != null && requirePrerequisites;
-        }
-
-        @Nonnull
-        public Quest.Visibility toVisibility() {
-            return new Quest.Visibility(isHidden(), isRequirePrerequisites());
         }
     }
 

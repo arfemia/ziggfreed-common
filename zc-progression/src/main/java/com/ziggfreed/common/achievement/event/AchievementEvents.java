@@ -33,11 +33,11 @@ public final class AchievementEvents {
     }
 
     /** One criterion moved (and possibly finished). */
-    public static void fireProgressed(@Nonnull String achievementId, int criterionIndex,
+    public static void fireProgressed(@Nonnull String achievementId, @Nonnull String criterionId,
                                       @Nonnull UUID playerId, int current, int required,
                                       boolean justCompleted, @Nonnull List<String> tags) {
         fire("AchievementProgressed", AchievementProgressedEvent.class,
-                () -> new AchievementProgressedEvent(achievementId, criterionIndex, playerId, current,
+                () -> new AchievementProgressedEvent(achievementId, criterionId, playerId, current,
                         required, justCompleted, tags));
     }
 

@@ -1,6 +1,5 @@
 package com.ziggfreed.common.achievement.asset;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -13,10 +12,9 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.achievement.AchievementMilestone;
 import com.ziggfreed.common.loot.reward.RewardSpec;
-import com.ziggfreed.common.progress.asset.RewardEntryAsset;
+import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 
 /**
  * A reward for reaching a running TOTAL of achievement points, rather than for any one achievement.
@@ -64,71 +62,7 @@ public final class AchievementMilestoneAsset
     @Nullable protected Integer threshold;
     @Nullable protected String titleKey;
     @Nullable protected String descriptionKey;
-    @Nullable protected Rewards rewards;
-
-    /** The two payout moments, grouped because they belong to each other and to nothing else. */
-    public static final class Rewards {
-
-        @Nullable protected RewardEntryAsset[] auto;
-        @Nullable protected RewardEntryAsset[] claim;
-
-        public static final BuilderCodec<Rewards> CODEC = BuilderCodec.builder(Rewards.class, Rewards::new)
-                .appendInherited(new KeyedCodec<>("Auto",
-                                new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
-                        (o, v) -> o.auto = v, o -> o.auto, (o, p) -> o.auto = p.auto)
-                .documentation("Paid the instant the total is crossed, wherever the player is. Keep it to "
-                        + "things that need no bag room. This is ONE leaf: author it and an inherited list is "
-                        + "replaced whole.")
-                .add()
-                .appendInherited(new KeyedCodec<>("Claim",
-                                new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
-                        (o, v) -> o.claim = v, o -> o.claim, (o, p) -> o.claim = p.claim)
-                .documentation("Waits on a surface for the player to collect. Where anything needing backpack "
-                        + "room belongs, so a full bag costs nobody a reward. This is ONE leaf: author it and an "
-                        + "inherited list is replaced whole.")
-                .add()
-                .build();
-
-        public Rewards() {
-        }
-
-        /** Java-side factory; sets the same fields the codec fills. */
-        @Nonnull
-        public static Rewards of(@Nullable List<RewardEntryAsset> auto,
-                @Nullable List<RewardEntryAsset> claim) {
-            Rewards r = new Rewards();
-            r.auto = auto == null ? null : auto.toArray(new RewardEntryAsset[0]);
-            r.claim = claim == null ? null : claim.toArray(new RewardEntryAsset[0]);
-            return r;
-        }
-
-        /** Paid the instant the threshold is crossed. */
-        @Nonnull
-        public List<RewardSpec> auto() {
-            return build(auto);
-        }
-
-        /** Paid when the player collects. */
-        @Nonnull
-        public List<RewardSpec> claim() {
-            return build(claim);
-        }
-
-        @Nonnull
-        private static List<RewardSpec> build(@Nullable RewardEntryAsset[] entries) {
-            if (entries == null || entries.length == 0) {
-                return List.of();
-            }
-            List<RewardSpec> out = new ArrayList<>(entries.length);
-            for (RewardEntryAsset entry : entries) {
-                RewardSpec reward = entry == null ? null : entry.toSpec();
-                if (reward != null) {
-                    out.add(reward);
-                }
-            }
-            return out;
-        }
-    }
+    @Nullable protected ContentRewardsAsset rewards;
 
     public static final AssetBuilderCodec<String, AchievementMilestoneAsset> CODEC = AssetBuilderCodec.builder(
                     AchievementMilestoneAsset.class,
@@ -155,7 +89,7 @@ public final class AchievementMilestoneAsset
             .documentation("The translation key describing what reaching it takes. Unauthored leaves the line "
                     + "to the surface, which usually says the number itself.")
             .add()
-            .appendInherited(new KeyedCodec<>("Rewards", Rewards.CODEC, false),
+            .appendInherited(new KeyedCodec<>("Rewards", ContentRewardsAsset.CODEC, false),
                     (a, v) -> a.rewards = v, a -> a.rewards, (a, p) -> a.rewards = p.rewards)
             .documentation("What crossing it pays, split by the two moments a payout can land in.")
             .add()
@@ -167,7 +101,8 @@ public final class AchievementMilestoneAsset
     /** Java-side factory; sets the same fields the codec fills. */
     @Nonnull
     public static AchievementMilestoneAsset of(@Nonnull String id, int threshold,
-            @Nullable String titleKey, @Nullable String descriptionKey, @Nullable Rewards rewards) {
+            @Nullable String titleKey, @Nullable String descriptionKey,
+            @Nullable ContentRewardsAsset rewards) {
         AchievementMilestoneAsset a = new AchievementMilestoneAsset();
         a.id = id;
         a.threshold = threshold;
@@ -198,21 +133,21 @@ public final class AchievementMilestoneAsset
     }
 
     @Nullable
-    public Rewards getRewards() {
+    public ContentRewardsAsset getRewards() {
         return rewards;
     }
 
     /** Paid the instant the threshold is crossed; empty when the file authors none. */
     @Nonnull
     public List<RewardSpec> autoRewards() {
-        Rewards r = rewards;
+        ContentRewardsAsset r = rewards;
         return r == null ? List.of() : r.auto();
     }
 
     /** Paid when the player collects; empty when the file authors none. */
     @Nonnull
     public List<RewardSpec> claimRewards() {
-        Rewards r = rewards;
+        ContentRewardsAsset r = rewards;
         return r == null ? List.of() : r.claim();
     }
 

@@ -66,8 +66,7 @@ class QuestCompleteAtTest {
                 .objective(ObjectiveDef.builder("step", "BREAK_BLOCK")
                         .target("Stone").matchMode(MatchMode.EXACT).amount(1).build())
                 .reward(RewardSpec.of("NOTE", "text", "paid"))
-                .turnInAt(site)
-                .autoClaim(false);
+                .turnInAt(site);
     }
 
     // ==================== The predicate ====================
@@ -230,7 +229,7 @@ class QuestCompleteAtTest {
         }
 
         @Test
-        void anAutoClaimQuestBoundToAPlaceParksInsteadOfPayingWhereverItFinishes() {
+        void aQuestBoundToAPlaceParksInsteadOfPayingWhereverItFinishes() {
             Quest q = Quest.builder("q_auto")
                     .objective(ObjectiveDef.builder("step", "BREAK_BLOCK")
                             .target("Stone").matchMode(MatchMode.EXACT).amount(1).build())
@@ -279,7 +278,9 @@ class QuestCompleteAtTest {
         private Quest reportBackTo(@Nonnull String npcId) {
             return Quest.builder("q_report")
                     .objective(ObjectiveDef.builder("step", "TURN_IN").target("").amount(1).build())
-                    .reward(RewardSpec.of("NOTE", "text", "paid"))
+                    // An AUTO reward: reporting back at the place pays on the spot, with nothing
+                    // further to collect - the errand shape.
+                    .autoReward(RewardSpec.of("NOTE", "text", "paid"))
                     .turnInAt(QuestTurnInSite.character(npcId))
                     .build();
         }

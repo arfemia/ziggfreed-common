@@ -27,9 +27,9 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code markDirty} / {@code flush} fan out to whatever registered through
  * {@link ProgressionDefaults#onProgressDirty} / {@link ProgressionDefaults#onProgressFlush}.
  *
- * <p>Every other interface default is inherited - including the composite criterion key with its
- * one-way legacy fallback, {@code clearAchievement}, and {@code usesReservedDelimiter} (whose
- * default already rejects everything {@link ProgressBlob} reserves, plus the criterion separator).
+ * <p>Every other interface default is inherited - including the composite criterion key,
+ * {@code clearAchievement}, and {@code usesReservedDelimiter} (whose default already rejects
+ * everything {@link ProgressBlob} reserves, plus the criterion separator).
  */
 public final class ZigAchievementStore implements AchievementProgressStore {
 

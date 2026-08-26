@@ -34,6 +34,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionSubjectSource;
 import com.ziggfreed.common.progress.runtime.ProgressionSystem;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
@@ -175,7 +176,7 @@ class ProgressDispatchTest {
     void enoughFiredMomentsFinishTheQuest() {
         Quest quest = Quest.builder("q_gather")
                 .objective(objective("logs", BREAK_BLOCK, "Oak_Log", 3))
-                .autoClaim(false)
+                .reward(RewardSpec.of("NOTE", "text", "parked"))
                 .build();
         quests.setQuests(List.of(quest));
         assertTrue(quests.accept(player, quest));

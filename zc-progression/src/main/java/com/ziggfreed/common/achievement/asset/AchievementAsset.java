@@ -19,16 +19,15 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.asset.NestedAssetId;
-import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
+import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
-import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
@@ -47,23 +46,17 @@ import com.ziggfreed.common.progress.gate.GateSpec;
  *                "Icon": "Copper_Ore", "Hidden": false, "Tags": ["gathering"] },
  *   "Scoring": { "Points": 20, "CountsTowardTotal": true },
  *   "Requires":{ "Factors": [ {"Factor": "yourmod:trade_rank", "Min": 5} ] },
- *   "Criteria":[ { "Kind": "BREAK_BLOCK", "Target": "Copper_Ore", "Amount": 500 },
- *                { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 500 } ],
- *   "Rewards": [ { "Kind": "yourmod:currency", "Params": { "Id": "coin", "Amount": "50" } } ],
+ *   "Criteria":{ "mine-copper":   { "Kind": "BREAK_BLOCK", "Target": "Copper_Ore", "Amount": 500 },
+ *                "gather-copper": { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 500 } },
+ *   "Rewards": { "Auto": [ { "Kind": "yourmod:currency", "Params": { "Id": "coin", "Amount": "50" } } ] },
  *   "Meta":    { "yourmod": { "Chain": { "Id": "prospecting", "Tier": 2 } } } }
  * }</pre>
  *
- * <p><b>{@code Criteria} IS AN ORDERED ARRAY AND THE ORDER IS PERMANENT.</b> Progress is stored per
- * criterion by its POSITION in this array, so:
- * <ul>
- *   <li>APPENDING a criterion is safe - the existing positions do not move;</li>
- *   <li>INSERTING, REMOVING, or REORDERING one moves every player's progress onto a different
- *   criterion, which is a data migration rather than an edit;</li>
- *   <li>a {@code Parent} that authors criteria and a child that authors criteria do NOT merge per
- *   entry - the child's array REPLACES the parent's whole. There is no per-index merge, and there
- *   deliberately never will be: a merge keyed by position would let a parent edit silently re-point
- *   every child's stored progress. Inherit the criteria untouched, or state them all.</li>
- * </ul>
+ * <p><b>{@code Criteria} is keyed by criterion id, and the KEY is what progress is stored under</b>
+ * (exactly like a quest's {@code Objectives}), so renaming a key starts that criterion over for
+ * everybody while adding, removing, or reordering entries never moves anyone's progress. A child
+ * that carries {@code Parent} may retune one criterion by key and keeps every criterion it did not
+ * mention.
  *
  * <p><b>Display text is keys, never sentences.</b> {@code Text.TitleKey} and {@code Text.FlavorKey}
  * are localization keys the player's own client resolves in the player's own language.
@@ -87,10 +80,9 @@ public final class AchievementAsset
     @Nullable private Listing listing;
     @Nullable private Scoring scoring;
     @Nullable private GateSpec requires;
-    @Nullable private ObjectiveLeafAsset[] criteria;
+    @Nullable private Map<String, ObjectiveLeafAsset> criteria;
     @Nullable private String[] metaChildren;
-    @Nullable private RewardEntryAsset[] rewards;
-    @Nullable private RewardEntryAsset[] claimRewards;
+    @Nullable private ContentRewardsAsset rewards;
     @Nullable private Map<String, JsonElement> meta;
 
     public static final AssetBuilderCodec<String, AchievementAsset> CODEC = AssetBuilderCodec.builder(
@@ -142,12 +134,11 @@ public final class AchievementAsset
                     + "unauthored block asks for nothing.")
             .add()
             .appendInherited(new KeyedCodec<>("Criteria",
-                            new ArrayCodec<>(ObjectiveLeafAsset.CODEC, ObjectiveLeafAsset[]::new), false),
+                            new InheritMapCodec<>(ObjectiveLeafAsset.CODEC), false),
                     (a, v) -> a.criteria = v, a -> a.criteria, (a, p) -> a.criteria = p.criteria)
-            .documentation("Everything that has to be done, ALL of it, in a FIXED order. Progress is stored by "
-                    + "each entry's POSITION, so appending is safe while inserting, removing, or reordering moves "
-                    + "every player's progress onto a different criterion. This is ONE leaf: a child that authors "
-                    + "Criteria replaces the inherited list whole rather than merging into it.")
+            .documentation("Everything that has to be done, ALL of it, keyed by criterion id. The key is also "
+                    + "what progress is stored under, so renaming one starts that criterion over. A child "
+                    + "achievement may retune one criterion by id and keeps every criterion it did not mention.")
             .add()
             .appendInherited(new KeyedCodec<>("MetaChildren", Codec.STRING_ARRAY, false),
                     (a, v) -> a.metaChildren = v, a -> a.metaChildren,
@@ -155,19 +146,10 @@ public final class AchievementAsset
             .documentation("Achievement ids that must all be earned for this one to earn itself, for a capstone "
                     + "over a set. An achievement with these needs no Criteria of its own.")
             .add()
-            .appendInherited(new KeyedCodec<>("Rewards",
-                            new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
+            .appendInherited(new KeyedCodec<>("Rewards", ContentRewardsAsset.CODEC, false),
                     (a, v) -> a.rewards = v, a -> a.rewards, (a, p) -> a.rewards = p.rewards)
-            .documentation("What lands the instant it is earned. This is ONE leaf: author it and an inherited "
-                    + "list is replaced whole, omit it and the inherited list carries over.")
-            .add()
-            .appendInherited(new KeyedCodec<>("ClaimRewards",
-                            new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
-                    (a, v) -> a.claimRewards = v, a -> a.claimRewards,
-                    (a, p) -> a.claimRewards = p.claimRewards)
-            .documentation("What waits to be collected. Authoring any of these is what makes an achievement "
-                    + "something a player comes back to a menu for; leave it out and the whole payout lands at "
-                    + "the moment it is earned.")
+            .documentation("What earning it pays, split by the two moments a payout can land in: Auto lands the "
+                    + "instant it is earned, Claim waits on the achievements surface to be collected.")
             .add()
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
@@ -259,10 +241,10 @@ public final class AchievementAsset
         return requires;
     }
 
-    /** The authored criteria in authored order. The position of each is its progress key. */
+    /** The authored criteria in authored order, keyed by criterion id (the progress key). */
     @Nonnull
-    public ObjectiveLeafAsset[] criteriaOrEmpty() {
-        return criteria == null ? new ObjectiveLeafAsset[0] : criteria;
+    public Map<String, ObjectiveLeafAsset> criteriaOrEmpty() {
+        return criteria == null ? Map.of() : criteria;
     }
 
     /** The authored meta children, in authored order. */
@@ -271,16 +253,10 @@ public final class AchievementAsset
         return metaChildren == null ? new String[0] : metaChildren;
     }
 
-    /** The rewards that land at once, in authored order. */
-    @Nonnull
-    public RewardEntryAsset[] rewardsOrEmpty() {
-        return rewards == null ? new RewardEntryAsset[0] : rewards;
-    }
-
-    /** The rewards that wait to be collected, in authored order. */
-    @Nonnull
-    public RewardEntryAsset[] claimRewardsOrEmpty() {
-        return claimRewards == null ? new RewardEntryAsset[0] : claimRewards;
+    /** The authored rewards group, or null when it pays nothing. */
+    @Nullable
+    public ContentRewardsAsset getRewards() {
+        return rewards;
     }
 
     /** The per-namespace extra facts, exactly as authored; empty when the file carried none. */
@@ -293,8 +269,8 @@ public final class AchievementAsset
      * Fold this asset into the runtime {@link AchievementDefinition}: the engine's
      * {@link Achievement} plus the presentation and gate data the engine deliberately does not model.
      *
-     * <p>Each criterion's engine-side id is its POSITION as a decimal string, which is also what its
-     * progress is stored under, so what a reader sees and what a store writes cannot disagree.
+     * <p>Each criterion's engine-side id is its authored KEY, which is also what its progress is
+     * stored under, so what a reader sees and what a store writes cannot disagree.
      */
     @Nonnull
     public AchievementDefinition toDefinition() {
@@ -303,21 +279,21 @@ public final class AchievementAsset
         Achievement.Builder achievement = Achievement.builder(achievementId)
                 .available(isEnabled())
                 .hidden(listing != null && listing.isHidden())
+                .requirePrerequisites(listing != null && listing.isRequirePrerequisites())
                 .points(scoring == null ? Scoring.DEFAULT_POINTS : scoring.pointsOrDefault())
                 .countsTowardTotal(scoring == null || scoring.isCountsTowardTotal())
                 .tags(listing == null ? List.of() : listing.tagList());
 
-        Map<Integer, String> criterionText = new LinkedHashMap<>();
-        ObjectiveLeafAsset[] authored = criteriaOrEmpty();
-        for (int i = 0; i < authored.length; i++) {
-            ObjectiveLeafAsset criterion = authored[i];
+        Map<String, String> criterionText = new LinkedHashMap<>();
+        for (Map.Entry<String, ObjectiveLeafAsset> entry : criteriaOrEmpty().entrySet()) {
+            ObjectiveLeafAsset criterion = entry.getValue();
             if (criterion == null) {
                 continue;
             }
-            ObjectiveDef def = criterion.toDefBuilder(String.valueOf(i)).build();
+            ObjectiveDef def = criterion.toDefBuilder(entry.getKey()).build();
             achievement.criterion(def);
             if (criterion.getTextKey() != null && !criterion.getTextKey().isBlank()) {
-                criterionText.put(i, criterion.getTextKey());
+                criterionText.put(entry.getKey(), criterion.getTextKey());
             }
         }
 
@@ -329,8 +305,11 @@ public final class AchievementAsset
         }
         achievement.metaChildren(children);
 
-        achievement.autoRewards(specs(rewardsOrEmpty()));
-        achievement.claimRewards(specs(claimRewardsOrEmpty()));
+        ContentRewardsAsset pay = rewards;
+        if (pay != null) {
+            achievement.autoRewards(pay.auto());
+            achievement.claimRewards(pay.claim());
+        }
 
         return new AchievementDefinition(achievementId, achievement.build(),
                 text == null ? null : text.getTitleKey(),
@@ -347,26 +326,12 @@ public final class AchievementAsset
                 criterionText, metaOrEmpty());
     }
 
-    @Nonnull
-    private static List<RewardSpec> specs(@Nonnull RewardEntryAsset[] authored) {
-        List<RewardSpec> out = new ArrayList<>(authored.length);
-        for (RewardEntryAsset reward : authored) {
-            RewardSpec spec = reward == null ? null : reward.toSpec();
-            if (spec != null) {
-                out.add(spec);
-            }
-        }
-        return out;
-    }
-
     // ==================== Listing ====================
 
     /** How it is grouped, ordered, illustrated, and whether it is listed before it is earned. */
     public static final class Listing extends ContentListingAsset {
 
         @Nullable protected String subcategory;
-        @Nullable protected String icon;
-        @Nullable protected Boolean hidden;
 
         public static final BuilderCodec<Listing> CODEC =
                 appendLeaves(BuilderCodec.builder(Listing.class, Listing::new))
@@ -375,15 +340,6 @@ public final class AchievementAsset
                                 (o, p) -> o.subcategory = p.subcategory)
                         .documentation("A second level of grouping inside a Category, for a category big "
                                 + "enough to need one.").add()
-                        .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
-                                (o, v) -> o.icon = v, o -> o.icon, (o, p) -> o.icon = p.icon)
-                        .documentation("An item id to illustrate it with. Unauthored leaves the choice to "
-                                + "whatever renders it.").add()
-                        .appendInherited(new KeyedCodec<>("Hidden", Codec.BOOLEAN, false),
-                                (o, v) -> o.hidden = v, o -> o.hidden, (o, p) -> o.hidden = p.hidden)
-                        .documentation("Keep it off the list until it is earned, for a surprise or a retired "
-                                + "one-off. It still progresses and can still be earned; only the listing is "
-                                + "affected, and it always appears once a player has it.").add()
                         .build();
 
         public Listing() {
@@ -392,15 +348,6 @@ public final class AchievementAsset
         @Nullable
         public String getSubcategory() {
             return subcategory;
-        }
-
-        @Nullable
-        public String getIcon() {
-            return icon == null || icon.isBlank() ? null : icon.trim();
-        }
-
-        public boolean isHidden() {
-            return hidden != null && hidden;
         }
     }
 

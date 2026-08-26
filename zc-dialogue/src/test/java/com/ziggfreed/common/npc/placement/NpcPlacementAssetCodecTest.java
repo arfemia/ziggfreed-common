@@ -249,7 +249,7 @@ class NpcPlacementAssetCodecTest {
     @Test
     void requiresDecodesItsConditionArray() throws Exception {
         NpcPlacementAsset asset = decodeRoot("""
-                { "Requires": { "Conditions": [ { "Factor": "yourmod:feature", "Param": "shop", "Min": 1 } ] } }
+                { "Requires": { "Factors": [ { "Factor": "yourmod:feature", "Param": "shop", "Min": 1 } ] } }
                 """, "gated");
 
         FactorCondition[] conditions = asset.getRequires().getConditions();

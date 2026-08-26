@@ -43,7 +43,8 @@ and [`../../progress/gate/`](../../progress/gate/) so their field names cannot d
 
 - `ContentTextAsset` - the `Text` group (`TitleKey` / `FlavorKey` / `DisplayName`)
 - `ObjectiveLeafAsset` - the seven objective leaves each `Criteria` entry carries
-- `RewardEntryAsset` - a `Rewards[]` / `ClaimRewards[]` entry (`Kind` + open `Params`)
+- `RewardEntryAsset` - one entry of a `Rewards` bucket (`Kind` + open `Params`)
+- `ContentRewardsAsset` - the `Rewards` group (`Auto` pays on settling, `Claim` waits to be collected)
 - `GateSpec` / `GateClause` - the whole `Requires` block
 
 Adding a field to any of them means adding it to BOTH engines at once, which is the point. A field

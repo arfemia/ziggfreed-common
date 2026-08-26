@@ -12,8 +12,8 @@ import com.ziggfreed.common.subject.Subject;
 
 /**
  * The persistence seam's shared rules, exercised against the in-memory implementation: the composite
- * criterion key, the one-way legacy fallback for a store that predates it, and what clearing an
- * achievement actually clears.
+ * criterion key (achievement id joined to the CRITERION ID), and what clearing an achievement
+ * actually clears.
  *
  * <p>Every assertion goes through an {@link AchievementProgressStore}-typed reference, so a change
  * that breaks the seam is a compile failure rather than a silently different behaviour.
@@ -28,64 +28,55 @@ class AchievementProgressStoreTest {
     }
 
     @Test
-    void criterionProgressIsKeyedByPositionUnderTheCompositeKey() {
+    void criterionProgressIsKeyedByCriterionIdUnderTheCompositeKey() {
         AchievementProgressStore store = store();
-        store.setCriterionProgress(ALICE, "prospector", 0, 7L);
-        store.setCriterionProgress(ALICE, "prospector", 1, 3L);
+        store.setCriterionProgress(ALICE, "prospector", "mine-copper", 7L);
+        store.setCriterionProgress(ALICE, "prospector", "gather-copper", 3L);
 
-        assertEquals(7L, store.criterionProgress(ALICE, "prospector", 0));
-        assertEquals(3L, store.criterionProgress(ALICE, "prospector", 1));
-        assertEquals(0L, store.criterionProgress(ALICE, "prospector", 2), "an untouched criterion is zero");
-        assertEquals(7L, store.progress(ALICE, AchievementProgressStore.criterionKey("prospector", 0)),
+        assertEquals(7L, store.criterionProgress(ALICE, "prospector", "mine-copper"));
+        assertEquals(3L, store.criterionProgress(ALICE, "prospector", "gather-copper"));
+        assertEquals(0L, store.criterionProgress(ALICE, "prospector", "smelt-copper"),
+                "an untouched criterion is zero");
+        assertEquals(7L,
+                store.progress(ALICE, AchievementProgressStore.criterionKey("prospector", "mine-copper")),
                 "the composite key is what is actually stored");
-        assertEquals(0L, store.criterionProgress(BOB, "prospector", 0), "subjects do not share progress");
+        assertEquals(0L, store.criterionProgress(BOB, "prospector", "mine-copper"),
+                "subjects do not share progress");
     }
 
     @Test
-    void criterionZeroFallsBackToTheLegacyBareKey() {
+    void writingZeroRemovesTheKeyRatherThanStoringAZero() {
         AchievementProgressStore store = store();
-        // What a store that predates per-criterion keys wrote: one number under the bare id.
-        store.putProgress(ALICE, "prospector", 42L);
+        store.setCriterionProgress(ALICE, "prospector", "mine-copper", 50L);
+        assertEquals(50L, store.criterionProgress(ALICE, "prospector", "mine-copper"));
 
-        assertEquals(42L, store.criterionProgress(ALICE, "prospector", 0),
-                "criterion 0 reads the legacy number when nothing is under the composite key");
-        assertEquals(0L, store.criterionProgress(ALICE, "prospector", 1),
-                "the fallback is criterion 0 only - a later criterion never inherits it");
-    }
-
-    @Test
-    void theFirstWriteAtCriterionZeroRetiresTheLegacyKey() {
-        AchievementProgressStore store = store();
-        store.putProgress(ALICE, "prospector", 42L);
-        store.setCriterionProgress(ALICE, "prospector", 0, 50L);
-
-        assertEquals(50L, store.criterionProgress(ALICE, "prospector", 0));
-        assertEquals(0L, store.progress(ALICE, "prospector"), "the legacy key is gone once migrated");
-
-        // The point of retiring it: a reset must not resurrect the old number.
-        store.setCriterionProgress(ALICE, "prospector", 0, 0L);
-        assertEquals(0L, store.criterionProgress(ALICE, "prospector", 0),
-                "a reset criterion stays reset rather than falling back to a pre-migration value");
+        store.setCriterionProgress(ALICE, "prospector", "mine-copper", 0L);
+        assertEquals(0L, store.criterionProgress(ALICE, "prospector", "mine-copper"));
+        assertFalse(store.progressKeys(ALICE)
+                        .contains(AchievementProgressStore.criterionKey("prospector", "mine-copper")),
+                "a reset criterion leaves no key behind");
     }
 
     @Test
     void clearingAnAchievementTakesEveryTraceOfIt() {
         AchievementProgressStore store = store();
+        // The bare id is not a key anything writes any more, but a clear still sweeps one a very
+        // old save might carry, so nothing can outlive the start-over.
         store.putProgress(ALICE, "prospector", 5L);
-        store.setCriterionProgress(ALICE, "prospector", 1, 3L);
+        store.setCriterionProgress(ALICE, "prospector", "gather-copper", 3L);
         store.setStatus(ALICE, "prospector", AchievementStatus.UNLOCKED);
         store.setUnlockedAt(ALICE, "prospector", 1234L);
         store.setPin(ALICE, "prospector", 99L);
-        store.setCriterionProgress(ALICE, "wanderer", 0, 8L);
+        store.setCriterionProgress(ALICE, "wanderer", "walk", 8L);
 
         store.clearAchievement(ALICE, "prospector");
 
-        assertEquals(0L, store.criterionProgress(ALICE, "prospector", 0));
-        assertEquals(0L, store.criterionProgress(ALICE, "prospector", 1));
+        assertEquals(0L, store.progress(ALICE, "prospector"));
+        assertEquals(0L, store.criterionProgress(ALICE, "prospector", "gather-copper"));
         assertEquals(AchievementStatus.LOCKED, store.status(ALICE, "prospector"));
         assertEquals(0L, store.unlockedAt(ALICE, "prospector"));
         assertFalse(store.pins(ALICE).containsKey("prospector"));
-        assertEquals(8L, store.criterionProgress(ALICE, "wanderer", 0),
+        assertEquals(8L, store.criterionProgress(ALICE, "wanderer", "walk"),
                 "clearing one achievement never touches another");
     }
 
@@ -119,7 +110,7 @@ class AchievementProgressStoreTest {
     @Test
     void knownAchievementIdsCoversProgressAndStatusAlike() {
         AchievementProgressStore store = store();
-        store.setCriterionProgress(ALICE, "prospector", 1, 3L);
+        store.setCriterionProgress(ALICE, "prospector", "gather-copper", 3L);
         store.setStatus(ALICE, "wanderer", AchievementStatus.CLAIMED);
 
         assertTrue(store.knownAchievementIds(ALICE).contains("prospector"),

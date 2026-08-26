@@ -20,11 +20,10 @@ import com.ziggfreed.common.progress.gate.GateSpec;
  * A RESOLVED achievement definition: the shape the engine runs, after any authoring layer has
  * finished inheriting and decoding. Immutable, built through {@link #builder}.
  *
- * <p><b>The criteria are an ORDERED LIST and the order is load-bearing.</b> Progress is stored per
- * criterion by its POSITION, so reordering the list moves every subject's progress onto a different
- * criterion. Adding to the END is safe; inserting, removing, or swapping is a data migration. That
- * is why they are a list rather than a map: a map has no stable order to key progress by, and the
- * hazard is better stated once, loudly, than hidden behind a friendlier-looking shape.
+ * <p><b>The criteria are an ordered list for READING, and each criterion's ID is its progress
+ * key.</b> Progress is stored under {@code "<achievementId>#<criterionId>"}, so renaming a
+ * criterion's id starts that criterion over for every subject, while inserting, removing, or
+ * reordering entries never moves anyone's progress. The authored order is what a surface renders.
  *
  * <p><b>Two reward lists, because there are two moments.</b> {@link #autoRewards()} are paid the
  * instant the achievement is earned; {@link #claimRewards()} wait for the subject to collect them.
@@ -50,6 +49,7 @@ public final class Achievement {
     private final int points;
     private final BooleanSupplier available;
     private final boolean hidden;
+    private final boolean requirePrerequisites;
     private final boolean countsTowardTotal;
     private final boolean serverFirst;
     @Nullable private final GateSpec requires;
@@ -73,6 +73,7 @@ public final class Achievement {
         this.points = b.points;
         this.available = b.available;
         this.hidden = b.hidden;
+        this.requirePrerequisites = b.requirePrerequisites;
         this.countsTowardTotal = b.countsTowardTotal;
         this.serverFirst = b.serverFirst;
         this.requires = b.requires;
@@ -108,6 +109,7 @@ public final class Achievement {
                 .points(points)
                 .available(available)
                 .hidden(hidden)
+                .requirePrerequisites(requirePrerequisites)
                 .countsTowardTotal(countsTowardTotal)
                 .serverFirst(serverFirst)
                 .requires(requires)
@@ -142,6 +144,7 @@ public final class Achievement {
                 .points(points)
                 .available(available)
                 .hidden(hidden)
+                .requirePrerequisites(requirePrerequisites)
                 .countsTowardTotal(countsTowardTotal)
                 .serverFirst(serverFirst)
                 .requires(requires)
@@ -162,7 +165,7 @@ public final class Achievement {
         return id;
     }
 
-    /** The criteria in authored order. THE ORDER IS THE PROGRESS KEY - see the class javadoc. */
+    /** The criteria in authored order. Each criterion's ID is its progress key - see the class javadoc. */
     @Nonnull
     public List<ObjectiveDef> criteria() {
         return criteria;
@@ -175,8 +178,9 @@ public final class Achievement {
     }
 
     /**
-     * The POSITION of the criterion with this id, or {@code -1}. Position is what progress is keyed
-     * by; an id is a label for reading, and the first match wins if content repeats one.
+     * The POSITION of the criterion with this id, or {@code -1}. The id is what progress is keyed
+     * by; the position is how a rendering surface walks the list, and the first match wins if
+     * content repeats one.
      */
     public int indexOf(@Nullable String criterionId) {
         if (criterionId == null) {
@@ -346,6 +350,15 @@ public final class Achievement {
     }
 
     /**
+     * Keep it off open listings until its {@code Requires} block passes, instead of showing it
+     * locked. Independent of {@link #hidden()}: hidden is unconditional until earned, this one
+     * reveals itself the moment the player qualifies.
+     */
+    public boolean requirePrerequisites() {
+        return requirePrerequisites;
+    }
+
+    /**
      * Whether {@link #points()} counts toward a subject's total. Independent of {@link #hidden()} on
      * purpose: a retired one-off can stay visible to whoever earned it while no longer counting, and
      * a surprise can be hidden while still counting.
@@ -401,6 +414,7 @@ public final class Achievement {
         private int points = 10;
         private BooleanSupplier available = ALWAYS;
         private boolean hidden;
+        private boolean requirePrerequisites;
         private boolean countsTowardTotal = true;
         private boolean serverFirst;
         @Nullable private GateSpec requires;
@@ -418,7 +432,7 @@ public final class Achievement {
             this.id = id;
         }
 
-        /** Append a criterion. Its POSITION becomes its progress key, so append rather than insert. */
+        /** Append a criterion. Its {@link ObjectiveDef#id()} is its progress key. */
         @Nonnull
         public Builder criterion(@Nonnull ObjectiveDef criterion) {
             criteria.add(criterion);
@@ -588,6 +602,13 @@ public final class Achievement {
         @Nonnull
         public Builder hidden(boolean hidden) {
             this.hidden = hidden;
+            return this;
+        }
+
+        /** Hide it until its Requires block passes ({@link Achievement#requirePrerequisites()}). */
+        @Nonnull
+        public Builder requirePrerequisites(boolean requirePrerequisites) {
+            this.requirePrerequisites = requirePrerequisites;
             return this;
         }
 

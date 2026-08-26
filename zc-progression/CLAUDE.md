@@ -25,7 +25,7 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
 ## Packages
 
 - [`progress/`](src/main/java/com/ziggfreed/common/progress/CLAUDE.md) - the shared lifecycle
-  cores: `ObjectiveDef`, `ObjectiveKind`/`ObjectiveKindRegistry`, `MatchFlavor`/`MatchMode`/
+  cores: `ObjectiveDef`, `ObjectiveKind`/`ObjectiveKindRegistry`, `MatchMode`/
   `ObjectiveMatch`/`ZoneRef`/`ZoneLocator` (the ONE read of where a player is, off the engine's
   `WorldMapTracker`), `ObjectiveProgressState`, `ObjectiveIndex`, `DispatchOptions`.
   - `progress/asset/` - the authoring groups both engines share (`ContentTextAsset`,
@@ -55,7 +55,8 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
 - [`achievement/`](src/main/java/com/ziggfreed/common/achievement/CLAUDE.md) (+
   `achievement/asset/`, `achievement/event/`) - the ALWAYS-ON peer lifecycle: nothing is accepted,
   nothing is abandoned, every criterion listens from the first event. Criterion progress is keyed
-  by POSITION (`"<id>#<index>"`). `achievement/asset/` also carries the taxonomy types
+  by the criterion's ID (`"<id>#<critKey>"`, the authored `Criteria` map key - exactly like a
+  quest's `Objectives`). `achievement/asset/` also carries the taxonomy types
   `AchievementCategoryAsset`/`AchievementMilestoneAsset` (`Server/ZiggfreedCommon/
   AchievementCategories/` and `/AchievementMilestones/`, the display taxonomy behind the shared
   `Listing.Category` leaf and the points ladder `zc-objectives` publishes into the runtime);
@@ -75,9 +76,9 @@ Both engines ship ZERO content and ZERO domain vocabulary; a consumer supplies s
 naming. A surface that only READS a player's quests (a dialogue condition, above all) takes the
 narrow `QuestStateReader` seam rather than the mutating engine - and so does anything reading
 progression as a NUMBER: `ProgressionFactors` declares its own narrow read seam for exactly that
-reason, so a gate on "have you finished this" can never be a gate that accepts it. Achievement criteria are keyed by
-POSITION, not id, so appending a criterion is safe while reordering one is a data migration -
-asserted directly in the engine test.
+reason, so a gate on "have you finished this" can never be a gate that accepts it. Achievement
+criteria are keyed by ID: renaming a key starts that criterion over, while adding, removing or
+reordering entries never moves anyone's progress - asserted directly in the engine test.
 
 ## Tests
 

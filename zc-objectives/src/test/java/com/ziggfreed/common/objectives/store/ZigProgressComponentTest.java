@@ -86,7 +86,7 @@ class ZigProgressComponentTest {
     @Test
     void aZeroTallyRemovesItsKeyRatherThanStoringAZero() {
         ZigProgressComponent component = new ZigProgressComponent();
-        String key = AchievementProgressStore.criterionKey("a_first", 0);
+        String key = AchievementProgressStore.criterionKey("a_first", "0");
 
         component.putAchievementProgress(key, 4L);
         assertEquals(Set.of(key), component.achievementProgressKeys());
@@ -99,7 +99,7 @@ class ZigProgressComponentTest {
     void anAchievementIsKnownFromItsCriterionKeysAlone() {
         ZigProgressComponent component = new ZigProgressComponent();
 
-        component.putAchievementProgress(AchievementProgressStore.criterionKey("a_first", 2), 1L);
+        component.putAchievementProgress(AchievementProgressStore.criterionKey("a_first", "2"), 1L);
 
         assertEquals(Set.of("a_first"), component.knownAchievementIds(),
                 "the composite key carries the achievement id, so a maintenance sweep finds it");

@@ -24,7 +24,6 @@ import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardKinds;
-import com.ziggfreed.common.progress.MatchFlavor;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.ProgressDispatchTap;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
@@ -82,8 +81,6 @@ public final class ProgressionRuntime {
         REWARD_RETRY_QUEUE("reward retry queue", LatePolicy.REFUSE_WARN),
         WARN("warn sink", LatePolicy.LIVE),
         FACTORS("factor vocabulary", LatePolicy.REFUSE_SEVERE),
-        QUEST_MATCH_FLAVOR("quest match flavor", LatePolicy.REFUSE_SEVERE),
-        ACHIEVEMENT_MATCH_FLAVOR("achievement match flavor", LatePolicy.REFUSE_SEVERE),
         MAX_TRACKED("max tracked quests", LatePolicy.REFUSE_WARN),
         // Read LIVE, because the cap it names is an owner's config value: a reload has to move it,
         // and an engine holding the number it was built with would refuse against a stale one.
@@ -683,7 +680,6 @@ public final class ProgressionRuntime {
                     // composed answer, so a server with a system off neither takes a quest for a
                     // player, nor earns them an achievement at login, nor advances either.
                     .systemGate(ProgressionParts.SYSTEM_GATE)
-                    .matchFlavor(slotOr(Slots.QUEST_MATCH_FLAVOR, MatchFlavor.STRICT))
                     .possessionProbe(ProgressionParts.POSSESSION)
                     .inventoryConsumer(ProgressionParts.INVENTORY)
                     .dispatchTap(ProgressionParts.TAP)
@@ -703,7 +699,6 @@ public final class ProgressionRuntime {
                     .store(ProgressionParts.ACHIEVEMENT_STORE)
                     .gates(ProgressionParts.ACHIEVEMENT_GATES)
                     .systemGate(ProgressionParts.SYSTEM_GATE)
-                    .matchFlavor(slotOr(Slots.ACHIEVEMENT_MATCH_FLAVOR, MatchFlavor.LENIENT))
                     .dispatchTap(ProgressionParts.TAP)
                     .feedbackHook(ProgressionParts.FEEDBACK_HOOK)
                     .factors(factors)

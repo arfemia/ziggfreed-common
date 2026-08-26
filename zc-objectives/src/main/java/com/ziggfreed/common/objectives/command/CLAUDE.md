@@ -26,9 +26,10 @@ progression verb acts on content the runtime merges from several mods.
 | [`QuestStatusCommand`](QuestStatusCommand.java) | `quest status [--quest=<id>] [--player=<name>]` |
 | [`QuestLogCommand`](QuestLogCommand.java) | `quest accept` / `claim` / `abandon`, three registered verbs from one class |
 | [`AchievementListCommand`](AchievementListCommand.java) | `achievement list [--tag=<tag>]` |
-| [`AchievementStatusCommand`](AchievementStatusCommand.java) | `achievement status [--player=<name>]` |
-| [`AchievementMarkCommand`](AchievementMarkCommand.java) | `achievement unlock` / `revoke`, on the same terms |
-| [`AchievementResetCommand`](AchievementResetCommand.java) | `achievement reset [--player=<name>]` |
+| [`AchievementStatusCommand`](AchievementStatusCommand.java) | `achievement status [--achievement=<id>] [--player=<name>]` |
+| [`AchievementGiveCommand`](AchievementGiveCommand.java) | `achievement give --achievement=<id>`, the force-it verb (same word, same meaning as `quest give`) |
+| [`AchievementClaimCommand`](AchievementClaimCommand.java) | `achievement claim --achievement=<id|all>`, the peer of `quest claim` |
+| [`AchievementResetCommand`](AchievementResetCommand.java) | `achievement reset --achievement=<id|all> [--player=<name>]`, one-or-all like `quest reset` |
 | [`MemoriesForgetCommand`](MemoriesForgetCommand.java) | `memories forget [--player=<name>]`, over `DialogueMemories.forgetAll` |
 
 ## Rules to keep
@@ -61,7 +62,9 @@ progression verb acts on content the runtime merges from several mods.
 - **A row's flags are one nested argument built with `Msg.cat`** (`ProgressAdminMessages.flags`),
   each flag a keyed fragment: a bare `join` renders blank as a nested param, and a bare
   `true`/`false` is a word nobody translated. Absent flags contribute nothing.
-- **A verb NAMES exactly one thing.** `accept`/`claim`/`abandon` and `unlock`/`revoke` share an
+- **A verb NAMES exactly one thing**, and **the two groups conjugate the same way**: `give` is
+  the force-it verb on both, `claim` collects what waits on both, `reset` takes `<id|all>` on
+  both, `status` takes the same one-id filter on both. `accept`/`claim`/`abandon` share an
   implementation and stay separate registered commands, because that is how the engine's own
   families read and how each gets its own node and its own help line.
 - **The per-player verbs need the player ONLINE**, and say so. Progress lives on the player's own

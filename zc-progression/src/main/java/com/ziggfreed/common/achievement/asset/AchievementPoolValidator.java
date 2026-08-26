@@ -120,7 +120,7 @@ public final class AchievementPoolValidator {
         List<ObjectiveDef> criteria = definition.achievement().criteria();
         for (int i = 0; i < criteria.size(); i++) {
             ObjectiveDef criterion = criteria.get(i);
-            String where = "criterion " + i;
+            String where = "criterion '" + criterion.id() + "'";
             String kind = criterion.kind();
 
             if (kind.isBlank()) {

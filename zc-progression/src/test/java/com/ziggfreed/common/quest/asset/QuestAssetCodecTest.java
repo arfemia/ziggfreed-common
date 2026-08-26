@@ -91,10 +91,10 @@ class QuestAssetCodecTest {
         void everyGroupInheritsLeafByLeaf() throws Exception {
             QuestAsset parent = decodeRoot("""
                     { "Text":       { "TitleKey": "quest.base.title", "FlavorKey": "quest.base.flavor" },
-                      "Listing":    { "Category": "gathering", "SortOrder": 10, "Tags": ["daily"] },
-                      "Flow":       { "AutoTrack": true, "AutoClaim": false },
+                      "Listing":    { "Category": "gathering", "SortOrder": 10, "Tags": ["daily"],
+                                      "RequirePrerequisites": true },
+                      "Flow":       { "AutoTrack": true },
                       "Repeat":     { "Cooldown": { "Hours": 24 } },
-                      "Visibility": { "RequirePrerequisites": true },
                       "Npc":        { "ViewId": "guide", "TurnInId": "giver" } }
                     """, "base");
 
@@ -108,7 +108,6 @@ class QuestAssetCodecTest {
             assertEquals(10, child.sortOrder());
             assertEquals(List.of("daily"), child.quest().tags());
             assertTrue(child.quest().autoTrack());
-            assertFalse(child.quest().autoClaim());
             assertTrue(child.quest().repeatable());
             assertEquals(86_400_000L, child.quest().repeat().cooldownMs());
             assertTrue(child.quest().visibility().requirePrerequisites());
@@ -116,24 +115,24 @@ class QuestAssetCodecTest {
         }
 
         @Test
-        void rewardsAreOneLeafSoAuthoringThemReplacesTheInheritedList() throws Exception {
+        void eachRewardBucketIsOneLeafSoAuthoringItReplacesTheInheritedList() throws Exception {
             QuestAsset parent = decodeRoot("""
-                    { "Rewards": [ { "Kind": "yourmod:currency", "Params": { "Amount": "50" } },
-                                   { "Kind": "yourmod:item", "Params": { "Item": "Torch" } } ] }
+                    { "Rewards": { "Claim": [ { "Kind": "yourmod:currency", "Params": { "Amount": "50" } },
+                                              { "Kind": "yourmod:item", "Params": { "Item": "Torch" } } ] } }
                     """, "base");
 
             assertEquals(2, decode("{ \"Enabled\": true }", "silent", "base", parent)
                             .toDefinition(null).quest().rewards().size(),
-                    "a child that never mentions Rewards inherits the whole list");
+                    "a child that never mentions Rewards inherits the whole group");
 
             assertEquals(1, decode("""
-                            { "Rewards": [ { "Kind": "yourmod:item", "Params": { "Item": "Lantern" } } ] }
+                            { "Rewards": { "Claim": [ { "Kind": "yourmod:item", "Params": { "Item": "Lantern" } } ] } }
                             """, "loud", "base", parent).toDefinition(null).quest().rewards().size(),
-                    "Rewards is ONE leaf, so authoring it replaces the inherited list rather than adding to it");
+                    "a bucket is ONE leaf, so authoring it replaces the inherited list rather than adding to it");
 
-            assertTrue(decode("{ \"Rewards\": [] }", "empty", "base", parent)
+            assertTrue(decode("{ \"Rewards\": { \"Claim\": [] } }", "empty", "base", parent)
                             .toDefinition(null).quest().rewards().isEmpty(),
-                    "an authored empty array is how a child inherits a quest and pays out nothing");
+                    "an authored empty bucket is how a child inherits a quest and pays out nothing");
         }
     }
 
@@ -267,7 +266,7 @@ class QuestAssetCodecTest {
             QuestDefinition definition = decodeRoot("{ }", "bare").toDefinition(null);
 
             assertTrue(definition.quest().available(), "unauthored Enabled means in circulation");
-            assertFalse(definition.quest().autoClaim(), "unauthored AutoClaim is false, like AutoAccept/AutoTrack/Sequential");
+            assertFalse(definition.quest().requiresClaim(), "no Claim rewards means nothing waits to be collected");
             assertFalse(definition.quest().autoAccept());
             assertFalse(definition.quest().autoTrack());
             assertFalse(definition.quest().sequential());

@@ -24,7 +24,6 @@ import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.DispatchOptions;
-import com.ziggfreed.common.progress.MatchFlavor;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveIndex;
 import com.ziggfreed.common.progress.ObjectiveKind;
@@ -56,10 +55,9 @@ import com.ziggfreed.common.util.SafeLog;
  * ({@link AchievementProgressStore}), who is allowed what ({@link AchievementGates}), what a reward
  * is ({@link RewardKindRegistry}), or what any of it should be CALLED.
  *
- * <p><b>Matching is LENIENT by default</b>, unlike the quest engine's STRICT. Criteria are broad by
- * nature ("break 1000 blocks of anything"), and lenient is the dialect where an empty target means
- * match-all and comparison ignores case. A consumer whose producers fire exact ids may still choose
- * strict.
+ * <p><b>Matching is forgiving, and it is the same rule the quest engine runs</b>: an empty target
+ * means match-all ("break 1000 blocks of anything") and comparison ignores case. The comparisons
+ * live in {@link ObjectiveDef#matches}.
  *
  * <p><b>Threading:</b> the engine holds no per-subject state of its own, so it is as thread-safe as
  * the store behind it. Call it from whichever thread owns the subject - typically the world thread,
@@ -79,7 +77,6 @@ public final class AchievementEngine {
     private final ObjectiveKindRegistry objectiveKinds;
     private final RewardKindRegistry rewardKinds;
     private final AchievementProgressStore store;
-    private final MatchFlavor matchFlavor;
     private final AchievementGates gates;
     /** Is the achievement system switched on for this player at all - the owner's switch, composed. */
     private final ProgressionSystemGate systemGate;
@@ -108,7 +105,6 @@ public final class AchievementEngine {
         this.objectiveKinds = b.objectiveKinds != null ? b.objectiveKinds : new ObjectiveKindRegistry();
         this.rewardKinds = b.rewardKinds != null ? b.rewardKinds : new RewardKindRegistry();
         this.store = b.store != null ? b.store : new InMemoryAchievementProgressStore();
-        this.matchFlavor = b.matchFlavor;
         this.gates = b.gates;
         this.systemGate = b.systemGate;
         this.tap = b.tap;
@@ -145,12 +141,6 @@ public final class AchievementEngine {
     @Nonnull
     public AchievementProgressStore store() {
         return store;
-    }
-
-    /** Which matching dialect this engine runs. */
-    @Nonnull
-    public MatchFlavor matchFlavor() {
-        return matchFlavor;
     }
 
     /** How many achievements a subject may pin at once. */
@@ -261,19 +251,34 @@ public final class AchievementEngine {
         if (!achievement.available() || achievement.hidden()) {
             return false;
         }
+        // Hidden-until-qualified: canProgress IS the Requires answer, so the two can never drift.
+        if (achievement.requirePrerequisites()
+                && !safeGate(() -> gates.canProgress(subject, achievement), "canProgress", achievement)) {
+            return false;
+        }
         return safeGate(() -> gates.visible(subject, achievement), "visible", achievement);
     }
 
     // ==================== Progress ====================
 
-    /** This subject's progress on one criterion, by position. */
+    /** This subject's progress on one criterion, by its position in the achievement's list. */
     @Nonnull
     public ObjectiveProgressState progressOf(@Nonnull Subject subject, @Nonnull Achievement achievement,
                                              int criterionIndex) {
         ObjectiveDef criterion = achievement.criterion(criterionIndex);
-        int required = criterion == null ? 1 : criterion.amountAsInt();
-        long current = store.criterionProgress(subject, achievement.id(), criterionIndex);
-        return new ObjectiveProgressState((int) Math.min(Integer.MAX_VALUE, Math.max(0L, current)), required);
+        if (criterion == null) {
+            return new ObjectiveProgressState(0, 1);
+        }
+        return progressOf(subject, achievement, criterion);
+    }
+
+    /** This subject's progress on one criterion; progress is stored under the criterion's id. */
+    @Nonnull
+    public ObjectiveProgressState progressOf(@Nonnull Subject subject, @Nonnull Achievement achievement,
+                                             @Nonnull ObjectiveDef criterion) {
+        long current = store.criterionProgress(subject, achievement.id(), criterion.id());
+        return new ObjectiveProgressState((int) Math.min(Integer.MAX_VALUE, Math.max(0L, current)),
+                criterion.amountAsInt());
     }
 
     /** This subject's progress on every criterion, in criterion order. */
@@ -393,18 +398,14 @@ public final class AchievementEngine {
             if (store.status(subject, achievement.id()).isUnlocked()) {
                 continue;
             }
-            if (!criterion.matches(matchFlavor, target, qualifier) || !criterion.matchesZone(zone)) {
+            if (!criterion.matches(target, qualifier) || !criterion.matchesZone(zone)) {
                 continue;
             }
             if (!safeGate(() -> gates.canProgress(subject, achievement), "canProgress", achievement)) {
                 continue;
             }
-            int criterionIndex = achievement.indexOf(criterion.id());
-            if (criterionIndex < 0) {
-                continue;
-            }
 
-            ObjectiveProgressState state = progressOf(subject, achievement, criterionIndex);
+            ObjectiveProgressState state = progressOf(subject, achievement, criterion);
             if (state.isCompleted()) {
                 continue;
             }
@@ -413,9 +414,9 @@ public final class AchievementEngine {
             if (state.current() == before && !justCompleted) {
                 continue;
             }
-            store.setCriterionProgress(subject, achievement.id(), criterionIndex, state.current());
+            store.setCriterionProgress(subject, achievement.id(), criterion.id(), state.current());
             changed = true;
-            fireProgressed(achievement, criterionIndex, subject, state, justCompleted);
+            fireProgressed(achievement, criterion.id(), subject, state, justCompleted);
             if (justCompleted && allCriteriaComplete(subject, achievement)) {
                 earned.add(achievement);
             }
@@ -501,7 +502,7 @@ public final class AchievementEngine {
      */
     public boolean revoke(@Nonnull Subject subject, @Nonnull String achievementId) {
         if (!store.status(subject, achievementId).isUnlocked()
-                && store.criterionProgress(subject, achievementId, 0) == 0L) {
+                && !hasAnyCriterionProgress(subject, achievementId)) {
             return false;
         }
         store.clearAchievement(subject, achievementId);
@@ -512,6 +513,17 @@ public final class AchievementEngine {
         }
         store.markDirty(subject);
         return true;
+    }
+
+    /** Any recorded progress on any criterion of this achievement (or its bare legacy key)? */
+    private boolean hasAnyCriterionProgress(@Nonnull Subject subject, @Nonnull String achievementId) {
+        String prefix = achievementId + AchievementProgressStore.CRITERION_SEPARATOR;
+        for (String key : store.progressKeys(subject)) {
+            if (key.equals(achievementId) || key.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -813,13 +825,11 @@ public final class AchievementEngine {
     /** One achievement's threshold criteria. Only ever reached with the probe wired and the gate open. */
     private int refreshStatThresholds(@Nonnull Subject subject, @Nonnull Achievement achievement) {
         int advanced = 0;
-        List<ObjectiveDef> criteria = achievement.criteria();
-        for (int index = 0; index < criteria.size(); index++) {
-            ObjectiveDef criterion = criteria.get(index);
+        for (ObjectiveDef criterion : achievement.criteria()) {
             if (!StatThresholdProbe.isStatThreshold(criterion)) {
                 continue;
             }
-            ObjectiveProgressState state = progressOf(subject, achievement, index);
+            ObjectiveProgressState state = progressOf(subject, achievement, criterion);
             if (state.isCompleted()) {
                 continue;
             }
@@ -828,9 +838,9 @@ public final class AchievementEngine {
             if (state.current() == before && !justCompleted) {
                 continue;
             }
-            store.setCriterionProgress(subject, achievement.id(), index, state.current());
+            store.setCriterionProgress(subject, achievement.id(), criterion.id(), state.current());
             advanced++;
-            fireProgressed(achievement, index, subject, state, justCompleted);
+            fireProgressed(achievement, criterion.id(), subject, state, justCompleted);
         }
         return advanced;
     }
@@ -872,11 +882,11 @@ public final class AchievementEngine {
         }
     }
 
-    private void fireProgressed(@Nonnull Achievement achievement, int criterionIndex,
+    private void fireProgressed(@Nonnull Achievement achievement, @Nonnull String criterionId,
                                 @Nonnull Subject subject, @Nonnull ObjectiveProgressState state,
                                 boolean justCompleted) {
         if (nativeEvents) {
-            AchievementEvents.fireProgressed(achievement.id(), criterionIndex, subject.id(),
+            AchievementEvents.fireProgressed(achievement.id(), criterionId, subject.id(),
                     state.current(), state.required(), justCompleted, achievement.tags());
         }
     }
@@ -942,7 +952,6 @@ public final class AchievementEngine {
         @Nullable private ObjectiveKindRegistry objectiveKinds;
         @Nullable private RewardKindRegistry rewardKinds;
         @Nullable private AchievementProgressStore store;
-        private MatchFlavor matchFlavor = MatchFlavor.LENIENT;
         private AchievementGates gates = AchievementGates.OPEN;
         private ProgressionSystemGate systemGate = ProgressionSystemGate.OPEN;
         private ProgressDispatchTap tap = ProgressDispatchTap.NONE;
@@ -977,16 +986,6 @@ public final class AchievementEngine {
         @Nonnull
         public Builder store(@Nullable AchievementProgressStore store) {
             this.store = store;
-            return this;
-        }
-
-        /**
-         * Which matching dialect to run. Defaults to {@link MatchFlavor#LENIENT}, the broad one
-         * criteria are usually written in.
-         */
-        @Nonnull
-        public Builder matchFlavor(@Nonnull MatchFlavor matchFlavor) {
-            this.matchFlavor = matchFlavor;
             return this;
         }
 

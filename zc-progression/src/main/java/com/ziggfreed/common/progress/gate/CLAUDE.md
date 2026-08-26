@@ -130,7 +130,7 @@ condition. What follows from that:
 
 Both completion routes ask for the stored status `COMPLETED` and nothing else. A quest sitting in
 `COMPLETED_UNCLAIMED` - objectives done, reward not yet taken, which is exactly where a quest
-authored `AutoClaim: false` waits - satisfies NEITHER the `Quests` leaf nor the
+with `Claim` rewards waits - satisfies NEITHER the `Quests` leaf nor the
 `ziggfreedcommon:quest_completed` factor. Write either spelling and a player who has finished a quest
 but walked away without collecting it is still held back, in both places, until they collect.
 

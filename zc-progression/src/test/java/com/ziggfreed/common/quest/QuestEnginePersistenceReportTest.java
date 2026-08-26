@@ -111,7 +111,7 @@ class QuestEnginePersistenceReportTest {
 
     @Test
     void markUnclaimed_reportsItself() {
-        Quest q = quest("q_parked").autoClaim(false).build();
+        Quest q = quest("q_parked").build();
         QuestEngine engine = engine(q);
         engine.accept(player, q);
         store.reset();
@@ -123,7 +123,7 @@ class QuestEnginePersistenceReportTest {
 
     @Test
     void aQuestThatPaysOutTheMomentItFinishes_commitsAtOnce() {
-        Quest q = quest("q_auto").build();
+        Quest q = bareQuest("q_auto").autoReward(RewardSpec.of("NOTE", "text", "paid")).build();
         QuestEngine engine = engine(q);
         engine.accept(player, q);
         store.reset();
@@ -137,7 +137,7 @@ class QuestEnginePersistenceReportTest {
 
     @Test
     void aQuestParkedForCollection_reportsTheChangeButDoesNotCommitEarly() {
-        Quest q = quest("q_park").autoClaim(false).build();
+        Quest q = quest("q_park").build();
         QuestEngine engine = engine(q);
         engine.accept(player, q);
         store.reset();

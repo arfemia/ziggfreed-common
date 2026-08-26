@@ -22,6 +22,7 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTextSource;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.subject.Subject;
@@ -65,7 +66,8 @@ class TrackedQuestSnapshotTest {
     private static Quest gather(@Nonnull String id) {
         return Quest.builder(id)
                 .objective(objective("logs", "BREAK_BLOCK", "Oak_Log", 3, 0))
-                .autoClaim(false)
+                // A claim reward is what makes a finished quest WAIT (and stay on the tracker).
+                .reward(RewardSpec.of("NOTE", "text", "parked"))
                 .build();
     }
 
@@ -164,7 +166,7 @@ class TrackedQuestSnapshotTest {
         Quest quest = Quest.builder("q_pair")
                 .objective(objective("logs", "BREAK_BLOCK", "Oak_Log", 1, 0))
                 .objective(objective("stone", "BREAK_BLOCK", "Stone", 2, 0))
-                .autoClaim(false)
+                .reward(RewardSpec.of("NOTE", "text", "parked"))
                 .build();
         engine.setQuests(List.of(quest));
         engine.accept(player, quest);
@@ -184,7 +186,7 @@ class TrackedQuestSnapshotTest {
         Quest quest = Quest.builder("q_steps")
                 .objective(objective("logs", "BREAK_BLOCK", "Oak_Log", 1, 1))
                 .objective(objective("stone", "BREAK_BLOCK", "Stone", 1, 2))
-                .autoClaim(false)
+                .reward(RewardSpec.of("NOTE", "text", "parked"))
                 .build();
         engine.setQuests(List.of(quest));
         engine.accept(player, quest);
@@ -205,7 +207,7 @@ class TrackedQuestSnapshotTest {
         Quest quest = Quest.builder("q_report")
                 .objective(objective("logs", "BREAK_BLOCK", "Oak_Log", 1, 0))
                 .objective(ObjectiveDef.builder("back", "TURN_IN").amount(1).build())
-                .autoClaim(false)
+                .reward(RewardSpec.of("NOTE", "text", "parked"))
                 .build();
         engine.setQuests(List.of(quest));
         engine.accept(player, quest);
@@ -222,7 +224,7 @@ class TrackedQuestSnapshotTest {
         Quest quest = Quest.builder("q_deliver")
                 .objective(ObjectiveDef.builder("bring", "TURN_IN").target("Oak_Log")
                         .matchMode(MatchMode.EXACT).amount(4).build())
-                .autoClaim(false)
+                .reward(RewardSpec.of("NOTE", "text", "parked"))
                 .build();
         engine.setQuests(List.of(quest));
         engine.accept(player, quest);
@@ -237,7 +239,8 @@ class TrackedQuestSnapshotTest {
     void blocksAndRowsAreCappedAtTheDocumentsSlots() {
         // More quests than the document has blocks, one of them with more objectives than a block
         // has rows, on an engine whose own cap is wider than the document.
-        Quest.Builder wide = Quest.builder("q_wide").autoClaim(false);
+        Quest.Builder wide = Quest.builder("q_wide")
+                .reward(RewardSpec.of("NOTE", "text", "parked"));
         for (int i = 0; i < TrackedQuestSnapshot.MAX_ROWS + 2; i++) {
             wide.objective(objective("o" + i, "BREAK_BLOCK", "Block_" + i, 1, 0));
         }

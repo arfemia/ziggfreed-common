@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestInventoryConsumer;
@@ -69,7 +70,7 @@ class DefaultPartsHandInTest {
     private static Quest deliveryQuest() {
         return Quest.builder(QUEST_ID)
                 .objective(ObjectiveDef.builder(STEP_ID, "TURN_IN").target(ITEM).amount(3).build())
-                .autoClaim(false)
+                .reward(RewardSpec.of("NOTE", "text", "parked"))
                 .build();
     }
 

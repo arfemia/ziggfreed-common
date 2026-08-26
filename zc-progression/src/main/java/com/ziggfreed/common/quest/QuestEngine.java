@@ -25,7 +25,6 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.progress.DispatchOptions;
-import com.ziggfreed.common.progress.MatchFlavor;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveIndex;
 import com.ziggfreed.common.progress.ObjectiveKind;
@@ -75,7 +74,7 @@ public final class QuestEngine implements QuestStateReader {
 
     /**
      * The {@code reason} a {@code Quest_Parked} moment carries for a quest authored to be collected
-     * rather than paid out the instant it finishes ({@link Quest#autoClaim()} off).
+     * rather than paid out the instant it finishes (anything in {@link Quest#claimRewards()}).
      */
     public static final String PARKED_COLLECT = "collect";
 
@@ -116,7 +115,6 @@ public final class QuestEngine implements QuestStateReader {
     private final ObjectiveKindRegistry objectiveKinds;
     private final RewardKindRegistry rewardKinds;
     private final QuestProgressStore store;
-    private final MatchFlavor matchFlavor;
     private final QuestPossessionProbe possession;
     private final QuestInventoryConsumer inventory;
     private final QuestGates gates;
@@ -154,7 +152,6 @@ public final class QuestEngine implements QuestStateReader {
         this.objectiveKinds = b.objectiveKinds != null ? b.objectiveKinds : new ObjectiveKindRegistry();
         this.rewardKinds = b.rewardKinds != null ? b.rewardKinds : new RewardKindRegistry();
         this.store = b.store != null ? b.store : new InMemoryQuestProgressStore();
-        this.matchFlavor = b.matchFlavor;
         this.possession = b.possession;
         this.inventory = b.inventory;
         this.gates = b.gates;
@@ -194,12 +191,6 @@ public final class QuestEngine implements QuestStateReader {
     @Nonnull
     public QuestProgressStore store() {
         return store;
-    }
-
-    /** Which matching dialect this engine runs. */
-    @Nonnull
-    public MatchFlavor matchFlavor() {
-        return matchFlavor;
     }
 
     /** The naming seam, for a surface rendering quest text. */
@@ -604,7 +595,7 @@ public final class QuestEngine implements QuestStateReader {
             if (!isActive(subject, quest.id()) && !tryAutoAcceptOnEvent(subject, quest)) {
                 continue;
             }
-            if (!objective.matches(matchFlavor, target, qualifier) || !objective.matchesZone(zone)) {
+            if (!objective.matches(target, qualifier) || !objective.matchesZone(zone)) {
                 continue;
             }
             if (!objectiveActive(subject, quest, objective.id())) {
@@ -1038,7 +1029,8 @@ public final class QuestEngine implements QuestStateReader {
      * Settle a quest whose objectives may now all be met: nothing happens unless every objective is
      * complete, and then the quest either pays out or parks for the player to collect.
      *
-     * <p>It parks when the quest asks to be collected somewhere ({@link Quest#autoClaim()} off), when
+     * <p>It parks when the quest has rewards that wait to be collected
+     * ({@link Quest#requiresClaim()}), when
      * the consumer says the player cannot receive the rewards right now (a full inventory - what
      * stops a payout from vanishing into nowhere), or when the quest names a
      * {@link Quest#turnInAt() site} that {@code atId} is not. A parked quest is not a lost one: the
@@ -1085,8 +1077,8 @@ public final class QuestEngine implements QuestStateReader {
      * moment carries under {@code reason}, or null when it pays out now.
      *
      * <p>Three causes, reported in the order they are decided: {@link #PARKED_COLLECT} when the
-     * quest is authored to be collected rather than paid on the spot ({@link Quest#autoClaim()}
-     * off), {@link #PARKED_NO_SPACE} when the consumer says the player cannot receive the rewards
+     * quest carries rewards authored to be collected rather than paid on the spot
+     * ({@link Quest#requiresClaim()}), {@link #PARKED_NO_SPACE} when the consumer says the player cannot receive the rewards
      * right now, {@link #PARKED_AWAY} when the quest names a {@link Quest#turnInAt() site} and
      * {@code atId} is not it. A quest that is both authored to be collected and out of room reads
      * as collected: that is the case that was always going to park, and the room will matter when
@@ -1095,7 +1087,7 @@ public final class QuestEngine implements QuestStateReader {
     @Nullable
     private String parkedReason(@Nonnull Subject subject, @Nonnull Quest quest,
                                 @Nullable String atId) {
-        if (!quest.autoClaim()) {
+        if (quest.requiresClaim()) {
             return PARKED_COLLECT;
         }
         if (!gates.canReceiveRewards(subject, quest)) {
@@ -1181,7 +1173,7 @@ public final class QuestEngine implements QuestStateReader {
         fireCompleted(quest, subject, null);
         RewardGrants.GrantOutcome outcome = grantRewards(subject, quest);
         store.markDirty(subject);
-        // Commits when it paid, on the same rule as the auto-claim path above.
+        // Commits when it paid, on the same rule as the settle-on-the-spot path above.
         if (outcome.anyDelivered()) {
             store.flush(subject);
         }
@@ -1198,11 +1190,11 @@ public final class QuestEngine implements QuestStateReader {
      * <p>Reading the PRIOR status is what tells the two apart with no bookkeeping flag anywhere. A
      * prior {@link QuestStatus#COMPLETED_UNCLAIMED} means this call is the collect of an
      * already-parked quest, so the completion is on the record already and the clock, if it is
-     * anchored to {@code COMPLETE}, was started back then. Anything else - the auto-claim path, an
+     * anchored to {@code COMPLETE}, was started back then. Anything else - the settle-on-the-spot path, an
      * administrator, a scripted skip - is the moment the quest finished.
      *
-     * <p><b>Every route to {@link QuestStatus#COMPLETED} pays the quest out</b> (the auto-claim
-     * path, the collect of a parked one, and the administrator's close-out all grant immediately
+     * <p><b>Every route to {@link QuestStatus#COMPLETED} pays the quest out</b> (the
+     * settle-on-the-spot path, the collect of a parked one, and the administrator's close-out all grant immediately
      * after calling this), so this method is the one instant a CLAIM happens and the only place
      * {@link QuestProgressStore.CompletionRecord#claimedCount()} is raised. A caller reaching this
      * from OUTSIDE the engine takes on the same obligation: it records a payout, so a surface that
@@ -1235,7 +1227,7 @@ public final class QuestEngine implements QuestStateReader {
         if (repeat.cooldownFrom() == Quest.Repeat.CooldownFrom.CLAIM) {
             store.setCooldownStamp(subject, quest.id(), nowMs);
         } else if (!alreadyParked) {
-            // A COMPLETE-anchored clock that never parked (auto-claim, an administrator) still starts
+            // A COMPLETE-anchored clock that never parked (settled on the spot, an administrator) still starts
             // at the instant the objectives were met, which is this one.
             store.setCooldownStamp(subject, quest.id(), nowMs);
         }
@@ -1978,7 +1970,6 @@ public final class QuestEngine implements QuestStateReader {
         @Nullable private ObjectiveKindRegistry objectiveKinds;
         @Nullable private RewardKindRegistry rewardKinds;
         @Nullable private QuestProgressStore store;
-        private MatchFlavor matchFlavor = MatchFlavor.STRICT;
         private QuestPossessionProbe possession = QuestPossessionProbe.NONE;
         private QuestInventoryConsumer inventory = QuestInventoryConsumer.NONE;
         private QuestGates gates = QuestGates.OPEN;
@@ -2016,13 +2007,6 @@ public final class QuestEngine implements QuestStateReader {
         @Nonnull
         public Builder store(@Nullable QuestProgressStore store) {
             this.store = store;
-            return this;
-        }
-
-        /** Which matching dialect to run. Defaults to {@link MatchFlavor#STRICT}. */
-        @Nonnull
-        public Builder matchFlavor(@Nonnull MatchFlavor matchFlavor) {
-            this.matchFlavor = matchFlavor;
             return this;
         }
 

@@ -36,14 +36,13 @@ which one shared instance cannot afford, and it is exactly why that method exist
 
 - **Every engine path that MUTATES the store calls `store.markDirty(subject)` before it returns.** A consumer's persistence backend is driven entirely off that call (zc-objectives' default stores fan it out to `ProgressionDefaults.onProgressDirty`), so a write that skips it reverts on the player's next hydrate with nothing reporting it. That includes the pin half - `pin` / `unpin` / `prunePins` - because a pin is saved state too. Report it inside the method that made the write, not at each caller.
 - **`store.flush(subject)` is a much narrower thing, and this engine has exactly TWO: `claim` and `claimMilestone`.** Both are a player COLLECTING, both commit unconditionally, and that is the whole list. **`unlock` does NOT flush, and neither does `checkMilestones`** - earning is something this engine DECIDES rather than something the player asked for, and it arrives in bulk: `selfHeal` walks the whole catalogue on login, `cascadeMeta` chains one earn into a run of metas, and every earn re-checks the milestones. A commit at any of those turns one login into a database write per achievement the player already had. Nothing in a self-heal, a cascade or a pin sweep commits; nothing commits twice in one engine call. A third flush point needs that paragraph argued past first.
-- **The criteria order is PERMANENT.** Progress is stored per criterion by its POSITION
-  (`"<id>#<index>"`), so appending is safe while inserting, removing, or reordering moves every
-  player's progress onto a different criterion. `AchievementEngineTest` asserts the hazard directly:
-  anyone who wants reordering to be safe has to come and change that test on purpose.
-- **The composite key's legacy fallback is ONE-WAY.** A read of criterion 0 with nothing under the
-  composite key falls back to the bare achievement id (where a store predating per-criterion keys
-  wrote its single number); the first WRITE at index 0 clears that bare key. Without the clear, a
-  reset criterion would resurrect a pre-migration value.
+- **The criterion ID is the progress key.** Progress is stored per criterion under
+  `"<id>#<critKey>"` (the authored `Criteria` map key), so renaming a key starts that criterion
+  over for everybody while adding, removing, or reordering entries never moves anyone's progress.
+  `AchievementEngineTest` asserts it directly: the tally follows the criterion, not the position.
+- **There is NO per-read legacy fallback.** The store reads composite keys only; a bare-id record
+  a very old save carries is re-keyed ONCE by the consumer's one-time migration (which maps it
+  onto the first criterion's id), so a reset criterion can never resurrect a pre-migration value.
 - **Two reward lists, two moments.** `autoRewards` land on earning; `claimRewards` wait. An
   achievement with no claim rewards settles in ONE step, which is what makes CLAIMED reachable with
   no second interaction. Never collapse them into one list plus a flag. The `Achievement_Claimed`

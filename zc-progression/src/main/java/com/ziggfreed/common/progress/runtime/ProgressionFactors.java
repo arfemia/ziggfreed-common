@@ -71,7 +71,7 @@ import com.ziggfreed.common.subject.Subject;
  * block's {@code Quests} prerequisite and the {@code ziggfreedcommon:quest_completed} factor are
  * both satisfied only by the stored status {@code COMPLETED}. A quest sitting in
  * {@code COMPLETED_UNCLAIMED} - objectives done, reward not collected, which is where a quest
- * authored {@code AutoClaim: false} lives until the player takes their payout - satisfies NEITHER.
+ * with {@code Claim} rewards lives until the player takes their payout - satisfies NEITHER.
  * That is the stricter of the two readings, chosen so an author writing either spelling gets the
  * same answer about the same player at the same instant.
  */

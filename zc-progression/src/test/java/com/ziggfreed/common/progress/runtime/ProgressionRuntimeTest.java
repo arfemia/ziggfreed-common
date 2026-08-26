@@ -22,7 +22,6 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.achievement.AchievementGates;
-import com.ziggfreed.common.progress.MatchFlavor;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
@@ -388,12 +387,10 @@ class ProgressionRuntimeTest {
     @Test
     void theEnginesReadTheRegisteredPartsThroughTheirForwarders() {
         ProgressionRuntime.registrar(CONSUMER)
-                .questMatchFlavor(MatchFlavor.LENIENT)
                 .maxTrackedQuests(3)
                 .maxActiveQuests(2);
 
         QuestEngine engine = ProgressionRuntime.quests();
-        assertEquals(MatchFlavor.LENIENT, engine.matchFlavor());
         assertEquals(3, engine.maxTracked());
         assertEquals(2, engine.maxActive());
 

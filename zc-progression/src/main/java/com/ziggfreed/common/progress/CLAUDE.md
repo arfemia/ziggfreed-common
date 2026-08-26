@@ -29,7 +29,7 @@ the server's progression.
 | `ObjectiveDef` (+ `.Builder`) | one authored objective: kind, target, match mode, qualifier, amount, zone, order, hand-in lock |
 | `ObjectiveKind`, `ObjectiveKindRegistry` | the open objective vocabulary plus the three INDEPENDENT facts a kind carries (`valueBased` which arithmetic a dispatch uses, `producible` whether content may author it, `targetsPlace` whether its target names somewhere to go); 23 engine-generic kinds pre-seeded, per consumer, never a shared mutable global |
 | `StatThresholdProbe` | reads a `STAT_THRESHOLD` objective's stat channel for one subject, so an engine can settle a standing-value objective itself |
-| `MatchFlavor`, `MatchMode`, `ObjectiveMatch` | the matching core - BOTH dialects, verbatim |
+| `MatchMode`, `ObjectiveMatch` | the matching core - ONE forgiving rule |
 | `ZoneRef` | the zone / region an event happened in, for a zone-scoped objective |
 | `ZoneLocator` | WHERE a player is right now, as that `ZoneRef`, read off the engine's own `WorldMapTracker`. ONE authority, because an event dispatched with no zone never matches an objective that names one: a caller that forgets to resolve one does not lose precision, it silently switches that content off |
 | `ObjectiveProgressState` | how far along one objective is, plus its `"current/required"` wire form |
@@ -99,16 +99,17 @@ the high-water arithmetic is identical either way.
   plus accessors, never the owner TYPE.
 - **No consumer vocabulary either**, same as the rest of this module: the agnosticism test walks
   every source file here. Generic engine terms only.
-- **Both match dialects stay.** `STRICT` and `LENIENT` disagree on case sensitivity, on what an
-  empty TARGET means, and on what an empty QUALIFIER means. Merging them silently changes what
-  shipped content matches. `MatchFlavor`'s javadoc carries the argument; do not re-litigate it in
-  code.
+- **Matching is ONE rule, and it is the forgiving one** (a maintainer-approved reversal of the
+  pre-release "both dialects stay" position, 2026-08-25, taken while nothing shipped depended on
+  the strict one): targets compare case-insensitively, an empty target matches EVERYTHING under
+  every mode, and an empty qualifier matches only an unqualified event. `ObjectiveMatch`'s javadoc
+  states the rule; do not grow a second dialect or a per-engine flavor knob back.
 - **A PLACE is compared as one whole id against one whole id, never through a match dialect.**
   `targetsPlace` exists so a reader can ask "does this step point HERE", and that comparison is a
   case-insensitive whole-id equality plus a non-blank target, nothing else. `MatchMode` stays what it
-  is - the dialect a fired EVENT is matched with, where a target is deliberately written to catch a
-  FAMILY of ids - and a family written to catch block ids would catch character ids too, while a
-  blank target would point every such quest at every place at once.
+  is - the comparison a fired EVENT is matched with, where a target is deliberately written to
+  catch a FAMILY of ids - and a family written to catch block ids would catch character ids too,
+  while a blank target would point every such quest at every place at once.
 - **Orthogonal knobs, never modes.** `DispatchOptions` is two independent booleans with three named
   factories. A new combination must never need a new constant.
 - **The wire forms are byte-stable.** A consumer's store may persist `ObjectiveProgressState`'s

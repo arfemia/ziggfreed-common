@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
-import com.ziggfreed.common.progress.MatchFlavor;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKind;
@@ -73,11 +72,9 @@ class AchievementEngineTest {
                 .build();
         engine.setAchievements(List.of(achievement));
 
-        assertEquals(MatchFlavor.LENIENT, engine.matchFlavor(), "criteria are broad by nature");
-
         engine.dispatch(ALICE, "BREAK_BLOCK", "copper_ore", null, 1L);
         assertEquals(1, engine.progressOf(ALICE, achievement, 0).current(),
-                "the lenient dialect compares targets without regard to case");
+                "matching compares targets without regard to case");
 
         engine.dispatch(ALICE, "BREAK_BLOCK", "Iron_Ore", null, 1L);
         assertEquals(1, engine.progressOf(ALICE, achievement, 0).current(),
@@ -380,10 +377,10 @@ class AchievementEngineTest {
         assertFalse(engine.pin(ALICE, "one"), "something already earned is nothing to work toward");
     }
 
-    // ==================== Ordered criteria ====================
+    // ==================== Keyed criteria ====================
 
     @Test
-    void criterionProgressIsKeyedByPositionSoReorderingMovesIt() {
+    void criterionProgressIsKeyedByIdSoReorderingNeverMovesIt() {
         AchievementEngine engine = engine().build();
         Achievement authored = Achievement.builder("prospector")
                 .criterion(criterion(0, "BREAK_BLOCK", "Copper_Ore", 5))
@@ -395,18 +392,19 @@ class AchievementEngineTest {
         assertEquals(3, engine.progressOf(ALICE, authored, 0).current());
         assertEquals(0, engine.progressOf(ALICE, authored, 1).current());
 
-        // Re-authored with the same two criteria SWAPPED. Nothing else changed, and the stored
-        // progress now reads against the other criterion: this is the migration hazard, asserted so
-        // that anyone who makes reordering safe has to come here and say so.
+        // Re-authored with the same two criteria SWAPPED. Progress is stored under each
+        // criterion's ID, so the copper tally follows the copper criterion to its new position
+        // rather than landing on whatever now sits first - the whole point of keyed criteria.
         Achievement reordered = Achievement.builder("prospector")
-                .criterion(criterion(0, "BREAK_BLOCK", "Iron_Ore", 5))
-                .criterion(criterion(1, "BREAK_BLOCK", "Copper_Ore", 5))
+                .criterion(criterion(1, "BREAK_BLOCK", "Iron_Ore", 5))
+                .criterion(criterion(0, "BREAK_BLOCK", "Copper_Ore", 5))
                 .build();
         engine.setAchievements(List.of(reordered));
 
-        assertEquals(3, engine.progressOf(ALICE, reordered, 0).current(),
-                "the iron criterion now carries the copper criterion's progress");
-        assertEquals(0, engine.progressOf(ALICE, reordered, 1).current());
+        assertEquals(0, engine.progressOf(ALICE, reordered, 0).current(),
+                "the iron criterion keeps its own (empty) tally wherever it sits");
+        assertEquals(3, engine.progressOf(ALICE, reordered, 1).current(),
+                "the copper criterion carries its progress with it");
     }
 
     // ==================== Maintenance ====================

@@ -220,7 +220,7 @@ class ContentMetaTest {
         void anAchievementSpellsTextArgsTheSameWay() throws Exception {
             AchievementAsset asset = achievement("""
                     { "Text": { "FlavorKey": "a.flavor", "TextArgs": { "Flavor": [ "@amount" ] } },
-                      "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 10 } ] }
+                      "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 10 } } }
                     """, "prospector", null, null);
 
             assertEquals(List.of("@amount"), asset.toDefinition().flavorArgs());
@@ -244,7 +244,7 @@ class ContentMetaTest {
             AchievementAsset asset = achievement("""
                     { "Listing": { "Chains": [ { "Id": "Mining_Copper", "Tier": 3 },
                                                { "Id": "prospecting", "Tier": 1 } ] },
-                      "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 10 } ] }
+                      "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 10 } } }
                     """, "prospector", null, null);
 
             List<ContentListingAsset.ChainMembership> chains = asset.toDefinition().chains();
@@ -269,7 +269,7 @@ class ContentMetaTest {
             AchievementAsset parent = achievement("""
                     { "Text": { "FlavorKey": "a.flavor", "TextArgs": { "Flavor": [ "@amount" ] } },
                       "Listing": { "Category": "gathering", "Chains": [ { "Id": "mining", "Tier": 1 } ] },
-                      "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 10 } ] }
+                      "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 10 } } }
                     """, "prospector_base", null, null);
 
             AchievementAsset child = achievement("{ \"Scoring\": { \"Points\": 20 } }",
@@ -301,7 +301,7 @@ class ContentMetaTest {
         @Test
         void anAchievementDefinitionCarriesTheBlockThroughTheFold() throws Exception {
             AchievementAsset asset = achievement("""
-                    { "Criteria": [ { "Kind": "BREAK_BLOCK", "Target": "Copper_Ore", "Amount": 10 } ],
+                    { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Target": "Copper_Ore", "Amount": 10 } },
                       "Meta": { "yourmod": { "ServerFirst": true } } }
                     """, "prospector", null, null);
 

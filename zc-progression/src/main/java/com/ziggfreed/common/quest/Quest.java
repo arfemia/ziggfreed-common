@@ -25,8 +25,10 @@ import com.ziggfreed.common.progress.gate.GateSpec;
  *   <li>{@link Visibility} - hidden until offered, and whether a consumer gate has to pass first.
  *   <li>{@link QuestTurnInSite} - where it may be collected, when anywhere will not do.
  *   <li>{@link #sequential()} / per-objective {@link ObjectiveDef#order()} - the unlock order.
- *   <li>{@link #autoAccept()} / {@link #autoTrack()} / {@link #autoClaim()} - how much the player
- *   has to do by hand.
+ *   <li>{@link #autoAccept()} / {@link #autoTrack()} - how much the player has to do by hand.
+ *   Whether the finished quest waits to be COLLECTED is not a knob at all: a quest with anything
+ *   in its {@link #claimRewards()} bucket parks for the player, one with only
+ *   {@link #autoRewards()} (or nothing) settles on the spot.
  *   <li>{@link #tags()} - free classification the engine never interprets; it only carries them
  *   onto the outbound events so a listener can group, count, or filter by its own vocabulary.
  * </ul>
@@ -134,14 +136,14 @@ public final class Quest {
 
     private final String id;
     private final List<ObjectiveDef> objectives;
-    private final List<RewardSpec> rewards;
+    private final List<RewardSpec> autoRewards;
+    private final List<RewardSpec> claimRewards;
     @Nullable private final Repeat repeat;
     private final Visibility visibility;
     @Nullable private final QuestTurnInSite turnInAt;
     private final boolean sequential;
     private final boolean autoAccept;
     private final boolean autoTrack;
-    private final boolean autoClaim;
     private final boolean occupiesLog;
     private final BooleanSupplier available;
     private final List<String> tags;
@@ -150,18 +152,19 @@ public final class Quest {
     @Nullable private final String npcViewId;
     private final int listOrder;
     @Nullable private final String category;
+    @Nullable private final String icon;
 
     private Quest(@Nonnull Builder b) {
         this.id = b.id;
         this.objectives = List.copyOf(b.objectives);
-        this.rewards = List.copyOf(b.rewards);
+        this.autoRewards = List.copyOf(b.autoRewards);
+        this.claimRewards = List.copyOf(b.claimRewards);
         this.repeat = b.repeat;
         this.visibility = b.visibility;
         this.turnInAt = b.turnInAt;
         this.sequential = b.sequential;
         this.autoAccept = b.autoAccept;
         this.autoTrack = b.autoTrack;
-        this.autoClaim = b.autoClaim;
         this.occupiesLog = b.occupiesLog;
         this.available = b.available;
         this.tags = List.copyOf(b.tags);
@@ -170,6 +173,7 @@ public final class Quest {
         this.npcViewId = b.npcViewId;
         this.listOrder = b.listOrder;
         this.category = b.category;
+        this.icon = b.icon;
     }
 
     /**
@@ -182,7 +186,8 @@ public final class Quest {
     public Quest withTurnInAt(@Nullable QuestTurnInSite site) {
         return builder(id)
                 .objectives(objectives)
-                .rewards(rewards)
+                .autoRewards(autoRewards)
+                .claimRewards(claimRewards)
                 .tags(tags)
                 .repeat(repeat)
                 .visibility(visibility)
@@ -190,7 +195,6 @@ public final class Quest {
                 .sequential(sequential)
                 .autoAccept(autoAccept)
                 .autoTrack(autoTrack)
-                .autoClaim(autoClaim)
                 .occupiesLog(occupiesLog)
                 .available(available)
                 .requires(requires)
@@ -198,13 +202,14 @@ public final class Quest {
                 .npcViewId(npcViewId)
                 .listOrder(listOrder)
                 .category(category)
+                .icon(icon)
                 .build();
     }
 
     /**
      * This quest with the AUTHORING facts an engine does not run but a shared surface needs: the
-     * requirement block one gate answers, the words one text source reads, and the character that
-     * hands it out. Everything else carries over untouched.
+     * requirement block one gate answers, the words one text source reads, the character that
+     * hands it out, and the item that illustrates it. Everything else carries over untouched.
      *
      * <p>It is a copy rather than a setter for the same reason {@link #withTurnInAt} is: a quest is
      * immutable, and keeping the copy here beside the fields means a leaf added later cannot be
@@ -212,10 +217,12 @@ public final class Quest {
      */
     @Nonnull
     public Quest withAuthoring(@Nullable GateSpec requires, @Nullable ContentText text,
-            @Nullable String npcViewId, int listOrder, @Nullable String category) {
+            @Nullable String npcViewId, int listOrder, @Nullable String category,
+            @Nullable String icon) {
         return builder(id)
                 .objectives(objectives)
-                .rewards(rewards)
+                .autoRewards(autoRewards)
+                .claimRewards(claimRewards)
                 .tags(tags)
                 .repeat(repeat)
                 .visibility(visibility)
@@ -223,7 +230,6 @@ public final class Quest {
                 .sequential(sequential)
                 .autoAccept(autoAccept)
                 .autoTrack(autoTrack)
-                .autoClaim(autoClaim)
                 .occupiesLog(occupiesLog)
                 .available(available)
                 .requires(requires)
@@ -231,6 +237,7 @@ public final class Quest {
                 .npcViewId(npcViewId)
                 .listOrder(listOrder)
                 .category(category)
+                .icon(icon)
                 .build();
     }
 
@@ -245,10 +252,46 @@ public final class Quest {
         return objectives;
     }
 
-    /** What the player gets, interpreted by the registered handler for each spec's kind. */
+    /**
+     * EVERYTHING the player gets, both buckets in authored order (auto first), interpreted by the
+     * registered handler for each spec's kind. The view a listing or a grant of the whole payout
+     * wants; the split is {@link #autoRewards()} / {@link #claimRewards()}.
+     */
     @Nonnull
     public List<RewardSpec> rewards() {
-        return rewards;
+        if (claimRewards.isEmpty()) {
+            return autoRewards;
+        }
+        if (autoRewards.isEmpty()) {
+            return claimRewards;
+        }
+        List<RewardSpec> combined = new ArrayList<>(autoRewards.size() + claimRewards.size());
+        combined.addAll(autoRewards);
+        combined.addAll(claimRewards);
+        return List.copyOf(combined);
+    }
+
+    /** The rewards that land where the quest settles, needing nothing further from the player. */
+    @Nonnull
+    public List<RewardSpec> autoRewards() {
+        return autoRewards;
+    }
+
+    /**
+     * The rewards that wait to be COLLECTED. Authoring any is what makes a finished quest park in
+     * {@link QuestStatus#COMPLETED_UNCLAIMED} for the player instead of settling on the spot.
+     */
+    @Nonnull
+    public List<RewardSpec> claimRewards() {
+        return claimRewards;
+    }
+
+    /**
+     * True when something waits to be collected after the steps are done, which is what parks a
+     * finished quest for the player. A quest with only {@link #autoRewards()} settles on the spot.
+     */
+    public boolean requiresClaim() {
+        return !claimRewards.isEmpty();
     }
 
     /** The repeat rules, or null for a one-shot. Presence is the flag; see {@link Repeat}. */
@@ -294,14 +337,6 @@ public final class Quest {
     /** Pin to the tracker on accept, capacity permitting (it never displaces a player's own pins). */
     public boolean autoTrack() {
         return autoTrack;
-    }
-
-    /**
-     * Pay out the moment the objectives are met. Turn it OFF for a quest whose reward is collected
-     * somewhere specific: the quest parks in {@link QuestStatus#COMPLETED_UNCLAIMED} and waits.
-     */
-    public boolean autoClaim() {
-        return autoClaim;
     }
 
     /**
@@ -381,6 +416,16 @@ public final class Quest {
         return category;
     }
 
+    /**
+     * The item id that illustrates this quest, or null when it carries none. Written by whoever
+     * folded the catalogue (the shared schema's {@code Listing.Icon}); the engine never reads it -
+     * it is what lets a shared surface paint a quest without a per-consumer definition lookup.
+     */
+    @Nullable
+    public String icon() {
+        return icon;
+    }
+
     /** Free classification carried onto the outbound events; the engine never reads their meaning. */
     @Nonnull
     public List<String> tags() {
@@ -445,7 +490,8 @@ public final class Quest {
 
         private final String id;
         private final List<ObjectiveDef> objectives = new ArrayList<>();
-        private final List<RewardSpec> rewards = new ArrayList<>();
+        private final List<RewardSpec> autoRewards = new ArrayList<>();
+        private final List<RewardSpec> claimRewards = new ArrayList<>();
         private final List<String> tags = new ArrayList<>();
         @Nullable private Repeat repeat;
         private Visibility visibility = Visibility.OPEN;
@@ -453,7 +499,6 @@ public final class Quest {
         private boolean sequential;
         private boolean autoAccept;
         private boolean autoTrack;
-        private boolean autoClaim = true;
         private boolean occupiesLog = true;
         private BooleanSupplier available = ALWAYS;
         @Nullable private GateSpec requires;
@@ -461,6 +506,7 @@ public final class Quest {
         @Nullable private String npcViewId;
         private int listOrder;
         @Nullable private String category;
+        @Nullable private String icon;
 
         private Builder(@Nonnull String id) {
             this.id = id;
@@ -470,6 +516,13 @@ public final class Quest {
         @Nonnull
         public Builder category(@Nullable String category) {
             this.category = category == null || category.isBlank() ? null : category.trim();
+            return this;
+        }
+
+        /** The item that illustrates it ({@link Quest#icon()}); null (the default) means none. */
+        @Nonnull
+        public Builder icon(@Nullable String icon) {
+            this.icon = icon == null || icon.isBlank() ? null : icon.trim();
             return this;
         }
 
@@ -485,15 +538,42 @@ public final class Quest {
             return this;
         }
 
+        /**
+         * Append a reward to the CLAIM bucket - the default home of a reward: it waits to be
+         * collected, which is also what parks the finished quest for the player. Use
+         * {@link #autoReward} for one that should land on the spot instead.
+         */
         @Nonnull
         public Builder reward(@Nonnull RewardSpec reward) {
-            rewards.add(reward);
+            claimRewards.add(reward);
             return this;
         }
 
+        /** Every entry through {@link #reward}: the CLAIM bucket, the default home of a reward. */
         @Nonnull
         public Builder rewards(@Nonnull List<RewardSpec> rewards) {
-            this.rewards.addAll(rewards);
+            claimRewards.addAll(rewards);
+            return this;
+        }
+
+        /** Append a reward that lands where the quest settles, with nothing further to collect. */
+        @Nonnull
+        public Builder autoReward(@Nonnull RewardSpec reward) {
+            autoRewards.add(reward);
+            return this;
+        }
+
+        /** Every entry through {@link #autoReward}. */
+        @Nonnull
+        public Builder autoRewards(@Nonnull List<RewardSpec> rewards) {
+            autoRewards.addAll(rewards);
+            return this;
+        }
+
+        /** Every entry through {@link #reward}, named for symmetry with {@link #autoRewards}. */
+        @Nonnull
+        public Builder claimRewards(@Nonnull List<RewardSpec> rewards) {
+            claimRewards.addAll(rewards);
             return this;
         }
 
@@ -544,12 +624,6 @@ public final class Quest {
         @Nonnull
         public Builder autoTrack(boolean autoTrack) {
             this.autoTrack = autoTrack;
-            return this;
-        }
-
-        @Nonnull
-        public Builder autoClaim(boolean autoClaim) {
-            this.autoClaim = autoClaim;
             return this;
         }
 

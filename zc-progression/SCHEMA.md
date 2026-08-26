@@ -33,16 +33,15 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Enabled` | `boolean` | `null` | Whether the quest is in circulation; unauthored means true. Setting false stops it being offered while leaving a player who already holds it able to finish. |
 | `Abstract` | `boolean` | `null` | Mark a file that exists only to be inherited from. It stays available as a Parent target and is never offered to anybody, so a shared skeleton needs no objectives of its own. It never carries down to a child: inheriting from a skeleton makes a real quest. |
 | `Text` | [ContentText](#type-contenttext) | `null` | What the player reads, as localization keys. |
-| `Listing` | [Listing](#field-questasset-listing) | `null` | How the quest is grouped and ordered wherever quests are listed. |
-| `Flow` | [Flow](#field-questasset-flow) | `null` | How much the player has to do by hand: take it, track it, collect the reward, and whether the steps run in order. |
+| `Listing` | [Listing](#field-questasset-listing) | `null` | How the quest is grouped, ordered and illustrated wherever quests are listed, and who may SEE it before taking it (Hidden, RequirePrerequisites). A quest already in progress ignores both visibility knobs, because a player must always see what they are in the middle of. |
+| `Flow` | [Flow](#field-questasset-flow) | `null` | How much the player has to do by hand: take it, track it, and whether the steps run in order. Whether the reward is collected by hand is not a switch here; it follows from which Rewards bucket the payout is authored in. |
 | `Repeat` | [Repeat](#field-questasset-repeat) | `null` | Whether the quest comes back around, how long the wait is, and what else it resets. |
-| `Visibility` | [Visibility](#field-questasset-visibility) | `null` | Who may SEE the quest before taking it. A quest already in progress ignores both knobs, because a player must always see what they are in the middle of. |
 | `Npc` | [Npc](#field-questasset-npc) | `null` | Who offers the quest and where it is handed in. |
 | `TurnInAt` | `booleanOrString` | `null` | Where the finished quest may be collected. Leave it out and it may be collected anywhere the game offers - a quest log, a book, a menu - which is what most quests want. Write true (or the word 'giver') to send the player back to whoever offers it, an npc id to send them to that character instead (who may be somebody they have never met, and need not be the giver), or '@accept' to send them back to whatever place they took it from, which is the one to reach for when the same quest is handed out at many identical fixtures. Author an empty string or false to collect anywhere again after a Parent set one. This is about collecting the REWARD; a single delivery step names its own place with Objectives.TurnInNpcId. |
 | `CompletionDialogue` | `string` | `null` | The conversation that follows this quest settling at a character, by dialogue id. Leave it out and finishing simply pays out. It only ever plays where there is somebody to play it: a quest log or a book has nobody in front of the player, so the beat is skipped there. Author an empty string to drop a conversation inherited from a Parent. |
 | `Requires` | [Requires](#type-requires) | `null` | What a player must already have or have done. An unauthored block asks for nothing; a requirement nothing can answer keeps the quest locked. |
 | `Objectives` | map of [QuestObjective](#type-questobjective) | `null` | The steps, keyed by objective id. The key is also what progress is stored under, so renaming one starts that step over. A child quest may retune one step by id and keeps every step it did not mention. |
-| `Rewards` | array of [RewardEntry](#type-rewardentry) | `null` | What the player gets. This is ONE leaf: author it and an inherited list is replaced whole, omit it and the inherited list carries over (an empty array pays out nothing). |
+| `Rewards` | [ContentRewardsAsset](#field-questasset-rewards) | `null` | What the player gets, split by the two moments a payout can land in. Anything in Claim waits to be collected, and having any is what makes the finished quest wait; a quest paying only Auto settles on the spot, its reward landing the instant the steps are done. |
 | `Meta` | map of `json` | `null` | Extra facts about this content, filed under the namespace of whichever mod they belong to. Nothing here is interpreted by this library: a mod reads its own namespace and every other one rides along untouched, so content authored for two mods still loads with one of them installed. Under Parent a namespace this file names replaces the inherited block for that namespace whole, and every namespace it does not name is inherited as it was. |
 
 <a id="field-questasset-listing"></a>
@@ -54,6 +53,9 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `SortOrder` | `integer` | `null` | Lower sorts first within a category; unauthored means 0. Leave gaps (10, 20, 30) so a later one can be slotted between two without renumbering. |
 | `Tags` | array of `string` | `null` | Free classification carried through to anything listening for this content's events, so a mod can count or filter by its own vocabulary. Nothing here interprets them. |
 | `Chains` | array of [ChainMembership](#field-questasset-listing-chains-item) | `null` | The tiered ladders this is a rung of, so a surface can show a whole climb as one entry instead of a row of near-identical ones. A piece of content may be a rung of SEVERAL ladders at once, each with its own tier - a mining achievement can be rung 3 of the copper ladder and rung 1 of the whole-game one. This is ONE leaf: author it and an inherited list is replaced whole. |
+| `Icon` | `string` | `null` | An item id to illustrate it with. Unauthored leaves the choice to whatever renders it. |
+| `Hidden` | `boolean` | `null` | Keep it off open listings, for content reached some other way (a chain step, an event, a surprise). It still progresses; only the listing is affected, and anything a player already holds or has earned always shows. |
+| `RequirePrerequisites` | `boolean` | `null` | Hide it until its Requires block passes, instead of showing it locked. Unauthored means shown locked, which is usually kinder: a player can see what to work towards. |
 
 <a id="field-questasset-flow"></a>
 ### QuestAsset.Flow
@@ -62,7 +64,6 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `AutoAccept` | `boolean` | `null` | Start the quest as soon as the player is eligible, with no action from them. Unauthored means false. |
 | `AutoTrack` | `boolean` | `null` | Pin it to the tracker on accept if there is room. It never displaces a pin the player chose. Unauthored means false. |
-| `AutoClaim` | `boolean` | `null` | Pay out the moment the steps are done; unauthored means false, so a finished quest waits in the quest log until the player claims it. Set true for a quest whose reward should land the instant its steps are done, with nothing further to collect. |
 | `Sequential` | `boolean` | `null` | Run the steps strictly one after another in authored order. Ignored the moment any objective authors its own Order, which is the finer-grained way to say the same. |
 
 <a id="field-questasset-repeat"></a>
@@ -76,14 +77,6 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `MaxCompletions` | `integer` | `null` | A lifetime cap: how many times one player may ever finish it. 0 or unauthored means uncapped. A player who has spent the cap sees the quest as finished for good. |
 | `ResetsOnComplete` | array of `string` | `null` | Quest ids whose progress is wiped when this one finishes, so a chain can come round again. Handy for a weekly that re-arms its dailies. |
 
-<a id="field-questasset-visibility"></a>
-### QuestAsset.Visibility
-
-| Key | Type | Default | Documentation |
-|---|---|---|---|
-| `Hidden` | `boolean` | `null` | Keep it off open listings entirely, for a quest handed out some other way (a chain step, an event). Unauthored means listed. |
-| `RequirePrerequisites` | `boolean` | `null` | Hide it until its Requires block passes, instead of showing it locked. Unauthored means shown locked, which is usually kinder: a player can see what to work towards. |
-
 <a id="field-questasset-npc"></a>
 ### QuestAsset.Npc
 
@@ -91,6 +84,14 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `ViewId` | `string` | `null` | The id of whoever offers this quest, so a listing can show the right quests at the right character. |
 | `TurnInId` | `string` | `null` | Where the quest is handed in. The literal 'giver' means ViewId, so moving a quest giver needs one edit rather than two. Unauthored means any hand-in surface will do, and an objective may still name its own. |
+
+<a id="field-questasset-rewards"></a>
+### QuestAsset.Rewards
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Auto` | array of [RewardEntry](#type-rewardentry) | `null` | Paid the instant the content settles, wherever the player is. Keep it to things that need no bag room. This is ONE leaf: author it and an inherited list is replaced whole. |
+| `Claim` | array of [RewardEntry](#type-rewardentry) | `null` | Waits on a surface for the player to collect; the bucket a reward belongs in unless it must land on the spot. Where anything needing backpack room goes, so a full bag costs nobody a reward. This is ONE leaf: author it and an inherited list is replaced whole. |
 
 <a id="field-questasset-listing-chains-item"></a>
 #### QuestAsset.Listing.Chains[]
@@ -116,7 +117,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `Kind` | `string` | `null` | Which kind of moment this listens for. It must be a kind some mod actually produces, or it can never progress. |
-| `Target` | `string` | `null` | Which one specifically (a block id, an entity id, a place id). Leave it out for 'any', but read MatchMode first: an unstated target is not the same in both dialects. |
+| `Target` | `string` | `null` | Which one specifically (a block id, an entity id, a place id). Leave it out for 'any': an empty target matches everything, whatever MatchMode says. |
 | `MatchMode` | `string` | `null` | How Target is compared: EXACT, CONTAINS, or PREFIX. Unauthored means CONTAINS, so 'Copper' also counts Copper_Ore; author EXACT when only one id may count. |
 | `Qualifier` | `string` | `null` | Optional secondary filter whose meaning belongs to the kind's producer (a tool, a difficulty, a variant). Unauthored means any. |
 | `Amount` | `long` | `null` | How many are needed. Unauthored means 1. |
@@ -138,10 +139,9 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Listing` | [Listing](#field-achievementasset-listing) | `null` | How it is grouped, ordered, illustrated, and whether it is listed before it is earned. |
 | `Scoring` | [Scoring](#field-achievementasset-scoring) | `null` | What it is worth, and whether that worth counts toward a player's total. |
 | `Requires` | [Requires](#type-requires) | `null` | What a player must already have or have done before this can progress at all. An unauthored block asks for nothing. |
-| `Criteria` | array of [ObjectiveLeaf](#type-objectiveleaf) | `null` | Everything that has to be done, ALL of it, in a FIXED order. Progress is stored by each entry's POSITION, so appending is safe while inserting, removing, or reordering moves every player's progress onto a different criterion. This is ONE leaf: a child that authors Criteria replaces the inherited list whole rather than merging into it. |
+| `Criteria` | map of [ObjectiveLeaf](#type-objectiveleaf) | `null` | Everything that has to be done, ALL of it, keyed by criterion id. The key is also what progress is stored under, so renaming one starts that criterion over. A child achievement may retune one criterion by id and keeps every criterion it did not mention. |
 | `MetaChildren` | array of `string` | `null` | Achievement ids that must all be earned for this one to earn itself, for a capstone over a set. An achievement with these needs no Criteria of its own. |
-| `Rewards` | array of [RewardEntry](#type-rewardentry) | `null` | What lands the instant it is earned. This is ONE leaf: author it and an inherited list is replaced whole, omit it and the inherited list carries over. |
-| `ClaimRewards` | array of [RewardEntry](#type-rewardentry) | `null` | What waits to be collected. Authoring any of these is what makes an achievement something a player comes back to a menu for; leave it out and the whole payout lands at the moment it is earned. |
+| `Rewards` | [ContentRewardsAsset](#field-achievementasset-rewards) | `null` | What earning it pays, split by the two moments a payout can land in: Auto lands the instant it is earned, Claim waits on the achievements surface to be collected. |
 | `Meta` | map of `json` | `null` | Extra facts about this content, filed under the namespace of whichever mod they belong to. Nothing here is interpreted by this library: a mod reads its own namespace and every other one rides along untouched, so content authored for two mods still loads with one of them installed. Under Parent a namespace this file names replaces the inherited block for that namespace whole, and every namespace it does not name is inherited as it was. |
 
 <a id="field-achievementasset-listing"></a>
@@ -153,9 +153,10 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `SortOrder` | `integer` | `null` | Lower sorts first within a category; unauthored means 0. Leave gaps (10, 20, 30) so a later one can be slotted between two without renumbering. |
 | `Tags` | array of `string` | `null` | Free classification carried through to anything listening for this content's events, so a mod can count or filter by its own vocabulary. Nothing here interprets them. |
 | `Chains` | array of [ChainMembership](#field-achievementasset-listing-chains-item) | `null` | The tiered ladders this is a rung of, so a surface can show a whole climb as one entry instead of a row of near-identical ones. A piece of content may be a rung of SEVERAL ladders at once, each with its own tier - a mining achievement can be rung 3 of the copper ladder and rung 1 of the whole-game one. This is ONE leaf: author it and an inherited list is replaced whole. |
-| `Subcategory` | `string` | `null` | A second level of grouping inside a Category, for a category big enough to need one. |
 | `Icon` | `string` | `null` | An item id to illustrate it with. Unauthored leaves the choice to whatever renders it. |
-| `Hidden` | `boolean` | `null` | Keep it off the list until it is earned, for a surprise or a retired one-off. It still progresses and can still be earned; only the listing is affected, and it always appears once a player has it. |
+| `Hidden` | `boolean` | `null` | Keep it off open listings, for content reached some other way (a chain step, an event, a surprise). It still progresses; only the listing is affected, and anything a player already holds or has earned always shows. |
+| `RequirePrerequisites` | `boolean` | `null` | Hide it until its Requires block passes, instead of showing it locked. Unauthored means shown locked, which is usually kinder: a player can see what to work towards. |
+| `Subcategory` | `string` | `null` | A second level of grouping inside a Category, for a category big enough to need one. |
 
 <a id="field-achievementasset-scoring"></a>
 ### AchievementAsset.Scoring
@@ -164,6 +165,14 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Points` | `integer` | `null` | What earning this is worth; unauthored means 10. Keep the scale consistent across a pack, since a player's total is the sum and a milestone reward is measured against it. |
 | `CountsTowardTotal` | `boolean` | `null` | Whether the points count toward a player's total; unauthored means true. Set false for something nobody can earn any more, so a total stays comparable between a long-standing player and a new one. |
+
+<a id="field-achievementasset-rewards"></a>
+### AchievementAsset.Rewards
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Auto` | array of [RewardEntry](#type-rewardentry) | `null` | Paid the instant the content settles, wherever the player is. Keep it to things that need no bag room. This is ONE leaf: author it and an inherited list is replaced whole. |
+| `Claim` | array of [RewardEntry](#type-rewardentry) | `null` | Waits on a surface for the player to collect; the bucket a reward belongs in unless it must land on the spot. Where anything needing backpack room goes, so a full bag costs nobody a reward. This is ONE leaf: author it and an inherited list is replaced whole. |
 
 <a id="field-achievementasset-listing-chains-item"></a>
 #### AchievementAsset.Listing.Chains[]
@@ -193,15 +202,15 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Threshold` | `integer` | `null` | The points total that reaches this milestone, and its real identity. Two files naming the same number are the same milestone, whatever they are called, so re-tune a rung by authoring its threshold rather than by matching a filename. |
 | `TitleKey` | `string` | `null` | The translation key naming this rung, so every player reads it in their own language. Unauthored leaves the name to whatever the surface does by convention. |
 | `DescriptionKey` | `string` | `null` | The translation key describing what reaching it takes. Unauthored leaves the line to the surface, which usually says the number itself. |
-| `Rewards` | [Rewards](#field-achievementmilestoneasset-rewards) | `null` | What crossing it pays, split by the two moments a payout can land in. |
+| `Rewards` | [ContentRewardsAsset](#field-achievementmilestoneasset-rewards) | `null` | What crossing it pays, split by the two moments a payout can land in. |
 
 <a id="field-achievementmilestoneasset-rewards"></a>
 ### AchievementMilestoneAsset.Rewards
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Auto` | array of [RewardEntry](#type-rewardentry) | `null` | Paid the instant the total is crossed, wherever the player is. Keep it to things that need no bag room. This is ONE leaf: author it and an inherited list is replaced whole. |
-| `Claim` | array of [RewardEntry](#type-rewardentry) | `null` | Waits on a surface for the player to collect. Where anything needing backpack room belongs, so a full bag costs nobody a reward. This is ONE leaf: author it and an inherited list is replaced whole. |
+| `Auto` | array of [RewardEntry](#type-rewardentry) | `null` | Paid the instant the content settles, wherever the player is. Keep it to things that need no bag room. This is ONE leaf: author it and an inherited list is replaced whole. |
+| `Claim` | array of [RewardEntry](#type-rewardentry) | `null` | Waits on a surface for the player to collect; the bucket a reward belongs in unless it must land on the spot. Where anything needing backpack room goes, so a full bag costs nobody a reward. This is ONE leaf: author it and an inherited list is replaced whole. |
 
 <a id="type-questgeneratorasset"></a>
 ## QuestGeneratorAsset
@@ -250,7 +259,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `Kind` | `string` | `null` | Which kind of moment this listens for. It must be a kind some mod actually produces, or it can never progress. |
-| `Target` | `string` | `null` | Which one specifically (a block id, an entity id, a place id). Leave it out for 'any', but read MatchMode first: an unstated target is not the same in both dialects. |
+| `Target` | `string` | `null` | Which one specifically (a block id, an entity id, a place id). Leave it out for 'any': an empty target matches everything, whatever MatchMode says. |
 | `MatchMode` | `string` | `null` | How Target is compared: EXACT, CONTAINS, or PREFIX. Unauthored means CONTAINS, so 'Copper' also counts Copper_Ore; author EXACT when only one id may count. |
 | `Qualifier` | `string` | `null` | Optional secondary filter whose meaning belongs to the kind's producer (a tool, a difficulty, a variant). Unauthored means any. |
 | `Amount` | `long` | `null` | How many are needed. Unauthored means 1. |
@@ -272,7 +281,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Factors` | array of [FactorCondition](#type-factorcondition) | `null` | Numeric bounds on the shared factor vocabulary; all of them must pass. A factor no installed mod can answer fails closed, so the content stays locked. |
 | `Permission` | `string` | `null` | A permission node the player must hold, read through the engine's own permission check. It is the short spelling of a hytale:permission factor bound, so both give one answer; where nobody can be asked, it refuses and the content stays locked. |
-| `Quests` | array of `string` | `null` | Quest ids the player must have finished AND collected the reward for (stored status COMPLETED); a quest sitting finished-but-unclaimed, which is where an AutoClaim: false quest waits, does not satisfy it. Use it to chain a story in order instead of hiding every later step behind a separate flag. |
+| `Quests` | array of `string` | `null` | Quest ids the player must have finished AND collected the reward for (stored status COMPLETED); a quest sitting finished-but-unclaimed, which is where an quest with Claim rewards waits, does not satisfy it. Use it to chain a story in order instead of hiding every later step behind a separate flag. |
 | `Custom` | map of map of `scalarString` | `null` | Requirement kinds registered by other mods, keyed by their namespaced id, each with that kind's own parameters. A kind nothing registered refuses. A parameter that is a number or true/false may be written bare; other values take quotes. |
 | `AllOf` | array of [GateClause](#type-gateclause) | `null` | Extra groups that must ALL pass, on top of the leaves above. Use it to keep unrelated requirements readable side by side. |
 | `AnyOf` | array of [GateClause](#type-gateclause) | `null` | Groups of which at least ONE must pass - the way to say 'either route into this will do'. An empty list asks for nothing. |
@@ -285,7 +294,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Factors` | array of [FactorCondition](#type-factorcondition) | `null` | Numeric bounds on the shared factor vocabulary; all of them must pass. A factor no installed mod can answer fails closed, so the content stays locked. |
 | `Permission` | `string` | `null` | A permission node the player must hold, read through the engine's own permission check. It is the short spelling of a hytale:permission factor bound, so both give one answer; where nobody can be asked, it refuses and the content stays locked. |
-| `Quests` | array of `string` | `null` | Quest ids the player must have finished AND collected the reward for (stored status COMPLETED); a quest sitting finished-but-unclaimed, which is where an AutoClaim: false quest waits, does not satisfy it. Use it to chain a story in order instead of hiding every later step behind a separate flag. |
+| `Quests` | array of `string` | `null` | Quest ids the player must have finished AND collected the reward for (stored status COMPLETED); a quest sitting finished-but-unclaimed, which is where an quest with Claim rewards waits, does not satisfy it. Use it to chain a story in order instead of hiding every later step behind a separate flag. |
 | `Custom` | map of map of `scalarString` | `null` | Requirement kinds registered by other mods, keyed by their namespaced id, each with that kind's own parameters. A kind nothing registered refuses. A parameter that is a number or true/false may be written bare; other values take quotes. |
 
 <a id="type-factorcondition"></a>

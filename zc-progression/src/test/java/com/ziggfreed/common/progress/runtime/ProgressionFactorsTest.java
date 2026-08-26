@@ -33,6 +33,7 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestProgressStore;
@@ -300,7 +301,7 @@ class ProgressionFactorsTest {
                     Quest.builder("parked_daily")
                             .objective(oneBlock("logs"))
                             .repeat(Quest.Repeat.every(HOUR))
-                            .autoClaim(false)
+                            .reward(RewardSpec.of("NOTE", "text", "parked"))
                             .build(),
                     Quest.builder("instant_daily")
                             .objective(oneBlock("logs"))
@@ -365,7 +366,7 @@ class ProgressionFactorsTest {
 
         /**
          * The half of that agreement it is easiest to get wrong. A quest whose objectives are done
-         * but whose reward is still sitting there uncollected - where an {@code AutoClaim: false}
+         * but whose reward is still sitting there uncollected - where a {@code Claim}-rewarded
          * quest lives between finishing it and taking the payout - is not yet a prerequisite,
          * whichever way the requirement was written.
          */

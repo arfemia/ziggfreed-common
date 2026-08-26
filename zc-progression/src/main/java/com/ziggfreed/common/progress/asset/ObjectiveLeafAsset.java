@@ -57,8 +57,8 @@ public class ObjectiveLeafAsset {
                         + "produces, or it can never progress.").add()
                 .appendInherited(new KeyedCodec<>("Target", Codec.STRING, false),
                         (o, v) -> o.target = v, o -> o.target, (o, p) -> o.target = p.target)
-                .documentation("Which one specifically (a block id, an entity id, a place id). Leave it out for "
-                        + "'any', but read MatchMode first: an unstated target is not the same in both dialects.").add()
+                .documentation("Which one specifically (a block id, an entity id, a place id). Leave it out "
+                        + "for 'any': an empty target matches everything, whatever MatchMode says.").add()
                 .appendInherited(new KeyedCodec<>("MatchMode", Codec.STRING, false),
                         (o, v) -> o.matchMode = v, o -> o.matchMode, (o, p) -> o.matchMode = p.matchMode)
                 .documentation("How Target is compared: EXACT, CONTAINS, or PREFIX. Unauthored means CONTAINS, "

@@ -359,13 +359,18 @@ public final class ZigProgressComponent implements Component<EntityStore> {
         return stamp == null ? 0L : stamp;
     }
 
-    /** Record when it was earned. A non-positive stamp is stored as absence. */
+    /**
+     * Record when it was earned. A non-positive stamp is stored as absence, and an EXISTING stamp
+     * is kept: the first earn instant is the fact this records, so a re-stamp (a migration replay,
+     * a duplicate earn signal) can never rewrite history. Clearing (a revoke writes {@code 0})
+     * removes the stamp, so a genuine re-earn after a revoke records its own instant.
+     */
     public void setAchievementUnlockedAt(@Nonnull String achievementId, long epochMs) {
         if (epochMs <= 0L) {
             achievementUnlockedAt.remove(achievementId);
             return;
         }
-        achievementUnlockedAt.put(achievementId, Long.valueOf(epochMs));
+        achievementUnlockedAt.putIfAbsent(achievementId, Long.valueOf(epochMs));
     }
 
     /** The recorded status of a points milestone, or {@link AchievementStatus#LOCKED}. */

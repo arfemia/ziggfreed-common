@@ -11,7 +11,6 @@ import com.ziggfreed.common.achievement.AchievementGates;
 import com.ziggfreed.common.achievement.AchievementProgressStore;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
-import com.ziggfreed.common.progress.MatchFlavor;
 import com.ziggfreed.common.progress.ProgressDispatchTap;
 import com.ziggfreed.common.quest.QuestGates;
 import com.ziggfreed.common.quest.QuestI18n;
@@ -178,20 +177,6 @@ public final class ProgressionRegistrar {
     }
 
     // ==================== one-slot, sealed scalars ====================
-
-    /** Which matching dialect quests run. SEALED: a build-time final on the engine. */
-    @Nonnull
-    public ProgressionRegistrar questMatchFlavor(@Nonnull MatchFlavor flavor) {
-        ProgressionRuntime.putSlot(ProgressionRuntime.Slots.QUEST_MATCH_FLAVOR, this, flavor);
-        return this;
-    }
-
-    /** Which matching dialect achievements run. SEALED. */
-    @Nonnull
-    public ProgressionRegistrar achievementMatchFlavor(@Nonnull MatchFlavor flavor) {
-        ProgressionRuntime.putSlot(ProgressionRuntime.Slots.ACHIEVEMENT_MATCH_FLAVOR, this, flavor);
-        return this;
-    }
 
     /** How many quests a player may pin. SEALED. */
     @Nonnull

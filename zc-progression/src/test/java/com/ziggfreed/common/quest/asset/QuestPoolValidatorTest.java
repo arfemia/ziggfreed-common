@@ -68,7 +68,7 @@ class QuestPoolValidatorTest {
                   "Npc": { "ViewId": "guide", "TurnInId": "giver" },
                   "Objectives": { "collect": { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "Amount": 10 },
                                   "hand_in": { "Kind": "TURN_IN", "Target": "Copper_Ore", "Amount": 10 } },
-                  "Rewards": [ { "Kind": "yourmod:currency", "Params": { "Amount": "50" } } ] }
+                  "Rewards": { "Claim": [ { "Kind": "yourmod:currency", "Params": { "Amount": "50" } } ] } }
                 """)).isEmpty());
     }
 
@@ -90,7 +90,7 @@ class QuestPoolValidatorTest {
     void aRewardNothingPaysOutIsWorthSaying() {
         assertEquals(List.of("UNKNOWN_REWARD_KIND"), codes(validate(poolOf("q", """
                 { "Objectives": { "a": { "Kind": "BREAK_BLOCK", "Target": "x" } },
-                  "Rewards": [ { "Kind": "yourmod:unhandled" } ] }
+                  "Rewards": { "Claim": [ { "Kind": "yourmod:unhandled" } ] } }
                 """))));
     }
 
@@ -270,7 +270,7 @@ class QuestPoolValidatorTest {
     void anUnknownVocabularyIsSkippedRatherThanReportedAsAllUnknown() {
         List<Finding> issues = QuestPoolValidator.validate(poolOf("q", """
                 { "Objectives": { "a": { "Kind": "yourmod:whatever", "Target": "x" } },
-                  "Rewards": [ { "Kind": "yourmod:whatever" } ] }
+                  "Rewards": { "Claim": [ { "Kind": "yourmod:whatever" } ] } }
                 """), null, null, null, null);
 
         assertFalse(codes(issues).contains("UNKNOWN_KIND"),

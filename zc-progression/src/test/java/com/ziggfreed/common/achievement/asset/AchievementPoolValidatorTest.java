@@ -63,8 +63,8 @@ class AchievementPoolValidatorTest {
     @Test
     void wellFormedContentReportsNothing() throws Exception {
         List<Finding> findings = validate(pool(Map.of("prospector", """
-                { "Criteria": [ { "Kind": "BREAK_BLOCK", "Target": "Copper_Ore", "Amount": 500 } ],
-                  "Rewards": [ { "Kind": "test:pay" } ] }
+                { "Criteria": { "mine": { "Kind": "BREAK_BLOCK", "Target": "Copper_Ore", "Amount": 500 } },
+                  "Rewards": { "Auto": [ { "Kind": "test:pay" } ] } }
                 """)));
         assertTrue(findings.isEmpty(), () -> "unexpected findings: " + findings);
     }
@@ -73,10 +73,10 @@ class AchievementPoolValidatorTest {
     void anUnknownKindWarnsWhileOneNothingEverFiresIsAnError() throws Exception {
         List<Finding> findings = validate(pool(Map.of(
                 "unknown_kind", """
-                        { "Criteria": [ { "Kind": "yourmod:not_registered", "Amount": 1 } ] }
+                        { "Criteria": { "step": { "Kind": "yourmod:not_registered", "Amount": 1 } } }
                         """,
                 "dead_kind", """
-                        { "Criteria": [ { "Kind": "NEVER_FIRED", "Amount": 1 } ] }
+                        { "Criteria": { "step": { "Kind": "NEVER_FIRED", "Amount": 1 } } }
                         """)));
 
         assertEquals(Severity.WARNING, only(findings, "UNKNOWN_KIND").severity(),
@@ -90,10 +90,10 @@ class AchievementPoolValidatorTest {
     void aCriterionWithNoKindOrNoPositiveAmountIsReported() throws Exception {
         List<Finding> findings = validate(pool(Map.of(
                 "no_kind", """
-                        { "Criteria": [ { "Target": "Copper_Ore", "Amount": 1 } ] }
+                        { "Criteria": { "step": { "Target": "Copper_Ore", "Amount": 1 } } }
                         """,
                 "free_lunch", """
-                        { "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 0 } ] }
+                        { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 0 } } }
                         """)));
 
         assertEquals(Severity.ERROR, only(findings, "MISSING_KIND").severity());
@@ -124,7 +124,7 @@ class AchievementPoolValidatorTest {
     @Test
     void authoringBothCriteriaAndChildrenSaysTheCriteriaAreDeadWeight() throws Exception {
         List<Finding> findings = validate(pool(Map.of("both", """
-                { "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ],
+                { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } },
                   "MetaChildren": [ "both_child" ] }
                 """)));
         assertTrue(hasCode(findings, "CRITERIA_AND_META"));
@@ -133,9 +133,9 @@ class AchievementPoolValidatorTest {
     @Test
     void aRewardKindNothingRegisteredWarnsForEitherRewardList() throws Exception {
         List<Finding> findings = validate(pool(Map.of("prospector", """
-                { "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ],
-                  "Rewards":      [ { "Kind": "yourmod:absent" } ],
-                  "ClaimRewards": [ { "Kind": "yourmod:also_absent" } ] }
+                { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } },
+                  "Rewards": { "Auto":  [ { "Kind": "yourmod:absent" } ],
+                               "Claim": [ { "Kind": "yourmod:also_absent" } ] } }
                 """)));
 
         List<Finding> unknown = findings.stream()
@@ -147,7 +147,7 @@ class AchievementPoolValidatorTest {
     @Test
     void anIdTheProgressFormatCannotStoreIsAnError() throws Exception {
         List<Finding> findings = validate(pool(Map.of("bad#id", """
-                { "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ] }
+                { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } } }
                 """)));
         assertEquals(Severity.ERROR, only(findings, "RESERVED_ID").severity());
         assertFalse(findings.isEmpty());
@@ -156,7 +156,7 @@ class AchievementPoolValidatorTest {
     @Test
     void aBlankFactorEntryGatesNothingAndSaysSo() throws Exception {
         List<Finding> findings = validate(pool(Map.of("gated", """
-                { "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ],
+                { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } },
                   "Requires": { "Factors": [ { } ] } }
                 """)));
         assertEquals(Severity.WARNING, only(findings, "BLANK_REQUIREMENT").severity());
@@ -166,11 +166,11 @@ class AchievementPoolValidatorTest {
     void aThresholdCriterionWithNoChannelHasNothingToMeasure() throws Exception {
         List<Finding> findings = validate(pool(Map.of(
                 "no_channel", """
-                        { "Criteria": [ { "Kind": "STAT_THRESHOLD", "Amount": 10 } ] }
+                        { "Criteria": { "step": { "Kind": "STAT_THRESHOLD", "Amount": 10 } } }
                         """,
                 "with_channel", """
-                        { "Criteria": [ { "Kind": "STAT_THRESHOLD", "Target": "Deep_Delving",
-                                          "Amount": 10 } ] }
+                        { "Criteria": { "step": { "Kind": "STAT_THRESHOLD", "Target": "Deep_Delving",
+                                                  "Amount": 10 } } }
                         """)));
 
         Finding finding = only(findings, "STAT_THRESHOLD_WITHOUT_TARGET");
@@ -183,7 +183,7 @@ class AchievementPoolValidatorTest {
     @Test
     void anUnregisteredCustomGateKindWarnsRatherThanFailing() throws Exception {
         List<Finding> findings = validate(pool(Map.of("gated", """
-                { "Criteria": [ { "Kind": "BREAK_BLOCK", "Amount": 1 } ],
+                { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } },
                   "Requires": { "Custom": { "yourmod:reputation": { "Min": "500" } } } }
                 """)));
         assertEquals(Severity.WARNING, only(findings, "UNKNOWN_GATE_KIND").severity());

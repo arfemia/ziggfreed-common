@@ -35,7 +35,7 @@ import com.ziggfreed.common.progress.gate.GateSpec;
  * @param chains           the ladders this is a rung of, in authored order; the first is primary
  * @param icon             an item id to illustrate it with, or null
  * @param requires         what must be true first; never null, {@link GateSpec#OPEN} when open
- * @param criterionTextKeys criterion POSITION to its localization key, for the ones that carry one
+ * @param criterionTextKeys criterion id to its localization key, for the ones that carry one
  * @param meta             per-namespace extra facts, verbatim; see {@link ContentMeta}
  */
 public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement achievement,
@@ -46,7 +46,7 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
                                     @Nullable String subcategory, int sortOrder,
                                     @Nonnull List<ChainMembership> chains, @Nullable String icon,
                                     @Nonnull GateSpec requires,
-                                    @Nonnull Map<Integer, String> criterionTextKeys,
+                                    @Nonnull Map<String, String> criterionTextKeys,
                                     @Nonnull Map<String, JsonElement> meta) {
 
     public AchievementDefinition {
@@ -73,7 +73,7 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
     private static ContentText textOf(@Nonnull Achievement achievement, @Nullable String titleKey,
             @Nullable String flavorKey, @Nullable String displayName,
             @Nonnull List<String> titleArgs, @Nonnull List<String> flavorArgs,
-            @Nonnull Map<Integer, String> criterionTextKeys) {
+            @Nonnull Map<String, String> criterionTextKeys) {
         long amount = achievement.criteria().isEmpty() ? 0L : achievement.criteria().get(0).amount();
         ContentText.Builder text = ContentText.builder()
                 .titleKey(titleKey)
@@ -81,10 +81,10 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
                 .titleArgs(ContentText.amountArgs(titleArgs, amount))
                 .flavorKey(flavorKey)
                 .flavorArgs(ContentText.amountArgs(flavorArgs, amount));
-        // A criterion is addressed by its POSITION written out, which is the id the engine gives it
-        // and therefore the id a surface asks about.
-        for (Map.Entry<Integer, String> entry : criterionTextKeys.entrySet()) {
-            text.objectiveKey(Integer.toString(entry.getKey().intValue()), entry.getValue());
+        // A criterion is addressed by its authored KEY, which is the id the engine gives it and
+        // therefore the id a surface asks about.
+        for (Map.Entry<String, String> entry : criterionTextKeys.entrySet()) {
+            text.objectiveKey(entry.getKey(), entry.getValue());
         }
         return text.build();
     }
@@ -98,9 +98,9 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
         return ContentMeta.block(meta, namespace);
     }
 
-    /** The localization key for one criterion's line, by its position, or null when it authored none. */
+    /** The localization key for one criterion's line, by its id, or null when it authored none. */
     @Nullable
-    public String criterionTextKey(int criterionIndex) {
-        return criterionTextKeys.get(criterionIndex);
+    public String criterionTextKey(@Nonnull String criterionId) {
+        return criterionTextKeys.get(criterionId);
     }
 }

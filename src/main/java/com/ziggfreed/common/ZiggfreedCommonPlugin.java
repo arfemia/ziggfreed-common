@@ -36,6 +36,7 @@ import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.entity.PlayerIdentityCache;
+import com.ziggfreed.common.entity.flair.ZigFlairComponent;
 import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
@@ -94,10 +95,10 @@ import com.ziggfreed.common.world.placed.PlacedBlockRecorder;
  * <p>The static primitives register nothing (a consumer calls them directly), but this plugin DOES
  * own nine registrations of its own:
  * <ul>
- *   <li>the two per-player COMPONENT types the library's own default stores are kept on (progress
- *       and commerce), because a component type registered after a world has loaded cannot be read
- *       off entities that were saved carrying it - so neither can wait to find out whether a
- *       consumer brings its own store;</li>
+ *   <li>the per-player COMPONENT types the library's own state is kept on (progress, commerce,
+ *       and the unlocked-flair set), because a component type registered after a world has loaded
+ *       cannot be read off entities that were saved carrying it - so none of them can wait to find
+ *       out whether a consumer brings its own store;</li>
  *   <li>the {@code /zigcommerce} admin command family, because the module that owns an engine owns
  *       the commands that drive it, and its permission nodes are derived and enforced by the command
  *       system itself;</li>
@@ -182,6 +183,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         registerCommerce();
         setupPlacementEngine();
         registerPerformerIdentity();
+        registerFlairs();
         setupTalkCredit();
         registerWorldLifecycle();
         registerPlayerIdentity();
@@ -532,6 +534,21 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             PerformerIdentityComponent.register(getEntityStoreRegistry());
         } catch (Throwable t) {
             SafeLog.warn("[performer] could not register PerformerIdentityComponent", t);
+        }
+    }
+
+    /**
+     * Register the per-player unlocked-flair set ({@link ZigFlairComponent}) and hang its connect
+     * hook, so what a player unlocked is remembered by the library whoever grants it and whoever
+     * renders it - the same reasoning as the progress component: per-player state two different
+     * mods meet over belongs to the library both already load.
+     */
+    private void registerFlairs() {
+        try {
+            ZigFlairComponent.register(getEntityStoreRegistry());
+            ZigFlairComponent.install(this);
+        } catch (Throwable t) {
+            SafeLog.warn("[flair] could not register ZigFlairComponent", t);
         }
     }
 

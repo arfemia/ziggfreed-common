@@ -15,9 +15,8 @@ import com.hypixel.hytale.event.IEvent;
  * criteria are always on, so it fires on ordinary play - and a listener doing real work should hand
  * off rather than block.
  *
- * <p>The criterion is identified by its INDEX, which is what its progress is stored under. Reordering
- * an achievement's criteria therefore changes what an index refers to, for a listener exactly as it
- * does for the store.
+ * <p>The criterion is identified by its ID (the authored {@code Criteria} key), which is what its
+ * progress is stored under - a stable name a listener can match on across content edits.
  *
  * <p>{@code justCompleted} distinguishes the tick that FINISHED the criterion from the ones before
  * it, which is what a listener needs to fire a one-time reaction without re-checking the counts.
@@ -25,18 +24,18 @@ import com.hypixel.hytale.event.IEvent;
 public final class AchievementProgressedEvent implements IEvent<Void> {
 
     private final String achievementId;
-    private final int criterionIndex;
+    private final String criterionId;
     private final UUID playerId;
     private final int current;
     private final int required;
     private final boolean justCompleted;
     private final List<String> tags;
 
-    public AchievementProgressedEvent(@Nonnull String achievementId, int criterionIndex,
+    public AchievementProgressedEvent(@Nonnull String achievementId, @Nonnull String criterionId,
                                       @Nonnull UUID playerId, int current, int required,
                                       boolean justCompleted, @Nonnull List<String> tags) {
         this.achievementId = achievementId;
-        this.criterionIndex = criterionIndex;
+        this.criterionId = criterionId;
         this.playerId = playerId;
         this.current = current;
         this.required = required;
@@ -49,9 +48,10 @@ public final class AchievementProgressedEvent implements IEvent<Void> {
         return achievementId;
     }
 
-    /** Which criterion moved, by its position in the achievement's list. */
-    public int criterionIndex() {
-        return criterionIndex;
+    /** Which criterion moved, by its id (its authored {@code Criteria} key). */
+    @Nonnull
+    public String criterionId() {
+        return criterionId;
     }
 
     @Nonnull

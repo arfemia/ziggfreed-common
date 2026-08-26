@@ -7,61 +7,35 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * The behaviour table for both match dialects. Every row here is a point where STRICT and LENIENT
- * disagree, or a boundary a future "simplification" would quietly change, so this is the test that
- * has to fail before the two can ever be merged.
+ * The behaviour table for the ONE matching dialect every engine in this family runs: forgiving on
+ * case, match-all on an empty target, and "specifically unqualified" on an empty qualifier. Each
+ * row is a boundary a future "simplification" would quietly change, so this is the test that has to
+ * fail first.
  */
 class ObjectiveMatchTest {
 
     @Nested
-    class StrictTargets {
-
-        @Test
-        void exactIsCaseSensitive() {
-            assertTrue(ObjectiveMatch.targetMatches(MatchFlavor.STRICT, "Oak_Log", MatchMode.EXACT, "Oak_Log"));
-            assertFalse(ObjectiveMatch.targetMatches(MatchFlavor.STRICT, "Oak_Log", MatchMode.EXACT, "oak_log"));
-        }
-
-        @Test
-        void prefixAndContainsAreCaseSensitive() {
-            assertTrue(ObjectiveMatch.targetMatches(MatchFlavor.STRICT, "Oak", MatchMode.PREFIX, "Oak_Log"));
-            assertFalse(ObjectiveMatch.targetMatches(MatchFlavor.STRICT, "oak", MatchMode.PREFIX, "Oak_Log"));
-            assertTrue(ObjectiveMatch.targetMatches(MatchFlavor.STRICT, "k_L", MatchMode.CONTAINS, "Oak_Log"));
-            assertFalse(ObjectiveMatch.targetMatches(MatchFlavor.STRICT, "K_l", MatchMode.CONTAINS, "Oak_Log"));
-        }
-
-        @Test
-        void emptyTargetUnderExactMatchesOnlyAnEmptyIdentifier() {
-            assertTrue(ObjectiveMatch.targetMatches(MatchFlavor.STRICT, "", MatchMode.EXACT, ""));
-            assertFalse(ObjectiveMatch.targetMatches(MatchFlavor.STRICT, "", MatchMode.EXACT, "Oak_Log"));
-        }
-
-        @Test
-        void emptyTargetUnderPrefixOrContainsMatchesAnything() {
-            assertTrue(ObjectiveMatch.targetMatches(MatchFlavor.STRICT, "", MatchMode.PREFIX, "Oak_Log"));
-            assertTrue(ObjectiveMatch.targetMatches(MatchFlavor.STRICT, "", MatchMode.CONTAINS, "Oak_Log"));
-        }
-    }
-
-    @Nested
-    class LenientTargets {
+    class Targets {
 
         @Test
         void everyModeIsCaseInsensitive() {
-            assertTrue(ObjectiveMatch.targetMatches(MatchFlavor.LENIENT, "oak_log", MatchMode.EXACT, "Oak_Log"));
-            assertTrue(ObjectiveMatch.targetMatches(MatchFlavor.LENIENT, "OAK", MatchMode.PREFIX, "Oak_Log"));
-            assertTrue(ObjectiveMatch.targetMatches(MatchFlavor.LENIENT, "K_l", MatchMode.CONTAINS, "Oak_Log"));
+            assertTrue(ObjectiveMatch.targetMatches("oak_log", MatchMode.EXACT, "Oak_Log"));
+            assertTrue(ObjectiveMatch.targetMatches("OAK", MatchMode.PREFIX, "Oak_Log"));
+            assertTrue(ObjectiveMatch.targetMatches("K_l", MatchMode.CONTAINS, "Oak_Log"));
         }
 
         @Test
         void emptyTargetMatchesEverythingEvenUnderExact() {
-            assertTrue(ObjectiveMatch.targetMatches(MatchFlavor.LENIENT, "", MatchMode.EXACT, "Oak_Log"));
-            assertTrue(ObjectiveMatch.targetMatches(MatchFlavor.LENIENT, "", MatchMode.PREFIX, "anything"));
+            assertTrue(ObjectiveMatch.targetMatches("", MatchMode.EXACT, "Oak_Log"));
+            assertTrue(ObjectiveMatch.targetMatches("", MatchMode.PREFIX, "anything"));
+            assertTrue(ObjectiveMatch.targetMatches("", MatchMode.CONTAINS, "Oak_Log"));
         }
 
         @Test
         void aNonMatchStillFails() {
-            assertFalse(ObjectiveMatch.targetMatches(MatchFlavor.LENIENT, "birch", MatchMode.EXACT, "Oak_Log"));
+            assertFalse(ObjectiveMatch.targetMatches("birch", MatchMode.EXACT, "Oak_Log"));
+            assertFalse(ObjectiveMatch.targetMatches("log", MatchMode.PREFIX, "Oak_Log"));
+            assertFalse(ObjectiveMatch.targetMatches("birch", MatchMode.CONTAINS, "Oak_Log"));
         }
     }
 
@@ -69,38 +43,24 @@ class ObjectiveMatchTest {
     class Qualifiers {
 
         @Test
-        void nullAuthoredQualifierMeansAnyInBothDialects() {
-            for (MatchFlavor flavor : MatchFlavor.values()) {
-                assertTrue(ObjectiveMatch.qualifierMatches(flavor, null, null));
-                assertTrue(ObjectiveMatch.qualifierMatches(flavor, null, ""));
-                assertTrue(ObjectiveMatch.qualifierMatches(flavor, null, "elite"));
-            }
+        void nullAuthoredQualifierMeansAny() {
+            assertTrue(ObjectiveMatch.qualifierMatches(null, null));
+            assertTrue(ObjectiveMatch.qualifierMatches(null, ""));
+            assertTrue(ObjectiveMatch.qualifierMatches(null, "elite"));
         }
 
         @Test
-        void emptyAuthoredQualifierIsTheOneDivergence() {
-            // Strict: an absent OR empty event qualifier both count as unqualified.
-            assertTrue(ObjectiveMatch.qualifierMatches(MatchFlavor.STRICT, "", null));
-            assertTrue(ObjectiveMatch.qualifierMatches(MatchFlavor.STRICT, "", ""));
-            // Lenient: only an absent one.
-            assertTrue(ObjectiveMatch.qualifierMatches(MatchFlavor.LENIENT, "", null));
-            assertFalse(ObjectiveMatch.qualifierMatches(MatchFlavor.LENIENT, "", ""));
+        void emptyAuthoredQualifierAcceptsOnlyAnAbsentOne() {
+            assertTrue(ObjectiveMatch.qualifierMatches("", null));
+            assertFalse(ObjectiveMatch.qualifierMatches("", ""));
+            assertFalse(ObjectiveMatch.qualifierMatches("", "elite"));
         }
 
         @Test
-        void emptyAuthoredQualifierNeverMatchesAQualifiedEvent() {
-            for (MatchFlavor flavor : MatchFlavor.values()) {
-                assertFalse(ObjectiveMatch.qualifierMatches(flavor, "", "elite"));
-            }
-        }
-
-        @Test
-        void aNamedQualifierComparesCaseInsensitivelyInBothDialects() {
-            for (MatchFlavor flavor : MatchFlavor.values()) {
-                assertTrue(ObjectiveMatch.qualifierMatches(flavor, "Elite", "elite"));
-                assertFalse(ObjectiveMatch.qualifierMatches(flavor, "Elite", "normal"));
-                assertFalse(ObjectiveMatch.qualifierMatches(flavor, "Elite", null));
-            }
+        void aNamedQualifierComparesCaseInsensitively() {
+            assertTrue(ObjectiveMatch.qualifierMatches("Elite", "elite"));
+            assertFalse(ObjectiveMatch.qualifierMatches("Elite", "normal"));
+            assertFalse(ObjectiveMatch.qualifierMatches("Elite", null));
         }
     }
 
@@ -136,12 +96,9 @@ class ObjectiveMatchTest {
 
     @Test
     void combinedMatchRequiresBothTargetAndQualifier() {
-        assertTrue(ObjectiveMatch.matches(MatchFlavor.STRICT, "Wolf", MatchMode.EXACT, "elite",
-                "Wolf", "Elite"));
-        assertFalse(ObjectiveMatch.matches(MatchFlavor.STRICT, "Wolf", MatchMode.EXACT, "elite",
-                "Wolf", "normal"));
-        assertFalse(ObjectiveMatch.matches(MatchFlavor.STRICT, "Wolf", MatchMode.EXACT, "elite",
-                "Bear", "Elite"));
+        assertTrue(ObjectiveMatch.matches("Wolf", MatchMode.EXACT, "elite", "Wolf", "Elite"));
+        assertFalse(ObjectiveMatch.matches("Wolf", MatchMode.EXACT, "elite", "Wolf", "normal"));
+        assertFalse(ObjectiveMatch.matches("Wolf", MatchMode.EXACT, "elite", "Bear", "Elite"));
     }
 
     @Test
