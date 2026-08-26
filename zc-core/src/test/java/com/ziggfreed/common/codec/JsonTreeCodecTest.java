@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import com.google.gson.JsonElement;
 import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.ArraySchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
@@ -84,5 +86,14 @@ class JsonTreeCodecTest {
         assertEquals("[1,2]", object("[1, 2]").toString());
         assertTrue(List.of("Any JSON object", "Any JSON array")
                 .contains(JsonTreeCodec.array().toSchema(null).getTitle()));
+    }
+
+    @Test
+    void theArraySchemaAlwaysCarriesAnItemsSchema() {
+        // The client asset editor's schema parser dereferences every array schema's items
+        // unconditionally, so an items-less array schema aborts the editor's whole asset-list
+        // init (it NPEs on the first property that exports one and no assets load at all).
+        ArraySchema array = (ArraySchema) JsonTreeCodec.array().toSchema(new SchemaContext());
+        assertTrue(array.getItems() != null, "array schema must declare items");
     }
 }

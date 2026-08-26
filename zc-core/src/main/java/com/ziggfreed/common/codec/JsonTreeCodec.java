@@ -25,8 +25,11 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.ArraySchema;
+import com.hypixel.hytale.codec.schema.config.BooleanSchema;
+import com.hypixel.hytale.codec.schema.config.NumberSchema;
 import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
+import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
@@ -248,7 +251,12 @@ public final class JsonTreeCodec implements Codec<JsonElement> {
     @Override
     public Schema toSchema(@Nonnull SchemaContext context) {
         if (arrayShaped) {
-            ArraySchema schema = new ArraySchema();
+            // The client asset editor's schema parser dereferences every array schema's items
+            // unconditionally (the engine's own ArrayCodec always sets one), so an items-less
+            // ArraySchema aborts the editor's whole asset-list init. An entry here may be any
+            // JSON value, so items is the anyOf of the value kinds authored in practice.
+            ArraySchema schema = new ArraySchema(Schema.anyOf(
+                    new ObjectSchema(), new StringSchema(), new NumberSchema(), new BooleanSchema()));
             schema.setTitle("Any JSON array");
             return schema;
         }
