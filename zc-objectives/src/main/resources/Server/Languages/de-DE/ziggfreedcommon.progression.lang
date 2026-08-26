@@ -20,13 +20,9 @@ book.quests.lock.quest = Quest abschließen: {0}
 book.quests.lock.log_full = Questlog ist voll
 
 book.achievements.points = {0}/{1}
-book.achievements.section.ready = Abholbereit
-book.achievements.section.in_progress = In Arbeit
-book.achievements.section.earned = Erhalten
 book.achievements.category.uncategorised = Sonstige
 book.achievements.untitled = Unbenannte Errungenschaft
 book.achievements.criterion.untitled = Unbenannter Schritt
-book.achievements.status.earned = Erhalten
 
 book.action.accept = Annehmen
 book.action.claim = Abholen

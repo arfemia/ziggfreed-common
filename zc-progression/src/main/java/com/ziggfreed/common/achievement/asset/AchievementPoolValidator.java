@@ -78,7 +78,7 @@ public final class AchievementPoolValidator {
             validateShape(definition, pool, out);
             out.addAll(ContentListingAsset.chainFindings(definition.chains(), DOMAIN, id));
 
-            validateCriteria(definition, objectiveKinds, out);
+            validateCriteria(definition, objectiveKinds, store, out);
             validateRewards(definition, rewardKinds, out);
             validateRequires(definition, gateKinds, out);
         }
@@ -114,7 +114,8 @@ public final class AchievementPoolValidator {
     }
 
     private static void validateCriteria(@Nonnull AchievementDefinition definition,
-            @Nullable ObjectiveKindRegistry objectiveKinds, @Nonnull List<Finding> out) {
+            @Nullable ObjectiveKindRegistry objectiveKinds, @Nullable AchievementProgressStore store,
+            @Nonnull List<Finding> out) {
 
         String id = definition.id();
         List<ObjectiveDef> criteria = definition.achievement().criteria();
@@ -127,6 +128,12 @@ public final class AchievementPoolValidator {
                 out.add(Finding.error(DOMAIN, "MISSING_KIND",
                         where + " names no Kind, so nothing can ever progress it", id));
                 continue;
+            }
+            if (store != null && store.usesReservedDelimiter(criterion.id())) {
+                out.add(Finding.error(DOMAIN, "RESERVED_ID",
+                        where + " uses a character the progress format reserves, so its progress cannot be "
+                                + "stored; rename it without any of "
+                                + AchievementProgressStore.DEFAULT_RESERVED_CHARACTERS, id));
             }
             if (criterion.amount() <= 0) {
                 out.add(Finding.warning(DOMAIN, "NON_POSITIVE_AMOUNT",
@@ -161,8 +168,8 @@ public final class AchievementPoolValidator {
             return;
         }
         Achievement achievement = definition.achievement();
-        reportUnknownKinds(achievement.autoRewards(), "Rewards", rewardKinds, definition.id(), out);
-        reportUnknownKinds(achievement.claimRewards(), "ClaimRewards", rewardKinds, definition.id(), out);
+        reportUnknownKinds(achievement.autoRewards(), "Rewards.Auto", rewardKinds, definition.id(), out);
+        reportUnknownKinds(achievement.claimRewards(), "Rewards.Claim", rewardKinds, definition.id(), out);
     }
 
     private static void reportUnknownKinds(@Nonnull List<RewardSpec> rewards, @Nonnull String where,

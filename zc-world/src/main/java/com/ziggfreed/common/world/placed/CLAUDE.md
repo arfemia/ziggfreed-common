@@ -42,9 +42,15 @@ removes the disagreement structurally rather than by everybody remembering to ag
 - **Fairness: the default is `strict`**, so nobody earns from a placement whoever breaks it. Setting
   `strict` false narrows the refusal to the placer alone, for a server that would rather a builder
   never poisoned the blocks their neighbours mine.
-- **A CREATIVE-mode placement is deliberately not recorded.** An admin walling in an ore vein for
-  survival players is the opposite of the exploit, and the block carries no signal at break time
-  about who put it there.
+- **Three filters decide whether a placement counts, and they are ONE public predicate.**
+  `PlacedBlockRecorder.placementCounts(cancelled, itemId, gameMode)` refuses a cancelled
+  placement (nothing was put down), a null/blank/`Empty` item (nothing was in hand), and a
+  CREATIVE-mode placement (an admin walling in an ore vein for survival players is the opposite
+  of the exploit, and the block carries no signal at break time about who put it there). The
+  library's own `PLACE_BLOCK` producer calls that same method rather than re-reading the event,
+  so what is remembered as placed and what is produced as a moment can never disagree - a
+  consumer that needs the same question answered calls the predicate, it never rewrites the
+  three filters.
 
 ## Persistence
 

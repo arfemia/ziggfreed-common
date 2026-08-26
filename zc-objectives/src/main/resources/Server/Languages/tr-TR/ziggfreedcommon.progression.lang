@@ -20,13 +20,9 @@ book.quests.lock.quest = Görev tamamla: {0}
 book.quests.lock.log_full = Görev günlüğü dolu
 
 book.achievements.points = {0}/{1}
-book.achievements.section.ready = Alınmayı bekliyor
-book.achievements.section.in_progress = Devam ediyor
-book.achievements.section.earned = Kazanıldı
 book.achievements.category.uncategorised = Diğer
 book.achievements.untitled = İsimsiz başarım
 book.achievements.criterion.untitled = İsimsiz adım
-book.achievements.status.earned = Kazanıldı
 
 book.action.accept = Kabul et
 book.action.claim = Al

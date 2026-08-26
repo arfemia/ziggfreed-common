@@ -20,13 +20,9 @@ book.quests.lock.quest = Complétez la quête : {0}
 book.quests.lock.log_full = Le journal de quêtes est plein
 
 book.achievements.points = {0}/{1}
-book.achievements.section.ready = À récupérer
-book.achievements.section.in_progress = En cours
-book.achievements.section.earned = Obtenus
 book.achievements.category.uncategorised = Autres
 book.achievements.untitled = Succès sans nom
 book.achievements.criterion.untitled = Étape sans nom
-book.achievements.status.earned = Obtenu
 
 book.action.accept = Accepter
 book.action.claim = Récupérer

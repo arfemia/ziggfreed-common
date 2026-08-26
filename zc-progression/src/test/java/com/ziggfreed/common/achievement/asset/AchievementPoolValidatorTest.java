@@ -154,6 +154,16 @@ class AchievementPoolValidatorTest {
     }
 
     @Test
+    void aCriterionIdTheProgressFormatCannotStoreIsAnError() throws Exception {
+        List<Finding> findings = validate(pool(Map.of("prospector", """
+                { "Criteria": { "mine=copper": { "Kind": "BREAK_BLOCK", "Amount": 1 } } }
+                """)));
+        assertEquals(Severity.ERROR, only(findings, "RESERVED_ID").severity(),
+                "the criterion id is packed into the wire key alongside the achievement id, so it must "
+                        + "be checked the same way");
+    }
+
+    @Test
     void aBlankFactorEntryGatesNothingAndSaysSo() throws Exception {
         List<Finding> findings = validate(pool(Map.of("gated", """
                 { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } },

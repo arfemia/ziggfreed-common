@@ -1,14 +1,14 @@
 # CLAUDE.md - zc-progression
 
 The consumer-agnostic PROGRESSION engines and the shared cores under them. `progress/` holds what
-every lifecycle engine here shares (the registered objective vocabulary, the two match flavors, the
+every lifecycle engine here shares (the registered objective vocabulary, the ONE forgiving matching rule, the
 progress + objective model, the dispatch knobs, and the shared runtime registration surface);
 `quest/` and `achievement/` are the two lifecycle engines built on top. It carries no content and no
 domain vocabulary of its own.
 
 ## Build
 
-Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -17,7 +17,9 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
   VOCABULARY in `loot.reward` - what a reward is, who pays it out, and the isolated payout pass;
   the edge only ever points this way).
 - **Depended on by**: `zc-dialogue` (the quest-aware conversation vocabulary reads through
-  `QuestStateReader`), `zc-objectives` (the shared runtime this module's engines register into).
+  `QuestStateReader`), `zc-objectives` (the shared runtime this module's engines register into),
+  `zc-commerce` (bounties ARE quests: the board engine reads and mutates through the quest engine,
+  and a board's `Requires`/`AcceptRequires` blocks are this module's `GateSpec`).
 - **Reverse-edge trap**: this module sits below `zc-dialogue`, so it may never import dialogue,
   presentation, or world. A turn-in conversation, a results page, or a waypoint is a SEAM the
   wiring root or the consumer fills, never an import - see the quest package router.
@@ -28,13 +30,15 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
   cores: `ObjectiveDef`, `ObjectiveKind`/`ObjectiveKindRegistry`, `MatchMode`/
   `ObjectiveMatch`/`ZoneRef`/`ZoneLocator` (the ONE read of where a player is, off the engine's
   `WorldMapTracker`), `ObjectiveProgressState`, `ObjectiveIndex`, `DispatchOptions`.
-  - `progress/asset/` - the authoring groups both engines share (`ContentTextAsset`,
-    `ObjectiveLeafAsset`, `RewardEntryAsset`, `ProgressEditorDataSets`), declared once so their
-    field names cannot drift between quest and achievement files. No router of its own.
+  - [`progress/asset/`](src/main/java/com/ziggfreed/common/progress/asset/CLAUDE.md) - the authoring
+    groups both engines share (`ContentTextAsset`, `ObjectiveLeafAsset`, `RewardEntryAsset`,
+    `ProgressEditorDataSets`), declared once so their field names cannot drift between quest and
+    achievement files.
   - `progress/docs/` - `SchemaDocWriter`, generating this module's `SCHEMA.md` on demand
     (`gradlew :zc-progression:generateSchemaDocs`, guarded by `SchemaDocDriftTest`). No router.
-  - `progress/gate/` - `GateClause`/`GateSpec`/`GateKind`/`GateKindRegistry`/`GateEvaluator`, the
-    ONE requirement model behind every `Requires` block. No router of its own.
+  - `progress/gate/` - `GateClause`/`GateSpec`/`GateKind`/`GateKindRegistry`/`GateEvaluator`/
+    `GateValidator`, the ONE requirement model behind every `Requires` block. Has its own router;
+    read it before touching the gate schema or adding a `GateKind`.
   - `progress/runtime/` - THE shared progression runtime: one `QuestEngine` + `AchievementEngine`
     pair per server however many mods contribute to it. `ProgressionRuntime` (the holder),
     `ProgressionRegistrar` (what a consumer calls), `ProgressionParts`,
@@ -82,13 +86,16 @@ reordering entries never moves anyone's progress - asserted directly in the engi
 
 ## Tests
 
-36 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
+39 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
 `ObjectiveProgressStateTest`, `ContentMetaTest`), the quest engine (`QuestEngineFlowTest`,
 `QuestEngineTurnInTest`, `QuestLifecycleTest`, `RepeatEvaluatorTest` (the ONE repeat evaluator, and
 where the "the repeat rules count FINISHES, not collections" half of the completion record is
 pinned), `CompletionRecordTest` (the record's own invariants, the collected-clamp above all),
 `QuestGateTest`, `QuestGeneratorTest`,
 `QuestAssetCodecTest`, `QuestPoolValidatorTest`, `QuestStateReaderTest`, `QuestNestedIdTest`,
+`QuestResetsTest`, `QuestCompleteAtTest` / `QuestTurnInAtCodecTest` (where a quest may be collected),
+`QuestProgressPayloadTest`, `QuestStatThresholdTest`, `QuestTrackedEventTest`, `RepeatPeriodTest`,
+`NpcOfferProvidersTest`,
 `QuestModuleAgnosticismTest`, `RequiresGatesTest` - the ONE gate both engines share: fail-open for
 content that asks for nothing, one answer whichever layer folded it, the server-first claim, and the
 live cap and availability seams), what each engine OWES a consumer's persistence

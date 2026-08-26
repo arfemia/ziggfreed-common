@@ -6,7 +6,7 @@ Module edges: `zc-core` (registry ledger + `SafeLog`) and `zc-loot` (the reward 
 
 **What a REWARD is does not live here.** `RewardSpec` / `RewardHandler` / `RewardKindRegistry` / `RewardGrants` are in [`loot/reward/`](../../../../../../../../zc-loot/src/main/java/com/ziggfreed/common/loot/reward/CLAUDE.md) (module `zc-loot`, one level BELOW this one), because a quest hand-in, an end-of-round payout and an achievement unlock must all grant through the SAME registered kinds - a consumer registers a kind once and authors it everywhere. This engine imports them; the edge never points back.
 
-**The shared cores live one package over, in [`../progress/`](../progress/CLAUDE.md).** The objective vocabulary, the two match flavors, the objective + progress model, the hot-path index and the dispatch knobs are NOT quest property - they are what every lifecycle engine in this module is built on, and `quest/` is one such engine (the active-set one: accept, track, hand in, claim, cooldown). Read `progress/` first; only what is genuinely about the QUEST lifecycle belongs on this page. The direction is one-way: `quest/` uses `progress/`, never the reverse.
+**The shared cores live one package over, in [`../progress/`](../progress/CLAUDE.md).** The objective vocabulary, the ONE forgiving matching rule, the objective + progress model, the hot-path index and the dispatch knobs are NOT quest property - they are what every lifecycle engine in this module is built on, and `quest/` is one such engine (the active-set one: accept, track, hand in, claim, cooldown). Read `progress/` first; only what is genuinely about the QUEST lifecycle belongs on this page. The direction is one-way: `quest/` uses `progress/`, never the reverse.
 
 **Who a quest operation is about is [`subject.Subject`](../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/subject/Subject.java) (zc-core), not a quest-owned type.** One identity vocabulary under every engine, so a gate or a reward handler written for one reads naturally when another calls it.
 
@@ -205,7 +205,7 @@ a server running two content mods work.
 
 ## Adding to it
 
-- A new objective kind: a consumer calls `progress.ObjectiveKindRegistry.register`. Only add to `BUILT_IN_IDS` when the kind is meaningful in ANY game with no assumptions.
+- A new objective kind: a consumer calls `progress.ObjectiveKindRegistry.register`. Only add to `BUILT_IN_ACCUMULATING` or `BUILT_IN_VALUE_BASED` (the ARITHMETIC split, so a kind lands in exactly one) when the kind is meaningful in ANY game with no assumptions; `BUILT_IN_PLACE_TARGETED` is orthogonal to both.
 - A new reward kind: a consumer registers a `RewardHandler` on the shared registry in `loot/reward/` - it then works at every payout site, not just quests. Give it a `retryCommand` whenever the reward is replayable, or a failure is a real loss.
 - A new seam: prefer widening an existing interface with a DEFAULT method over adding a builder knob nobody sets.
 - Tests are mechanics, structure, and invariants only. Fixtures are author-owned; never assert numbers that belong to somebody's balance pass.

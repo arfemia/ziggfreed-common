@@ -11,7 +11,8 @@ ACHIEVEMENT lifecycle ([`../achievement/`](../achievement/CLAUDE.md) - always-on
 no accepting). They are peers over one set of cores, deliberately NOT unified - lifecycle
 special-casing would thread through everything.
 
-Module edge: `implementation project(':zc-core')` only. Package root
+Module edges: `implementation project(':zc-core')` plus `implementation project(':zc-loot')` (the
+reward VOCABULARY `progress/asset/` and `progress/runtime/` read). Package root
 `com.ziggfreed.common.progress`.
 
 ## Where THE runtime lives
@@ -84,7 +85,7 @@ either builder. The checkpoints are deliberately few and each rides on work alre
 | achievement | `selfHeal` only - see that engine's router for why the dispatch piggyback would not be cheap there |
 
 There is NO poll behind any of it. Leave the pair unwired and the kind is purely consumer-fired,
-exactly like the other twenty: a consumer that watches its own channel can dispatch it on change and
+exactly like the other twenty-two: a consumer that watches its own channel can dispatch it on change and
 the high-water arithmetic is identical either way.
 
 ## Rules to keep

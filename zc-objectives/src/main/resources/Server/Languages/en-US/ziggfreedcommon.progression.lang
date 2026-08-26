@@ -23,13 +23,9 @@ book.quests.lock.quest = Complete quest: {0}
 book.quests.lock.log_full = Quest log is full
 
 book.achievements.points = {0}/{1}
-book.achievements.section.ready = Ready to collect
-book.achievements.section.in_progress = In progress
-book.achievements.section.earned = Earned
 book.achievements.category.uncategorised = Other
 book.achievements.untitled = Unnamed achievement
 book.achievements.criterion.untitled = Unnamed step
-book.achievements.status.earned = Earned
 
 book.action.accept = Accept
 book.action.claim = Collect

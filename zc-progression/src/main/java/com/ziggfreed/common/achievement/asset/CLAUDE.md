@@ -52,12 +52,13 @@ only one engine can have (a quest's `Order`, a hand-in place) belongs to that en
 
 ## Rules to keep
 
-- **`Criteria` is an ORDERED ARRAY, and it is ONE leaf.** A child that authors `Criteria` REPLACES
-  the parent's list whole; there is no per-index merge and there deliberately never will be, because
-  a merge keyed by position would let a parent edit silently re-point every child's stored progress.
-  Every other group merges leaf by leaf, the way `Parent` inheritance normally does.
-- **A criterion's engine id IS its position** as a decimal string, assigned at fold time, which is
-  also its progress key. What a reader sees and what a store writes therefore cannot disagree.
+- **`Criteria` is a KEYED MAP, and it merges per criterion id.** A child that carries `Parent` may
+  retune one criterion by its key and keeps every criterion it did not mention, the same per-key
+  merge (`InheritMapCodec`) every other group gets. A parent edit can never silently re-point a
+  child's stored progress, because progress follows the KEY, not a position.
+- **A criterion's engine id IS its authored KEY**, taken at fold time, and it is also its progress
+  key. So renaming a key starts that criterion over for everybody, while adding, removing or
+  reordering entries never moves anyone's progress.
 - **`Abstract` never carries down.** It is the one field excluded from inheritance: a child of a
   skeleton is a real achievement.
 - **Basenames must be unique across the whole store**, even in different folders. The engine keys

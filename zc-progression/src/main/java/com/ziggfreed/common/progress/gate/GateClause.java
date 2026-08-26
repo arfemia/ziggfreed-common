@@ -85,7 +85,7 @@ public class GateClause {
                 .appendInherited(new KeyedCodec<>("Quests", Codec.STRING_ARRAY, false),
                         (o, v) -> o.quests = v, o -> o.quests, (o, p) -> o.quests = p.quests)
                 .documentation("Quest ids the player must have finished AND collected the reward for (stored "
-                        + "status COMPLETED); a quest sitting finished-but-unclaimed, which is where an "
+                        + "status COMPLETED); a quest sitting finished-but-unclaimed, which is where a "
                         + "quest with Claim rewards waits, does not satisfy it. Use it to chain a story in order "
                         + "instead of hiding every later step behind a separate flag.").add()
                 .appendInherited(new KeyedCodec<>("Custom",

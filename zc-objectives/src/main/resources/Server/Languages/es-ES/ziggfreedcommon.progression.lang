@@ -20,13 +20,9 @@ book.quests.lock.quest = Completar misión: {0}
 book.quests.lock.log_full = El registro de misiones está lleno
 
 book.achievements.points = {0}/{1}
-book.achievements.section.ready = Listos para recoger
-book.achievements.section.in_progress = En curso
-book.achievements.section.earned = Conseguidos
 book.achievements.category.uncategorised = Otros
 book.achievements.untitled = Logro sin nombre
 book.achievements.criterion.untitled = Paso sin nombre
-book.achievements.status.earned = Conseguido
 
 book.action.accept = Aceptar
 book.action.claim = Recoger

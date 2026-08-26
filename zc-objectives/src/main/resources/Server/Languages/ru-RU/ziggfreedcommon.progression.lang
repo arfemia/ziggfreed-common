@@ -20,13 +20,9 @@ book.quests.lock.quest = Завершить квест: {0}
 book.quests.lock.log_full = Журнал заданий заполнен
 
 book.achievements.points = {0}/{1}
-book.achievements.section.ready = Готово к получению
-book.achievements.section.in_progress = В процессе
-book.achievements.section.earned = Получено
 book.achievements.category.uncategorised = Прочее
 book.achievements.untitled = Безымянное достижение
 book.achievements.criterion.untitled = Безымянный шаг
-book.achievements.status.earned = Получено
 
 book.action.accept = Принять
 book.action.claim = Получить
