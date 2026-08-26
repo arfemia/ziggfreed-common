@@ -69,6 +69,11 @@ public final class DialogueAssetStore {
      * there is one schema whichever layer a body was written in. Called after every load, because an
      * override only means something once the engine's vocabulary is in and the layer under it exists.
      *
+     * <p><b>An entry folds over the stored conversation of its id, leaf by leaf</b> - the same
+     * per-node merge {@code Parent} inheritance uses, so an owner retuning one line writes one node
+     * and keeps every screen, memory and shared group the pack authored. An id nothing stores is a
+     * new conversation, standing on its own.
+     *
      * <p>A body that will not decode is reported by id and skipped, which leaves the stored
      * conversation of that id standing rather than taking the character out of circulation.
      */
@@ -77,7 +82,10 @@ public final class DialogueAssetStore {
         overrides.reload();
         owner.clear();
         for (Map.Entry<String, JsonObject> entry : overrides.bodies().entrySet()) {
-            NpcDialogue decoded = DialogueEngine.shared().decode(entry.getKey(), entry.getValue().toString());
+            ZcDialogueAsset stored = loaded.get(entry.getKey());
+            NpcDialogue base = stored == null ? null : stored.getDialogue();
+            NpcDialogue decoded = DialogueEngine.shared()
+                    .decode(entry.getKey(), entry.getValue().toString(), base);
             if (decoded == null) {
                 SafeLog.warn("[dialogue] the owner conversation '" + entry.getKey() + "' could not be read"
                         + " and was skipped; the one already in circulation (if any) stands");

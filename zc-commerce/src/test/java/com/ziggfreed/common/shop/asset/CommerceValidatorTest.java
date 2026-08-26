@@ -204,7 +204,7 @@ class CommerceValidatorTest {
             List<Finding> findings = BoardValidator.validate(Map.of(),
                     one("bounty_lost", bounty("""
                             { "Objectives": { "main": { "Kind": "KILL_ENTITY", "Target": "Trork", "Amount": 1 } },
-                              "Rewards": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] }
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
                             """, "Bounty_Lost")),
                     WALLETS, null, null, null, null);
 
@@ -233,7 +233,7 @@ class CommerceValidatorTest {
                     one("bounty_easy", bounty("""
                             { "Boards": [ { "Board": "Daily", "Difficulty": "Training" } ],
                               "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
-                              "Rewards": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] }
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
                             """, "Bounty_Easy")),
                     WALLETS, null, null, null, null);
 
@@ -252,7 +252,7 @@ class CommerceValidatorTest {
                     one("bounty_easy", bounty("""
                             { "Boards": [ { "Board": "Daily", "Difficulty": "Training" } ],
                               "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
-                              "Rewards": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] }
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
                             """, "Bounty_Easy")),
                     WALLETS, null, null, null, null);
 
@@ -269,7 +269,7 @@ class CommerceValidatorTest {
                     one("bounty_easy", bounty("""
                             { "Boards": [ { "Board": "Daily", "Difficulty": "Training" } ],
                               "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
-                              "Rewards": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] }
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
                             """, "Bounty_Easy")),
                     WALLETS, null, null, null, null);
 
@@ -286,7 +286,7 @@ class CommerceValidatorTest {
                     one("bounty_easy", bounty("""
                             { "Boards": [ { "Board": "Daily", "Difficulty": "Skirmish" } ],
                               "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
-                              "Rewards": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] }
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
                             """, "Bounty_Easy")),
                     WALLETS, null, null, null, null);
 
@@ -303,7 +303,7 @@ class CommerceValidatorTest {
                     one("bounty_easy", bounty("""
                             { "Boards": [ { "Board": "Daily", "Difficulty": "Training" } ],
                               "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
-                              "Rewards": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] }
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
                             """, "Bounty_Easy")),
                     WALLETS, null, null, null, null);
 
@@ -324,7 +324,7 @@ class CommerceValidatorTest {
                     one("bounty_easy", bounty("""
                             { "Boards": [ { "Board": "Nowhere", "Difficulty": "Training" } ],
                               "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
-                              "Rewards": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] }
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
                             """, "Bounty_Easy")),
                     WALLETS, null, null, null, null);
 

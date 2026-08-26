@@ -5,7 +5,9 @@
   "Objectives": {
     "main": { "Kind": "TURN_IN", "Amount": 1, "MatchMode": "EXACT" }
   },
-  "Rewards": [
-    { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "1" } }
-  ]
+  "Rewards": {
+    "Claim": [
+      { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "1" } }
+    ]
+  }
 }

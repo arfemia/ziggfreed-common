@@ -44,11 +44,24 @@ public class ContentListingAsset {
     @Nullable protected Boolean requirePrerequisites;
 
     /**
-     * Register the seven shared listing leaves on {@code builder}. Every engine's own listing codec
-     * starts from this call, which is what keeps the field names from drifting apart.
+     * Register ALL the shared listing leaves on {@code builder}: the five presentation leaves plus
+     * the two visibility ones. Every engine's own listing codec starts from this call (or from
+     * {@link #appendPresentationLeaves} when its content type decides visibility itself), which is
+     * what keeps the field names from drifting apart.
      */
     @Nonnull
     protected static <T extends ContentListingAsset, S extends BuilderCodec.BuilderBase<T, S>> S appendLeaves(
+            @Nonnull S builder) {
+        return appendVisibilityLeaves(appendPresentationLeaves(builder));
+    }
+
+    /**
+     * Register only the five presentation leaves (Category, SortOrder, Tags, Chains, Icon) - for a
+     * content type whose visibility is decided by the TYPE rather than by the author (a posted
+     * contract above all), so no visibility leaf exists to be authored and silently ignored.
+     */
+    @Nonnull
+    protected static <T extends ContentListingAsset, S extends BuilderCodec.BuilderBase<T, S>> S appendPresentationLeaves(
             @Nonnull S builder) {
         return builder
                 .appendInherited(new KeyedCodec<>("Category", Codec.STRING, false),
@@ -74,7 +87,17 @@ public class ContentListingAsset {
                 .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
                         (o, v) -> o.icon = v, o -> o.icon, (o, p) -> o.icon = p.icon)
                 .documentation("An item id to illustrate it with. Unauthored leaves the choice to whatever "
-                        + "renders it.").add()
+                        + "renders it.").add();
+    }
+
+    /**
+     * Register the two visibility leaves (Hidden, RequirePrerequisites) - separate from the
+     * presentation five so a content type can take one set without the other.
+     */
+    @Nonnull
+    protected static <T extends ContentListingAsset, S extends BuilderCodec.BuilderBase<T, S>> S appendVisibilityLeaves(
+            @Nonnull S builder) {
+        return builder
                 .appendInherited(new KeyedCodec<>("Hidden", Codec.BOOLEAN, false),
                         (o, v) -> o.hidden = v, o -> o.hidden, (o, p) -> o.hidden = p.hidden)
                 .documentation("Keep it off open listings, for content reached some other way (a chain step, "

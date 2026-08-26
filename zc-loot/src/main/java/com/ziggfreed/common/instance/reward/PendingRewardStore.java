@@ -26,8 +26,16 @@ import com.ziggfreed.common.CommonLog;
  *
  * <p>File-backed JSON, atomic write. Thread-safe (concurrent map). The blocked-at-claim
  * guard keeps a finished round from ever silently dropping a reward.
+ *
+ * <p>The file carries a {@code "version"} so a later structural change can tell an old file from
+ * a new one; a file with no version reads as version 1, since every file written before the marker
+ * existed is a version-1 file. A file declaring a NEWER version than this build reads is left
+ * unread with one warning, rather than misread as today's shape.
  */
 public final class PendingRewardStore {
+
+    /** The one file shape this build reads and writes; also what an absent version means. */
+    static final int SCHEMA_VERSION = 1;
 
     private final String fileName;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -44,6 +52,8 @@ public final class PendingRewardStore {
     }
 
     private static final class Dto {
+        /** Absent in a pre-marker file, which Gson leaves at 0; read as version 1. */
+        int version;
         Map<String, List<StoredReward>> players;
     }
 
@@ -108,6 +118,12 @@ public final class PendingRewardStore {
         }
         try {
             Dto dto = gson.fromJson(Files.readString(f), Dto.class);
+            if (dto != null && dto.version > SCHEMA_VERSION) {
+                warn(fileName + " declares version " + dto.version + ", newer than the "
+                        + SCHEMA_VERSION + " this build reads; leaving it unread rather than "
+                        + "misreading it");
+                return;
+            }
             pending.clear();
             if (dto != null && dto.players != null) {
                 for (Map.Entry<String, List<StoredReward>> e : dto.players.entrySet()) {
@@ -133,6 +149,7 @@ public final class PendingRewardStore {
         }
         try {
             Dto dto = new Dto();
+            dto.version = SCHEMA_VERSION;
             dto.players = new HashMap<>();
             for (Map.Entry<UUID, List<StoredReward>> e : pending.entrySet()) {
                 dto.players.put(e.getKey().toString(), new ArrayList<>(e.getValue()));

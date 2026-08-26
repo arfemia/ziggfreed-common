@@ -20,8 +20,8 @@ desc.achievement.status = Afficher où en est chaque succès pour un joueur.
 desc.achievement.give = Attribuer un succès à un joueur, que ses critères soient remplis ou non.
 desc.achievement.claim = Récupérer les récompenses en attente d'un succès obtenu.
 desc.achievement.reset = Effacer ce qu'un joueur a sur un succès, ou sur tous.
-desc.memories = Souvenirs de dialogue : ce que les conversations retiennent d'un joueur.
-desc.memories.forget = Oublier tout ce que chaque conversation retient d'un joueur.
+desc.memory = Souvenirs de dialogue : ce que les conversations retiennent d'un joueur.
+desc.memory.forget = Oublier tout ce que chaque conversation retient d'un joueur.
 desc.arg.player = Le joueur concerné. Par défaut : vous.
 desc.arg.quest = L'id de la quête.
 desc.arg.quest_or_all = Un id de quête, ou 'all'.
@@ -107,7 +107,7 @@ achievement.reset.nothing = {1} n'a rien sous {0}.
 achievement.reset.all = Tous les succès et paliers de {0} effacés ({1} entrées).
 achievement.reset.first_claims = Un premier du serveur remporté par ce joueur reste inscrit dans la table de revendications installée ; libérez-le là-bas.
 
-memories.forgot = Oublié tout ce que chaque conversation retient de {0}, dans les deux durées de vie.
+memory.forgot = Oublié tout ce que chaque conversation retient de {0}, dans les deux durées de vie.
 
 page.title = Systèmes de progression
 page.subtitle = Interrupteurs à l'échelle du serveur pour les systèmes de progression enregistrés. Un changement s'applique à tous les joueurs à la fois.

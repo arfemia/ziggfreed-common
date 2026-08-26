@@ -1,13 +1,15 @@
 {
-  "$Comment": "A hard daily warrant. It retunes ONE step of its skeleton - the quarry and the count - and keeps everything else, which is why the file is four lines. The pay is authored whole because Rewards is a single leaf: writing it replaces the skeleton's list rather than adding to it.",
+  "$Comment": "A hard daily warrant. It retunes ONE step of its skeleton - the quarry and the count - and keeps everything else, which is why the file is four lines. The pay is authored whole because each Rewards bucket is a single leaf: writing Claim replaces the skeleton's list rather than adding to it.",
   "Parent": "Bounty_Kill",
   "Text": { "TitleKey": "quest.bounty_hunt_trork.title", "FlavorKey": "quest.bounty_hunt_trork.flavor" },
   "Boards": [ { "Board": "Daily", "Difficulty": "Hard", "Weight": 1 } ],
   "Objectives": {
     "main": { "Target": "Trork", "Amount": 8 }
   },
-  "Rewards": [
-    { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "300" } },
-    { "Kind": "Mmo_Xp", "Params": { "Skill": "AXES", "Amount": "2500" } }
-  ]
+  "Rewards": {
+    "Claim": [
+      { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "300" } },
+      { "Kind": "Mmo_Xp", "Params": { "Skill": "AXES", "Amount": "2500" } }
+    ]
+  }
 }

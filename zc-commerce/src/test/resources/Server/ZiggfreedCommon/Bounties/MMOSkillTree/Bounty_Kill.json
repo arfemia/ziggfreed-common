@@ -5,7 +5,9 @@
   "Objectives": {
     "main": { "Kind": "KILL_ENTITY", "Amount": 1, "MatchMode": "CONTAINS" }
   },
-  "Rewards": [
-    { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "1" } }
-  ]
+  "Rewards": {
+    "Claim": [
+      { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "1" } }
+    ]
+  }
 }

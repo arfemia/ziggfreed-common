@@ -20,8 +20,8 @@ desc.achievement.status = Megmutatja, hol tart minden teljesítmény egy játék
 desc.achievement.give = Teljesítmény megadása egy játékosnak, akár teljesülnek a feltételei, akár nem.
 desc.achievement.claim = Egy megszerzett teljesítmény várakozó jutalmainak átvétele.
 desc.achievement.reset = Egy játékos egy teljesítményhez vagy minden teljesítményhez tartozó bejegyzésének törlése.
-desc.memories = Párbeszéd-emlékek: amit a beszélgetések egy játékosról megjegyeznek.
-desc.memories.forget = Minden elfelejtése, amit bármely beszélgetés egy játékosról megjegyzett.
+desc.memory = Párbeszéd-emlékek: amit a beszélgetések egy játékosról megjegyeznek.
+desc.memory.forget = Minden elfelejtése, amit bármely beszélgetés egy játékosról megjegyzett.
 desc.arg.player = Az érintett játékos. Alapértelmezés: te magad.
 desc.arg.quest = A küldetés azonosítója.
 desc.arg.quest_or_all = Egy küldetés-azonosító vagy 'all'.
@@ -107,7 +107,7 @@ achievement.reset.nothing = {1} játékosnak nincs semmije {0} alatt.
 achievement.reset.all = {0} minden teljesítménye és mérföldköve törölve ({1} bejegyzés).
 achievement.reset.first_claims = Egy szerver-első, amelyet ez a játékos nyert, továbbra is a telepített igénytáblában szerepel; ott oldd fel.
 
-memories.forgot = Minden elfelejtve, amit bármely beszélgetés {0} játékosról megjegyzett, mindkét élettartamban.
+memory.forgot = Minden elfelejtve, amit bármely beszélgetés {0} játékosról megjegyzett, mindkét élettartamban.
 
 page.title = Progresszió-rendszerek
 page.subtitle = Szerver-szintű kapcsolók a regisztrált progresszió-rendszerekhez. A módosítás azonnal érvényes lesz mindegyik játékos számára.

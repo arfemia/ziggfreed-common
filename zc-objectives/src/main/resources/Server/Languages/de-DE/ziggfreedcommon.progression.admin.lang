@@ -19,8 +19,8 @@ desc.achievement.status = Anzeigen, wo jede Errungenschaft bei einem Spieler ste
 desc.achievement.give = Einem Spieler eine Errungenschaft verleihen, ob ihre Bedingungen erfüllt sind oder nicht.
 desc.achievement.claim = Die wartenden Belohnungen einer erhaltenen Errungenschaft abholen.
 desc.achievement.reset = Den Stand eines Spielers zu einer Errungenschaft oder zu allen löschen.
-desc.memories = Dialog-Erinnerungen: was Gespräche über einen Spieler wissen.
-desc.memories.forget = Alles vergessen, was jedes Gespräch über einen Spieler weiß.
+desc.memory = Dialog-Erinnerungen: was Gespräche über einen Spieler wissen.
+desc.memory.forget = Alles vergessen, was jedes Gespräch über einen Spieler weiß.
 desc.arg.player = Der betroffene Spieler. Standard: du selbst.
 desc.arg.quest = Die Quest-ID.
 desc.arg.quest_or_all = Eine Quest-ID oder 'all'.
@@ -106,7 +106,7 @@ achievement.reset.nothing = {1} hat nichts unter {0}.
 achievement.reset.all = Alle Errungenschaften und Meilensteine für {0} gelöscht ({1} Einträge).
 achievement.reset.first_claims = Ein Server-Erster, den dieser Spieler gewonnen hat, steht weiterhin in der installierten Anspruchstabelle; gib ihn dort frei.
 
-memories.forgot = Alles vergessen, was jedes Gespräch über {0} weiß, in beiden Lebensdauern.
+memory.forgot = Alles vergessen, was jedes Gespräch über {0} weiß, in beiden Lebensdauern.
 
 page.title = Progressionssysteme
 page.subtitle = Server-weite Schalter für die registrierten Progressionssysteme. Eine Änderung wirkt sich sofort auf jeden Spieler aus.

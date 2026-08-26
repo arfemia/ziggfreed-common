@@ -15,6 +15,7 @@ import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.commerce.asset.RerollAsset;
 import com.ziggfreed.common.commerce.asset.RotationAsset;
 import com.ziggfreed.common.commerce.asset.SelectionAsset;
+import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -293,27 +294,36 @@ public final class BoardValidator {
             }
         }
 
-        RewardEntryAsset[] rewards = bounty.rewardsOrEmpty();
-        if (rewards.length == 0) {
+        ContentRewardsAsset rewards = bounty.getRewards();
+        if (rewards == null || rewards.isEmpty()) {
             out.add(Finding.warning(DOMAIN, "EMPTY_REWARDS",
                     "the contract pays nothing, so a player does the work for no return", id));
         }
+        if (rewards != null) {
+            validateRewardEntries(rewards.autoEntries(), "Rewards.Auto", rewardKinds, id, out);
+            validateRewardEntries(rewards.claimEntries(), "Rewards.Claim", rewardKinds, id, out);
+        }
+
+        out.addAll(GateValidator.validate(bounty.getRequires(), DOMAIN, id, NOUN,
+                gateKinds, knownFactors, null));
+    }
+
+    /** One reward bucket's entries: a blank one is an error, an unknown kind a warning. */
+    private static void validateRewardEntries(@Nonnull RewardEntryAsset[] rewards, @Nonnull String where,
+            @Nullable Predicate<String> rewardKinds, @Nonnull String id, @Nonnull List<Finding> out) {
         for (RewardEntryAsset reward : rewards) {
             if (reward == null || reward.isBlank()) {
                 out.add(Finding.error(DOMAIN, "BLANK_REWARD",
-                        "a Rewards entry names no Kind, so it can never pay anything out", id));
+                        "a " + where + " entry names no Kind, so it can never pay anything out", id));
                 continue;
             }
             String kind = reward.getKind();
             if (rewardKinds != null && kind != null && !rewardKinds.test(kind)) {
                 out.add(Finding.warning(DOMAIN, "UNKNOWN_REWARD_KIND",
-                        "the reward '" + kind + "' has no handler registered, so finishing this pays out "
-                                + "nothing for it", id));
+                        where + " names '" + kind + "', which has no handler registered, so finishing "
+                                + "this pays out nothing for it", id));
             }
         }
-
-        out.addAll(GateValidator.validate(bounty.getRequires(), DOMAIN, id, NOUN,
-                gateKinds, knownFactors, null));
     }
 
     // ==================== shared pieces ====================

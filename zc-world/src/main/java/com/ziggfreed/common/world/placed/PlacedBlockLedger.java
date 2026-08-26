@@ -25,6 +25,9 @@ import javax.annotation.Nullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -84,8 +87,24 @@ public final class PlacedBlockLedger {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
-    /** On-disk shape: placer uuid to a list of {worldUuid, x, y, z, placedTime} rows. */
+    /**
+     * The one file shape this build reads and writes; also what a file with no {@code "version"}
+     * means, since every file written before the envelope existed is a version-1 file.
+     */
+    static final int SCHEMA_VERSION = 1;
+
+    /** The rows inside the envelope: placer uuid to a list of {worldUuid, x, y, z, placedTime} rows. */
     private static final Type SAVE_TYPE = new TypeToken<Map<String, List<SavedBlock>>>() {}.getType();
+
+    /**
+     * On-disk shape: {@code {"version": 1, "players": {"<uuid>": [rows]}}}. A bare-map file with no
+     * envelope (the pre-marker shape) still loads as version 1; the writer always writes the
+     * envelope, so a later structural change can tell an old file from a new one.
+     */
+    private static final class Envelope {
+        int version;
+        Map<String, List<SavedBlock>> players;
+    }
 
     private static final PlacedBlockLedger INSTANCE = new PlacedBlockLedger();
 
@@ -608,7 +627,7 @@ public final class PlacedBlockLedger {
             return;
         }
         try (Reader reader = Files.newBufferedReader(path)) {
-            Map<String, List<SavedBlock>> loaded = GSON.fromJson(reader, SAVE_TYPE);
+            Map<String, List<SavedBlock>> loaded = readDocument(reader);
             if (loaded == null) {
                 return;
             }
@@ -636,6 +655,37 @@ public final class PlacedBlockLedger {
         } catch (Exception e) {
             SafeLog.warn("[placed] could not read the ledger", e);
         }
+    }
+
+    /**
+     * The saved rows, whichever readable shape the file speaks: the {@code {"version","players"}}
+     * envelope every save writes, or a bare map with no envelope, which reads as version
+     * {@value #SCHEMA_VERSION} (every file written before the envelope existed is one). Null when
+     * the file holds nothing usable, or declares a version newer than this build reads - that one
+     * is warned about and left unread rather than misread as today's shape.
+     */
+    @Nullable
+    private static Map<String, List<SavedBlock>> readDocument(@Nonnull Reader reader) {
+        JsonElement root = JsonParser.parseReader(reader);
+        if (root == null || !root.isJsonObject()) {
+            return null;
+        }
+        JsonObject object = root.getAsJsonObject();
+        if (!object.has("version")) {
+            // The pre-envelope shape: the whole object IS the players map.
+            return GSON.fromJson(object, SAVE_TYPE);
+        }
+        Envelope envelope = GSON.fromJson(object, Envelope.class);
+        if (envelope == null) {
+            return null;
+        }
+        if (envelope.version > SCHEMA_VERSION) {
+            SafeLog.warn("[placed] the ledger declares version " + envelope.version + ", newer than "
+                    + "the " + SCHEMA_VERSION + " this build reads; leaving it unread rather than "
+                    + "misreading it");
+            return null;
+        }
+        return envelope.players;
     }
 
     /**
@@ -700,8 +750,11 @@ public final class PlacedBlockLedger {
                 if (parent != null) {
                     Files.createDirectories(parent);
                 }
+                Envelope envelope = new Envelope();
+                envelope.version = SCHEMA_VERSION;
+                envelope.players = document;
                 try (Writer writer = Files.newBufferedWriter(path)) {
-                    GSON.toJson(document, SAVE_TYPE, writer);
+                    GSON.toJson(envelope, writer);
                 }
                 int rows = document.values().stream().mapToInt(List::size).sum();
                 String summary = "[placed] ledger saved: " + rows + " placements for "

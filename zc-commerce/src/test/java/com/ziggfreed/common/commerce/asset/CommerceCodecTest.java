@@ -333,6 +333,56 @@ class CommerceCodecTest {
         }
 
         @Test
+        void thePayRidesTheSharedRewardsGroupAndClaimParksAtTheBoard() throws Exception {
+            BountyAsset contract = bounty("""
+                    { "Objectives": { "main": { "Kind": "KILL_ENTITY", "Target": "Trork", "Amount": 8 } },
+                      "Rewards": { "Claim": [ { "Kind": "Currency",
+                                                "Params": { "Currency": "bounty_token", "Amount": "300" } } ] } }
+                    """, "Bounty_Hunt_Trork", null, null);
+
+            QuestDefinition folded = contract.toDefinition(null);
+
+            assertEquals(1, folded.quest().claimRewards().size(),
+                    "Claim is the bucket a contract's pay belongs in");
+            assertTrue(folded.quest().autoRewards().isEmpty());
+            assertTrue(folded.quest().requiresClaim(),
+                    "a Claim payout is what makes the finished contract park at its board");
+        }
+
+        @Test
+        void anAutoRewardLandsInTheFieldByTheAuthorsOwnChoice() throws Exception {
+            BountyAsset contract = bounty("""
+                    { "Objectives": { "main": { "Kind": "KILL_ENTITY", "Target": "Trork", "Amount": 8 } },
+                      "Rewards": { "Auto": [ { "Kind": "Currency",
+                                               "Params": { "Currency": "bounty_token", "Amount": "10" } } ],
+                                   "Claim": [ { "Kind": "Currency",
+                                                "Params": { "Currency": "bounty_token", "Amount": "300" } } ] } }
+                    """, "Bounty_Hunt_Trork", null, null);
+
+            QuestDefinition folded = contract.toDefinition(null);
+
+            assertEquals(1, folded.quest().autoRewards().size(),
+                    "Auto is the deliberate on-the-spot bucket, exactly as it is on a quest");
+            assertEquals(1, folded.quest().claimRewards().size());
+        }
+
+        @Test
+        void aContractsListingCarriesNoVisibilityLeaves() throws Exception {
+            BountyAsset contract = bounty("""
+                    { "Listing": { "Category": "bounty", "Hidden": false,
+                                   "RequirePrerequisites": true } }
+                    """, "Bounty_Hunt_Trork", null, null);
+
+            assertFalse(contract.getListing().isHidden(),
+                    "Hidden is not a leaf of a contract's Listing, so an authored value never"
+                            + " decodes into anything");
+            assertFalse(contract.getListing().isRequirePrerequisites(),
+                    "nor is RequirePrerequisites: a contract's visibility is the TYPE's policy");
+            assertTrue(contract.toDefinition(null).quest().visibility().hidden(),
+                    "and the stamped policy stands whatever the file wrote");
+        }
+
+        @Test
         void theRequiresBlockIsTheSharedGateModel() throws Exception {
             BountyAsset contract = bounty("""
                     { "Requires": { "Factors": [ { "Factor": "bounty_veteran", "Min": 90 } ],

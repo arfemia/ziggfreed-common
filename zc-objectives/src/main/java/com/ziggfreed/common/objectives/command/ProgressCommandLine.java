@@ -88,16 +88,16 @@ public final class ProgressCommandLine {
         }
     }
 
-    /** The memories group: what conversations remember about a player. */
-    public static final class Memories {
+    /** The memory group: what conversations remember about a player. */
+    public static final class Memory {
 
         /** The group's own name, which is also the segment its help keys and nodes carry. */
-        public static final String GROUP = "memories";
+        public static final String GROUP = "memory";
 
         /** Forget everything every conversation remembers about a player. */
         public static final String FORGET = "forget";
 
-        private Memories() {
+        private Memory() {
         }
     }
 

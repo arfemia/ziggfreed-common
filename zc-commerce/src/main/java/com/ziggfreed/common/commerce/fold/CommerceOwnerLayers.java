@@ -27,6 +27,7 @@ import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
+import com.ziggfreed.common.util.OwnerFiles;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -56,6 +57,11 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>A malformed file costs the overrides, not the server.</b> The file is never rewritten, a bad
  * entry is skipped with one line naming it, and the rest are carried - the same bargain the
  * placement owner switch makes.
+ *
+ * <p><b>{@code $}-prefixed top-level keys are reserved, never entries</b> ({@link OwnerFiles}):
+ * {@code $Comment} is documentation, and {@code $SchemaVersion} names the file's schema (absent
+ * means 1, the shape described above; a newer number than this library reads refuses the whole
+ * file with one warning).
  *
  * <p>Read AFTER the pack layer has merged, which is why the wiring root calls each of these from the
  * store's own load event rather than from setup.
@@ -131,15 +137,15 @@ public final class CommerceOwnerLayers {
 
         Path file = directory.resolve(fileName);
         JsonObject root = readObject(file);
-        if (root == null) {
+        if (root == null || !OwnerFiles.schemaReadable(root, "commerce", file)) {
             return;
         }
 
         Map<String, T> layer = new LinkedHashMap<>();
         for (Map.Entry<String, JsonElement> entry : root.entrySet()) {
             String key = entry.getKey();
-            if (key == null || key.isBlank() || key.startsWith("$")) {
-                continue; // $Comment and friends are documentation, not entries
+            if (OwnerFiles.isReservedKey(key)) {
+                continue; // $Comment, $SchemaVersion and friends are file-level, not entries
             }
             String id = key.trim().toLowerCase(Locale.ROOT);
             T decoded = decode(entry.getValue(), id, assetClass, codec, config, file, noun);

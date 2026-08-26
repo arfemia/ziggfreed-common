@@ -19,21 +19,26 @@ What the BOARD engine reads - a `BoardSpec` and a pool of `BountyRef`s - is fold
 ## A contract IS a quest, and that is the whole design
 
 `BountyAsset` reuses the quest schema's shared groups verbatim - `Text`, `Listing`, `Objectives`
-(the same `QuestObjectiveAsset` under the same per-id merge), `Rewards`, `Requires`, `Meta` - plus the
+(the same `QuestObjectiveAsset` under the same per-id merge), `Rewards` (the shared
+`ContentRewardsAsset` `{Auto, Claim}` group: `Claim` parks at the board and is where a contract's
+pay belongs, `Auto` lands in the field the instant the work is done), `Requires`, `Meta` - plus the
 ONE group only a contract has: `Boards`, a list of structured memberships. So everything an author
 already knows about writing a quest applies, a surface that renders a quest renders a contract, and
-the two can never drift apart into two spellings of "kill eight of them".
+the two can never drift apart into two spellings of "kill eight of them". The one shared group a
+contract takes only HALF of is `Listing`: its five presentation leaves
+(`appendPresentationLeaves`), never the two visibility ones (`Hidden`, `RequirePrerequisites`),
+because a contract's visibility is the TYPE's policy and an authorable leaf would be a documented
+no-op.
 
 `toDefinition` folds one into a `QuestDefinition`, so the progression engine runs contracts and quests
 through one lifecycle.
 
 ## The TYPE stamps the policy, and that is the other half
 
-Five behaviours are NOT authorable, and each is a bug that would otherwise be one careless file away:
+Four behaviours are NOT authorable, and each is a bug that would otherwise be one careless file away:
 
 | stamped | why no file may author it |
 |---|---|
-| never auto-claim | a contract that paid out in the field would vanish from the board and take the reward with it |
 | hidden from open listings | a contract is read at its board; listing it as an open quest is a second, wrong door |
 | externally governed repeat, clocked from FINISHING | a private cooldown outliving a posting burns the next period's slot |
 | collected at the accept SITE | any board of that id answers, and nowhere else does |
@@ -98,7 +103,7 @@ Five behaviours are NOT authorable, and each is a bug that would otherwise be on
 
 ## What became impossible by construction
 
-A mistyped membership label can no longer orphan a contract or skew a draw; a contract can no longer
-auto-claim in the field and lose its reward to the board rotating; a board and a shelf can no longer
-disagree about what a cadence means; and a per-band gate can no longer be a combat-level map one
-domain understands and nothing else does.
+A mistyped membership label can no longer orphan a contract or skew a draw; a payout can no longer
+be lost to the board rotating (`Claim` parks at the board, and `Auto` has already landed); a board
+and a shelf can no longer disagree about what a cadence means; and a per-band gate can no longer be
+a combat-level map one domain understands and nothing else does.

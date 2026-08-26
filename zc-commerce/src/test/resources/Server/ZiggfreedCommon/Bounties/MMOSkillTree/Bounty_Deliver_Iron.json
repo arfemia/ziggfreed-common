@@ -6,8 +6,10 @@
   "Objectives": {
     "main": { "Target": "Ore_Iron", "Amount": 64 }
   },
-  "Rewards": [
-    { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "75" } },
-    { "Kind": "Mmo_Xp", "Params": { "Skill": "MINING", "Amount": "800" } }
-  ]
+  "Rewards": {
+    "Claim": [
+      { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "75" } },
+      { "Kind": "Mmo_Xp", "Params": { "Skill": "MINING", "Amount": "800" } }
+    ]
+  }
 }

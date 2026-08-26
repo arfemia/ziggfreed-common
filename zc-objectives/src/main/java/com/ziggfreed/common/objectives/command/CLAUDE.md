@@ -30,7 +30,7 @@ progression verb acts on content the runtime merges from several mods.
 | [`AchievementGiveCommand`](AchievementGiveCommand.java) | `achievement give --achievement=<id>`, the force-it verb (same word, same meaning as `quest give`) |
 | [`AchievementClaimCommand`](AchievementClaimCommand.java) | `achievement claim --achievement=<id|all>`, the peer of `quest claim` |
 | [`AchievementResetCommand`](AchievementResetCommand.java) | `achievement reset --achievement=<id|all> [--player=<name>]`, one-or-all like `quest reset` |
-| [`MemoriesForgetCommand`](MemoriesForgetCommand.java) | `memories forget [--player=<name>]`, over `DialogueMemories.forgetAll` |
+| [`MemoryForgetCommand`](MemoryForgetCommand.java) | `memory forget [--player=<name>]`, over `DialogueMemories.forgetAll` |
 
 ## Rules to keep
 
@@ -78,7 +78,7 @@ progression verb acts on content the runtime merges from several mods.
   neither is the total memory clear.** The engine's `wipeQuest` drops the completion record an
   in-play re-arm keeps and still reports the re-arm through `QuestResets`; the namespace sweep
   (`DialogueMemories.forgetAllQuests`) reaches a memory about a quest the player never took, which a
-  per-id report cannot. A greeting a character remembers is not quest progress: `memories forget`
+  per-id report cannot. A greeting a character remembers is not quest progress: `memory forget`
   is the verb that means all of it, which is why it is a group of its own rather than a quest verb.
 - **`achievement reset` cannot release a server-first this player WON**, because `FirstClaimStore`
   records a winner and offers no release; when a consumer's durable table is installed and the

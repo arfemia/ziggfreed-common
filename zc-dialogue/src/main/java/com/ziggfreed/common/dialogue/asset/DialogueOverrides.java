@@ -16,30 +16,37 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import com.ziggfreed.common.util.OwnerFiles;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The server owner's own conversations, at {@code mods/ziggfreedcommon/dialogues.json}.
+ * The server owner's last word on conversations, at {@code mods/ziggfreedcommon/dialogues.json}.
  *
- * <p>It exists so an admin can rewrite what a character says WITHOUT editing the pack that ships
- * them, which an update would overwrite. An entry REPLACES the stored conversation of that id
- * outright: {@code Parent} inheritance belongs to the asset files, so a body written here stands on
- * its own and is not merged with the one it replaces.
+ * <p>It exists so an admin can retune what a character says WITHOUT editing the pack that ships
+ * them, which an update would overwrite. Like its sibling owner files in the same directory, it is
+ * a map from an id to what that id should read differently:
  *
  * <pre>{@code
  * {
- *   "dialogues": {
- *     "mmo_hub_intro": { "Start": { "Fallback": "greet" }, "Nodes": { ... } }
- *   }
+ *   "mmo_hub_intro": { "Nodes": { "greet": { "TextKey": "my.own.greeting" } } }
  * }
  * }</pre>
  *
- * <p>A body here is the SAME shape a file under {@code Server/ZiggfreedCommon/Dialogues/} carries and
- * is read by the same codec, so there is one schema whichever layer a conversation was written in.
+ * <p><b>Override BY ID, LEAF BY LEAF.</b> An entry is folded over the stored conversation of that
+ * id through the same per-node merge {@code Parent} inheritance uses: a screen, a memory or a
+ * shared option group the entry does not restate keeps what the stored conversation gave it, and
+ * {@code Start} is one ladder a body that writes one replaces. An id nothing stores is a new
+ * conversation rather than an error, standing on its own. There is one schema whichever layer a
+ * body was written in - the shape here is exactly a {@code Server/ZiggfreedCommon/Dialogues/} file's.
+ *
+ * <p><b>{@code $}-prefixed top-level keys are reserved, never entries</b> ({@link OwnerFiles}):
+ * {@code $Comment} is documentation, and {@code $SchemaVersion} names the file's schema (absent
+ * means 1, the shape above; a newer number than this library reads refuses the whole file with
+ * one warning).
  *
  * <p>A malformed file is never overwritten and is treated as empty, so a hand-edit typo costs the
- * overrides rather than the file. A body that will not decode is reported by id and skipped, leaving
- * the stored conversation of that id standing.
+ * overrides rather than the file. A body that will not decode is reported by id and skipped,
+ * leaving the stored conversation of that id standing.
  */
 public final class DialogueOverrides {
 
@@ -88,13 +95,16 @@ public final class DialogueOverrides {
                 SafeLog.warn("[dialogue] " + path + " is not a JSON object, so no owner conversation is read");
                 return;
             }
-            JsonElement declared = root.getAsJsonObject().get("dialogues");
-            if (declared == null || !declared.isJsonObject()) {
+            JsonObject declared = root.getAsJsonObject();
+            if (!OwnerFiles.schemaReadable(declared, "dialogue", path)) {
                 bodies = Map.of();
                 return;
             }
             Map<String, JsonObject> read = new LinkedHashMap<>();
-            for (Map.Entry<String, JsonElement> entry : declared.getAsJsonObject().entrySet()) {
+            for (Map.Entry<String, JsonElement> entry : declared.entrySet()) {
+                if (OwnerFiles.isReservedKey(entry.getKey())) {
+                    continue; // $Comment, $SchemaVersion and friends are file-level, not entries
+                }
                 if (entry.getValue() != null && entry.getValue().isJsonObject()) {
                     read.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getValue().getAsJsonObject());
                 }

@@ -26,7 +26,7 @@ import com.ziggfreed.common.subject.Subject;
  * player never took, filed under an id their quest state has no record of, and a per-id sweep walks
  * straight past it. It is deliberately NOT the total memory clear: a greeting a character remembers
  * giving, a name a player told somebody, a one-shot gift already taken are not quest progress, and
- * {@code memories forget} is the verb that means all of it.
+ * {@code memory forget} is the verb that means all of it.
  */
 final class QuestResetCommand extends TargetPlayerSubCommand {
 

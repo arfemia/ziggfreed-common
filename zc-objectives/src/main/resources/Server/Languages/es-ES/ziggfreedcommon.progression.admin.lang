@@ -19,8 +19,8 @@ desc.achievement.status = Mostrar en qué punto está cada logro para un jugador
 desc.achievement.give = Conceder un logro a un jugador, se cumplan o no sus criterios.
 desc.achievement.claim = Recoger las recompensas pendientes de un logro conseguido.
 desc.achievement.reset = Borrar el registro de un jugador sobre un logro, o sobre todos.
-desc.memories = Recuerdos de diálogo: lo que las conversaciones recuerdan de un jugador.
-desc.memories.forget = Olvidar todo lo que cada conversación recuerda de un jugador.
+desc.memory = Recuerdos de diálogo: lo que las conversaciones recuerdan de un jugador.
+desc.memory.forget = Olvidar todo lo que cada conversación recuerda de un jugador.
 desc.arg.player = El jugador sobre el que actuar. Por defecto, tú.
 desc.arg.quest = El id de la misión.
 desc.arg.quest_or_all = Un id de misión, o 'all'.
@@ -106,7 +106,7 @@ achievement.reset.nothing = {1} no tiene nada bajo {0}.
 achievement.reset.all = Borrados todos los logros e hitos de {0} ({1} registros).
 achievement.reset.first_claims = Un primero del servidor que este jugador ganó sigue anotado en la tabla de reclamaciones instalada; libéralo allí.
 
-memories.forgot = Olvidado todo lo que cada conversación recuerda de {0}, en ambas duraciones.
+memory.forgot = Olvidado todo lo que cada conversación recuerda de {0}, en ambas duraciones.
 
 page.title = Sistemas de Progresión
 page.subtitle = Interruptores de todo el servidor para los sistemas de progresión registrados. Un cambio se aplica a todos los jugadores a la vez.

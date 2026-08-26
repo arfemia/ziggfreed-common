@@ -21,11 +21,10 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
-import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
+import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
-import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestTurnInSite;
@@ -41,8 +40,9 @@ import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
  *   "Text": { "TitleKey": "quest.bounty_hunt_trork.title" },
  *   "Boards": [ { "Board": "Daily", "Difficulty": "Hard", "Weight": 1 } ],
  *   "Objectives": { "main": { "Target": "Trork", "Amount": 8 } },
- *   "Rewards": [ { "Kind": "Currency", "Params": { "Currency": "Bounty_Token", "Amount": "300" } },
- *                { "Kind": "Mmo_Xp",       "Params": { "Skill": "AXES", "Amount": "2500" } } ] }
+ *   "Rewards": { "Claim": [
+ *     { "Kind": "Currency", "Params": { "Currency": "Bounty_Token", "Amount": "300" } },
+ *     { "Kind": "Mmo_Xp",   "Params": { "Skill": "AXES", "Amount": "2500" } } ] } }
  * }</pre>
  *
  * <p><b>A contract IS a quest</b> - the same steps, the same rewards, the same requirement block, the
@@ -51,11 +51,14 @@ import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
  * surface that can show a quest can show a contract.
  *
  * <p><b>What a contract behaves like is decided by the TYPE, not by the file.</b> Being posted rather
- * than listed in a quest log, waiting to be collected at the board it was taken from rather than
- * paying out in the field, coming round again when the board turns over rather than on a private
- * timer: none of that is authorable, because a contract that got any of it wrong would quietly lose
- * a player their reward when the board rotated. Write the work and the pay; the rest is the same for
- * every contract on the server.
+ * than listed in a quest log, and coming round again when the board turns over rather than on a
+ * private timer: none of that is authorable, because a contract that got any of it wrong would
+ * quietly lose a player their reward when the board rotated. Write the work and the pay; the rest is
+ * the same for every contract on the server. {@code Rewards} is the shared two-bucket group every
+ * kind of progression content pays through: {@code Claim} waits to be collected at the board the
+ * contract was taken from (the bucket a contract's pay belongs in, and what makes a finished one
+ * park there), {@code Auto} lands in the field the instant the work is done - the deliberate choice
+ * for something needing no bag room that must not wait on a board visit.
  *
  * <p><b>{@code Boards} is a LIST</b>, so one contract can hang on several boards, at a different
  * difficulty and weight on each - the same piece of work being routine on a weekly board and a real
@@ -84,7 +87,7 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
     @Nullable private BoardMembership[] boards;
     @Nullable private GateSpec requires;
     @Nullable private Map<String, QuestObjectiveAsset> objectives;
-    @Nullable private RewardEntryAsset[] rewards;
+    @Nullable private ContentRewardsAsset rewards;
     @Nullable private Map<String, JsonElement> meta;
 
     public static final AssetBuilderCodec<String, BountyAsset> CODEC = AssetBuilderCodec.builder(
@@ -144,11 +147,14 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                     + "every step it did not mention, which is what makes 'the same hunt, but eight of them' a "
                     + "four-line file.")
             .add()
-            .appendInherited(new KeyedCodec<>("Rewards",
-                            new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
+            .appendInherited(new KeyedCodec<>("Rewards", ContentRewardsAsset.CODEC, false),
                     (a, v) -> a.rewards = v, a -> a.rewards, (a, p) -> a.rewards = p.rewards)
-            .documentation("What the player is paid. This is ONE leaf: author it and an inherited list is "
-                    + "replaced whole, omit it and the inherited list carries over.")
+            .documentation("What the player is paid, split by the two moments a payout can land in. "
+                    + "Claim waits to be collected at the board the contract was taken from, which is "
+                    + "where a contract's pay belongs and what makes a finished one park there; Auto "
+                    + "lands in the field the instant the work is done, for something that must not "
+                    + "wait on a board visit. Each bucket is one leaf: author it and an inherited list "
+                    + "is replaced whole, omit it and the inherited one carries over.")
             .add()
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
@@ -226,10 +232,10 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
         return objectives == null ? Map.of() : objectives;
     }
 
-    /** The authored rewards, in authored order. */
-    @Nonnull
-    public RewardEntryAsset[] rewardsOrEmpty() {
-        return rewards == null ? new RewardEntryAsset[0] : rewards;
+    /** The authored rewards group, or null when the contract pays nothing. */
+    @Nullable
+    public ContentRewardsAsset getRewards() {
+        return rewards;
     }
 
     /** The per-namespace extra facts, exactly as authored; empty when the file carried none. */
@@ -242,14 +248,15 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
 
     /**
      * Fold this contract into the runtime definition, with the contract POLICY stamped on: posted
-     * rather than listed, never paid out in the field, collected wherever it was taken from, and
-     * governed by whatever posts it rather than by a private timer.
+     * rather than listed, collected wherever it was taken from, and governed by whatever posts it
+     * rather than by a private timer.
      *
      * <p>Stamping the policy here rather than asking every file to author it is what makes the
-     * dangerous combinations unwritable. A contract that paid out the moment its last step finished
-     * would hand a player their reward in the field and then vanish from the board, and a contract
-     * whose own cooldown outlived the posting would burn the next period's slot. Neither can be
-     * authored, because neither is a leaf.
+     * dangerous combinations unwritable - a contract whose own cooldown outlived the posting would
+     * burn the next period's slot, and no leaf exists to author one. The payout moment is the one
+     * choice the shared {@code Rewards} group leaves to the author: {@code Claim} parks at the
+     * board (where a contract's pay belongs, so it cannot be lost to the board turning over),
+     * {@code Auto} lands in the field the instant the work is done.
      *
      * @param generatedBy the generator that produced this contract, or null when authored by hand
      */
@@ -290,14 +297,12 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
             }
         }
 
-        // Every reward is a CLAIM reward: a finished contract PARKS and waits to be collected at
-        // its board, so a payout cannot be lost to the board turning over between finishing and
-        // coming back.
-        for (RewardEntryAsset reward : rewardsOrEmpty()) {
-            RewardSpec spec = reward == null ? null : reward.toSpec();
-            if (spec != null) {
-                quest.reward(spec);
-            }
+        // The shared two-bucket group, filed exactly as a quest files it: Claim parks at the board
+        // the contract was taken from, Auto lands in the field the instant the work is done.
+        ContentRewardsAsset pay = rewards;
+        if (pay != null) {
+            quest.autoRewards(pay.auto());
+            quest.claimRewards(pay.claim());
         }
 
         return new QuestDefinition(contractId, quest.build(),
@@ -319,11 +324,17 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
 
     // ==================== Listing ====================
 
-    /** How the contract is grouped and ordered, in the library's shared listing group. */
+    /**
+     * How the contract is grouped and ordered, in the library's shared listing group - the five
+     * presentation leaves only. The two visibility leaves its siblings carry (Hidden,
+     * RequirePrerequisites) deliberately do not exist here: a contract's visibility is the TYPE's
+     * policy (out of the quest log until it is taken, read at its board), so an authorable leaf
+     * would be a documented no-op.
+     */
     public static final class Listing extends ContentListingAsset {
 
         public static final BuilderCodec<Listing> CODEC =
-                appendLeaves(BuilderCodec.builder(Listing.class, Listing::new)).build();
+                appendPresentationLeaves(BuilderCodec.builder(Listing.class, Listing::new)).build();
 
         public Listing() {
         }

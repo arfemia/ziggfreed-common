@@ -54,7 +54,10 @@ removes the disagreement structurally rather than by everybody remembering to ag
 
 ## Persistence
 
-Blocks only, to `mods/ziggfreedcommon/placed-blocks.json`, loaded at setup. Two write paths share
+Blocks only, to `mods/ziggfreedcommon/placed-blocks.json`, loaded at setup. The file is a
+`{"version": 1, "players": {...}}` envelope; a bare-map file with no envelope still loads as
+version 1, every save writes the envelope, and a file declaring a newer version is warned about
+and left unread rather than misread. Two write paths share
 one stamped, lock-serialized writer: a debounced traffic beat (riding `trackPlacement` AND
 `consumePlacement`, at most one flush per `FLUSH_INTERVAL_MS`, CAS-claimed) snapshots the block
 state on the world thread and hands it to a single-flight background writer (latest snapshot wins,

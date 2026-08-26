@@ -6,7 +6,7 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.ziggfreed.common.dialogue.DialogueMemories;
 
 /**
- * {@code memories forget}: forget everything every conversation remembers about a player, without
+ * {@code memory forget}: forget everything every conversation remembers about a player, without
  * touching quest state - every first-visit beat they have played through, every named memory a
  * conversation set for them, and every one-shot gift they have already taken. Lets a tester re-run
  * a dialogue in isolation.
@@ -19,10 +19,10 @@ import com.ziggfreed.common.dialogue.DialogueMemories;
  * giving is not quest progress, and wiping it because an administrator reset quests would be
  * answering a question nobody asked.
  */
-final class MemoriesForgetCommand extends TargetPlayerSubCommand {
+final class MemoryForgetCommand extends TargetPlayerSubCommand {
 
-    MemoriesForgetCommand() {
-        super(ProgressCommandLine.Memories.GROUP, ProgressCommandLine.Memories.FORGET);
+    MemoryForgetCommand() {
+        super(ProgressCommandLine.Memory.GROUP, ProgressCommandLine.Memory.FORGET);
     }
 
     @Override
@@ -30,6 +30,6 @@ final class MemoriesForgetCommand extends TargetPlayerSubCommand {
         // The shared dialogue engine owns both backends and marks the persistent half dirty itself
         // through the store's own view, so nothing here has anything of its own to report.
         DialogueMemories.forgetAll(target.store(), target.ref());
-        ProgressAdminMessages.done(ctx, "memories.forgot", target.name());
+        ProgressAdminMessages.done(ctx, "memory.forgot", target.name());
     }
 }

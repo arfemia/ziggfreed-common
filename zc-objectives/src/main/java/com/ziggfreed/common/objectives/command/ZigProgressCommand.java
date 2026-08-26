@@ -23,7 +23,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
  * /zigprogress achievement give --achievement=&lt;id&gt; [--player=&lt;name&gt;]  earn one, whether or not its criteria are met
  * /zigprogress achievement claim --achievement=&lt;id|all&gt; [--player=&lt;name&gt;] collect an earned achievement's waiting rewards
  * /zigprogress achievement reset --achievement=&lt;id|all&gt; [--player=&lt;name&gt;] wipe one achievement, or the whole record
- * /zigprogress memories forget [--player=&lt;name&gt;]                     forget everything every conversation remembers
+ * /zigprogress memory forget [--player=&lt;name&gt;]                       forget everything every conversation remembers
  * </pre>
  *
  * <p><b>The two groups conjugate the same way on purpose:</b> {@code give} is the force-it verb on
@@ -73,7 +73,7 @@ public final class ZigProgressCommand extends AbstractCommandCollection {
         addSubCommand(new ProgressReloadCommand());
         addSubCommand(new QuestGroup());
         addSubCommand(new AchievementGroup());
-        addSubCommand(new MemoriesGroup());
+        addSubCommand(new MemoryGroup());
     }
 
     /** {@code /zigprogress quest ...} - the one place the quest verbs are listed. */
@@ -107,13 +107,13 @@ public final class ZigProgressCommand extends AbstractCommandCollection {
         }
     }
 
-    /** {@code /zigprogress memories ...} - what conversations remember, and how to make them forget. */
-    private static final class MemoriesGroup extends AbstractCommandCollection {
+    /** {@code /zigprogress memory ...} - what conversations remember, and how to make them forget. */
+    private static final class MemoryGroup extends AbstractCommandCollection {
 
-        MemoriesGroup() {
-            super(ProgressCommandLine.Memories.GROUP,
-                    ProgressAdminMessages.desc(ProgressCommandLine.Memories.GROUP));
-            addSubCommand(new MemoriesForgetCommand());
+        MemoryGroup() {
+            super(ProgressCommandLine.Memory.GROUP,
+                    ProgressAdminMessages.desc(ProgressCommandLine.Memory.GROUP));
+            addSubCommand(new MemoryForgetCommand());
         }
     }
 }

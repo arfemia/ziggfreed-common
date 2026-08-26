@@ -20,8 +20,8 @@ desc.achievement.status = Bir oyuncu için her başarımın durumunu göster.
 desc.achievement.give = Ölçütleri karşılansın ya da karşılanmasın, bir oyuncuya başarım ver.
 desc.achievement.claim = Kazanılmış bir başarımın bekleyen ödüllerini al.
 desc.achievement.reset = Bir oyuncunun bir başarım ya da tüm başarımlar için kaydını sil.
-desc.memories = Diyalog anıları: konuşmaların bir oyuncu hakkında hatırladıkları.
-desc.memories.forget = Her konuşmanın bir oyuncu hakkında hatırladığı her şeyi unut.
+desc.memory = Diyalog anıları: konuşmaların bir oyuncu hakkında hatırladıkları.
+desc.memory.forget = Her konuşmanın bir oyuncu hakkında hatırladığı her şeyi unut.
 desc.arg.player = İşlem yapılacak oyuncu. Varsayılan: sen.
 desc.arg.quest = Görev kimliği.
 desc.arg.quest_or_all = Bir görev kimliği ya da 'all'.
@@ -107,7 +107,7 @@ achievement.reset.nothing = {1} oyuncusunun {0} altında hiçbir şeyi yok.
 achievement.reset.all = {0} için tüm başarımlar ve kilometre taşları silindi ({1} kayıt).
 achievement.reset.first_claims = Bu oyuncunun kazandığı bir sunucuda-ilk, kurulu talep tablosunda kayıtlı kalır; orada serbest bırak.
 
-memories.forgot = Her konuşmanın {0} hakkında hatırladığı her şey, her iki ömürde de unutuldu.
+memory.forgot = Her konuşmanın {0} hakkında hatırladığı her şey, her iki ömürde de unutuldu.
 
 page.title = İlerleme Sistemleri
 page.subtitle = Kayıtlı ilerleme sistemleri için sunucu geneli anahtarlar. Değişiklik tüm oyunculara aynı anda uygulanır.

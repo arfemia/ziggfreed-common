@@ -12,7 +12,9 @@ engine's own codec.
 | `ContentTextAsset` | `Text`: `TitleKey` / `FlavorKey` / `DisplayName` |
 | `ContentMeta` | `Meta`: the namespace -> verbatim-block map both engines carry, plus the `decode` seam a consumer reads its own namespace through |
 | `ObjectiveLeafAsset` (+ `appendLeaves`) | the seven leaves every authored objective carries: `Kind` / `Target` / `MatchMode` / `Qualifier` / `Amount` / `Zone` / `TextKey` |
-| `RewardEntryAsset` | one `Rewards[]` entry: `Kind` plus an open `Params` map |
+| `ContentListingAsset` (+ `appendLeaves` / `appendPresentationLeaves` / `appendVisibilityLeaves`) | `Listing`: the five presentation leaves (`Category` / `SortOrder` / `Tags` / `Chains` / `Icon`) plus the two visibility ones (`Hidden` / `RequirePrerequisites`); a type whose visibility is its own policy (a bounty contract) appends only the presentation five, so no visibility leaf exists there to decode and do nothing |
+| `ContentRewardsAsset` | `Rewards`: the `{Auto, Claim}` two-bucket group every paying content type carries (quests, achievements, milestones, bounty contracts) - `Auto` lands when the content settles, `Claim` waits to be collected |
+| `RewardEntryAsset` | one reward entry (`Kind` plus an open `Params` map), the element type of both `Rewards` buckets |
 | `ProgressEditorDataSets` | the in-game editor pick lists (`objective_kinds`, `reward_kinds`) both engines' `Kind` fields point at |
 | `GeneratorAxisAsset` | one `ForEach` axis: `Token` / `Values` / `Source` / `Filter` |
 | `GeneratorSpec` | the four leaves the expander reads off ANY generator asset: `Base`, `IdPattern`, the axes, `Child` |

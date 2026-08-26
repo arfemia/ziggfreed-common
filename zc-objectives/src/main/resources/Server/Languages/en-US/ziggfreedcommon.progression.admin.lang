@@ -20,8 +20,8 @@ desc.achievement.status = Show where every achievement stands for one player.
 desc.achievement.give = Earn an achievement for a player, whether or not its criteria are met.
 desc.achievement.claim = Collect an earned achievement's waiting rewards.
 desc.achievement.reset = Wipe a player's record of one achievement, or of every achievement.
-desc.memories = Dialogue memories: what conversations remember about a player.
-desc.memories.forget = Forget everything every conversation remembers about a player.
+desc.memory = Dialogue memories: what conversations remember about a player.
+desc.memory.forget = Forget everything every conversation remembers about a player.
 desc.arg.player = The player to act on. Defaults to you.
 desc.arg.quest = The quest id.
 desc.arg.quest_or_all = A quest id, or 'all'.
@@ -107,7 +107,7 @@ achievement.reset.nothing = {1} holds nothing under {0}.
 achievement.reset.all = Wiped every achievement and milestone for {0} ({1} records).
 achievement.reset.first_claims = A server-first this player won is still recorded in the installed claim table; release it there.
 
-memories.forgot = Forgot everything every conversation remembers about {0}, in both lifetimes.
+memory.forgot = Forgot everything every conversation remembers about {0}, in both lifetimes.
 
 page.title = Progression Systems
 page.subtitle = Server-wide switches for the registered progression systems. A change applies to every player at once.

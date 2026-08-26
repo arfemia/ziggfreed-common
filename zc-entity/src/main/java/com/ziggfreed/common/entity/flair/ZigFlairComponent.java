@@ -30,6 +30,9 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code ZigProgressComponent} holds quest and achievement state for whoever is running.
  *
  * <p>Ids are lower-cased at write time, so a grant and a lookup can never miss each other on case.
+ * An id carrying {@code '|'} or {@code ':'} is REFUSED at grant time and again at the write path
+ * (see {@link #usesReservedDelimiter}): the persisted format joins the set on {@code '|'} with no
+ * escaping, so such an id would corrupt every later entry of the player's set on save.
  *
  * <p>{@link #register} is called once from the library plugin's setup, and {@link #install} hangs
  * the connect hook that attaches one to every player - a component type registered after a world
@@ -49,12 +52,30 @@ public class ZigFlairComponent implements Component<EntityStore> {
 
     public static final BuilderCodec<ZigFlairComponent> CODEC;
 
-    private static String serializeStringSet(Set<String> set) {
+    /**
+     * True when {@code flairId} carries a character the persisted save format reserves: the
+     * unlocked set is packed as one {@code '|'}-joined string with no escaping, so an id carrying
+     * {@code '|'} would split into phantom entries on the next read, and {@code ':'} is refused
+     * with it so a flair id can never collide with a namespaced key format - the same discipline
+     * custom skill ids get at every registration point.
+     */
+    public static boolean usesReservedDelimiter(@Nullable String flairId) {
+        return flairId == null || flairId.indexOf('|') >= 0 || flairId.indexOf(':') >= 0;
+    }
+
+    static String serializeStringSet(Set<String> set) {
         if (set == null || set.isEmpty()) {
             return "";
         }
         StringBuilder sb = new StringBuilder();
         for (String s : set) {
+            if (usesReservedDelimiter(s)) {
+                // A grant is already refused, so this only catches a direct write to the set; the
+                // id is dropped LOUDLY rather than corrupting every entry packed after it.
+                SafeLog.warn("[flair] the flair id '" + s + "' was NOT saved: it contains '|' or ':',"
+                        + " which the per-player save format reserves. Rename the flair.");
+                continue;
+            }
             if (sb.length() > 0) {
                 sb.append("|");
             }
@@ -63,7 +84,7 @@ public class ZigFlairComponent implements Component<EntityStore> {
         return sb.toString();
     }
 
-    private static Set<String> deserializeStringSet(String str) {
+    static Set<String> deserializeStringSet(String str) {
         Set<String> set = ConcurrentHashMap.newKeySet();
         if (str == null || str.isEmpty()) {
             return set;
@@ -126,9 +147,18 @@ public class ZigFlairComponent implements Component<EntityStore> {
         return flairId != null && unlockedFlairs.contains(flairId.toLowerCase(Locale.ROOT));
     }
 
-    /** Unlock {@code flairId} (lowercased at write time). Returns true when newly added. */
+    /**
+     * Unlock {@code flairId} (lowercased at write time). Returns true when newly added; an id
+     * carrying {@code '|'} or {@code ':'} is REFUSED with one warning naming it, because the save
+     * format reserves both (see {@link #usesReservedDelimiter}).
+     */
     public boolean unlock(@Nullable String flairId) {
         if (flairId == null || flairId.isBlank()) {
+            return false;
+        }
+        if (usesReservedDelimiter(flairId)) {
+            SafeLog.warn("[flair] the flair id '" + flairId + "' is REFUSED: it contains '|' or ':',"
+                    + " which the per-player save format reserves. Rename the flair.");
             return false;
         }
         return unlockedFlairs.add(flairId.toLowerCase(Locale.ROOT));

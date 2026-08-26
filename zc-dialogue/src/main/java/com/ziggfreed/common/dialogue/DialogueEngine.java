@@ -367,9 +367,24 @@ public final class DialogueEngine {
      */
     @Nullable
     public NpcDialogue decode(@Nonnull String id, @Nonnull String json) {
+        return decode(id, json, null);
+    }
+
+    /**
+     * Read a dialogue body written as JSON ON TOP of {@code base}: the same per-node merge
+     * {@code Parent} inheritance applies, so a screen, a memory or a shared option group the body
+     * does not restate keeps what {@code base} gave it, while {@code Start} is one ladder a body
+     * that writes one replaces. A null base reads the body standalone. This is what the owner
+     * layer's leaf-merge folds through. Null + warn on failure.
+     */
+    @Nullable
+    public NpcDialogue decode(@Nonnull String id, @Nonnull String json, @Nullable NpcDialogue base) {
         try {
-            NpcDialogue d = DialogueTypeTable.get().dialogueCodec()
-                    .decodeJson(RawJsonReader.fromJsonString(json), new ExtraInfo());
+            NpcDialogue d = base == null
+                    ? DialogueTypeTable.get().dialogueCodec()
+                            .decodeJson(RawJsonReader.fromJsonString(json), new ExtraInfo())
+                    : DialogueTypeTable.get().dialogueCodec()
+                            .decodeAndInheritJson(RawJsonReader.fromJsonString(json), base, new ExtraInfo());
             if (d == null) {
                 return null;
             }

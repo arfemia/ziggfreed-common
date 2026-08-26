@@ -18,24 +18,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The owner file sits over the shared store, and lookups do not care how an id was cased.
- *
- * <p>A conversation is authored once, in the folder every mod on the server reads back, and the one
- * thing above that folder is the server owner's own file. An entry there REPLACES the stored
- * conversation of that id outright rather than merging with it, because merging is what
- * {@code Parent} is for and it happens while the asset files are read; a body written in the owner
- * file has no parent and stands on its own.
+ * The owner file sits over the shared store the way every owner file in {@code
+ * mods/ziggfreedcommon/} does: a bare map from id to the leaves that id should read differently,
+ * {@code $}-prefixed keys reserved, and an entry folded over the stored conversation LEAF BY LEAF -
+ * the same per-node merge {@code Parent} inheritance uses - so retuning one line does not silently
+ * discard every screen the author did not restate.
  */
 class DialogueOwnerLayerTest {
 
-    private static final String ONE_NODE = """
+    private static final String TWO_NODES = """
             { "Start": { "Fallback": "n" },
-              "Nodes": { "n": { "Text": "stored" } } }
-            """;
-
-    private static final String OWNER_BODY = """
-            { "Start": { "Fallback": "n" },
-              "Nodes": { "n": { "Text": "owner" } } }
+              "Nodes": { "n": { "Text": "stored" },
+                         "m": { "Text": "second screen" } } }
             """;
 
     /**
@@ -51,19 +45,58 @@ class DialogueOwnerLayerTest {
     }
 
     @Test
-    void anOwnerEntryReplacesTheStoredConversationOfThatId(@TempDir Path dir) throws IOException {
-        store("guide_intro", ONE_NODE);
-        assertEquals("stored", nodeText("guide_intro"), "the stored conversation answers on its own");
+    void aPartialEntryMergesPerNodeOverTheStoredConversation(@TempDir Path dir) throws IOException {
+        store("guide_intro", TWO_NODES);
+        assertEquals("stored", nodeText("guide_intro", "n"), "the stored conversation answers on its own");
 
         ownerFile(dir, """
-                { "dialogues": { "guide_intro": %s } }
-                """.formatted(OWNER_BODY));
-        assertEquals("owner", nodeText("guide_intro"), "the owner's own body replaces the stored one");
+                { "guide_intro": { "Nodes": { "n": { "Text": "owner" } } } }
+                """);
+
+        assertEquals("owner", nodeText("guide_intro", "n"), "the restated node reads the owner's way");
+        assertEquals("second screen", nodeText("guide_intro", "m"),
+                "a screen the owner did not restate keeps what the stored conversation gave it");
+    }
+
+    @Test
+    void anIdNothingStoresIsANewConversationStandingAlone(@TempDir Path dir) throws IOException {
+        ownerFile(dir, """
+                { "owner_only": { "Start": { "Fallback": "n" },
+                                  "Nodes": { "n": { "Text": "mine" } } } }
+                """);
+
+        assertEquals("mine", nodeText("owner_only", "n"),
+                "an id no pack defines is the owner's own conversation rather than an error");
+    }
+
+    @Test
+    void schemaVersionIsAReservedMarkerNotAConversation(@TempDir Path dir) throws IOException {
+        store("guide_intro", TWO_NODES);
+        ownerFile(dir, """
+                { "$SchemaVersion": 1,
+                  "$Comment": "retune the greeting",
+                  "guide_intro": { "Nodes": { "n": { "Text": "owner" } } } }
+                """);
+
+        assertEquals("owner", nodeText("guide_intro", "n"), "the entry beside the marker is in force");
+        assertNull(DialogueAssetStore.getInstance().dialogue("$SchemaVersion"),
+                "no phantom conversation was made of the marker");
+    }
+
+    @Test
+    void aNewerSchemaVersionRefusesTheWholeFile(@TempDir Path dir) throws IOException {
+        store("guide_intro", TWO_NODES);
+        ownerFile(dir, """
+                { "$SchemaVersion": 2, "guide_intro": { "Nodes": { "n": { "Text": "owner" } } } }
+                """);
+
+        assertEquals("stored", nodeText("guide_intro", "n"),
+                "nothing in a future-shaped file is in force; the stored conversation stands");
     }
 
     @Test
     void anIdIsFoundHoweverItWasCased(@TempDir Path dir) throws IOException {
-        store("guide_intro", ONE_NODE);
+        store("guide_intro", TWO_NODES);
         assertNotNull(DialogueAssetStore.getInstance().dialogue("GUIDE_INTRO"),
                 "an id is the same id whatever case it was written in");
         assertNull(DialogueAssetStore.getInstance().dialogue("nope"),
@@ -91,7 +124,7 @@ class DialogueOwnerLayerTest {
         DialogueAssetStore.getInstance().applyOwnerLayer();
     }
 
-    private static String nodeText(String id) {
-        return DialogueAssetStore.getInstance().dialogue(id).getNode("n").getText();
+    private static String nodeText(String id, String node) {
+        return DialogueAssetStore.getInstance().dialogue(id).getNode(node).getText();
     }
 }

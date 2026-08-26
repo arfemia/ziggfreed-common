@@ -8,6 +8,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -249,6 +252,54 @@ class PlacedBlockLedgerTest {
                 "a placement outlives the restart");
         assertFalse(ledger.consumePlacedItem(PLACER, "Sapling", MOMENT),
                 "a placed item does not, because it would have expired before the server came back");
+    }
+
+    @Test
+    void aPreEnvelopeBareMapFileStillLoadsAsVersionOne(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("placed-blocks.json");
+        Files.writeString(file, """
+                { "%s": [ { "worldUuid": "%s", "x": 10, "y": 11, "z": 12, "placedTime": %d } ] }
+                """.formatted(PLACER, WORLD, System.currentTimeMillis()));
+        ledger.setFile(file);
+
+        ledger.load();
+
+        assertTrue(ledger.isPlaced(PLACER, WORLD, 10, 11, 12),
+                "a file written before the version envelope existed reads exactly as it always did");
+    }
+
+    @Test
+    void theSavedFileCarriesTheVersionEnvelope(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("placed-blocks.json");
+        ledger.setFile(file);
+        ledger.trackPlacement(PLACER, WORLD, 10, 11, 12);
+
+        ledger.save();
+
+        JsonObject root = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+        assertEquals(1, root.get("version").getAsInt(), "every save writes the version");
+        assertTrue(root.getAsJsonObject("players").has(PLACER.toString()),
+                "the rows ride the envelope's players map");
+
+        ledger.clear();
+        ledger.load();
+        assertTrue(ledger.isPlaced(PLACER, WORLD, 10, 11, 12), "and the envelope round-trips");
+    }
+
+    @Test
+    void aFileDeclaringANewerVersionIsLeftUnread(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("placed-blocks.json");
+        Files.writeString(file, """
+                { "version": 2,
+                  "players": { "%s": [ { "worldUuid": "%s", "x": 1, "y": 2, "z": 3,
+                                         "placedTime": %d } ] } }
+                """.formatted(PLACER, WORLD, System.currentTimeMillis()));
+        ledger.setFile(file);
+
+        ledger.load();
+
+        assertEquals(0, ledger.trackedBlockCount(),
+                "a future-shaped file is refused whole rather than misread as today's shape");
     }
 
     @Test

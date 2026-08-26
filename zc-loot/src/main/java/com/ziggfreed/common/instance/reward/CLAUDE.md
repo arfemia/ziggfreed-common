@@ -64,7 +64,8 @@ Package naming to keep as this module grows: the tri-layer shape `<domain>/` + `
   policy the consumer reads at its resolve choke-point.
 - **[`PendingRewardStore`](PendingRewardStore.java)** - durable per-player reward queue (file-backed JSON):
   `queue`/`drain`/`has`. Holds owed spoils across disconnect/restart and re-holds anything that still does
-  not fit at claim time.
+  not fit at claim time. The file carries `"version": 1` (absent reads as 1, so a pre-marker file
+  still loads; a newer version is warned about and left unread).
 - **[`DeferredRewards`](DeferredRewards.java)** - the ONE translation from what a loot pass DECIDED
   (`LootEngine.select`, a list of `Selected(grants, cue)`) into `InstanceReward`s that can be shown
   now and handed over later. `from(grants, kinds, subject, sourceId, warn)` /

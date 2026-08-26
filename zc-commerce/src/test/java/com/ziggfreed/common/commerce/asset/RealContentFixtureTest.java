@@ -189,7 +189,8 @@ class RealContentFixtureTest {
             assertEquals("Trork", trork.objectivesOrEmpty().get("main").getTarget());
             assertEquals("hard", trork.membershipOn("daily").getDifficulty(),
                     "a packed board:/diff:/weight: label list converts to a typed membership");
-            assertEquals(2, trork.rewardsOrEmpty().length);
+            assertEquals(2, trork.getRewards().claimEntries().length,
+                    "a contract's pay rides the shared Rewards group's Claim bucket");
         }
 
         @Test

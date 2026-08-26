@@ -98,7 +98,7 @@ seam.
 | `producer/` | `ProgressDispatch` plus the six generic producers (block break, mob kill, craft, pickup, place block, and the instance-round listener off zc-instance's `InstanceRoundCompletedEvent`) and their six typed `MomentPayload` records |
 | `book/` | the in-game two-tab surface and the item that opens it |
 | `questlist/` | the NPC quest page: what one CHARACTER has to offer, list and detail |
-| `command/` | `/zigprogress`: the admin family over THE runtime - quest, achievement and memories groups; see [its router](command/CLAUDE.md) |
+| `command/` | `/zigprogress`: the admin family over THE runtime - quest, achievement and memory groups; see [its router](command/CLAUDE.md) |
 | `admin/` | the progression admin page: `SystemSwitch` + `SystemSwitches` (the registered server-wide system switches) and `ProgressionAdminPage`/`Pages`/`Deps` (audience DEFAULT DENY, opened only by direct static call) - see below |
 | `hud/` | the tracked-quest HUD (`TrackedQuestHud` + `TrackedQuestHuds` + `TrackedQuestHudDeps` + `TrackedQuestSnapshot` + `RepaintCoalescer`) and the tracked-quests side-panel renderer a page embeds (`TrackedQuestPanelRenderer`) |
 

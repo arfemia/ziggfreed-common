@@ -6,8 +6,10 @@
   "Objectives": {
     "main": { "Amount": 10 }
   },
-  "Rewards": [
-    { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "10" } },
-    { "Kind": "Mmo_Xp", "Params": { "Skill": "FISHING", "Amount": "900" } }
-  ]
+  "Rewards": {
+    "Claim": [
+      { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "10" } },
+      { "Kind": "Mmo_Xp", "Params": { "Skill": "FISHING", "Amount": "900" } }
+    ]
+  }
 }

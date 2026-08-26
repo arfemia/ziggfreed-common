@@ -56,6 +56,9 @@ author may write; each of those already has an owner one package over.
   before anything is decoded, or a second read stacks on the first and a file that says one thing
   starts meaning another. Decoding through the type's OWN codec is what makes an override leaf by
   leaf, so an author needs no second schema.
+- **`$`-prefixed top-level keys are reserved in every owner file** (`util/OwnerFiles`): `$Comment`
+  is documentation and `$SchemaVersion` names the file's schema - absent reads as 1, a newer
+  number than the library reads refuses the whole file with one warning.
 - **ONE enumerator vocabulary, however many stores walk axes.** The rows behind `"yourmod:skills"`
   are registered once, and both the quest generators and the offer generators read the same list.
   `CommerceCatalogs.axisValuesOf` is the one line that says so; a consumer installs the same registry

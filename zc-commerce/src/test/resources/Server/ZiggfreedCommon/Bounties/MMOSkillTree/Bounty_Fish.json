@@ -5,7 +5,9 @@
   "Objectives": {
     "main": { "Kind": "CATCH_FISH", "Amount": 1, "MatchMode": "CONTAINS" }
   },
-  "Rewards": [
-    { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "1" } }
-  ]
+  "Rewards": {
+    "Claim": [
+      { "Kind": "Currency", "Params": { "Currency": "bounty_token", "Amount": "1" } }
+    ]
+  }
 }

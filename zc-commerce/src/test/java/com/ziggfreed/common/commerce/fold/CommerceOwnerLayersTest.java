@@ -154,6 +154,44 @@ class CommerceOwnerLayersTest {
     }
 
     @Test
+    @DisplayName("$SchemaVersion 1 is a reserved marker, not an entry, in every commerce owner file")
+    void schemaVersionIsReservedInEveryReader() throws IOException {
+        write(CommerceOwnerLayers.CURRENCIES_FILE, """
+                { "$SchemaVersion": 1, "bounty_token": { "Cap": 5000 } }
+                """);
+        write(CommerceOwnerLayers.SHOPS_FILE, """
+                { "$SchemaVersion": 1, "general": { "Enabled": false } }
+                """);
+        write(CommerceOwnerLayers.BOARDS_FILE, """
+                { "$SchemaVersion": 1, "daily": { "Enabled": false } }
+                """);
+
+        CommerceOwnerLayers.reloadCurrencies();
+        CommerceOwnerLayers.reloadShops();
+        CommerceOwnerLayers.reloadBoards();
+
+        assertEquals(5000, CurrencyConfig.getInstance().resolve("bounty_token").cap(),
+                "the override beside the marker is in force");
+        assertFalse(ShopConfig.getInstance().resolve("general").isEnabled());
+        assertFalse(BoardConfig.getInstance().resolve("daily").isEnabled());
+        assertEquals(1, ShopConfig.getInstance().ids().size(),
+                "the marker did not become a storefront of its own");
+    }
+
+    @Test
+    @DisplayName("a file declaring a newer $SchemaVersion is refused whole, never guessed at")
+    void aNewerSchemaVersionRefusesTheFile() throws IOException {
+        write(CommerceOwnerLayers.SHOPS_FILE, """
+                { "$SchemaVersion": 2, "general": { "Enabled": false } }
+                """);
+
+        CommerceOwnerLayers.reloadShops();
+
+        assertTrue(ShopConfig.getInstance().resolve("general").isEnabled(),
+                "nothing in a future-shaped file is in force; the packs stand");
+    }
+
+    @Test
     @DisplayName("one unreadable entry costs itself and nothing else")
     void aBadEntryIsSkippedAndTheRestAreCarried() throws IOException {
         write(CommerceOwnerLayers.SHOPS_FILE, """

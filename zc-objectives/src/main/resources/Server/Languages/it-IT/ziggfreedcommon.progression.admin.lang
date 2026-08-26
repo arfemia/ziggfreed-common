@@ -20,8 +20,8 @@ desc.achievement.status = Mostrare a che punto è ogni traguardo per un giocator
 desc.achievement.give = Assegnare un traguardo a un giocatore, che i criteri siano soddisfatti o no.
 desc.achievement.claim = Riscuotere le ricompense in attesa di un traguardo ottenuto.
 desc.achievement.reset = Cancellare quanto un giocatore ha su un traguardo, o su tutti.
-desc.memories = Ricordi di dialogo: ciò che le conversazioni ricordano di un giocatore.
-desc.memories.forget = Dimenticare tutto ciò che ogni conversazione ricorda di un giocatore.
+desc.memory = Ricordi di dialogo: ciò che le conversazioni ricordano di un giocatore.
+desc.memory.forget = Dimenticare tutto ciò che ogni conversazione ricorda di un giocatore.
 desc.arg.player = Il giocatore su cui agire. Per impostazione predefinita, tu.
 desc.arg.quest = L'id della missione.
 desc.arg.quest_or_all = Un id di missione, oppure 'all'.
@@ -107,7 +107,7 @@ achievement.reset.nothing = {1} non ha nulla sotto {0}.
 achievement.reset.all = Cancellati tutti i traguardi e le tappe di {0} ({1} voci).
 achievement.reset.first_claims = Un primo del server vinto da questo giocatore resta annotato nella tabella delle rivendicazioni installata; liberalo lì.
 
-memories.forgot = Dimenticato tutto ciò che ogni conversazione ricorda di {0}, in entrambe le durate.
+memory.forgot = Dimenticato tutto ciò che ogni conversazione ricorda di {0}, in entrambe le durate.
 
 page.title = Sistemi di Progressione
 page.subtitle = Interruttori a livello di server per i sistemi di progressione registrati. Una modifica si applica a tutti i giocatori contemporaneamente.

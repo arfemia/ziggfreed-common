@@ -86,6 +86,26 @@ public final class ContentRewardsAsset {
         return build(claim);
     }
 
+    /**
+     * The {@code Auto} bucket's entries exactly as authored, blanks included - for a validator that
+     * must see an entry {@link #auto()} would drop for naming no Kind.
+     */
+    @Nonnull
+    public RewardEntryAsset[] autoEntries() {
+        return auto == null ? new RewardEntryAsset[0] : auto.clone();
+    }
+
+    /** The {@code Claim} bucket's entries exactly as authored, blanks included. */
+    @Nonnull
+    public RewardEntryAsset[] claimEntries() {
+        return claim == null ? new RewardEntryAsset[0] : claim.clone();
+    }
+
+    /** True when neither bucket authors an entry - content that pays nothing at all. */
+    public boolean isEmpty() {
+        return (auto == null || auto.length == 0) && (claim == null || claim.length == 0);
+    }
+
     @Nonnull
     private static List<RewardSpec> build(@Nullable RewardEntryAsset[] entries) {
         if (entries == null || entries.length == 0) {

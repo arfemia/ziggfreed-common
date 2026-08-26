@@ -16,6 +16,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.ziggfreed.common.util.JsonOverrideWriter;
+import com.ziggfreed.common.util.OwnerFiles;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -47,6 +48,11 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link JsonOverrideWriter} (atomic, sibling keys and any {@code $Comment} preserved) and then
  * reloads. A malformed file is never overwritten and is treated as empty, so a hand-edit typo
  * costs the overrides, not the file.
+ *
+ * <p><b>{@code $}-prefixed top-level keys are reserved, never entries</b> ({@link OwnerFiles}):
+ * {@code $Comment} is documentation, and {@code $SchemaVersion} names the file's schema (absent
+ * means 1, the shape above; a newer number than this library reads refuses the whole file with
+ * one warning).
  */
 public final class NpcPlacementOverrides {
 
@@ -99,7 +105,9 @@ public final class NpcPlacementOverrides {
                 if (!body.isBlank()) {
                     JsonElement root = JsonParser.parseString(body);
                     if (root != null && root.isJsonObject()) {
-                        parse(root.getAsJsonObject(), parsed);
+                        if (OwnerFiles.schemaReadable(root.getAsJsonObject(), "placement", path)) {
+                            parse(root.getAsJsonObject(), parsed);
+                        }
                     } else {
                         SafeLog.warn("[placement] " + path + " is not a JSON object - overrides ignored");
                     }
@@ -115,8 +123,8 @@ public final class NpcPlacementOverrides {
     private static void parse(@Nonnull JsonObject root, @Nonnull Map<String, Boolean> out) {
         for (Map.Entry<String, JsonElement> e : root.entrySet()) {
             String key = e.getKey();
-            if (key == null || key.isBlank() || key.startsWith("$")) {
-                continue; // $Comment and friends are documentation, not entries
+            if (OwnerFiles.isReservedKey(key)) {
+                continue; // $Comment, $SchemaVersion and friends are file-level, not entries
             }
             JsonElement value = e.getValue();
             if (value == null || !value.isJsonObject()) {
