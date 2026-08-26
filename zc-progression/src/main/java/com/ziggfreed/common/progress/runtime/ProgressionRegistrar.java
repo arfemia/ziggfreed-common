@@ -35,9 +35,9 @@ import com.ziggfreed.common.subject.Subject;
  *   take a slot another consumer already holds is REFUSED and named: two mods each wanting their own
  *   quest store is unresolvable, and quietly picking one is the same double-tracking failure one
  *   level up.
- *   <li><b>Contribution</b> - gates, system gates, taps, moment listeners, kill attributions, text
- *   sources. Every registration applies; gates AND, taps and listeners fan out, attributions and
- *   text sources answer in order.
+ *   <li><b>Contribution</b> - gates, system gates, taps, moment listeners, kill attributions, kill
+ *   qualifiers, text sources. Every registration applies; gates AND, taps and listeners fan out,
+ *   attributions, qualifiers and text sources answer in order.
  * </ul>
  *
  * <p><b>CONTENT is not registered here at all, and needs no claim.</b> Every reader folds the whole
@@ -286,6 +286,21 @@ public final class ProgressionRegistrar {
     @Nonnull
     public ProgressionRegistrar killAttribution(@Nonnull KillAttribution attribution) {
         ProgressionRuntime.addKillAttribution(this, attribution);
+        return this;
+    }
+
+    /**
+     * Add this mod's answer to "this killed entity carries that qualifier", so a kill moment can
+     * carry a qualifier - e.g. a difficulty tier a companion mod attributes to the mobs it scales -
+     * and content authoring that qualifier on a kill criterion matches.
+     *
+     * <p>Every registered qualifier is asked in registration order and the first non-null answer
+     * stands; one that throws is skipped with a warn, and the kill still fires (unqualified when no
+     * answer survives). See {@link KillQualifier}.
+     */
+    @Nonnull
+    public ProgressionRegistrar killQualifier(@Nonnull KillQualifier qualifier) {
+        ProgressionRuntime.addKillQualifier(this, qualifier);
         return this;
     }
 

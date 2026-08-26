@@ -89,6 +89,16 @@ the moment for THAT player with the same payload. Nothing registered, no answer,
 credits nobody, which is what a bare server has always done. `KillAttributionProducerTest` pins the
 seam.
 
+**The victim is asked about ONCE for a qualifier, at fire time.** `ZigMobKillProducer` asks the
+composed `progress/runtime/KillQualifier` (registered through `ProgressionRegistrar.killQualifier`;
+same shape as the attribution: asked in order, first real answer wins, a throwing one skipped with
+a warn) what the killed entity carries - e.g. a difficulty tier a companion mod attributes - and
+stamps the answer into the ONE primary `KILL_ENTITY` dispatch. A criterion authoring that qualifier
+matches; an unqualified criterion keeps matching every kill, because the matching rule reads an
+empty AUTHORED qualifier as "any" - which is also why there is deliberately NO second qualified
+re-fire (it would count one kill twice for every unqualified criterion). No answer fires the kill
+unqualified, byte-identical to a bare server. `KillQualifierProducerTest` pins the seam.
+
 ## The pieces
 
 | Package | What it is |
@@ -246,7 +256,7 @@ its own typed payload record to the dispatch, so a reaction reaches what the tup
 | Producer | Kind | Target | Amount | Payload |
 |---|---|---|---|---|
 | `ZigBlockBreakProducer` | `BREAK_BLOCK` | the broken block's id | 1 | `BlockBreakPayload(event)` |
-| `ZigMobKillProducer` | `KILL_ENTITY` | the dead entity's id | 1 | `MobKillPayload(victimRef, death)` |
+| `ZigMobKillProducer` | `KILL_ENTITY` | the dead entity's id (qualifier: the composed `KillQualifier`'s answer for the victim, null = unqualified) | 1 | `MobKillPayload(victimRef, death)` |
 | `ZigCraftProducer` | `CRAFT_ITEM` | the crafted OUTPUT item's id | the batch size (`craftBatchAmount`, at least 1) | `CraftPayload(event, recipeId)` |
 | `ZigPickupProducer` | `PICKUP_ITEM` | the picked-up item's id | 1 | `PickupPayload(event)` |
 | `ZigPlaceBlockProducer` | `PLACE_BLOCK` | the placed item's id | 1 | `PlaceBlockPayload(event)` |
@@ -260,6 +270,9 @@ its own typed payload record to the dispatch, so a reaction reaches what the tup
 - **The kill producer's credited player may not be the raw attacker**: for a non-player attacker it
   asks the composed `KillAttribution` and fires for the owner it names (see above); the payload's
   death still names the raw attacker, so a reaction can tell the two apart.
+- **The kill producer's qualifier is the composed `KillQualifier`'s answer, asked ONCE at fire
+  time** (see above): a registered contribution's tier rides the one primary dispatch, and no
+  answer fires the kill unqualified, byte-identical to a bare server.
 
 - **`STAT_THRESHOLD` has no producer and never will.** It names a STATE rather than a moment, so
   nothing may fire for it; both engines read it themselves through the optional `factors` /
@@ -612,7 +625,10 @@ anti-exploit half - the SOLE home of that guarantee now that no consumer reads t
 break or a pickup: a placed-then-broken block and a placed-then-picked-up item both decline, while a
 fresh one credits. `KillAttributionProducerTest` pins the attribution seam (a non-player attacker
 with a registered attribution fires for the answered player, none registered credits nobody, first
-real answer wins, a throwing one is skipped); `ZigPlaceBlockProducerTest` pins the three placement
+real answer wins, a throwing one is skipped); `KillQualifierProducerTest` pins the qualifier seam
+(the registered answer stamped into the one dispatch, none registered fires unqualified, an
+unqualified criterion matching qualified and unqualified kills once each, a qualified criterion
+matching only its own, a throwing one skipped); `ZigPlaceBlockProducerTest` pins the three placement
 filters; `ZigCraftProducerTest` pins the batch-amount clamp. The engine-touching halves - the ECS
 producers themselves, the component attach, the asset fold - land behind in-game smoke.
 

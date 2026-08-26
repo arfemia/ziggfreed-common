@@ -126,6 +126,7 @@ public final class ProgressionRuntime {
     private static final List<Contribution<ProgressDispatchTap>> TAPS = new ArrayList<>();
     private static final List<Contribution<MomentListener>> MOMENT_LISTENERS = new ArrayList<>();
     private static final List<Contribution<KillAttribution>> KILL_ATTRIBUTIONS = new ArrayList<>();
+    private static final List<Contribution<KillQualifier>> KILL_QUALIFIERS = new ArrayList<>();
     private static final List<Contribution<ProgressionFeedbackHook>> FEEDBACK_HOOKS = new ArrayList<>();
     private static final List<Contribution<ProgressionTextSource>> TEXT_SOURCES = new ArrayList<>();
 
@@ -313,6 +314,13 @@ public final class ProgressionRuntime {
     static synchronized void addKillAttribution(@Nonnull ProgressionRegistrar registrar,
                                                 @Nonnull KillAttribution attribution) {
         if (addContribution(KILL_ATTRIBUTIONS, registrar.owner(), attribution)) {
+            rederive();
+        }
+    }
+
+    static synchronized void addKillQualifier(@Nonnull ProgressionRegistrar registrar,
+                                              @Nonnull KillQualifier qualifier) {
+        if (addContribution(KILL_QUALIFIERS, registrar.owner(), qualifier)) {
             rederive();
         }
     }
@@ -513,6 +521,23 @@ public final class ProgressionRuntime {
     @Nonnull
     public static synchronized List<String> killAttributionOwners() {
         return ownerNames(KILL_ATTRIBUTIONS);
+    }
+
+    /**
+     * THE composed answer to "this killed entity carries that qualifier", read LIVE: every
+     * registered {@link KillQualifier} asked in order, first non-null answer wins, a throwing one
+     * skipped with a warn. Answers null for a victim nobody qualifies, which fires the kill
+     * unqualified exactly as a bare server always has.
+     */
+    @Nonnull
+    public static KillQualifier killQualifier() {
+        return ProgressionParts.KILL_QUALIFIER;
+    }
+
+    /** Who registered a kill qualifier, in registration order. */
+    @Nonnull
+    public static synchronized List<String> killQualifierOwners() {
+        return ownerNames(KILL_QUALIFIERS);
     }
 
     /** Who registered a SYSTEM gate, in registration order. */
@@ -726,6 +751,7 @@ public final class ProgressionRuntime {
         TAPS.clear();
         MOMENT_LISTENERS.clear();
         KILL_ATTRIBUTIONS.clear();
+        KILL_QUALIFIERS.clear();
         FEEDBACK_HOOKS.clear();
         ProgressionParts.FEEDBACK_SILENCE_REPORTED.set(false);
         TEXT_SOURCES.clear();
@@ -766,6 +792,7 @@ public final class ProgressionRuntime {
                 ProgressionParts.composeTaps(values(TAPS), warn),
                 ProgressionParts.composeMomentListeners(values(MOMENT_LISTENERS), warn),
                 ProgressionParts.composeKillAttributions(values(KILL_ATTRIBUTIONS), warn),
+                ProgressionParts.composeKillQualifiers(values(KILL_QUALIFIERS), warn),
                 ProgressionParts.composeFeedbackHooks(values(FEEDBACK_HOOKS), warn),
                 ProgressionParts.freezeTextSources(values(TEXT_SOURCES)));
     }
@@ -830,7 +857,8 @@ public final class ProgressionRuntime {
                 + ", text sources=" + owners(TEXT_SOURCES)
                 + ", feedback hooks=" + owners(FEEDBACK_HOOKS)
                 + ", moment listeners=" + owners(MOMENT_LISTENERS)
-                + ", kill attributions=" + owners(KILL_ATTRIBUTIONS));
+                + ", kill attributions=" + owners(KILL_ATTRIBUTIONS)
+                + ", kill qualifiers=" + owners(KILL_QUALIFIERS));
         SafeLog.info("[progression]   content     quests=" + counts(QUEST_LAYERS)
                 + ", achievements=" + counts(ACHIEVEMENT_LAYERS)
                 + ", milestones=" + counts(MILESTONE_LAYERS));

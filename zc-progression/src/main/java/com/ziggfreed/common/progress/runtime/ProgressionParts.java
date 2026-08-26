@@ -63,6 +63,7 @@ import com.ziggfreed.common.util.SafeLog;
  * @param tap                       every registered dispatch tap, fanned out
  * @param momentListener            every registered moment listener, fanned out
  * @param killAttribution           every registered kill attribution, first real answer wins
+ * @param killQualifier             every registered kill qualifier, first real answer wins
  * @param feedbackHook              every registered feedback hook, fanned out
  * @param textSources               every registered text source, in registration order
  */
@@ -84,6 +85,7 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                         @Nonnull ProgressDispatchTap tap,
                         @Nonnull MomentListener momentListener,
                         @Nonnull KillAttribution killAttribution,
+                        @Nonnull KillQualifier killQualifier,
                         @Nonnull ProgressionFeedbackHook feedbackHook,
                         @Nonnull List<ProgressionTextSource> textSources) {
 
@@ -122,7 +124,7 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
             ProgressionCallScope.DIRECT, ProgressionCallScope.DIRECT,
             null, DEFAULT_WARN, QuestGates.OPEN, AchievementGates.OPEN,
             ProgressionSystemGate.OPEN, ProgressDispatchTap.NONE, MomentListener.NONE,
-            KillAttribution.NONE, ProgressionFeedbackHook.NONE, List.of());
+            KillAttribution.NONE, KillQualifier.NONE, ProgressionFeedbackHook.NONE, List.of());
 
     // ==================== the forwarders the engines are built over ====================
 
@@ -339,6 +341,10 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
     /** The composed kill attribution, read LIVE. */
     static final KillAttribution KILL_ATTRIBUTION = (store, attackerRef) ->
             ProgressionRuntime.parts().killAttribution().actsFor(store, attackerRef);
+
+    /** The composed kill qualifier, read LIVE. */
+    static final KillQualifier KILL_QUALIFIER = (store, victimRef) ->
+            ProgressionRuntime.parts().killQualifier().qualifierFor(store, victimRef);
 
     /**
      * The composed owner switch, read LIVE, so a system gate registered after the engines were built
@@ -688,6 +694,34 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                     }
                 } catch (Throwable t) {
                     warn.accept("a kill attribution failed: " + t.getMessage());
+                }
+            }
+            return null;
+        };
+    }
+
+    /**
+     * Every registered kill qualifier, asked in registration order; the first non-null answer wins.
+     * A THROWING qualifier is skipped with a warn and the next is asked, and a fully failed ask
+     * answers null - so one mod's broken resolver costs at most its own qualifier and the kill
+     * still fires, unqualified, exactly as it would with nothing registered.
+     */
+    @Nonnull
+    static KillQualifier composeKillQualifiers(@Nonnull List<KillQualifier> qualifiers,
+                                               @Nonnull Consumer<String> warn) {
+        if (qualifiers.isEmpty()) {
+            return KillQualifier.NONE;
+        }
+        List<KillQualifier> frozen = List.copyOf(qualifiers);
+        return (store, victimRef) -> {
+            for (KillQualifier qualifier : frozen) {
+                try {
+                    String answer = qualifier.qualifierFor(store, victimRef);
+                    if (answer != null) {
+                        return answer;
+                    }
+                } catch (Throwable t) {
+                    warn.accept("a kill qualifier failed: " + t.getMessage());
                 }
             }
             return null;

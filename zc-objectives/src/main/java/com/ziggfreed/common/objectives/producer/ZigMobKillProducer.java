@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DeathSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.progress.runtime.KillAttribution;
+import com.ziggfreed.common.progress.runtime.KillQualifier;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.util.EntityIdentifierUtil;
 import com.ziggfreed.common.util.SafeLog;
@@ -36,6 +37,15 @@ import com.ziggfreed.common.util.SafeLog;
  * they had landed the blow. Nothing registered, or no answer, and the kill credits nobody, which is
  * what a bare server has always done. The moment carries a {@link MobKillPayload} either way, so a
  * reaction still reaches the victim and the raw attacker.
+ *
+ * <p><b>The victim is asked about ONCE for a qualifier, at fire time.</b> The composed
+ * {@link KillQualifier} - every registered one, first real answer wins, a throwing one skipped
+ * with a warn - names what the killed entity carries (e.g. a difficulty tier a companion mod
+ * attributes), and the answer is stamped into the ONE primary {@code KILL_ENTITY} dispatch, so a
+ * criterion authoring that qualifier matches while an unqualified criterion keeps matching every
+ * kill (an empty AUTHORED qualifier reads as "any"). No answer means the kill fires unqualified,
+ * byte-identical to a server with nothing registered; there is deliberately no second qualified
+ * re-fire, which would count one kill twice for every unqualified criterion.
  */
 public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
 
@@ -78,7 +88,10 @@ public final class ZigMobKillProducer extends DeathSystems.OnDeathSystem {
             if (victimId == null || victimId.isBlank()) {
                 victimId = UNKNOWN_VICTIM;
             }
-            ProgressDispatch.fire(store, credited, commandBuffer, KIND, victimId, null, 1L,
+            // The composed ask is guarded per contribution, so a throwing qualifier costs its own
+            // answer and never the kill: the moment still fires, unqualified.
+            String qualifier = ProgressionRuntime.killQualifier().qualifierFor(store, victimRef);
+            ProgressDispatch.fire(store, credited, commandBuffer, KIND, victimId, qualifier, 1L,
                     new MobKillPayload(victimRef, death));
         } catch (Throwable t) {
             SafeLog.warn("[progression] kill dispatch failed", t);
