@@ -134,6 +134,60 @@ class FactorNamesTest {
                 FactorNames.name("hytale:stat", "fame", caseOnly,
                         "yourmod.s.FAME"::equals).getMessageId(),
                 "no StripPrefix authored folds the whole param");
+
+        Map<String, DerivedFactorAsset> delimiterOnly = Map.of(
+                "overlay", DerivedFactorAsset.of("overlay", null, "yourmod:mastery_node", null, null,
+                        DerivedFactorAsset.ParamNames.of("yourmod.mastery.{param}.title",
+                                null, ":", null, null, null)));
+        assertEquals("yourmod.mastery.node_1.title",
+                FactorNames.name("yourmod:mastery_node", "swords:node_1", delimiterOnly,
+                        "yourmod.mastery.node_1.title"::equals).getMessageId(),
+                "everything up to and including the delimiter is cut before substitution, so a "
+                        + "compound track:node param reaches the keys its tail is filed under");
+        assertEquals("yourmod.mastery.plain.title",
+                FactorNames.name("yourmod:mastery_node", "plain", delimiterOnly,
+                        "yourmod.mastery.plain.title"::equals).getMessageId(),
+                "a param that does not carry the delimiter is left alone");
+    }
+
+    @Test
+    void allThreeTransformsComposeInOrder() {
+        // StripPrefix runs first, StripThrough second, the case fold last.
+        Map<String, DerivedFactorAsset> files = Map.of(
+                "overlay", DerivedFactorAsset.of("overlay", null, "yourmod:node", null, null,
+                        DerivedFactorAsset.ParamNames.of("yourmod.n.{param}", "MMO_", ":",
+                                DerivedFactorAsset.ParamNames.CASE_LOWER, null, null)));
+
+        assertEquals("yourmod.n.node_a",
+                FactorNames.name("yourmod:node", "MMO_Track:NODE_A", files,
+                        "yourmod.n.node_a"::equals).getMessageId());
+    }
+
+    @Test
+    void theWrapKeyFoldsThePatternsResolvedNameIntoItsPhrase() {
+        Map<String, DerivedFactorAsset> files = Map.of(
+                "overlay", DerivedFactorAsset.of("overlay", null, "hytale:stat", null, null,
+                        DerivedFactorAsset.ParamNames.of("yourmod.skill.{param}", "MMO_Level_",
+                                null, DerivedFactorAsset.ParamNames.CASE_LOWER,
+                                "yourmod.factor.skill_level",
+                                Map.of("MMO_CombatLevel", "yourmod.combat.name"))));
+
+        Message named = FactorNames.name("hytale:stat", "MMO_Level_MINING", files,
+                "yourmod.skill.mining"::equals);
+        assertEquals("yourmod.factor.skill_level", named.getMessageId(),
+                "the pattern's answer arrives wrapped in the authored phrase key, used verbatim");
+        assertEquals("yourmod.skill.mining",
+                named.getFormattedMessage().messageParams.get("0").messageId,
+                "the resolved name rides the phrase as its {0}, still a nested key of its own");
+
+        assertEquals("yourmod.combat.name",
+                FactorNames.name("hytale:stat", "MMO_CombatLevel", files, key -> true).getMessageId(),
+                "a Keys entry writes the whole name by hand, so the wrapper never touches it - "
+                        + "wrapping a complete name would double its own words");
+        assertNull(FactorNames.name("hytale:stat", "MMO_Level_MAGIC", files,
+                        "yourmod.skill.mining"::equals),
+                "a pattern key that is not shipped is still skipped - the wrapper changes what a "
+                        + "live answer reads as, never whether the pattern answers");
     }
 
     @Test

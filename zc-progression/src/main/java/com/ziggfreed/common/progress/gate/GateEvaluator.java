@@ -81,6 +81,13 @@ public final class GateEvaluator {
     public static final String REASON_NOT = "not";
 
     /**
+     * The reason token a nested all-of group's record reads back as. The walks never report it at
+     * top level - it exists only inside a composite {@link GateRefusal}'s children, where one
+     * {@code AnyOf} route asks for several things at once.
+     */
+    public static final String REASON_ALL_OF = "all_of";
+
+    /**
      * The factor a {@code Permission} leaf is evaluated as: {@code Param} is the node, and the
      * reading is 1 when the player holds it. It belongs to the portable {@code hytale:} vocabulary
      * because permissions are the engine's own paradigm rather than any one mod's invention.
@@ -294,6 +301,14 @@ public final class GateEvaluator {
      * itself resolved (what the player currently has), none of which the token ever does, so both
      * "what does this ask for" and "where do they stand" are answerable without re-evaluating
      * anything.
+     *
+     * <p>A COMPOSITE refusal carries what its group asks for as children, described from the
+     * block's own authored requirements rather than from the evaluation - the token says only that
+     * no route passed, and describing what each route ASKS FOR is the useful sentence anyway: a
+     * player wants to know their routes in, not which one the evaluator happened to try first. An
+     * {@code AnyOf} record carries one child per route (a multi-ask route folds into one nested
+     * {@code ALL_OF} child); a {@code Not} record carries the asks the subject currently
+     * satisfies. Children carry authored bounds and no resolved reading.
      */
     @Nonnull
     public List<GateRefusal> allRefusals(@Nonnull Subject subject, @Nullable GateSpec spec) {
@@ -305,10 +320,11 @@ public final class GateEvaluator {
         for (GateClause clause : spec.allOfOrEmpty()) {
             clauseRefusals(subject, clause, refusals);
         }
-        // A Not group shuts the gate by PASSING, exactly as in the short-circuit walk.
+        // A Not group shuts the gate by PASSING, exactly as in the short-circuit walk. Its record
+        // carries what the group asks for - the met requirements standing in the way.
         for (GateClause clause : spec.notOrEmpty()) {
             if (clause != null && clauseFailure(subject, clause) == null) {
-                refusals.add(GateRefusal.NOT);
+                refusals.add(GateRefusal.not(asksOf(clause)));
             }
         }
         GateClause[] anyOf = spec.anyOfOrEmpty();
@@ -320,8 +336,61 @@ public final class GateEvaluator {
                 return refusals;
             }
         }
-        refusals.add(GateRefusal.ANY_OF);
+        refusals.add(GateRefusal.anyOf(routesOf(anyOf)));
         return refusals;
+    }
+
+    /**
+     * Each {@code AnyOf} route as ONE child: a route's single ask directly, several asks folded
+     * into one all-of group so "either of these two bundles" never flattens into interchangeable
+     * alternatives. A route describing nothing contributes nothing.
+     */
+    @Nonnull
+    private static List<GateRefusal> routesOf(@Nonnull GateClause[] anyOf) {
+        List<GateRefusal> routes = new ArrayList<>(anyOf.length);
+        for (GateClause clause : anyOf) {
+            if (clause == null) {
+                continue;
+            }
+            List<GateRefusal> asks = asksOf(clause);
+            if (asks.size() == 1) {
+                routes.add(asks.get(0));
+            } else if (!asks.isEmpty()) {
+                routes.add(GateRefusal.allOf(asks));
+            }
+        }
+        return routes;
+    }
+
+    /**
+     * What one group ASKS FOR, described from its authored requirements without evaluating any of
+     * them - the children a composite refusal carries. Bounds ride along; no reading is resolved,
+     * because half the point of describing an {@code AnyOf}'s routes (or a {@code Not} group the
+     * subject currently satisfies) is that they were not the ones that refused.
+     */
+    @Nonnull
+    private static List<GateRefusal> asksOf(@Nonnull GateClause clause) {
+        List<GateRefusal> asks = new ArrayList<>();
+        for (FactorCondition condition : clause.factorsOrEmpty()) {
+            if (condition != null && !condition.isBlank()) {
+                asks.add(refusalOf(condition));
+            }
+        }
+        String permission = clause.getPermission();
+        if (permission != null && !permission.isBlank()) {
+            asks.add(GateRefusal.PERMISSION);
+        }
+        for (String questId : clause.questsOrEmpty()) {
+            if (questId != null && !questId.isBlank()) {
+                asks.add(GateRefusal.quest(questId.trim()));
+            }
+        }
+        for (String kindId : clause.customOrEmpty().keySet()) {
+            if (kindId != null && !kindId.isBlank()) {
+                asks.add(GateRefusal.custom(kindId));
+            }
+        }
+        return asks;
     }
 
     /** Every unmet requirement in ONE group, in leaf order, appended to {@code out}. */

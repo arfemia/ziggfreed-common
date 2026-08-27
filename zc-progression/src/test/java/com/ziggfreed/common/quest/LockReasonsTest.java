@@ -1,16 +1,21 @@
 package com.ziggfreed.common.quest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
+import com.ziggfreed.common.i18n.PlainText;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateRefusal;
@@ -24,6 +29,15 @@ class LockReasonsTest {
 
     private static final String NS = "ziggfreedcommon.progress.";
 
+    /** The en-US-shaped values the composed-sentence assertions read against. */
+    private static final Function<String, String> CATALOGUE = Map.of(
+            NS + "lock.any_of", "Unlocked by: {0}",
+            NS + "lock.any_of.join", "or",
+            NS + "lock.not.met", "Unavailable while this is met: {0}",
+            NS + "lock.factor.bound", "Requires {0} {1}",
+            NS + "lock.quest", "Complete quest: {0}",
+            "ziggfreedcommon.fmt.cat", "{0}{1}")::get;
+
     @AfterEach
     void clearTheProcessWideConfig() {
         DerivedFactorConfig.getInstance().mergePackLayer(Map.of());
@@ -34,6 +48,15 @@ class LockReasonsTest {
         DerivedFactorConfig.getInstance().mergePackLayer(Map.of(
                 "overlay", DerivedFactorAsset.of("overlay", null, factorId, null,
                         ContentTextAsset.of(null, null, plainName), null)));
+    }
+
+    /** Two named factors at once - one merge, so neither overlay wipes the other. */
+    private static void nameTwo() {
+        DerivedFactorConfig.getInstance().mergePackLayer(Map.of(
+                "rank_overlay", DerivedFactorAsset.of("rank_overlay", null, "yourmod:rank", null,
+                        ContentTextAsset.of(null, null, "Rank"), null),
+                "fame_overlay", DerivedFactorAsset.of("fame_overlay", null, "yourmod:fame", null,
+                        ContentTextAsset.of(null, null, "Fame"), null)));
     }
 
     @Test
@@ -94,11 +117,12 @@ class LockReasonsTest {
                 GateRefusal.PERMISSION,
                 GateRefusal.custom("yourmod:reputation")));
 
-        assertEquals(3, lines.size(), "two identical asks render once; permission and the custom "
-                + "kind fold into one generic requirements line");
+        assertEquals(4, lines.size(), "two identical asks render once; the permission reads its "
+                + "own sentence; the custom kind folds to the generic requirements line");
         assertEquals(NS + "lock.factor.bound", lines.get(0).getMessageId());
         assertEquals(NS + "lock.factor.bound", lines.get(1).getMessageId());
-        assertEquals(NS + "lock.prerequisites", lines.get(2).getMessageId());
+        assertEquals(NS + "lock.permission", lines.get(2).getMessageId());
+        assertEquals(NS + "lock.prerequisites", lines.get(3).getMessageId());
     }
 
     @Test
@@ -139,15 +163,118 @@ class LockReasonsTest {
     }
 
     @Test
-    void aPermissionLeafRefusalReadsWithThePermissionFactorsName() {
-        assertEquals(NS + "lock.prerequisites",
+    void aPermissionRefusalReadsItsOwnSentenceHoweverItIsSpelled() {
+        assertEquals(NS + "lock.permission",
                 LockReasons.line(GateRefusal.PERMISSION).getMessageId(),
-                "with no overlay folded the leaf falls to the generic line, as ever");
+                "a missing permission is a different kind of answer from a numeric bound, so it "
+                        + "never squeezes into the factor frame");
+        assertEquals(NS + "lock.permission",
+                LockReasons.line(GateRefusal.factor(GateEvaluator.PERMISSION_FACTOR,
+                        "my.node", 1.0, null)).getMessageId(),
+                "the long factor spelling of a Permission leaf is the same question, so it reads "
+                        + "the same sentence");
+        assertEquals(NS + "lock.permission",
+                LockReasons.line(GateEvaluator.REASON_PERMISSION).getMessageId(),
+                "the token path folds the same way");
 
-        name(GateEvaluator.PERMISSION_FACTOR, "Permission");
-        assertEquals(NS + "lock.factor",
-                LockReasons.line(GateRefusal.PERMISSION).getMessageId(),
-                "the leaf IS the permission factor by evaluation, so it reads with its name too");
+        assertEquals(1, LockReasons.linesOf(List.of(
+                        GateRefusal.PERMISSION,
+                        GateRefusal.factor(GateEvaluator.PERMISSION_FACTOR, "my.node", 1.0, null)))
+                .size(), "both spellings render the identical sentence once");
+        List<Message> lines = LockReasons.lines(List.of(
+                QuestGates.REASON_PREREQUISITES, GateEvaluator.REASON_PERMISSION));
+        assertEquals(1, lines.size(),
+                "the permission line is specific, so the flat requirements line drops");
+        assertEquals(NS + "lock.permission", lines.get(0).getMessageId());
+    }
+
+    @Test
+    void anAnyOfRefusalReadsItsRoutesAsOneEitherOrList() {
+        nameTwo();
+
+        Message line = LockReasons.line(GateRefusal.anyOf(List.of(
+                GateRefusal.factor("yourmod:rank", null, 25.0, null),
+                GateRefusal.factor("yourmod:fame", null, 50.0, null))));
+
+        assertEquals(NS + "lock.any_of", line.getMessageId());
+        assertEquals("Unlocked by: Requires Rank 25 or Requires Fame 50",
+                PlainText.render(line.getFormattedMessage(), CATALOGUE),
+                "the routes join through the translatable joiner, each reading exactly as it "
+                        + "would at top level");
+
+        // The folded routes land in the sentence's {0} PARAM position, and a param renders only
+        // when it carries rawText or messageId - the Msg.cat contract; a bare Msg.join fold here
+        // would render EMPTY on every client.
+        FormattedMessage folded = line.getFormattedMessage().messageParams.get("0");
+        assertNotNull(folded, "the routes ride the sentence as its {0}");
+        assertTrue(folded.messageId != null || folded.rawText != null,
+                "every fold node must carry rawText or a messageId to render as a param");
+    }
+
+    @Test
+    void aSingleRouteAnyOfReadsAsItsOwnLineNeverAsAList() {
+        name("yourmod:rank", "Rank");
+
+        assertEquals(NS + "lock.factor.bound",
+                LockReasons.line(GateRefusal.anyOf(List.of(
+                        GateRefusal.factor("yourmod:rank", null, 25.0, null)))).getMessageId(),
+                "one route is not a choice, so the sentence is the route's own");
+        assertEquals(NS + "lock.prerequisites",
+                LockReasons.line(GateRefusal.ANY_OF).getMessageId(),
+                "a record lifted from a token has no children, and keeps the generic line");
+        assertEquals(NS + "lock.prerequisites",
+                LockReasons.line(GateEvaluator.REASON_ANY_OF).getMessageId());
+    }
+
+    @Test
+    void aMultiAskRouteStaysOneBundleInsideTheList() {
+        nameTwo();
+
+        Message line = LockReasons.line(GateRefusal.anyOf(List.of(
+                GateRefusal.allOf(List.of(
+                        GateRefusal.factor("yourmod:rank", null, 25.0, null),
+                        GateRefusal.quest("intro_1"))),
+                GateRefusal.factor("yourmod:fame", null, 50.0, null))));
+
+        assertEquals("Unlocked by: Requires Rank 25, Complete quest: intro_1 or Requires Fame 50",
+                PlainText.render(line.getFormattedMessage(), CATALOGUE),
+                "a route asking several things at once stays one comma-joined bundle, never "
+                        + "flattened into interchangeable alternatives");
+    }
+
+    @Test
+    void aNotRefusalReadsTheNegatedSentenceNamingWhatIsMet() {
+        name("yourmod:rank", "Rank");
+
+        Message line = LockReasons.line(GateRefusal.not(List.of(
+                GateRefusal.factor("yourmod:rank", null, 25.0, null))));
+        assertEquals(NS + "lock.not.met", line.getMessageId());
+        assertEquals("Unavailable while this is met: Requires Rank 25",
+                PlainText.render(line.getFormattedMessage(), CATALOGUE));
+
+        assertEquals(NS + "lock.not", LockReasons.line(GateRefusal.NOT).getMessageId(),
+                "a record lifted from a token has no children, and keeps the fixed negated line");
+        assertEquals(NS + "lock.not", LockReasons.line(GateEvaluator.REASON_NOT).getMessageId());
+    }
+
+    @Test
+    void compositesDeduplicateByTheirComposedSentence() {
+        nameTwo();
+
+        List<Message> lines = LockReasons.linesOf(List.of(
+                GateRefusal.anyOf(List.of(
+                        GateRefusal.factor("yourmod:rank", null, 25.0, null),
+                        GateRefusal.factor("yourmod:fame", null, 50.0, null))),
+                GateRefusal.anyOf(List.of(
+                        GateRefusal.factor("yourmod:rank", null, 25.0, null),
+                        GateRefusal.factor("yourmod:fame", null, 50.0, null))),
+                GateRefusal.anyOf(List.of(
+                        GateRefusal.factor("yourmod:rank", null, 60.0, null),
+                        GateRefusal.factor("yourmod:fame", null, 50.0, null)))));
+
+        assertEquals(2, lines.size(),
+                "two identical composed sentences render once; a different bound inside a route "
+                        + "is a different sentence");
     }
 
     @Test

@@ -13,6 +13,11 @@ lock.factor = Requiere {0}
 lock.factor.bound = Requiere {0} {1}
 lock.factor.bound.current = Requiere {0} {1} (actualmente {2})
 lock.achievement = Consigue el logro: {0}
+lock.permission = No tienes permiso para usar esto
+lock.any_of = Desbloqueado por: {0}
+lock.any_of.join = o
+lock.not = No disponible mientras una condición está activa
+lock.not.met = No disponible mientras esto se cumpla: {0}
 
 objective.break_block = Rompe {0} {1}
 objective.break_block.any = Rompe {0} bloques

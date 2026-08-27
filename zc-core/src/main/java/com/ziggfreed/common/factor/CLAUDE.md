@@ -81,11 +81,15 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
     `NpcIdentityAsset`-style overlay), `Param` (narrows `Text` to one factor+param pair), `Text`
     (the shared `ContentTextAsset` group; the key surfaces resolve is `TitleKey`, `DisplayName` the
     plain fallback), and `ParamNames` (`KeyPattern` with a `{param}` slot + bespoke per-param
-    `Keys`, plus two orthogonal optional pattern transforms: `StripPrefix` removes a declared
-    prefix from the requirement's `Param` before substitution and `Case` (`Lower`/`Upper`,
-    `Locale.ROOT`) folds it after the strip - the bridge from a technical channel spelling like
-    `MMO_Level_MINING` to a key family registered as `...skill.mining`; neither transform touches
-    a `Keys` entry, which matches the `Param` as authored). **Keys are written IN FULL and never namespaced for the author** (rules R0), so an
+    `Keys`, plus three orthogonal optional pattern transforms: `StripPrefix` removes a declared
+    prefix from the requirement's `Param`, `StripThrough` cuts everything up to and including the
+    first occurrence of a declared delimiter (a compound `track:node` param reaches keys filed
+    under its tail), and `Case` (`Lower`/`Upper`, `Locale.ROOT`) folds what is left, in that
+    order, before substitution - the bridge from a technical channel spelling like
+    `MMO_Level_MINING` to a key family registered as `...skill.mining`; and an optional `WrapKey`,
+    a phrase key the pattern's RESOLVED name is folded into as `{0}` ("{0} level" reads Mining as
+    "Mining level"). No transform and no wrap ever touches a `Keys` entry, which matches the
+    `Param` as authored and writes the whole name by hand). **Keys are written IN FULL and never namespaced for the author** (rules R0), so an
     overlay may point at any mod's shipped key - a station mod naming something with an MMO key, a
     pack reusing a library key. `Factor` and `Formula` are mutually exclusive (validator error); a
     naming-only file registers NO value, so it can never shadow the real provider of the id it

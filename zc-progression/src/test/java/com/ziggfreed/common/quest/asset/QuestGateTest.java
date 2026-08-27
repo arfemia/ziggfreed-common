@@ -474,6 +474,15 @@ class QuestGateTest {
                     { "Not": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] },
                                { "Factors": [ { "Factor": "yourmod:fame", "Min": 500 } ] } ] }
                     """)), "only the group that PASSES shuts the gate");
+
+            List<GateRefusal> refusals = evaluator().allRefusals(PLAYER, spec("""
+                    { "Not": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] } ] }
+                    """));
+            assertEquals(1, refusals.size());
+            assertEquals(List.of(GateRefusal.factor("yourmod:rank", null, 5.0, null)),
+                    refusals.get(0).children(),
+                    "a Not record carries the asks the subject currently satisfies - the met "
+                            + "requirements standing in the way");
         }
 
         @Test
@@ -508,7 +517,15 @@ class QuestGateTest {
             assertEquals("intro_1", refusals.get(1).questId());
             assertEquals(GateRefusal.Kind.CUSTOM, refusals.get(2).kind());
             assertEquals("yourmod:reputation", refusals.get(2).customKindId());
-            assertEquals(GateRefusal.Kind.ANY_OF, refusals.get(3).kind());
+
+            GateRefusal anyOf = refusals.get(3);
+            assertEquals(GateRefusal.Kind.ANY_OF, anyOf.kind());
+            assertEquals(List.of(GateRefusal.quest("route_a"), GateRefusal.quest("route_b")),
+                    anyOf.children(),
+                    "the composite carries what each route asks for, described from the authored "
+                            + "block - a player wants to know their routes in");
+            assertEquals(GateEvaluator.REASON_ANY_OF, anyOf.token(),
+                    "the children live only on the record - the token spelling is unchanged");
 
             // And a token round-trips into the (bound-less) record a token-only caller can lift.
             GateRefusal lifted = GateRefusal.fromToken(factor.token());

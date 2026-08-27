@@ -22,10 +22,12 @@ import com.ziggfreed.common.registry.RegistryLedger;
  * <p><b>Overlays COMPOSE, most specific first.</b> Several files may target one factor id, and a
  * question about {@code (factor, param)} walks them in three passes: an EXACT param claim first (a
  * file whose own {@code Param} matches, or a {@code ParamNames.Keys} entry), then every
- * {@code ParamNames.KeyPattern} filled with the param, then a bare {@code Text} on the factor
- * itself. A pattern whose resolved key is not actually shipped is SKIPPED and the walk continues,
- * which is what lets two mods each ship a pattern on the same shared factor and each name only its
- * own params. Files are walked in id order, so the answer is stable across restarts.
+ * {@code ParamNames.KeyPattern} filled with the param (wrapped in the file's {@code WrapKey}
+ * phrase when one is authored - the pattern arm alone, never a bespoke key), then a bare
+ * {@code Text} on the factor itself. A pattern whose resolved key is not actually shipped is
+ * SKIPPED and the walk continues, which is what lets two mods each ship a pattern on the same
+ * shared factor and each name only its own params. Files are walked in id order, so the answer is
+ * stable across restarts.
  *
  * <p><b>Keys are used exactly as authored, in full - never namespaced here</b> - so an overlay may
  * point at any mod's shipped key. An explicit key nothing ships still answers as that key (a raw
@@ -98,11 +100,14 @@ public final class FactorNames {
             }
 
             // Pass 2: a pattern filled with the param - answering ONLY where the key is shipped.
+            // An authored WrapKey folds the resolved name into its phrase as {0}; it rides this
+            // arm alone (a Keys entry or an exact Param claim writes the whole name by hand).
             for (DerivedFactorAsset asset : overlays.values()) {
                 DerivedFactorAsset.ParamNames family = asset.getParamNames();
                 String patterned = family == null ? null : family.patternKeyFor(p);
                 if (patterned != null && keyExists.test(patterned)) {
-                    return Msg.key(patterned);
+                    String wrap = family.getWrapKey();
+                    return wrap == null ? Msg.key(patterned) : Msg.key(wrap, Msg.key(patterned));
                 }
             }
         }

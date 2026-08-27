@@ -13,6 +13,11 @@ lock.factor = Требуется {0}
 lock.factor.bound = Требуется {0} {1}
 lock.factor.bound.current = Требуется {0} {1} (сейчас {2})
 lock.achievement = Получите достижение: {0}
+lock.permission = У вас нет права использовать это
+lock.any_of = Разблокировано: {0}
+lock.any_of.join = или
+lock.not = Недоступно, пока активно условие
+lock.not.met = Недоступно, пока выполнено: {0}
 
 objective.break_block = Разрушьте {0} {1}
 objective.break_block.any = Разрушьте {0} блоков

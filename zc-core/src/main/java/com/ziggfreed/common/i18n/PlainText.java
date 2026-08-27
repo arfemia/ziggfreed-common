@@ -51,10 +51,12 @@ public final class PlainText {
 
     /**
      * {@link #of} over an explicit catalogue (key to authored value, null for absent) - the
-     * decision core, package-visible so the unit test can drive substitution without an engine.
+     * decision core. Public so a caller with its own catalogue can drive substitution without an
+     * engine: a unit test asserting a composed sentence, a tool rendering against a fixed
+     * language.
      */
     @Nonnull
-    static String render(@Nullable FormattedMessage value,
+    public static String render(@Nullable FormattedMessage value,
             @Nonnull Function<String, String> catalogue) {
         StringBuilder out = new StringBuilder();
         append(value, catalogue, out);

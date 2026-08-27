@@ -16,6 +16,11 @@ lock.factor = Requires {0}
 lock.factor.bound = Requires {0} {1}
 lock.factor.bound.current = Requires {0} {1} (currently {2})
 lock.achievement = Earn achievement: {0}
+lock.permission = You do not have permission to use this
+lock.any_of = Unlocked by: {0}
+lock.any_of.join = or
+lock.not = Unavailable while a condition is active
+lock.not.met = Unavailable while this is met: {0}
 
 # One sentence per objective kind: {0} is the amount, {1} what it is about. The .any twin reads
 # when a step targets nothing in particular. A mod adding its own kind ships

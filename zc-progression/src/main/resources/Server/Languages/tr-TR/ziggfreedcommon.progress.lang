@@ -13,6 +13,11 @@ lock.factor = {0} gerekli
 lock.factor.bound = {0} {1} gerekli
 lock.factor.bound.current = {0} {1} gerekli (şu an {2})
 lock.achievement = Başarımı kazan: {0}
+lock.permission = Bunu kullanma iznin yok
+lock.any_of = Şununla açılır: {0}
+lock.any_of.join = veya
+lock.not = Bir koşul etkinken kullanılamaz
+lock.not.met = Şu karşılandığı sürece kullanılamaz: {0}
 
 objective.break_block = {0} {1} kır
 objective.break_block.any = {0} blok kır

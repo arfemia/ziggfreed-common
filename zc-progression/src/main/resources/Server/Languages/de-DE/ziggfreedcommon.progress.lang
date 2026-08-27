@@ -13,6 +13,11 @@ lock.factor = Benötigt {0}
 lock.factor.bound = Benötigt {0} {1}
 lock.factor.bound.current = Benötigt {0} {1} (aktuell {2})
 lock.achievement = Schalte den Erfolg frei: {0}
+lock.permission = Du hast keine Berechtigung dafür
+lock.any_of = Freigeschaltet durch: {0}
+lock.any_of.join = oder
+lock.not = Nicht verfügbar, solange eine Bedingung aktiv ist
+lock.not.met = Nicht verfügbar, solange dies erfüllt ist: {0}
 
 objective.break_block = Baue {0} {1} ab
 objective.break_block.any = Baue {0} Blöcke ab

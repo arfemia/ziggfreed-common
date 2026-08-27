@@ -226,13 +226,19 @@ public final class DerivedFactorAsset
      * per-param keys for the few that need their own wording. Independent optional leaves - a
      * file may carry any of them.
      *
-     * <p>{@code StripPrefix} and {@code Case} are the bridge from a CHANNEL spelling to an
-     * existing key family: many factors address a param by a technical id ({@code MMO_Level_MINING})
-     * while the names for that family already ship under friendlier keys ({@code ...skill.mining}).
-     * Both transforms apply to the param BEFORE it drops into {@code KeyPattern} - the prefix is
-     * stripped first, then the case fold runs - and neither touches {@code Keys}: a bespoke entry
-     * is matched against the requirement's param exactly as authored, because its author writes
-     * the whole key by hand anyway.
+     * <p>{@code StripPrefix}, {@code StripThrough} and {@code Case} are the bridge from a CHANNEL
+     * spelling to an existing key family: many factors address a param by a technical id
+     * ({@code MMO_Level_MINING}, a compound {@code track:node}) while the names for that family
+     * already ship under friendlier keys ({@code ...skill.mining}, {@code ...node.title}). All
+     * three transforms apply to the param BEFORE it drops into {@code KeyPattern} - the prefix is
+     * stripped first, then everything through the delimiter, then the case fold runs - and none of
+     * them touches {@code Keys}: a bespoke entry is matched against the requirement's param
+     * exactly as authored, because its author writes the whole key by hand anyway.
+     *
+     * <p>{@code WrapKey} folds the pattern's RESOLVED name into a phrase ({@code "{0} level"}
+     * reads Mining as "Mining level"). It rides the pattern arm alone, and never a {@code Keys}
+     * entry or an exact {@code Param} claim, for the same reason the transforms do not: those
+     * authors write the whole name by hand, and wrapping a complete name doubles its own words.
      */
     public static final class ParamNames {
 
@@ -247,7 +253,9 @@ public final class DerivedFactorAsset
 
         @Nullable protected String keyPattern;
         @Nullable protected String stripPrefix;
+        @Nullable protected String stripThrough;
         @Nullable protected String caseFold;
+        @Nullable protected String wrapKey;
         @Nullable protected Map<String, String> keys;
 
         public static final BuilderCodec<ParamNames> CODEC =
@@ -269,6 +277,16 @@ public final class DerivedFactorAsset
                                 + "never carried the technical prefix. A param that does not start with it is "
                                 + "left alone. Compared case-insensitively; omit for no stripping.")
                         .add()
+                        .appendInherited(new KeyedCodec<>("StripThrough", Codec.STRING, false),
+                                (o, v) -> o.stripThrough = v, o -> o.stripThrough,
+                                (o, p) -> o.stripThrough = p.stripThrough)
+                        .documentation("A delimiter: everything up to and including its FIRST occurrence is "
+                                + "removed from the requirement's Param before it drops into KeyPattern (e.g. "
+                                + "\":\" turns a compound track:node Param into node), so one pattern can "
+                                + "reach keys keyed by a compound id's tail. A param that does not contain it "
+                                + "is left alone. Runs after StripPrefix and before Case; omit for no "
+                                + "stripping.")
+                        .add()
                         .appendInherited(new KeyedCodec<>("Case", Codec.STRING, false),
                                 (o, v) -> o.caseFold = v, o -> o.caseFold,
                                 (o, p) -> o.caseFold = p.caseFold)
@@ -279,6 +297,16 @@ public final class DerivedFactorAsset
                         .metadata(EditorSchema.oneOfDocumented(
                                 CASE_LOWER, "lower-case the param before substitution",
                                 CASE_UPPER, "upper-case the param before substitution"))
+                        .add()
+                        .appendInherited(new KeyedCodec<>("WrapKey", Codec.STRING, false),
+                                (o, v) -> o.wrapKey = v, o -> o.wrapKey,
+                                (o, p) -> o.wrapKey = p.wrapKey)
+                        .documentation("A full localization key that WRAPS the name the pattern resolves, "
+                                + "receiving it as {0} (authored as e.g. \"{0} level\", it reads Mining as "
+                                + "\"Mining level\"). It applies ONLY to the KeyPattern arm, never to a Keys "
+                                + "entry or an exact Param claim - those authors write the complete name by "
+                                + "hand, and wrapping it would double the phrase's own words. Written in full "
+                                + "and used exactly as authored; omit for the bare resolved name.")
                         .add()
                         .appendInherited(new KeyedCodec<>("Keys", new InheritMapCodec<>(Codec.STRING), false),
                                 (o, v) -> o.keys = v, o -> o.keys, (o, p) -> o.keys = p.keys)
@@ -298,14 +326,24 @@ public final class DerivedFactorAsset
             return of(keyPattern, null, null, keys);
         }
 
-        /** The full factory, transform knobs included. */
+        /** The factory with the two original transform knobs; delegates to the full one. */
         @Nonnull
         public static ParamNames of(@Nullable String keyPattern, @Nullable String stripPrefix,
                 @Nullable String caseFold, @Nullable Map<String, String> keys) {
+            return of(keyPattern, stripPrefix, null, caseFold, null, keys);
+        }
+
+        /** The full factory, every transform knob and the wrap key included. */
+        @Nonnull
+        public static ParamNames of(@Nullable String keyPattern, @Nullable String stripPrefix,
+                @Nullable String stripThrough, @Nullable String caseFold, @Nullable String wrapKey,
+                @Nullable Map<String, String> keys) {
             ParamNames p = new ParamNames();
             p.keyPattern = keyPattern;
             p.stripPrefix = stripPrefix;
+            p.stripThrough = stripThrough;
             p.caseFold = caseFold;
+            p.wrapKey = wrapKey;
             p.keys = keys;
             return p;
         }
@@ -321,10 +359,22 @@ public final class DerivedFactorAsset
             return stripPrefix;
         }
 
+        /** The delimiter a param is stripped through before pattern substitution, or null for none. */
+        @Nullable
+        public String getStripThrough() {
+            return stripThrough;
+        }
+
         /** The case fold applied before pattern substitution, or null for as-authored. */
         @Nullable
         public String getCase() {
             return caseFold;
+        }
+
+        /** The phrase key the pattern's resolved name is wrapped in as {@code {0}}, or null for none. */
+        @Nullable
+        public String getWrapKey() {
+            return wrapKey == null || wrapKey.isBlank() ? null : wrapKey.trim();
         }
 
         /** The bespoke per-param keys, never null. */
@@ -355,7 +405,8 @@ public final class DerivedFactorAsset
 
         /**
          * {@code KeyPattern} with the slot filled for {@code param} - transformed first by
-         * {@code StripPrefix} and then by {@code Case} - or null when no pattern is authored.
+         * {@code StripPrefix}, then by {@code StripThrough}, then by {@code Case} - or null when
+         * no pattern is authored.
          */
         @Nullable
         public String patternKeyFor(@Nonnull String param) {
@@ -365,7 +416,7 @@ public final class DerivedFactorAsset
             return keyPattern.replace(PARAM_SLOT, transform(param));
         }
 
-        /** The param as the pattern substitutes it: prefix stripped, then case folded. */
+        /** The param as the pattern substitutes it: prefix stripped, delimiter cut, case folded. */
         @Nonnull
         private String transform(@Nonnull String param) {
             String value = param;
@@ -373,6 +424,12 @@ public final class DerivedFactorAsset
                     && value.length() > stripPrefix.length()
                     && value.regionMatches(true, 0, stripPrefix, 0, stripPrefix.length())) {
                 value = value.substring(stripPrefix.length());
+            }
+            if (stripThrough != null && !stripThrough.isBlank()) {
+                int at = value.indexOf(stripThrough);
+                if (at >= 0 && at + stripThrough.length() < value.length()) {
+                    value = value.substring(at + stripThrough.length());
+                }
             }
             if (CASE_LOWER.equalsIgnoreCase(caseFold)) {
                 return value.toLowerCase(Locale.ROOT);

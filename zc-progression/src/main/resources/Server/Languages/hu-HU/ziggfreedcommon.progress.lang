@@ -13,6 +13,11 @@ lock.factor = Szükséges: {0}
 lock.factor.bound = Szükséges: {0} {1}
 lock.factor.bound.current = Szükséges: {0} {1} (jelenleg {2})
 lock.achievement = Szerezd meg az eredményt: {0}
+lock.permission = Nincs jogosultságod ennek használatához
+lock.any_of = Elérhető: {0}
+lock.any_of.join = vagy
+lock.not = Nem elérhető, amíg egy feltétel aktív
+lock.not.met = Nem elérhető, amíg ez teljesül: {0}
 
 objective.break_block = Törj szét {0} db {1} blokkot
 objective.break_block.any = Törj szét {0} blokkot
