@@ -53,7 +53,48 @@ public final class ShopSections {
     /** The bucket everything with no category of its own falls into, which always reads last. */
     public static final String UNCATEGORISED = "";
 
+    /** The filter value that keeps everything, for both of the storefront filters. */
+    public static final String FILTER_ALL = "all";
+
+    /** The kind-filter value that keeps only the rotating shelves. */
+    public static final String KIND_ROTATING = "rotating";
+
+    /** The kind-filter value that keeps only the standing catalogue. */
+    public static final String KIND_STANDING = "standing";
+
     private ShopSections() {
+    }
+
+    /**
+     * The filter value naming ONE run. A shelf and a category may share a name, so the kind rides
+     * in the value rather than beside it, and the id is normalized so however a filter click and a
+     * catalogue spelled it, they meet.
+     */
+    @Nonnull
+    public static String runKey(@Nonnull Kind kind, @Nonnull String id) {
+        return (kind == Kind.SHELF ? "shelf:" : "cat:") + CommerceText.normalize(id);
+    }
+
+    /**
+     * Whether one run stays on the page under the two storefront filters. BOTH must agree: a run
+     * filter naming a shelf beside a kind filter keeping only the standing catalogue keeps nothing
+     * at all, which is the honest reading of that pair. A blank, {@link #FILTER_ALL} or
+     * unrecognised value keeps everything, so a stale token can only ever widen the page.
+     */
+    public static boolean runMatches(@Nonnull Kind kind, @Nonnull String id,
+            @Nullable String runFilter, @Nullable String kindFilter) {
+        String wantedKind = CommerceText.normalize(kindFilter);
+        if (KIND_ROTATING.equals(wantedKind) && kind != Kind.SHELF) {
+            return false;
+        }
+        if (KIND_STANDING.equals(wantedKind) && kind != Kind.CATEGORY) {
+            return false;
+        }
+        String wantedRun = CommerceText.normalize(runFilter);
+        if (wantedRun.isEmpty() || FILTER_ALL.equals(wantedRun)) {
+            return true;
+        }
+        return wantedRun.equals(runKey(kind, id));
     }
 
     /**

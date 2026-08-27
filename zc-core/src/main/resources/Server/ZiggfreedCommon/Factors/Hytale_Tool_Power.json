@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the hytale:tool_power reading (the held tool's gather power) for requirement lines. The name covers the factor whatever GatherType a requirement's Param narrows it to; ship a Keys entry for a per-type wording.",
+  "Factor": "hytale:tool_power",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.tool_power" }
+}

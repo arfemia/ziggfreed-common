@@ -15,12 +15,6 @@ book.quests.section.available = Available
 book.quests.section.locked = Locked
 book.quests.untitled = Unnamed quest
 book.quests.step.untitled = Unnamed step
-book.quests.lock.unavailable = Not offered right now
-book.quests.lock.on_cooldown = Available again later
-book.quests.lock.prerequisites = Requirements not met
-book.quests.lock.other = Not available yet
-book.quests.lock.quest = Complete quest: {0}
-book.quests.lock.log_full = Quest log is full
 
 book.achievements.points = {0}/{1}
 book.achievements.category.uncategorised = Other
@@ -53,7 +47,7 @@ book.toast.claim_failed = Nothing to collect right now.
 book.toast.turned_in = Handed in.
 book.toast.turn_in_failed = That cannot be handed in here.
 
-# The NPC quest page. It reuses the book's own progress, action and lock lines above rather than
+# The NPC quest page. It reuses the book's own progress and action lines above (the lock lines are the shared ziggfreedcommon.progress ones) rather than
 # minting a second wording for the same sentence, and adds only what a screen with a character in
 # front of the player needs.
 npcquests.title.none = Quests

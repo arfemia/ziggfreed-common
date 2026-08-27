@@ -12,12 +12,6 @@ book.quests.section.available = Disponibles
 book.quests.section.locked = Verrouillées
 book.quests.untitled = Quête sans nom
 book.quests.step.untitled = Étape sans nom
-book.quests.lock.unavailable = Pas proposée pour l'instant
-book.quests.lock.on_cooldown = De nouveau disponible plus tard
-book.quests.lock.prerequisites = Conditions non remplies
-book.quests.lock.other = Pas encore disponible
-book.quests.lock.quest = Complétez la quête : {0}
-book.quests.lock.log_full = Le journal de quêtes est plein
 
 book.achievements.points = {0}/{1}
 book.achievements.category.uncategorised = Autres

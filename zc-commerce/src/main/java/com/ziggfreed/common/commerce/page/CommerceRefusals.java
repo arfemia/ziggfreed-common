@@ -3,8 +3,10 @@ package com.ziggfreed.common.commerce.page;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.Message;
+
 import com.ziggfreed.common.board.BoardEngine;
-import com.ziggfreed.common.progress.gate.GateEvaluator;
+import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.shop.ShopEngine;
 
 /**
@@ -15,15 +17,17 @@ import com.ziggfreed.common.shop.ShopEngine;
  * half, and it lives here rather than inside either page because both pages refuse for the same
  * reasons and a second wording for one sentence is how two screens start disagreeing.
  *
- * <p><b>What gets a line of its own, and what does not.</b> Every token an engine defines is
- * something the player can act on - buy fewer, come back tomorrow, earn more, free a slot - so each
- * has its own key. A GATE refusal does not: it names whatever factor an author gated on
- * ({@code "factor:my_pack:veteran"}), and painting that at a player reads as a promise that a thing
- * called that exists. Those, and anything this library has never heard of, read as the one generic
- * locked line. It is the same rule the objective book and the NPC quest page already follow.
+ * <p><b>What this class OWNS is the commerce vocabulary and nothing else.</b> Every token an engine
+ * here defines is something the player can act on - buy fewer, come back tomorrow, earn more, free
+ * a slot - so each has its own key. Everything else - a gate refusal ({@code factor:}/
+ * {@code quest:}/{@code permission}), and any token this library has never heard of - DELEGATES to
+ * the shared {@link LockReasons} mapping the objective book and every other locked surface read,
+ * so a gate shut here reads with exactly the words it reads with everywhere else (a prerequisite
+ * quest named, a factor's own asset-given name). {@link #KEY_LOCKED} survives only as the true
+ * last resort, for a refusal with no token at all.
  *
- * <p>Pure: strings in, keys out, no engine and no page, which is what lets the mapping be checked
- * against the engines' own constants with no server standing.
+ * <p>Pure: strings in, keys (or the shared mapping's line) out, no engine and no page, which is
+ * what lets the mapping be checked against the engines' own constants with no server standing.
  */
 public final class CommerceRefusals {
 
@@ -54,24 +58,33 @@ public final class CommerceRefusals {
     private static final String KEY_REROLL_CANNOT_PAY = "refuse.reroll_cannot_pay";
 
     /**
-     * One refusal as a surface renders it: which line, and the thing it is about when the token
-     * named one.
+     * One refusal as a surface renders it: which line, the thing it is about when the token named
+     * one, and - for a token the shared lock-reason mapping owns - the finished {@code line} to
+     * paint verbatim.
      *
      * <p>The two ids are what lets a shortfall read as "You need 40 more Bounty Tokens" rather than
      * "You cannot afford that": the page resolves the name itself, in the player's own locale, and
-     * nests it as an argument.
+     * nests it as an argument. The {@code line} is non-null exactly when the token was DELEGATED
+     * (a gate refusal, or something unrecognised): the page renders it as-is instead of resolving
+     * {@code key} in its own domain, so a gate here reads with the same words as everywhere else.
      */
-    public record Refusal(@Nonnull String key, @Nullable String currencyId, @Nullable String itemId) {
+    public record Refusal(@Nonnull String key, @Nullable String currencyId, @Nullable String itemId,
+                          @Nullable Message line) {
 
         /** A line with nothing to name. */
         @Nonnull
         static Refusal plain(@Nonnull String key) {
-            return new Refusal(key, null, null);
+            return new Refusal(key, null, null, null);
         }
 
         /** True when this is the generic locked line rather than a refusal of its own. */
         public boolean isGeneric() {
-            return KEY_LOCKED.equals(key);
+            return KEY_LOCKED.equals(key) && line == null;
+        }
+
+        /** True when the shared lock-reason mapping owns this token and {@link #line} is the answer. */
+        public boolean isDelegated() {
+            return line != null;
         }
     }
 
@@ -87,13 +100,19 @@ public final class CommerceRefusals {
         String t = token.trim();
         if (t.startsWith(ShopEngine.REASON_SHORT_CURRENCY)) {
             return new Refusal(KEY_SHORT_CURRENCY,
-                    trimToNull(t.substring(ShopEngine.REASON_SHORT_CURRENCY.length())), null);
+                    trimToNull(t.substring(ShopEngine.REASON_SHORT_CURRENCY.length())), null, null);
         }
         if (t.startsWith(ShopEngine.REASON_SHORT_ITEM)) {
             return new Refusal(KEY_SHORT_ITEM, null,
-                    trimToNull(t.substring(ShopEngine.REASON_SHORT_ITEM.length())));
+                    trimToNull(t.substring(ShopEngine.REASON_SHORT_ITEM.length())), null);
         }
-        return Refusal.plain(keyOf(t));
+        String key = keyOf(t);
+        if (KEY_LOCKED.equals(key)) {
+            // Not this vocabulary's token: the shared mapping answers, with the same line every
+            // other locked surface shows for it.
+            return new Refusal(KEY_LOCKED, null, null, LockReasons.line(t));
+        }
+        return Refusal.plain(key);
     }
 
     /** Just the line, for a caller with nothing to name. */
@@ -125,9 +144,9 @@ public final class CommerceRefusals {
             case ShopEngine.REASON_REROLL_CAP -> KEY_REROLL_CAP;
             case ShopEngine.REASON_NO_ALTERNATIVE -> KEY_REROLL_NO_ALTERNATIVE;
             case ShopEngine.REASON_REROLL_CANNOT_PAY -> KEY_REROLL_CANNOT_PAY;
-            // A gate names whatever an author gated on, which is not a sentence a player can be
-            // shown. Everything below reads as the one locked line, deliberately.
-            case GateEvaluator.REASON_PERMISSION, GateEvaluator.REASON_ANY_OF -> KEY_LOCKED;
+            // Anything else is not this vocabulary's token. This key-only view can only answer the
+            // generic locked key for it; {@link #of} is the full read, which hands such a token to
+            // the shared lock-reason mapping so a gate refusal renders its real ask.
             default -> KEY_LOCKED;
         };
     }

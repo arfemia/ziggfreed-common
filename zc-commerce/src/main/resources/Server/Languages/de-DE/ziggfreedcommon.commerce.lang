@@ -5,9 +5,14 @@ shop.count = {0} im Angebot
 shop.shelf = Empfohlen
 shop.refresh_in = Neu in {0}
 shop.section.catalogue = Sortiment
+shop.filter.all_sections = Alle Bereiche
+shop.filter.kind_both = Alle Waren
+shop.filter.kind_rotating = Wechselnde Waren
+shop.filter.kind_standing = Feste Waren
 shop.empty.unavailable = Dein Konto konnte gerade nicht gelesen werden.
 shop.empty.closed = Dieser Laden ist geschlossen.
 shop.empty.nothing = Hier wird gerade nichts verkauft.
+shop.empty.filtered = Kein Angebot passt zu diesen Filtern.
 shop.offer.untitled = Unbenanntes Angebot
 
 shop.header.cost = Preis

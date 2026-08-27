@@ -1,18 +1,19 @@
 $Z = "../Common/ZigButtons.ui";
 
-// One line of the NPC quest page's detail panel (see ZigNpcQuestPage): a step and its count, a
-// reward and its picture, or a reason the quest cannot be taken. ONE template for all three, because
-// the three sections differ in what they SAY rather than in what they are, and a page that appended
-// three near-identical templates would be three places to fix a spacing change.
+// One line of a detail panel: a step and its count, a reward and its picture, or a reason
+// something is out of reach. ONE template for all three, because the three differ in what they SAY
+// rather than in what they are, and a page that appended three near-identical templates would be
+// three places to fix a spacing change. Appended into a panel's list container and addressed via
+// the INDEXED PARENT ("#MyList[0] #LineText").
 //
 // The icon slot is hidden until a line has a picture to show. A reward with no item behind it (a
-// payout of experience, a title) renders as its line alone rather than borrowing an unrelated item's
-// picture, which would read as a promise of that item.
+// payout of experience, a title) renders as its line alone rather than borrowing an unrelated
+// item's picture, which would read as a promise of that item.
 //
 // All text lands on #LineText.TextSpans: a Message on a Label's .Text neither substitutes {0} nor
 // renders markup.
 
-Group #ZigNpcQuestLine {
+Group #ZigDetailLine {
   LayoutMode: Left;
   Anchor: (Height: 26, Bottom: 2);
 

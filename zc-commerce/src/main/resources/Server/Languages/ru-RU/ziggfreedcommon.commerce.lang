@@ -5,9 +5,14 @@ shop.count = В продаже: {0}
 shop.shelf = Избранное
 shop.refresh_in = Обновление через {0}
 shop.section.catalogue = Каталог
+shop.filter.all_sections = Все разделы
+shop.filter.kind_both = Весь ассортимент
+shop.filter.kind_rotating = Сменный ассортимент
+shop.filter.kind_standing = Постоянный ассортимент
 shop.empty.unavailable = Сейчас не удалось прочитать ваши данные.
 shop.empty.closed = Лавка закрыта.
 shop.empty.nothing = Сейчас здесь ничего не продают.
+shop.empty.filtered = Под эти фильтры ничего не подходит.
 shop.offer.untitled = Безымянное предложение
 
 shop.header.cost = Цена

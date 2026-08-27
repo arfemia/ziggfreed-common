@@ -12,12 +12,6 @@ book.quests.section.available = Elérhető
 book.quests.section.locked = Zárolt
 book.quests.untitled = Névtelen küldetés
 book.quests.step.untitled = Névtelen lépés
-book.quests.lock.unavailable = Jelenleg nem elérhető
-book.quests.lock.on_cooldown = Később újra elérhető
-book.quests.lock.prerequisites = A feltételek nem teljesültek
-book.quests.lock.other = Még nem elérhető
-book.quests.lock.quest = Fejezd be a küldetést: {0}
-book.quests.lock.log_full = A küldetésnapló megtelt
 
 book.achievements.points = {0}/{1}
 book.achievements.category.uncategorised = Egyéb

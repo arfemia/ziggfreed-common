@@ -88,13 +88,24 @@ class CommerceRefusalsTest {
     }
 
     @Test
-    @DisplayName("a gate refusal reads as the generic line rather than leaking what it gated on")
-    void aGateRefusalStaysGeneric() {
-        assertTrue(CommerceRefusals.of(GateEvaluator.REASON_FACTOR + "my_pack:veteran").isGeneric());
-        assertTrue(CommerceRefusals.of(GateEvaluator.REASON_QUEST + "prologue").isGeneric());
-        assertTrue(CommerceRefusals.of(GateEvaluator.REASON_PERMISSION).isGeneric());
-        assertTrue(CommerceRefusals.of("something nothing here has ever heard of").isGeneric());
-        assertTrue(CommerceRefusals.of(null).isGeneric());
+    @DisplayName("a gate refusal delegates to the shared lock-reason mapping, one wording per gate")
+    void aGateRefusalDelegatesToTheSharedMapping() {
+        assertTrue(CommerceRefusals.of(GateEvaluator.REASON_FACTOR + "my_pack:veteran").isDelegated());
+        assertEquals("ziggfreedcommon.progress.lock.prerequisites",
+                CommerceRefusals.of(GateEvaluator.REASON_FACTOR + "my_pack:veteran").line()
+                        .getMessageId(),
+                "an unnamed factor reads with the same generic requirements line every other "
+                        + "locked surface shows, never the raw token");
+        assertEquals("ziggfreedcommon.progress.lock.quest",
+                CommerceRefusals.of(GateEvaluator.REASON_QUEST + "prologue").line().getMessageId(),
+                "a prerequisite quest is named, exactly as the objective book names it");
+        assertTrue(CommerceRefusals.of(GateEvaluator.REASON_PERMISSION).isDelegated());
+        assertTrue(CommerceRefusals.of("something nothing here has ever heard of").isDelegated(),
+                "a token this vocabulary has never heard of is the shared mapping's to word");
+        assertTrue(CommerceRefusals.of(null).isGeneric(),
+                "only a refusal with no token at all falls to the last-resort locked line");
+        assertFalse(CommerceRefusals.of(ShopEngine.REASON_LIMIT_DAILY).isDelegated(),
+                "a commerce-owned token keeps its own line");
     }
 
     @Test

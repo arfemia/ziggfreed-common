@@ -12,12 +12,6 @@ book.quests.section.available = Verfügbar
 book.quests.section.locked = Gesperrt
 book.quests.untitled = Unbenannte Quest
 book.quests.step.untitled = Unbenannter Schritt
-book.quests.lock.unavailable = Derzeit nicht angeboten
-book.quests.lock.on_cooldown = Später wieder verfügbar
-book.quests.lock.prerequisites = Voraussetzungen nicht erfüllt
-book.quests.lock.other = Noch nicht verfügbar
-book.quests.lock.quest = Quest abschließen: {0}
-book.quests.lock.log_full = Questlog ist voll
 
 book.achievements.points = {0}/{1}
 book.achievements.category.uncategorised = Sonstige

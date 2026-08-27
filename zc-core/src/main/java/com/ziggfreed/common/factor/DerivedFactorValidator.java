@@ -39,6 +39,69 @@ public final class DerivedFactorValidator {
     private DerivedFactorValidator() {
     }
 
+    /**
+     * Audit every folded FILE - value definitions and naming overlays alike - in id order.
+     *
+     * <p>The file-level shapes are checked first: a file carrying both a {@code Factor} target and
+     * a {@code Formula} is reported (the two halves address different ids, so one of them has to
+     * go - drop {@code Factor} to define and name this file's own id, or drop {@code Formula} to
+     * overlay the named factor); a naming-only file is VALID with no formula at all, and only warned
+     * when it names nothing either. Every file that defines a value then takes the formula checks
+     * below, with the cycle walk run over the defining files only.
+     */
+    @Nonnull
+    public static List<Finding> validateAssets(@Nonnull Map<String, DerivedFactorAsset> files,
+            @Nullable Predicate<String> registeredElsewhere) {
+        Map<String, DerivedFactorAsset> byId = new TreeMap<>();
+        for (Map.Entry<String, DerivedFactorAsset> e : files.entrySet()) {
+            if (e.getKey() != null && e.getValue() != null) {
+                byId.put(RegistryLedger.normalize(e.getKey()), e.getValue());
+            }
+        }
+        Map<String, FactorFormula> formulas = new TreeMap<>();
+        for (Map.Entry<String, DerivedFactorAsset> e : byId.entrySet()) {
+            if (!e.getValue().isOverlay() && e.getValue().getFormula() != null) {
+                formulas.put(e.getKey(), e.getValue().getFormula());
+            }
+        }
+
+        List<Finding> out = new ArrayList<>();
+        for (Map.Entry<String, DerivedFactorAsset> e : byId.entrySet()) {
+            String id = e.getKey();
+            DerivedFactorAsset asset = e.getValue();
+            if (asset.isOverlay() && asset.getFormula() != null) {
+                out.add(Finding.error(DOMAIN, "FACTOR_AND_FORMULA",
+                        "this file carries both a Factor target and a Formula, which address two different "
+                                + "ids - remove Factor to define and name this file's own id, or remove "
+                                + "Formula to keep it a naming overlay on '" + asset.getFactor() + "'; until "
+                                + "then it defines no value", id));
+                continue;
+            }
+            if (asset.isOverlay()) {
+                if (!asset.carriesNaming()) {
+                    out.add(Finding.warning(DOMAIN, "NAMES_NOTHING",
+                            "this file targets '" + asset.getFactor() + "' but carries no Text and no "
+                                    + "ParamNames, so it changes nothing", id));
+                }
+                continue;
+            }
+            if (asset.getFormula() == null || asset.getFormula().isEmpty()) {
+                if (asset.carriesNaming()) {
+                    // A naming-only file addressing its own id: valid, the name simply rides a
+                    // factor whose value comes from wherever else provides it.
+                    continue;
+                }
+                out.add(Finding.error(DOMAIN, "EMPTY_FORMULA",
+                        "Formula defines nothing (no Base and no usable term) and the file names nothing "
+                                + "either, so this id answers nothing and everything gating on it stays "
+                                + "shut", id));
+                continue;
+            }
+            validate(id, asset.getFormula(), formulas, registeredElsewhere, out);
+        }
+        return out;
+    }
+
     /** As {@link #validateAll(Map, Predicate)} with no knowledge of any registry's ids. */
     @Nonnull
     public static List<Finding> validateAll(@Nonnull Map<String, FactorFormula> definitions) {

@@ -135,10 +135,19 @@ public final class PlacementAnchors {
         try {
             var provider = world.getWorldConfig().getSpawnProvider();
             if (provider == null) {
+                PlacementDiag.once(world, "worldspawn-provider-null",
+                        "[placement] WorldSpawn anchor in '" + NpcPlacementService.worldName(world)
+                                + "': the world's spawn provider is null (world init not settled,"
+                                + " or no spawn configured) - the anchor resolves nothing until it"
+                                + " appears");
                 return;
             }
             Transform spawn = provider.getSpawnPoint(world, ANCHOR_QUERY_UUID);
             if (spawn == null || spawn.getPosition() == null) {
+                PlacementDiag.once(world, "worldspawn-spawn-null",
+                        "[placement] WorldSpawn anchor in '" + NpcPlacementService.worldName(world)
+                                + "': provider " + provider.getClass().getSimpleName()
+                                + " answered no spawn point - the anchor resolves nothing");
                 return;
             }
             Vector3dc base = spawn.getPosition();
@@ -147,7 +156,9 @@ public final class PlacementAnchors {
                     base.x() + offsetX(offset), base.y() + offsetY(offset), base.z() + offsetZ(offset),
                     anchor.effectiveYaw()));
         } catch (Throwable t) {
-            SafeLog.fine("[placement] world-spawn anchor failed: " + t.getMessage());
+            PlacementDiag.once(world, "worldspawn-throw",
+                    "[placement] WorldSpawn anchor failed in '" + NpcPlacementService.worldName(world)
+                            + "': " + t);
         }
     }
 
@@ -169,7 +180,7 @@ public final class PlacementAnchors {
         for (StructureAnchorIndex.Marker marker
                 : StructureAnchorIndex.matching(StructureAnchorIndex.markersIn(world), anchor)) {
             out.add(new AnchorPosition(AnchorPosition.AnchorKind.STRUCTURE,
-                    Integer.toString(marker.prefabInstanceId()),
+                    marker.instanceId(),
                     marker.x() + offsetX(offset), marker.y() + offsetY(offset), marker.z() + offsetZ(offset),
                     anchor.effectiveYaw()));
         }

@@ -198,6 +198,39 @@ class NpcPlacementAssetCodecTest {
     }
 
     @Test
+    void aChildSwitchingAnchorGroupsMustExplicitlyNullTheOldOneOrBothUnion() throws Exception {
+        NpcPlacementAsset parent = decodeRoot("""
+                { "Anchor": { "WorldSpawn": { "Offset": { "X": 2.5 }, "Yaw": 180 } } }
+                """, "base");
+
+        // Merely authoring a DIFFERENT anchor leaf does not retarget the group: WorldSpawn is its
+        // own appendInherited leaf, so an omitted key still inherits the parent's value, and the
+        // child ends up with BOTH anchors active - two positions from one placement, which is
+        // exactly the double-place shape this package exists to prevent. This is the trap; the
+        // next case is the fix.
+        NpcPlacementAsset leaking = decode("""
+                { "Anchor": { "Structure": { "MarkerIds": ["Some_Marker"] } } }
+                """, "leaking", "base", parent);
+
+        assertNotNull(leaking.getAnchor().getWorldSpawn(),
+                "omitting WorldSpawn in the child inherits the parent's, however surprising - "
+                        + "pinned so nobody assumes an authored sibling leaf silently clears it");
+        assertNotNull(leaking.getAnchor().getStructure());
+
+        // Authoring the leaf as an explicit JSON null is how a child actually retargets: the key
+        // is PRESENT (so the decode-and-set path runs, not the inherit path) and decodes to Java
+        // null, clearing the parent's value rather than falling through to it.
+        NpcPlacementAsset retargeted = decode("""
+                { "Anchor": { "WorldSpawn": null, "Structure": { "MarkerIds": ["Some_Marker"] } } }
+                """, "retargeted", "base", parent);
+
+        assertNull(retargeted.getAnchor().getWorldSpawn(),
+                "an explicit JSON null on an appendInherited leaf clears it instead of inheriting - "
+                        + "the correct way to switch a Parent child from one anchor group to another");
+        assertNotNull(retargeted.getAnchor().getStructure());
+    }
+
+    @Test
     void aChildOverridingOneLeafInsideAGroupKeepsItsSiblings() throws Exception {
         NpcPlacementAsset parent = decodeRoot("""
                 { "Limits": { "SpawnChance": 0.5, "MaxPerWorld": 3, "OncePerWorld": true } }

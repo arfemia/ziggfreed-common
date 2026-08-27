@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the hytale:tool_item_level reading (the held item's native item level) for requirement lines.",
+  "Factor": "hytale:tool_item_level",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.tool_item_level" }
+}

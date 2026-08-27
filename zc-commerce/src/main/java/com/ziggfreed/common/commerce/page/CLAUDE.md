@@ -14,12 +14,12 @@ this is the second package allowed to see both.
 |---|---|
 | [`CommercePages`](CommercePages.java) | the way in: `openShop` / `openBoard`, and the one place a consumer registers its deps |
 | [`CommercePageDeps`](CommercePageDeps.java) | everything a consumer may say and nothing it must, every seam defaulted |
-| [`ZigShopPage`](ZigShopPage.java) | the storefront: rotating shelves, then the standing catalogue, with the offer being read on the right |
+| [`ZigShopPage`](ZigShopPage.java) | the storefront: rotating shelves, then the standing catalogue, with the offer being read on the right, narrowed by two per-open filter dropdowns (a run by name, rotating vs standing) whose count line reports what is actually shown |
 | [`ZigBoardPage`](ZigBoardPage.java) | the board: what is posted, what the player carries from it, and every lifecycle affordance a contract has |
-| [`ShopSections`](ShopSections.java) / [`BoardSections`](BoardSections.java) | the PURE ordering cores: which run a row belongs in, in what order the page reads, and which row the panel opens on |
+| [`ShopSections`](ShopSections.java) / [`BoardSections`](BoardSections.java) | the PURE ordering cores: which run a row belongs in, in what order the page reads, which row the panel opens on, and (shop) the filter vocabulary - `runKey` / `runMatches` over the two storefront filters |
 | [`CommerceText`](CommerceText.java) | authored text as a client-resolved message, the title-argument seam, and the countdown |
 | [`CommerceLabels`](CommerceLabels.java) | what a difficulty BAND and a shelf CATEGORY are called, on the one ladder both screens read |
-| [`CommerceRefusals`](CommerceRefusals.java) | one refusal TOKEN as a line a player reads |
+| [`CommerceRefusals`](CommerceRefusals.java) | one refusal TOKEN as a line a player reads: the commerce vocabulary's own keys, everything else delegated to the shared `quest.LockReasons` mapping (the `Refusal.line()` a page paints verbatim) |
 | [`CommerceChips`](CommerceChips.java) | the two repeatable things both pages paint: a chip and a line |
 | [`CurrencyText`](CurrencyText.java) | what a wallet is CALLED, on a three-rung ladder |
 | [`ConfirmArm`](ConfirmArm.java) | two clicks before anything charges |
@@ -81,10 +81,17 @@ library loads first, would answer ahead of every one of them - which is the wron
 - **Every press re-asks the engine.** A screen is a snapshot: an offer rotates out, a limit fills, a
   period turns over. Nothing here trusts what it last rendered, and a stale press answers with the
   engine's own refusal rather than charging.
-- **A refusal is turned into words HERE, in one place.** Both pages read `CommerceRefusals`, so one
-  sentence cannot have two wordings. A GATE refusal deliberately reads as the generic locked line
-  rather than leaking whatever an author gated on - the same rule the objective book and the NPC
-  quest page follow.
+- **A refusal is turned into words HERE, in one place - and a GATE refusal in the SHARED place.**
+  Both pages read `CommerceRefusals`, so one commerce sentence cannot have two wordings; a gate
+  token (`factor:`/`quest:`/`permission`), and any token this vocabulary has never heard of,
+  delegates to zc-progression's `quest.LockReasons` (`Refusal.line()`, painted verbatim), so a gate
+  shut on a board reads with exactly the words the objective book and the offer page show for that
+  same gate - a prerequisite quest by title, a factor by its `Factors/` naming asset's name.
+  `refuse.locked` survives only as the true last resort, for a refusal with no token at all. The
+  board's LOCKED detail panel goes one further: when the accept refusal is gate-shaped it renders
+  `BoardEngine.acceptGateRefusals` (the evaluator's structured `GateRefusal` records) through
+  `LockReasons.linesOf`, so the panel lists EVERY unmet requirement with its bound rather than one
+  line with none.
 - **A partial update must target an index the last full BUILD recorded.** `builtRowOrder` carries a
   marker per section heading, because a recomputed index ignores headings, can land on one, and an
   unresolved selector disconnects the player. Every path falls back to a full reopen when the
@@ -110,11 +117,16 @@ decision.
 
 ## The `.ui` contract
 
-`Pages/ZigShopPage.ui` and `Pages/ZigBoardPage.ui`, each appending `Pages/ZigCommerceRow.ui` for
-list rows AND section headings (one template, because a list mixing two gives two different child
-sets at one index), plus `Pages/ZigCommerceLine.ui` for a detail line and
-`Pages/ZigCommerceChip.ui` for a balance or price chip. All text lands on `.TextSpans`; every
-labeled button is `Button` + `#Label` driven by `ZigRichButton`, never a `TextButton`.
+`Pages/ZigShopPage.ui` and `Pages/ZigBoardPage.ui`, each appending zc-presentation's shared
+`Pages/ZigSelectRow.ui` for list rows AND section headings (one template, because a list mixing two
+gives two different child sets at one index; the NPC quest page appends the same file, so a
+readability change lands on every list at once), plus the shared `Pages/ZigDetailLine.ui` for a
+detail line and this module's own `Pages/ZigCommerceChip.ui` for a balance or price chip. A shop
+heading that shows the countdown under its label GROWS its row from Java (the root Anchor is
+runtime-set to hold the meta line) or the countdown would paint over the first row of its run. All
+text lands on `.TextSpans`; every labeled button is `Button` + `#Label` driven by `ZigRichButton`,
+never a `TextButton`; the storefront's two filter dropdowns are String-only sinks fed through
+`UiText.flatten`.
 
 `.ui` files are not compiled, so a green build says nothing about them: both pages are in-game smoke
 territory until a maintainer opens them.
@@ -135,7 +147,9 @@ wallet, a price, or a tier's worth.
 ## Tests
 
 Pure decision cores only, matching the rest of the library. `ShopSectionsTest` and
-`BoardSectionsTest` pin the ordering a player notices immediately and a refactor breaks silently;
+`BoardSectionsTest` pin the ordering a player notices immediately and a refactor breaks silently
+(the shop's includes the filter vocabulary: run keys keep a shelf and a category apart, a
+permissive filter keeps everything, a contradictory pair keeps nothing);
 `CommerceRefusalsTest` DISCOVERS both engines' `REASON_*` constants by reflection and fails when one
 is unmapped or names a key the English file does not ship, which is what makes a new refusal a
 failing test rather than a quiet degrade; `CommerceTextTest` pins the argument seam and the

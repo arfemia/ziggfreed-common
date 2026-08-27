@@ -6,12 +6,12 @@ $Z = "../Common/ZigButtons.ui";
 // has to offer, as a list on the left and the one being read on the right.
 //
 // LEFT: the character's name, a count, a two-button tab bar (#TabHere / #TabMine), and the scrolling
-// #QuestList the page appends Pages/ZigNpcQuestRow.ui into. #EmptyListLabel carries the one line an
+// #QuestList the page appends Pages/ZigSelectRow.ui into. #EmptyListLabel carries the one line an
 // empty list shows; the tab bar stays visible behind it, since hiding it would leave no route to the
 // other list.
 //
 // RIGHT: #RightPanel, hidden outright when there is nothing selected. Its three appended containers
-// (#ObjectivesSection, #RewardsList, #RequirementsSection) all take Pages/ZigNpcQuestLine.ui rows,
+// (#ObjectivesSection, #RewardsList, #RequirementsSection) all take Pages/ZigDetailLine.ui rows,
 // and the page CLEARS each one before re-rendering, so a second render for a different quest cannot
 // collide with the rows of the first.
 //

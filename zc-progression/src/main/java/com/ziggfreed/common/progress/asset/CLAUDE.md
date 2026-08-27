@@ -9,7 +9,7 @@ engine's own codec.
 
 | Class | The group it declares |
 |---|---|
-| `ContentTextAsset` | `Text`: `TitleKey` / `FlavorKey` / `DisplayName` |
+| `ContentTextAsset` | `Text`: `TitleKey` / `FlavorKey` / `DisplayName`. The FILE lives in zc-core (same package), because the factor naming asset (`factor.DerivedFactorAsset`, a module below this one) carries the same group - the precedent for a shared group a lower module needs |
 | `ContentMeta` | `Meta`: the namespace -> verbatim-block map both engines carry, plus the `decode` seam a consumer reads its own namespace through |
 | `ObjectiveLeafAsset` (+ `appendLeaves`) | the seven leaves every authored objective carries: `Kind` / `Target` / `MatchMode` / `Qualifier` / `Amount` / `Zone` / `TextKey` |
 | `ContentListingAsset` (+ `appendLeaves` / `appendPresentationLeaves` / `appendVisibilityLeaves`) | `Listing`: the five presentation leaves (`Category` / `SortOrder` / `Tags` / `Chains` / `Icon`) plus the two visibility ones (`Hidden` / `RequirePrerequisites`); a type whose visibility is its own policy (a bounty contract) appends only the presentation five, so no visibility leaf exists there to decode and do nothing |

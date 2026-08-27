@@ -85,11 +85,11 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
 `Common/UI/Custom/Pages/{ZigObjectiveBookPage.ui, ZigQuestLogRow.ui, ZigBookObjectiveRow.ui,
 ZigBookTagChip.ui, ZigBookCatTab.ui, ZigBookWideTab.ui, ZigBookRewardRow.ui, ZigAchListRow.ui,
 ZigAchChipRow.ui, ZigAchCriterionRow.ui, ZigAchCategoryCard.ui, ZigMilestoneCard.ui,
-ZigNpcQuestPage.ui,
-ZigNpcQuestRow.ui, ZigNpcQuestLine.ui, ZigTrackedQuestRow.ui, ZigProgressionAdminPage.ui}` (the
+ZigNpcQuestPage.ui, ZigTrackedQuestRow.ui, ZigProgressionAdminPage.ui}` (the
 admin page's rows are zc-presentation's shared `ZigFormToggleRow.ui`, appended, not a template of
-this module's own; needs `zc-presentation` at RUNTIME
-as well as compile time, since a page's `.ui` imports the shared frames by path), and
+this module's own, and the NPC quest page appends zc-presentation's shared `Pages/ZigSelectRow.ui`
+list row and `Pages/ZigDetailLine.ui` detail line the commerce pages share; needs `zc-presentation`
+at RUNTIME as well as compile time, since a page's `.ui` imports the shared frames by path), and
 `Common/UI/Custom/Hud/ZigQuestTracker.ui` with the three native objective-HUD textures copied
 beside it (`ObjectivePanelContainer.png`, `ObjectiveTaskIconDefault.png`,
 `ObjectiveTaskIconComplete.png`), which a server-shipped document resolves by name next to itself.

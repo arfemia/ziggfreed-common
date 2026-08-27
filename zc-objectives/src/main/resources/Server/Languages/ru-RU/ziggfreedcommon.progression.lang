@@ -12,12 +12,6 @@ book.quests.section.available = Доступные
 book.quests.section.locked = Закрытые
 book.quests.untitled = Безымянный квест
 book.quests.step.untitled = Безымянный шаг
-book.quests.lock.unavailable = Сейчас не предлагается
-book.quests.lock.on_cooldown = Будет доступен позже
-book.quests.lock.prerequisites = Требования не выполнены
-book.quests.lock.other = Пока недоступно
-book.quests.lock.quest = Завершить квест: {0}
-book.quests.lock.log_full = Журнал заданий заполнен
 
 book.achievements.points = {0}/{1}
 book.achievements.category.uncategorised = Прочее

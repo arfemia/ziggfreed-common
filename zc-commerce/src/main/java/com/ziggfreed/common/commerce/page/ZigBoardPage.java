@@ -44,9 +44,11 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
+import com.ziggfreed.common.progress.gate.GateRefusal;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
-import com.ziggfreed.common.progress.runtime.ProgressionTextSource;
+import com.ziggfreed.common.progress.runtime.ProgressionTexts;
+import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
@@ -100,7 +102,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     public static final String TAB_MINE = "mine";
 
     private static final String PAGE_TEMPLATE = "Pages/ZigBoardPage.ui";
-    private static final String ROW_TEMPLATE = "Pages/ZigCommerceRow.ui";
+    private static final String ROW_TEMPLATE = "Pages/ZigSelectRow.ui";
 
     /** What a theme is offered to repaint: the panel carrying the list. */
     private static final String FRAME_SELECTOR = "#LeftPanel";
@@ -528,8 +530,8 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
                 ZigRichButton.text(cmd, "#AcceptBtn", text("board.action.accept"));
                 cmd.set("#AcceptBtn.Visible", true);
             }
-            case LOCKED -> statusLines = renderRefusals(cmd,
-                    engine.canAccept(subject, board, ref, now).reason(), statusLines);
+            case LOCKED -> statusLines = renderLockedDetail(cmd, engine, subject, board, ref, now,
+                    statusLines);
             case SPENT -> statusLines = renderLine(cmd, text("board.status.spent_detail"), statusLines);
             case READY -> {
                 ZigRichButton.text(cmd, "#ClaimBtn", text("board.action.claim"));
@@ -610,11 +612,42 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
 
     /**
      * Why a visible contract cannot be taken, so a locked row explains itself instead of sitting
-     * inert. A gate refusal reads as the generic locked line rather than leaking whatever an author
-     * gated on, which is the same rule the objective book and the NPC quest page follow.
+     * inert. A commerce token reads with its own line; a gate refusal reads through the shared
+     * lock-reason mapping - the same words the objective book and the offer page show for that
+     * same gate.
      */
     private int renderRefusals(@Nonnull UICommandBuilder cmd, @Nullable String reason, int index) {
-        return renderLine(cmd, text(CommerceRefusals.keyOf(reason)), index);
+        return renderLine(cmd, refusalLine(reason), index);
+    }
+
+    /** One refusal token as the line it reads with, commerce-owned or delegated alike. */
+    @Nonnull
+    private Message refusalLine(@Nullable String reason) {
+        CommerceRefusals.Refusal refusal = CommerceRefusals.of(reason);
+        return refusal.line() != null ? refusal.line() : text(refusal.key());
+    }
+
+    /**
+     * The status lines for a LOCKED contract: when what shut the accept is the GATE, every unmet
+     * requirement is rendered from the evaluator's structured records - the factor's own
+     * asset-given name with the bound it asks for, the prerequisite quest by title - through the
+     * same shared mapping every other locked surface reads. A non-gate refusal (the period lock,
+     * a board switch) keeps its own commerce line.
+     */
+    private int renderLockedDetail(@Nonnull UICommandBuilder cmd, @Nonnull BoardEngine engine,
+            @Nonnull Subject subject, @Nonnull BoardAssetSpec board, @Nonnull BountyRef ref,
+            long now, int index) {
+        String reason = engine.canAccept(subject, board, ref, now).reason();
+        if (GateRefusal.fromToken(reason) != null) {
+            List<Message> lines = LockReasons.linesOf(engine.acceptGateRefusals(subject, board, ref));
+            if (!lines.isEmpty()) {
+                for (Message line : lines) {
+                    index = renderLine(cmd, line, index);
+                }
+                return index;
+            }
+        }
+        return renderRefusals(cmd, reason, index);
     }
 
     private int renderLine(@Nonnull UICommandBuilder cmd, @Nonnull Message line, int index) {
@@ -656,7 +689,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
                 CommerceCatalogs.boards().pool(), position.intValue(), now);
         if (!check.ok()) {
             paintLocked(cmd, "#RerollBtn");
-            renderLine(cmd, text(CommerceRefusals.keyOf(check.reason())), statusIndex);
+            renderLine(cmd, refusalLine(check.reason()), statusIndex);
             return;
         }
         if (!spec.cost().isFree()) {
@@ -784,8 +817,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             showToast(ToastKind.SUCCESS, text("board.toast.accepted"));
             return;
         }
-        showToast(ToastKind.ERROR,
-                text(CommerceRefusals.keyOf(result == null ? null : result.reason())));
+        showToast(ToastKind.ERROR, refusalLine(result == null ? null : result.reason()));
     }
 
     /** Collect a finished contract AT this board, which is where the engine will allow it. */
@@ -863,7 +895,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         BoardEngine.BoardCheck probe = engine.canReroll(subject, board,
                 CommerceCatalogs.boards().pool(), position.intValue(), now);
         if (!probe.ok()) {
-            showToast(ToastKind.ERROR, text(CommerceRefusals.keyOf(probe.reason())));
+            showToast(ToastKind.ERROR, refusalLine(probe.reason()));
             return;
         }
         Cost price = spec.cost();
@@ -874,7 +906,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         BoardEngine.RerollResult result = engine.reroll(subject, board,
                 CommerceCatalogs.boards().pool(), position.intValue(), now);
         if (!result.ok()) {
-            showToast(ToastKind.ERROR, text(CommerceRefusals.keyOf(result.reason())));
+            showToast(ToastKind.ERROR, refusalLine(result.reason()));
             return;
         }
         BoardEvents.fireRerolled(board.boardId(), playerRef.getUuid(), result.position(),
@@ -936,9 +968,10 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     }
 
     /**
-     * What one step reads as, on the same ladder every other surface over the shared runtime uses: a
-     * registered text source first (so a consumer that names content still names these), then the
-     * step's own authored key, then the untitled line.
+     * What one step reads as, on the same ladder every other surface over the shared runtime uses:
+     * the shared text walk first ({@link ProgressionTexts} - the fold's composed line, then the
+     * step's authored key, exactly as the book and the offer page read it), then the authored
+     * asset's own key for a fold that carried none, then the untitled line.
      *
      * <p>The engine model carries no display text by design, which is why the authored asset is
      * reached for rather than the {@link ObjectiveDef} the engine walks.
@@ -946,7 +979,12 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     @Nonnull
     private Message objectiveName(@Nonnull BountyRef ref, @Nonnull Quest quest,
             @Nonnull ObjectiveDef objective) {
-        Message named = fromTextSources(quest.id(), objective.id());
+        Message named = null;
+        try {
+            named = ProgressionTexts.objective(quest.id(), objective.id());
+        } catch (Throwable ignored) {
+            // No runtime yet reads as nobody knowing, which is the authored fallback below.
+        }
         if (named != null) {
             return named;
         }
@@ -958,29 +996,6 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             }
         }
         return text("board.step.untitled");
-    }
-
-    /**
-     * What any registered source calls one step, first non-null winning. Each is guarded on its own,
-     * so one mod's broken naming costs its own rows and nobody else's.
-     */
-    @Nullable
-    private static Message fromTextSources(@Nonnull String contentId, @Nonnull String objectiveId) {
-        try {
-            for (ProgressionTextSource source : ProgressionRuntime.textSources()) {
-                try {
-                    Message answer = source.objective(contentId, objectiveId);
-                    if (answer != null) {
-                        return answer;
-                    }
-                } catch (Throwable ignored) {
-                    // One source's failure is not another's.
-                }
-            }
-        } catch (Throwable ignored) {
-            // No runtime yet reads as nobody knowing, which is the authored fallback below.
-        }
-        return null;
     }
 
     /**

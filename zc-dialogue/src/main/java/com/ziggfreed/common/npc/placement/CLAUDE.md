@@ -166,19 +166,33 @@ registries are about where an NPC stands and whether it stands at all.
 - **[`NpcPlacementReconciler`](NpcPlacementReconciler.java)** - the correctness core. Two PURE
   decision cores (`decideResident` -> KEEP/DESPAWN/REBIND, `decidePlace` -> PLACE/REPLACE/SKIP) plus
   a three-pass live `sweep(world, store)`: **DESPAWN** (component-authoritative, frees a
-  `MaxPerWorld` slot in the same pass) -> **HEAL** (a ledger row whose entity lacks the stamp is
-  adopted, not duplicated) -> **PLACE** (ledger-authoritative). An **in-flight claim set** keyed
-  `(world, placementId, anchorKey)` guards two players entering a fresh instance in one tick (the
-  first add is invisible until the command buffer flushes). A **per-world debounce latch** keeps a
-  world entry from running a full parallel scan every time; it is cleared by an asset reload, a gate
-  change, a new marker sighting, a zone discovery, and world removal. `requestSweep` is debounced,
-  `forceSweep` is not; **both defer through `world.execute`**, because spawning an entity from
-  inside a system throws and the throw becomes a silently missing NPC.
+  `MaxPerWorld` slot in the same pass, and MINTS a ledger row for a correct-but-unrecorded resident
+  before the place pass can misread it as missing) -> **HEAL** (a ledger row whose entity lacks the
+  stamp is adopted, not duplicated) -> **PLACE** (ledger-authoritative). An **in-flight claim set**
+  keyed `(world, placementId, anchorKey)` guards two players entering a fresh instance in one tick
+  (the first add is invisible until the command buffer flushes). A **per-world debounce latch**
+  keeps a world entry from running a full parallel scan every time; it is cleared by an asset
+  reload, a gate change, a new marker sighting, a zone discovery, and world removal. `requestSweep`
+  is debounced, `forceSweep` is not; **both defer through `world.execute`**, because spawning an
+  entity from inside a system throws and the throw becomes a silently missing NPC.
 
-  | resident | gate denied / placement gone / world no longer matches | -> DESPAWN |
+  **A ledger row EXISTING for `(world, placementId, anchorKey)` is not the same question as that row
+  NAMING this resident entity's own uuid**, and the despawn pass asks the second one. Two entities
+  can carry the identical stamp after an earlier REPLACE (the recorded one was briefly unresident
+  when a sweep ran, so a new one was placed and the row re-pointed to it); the row still exists, it
+  just names the OTHER entity now. Collapsing that into a mere existence check is the fixed
+  regression: it read both entities as "matches" forever, so neither despawn pass ever pruned the
+  surplus one and the world gained one more of it every time the recorded entity was briefly absent
+  at sweep time. Despawning a surplus duplicate never calls `releaseInstance` (that would drop the
+  ledger row, pin and cached position the SURVIVING entity still needs, under the very key they
+  share) - only a despawn for a genuinely gone instance (unknown placement, denied gate, `Where` no
+  longer matching) does.
+
+  | resident | gate denied / placement gone / world no longer matches | -> DESPAWN (+ ledger/pin/position released) |
   |---|---|---|
-  | resident | correct but no ledger row | -> REBIND (adopt) |
-  | resident | everything agrees | -> KEEP |
+  | resident | row exists, names a DIFFERENT entity (a surplus duplicate) | -> DESPAWN (ledger untouched - the row is correct) |
+  | resident | correct, NO row exists at all | -> REBIND (adopt: mint a row naming this entity) |
+  | resident | correct, row exists and names THIS entity | -> KEEP |
   | absent | **ledger hit + chunk ASLEEP** | -> **SKIP (the double-place regression)** |
   | absent | ledger miss + chunk ASLEEP | -> SKIP |
   | absent | ledger miss + chunk loaded + under capacity | -> PLACE |
@@ -207,9 +221,18 @@ registries are about where an NPC stands and whether it stands at all.
   + **[`StructureMarkerSightings`](StructureMarkerSightings.java)** - the structure driver. A marker
   is only knowable when its chunk loads, so the system records sightings into the live index (what
   anchors read) and the bounded ring buffer (what an author reads to discover real marker ids), then
-  clears the debounce and asks for a sweep. Keyed by the stable `prefabInstanceId`. A marker with no
-  `FromPrefabInstance` is ignored (its anchor key could not be stable). The index is transient by
-  design: an unknown marker and an unloaded one lead to the same correct decision to do nothing.
+  clears the debounce and asks for a sweep. **Keyed by the marker's FLOORED world position, and
+  the sighting query is `SpawnMarkerEntity` ALONE.** A marker entity reaches a store two ways and
+  only its position is stable across both: block-synthesized fresh (new uuid, WITH a
+  `SpawnMarkerBlockReference`) as an open-world chunk loads, or loaded directly from an instance
+  world's saved chunks carrying NO block reference and NO `FromWorldGen`/`FromPrefabInstance` at
+  all (live-scanned in the Forgotten Temple: every marker reads `blockRef=NO
+  fromPrefabInstance=NO`; shared-source evidence in the hytale-source-search ledger under
+  "spawn-marker provenance"). Requiring ANY second component silently excludes one of the two
+  paths; the floored position is identical for both, since a synthesized marker stands centered on
+  its block. `/mmonpc list markers` scans the LIVE store (the ground truth) beside `list
+  structures` (what got recorded). The index is transient by design: an unknown marker and an
+  unloaded one lead to the same correct decision to do nothing.
 - **[`ZoneAnchorIndex`](ZoneAnchorIndex.java)** - `notifyZoneDiscovered(world, store, zoneName,
   regionName, x, y, z)`. **The engine owns the anchor; the consumer supplies the trigger** (only a
   consumer knows what a zone is and what counts as discovering one). A discovery kicks a sweep.
@@ -301,7 +324,9 @@ corrupting for a refcounted unpin. `WorldEvictors.onWorldRemoved` also gained an
 ## Tests
 
 Pure decision cores only, never balance numbers. `NpcPlacementReconcilerTest` leads with the named
-double-place regression; `PlacementGateChainTest` covers any-deny-wins + first-deny-reported +
+double-place regression, and separately pins the stacking regression (a row that EXISTS but names a
+different entity despawns rather than being read as a match, and never as an adoption candidate);
+`PlacementGateChainTest` covers any-deny-wins + first-deny-reported +
 override precedence; `PlacementKeepAlivePinsTest` covers the pin/unpin edges; `PlacementAnchorsTest`
 covers union / collapse order / cross-union capacity / roll determinism; `PlacementRegistryLedgerTest`
 covers identity-vs-equality overwrite warnings, failure counting and the `info()` snapshot through

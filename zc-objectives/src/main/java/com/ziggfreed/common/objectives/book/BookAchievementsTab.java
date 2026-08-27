@@ -31,7 +31,7 @@ import com.ziggfreed.common.achievement.asset.AchievementCategoryConfig;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
-import com.ziggfreed.common.objectives.questlist.ProgressionTexts;
+import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.asset.ContentListingAsset.ChainMembership;

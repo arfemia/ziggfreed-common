@@ -5,9 +5,14 @@ shop.count = {0} a la venta
 shop.shelf = Destacado
 shop.refresh_in = Se renueva en {0}
 shop.section.catalogue = Catálogo
+shop.filter.all_sections = Todas las secciones
+shop.filter.kind_both = Todo el surtido
+shop.filter.kind_rotating = Surtido rotativo
+shop.filter.kind_standing = Surtido fijo
 shop.empty.unavailable = No se ha podido leer tu cuenta ahora mismo.
 shop.empty.closed = Esta tienda está cerrada.
 shop.empty.nothing = Aquí no hay nada a la venta ahora mismo.
+shop.empty.filtered = Ninguna oferta coincide con estos filtros.
 shop.offer.untitled = Oferta sin nombre
 
 shop.header.cost = Precio

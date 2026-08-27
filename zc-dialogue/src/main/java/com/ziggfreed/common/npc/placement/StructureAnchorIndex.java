@@ -25,20 +25,21 @@ import com.ziggfreed.common.cast.WorldEvictors;
  * an unknown marker and an unloaded one lead to the same (correct) decision to do nothing. What
  * survives a restart is the ledger row, not the index.
  *
- * <p>Keyed by the marker's stable {@code prefabInstanceId}, which is what makes an anchor key
- * stable across restarts - a loop index would change with chunk-load order and mint a duplicate
- * NPC beside the standing one.
+ * <p>Keyed by the marker's FLOORED world position - its spot on the block grid - which is what
+ * makes an anchor key stable across restarts and instance re-creations: a structure never moves
+ * relative to its own layout, while the marker entity's uuid is fresh on every synthesis, and a
+ * loop index would change with chunk-load order and mint a duplicate NPC beside the standing one.
  *
  * <p>Evicted per world through {@link WorldEvictors}.
  */
 public final class StructureAnchorIndex {
 
     /** One sighted marker: its id, the roles it can spawn, its stable instance id, and where it is. */
-    public record Marker(@Nonnull String markerId, @Nonnull List<String> roles, int prefabInstanceId,
+    public record Marker(@Nonnull String markerId, @Nonnull List<String> roles, @Nonnull String instanceId,
                          double x, double y, double z) {
     }
 
-    private static final Map<World, Map<Integer, Marker>> INDEX = new ConcurrentHashMap<>();
+    private static final Map<World, Map<String, Marker>> INDEX = new ConcurrentHashMap<>();
 
     static {
         WorldEvictors.registerEvictor(INDEX::remove);
@@ -48,16 +49,16 @@ public final class StructureAnchorIndex {
     }
 
     /**
-     * Record a sighted marker. Idempotent per {@code prefabInstanceId}: a chunk re-loading the
+     * Record a sighted marker. Idempotent per {@code instanceId}: a chunk re-loading the
      * same marker refreshes the entry rather than adding a second.
      *
      * @return true when this was a marker the index had not seen this session
      */
     public static boolean record(@Nonnull World world, @Nonnull String markerId, @Nonnull List<String> roles,
-            int prefabInstanceId, double x, double y, double z) {
-        Marker marker = new Marker(markerId, List.copyOf(roles), prefabInstanceId, x, y, z);
+            @Nonnull String instanceId, double x, double y, double z) {
+        Marker marker = new Marker(markerId, List.copyOf(roles), instanceId, x, y, z);
         return INDEX.computeIfAbsent(world, w -> new ConcurrentHashMap<>())
-                .put(prefabInstanceId, marker) == null;
+                .put(instanceId, marker) == null;
     }
 
     /** Every marker sighted in {@code world} this session. */
@@ -66,7 +67,7 @@ public final class StructureAnchorIndex {
         if (world == null) {
             return List.of();
         }
-        Map<Integer, Marker> byInstance = INDEX.get(world);
+        Map<String, Marker> byInstance = INDEX.get(world);
         return byInstance == null ? List.of() : new ArrayList<>(byInstance.values());
     }
 
@@ -75,7 +76,7 @@ public final class StructureAnchorIndex {
         if (world == null) {
             return 0;
         }
-        Map<Integer, Marker> byInstance = INDEX.get(world);
+        Map<String, Marker> byInstance = INDEX.get(world);
         return byInstance == null ? 0 : byInstance.size();
     }
 

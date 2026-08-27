@@ -1,0 +1,7 @@
+{
+  "$Comment": "Names the hytale:stat readings for the lines that explain a requirement (a locked contract's panel, a locked quest row). One key pattern covers every channel: a requirement on {\"Factor\": \"hytale:stat\", \"Param\": \"<ChannelId>\"} reads with the ziggfreedcommon.progress.factor.stat.<ChannelId> translation when one is shipped, spelled exactly as the Param is. Name a channel of your own by shipping that one key in your own lang file, or ship another Factors file targeting hytale:stat with your own pattern - overlays compose, and a pattern whose key is not shipped is skipped. A channel nobody names falls back to the generic requirements line.",
+  "Factor": "hytale:stat",
+  "ParamNames": {
+    "KeyPattern": "ziggfreedcommon.progress.factor.stat.{param}"
+  }
+}

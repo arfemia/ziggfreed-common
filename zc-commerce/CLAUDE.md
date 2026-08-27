@@ -69,9 +69,10 @@ being a half. Nothing in it decides anything; every decision already has an owne
 
 ## Shipped resources
 
-`Common/UI/Custom/Pages/{ZigShopPage.ui, ZigBoardPage.ui, ZigCommerceRow.ui, ZigCommerceLine.ui,
-ZigCommerceChip.ui}` (needs `zc-presentation` at RUNTIME as well as compile time, since a page's
-`.ui` imports the shared frames and buttons by path) plus
+`Common/UI/Custom/Pages/{ZigShopPage.ui, ZigBoardPage.ui, ZigCommerceChip.ui}` (needs
+`zc-presentation` at RUNTIME as well as compile time: a page's `.ui` imports the shared frames and
+buttons by path, and both pages append zc-presentation's shared `Pages/ZigSelectRow.ui` list row and
+`Pages/ZigDetailLine.ui` detail line - the same templates the NPC quest page appends) plus
 `Server/Languages/<locale>/ziggfreedcommon.commerce.lang`, nine locales. The lang file holds page
 CHROME only; a shop's name, a category label, a contract's grade and every offer or contract title
 are CONTENT keys belonging to whoever authored the content.

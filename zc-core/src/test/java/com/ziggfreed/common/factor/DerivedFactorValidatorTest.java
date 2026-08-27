@@ -10,6 +10,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
 import com.ziggfreed.common.factor.FactorFormula.Clamp;
@@ -33,6 +34,56 @@ class DerivedFactorValidatorTest {
     private static Finding find(List<Finding> issues, String code) {
         return issues.stream().filter(i -> i.code().equals(code)).findFirst()
                 .orElseThrow(() -> new AssertionError("expected a " + code + " finding, got " + issues));
+    }
+
+    @Test
+    void aFileCarryingBothAFactorTargetAndAFormulaIsReported() {
+        List<Finding> issues = DerivedFactorValidator.validateAssets(Map.of(
+                "confused", DerivedFactorAsset.of("confused", FactorFormula.of(1.0, null, null),
+                        "yourmod:rank", null, null, null)), null);
+
+        Finding both = find(issues, "FACTOR_AND_FORMULA");
+        assertEquals(Severity.ERROR, both.severity());
+        assertTrue(both.message().contains("remove Factor") && both.message().contains("remove Formula"),
+                "the finding names which leaf to remove for each intent: " + both.message());
+    }
+
+    @Test
+    void aNamingOnlyFileIsValidWithNoFormulaAtAll() {
+        List<Finding> issues = DerivedFactorValidator.validateAssets(Map.of(
+                "names_a_registered_factor", DerivedFactorAsset.of("names_a_registered_factor", null,
+                        "yourmod:rank", null,
+                        ContentTextAsset.of("yourmod.rank.name", null, null), null)), null);
+
+        assertTrue(issues.isEmpty(), () -> "a naming overlay defines no value on purpose - "
+                + "expected no findings, got " + issues);
+    }
+
+    @Test
+    void anOverlayThatNamesNothingIsWarned() {
+        List<Finding> issues = DerivedFactorValidator.validateAssets(Map.of(
+                "does_nothing", DerivedFactorAsset.of("does_nothing", null, "yourmod:rank", null,
+                        null, null)), null);
+
+        assertEquals(Severity.WARNING, find(issues, "NAMES_NOTHING").severity());
+    }
+
+    @Test
+    void aFileDefiningAndNamingNothingIsStillTheEmptyFormulaError() {
+        List<Finding> issues = DerivedFactorValidator.validateAssets(Map.of(
+                "empty_file", DerivedFactorAsset.of("empty_file", null, null, null, null, null)), null);
+
+        assertEquals(Severity.ERROR, find(issues, "EMPTY_FORMULA").severity());
+    }
+
+    @Test
+    void theAssetWalkStillRunsTheFormulaChecksOnDefiningFiles() {
+        List<Finding> issues = DerivedFactorValidator.validateAssets(Map.of(
+                "yourmod:a", DerivedFactorAsset.of("yourmod:a", formula("yourmod:b"), null, null, null, null),
+                "yourmod:b", DerivedFactorAsset.of("yourmod:b", formula("yourmod:a"), null, null, null, null)),
+                null);
+
+        assertTrue(has(issues, "CYCLE"), () -> "expected the cycle finding, got " + issues);
     }
 
     @Test

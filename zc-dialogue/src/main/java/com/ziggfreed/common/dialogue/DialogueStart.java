@@ -488,8 +488,14 @@ public final class DialogueStart {
                 // Decode accepts a plain true/false and a bare screen name beside the destination
                 // object, and the in-game Asset Editor fails a property pane over any authored
                 // value shape the exported schema omits, so the schema declares every arm.
-                return Schema.anyOf(new BooleanSchema(), new StringSchema(),
-                        Destination.CODEC.toSchema(context));
+                //
+                // FLAT and fully typed, both on purpose. The editor matches the authored value's
+                // JSON kind against each arm's declared type; the destination's own schema is a
+                // string arm beside an untyped union, so nesting it here would leave one arm
+                // unmatchable and send every screen name to the boolean arm's checkbox. The one
+                // string arm covers the destination's bare-string form as well.
+                return Schema.anyOf(new StringSchema(), new BooleanSchema(),
+                        Destination.objectFormSchema(context));
             }
         };
 

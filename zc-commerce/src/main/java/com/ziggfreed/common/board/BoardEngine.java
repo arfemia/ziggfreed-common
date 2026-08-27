@@ -16,6 +16,7 @@ import com.ziggfreed.common.commerce.CommerceStores;
 import com.ziggfreed.common.cost.Cost;
 import com.ziggfreed.common.cost.CostEngine;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
+import com.ziggfreed.common.progress.gate.GateRefusal;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.rotation.PoolSeed;
 import com.ziggfreed.common.rotation.PoolSlot;
@@ -281,6 +282,23 @@ public final class BoardEngine {
             return BoardCheck.refused(REASON_REFUSED);
         }
         return BoardCheck.OK;
+    }
+
+    /**
+     * EVERY unmet gate requirement standing between {@code subject} and taking {@code bounty} off
+     * {@code board}, as structured records: the board's own {@code Requires} first, then the
+     * per-difficulty accept gate, in the evaluator's own order. Empty when the gates pass - which
+     * says nothing about the other accept checks ({@link #canAccept} still owns the decision), so
+     * this is the DETAIL read for a locked row's panel, never a second accept authority.
+     */
+    @Nonnull
+    public List<GateRefusal> acceptGateRefusals(@Nonnull Subject subject, @Nonnull BoardSpec board,
+            @Nonnull BountyRef bounty) {
+        List<GateRefusal> refusals =
+                new ArrayList<>(gates.allRefusals(subject, board.requires()));
+        refusals.addAll(gates.allRefusals(subject,
+                acceptGateFor(board, bounty.difficultyOn(board.boardId()))));
+        return refusals;
     }
 
     /**

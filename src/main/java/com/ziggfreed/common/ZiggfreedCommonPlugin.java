@@ -487,7 +487,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     @Nonnull
     private static Collection<String> factorVocabulary() {
         Set<String> ids = new TreeSet<>(PlacementFactorRegistry.registeredIds());
-        ids.addAll(DerivedFactorConfig.getInstance().ids());
+        ids.addAll(DerivedFactorConfig.getInstance().definedIds());
         return ids;
     }
 

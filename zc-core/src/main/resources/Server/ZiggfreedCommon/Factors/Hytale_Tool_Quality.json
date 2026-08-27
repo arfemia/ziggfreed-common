@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the hytale:tool_quality reading (the held item's rarity ordering value) for requirement lines.",
+  "Factor": "hytale:tool_quality",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.tool_quality" }
+}

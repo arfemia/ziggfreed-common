@@ -12,12 +12,6 @@ book.quests.section.available = Mevcut
 book.quests.section.locked = Kilitli
 book.quests.untitled = İsimsiz görev
 book.quests.step.untitled = İsimsiz adım
-book.quests.lock.unavailable = Şu anda sunulmuyor
-book.quests.lock.on_cooldown = Daha sonra tekrar açılacak
-book.quests.lock.prerequisites = Gereksinimler karşılanmadı
-book.quests.lock.other = Henüz açık değil
-book.quests.lock.quest = Görev tamamla: {0}
-book.quests.lock.log_full = Görev günlüğü dolu
 
 book.achievements.points = {0}/{1}
 book.achievements.category.uncategorised = Diğer

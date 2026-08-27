@@ -41,7 +41,7 @@ public final class CommerceChips {
     public static final String CHIP_TEMPLATE = "Pages/ZigCommerceChip.ui";
 
     /** A picture and a sentence, stacked down a panel. */
-    public static final String LINE_TEMPLATE = "Pages/ZigCommerceLine.ui";
+    public static final String LINE_TEMPLATE = "Pages/ZigDetailLine.ui";
 
     /** A balance reading: gold, because it is a statement rather than a comparison. */
     public static final String COLOR_BALANCE = "#ffd97a";

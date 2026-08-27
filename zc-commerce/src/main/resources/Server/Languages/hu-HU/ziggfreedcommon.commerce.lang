@@ -5,9 +5,14 @@ shop.count = {0} kapható
 shop.shelf = Kiemelt
 shop.refresh_in = Frissül {0} múlva
 shop.section.catalogue = Kínálat
+shop.filter.all_sections = Minden részleg
+shop.filter.kind_both = Teljes kínálat
+shop.filter.kind_rotating = Váltakozó kínálat
+shop.filter.kind_standing = Állandó kínálat
 shop.empty.unavailable = A fiókodat most nem sikerült beolvasni.
 shop.empty.closed = Ez a bolt zárva van.
 shop.empty.nothing = Most nincs itt semmi eladó.
+shop.empty.filtered = Egyetlen árucikk sem felel meg ezeknek a szűrőknek.
 shop.offer.untitled = Névtelen ajánlat
 
 shop.header.cost = Ár

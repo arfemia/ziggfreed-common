@@ -1,0 +1,90 @@
+# The shared progression vocabulary: the neutral objective sentence family, the lock-reason lines,
+# and the names the shipped factor naming overlays point at.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.progress.<key>.
+
+untitled = Unnamed quest
+step.untitled = Unnamed step
+
+# Why content is out of reach.
+lock.unavailable = Not offered right now
+lock.on_cooldown = Available again later
+lock.prerequisites = Requirements not met
+lock.other = Not available yet
+lock.quest = Complete quest: {0}
+lock.log_full = Quest log is full
+lock.factor = Requires {0}
+lock.factor.bound = Requires {0} {1}
+
+# One sentence per objective kind: {0} is the amount, {1} what it is about. The .any twin reads
+# when a step targets nothing in particular. A mod adding its own kind ships
+# ziggfreedcommon.progress.objective.<kind> in its own lang file and joins this family.
+objective.break_block = Break {0} {1}
+objective.break_block.any = Break {0} blocks
+objective.place_block = Place {0} {1}
+objective.place_block.any = Place {0} blocks
+objective.craft_item = Craft {0} {1}
+objective.craft_item.any = Craft {0} items
+objective.kill_entity = Defeat {0} {1}
+objective.kill_entity.any = Defeat {0} enemies
+objective.deal_damage = Deal {0} damage to {1}
+objective.deal_damage.any = Deal {0} damage
+objective.pickup_item = Collect {0} {1}
+objective.pickup_item.any = Collect {0} items
+objective.talk_to_npc = Speak with {1}
+objective.talk_to_npc.any = Speak with {0} characters
+objective.catch_fish = Catch {0} {1}
+objective.catch_fish.any = Catch {0} fish
+objective.turn_in = Hand in {0} {1}
+objective.turn_in.any = Report in
+objective.complete_quest = Complete quest: {1}
+objective.complete_quest.any = Complete {0} quests
+objective.take_fall_damage = Take {0} fall damage
+objective.take_fall_damage.any = Take {0} fall damage
+objective.player_death = Die {0} times
+objective.player_death.any = Die {0} times
+objective.sprint_distance = Sprint {0} blocks
+objective.sprint_distance.any = Sprint {0} blocks
+objective.swim_distance = Swim {0} blocks
+objective.swim_distance.any = Swim {0} blocks
+objective.breed_animal = Breed {0} {1}
+objective.breed_animal.any = Breed {0} animals
+objective.feed_animal = Feed {0} {1}
+objective.feed_animal.any = Feed {0} animals
+objective.harvest_animal = Harvest from {0} {1}
+objective.harvest_animal.any = Harvest from {0} animals
+objective.companion_combat = Defeat {0} {1} with your companion
+objective.companion_combat.any = Defeat {0} enemies with your companion
+objective.reach_location = Reach {1}
+objective.reach_location.any = Reach the destination
+objective.consume_item = Consume {0} {1}
+objective.consume_item.any = Consume {0} items
+objective.instance_round_won = Win {0} rounds of {1}
+objective.instance_round_won.any = Win {0} rounds
+objective.instance_round_ended = Play {0} rounds of {1}
+objective.instance_round_ended.any = Play {0} rounds
+objective.stat_threshold = Reach {1} {0}
+objective.stat_threshold.any = Reach {0}
+objective.default = {1} x{0}
+objective.default.any = x{0}
+
+# The wrappers around a composed sentence: {0}/{1} as each line says.
+objective.qualifier = {0} {1}
+objective.zone = {0} in {1}
+
+# What the portable factors are called, pointed at by the shipped naming overlays
+# (Server/ZiggfreedCommon/Factors). The per-channel stat names cover the engine's own channels;
+# name another channel by shipping ziggfreedcommon.progress.factor.stat.<ChannelId> in your own
+# lang file, or ship your own overlay with your own pattern.
+factor.held_item = Held item
+factor.held_tag = Held item type
+factor.permission = Permission
+factor.tool_durability_percent = Tool durability
+factor.tool_item_level = Tool item level
+factor.tool_power = Tool power
+factor.tool_quality = Tool quality
+factor.tool_tier = Tool harvest tier
+factor.stat.Health = Health
+factor.stat.Mana = Mana
+factor.stat.Stamina = Stamina
+factor.stat.Oxygen = Oxygen
+factor.stat.SignatureEnergy = Signature Energy

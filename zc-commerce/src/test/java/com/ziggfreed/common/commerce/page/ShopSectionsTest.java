@@ -1,7 +1,9 @@
 package com.ziggfreed.common.commerce.page;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -84,6 +86,60 @@ class ShopSectionsTest {
         assertEquals("first", ShopSections.select(ids, "gone"));
         assertEquals("first", ShopSections.select(ids, null));
         assertNull(ShopSections.select(List.of(), "anything"));
+    }
+
+    @Test
+    @DisplayName("a run key carries its kind, so a shelf and a category sharing a name stay distinct")
+    void runKeysKeepAShelfAndACategoryApart() {
+        assertEquals("shelf:featured", ShopSections.runKey(ShopSections.Kind.SHELF, "Featured"));
+        assertEquals("cat:featured", ShopSections.runKey(ShopSections.Kind.CATEGORY, "Featured"));
+        assertEquals(ShopSections.runKey(ShopSections.Kind.SHELF, "FEATURED"),
+                ShopSections.runKey(ShopSections.Kind.SHELF, " featured "));
+    }
+
+    @Test
+    @DisplayName("an absent, All or unrecognised filter keeps every run")
+    void permissiveFiltersKeepEverything() {
+        assertTrue(ShopSections.runMatches(ShopSections.Kind.SHELF, "featured", null, null));
+        assertTrue(ShopSections.runMatches(ShopSections.Kind.CATEGORY, "tools",
+                ShopSections.FILTER_ALL, ShopSections.FILTER_ALL));
+        assertTrue(ShopSections.runMatches(ShopSections.Kind.SHELF, "featured", "", ""));
+        assertTrue(ShopSections.runMatches(ShopSections.Kind.CATEGORY, "tools", "ALL", "garbage"));
+    }
+
+    @Test
+    @DisplayName("the kind filter keeps only its own kind of run")
+    void kindFilterSplitsRotatingFromStanding() {
+        assertTrue(ShopSections.runMatches(ShopSections.Kind.SHELF, "featured",
+                ShopSections.FILTER_ALL, ShopSections.KIND_ROTATING));
+        assertFalse(ShopSections.runMatches(ShopSections.Kind.CATEGORY, "tools",
+                ShopSections.FILTER_ALL, ShopSections.KIND_ROTATING));
+        assertTrue(ShopSections.runMatches(ShopSections.Kind.CATEGORY, "tools",
+                ShopSections.FILTER_ALL, ShopSections.KIND_STANDING));
+        assertFalse(ShopSections.runMatches(ShopSections.Kind.SHELF, "featured",
+                ShopSections.FILTER_ALL, ShopSections.KIND_STANDING));
+    }
+
+    @Test
+    @DisplayName("the run filter keeps exactly the run it names, however either side wrote it")
+    void runFilterKeepsOneRun() {
+        String key = ShopSections.runKey(ShopSections.Kind.CATEGORY, "Tools");
+        assertTrue(ShopSections.runMatches(ShopSections.Kind.CATEGORY, "TOOLS", key,
+                ShopSections.FILTER_ALL));
+        assertFalse(ShopSections.runMatches(ShopSections.Kind.CATEGORY, "boosts", key,
+                ShopSections.FILTER_ALL));
+        assertFalse(ShopSections.runMatches(ShopSections.Kind.SHELF, "tools", key,
+                ShopSections.FILTER_ALL));
+    }
+
+    @Test
+    @DisplayName("a contradictory pair keeps nothing at all, which is the honest reading of it")
+    void contradictoryFiltersKeepNothing() {
+        String shelfKey = ShopSections.runKey(ShopSections.Kind.SHELF, "featured");
+        assertFalse(ShopSections.runMatches(ShopSections.Kind.SHELF, "featured", shelfKey,
+                ShopSections.KIND_STANDING));
+        assertFalse(ShopSections.runMatches(ShopSections.Kind.CATEGORY, "featured", shelfKey,
+                ShopSections.KIND_STANDING));
     }
 
     private static List<String> idsOf(List<ShopSections.Section> sections) {

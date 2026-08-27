@@ -11,7 +11,7 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementStatus;
 import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.objectives.questlist.ProgressionTexts;
+import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestStatus;
 

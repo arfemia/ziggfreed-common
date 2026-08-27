@@ -13,7 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.dialogue.DialogueHeaders;
 import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.objectives.questlist.ProgressionTexts;
+import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;

@@ -101,29 +101,46 @@ class NpcPlacementReconcilerTest {
     @Test
     void aStandingNpcIsKeptWhenEverythingStillAgrees() {
         assertEquals(ResidentDecision.KEEP, NpcPlacementReconciler.decideResident(
-                new ResidentInputs(true, true, true, true)));
+                new ResidentInputs(true, true, true, true, true)));
     }
 
     @Test
     void aDeniedGateDespawnsWhatIsAlreadyStanding() {
         // This is what makes an admin off switch immediate rather than "at the next restart".
         assertEquals(ResidentDecision.DESPAWN, NpcPlacementReconciler.decideResident(
-                new ResidentInputs(true, false, true, true)));
+                new ResidentInputs(true, false, true, true, true)));
     }
 
     @Test
     void aDeletedPlacementOrAWorldThatNoLongerMatchesDespawns() {
         assertEquals(ResidentDecision.DESPAWN, NpcPlacementReconciler.decideResident(
-                new ResidentInputs(false, true, true, true)));
+                new ResidentInputs(false, true, true, true, true)));
         assertEquals(ResidentDecision.DESPAWN, NpcPlacementReconciler.decideResident(
-                new ResidentInputs(true, true, false, true)));
+                new ResidentInputs(true, true, false, true, true)));
     }
 
     @Test
     void aCorrectNpcWithNoLedgerRowIsAdoptedRatherThanReplaced() {
         assertEquals(ResidentDecision.REBIND, NpcPlacementReconciler.decideResident(
-                new ResidentInputs(true, true, true, false)),
+                new ResidentInputs(true, true, true, false, false)),
                 "removing a correctly-standing NPC just to place an identical one is a visible "
                         + "flicker for no gain");
+    }
+
+    // ==================== The stacking regression ====================
+
+    @Test
+    void aSurplusDuplicateWhoseRowNamesSomeoneElseIsDespawnedNotAdopted() {
+        // A row EXISTING is not the same as a row naming THIS entity. Two entities can share one
+        // (placement, anchor) after an earlier REPLACE (the ledger-recorded one was briefly absent
+        // when a sweep ran, so a new one was placed and the row re-pointed to it); treating
+        // "a row exists" as "this entity matches" is exactly what let the extra one stand forever
+        // and stack one higher every time it happened again.
+        assertEquals(ResidentDecision.DESPAWN, NpcPlacementReconciler.decideResident(
+                new ResidentInputs(true, true, true, true, false)),
+                "a row that exists but names a different entity is a surplus duplicate, not an "
+                        + "adoption candidate");
+        assertNotEquals(ResidentDecision.REBIND, NpcPlacementReconciler.decideResident(
+                new ResidentInputs(true, true, true, true, false)));
     }
 }

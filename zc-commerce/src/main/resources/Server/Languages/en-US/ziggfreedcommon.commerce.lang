@@ -19,9 +19,14 @@ shop.count = {0} for sale
 shop.shelf = Featured
 shop.refresh_in = Refreshes in {0}
 shop.section.catalogue = Catalogue
+shop.filter.all_sections = All sections
+shop.filter.kind_both = All stock
+shop.filter.kind_rotating = Rotating stock
+shop.filter.kind_standing = Standing stock
 shop.empty.unavailable = Your account could not be read just now.
 shop.empty.closed = This shop is closed.
 shop.empty.nothing = Nothing is for sale here right now.
+shop.empty.filtered = Nothing for sale matches these filters.
 shop.offer.untitled = Unnamed offer
 
 shop.header.cost = Price

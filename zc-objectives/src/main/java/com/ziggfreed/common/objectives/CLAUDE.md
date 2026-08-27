@@ -323,7 +323,7 @@ by design.
   pre-expanded Active section above the browse list. Rows expand in place and carry inline
   objectives (order groups locked until earlier groups land, step headings between them), tag
   chips coloured by the shared `ui/TagColors` table, a requirements line for a quest not yet taken
-  (the consumer's reading first, else the generic gate reading, else `LockReasons.bestLine`),
+  (the consumer's reading first, else the generic gate reading, else `quest.LockReasons.bestLine`, the shared zc-progression mapping every locked surface reads),
   reward chips through the shared `RewardChips` reading, a compact native per-row progress bar,
   and the accept / gold-claim / hand-in / abandon / track affordances. `#ActionBtn` is ONE
   state-dispatched button (accept, or a gold Claim), pre-bound even while hidden, so a completing
@@ -509,13 +509,14 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
   overloads match the host interface's two shapes byte-exactly; the root supplies an implementation
   overriding both. A consumer that wants a different screen registers its own host and outranks
   nothing - first host to take the screen wins.
-- **`.ui` contract**: `Pages/ZigNpcQuestPage.ui` plus the appended `Pages/ZigNpcQuestRow.ui` (ONE
-  template for both a quest row and a section heading, since a list mixing two templates would give
-  two different child sets at one index) and `Pages/ZigNpcQuestLine.ui` (ONE template for a step, a
-  reward and a refusal). All text on `.TextSpans`; every labeled button is `Button` + `#Label` driven
-  by `ZigRichButton`.
+- **`.ui` contract**: `Pages/ZigNpcQuestPage.ui` plus zc-presentation's shared appended
+  `Pages/ZigSelectRow.ui` (ONE template for both a quest row and a section heading, since a list
+  mixing two templates would give two different child sets at one index; the commerce pages append
+  the same file, so a readability change lands on every list at once - the row button is `#RowBtn`)
+  and `Pages/ZigDetailLine.ui` (ONE template for a step, a reward and a refusal). All text on
+  `.TextSpans`; every labeled button is `Button` + `#Label` driven by `ZigRichButton`.
 - **Keys** live beside the book's in `ziggfreedcommon.progression.lang` under `npcquests.`, and the
-  page deliberately REUSES the book's `book.progress` / `book.action.*` / `book.quests.lock.*` /
+  page deliberately REUSES the book's `book.progress` / `book.action.*` / the shared `ziggfreedcommon.progress.lock.*` /
   `book.toast.*` lines rather than minting a second wording for the same sentence.
 
 ## The tracked-quest HUD
@@ -549,8 +550,8 @@ after the maintenance pass has hopped to the world thread, so the first paint sh
   is one paint worked out from the engine: hidden when nothing is pinned or the deps say so, one
   block per pinned quest (capped at the document's five), only the CURRENT step's rows (capped at
   four), the count blank on a report-back hand-in, `complete` flipping the glyph and the colours.
-  Titles and lines come from `ProgressionTexts` (the registered text sources, else the book's own
-  placeholder lines), so the HUD speaks NO key of its own. The drawing onto the document's fixed,
+  Titles and lines come from the shared `progress.runtime.ProgressionTexts` walk (the registered
+  text sources, else its own placeholder lines), so the HUD speaks NO key of its own. The drawing onto the document's fixed,
   positional slots is the mechanical half and is in-game smoke.
 - **The consumer's part is [`hud/TrackedQuestHudDeps`](hud/TrackedQuestHudDeps.java)**, registered
   once through `TrackedQuestHuds.deps(Supplier)` and asked lazily on every paint: a `HudTheme` paint

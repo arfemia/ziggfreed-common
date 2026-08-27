@@ -34,6 +34,8 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.progress.runtime.ProgressionTexts;
+import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.quest.NpcOffer;
 import com.ziggfreed.common.quest.NpcOfferProviders;
 import com.ziggfreed.common.quest.Quest;
@@ -95,8 +97,8 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     public static final String TAB_MINE = "mine";
 
     private static final String PAGE_TEMPLATE = "Pages/ZigNpcQuestPage.ui";
-    private static final String ROW_TEMPLATE = "Pages/ZigNpcQuestRow.ui";
-    private static final String LINE_TEMPLATE = "Pages/ZigNpcQuestLine.ui";
+    private static final String ROW_TEMPLATE = "Pages/ZigSelectRow.ui";
+    private static final String LINE_TEMPLATE = "Pages/ZigDetailLine.ui";
 
     /** What a theme is offered to repaint: the panel carrying the list. */
     private static final String FRAME_SELECTOR = "#LeftPanel";
@@ -468,7 +470,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     private int appendHeader(@Nonnull UICommandBuilder cmd, int index, @Nonnull Message label) {
         String sel = appendRow(cmd, index);
         builtRowOrder.add(HEADER_ROW);
-        cmd.set(sel + " #QuestBtn.Visible", false);
+        cmd.set(sel + " #RowBtn.Visible", false);
         cmd.set(sel + " #StatusDot.Visible", false);
         cmd.set(sel + " #SectionLabel.TextSpans", label);
         cmd.set(sel + " #SectionLabel.Style.TextColor", HEADER_TEXT);
@@ -480,12 +482,12 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             @Nonnull Entry entry, @Nonnull Quest quest) {
         String sel = appendRow(cmd, index);
         builtRowOrder.add(quest.id());
-        ZigRichButton.text(cmd, sel + " #QuestBtn", questName(quest.id()));
+        ZigRichButton.text(cmd, sel + " #RowBtn", questName(quest.id()));
         cmd.set(sel + " #StatusDot.Background", dotColor(entry.section()));
         if (quest.id().equals(selectedQuestId)) {
             paintRowSelected(cmd, sel, true);
         }
-        events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #QuestBtn",
+        events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #RowBtn",
                 EventData.of("Action", "select").append("QuestId", quest.id()), false);
         return index + 1;
     }
@@ -504,15 +506,15 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     private static void paintRowSelected(@Nonnull UICommandBuilder cmd, @Nonnull String rowSel,
             boolean selected) {
         if (selected) {
-            UiRetint.retintButtonStates(cmd, rowSel + " #QuestBtn",
+            UiRetint.retintButtonStates(cmd, rowSel + " #RowBtn",
                     ROW_SELECTED_TINT, ROW_SELECTED_TINT, ROW_SELECTED_TINT);
-            ZigRichButton.color(cmd, rowSel + " #QuestBtn", ROW_SELECTED_TEXT);
-            cmd.set(rowSel + " #QuestBtn #Label.Style.RenderBold", true);
+            ZigRichButton.color(cmd, rowSel + " #RowBtn", ROW_SELECTED_TEXT);
+            cmd.set(rowSel + " #RowBtn #Label.Style.RenderBold", true);
         } else {
-            UiRetint.retintButtonStates(cmd, rowSel + " #QuestBtn",
+            UiRetint.retintButtonStates(cmd, rowSel + " #RowBtn",
                     ROW_TINT, ROW_HOVER_TINT, ROW_PRESSED_TINT);
-            ZigRichButton.color(cmd, rowSel + " #QuestBtn", ROW_TEXT);
-            cmd.set(rowSel + " #QuestBtn #Label.Style.RenderBold", false);
+            ZigRichButton.color(cmd, rowSel + " #RowBtn", ROW_TEXT);
+            cmd.set(rowSel + " #RowBtn #Label.Style.RenderBold", false);
         }
     }
 
@@ -902,6 +904,15 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             showToast(ToastKind.SUCCESS, text("book.toast.turned_in"));
             refreshOrReopen(ref, store, player, subject, engine, quest);
             return;
+        }
+        // A hand-in made HERE also COLLECTS here: a player who just walked the delivery over
+        // should not have to press a second button for a reward the engine is already holding for
+        // them. The claim is attempted in the SAME call scope, right behind the hand-in that
+        // earned it; a refusal (no room, or the quest wants collecting somewhere else) simply
+        // leaves it parked, and the completion toast and hand-off below cover both outcomes alike.
+        if (engine.status(subject, quest) == QuestStatus.COMPLETED_UNCLAIMED) {
+            ProgressionRuntime.questScope().around(subject,
+                    s -> Boolean.valueOf(engine.claim(s, quest, turnIn.atId())));
         }
 
         // ORDER IS LOAD-BEARING: the toast goes up FIRST, because whatever the hand-off opens

@@ -16,6 +16,7 @@ import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
 import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
@@ -42,7 +43,9 @@ import com.ziggfreed.common.shop.ShopOffer;
 import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.UiRetint;
+import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
@@ -67,6 +70,12 @@ import com.ziggfreed.common.util.SafeLog;
  * and the section headings share it too, because a list mixing two templates gives two different
  * child sets at one index and a partial update addresses the wrong one.
  *
+ * <p>Two dropdowns narrow the list: one names every run the storefront draws (each shelf, each
+ * category), the other keeps only the rotating or only the standing stock. Both are page-instance
+ * state like the selection - alive across every rebuild of one visit, forgotten when the page is
+ * next opened - and the count line always reports what the filters actually left on the page. A
+ * pair that keeps nothing shows the empty line that says so, which is the honest reading of it.
+ *
  * <h2>Nothing is charged for something that could not have happened</h2>
  *
  * <p>Every button on this page is bound whether or not it can succeed, and every press re-asks the
@@ -81,7 +90,7 @@ import com.ziggfreed.common.util.SafeLog;
 public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
     private static final String PAGE_TEMPLATE = "Pages/ZigShopPage.ui";
-    private static final String ROW_TEMPLATE = "Pages/ZigCommerceRow.ui";
+    private static final String ROW_TEMPLATE = "Pages/ZigSelectRow.ui";
 
     /** What a theme is offered to repaint: the panel carrying the catalogue. */
     private static final String FRAME_SELECTOR = "#LeftPanel";
@@ -103,6 +112,13 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
     /** The marker {@link #builtRowOrder} carries where a section heading was drawn. */
     private static final String HEADER_ROW = "";
+
+    /**
+     * The Anchor a heading row grows to when it shows the countdown under its label: the row line
+     * plus the meta line of the shared template, exactly. Without the growth the countdown paints
+     * over the first row of the run it heads, because a row's authored height fits one line.
+     */
+    private static final String HEADER_WITH_META_ANCHOR = "(Height: 54, Bottom: 2)";
 
     // The selected row's accent, and the shared row style's own per-state colours to revert to.
     private static final String ROW_SELECTED_TINT = "#1a2d44";
@@ -130,6 +146,15 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     @Nonnull private final CommercePageDeps deps;
 
     @Nullable private String selectedOfferId;
+
+    /**
+     * The two list filters: one run by {@link ShopSections#runKey}, and one of the
+     * {@link ShopSections#KIND_ROTATING} / {@link ShopSections#KIND_STANDING} kinds. Page-instance
+     * state exactly like the selection - they survive the rebuild a purchase forces and die with
+     * the page, so every fresh open starts unfiltered and nothing is persisted anywhere.
+     */
+    @Nonnull private String runFilter = ShopSections.FILTER_ALL;
+    @Nonnull private String kindFilter = ShopSections.FILTER_ALL;
 
     /** Two clicks before a reroll charges anything. Page-instance state, never persisted. */
     private final ConfirmArm rerollArm = new ConfirmArm();
@@ -195,21 +220,36 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         long now = System.currentTimeMillis();
         ShopEngine engine = CommerceEngines.shops();
         List<Run> runs = runsOf(engine, subject, asset, now);
-        List<String> orderedIds = new ArrayList<>();
-        for (Run run : runs) {
-            for (ShopOffer offer : run.offers()) {
-                orderedIds.add(offer.offerId());
-            }
-        }
-        if (orderedIds.isEmpty()) {
+        if (runs.isEmpty()) {
+            // The filters stay hidden with nothing to narrow: an empty storefront is its own line.
             showEmpty(cmd, text("shop.empty.nothing"));
             renderToastInto(cmd);
             return;
         }
-        this.selectedOfferId = ShopSections.select(orderedIds, selectedOfferId);
-        cmd.set("#OfferCount.TextSpans", text("shop.count", orderedIds.size()));
+        renderFilters(cmd, events, runs);
 
-        appendRuns(cmd, events, engine, subject, runs, now);
+        List<Run> visibleRuns = new ArrayList<>(runs.size());
+        List<String> orderedIds = new ArrayList<>();
+        for (Run run : runs) {
+            if (!ShopSections.runMatches(run.kind(), run.runId(), runFilter, kindFilter)) {
+                continue;
+            }
+            visibleRuns.add(run);
+            for (ShopOffer offer : run.offers()) {
+                orderedIds.add(offer.offerId());
+            }
+        }
+        // The count reports what is actually on the page, filters applied, or the line would say
+        // "13 for sale" over a list showing three.
+        cmd.set("#OfferCount.TextSpans", text("shop.count", orderedIds.size()));
+        if (orderedIds.isEmpty()) {
+            showEmpty(cmd, text("shop.empty.filtered"));
+            renderToastInto(cmd);
+            return;
+        }
+        this.selectedOfferId = ShopSections.select(orderedIds, selectedOfferId);
+
+        appendRuns(cmd, events, engine, subject, visibleRuns, now);
 
         // Bound ONCE per build with no offer id: the handlers act on whatever the detail panel is
         // showing, so a partial update can swap the panel without needing a binding it cannot add.
@@ -281,9 +321,14 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
     // ==================== the runs ====================
 
-    /** One run of rows: its heading, the clock under it when it has one, and what it holds. */
+    /**
+     * One run of rows: its heading, the clock under it when it has one, what it holds, and the
+     * kind + id the filters and {@link ShopSections#runKey} know it by (a shelf's id, or a
+     * standing category's key).
+     */
     private record Run(@Nonnull Message heading, @Nullable Message meta,
-                       @Nonnull List<ShopOffer> offers, @Nullable String shelfId) {
+                       @Nonnull List<ShopOffer> offers, @Nonnull ShopSections.Kind kind,
+                       @Nonnull String runId) {
     }
 
     /**
@@ -311,7 +356,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
                     CommerceText.title(shelf.asset().getText(), deps.titleArgs(), text("shop.shelf")),
                     text("shop.refresh_in",
                             CommerceText.countdownMessage(shelf.rotation().millisUntilNext(now))),
-                    drawn, shelf.shelfId()));
+                    drawn, ShopSections.Kind.SHELF, shelf.shelfId()));
         }
 
         List<ShopSections.Entry> standing = new ArrayList<>();
@@ -339,7 +384,8 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
                 }
             }
             if (!offers.isEmpty()) {
-                runs.add(new Run(categoryHeading(asset, section.id()), null, offers, null));
+                runs.add(new Run(categoryHeading(asset, section.id()), null, offers,
+                        ShopSections.Kind.CATEGORY, section.id()));
             }
         }
         return runs;
@@ -357,6 +403,43 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
             return text("shop.section.catalogue");
         }
         return CommerceLabels.category(shop, categoryId, deps.titleArgs());
+    }
+
+    /**
+     * The two list filters, offered over EVERY run the storefront draws - whatever the filters
+     * currently hide - so the way back out is always on the page. A run filter naming a run that
+     * is no longer drawn (its shelf rotated away) heals to All rather than pinning the page to an
+     * empty list nothing on screen explains; the dropdowns are String-only sinks, so every label
+     * flattens.
+     */
+    private void renderFilters(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull List<Run> runs) {
+        cmd.set("#FilterRow.Visible", true);
+
+        List<DropdownEntryInfo> runEntries = new ArrayList<>(runs.size() + 1);
+        runEntries.add(SettingsUiUtil.entry(UiText.flatten(text("shop.filter.all_sections")),
+                ShopSections.FILTER_ALL));
+        boolean filterStillDrawn = false;
+        for (Run run : runs) {
+            String value = ShopSections.runKey(run.kind(), run.runId());
+            runEntries.add(SettingsUiUtil.entry(UiText.flatten(run.heading()), value));
+            filterStillDrawn = filterStillDrawn || CommerceText.sameId(value, runFilter);
+        }
+        if (!filterStillDrawn) {
+            this.runFilter = ShopSections.FILTER_ALL;
+        }
+        SettingsUiUtil.populate(cmd, "#RunFilter", runEntries, runFilter);
+        SettingsUiUtil.bindDropdown(events, "#RunFilter", "filter_run");
+
+        List<DropdownEntryInfo> kindEntries = List.of(
+                SettingsUiUtil.entry(UiText.flatten(text("shop.filter.kind_both")),
+                        ShopSections.FILTER_ALL),
+                SettingsUiUtil.entry(UiText.flatten(text("shop.filter.kind_rotating")),
+                        ShopSections.KIND_ROTATING),
+                SettingsUiUtil.entry(UiText.flatten(text("shop.filter.kind_standing")),
+                        ShopSections.KIND_STANDING));
+        SettingsUiUtil.populate(cmd, "#KindFilter", kindEntries, kindFilter);
+        SettingsUiUtil.bindDropdown(events, "#KindFilter", "filter_kind");
     }
 
     private void appendRuns(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
@@ -391,6 +474,9 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         if (meta != null) {
             cmd.set(sel + " #SectionMeta.TextSpans", meta);
             cmd.set(sel + " #SectionMeta.Visible", true);
+            // The row must GROW to hold the second line, or the countdown paints over the first
+            // row of the run it heads.
+            cmd.set(sel + ".Anchor", HEADER_WITH_META_ANCHOR);
         }
         return index + 1;
     }
@@ -555,15 +641,17 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
      * Why this offer is out of reach, in one line the player can act on.
      *
      * <p>A shortfall names the wallet or the item it is short of, resolved HERE so it reads in the
-     * player's own language; every other refusal is the engine's token turned into its own sentence,
-     * and a gate refusal reads as the generic locked line rather than leaking whatever an author
-     * gated on.
+     * player's own language; every other commerce refusal is the engine's token turned into its own
+     * sentence, and a gate refusal reads through the shared lock-reason mapping - the same words
+     * every other locked surface shows for that same gate.
      */
     private void renderStatus(@Nonnull UICommandBuilder cmd, @Nonnull CurrencyEngine currencies,
             @Nullable String reason, int index) {
         CommerceRefusals.Refusal refusal = CommerceRefusals.of(reason);
         Message line;
-        if (refusal.currencyId() != null) {
+        if (refusal.line() != null) {
+            line = refusal.line();
+        } else if (refusal.currencyId() != null) {
             line = text(refusal.key(),
                     CommerceChips.nameOf(currencies, refusal.currencyId(), deps.currencyNames()));
         } else if (refusal.itemId() != null) {
@@ -601,7 +689,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         if (!check.ok()) {
             paintLocked(cmd, "#RerollBtn");
             CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#StatusList", statusIndex),
-                    text(CommerceRefusals.keyOf(check.reason())), CommerceChips.COLOR_REFUSAL, null);
+                    refusalLine(check.reason()), CommerceChips.COLOR_REFUSAL, null);
             return;
         }
         Cost price = shelf.reroll().cost();
@@ -628,6 +716,19 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         }
         if ("select".equals(action)) {
             selectOffer(ref, store, player, data.offerId);
+            return;
+        }
+        if ("filter_run".equals(action) || "filter_kind".equals(action)) {
+            // A filter change reshuffles the whole list, so it rebuilds, and an armed confirm must
+            // not survive a reshuffle that can move the selection it was armed behind.
+            rerollArm.reset();
+            String value = filterValue(data.dropdownValue);
+            if ("filter_run".equals(action)) {
+                this.runFilter = value;
+            } else {
+                this.kindFilter = value;
+            }
+            player.getPageManager().openCustomPage(ref, store, this);
             return;
         }
 
@@ -774,6 +875,9 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     @Nonnull
     private Message refusalLine(@Nullable String reason) {
         CommerceRefusals.Refusal refusal = CommerceRefusals.of(reason);
+        if (refusal.line() != null) {
+            return refusal.line();
+        }
         if (refusal.currencyId() != null) {
             return text(refusal.key(), CommerceChips.nameOf(CommerceDefaults.currencyEngine(),
                     refusal.currencyId(), deps.currencyNames()));
@@ -889,6 +993,12 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     @Nonnull
     private static String armKey(@Nonnull String offerId) {
         return "reroll:" + offerId;
+    }
+
+    /** A dropdown's chosen value as a filter: whatever it said, and All when it said nothing. */
+    @Nonnull
+    private static String filterValue(@Nullable String value) {
+        return value == null || value.isBlank() ? ShopSections.FILTER_ALL : value.trim();
     }
 
     @Nonnull

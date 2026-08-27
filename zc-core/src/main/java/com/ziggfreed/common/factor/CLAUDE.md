@@ -66,22 +66,80 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
   form for an engine that resolves factors its own way. An EMPTY formula (no `Base`, no usable term)
   is not a constant zero - consumers treat it as no definition at all.
 - **[`DerivedFactorAsset`](DerivedFactorAsset.java)**, **[`DerivedFactorConfig`](DerivedFactorConfig.java)**,
-  **[`DerivedFactorSource`](DerivedFactorSource.java)** - a factor DEFINED as a formula, with no
-  Java: `Server/ZiggfreedCommon/Factors/<id>.json`, `{Formula: {...}}`, **the file name IS the factor
-  id**. The config is the process-wide `defaults < pack < owner` fold and the shipped
+  **[`DerivedFactorSource`](DerivedFactorSource.java)** - one `Server/ZiggfreedCommon/Factors/<file>.json`
+  file doing either or both of two jobs with no Java: DEFINING a factor id as a `Formula` (**the
+  file name IS the factor id** then), and NAMING a factor for every surface that explains a
+  requirement on it. The config is the process-wide `defaults < pack < owner` fold and the shipped
   `DerivedFactorSource`; **every `FactorRegistry` starts wired to it**, so a derived id resolves in
   a placement gate, a dialogue condition, and another formula's term alike (clear the hook with
   `derivedSource(null)` for a private vocabulary). Nothing downstream can tell a derived id from a
   registered one - which is the point, and also why a bounds-less gate on one is a presence check on
-  the DEFINITION rather than on its inputs.
+  the DEFINITION rather than on its inputs. `definedIds()` is the vocabulary listing (file ids that
+  define a value); `ids()` would leak arbitrarily-named naming overlays.
+  - **The NAMING half**: `Factor` (the target id, explicit because ids carry colons a filename
+    cannot - the file may be named anything, and may target a factor a mod registered in CODE, the
+    `NpcIdentityAsset`-style overlay), `Param` (narrows `Text` to one factor+param pair), `Text`
+    (the shared `ContentTextAsset` group; the key surfaces resolve is `TitleKey`, `DisplayName` the
+    plain fallback), and `ParamNames` (`KeyPattern` with a `{param}` slot + bespoke per-param
+    `Keys`). **Keys are written IN FULL and never namespaced for the author** (rules R0), so an
+    overlay may point at any mod's shipped key - a station mod naming something with an MMO key, a
+    pack reusing a library key. `Factor` and `Formula` are mutually exclusive (validator error); a
+    naming-only file registers NO value, so it can never shadow the real provider of the id it
+    names.
+  - **Overlays COMPOSE, most specific first** ([`FactorNames`](FactorNames.java), the ONE walk and
+    deliberately the ONLY naming mechanism - there is no Java naming seam on `FactorProvider`, so
+    there is one place to look): an exact `Param` claim (the file's own `Param`, or a `Keys`
+    entry), then every `KeyPattern` filled with the param, then a bare `Text` on the factor. A
+    pattern whose resolved key is not shipped (probed through the one `i18n/LangCatalog`) is
+    SKIPPED and the walk continues - which is what lets several mods each name their own params of
+    one shared factor (`hytale:stat` being the worked case). A factor no file names answers null
+    and the surface falls to its generic requirements line - the visible cue to author an overlay.
+  - **The library ships overlays for its own nine `hytale:` factors** (zc-core resources,
+    `Factors/Hytale_*.json`): `hytale:stat` in the pattern form
+    (`ziggfreedcommon.progress.factor.stat.{param}`, the engine's own channels named in the nine
+    `ziggfreedcommon.progress.lang` files), `hytale:held_item` patterned straight onto
+    `server.items.{param}.name`, the rest with a bare `Text`.
 - **[`DerivedFactorValidator`](DerivedFactorValidator.java)** - the load-time audit for the silent
-  cases: `EMPTY_FORMULA`, `SELF_REFERENCE`, `CYCLE` (a static BFS over the definition graph),
-  `NON_FINITE`, `CLAMP_INVERTED` as errors; `UNKNOWN_FACTOR` and `BLANK_TERM` as warnings. An unknown
-  term id is only ever a WARNING: its owner may register later, or may be a mod the author expects
-  some servers not to install, which is the value side working rather than a broken file. Reports
-  shared [`validation.Finding`](../validation/CLAUDE.md) values under domain `factor`;
+  cases. `validateAssets` is the file-level walk the config's `audit()` runs: `FACTOR_AND_FORMULA`
+  (both halves at once - the finding names which leaf to remove for each intent) and
+  `EMPTY_FORMULA` (a file that defines nothing and names nothing) as errors, `NAMES_NOTHING` (an
+  overlay with no `Text` and no `ParamNames`) as a warning, a naming-only file VALID with no
+  formula at all; every defining file then takes the formula checks - `SELF_REFERENCE`, `CYCLE` (a
+  static BFS over the definition graph), `NON_FINITE`, `CLAMP_INVERTED` as errors, `UNKNOWN_FACTOR`
+  and `BLANK_TERM` as warnings. An unknown term id is only ever a WARNING: its owner may register
+  later, or may be a mod the author expects some servers not to install, which is the value side
+  working rather than a broken file. Reports shared
+  [`validation.Finding`](../validation/CLAUDE.md) values under domain `factor`;
   `DerivedFactorConfig.audit([registeredElsewhere])` audits the folded pool and `logFindings()` is
   the always-on baseline (via `ValidationReport.logAll`).
+- **[`FeatureFlags`](FeatureFlags.java)** - the generic FEATURE-FLAG factor: a mod declares its own
+  feature ids and their live on/off state (`register(namespace, featureId, owner, supplier)`, an
+  alias being the same supplier under a second id), and the first declaration of a namespace
+  contributes `<namespace>:feature` process-wide through `FactorContributions`, so authored content
+  anywhere gates on another mod's switches with no Java and no dependency edge. The reading: a
+  declared feature is 1/0 off its supplier (read per evaluation, so a runtime toggle lands on the
+  next check; a THROWING supplier is 0 with one warn), an UNDECLARED feature id is a definite `0`
+  (a feature nobody declared is genuinely off, and the real number keeps the bounds-less presence
+  form usable as "the declaring mod is installed" - the `ModFactors` precedent), a missing `Param`
+  is unanswerable (`null`), and an undeclared NAMESPACE is just an uncontributed id failing closed
+  as everything does. Additive as of 2.0.0; nothing in the library consumes it yet.
+
+### The R6 audit: which factors are assets, which stay Java, and why
+
+Any factor whose VALUE is expressible as a `FactorFormula` over existing factors belongs in a
+`Server/ZiggfreedCommon/Factors/` asset, not in code. Audited against that rule, every factor this
+library registers in code stays Java, each for the same structural reason - it READS something no
+formula can reach - and gets a naming overlay instead:
+
+- the nine `HytaleFactors` ids read live engine data off the context's subject (a stat fold, the
+  held stack's tool spec/tags/durability, a permission check on the connection);
+- `ModFactors`' `hytale:mod_installed` reads the engine's plugin table;
+- `ProgressionFactors`' four `ziggfreedcommon:` ids read a player's stored quest/achievement
+  records through the runtime's registered stores;
+- `FeatureFlags`' `<namespace>:feature` reads a consumer's live config suppliers.
+
+A new code registration should have to justify itself the same way; anything that is arithmetic
+over these belongs in a Factors file.
 - **[`FactorRegistry`](FactorRegistry.java)** - **INSTANTIABLE per consumer**, the dialogue-engine
   paradigm rather than a shared mutable global: one instance is one vocabulary, fully populated at
   setup and only then handed to the engine that reads it, so there is no registration race and one

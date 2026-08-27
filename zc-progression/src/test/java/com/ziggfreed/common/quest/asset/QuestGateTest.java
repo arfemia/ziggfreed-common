@@ -22,6 +22,7 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateKind;
+import com.ziggfreed.common.progress.gate.GateRefusal;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
@@ -473,6 +474,48 @@ class QuestGateTest {
                     { "Not": [ { "Factors": [ { "Factor": "yourmod:rank", "Min": 5 } ] },
                                { "Factors": [ { "Factor": "yourmod:fame", "Min": 500 } ] } ] }
                     """)), "only the group that PASSES shuts the gate");
+        }
+
+        @Test
+        void theStructuredRefusalsCarryWhatTheTokenNeverCouldAndDeriveItExactly() {
+            factors.register("yourmod:stat", ctx -> 1.0);
+
+            GateSpec gate = spec("""
+                    { "Factors": [ { "Factor": "yourmod:stat", "Param": "mining", "Min": 50, "Max": 90 } ],
+                      "Quests": ["intro_1"],
+                      "Custom": { "yourmod:reputation": { } },
+                      "AnyOf": [ { "Quests": ["route_a"] }, { "Quests": ["route_b"] } ] }
+                    """);
+            List<GateRefusal> refusals = evaluator().allRefusals(PLAYER, gate);
+
+            // The records are the walk; the token list is its projection, byte for byte.
+            assertEquals(evaluator().allFailures(PLAYER, gate),
+                    refusals.stream().map(GateRefusal::token).toList(),
+                    "the string API is DERIVED from the records, so the two can never disagree");
+
+            GateRefusal factor = refusals.get(0);
+            assertEquals(GateRefusal.Kind.FACTOR, factor.kind());
+            assertEquals("yourmod:stat", factor.factorId());
+            assertEquals("mining", factor.param());
+            assertEquals(50.0, factor.min());
+            assertEquals(90.0, factor.max());
+            assertEquals(GateEvaluator.REASON_FACTOR + "yourmod:stat@mining", factor.token(),
+                    "the bound lives ONLY on the record - the token spelling is unchanged");
+
+            assertEquals(GateRefusal.Kind.QUEST, refusals.get(1).kind());
+            assertEquals("intro_1", refusals.get(1).questId());
+            assertEquals(GateRefusal.Kind.CUSTOM, refusals.get(2).kind());
+            assertEquals("yourmod:reputation", refusals.get(2).customKindId());
+            assertEquals(GateRefusal.Kind.ANY_OF, refusals.get(3).kind());
+
+            // And a token round-trips into the (bound-less) record a token-only caller can lift.
+            GateRefusal lifted = GateRefusal.fromToken(factor.token());
+            assertNotNull(lifted);
+            assertEquals("yourmod:stat", lifted.factorId());
+            assertEquals("mining", lifted.param());
+            assertNull(lifted.min(), "a bound is never encoded into the token");
+            assertNull(GateRefusal.fromToken("unavailable"),
+                    "an engine's own flat lifecycle token is not this vocabulary's");
         }
 
         private GateSpec spec(String requiresJson) {

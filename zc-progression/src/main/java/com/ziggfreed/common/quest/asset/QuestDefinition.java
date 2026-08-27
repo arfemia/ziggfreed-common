@@ -8,6 +8,8 @@ import javax.annotation.Nullable;
 
 import com.google.gson.JsonElement;
 import com.ziggfreed.common.progress.ContentText;
+import com.ziggfreed.common.progress.ObjectiveComposer;
+import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.ContentListingAsset.ChainMembership;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -90,6 +92,15 @@ public record QuestDefinition(@Nonnull String id, @Nonnull Quest quest, @Nullabl
                 .flavorArgs(ContentText.amountArgs(flavorArgs, amount));
         for (Map.Entry<String, String> entry : objectiveTextKeys.entrySet()) {
             text.objectiveKey(entry.getKey(), entry.getValue());
+        }
+        // EVERY step also carries a composed line, stamped LAZILY: a consumer's composer is
+        // installed during its startup, which can be after this fold runs, and the library's own
+        // neutral sentence family answers where nothing richer is installed. The authored key stays
+        // on the group above as the fallback rung, and the composer receives it too, so the
+        // author's own line is resolved WITH its arguments rather than painted with bare slots.
+        for (ObjectiveDef objective : quest.objectives()) {
+            String authoredKey = objectiveTextKeys.get(objective.id());
+            text.objectiveLine(objective.id(), () -> ObjectiveComposer.line(objective, authoredKey));
         }
         return text.build();
     }

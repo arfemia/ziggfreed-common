@@ -12,12 +12,6 @@ book.quests.section.available = Disponibles
 book.quests.section.locked = Bloqueadas
 book.quests.untitled = Misión sin nombre
 book.quests.step.untitled = Paso sin nombre
-book.quests.lock.unavailable = No se ofrece ahora mismo
-book.quests.lock.on_cooldown = Disponible de nuevo más tarde
-book.quests.lock.prerequisites = Requisitos no cumplidos
-book.quests.lock.other = Todavía no disponible
-book.quests.lock.quest = Completar misión: {0}
-book.quests.lock.log_full = El registro de misiones está lleno
 
 book.achievements.points = {0}/{1}
 book.achievements.category.uncategorised = Otros

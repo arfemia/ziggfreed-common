@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the hytale:tool_tier reading (the held tool's per-GatherType harvest-tier gate) for requirement lines. A different number from tool_quality: this is the gate the engine compares against a block's required tier. Ship a Keys entry for a per-type wording.",
+  "Factor": "hytale:tool_tier",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.tool_tier" }
+}

@@ -9,6 +9,8 @@ import javax.annotation.Nullable;
 import com.google.gson.JsonElement;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.progress.ContentText;
+import com.ziggfreed.common.progress.ObjectiveComposer;
+import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.ContentListingAsset.ChainMembership;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -85,6 +87,15 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
         // therefore the id a surface asks about.
         for (Map.Entry<String, String> entry : criterionTextKeys.entrySet()) {
             text.objectiveKey(entry.getKey(), entry.getValue());
+        }
+        // EVERY criterion also carries a composed line, stamped LAZILY for the same reason the
+        // quest fold stamps one: a consumer's composer is installed during its startup, possibly
+        // after this fold, and the neutral sentence family answers where nothing richer is. The
+        // authored key stays above as the fallback rung and is handed to the composer, so an
+        // author's own line resolves WITH its arguments.
+        for (ObjectiveDef criterion : achievement.criteria()) {
+            String authoredKey = criterionTextKeys.get(criterion.id());
+            text.objectiveLine(criterion.id(), () -> ObjectiveComposer.line(criterion, authoredKey));
         }
         return text.build();
     }

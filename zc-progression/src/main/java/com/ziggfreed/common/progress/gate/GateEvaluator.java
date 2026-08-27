@@ -259,12 +259,15 @@ public final class GateEvaluator {
      * EVERY unmet requirement in {@code spec} as reason tokens, in the same leaf-then-{@code AllOf}
      * -then-{@code Not}-then-{@code AnyOf} order {@link #firstFailure} walks, empty when the block
      * passed. This is the list a locked-content panel shows; {@link #firstFailure} stays the cheap
-     * answer for a boolean check.
+     * answer for a boolean check. The tokens are DERIVED, one per record, from
+     * {@link #allRefusals} - same walk, same order, today's exact spellings.
      *
      * <p>A {@code factor:} token here carries the condition's {@code Param} after an {@code @} when
      * one is authored, because a block may bound one factor id twice under two different
      * {@code Param}s, and a consumer looking the condition back up by bare id would render one of
-     * them twice and drop the other.
+     * them twice and drop the other. A consumer splits at the FIRST {@code @}, so a {@code Param}
+     * may contain any number of its own and still round-trip; what the spelling relies on is that a
+     * namespaced FACTOR ID never contains one, and nothing enforces that.
      *
      * <p>An {@code AnyOf} block contributes exactly ONE token however many routes it offers: the
      * routes are alternatives, so listing each one as its own unmet requirement would read as
@@ -272,36 +275,56 @@ public final class GateEvaluator {
      */
     @Nonnull
     public List<String> allFailures(@Nonnull Subject subject, @Nullable GateSpec spec) {
+        List<GateRefusal> refusals = allRefusals(subject, spec);
+        if (refusals.isEmpty()) {
+            return List.of();
+        }
+        List<String> failures = new ArrayList<>(refusals.size());
+        for (GateRefusal refusal : refusals) {
+            failures.add(refusal.token());
+        }
+        return failures;
+    }
+
+    /**
+     * EVERY unmet requirement in {@code spec} as structured {@link GateRefusal} records, in the
+     * same order as {@link #allFailures} and empty exactly when it is - this is the walk, and the
+     * token list is its projection. A surface with room for the rich line reads these: a factor
+     * refusal carries the condition's authored {@code Param} and BOUNDS, which the token never
+     * does, so "what does this ask for" is answerable without re-evaluating anything.
+     */
+    @Nonnull
+    public List<GateRefusal> allRefusals(@Nonnull Subject subject, @Nullable GateSpec spec) {
         if (spec == null) {
             return List.of();
         }
-        List<String> failures = new ArrayList<>();
-        clauseFailures(subject, spec, failures);
+        List<GateRefusal> refusals = new ArrayList<>();
+        clauseRefusals(subject, spec, refusals);
         for (GateClause clause : spec.allOfOrEmpty()) {
-            clauseFailures(subject, clause, failures);
+            clauseRefusals(subject, clause, refusals);
         }
         // A Not group shuts the gate by PASSING, exactly as in the short-circuit walk.
         for (GateClause clause : spec.notOrEmpty()) {
             if (clause != null && clauseFailure(subject, clause) == null) {
-                failures.add(REASON_NOT);
+                refusals.add(GateRefusal.NOT);
             }
         }
         GateClause[] anyOf = spec.anyOfOrEmpty();
         if (anyOf.length == 0) {
-            return failures;
+            return refusals;
         }
         for (GateClause clause : anyOf) {
             if (clauseFailure(subject, clause) == null) {
-                return failures;
+                return refusals;
             }
         }
-        failures.add(REASON_ANY_OF);
-        return failures;
+        refusals.add(GateRefusal.ANY_OF);
+        return refusals;
     }
 
     /** Every unmet requirement in ONE group, in leaf order, appended to {@code out}. */
-    private void clauseFailures(@Nonnull Subject subject, @Nullable GateClause clause,
-            @Nonnull List<String> out) {
+    private void clauseRefusals(@Nonnull Subject subject, @Nullable GateClause clause,
+            @Nonnull List<GateRefusal> out) {
         if (clause == null || clause.isEmpty()) {
             return;
         }
@@ -315,14 +338,14 @@ public final class GateEvaluator {
                 int before = out.size();
                 for (FactorCondition condition : conditions) {
                     if (condition != null && !condition.isBlank()) {
-                        out.add(factorToken(condition));
+                        out.add(refusalOf(condition));
                     }
                 }
                 if (out.size() == before) {
                     // Nothing here was nameable (every entry blank), and the short-circuit walk
                     // still refuses that clause. The two must agree about whether a block is shut,
-                    // so name the same bare token it does rather than reading as open.
-                    out.add(REASON_FACTOR + firstFactorId(conditions));
+                    // so name the same bare id it does rather than reading as open.
+                    out.add(GateRefusal.factor(firstFactorId(conditions), null, null, null));
                 }
                 // Stop where the short-circuit walk stops. Reading on into the permission, quest and
                 // custom leaves would report requirements that were never evaluated at all, and
@@ -331,19 +354,19 @@ public final class GateEvaluator {
             } else {
                 for (FactorCondition condition
                         : FactorConditions.allFailures(conditions, vocabulary, contextFor(subject))) {
-                    out.add(factorToken(condition));
+                    out.add(refusalOf(condition));
                 }
             }
         }
 
         String permission = clause.getPermission();
         if (permission != null && !factorsPass(subject, List.of(permissionCondition(permission)))) {
-            out.add(REASON_PERMISSION);
+            out.add(GateRefusal.PERMISSION);
         }
 
         for (String questId : clause.questsOrEmpty()) {
             if (questId != null && !questId.isBlank() && !completion.hasCompleted(subject, questId.trim())) {
-                out.add(REASON_QUEST + questId.trim());
+                out.add(GateRefusal.quest(questId.trim()));
             }
         }
 
@@ -352,39 +375,27 @@ public final class GateEvaluator {
             String kindId = entry.getKey();
             GateKind kind = kinds.kind(kindId);
             if (kind == null) {
-                out.add(REASON_CUSTOM + kindId);
+                out.add(GateRefusal.custom(kindId));
                 continue;
             }
             Map<String, String> params = entry.getValue() == null ? Map.of() : entry.getValue();
             try {
                 if (!kind.passes(subject, params, support)) {
-                    out.add(REASON_CUSTOM + kindId);
+                    out.add(GateRefusal.custom(kindId));
                 }
             } catch (Exception e) {
                 kinds.recordFailure(kindId, e.getMessage());
                 warn.accept("requirement kind '" + kindId + "' threw, so the gate stays shut: " + e.getMessage());
-                out.add(REASON_CUSTOM + kindId);
+                out.add(GateRefusal.custom(kindId));
             }
         }
     }
 
-    /**
-     * The token naming one unmet bound: the factor id, plus the authored {@code Param} after an
-     * {@code @} when there is one. A param-less condition keeps the bare spelling, which a consumer
-     * reads back as "the bound that authored no param" rather than as any bound on the id.
-     *
-     * <p>A consumer splits at the FIRST {@code @}, so a {@code Param} may contain any number of its
-     * own and still round-trip. What the spelling relies on is that a namespaced FACTOR ID never
-     * contains one; nothing enforces that, so a factor id carrying an {@code @} would have its token
-     * read back truncated.
-     */
+    /** One unmet bound as its record, carrying the condition's authored param and bounds. */
     @Nonnull
-    private static String factorToken(@Nonnull FactorCondition condition) {
-        String factorId = condition.getFactor() == null ? "" : condition.getFactor();
-        String param = condition.getParam();
-        return param == null || param.isBlank()
-                ? REASON_FACTOR + factorId
-                : REASON_FACTOR + factorId + "@" + param;
+    private static GateRefusal refusalOf(@Nonnull FactorCondition condition) {
+        return GateRefusal.factor(condition.getFactor(), condition.getParam(),
+                condition.getMin(), condition.getMax());
     }
 
     /** The shared factor answer, also handed to every desugaring requirement kind. */

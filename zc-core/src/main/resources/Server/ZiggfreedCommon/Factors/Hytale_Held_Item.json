@@ -1,0 +1,8 @@
+{
+  "$Comment": "Names the hytale:held_item reading for requirement lines. The pattern points straight at the engine's own item name catalogue, so a requirement to hold a specific item reads with that item's shipped display name in the viewer's language; an item id with no shipped name falls back to the factor's own name below.",
+  "Factor": "hytale:held_item",
+  "ParamNames": {
+    "KeyPattern": "server.items.{param}.name"
+  },
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.held_item" }
+}

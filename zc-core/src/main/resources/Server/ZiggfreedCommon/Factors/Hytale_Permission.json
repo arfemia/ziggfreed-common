@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the hytale:permission reading for requirement lines. A permission node is an operator-facing id, so the line names the concept rather than the node; ship a Factors file with a Param entry (Keys) to word a specific node's requirement for players.",
+  "Factor": "hytale:permission",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.permission" }
+}

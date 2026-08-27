@@ -34,7 +34,11 @@ class DerivedFactorTest {
 
     /** Fold {@code definitions} into the process-wide config the registries consult. */
     private static void define(Map<String, FactorFormula> definitions) {
-        DerivedFactorConfig.getInstance().mergePackLayer(definitions);
+        Map<String, DerivedFactorAsset> files = new HashMap<>();
+        for (Map.Entry<String, FactorFormula> e : definitions.entrySet()) {
+            files.put(e.getKey(), DerivedFactorAsset.of(e.getKey(), e.getValue(), null, null, null, null));
+        }
+        DerivedFactorConfig.getInstance().mergePackLayer(files);
     }
 
     private static FactorFormula formula(String factor, Double weight) {

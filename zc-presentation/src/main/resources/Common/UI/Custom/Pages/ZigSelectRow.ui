@@ -1,17 +1,20 @@
 $Z = "../Common/ZigButtons.ui";
 
-// One row of a commerce list, appended into #OfferList (the storefront) or #BountyList (the board).
-// Addressed per row via the INDEXED PARENT ("#OfferList[0] #RowBtn"), so the bare descendant ids
-// below are safe across many rows and across mods.
+// One row of a selectable list: a quest list, a storefront's catalogue, a board's contracts.
+// Appended into a page's list container and addressed per row via the INDEXED PARENT
+// ("#MyList[0] #RowBtn"), so the bare descendant ids below are safe across many rows and across
+// mods.
 //
-// ONE template for BOTH pages and for BOTH kinds of row. A storefront row and a board row differ in
-// what they SAY rather than in what they are, and a page update can restyle an element that already
-// exists but can never add one - so a list mixing templates would give two different child sets at
-// one index and a partial update would address the wrong thing.
+// ONE template for BOTH kinds of row. A content row and a section heading differ in what they SAY
+// rather than in what they are, and a page update can restyle an element that already exists but
+// can never add one - so a list mixing templates would give two different child sets at one index
+// and a partial update would address the wrong thing.
 //
 // A SECTION HEADING is the same row with its button and dot hidden and #SectionLabel shown;
-// #SectionMeta carries the countdown under a rotating shelf's heading and stays hidden everywhere
-// else. A content row does the reverse (the authored defaults below).
+// #SectionMeta carries a short line under a heading (a rotating shelf's countdown) and stays
+// hidden everywhere else. A content row does the reverse (the authored defaults below). A heading
+// that shows #SectionMeta must also GROW the row from Java - set the row root's Anchor to
+// (Height: 54, Bottom: 2) - or the meta line paints over the row below it.
 //
 // #RowBtn is a Button + inner Label #Label, never a TextButton: a row title is a parameterized
 // Message and only substitutes on .TextSpans. The selected-row accent is set from Java on the
@@ -21,7 +24,7 @@ $Z = "../Common/ZigButtons.ui";
 // flexes, the badge does not, and the gap between them is what stops a long title reading as one
 // word with the badge. Widen the badge rather than dropping its width if a longer word has to fit.
 
-Group #ZigCommerceRow {
+Group #ZigSelectRow {
   LayoutMode: Top;
   Anchor: (Height: 38, Bottom: 2);
 
@@ -45,7 +48,7 @@ Group #ZigCommerceRow {
         FlexWeight: 1;
         Text: "";
         Anchor: (Height: 36);
-        Style: (FontSize: 13, TextColor: #b6c9de, VerticalAlignment: Center);
+        Style: (FontSize: 14, TextColor: #b6c9de, VerticalAlignment: Center);
       }
     }
 
@@ -55,22 +58,22 @@ Group #ZigCommerceRow {
       Visible: false;
       Anchor: (Height: 36);
       Padding: (Left: 4);
-      Style: (FontSize: 11, TextColor: #c2d4e8, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+      Style: (FontSize: 12, TextColor: #c2d4e8, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
     }
 
     Label #RowBadge {
       Text: "";
       Visible: false;
       Anchor: (Width: 96, Height: 36);
-      Style: (FontSize: 11, TextColor: #c8a86a, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: 12, TextColor: #c8a86a, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
   Label #SectionMeta {
     Text: "";
     Visible: false;
-    Anchor: (Height: 14);
+    Anchor: (Height: 18);
     Padding: (Left: 4);
-    Style: (FontSize: 10, TextColor: #9fb3c8, VerticalAlignment: Center);
+    Style: (FontSize: 12, TextColor: #9fb3c8, VerticalAlignment: Center);
   }
 }

@@ -1,5 +1,7 @@
 package com.ziggfreed.common.i18n;
 
+import java.util.function.Predicate;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -47,6 +49,81 @@ public final class NativeNames {
             return Msg.key(modKey);
         }
         return Msg.raw(prettify(itemId));
+    }
+
+    /**
+     * The display name for an id whose CATEGORY is unknown - an objective's target, a loot
+     * subject - probed across the namespaces the engine ships names in: the two item families
+     * first, then the two character/creature families, then the prettified raw fallback. One
+     * ladder, so every surface that has to name "whatever this id is" reads the same answer.
+     */
+    @Nonnull
+    public static Message targetNameMsg(@Nonnull String id) {
+        return targetNameMsg(id, LangCatalog::has);
+    }
+
+    /**
+     * {@link #targetNameMsg(String)} over an explicit key-existence probe - the decision core a
+     * unit test drives, and what a caller composing its own ladder threads its probe through.
+     */
+    @Nonnull
+    public static Message targetNameMsg(@Nonnull String id, @Nonnull Predicate<String> keyExists) {
+        if (id.isBlank()) {
+            return Msg.raw("");
+        }
+        for (String key : new String[] {
+                "server.items." + id + ".name", "items." + id + ".name",
+                "server.npcRoles." + id + ".name", "npcs." + id + ".name"}) {
+            if (keyExists.test(key)) {
+                return Msg.key(key);
+            }
+        }
+        return Msg.raw(prettify(id.replace(':', ' ')));
+    }
+
+    /**
+     * Resolves {@code entityId} to a client-resolved character / creature display {@link Message}:
+     * the native {@code server.npcRoles.<id>.name} key when it exists, else the
+     * {@code npcs.<id>.name} namespace a mod's own {@code npcs.lang} loads under, else the
+     * prettified raw fallback - the same probe-then-fallback shape as {@link #itemNameMsg}, over
+     * the two namespaces the engine registers role names in.
+     */
+    @Nonnull
+    public static Message entityNameMsg(@Nonnull String entityId) {
+        if (entityId.isBlank()) {
+            return Msg.raw("");
+        }
+        String nativeKey = "server.npcRoles." + entityId + ".name";
+        if (LangCatalog.has(nativeKey)) {
+            return Msg.key(nativeKey);
+        }
+        String modKey = "npcs." + entityId + ".name";
+        if (LangCatalog.has(modKey)) {
+            return Msg.key(modKey);
+        }
+        return Msg.raw(prettify(entityId));
+    }
+
+    /**
+     * Resolves {@code zoneId} to a client-resolved place display {@link Message}: the native
+     * {@code server.map.zone.<id>} key when it exists, else {@code server.map.region.<id>}, else
+     * the prettified raw fallback. The two map namespaces are the engine's own zone and region
+     * catalogues, so a vanilla place reads with its shipped name in the viewer's own language.
+     */
+    @Nonnull
+    public static Message zoneNameMsg(@Nonnull String zoneId) {
+        if (zoneId.isBlank()) {
+            return Msg.raw("");
+        }
+        String zoneKey = "server.map.zone." + zoneId;
+        if (LangCatalog.has(zoneKey)) {
+            return Msg.key(zoneKey);
+        }
+        String regionKey = "server.map.region." + zoneId;
+        if (LangCatalog.has(regionKey)) {
+            return Msg.key(regionKey);
+        }
+        return Msg.raw(prettify(zoneId));
     }
 
     /**

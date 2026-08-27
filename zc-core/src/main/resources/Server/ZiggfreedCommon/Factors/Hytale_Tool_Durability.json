@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the hytale:tool_durability_percent reading (0..100 of the held stack) for requirement lines.",
+  "Factor": "hytale:tool_durability_percent",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.tool_durability_percent" }
+}

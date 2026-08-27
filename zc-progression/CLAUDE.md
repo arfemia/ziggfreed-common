@@ -29,7 +29,7 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
 - [`progress/`](src/main/java/com/ziggfreed/common/progress/CLAUDE.md) - the shared lifecycle
   cores: `ObjectiveDef`, `ObjectiveKind`/`ObjectiveKindRegistry`, `MatchMode`/
   `ObjectiveMatch`/`ZoneRef`/`ZoneLocator` (the ONE read of where a player is, off the engine's
-  `WorldMapTracker`), `ObjectiveProgressState`, `ObjectiveIndex`, `DispatchOptions`.
+  `WorldMapTracker`), `ObjectiveProgressState`, `ObjectiveIndex`, `DispatchOptions`, and `ObjectiveComposer`/`NeutralObjectiveComposer` (the sentence a key-less step reads with: a consumer-installable slot over the shipped nine-locale per-kind family in this module's `ziggfreedcommon.progress.lang`).
   - [`progress/asset/`](src/main/java/com/ziggfreed/common/progress/asset/CLAUDE.md) - the authoring
     groups both engines share (`ContentTextAsset`, `ObjectiveLeafAsset`, `RewardEntryAsset`,
     `ProgressEditorDataSets`), declared once so their field names cannot drift between quest and
@@ -37,7 +37,7 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
   - `progress/docs/` - `SchemaDocWriter`, generating this module's `SCHEMA.md` on demand
     (`gradlew :zc-progression:generateSchemaDocs`, guarded by `SchemaDocDriftTest`). No router.
   - `progress/gate/` - `GateClause`/`GateSpec`/`GateKind`/`GateKindRegistry`/`GateEvaluator`/
-    `GateValidator`, the ONE requirement model behind every `Requires` block. Has its own router;
+    `GateValidator`/`GateRefusal`, the ONE requirement model behind every `Requires` block. Has its own router;
     read it before touching the gate schema or adding a `GateKind`.
   - `progress/runtime/` - THE shared progression runtime: one `QuestEngine` + `AchievementEngine`
     pair per server however many mods contribute to it. `ProgressionRuntime` (the holder),

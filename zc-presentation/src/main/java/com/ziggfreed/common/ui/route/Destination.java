@@ -90,9 +90,30 @@ public abstract class Destination {
             // The bare-string form decodes too, and the in-game Asset Editor fails a property
             // pane over any authored value shape the exported schema omits, so the schema
             // declares it beside the union.
-            return Schema.anyOf(new StringSchema(), Destinations.union().toSchema(context));
+            return Schema.anyOf(new StringSchema(), objectFormSchema(context));
         }
     };
+
+    /**
+     * The OBJECT form's schema, declaring {@code "type": "object"} on the type-selector union.
+     *
+     * <p>A union assembled by the engine's own type table carries its discriminator and its arms but
+     * no {@code type} of its own, which is enough wherever it IS the whole property. It is not enough
+     * as one arm of a wider union: the in-game Asset Editor picks a property's editor by matching the
+     * authored value's JSON kind against each arm's declared {@code type}, and an arm that declares
+     * none costs it the match, so it falls back to the first arm and then rejects any value that arm
+     * cannot hold. Stamping the type here is what keeps a value legal for a LATER arm editable.
+     *
+     * <p>Use this, not {@code CODEC.toSchema}, when composing the destination form into a union that
+     * accepts other shapes beside it: the string arm is declared once at the top of that union, and a
+     * nested union with an unmatchable arm reintroduces the same fallback.
+     */
+    @Nonnull
+    public static Schema objectFormSchema(@Nonnull SchemaContext context) {
+        Schema union = Destinations.union().toSchema(context);
+        union.setTypes(new String[] {"object"});
+        return union;
+    }
 
     /**
      * The bare-string form as the object it means. Routing it back through the union is what makes

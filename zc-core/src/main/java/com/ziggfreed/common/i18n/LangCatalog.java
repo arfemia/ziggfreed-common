@@ -17,16 +17,16 @@ import com.hypixel.hytale.server.core.modules.i18n.I18nModule;
  * and "no catalogue" reads as "no key" so a caller falls through to its own fallback instead of
  * dying on a lookup.
  */
-final class LangCatalog {
+public final class LangCatalog {
 
     /** The probe language: the engine's bundled English catalogue. */
-    static final String PROBE_LANGUAGE = "en-US";
+    public static final String PROBE_LANGUAGE = "en-US";
 
     private LangCatalog() {
     }
 
     /** True when {@code fullKey} - the whole registered id, namespace included - has a value. */
-    static boolean has(@Nonnull String fullKey) {
+    public static boolean has(@Nonnull String fullKey) {
         return value(fullKey) != null;
     }
 
@@ -36,7 +36,7 @@ final class LangCatalog {
      * not carry it (or there is no catalogue at all).
      */
     @Nullable
-    static String value(@Nonnull String fullKey) {
+    public static String value(@Nonnull String fullKey) {
         try {
             I18nModule i18n = I18nModule.get();
             return i18n == null ? null : i18n.getMessage(PROBE_LANGUAGE, fullKey);

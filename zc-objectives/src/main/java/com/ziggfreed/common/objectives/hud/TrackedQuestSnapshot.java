@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
-import com.ziggfreed.common.objectives.questlist.ProgressionTexts;
+import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.quest.Quest;

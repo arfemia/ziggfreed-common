@@ -5,9 +5,14 @@ shop.count = {0} satışta
 shop.shelf = Öne çıkanlar
 shop.refresh_in = {0} sonra yenilenir
 shop.section.catalogue = Katalog
+shop.filter.all_sections = Tüm bölümler
+shop.filter.kind_both = Tüm ürünler
+shop.filter.kind_rotating = Dönüşümlü ürünler
+shop.filter.kind_standing = Sabit ürünler
 shop.empty.unavailable = Hesabın şu anda okunamadı.
 shop.empty.closed = Bu dükkan kapalı.
 shop.empty.nothing = Şu anda burada satılık bir şey yok.
+shop.empty.filtered = Bu filtrelere uyan ürün yok.
 shop.offer.untitled = İsimsiz teklif
 
 shop.header.cost = Fiyat

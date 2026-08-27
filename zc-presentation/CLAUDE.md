@@ -104,7 +104,11 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
 `Common/UI/Custom/Common/{ZigButtons.ui, ZigFrames.ui}` (the shared neutral button/frame styles
 every page in the library imports), `Common/UI/Custom/Pages/{ZigFormDropdownRow.ui,
 ZigFormFieldRow.ui, ZigFormHeaderRow.ui, ZigFormNoteRow.ui, ZigFormToggleRow.ui, ZigListRow.ui,
-ZigToast.ui}` plus `ZigToastFrame.png`. Under `Server/`: the seven neutral default feedback moments
+ZigSelectRow.ui, ZigDetailLine.ui, ZigToast.ui}` plus `ZigToastFrame.png` (`ZigSelectRow.ui` is the
+one selectable list row - content row and section heading in a single template, `#RowBtn` + hidden
+`#SectionLabel`/`#RowBadge`/`#SectionMeta` - and `ZigDetailLine.ui` the one detail-panel line, both
+appended by the NPC quest page and both commerce pages so a readability step lands everywhere at
+once). Under `Server/`: the seven neutral default feedback moments
 at `Server/ZiggfreedCommon/FeedbackMoments/<moment id>.json` and their wording at
 `Server/Languages/<locale>/ziggfreedcommon.feedback.lang` (nine locales) - the library's own default
 CONTENT a consumer overrides by id, every file carrying a public-facing `$Comment` naming the

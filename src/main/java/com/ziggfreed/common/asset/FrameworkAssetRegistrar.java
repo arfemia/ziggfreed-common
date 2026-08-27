@@ -15,7 +15,6 @@ import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
-import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionAsset;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionConfig;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
@@ -272,19 +271,20 @@ public final class FrameworkAssetRegistrar {
                         NpcIdentityConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap())));
 
-        // --- Derived factors (Pattern A) - a factor id DEFINED as a formula over other factors,
-        //     so a pack author adds a reading to the shared vocabulary with no Java. The asset id
-        //     IS the factor id. No cache to invalidate: a registry that adopts a derived id keeps a
-        //     provider that re-reads DerivedFactorConfig every call, so a re-import lands on the
-        //     next resolve and a dropped file goes straight back to failing closed. ---
+        // --- Derived factors (Pattern A) - a factor id DEFINED as a formula over other factors
+        //     and/or NAMED for every surface that explains a requirement on it, with no Java. A
+        //     defining file's id IS the factor id; a naming overlay targets one through its Factor
+        //     leaf. No cache to invalidate: a registry that adopts a derived id keeps a provider
+        //     that re-reads DerivedFactorConfig every call, and FactorNames walks the fold per
+        //     question, so a re-import lands on the next resolve and a dropped file goes straight
+        //     back to failing closed. ---
         AssetStoreRegistrar.registerStore(DerivedFactorAsset.class,
                 new DefaultAssetMap<String, DerivedFactorAsset>(), "ZiggfreedCommon/Factors",
                 DerivedFactorAsset::getId, DerivedFactorAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, DerivedFactorAsset.class,
                 (LoadedAssetsEvent<String, DerivedFactorAsset, DefaultAssetMap<String, DerivedFactorAsset>> ev) ->
                         DerivedFactorConfig.getInstance().mergePackLayer(
-                                AssetMergeAdapter.layer(ev.getAssetMap(),
-                                        (id, a) -> a.getFormula() == null ? new FactorFormula() : a.getFormula())));
+                                AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Feedback moments (Pattern A) - what this server DOES when one lifecycle moment
         //     happens: a toast, a server banner, a jingle, a command. The asset id IS the moment id
