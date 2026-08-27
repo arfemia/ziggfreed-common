@@ -20,6 +20,7 @@ import com.hypixel.hytale.codec.exception.CodecException;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
+import com.hypixel.hytale.codec.schema.metadata.ui.UIDisplayMode;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
@@ -49,7 +50,10 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
  * which reserves the same prefix for its {@code EntryType.IGNORE} entries, so an author can
  * document a keyed map inline exactly the way they document a structured object. The value
  * of a skipped key may be any JSON shape (a string, an object, an array); it is consumed
- * without being decoded.
+ * without being decoded. Author {@code $Comment} (or another of the engine's ten reserved
+ * editorial spellings), the keys the exported schema declares and the in-game Asset Editor
+ * therefore also knows; any other {@code $}-prefixed key is skipped server-side but
+ * undeclared to the editor.
  *
  * <p>Generic and mod-agnostic: reuse for any keyed-map field that should overlay by key
  * under native inheritance. The value codec should be an {@code InheritCodec} (typically a
@@ -225,6 +229,31 @@ public final class InheritMapCodec<V> implements Codec<Map<String, V>>, InheritC
         ObjectSchema schema = new ObjectSchema();
         schema.setTitle("Map");
         schema.setAdditionalProperties(context.refDefinition(valueCodec));
+        // Declare the engine's ten reserved editorial keys as properties, in the exact shape the
+        // engine's own BuilderCodec.toSchema gives them: one shared UNTYPED Schema (untyped is the
+        // point - any JSON value is legal there), hidden and unsuggested. The in-game Asset Editor
+        // resolves an authored key through the exported schema, so without this a map-level
+        // "$Comment" would be resolved through additionalProperties' VALUE schema, whose shape a
+        // comment does not fit, and the property pane would fail to mount.
+        Schema comment = new Schema();
+        comment.getHytale().setUiPropertyTitle("Comment");
+        comment.setDoNotSuggest(true);
+        comment.setDescription(
+                "Comments don't have any function other than allowing users to add certain internal comments or notes to an asset");
+        UIDisplayMode.HIDDEN.modify(comment);
+
+        Map<String, Schema> properties = new LinkedHashMap<>();
+        properties.put("$Title", comment);
+        properties.put("$Comment", comment);
+        properties.put("$Author", comment);
+        properties.put("$TODO", comment);
+        properties.put("$Position", comment);
+        properties.put("$FloatingFunctionNodes", comment);
+        properties.put("$Groups", comment);
+        properties.put("$WorkspaceID", comment);
+        properties.put("$NodeId", comment);
+        properties.put("$NodeEditorMetadata", comment);
+        schema.setProperties(properties);
         return schema;
     }
 }

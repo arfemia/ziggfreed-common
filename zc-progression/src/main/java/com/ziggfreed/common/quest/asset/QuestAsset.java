@@ -24,6 +24,7 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.BooleanSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.NestedAssetId;
@@ -760,8 +761,9 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
      * written. It exists so the commonest answer ("back to whoever gave it to me") is one word rather
      * than a spelling to remember, without turning the field into an object.
      *
-     * <p>It always ENCODES as the string, so a file round-trips to one canonical spelling and the
-     * in-game asset editor has a single shape to offer.
+     * <p>It always ENCODES as the string, so a file round-trips to one canonical spelling; the
+     * exported schema still declares both authored forms so the in-game asset editor can mount
+     * either.
      */
     private static final class BooleanOrStringCodec implements Codec<String> {
 
@@ -795,7 +797,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         @Override
         @Nonnull
         public Schema toSchema(@Nonnull SchemaContext context) {
-            return Codec.STRING.toSchema(context);
+            // The plain-true shorthand decodes too, and the in-game Asset Editor fails a property
+            // pane over any authored value shape the exported schema omits, so the schema
+            // declares both arms.
+            return Schema.anyOf(new BooleanSchema(), Codec.STRING.toSchema(context));
         }
     }
 

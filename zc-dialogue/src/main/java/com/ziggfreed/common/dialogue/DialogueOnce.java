@@ -12,6 +12,7 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.BooleanSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.world.WorldSelector;
@@ -121,7 +122,10 @@ public final class DialogueOnce {
         @Nonnull
         @Override
         public Schema toSchema(@Nonnull SchemaContext context) {
-            return GROUP.toSchema(context);
+            // Decode accepts the plain boolean form too, and the in-game Asset Editor fails a
+            // property pane over any authored value shape the exported schema omits, so the
+            // schema declares both arms.
+            return Schema.anyOf(new BooleanSchema(), GROUP.toSchema(context));
         }
     };
 

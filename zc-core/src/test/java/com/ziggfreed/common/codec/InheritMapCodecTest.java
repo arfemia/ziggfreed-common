@@ -3,6 +3,7 @@ package com.ziggfreed.common.codec;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -16,13 +17,17 @@ import org.bson.BsonString;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.ObjectSchema;
+import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
  * Unit tests for {@link InheritMapCodec}: authoring-comment ({@code $}-prefixed) keys are skipped
  * on both the JSON and the BSON decode path, a skipped value of ANY shape leaves the streaming JSON
- * reader in sync so the entries after it still decode, and {@code Parent} merge still keys-merges
- * around a comment.
+ * reader in sync so the entries after it still decode, {@code Parent} merge still keys-merges
+ * around a comment, and the exported schema declares the reserved editorial keys beside the value
+ * codec's {@code additionalProperties} schema.
  *
  * <p>{@link Vec3} stands in as the value type: it is a {@code BuilderCodec} (so an
  * {@code InheritCodec}, exercising the deep-merge branch) with independently nullable leaves, so a
@@ -131,5 +136,21 @@ class InheritMapCodecTest {
         assertEquals(List.of("A"), keys(map));
         assertEquals(1.0, map.get("A").effectiveX(), "A.X inherits from the parent entry");
         assertEquals(9.0, map.get("A").effectiveY(), "A.Y is the child override");
+    }
+
+    @Test
+    void exportedSchemaDeclaresTheReservedEditorialKeysBesideTheValueSchema() {
+        // The in-game Asset Editor resolves an authored key through the exported schema. A map
+        // schema carrying only additionalProperties routes a "$Comment" through the VALUE codec's
+        // schema, whose shape a comment does not fit, and the property pane fails to mount; so the
+        // export must declare the reserved editorial keys as (untyped) properties while
+        // additionalProperties still carries the value codec's schema for every real entry.
+        ObjectSchema schema = (ObjectSchema) CODEC.toSchema(new SchemaContext());
+
+        assertNotNull(schema.getProperties(), "the reserved editorial keys must be declared");
+        assertTrue(schema.getProperties().containsKey("$Comment"),
+                "$Comment must appear in the exported properties");
+        assertTrue(schema.getAdditionalProperties() instanceof Schema,
+                "additionalProperties must still carry the value codec's schema");
     }
 }

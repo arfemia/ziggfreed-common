@@ -13,6 +13,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.Schema;
+import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
@@ -86,7 +87,10 @@ public abstract class Destination {
         @Nonnull
         @Override
         public Schema toSchema(@Nonnull SchemaContext context) {
-            return Destinations.union().toSchema(context);
+            // The bare-string form decodes too, and the in-game Asset Editor fails a property
+            // pane over any authored value shape the exported schema omits, so the schema
+            // declares it beside the union.
+            return Schema.anyOf(new StringSchema(), Destinations.union().toSchema(context));
         }
     };
 

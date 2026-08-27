@@ -19,7 +19,10 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.BooleanSchema;
+import com.hypixel.hytale.codec.schema.config.NumberSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
+import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.factor.FactorFormula;
@@ -269,7 +272,10 @@ public final class DialogueStart {
             @Nonnull
             @Override
             public Schema toSchema(@Nonnull SchemaContext context) {
-                return group.toSchema(context);
+                // The plain-number form decodes too, and the in-game Asset Editor fails a
+                // property pane over any authored value shape the exported schema omits, so the
+                // schema declares both arms.
+                return Schema.anyOf(new NumberSchema(), group.toSchema(context));
             }
         };
 
@@ -479,7 +485,11 @@ public final class DialogueStart {
             @Nonnull
             @Override
             public Schema toSchema(@Nonnull SchemaContext context) {
-                return Destination.CODEC.toSchema(context);
+                // Decode accepts a plain true/false and a bare screen name beside the destination
+                // object, and the in-game Asset Editor fails a property pane over any authored
+                // value shape the exported schema omits, so the schema declares every arm.
+                return Schema.anyOf(new BooleanSchema(), new StringSchema(),
+                        Destination.CODEC.toSchema(context));
             }
         };
 

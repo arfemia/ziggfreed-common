@@ -1,6 +1,6 @@
 {
   "Name": "mmo_hub_intro",
-  "$Comment": "The guide at world spawn, and the same character standing in the Forgotten Temple. Start is declared in sections: the two temple beats outrank everything (the first is played once per instance and credits the meeting, the second is the safety net that can always credit it), the quest rows drive the whole main chain from the quests own state, the two Then beats are the steady state, and menu is the screen of last resort. gather_the_basics writes Ready as true, which sends the player to this characters quest list with that quest highlighted rather than handing it in inside the conversation.",
+  "$Comment": "The guide at world spawn, and the same character standing in the Forgotten Temple. Start is declared in sections: the two temple beats outrank everything (the first is played once per instance and credits the meeting, the second is the safety net that can always credit it), the quest rows drive the whole main chain from the quests own state, the two Then beats are the steady state, and menu is the screen of last resort. gather_the_basics writes Ready as true, which sends the player to this characters quest list with that quest highlighted rather than handing it in inside the conversation. The Fragments are shared option groups, written once and pulled into a screen with IncludeOptions, which appends them after the screen's own lines: hub_footer is the full footer every steady screen carries ('I have returned' only while something can be handed in here, then one 'Got any quests?' line written as two mutually exclusive branches - the offer screen when this character has something to give, the quest list otherwise - then 'open menu'), and open_menu is that last row alone, for the screens that lead with their own accept or hand-in line.",
   "Memories": {
     "temple_greeted": { "Where": { "GameplayConfig": ["ForgottenTemple"] } }
   },
@@ -338,7 +338,6 @@
     }
   },
   "Fragments": {
-    "$Comment": "Shared option groups, written once and pulled into a screen with IncludeOptions, which appends them after the screen's own lines. hub_footer is the full footer every steady screen carries: 'I have returned' only while something can be handed in here, then one 'Got any quests?' line written as two mutually exclusive branches (the offer screen when this character has something to give, the quest list otherwise), then 'open menu'. open_menu is that last row alone, for the screens that lead with their own accept or hand-in line.",
     "hub_footer": [
       {
         "LabelKey": "dialogue.mmo_hub_intro.opt.returned",
