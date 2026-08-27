@@ -59,6 +59,15 @@ public final class FactorConditions {
     }
 
     /**
+     * One condition that did not pass, together with the reading the evaluation resolved for it -
+     * null when the factor could not be answered at all, which is itself why the condition failed.
+     * The value rides along so a surface quoting "what the player currently has" never re-resolves
+     * anything: the number is the very one the decision was made on.
+     */
+    public record Failure(@Nonnull FactorCondition condition, @Nullable Double resolved) {
+    }
+
+    /**
      * EVERY condition that did not pass, in authored order, empty when they all did. The whole array
      * is walked rather than short-circuited, for a caller listing everything still in the way
      * instead of naming the next thing to go and do.
@@ -70,32 +79,70 @@ public final class FactorConditions {
     @Nonnull
     public static List<FactorCondition> allFailures(@Nullable List<FactorCondition> conditions,
             @Nonnull FactorRegistry registry, @Nonnull FactorContext ctx) {
-        if (conditions == null || conditions.isEmpty()) {
-            return List.of();
-        }
-        List<FactorCondition> failed = new ArrayList<>();
-        for (FactorCondition condition : conditions) {
-            if (fails(condition, registry, ctx)) {
-                failed.add(condition);
-            }
-        }
-        return failed;
+        return conditionsOf(allFailuresResolved(conditions, registry, ctx));
     }
 
     /** The array form of {@link #allFailures(List, FactorRegistry, FactorContext)}. */
     @Nonnull
     public static List<FactorCondition> allFailures(@Nullable FactorCondition[] conditions,
             @Nonnull FactorRegistry registry, @Nonnull FactorContext ctx) {
+        return conditionsOf(allFailuresResolved(conditions, registry, ctx));
+    }
+
+    /**
+     * {@link #allFailures(List, FactorRegistry, FactorContext)} with each failure carrying the
+     * reading it was decided on - same walk, one resolution per condition.
+     */
+    @Nonnull
+    public static List<Failure> allFailuresResolved(@Nullable List<FactorCondition> conditions,
+            @Nonnull FactorRegistry registry, @Nonnull FactorContext ctx) {
+        if (conditions == null || conditions.isEmpty()) {
+            return List.of();
+        }
+        List<Failure> failed = new ArrayList<>();
+        for (FactorCondition condition : conditions) {
+            collectFailure(condition, registry, ctx, failed);
+        }
+        return failed;
+    }
+
+    /** The array form of {@link #allFailuresResolved(List, FactorRegistry, FactorContext)}. */
+    @Nonnull
+    public static List<Failure> allFailuresResolved(@Nullable FactorCondition[] conditions,
+            @Nonnull FactorRegistry registry, @Nonnull FactorContext ctx) {
         if (conditions == null || conditions.length == 0) {
             return List.of();
         }
-        List<FactorCondition> failed = new ArrayList<>();
+        List<Failure> failed = new ArrayList<>();
         for (FactorCondition condition : conditions) {
-            if (fails(condition, registry, ctx)) {
-                failed.add(condition);
-            }
+            collectFailure(condition, registry, ctx, failed);
         }
         return failed;
+    }
+
+    @Nonnull
+    private static List<FactorCondition> conditionsOf(@Nonnull List<Failure> failures) {
+        if (failures.isEmpty()) {
+            return List.of();
+        }
+        List<FactorCondition> conditions = new ArrayList<>(failures.size());
+        for (Failure failure : failures) {
+            conditions.add(failure.condition());
+        }
+        return conditions;
+    }
+
+    /** Evaluate ONE condition for the collect-all walk, keeping the reading when it fails. */
+    private static void collectFailure(@Nullable FactorCondition condition,
+            @Nonnull FactorRegistry registry, @Nonnull FactorContext ctx, @Nonnull List<Failure> out) {
+        if (condition == null || condition.isBlank()) {
+            return;
+        }
+        FactorContext scoped = ctx.withParam(condition.getParam());
+        Double resolved = registry.resolve(condition.getFactor(), scoped);
+        if (!condition.accepts(resolved)) {
+            out.add(new Failure(condition, resolved));
+        }
     }
 
     /** True when every entry passed - the boolean wrapper for a caller with no reason to report. */
@@ -124,11 +171,5 @@ public final class FactorConditions {
         return condition.accepts(registry.resolve(condition.getFactor(), scoped))
                 ? null
                 : condition.getFactor();
-    }
-
-    /** The same single-entry decision as a boolean, for the collect-all walk. */
-    private static boolean fails(@Nullable FactorCondition condition,
-            @Nonnull FactorRegistry registry, @Nonnull FactorContext ctx) {
-        return firstFailure(condition, registry, ctx) != null;
     }
 }

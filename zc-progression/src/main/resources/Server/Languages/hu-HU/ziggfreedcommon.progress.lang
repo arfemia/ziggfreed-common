@@ -11,6 +11,8 @@ lock.quest = Teljesítsd a küldetést: {0}
 lock.log_full = A küldetésnapló megtelt
 lock.factor = Szükséges: {0}
 lock.factor.bound = Szükséges: {0} {1}
+lock.factor.bound.current = Szükséges: {0} {1} (jelenleg {2})
+lock.achievement = Szerezd meg az eredményt: {0}
 
 objective.break_block = Törj szét {0} db {1} blokkot
 objective.break_block.any = Törj szét {0} blokkot
@@ -67,6 +69,8 @@ objective.zone = {0} itt: {1}
 factor.held_item = Kézben tartott tárgy
 factor.held_tag = Kézben tartott tárgy típusa
 factor.permission = Jogosultság
+factor.quest_completed = egy teljesített küldetés
+factor.achievement_earned = egy megszerzett eredmény
 factor.tool_durability_percent = Szerszám tartóssága
 factor.tool_item_level = Szerszám tárgyszintje
 factor.tool_power = Szerszám ereje

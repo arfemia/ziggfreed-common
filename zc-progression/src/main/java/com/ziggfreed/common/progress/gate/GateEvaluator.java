@@ -290,8 +290,10 @@ public final class GateEvaluator {
      * EVERY unmet requirement in {@code spec} as structured {@link GateRefusal} records, in the
      * same order as {@link #allFailures} and empty exactly when it is - this is the walk, and the
      * token list is its projection. A surface with room for the rich line reads these: a factor
-     * refusal carries the condition's authored {@code Param} and BOUNDS, which the token never
-     * does, so "what does this ask for" is answerable without re-evaluating anything.
+     * refusal carries the condition's authored {@code Param}, its BOUNDS, and the READING the walk
+     * itself resolved (what the player currently has), none of which the token ever does, so both
+     * "what does this ask for" and "where do they stand" are answerable without re-evaluating
+     * anything.
      */
     @Nonnull
     public List<GateRefusal> allRefusals(@Nonnull Subject subject, @Nullable GateSpec spec) {
@@ -352,9 +354,11 @@ public final class GateEvaluator {
                 // would run every registered kind on a server whose vocabulary is not even wired.
                 return;
             } else {
-                for (FactorCondition condition
-                        : FactorConditions.allFailures(conditions, vocabulary, contextFor(subject))) {
-                    out.add(refusalOf(condition));
+                for (FactorConditions.Failure failure
+                        : FactorConditions.allFailuresResolved(conditions, vocabulary, contextFor(subject))) {
+                    FactorCondition condition = failure.condition();
+                    out.add(GateRefusal.factor(condition.getFactor(), condition.getParam(),
+                            condition.getMin(), condition.getMax(), failure.resolved()));
                 }
             }
         }

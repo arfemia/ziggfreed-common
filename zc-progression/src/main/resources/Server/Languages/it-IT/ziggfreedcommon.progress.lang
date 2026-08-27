@@ -11,6 +11,8 @@ lock.quest = Completa la missione: {0}
 lock.log_full = Il registro delle missioni è pieno
 lock.factor = Richiede {0}
 lock.factor.bound = Richiede {0} {1}
+lock.factor.bound.current = Richiede {0} {1} (attualmente {2})
+lock.achievement = Ottieni l'obiettivo: {0}
 
 objective.break_block = Rompi {0} {1}
 objective.break_block.any = Rompi {0} blocchi
@@ -67,6 +69,8 @@ objective.zone = {0} in {1}
 factor.held_item = Oggetto in mano
 factor.held_tag = Tipo di oggetto in mano
 factor.permission = Permesso
+factor.quest_completed = una missione completata
+factor.achievement_earned = un obiettivo ottenuto
 factor.tool_durability_percent = Durabilità dello strumento
 factor.tool_item_level = Livello oggetto dello strumento
 factor.tool_power = Potenza dello strumento

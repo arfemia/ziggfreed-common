@@ -45,7 +45,14 @@ module or grow a second, subtly different idea of what a reward is.
   that cannot be HANDED a registry (an asset decoding a list of compact strings). Most engines should
   keep taking their registry as a parameter; reach for this only from a static parse site.
 - **[`LootRewardKinds`](LootRewardKinds.java)** - the four kinds the framework itself pays out:
-  `Item` (`Item`/`Count`), `Lootable` (`Lootable`/`Trigger` - rolls a named table),
+  `Item` (`Item`/`Count`), `Lootable` (`Lootable`/`Trigger` - rolls a named table through the FULL
+  grants vocabulary, wired in `lootableSinks`: `Items` land in the inventory, `DropLists` roll their
+  native tables into it, `Commands` run as the console with the `Command` kind's own placeholder
+  vocabulary, and the table's `Rewards` pay through the REGISTRY the kind was registered into - so a
+  table pays the same whether a station, a mob drop or a quest reward rolled it, and a nested
+  `Lootable` composes up to four levels deep before the grant refuses it as a loop; the pass's
+  EARNED cues are forwarded to [`loot/LootCues`](../CLAUDE.md), `LootableRewardSinksTest` pins both
+  halves),
   `Stamped_Item` (`Item`/`Count` plus either `Pool` to roll fresh or `Stats` written out as
   `"Damage:5,Speed:2"`), and `Command` (`Command`/`RunAs`/`DelayTicks` - one authored line, with
   `{player}`, `{uuid}`, `{source}` and the reward's own parameters substituted through the same

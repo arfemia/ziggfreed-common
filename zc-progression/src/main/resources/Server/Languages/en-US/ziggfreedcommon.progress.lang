@@ -14,6 +14,8 @@ lock.quest = Complete quest: {0}
 lock.log_full = Quest log is full
 lock.factor = Requires {0}
 lock.factor.bound = Requires {0} {1}
+lock.factor.bound.current = Requires {0} {1} (currently {2})
+lock.achievement = Earn achievement: {0}
 
 # One sentence per objective kind: {0} is the amount, {1} what it is about. The .any twin reads
 # when a step targets nothing in particular. A mod adding its own kind ships
@@ -78,6 +80,8 @@ objective.zone = {0} in {1}
 factor.held_item = Held item
 factor.held_tag = Held item type
 factor.permission = Permission
+factor.quest_completed = a completed quest
+factor.achievement_earned = an earned achievement
 factor.tool_durability_percent = Tool durability
 factor.tool_item_level = Tool item level
 factor.tool_power = Tool power

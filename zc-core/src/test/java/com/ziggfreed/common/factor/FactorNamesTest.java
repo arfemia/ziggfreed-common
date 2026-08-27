@@ -95,6 +95,62 @@ class FactorNamesTest {
     }
 
     @Test
+    void thePatternTransformsBridgeAChannelSpellingToAnExistingKeyFamily() {
+        // One overlay line names a whole technical channel family off keys that never carried the
+        // prefix: strip runs first, the case fold second, and only then does the param drop in.
+        Map<String, DerivedFactorAsset> files = Map.of(
+                "overlay", DerivedFactorAsset.of("overlay", null, "hytale:stat", null, null,
+                        DerivedFactorAsset.ParamNames.of("yourmod.skill.{param}",
+                                "MMO_Level_", DerivedFactorAsset.ParamNames.CASE_LOWER, null)));
+
+        assertEquals("yourmod.skill.mining",
+                FactorNames.name("hytale:stat", "MMO_Level_MINING", files,
+                        "yourmod.skill.mining"::equals).getMessageId(),
+                "strip before substitution, case after the strip");
+        assertNull(FactorNames.name("hytale:stat", "MMO_Level_MAGIC", files,
+                        "yourmod.skill.mining"::equals),
+                "a transformed key that is not shipped is still SKIPPED per the walk rule");
+        assertEquals("yourmod.skill.somethingelse",
+                FactorNames.name("hytale:stat", "SomethingElse", files,
+                        "yourmod.skill.somethingelse"::equals).getMessageId(),
+                "a param that does not carry the prefix is left alone (the case fold still runs)");
+    }
+
+    @Test
+    void eachPatternTransformStandsAlone() {
+        Map<String, DerivedFactorAsset> stripOnly = Map.of(
+                "overlay", DerivedFactorAsset.of("overlay", null, "hytale:stat", null, null,
+                        DerivedFactorAsset.ParamNames.of("yourmod.s.{param}", "MMO_", null, null)));
+        assertEquals("yourmod.s.Fame",
+                FactorNames.name("hytale:stat", "MMO_Fame", stripOnly,
+                        "yourmod.s.Fame"::equals).getMessageId(),
+                "no Case authored substitutes the stripped param exactly as spelled");
+
+        Map<String, DerivedFactorAsset> caseOnly = Map.of(
+                "overlay", DerivedFactorAsset.of("overlay", null, "hytale:stat", null, null,
+                        DerivedFactorAsset.ParamNames.of("yourmod.s.{param}", null,
+                                DerivedFactorAsset.ParamNames.CASE_UPPER, null)));
+        assertEquals("yourmod.s.FAME",
+                FactorNames.name("hytale:stat", "fame", caseOnly,
+                        "yourmod.s.FAME"::equals).getMessageId(),
+                "no StripPrefix authored folds the whole param");
+    }
+
+    @Test
+    void theTransformsNeverTouchABespokeKeysEntry() {
+        Map<String, DerivedFactorAsset> files = Map.of(
+                "overlay", DerivedFactorAsset.of("overlay", null, "hytale:stat", null, null,
+                        DerivedFactorAsset.ParamNames.of("yourmod.skill.{param}",
+                                "MMO_Level_", DerivedFactorAsset.ParamNames.CASE_LOWER,
+                                Map.of("MMO_CombatLevel", "yourmod.combat.name"))));
+
+        assertEquals("yourmod.combat.name",
+                FactorNames.name("hytale:stat", "MMO_CombatLevel", files, key -> true).getMessageId(),
+                "a Keys entry matches the requirement's Param as authored - its author already "
+                        + "wrote the whole key by hand");
+    }
+
+    @Test
     void anExactParamClaimNarrowsItselfToThatParamAlone() {
         Map<String, DerivedFactorAsset> files = Map.of(
                 "pair", DerivedFactorAsset.of("pair", null, "yourmod:rank", "veteran",

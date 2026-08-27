@@ -1,5 +1,6 @@
 package com.ziggfreed.common.factor;
 
+import java.util.Locale;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
@@ -13,6 +14,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.registry.RegistryLedger;
@@ -221,15 +223,31 @@ public final class DerivedFactorAsset
 
     /**
      * How a factor's PARAM FAMILY reads: one key pattern covering every param, and bespoke
-     * per-param keys for the few that need their own wording. Two independent optional leaves - a
-     * file may carry either or both.
+     * per-param keys for the few that need their own wording. Independent optional leaves - a
+     * file may carry any of them.
+     *
+     * <p>{@code StripPrefix} and {@code Case} are the bridge from a CHANNEL spelling to an
+     * existing key family: many factors address a param by a technical id ({@code MMO_Level_MINING})
+     * while the names for that family already ship under friendlier keys ({@code ...skill.mining}).
+     * Both transforms apply to the param BEFORE it drops into {@code KeyPattern} - the prefix is
+     * stripped first, then the case fold runs - and neither touches {@code Keys}: a bespoke entry
+     * is matched against the requirement's param exactly as authored, because its author writes
+     * the whole key by hand anyway.
      */
     public static final class ParamNames {
 
         /** The literal a {@code KeyPattern} carries where the requirement's own param drops in. */
         public static final String PARAM_SLOT = "{param}";
 
+        /** {@code Case} value: fold the (stripped) param to lower case before substitution. */
+        public static final String CASE_LOWER = "Lower";
+
+        /** {@code Case} value: fold the (stripped) param to upper case before substitution. */
+        public static final String CASE_UPPER = "Upper";
+
         @Nullable protected String keyPattern;
+        @Nullable protected String stripPrefix;
+        @Nullable protected String caseFold;
         @Nullable protected Map<String, String> keys;
 
         public static final BuilderCodec<ParamNames> CODEC =
@@ -242,11 +260,32 @@ public final class DerivedFactorAsset
                                 + "for a param whose resolved key is actually shipped; one that is not is "
                                 + "skipped, so another overlay on the same factor still gets its turn.")
                         .add()
+                        .appendInherited(new KeyedCodec<>("StripPrefix", Codec.STRING, false),
+                                (o, v) -> o.stripPrefix = v, o -> o.stripPrefix,
+                                (o, p) -> o.stripPrefix = p.stripPrefix)
+                        .documentation("A prefix removed from the requirement's Param before it drops into "
+                                + "KeyPattern (e.g. \"MMO_Level_\" turns the channel MMO_Level_MINING into "
+                                + "MINING), so one pattern can point a whole channel family at name keys that "
+                                + "never carried the technical prefix. A param that does not start with it is "
+                                + "left alone. Compared case-insensitively; omit for no stripping.")
+                        .add()
+                        .appendInherited(new KeyedCodec<>("Case", Codec.STRING, false),
+                                (o, v) -> o.caseFold = v, o -> o.caseFold,
+                                (o, p) -> o.caseFold = p.caseFold)
+                        .documentation("Folds the (stripped) param's case before it drops into KeyPattern, "
+                                + "bridging a channel spelling to a key family registered in the other case "
+                                + "(MINING to ...skill.mining). Omit to substitute the param exactly as the "
+                                + "requirement authored it.")
+                        .metadata(EditorSchema.oneOfDocumented(
+                                CASE_LOWER, "lower-case the param before substitution",
+                                CASE_UPPER, "upper-case the param before substitution"))
+                        .add()
                         .appendInherited(new KeyedCodec<>("Keys", new InheritMapCodec<>(Codec.STRING), false),
                                 (o, v) -> o.keys = v, o -> o.keys, (o, p) -> o.keys = p.keys)
                         .documentation("Bespoke per-param keys, each written IN FULL: a param listed here reads "
-                                + "with its own key instead of the pattern. Under a Parent the map merges per "
-                                + "key, so a child file adds or replaces single entries.")
+                                + "with its own key instead of the pattern (StripPrefix and Case never apply "
+                                + "here - entries match the requirement's Param as authored). Under a Parent "
+                                + "the map merges per key, so a child file adds or replaces single entries.")
                         .add()
                         .build();
 
@@ -256,8 +295,17 @@ public final class DerivedFactorAsset
         /** Java-side factory; sets the same fields the codec fills. */
         @Nonnull
         public static ParamNames of(@Nullable String keyPattern, @Nullable Map<String, String> keys) {
+            return of(keyPattern, null, null, keys);
+        }
+
+        /** The full factory, transform knobs included. */
+        @Nonnull
+        public static ParamNames of(@Nullable String keyPattern, @Nullable String stripPrefix,
+                @Nullable String caseFold, @Nullable Map<String, String> keys) {
             ParamNames p = new ParamNames();
             p.keyPattern = keyPattern;
+            p.stripPrefix = stripPrefix;
+            p.caseFold = caseFold;
             p.keys = keys;
             return p;
         }
@@ -265,6 +313,18 @@ public final class DerivedFactorAsset
         @Nullable
         public String getKeyPattern() {
             return keyPattern;
+        }
+
+        /** The prefix stripped from a param before pattern substitution, or null for none. */
+        @Nullable
+        public String getStripPrefix() {
+            return stripPrefix;
+        }
+
+        /** The case fold applied before pattern substitution, or null for as-authored. */
+        @Nullable
+        public String getCase() {
+            return caseFold;
         }
 
         /** The bespoke per-param keys, never null. */
@@ -293,13 +353,34 @@ public final class DerivedFactorAsset
             return null;
         }
 
-        /** {@code KeyPattern} with the slot filled for {@code param}, or null when no pattern is authored. */
+        /**
+         * {@code KeyPattern} with the slot filled for {@code param} - transformed first by
+         * {@code StripPrefix} and then by {@code Case} - or null when no pattern is authored.
+         */
         @Nullable
         public String patternKeyFor(@Nonnull String param) {
             if (keyPattern == null || keyPattern.isBlank()) {
                 return null;
             }
-            return keyPattern.replace(PARAM_SLOT, param);
+            return keyPattern.replace(PARAM_SLOT, transform(param));
+        }
+
+        /** The param as the pattern substitutes it: prefix stripped, then case folded. */
+        @Nonnull
+        private String transform(@Nonnull String param) {
+            String value = param;
+            if (stripPrefix != null && !stripPrefix.isBlank()
+                    && value.length() > stripPrefix.length()
+                    && value.regionMatches(true, 0, stripPrefix, 0, stripPrefix.length())) {
+                value = value.substring(stripPrefix.length());
+            }
+            if (CASE_LOWER.equalsIgnoreCase(caseFold)) {
+                return value.toLowerCase(Locale.ROOT);
+            }
+            if (CASE_UPPER.equalsIgnoreCase(caseFold)) {
+                return value.toUpperCase(Locale.ROOT);
+            }
+            return value;
         }
     }
 }

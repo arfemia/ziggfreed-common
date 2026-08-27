@@ -102,6 +102,55 @@ class LockReasonsTest {
     }
 
     @Test
+    void aNamedFactorWithABoundAndAResolvedValueQuotesWhereThePlayerStands() {
+        name("yourmod:rank", "Rank");
+
+        assertEquals(NS + "lock.factor.bound.current",
+                LockReasons.line(GateRefusal.factor("yourmod:rank", null, 25.0, null, 7.0)).getMessageId(),
+                "a refusal carrying the reading the walk resolved adds the (currently N) arm");
+        assertEquals(NS + "lock.factor.bound",
+                LockReasons.line(GateRefusal.factor("yourmod:rank", null, 25.0, null, null)).getMessageId(),
+                "no resolvable value renders the plain bounded line");
+        assertEquals(NS + "lock.factor",
+                LockReasons.line(GateRefusal.factor("yourmod:rank", null, 1.0, null, 0.0)).getMessageId(),
+                "the presence idiom stays the unbounded line - the arm rides only on a real bound");
+    }
+
+    @Test
+    void theMembershipFactorSpellingsNameTheirContentLikeTheLeafForms() {
+        assertEquals(NS + "lock.quest",
+                LockReasons.line(GateRefusal.factor("ziggfreedcommon:quest_completed",
+                        "intro_1", 1.0, null)).getMessageId(),
+                "the factor spelling of a quest prerequisite is the same requirement, so it reads "
+                        + "as the same sentence");
+        assertEquals(NS + "lock.achievement",
+                LockReasons.line(GateRefusal.factor("ziggfreedcommon:achievement_earned",
+                        "first_blood", 1.0, null)).getMessageId());
+        assertEquals(NS + "lock.prerequisites",
+                LockReasons.line(GateRefusal.factor("ziggfreedcommon:quest_completed",
+                        null, 1.0, null)).getMessageId(),
+                "with no Param there is no content to name, and no overlay is folded here");
+
+        List<Message> lines = LockReasons.linesOf(List.of(
+                GateRefusal.quest("intro_1"),
+                GateRefusal.factor("ziggfreedcommon:quest_completed", "intro_1", 1.0, null)));
+        assertEquals(1, lines.size(),
+                "both spellings of one quest requirement render the identical sentence once");
+    }
+
+    @Test
+    void aPermissionLeafRefusalReadsWithThePermissionFactorsName() {
+        assertEquals(NS + "lock.prerequisites",
+                LockReasons.line(GateRefusal.PERMISSION).getMessageId(),
+                "with no overlay folded the leaf falls to the generic line, as ever");
+
+        name(GateEvaluator.PERMISSION_FACTOR, "Permission");
+        assertEquals(NS + "lock.factor",
+                LockReasons.line(GateRefusal.PERMISSION).getMessageId(),
+                "the leaf IS the permission factor by evaluation, so it reads with its name too");
+    }
+
+    @Test
     void theFlatTokensKeepTheirFixedLinesAndAnUnknownTokenReadsAsOther() {
         assertEquals(NS + "lock.unavailable",
                 LockReasons.line(QuestGates.REASON_UNAVAILABLE).getMessageId());

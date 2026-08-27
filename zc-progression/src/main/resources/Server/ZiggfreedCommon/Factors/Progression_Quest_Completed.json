@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:quest_completed reading for requirement lines. A requirement naming a specific quest (a Param) already reads with that quest's own title; this name covers the bare factor, so a condition written without a Param still reads as a real sentence instead of the generic requirements line.",
+  "Factor": "ziggfreedcommon:quest_completed",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.quest_completed" }
+}

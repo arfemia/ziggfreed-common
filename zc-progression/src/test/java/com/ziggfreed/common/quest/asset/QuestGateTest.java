@@ -499,8 +499,10 @@ class QuestGateTest {
             assertEquals("mining", factor.param());
             assertEquals(50.0, factor.min());
             assertEquals(90.0, factor.max());
+            assertEquals(1.0, factor.value(),
+                    "the record carries the very reading the walk decided on - no second lookup");
             assertEquals(GateEvaluator.REASON_FACTOR + "yourmod:stat@mining", factor.token(),
-                    "the bound lives ONLY on the record - the token spelling is unchanged");
+                    "the bound and the value live ONLY on the record - the token spelling is unchanged");
 
             assertEquals(GateRefusal.Kind.QUEST, refusals.get(1).kind());
             assertEquals("intro_1", refusals.get(1).questId());
@@ -514,6 +516,7 @@ class QuestGateTest {
             assertEquals("yourmod:stat", lifted.factorId());
             assertEquals("mining", lifted.param());
             assertNull(lifted.min(), "a bound is never encoded into the token");
+            assertNull(lifted.value(), "nor is the resolved reading");
             assertNull(GateRefusal.fromToken("unavailable"),
                     "an engine's own flat lifecycle token is not this vocabulary's");
         }

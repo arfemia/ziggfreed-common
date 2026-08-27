@@ -1,6 +1,7 @@
 package com.ziggfreed.common;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -43,6 +44,7 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.factor.ModFactors;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
+import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.LootFactors;
 import com.ziggfreed.common.loot.reward.DroplistRewardKind;
@@ -361,6 +363,14 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         EffectRewardKind.registerInto(RewardKinds.shared());
         LootRewardKinds.factors(lootFactorVocabulary());
         StamperRegistry.register(new StackStatsStamper());
+        // What an authored Cue MEANS, for every consumer at once: the cue id IS the FeedbackMoment
+        // id. This wiring lives here rather than in either module because loot and presentation are
+        // sibling modules that cannot see each other, and this root is the one place that sees both.
+        // The mapping is the identity, so a table writes "Cue": "X", a FeedbackMoments/X.json says
+        // what X does, and nothing anywhere needs Java. A consumer wanting something richer replaces
+        // the presenter; a cue nobody authored a moment for does nothing, which is the feedback
+        // engine's own rule.
+        LootCues.register((cueId, subject, sourceId) -> FeedbackEngine.fire(cueId, subject, Map.of()));
     }
 
     /**

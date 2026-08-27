@@ -76,6 +76,14 @@ engine above can reach the loot core without any of them reaching each other.
 - **[`LootFactors`](LootFactors.java)** - `ziggfreedcommon:instance_score` / `:instance_win`, read off
   an `Outcome` payload on the context. They exist so a run's result stops being a special case: a
   score gate is now an ordinary condition, mixable with any other factor.
+- **[`LootCues`](LootCues.java)** - where an EARNED cue goes when the granting site has no presenter
+  of its own. ONE registered `Presenter` (`present(cueId, subject, sourceId)`), last registration
+  wins outright (two presenters would celebrate the same cue twice - the stamp registry's rule),
+  nothing installed by default and every edge quiet: no presenter means no presentation, a throwing
+  presenter costs its own cue and never the grant. A site WITH a presentation of its own (a station,
+  a spoils screen) keeps reading `Result.getCues()` itself; the shared `Lootable` reward path
+  forwards its earned cues here, which is what makes a cue authored on a quest-rolled table do
+  anything at all.
 - **[`LootableValidator`](LootableValidator.java)** - domain `lootable`. It hunts the mistakes that
   produce SILENCE (a roll that can never fire, a tier out of reach, a table id nothing answers to),
   because those are the ones nobody reports until a player asks where their reward went. `auditAll`
@@ -97,6 +105,8 @@ engine above can reach the loot core without any of them reaching each other.
   or toast. The smart-cue rule is enforced in `LootEngine` because only it knows what a grant actually
   produced: a cue with no grants beside it is pure presentation and always rides; a cue beside grants
   rides only once they produced something. Each cue is judged against ITS OWN grants group.
+  `LootCues` does not bend this rule: it is a registered seam handing an already-earned cue id to
+  whatever presenter a consumer installed, and with none installed it does nothing.
 - **Decision stays pure, effects stay behind seams.** A new side effect is a new seam on `Sinks`, never
   a call inside `RollEvaluator`.
 - **A weighted pick goes through [`util/WeightedPick`](../util/CLAUDE.md)** - never a local copy.

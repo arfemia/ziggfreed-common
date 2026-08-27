@@ -11,6 +11,8 @@ lock.quest = Terminez la quête : {0}
 lock.log_full = Le journal de quêtes est plein
 lock.factor = Nécessite {0}
 lock.factor.bound = Nécessite {0} {1}
+lock.factor.bound.current = Nécessite {0} {1} (actuellement {2})
+lock.achievement = Obtenez le succès : {0}
 
 objective.break_block = Cassez {0} {1}
 objective.break_block.any = Cassez {0} blocs
@@ -67,6 +69,8 @@ objective.zone = {0} dans {1}
 factor.held_item = Objet en main
 factor.held_tag = Type d'objet en main
 factor.permission = Permission
+factor.quest_completed = une quête terminée
+factor.achievement_earned = un succès obtenu
 factor.tool_durability_percent = Durabilité de l'outil
 factor.tool_item_level = Niveau d'objet de l'outil
 factor.tool_power = Puissance de l'outil

@@ -1,6 +1,7 @@
 package com.ziggfreed.common.loot.reward;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -18,9 +19,11 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.instance.reward.NativeLootService;
 import com.ziggfreed.common.inventory.InventoryGrant;
 import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.loot.FactorSnapshot;
+import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.Roll;
@@ -139,7 +142,9 @@ public final class LootRewardKinds {
     /** Register all four kinds into {@code kinds}. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND_ITEM, OWNER, new ItemHandler());
-        kinds.register(KIND_LOOTABLE, OWNER, new LootableHandler());
+        // The Lootable handler keeps the registry it was registered into: a rolled table's own
+        // Rewards entries are paid through the same vocabulary the outer reward came from.
+        kinds.register(KIND_LOOTABLE, OWNER, new LootableHandler(kinds));
         kinds.register(KIND_STAMPED_ITEM, OWNER, new StampedItemHandler());
         kinds.register(KIND_COMMAND, OWNER, new CommandHandler());
     }
@@ -336,8 +341,34 @@ public final class LootRewardKinds {
 
     // ==================== Lootable ====================
 
-    /** {@code {"Lootable": "<id>"}} - roll a shared table and hand over whatever it produced. */
+    /**
+     * {@code {"Lootable": "<id>"}} - roll a shared table and hand over whatever it produced.
+     *
+     * <p>The whole grants vocabulary pays here, exactly as it does at a station: {@code Items} land
+     * in the inventory, {@code DropLists} roll their native tables into it, {@code Commands} run as
+     * the console with the same placeholders a {@code Command} reward reads, and {@code Rewards}
+     * pay through the registry this handler was registered into - so a table pays the same whether
+     * a station, a mob drop or a quest reward rolled it. The pass's EARNED cues are forwarded to
+     * {@link LootCues}, which is where a server's presenter hears about them.
+     */
     private static final class LootableHandler implements RewardHandler {
+
+        /**
+         * How deep a table may nest before the grant refuses. A table whose {@code Rewards} grant
+         * another {@code Lootable} is legitimate composition; a chain that leads back to itself
+         * would roll forever, and four levels is already more composition than any authored table
+         * needs.
+         */
+        static final int MAX_NESTED = 4;
+
+        private static final ThreadLocal<Integer> NESTED = ThreadLocal.withInitial(() -> 0);
+
+        /** The vocabulary a rolled table's own {@code Rewards} entries are paid through. */
+        private final RewardKindRegistry kinds;
+
+        LootableHandler(@Nonnull RewardKindRegistry kinds) {
+            this.kinds = kinds;
+        }
 
         @Override
         public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) throws Exception {
@@ -356,14 +387,78 @@ public final class LootRewardKinds {
                         + "' has no rolls to grant - either no table answers to that id"
                         + " (is the pack that owns it installed?) or the table is empty");
             }
+            int depth = NESTED.get();
+            if (depth >= MAX_NESTED) {
+                throw new IllegalStateException("lootable '" + tableId + "' sits " + depth
+                        + " Lootable rewards deep - a chain of tables granting each other that runs"
+                        + " this long is almost certainly a loop, so the grant refuses rather than"
+                        + " rolling forever");
+            }
             String trigger = spec.param("trigger");
-            LootEngine.rollAndGrant(rolls, trigger, lookupFor(subject),
-                    () -> ThreadLocalRandom.current().nextDouble(),
-                    LootEngine.Sinks.builder()
-                            .items((itemId, count) -> deliverQuietly(subject, itemId, count))
-                            .sourceId("reward:" + tableId)
-                            .build());
+            String sourceId = "reward:" + tableId;
+            NESTED.set(depth + 1);
+            LootEngine.Result result;
+            try {
+                result = LootEngine.rollAndGrant(rolls, trigger, lookupFor(subject),
+                        () -> ThreadLocalRandom.current().nextDouble(),
+                        lootableSinks(spec, subject, kinds, sourceId));
+            } finally {
+                NESTED.set(depth);
+            }
+            LootCues.presentAll(result.getCues(), subject, sourceId);
         }
+    }
+
+    /**
+     * Every sink a rolled table can pay through, wired to what the reward path already has: the
+     * inventory delivery the item kinds use (native drop lists roll first, then land the same way),
+     * the console dispatcher with the same placeholder vocabulary a {@code Command} reward reads
+     * ({@code {player}}, {@code {uuid}}, {@code {source}}, and the reward's own parameters), and
+     * the registry the {@code Lootable} kind itself lives in. Package-private so a test can prove
+     * the wiring without a live server behind it.
+     */
+    @Nonnull
+    static LootEngine.Sinks lootableSinks(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull RewardKindRegistry kinds, @Nonnull String sourceId) {
+        Map<String, String> placeholders = CommandRewardKind.placeholders(spec, subject);
+        placeholders.putIfAbsent(P_SOURCE, sourceId);
+        return LootEngine.Sinks.builder()
+                .items((itemId, count) -> deliverQuietly(subject, itemId, count))
+                .dropLists(dropListId -> rollDropListInto(subject, dropListId))
+                .commands(CommandRunner.CONSOLE, placeholders)
+                .rewards(kinds, subject)
+                .sourceId(sourceId)
+                .warn(SafeLog::warn)
+                .build();
+    }
+
+    /**
+     * Roll ONE native drop list and land the result in the player's inventory, answering what
+     * actually arrived. The stacks are delivered as rolled, so whatever the native table put on
+     * them survives; one that will not fit goes through the overflow sink like any other item
+     * grant, and one that went nowhere is simply not part of the answer.
+     */
+    @Nonnull
+    private static Map<String, Integer> rollDropListInto(@Nonnull Subject subject,
+            @Nonnull String dropListId) {
+        Map<String, Integer> landed = new LinkedHashMap<>();
+        for (ItemStack stack : NativeLootService.rollNative(dropListId)) {
+            if (stack == null || stack.getItemId() == null) {
+                continue;
+            }
+            try {
+                deliver(subject, stack);
+                landed.merge(stack.getItemId(), Math.max(1, stack.getQuantity()), Integer::sum);
+            } catch (Exception e) {
+                // A stack that could not land is a short delivery, not a failed pass - but it is
+                // real item loss, so it says so rather than vanishing. The pass wires a warn sink
+                // for exactly this, and LootEngine.rollDropList only guards the sink CALL, so a
+                // per-stack failure inside this loop never reaches it on its own.
+                SafeLog.warn("drop list '" + dropListId + "' rolled '" + stack.getItemId()
+                        + "' but it could not be delivered: " + e);
+            }
+        }
+        return landed;
     }
 
     // ==================== Stamped_Item ====================

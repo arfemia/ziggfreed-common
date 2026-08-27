@@ -11,6 +11,8 @@ lock.quest = Görevi tamamla: {0}
 lock.log_full = Görev günlüğü dolu
 lock.factor = {0} gerekli
 lock.factor.bound = {0} {1} gerekli
+lock.factor.bound.current = {0} {1} gerekli (şu an {2})
+lock.achievement = Başarımı kazan: {0}
 
 objective.break_block = {0} {1} kır
 objective.break_block.any = {0} blok kır
@@ -67,6 +69,8 @@ objective.zone = {0}, {1} içinde
 factor.held_item = Eldeki eşya
 factor.held_tag = Eldeki eşya türü
 factor.permission = İzin
+factor.quest_completed = tamamlanmış bir görev
+factor.achievement_earned = kazanılmış bir başarım
 factor.tool_durability_percent = Alet dayanıklılığı
 factor.tool_item_level = Aletin eşya seviyesi
 factor.tool_power = Alet gücü

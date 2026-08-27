@@ -5,21 +5,26 @@ import javax.annotation.Nullable;
 
 /**
  * ONE unmet requirement, structured: which kind of thing failed and everything the evaluator knew
- * about it - the factor id, the authored {@code Param} and both bounds for a factor condition, the
- * prerequisite quest id, the registered kind id for a {@code Custom} entry, and the flat
- * payload-less kinds (a missing permission, an {@code AnyOf} with no open route, a {@code Not}
- * that shut the gate by passing).
+ * about it - the factor id, the authored {@code Param}, both bounds and the READING it resolved
+ * for a factor condition, the prerequisite quest id, the registered kind id for a {@code Custom}
+ * entry, and the flat payload-less kinds (a missing permission, an {@code AnyOf} with no open
+ * route, a {@code Not} that shut the gate by passing).
  *
  * <p>{@link GateEvaluator#allRefusals} produces these, and the string tokens the older
  * {@code allFailures} API answers with are DERIVED from them through {@link #token()} - so a
  * surface that wants the rich line (the factor's own name plus the bound it asks for) reads the
  * records, while every token-parsing caller keeps seeing exactly the spelling it always did. The
- * BOUNDS deliberately live only here and never in the token: a token is an opaque id a consumer
- * matches on, not a channel to smuggle numbers through.
+ * BOUNDS and the VALUE deliberately live only here and never in the token: a token is an opaque id
+ * a consumer matches on, not a channel to smuggle numbers through.
+ *
+ * <p>{@code value} is the number the evaluation itself resolved when it decided the refusal -
+ * what the player currently HAS - so a "(currently N)" readout costs no second lookup and can
+ * never disagree with the decision. Null when the factor could not be answered at all, and on
+ * every non-factor kind.
  */
 public record GateRefusal(@Nonnull Kind kind, @Nullable String factorId, @Nullable String param,
-                          @Nullable Double min, @Nullable Double max, @Nullable String questId,
-                          @Nullable String customKindId) {
+                          @Nullable Double min, @Nullable Double max, @Nullable Double value,
+                          @Nullable String questId, @Nullable String customKindId) {
 
     /** What kind of requirement refused. */
     public enum Kind {
@@ -44,32 +49,45 @@ public record GateRefusal(@Nonnull Kind kind, @Nullable String factorId, @Nullab
     }
 
     /** The one {@code any_of} refusal - payload-less, so one instance serves every block. */
-    public static final GateRefusal ANY_OF = new GateRefusal(Kind.ANY_OF, null, null, null, null, null, null);
+    public static final GateRefusal ANY_OF =
+            new GateRefusal(Kind.ANY_OF, null, null, null, null, null, null, null);
 
     /** The one {@code not} refusal. */
-    public static final GateRefusal NOT = new GateRefusal(Kind.NOT, null, null, null, null, null, null);
+    public static final GateRefusal NOT =
+            new GateRefusal(Kind.NOT, null, null, null, null, null, null, null);
 
     /** The one {@code permission} refusal. */
-    public static final GateRefusal PERMISSION = new GateRefusal(Kind.PERMISSION, null, null, null, null, null, null);
+    public static final GateRefusal PERMISSION =
+            new GateRefusal(Kind.PERMISSION, null, null, null, null, null, null, null);
 
-    /** An unmet factor bound, with everything the condition authored. */
+    /** An unmet factor bound, with everything the condition authored and no resolved reading. */
     @Nonnull
     public static GateRefusal factor(@Nullable String factorId, @Nullable String param,
             @Nullable Double min, @Nullable Double max) {
+        return factor(factorId, param, min, max, null);
+    }
+
+    /**
+     * An unmet factor bound, with everything the condition authored plus the reading the
+     * evaluation resolved for it (null when the factor could not be answered).
+     */
+    @Nonnull
+    public static GateRefusal factor(@Nullable String factorId, @Nullable String param,
+            @Nullable Double min, @Nullable Double max, @Nullable Double value) {
         return new GateRefusal(Kind.FACTOR, factorId == null ? "" : factorId,
-                param == null || param.isBlank() ? null : param, min, max, null, null);
+                param == null || param.isBlank() ? null : param, min, max, value, null, null);
     }
 
     /** An unfinished prerequisite quest. */
     @Nonnull
     public static GateRefusal quest(@Nonnull String questId) {
-        return new GateRefusal(Kind.QUEST, null, null, null, null, questId, null);
+        return new GateRefusal(Kind.QUEST, null, null, null, null, null, questId, null);
     }
 
     /** A refusing (or unregistered) {@code Custom} requirement kind. */
     @Nonnull
     public static GateRefusal custom(@Nonnull String kindId) {
-        return new GateRefusal(Kind.CUSTOM, null, null, null, null, null, kindId);
+        return new GateRefusal(Kind.CUSTOM, null, null, null, null, null, null, kindId);
     }
 
     /**
@@ -95,9 +113,9 @@ public record GateRefusal(@Nonnull Kind kind, @Nullable String factorId, @Nullab
     /**
      * The record a GATE token reads back as, or {@code null} for a token this vocabulary does not
      * own (an engine's own flat lifecycle token, or anything unrecognised). A {@code factor:} token
-     * splits at the FIRST {@code @}, so a {@code Param} carrying its own survives; the bounds are
-     * gone by construction - they were never in the token - so a caller that has the records should
-     * pass them instead of round-tripping through here.
+     * splits at the FIRST {@code @}, so a {@code Param} carrying its own survives; the bounds and
+     * the resolved value are gone by construction - they were never in the token - so a caller that
+     * has the records should pass them instead of round-tripping through here.
      */
     @Nullable
     public static GateRefusal fromToken(@Nullable String token) {

@@ -14,6 +14,7 @@ import com.ziggfreed.common.factor.FactorNames;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateRefusal;
+import com.ziggfreed.common.progress.runtime.ProgressionFactors;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.util.NumberFormatter;
 
@@ -29,9 +30,13 @@ import com.ziggfreed.common.util.NumberFormatter;
  * rather than being discarded: a quest requirement names the quest ("Complete quest: X"), and a
  * FACTOR requirement whose factor has a naming overlay ({@link FactorNames}, the
  * {@code Server/ZiggfreedCommon/Factors/} assets) names the factor - with its bound, when the
- * caller holds the {@link GateRefusal} record that carries one. A factor no asset names, and every
- * remaining structured form, folds to the generic requirements line; a raw token is never shown,
- * and a token nothing here recognises reads as the generic "not available" line.
+ * caller holds the {@link GateRefusal} record that carries one, and with the "(currently N)"
+ * readout when that record also carries the value the evaluation resolved. The two membership
+ * factor spellings ({@code ziggfreedcommon:quest_completed} / {@code achievement_earned}) name
+ * their content's own title, and a {@code Permission} leaf reads with the permission factor's
+ * name, so one requirement is one sentence however content spells it. A factor no asset names,
+ * and every remaining structured form, folds to the generic requirements line; a raw token is
+ * never shown, and a token nothing here recognises reads as the generic "not available" line.
  *
  * <p>The evaluator reports the flat {@code prerequisites} token BESIDE its specific ones, so a
  * caller rendering the whole list would say "Requirements not met" and "Complete quest: X" about
@@ -122,26 +127,60 @@ public final class LockReasons {
 
     /**
      * The player-facing line for one structured refusal: the quest's own title for a quest gate,
-     * the factor's overlay-given name (with the bound when the record carries one) for a factor
-     * gate, the fixed requirements line for everything else.
+     * the factor's overlay-given name (with the bound when the record carries one, and the
+     * "(currently N)" readout when the evaluation resolved a value beside a real bound) for a
+     * factor gate, the fixed requirements line for everything else.
+     *
+     * <p>Three factor spellings fold onto richer lines than their overlay name, because each is
+     * the SAME question as a form this mapping already answers well: a
+     * {@code ziggfreedcommon:quest_completed} bound reads as the quest line a {@code Quests}
+     * prerequisite reads as, a {@code ziggfreedcommon:achievement_earned} bound names the
+     * achievement the same way, and a {@code PERMISSION} leaf refusal reads with the permission
+     * factor's own name - one requirement, one sentence, however content spells it.
      */
     @Nonnull
     public static Message line(@Nonnull GateRefusal refusal) {
         if (refusal.kind() == GateRefusal.Kind.QUEST) {
-            String questId = refusal.questId() == null ? "" : refusal.questId();
-            Message title = ProgressionTexts.title(questId);
-            return text("lock.quest", title != null ? title : Msg.raw(questId));
+            return contentLine("lock.quest", refusal.questId());
+        }
+        if (refusal.kind() == GateRefusal.Kind.PERMISSION) {
+            // The leaf IS the permission factor by evaluation, so it reads with that factor's
+            // name too; with no overlay folded it falls to the generic line below, as ever.
+            Message name = FactorNames.name(GateEvaluator.PERMISSION_FACTOR, null);
+            if (name != null) {
+                return text("lock.factor", name);
+            }
         }
         if (refusal.kind() == GateRefusal.Kind.FACTOR) {
+            if (ProgressionFactors.QUEST_COMPLETED.equalsIgnoreCase(refusal.factorId())
+                    && refusal.param() != null) {
+                return contentLine("lock.quest", refusal.param());
+            }
+            if (ProgressionFactors.ACHIEVEMENT_EARNED.equalsIgnoreCase(refusal.factorId())
+                    && refusal.param() != null) {
+                return contentLine("lock.achievement", refusal.param());
+            }
             Message name = FactorNames.name(refusal.factorId(), refusal.param());
             if (name != null) {
                 String bound = boundOf(refusal);
-                return bound != null
-                        ? text("lock.factor.bound", name, bound)
-                        : text("lock.factor", name);
+                if (bound == null) {
+                    return text("lock.factor", name);
+                }
+                String current = numberOf(refusal.value());
+                return current != null
+                        ? text("lock.factor.bound.current", name, bound, current)
+                        : text("lock.factor.bound", name, bound);
             }
         }
         return text("lock.prerequisites");
+    }
+
+    /** A line naming one piece of catalogued content: its title where a source knows it, else its id. */
+    @Nonnull
+    private static Message contentLine(@Nonnull String key, @Nullable String contentId) {
+        String id = contentId == null ? "" : contentId;
+        Message title = ProgressionTexts.title(id);
+        return text(key, title != null ? title : Msg.raw(id));
     }
 
     /** Does this token render as a line that names the concrete thing to go and do? */
@@ -156,13 +195,23 @@ public final class LockReasons {
         return structured != null && isSpecific(structured);
     }
 
-    /** The record twin: a quest gate always, a factor gate when a naming overlay answers for it. */
+    /**
+     * The record twin: a quest gate always, a factor gate when a naming overlay answers for it or
+     * when it is one of the two membership spellings that name their content directly.
+     */
     private static boolean isSpecific(@Nonnull GateRefusal refusal) {
         if (refusal.kind() == GateRefusal.Kind.QUEST) {
             return true;
         }
-        return refusal.kind() == GateRefusal.Kind.FACTOR
-                && FactorNames.name(refusal.factorId(), refusal.param()) != null;
+        if (refusal.kind() != GateRefusal.Kind.FACTOR) {
+            return false;
+        }
+        if (refusal.param() != null
+                && (ProgressionFactors.QUEST_COMPLETED.equalsIgnoreCase(refusal.factorId())
+                        || ProgressionFactors.ACHIEVEMENT_EARNED.equalsIgnoreCase(refusal.factorId()))) {
+            return true;
+        }
+        return FactorNames.name(refusal.factorId(), refusal.param()) != null;
     }
 
     /**
@@ -192,12 +241,18 @@ public final class LockReasons {
     /**
      * The record twin. A named factor deduplicates by everything its sentence says - id, param and
      * bounds - so two different bounds on one factor stay two lines; an unnamed one folds into the
-     * shared requirements bucket exactly as its token would.
+     * shared requirements bucket exactly as its token would. The {@code quest_completed} factor
+     * spelling deduplicates under the SAME key as the {@code Quests} leaf naming that quest,
+     * because both render the identical sentence and a list saying it twice reads as a bug.
      */
     @Nonnull
     private static String dedupeKey(@Nonnull GateRefusal refusal) {
         if (refusal.kind() == GateRefusal.Kind.QUEST) {
             return refusal.token();
+        }
+        if (refusal.kind() == GateRefusal.Kind.FACTOR && refusal.param() != null
+                && ProgressionFactors.QUEST_COMPLETED.equalsIgnoreCase(refusal.factorId())) {
+            return GateRefusal.quest(refusal.param()).token();
         }
         if (isSpecific(refusal)) {
             return refusal.token() + "#" + refusal.min() + "/" + refusal.max();
@@ -217,13 +272,18 @@ public final class LockReasons {
         if (refusal.min() != null && refusal.min() == 1.0 && refusal.max() == null) {
             return null;
         }
-        Double bound = refusal.min() != null ? refusal.min() : refusal.max();
-        if (bound == null || !Double.isFinite(bound)) {
+        return numberOf(refusal.min() != null ? refusal.min() : refusal.max());
+    }
+
+    /** A number as a line quotes it - grouped when whole - or null when there is none to quote. */
+    @Nullable
+    private static String numberOf(@Nullable Double number) {
+        if (number == null || !Double.isFinite(number)) {
             return null;
         }
-        return bound == Math.floor(bound)
-                ? NumberFormatter.grouped((long) bound.doubleValue())
-                : bound.toString();
+        return number == Math.floor(number)
+                ? NumberFormatter.grouped((long) number.doubleValue())
+                : number.toString();
     }
 
     @Nonnull

@@ -11,6 +11,8 @@ lock.quest = Завершите задание: {0}
 lock.log_full = Журнал заданий переполнен
 lock.factor = Требуется {0}
 lock.factor.bound = Требуется {0} {1}
+lock.factor.bound.current = Требуется {0} {1} (сейчас {2})
+lock.achievement = Получите достижение: {0}
 
 objective.break_block = Разрушьте {0} {1}
 objective.break_block.any = Разрушьте {0} блоков
@@ -67,6 +69,8 @@ objective.zone = {0} в {1}
 factor.held_item = Предмет в руке
 factor.held_tag = Тип предмета в руке
 factor.permission = Разрешение
+factor.quest_completed = завершённое задание
+factor.achievement_earned = полученное достижение
 factor.tool_durability_percent = Прочность инструмента
 factor.tool_item_level = Уровень предмета инструмента
 factor.tool_power = Мощность инструмента
