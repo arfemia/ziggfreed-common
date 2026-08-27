@@ -86,7 +86,7 @@ public final class DialogueMessages {
         return (rawFallback != null && !rawFallback.isEmpty()) ? Msg.raw(rawFallback) : null;
     }
 
-    /** The key resolved through whichever registered mod ships it, or null when none does. */
+    /** The key resolved through whichever loaded catalogue ships it, or null when none does. */
     @Nullable
     private static Message known(@Nullable String authoredKey) {
         if (authoredKey == null || authoredKey.isEmpty() || !ContentKeys.known(authoredKey)) {

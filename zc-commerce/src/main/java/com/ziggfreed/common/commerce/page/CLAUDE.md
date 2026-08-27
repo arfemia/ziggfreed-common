@@ -49,8 +49,8 @@ So every authored or convention key on these screens goes through zc-core's `Con
 (`CommerceText.title`/`flavor`, `CurrencyText.nameOf`, `ZigBoardPage`'s step keys, and both label
 families through `CommerceLabels`), never `Msg.key`. `Msg.key` stays correct for a FULLY-QUALIFIED id
 only - this module's own `ziggfreedcommon.commerce.*` chrome through `text(...)`, or a native
-`server.*` name. A key nothing claims passes through exactly as authored, so a server with no
-consumer registered behaves as it always did.
+`server.*` name. A key nothing loaded ships passes through exactly as authored, so a bare server
+behaves as it always did.
 
 ## A band and a shelf are named on a LADDER, and this module holds the bottom rung
 
@@ -60,14 +60,11 @@ handed straight to a client, so a band nobody had translated rendered as its own
 
 1. the AUTHORED key - a board's own `Grades` entry for its band, a storefront's `Categories` entry for
    its shelf - which is how a pack inventing a band supplies its own word with no Java;
-2. the CONVENTION key when a consumer ships one, so a mod that already wrote `board.grade.veteran`
-   in its own lang file keeps it;
-3. this module's own shipped default for the common bands and shelves;
-4. the raw word, which is readable and is the visible sign that nobody named that band.
-
-Rung 3 is why this module probes its own catalogue DIRECTLY rather than registering itself as a
-`ContentKeys` fill: a library fill would sit in the same queue as its consumers and, since the
-library loads first, would answer ahead of every one of them - which is the wrong way round.
+2. the CONVENTION key when anything the server loaded ships one: a mod that already wrote
+   `board.grade.veteran` in its own lang file keeps it, and this module's own shipped defaults for
+   the common bands and shelves (`ziggfreedcommon.commerce.lang`) sit in that same catalogue - which
+   namespace answers is `ContentKeys`'s one deterministic rule;
+3. the raw word, which is readable and is the visible sign that nobody named that band.
 
 ## Rules to keep
 

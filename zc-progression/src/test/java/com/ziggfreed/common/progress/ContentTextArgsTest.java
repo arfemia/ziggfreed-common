@@ -11,13 +11,13 @@ import java.util.Map;
 
 import javax.annotation.Nonnull;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.asset.AchievementDefinition;
-import com.ziggfreed.common.i18n.ContentI18n;
-import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -39,6 +39,12 @@ import com.ziggfreed.common.quest.asset.QuestDefinition;
  * them there.
  */
 class ContentTextArgsTest {
+
+    /** Every test here paints against the real catalogue unless it says otherwise. */
+    @AfterEach
+    void realCatalogue() {
+        LangCatalog.overrideForTests(null);
+    }
 
     /** The one sentinel the shared schema names, answered with a grouped RAW number. */
     @Test
@@ -120,7 +126,7 @@ class ContentTextArgsTest {
      */
     @Test
     void aComposedLineOutranksTheBareAuthoredKey() {
-        ContentKeys.reset();
+        LangCatalog.overrideForTests(Map.of());
         ContentText both = ContentText.builder()
                 .objectiveKey("turn_in", "objective.text.turn_in.find")
                 .objectiveLine("turn_in", () -> Msg.raw("Go to Ranger Wren"))
@@ -144,19 +150,7 @@ class ContentTextArgsTest {
      */
     @Test
     void aTitleIsResolvedThroughTheAuthoredKeySeam() {
-        ContentKeys.reset();
-        ContentKeys.install(new ContentI18n() {
-            @Override
-            @Nonnull
-            public String keyPrefix() {
-                return "fixture.";
-            }
-
-            @Override
-            public boolean hasKey(@Nonnull String unprefixedKey) {
-                return "quest.ladder_rung.title".equals(unprefixedKey);
-            }
-        });
+        LangCatalog.overrideForTests(Map.of("fixture.quest.ladder_rung.title", "The Ladder Rung"));
         try {
             Quest runtime = questDefinition(List.of(ContentTextAsset.ARG_AMOUNT), List.of()).quest();
             Message title = runtime.text().title();
@@ -166,7 +160,7 @@ class ContentTextArgsTest {
                             + " handed over as authored it is an id nothing resolves, and the player"
                             + " reads the key itself");
         } finally {
-            ContentKeys.reset();
+            LangCatalog.overrideForTests(null);
         }
     }
 

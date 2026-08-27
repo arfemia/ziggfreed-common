@@ -8,9 +8,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
 import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
-import com.ziggfreed.common.i18n.ContentI18n;
 import com.ziggfreed.common.i18n.ContentKeys;
-import com.ziggfreed.common.i18n.I18nModuleContentI18n;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.shop.asset.StorefrontAsset;
@@ -30,22 +28,15 @@ import com.ziggfreed.common.shop.asset.StorefrontAsset;
  *   <li>the AUTHORED key, from the board's own {@code Grades} entry for the band or the storefront's
  *       {@code Categories} entry for the shelf - which is how a pack inventing its own band or shelf
  *       supplies its own word without anybody writing Java;</li>
- *   <li>the CONVENTION key, when a consumer ships one: a mod that already has
- *       {@code board.grade.veteran} in its own lang file keeps it, and its namespace is whichever
- *       {@link ContentKeys} fill claims the key;</li>
- *   <li>this library's own SHIPPED DEFAULT for the common bands and shelves, under its own
- *       {@code ziggfreedcommon.commerce} namespace, so a bare server with authored content reads in
- *       words rather than in keys;</li>
+ *   <li>the CONVENTION key, when the server's loaded catalogue ships one under any namespace: a mod
+ *       that already has {@code board.grade.veteran} in its own lang file keeps it, and this
+ *       library's own shipped defaults for the common bands and shelves (its
+ *       {@code ziggfreedcommon.commerce} namespace) sit in that same catalogue, so a bare server
+ *       with authored content reads in words rather than in keys. Which namespace answers is
+ *       {@link ContentKeys}'s one deterministic rule;</li>
  *   <li>the raw id, which is an untranslated word a player can still read - and the visible sign
  *       that a band nobody named is being printed.</li>
  * </ol>
- *
- * <p>Rung 2 is asked BEFORE rung 3 deliberately: a consumer's own word for a band has to outrank a
- * generic one this library guessed at, and asking by existence is the only attribution a folded
- * asset leaves available. That is also why this module's own catalogue is probed directly here
- * rather than registered as a {@link ContentKeys} fill - a fill registered by the library would sit
- * in the same queue as its consumers and, since the library loads FIRST, would answer ahead of every
- * one of them.
  */
 public final class CommerceLabels {
 
@@ -54,12 +45,6 @@ public final class CommerceLabels {
 
     /** The convention key a shelf's category is looked up under, plus the category's own word. */
     public static final String CATEGORY_PREFIX = "shop.category.";
-
-    /** This module's own chrome namespace: the {@code ziggfreedcommon.commerce.lang} filename plus a dot. */
-    public static final String CHROME_PREFIX = "ziggfreedcommon.commerce.";
-
-    /** What this module itself ships, asked only after every consumer has passed. */
-    private static final ContentI18n CHROME = new I18nModuleContentI18n(CHROME_PREFIX);
 
     private CommerceLabels() {
     }
@@ -102,19 +87,17 @@ public final class CommerceLabels {
 
     /**
      * Which key a label should actually be emitted under, or null when nothing on this server ships
-     * one and the raw id is all there is. The unprefixed form means "a consumer claims this, let
-     * {@link ContentKeys} say whose"; the prefixed form is this module's own shipped default, which
-     * no fill claims and which therefore passes through {@link ContentKeys} exactly as written.
+     * one and the raw id is all there is. Always the unprefixed convention key, meaning "some loaded
+     * catalogue ships this, let {@link ContentKeys} say which" - this module's own shipped defaults
+     * are one such catalogue ({@code ziggfreedcommon.commerce.lang}) and are found the same way a
+     * consumer's word is.
      */
     @Nullable
     public static String labelKey(@Nonnull String conventionKey) {
         if (conventionKey.isBlank()) {
             return null;
         }
-        if (ContentKeys.known(conventionKey)) {
-            return conventionKey;
-        }
-        return chromeShips(conventionKey) ? CHROME_PREFIX + conventionKey : null;
+        return ContentKeys.known(conventionKey) ? conventionKey : null;
     }
 
     /**
@@ -130,14 +113,6 @@ public final class CommerceLabels {
         String key = labelKey(conventionKey);
         Message fallback = key == null ? Msg.raw(id) : ContentKeys.tr(key);
         return CommerceText.title(authored, resolver, fallback);
-    }
-
-    private static boolean chromeShips(@Nonnull String conventionKey) {
-        try {
-            return CHROME.hasKey(conventionKey);
-        } catch (Throwable noCatalogueYet) {
-            return false;
-        }
     }
 
     // ==================== resolving a board by id ====================

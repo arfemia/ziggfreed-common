@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.IOException;
-import java.util.Set;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 
@@ -17,8 +17,8 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.board.asset.BoardAsset;
-import com.ziggfreed.common.i18n.ContentI18n;
 import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
 
 /**
@@ -26,34 +26,17 @@ import com.ziggfreed.common.progress.asset.ContentTextAsset;
  * a free word the content invented was turned into a key and handed to a client, so a band nobody had
  * translated rendered as {@code board.grade.training} on screen.
  *
- * <p>The rungs a unit JVM can see are the ones that matter here - the authored word, a consumer's own
- * key, and the absence of any key at all. The library's own shipped default is an engine catalogue
- * lookup, so it answers "no" with no server standing; that rung is in-game smoke like the rest of the
- * rendering. A band this library itself ships a word for is therefore asserted through a consumer
- * fill, which outranks that rung whether a catalogue is standing or not, so no assertion below turns
- * on which of the two answered.
+ * <p>The loaded catalogue is pinned to a plain map of full registered ids, which is every rung the
+ * ladder has below the authored word: a consumer's own key and this library's shipped default are
+ * both just entries the server loaded, found the same way, so a unit JVM can assert the whole
+ * ladder including which of two loaded words a band is printed under.
  */
 class CommerceLabelsTest {
 
-    /** A consumer that ships exactly the keys it was built with. */
-    private record Fill(@Nonnull String prefix, @Nonnull Set<String> keys) implements ContentI18n {
-
-        @Override
-        @Nonnull
-        public String keyPrefix() {
-            return prefix;
-        }
-
-        @Override
-        public boolean hasKey(@Nonnull String unprefixedKey) {
-            return keys.contains(unprefixedKey);
-        }
-    }
-
     @BeforeEach
     @AfterEach
-    void unfilled() {
-        ContentKeys.reset();
+    void bareCatalogue() {
+        LangCatalog.overrideForTests(null);
     }
 
     @Test
@@ -68,7 +51,7 @@ class CommerceLabelsTest {
     @Test
     @DisplayName("a consumer that ships the convention key keeps it, namespace and all")
     void aConsumerKeyIsUsedAsAuthored() {
-        ContentKeys.install(new Fill("mmoskilltree.", Set.of("board.grade.veteran")));
+        LangCatalog.overrideForTests(Map.of("mmoskilltree.board.grade.veteran", "Veteran"));
 
         String key = CommerceLabels.labelKey(CommerceLabels.GRADE_PREFIX + "veteran");
 
@@ -80,7 +63,7 @@ class CommerceLabelsTest {
     @Test
     @DisplayName("a consumer's word for a band it does not ship leaves the band unnamed")
     void anotherBandIsNotClaimed() {
-        ContentKeys.install(new Fill("mmoskilltree.", Set.of("board.grade.veteran")));
+        LangCatalog.overrideForTests(Map.of("mmoskilltree.board.grade.veteran", "Veteran"));
 
         assertNull(CommerceLabels.labelKey(CommerceLabels.GRADE_PREFIX + "skirmish"));
     }
@@ -122,8 +105,9 @@ class CommerceLabelsTest {
     @Test
     @DisplayName("the board's own Grades entry is the word its band is printed under")
     void anAuthoredWordWinsTheLadder() throws IOException {
-        ContentKeys.install(new Fill("mmoskilltree.",
-                Set.of("bounty.band.skirmish", "board.grade.skirmish")));
+        LangCatalog.overrideForTests(Map.of(
+                "mmoskilltree.bounty.band.skirmish", "Skirmish",
+                "mmoskilltree.board.grade.skirmish", "Skirmish"));
         BoardAsset daily = board("""
                 { "Grades": { "Skirmish": { "TitleKey": "bounty.band.skirmish" } } }
                 """, "daily");
@@ -137,7 +121,7 @@ class CommerceLabelsTest {
     @Test
     @DisplayName("declaring a band and naming it are two different authored facts")
     void aDeclaredBandNeedNotCarryAWord() throws IOException {
-        ContentKeys.install(new Fill("mmoskilltree.", Set.of("board.grade.hard")));
+        LangCatalog.overrideForTests(Map.of("mmoskilltree.board.grade.hard", "Hard"));
         BoardAsset daily = board("""
                 { "Slots": [ { "Difficulty": "Hard" } ] }
                 """, "daily");
@@ -152,5 +136,32 @@ class CommerceLabelsTest {
                 "rung 1 is empty, so the band is printed under whichever lower rung ships a word");
         assertNull(word.getRawText(),
                 "the raw band word is the last rung of all, reached only when nothing ships one");
+    }
+
+    // ==================== the library's own shipped default ====================
+
+    @Test
+    @DisplayName("the library's shipped default names a band nobody else did")
+    void theShippedDefaultIsFoundLikeAnyLoadedWord() {
+        LangCatalog.overrideForTests(
+                Map.of("ziggfreedcommon.commerce.board.grade.hard", "Hard"));
+
+        String key = CommerceLabels.labelKey(CommerceLabels.GRADE_PREFIX + "hard");
+
+        assertEquals("board.grade.hard", key);
+        assertEquals("ziggfreedcommon.commerce.board.grade.hard", ContentKeys.resolved(key));
+    }
+
+    @Test
+    @DisplayName("a consumer's word for a band outranks the library's shipped default")
+    void aConsumerWordOutranksTheShippedDefault() {
+        LangCatalog.overrideForTests(Map.of(
+                "mmoskilltree.board.grade.hard", "Grueling",
+                "ziggfreedcommon.commerce.board.grade.hard", "Hard"));
+
+        assertEquals("mmoskilltree.board.grade.hard",
+                ContentKeys.resolved(CommerceLabels.labelKey(CommerceLabels.GRADE_PREFIX + "hard")),
+                "deterministic: the alphabetically first loaded id, which a consumer namespace"
+                        + " ahead of ziggfreedcommon.* is");
     }
 }

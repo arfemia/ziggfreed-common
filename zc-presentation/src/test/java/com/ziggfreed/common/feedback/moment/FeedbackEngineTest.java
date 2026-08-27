@@ -25,8 +25,7 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.ziggfreed.common.i18n.ContentI18n;
-import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.subject.Subject;
 
@@ -46,14 +45,14 @@ class FeedbackEngineTest {
     @BeforeEach
     void setUp() {
         FeedbackMomentConfig.getInstance().mergePackLayer(Map.of());
-        ContentKeys.reset();
+        LangCatalog.overrideForTests(null);
         handleless = Subject.of(UUID.randomUUID(), "tester");
     }
 
     @AfterEach
     void tearDown() {
         FeedbackMomentConfig.getInstance().mergePackLayer(Map.of());
-        ContentKeys.reset();
+        LangCatalog.overrideForTests(null);
     }
 
     @Nonnull
@@ -260,7 +259,8 @@ class FeedbackEngineTest {
      */
     @Test
     void anAuthoredKeyIsResolvedThroughTheConsumerThatShipsIt() throws IOException {
-        ContentKeys.install(new Fill("mmoskilltree.", "notify.quest_complete"));
+        LangCatalog.overrideForTests(
+                Map.of("mmoskilltree.notify.quest_complete", "{title} complete!"));
         FeedbackMomentAsset asset = moment("Quest_Completed", """
                 { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"] } } }
                 """);
@@ -391,21 +391,6 @@ class FeedbackEngineTest {
     private static Map<String, Object> progress(int current, int required, boolean finished) {
         return Map.of("step", "Break logs", "current", current, "required", required,
                 "finished", finished);
-    }
-
-    /** A consumer catalogue claiming exactly the keys it was built with. */
-    private record Fill(@Nonnull String prefix, @Nonnull String key) implements ContentI18n {
-
-        @Override
-        @Nonnull
-        public String keyPrefix() {
-            return prefix;
-        }
-
-        @Override
-        public boolean hasKey(@Nonnull String unprefixedKey) {
-            return key.equals(unprefixedKey);
-        }
     }
 
     /** A handle whose player wants no personal notifications at all. */

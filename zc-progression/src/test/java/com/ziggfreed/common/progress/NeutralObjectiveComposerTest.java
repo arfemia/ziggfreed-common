@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -11,11 +12,9 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.server.core.Message;
-import com.ziggfreed.common.i18n.ContentI18n;
-import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.i18n.Msg;
 
-import javax.annotation.Nonnull;
 
 /**
  * The library's own sentence family, driven over a fixture catalogue so the LADDER is what is
@@ -89,19 +88,7 @@ class NeutralObjectiveComposerTest {
 
     @Test
     void theAuthoredKeyOutranksTheGeneratedSentenceAndResolvesWithItsArguments() {
-        ContentKeys.reset();
-        ContentKeys.install(new ContentI18n() {
-            @Override
-            @Nonnull
-            public String keyPrefix() {
-                return "fixture.";
-            }
-
-            @Override
-            public boolean hasKey(@Nonnull String unprefixedKey) {
-                return "yourmod.step.collect".equals(unprefixedKey);
-            }
-        });
+        LangCatalog.overrideForTests(Map.of("fixture.yourmod.step.collect", "Collect {0} of {1}"));
         try {
             NeutralObjectiveComposer composer = over(Set.of(NS + "objective.pickup_item"));
             Message line = composer.compose(step("PICKUP_ITEM", "Ore", 64), "yourmod.step.collect");
@@ -111,7 +98,7 @@ class NeutralObjectiveComposerTest {
             assertNotNull(param(line, "0"), "and it resolves WITH its arguments, so a {0} slot is "
                     + "never painted literally");
         } finally {
-            ContentKeys.reset();
+            LangCatalog.overrideForTests(null);
         }
     }
 
