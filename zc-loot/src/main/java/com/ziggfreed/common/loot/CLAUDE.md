@@ -16,6 +16,13 @@ engine above can reach the loot core without any of them reaching each other.
   STACK. `Chance` is the shared `FactorFormula` read as a PERCENTAGE and held inside `0..100` whatever
   the terms say; `Ladder.Factors` is a bare `Term[]` because a ladder has no base and no ceiling, so a
   full formula there would be two dead knobs.
+  - **`Chance` is an OBJECT, and getting that wrong FAILS SILENT.** Flat odds are
+    `"Chance": {"Base": 0.35}`, never `"Chance": 0.35` - it is a `FactorFormula`, not a number, so a
+    bare scalar does not become the formula the roll reads. Nothing reports it: `LootableValidator`'s
+    `auditChance` returns early on a null chance, so an unreadable one is indistinguishable from an
+    unauthored one, and "omit the group for a roll that always fires" means the roll then ALWAYS
+    FIRES. A rare tier authored `0.02` pays out every time and the file still looks right. Two shipped
+    tables were authored this way before it was caught in game, so check the shape, not the number.
 - **[`LootGrants`](LootGrants.java)** - what a roll or a pool entry hands over, four independent
   leaves: `Items[{Item,Count,CountMax}]` (exact, needs nothing else installed; `CountMax` makes the
   quantity vary evenly between the two, drawn when the payout is DECIDED rather than when it lands so
