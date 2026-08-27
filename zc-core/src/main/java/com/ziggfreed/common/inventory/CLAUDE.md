@@ -9,7 +9,10 @@ needs it), so it lives here, not duplicated in a consumer.
   `getCombinedBackpackStorageHotbar` and `Player#getPlayerRef` accessors, all
   `@Deprecated(forRemoval = true)`: `storage`/`hotbar`/`activeHotbarItem`/
   `combinedBackpackStorageHotbar`/`playerRef`, each a `(ComponentAccessor<EntityStore>,
-  Ref<EntityStore>)` two-argument form plus a `Player` convenience overload. Converged out of
+  Ref<EntityStore>)` two-argument form plus a `Player` convenience overload; plus
+  `player(PlayerRef)`, the ONE resolve-a-player inverse (null for an absent/stale reference or a
+  missing component - `KeyedCustomHud.resolvePlayer` and `subject/PlayerRefSubjectHandle` both
+  read through it). Converged out of
   two independently-drifted mod-local copies (the MMO's `util/InventoryAccessUtil`, RpgStations'
   `util/InventoryAccess`), both deleted; every `Player` overload resolves its own ref through the
   shared package-private `usable(Ref)` guard checking BOTH `null` and `!isValid()`.

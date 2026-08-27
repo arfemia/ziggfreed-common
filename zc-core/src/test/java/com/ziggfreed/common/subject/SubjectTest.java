@@ -10,6 +10,9 @@ import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+
 /**
  * What a handle can be read back as: the one contract every engine, store, gate and reward handler
  * in this library reaches a player through.
@@ -88,5 +91,14 @@ class SubjectTest {
         Subject subject = subjectWith((Subject.HandleFacets) type -> null);
 
         assertNull(subject.handleAs(Avatar.class));
+    }
+
+    @Test
+    void aPlayerlessSubjectIsNullRatherThanAGuess() {
+        // "Nobody standing anywhere" is a real answer: per-player engine state lives on the
+        // player's own entity, so a subject invented around a missing player would read every
+        // balance as zero and drop every write while reporting success.
+        assertNull(Subject.of((Player) null));
+        assertNull(Subject.of((PlayerRef) null, (Player) null));
     }
 }

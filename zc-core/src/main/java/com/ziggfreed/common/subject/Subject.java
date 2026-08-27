@@ -5,6 +5,10 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.ziggfreed.common.inventory.PlayerAccess;
+
 /**
  * Who an engine operation is about: a stable id, a display name, and an OPAQUE handle the consumer
  * attached.
@@ -56,6 +60,40 @@ public record Subject(@Nonnull UUID id, @Nonnull String name, @Nullable Object h
     @Nonnull
     public static Subject of(@Nonnull UUID id, @Nonnull String name) {
         return new Subject(id, name, null);
+    }
+
+    /**
+     * The subject for {@code player}, or null when there is no live player to be about. The
+     * player's own id and username come off their {@link PlayerRef} component, so nothing here has
+     * to be handed one separately; the handle is the live entity itself, which is what every
+     * ready-made reader in this library asks a subject for.
+     *
+     * <p><b>{@code null} means "nobody standing anywhere", and it is a real answer.</b> Per-player
+     * engine state lives on the player's own entity, so a question about somebody who is not in a
+     * world has nothing to read and an edit has nowhere to land. A caller guards rather than
+     * inventing a subject that would quietly answer wrong.
+     */
+    @Nullable
+    public static Subject of(@Nullable Player player) {
+        return of(player == null ? null : PlayerAccess.playerRef(player), player);
+    }
+
+    /**
+     * The same with the {@link PlayerRef} already in hand, for a caller that resolved one anyway.
+     * Both halves are needed: the reference names the player, the entity is what state is read and
+     * written through.
+     */
+    @Nullable
+    public static Subject of(@Nullable PlayerRef playerRef, @Nullable Player player) {
+        if (playerRef == null || player == null) {
+            return null;
+        }
+        UUID id = playerRef.getUuid();
+        if (id == null) {
+            return null;
+        }
+        String name = playerRef.getUsername();
+        return new Subject(id, name == null ? "" : name, player);
     }
 
     /**

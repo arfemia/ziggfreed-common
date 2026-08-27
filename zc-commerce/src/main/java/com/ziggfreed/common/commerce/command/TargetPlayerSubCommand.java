@@ -75,13 +75,13 @@ abstract class TargetPlayerSubCommand extends AbstractAsyncCommand {
 
     private void onWorldThread(@Nonnull CommandContext ctx, @Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref) {
-        PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
-        Player player = store.getComponent(ref, Player.getComponentType());
-        if (playerRef == null || player == null) {
+        Subject subject = Subject.of(store.getComponent(ref, PlayerRef.getComponentType()),
+                store.getComponent(ref, Player.getComponentType()));
+        if (subject == null) {
             CommerceAdminMessages.refused(ctx, "player.offline");
             return;
         }
-        execute(ctx, new Subject(playerRef.getUuid(), playerRef.getUsername(), player));
+        execute(ctx, subject);
     }
 
     /**

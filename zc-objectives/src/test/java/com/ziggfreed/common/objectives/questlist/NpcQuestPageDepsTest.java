@@ -58,7 +58,7 @@ class NpcQuestPageDepsTest {
                 "no consumer opinion, so every chip takes the generic reading");
         assertFalse(NpcQuestPageDeps.DEFAULTS.completion().handOff(
                 "quest", "Guide", null, null, null),
-                "nothing follows a settled quest, so the page keeps the screen");
+                "with no quest runtime installed nothing is authored, so the page keeps the screen");
         assertNull(NpcQuestPageDeps.DEFAULTS.completionToast().forCompleted(null),
                 "no consumer toast, so the page floats its own line");
     }
@@ -83,7 +83,7 @@ class NpcQuestPageDepsTest {
         assertSame(NpcQuestPageDeps.ASSET_NAMES, deps.npcNames());
         assertSame(NpcQuestPageDeps.PLAIN_THEME, deps.theme());
         assertSame(NpcQuestPageDeps.GENERIC_CHIPS, deps.rewardChips());
-        assertSame(NpcQuestPageDeps.NO_HAND_OFF, deps.completion());
+        assertSame(NpcQuestPageDeps.ENGINE_HAND_OFF, deps.completion());
         assertSame(NpcQuestPageDeps.NO_COMPLETION_TOAST, deps.completionToast());
     }
 

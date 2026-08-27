@@ -2,6 +2,7 @@ package com.ziggfreed.common.inventory;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -39,6 +40,13 @@ class PlayerAccessTest {
     @Test
     void usable_isFalseForNullRef() {
         assertFalse(PlayerAccess.usable(null));
+    }
+
+    @Test
+    void player_isNullForANullReference() {
+        // The inverse accessor degrades to null the same way every Player overload does: a
+        // reference that is absent resolves to nobody rather than throwing.
+        assertNull(PlayerAccess.player(null));
     }
 
     @Test
