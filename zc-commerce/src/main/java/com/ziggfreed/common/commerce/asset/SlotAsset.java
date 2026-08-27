@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 
 /**
  * The leaves EVERY slot of a rotating set carries: how many candidates it yields, and whether it may
@@ -38,6 +39,7 @@ public class SlotAsset {
         return builder
                 .appendInherited(new KeyedCodec<>("Count", Codec.INTEGER, false),
                         (o, v) -> o.count = v, o -> o.count, (o, p) -> o.count = p.count)
+                .metadata(EditorSchema.defaultValue(1))
                 .documentation("How many DISTINCT candidates this slot yields. Unauthored means 1; write 2 rather "
                         + "than repeating the same slot twice.").add()
                 .appendInherited(new KeyedCodec<>("Optional", Codec.BOOLEAN, false),

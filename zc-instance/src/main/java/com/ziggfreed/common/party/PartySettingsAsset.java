@@ -9,6 +9,7 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 
 /**
  * A pack-authorable, mod-agnostic party-policy asset, loaded from a consumer's
@@ -72,8 +73,10 @@ public final class PartySettingsAsset
                     a -> a.id)
             .add()
             .append(new KeyedCodec<>("MaxSize", Codec.INTEGER, false), (a, v) -> a.maxSize = v, a -> a.maxSize)
+            .metadata(EditorSchema.defaultValue(DEFAULT_MAX_SIZE))
             .add()
             .append(new KeyedCodec<>("InviteTimeoutSeconds", Codec.INTEGER, false), (a, v) -> a.inviteTimeoutSeconds = v, a -> a.inviteTimeoutSeconds)
+            .metadata(EditorSchema.defaultValue(DEFAULT_INVITE_TIMEOUT_SECONDS))
             .add()
             .append(new KeyedCodec<>("OwnerOnlyInvite", Codec.BOOLEAN, false), (a, v) -> a.ownerOnlyInvite = v, a -> a.ownerOnlyInvite)
             .add()

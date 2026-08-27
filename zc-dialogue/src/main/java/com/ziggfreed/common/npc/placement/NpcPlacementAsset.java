@@ -15,6 +15,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.ScalarStringCodec;
@@ -115,6 +116,7 @@ public final class NpcPlacementAsset
             .add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
+            .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether this placement may appear at all; unauthored means true. Setting false is a "
                     + "permanent off switch in the content itself, and despawns a standing NPC on the next sweep.")
             .add()
@@ -774,6 +776,7 @@ public final class NpcPlacementAsset
         public static final BuilderCodec<Limits> CODEC = BuilderCodec.builder(Limits.class, Limits::new)
                 .appendInherited(new KeyedCodec<>("SpawnChance", Codec.DOUBLE, false),
                         (o, v) -> o.spawnChance = v, o -> o.spawnChance, (o, p) -> o.spawnChance = p.spawnChance)
+                .metadata(EditorSchema.defaultValue(1.0))
                 .documentation("Chance in 0..1 that a resolved position is actually used; unauthored means 1 (always). "
                         + "The roll is deterministic per position, so it never re-rolls on a reload.").add()
                 .appendInherited(new KeyedCodec<>("ChanceFormula",
@@ -895,6 +898,7 @@ public final class NpcPlacementAsset
                         + "A role's Invulnerable flag does NOT cover that case.").add()
                 .appendInherited(new KeyedCodec<>("FortifyHealth", Codec.DOUBLE, false),
                         (o, v) -> o.fortifyHealth = v, o -> o.fortifyHealth, (o, p) -> o.fortifyHealth = p.fortifyHealth)
+                .metadata(EditorSchema.defaultValue(1000000.0))
                 .documentation("The additive max-health bonus Fortify applies; unauthored means 1000000.").add()
                 .build();
 

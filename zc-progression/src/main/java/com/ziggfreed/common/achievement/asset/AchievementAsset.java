@@ -20,6 +20,7 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.achievement.Achievement;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.NestedAssetId;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -104,6 +105,7 @@ public final class AchievementAsset
             .add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
+            .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether the achievement is in circulation; unauthored means true. Setting false "
                     + "stops it being earned or listed while leaving it with whoever already earned it.")
             .add()
@@ -365,12 +367,14 @@ public final class AchievementAsset
         public static final BuilderCodec<Scoring> CODEC = BuilderCodec.builder(Scoring.class, Scoring::new)
                 .appendInherited(new KeyedCodec<>("Points", Codec.INTEGER, false),
                         (o, v) -> o.points = v, o -> o.points, (o, p) -> o.points = p.points)
+                .metadata(EditorSchema.defaultValue(DEFAULT_POINTS))
                 .documentation("What earning this is worth; unauthored means " + DEFAULT_POINTS + ". Keep the "
                         + "scale consistent across a pack, since a player's total is the sum and a milestone "
                         + "reward is measured against it.").add()
                 .appendInherited(new KeyedCodec<>("CountsTowardTotal", Codec.BOOLEAN, false),
                         (o, v) -> o.countsTowardTotal = v, o -> o.countsTowardTotal,
                         (o, p) -> o.countsTowardTotal = p.countsTowardTotal)
+                .metadata(EditorSchema.defaultValue(true))
                 .documentation("Whether the points count toward a player's total; unauthored means true. Set "
                         + "false for something nobody can earn any more, so a total stays comparable between a "
                         + "long-standing player and a new one.").add()

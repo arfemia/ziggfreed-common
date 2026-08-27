@@ -1,5 +1,6 @@
 package com.ziggfreed.common.achievement.asset;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -13,9 +14,15 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.BooleanSchema;
+import com.hypixel.hytale.codec.schema.config.IntegerSchema;
+import com.hypixel.hytale.codec.schema.config.ObjectSchema;
+import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.progress.ObjectiveDef;
+import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 
 /**
  * {@link AchievementAsset}'s decode contract, and above all what native {@code Parent} inheritance
@@ -222,5 +229,30 @@ class AchievementAssetCodecTest {
 
         assertEquals(List.of("gathering", "capstone"), asset.toDefinition().achievement().tags(),
                 "a blank tag is dropped rather than carried as an empty classification");
+    }
+
+    @Test
+    void scoringSchemaDeclaresTheEffectiveUnauthoredDefaults() {
+        ObjectSchema schema = AchievementAsset.Scoring.CODEC.toSchema(new SchemaContext());
+
+        BooleanSchema counts = (BooleanSchema) schema.getProperties().get("CountsTowardTotal");
+        assertEquals(Boolean.TRUE, counts.getDefault(),
+                "unauthored CountsTowardTotal is true, and the exported schema must say so or the "
+                        + "editor renders an unchecked box that lies about the effective value");
+
+        IntegerSchema points = (IntegerSchema) schema.getProperties().get("Points");
+        assertEquals(Integer.valueOf(AchievementAsset.Scoring.DEFAULT_POINTS), points.getDefault());
+    }
+
+    @Test
+    void objectiveSchemaExportsMatchModeAsAClosedVocabulary() {
+        ObjectSchema schema = ObjectiveLeafAsset.CODEC.toSchema(new SchemaContext());
+
+        StringSchema matchMode = (StringSchema) schema.getProperties().get("MatchMode");
+        assertArrayEquals(new String[] {"EXACT", "CONTAINS", "PREFIX"}, matchMode.getEnum(),
+                "the three comparisons the reader parses are the whole vocabulary, so the editor "
+                        + "may offer a dropdown");
+        assertEquals("CONTAINS", matchMode.getDefault());
+        assertNotNull(matchMode.getMarkdownEnumDescriptions());
     }
 }

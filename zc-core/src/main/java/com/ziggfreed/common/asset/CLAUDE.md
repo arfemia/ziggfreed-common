@@ -16,6 +16,16 @@ Router for `com.ziggfreed.common.asset`. The generic, mod-agnostic plumbing ever
   lives in `ZiggfreedCommonPlugin`, the only place that can see both the placement facade and the
   Factors assets. **A dropdown is authoring convenience, never validation** - hand-written JSON never
   passes through the editor, so every dataset keeps its validator check.
+- **[`EditorSchema`](EditorSchema.java)** - schema-only Asset Editor hints attached to a codec field
+  with `.metadata(...)`: `defaultValue(...)` declares a nullable leaf's effective unauthored value
+  (an `Enabled` meaning true, a `Weight` meaning 1) so the editor shows the real default instead of
+  the control's zero-state, and `oneOf(...)`/`oneOfDocumented(...)` declare a CLOSED string
+  vocabulary as the engine's enum shape (`enum` + `hytale.type: Enum` + per-value descriptions) so
+  the editor offers a dropdown; a string-array leaf gets the set on its items. Decode is never
+  touched (null still means inherit-then-default at the read site), and **enum belongs only on a
+  vocabulary closed BY CODE** - a pack-extensible id set stays a plain string, because a dropdown
+  that rejects a legal pack value is worse than a text box. Consumed across zc, the MMO jar,
+  rpg-stations, mob-scaling and kweebec.
 - **[`NestedAssetId`](NestedAssetId.java)** - lets an author group asset files into folders AND have
   the folder name become part of the id. The engine keys an asset by its FILENAME alone
   (`AssetStore.decodeFilePathKey`), so `Zones/Wilds/Trork_Trouble.json` and

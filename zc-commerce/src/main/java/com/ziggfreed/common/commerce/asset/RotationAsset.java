@@ -10,6 +10,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.time.DurationGroup;
+import com.ziggfreed.common.asset.EditorSchema;
 
 /**
  * HOW OFTEN a rotating set changes: on the calendar, or on a plain repeating span.
@@ -51,6 +52,9 @@ public final class RotationAsset {
             BuilderCodec.builder(RotationAsset.class, RotationAsset::new)
                     .appendInherited(new KeyedCodec<>("Period", Codec.STRING, false),
                             (o, v) -> o.period = v, o -> o.period, (o, p) -> o.period = p.period)
+                    .metadata(EditorSchema.oneOfDocumented(
+                            PERIOD_DAILY, "Turns over once a day",
+                            PERIOD_WEEKLY, "Turns over once a week"))
                     .documentation("A calendar cadence: Daily or Weekly, counted from a fixed boundary on the "
                             + "server clock in UTC rather than from when anybody last looked, so everybody's "
                             + "rotation turns over at the same instant. Author this OR Every, never both.").add()
@@ -67,6 +71,9 @@ public final class RotationAsset {
                             + "server whose players share one part of the world stops it flipping mid-evening.").add()
                     .appendInherited(new KeyedCodec<>("Weekday", Codec.STRING, false),
                             (o, v) -> o.weekday = v, o -> o.weekday, (o, p) -> o.weekday = p.weekday)
+                    .metadata(EditorSchema.oneOf("Monday", "Tuesday", "Wednesday", "Thursday",
+                            "Friday", "Saturday", "Sunday"))
+                    .metadata(EditorSchema.defaultValue("Monday"))
                     .documentation("Which day a Weekly cadence starts on (Monday, Tuesday, ...). Unauthored means "
                             + "Monday. It does nothing on a Daily or an Every cadence.").add()
                     .build();

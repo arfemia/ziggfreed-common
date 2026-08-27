@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 
 /**
@@ -55,6 +56,7 @@ public final class SelectionAsset {
                             + "since a silent fallback would quietly ship a different set every rotation.").add()
                     .appendInherited(new KeyedCodec<>("Seed", Codec.STRING, false),
                             (o, v) -> o.seed = v, o -> o.seed, (o, p) -> o.seed = p.seed)
+                    .metadata(EditorSchema.defaultValue(SEED_PERIOD))
                     .documentation("What the draw is reproducible across. Unauthored means the current rotation "
                             + "period, so every player sees the same set until it turns over and nothing has to be "
                             + "remembered between restarts.").add()

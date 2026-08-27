@@ -9,6 +9,7 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 
 /**
  * A pack-authorable ENCOUNTER RULE - the generic, mod-agnostic seam that drives an
@@ -88,8 +89,10 @@ public final class EncounterRuleAsset
                     a -> a.id)
             .add()
             .append(new KeyedCodec<>("Trigger", Codec.STRING, false), (a, v) -> a.trigger = v, a -> a.trigger)
+            .metadata(EditorSchema.defaultValue(DEFAULT_TRIGGER))
             .add()
             .append(new KeyedCodec<>("Placement", Codec.STRING, false), (a, v) -> a.placement = v, a -> a.placement)
+            .metadata(EditorSchema.defaultValue(DEFAULT_PLACEMENT))
             .add()
             .append(new KeyedCodec<>("UnitId", Codec.STRING, false), (a, v) -> a.unitId = v, a -> a.unitId)
             .add()

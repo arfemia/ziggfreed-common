@@ -16,6 +16,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
@@ -95,6 +96,7 @@ public final class ShopEntryAsset
             .add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
+            .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether the offer is for sale; unauthored means true. Setting false takes it off the "
                     + "page while leaving the file to come back with one edit.")
             .add()
@@ -369,6 +371,7 @@ public final class ShopEntryAsset
                                 + "an offer on a fully slotted shelf needs one.").add()
                         .appendInherited(new KeyedCodec<>("Weight", Codec.DOUBLE, false),
                                 (o, v) -> o.weight = v, o -> o.weight, (o, p) -> o.weight = p.weight)
+                        .metadata(EditorSchema.defaultValue(1.0))
                         .documentation("How strongly this offer is drawn against its rivals for one slot. "
                                 + "Unauthored means 1; 2 is twice as likely as a 1. Zero or less would make it "
                                 + "undrawable, so it is read as 1 and reported.").add()

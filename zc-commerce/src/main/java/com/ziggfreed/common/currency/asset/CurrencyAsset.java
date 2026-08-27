@@ -15,6 +15,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -92,6 +93,7 @@ public final class CurrencyAsset
             .add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
+            .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether this wallet exists at all; unauthored means true. Setting false hides it and "
                     + "stops anything charging in it, while leaving balances players already hold untouched.")
             .add()

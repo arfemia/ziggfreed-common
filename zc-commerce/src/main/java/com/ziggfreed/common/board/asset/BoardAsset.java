@@ -18,6 +18,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.asset.RerollAsset;
@@ -116,6 +117,7 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
+            .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether the board can be opened at all; unauthored means true. Setting false takes it "
                     + "down without deleting the contracts, and a player already carrying one can still finish.")
             .add()

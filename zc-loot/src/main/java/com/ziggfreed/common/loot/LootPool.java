@@ -10,6 +10,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 
@@ -105,6 +106,7 @@ public final class LootPool {
             return BuilderCodec.builder(Entry.class, Entry::new)
                     .appendInherited(new KeyedCodec<>("Weight", Codec.DOUBLE, false),
                             (o, v) -> o.weight = v, o -> o.weight, (o, p) -> o.weight = p.weight)
+                    .metadata(EditorSchema.defaultValue(1.0))
                     .documentation("How often this entry comes up relative to its neighbours. Omit for 1. A "
                             + "weight of 0 is never picked, which is how an entry is parked without deleting "
                             + "it.").add()

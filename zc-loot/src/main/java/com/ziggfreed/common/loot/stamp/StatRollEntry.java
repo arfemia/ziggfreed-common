@@ -7,6 +7,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.factor.FactorFormula;
 
 /**
@@ -58,6 +59,7 @@ public final class StatRollEntry {
                 .documentation("How many points a hit on this entry is worth. Omit for 1.").add()
                 .appendInherited(new KeyedCodec<>("Weight", Codec.DOUBLE, false),
                         (o, v) -> o.weight = v, o -> o.weight, (o, p) -> o.weight = p.weight)
+                .metadata(EditorSchema.defaultValue(1.0))
                 .documentation("How likely this entry is relative to its siblings. Omit for 1; set 0 to park an "
                         + "entry so it is never drawn without deleting it.").add()
                 .appendInherited(new KeyedCodec<>("Always", Codec.BOOLEAN, false),

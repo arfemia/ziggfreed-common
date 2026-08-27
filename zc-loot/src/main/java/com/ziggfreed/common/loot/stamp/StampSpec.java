@@ -11,6 +11,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.codecs.map.MapCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.factor.FactorFormula;
 
@@ -142,6 +143,7 @@ public final class StampSpec {
         public static final BuilderCodec<Picks> CODEC = BuilderCodec.builder(Picks.class, Picks::new)
                 .appendInherited(new KeyedCodec<>("Min", Codec.INTEGER, false),
                         (o, v) -> o.min = v, o -> o.min, (o, p) -> o.min = p.min)
+                .metadata(EditorSchema.defaultValue(1))
                 .documentation("The fewest entries drawn. Omit for 1.").add()
                 .appendInherited(new KeyedCodec<>("Max", Codec.INTEGER, false),
                         (o, v) -> o.max = v, o -> o.max, (o, p) -> o.max = p.max)

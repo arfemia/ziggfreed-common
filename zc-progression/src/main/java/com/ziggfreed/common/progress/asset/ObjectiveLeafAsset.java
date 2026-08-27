@@ -7,6 +7,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 
@@ -61,6 +62,11 @@ public class ObjectiveLeafAsset {
                         + "for 'any': an empty target matches everything, whatever MatchMode says.").add()
                 .appendInherited(new KeyedCodec<>("MatchMode", Codec.STRING, false),
                         (o, v) -> o.matchMode = v, o -> o.matchMode, (o, p) -> o.matchMode = p.matchMode)
+                .metadata(EditorSchema.oneOfDocumented(
+                        "EXACT", "The whole identifier must equal the target",
+                        "CONTAINS", "The identifier must contain the target anywhere inside it",
+                        "PREFIX", "The identifier must start with the target"))
+                .metadata(EditorSchema.defaultValue("CONTAINS"))
                 .documentation("How Target is compared: EXACT, CONTAINS, or PREFIX. Unauthored means CONTAINS, "
                         + "so 'Copper' also counts Copper_Ore; author EXACT when only one id may count.").add()
                 .appendInherited(new KeyedCodec<>("Qualifier", Codec.STRING, false),
@@ -69,6 +75,7 @@ public class ObjectiveLeafAsset {
                         + "a difficulty, a variant). Unauthored means any.").add()
                 .appendInherited(new KeyedCodec<>("Amount", Codec.LONG, false),
                         (o, v) -> o.amount = v, o -> o.amount, (o, p) -> o.amount = p.amount)
+                .metadata(EditorSchema.defaultValue(1))
                 .documentation("How many are needed. Unauthored means 1.").add()
                 .appendInherited(new KeyedCodec<>("Zone", Codec.STRING, false),
                         (o, v) -> o.zone = v, o -> o.zone, (o, p) -> o.zone = p.zone)

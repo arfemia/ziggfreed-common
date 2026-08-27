@@ -15,6 +15,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.codecs.map.MapCodec;
 
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.ScalarStringCodec;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 
@@ -83,6 +84,7 @@ public final class LootGrants {
                 .documentation("The item asset id to hand over (the item file's name).").add()
                 .appendInherited(new KeyedCodec<>("Count", Codec.INTEGER, false),
                         (o, v) -> o.count = v, o -> o.count, (o, p) -> o.count = p.count)
+                .metadata(EditorSchema.defaultValue(1))
                 .documentation("How many. Omit for 1. A stack that does not fit goes wherever the granting "
                         + "site sends overflow, so a full inventory never silently eats the find.").add()
                 .appendInherited(new KeyedCodec<>("CountMax", Codec.INTEGER, false),

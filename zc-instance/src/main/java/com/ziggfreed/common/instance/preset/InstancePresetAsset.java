@@ -9,6 +9,8 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.schema.metadata.NoDefaultValue;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.instance.reward.InstanceReward;
 import com.ziggfreed.common.instance.reward.RewardOnExit;
@@ -93,10 +95,13 @@ public final class InstancePresetAsset
             .append(new KeyedCodec<>("DescriptionKey", Codec.STRING, false), (a, v) -> a.descriptionKey = v, a -> a.descriptionKey)
             .add()
             .append(new KeyedCodec<>("FillTimeoutSeconds", Codec.INTEGER, false), (a, v) -> a.fillTimeoutSeconds = v, a -> a.fillTimeoutSeconds)
+            .metadata(EditorSchema.defaultValue(DEFAULT_FILL_SECONDS))
             .add()
             .append(new KeyedCodec<>("CountdownSeconds", Codec.INTEGER, false), (a, v) -> a.countdownSeconds = v, a -> a.countdownSeconds)
+            .metadata(EditorSchema.defaultValue(DEFAULT_COUNTDOWN_SECONDS))
             .add()
             .append(new KeyedCodec<>("AllowSolo", Codec.BOOLEAN, false), (a, v) -> a.allowSolo = v, a -> a.allowSolo)
+            .metadata(EditorSchema.defaultValue(DEFAULT_ALLOW_SOLO))
             .add()
             .append(new KeyedCodec<>("LeaderForceStart", Codec.BOOLEAN, false), (a, v) -> a.leaderForceStart = v, a -> a.leaderForceStart)
             .add()
@@ -158,7 +163,8 @@ public final class InstancePresetAsset
         public static final BuilderCodec<QueueMode> CODEC = BuilderCodec.builder(QueueMode.class, QueueMode::new)
                 .append(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false), (m, v) -> m.enabled = v, m -> m.enabled).add()
                 .append(new KeyedCodec<>("IconItemId", Codec.STRING, false), (m, v) -> m.iconItemId = v, m -> m.iconItemId).add()
-                .append(new KeyedCodec<>("Order", Codec.INTEGER, false), (m, v) -> m.order = v, m -> m.order).add()
+                .append(new KeyedCodec<>("Order", Codec.INTEGER, false), (m, v) -> m.order = v, m -> m.order)
+                .metadata(NoDefaultValue.INSTANCE).add()
                 .append(new KeyedCodec<>("LabelKey", Codec.STRING, false), (m, v) -> m.labelKey = v, m -> m.labelKey).add()
                 .build();
 

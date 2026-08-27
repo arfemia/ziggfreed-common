@@ -12,6 +12,7 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.dialogue.DeferredCodec;
 import com.ziggfreed.common.dialogue.DialogueChrome;
 import com.ziggfreed.common.dialogue.DialogueMemory;
@@ -108,6 +109,7 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
             .add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
+            .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether the conversation is in circulation; unauthored means true. Set false to "
                     + "take one out without deleting the file.")
             .add()

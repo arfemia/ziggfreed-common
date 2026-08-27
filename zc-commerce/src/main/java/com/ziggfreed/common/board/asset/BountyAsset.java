@@ -19,6 +19,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
@@ -104,6 +105,7 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
             .add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
+            .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether the contract is in circulation; unauthored means true. Setting false stops "
                     + "it being posted while leaving a player who already took it able to finish.")
             .add()
@@ -381,6 +383,7 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                                 + "AcceptRequires. Unauthored fits an unshaped board but no filtered slot.").add()
                         .appendInherited(new KeyedCodec<>("Weight", Codec.DOUBLE, false),
                                 (o, v) -> o.weight = v, o -> o.weight, (o, p) -> o.weight = p.weight)
+                        .metadata(EditorSchema.defaultValue(1.0))
                         .documentation("How strongly this contract is drawn against its rivals for one slot. "
                                 + "Unauthored means 1; 2 is twice as likely as a 1. Zero or less would make it "
                                 + "unpostable, so it is read as 1 and reported.").add()

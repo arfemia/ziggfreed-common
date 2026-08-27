@@ -10,6 +10,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.ziggfreed.common.asset.EditorSchema;
 
 /**
  * The ONE authored VALUE leaf over the factor vocabulary, the arithmetic twin of
@@ -102,6 +103,7 @@ public final class FactorFormula {
                             + "own Param, so one factor id can appear twice with different arguments.").add()
                     .appendInherited(new KeyedCodec<>("Weight", Codec.DOUBLE, false),
                             (o, v) -> o.weight = v, o -> o.weight, (o, p) -> o.weight = p.weight)
+                    .metadata(EditorSchema.defaultValue(1.0))
                     .documentation("What one point of this factor is worth in the result. Omit for 1.0; author a "
                             + "fraction to make a factor a nudge, or a negative number to make it a penalty.").add()
                     .build();

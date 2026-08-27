@@ -14,6 +14,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.JsonTreeCodec;
 import com.ziggfreed.common.progress.asset.GeneratorAxisAsset;
 import com.ziggfreed.common.progress.asset.GeneratorSpec;
@@ -75,6 +76,7 @@ public final class QuestGeneratorAsset
             .add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
+            .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether this generator runs at all; unauthored means true. Set false to stop a whole "
                     + "family appearing without deleting the file.")
             .add()

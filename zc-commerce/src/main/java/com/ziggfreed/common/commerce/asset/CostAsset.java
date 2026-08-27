@@ -15,6 +15,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.codec.InheritMapCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 
 /**
  * A PRICE: what a player hands over. Wallet amounts, inventory items, or both.
@@ -70,6 +71,10 @@ public final class CostAsset {
                     + "it and an inherited list is replaced whole.").add()
             .appendInherited(new KeyedCodec<>("Combine", Codec.STRING, false),
                     (o, v) -> o.combine = v, o -> o.combine, (o, p) -> o.combine = p.combine)
+            .metadata(EditorSchema.oneOfDocumented(
+                    COMBINE_ALL, "Charge every component together",
+                    COMBINE_ANY, "Charge exactly one component, whichever the player can pay"))
+            .metadata(EditorSchema.defaultValue(COMBINE_ALL))
             .documentation("Which payment route applies: All (unauthored) charges every component together, Any "
                     + "charges exactly one of them, so a price payable in either of two wallets is one offer "
                     + "rather than two.").add()
@@ -179,6 +184,7 @@ public final class CostAsset {
                         .documentation("The item id taken as payment.").add()
                         .appendInherited(new KeyedCodec<>("Count", Codec.INTEGER, false),
                                 (o, v) -> o.count = v, o -> o.count, (o, p) -> o.count = p.count)
+                        .metadata(EditorSchema.defaultValue(1))
                         .documentation("How many. Unauthored means 1.").add()
                         .build();
 

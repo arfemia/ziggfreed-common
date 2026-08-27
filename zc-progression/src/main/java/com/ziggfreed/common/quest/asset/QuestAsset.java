@@ -27,6 +27,7 @@ import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.BooleanSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.NestedAssetId;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
@@ -121,6 +122,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .add()
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
+            .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether the quest is in circulation; unauthored means true. Setting false stops it "
                     + "being offered while leaving a player who already holds it able to finish.")
             .add()
@@ -510,6 +512,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .appendInherited(new KeyedCodec<>("CooldownFrom", Codec.STRING, false),
                         (o, v) -> o.cooldownFrom = v, o -> o.cooldownFrom,
                         (o, p) -> o.cooldownFrom = p.cooldownFrom)
+                .metadata(EditorSchema.oneOfDocumented(
+                        FROM_CLAIM, "Count from the reward being taken",
+                        FROM_COMPLETE, "Count from the steps being finished"))
+                .metadata(EditorSchema.defaultValue(FROM_CLAIM))
                 .documentation("Which instant the rolling wait counts from: Claim (the reward being taken, the "
                         + "default) or Complete (the steps being finished). Choose Complete for a quest belonging "
                         + "to a rotating offer, so collecting late does not burn a slot in the next period.").add()
@@ -652,6 +658,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             public static final BuilderCodec<Reset> CODEC = BuilderCodec.builder(Reset.class, Reset::new)
                     .appendInherited(new KeyedCodec<>("Period", Codec.STRING, false),
                             (o, v) -> o.period = v, o -> o.period, (o, p) -> o.period = p.period)
+                    .metadata(EditorSchema.oneOfDocumented(
+                            PERIOD_DAILY, "The window is one day",
+                            PERIOD_WEEKLY, "The window is one week"))
+                    .metadata(EditorSchema.defaultValue(PERIOD_DAILY))
                     .documentation("Daily or Weekly. Unauthored means Daily.").add()
                     .appendInherited(new KeyedCodec<>("AtMinutes", Codec.INTEGER, false),
                             (o, v) -> o.atMinutes = v, o -> o.atMinutes, (o, p) -> o.atMinutes = p.atMinutes)
@@ -661,10 +671,14 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                             + "over in the middle of their evening.").add()
                     .appendInherited(new KeyedCodec<>("Weekday", Codec.STRING, false),
                             (o, v) -> o.weekday = v, o -> o.weekday, (o, p) -> o.weekday = p.weekday)
+                    .metadata(EditorSchema.oneOf("Monday", "Tuesday", "Wednesday", "Thursday",
+                            "Friday", "Saturday", "Sunday"))
+                    .metadata(EditorSchema.defaultValue("Monday"))
                     .documentation("Which day a Weekly window starts on (Monday, Tuesday, ...). Unauthored "
                             + "means Monday. It does nothing on a Daily window.").add()
                     .appendInherited(new KeyedCodec<>("Times", Codec.INTEGER, false),
                             (o, v) -> o.times = v, o -> o.times, (o, p) -> o.times = p.times)
+                    .metadata(EditorSchema.defaultValue(1))
                     .documentation("How many FINISHES fit inside one window. Unauthored means 1. A run "
                             + "whose reward is still waiting to be collected has already spent its slot "
                             + "here.").add()
