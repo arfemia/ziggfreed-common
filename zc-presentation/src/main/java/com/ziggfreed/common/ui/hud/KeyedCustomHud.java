@@ -7,7 +7,6 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud;
 import com.hypixel.hytale.server.core.ui.Anchor;
@@ -15,8 +14,8 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.inventory.PlayerAccess;
 
 /**
  * Mod-agnostic base for a custom in-world HUD overlay. Owns the machinery every HUD
@@ -159,15 +158,11 @@ public abstract class KeyedCustomHud extends CustomUIHud {
     /**
      * Resolve the live {@link Player} component for {@code playerRef}, or {@code null} if the
      * reference is stale / the component is missing. The player-lookup seam every broadcast
-     * iteration needs, kept mod-agnostic (no consumer world-resolution utility required).
+     * iteration needs; the resolve itself is the one shared {@link PlayerAccess#player} primitive.
      */
     @Nullable
     protected static Player resolvePlayer(@Nonnull PlayerRef playerRef) {
-        Ref<EntityStore> ref = playerRef.getReference();
-        if (ref == null) {
-            return null;
-        }
-        return ref.getStore().getComponent(ref, Player.getComponentType());
+        return PlayerAccess.player(playerRef);
     }
 
     /**

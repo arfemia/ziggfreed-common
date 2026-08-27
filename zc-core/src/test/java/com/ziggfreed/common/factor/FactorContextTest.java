@@ -97,6 +97,26 @@ class FactorContextTest {
     }
 
     @Test
+    void aboutDropsARefItCouldNotRead() {
+        // The one-call factory every "which entity is this about" site builds through. An invalid
+        // ref is dropped rather than carried, so a provider only ever sees a subject it can read.
+        FactorContext ctx = FactorContext.about(null, refStub(), refStub());
+
+        assertNull(ctx.store());
+        assertNull(ctx.subject(), "an invalid subject ref is dropped, never carried");
+        assertNull(ctx.target(), "an invalid target ref is dropped, never carried");
+    }
+
+    @Test
+    void aboutCarriesAValidRefAndTheTargetStaysOptional() {
+        Ref<EntityStore> killer = new Ref<>((Store<EntityStore>) null, 0);
+        FactorContext ctx = FactorContext.about(null, killer);
+
+        assertSame(killer, ctx.subject());
+        assertNull(ctx.target(), "a moment with no second entity has no target, never a stand-in");
+    }
+
+    @Test
     void aProviderReadsTheTargetThroughTheContextAndNullMeansAbsent() {
         Ref<EntityStore> victim = refStub();
         FactorProvider rarity = ctx -> ctx.target() == null ? null : 3.0;

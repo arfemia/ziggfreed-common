@@ -12,6 +12,8 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.dialogue.DialogueEngine;
+import com.ziggfreed.common.dialogue.quest.QuestCompletionRouting;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.NpcNames;
@@ -37,9 +39,11 @@ import com.ziggfreed.common.ui.toast.ToastSpec;
  *   <li>{@link RewardChipSource} - how ONE reward reads, when a mod knows something about its own
  *       kind that the generic reading cannot recover. The generic reading is tried when this
  *       returns null, never instead of it.</li>
- *   <li>{@link CompletionHandOff} - what follows a quest settled at this character. The routing
- *       policy belongs to the dialogue layer, which sits beside this module rather than under it,
- *       so the wiring root fills this and the page merely HOSTS the beat.</li>
+ *   <li>{@link CompletionHandOff} - what follows a quest settled at this character. The default
+ *       hands off through the dialogue engine's installed quest host, deciding by the ONE shared
+ *       policy (authored, somebody in front of the player, something installed that can open it),
+ *       so the giver's closing conversation plays for every quest-bearing consumer without a fill;
+ *       the page merely HOSTS the beat.</li>
  *   <li>{@link CompletionToast} - the toast a consumer floats when a quest settles here, so a
  *       hand-in made on this page reads exactly like one made in that mod's own menu.</li>
  *   <li>{@link PageTheme} - how the page frame is painted, for a consumer shipping a theme.</li>
@@ -131,6 +135,18 @@ public final class NpcQuestPageDeps {
 
     /** Nothing follows a settled quest, so the page keeps the screen and refreshes itself. */
     public static final CompletionHandOff NO_HAND_OFF = (questId, npcId, store, ref, player) -> false;
+
+    /**
+     * The giver's closing conversation, decided by the ONE shared policy: authored, somebody in
+     * front of the player, and something installed that can open it. The quest catalogue is read
+     * through the engine's installed quest runtime at CLICK time, so whichever mod installed it -
+     * or nobody, in which case nothing is authored and the page keeps the screen - this default
+     * answers the same as that mod's own surfaces. A quest log or a book settles the same quest
+     * and skips the beat by that same rule rather than improvising one.
+     */
+    public static final CompletionHandOff ENGINE_HAND_OFF = (questId, npcId, store, ref, player) ->
+            QuestCompletionRouting.handOff(questId, npcId, DialogueEngine.shared().quests(),
+                    store, ref, player);
 
     /** No consumer toast, so the page floats its own line. */
     public static final CompletionToast NO_COMPLETION_TOAST = quest -> null;
@@ -229,7 +245,7 @@ public final class NpcQuestPageDeps {
         @Nonnull private NpcNameSource npcNames = ASSET_NAMES;
         @Nonnull private AnswerSetSource answerSets = ASSET_ANSWER_SETS;
         @Nonnull private RewardChipSource rewardChips = GENERIC_CHIPS;
-        @Nonnull private CompletionHandOff completion = NO_HAND_OFF;
+        @Nonnull private CompletionHandOff completion = ENGINE_HAND_OFF;
         @Nonnull private CompletionToast completionToast = NO_COMPLETION_TOAST;
 
         private Builder() {
@@ -261,7 +277,7 @@ public final class NpcQuestPageDeps {
 
         @Nonnull
         public Builder completion(@Nullable CompletionHandOff value) {
-            this.completion = value != null ? value : NO_HAND_OFF;
+            this.completion = value != null ? value : ENGINE_HAND_OFF;
             return this;
         }
 

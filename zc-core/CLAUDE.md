@@ -68,7 +68,13 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
   router explains why the two halves stay apart. No router of its own (one file).
 - `subject/` - `Subject(UUID id, String name, @Nullable Object handle)`, the ONE identity
   vocabulary every engine in the library speaks; the handle is opaque so no engine learns a
-  particular player representation. No router of its own (one file, see the class javadoc).
+  particular player representation. `Subject.of(player)` / `of(playerRef, player)` build the
+  live-player subject every commerce/loot surface hands over (null when there is no live player -
+  a real answer, never a guess), and `PlayerRefSubjectHandle.subjectFor(ref, username)` is the
+  reference-only payout identity (resolves the live entity on demand via `PlayerAccess.player`,
+  answers `Player`/`PlayerRef` facets so the ready-made reward handlers see the player standing
+  there; an offline payout files under the all-zero id). No router of its own (two files, see the
+  class javadoc).
 - `cast/` - `WorldEvictors` only, the JVM-global world-resolve + per-world eviction fan-out every
   domain registers into. The rest of the cast/ability runtime lives in
   [`zc-cast`'s `cast/`](../zc-cast/src/main/java/com/ziggfreed/common/cast/CLAUDE.md); this is the

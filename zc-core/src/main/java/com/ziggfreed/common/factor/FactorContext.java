@@ -141,6 +141,42 @@ public final class FactorContext {
         return new Builder();
     }
 
+    /**
+     * The question a formula or gate is answered against: which entity it is ABOUT. Both handles
+     * are live and valid only for the call that supplied them, so build one per moment and discard
+     * it. Every leaf is guarded the same way: a null store is simply not set, and a null or
+     * invalid ref is dropped rather than carried, so a provider only ever sees a subject it can
+     * actually read.
+     */
+    @Nonnull
+    public static FactorContext about(@Nullable Store<EntityStore> store,
+            @Nullable Ref<EntityStore> subject) {
+        return about(store, subject, null);
+    }
+
+    /**
+     * The same question, for a moment that has TWO entities in it: the one acting and the one it
+     * happened to. A kill is the plain case - the killer is the subject a luck or reward formula
+     * reads, and the victim is the target a formula about the mob itself reads. Pass a null target
+     * for a moment that has none; a factor asking about it then answers with nothing, which shuts
+     * a gate and contributes zero to a sum.
+     */
+    @Nonnull
+    public static FactorContext about(@Nullable Store<EntityStore> store,
+            @Nullable Ref<EntityStore> subject, @Nullable Ref<EntityStore> target) {
+        Builder ctx = builder();
+        if (store != null) {
+            ctx.store(store);
+        }
+        if (subject != null && subject.isValid()) {
+            ctx.subject(subject);
+        }
+        if (target != null && target.isValid()) {
+            ctx.target(target);
+        }
+        return ctx.build();
+    }
+
     /** Fluent builder; every leaf is optional, and an unset one simply reads null. */
     public static final class Builder {
 

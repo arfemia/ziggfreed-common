@@ -626,14 +626,11 @@ public final class ProgressionDefaults {
     private static FactorContext factorContextOf(@Nonnull Subject subject) {
         ProgressHandle handle = subject.handleAs(ProgressHandle.class);
         if (handle != null) {
-            return FactorContext.builder().store(handle.store()).subject(handle.ref()).build();
+            return FactorContext.about(handle.store(), handle.ref());
         }
         Player player = subject.handleAs(Player.class);
         Ref<EntityStore> ref = player == null ? null : player.getReference();
-        if (ref == null || !ref.isValid()) {
-            return FactorContext.builder().build();
-        }
-        return FactorContext.builder().store(ref.getStore()).subject(ref).build();
+        return FactorContext.about(ref == null ? null : ref.getStore(), ref);
     }
 
     // ==================== hand-ins ====================

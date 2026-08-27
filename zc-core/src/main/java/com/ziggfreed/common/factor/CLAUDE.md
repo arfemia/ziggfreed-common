@@ -56,6 +56,11 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
   - **`withParam` carries every leaf.** The array evaluators rebuild the context per entry so each
     carries its own `Param`; a leaf dropped there would silently blank a factor for every entry after
     the first, which is why `FactorContextTest` pins the carry-over rather than trusting it.
+  - **`about(store, subject[, target])` is the one-call "which entity is this about" factory** for
+    every formula/gate site that holds an entity rather than a subject: null store simply unset, a
+    null or INVALID ref dropped rather than carried, so a provider only ever sees a subject it can
+    read. Build one per moment and discard it; `ProgressionDefaults` and `LootRewardKinds` build
+    theirs through it, and so do the consumer mods' formula sites.
 - **[`FactorProvider`](FactorProvider.java)** - `@Nullable Double resolve(ctx)`. World thread,
   synchronous, never retains the context.
 - **[`FactorFormula`](FactorFormula.java)** - the ONE authored VALUE leaf, `{Base?, Factors:[{Factor,
@@ -336,11 +341,13 @@ and it is gate-able, scale-able and roll-able from that moment on.
   subject (a placement gate is asked before anything stands there to ask about).
 - **`dialogue`** - the generic `{"Type":"Factor", Factor/Param/Min/Max}` condition, resolved against
   the registry installed into the shared engine's ONE factor slot (`DialogueEngine.installFactors`,
-  first-install-wins); store + subject are both the player. With NOBODY installed, every `Factor`
-  condition fails closed after one warn, so a server missing the vocabulary's owner sees the ungated
-  conversation. The slot being singular is also why a mod CONTRIBUTES the ids its own dialogues gate
-  on: the holder answers its own registrations plus the process-wide table, so a locally-registered
-  id is unanswerable on a server where another mod installed first.
+  first-install-wins); store + subject are both the player. The library's own wiring root installs
+  the `hytale:` standard library into that slot at setup (`ZiggfreedCommonPlugin
+  .registerDialogueVocabulary` - the root because zc-dialogue cannot see zc-entity), so a bare
+  server's `Factor` conditions resolve out of the box; a sandbox engine built with NO registry still
+  fails every condition closed after one warn. The slot being singular is also why a mod CONTRIBUTES
+  the ids its own dialogues gate on: the holder answers its own registrations plus the process-wide
+  table, so a locally-registered id is unanswerable on a server where another mod installed first.
 - **a CONTRIBUTING mod** - one that registers ids through `FactorContributions` rather than reading
   any vocabulary of its own, so its numbers reach every consumer's content with no edge in either
   direction (a mob-difficulty mod publishing rarity / difficulty / region readings is the shape).

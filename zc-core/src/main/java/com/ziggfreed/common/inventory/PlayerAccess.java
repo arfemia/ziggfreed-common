@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
@@ -129,6 +130,22 @@ public final class PlayerAccess {
     public static PlayerRef playerRef(@Nonnull Player player) {
         Ref<EntityStore> ref = refOf(player);
         return ref == null ? null : playerRef(ref.getStore(), ref);
+    }
+
+    /**
+     * The inverse of {@link #playerRef(Player)}: resolve the live {@link Player} entity behind
+     * {@code playerRef}, or null when the reference is absent, stale, or the component is missing.
+     * The ONE resolve-a-player primitive, so "a reference names a player, the entity is one" is
+     * derived in a single place; world-thread only, like every resolved-entity read.
+     */
+    @Nullable
+    public static Player player(@Nullable PlayerRef playerRef) {
+        Ref<EntityStore> ref = playerRef == null ? null : playerRef.getReference();
+        if (!usable(ref)) {
+            return null;
+        }
+        Store<EntityStore> store = ref.getStore();
+        return store == null ? null : store.getComponent(ref, Player.getComponentType());
     }
 
     /**

@@ -497,7 +497,10 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
   `NpcIdentities::answerSetForPrimary`), so the header, the nameplate over the character's head and a
   "Talk to X" objective cannot disagree, and a consumer fills either seam only to name a character
   the placement and identity assets do not describe. The hand-off is a seam rather than a call because
-  that decision is the routing layer's policy, never this page's.
+  that decision is the routing layer's policy, never this page's - and its DEFAULT
+  (`ENGINE_HAND_OFF`) already routes through the dialogue engine's installed quest host via
+  `QuestCompletionRouting.handOff`, read at click time, so the giver's closing conversation plays
+  for every quest-bearing consumer without a fill; `NO_HAND_OFF` stays as the explicit opt-out.
 - **The detail panel's narrative comes from the shared text seam, per lifecycle state.**
   `ProgressionTextSource.lore(contentId, state)` is asked with `incomplete` / `active` / `complete`
   and the flavor line is the fallback, so content carrying per-state paragraphs reads with them and

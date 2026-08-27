@@ -13,9 +13,11 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
@@ -704,11 +706,8 @@ public final class LootRewardKinds {
             return FactorLookup.none();
         }
         Player player = playerOf(subject);
-        FactorContext.Builder ctx = FactorContext.builder();
-        if (player != null && player.getReference() != null && player.getReference().isValid()) {
-            ctx.subject(player.getReference()).store(player.getReference().getStore());
-        }
-        return new FactorSnapshot(factors, ctx.build());
+        Ref<EntityStore> ref = player == null ? null : player.getReference();
+        return new FactorSnapshot(factors, FactorContext.about(ref == null ? null : ref.getStore(), ref));
     }
 
     /**

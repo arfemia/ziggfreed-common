@@ -31,6 +31,7 @@ import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.commerce.fold.CurrencyRewardKind;
 import com.ziggfreed.common.commerce.page.CurrencyChipReading;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.DialogueMemories;
 import com.ziggfreed.common.quest.QuestResets;
 import com.ziggfreed.common.rotation.SelectionStrategies;
@@ -95,7 +96,7 @@ import com.ziggfreed.common.world.placed.PlacedBlockRecorder;
  * server jar.
  *
  * <p>The static primitives register nothing (a consumer calls them directly), but this plugin DOES
- * own nine registrations of its own:
+ * own ten registrations of its own:
  * <ul>
  *   <li>the per-player COMPONENT types the library's own state is kept on (progress, commerce,
  *       and the unlocked-flair set), because a component type registered after a world has loaded
@@ -125,6 +126,10 @@ import com.ziggfreed.common.world.placed.PlacedBlockRecorder;
  *       persistent half of it is kept on a component in the module that depends on the dialogue
  *       one - so the dialogue module declares a seam it structurally cannot fill, and this is the
  *       one place both ends are visible;</li>
+ *   <li><b>the dialogue engine's factor vocabulary</b> ({@link #registerDialogueVocabulary}), for
+ *       the mirrored reason: the standard library it should default to lives in the entity module
+ *       the dialogue one cannot see, so without this root a bare server's {@code Factor}
+ *       conditions would all fail closed;</li>
  *   <li><b>the {@link PlayerIdentityCache} lifecycle listeners.</b> The cache is common's own
  *       primitive and the only supported way to identify a player off the world thread, so it has
  *       to be kept current here rather than by whichever consumer happens to read it.</li>
@@ -192,6 +197,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         setupPlacedBlockLedger();
         setupProgressionRuntime();
         registerFeedbackMoments();
+        registerDialogueVocabulary();
         registerDialogueMemories();
         registerQuestListHost();
 
@@ -326,6 +332,36 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         } catch (Throwable t) {
             SafeLog.warn("[dialogue] could not wire the dialogue memory store", t);
         }
+    }
+
+    /**
+     * The factor vocabulary a conversation's {@code Factor} conditions resolve against: the
+     * portable {@code hytale:} standard library, installed into the dialogue engine's ONE factor
+     * slot so a pack gates an option on native engine data - a stat channel, what the player is
+     * holding - with no Java at all, on a server running nothing but this jar. It is wired from up
+     * here because the dialogue module cannot see the entity module that owns the standard
+     * library, and this root is the one place that sees both (the loot vocabulary above is seeded
+     * the same way for the same reason).
+     *
+     * <p>The slot is first-install-wins and this library loads before every consumer, so a
+     * consumer offering its own registry is refused and loses nothing: an id a mod's own
+     * conversations gate on belongs in the process-wide {@code FactorContributions} table, which
+     * every registry consults whoever holds the slot.
+     */
+    private void registerDialogueVocabulary() {
+        try {
+            DialogueEngine.installFactors(LIBRARY_OWNER, dialogueFactorVocabulary());
+        } catch (Throwable t) {
+            SafeLog.warn("[dialogue] could not install the dialogue factor vocabulary", t);
+        }
+    }
+
+    /** The portable engine readings about the acting player; nothing dialogue-specific in it. */
+    @Nonnull
+    private static FactorRegistry dialogueFactorVocabulary() {
+        FactorRegistry registry = new FactorRegistry("dialogue");
+        HytaleFactors.registerInto(registry, LIBRARY_OWNER);
+        return registry;
     }
 
     /**
