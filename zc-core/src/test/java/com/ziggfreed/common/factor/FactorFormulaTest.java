@@ -2,6 +2,7 @@ package com.ziggfreed.common.factor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,9 +10,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.util.function.BiFunction;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.factor.FactorFormula.Clamp;
 import com.ziggfreed.common.factor.FactorFormula.Term;
@@ -313,5 +318,66 @@ class FactorFormulaTest {
                 "a term with no factor id cannot make a formula say anything");
         assertFalse(decode("{ \"Base\": 0.0 }").isEmpty(),
                 "an authored zero is a deliberate constant, not an empty file");
+    }
+
+    // ==================== the bare-number spelling ====================
+
+    /**
+     * A flat value is the ordinary case for a chance, a weight or a multiplier, so a leaf built
+     * with {@link FactorFormula#numberOrGroup} takes the number on its own and means exactly what
+     * the long form means.
+     */
+    @Test
+    void aBareNumberDecodesAsTheBase() throws IOException {
+        FactorFormula plain = numberOrGroup("0.35");
+        assertNotNull(plain);
+        assertEquals(0.35, plain.baseOrZero());
+        assertNull(plain.getFactors());
+        assertNull(plain.getClamp());
+        assertEquals(numberOrGroup("{\"Base\": 0.35}").baseOrZero(), plain.baseOrZero());
+    }
+
+    /** A negative value is a number too, so the arm may not be recognised by a leading digit alone. */
+    @Test
+    void aNegativeBareNumberDecodes() throws IOException {
+        FactorFormula plain = numberOrGroup("-2");
+        assertNotNull(plain);
+        assertEquals(-2.0, plain.baseOrZero());
+    }
+
+    /** The group form still decodes whole through the same leaf: one model under both spellings. */
+    @Test
+    void theGroupFormStillDecodesThroughTheSameLeaf() throws IOException {
+        FactorFormula group = numberOrGroup(
+                "{\"Base\": 1.0, \"Factors\": [{\"Factor\": \"f\", \"Weight\": 2.0}]}");
+        assertNotNull(group);
+        assertEquals(1.0, group.baseOrZero());
+        assertNotNull(group.getFactors());
+        assertEquals(1, group.getFactors().length);
+    }
+
+    /**
+     * The rule that keeps {@link FactorFormula#numberOrGroup} out of an inheritable leaf, pinned
+     * where it can be checked rather than only written down.
+     *
+     * <p>Per-leaf {@code Parent} merging dispatches on the child codec's CONCRETE type: a leaf whose
+     * codec is not a {@link BuilderCodec} is decoded on its own and replaces the parent's whole
+     * group. So the union arm is deliberately not a builder codec (it could not export its number
+     * arm if it were), and the group form deliberately is. A change that blurs the two would take
+     * inheritance out of every formula leaf silently, as a wrong value rather than a failure, which
+     * is exactly what this asserts against.
+     */
+    @Test
+    void onlyTheGroupFormIsInheritable() {
+        assertInstanceOf(BuilderCodec.class, FactorFormula.codec(null),
+                "the group form carries per-leaf Parent merging, so it must stay a BuilderCodec");
+        assertFalse(FactorFormula.numberOrGroup(null) instanceof BuilderCodec,
+                "the union arm cannot be a BuilderCodec and must never sit on an appendInherited leaf");
+    }
+
+    @Nullable
+    private static FactorFormula numberOrGroup(@Nonnull String json) throws IOException {
+        return FactorFormula.numberOrGroup(null)
+                .decodeJson(RawJsonReader.fromJsonString(json), new ExtraInfo());
     }
 }

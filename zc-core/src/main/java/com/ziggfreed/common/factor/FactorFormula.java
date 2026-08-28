@@ -5,10 +5,19 @@ import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+
+import org.bson.BsonValue;
+
 import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.NumberSchema;
+import com.hypixel.hytale.codec.schema.config.Schema;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.asset.EditorSchema;
 
@@ -258,6 +267,72 @@ public final class FactorFormula {
                 .documentation("Inclusive bounds applied to the finished sum. Author Min as the floor the value "
                         + "may never fall through, whatever is missing.").add()
                 .build();
+    }
+
+    /**
+     * The same formula, written as a bare NUMBER or as the full group: {@code 0.35} reads exactly
+     * as {@code {"Base": 0.35}}. Author a leaf with this codec wherever the ordinary case is a flat
+     * value and the formula is the escape hatch - a chance, a weight, a multiplier - so the common
+     * spelling stays one token with one model underneath it.
+     *
+     * <p><b>Register it with {@code append}, NEVER {@code appendInherited}.</b> The union is a plain
+     * {@link Codec}, not a {@link BuilderCodec}, and per-leaf {@code Parent} merging dispatches on
+     * that concrete type: {@code BuilderCodec} asks {@code getChildCodec() instanceof BuilderCodec}
+     * and, when the answer is no, decodes the child's value on its own and REPLACES the parent's
+     * whole group instead of merging into it - silently, as a wrong value rather than an error. The
+     * BSON twin of that path casts without asking and fails outright. A schema doc generator reading
+     * the leaf's type gets an anonymous class name too. So an inheritable formula leaf takes
+     * {@link #codec} and is authored as the group; only a leaf whose file has no inheritance to do
+     * takes this one.
+     *
+     * <p>The union cannot simply be made a {@code BuilderCodec} to sidestep that: a builder codec's
+     * schema is an object schema, typed from its own class, so it can never advertise the number arm
+     * the in-game Asset Editor needs to open a pane over an authored {@code 0.35}. Being inheritable
+     * and being a union are mutually exclusive here, and this method is the union half.
+     *
+     * @param editorDropdownDataSetId the Asset Editor pick list a term's {@code Factor} field
+     *                                offers, or null/blank for the plain free-text form
+     */
+    @Nonnull
+    public static Codec<FactorFormula> numberOrGroup(@Nullable String editorDropdownDataSetId) {
+        return new Codec<>() {
+
+            private final BuilderCodec<FactorFormula> group = codec(editorDropdownDataSetId);
+
+            @Override
+            @Nullable
+            public FactorFormula decode(BsonValue value, ExtraInfo extraInfo) {
+                if (value != null && value.isNumber()) {
+                    return of(value.asNumber().doubleValue(), null, null);
+                }
+                return group.decode(value, extraInfo);
+            }
+
+            @Nonnull
+            @Override
+            public BsonValue encode(FactorFormula formula, ExtraInfo extraInfo) {
+                return group.encode(formula, extraInfo);
+            }
+
+            @Override
+            @Nullable
+            public FactorFormula decodeJson(RawJsonReader reader, ExtraInfo extraInfo) throws IOException {
+                int next = reader.peek();
+                if (next == '-' || (next >= '0' && next <= '9')) {
+                    return of(reader.readDoubleValue(), null, null);
+                }
+                return group.decodeJson(reader, extraInfo);
+            }
+
+            @Nonnull
+            @Override
+            public Schema toSchema(@Nonnull SchemaContext context) {
+                // The plain-number form decodes too, and the in-game Asset Editor fails a property
+                // pane over any authored value shape the exported schema omits, so both arms are
+                // declared, each carrying its own type.
+                return Schema.anyOf(new NumberSchema(), group.toSchema(context));
+            }
+        };
     }
 
     public FactorFormula() {

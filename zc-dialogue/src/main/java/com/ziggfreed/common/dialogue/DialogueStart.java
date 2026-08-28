@@ -20,7 +20,6 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.BooleanSchema;
-import com.hypixel.hytale.codec.schema.config.NumberSchema;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
@@ -236,48 +235,11 @@ public final class DialogueStart {
         @Nullable FactorFormula weight;
 
         /**
-         * A weight authored as a bare NUMBER or as the full formula group. The number form is the
-         * same value ({@code 3} reads as {@code {"Base": 3}}), so the common case stays one token
-         * and there is still one model underneath.
+         * A weight authored as a bare NUMBER or as the full formula group: the shared
+         * spelling every formula leaf in the library accepts.
          */
-        public static final Codec<FactorFormula> WEIGHT_CODEC = new Codec<>() {
-
-            private final BuilderCodec<FactorFormula> group = FactorFormula.codec(EditorDataSets.FACTORS);
-
-            @Override
-            @Nullable
-            public FactorFormula decode(BsonValue value, ExtraInfo extraInfo) {
-                if (value != null && value.isNumber()) {
-                    return FactorFormula.of(value.asNumber().doubleValue(), null, null);
-                }
-                return group.decode(value, extraInfo);
-            }
-
-            @Nonnull
-            @Override
-            public BsonValue encode(FactorFormula formula, ExtraInfo extraInfo) {
-                return group.encode(formula, extraInfo);
-            }
-
-            @Override
-            @Nullable
-            public FactorFormula decodeJson(RawJsonReader reader, ExtraInfo extraInfo) throws IOException {
-                int next = reader.peek();
-                if (next == '-' || (next >= '0' && next <= '9')) {
-                    return FactorFormula.of(reader.readDoubleValue(), null, null);
-                }
-                return group.decodeJson(reader, extraInfo);
-            }
-
-            @Nonnull
-            @Override
-            public Schema toSchema(@Nonnull SchemaContext context) {
-                // The plain-number form decodes too, and the in-game Asset Editor fails a
-                // property pane over any authored value shape the exported schema omits, so the
-                // schema declares both arms.
-                return Schema.anyOf(new NumberSchema(), group.toSchema(context));
-            }
-        };
+        public static final Codec<FactorFormula> WEIGHT_CODEC =
+                FactorFormula.numberOrGroup(EditorDataSets.FACTORS);
 
         public static final BuilderCodec<Variant> CODEC = BuilderCodec.builder(Variant.class, Variant::new)
                 .append(new KeyedCodec<>("Node", Codec.STRING, false),
