@@ -11,7 +11,10 @@
 // match TrackedQuestSnapshot.MAX_QUESTS / MAX_ROWS. Text is pushed on .TextSpans, colours on
 // .Style.TextColor, and a theme may retint #ZigQuestHudPanel.Background.Color.
 
-@QuestTitleStyle = (FontSize: 15, RenderBold: true, RenderUppercase: true, TextColor: #b7b8b9, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
+// Wrap, like the task lines below: a quest title is authored text of any length, and without it
+// the client truncates a long one to a single ellipsised line. The panel is content-sized, so a
+// title that takes two lines simply makes its block taller.
+@QuestTitleStyle = (FontSize: 15, RenderBold: true, RenderUppercase: true, TextColor: #b7b8b9, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center, Wrap: true);
 
 @TaskTextStyle = (FontSize: 15, RenderBold: true, LetterSpacing: 1, TextColor: #ca9f37, VerticalAlignment: Center, Wrap: true);
 
