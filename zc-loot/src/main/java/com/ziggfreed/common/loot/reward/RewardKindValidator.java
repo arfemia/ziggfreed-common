@@ -42,6 +42,7 @@ public final class RewardKindValidator {
     public static final String REQUIRED_WITH_DEFAULT = "REWARDKIND_REQUIRED_WITH_DEFAULT";
     public static final String JAVA_BACKED_KIND_SHADOWED = "REWARDKIND_JAVA_BACKED_KIND_SHADOWED";
     public static final String UNKNOWN_COMMAND = "REWARDKIND_UNKNOWN_COMMAND";
+    public static final String SUSPECT_ARG = "REWARDKIND_SUSPECT_ARG";
 
     private RewardKindValidator() {
     }
@@ -100,6 +101,7 @@ public final class RewardKindValidator {
             return findings;
         }
         String sourceId = asset.authoredId();
+        findings.addAll(auditPresentationArgs(asset, sourceId));
         if (asset.isBlank()) {
             if (decoratesJavaKind(asset)) {
                 // The one legitimate command-less shape: this file gives an already-working
@@ -144,6 +146,34 @@ public final class RewardKindValidator {
         }
 
         findings.addAll(auditCommandHead(asset, registeredCommandHeads));
+        return findings;
+    }
+
+    /**
+     * The {@code Presentation.Args} entries that read as neither a declared parameter nor a
+     * localization key. An unrecognised entry is DROPPED at render time - its blank fills as empty
+     * rather than painting a raw token, the same refusal {@code FeedbackMomentAsset.Line.Args}
+     * makes - so one shaped like a plain word is almost always a mis-spelled parameter name, and
+     * the label it produces is missing a piece.
+     */
+    @Nonnull
+    private static List<Finding> auditPresentationArgs(@Nonnull RewardKindAsset asset,
+            @Nonnull String sourceId) {
+        List<Finding> findings = new ArrayList<>();
+        RewardKindAsset.Presentation presentation = asset.getPresentation();
+        if (presentation == null) {
+            return findings;
+        }
+        for (String entry : presentation.argsList()) {
+            if (asset.declares(entry) || entry.indexOf('.') >= 0 || entry.indexOf('{') >= 0) {
+                continue;
+            }
+            findings.add(Finding.warning(DOMAIN, SUSPECT_ARG,
+                    "Presentation.Args entry '" + entry + "' names no declared parameter and does not "
+                            + "look like a localization key, so it is dropped and its blank in the "
+                            + "label renders empty. Fix the parameter spelling, or write a real key "
+                            + "template.", sourceId));
+        }
         return findings;
     }
 
@@ -267,6 +297,7 @@ public final class RewardKindValidator {
     @Nonnull
     public static List<String> codes() {
         return List.of(NO_COMMAND, PRESENTATION_ONLY, UNKNOWN_PARAM, MISSING_REQUIRED_PARAM,
-                UNUSED_PARAM, REQUIRED_WITH_DEFAULT, JAVA_BACKED_KIND_SHADOWED, UNKNOWN_COMMAND);
+                UNUSED_PARAM, REQUIRED_WITH_DEFAULT, JAVA_BACKED_KIND_SHADOWED, UNKNOWN_COMMAND,
+                SUSPECT_ARG);
     }
 }

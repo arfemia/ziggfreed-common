@@ -50,7 +50,6 @@ import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
-import com.ziggfreed.common.util.NumberFormatter;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -897,7 +896,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
             return CommerceChips.amountAndName(currencies, primary, price.amountOf(primary),
                     deps.currencyNames());
         }
-        return Msg.raw(NumberFormatter.grouped(price.componentCount()));
+        return Msg.num(price.componentCount());
     }
 
     /** How much of a capped offer is left, as the badge on its row. */

@@ -47,6 +47,13 @@ public final class Msg {
      */
     private static final String CAT_KEY = "ziggfreedcommon.fmt.cat";
 
+    /**
+     * The locale-neutral number key ({@code "{0, number}"}) backing {@link #num}, shipped by
+     * this jar in every locale it carries (identical value everywhere - it is a bare grouped
+     * number, not content). Same full-registered-id rule as {@link #CAT_KEY}.
+     */
+    private static final String NUM_KEY = "ziggfreedcommon.fmt.num";
+
     private Msg() {
     }
 
@@ -74,10 +81,22 @@ public final class Msg {
         return m;
     }
 
-    /** Raw, untranslated text - formatted numbers, asset ids, player names. Never a localized name. */
+    /** Raw, untranslated text - asset ids, player names. Never a localized name, and never a server-formatted number (see {@link #num}). */
     @Nonnull
     public static Message raw(@Nullable String text) {
         return Message.raw(text != null ? text : "");
+    }
+
+    /**
+     * A bare display NUMBER, grouped by the player's own client. Binds {@code value} as a typed
+     * numeric param on the shared {@code "{0, number}"} key, so the digit grouping (comma, dot,
+     * space) is the client locale's decision - never {@code raw(NumberFormatter.grouped(...))},
+     * which bakes one server-side grouping into every player's screen. This is the one right way
+     * to paint a balance, a price component, or any other standalone figure.
+     */
+    @Nonnull
+    public static Message num(long value) {
+        return key(NUM_KEY, value);
     }
 
     /**

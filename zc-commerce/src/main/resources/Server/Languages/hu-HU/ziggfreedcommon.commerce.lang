@@ -1,5 +1,8 @@
 action.confirm = Megerősítés
 
+price.amount_and_name = {0, number} {1}
+reward.amount_and_name = +{0, number} {1}
+
 shop.title = Bolt
 shop.count = {0} kapható
 shop.shelf = Kiemelt

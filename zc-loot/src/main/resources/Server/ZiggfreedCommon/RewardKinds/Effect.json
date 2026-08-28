@@ -1,0 +1,22 @@
+{
+  "$Comment": [
+    "How an Effect reward READS where a screen shows it before it pays out. An effect reward",
+    "APPLIES an entity effect to the player when it is granted, so there is no item to show;",
+    "every one reads as the same generic line instead.",
+    "",
+    "This file is presentation only: it names no Command, so the built-in Effect handler keeps",
+    "the payout, and nothing here changes what is applied.",
+    "  NameKey - one label for every effect reward ('Temporary Effect'), shipped by this library",
+    "            in every locale it carries.",
+    "  Icon    - a potion, the shape a player already reads as something that acts on them.",
+    "",
+    "A reward may still write its own NameKey or Icon to read as something more specific. To",
+    "re-skin every effect reward at once, ship a file with THIS name in your own pack; it",
+    "replaces this one."
+  ],
+  "Name": "Applied effect",
+  "Presentation": {
+    "NameKey": "ziggfreedcommon.loot.reward.effect",
+    "Icon": { "Default": "Potion_Health" }
+  }
+}

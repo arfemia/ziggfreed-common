@@ -28,7 +28,11 @@ import com.ziggfreed.common.instance.reward.DeferredRewards;
  *       reads;</li>
  *   <li>the kind FILE's {@code Presentation} group, which is every reward of that kind saying it once
  *       (a kind asset layers defaults &lt; pack &lt; owner, so a pack extending a mapping needs no
- *       Java at all);</li>
+ *       Java at all). This rung yields only when the key its template resolves to is one something
+ *       on this server actually ships: the file is a DEFAULT, and a default pointing at nothing must
+ *       not outrank the rungs below it - which is what lets a per-skill key family cover the skills
+ *       it names while a skill it never heard of still reads through a contributed rescue instead of
+ *       painting a raw key;</li>
  *   <li>the item form: a spec naming an item is drawn with that item's own engine display name, in
  *       whatever locale the player's client speaks.</li>
  * </ol>
@@ -81,7 +85,9 @@ public final class RewardChips {
      * Contribute the reading for a kind this caller OWNS, once at setup. It is asked (in
      * contribution order, first answer wins) only for a reward the generic reading could not name,
      * so it can never override a reward's own {@code NameKey}, a kind file's {@code Presentation},
-     * or an item's own display name - it only rescues what would otherwise be dropped.
+     * or an item's own display name - it only rescues what would otherwise be dropped. A reward's
+     * own authored {@code Icon} survives even here: a contributed chip is re-pointed at it, so the
+     * "a reward's own words and picture win first" contract holds on every rung.
      */
     public static void contribute(@Nonnull Source source) {
         CONTRIBUTED.add(source);
@@ -95,11 +101,6 @@ public final class RewardChips {
      */
     public record Plan(@Nullable String nameKey, @Nullable String itemId, @Nullable String iconItemId,
                        long amount) {
-
-        /** Can this be painted at all? */
-        public boolean isRenderable() {
-            return (nameKey != null && !nameKey.isBlank()) || (itemId != null && !itemId.isBlank());
-        }
     }
 
     /**
@@ -137,27 +138,114 @@ public final class RewardChips {
     @Nullable
     public static RewardChip chipFor(@Nonnull RewardSpec spec) {
         Plan plan = plan(spec);
-        if (!plan.isRenderable()) {
-            for (Source contributed : CONTRIBUTED) {
-                try {
-                    RewardChip chip = contributed.chipFor(spec);
-                    if (chip != null) {
-                        return chip;
-                    }
-                } catch (Throwable ignored) {
-                    // A contributed reading failing costs its own answer, never the panel.
-                }
-            }
-            return null;
-        }
         String nameKey = plan.nameKey();
+        // The kind FILE's rung yields only when the key it points at is actually shipped by
+        // something on this server: the file's Presentation is a DEFAULT, and a default resolving
+        // to nothing must not outrank the item form or a kind owner's contributed reading - that is
+        // how a per-skill key family covers the skills it names while everything else still gets a
+        // real label instead of a raw key. A reward's OWN NameKey stays as written even when nothing
+        // ships it, because an author's explicit word painting as a traceable raw key is how the
+        // author finds the typo.
+        boolean ownKey = isWritten(spec.param(DeferredRewards.PARAM_NAME_KEY));
+        if (nameKey != null && !ownKey && !ContentKeys.known(nameKey)) {
+            nameKey = null;
+        }
         if (nameKey != null && !nameKey.isBlank()) {
             // Through ContentKeys, never as written: the engine namespaces a key by the .lang FILENAME
             // it was defined in, while a reward's name key is authored without that namespace, so a key
             // handed over verbatim is one the client cannot resolve and the player reads the key itself.
-            return RewardChip.of(plan.iconItemId(), ContentKeys.tr(nameKey, plan.amount()));
+            return RewardChip.of(plan.iconItemId(), ContentKeys.tr(nameKey, labelArgs(spec, plan)));
         }
-        return RewardChip.of(plan.iconItemId(), itemLabel(plan.itemId(), plan.amount()));
+        if (plan.itemId() != null && !plan.itemId().isBlank()) {
+            return RewardChip.of(plan.iconItemId(), itemLabel(plan.itemId(), plan.amount()));
+        }
+        // The reward's OWN authored Icon survives onto the contributed rung too: "a reward's own
+        // words and picture win first" holds on every rung, so a boost token (or any other
+        // contributed-named reward) that authored an Icon is drawn with it, not with the
+        // contribution's computed one. Only the reward's own parameter re-points the picture -
+        // the kind FILE's icon does not, because a contribution may know a better per-value
+        // answer than the file's default (a custom skill's own registry icon, say).
+        String ownIcon = spec.param(DeferredRewards.PARAM_ICON);
+        for (Source contributed : CONTRIBUTED) {
+            try {
+                RewardChip chip = contributed.chipFor(spec);
+                if (chip != null) {
+                    return isWritten(ownIcon) ? RewardChip.of(ownIcon, chip.label()) : chip;
+                }
+            } catch (Throwable ignored) {
+                // A contributed reading failing costs its own answer, never the panel.
+            }
+        }
+        return null;
+    }
+
+    /**
+     * What fills the label key's {@code {0}, {1}, ...} blanks for {@code spec}: the kind file's
+     * {@code Presentation.Args} entries in order, or the reward's amount as the one {@code {0}}
+     * when none were authored.
+     *
+     * <p>Each entry naming a declared parameter binds that parameter's effective value - as a
+     * NUMBER when it reads as one, so a {@code {0, number}} blank groups its digits in the player's
+     * own locale. An entry that looks like a key (it carries a {@code .} or a {@code {}) is a
+     * localization-key template filled exactly the way {@code NameKey} is and bound as a NESTED
+     * client-translated {@link Message}, which is what renders a {@code Skill} parameter as the
+     * translated skill name rather than the literal {@code MINING}. An entry that is NEITHER - a
+     * plain word naming no declared parameter, almost always a mis-spelled one - is DROPPED: its
+     * blank fills as empty rather than painting a raw token at a player, exactly as
+     * {@code FeedbackMomentAsset.Line.Args} refuses an argument the moment does not carry, and the
+     * reward-kind validator reports it.
+     */
+    @Nonnull
+    private static Object[] labelArgs(@Nonnull RewardSpec spec, @Nonnull Plan plan) {
+        RewardKindAsset kind = kindOf(spec);
+        List<String> authored = kind == null || kind.getPresentation() == null
+                ? List.of()
+                : kind.getPresentation().argsList();
+        if (authored.isEmpty()) {
+            return new Object[] {plan.amount()};
+        }
+        Object[] out = new Object[authored.size()];
+        for (int i = 0; i < authored.size(); i++) {
+            String entry = authored.get(i);
+            if (kind.declares(entry)) {
+                out[i] = numberOrText(kind.effectiveParam(spec, entry));
+            } else if (entry.indexOf('.') >= 0 || entry.indexOf('{') >= 0) {
+                out[i] = ContentKeys.tr(kind.fillKeyTemplate(spec, entry));
+            } else {
+                out[i] = Msg.raw("");
+            }
+        }
+        return out;
+    }
+
+    /** A parameter value as the number it spells when it spells one, else the text itself. */
+    @Nonnull
+    private static Object numberOrText(@Nonnull String value) {
+        String trimmed = value.trim();
+        try {
+            return Long.parseLong(trimmed);
+        } catch (NumberFormatException notWhole) {
+            try {
+                return Double.parseDouble(trimmed);
+            } catch (NumberFormatException notNumeric) {
+                return value;
+            }
+        }
+    }
+
+    /**
+     * The item-form reading as one reusable chip: the item's own picture beside its own engine
+     * display name, counted. Public so a contributed reading whose reward turns out to BE an item
+     * (a parsed {@code /give} line, say) reads exactly like a declared item grant instead of
+     * composing a second item line.
+     */
+    @Nonnull
+    public static RewardChip itemChip(@Nonnull String itemId, long amount) {
+        return RewardChip.of(itemId, itemLabel(itemId, amount));
+    }
+
+    private static boolean isWritten(@Nullable String value) {
+        return value != null && !value.isBlank();
     }
 
     /**

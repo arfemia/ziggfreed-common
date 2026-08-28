@@ -1,5 +1,8 @@
 action.confirm = Bestätigen
 
+price.amount_and_name = {0, number} {1}
+reward.amount_and_name = +{0, number} {1}
+
 shop.title = Laden
 shop.count = {0} im Angebot
 shop.shelf = Empfohlen

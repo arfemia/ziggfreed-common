@@ -1,5 +1,8 @@
 action.confirm = Conferma
 
+price.amount_and_name = {0, number} {1}
+reward.amount_and_name = +{0, number} {1}
+
 shop.title = Negozio
 shop.count = {0} in vendita
 shop.shelf = In evidenza

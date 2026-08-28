@@ -1,5 +1,8 @@
 action.confirm = Onayla
 
+price.amount_and_name = {0, number} {1}
+reward.amount_and_name = +{0, number} {1}
+
 shop.title = Dükkan
 shop.count = {0} satışta
 shop.shelf = Öne çıkanlar

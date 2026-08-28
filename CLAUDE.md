@@ -31,7 +31,7 @@ The library is built as THIRTEEN Gradle modules plus a thin wiring root, all sha
 | Module | Packages | Depends on | Ships `.ui` |
 |---|---|---|---|
 | `zc-core` | `CommonLog`, `util`, `codec`, `command`, `validation`, `registry`, `factor` (the model + registry + condition), `match`, `subject`, `counter`, `time`, `i18n`, `inventory`, `health`, `stats.StackStats`, `cast.WorldEvictors`, `asset` (the base classes) | - | - |
-| `zc-presentation` | `ui`, `sound`, `camera`, `feedback` (incl. `feedback.moment`, the authored-feedback engine) | core | yes (the shared frames + buttons + toast + form rows) |
+| `zc-presentation` | `ui`, `sound`, `camera`, `feedback` (incl. `feedback.moment`, the authored-feedback engine) | core, loot (one seam: `ui/toast/RewardToastLines`, the chip-to-toast-rows bridge) | yes (the shared frames + buttons + toast + form rows) |
 | `zc-cast` | `cast` (minus `WorldEvictors`), `interaction` | core | - |
 | `zc-entity` | `entity`, `stats` (minus `StackStats`), `factor` (the portable `hytale:` standard library) | core | - |
 | `zc-effects` | `effect`, `instance.effect` | core | - |

@@ -225,6 +225,38 @@ class RewardKindAssetCodecTest {
             assertNull(kind.presentationIcon(xp("MINING")));
         }
 
+        @Test
+        void argsDecodeInOrderAndInheritPerLeaf() throws Exception {
+            RewardKindAsset parent = decodeRoot("""
+                    {
+                      "Params": { "Skill": { "Default": "ALL" }, "Amount": { "Required": true } },
+                      "Command": "x {Skill} {Amount}",
+                      "Presentation": { "NameKey": "mymod.reward.line.xp",
+                                        "Args": ["Amount", "mymod.skill.{Skill}"] }
+                    }
+                    """, "Base");
+            assertNotNull(parent.getPresentation());
+            assertEquals(List.of("Amount", "mymod.skill.{Skill}"),
+                    parent.getPresentation().argsList(), "entries keep their authored order");
+
+            RewardKindAsset child = decode("""
+                    { "Presentation": { "NameKey": "mymod.reward.line.other" } }
+                    """, "Variant", "Base", parent);
+            assertNotNull(child.getPresentation());
+            assertEquals("mymod.reward.line.other", child.getPresentation().getNameKey());
+            assertEquals(List.of("Amount", "mymod.skill.{Skill}"),
+                    child.getPresentation().argsList(),
+                    "a child restating only the key keeps the blank-filling it did not mention");
+        }
+
+        @Test
+        void unauthoredArgsReadAsNone() throws Exception {
+            RewardKindAsset kind = decodeRoot(XP_KIND, "Mmo_Xp");
+            assertNotNull(kind.getPresentation());
+            assertEquals(List.of(), kind.getPresentation().argsList(),
+                    "no Args means the reading binds the reward's amount as the one {0}");
+        }
+
         // ---------- the name template ----------
 
         @Test

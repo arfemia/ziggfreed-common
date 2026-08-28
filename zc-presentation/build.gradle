@@ -2,7 +2,12 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 
 // Everything a player sees or hears: UI primitives (retint, theme, toast, HUD, forms, rows),
 // 3D sound, camera effects, and the notification wrappers.
+//
+// The zc-loot edge exists for ONE seam: RewardToastLines, the bridge from the reward-chip reading
+// to toast body rows. It points DOWN the graph (zc-loot depends on zc-core only and must never
+// grow an edge back up to a module that presents things), so it can never cycle.
 
 dependencies {
     implementation project(':zc-core')
+    implementation project(':zc-loot')
 }

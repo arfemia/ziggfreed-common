@@ -1,0 +1,82 @@
+package com.ziggfreed.common.ui.toast;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.IntFunction;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import com.hypixel.hytale.server.core.Message;
+
+import com.ziggfreed.common.loot.reward.RewardChip;
+import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.loot.reward.RewardSpec;
+
+/**
+ * The ONE bridge from the reward-chip reading to toast body rows, so a payout's toast and the
+ * panel that previewed it can never disagree about what was handed over.
+ *
+ * <p>Every rung of naming a reward already lives in {@link RewardChips} (a reward's own words, the
+ * kind file's {@code Presentation}, the item form, a kind owner's contributed reading); this class
+ * adds only what a TOAST needs on top: the {@link ToastRenderer#MAX_LINES} row cap, and the option
+ * to spend the last row on an "and N more" line instead of silently cutting the list.
+ *
+ * <p><b>Icons carry quantity one.</b> A chip's own label already says how many ("+500 Mining XP",
+ * "x3 Iron Bar"), so a quantity on the icon would say it twice - the same reason the book surfaces
+ * paint every chip's icon as a single item.
+ *
+ * <p>The overflow line is the CALLER's because its words belong to the caller's own lang file; a
+ * null supplier simply drops the rows past the cap.
+ */
+public final class RewardToastLines {
+
+    private RewardToastLines() {
+    }
+
+    /**
+     * One toast row per readable reward, in authored order, capped. {@code source} is the caller's
+     * own per-consumer reading, asked first for each reward exactly as on every chip surface; null
+     * takes the generic reading alone.
+     */
+    @Nonnull
+    public static List<ToastLine> lines(@Nonnull List<RewardSpec> rewards,
+            @Nullable RewardChips.Source source, @Nullable IntFunction<Message> overflow) {
+        return fromChips(RewardChips.chipsFor(rewards, source), overflow);
+    }
+
+    /** Rows for chips a surface already read, capped the same way. */
+    @Nonnull
+    public static List<ToastLine> fromChips(@Nonnull List<RewardChip> chips,
+            @Nullable IntFunction<Message> overflow) {
+        List<ToastLine> lines = new ArrayList<>(chips.size());
+        for (RewardChip chip : chips) {
+            if (chip == null) {
+                continue;
+            }
+            lines.add(chip.hasIcon()
+                    ? ToastLine.item(chip.iconItemId(), 1, chip.label())
+                    : ToastLine.text(chip.label()));
+        }
+        return cap(lines, overflow);
+    }
+
+    /**
+     * {@code lines} capped to {@link ToastRenderer#MAX_LINES}: a list that fits is returned as is,
+     * a longer one keeps its first {@code MAX_LINES - 1} rows and spends the last on
+     * {@code overflow.apply(dropped)} - or simply truncates when {@code overflow} is null.
+     */
+    @Nonnull
+    public static List<ToastLine> cap(@Nonnull List<ToastLine> lines,
+            @Nullable IntFunction<Message> overflow) {
+        if (lines.size() <= ToastRenderer.MAX_LINES) {
+            return lines;
+        }
+        if (overflow == null) {
+            return new ArrayList<>(lines.subList(0, ToastRenderer.MAX_LINES));
+        }
+        List<ToastLine> capped = new ArrayList<>(lines.subList(0, ToastRenderer.MAX_LINES - 1));
+        capped.add(ToastLine.text(overflow.apply(lines.size() - (ToastRenderer.MAX_LINES - 1))));
+        return capped;
+    }
+}

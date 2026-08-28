@@ -13,9 +13,11 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 
 /**
  * How a {@code Currency} reward READS, contributed process-wide so no reward ever has to say it:
- * the wallet's own icon, and its amount beside the wallet's own name on the same three-rung ladder
- * every commerce screen already uses (an authored {@code Text.TitleKey}, else the convention key,
- * else the backing item's native name).
+ * the wallet's own icon, and the REWARD-row amount-and-name composition ("+50 Bounty Tokens" - the
+ * leading plus a gain line carries, the amount a typed number each player's own client groups)
+ * around the wallet's own name on the same three-rung ladder every commerce screen already uses
+ * (an authored {@code Text.TitleKey}, else the convention key, else the backing item's native
+ * name).
  *
  * <p>It exists because the kind is Java-registered: there is no kind FILE to carry a
  * {@code Presentation}, and asking every quest, achievement and offer that pays a wallet to author
@@ -60,7 +62,8 @@ public final class CurrencyChipReading {
         // gave every key in it. Passing null here drops straight to the authored ladder, which emits
         // the bare key as a message id nothing resolves - so the chip paints the key itself.
         // Read at CHIP time rather than captured, so the consumer's deps are in force by then.
-        return RewardChip.of(CurrencyText.iconOf(def), CommerceChips.amountAndName(
+        // The REWARD form, never the price form: a payout row reads "+50 Bounty Tokens".
+        return RewardChip.of(CurrencyText.iconOf(def), CommerceChips.rewardAmountAndName(
                 currencies, currencyId, amount, CommercePages.resolvedDeps().currencyNames()));
     }
 }

@@ -20,7 +20,6 @@ import com.ziggfreed.common.currency.CurrencyDef;
 import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.subject.Subject;
-import com.ziggfreed.common.util.NumberFormatter;
 
 /**
  * The two repeatable things every commerce screen paints: a CHIP (a picture and a number, side by
@@ -108,8 +107,8 @@ public final class CommerceChips {
                 continue;
             }
             long balance = currencies.balance(subject, def);
-            out.add(new Chip(CurrencyText.iconOf(def), Msg.raw(NumberFormatter.grouped(balance)),
-                    COLOR_BALANCE));
+            // A typed numeric param, so the player's own client decides the digit grouping.
+            out.add(new Chip(CurrencyText.iconOf(def), Msg.num(balance), COLOR_BALANCE));
         }
         return out;
     }
@@ -131,8 +130,7 @@ public final class CommerceChips {
             CurrencyDef def = catalog.get(id);
             String icon = def == null ? null : CurrencyText.iconOf(def);
             boolean afford = currencies.canAfford(subject, id, amount);
-            out.add(new Chip(icon, Msg.raw(NumberFormatter.grouped(amount)),
-                    afford ? COLOR_AFFORDABLE : COLOR_SHORT));
+            out.add(new Chip(icon, Msg.num(amount), afford ? COLOR_AFFORDABLE : COLOR_SHORT));
         }
         for (ItemCost item : cost.items()) {
             if (item == null || item.isBlank()) {
@@ -143,13 +141,53 @@ public final class CommerceChips {
         return out;
     }
 
+    /**
+     * The full-registered id of the PRICE composition key ({@code "{0, number} {1}"}): an amount
+     * beside a wallet's name with NO sign, the amount a typed numeric param so the player's own
+     * client decides the digit grouping, the name a nested translated {@link Message}.
+     */
+    private static final String PRICE_AMOUNT_KEY = "ziggfreedcommon.commerce.price.amount_and_name";
+
+    /**
+     * The full-registered id of the REWARD-row composition key ({@code "+{0, number} {1}"}): the
+     * same amount-beside-name reading with the leading plus a gain line carries and a price never
+     * does. The two are deliberately separate keys, because a price and a reward must never share
+     * wording.
+     */
+    private static final String REWARD_AMOUNT_KEY = "ziggfreedcommon.commerce.reward.amount_and_name";
+
+    /**
+     * "{@code <amount> <name>}", the PRICE reading: no sign, digits grouped by each player's own
+     * client. NEVER compose this as {@code raw(NumberFormatter.grouped(amount)) + name}: that
+     * bakes one server-side grouping into every locale, which is exactly the defect the shared
+     * key exists to prevent.
+     */
+    @Nonnull
+    public static Message priceAmount(long amount, @Nonnull Message name) {
+        return Msg.key(PRICE_AMOUNT_KEY, amount, name);
+    }
+
+    /** "{@code +<amount> <name>}", the REWARD-row reading: the plus a gain line carries. */
+    @Nonnull
+    public static Message rewardAmount(long amount, @Nonnull Message name) {
+        return Msg.key(REWARD_AMOUNT_KEY, amount, name);
+    }
+
     /** What one wallet is called beside how much of it a price wants, for a toast or a status line. */
     @Nonnull
     public static Message amountAndName(@Nonnull CurrencyEngine currencies, @Nonnull String currencyId,
             long amount, @Nullable CurrencyText.Source names) {
-        CurrencyDef def = currencies.catalog().get(currencyId);
-        Message name = def == null ? Msg.raw(currencyId) : CurrencyText.nameOf(def, names);
-        return Msg.cat(Msg.raw(NumberFormatter.grouped(amount) + " "), name);
+        return priceAmount(amount, nameOf(currencies, currencyId, names));
+    }
+
+    /**
+     * As {@link #amountAndName}, in the REWARD-row reading ("+50 Bounty Tokens"): what a payout
+     * line says a player gains, never what a price asks.
+     */
+    @Nonnull
+    public static Message rewardAmountAndName(@Nonnull CurrencyEngine currencies,
+            @Nonnull String currencyId, long amount, @Nullable CurrencyText.Source names) {
+        return rewardAmount(amount, nameOf(currencies, currencyId, names));
     }
 
     /** What one wallet is called, for a refusal that names the thing somebody is short of. */

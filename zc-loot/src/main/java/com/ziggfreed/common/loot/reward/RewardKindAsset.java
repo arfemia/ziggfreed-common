@@ -316,6 +316,17 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
         if (template == null || template.isBlank()) {
             return null;
         }
+        return fillKeyTemplate(spec, template);
+    }
+
+    /**
+     * A localization-key template with every {@code {Param}} filled in from {@code spec}: each
+     * declared parameter's effective value, lower-cased so a value written the way a command reads
+     * it ({@code MINING}) lands in a key written the way keys are written. The ONE template fill,
+     * shared by {@link #presentationNameKey} and the {@code Args} entries that name a key.
+     */
+    @Nonnull
+    public String fillKeyTemplate(@Nonnull RewardSpec spec, @Nonnull String template) {
         Matcher matcher = PLACEHOLDER.matcher(template);
         StringBuilder out = new StringBuilder(template.length());
         while (matcher.find()) {
@@ -507,11 +518,32 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
      * paying out a thing that is already named somewhere - a currency, an unlockable, an item - can
      * usually point straight at that thing's own name key and ship no new translations at all, and a
      * pack adding another one of those things then works with no further authoring.
+     *
+     * <h2>{@code Args} names what fills the key's blanks</h2>
+     *
+     * <p>Unauthored, the one blank {@code {0}} is the reward's amount, which is what a simple
+     * "+{0} things" line wants. A key with more blanks than that lists what fills them, in order:
+     *
+     * <pre>{@code
+     * "NameKey": "mymod.reward.line.xp",
+     * "Args": ["Amount", "mymod.skill.{Skill}"]     // {0} = the amount, {1} = the skill's NAME
+     * }</pre>
+     *
+     * <p>An entry naming one of this kind's declared parameters fills its blank with that
+     * parameter's value - as a NUMBER when the value reads as one, so a {@code {0, number}} blank
+     * groups its digits in the player's own locale. <b>An entry carrying a {@code .} or a
+     * {@code {} is a localization-key template</b> (the same {@code {Param}} filling as
+     * {@code NameKey}) whose resolved key fills the blank as a nested, client-translated name -
+     * which is how a {@code Skill} parameter renders as the translated word for mining rather than
+     * the literal {@code MINING}. An entry that is neither - a plain word naming no declared
+     * parameter, almost always a mis-spelled one - is DROPPED: its blank renders empty rather than
+     * as a raw token, and the content audit reports it.
      */
     public static final class Presentation {
 
         @Nullable protected String nameKey;
         @Nullable protected Icon icon;
+        @Nullable protected String[] args;
 
         public static final BuilderCodec<Presentation> CODEC =
                 BuilderCodec.builder(Presentation.class, Presentation::new)
@@ -526,6 +558,16 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
                         (o, v) -> o.icon = v, o -> o.icon, (o, p) -> o.icon = p.icon)
                 .documentation("The item drawn beside the label. One item for every reward of this kind, "
                         + "or a per-value mapping when one parameter decides what it should be.").add()
+                .appendInherited(new KeyedCodec<>("Args", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.args = v, o -> o.args, (o, p) -> o.args = p.args)
+                .documentation("What fills the key's {0}, {1}, ... blanks, in order. An entry naming one "
+                        + "of this kind's declared parameters fills in that parameter's value (as a number "
+                        + "when it reads as one, so a {0, number} blank groups its digits per locale); an "
+                        + "entry carrying a '.' or a '{' is a localization-key template, {Param} "
+                        + "placeholders filled like NameKey's, rendered as a nested translated name; "
+                        + "anything else - almost always a mis-spelled parameter name - is dropped and its "
+                        + "blank renders empty, and the content audit reports it. Omit the list and the "
+                        + "one blank {0} is the reward's amount.").add()
                 .build();
 
         public Presentation() {
@@ -534,9 +576,17 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
         /** Java-side factory; sets the same fields the codec fills. */
         @Nonnull
         public static Presentation of(@Nullable String nameKey, @Nullable Icon icon) {
+            return of(nameKey, icon, null);
+        }
+
+        /** As {@link #of(String, Icon)}, with the key's blank-filling {@code Args} named too. */
+        @Nonnull
+        public static Presentation of(@Nullable String nameKey, @Nullable Icon icon,
+                @Nullable String[] args) {
             Presentation p = new Presentation();
             p.nameKey = nameKey;
             p.icon = icon;
+            p.args = args == null ? null : args.clone();
             return p;
         }
 
@@ -555,6 +605,29 @@ public final class RewardKindAsset implements JsonAssetWithMap<String, DefaultAs
         @Nullable
         public Icon getIcon() {
             return icon;
+        }
+
+        @Nullable
+        public String[] getArgs() {
+            return args;
+        }
+
+        /**
+         * The authored blank-filling entries, in order, blanks dropped; empty when none were
+         * authored, which is the caller's cue to bind the reward's amount as the one {@code {0}}.
+         */
+        @Nonnull
+        public List<String> argsList() {
+            if (args == null) {
+                return List.of();
+            }
+            List<String> out = new ArrayList<>(args.length);
+            for (String entry : args) {
+                if (entry != null && !entry.isBlank()) {
+                    out.add(entry.trim());
+                }
+            }
+            return out;
         }
     }
 

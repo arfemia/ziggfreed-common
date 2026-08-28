@@ -5,8 +5,8 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // progression and instance engine rests on, so it must stay reachable from anywhere in the graph:
 // zc-core ONLY, and never an edge back up to a domain module.
 //
-// REVERSE-EDGE TRAP: zc-progression and zc-instance both depend on this module, so an edge from
-// here to either of them is an immediate cycle. A grant that needs presentation, world identity,
+// REVERSE-EDGE TRAP: zc-progression, zc-instance and zc-presentation all depend on this module, so
+// an edge from here to any of them is an immediate cycle. A grant that needs presentation, world identity,
 // dialogue, or a native effect is a SEAM the wiring root or the consumer fills (a registered
 // reward kind), never an import. See the module's package router.
 

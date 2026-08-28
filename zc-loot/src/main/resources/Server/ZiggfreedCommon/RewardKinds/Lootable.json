@@ -1,0 +1,22 @@
+{
+  "$Comment": [
+    "How a Lootable reward READS where a screen shows it before it pays out. A lootable names a",
+    "loot table that is only ROLLED at the moment it is handed over, so no specific item can be",
+    "promised ahead of time; every one reads as the same generic bundle instead.",
+    "",
+    "This file is presentation only: it names no Command, so the built-in Lootable handler keeps",
+    "the payout, and nothing here changes what is rolled.",
+    "  NameKey - one label for every lootable reward ('Loot Bundle'), shipped by this library in",
+    "            every locale it carries.",
+    "  Icon    - a chest, the shape a player already reads as a bundle opened on receipt.",
+    "",
+    "A reward may still write its own NameKey or Icon to read as something more specific. To",
+    "re-skin every lootable reward at once, ship a file with THIS name in your own pack; it",
+    "replaces this one."
+  ],
+  "Name": "Rolled loot table",
+  "Presentation": {
+    "NameKey": "ziggfreedcommon.loot.reward.lootable",
+    "Icon": { "Default": "Furniture_Ancient_Chest_Small" }
+  }
+}

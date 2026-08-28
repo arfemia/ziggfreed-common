@@ -138,21 +138,48 @@ module or grow a second, subtly different idea of what a reward is.
   authored `NameKey` is emitted through zc-core's `ContentKeys`, never as written: the engine
   namespaces a key by the `.lang` FILENAME it was defined in while content is authored without that
   namespace, so a key handed over verbatim is one no client resolves and the player reads the key.
+  **The kind-FILE rung yields only when the key its template resolves to is actually shipped**
+  (`ContentKeys.known`): the file is a DEFAULT, and a default pointing at nothing must not outrank
+  the item form or a contributed reading - so a per-skill key family covers the skills it names
+  while a skill it never heard of still reads through the rescue rung instead of painting a raw
+  key. A reward's OWN `NameKey` stays as written even when nothing ships it (the author's typo has
+  to be findable). The label key's blanks are filled per the kind file's `Presentation.Args` (see
+  below); unauthored, the one `{0}` is the reward's amount, typed numerically so a `{0, number}`
+  blank groups digits per locale. `itemChip(itemId, amount)` exposes the item-form reading for a
+  contributed source whose reward turns out to BE an item (a parsed `/give` line), so it reads
+  exactly like a declared item grant.
   **Nothing branches on a kind id**, and a reward nothing can NAME is dropped rather than guessed at -
   painting a raw kind token at a player reads as a promise of something called that, and the fix is a
   two-line `Presentation` on the kind file. One rung sits between naming and dropping: a kind's OWNER
   may `RewardChips.contribute(...)` a reading process-wide (asked only where the generic reading found
-  nothing, so an authored `NameKey` or kind-file `Presentation` always wins), which is how a
-  Java-registered kind whose rewards all read one way names them with zero per-reward authoring - the
-  worked example is zc-commerce's `Currency` kind reading as its wallet's own name and icon
-  (`CurrencyChipReading`, contributed by the wiring root). `Plan` is the whole decision over strings
-  alone, so what a chip will say is testable with no server. It lives here rather than on any one
+  nothing, so an authored `NameKey`, a kind-file `Presentation` whose key is shipped, or an item form
+  always wins - and a reward's own authored `Icon` re-points a contributed chip too, so "a reward's
+  own words and picture win first" holds on every rung), which is how a Java-registered kind whose
+  rewards all read one way names them with zero per-reward authoring - the worked examples are
+  zc-commerce's `Currency` kind reading as its wallet's own name and icon (`CurrencyChipReading`,
+  contributed by the wiring root; the label is the shared reward amount-and-name composition,
+  "+50 Bounty Tokens" with the amount a typed number the client groups) and the MMO's
+  `MmoChipReading` (its computed boost/ability-mod/command lines). The library's own
+  roll-at-grant-time kinds need no rung at all: zc-loot SHIPS presentation-only kind files for
+  `Lootable`/`Droplist`/`Effect` (`src/main/resources/Server/ZiggfreedCommon/RewardKinds/`, NameKey
+  into its own `ziggfreedcommon.loot.lang` family, stand-in icons, no `Command` - the
+  `PRESENTATION_ONLY` decoration shape), so every consumer's chip surfaces read them out of the box
+  (`ShippedRewardKindFilesTest` pins all three). `Plan` is the whole decision over
+  strings alone, so what a chip will say is testable with no server (the key/Args RENDERING needs the
+  catalogue, pinned in tests via `LangCatalog.overrideForTests`). It lives here rather than on any one
   screen for the same reason the vocabulary does: every surface that previews a payout has to read one
   reward the same way. **`RewardChip` is the ONE chip record in the library** - a quest panel, a
   storefront offer, a board contract and an instance results strip all paint this one, so a reward
   cannot read one way on a spoils screen and another way everywhere else. A surface whose payout is
   not a `RewardSpec` composes its own label and still hands back this record (zc-instance's
   `RewardChipRenderer` does exactly that for an `InstanceReward`); it never mints a second shape.
+  The toast half is zc-presentation's `ui/toast/RewardToastLines`, the one bridge from chips to
+  toast body rows (row cap + overflow line), so a payout's toast and the panel that previewed it
+  paint the same rows. **A display NUMBER in a chip line is a TYPED numeric param on a
+  `{0, number}` key (`Msg.num`, a kind file's `Args`, a composition key), NEVER
+  `Msg.raw(NumberFormatter...)`** - the client's own locale decides the digit grouping, and the
+  root `NumberDisplayHygieneTest` fails the build on a violation (`// NUMBER-OK: <reason>` is the
+  one escape hatch, reason mandatory).
 
 ## Minting a kind with no Java at all
 
@@ -177,18 +204,28 @@ that order to registration order.
   declared default, else empty - so a command line, a chip label and an icon lookup cannot read one
   parameter differently. Id = filename. **The id convention is native-asset style, PascalCase with
   underscores**: the framework's own kinds are UNPREFIXED (`Item`, `Lootable`, `Stamped_Item`,
-  `Effect`, `Droplist`, `Command`), a consumer's carry that mod's prefix (`Mmo_Xp`, `Mmo_Currency`), so two mods
+  `Effect`, `Droplist`, `Command`), a consumer's carry that mod's prefix (`Mmo_Xp`, `Mmo_Boost_Token`), so two mods
   installed together cannot collide by accident. A `$`-prefixed key is authoring metadata the codec
   ignores, on the file and inside `Params` alike - and a shipped `$Comment` is read by whoever opens
   the file next, so it says what the reward does and what each parameter means in game, never how the
   file came to look this way.
 - **`RewardKindAsset.Presentation`** - how a kind's rewards READ where one is SHOWN before it is
-  granted, written once on the kind instead of on every reward. Two independent leaves.
+  granted, written once on the kind instead of on every reward. Three independent leaves.
   `NameKey` is a TEMPLATE: each `{Param}` is replaced by that parameter's value, LOWER-CASED, so
   `"mymod.reward.xp.{Skill}"` with `Skill: "MINING"` asks for `mymod.reward.xp.mining` - which is
   what lets one line label a whole family, and what bridges a value written the way a command reads
   it (`ARTILLERY`) to a key written the way keys are written. A placeholder naming nothing declared
-  is LEFT STANDING, exactly as the command template leaves one. `Icon` is a nested rule
+  is LEFT STANDING, exactly as the command template leaves one. `Args` names what fills the key's
+  `{0}, {1}, ...` blanks, in order (modeled on `FeedbackMomentAsset.Line.Args`, so an author meets
+  one idea twice): an entry naming a declared parameter binds that parameter's value - as a NUMBER
+  when it reads as one, so a `{0, number}` blank groups digits in the player's own locale - an
+  entry carrying a `.` or a `{` is a localization-key TEMPLATE (the same `{Param}` filling as
+  `NameKey`) bound as a nested client-translated name, which is how a `Skill` parameter renders as
+  the translated word for mining rather than the literal `MINING`, and an entry that is NEITHER
+  (almost always a mis-spelled parameter name) is DROPPED - its blank renders empty rather than as
+  a raw token, exactly the refusal its `FeedbackMomentAsset` sibling makes, and the validator's
+  `SUSPECT_ARG` reports it; unauthored, the one `{0}` is the reward's amount.
+  `Icon` is a nested rule
   `{Default, ByParam, Values}`: no `ByParam` means one item for every reward, `ByParam` names the
   parameter whose value picks one out of `Values` (matched case-insensitively), and anything
   unmapped takes `Default`, so a table names only the cases worth distinguishing. **Aim a `NameKey`
@@ -197,7 +234,8 @@ that order to registration order.
   no translations at all, and the next pack adding one of those things then works with no authoring.
   `Values` merges per VALUE under `Parent`, which is how a pack EXTENDS a mapping table; re-shipping
   the kind's own id REPLACES the kind, map and all. Resolution lives on the asset
-  (`presentationNameKey` / `presentationIcon`) so it is one answer, unit-testable with no store.
+  (`presentationNameKey` / `presentationIcon`, both over the shared `fillKeyTemplate`) so it is one
+  answer, unit-testable with no store.
 - **[`RewardKindConfig`](RewardKindConfig.java)** - the `defaults < pack < owner` table, like every
   other keyed type. What is in it is not yet payable; the fold is what makes it so.
 - **[`CommandRewardKind`](CommandRewardKind.java)** - the handler: resolve the template, run it
@@ -218,7 +256,9 @@ that order to registration order.
   own handlers, so a reload never reports the whole catalogue as having taken something over.
 - **[`RewardKindValidator`](RewardKindValidator.java)** - domain `rewardkind`. `auditAll` over the
   kinds (`NO_COMMAND`, `UNKNOWN_PARAM` for a placeholder nothing fills, `UNUSED_PARAM`,
-  `REQUIRED_WITH_DEFAULT`, and a guarded `UNKNOWN_COMMAND` head check off the engine command
+  `REQUIRED_WITH_DEFAULT`, `SUSPECT_ARG` for a `Presentation.Args` entry that names no declared
+  parameter yet does not look like a localization key, and a guarded `UNKNOWN_COMMAND` head check
+  off the engine command
   registry), `auditSpec` over a reward written for one (`UNKNOWN_PARAM`, `MISSING_REQUIRED_PARAM`),
   and `shadowed` for the INFO marker. The head check reads `CommandManager` directly - an engine
   type, not another module, so it costs no edge - and answers null rather than a finding wherever

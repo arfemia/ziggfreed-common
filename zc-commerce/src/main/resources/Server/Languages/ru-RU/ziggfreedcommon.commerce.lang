@@ -1,5 +1,8 @@
 action.confirm = Подтвердить
 
+price.amount_and_name = {0, number} {1}
+reward.amount_and_name = +{0, number} {1}
+
 shop.title = Лавка
 shop.count = В продаже: {0}
 shop.shelf = Избранное

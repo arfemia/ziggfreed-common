@@ -1,0 +1,11 @@
+# How the framework's roll-at-grant-time reward kinds read on a chip.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.loot.<key>.
+#
+# These are the labels the shipped Lootable / Droplist / Effect kind files point their NameKey at:
+# none of the three can promise a specific item ahead of time, so each reads as one generic line.
+# A reward that writes its own NameKey outranks these; a mod shipping the same key in its own lang
+# file outranks this library's copy.
+
+reward.lootable = Loot Bundle
+reward.droplist = Loot Drop
+reward.effect = Temporary Effect

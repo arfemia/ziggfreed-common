@@ -12,6 +12,13 @@
 
 action.confirm = Confirm
 
+# How an amount reads beside a wallet's name: composition only, no words. The amount binds as a
+# typed number, so each player's own client decides the digit grouping. The price form carries no
+# sign; the reward form carries the plus a gain line reads with. Reorder the blanks here if your
+# language reads name-first.
+price.amount_and_name = {0, number} {1}
+reward.amount_and_name = +{0, number} {1}
+
 # ==================== the storefront ====================
 
 shop.title = Shop
