@@ -149,12 +149,34 @@ class QuestStateReaderTest {
     }
 
     @Test
-    void aPartialStackIsNotDeliverable() {
+    void aPartialStackIsDeliverableButDoesNotSettle() {
         engine.accept(player, engine.quest("q_deliver"));
         held.put("Oak_Log", 2);
 
-        assertFalse(reader.canDeliverTurnInAt(player, "q_deliver", "keeper"),
-                "offering a hand-in that only half finishes the step is the bug this guards");
+        assertTrue(reader.canDeliverTurnInAt(player, "q_deliver", "keeper"),
+                "what the player brought is credited, so the hand-in is offered for it");
+        assertFalse(reader.settlesTurnInAt(player, "q_deliver", "keeper"),
+                "but a half load must not be greeted as a finished errand");
+
+        held.put("Oak_Log", 3);
+        assertTrue(reader.settlesTurnInAt(player, "q_deliver", "keeper"));
+        assertFalse(reader.settlesTurnInAt(player, "q_deliver", "somebody_else"));
+        assertFalse(reader.settlesTurnInAt(player, "q_deliver", null));
+    }
+
+    @Test
+    void theAnyQuestSettleFormWaitsForAFinishedErrand() {
+        assertFalse(reader.hasSettleableTurnInAt(player, "keeper"),
+                "nothing accepted, nothing finished");
+
+        engine.accept(player, engine.quest("q_deliver"));
+        held.put("Oak_Log", 2);
+        assertFalse(reader.hasSettleableTurnInAt(player, "keeper"),
+                "still out gathering: there is nothing to have returned with");
+
+        held.put("Oak_Log", 3);
+        assertTrue(reader.hasSettleableTurnInAt(player, "keeper"));
+        assertFalse(reader.hasSettleableTurnInAt(player, "somebody_else"));
     }
 
     @Test

@@ -93,7 +93,7 @@ public final class QuestDialogueConditions {
     private static boolean anywhereHere(@Nonnull DialogueQuests quests, @Nonnull DialogueContext ctx) {
         Subject subject = quests.subject(ctx);
         for (String id : quests.answersTo(ctx.contextId())) {
-            if (quests.reader().hasDeliverableTurnInAt(subject, id)) {
+            if (quests.reader().hasSettleableTurnInAt(subject, id)) {
                 return true;
             }
         }
@@ -188,12 +188,13 @@ public final class QuestDialogueConditions {
     }
 
     /**
-     * Show this line only when the player can hand THIS quest in right here, right now, in full:
+     * Show this line only when handing THIS quest in right here would FINISH it:
      * {@code {"Type":"ReadyToTurnIn","Quest":"craft_starter_tools"}}.
      *
-     * <p>It checks what the player is carrying, not just that the quest is finished, because the
-     * whole point is to OFFER the hand-in - a line that says "here, take these" and then silently
-     * does nothing is worse than no line. Fails closed on an unknown id.
+     * <p>It checks what the player is carrying, not just that the quest is this character's, so a
+     * line written to greet a completed errand is not spoken to somebody who has done a third of it.
+     * A player part way through can still hand over what they have from the quest list; this is the
+     * line that says "you are done", and it waits until they are. Fails closed on an unknown id.
      */
     public static final class ReadyToTurnIn extends QuestRef {
 
@@ -211,7 +212,7 @@ public final class QuestDialogueConditions {
             }
             Subject subject = quests.subject(ctx);
             for (String id : quests.answersTo(ctx.contextId())) {
-                if (quests.reader().canDeliverTurnInAt(subject, questId, id)) {
+                if (quests.reader().settlesTurnInAt(subject, questId, id)) {
                     return true;
                 }
             }
@@ -220,10 +221,13 @@ public final class QuestDialogueConditions {
     }
 
     /**
-     * Show this line when the player has ANY quest they can hand in here:
+     * Show this line when the player has ANY quest that would FINISH here:
      * {@code {"Type":"HasReadyToTurnIn"}}.
      *
      * <p>One "I have returned" line that keeps working as quests are added, with no list to maintain.
+     * It waits for an errand that is actually done: a player still out gathering has nothing to have
+     * returned WITH, and greeting them as though they had reads as the character not paying
+     * attention. A part-load is still accepted, from the quest list this conversation can open.
      */
     public static final class HasReadyToTurnIn extends DialogueCondition {
 

@@ -360,10 +360,10 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             @Nonnull Quest quest, long now) {
         QuestStatus status = quests.status(subject, quest);
         boolean acceptable = engine.canAccept(subject, board, ref, now).ok();
-        boolean readyHere = quests.readyToTurnInAt(subject, quest, board.boardId());
+        boolean settlesHere = quests.settlesTurnInAt(subject, quest, board.boardId());
         boolean collectHere = quests.canCompleteAt(subject, quest, board.boardId());
         boolean spent = engine.completedThisPeriod(subject, board, ref.bountyId(), now);
-        return BoardSections.classify(status, acceptable, readyHere, collectHere, spent);
+        return BoardSections.classify(status, acceptable, settlesHere, collectHere, spent);
     }
 
     // ==================== the list ====================
@@ -855,8 +855,10 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             player.getPageManager().openCustomPage(ref, store, this);
             return;
         }
+        // EVERY outstanding delivery this board is owed, not just the first: one contract asking
+        // for three things is one errand, and a button that discharges a third of it reads as broken.
         Integer handed = scoped(subject, s ->
-                Integer.valueOf(quests.attemptTurnIn(s, quest, step.id(), board.boardId())));
+                Integer.valueOf(quests.attemptAllTurnIns(s, quest, board.boardId())));
         if (handed == null || handed.intValue() <= 0) {
             ObjectiveProgressState state = quests.progressOf(subject, quest.id(), step.id());
             showToast(ToastKind.WARNING, state == null

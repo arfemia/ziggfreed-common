@@ -15,7 +15,7 @@ import com.ziggfreed.common.quest.QuestStatus;
  * player notices immediately and the part a refactor breaks silently.
  *
  * <p>The sections are ordered by WHAT THE PLAYER CAN DO ABOUT THEM, most actionable first: a reward
- * waiting to be taken, then a step this character is the destination for, then everything else being
+ * waiting to be taken, then an errand this character can settle right now, then everything else being
  * carried, then what can be taken on, then what is visible but out of reach, then what is finished.
  * A quest waiting out a repeat cooldown reads as locked rather than vanishing, because a daily that
  * disappears between runs reads as content having been taken away.
@@ -28,7 +28,13 @@ public final class NpcQuestSections {
         /** Finished; the reward is waiting to be collected. */
         READY,
 
-        /** Being carried, and this character is where the outstanding step resolves. */
+        /**
+         * Being carried, and handing over what the player has on them right here would finish it.
+         * The row is a promise that the errand is done, so it is not enough that this character is
+         * where the delivery goes: the rest of the quest has to be done and the goods have to be in
+         * the bag. A quest still being worked on reads as ACTIVE, and its hand-in button is offered
+         * there anyway so a part-load can be left behind on the way past.
+         */
         TURN_IN,
 
         /** Being carried, with its next step somewhere else. */
@@ -76,18 +82,19 @@ public final class NpcQuestSections {
      *                       reads as not started, which is what makes a daily re-offerable here)
      * @param acceptable     whether the accept gate passes right now; only consulted for an unstarted
      *                       quest, since a carried one cannot be accepted again either way
-     * @param readyHere      whether this character is where the outstanding step resolves
+     * @param settlesHere    whether handing over what the player is carrying, here, would FINISH
+     *                       the quest - not merely whether this is where the delivery goes
      * @param collectHere    whether a FINISHED quest may be collected at this character; only
      *                       consulted for one waiting to be collected. A quest that names no
      *                       collection site is collectable everywhere, so this is true for the great
      *                       majority of content and false only where content said otherwise
      */
     @Nonnull
-    public static Section classify(@Nonnull QuestStatus status, boolean acceptable, boolean readyHere,
+    public static Section classify(@Nonnull QuestStatus status, boolean acceptable, boolean settlesHere,
             boolean collectHere) {
         return switch (status) {
             case COMPLETED_UNCLAIMED -> collectHere ? Section.READY : Section.PARKED;
-            case ACTIVE -> readyHere ? Section.TURN_IN : Section.ACTIVE;
+            case ACTIVE -> settlesHere ? Section.TURN_IN : Section.ACTIVE;
             case NOT_STARTED -> acceptable ? Section.AVAILABLE : Section.LOCKED;
             case ON_COOLDOWN -> Section.LOCKED;
             case COMPLETED -> Section.DONE;

@@ -56,13 +56,16 @@ public interface QuestStateReader {
     List<String> activeAndUnclaimedIds(@Nonnull Subject subject);
 
     /**
-     * Can this player hand THIS quest in here, right now, in full? True only when the quest is
-     * genuinely active, its outstanding step resolves at {@code atId}, and the player is carrying
-     * everything that step asks for.
+     * Can this player hand SOMETHING toward this quest over here, right now? True when the quest is
+     * genuinely active, its outstanding step resolves at {@code atId}, and the player is carrying at
+     * least one of what that step still asks for.
      *
      * <p>The possession check is what makes this safe to OFFER a hand-in on: without it a
-     * conversation shows "here, take it" and then silently does nothing. Unknown quest id, blank
-     * {@code atId}, or a partial stack all read false.
+     * conversation shows "here, take it" and then silently does nothing. It asks for ONE rather than
+     * the whole load because a hand-in credits whatever was actually brought, so a player working
+     * through a large delivery over several visits has to be offered it every time. Whether the
+     * delivery would FINISH the quest is {@link #settlesTurnInAt}. Unknown quest id, blank
+     * {@code atId}, or an empty-handed player all read false.
      */
     boolean canDeliverTurnInAt(@Nonnull Subject subject, @Nonnull String questId, @Nullable String atId);
 
@@ -72,6 +75,32 @@ public interface QuestStateReader {
      * future, with no per-quest wiring.
      */
     boolean hasDeliverableTurnInAt(@Nonnull Subject subject, @Nullable String atId);
+
+    /**
+     * Would handing over everything the player is carrying, at {@code atId}, FINISH this quest?
+     *
+     * <p>The STRONGER half of {@link #canDeliverTurnInAt}, and the difference between "you can leave
+     * some of that with me" and "that is the last of it". A surface telling the player a quest is
+     * ready to hand in asks THIS, so the promise it makes is the one the hand-in keeps; the button
+     * that offers the delivery asks the weaker question, so a partial load is still accepted.
+     *
+     * <p>Defaults to the partial-delivery answer, which is the honest reading for a runtime that
+     * models no amounts: it can only over-promise on content it could not have measured, never hide
+     * a hand-in that is genuinely ready.
+     */
+    default boolean settlesTurnInAt(@Nonnull Subject subject, @Nonnull String questId,
+                                    @Nullable String atId) {
+        return canDeliverTurnInAt(subject, questId, atId);
+    }
+
+    /**
+     * The any-quest form of {@link #settlesTurnInAt}: does this player have SOMETHING that would
+     * finish here right now? Lets one "I have returned" line greet a completed errand for any quest,
+     * present or future, with no per-quest wiring.
+     */
+    default boolean hasSettleableTurnInAt(@Nonnull Subject subject, @Nullable String atId) {
+        return hasDeliverableTurnInAt(subject, atId);
+    }
 
     /**
      * May this player complete and collect this quest HERE? The one site rule, so a quest page, a

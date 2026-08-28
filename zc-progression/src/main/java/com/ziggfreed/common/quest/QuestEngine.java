@@ -835,13 +835,16 @@ public final class QuestEngine implements QuestStateReader {
     }
 
     /**
-     * {@link #readyToTurnInAt} AND the player is actually carrying what the step asks for. Use this
-     * to OFFER a hand-in, so an offer cannot be shown and then silently do nothing; use the looser
-     * {@link #readyToTurnInAt} for listing and ranking, which deliberately allows partial delivery.
+     * {@link #readyToTurnInAt} AND the player is carrying SOMETHING the step can take. Use this to
+     * OFFER a hand-in, so an offer cannot be shown and then silently do nothing; use the looser
+     * {@link #readyToTurnInAt} for listing and ranking, which asks only where the player should go.
      *
      * <p>A report-back hand-in - one whose target names no item - is deliverable with an empty
-     * inventory. An item hand-in needs the WHOLE remaining amount: offering it should mean the step
-     * finishes.
+     * inventory. An item hand-in needs ONE, not the whole remaining amount: a hand-in credits
+     * whatever the player actually brought ({@link #attemptTurnIn}), so a player chipping away at a
+     * large delivery over several visits has to be offered the button on each of them. Whether the
+     * delivery would FINISH the quest is a different question, and {@link #settlesTurnInAt} is the
+     * one that answers it.
      *
      * <p>A quest with NO outstanding hand-in at all is not deliverable, however plainly this place is
      * where its next step happens. A step that says "go and speak to them" resolves here without
@@ -858,12 +861,66 @@ public final class QuestEngine implements QuestStateReader {
         if (objective == null) {
             return false;
         }
+        return carriesSomethingFor(subject, quest, objective);
+    }
+
+    /**
+     * Would handing over everything the player is carrying, right here, FINISH this quest?
+     *
+     * <p>The question a surface asks before it tells the player a quest is ready to hand in: every
+     * step that is not already done has to be a hand-in this place accepts, and the player has to be
+     * carrying the WHOLE of what each one still owes. So a quest with other work outstanding is not
+     * ready however much of the delivery is in the bag, and a delivery that is short is not ready
+     * either. Both of those are answered instead by {@link #canDeliverTurnInAt}, which offers the
+     * partial hand-in that gets the player closer.
+     *
+     * <p>Ordering is deliberately not consulted. A hand-in step locked behind another hand-in step
+     * unlocks the moment that one is credited, and {@link #attemptAllTurnIns} delivers a whole run
+     * of them in one pass, so a character owed several deliveries settles on a single press - which
+     * is what a surface saying "ready" has already promised.
+     */
+    public boolean settlesTurnInAt(@Nonnull Subject subject, @Nonnull Quest quest,
+                                   @Nullable String atId) {
+        if (atId == null || atId.isBlank() || status(subject, quest) != QuestStatus.ACTIVE) {
+            return false;
+        }
+        Map<String, ObjectiveProgressState> progress = progressOf(subject, quest.id());
+        boolean anyHandIn = false;
+        for (ObjectiveDef objective : quest.objectives()) {
+            ObjectiveProgressState state = progress.get(objective.id());
+            if (state != null && state.isCompleted()) {
+                continue;
+            }
+            if (!isTurnIn(objective) || !acceptsHandInAt(objective, atId)) {
+                return false;
+            }
+            String itemId = objective.target();
+            if (!itemId.isEmpty()
+                    && !possession.holds(subject, itemId, remainingFor(subject, quest, objective))) {
+                return false;
+            }
+            anyHandIn = true;
+        }
+        return anyHandIn;
+    }
+
+    /** Does the player hold at least one of what this step still owes, or does it owe nothing? */
+    private boolean carriesSomethingFor(@Nonnull Subject subject, @Nonnull Quest quest,
+                                        @Nonnull ObjectiveDef objective) {
         String itemId = objective.target();
         if (itemId.isEmpty()) {
             return true;
         }
-        int remaining = remainingFor(subject, quest, objective);
-        return remaining <= 0 || possession.holds(subject, itemId, remaining);
+        return remainingFor(subject, quest, objective) <= 0 || possession.holds(subject, itemId, 1);
+    }
+
+    /**
+     * May this hand-in step be handed in at {@code atId}? A step locked to nowhere is accepted
+     * anywhere, so it passes on any id; a place-locked one passes only at the id it names.
+     */
+    private boolean acceptsHandInAt(@Nonnull ObjectiveDef objective, @Nullable String atId) {
+        String lockedTo = objective.turnInLockId();
+        return lockedTo == null || (atId != null && lockedTo.equalsIgnoreCase(atId));
     }
 
     /** How much this objective still owes: required minus current, never negative. */
@@ -947,6 +1004,47 @@ public final class QuestEngine implements QuestStateReader {
             checkCompletion(subject, quest, atId);
         }
         return credited;
+    }
+
+    /**
+     * Hand in EVERY outstanding step this place accepts, in one pass, and report how many items were
+     * credited in total.
+     *
+     * <p>The call a hand-in button makes, because a character owed three separate deliveries is one
+     * errand to the player and pressing the button three times to discharge it reads as the first
+     * two presses having failed. Each step is delivered through {@link #attemptTurnIn}, so every one
+     * fires its own progress moment and a PARTIAL delivery is credited exactly as it is on its own -
+     * a player carrying half of what is owed leaves half of it here and keeps the rest of the quest.
+     *
+     * <p>The pass repeats while something is still being credited rather than walking the steps once,
+     * which is what lets a hand-in step LOCKED behind another hand-in step settle in the same press:
+     * crediting the first unlocks the second, and the next lap picks it up. It stops the moment a lap
+     * credits nothing, so a step the player cannot pay costs one wasted lap and no more.
+     *
+     * @return how many items were credited across every step, {@code 0} when nothing could be
+     * handed over at all
+     */
+    public int attemptAllTurnIns(@Nonnull Subject subject, @Nonnull Quest quest,
+                                 @Nullable String atId) {
+        int total = 0;
+        int laps = 0;
+        while (++laps < MAX_ARM_PASSES) {
+            ObjectiveDef step = firstActiveTurnIn(subject, quest, atId);
+            if (step == null) {
+                break;
+            }
+            int credited = attemptTurnIn(subject, quest, step.id(), atId);
+            if (credited <= 0) {
+                break;
+            }
+            total += credited;
+            // A settled quest has nothing left to be handed: carrying on would ask an inactive
+            // quest for its next step and be refused once per lap.
+            if (status(subject, quest) != QuestStatus.ACTIVE) {
+                break;
+            }
+        }
+        return total;
     }
 
     /**
@@ -1149,6 +1247,11 @@ public final class QuestEngine implements QuestStateReader {
         store.markDirty(subject);
         store.flush(subject);
         fireClaimed(quest, subject, outcome, true);
+        // Collecting is when a quest reads as FINISHED to a prerequisite, so it is also when
+        // whatever was waiting on it can arm. Without this a chain behind a quest that parks its
+        // reward waits for the player's next login, because the pass that ran when the quest parked
+        // saw a prerequisite that was not finished yet.
+        armAutoAccepts(subject);
         return true;
     }
 
@@ -1798,6 +1901,30 @@ public final class QuestEngine implements QuestStateReader {
     public boolean hasDeliverableTurnInAt(@Nonnull Subject subject, @Nullable String atId) {
         for (Quest quest : activeAndUnclaimed(subject)) {
             if (canDeliverTurnInAt(subject, quest, atId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The id-keyed form of {@link #settlesTurnInAt(Subject, Quest, String)}. An unknown id fails
+     * closed, like every other readiness read here.
+     */
+    @Override
+    public boolean settlesTurnInAt(@Nonnull Subject subject, @Nonnull String questId,
+                                   @Nullable String atId) {
+        Quest quest = quest(questId);
+        return quest != null && settlesTurnInAt(subject, quest, atId);
+    }
+
+    /** {@inheritDoc} Walks what the player is carrying, so an empty log answers immediately. */
+    @Override
+    public boolean hasSettleableTurnInAt(@Nonnull Subject subject, @Nullable String atId) {
+        for (Quest quest : activeAndUnclaimed(subject)) {
+            if (settlesTurnInAt(subject, quest, atId)) {
                 return true;
             }
         }

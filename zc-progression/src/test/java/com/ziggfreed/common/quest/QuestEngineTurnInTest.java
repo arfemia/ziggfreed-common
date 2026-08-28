@@ -195,12 +195,83 @@ class QuestEngineTurnInTest {
         assertTrue(engine.readyToTurnInAt(player, q, "Anybody"),
                 "listing may rank it as the next step with nothing in hand");
         assertFalse(engine.canDeliverTurnInAt(player, q, "Anybody"),
-                "but offering the hand-in must wait for the whole amount");
+                "but offering the hand-in must wait for something to hand over");
 
         bag.put("Iron_Ore", 4);
-        assertFalse(engine.canDeliverTurnInAt(player, q, "Anybody"), "a partial amount is not enough to offer");
+        assertTrue(engine.canDeliverTurnInAt(player, q, "Anybody"),
+                "a partial load is offered: the hand-in credits whatever was brought");
         bag.put("Iron_Ore", 5);
         assertTrue(engine.canDeliverTurnInAt(player, q, "Anybody"));
+    }
+
+    @Test
+    void onlyTheWholeRemainingAmountSettlesTheQuest() {
+        Quest q = Quest.builder("q_settle").objective(handIn("give", "Iron_Ore", 5)).build();
+        QuestEngine engine = engineWith(q);
+        engine.accept(player, q);
+
+        assertFalse(engine.settlesTurnInAt(player, q, "Anybody"), "empty-handed settles nothing");
+        bag.put("Iron_Ore", 4);
+        assertFalse(engine.settlesTurnInAt(player, q, "Anybody"),
+                "a short load is deliverable but does not finish it");
+        bag.put("Iron_Ore", 5);
+        assertTrue(engine.settlesTurnInAt(player, q, "Anybody"));
+    }
+
+    @Test
+    void otherOutstandingWorkKeepsAHandInFromSettling() {
+        Quest q = Quest.builder("q_mixed")
+                .objective(ObjectiveDef.builder("break", "BREAK_BLOCK").target("Rock").amount(10)
+                        .order(1).build())
+                .objective(ObjectiveDef.builder("give", "TURN_IN").target("Iron_Ore").amount(2)
+                        .order(1).build())
+                .build();
+        QuestEngine engine = engineWith(q);
+        engine.accept(player, q);
+        bag.put("Iron_Ore", 2);
+
+        assertTrue(engine.canDeliverTurnInAt(player, q, "Anybody"),
+                "the ore may still be left here while the digging goes on");
+        assertFalse(engine.settlesTurnInAt(player, q, "Anybody"),
+                "but the quest is not ready while another step is outstanding");
+
+        engine.dispatch(player, "BREAK_BLOCK", "Rock", null, 10);
+        assertTrue(engine.settlesTurnInAt(player, q, "Anybody"));
+    }
+
+    @Test
+    void onePassHandsInEveryStepACharacterIsOwed() {
+        Quest q = Quest.builder("q_three")
+                .objective(handIn("essence", "Life_Essence", 3))
+                .objective(handIn("fibre", "Fibre", 2))
+                .objective(handIn("leather", "Leather", 1))
+                .build();
+        QuestEngine engine = engineWith(q);
+        engine.accept(player, q);
+        bag.put("Life_Essence", 3);
+        bag.put("Fibre", 2);
+        bag.put("Leather", 1);
+
+        assertTrue(engine.settlesTurnInAt(player, q, "Anybody"));
+        assertEquals(6, engine.attemptAllTurnIns(player, q, "Anybody"),
+                "one press discharges the whole errand");
+        assertTrue(engine.allObjectivesComplete(player, q));
+    }
+
+    @Test
+    void onePassCreditsWhatIsCarriedAndLeavesTheRest() {
+        Quest q = Quest.builder("q_short")
+                .objective(handIn("essence", "Life_Essence", 5))
+                .objective(handIn("fibre", "Fibre", 2))
+                .build();
+        QuestEngine engine = engineWith(q);
+        engine.accept(player, q);
+        bag.put("Life_Essence", 2);
+
+        assertEquals(2, engine.attemptAllTurnIns(player, q, "Anybody"),
+                "a part-load is credited and the pass stops where the player runs out");
+        assertFalse(engine.allObjectivesComplete(player, q));
+        assertEquals(3, engine.remainingFor(player, q, q.objective("essence")));
     }
 
     @Test

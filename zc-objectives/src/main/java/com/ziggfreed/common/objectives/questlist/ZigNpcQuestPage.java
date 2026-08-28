@@ -350,6 +350,20 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     /**
+     * Would handing over what the player is carrying, to THIS character, finish the quest? Asked of
+     * every id the character answers to, because a quest bound to one of them is this character's
+     * errand however they were addressed.
+     */
+    private boolean settlesHere(@Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull Quest quest) {
+        for (String id : answersTo) {
+            if (engine.settlesTurnInAt(subject, quest, id)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Did the player TAKE this quest here? Read straight off the accept site the engine recorded, so
      * a quest a character handed out is still that character's business while it is being carried,
      * whatever the offer table currently offers.
@@ -430,7 +444,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         QuestStatus status = engine.status(subject, quest);
         boolean acceptable = status == QuestStatus.NOT_STARTED
                 && engine.canAccept(subject, quest).allowed();
-        return NpcQuestSections.classify(status, acceptable, readyHere(subject, engine, quest),
+        return NpcQuestSections.classify(status, acceptable, settlesHere(subject, engine, quest),
                 canCollectHere(subject, engine, quest));
     }
 
@@ -890,8 +904,11 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         }
         // Handed in AT the id this character answered under: the hand-in that finishes a quest at its
         // own collection site pays out there and then, while the same hand-in from nowhere parks it.
+        // EVERY outstanding step this character is owed, not just the first: three separate
+        // deliveries to one person is one errand to the player, and making them press the button
+        // once per line reads as the earlier presses having failed.
         Integer handed = ProgressionRuntime.questScope().around(subject,
-                s -> Integer.valueOf(engine.attemptTurnIn(s, quest, turnIn.step().id(), turnIn.atId())));
+                s -> Integer.valueOf(engine.attemptAllTurnIns(s, quest, turnIn.atId())));
         if (handed == null || handed.intValue() <= 0) {
             ObjectiveProgressState state = engine.progressOf(subject, quest.id(), turnIn.step().id());
             showToast(ToastKind.WARNING, state == null

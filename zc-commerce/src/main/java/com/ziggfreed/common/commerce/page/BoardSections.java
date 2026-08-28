@@ -31,7 +31,13 @@ public final class BoardSections {
         /** Finished; the reward is waiting to be collected here. */
         READY,
 
-        /** Being carried, and this board is where the outstanding delivery resolves. */
+        /**
+         * Being carried, and handing over what the player has on them would finish it here. The run
+         * is a promise that the contract is discharged, so it is not enough that this board is where
+         * the delivery goes: the rest of the work has to be done and the goods have to be in the
+         * bag. A contract still being worked reads as ACTIVE, and its hand-in button is offered
+         * there anyway so a part-load can be left behind on the way past.
+         */
         TURN_IN,
 
         /** Being carried, with its next step out in the world. */
@@ -73,18 +79,19 @@ public final class BoardSections {
      * @param status        what the contract effectively is for this player
      * @param acceptable    whether the board's own accept check passes right now; only consulted for
      *                      an unstarted contract, since a carried one cannot be taken again either way
-     * @param readyHere     whether this board is where the outstanding delivery resolves
+     * @param settlesHere   whether handing over what the player is carrying, here, would FINISH the
+     *                      contract - not merely whether this is where the delivery goes
      * @param collectHere   whether a FINISHED contract may be collected here; a bounty is bound to
      *                      the board it was taken at, so this is false at a different board
      * @param spentThisPeriod whether it was completed inside the CURRENT rotation period, which locks
      *                      it until the board turns over whatever its own cooldown says
      */
     @Nonnull
-    public static Section classify(@Nonnull QuestStatus status, boolean acceptable, boolean readyHere,
+    public static Section classify(@Nonnull QuestStatus status, boolean acceptable, boolean settlesHere,
             boolean collectHere, boolean spentThisPeriod) {
         return switch (status) {
             case COMPLETED_UNCLAIMED -> collectHere ? Section.READY : Section.ACTIVE;
-            case ACTIVE -> readyHere ? Section.TURN_IN : Section.ACTIVE;
+            case ACTIVE -> settlesHere ? Section.TURN_IN : Section.ACTIVE;
             case NOT_STARTED -> spentThisPeriod ? Section.SPENT
                     : (acceptable ? Section.AVAILABLE : Section.LOCKED);
             case ON_COOLDOWN -> Section.SPENT;

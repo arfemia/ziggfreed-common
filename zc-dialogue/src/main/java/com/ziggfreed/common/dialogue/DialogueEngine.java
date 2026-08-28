@@ -728,9 +728,12 @@ public final class DialogueEngine {
             }
         }
 
+        // The band greets a FINISHED errand, so it asks the settling question: a player still
+        // carrying half a delivery gets the ordinary greeting and hands over what they have from
+        // the quest list this conversation can open.
         private boolean ready(@Nonnull String questId) {
             for (String id : answersTo()) {
-                if (quests.reader().canDeliverTurnInAt(subject(), questId, id)) {
+                if (quests.reader().settlesTurnInAt(subject(), questId, id)) {
                     return true;
                 }
             }
