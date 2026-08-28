@@ -100,7 +100,10 @@ $F.@ZigDecoratedFrame {
         FlexWeight: 1;
         LayoutMode: TopScrolling;
         ScrollbarStyle: $C.@DefaultScrollbarStyle;
-        Padding: (Right: 4);
+        // The scrollbar rides the right edge of this list, so the rows inside keep clear of it
+        // here rather than each row carrying its own margin: a stock badge ends flush right, and
+        // without this gap it reads as though it were part of the scrollbar.
+        Padding: (Right: 12);
       }
 
       Label #EmptyLabel {

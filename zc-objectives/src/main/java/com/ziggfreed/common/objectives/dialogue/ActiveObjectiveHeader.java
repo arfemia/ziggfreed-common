@@ -16,6 +16,7 @@ import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
+import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
@@ -64,7 +65,11 @@ public final class ActiveObjectiveHeader {
         }
         QuestEngine engine = ProgressionRuntime.quests();
         for (Quest quest : engine.activeAndUnclaimed(subject)) {
-            if (!contextNpcId.equalsIgnoreCase(quest.npcViewId())) {
+            // Alias-aware, the way every other surface asks: a character answers to its primary id
+            // AND to whatever ids its placement declares, so a quest whose giver is written as one
+            // of those aliases still belongs to the character standing here. A bare id comparison
+            // silently shows no step for exactly the quests an alias was introduced to serve.
+            if (!NpcIdentities.primaryAnswersTo(contextNpcId, quest.npcViewId())) {
                 continue;
             }
             Message line = firstUnfinished(engine, subject, quest);

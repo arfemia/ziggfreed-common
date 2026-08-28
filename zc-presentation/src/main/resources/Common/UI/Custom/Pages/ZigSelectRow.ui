@@ -40,8 +40,8 @@ Group #ZigSelectRow {
     Button #RowBtn {
       Style: $Z.@ZigRichRowBtnStyle;
       FlexWeight: 1;
-      Anchor: (Height: 36, Right: 10);
-      Padding: (Left: 14, Right: 6);
+      Anchor: (Height: 36, Right: 4);
+      Padding: (Left: 14, Right: 8);
       LayoutMode: Left;
 
       Label #Label {
