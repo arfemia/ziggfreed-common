@@ -49,6 +49,7 @@ import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.LootFactors;
 import com.ziggfreed.common.loot.reward.DroplistRewardKind;
+import com.ziggfreed.common.loot.reward.FeetDropOverflow;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
@@ -378,8 +379,12 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     /**
      * The loot vocabulary a bare server starts with: the three framework reward kinds, the droplist
      * kind (a native drop table rolled onto the ground), the effect kind (registered from up here
-     * because the loot layer must never see the effect module), and the stack-metadata stamper every
-     * stamp writes through until a richer mod replaces it.
+     * because the loot layer must never see the effect module), the stack-metadata stamper every
+     * stamp writes through until a richer mod replaces it, and the default overflow policy - an item
+     * reward that does not fit the bag drops on the ground at the player's feet through the one
+     * tick-safe spawn seam ({@link FeetDropOverflow}), so a full inventory means a pickup, not a
+     * lost reward. Each is a DEFAULT: a consumer's own registration, made in its setup after this
+     * one, replaces it.
      *
      * <p>These are the JAVA half of the vocabulary. Kinds written as files
      * ({@code Server/ZiggfreedCommon/RewardKinds/}) join the same table from
@@ -398,6 +403,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         DroplistRewardKind.registerInto(RewardKinds.shared());
         EffectRewardKind.registerInto(RewardKinds.shared());
         LootRewardKinds.factors(lootFactorVocabulary());
+        LootRewardKinds.overflow(new FeetDropOverflow());
         StamperRegistry.register(new StackStatsStamper());
         // What an authored Cue MEANS, for every consumer at once: the cue id IS the FeedbackMoment
         // id. This wiring lives here rather than in either module because loot and presentation are

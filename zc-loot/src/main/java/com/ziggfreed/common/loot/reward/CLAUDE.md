@@ -63,8 +63,10 @@ module or grow a second, subtly different idea of what a reward is.
   Deliberately the only four: everything else a payout could mean - currency, a level, a title -
   belongs to the mod that owns the concept. `Command` earns its place because running a command line
   is not any one mod's idea; a kind FILE is the same idea with a declared schema, for when the shape
-  repeats across many rewards. Two static seams - `overflow(...)` for an item that will not fit and
-  `factors(...)` for the vocabulary a rolled table's gates read. Plus `canAdd(spec, subject)`, the
+  repeats across many rewards. Two static seams - `overflow(...)` for an item that will not fit
+  (the wiring root installs the `FeetDropOverflow` default at boot, so a consumer's own call
+  REPLACES the policy and null clears it back to fail-and-park) and `factors(...)` for the
+  vocabulary a rolled table's gates read. Plus `canAdd(spec, subject)`, the
   ASK-FIRST half of the item path: would this reward's item fit right now, granting nothing. A spec
   that needs no room answers true, INCLUDING the two it cannot know about (a `Lootable` rolls its
   contents at grant time; another mod's kind is that mod's business), so a false answer always names
@@ -97,6 +99,14 @@ module or grow a second, subtly different idea of what a reward is.
   and per-pool counts belong on the list's own `RollsMin`/`RollsMax`. No `retryCommand`: what a
   droplist produces is decided by a roll at payout time, so a replay would hand over a different
   reward than the one that failed.
+- **[`FeetDropOverflow`](FeetDropOverflow.java)** - the DEFAULT `LootRewardKinds.Overflow` policy
+  the wiring root installs at boot: an item reward that does not fit the bag lands on the ground at
+  the receiving player's feet through `NativeLootService.spawnAtFeet` - the ONE guarded, tick-safe
+  ground-drop seam - so a full inventory means a pickup, and a grant fired from inside a system tick
+  (a quest reward off a block-break moment) still lands, via the spawn seam's own world-thread
+  re-queue. A subject with no live player answers false, which sends the reward to the payout
+  layer's park. A consumer replaces the policy with its own `overflow(...)` call (consumer setup
+  runs after the library's), or clears it with null to restore fail-and-park.
 - **[`RewardGrants`](RewardGrants.java)** - `grantAll(rewards, subject, sourceId, kinds, retryQueue,
   warn)` -> `GrantOutcome(granted, queued, failed)`. Per-reward isolation: one handler throwing never
   costs the player the rest, a replayable failure becomes a queued retry, and only a reward that can

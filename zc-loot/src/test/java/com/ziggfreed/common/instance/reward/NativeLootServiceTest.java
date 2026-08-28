@@ -7,9 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import org.joml.Vector3d;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 
 /**
@@ -58,5 +60,21 @@ class NativeLootServiceTest {
     void aStubbedRollAnswersWhatTheEngineWouldHaveAnswered() {
         NativeLootService.setEngineRollForTesting(id -> List.of());
         assertEquals(List.of(), NativeLootService.rollNative("Chase_Nightmare_Items"));
+    }
+
+    /**
+     * An empty stack list is a no-op that answers LANDED, and the fast path must decide that before
+     * touching any accessor: that is what makes every spawn form safe to call unconditionally from a
+     * payout path that may have rolled nothing. The nulls stand in for the engine handles a bare
+     * unit-test JVM cannot construct; the contract under test is exactly that an empty spawn never
+     * dereferences them.
+     */
+    @Test
+    void anEmptySpawnAnswersLandedWithoutTouchingTheAccessors() {
+        assertDoesNotThrow(() -> {
+            assertTrue(NativeLootService.spawnInWorld(null, new Vector3d(), Rotation3f.IDENTITY, List.of()));
+            assertTrue(NativeLootService.spawnInWorld(null, null, new Vector3d(), new Rotation3f(), List.of()));
+            assertTrue(NativeLootService.spawnAtFeet(null, List.of()));
+        });
     }
 }

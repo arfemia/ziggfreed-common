@@ -51,7 +51,10 @@ compiles as `:zc-loot`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggreg
   rewards a player can be shown now and handed later), `LootEntry`/`WinGate` (the terse compact
   spec grammar, offered to a codec field that can only hold a `String[]`; no consumer speaks it
   today, so its own tests are the whole of what pins it), and `NativeLootService` (the XP-agnostic
-  engine-touching half: roll a native `ItemDropList`, spawn it on the ground).
+  engine-touching half: roll a native `ItemDropList`, spawn it on the ground - tick-safe, with the
+  one-accessor form re-queuing a mid-tick store add onto the owning world's thread, `spawnAtFeet` as
+  the drop-at-feet primitive the default `FeetDropOverflow` sink drops through, and every spawn form
+  answering landed-or-queued vs lost).
 
 ## Shipped resources
 

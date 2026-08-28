@@ -98,12 +98,20 @@ Package naming to keep as this module grows: the tri-layer shape `<domain>/` + `
 - **[`NativeLootService`](NativeLootService.java)** - the XP-AGNOSTIC engine-touching half of the
   primitive: `rollNative(dropListId)` wraps `ItemModule.getRandomItemDrops` (empty + warn-once on a
   disabled module or an unclaimed id, mirroring the sibling `mmo-mob-scaling`
-  `MobScalingLootDropSystem`'s `WARNED_IDS`; never throws) and `spawnInWorld(store, commandBuffer,
-  position, rotation, items)` wraps `ItemComponent.generateItemDrops` + `CommandBuffer.addEntities` (a
-  no-op on an empty list). These two are the reusable primitives a consumer's OWN system calls to roll +
-  ground-spawn a native table (luck-loot, mob-scaling bonus loot, a `Droplist` reward kind); common
-  ships them so the native-roll + in-world-spawn idiom is written once, and nothing else in this module
-  touches `ItemModule`.
+  `MobScalingLootDropSystem`'s `WARNED_IDS`; never throws) and the spawn family wraps
+  `ItemComponent.generateItemDrops` + `addEntities` (a no-op answering true on an empty list). The
+  `spawnInWorld(store, commandBuffer, ...)` PAIR form is the preferred route inside a tick (the
+  buffer queues the add); the one-accessor `spawnInWorld(accessor, ...)` form carries the SAFETY NET
+  for the payout paths that cannot thread a buffer: a `Store`-routed add the engine rejects mid-tick
+  (the store's write-processing assert, which a reward granted off a moment producer's tick would
+  otherwise die on) is re-queued onto the owning world's thread (via `cast/WorldEvictors.worldOf`)
+  and lands right after the tick. `spawnAtFeet(ref, items)` is the drop-at-feet primitive on top
+  (position + the engine's own mob-drop lift), the one an overflow sink drops through. Every spawn
+  form ANSWERS: true = landed or queued on the world thread, false = nothing spawned and the warn
+  names the exact stacks that were lost. These are the reusable primitives a consumer's OWN system
+  calls to roll + ground-spawn a native table (luck-loot, mob-scaling bonus loot, a `Droplist` reward
+  kind, the default `FeetDropOverflow` sink); common ships them so the native-roll + in-world-spawn
+  idiom is written once, and nothing else in this module touches `ItemModule`.
 
 **Consumer flow (Kweebec is the exemplar, `experience/KweebecExperience`):** at round resolve, with the
 per-player score AND win/loss outcome in hand, resolve the preset's `RewardTableId` through
@@ -120,7 +128,8 @@ registered-token rewrite), `LootFactorGateTest` (what the two instance readings 
 over them fails closed with no run to ask about), `InstanceRewardParseTest` (spec + authoring-adapter
 parse), `DeferredRewardsTest` (every leaf's deferral, all three presentation rungs and their order, and above all that an
 unreplayable kind is dropped and reported rather than promised), `NativeLootServiceTest` (unknown-id /
-disabled-module / throwing-engine never-throws). A bare unit-test JVM never boots a real `ItemModule`
+disabled-module / throwing-engine never-throws, plus the empty-spawn contract: every spawn form
+answers landed for an empty list before touching any accessor). A bare unit-test JVM never boots a real `ItemModule`
 (its static `get()` is only assigned by the live plugin bootstrap) or registers the `Item`/
 `ItemDropList` asset stores, and cannot construct an `ItemStack` at all here (its codec chain forces a
 validator class needing the Hytale log manager installed before anything touches `java.util.logging` -

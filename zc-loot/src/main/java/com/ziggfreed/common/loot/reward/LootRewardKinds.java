@@ -68,10 +68,14 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <h2>A full inventory does not eat a reward</h2>
  *
- * <p>An item that does not fit goes to the {@link #overflow(Overflow) overflow sink}, and if there
- * is no sink the grant FAILS rather than pretending. Failing is the useful outcome: the payout layer
- * then asks for a replayable command and parks it for the player's next connect, so a reward earned
- * with a full bag arrives later instead of vanishing quietly.
+ * <p>An item that does not fit goes to the {@link #overflow(Overflow) overflow sink}. The library
+ * installs a default sink at boot ({@link FeetDropOverflow}: the stack lands on the ground at the
+ * player's feet, through the same tick-safe spawn seam every ground drop uses), so out of the box a
+ * full bag means a pickup. A consumer replaces the policy with its own {@link #overflow(Overflow)}
+ * call, or clears it with null - and with no sink, or a sink that could not land the stack, the
+ * grant FAILS rather than pretending. Failing is the useful outcome: the payout layer then asks for
+ * a replayable command and parks it for the player's next connect, so a reward earned with a full
+ * bag arrives later instead of vanishing quietly.
  *
  * <h2>A reward that cannot name what it pays FAILS</h2>
  *
@@ -122,8 +126,11 @@ public final class LootRewardKinds {
     }
 
     /**
-     * Install the server's overflow policy - usually "drop it at the player's feet". Without one,
-     * an item that does not fit fails its grant and is queued for a later attempt instead.
+     * Install the server's overflow policy. The wiring root installs the default at boot
+     * ({@link FeetDropOverflow}: drop it on the ground at the player's feet), and a consumer's own
+     * call REPLACES it - consumer setup runs after the library's, so the last policy installed
+     * wins. Passing null clears the sink entirely, restoring fail-and-park: an item that does not
+     * fit fails its grant and is queued for a later attempt instead.
      */
     public static void overflow(@Nullable Overflow sink) {
         OVERFLOW.set(sink);
