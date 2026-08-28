@@ -83,7 +83,7 @@ class NumberDisplayHygieneTest {
     }
 
     @Nonnull
-    private static List<Path> sourceRoots() {
+    static List<Path> sourceRoots() {
         List<Path> roots = new ArrayList<>();
         Path own = Path.of("src", "main", "java");
         if (Files.isDirectory(own)) {
@@ -137,7 +137,7 @@ class NumberDisplayHygieneTest {
     }
 
     /** Advance {@code m} to its first match outside a string literal / line comment, if any. */
-    private static boolean findUnmasked(@Nonnull Matcher m, @Nonnull String line) {
+    static boolean findUnmasked(@Nonnull Matcher m, @Nonnull String line) {
         while (m.find()) {
             if (!isMasked(line, m.start())) {
                 return true;
@@ -154,7 +154,7 @@ class NumberDisplayHygieneTest {
         return index > 0 && NUMBER_OK_MARKER.matcher(lines.get(index - 1)).find();
     }
 
-    private static boolean isImportPackageOrLineComment(@Nonnull String line) {
+    static boolean isImportPackageOrLineComment(@Nonnull String line) {
         String t = line.trim();
         return t.startsWith("import ") || t.startsWith("package ") || t.startsWith("//")
                 || t.startsWith("*") || t.startsWith("/*");
@@ -175,7 +175,7 @@ class NumberDisplayHygieneTest {
     }
 
     /** Advances block-comment state across one line, string- and line-comment-aware. */
-    private static boolean updateBlockCommentState(@Nonnull String line, boolean startingInBlockComment) {
+    static boolean updateBlockCommentState(@Nonnull String line, boolean startingInBlockComment) {
         boolean blk = startingInBlockComment;
         boolean inStr = false;
         int j = 0;

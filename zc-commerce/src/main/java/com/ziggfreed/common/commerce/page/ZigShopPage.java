@@ -16,8 +16,10 @@ import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.ui.Anchor;
 import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
 import com.hypixel.hytale.server.core.ui.ItemGridSlot;
+import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -112,12 +114,29 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     /** The marker {@link #builtRowOrder} carries where a section heading was drawn. */
     private static final String HEADER_ROW = "";
 
+    /** The height a heading row grows to when it shows the countdown under its label. */
+    private static final int HEADER_WITH_META_HEIGHT = 54;
+
+    /** The gap under a grown heading row, so its countdown does not touch the row beneath. */
+    private static final int HEADER_WITH_META_BOTTOM = 2;
+
     /**
      * The Anchor a heading row grows to when it shows the countdown under its label: the row line
      * plus the meta line of the shared template, exactly. Without the growth the countdown paints
      * over the first row of the run it heads, because a row's authored height fits one line.
+     *
+     * <p>Built as an {@link Anchor} and pushed with {@code setObject}, never as the string an
+     * authored {@code .ui} would carry: {@code .Anchor} is an OBJECT slot, and a String handed to
+     * it fails the whole CustomUI update, which disconnects the player rather than misdrawing one
+     * row.
      */
-    private static final String HEADER_WITH_META_ANCHOR = "(Height: 54, Bottom: 2)";
+    @Nonnull
+    private static Anchor headerWithMetaAnchor() {
+        Anchor anchor = new Anchor();
+        anchor.setHeight(Value.of(HEADER_WITH_META_HEIGHT));
+        anchor.setBottom(Value.of(HEADER_WITH_META_BOTTOM));
+        return anchor;
+    }
 
     // The selected row's accent, and the shared row style's own per-state colours to revert to.
     private static final String ROW_SELECTED_TINT = "#1a2d44";
@@ -475,7 +494,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
             cmd.set(sel + " #SectionMeta.Visible", true);
             // The row must GROW to hold the second line, or the countdown paints over the first
             // row of the run it heads.
-            cmd.set(sel + ".Anchor", HEADER_WITH_META_ANCHOR);
+            cmd.setObject(sel + ".Anchor", headerWithMetaAnchor());
         }
         return index + 1;
     }
