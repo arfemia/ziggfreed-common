@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -118,6 +119,28 @@ class QuestEngineFlowTest {
 
             assertEquals(QuestStatus.COMPLETED, engine.status(player, q));
             assertEquals(List.of("paid"), granted);
+        }
+
+        /** The completion and claim moments carry the quest's payout under {@code rewards}. */
+        @Test
+        void theCompletionAndClaimMomentsCarryTheQuestsRewards() {
+            Quest q = quest("q_carry")
+                    .objective(objective("kills", "KILL_ENTITY", "Wolf", 1))
+                    .autoReward(RewardSpec.of("NOTE", "text", "paid"))
+                    .build();
+            Map<String, Map<String, Object>> byMoment = new LinkedHashMap<>();
+            QuestEngine engine = engine()
+                    .feedbackHook((momentId, subject, args) -> byMoment.put(momentId, args))
+                    .build();
+            engine.setQuests(List.of(q));
+            engine.accept(player, q);
+
+            engine.dispatch(player, "KILL_ENTITY", "Wolf", null, 1);
+
+            assertEquals(q.rewards(), byMoment.get("Quest_Completed").get("rewards"),
+                    "the completion moment carries the payout, resolved from its deferred form");
+            assertEquals(q.rewards(), byMoment.get("Quest_Claimed").get("rewards"),
+                    "and so does the payout moment itself");
         }
 
         @Test

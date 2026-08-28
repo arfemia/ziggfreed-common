@@ -43,6 +43,8 @@ book.toast.claimed = Récompenses récupérées.
 book.toast.claim_failed = Rien à récupérer pour l'instant.
 book.toast.turned_in = Remise effectuée.
 book.toast.turn_in_failed = Cela ne peut pas être remis ici.
+book.quests.giver_hint = Acceptez cette quête auprès de {0}.
+book.quests.giver_hint_plain = Acceptez cette quête auprès de son donneur de quêtes.
 
 npcquests.title.none = Quêtes
 npcquests.count = Quêtes : {0}

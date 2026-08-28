@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.objectives.hud.TrackedQuestPanelRenderer;
 import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
@@ -56,7 +57,10 @@ import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.TAG_CHIP_TE
  *
  * <p>Everything here paints; the verbs live on {@link ObjectiveBookPage}. Board-managed quests
  * read through {@link ObjectiveBookDeps.BoardManagedQuests}: hidden unless carried, their plumbing
- * tags swapped for the board's own pills, Accept swapped for the at-the-board hint.
+ * tags swapped for the board's own pills, Accept swapped for the at-the-board hint. A GIVER-BOUND
+ * quest (one whose {@link Quest#npcViewId()} names the character that hands it out) stays listed
+ * but swaps Accept for the same hint slot, naming that character; accepting one is the NPC quest
+ * page's job.
  */
 final class BookQuestsTab {
 
@@ -525,6 +529,11 @@ final class BookQuestsTab {
                         cmd.set(sel + " #TurnInHint.Visible", true);
                         cmd.set(sel + " #TurnInHint.TextSpans", hint);
                     }
+                } else if (giverBound(quest)) {
+                    // A quest with a giver is taken AT that giver, the way a board-managed quest
+                    // is taken at its board: the same hint slot, no Accept. The row stays listed.
+                    cmd.set(sel + " #TurnInHint.Visible", true);
+                    cmd.set(sel + " #TurnInHint.TextSpans", giverHint(page, quest));
                 } else if (canAccept) {
                     cmd.set(sel + " #ActionBtn.Visible", true);
                     ZigRichButton.text(cmd, sel + " #ActionBtn", page.text("book.quests.btn.accept"));
@@ -713,6 +722,34 @@ final class BookQuestsTab {
             }
         }
         return true;
+    }
+
+    /**
+     * A quest with a giver ({@link Quest#npcViewId()}) is taken AT that giver, so the log never
+     * offers Accept for one: the row shows where to go instead, and the book's accept verb refuses
+     * it. Everything else about the row - listing, objectives, rewards, hand-in, abandon - is
+     * untouched, and hiding one from the book entirely stays {@code Visibility.hidden}'s job.
+     */
+    static boolean giverBound(@Nonnull Quest quest) {
+        return quest.npcViewId() != null;
+    }
+
+    /**
+     * Where a giver-bound quest is taken, naming the character when the placement and identity
+     * assets can ({@link NpcNames#nameFor(String)}, the same reading every other surface uses, so
+     * the hint and the nameplate can never disagree) - the name rides as a nested client-resolved
+     * {@link Message}. When nothing names the character, the plain hint.
+     */
+    @Nonnull
+    static Message giverHint(@Nonnull ObjectiveBookPage page, @Nonnull Quest quest) {
+        Message name = null;
+        try {
+            name = NpcNames.nameFor(quest.npcViewId());
+        } catch (Throwable ignored) {
+            // A naming walk failing costs the name, never the row.
+        }
+        return name != null ? page.text("book.quests.giver_hint", name)
+                : page.text("book.quests.giver_hint_plain");
     }
 
     // ==================== shared readings ====================

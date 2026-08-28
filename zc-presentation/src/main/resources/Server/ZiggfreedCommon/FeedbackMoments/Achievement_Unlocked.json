@@ -7,7 +7,9 @@
     "",
     "The picture beside the words is the achievement's own, decided when the catalogue loaded, so",
     "there is nothing to name here per achievement; an achievement with no picture gets a notice",
-    "without one.",
+    "without one. The gold Reward tone colours the in-page frame and the words, and picks the matching corner-feed style, and any rewards",
+    "the earn pays on the spot list themselves as rows under the headline on the in-page toast",
+    "(the Toast's Rows group switches that off or caps how many show).",
     "",
     "The moment carries 'achievement' (its id), 'title' (its name in the reader's language),",
     "'points' (what it is worth), 'awaiting_claim' (true when a reward still waits to be",
@@ -26,7 +28,8 @@
     "Secondary": {
       "Key": "ziggfreedcommon.feedback.achievement.points",
       "Args": ["points"]
-    }
+    },
+    "Tone": "Reward"
   },
   "Sound": {
     "Id": "SFX_Capture_Crate_Capture_Succeed_Local"

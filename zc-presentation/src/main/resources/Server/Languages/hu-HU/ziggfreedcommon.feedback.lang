@@ -11,3 +11,4 @@ achievement.unlocked = Eredmény megszerezve: {0}
 achievement.points = {0} pont
 achievement.claimed = Eredmény jutalmai átvéve: {0}
 achievement.server_first_lost = Valaki megelőzött: {0}
+rewards.more = +{0} további

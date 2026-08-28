@@ -11,3 +11,4 @@ achievement.unlocked = Errungenschaft erhalten: {0}
 achievement.points = {0} Punkte
 achievement.claimed = Errungenschafts-Belohnungen abgeholt: {0}
 achievement.server_first_lost = Jemand war schneller: {0}
+rewards.more = +{0} weitere

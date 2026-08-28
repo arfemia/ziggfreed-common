@@ -15,14 +15,19 @@
     "",
     "Variants is how ONE file says different things for different cases: each entry names, under",
     "When, the values it applies to and restates only the groups that differ. The first entry that",
-    "matches wins. Below, a full-bag park says so and stays quiet; every other park gets the same",
-    "notice and jingle."
+    "matches wins. Below, a full-bag park reads as a red Error and stays quiet (the reward is not",
+    "lost, it waits until there is room); every other park gets the same notice and jingle.",
+    "",
+    "Tone colours the whole notification, frame and words together: gold Reward for a reward",
+    "waiting to be collected, red Error for the full bag. The waiting rewards list themselves as",
+    "rows under the headline on the in-page toast; the Toast's Rows group tunes that."
   ],
   "Toast": {
     "Title": {
       "Key": "ziggfreedcommon.feedback.quest.parked",
       "Args": ["title"]
-    }
+    },
+    "Tone": "Reward"
   },
   "Sound": {
     "Id": "SFX_Discovery_Z1_Short"
@@ -34,7 +39,8 @@
         "Title": {
           "Key": "ziggfreedcommon.feedback.quest.parked.no_space",
           "Args": ["title"]
-        }
+        },
+        "Tone": "Error"
       },
       "Sound": {}
     }

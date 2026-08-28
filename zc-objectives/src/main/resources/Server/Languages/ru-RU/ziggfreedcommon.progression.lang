@@ -43,6 +43,8 @@ book.toast.claimed = Награды получены.
 book.toast.claim_failed = Сейчас нечего получать.
 book.toast.turned_in = Сдано.
 book.toast.turn_in_failed = Это нельзя сдать здесь.
+book.quests.giver_hint = Возьмите этот квест у {0}.
+book.quests.giver_hint_plain = Возьмите этот квест у того, кто его выдаёт.
 
 npcquests.title.none = Квесты
 npcquests.count = Квесты: {0}

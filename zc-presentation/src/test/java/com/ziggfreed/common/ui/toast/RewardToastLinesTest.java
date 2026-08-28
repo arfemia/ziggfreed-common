@@ -71,6 +71,29 @@ class RewardToastLinesTest {
     }
 
     @Test
+    void aNarrowerBudgetFoldsTheRestIntoOneMoreRow() {
+        List<ToastLine> lines = RewardToastLines.fromChips(chips(3), 1,
+                dropped -> Msg.raw("+" + dropped + " more"));
+
+        assertEquals(2, lines.size(), "the budgeted row plus the overflow row");
+        assertEquals("chip 0", lines.get(0).text().getFormattedMessage().rawText);
+        assertEquals("+2 more", lines.get(1).text().getFormattedMessage().rawText);
+
+        assertEquals(3, RewardToastLines.fromChips(chips(3), 3, null).size(),
+                "a list that fits its budget is untouched");
+        assertEquals(1, RewardToastLines.fromChips(chips(3), 1, null).size(),
+                "a null overflow simply truncates to the budget");
+    }
+
+    @Test
+    void aBudgetPastThePanelStillFitsThePanel() {
+        List<ToastLine> lines = RewardToastLines.fromChips(
+                chips(ToastRenderer.MAX_LINES + 3), 99, dropped -> Msg.raw("+" + dropped + " more"));
+        assertEquals(ToastRenderer.MAX_LINES, lines.size(),
+                "the panel's own budget is the ceiling whatever a caller asks for");
+    }
+
+    @Test
     void theSpecEntryPointReadsThroughTheConsumersOwnSource() {
         // The generic reading can name nothing in a bare JVM, so the consumer source is the whole
         // answer here - exactly the seam every chip surface already passes through.

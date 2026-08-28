@@ -4,9 +4,10 @@
     "somebody else got there first. Their criteria stay met, so if the winner's claim is ever",
     "released the achievement is theirs on the next check with nothing to redo.",
     "",
-    "This is the library's own neutral default, deliberately plain and silent: losing a race should",
-    "never be louder than winning one. A mod that ships a file with this same name in its own pack",
-    "replaces it, and a server owner can do the same from the owner layer.",
+    "This is the library's own neutral default, deliberately silent: losing a race should never be",
+    "louder than winning one. The amber Warning tone colours the in-page frame and the words, and picks the matching corner-feed style and",
+    "marks it as a setback without shouting. A mod that ships a file with this same name in its own",
+    "pack replaces it, and a server owner can do the same from the owner layer.",
     "",
     "The moment carries 'achievement' (its id) and 'title' (its name in the reader's language),",
     "and no picture. 'player' is always the name of who was beaten. Add a Sound group if you would",
@@ -16,6 +17,7 @@
     "Title": {
       "Key": "ziggfreedcommon.feedback.achievement.server_first_lost",
       "Args": ["title"]
-    }
+    },
+    "Tone": "Warning"
   }
 }

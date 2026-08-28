@@ -11,3 +11,4 @@ achievement.unlocked = Succès obtenu : {0}
 achievement.points = {0} points
 achievement.claimed = Récompenses du succès récupérées : {0}
 achievement.server_first_lost = Quelqu'un est arrivé avant vous : {0}
+rewards.more = +{0} de plus

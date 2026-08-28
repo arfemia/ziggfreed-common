@@ -1,6 +1,7 @@
 package com.ziggfreed.common.objectives.book;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.annotation.Nonnull;
@@ -22,6 +23,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.hud.TrackedQuestPanelRenderer;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
@@ -400,6 +402,12 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         return Msg.tr(PREFIX, DOMAIN + key, args);
     }
 
+    /** {@link ClaimToasts#rewardToast} through this page's own chip source and overflow line. */
+    private void showRewardToast(@Nonnull Message headline, @Nonnull List<RewardSpec> rewards) {
+        showToast(ClaimToasts.rewardToast(headline, rewards, deps.rewardChips(),
+                dropped -> text("book.more", dropped)));
+    }
+
     /**
      * Every binding carries the WHOLE filter state - plus the live search-field text - so no click
      * resets what the player had narrowed a list to, and typed-but-unsubmitted search text
@@ -638,8 +646,8 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                     scope.around(subject, s -> Boolean.valueOf(engine.claim(s, quest))));
             UICommandBuilder cmd = new UICommandBuilder();
             if (ok) {
-                showToast(ToastKind.REWARD, text("book.toast.quest_complete",
-                        BookQuestsTab.nameOf(quest)));
+                showRewardToast(text("book.toast.quest_complete", BookQuestsTab.nameOf(quest)),
+                        quest.rewards());
                 // The claimed quest leaves the pinned Active list. Hide its row in place - hide,
                 // NOT remove, so the sibling #ActiveQuestList[i] selectors do not drift - and
                 // refresh the counts + the tracked panel.
@@ -659,8 +667,17 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             return;
         }
 
-        // ACCEPT (not started). Cannot accept any more (cap reached, prerequisites moved) - a full
-        // repaint re-renders the row through the corrected branch.
+        // ACCEPT (not started). A quest with a giver is taken AT that giver: the row offers no
+        // Accept, and the verb refuses even a stale binding, so the book can never accept one.
+        // The refusal is the BOOK's, not the engine's - the NPC quest page is where these are
+        // legitimately accepted and its path stays open.
+        if (BookQuestsTab.giverBound(quest)) {
+            showToast(ToastKind.INFO, BookQuestsTab.giverHint(this, quest));
+            reopenSame(player, ref, store, liveSearch);
+            return;
+        }
+        // Cannot accept any more (cap reached, prerequisites moved) - a full repaint re-renders
+        // the row through the corrected branch.
         if (!engine.canAccept(subject, quest).allowed()) {
             reopenSame(player, ref, store, liveSearch);
             return;
@@ -726,10 +743,10 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         } else {
             showToast(ToastKind.WARNING, text("book.toast.abandon_failed"));
         }
-        // A board-managed quest drops back to not-started, which the log must NOT render with an
-        // Accept button (board-accepted only); a full repaint renders it through the corrected
-        // branch instead of the pre-bound partial flashing Accept.
-        if (deps.managedGuarded(quest)) {
+        // A board-managed or giver-bound quest drops back to not-started, which the log must NOT
+        // render with an Accept button (it is accepted at the board / the giver); a full repaint
+        // renders it through the corrected branch instead of the pre-bound partial flashing Accept.
+        if (deps.managedGuarded(quest) || BookQuestsTab.giverBound(quest)) {
             reopenSame(player, ref, store, liveSearch);
         } else {
             BookQuestsTab.sendQuestAbandonedUpdate(this, data.selector, subject, engine);
@@ -901,7 +918,10 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 boolean ok = Boolean.TRUE.equals(ProgressionRuntime.achievementScope()
                         .around(subject, s -> Boolean.valueOf(engine.claim(s, achievement))));
                 if (ok) {
-                    showToast(ToastKind.REWARD, text("book.achievements.claim_success"));
+                    // The rows are the claim rewards just paid - the same list the detail column's
+                    // chips previewed, through the same reading.
+                    showRewardToast(text("book.achievements.claim_success"),
+                            achievement.claimRewards());
                 } else {
                     showToast(ToastKind.WARNING, text("book.toast.claim_failed"));
                 }
@@ -928,6 +948,9 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             // A malformed threshold falls through to the no-op response below.
         }
         if (subject != null && threshold > 0) {
+            // Resolved BEFORE the claim: afterwards the rung reads claimed, and with it which
+            // rewards were the ones this press paid.
+            ObjectiveBookDeps.MilestoneView view = milestoneView(store, ref, subject, threshold);
             ObjectiveBookDeps.MilestoneClaimOutcome outcome;
             try {
                 outcome = deps.milestoneClaim().claim(threshold, store, ref, player);
@@ -936,7 +959,8 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 outcome = ObjectiveBookDeps.MilestoneClaimOutcome.NOT_READY;
             }
             switch (outcome) {
-                case SUCCESS -> showToast(ToastKind.REWARD, text("book.achievements.claim_success"));
+                case SUCCESS -> showRewardToast(text("book.achievements.claim_success"),
+                        view == null ? List.of() : view.rewards());
                 case INVENTORY_FULL ->
                         showToast(ToastKind.ERROR, text("book.achievements.inventory_full"));
                 case NOT_READY -> showToast(ToastKind.WARNING, text("book.toast.claim_failed"));
@@ -946,5 +970,17 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             BookAchievementsTab.repaintMilestonesPartial(this, cmd, events, store, ref, subject, engine);
         }
         this.sendUpdate(cmd, events, false);
+    }
+
+    /** The consumer's milestone rung at {@code threshold}, or null when its ladder has none. */
+    @Nullable
+    private ObjectiveBookDeps.MilestoneView milestoneView(@Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> ref, @Nonnull Subject subject, int threshold) {
+        for (ObjectiveBookDeps.MilestoneView view : deps.milestonesGuarded(store, ref, subject)) {
+            if (view != null && view.threshold() == threshold) {
+                return view;
+            }
+        }
+        return null;
     }
 }

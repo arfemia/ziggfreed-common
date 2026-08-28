@@ -27,7 +27,11 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastLine;
+import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
  * What an authored moment decodes to, and what the engine does with a subject it cannot draw
@@ -385,6 +389,99 @@ class FeedbackEngineTest {
         FeedbackEngine.wantsToast(curious, "m", toastWith(null), progress(1, 8, false));
         assertFalse(asked.get(2).containsKey(FeedbackEngine.MILESTONE_ARG),
                 "no mark authored, nothing to report: absent rather than false");
+    }
+
+    // ==================== tone and reward rows on the in-page toast ====================
+
+    @Test
+    void anAuthoredToneReachesTheBuiltInPageToastAndStaysSilent() throws IOException {
+        FeedbackMomentAsset asset = moment("Quest_Completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete", "Args": ["title"] },
+                             "Tone": "Reward" } }
+                """);
+
+        FeedbackMomentAsset.Toast toast = asset.getToast();
+        assertNotNull(toast);
+        assertEquals(ToastKind.REWARD, toast.tone());
+
+        ToastSpec spec = FeedbackEngine.inPageToast(toast, Map.of(), Msg.raw("headline"), null);
+        assertEquals(ToastKind.REWARD, spec.kind(), "the authored tone drives the built toast");
+        assertTrue(spec.isSilent(), "the moment's own Sound group owns the audio");
+        assertNull(spec.effectiveSoundId(), "a toned toast must not add a second chime");
+    }
+
+    @Test
+    void anUnauthoredOrUnreadableToneKeepsTheNeutralLook() throws IOException {
+        FeedbackMomentAsset plain = moment("Quest_Completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete" } } }
+                """);
+        assertEquals(ToastKind.INFO, plain.getToast().tone(),
+                "a moment that authors no tone keeps today's look");
+
+        FeedbackMomentAsset odd = moment("Quest_Completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete" }, "Tone": "Sparkly" } }
+                """);
+        assertEquals(ToastKind.INFO, odd.getToast().tone(),
+                "an unreadable tone falls back rather than costing the toast");
+
+        FeedbackMomentAsset cased = moment("Quest_Completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete" }, "Tone": "reward" } }
+                """);
+        assertEquals(ToastKind.REWARD, cased.getToast().tone(), "the tone reads case-insensitively");
+    }
+
+    @Test
+    void momentRewardsPaintOneRowEachOnTheInPageToast() throws IOException {
+        FeedbackMomentAsset asset = moment("Quest_Completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete" } } }
+                """);
+        Map<String, Object> args = Map.of("rewards", namedRewards(2));
+
+        ToastSpec spec = FeedbackEngine.inPageToast(asset.getToast(), args, Msg.raw("headline"), null);
+        assertEquals(2, spec.lines().size(), "one row per reward the moment carried");
+    }
+
+    @Test
+    void rowsShowFalseKeepsTheToastToItsHeadline() throws IOException {
+        FeedbackMomentAsset asset = moment("Quest_Completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete" },
+                             "Rows": { "Show": false } } }
+                """);
+        List<ToastLine> rows = FeedbackEngine.rewardRows(asset.getToast(),
+                Map.of("rewards", namedRewards(3)));
+        assertTrue(rows.isEmpty(), "Show false suppresses the rows however much the moment carries");
+    }
+
+    @Test
+    void rowsMaxFoldsTheRestIntoOneOverflowRow() throws IOException {
+        FeedbackMomentAsset asset = moment("Quest_Completed", """
+                { "Toast": { "Title": { "Key": "notify.quest_complete" },
+                             "Rows": { "Max": 1 } } }
+                """);
+        List<ToastLine> rows = FeedbackEngine.rewardRows(asset.getToast(),
+                Map.of("rewards", namedRewards(3)));
+        assertEquals(2, rows.size(), "the authored cap plus the overflow row");
+        assertFalse(rows.get(1).hasIcon(), "the overflow line is text only");
+    }
+
+    @Test
+    void aRewardsValueThatIsNotARewardListIsIgnored() {
+        assertTrue(FeedbackEngine.rewards(Map.of()).isEmpty());
+        assertTrue(FeedbackEngine.rewards(Map.of("rewards", "nope")).isEmpty());
+        assertEquals(1, FeedbackEngine.rewards(
+                        Map.of("rewards", List.of("junk", RewardSpec.of("k")))).size(),
+                "anything in the list that is not a reward spec is skipped, never a throw");
+    }
+
+    /** Rewards that name themselves, so the generic chip reading works in a bare JVM. */
+    @Nonnull
+    private static List<RewardSpec> namedRewards(int count) {
+        List<RewardSpec> out = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            out.add(RewardSpec.of("test_kind", Map.of(
+                    "NameKey", "test.reward_" + i, "Amount", "3")));
+        }
+        return out;
     }
 
     @Nonnull

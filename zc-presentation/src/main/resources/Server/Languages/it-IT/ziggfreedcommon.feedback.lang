@@ -11,3 +11,4 @@ achievement.unlocked = Obiettivo sbloccato: {0}
 achievement.points = {0} punti
 achievement.claimed = Ricompense dell'obiettivo ritirate: {0}
 achievement.server_first_lost = Qualcuno è arrivato prima: {0}
+rewards.more = +{0} altri

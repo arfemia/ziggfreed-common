@@ -46,6 +46,8 @@ book.toast.claimed = Rewards collected.
 book.toast.claim_failed = Nothing to collect right now.
 book.toast.turned_in = Handed in.
 book.toast.turn_in_failed = That cannot be handed in here.
+book.quests.giver_hint = Accept this quest from {0}.
+book.quests.giver_hint_plain = Accept this quest from its quest giver.
 
 # The NPC quest page. It reuses the book's own progress and action lines above (the lock lines are the shared ziggfreedcommon.progress ones) rather than
 # minting a second wording for the same sentence, and adds only what a screen with a character in

@@ -13,7 +13,11 @@
     "The moment carries 'quest' (its id), 'title' (its name in the reader's language),",
     "'collected', and the outcome as 'granted' / 'queued' / 'failed' reward counts. 'player' is",
     "always the name of who was paid. Add a Sound group to the Variants entry to give collecting a",
-    "jingle of its own."
+    "jingle of its own.",
+    "",
+    "Tone colours the whole notification, frame and words together - gold Reward here, because",
+    "this moment is a payout. The rewards just paid list themselves as rows under the headline on",
+    "the in-page toast; the Toast's Rows group switches that off or caps how many show."
   ],
   "Variants": [
     {
@@ -22,7 +26,8 @@
         "Title": {
           "Key": "ziggfreedcommon.feedback.quest.claimed",
           "Args": ["title"]
-        }
+        },
+        "Tone": "Reward"
       }
     }
   ]

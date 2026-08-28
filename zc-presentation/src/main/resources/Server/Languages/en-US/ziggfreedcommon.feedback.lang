@@ -11,3 +11,4 @@ achievement.unlocked = Achievement earned: {0}
 achievement.points = {0} points
 achievement.claimed = Achievement rewards collected: {0}
 achievement.server_first_lost = Somebody else got there first: {0}
+rewards.more = +{0} more

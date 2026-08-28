@@ -47,7 +47,10 @@ which one shared instance cannot afford, and it is exactly why that method exist
   achievement with no claim rewards settles in ONE step, which is what makes CLAIMED reachable with
   no second interaction. Never collapse them into one list plus a flag. The `Achievement_Claimed`
   feedback moment carries `collected` (true when the subject came back for what waited, false when
-  it settled as it was earned) so a jingle authored for collecting never plays over the unlock.
+  it settled as it was earned) so a jingle authored for collecting never plays over the unlock;
+  each moment also carries the list ITS grant pays under `rewards` (a deferred `Supplier`:
+  `Achievement_Unlocked` the auto rewards, `Achievement_Claimed` whichever list that claim paid),
+  so an authored toast lists exactly what that moment handed over.
 - **A fold may attach values a moment about the achievement should carry.** `Achievement.momentArgs`
   (builder `momentArg(name, value)`) rides into `Achievement_Unlocked` and `Achievement_Claimed`
   under the fold's own names, beneath the engine's own (`title`, `icon`, `points`, ... win on a

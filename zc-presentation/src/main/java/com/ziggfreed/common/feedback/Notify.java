@@ -70,6 +70,17 @@ public final class Notify {
      */
     public static void withIcon(@Nonnull PlayerRef playerRef, @Nonnull Message title,
             @Nullable Message secondary, @Nullable String iconItemId) {
+        withIcon(playerRef, title, secondary, iconItemId, NotificationStyle.Default);
+    }
+
+    /**
+     * {@link #withIcon(PlayerRef, Message, Message, String)} with an explicit
+     * {@link NotificationStyle}, for a caller whose notice carries its own tone (a feedback moment
+     * authored gold or red keeps that tone on the feed too).
+     */
+    public static void withIcon(@Nonnull PlayerRef playerRef, @Nonnull Message title,
+            @Nullable Message secondary, @Nullable String iconItemId,
+            @Nonnull NotificationStyle style) {
         try {
             ItemWithAllMetadata icon = null;
             if (iconItemId != null && !iconItemId.isBlank()) {
@@ -78,7 +89,7 @@ public final class Notify {
                 icon.quantity = 0;
             }
             NotificationUtil.sendNotification(playerRef.getPacketHandler(), title, secondary,
-                    null, icon, NotificationStyle.Default);
+                    null, icon, style);
         } catch (Throwable t) {
             CommonLog.LOGGER.atFine().log("Notify.withIcon failed: " + t.getMessage());
         }

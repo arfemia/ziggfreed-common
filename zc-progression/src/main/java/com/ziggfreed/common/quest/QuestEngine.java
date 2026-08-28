@@ -1885,6 +1885,10 @@ public final class QuestEngine implements QuestStateReader {
      * so ONE authored file can say "your bags are full" and "collect it where you took it" as two
      * cases of the same moment.
      *
+     * <p>Both also carry the quest's whole payout under {@code rewards} - deferred, like the
+     * sentences on the progress moment, so a moment nobody authored never composes it - which is
+     * what lets an authored toast list what was (or waits to be) handed over.
+     *
      * @param parkedReason why it parked, or null for a quest paying out now
      */
     private void fireCompleted(@Nonnull Quest quest, @Nonnull Subject subject,
@@ -1899,13 +1903,15 @@ public final class QuestEngine implements QuestStateReader {
                 // without reading meaning into the id it was called with.
                 "parked", Boolean.valueOf(parked),
                 "reason", parkedReason,
-                "turnIn", turnInToken(quest));
+                "turnIn", turnInToken(quest),
+                "rewards", (Supplier<?>) quest::rewards);
     }
 
     /**
      * The rewards were paid, either the instant the quest finished or when the player came to
      * collect them; {@code collected} tells the two apart, so a jingle authored for collecting a
      * parked reward does not also play over the completion jingle of one that settled on the spot.
+     * The list just paid rides under {@code rewards}, deferred like the completion moment's.
      */
     private void fireClaimed(@Nonnull Quest quest, @Nonnull Subject subject,
                              @Nonnull RewardGrants.GrantOutcome outcome, boolean collected) {
@@ -1918,7 +1924,8 @@ public final class QuestEngine implements QuestStateReader {
                 "collected", Boolean.valueOf(collected),
                 "granted", Integer.valueOf(outcome.granted()),
                 "queued", Integer.valueOf(outcome.queued()),
-                "failed", Integer.valueOf(outcome.failed()));
+                "failed", Integer.valueOf(outcome.failed()),
+                "rewards", (Supplier<?>) quest::rewards);
     }
 
     /**

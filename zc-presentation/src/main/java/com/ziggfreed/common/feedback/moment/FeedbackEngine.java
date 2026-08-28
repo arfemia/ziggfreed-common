@@ -1,6 +1,9 @@
 package com.ziggfreed.common.feedback.moment;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -15,7 +18,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.feedback.EventTitles;
 import com.ziggfreed.common.feedback.Notify;
-import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.ui.toast.RewardToastLines;
+import com.ziggfreed.common.ui.toast.ToastLine;
+import com.ziggfreed.common.ui.toast.ToastRenderer;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.i18n.ContentKeys;
@@ -52,6 +58,17 @@ public final class FeedbackEngine {
      * authored file gets the picture with nothing written for it.
      */
     static final String ICON_ARG = "icon";
+
+    /**
+     * The one argument name a toast's reward rows are read from: a producer whose moment pays (or
+     * parks) rewards offers its list of reward specs under this name, and the engine draws one row
+     * per readable reward under the headline of the in-page toast, through the same chip reading
+     * every reward panel uses. Fixed rather than authored for the same reason as {@link #ICON_ARG}:
+     * an author cannot mis-spell a value they cannot see. The corner feed outside a menu has no row
+     * concept, so there the headline stands alone; the authored {@code Toast.Rows} group switches
+     * the rows off or caps them.
+     */
+    static final String REWARDS_ARG = "rewards";
 
     /**
      * The name of whoever the moment is about, always available to a line, a variant and a
@@ -150,13 +167,10 @@ public final class FeedbackEngine {
             // quest exists.
             UUID viewer = playerRef.getUuid();
             if (viewer != null && ToastablePage.isShowing(viewer)) {
-                ToastSpec inPage = ToastSpec.of(ToastKind.INFO, secondary != null ? secondary : title)
-                        .withTitle(secondary != null ? title : null)
-                        .withIcon(icon(args));
-                ToastablePage.showOnActive(viewer, inPage);
+                ToastablePage.showOnActive(viewer, inPageToast(spec, args, title, secondary));
                 return;
             }
-            Notify.withIcon(playerRef, title, secondary, icon(args));
+            Notify.withIcon(playerRef, title, secondary, icon(args), spec.tone().feedStyle());
         } catch (Throwable t) {
             SafeLog.fine("moment toast failed: " + t.getMessage());
         }
@@ -240,6 +254,65 @@ public final class FeedbackEngine {
         values.put(PLAYER_ARG, subject.name());
         values.putAll(args);
         return values;
+    }
+
+    /**
+     * The toast as drawn INTO an open page. The authored {@code Tone} drives the panel frame, the
+     * headline colour and the feed style in one word, so the frame and the words can never
+     * disagree; it is built {@code silent()} because the moment's own {@code Sound} group owns the
+     * audio and a toned toast must not add a second chime. The moment's rewards, when it carries
+     * any under {@link #REWARDS_ARG}, paint one row each under the headline.
+     */
+    @Nonnull
+    static ToastSpec inPageToast(@Nonnull FeedbackMomentAsset.Toast spec,
+            @Nonnull Map<String, Object> args, @Nonnull Message title, @Nullable Message secondary) {
+        return ToastSpec.of(spec.tone(), secondary != null ? secondary : title)
+                .withTitle(secondary != null ? title : null)
+                .withIcon(icon(args))
+                .withLines(rewardRows(spec, args))
+                .silent();
+    }
+
+    /**
+     * The reward rows for one moment: whatever it carried under {@link #REWARDS_ARG}, read through
+     * the shared chip bridge under the authored {@code Rows} knobs. Empty when the moment carries
+     * none, when the authored group switched them off, or when nothing on this server could name
+     * any of them.
+     */
+    @Nonnull
+    static List<ToastLine> rewardRows(@Nonnull FeedbackMomentAsset.Toast spec,
+            @Nonnull Map<String, Object> args) {
+        FeedbackMomentAsset.Toast.Rows rows = spec.getRows();
+        if (rows != null && !rows.showRows()) {
+            return List.of();
+        }
+        List<RewardSpec> rewards = rewards(args);
+        if (rewards.isEmpty()) {
+            return List.of();
+        }
+        Integer max = rows == null ? null : rows.getMax();
+        return RewardToastLines.lines(rewards, null,
+                max == null ? ToastRenderer.MAX_LINES : max,
+                dropped -> Msg.tr("ziggfreedcommon.feedback.", "rewards.more", dropped));
+    }
+
+    /**
+     * The reward list under {@link #REWARDS_ARG}, or empty. Read leniently: the value is data a
+     * producer composed, so anything in it that is not a reward spec is skipped rather than allowed
+     * to cost the toast.
+     */
+    @Nonnull
+    static List<RewardSpec> rewards(@Nonnull Map<String, Object> args) {
+        if (!(args.get(REWARDS_ARG) instanceof List<?> list) || list.isEmpty()) {
+            return List.of();
+        }
+        List<RewardSpec> out = new ArrayList<>(list.size());
+        for (Object entry : list) {
+            if (entry instanceof RewardSpec reward) {
+                out.add(reward);
+            }
+        }
+        return out;
     }
 
     /**
@@ -355,7 +428,8 @@ public final class FeedbackEngine {
      */
     @Nullable
     private static String text(@Nullable Object value) {
-        if (value == null || value instanceof Message) {
+        // A collection is the engine's own data (a reward list), not a word for a placeholder.
+        if (value == null || value instanceof Message || value instanceof Collection<?>) {
             return null;
         }
         String raw = value.toString();

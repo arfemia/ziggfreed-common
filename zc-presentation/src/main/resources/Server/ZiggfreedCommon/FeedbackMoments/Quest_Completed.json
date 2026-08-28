@@ -14,13 +14,18 @@
     "",
     "Key is a line from a .lang file; Args names which of those values fill its blanks, in order.",
     "Sound is any SoundEvent id, played at the player's own position. Delete either group in your",
-    "override to drop that half; add a Broadcast group to tell the whole server."
+    "override to drop that half; add a Broadcast group to tell the whole server.",
+    "",
+    "Tone colours the whole notification, frame and words together - gold Reward here, because a",
+    "quest paying out is a payout. The rewards it pays list themselves as rows under the headline",
+    "on the in-page toast; the Toast's Rows group switches that off or caps how many show."
   ],
   "Toast": {
     "Title": {
       "Key": "ziggfreedcommon.feedback.quest.completed",
       "Args": ["title"]
-    }
+    },
+    "Tone": "Reward"
   },
   "Sound": {
     "Id": "SFX_Discovery_Z2_Short"

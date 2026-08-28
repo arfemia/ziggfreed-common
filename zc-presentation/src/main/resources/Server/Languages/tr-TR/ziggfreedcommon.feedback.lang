@@ -11,3 +11,4 @@ achievement.unlocked = Başarım kazanıldı: {0}
 achievement.points = {0} puan
 achievement.claimed = Başarım ödülleri alındı: {0}
 achievement.server_first_lost = Başkası daha önce davrandı: {0}
+rewards.more = +{0} tane daha

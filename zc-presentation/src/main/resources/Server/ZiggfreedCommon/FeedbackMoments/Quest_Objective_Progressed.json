@@ -16,14 +16,16 @@
     "finishing tick always shows. Delete it to show every tick. A mod that lets each player pick",
     "how chatty their own screen is decides for them and is told whether the tick crossed a mark.",
     "",
-    "The Variants entry swaps the whole Toast for the finishing tick, so its wording and colour",
-    "can differ from an ordinary tick's without a second file."
+    "The Variants entry swaps the whole Toast for the finishing tick, so its wording and tone can",
+    "differ from an ordinary tick's without a second file: an ordinary tick is neutral Info, the",
+    "finish is green Success. Tone colours the in-page frame and the words, and picks the matching corner-feed style."
   ],
   "Toast": {
     "Title": {
       "Key": "ziggfreedcommon.feedback.quest.objective_progressed",
       "Args": ["step", "current", "required"]
     },
+    "Tone": "Info",
     "EveryPercent": 25
   },
   "Variants": [
@@ -33,7 +35,8 @@
         "Title": {
           "Key": "ziggfreedcommon.feedback.quest.objective_finished",
           "Args": ["step"]
-        }
+        },
+        "Tone": "Success"
       }
     }
   ]

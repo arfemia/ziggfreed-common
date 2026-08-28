@@ -43,6 +43,8 @@ book.toast.claimed = Jutalmak átvéve.
 book.toast.claim_failed = Most nincs mit átvenni.
 book.toast.turned_in = Leadva.
 book.toast.turn_in_failed = Ezt itt nem lehet leadni.
+book.quests.giver_hint = Fogadd el ezt a küldetést nála: {0}.
+book.quests.giver_hint_plain = Fogadd el ezt a küldetést a küldetésadónál.
 
 npcquests.title.none = Küldetések
 npcquests.count = Küldetések: {0}

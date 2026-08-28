@@ -29,13 +29,14 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
   `ServerCameraService`.
 - `feedback/` - `Notify` (Default/Danger/Warning/Success toasts, the item-keyed stacking form, and
   `withIcon` for a two-line toast ILLUSTRATED by an item with no quantity badge and no client-side
-  stacking), `EventTitles` (centered banner), `PickupMimic` (native-pickup-mimic notifier for a
+  stacking, plus an explicit-`NotificationStyle` overload for a notice carrying its own tone),
+  `EventTitles` (centered banner), `PickupMimic` (native-pickup-mimic notifier for a
   programmatic item grant that never went through a real ground pickup), `ObjectiveHud`. No router
   of its own; see the root router's `feedback/` bullet for the full primitive list.
   - `feedback/moment/` - the authored-feedback engine: `FeedbackMomentAsset` (Pattern A, the file
     name IS the moment id, at `Server/ZiggfreedCommon/FeedbackMoments/`, with four independent
     groups - `Toast` / `Broadcast` / `Sound` / `Command` - over one reused `Line` leaf of
-    `{Key, KeyArg, Args, Color}`, plus `Variants`: an ordered list of `{When, <groups>}` entries
+    `{Key, KeyArg, Args, Color}` (`Toast` adds `Tone` and a `Rows` group of its own), plus `Variants`: an ordered list of `{When, <groups>}` entries
     where the first whose `When` values all match the moment's arguments overlays only the groups
     it restates, so ONE file says "your bags are full" and "collect it where you took it" for two
     cases of the same moment), `FeedbackMomentConfig` (the `defaults < pack < owner` fold) and
@@ -50,7 +51,18 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     (an achievement's own announcement) needs no file per achievement. The name `player` always
     answers with the subject's name. The toast's PICTURE is not a leaf: it is read from the one
     fixed argument name `icon`, so a producer with a picture to offer supplies one and every
-    authored toast gets it with nothing written for it. `Toast.EveryPercent` keeps a progress moment
+    authored toast gets it with nothing written for it. The toast's reward ROWS follow the same
+    doctrine: the fixed argument name `rewards` (a `List<RewardSpec>`; both progression engines
+    supply it, deferred, on their completed / parked / claimed / unlocked moments) paints one row
+    per readable reward under the headline of the IN-PAGE toast through `ui/toast/RewardToastLines`
+    (source null, so the contributed kind readings still answer), tuned by the authored
+    `Toast.Rows` group - `Show`, and `Max` before the shared "+N more" overflow line
+    (`rewards.more` in the shipped lang); the corner feed outside a menu has no rows.
+    `Toast.Tone` is the closed `ToastKind` word (Info / Success / Reward / Warning / Error, an
+    Asset Editor dropdown via `EditorSchema`; unauthored reads Info) that the in-page frame, the
+    headline colour AND the feed's native style all take together, so the frame and the words can
+    never disagree; the in-page toast is built `silent()` because the moment's own `Sound` group
+    is the one audio authority. `Toast.EveryPercent` keeps a progress moment
     from chattering: an ordinary tick shows only when it crosses a multiple of that many percent
     (the finish always shows). `FeedbackEngine.answers(momentId)` is the cheap "is there a file for
     this at all" question a producer asks before composing what an expensive moment would carry,
@@ -63,8 +75,9 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     command are not one player's screen. **This module SHIPS the library's neutral default file for
     each of the seven moments the progression engines announce** (`Quest_Completed`, `Quest_Parked`,
     `Quest_Claimed`, `Quest_Objective_Progressed`, `Achievement_Unlocked`, `Achievement_Claimed`,
-    `Achievement_Server_First_Lost`) plus their wording in `ziggfreedcommon.feedback.lang` (nine
-    locales); a consumer's same-id file wins by pack order (`FeedbackMomentOverrideOrderTest` pins
+    `Achievement_Server_First_Lost`), each authoring its `Tone` (payouts Reward, the lost race
+    Warning, the progress tick Info with a Success finish, the full-bag park Error) and no per-line
+    `Color`, plus their wording in `ziggfreedcommon.feedback.lang` (nine locales); a consumer's same-id file wins by pack order (`FeedbackMomentOverrideOrderTest` pins
     it through the engine map). No router of its own; see the asset's javadoc, which is the
     authoring reference.
 - [`sound/`](src/main/java/com/ziggfreed/common/sound/CLAUDE.md) - `Sound3D`.

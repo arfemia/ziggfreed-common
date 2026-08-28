@@ -43,6 +43,8 @@ book.toast.claimed = Ödüller alındı.
 book.toast.claim_failed = Şu anda alınacak bir şey yok.
 book.toast.turned_in = Teslim edildi.
 book.toast.turn_in_failed = Bu burada teslim edilemez.
+book.quests.giver_hint = Bu görevi {0} adlı karakterden kabul et.
+book.quests.giver_hint_plain = Bu görevi görev vereninden kabul et.
 
 npcquests.title.none = Görevler
 npcquests.count = Görevler: {0}

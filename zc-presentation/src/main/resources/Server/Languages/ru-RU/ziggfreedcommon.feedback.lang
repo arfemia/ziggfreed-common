@@ -11,3 +11,4 @@ achievement.unlocked = Достижение получено: {0}
 achievement.points = Очков: {0}
 achievement.claimed = Награды за достижение получены: {0}
 achievement.server_first_lost = Кто-то успел раньше: {0}
+rewards.more = +{0} ещё

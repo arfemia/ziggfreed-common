@@ -13,6 +13,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -458,7 +459,7 @@ public final class AchievementEngine {
         RewardGrants.GrantOutcome outcome = grant(subject, achievement, achievement.autoRewards());
         if (!achievement.requiresClaim()) {
             store.setStatus(subject, achievement.id(), AchievementStatus.CLAIMED);
-            fireClaimed(achievement, subject, outcome, false);
+            fireClaimed(achievement, subject, outcome, achievement.autoRewards(), false);
         }
         // Reported as a change, NOT committed. Earning is something the engine decides rather than
         // something the subject asked for, and it arrives in bulk: a self-heal walks the whole
@@ -490,7 +491,7 @@ public final class AchievementEngine {
         // Collecting is a subject-owned transaction boundary, so the writes are committed here.
         store.markDirty(subject);
         store.flush(subject);
-        fireClaimed(achievement, subject, outcome, true);
+        fireClaimed(achievement, subject, outcome, achievement.claimRewards(), true);
         return true;
     }
 
@@ -895,7 +896,8 @@ public final class AchievementEngine {
      * It is EARNED. The icon travels with the moment under the fixed key {@code icon}, because it is
      * the achievement's own - written onto the definition when the catalogue was folded, so nothing
      * downstream has to go looking for one - and so does everything else the fold attached under
-     * {@link Achievement#momentArgs()}, beneath the engine's own names.
+     * {@link Achievement#momentArgs()}, beneath the engine's own names. What the earn pays on the
+     * spot rides under {@code rewards}, deferred so a moment nobody authored never composes it.
      */
     private void fireUnlocked(@Nonnull Achievement achievement, @Nonnull Subject subject,
                               boolean awaitingClaim) {
@@ -908,16 +910,21 @@ public final class AchievementEngine {
                 "achievement", achievement.id(), "title", achievement.text().titleOr(achievement.id()),
                 "icon", achievement.icon(),
                 "points", Integer.valueOf(achievement.points()),
-                "awaiting_claim", Boolean.valueOf(awaitingClaim));
+                "awaiting_claim", Boolean.valueOf(awaitingClaim),
+                "rewards", (Supplier<?>) achievement::autoRewards);
     }
 
     /**
      * The rewards were paid, either as it was earned or when the subject came to collect them;
      * {@code collected} tells the two apart, so a jingle authored for collecting does not also
-     * play over the unlock jingle of one that settled in the same breath.
+     * play over the unlock jingle of one that settled in the same breath. The list this grant
+     * actually paid rides under {@code rewards} - the auto rewards when it settled as it was
+     * earned, the claim rewards when the subject came to collect - deferred so a moment nobody
+     * authored never composes it.
      */
     private void fireClaimed(@Nonnull Achievement achievement, @Nonnull Subject subject,
-                             @Nonnull RewardGrants.GrantOutcome outcome, boolean collected) {
+                             @Nonnull RewardGrants.GrantOutcome outcome,
+                             @Nonnull List<RewardSpec> rewards, boolean collected) {
         if (nativeEvents) {
             AchievementEvents.fireClaimed(achievement.id(), subject.id(), outcome.granted(),
                     outcome.queued(), outcome.failed(), achievement.tags());
@@ -930,7 +937,8 @@ public final class AchievementEngine {
                 "collected", Boolean.valueOf(collected),
                 "granted", Integer.valueOf(outcome.granted()),
                 "queued", Integer.valueOf(outcome.queued()),
-                "failed", Integer.valueOf(outcome.failed()));
+                "failed", Integer.valueOf(outcome.failed()),
+                "rewards", (Supplier<?>) () -> rewards);
     }
 
     /** Report an authoring mistake that would otherwise repeat on every event exactly once. */

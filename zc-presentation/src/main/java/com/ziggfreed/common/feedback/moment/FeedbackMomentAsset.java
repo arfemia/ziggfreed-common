@@ -14,8 +14,11 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.codec.ScalarStringCodec;
+import com.ziggfreed.common.ui.toast.ToastKind;
+import com.ziggfreed.common.ui.toast.ToastRenderer;
 
 /**
  * What a server does when one lifecycle moment happens: float a toast, banner the whole server,
@@ -26,8 +29,8 @@ import com.ziggfreed.common.codec.ScalarStringCodec;
  * schema):
  * <pre>{@code
  * // Server/ZiggfreedCommon/FeedbackMoments/Quest_Completed.json
- * { "Toast":  { "Title": { "Key": "notify.quest_complete", "Args": ["title"],
- *                          "Color": "#FFFF00" } },
+ * { "Toast":  { "Title": { "Key": "notify.quest_complete", "Args": ["title"] },
+ *                 "Tone": "Reward" },
  *   "Sound":  { "Id": "SFX_Discovery_Z2_Short" } }
  * }</pre>
  *
@@ -281,6 +284,8 @@ public final class FeedbackMomentAsset
 
         @Nullable protected Line title;
         @Nullable protected Line secondary;
+        @Nullable protected String tone;
+        @Nullable protected Rows rows;
         @Nullable protected Integer everyPercent;
 
         public static final BuilderCodec<Toast> CODEC = BuilderCodec.builder(Toast.class, Toast::new)
@@ -291,6 +296,28 @@ public final class FeedbackMomentAsset
                 .appendInherited(new KeyedCodec<>("Secondary", Line.CODEC, false),
                         (o, v) -> o.secondary = v, o -> o.secondary, (o, p) -> o.secondary = p.secondary)
                 .documentation("The smaller line under the headline; leave it out for a one-line toast.")
+                .add()
+                .appendInherited(new KeyedCodec<>("Tone", Codec.STRING, false),
+                        (o, v) -> o.tone = v, o -> o.tone, (o, p) -> o.tone = p.tone)
+                .metadata(EditorSchema.oneOfDocumented(
+                        "Info", "Neutral blue, for a notice that reports rather than celebrates",
+                        "Success", "Green, for something the player set out to do coming off",
+                        "Reward", "Gold, for a payout landing in the player's hands",
+                        "Warning", "Amber, for something that needs the player's attention",
+                        "Error", "Red, for something refused or lost"))
+                .metadata(EditorSchema.defaultValue("Info"))
+                .documentation("The colour language of the whole notification: on the in-page toast "
+                        + "it tints the frame and the headline together, and on the corner feed it "
+                        + "picks the matching native style, so the frame and the words always agree. "
+                        + "Unauthored reads as Info, the neutral blue. A line's own Color still "
+                        + "overrides its text for a line deliberately off-tone.")
+                .add()
+                .appendInherited(new KeyedCodec<>("Rows", Rows.CODEC, false),
+                        (o, v) -> o.rows = v, o -> o.rows, (o, p) -> o.rows = p.rows)
+                .documentation("The reward rows drawn under the headline when the moment carries "
+                        + "what was handed over. They show on the in-page toast (a player with a "
+                        + "menu open); the corner feed has no rows, so there the headline stands "
+                        + "alone. Unauthored shows as many rows as the panel fits.")
                 .add()
                 .appendInherited(new KeyedCodec<>("EveryPercent", Codec.INTEGER, false),
                         (o, v) -> o.everyPercent = v, o -> o.everyPercent,
@@ -317,10 +344,75 @@ public final class FeedbackMomentAsset
             return secondary;
         }
 
+        /**
+         * The whole notification's colour language, from the closed {@link ToastKind} vocabulary;
+         * a moment that authors none (or an unreadable value) reads as the neutral
+         * {@link ToastKind#INFO}, so an unauthored file keeps its established look.
+         */
+        @Nonnull
+        public ToastKind tone() {
+            if (tone != null && !tone.isBlank()) {
+                String want = tone.trim();
+                for (ToastKind kind : ToastKind.values()) {
+                    if (kind.name().equalsIgnoreCase(want)) {
+                        return kind;
+                    }
+                }
+            }
+            return ToastKind.INFO;
+        }
+
+        /** The reward-row knobs, or null when the moment leaves them at the defaults. */
+        @Nullable
+        public Rows getRows() {
+            return rows;
+        }
+
         /** The percent step an ordinary tick has to cross to show, or null to show every tick. */
         @Nullable
         public Integer getEveryPercent() {
             return everyPercent == null || everyPercent <= 0 ? null : everyPercent;
+        }
+
+        /**
+         * The reward rows under the headline: two independent knobs, whether they paint at all and
+         * how many before the rest fold into one overflow row. The rows show on the IN-PAGE toast;
+         * the corner feed outside a menu has no row concept, so there the headline stands alone.
+         */
+        public static final class Rows {
+
+            @Nullable protected Boolean show;
+            @Nullable protected Integer max;
+
+            public static final BuilderCodec<Rows> CODEC = BuilderCodec.builder(Rows.class, Rows::new)
+                    .appendInherited(new KeyedCodec<>("Show", Codec.BOOLEAN, false),
+                            (o, v) -> o.show = v, o -> o.show, (o, p) -> o.show = p.show)
+                    .metadata(EditorSchema.defaultValue(true))
+                    .documentation("Whether the reward rows paint at all on the in-page toast. "
+                            + "Unauthored means true; false keeps the toast to its headline however "
+                            + "much the moment carries.")
+                    .add()
+                    .appendInherited(new KeyedCodec<>("Max", Codec.INTEGER, false),
+                            (o, v) -> o.max = v, o -> o.max, (o, p) -> o.max = p.max)
+                    .metadata(EditorSchema.defaultValue(ToastRenderer.MAX_LINES))
+                    .documentation("How many rewards may paint as rows before the rest fold into a "
+                            + "single 'and N more' row. Unauthored shows what the panel fits.")
+                    .add()
+                    .build();
+
+            public Rows() {
+            }
+
+            /** Whether the rows paint at all; unauthored means yes. */
+            public boolean showRows() {
+                return show == null || show;
+            }
+
+            /** The authored row cap, or null (a non-positive value included) for the panel's own. */
+            @Nullable
+            public Integer getMax() {
+                return max == null || max <= 0 ? null : max;
+            }
         }
     }
 

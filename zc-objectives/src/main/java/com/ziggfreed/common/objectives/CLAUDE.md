@@ -346,8 +346,8 @@ by design.
   track, pin, expand and select: the pattern is clear the repainted hosts, re-append, bind ONLY
   the fresh elements in the partial update's own event builder, `sendUpdate(cmd, events, false)`.
   A full reopen happens only where a partial cannot tell the truth: filter / search / sort / tab
-  changes, a cap or completion that re-ranks every row, and a board-managed quest dropping back to
-  not-started (its row must never flash an Accept the board owns).
+  changes, a cap or completion that re-ranks every row, and a board-managed or giver-bound quest
+  dropping back to not-started (its row must never flash an Accept the board or the giver owns).
 - **State model**: the FILTER state is stateless (every binding round-trips the full next state,
   the live search text captured via `@SearchInput` on every one, so typed-but-unsubmitted text
   survives any click); row expansion and the selected achievement are per-instance UI memory the
@@ -374,6 +374,19 @@ by design.
   claim cold and answers the client as an error toast, never reaching `engine.claim`). Registered
   once via `ObjectiveBookPages.deps(Supplier)`; the narrow `theme(...)` registration keeps working
   and is what the default theme falls through to.
+- **A giver-bound quest is taken at its giver, and a claim toast lists its payout.** A quest whose
+  `npcViewId()` names a character (`BookQuestsTab.giverBound`) is never accepted from the book: its
+  not-started row swaps Accept for the board-style `#TurnInHint`, naming the character through
+  zc-dialogue's `NpcNames.nameFor` as a nested Message (`book.quests.giver_hint`, plain fallback
+  `book.quests.giver_hint_plain`), `handlePrimary`'s accept verb refuses even a stale binding
+  (hint toast + full repaint), and an abandon full-repaints exactly like a board-managed quest.
+  The refusal is the BOOK's alone: `QuestEngine.canAccept` stays open, because the NPC quest page
+  is where such a quest is legitimately accepted; hiding one entirely stays `Visibility.hidden`'s
+  job, and the row stays listed, trackable, hand-in-able and abandonable. The three claim verbs
+  (quest claim, achievement claim, milestone claim - the milestone rung resolved BEFORE the claim
+  so which rewards this press paid is still readable) toast through the page-free
+  [`book/ClaimToasts`](book/ClaimToasts.java): a gold headline plus one `RewardToastLines` row per
+  reward through the consumer chip source, capped on the shared `book.more` overflow line.
 - **Status colours are the shared `ui/StatusTones`** (zc-presentation), the same six tones the NPC
   quest list's dots read, so "ready", "in progress" and "locked" are one colour everywhere.
 - **`canDeliverTurnInAt(subject, quest, null)` is ALWAYS false**, so the hand-in button must not be

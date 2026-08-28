@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -166,6 +168,35 @@ class AchievementEngineTest {
 
         assertFalse(engine.claim(ALICE, achievement), "collecting twice pays nothing twice");
         assertEquals(2, paid.size());
+    }
+
+    /**
+     * Each moment carries the list ITS grant pays under {@code rewards}: the unlock the immediate
+     * rewards, the collect the waiting ones - so an authored toast lists exactly what that moment
+     * handed over.
+     */
+    @Test
+    void theUnlockAndClaimMomentsCarryTheListTheirGrantPays() {
+        Map<String, Map<String, Object>> byMoment = new LinkedHashMap<>();
+        AchievementEngine engine = engine()
+                .feedbackHook((momentId, subject, args) -> byMoment.put(momentId, args))
+                .build();
+        Achievement achievement = Achievement.builder("prospector")
+                .criterion(criterion(0, "BREAK_BLOCK", "Copper_Ore", 1))
+                .autoReward(RewardSpec.of("test:pay", "Id", "instant"))
+                .claimReward(RewardSpec.of("test:pay", "Id", "later"))
+                .build();
+        engine.setAchievements(List.of(achievement));
+
+        engine.dispatch(ALICE, "BREAK_BLOCK", "Copper_Ore", null, 1L);
+        assertEquals(achievement.autoRewards(),
+                byMoment.get("Achievement_Unlocked").get("rewards"),
+                "the unlock moment carries what the earn pays on the spot");
+
+        engine.claim(ALICE, achievement);
+        assertEquals(achievement.claimRewards(),
+                byMoment.get("Achievement_Claimed").get("rewards"),
+                "the collect moment carries what the collect pays");
     }
 
     @Test

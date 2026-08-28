@@ -11,3 +11,4 @@ achievement.unlocked = Conquista obtida: {0}
 achievement.points = {0} pontos
 achievement.claimed = Recompensas da conquista recebidas: {0}
 achievement.server_first_lost = Alguém chegou primeiro: {0}
+rewards.more = +{0} a mais

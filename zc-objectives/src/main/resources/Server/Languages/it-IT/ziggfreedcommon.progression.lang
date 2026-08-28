@@ -43,6 +43,8 @@ book.toast.claimed = Ricompense riscosse.
 book.toast.claim_failed = Non c'è nulla da riscuotere ora.
 book.toast.turned_in = Consegnata.
 book.toast.turn_in_failed = Non si può consegnare qui.
+book.quests.giver_hint = Accetta questa missione da {0}.
+book.quests.giver_hint_plain = Accetta questa missione da chi la offre.
 
 npcquests.title.none = Missioni
 npcquests.count = Missioni: {0}
