@@ -93,11 +93,21 @@ public class ObjectiveBookEventData {
                             (data, value, info) -> data.threshold = value,
                             (data, info) -> data.threshold)
                     .add()
-                    // The @-directive a binding appends ("@SearchInput") comes back under the field
-                    // name WITHOUT the @; these two keys must stay un-prefixed to hear it.
+                    // A binding appends these under an @-directive ("@SearchInput"), and the key
+                    // the client echoes them back under is not pinned by anything on this side of
+                    // the wire. Both spellings are declared, onto the ONE field each, so a filter or
+                    // a search box is heard either way rather than silently reading as empty.
                     .append(new KeyedCodec<>("DropdownValue", Codec.STRING),
                             (data, value, info) -> data.dropdownValue = value,
                             (data, info) -> data.dropdownValue)
+                    .add()
+                    .append(new KeyedCodec<>("@DropdownValue", Codec.STRING),
+                            (data, value, info) -> data.dropdownValue = value,
+                            (data, info) -> data.dropdownValue)
+                    .add()
+                    .append(new KeyedCodec<>("@SearchInput", Codec.STRING),
+                            (data, value, info) -> data.searchInput = value,
+                            (data, info) -> data.searchInput)
                     .add()
                     .append(new KeyedCodec<>("SearchInput", Codec.STRING),
                             (data, value, info) -> data.searchInput = value,
