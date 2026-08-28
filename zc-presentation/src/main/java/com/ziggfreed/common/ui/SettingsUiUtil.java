@@ -74,7 +74,16 @@ public final class SettingsUiUtil {
         populate(cmd, selector, entries, selected);
     }
 
-    /** Bind a dropdown {@code ValueChanged}: {@code Action -> action}, {@code @DropdownValue -> .Value}. */
+    /**
+     * Bind a dropdown {@code ValueChanged}: {@code Action -> action}, {@code @DropdownValue -> .Value}.
+     *
+     * <p><b>The caller's event-data codec MUST declare the key WITH its {@code @}.</b> The client
+     * echoes a live value back under the same {@code @}-prefixed key the binding named, so a codec
+     * declaring the bare {@code "DropdownValue"} decodes nothing and the page reads the choice as
+     * absent. That reads on screen as a dropdown snapping back to its default the instant it is
+     * used, since a page with no value to apply falls back to whatever its default is - which is
+     * why the mistake looks like a broken control rather than a missing field.
+     */
     public static void bindDropdown(@Nonnull UIEventBuilder events, @Nonnull String selector,
             @Nonnull String action) {
         events.addEventBinding(CustomUIEventBindingType.ValueChanged, selector,
@@ -85,7 +94,11 @@ public final class SettingsUiUtil {
     // Text / number field
     // ---------------------------------------------------------------------
 
-    /** Bind a text field {@code ValueChanged} mapping its {@code .Value} to a {@code @}-prefixed codec key. */
+    /**
+     * Bind a text field {@code ValueChanged} mapping its {@code .Value} to a {@code @}-prefixed codec
+     * key. The caller's event-data codec must declare that key WITH its {@code @}; see
+     * {@link #bindDropdown} for what a bare declaration looks like on screen.
+     */
     public static void bindTextField(@Nonnull UIEventBuilder events, @Nonnull String selector,
             @Nonnull String codecKey) {
         events.addEventBinding(CustomUIEventBindingType.ValueChanged, selector,

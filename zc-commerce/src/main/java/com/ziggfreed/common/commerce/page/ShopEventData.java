@@ -45,11 +45,10 @@ public class ShopEventData {
                             (data, info) -> data.position)
                     .add()
                     // A binding appends the live value under an @-directive ("@DropdownValue"),
-                    // and the client echoes it back under a key whose exact spelling is not pinned
-                    // by anything on this side of the wire: the mod family carries both spellings in
-                    // the wild. Both are declared here, onto the ONE field, so the chosen filter is
-                    // heard either way. A filter that is not heard reads as a dropdown snapping back
-                    // to All the instant it is used, because an unheard value heals to All.
+                    // and the client echoes it back under that SAME @-prefixed key. A page declaring
+                    // only the bare name hears nothing, and an unheard filter heals to All by design,
+                    // so the dropdown appears to snap back the instant it is used. Both spellings are
+                    // declared onto the ONE field, so the chosen filter is heard whichever arrives.
                     .append(new KeyedCodec<>("DropdownValue", Codec.STRING),
                             (data, value, info) -> data.dropdownValue = value,
                             (data, info) -> data.dropdownValue)

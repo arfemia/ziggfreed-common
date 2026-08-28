@@ -93,10 +93,11 @@ public class ObjectiveBookEventData {
                             (data, value, info) -> data.threshold = value,
                             (data, info) -> data.threshold)
                     .add()
-                    // A binding appends these under an @-directive ("@SearchInput"), and the key
-                    // the client echoes them back under is not pinned by anything on this side of
-                    // the wire. Both spellings are declared, onto the ONE field each, so a filter or
-                    // a search box is heard either way rather than silently reading as empty.
+                    // A binding appends these under an @-directive ("@SearchInput"), and the client
+                    // echoes the live value back under that SAME @-prefixed key: a page declaring
+                    // only the bare name hears nothing at all, which reads as a dropdown snapping
+                    // back to its default the instant it is used. Both spellings are declared onto
+                    // the ONE field each, so the page is right whichever key arrives.
                     .append(new KeyedCodec<>("DropdownValue", Codec.STRING),
                             (data, value, info) -> data.dropdownValue = value,
                             (data, info) -> data.dropdownValue)
