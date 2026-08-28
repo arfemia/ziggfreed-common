@@ -43,7 +43,7 @@ shop.header.rewards = You receive
 shop.limit.daily = {0}/{1} today
 shop.limit.total = {0}/{1} ever
 shop.badge.sold_out = Sold out
-shop.badge.none_today = None left today
+shop.badge.none_today = None today
 shop.badge.left = {0} left
 
 shop.action.buy = Buy

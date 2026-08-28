@@ -25,7 +25,7 @@ shop.header.rewards = Aldıkların
 shop.limit.daily = Bugün {0}/{1}
 shop.limit.total = Toplam {0}/{1}
 shop.badge.sold_out = Tükendi
-shop.badge.none_today = Bugünlük bitti
+shop.badge.none_today = Bugün bitti
 shop.badge.left = {0} kaldı
 
 shop.action.buy = Satın al

@@ -25,7 +25,7 @@ shop.header.rewards = Ricevi
 shop.limit.daily = {0}/{1} oggi
 shop.limit.total = {0}/{1} in totale
 shop.badge.sold_out = Esaurito
-shop.badge.none_today = Per oggi è finito
+shop.badge.none_today = Esaurito oggi
 shop.badge.left = Ne restano {0}
 
 shop.action.buy = Compra

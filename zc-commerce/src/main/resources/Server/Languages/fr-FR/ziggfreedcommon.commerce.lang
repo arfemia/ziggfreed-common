@@ -25,7 +25,7 @@ shop.header.rewards = Tu reçois
 shop.limit.daily = {0}/{1} aujourd'hui
 shop.limit.total = {0}/{1} au total
 shop.badge.sold_out = Épuisé
-shop.badge.none_today = Plus rien aujourd'hui
+shop.badge.none_today = Épuisé du jour
 shop.badge.left = Encore {0}
 
 shop.action.buy = Acheter

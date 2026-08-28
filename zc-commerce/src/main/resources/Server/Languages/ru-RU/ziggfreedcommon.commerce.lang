@@ -24,8 +24,8 @@ shop.header.rewards = Вы получите
 
 shop.limit.daily = {0}/{1} за сегодня
 shop.limit.total = {0}/{1} всего
-shop.badge.sold_out = Всё раскуплено
-shop.badge.none_today = На сегодня всё
+shop.badge.sold_out = Распродано
+shop.badge.none_today = Сегодня всё
 shop.badge.left = Осталось {0}
 
 shop.action.buy = Купить

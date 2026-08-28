@@ -25,7 +25,7 @@ shop.header.rewards = Ezt kapod
 shop.limit.daily = {0}/{1} ma
 shop.limit.total = {0}/{1} összesen
 shop.badge.sold_out = Elfogyott
-shop.badge.none_today = Mára elfogyott
+shop.badge.none_today = Mára nincs
 shop.badge.left = Még {0}
 
 shop.action.buy = Megveszem

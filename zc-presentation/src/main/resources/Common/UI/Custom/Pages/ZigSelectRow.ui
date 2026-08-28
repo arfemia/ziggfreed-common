@@ -22,7 +22,12 @@ $Z = "../Common/ZigButtons.ui";
 //
 // #RowBtn keeps a right MARGIN and a right PADDING, and #RowBadge keeps a fixed width: the title
 // flexes, the badge does not, and the gap between them is what stops a long title reading as one
-// word with the badge. Widen the badge rather than dropping its width if a longer word has to fit.
+// word with the badge. The badge width (80px today) is meant to be the SMALLEST that fits the
+// longest badge string any locale ships at FontSize 12, across the three families that share it:
+// a board's grade word, a daily-limit badge, and "{0} left". Which of them is longest depends on
+// the locale, so measure in game before trusting any one of them to be the floor.
+// If a longer badge word has to fit, widen the badge rather than letting it clip; if every locale
+// shortens, narrow it and the title grows on its own.
 
 Group #ZigSelectRow {
   LayoutMode: Top;
@@ -64,7 +69,7 @@ Group #ZigSelectRow {
     Label #RowBadge {
       Text: "";
       Visible: false;
-      Anchor: (Width: 96, Height: 36);
+      Anchor: (Width: 80, Height: 36);
       Style: (FontSize: 12, TextColor: #c8a86a, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
