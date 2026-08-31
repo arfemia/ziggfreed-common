@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.modules.interaction.components.CarriedBlock;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -115,6 +116,27 @@ public final class InteractionCtx {
         } catch (Throwable t) {
             SafeLog.fine("[interaction] failed to read held item", t);
             return null;
+        }
+    }
+
+    /**
+     * Whether the firing entity is carrying a block right now.
+     *
+     * <p>Worth asking before reading anything off the held item's interaction map: while a block is
+     * carried the engine resolves a pressed input against the carried item's SEPARATE carry map
+     * instead, so the ordinary map answers with moves that cannot currently run.
+     */
+    public static boolean isCarryingBlock(@Nullable InteractionContext ctx) {
+        Ref<EntityStore> ref = firingEntity(ctx);
+        CommandBuffer<EntityStore> buffer = buffer(ctx);
+        if (ref == null || buffer == null) {
+            return false;
+        }
+        try {
+            return buffer.getComponent(ref, CarriedBlock.getComponentType()) != null;
+        } catch (Throwable t) {
+            SafeLog.fine("[interaction] failed to read carried block", t);
+            return false;
         }
     }
 

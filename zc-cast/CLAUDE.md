@@ -32,7 +32,9 @@ compiles as `:zc-cast`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggreg
   composes with by FQN), `ModelParticleService`.
 - [`interaction/`](src/main/java/com/ziggfreed/common/interaction/CLAUDE.md) - the generic
   interaction-composition framework: `NativeChainFire` (fire a named native `RootInteraction`
-  chain by id) + `ChainWalker`/`ChainWalk`/`ChainNode` (cycle-guarded chain resolution).
+  chain by id) + `NativeInputGate` (read whether a root can currently do anything, off its own
+  opening conditions, for a consumer sharing a key with an item) + `ChainWalker`/`ChainWalk`/
+  `ChainNode` (cycle-guarded chain resolution).
   - [`interaction/param/`](src/main/java/com/ziggfreed/common/interaction/param/CLAUDE.md) - the
     fire-time parameter-fold seam (`CastScope`/`CastScopes`/`ParamFold`/`ParamSlot`).
   - [`interaction/target/`](src/main/java/com/ziggfreed/common/interaction/target/CLAUDE.md) - the
@@ -55,11 +57,12 @@ bakes in a particular ability or interaction vocabulary.
 
 ## Tests
 
-25 files, the largest test suite relative to package count in the library: the kernel
+26 files, the largest test suite relative to package count in the library: the kernel
 (`CastKernelTest`, `StepRegistryTest`), hit resolution (`HitResolverTest`, `OnHitRegistryTest`,
 `ArmedStateStoreTest`), targeting (`TargetQueryTest`, `TargetSweepTest`, `TargetHitTest`,
 `LineOfSightTest`), chain composition
-(`ChainWalkTest`, `ChainWalkerTest`, `ChainNodeTest`, `NativeChainFireTest`), the param-fold seam
+(`ChainWalkTest`, `ChainWalkerTest`, `ChainNodeTest`, `NativeChainFireTest`,
+`NativeInputGateTest`), the param-fold seam
 (`CastScopeTest`, `CastScopesTest`, `ParamFoldTest`, `ParamFoldRequestTest`, `ParamSlotTest`), and
 custom-Type registration (`InteractionTypeSpecTest`, `InteractionTypesTest`, `InteractionCtxTest`,
 `InteractionOutcomeTest`).

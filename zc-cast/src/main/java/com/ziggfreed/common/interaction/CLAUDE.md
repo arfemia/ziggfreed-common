@@ -62,6 +62,29 @@ holds chain FIRE + chain WALK; three sub-packages extend the same charter with t
   step handlers to re-point onto, per the decision-51 composition-gate ruling); a consumer keeps
   only its own `InteractionType` resolution / id vocabulary policy on top of `fire`.
 
+- **[`NativeInputGate`](NativeInputGate.java)** - `static Verdict probe(store, ref, Item heldItem,
+  ItemStack heldStack, String rootInteractionId)`: can this root actually DO something for this
+  entity right now, read off its own opening conditions without running it. For a consumer that
+  puts its interaction on a key an item already uses and has to decide which of the two a press
+  belongs to. Walks the root's condition PREFIX - `Next` only, stopping at the first node that does
+  something - following a `Replace` slot through the held item's `InteractionVars` (else the
+  authored default), reading each `StatsCondition`/`DurabilityCondition` through the public,
+  soft-reference-cached `Interaction#toPacket()` and evaluating it with the same arithmetic the
+  engine's own `canAfford`/`matches` use against live `EntityStatMap` + stack durability.
+  - **Why it has to happen BEFORE dispatch**: none of the shipped weapon roots author a `Failed`
+    branch on their gate (the chain just stops), and `RunRootInteraction` sets `Finished` then
+    replaces the chain rather than reporting back - so there is no way to fire a root and observe
+    that it declined.
+  - **The verdict separates two different kinds of no.** `satisfied()` is whether the conditions
+    pass; `hasResourceGate()` is whether any of them was a stat COST. A chain gated only on
+    durability, or on nothing, spends nothing and is as ready on the thousandth press as the
+    first, so it can never mean "a move is banked up" - `readyToSpend()` requires both.
+  - **Every uncertainty resolves to not-ready** (unresolvable id, unreadable condition shape,
+    engine throw). Pair it with a caller that fires the root anyway when its own alternative
+    declines, and a wrong not-ready costs nothing: the chain then re-evaluates the same conditions
+    itself, authoritatively. `MmoCastAbility`'s `NativeInput: {Defer, Fallback}` group is the
+    shipped exemplar of exactly that pairing. World-thread only.
+
 - **[`ChainWalker`](ChainWalker.java)** + **[`ChainWalk`](ChainWalk.java)** +
   **[`ChainNode`](ChainNode.java)** - transitive, CYCLE-GUARDED, fail-soft resolution of a
   `RootInteraction` chain into its reachable nodes, for validators and description renderers.
