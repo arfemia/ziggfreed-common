@@ -19,3 +19,23 @@ place.noPosition = Não foi possível ler sua posição, então não há onde co
 place.idTaken = "{0}" já nomeia um posicionamento. Escolha outro id com --id=<id>, ou edite o existente.
 place.roleNotSpawnable = "{0}" não é um papel que este servidor possa posicionar. Pode estar escrito errado, ou ser um modelo abstrato sobre o qual outros papeis sao construidos.
 place.writeFailed = Não foi possível escrever em {0}. O arquivo foi deixado como estava.
+
+# The admin PAGE (NpcPlacementAdminPage), opened from a consumer's admin surface.
+page.title = Posicionamentos de NPC
+page.subtitle = O que deveria estar em {0}, e o que realmente está.
+page.back = Voltar
+page.placements = Neste mundo
+page.empty = Nenhum posicionamento aponta para {0}. Um que nomeie outro mundo não aparece aqui.
+page.row.title = {0}  ({1})
+page.state.standing = Posicionado: {0}
+page.state.pending = Ainda não posicionado. Aparece quando o local dele carrega.
+page.state.denied = Bloqueado: {0}
+page.on = Sim
+page.off = Não
+page.blocked = Bloqueado
+page.toggle.done = {0} agora está em {1}.
+page.toggle.failed = Não foi possível alterar {0}. O arquivo do proprietário foi deixado como estava.
+page.place.heading = Posicionar um aqui
+page.place.hint = Digite para filtrar e depois posicione. Só são oferecidos papeis que este servidor pode gerar.
+page.place.button = Posicionar
+page.place.none = Nenhum papel corresponde. Limpe o filtro para ver o que este servidor tem.

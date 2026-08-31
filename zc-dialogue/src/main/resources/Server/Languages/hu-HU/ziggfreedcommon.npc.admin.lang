@@ -19,3 +19,23 @@ place.noPosition = Nem sikerült beolvasni a pozíciódat, így nincs hova tenni
 place.idTaken = "{0}" már egy elhelyezés neve. Válassz másik azonosítót a --id=<id> kapcsolóval, vagy szerkeszd a meglévőt.
 place.roleNotSpawnable = "{0}" nem olyan szerep, amelyet ez a szerver fel tud állítani. Lehet, hogy elírtad, vagy egy absztrakt sablon, amelyre más szerepek épülnek.
 place.writeFailed = Nem sikerült írni ide: {0}. A fájl változatlan maradt.
+
+# The admin PAGE (NpcPlacementAdminPage), opened from a consumer's admin surface.
+page.title = NPC-elhelyezések
+page.subtitle = Aminek {0} világban állnia kellene, és ami valójában áll.
+page.back = Vissza
+page.placements = Ebben a világban
+page.empty = Egyetlen elhelyezés sem célozza {0} világot. A más világot megnevező itt nem jelenik meg.
+page.row.title = {0}  ({1})
+page.state.standing = Áll: {0}
+page.state.pending = Még nincs elhelyezve. Akkor jelenik meg, amikor a helye betöltődik.
+page.state.denied = Blokkolva: {0}
+page.on = Be
+page.off = Ki
+page.blocked = Blokkolva
+page.toggle.done = {0} mostantól {1}.
+page.toggle.failed = Nem sikerült megváltoztatni: {0}. A tulajdonosi fájl változatlan maradt.
+page.place.heading = Állíts fel egyet itt
+page.place.hint = Gépelj a szűréshez, majd helyezd el. Csak olyan szerepek jelennek meg, amelyeket ez a szerver létre tud hozni.
+page.place.button = Elhelyezés
+page.place.none = Nincs találat. Töröld a szűrőt, hogy lásd, mije van ennek a szervernek.

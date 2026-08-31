@@ -1,0 +1,132 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// The NPC placement admin page (com.ziggfreed.common.npc.placement.admin.NpcPlacementAdminPage).
+// Two stacked panels, each painted from Java:
+//
+//   #PlacementPanel  what should be standing in this world. One appended
+//                    Pages/ZigFormToggleRow.ui per placement - id and role on #Title, the live
+//                    state on #Hint, and the owner on/off switch on #Toggle (a denied placement is
+//                    retinted and reads "blocked", since its gate, not the switch, is what stops it).
+//   #PlacePanel      stand a new one where you are. #Search filters the roles this server can
+//                    actually spawn; each match is an appended Pages/ZigListRow.ui whose #EditBtn
+//                    places it.
+//
+// #Rows and #RoleRows are the appendable list containers and MUST stay childless here: rows are
+// addressed by indexed parent ("#Rows[0] #Toggle"), so a pre-authored child would shift every
+// index. #Empty and #NoRoles are the page-level notes shown instead of rows. All text is set from
+// Java on .TextSpans (no inline %key; placeholders), and every labeled button is a Button + inner
+// #Label.
+//
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  @Ornaments = true;
+  Anchor: (Width: 760, Height: 660);
+
+  #Content {
+    Anchor: (Top: 0);
+    LayoutMode: Top;
+    Padding: (Full: 18);
+
+    Label #Title {
+      Text: "";
+      Anchor: (Height: 32, Bottom: 2);
+      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+    }
+
+    Label #Subtitle {
+      Text: "";
+      Anchor: (Height: 20, Bottom: 10);
+      Style: (FontSize: 12, TextColor: #93a4b8, VerticalAlignment: Center);
+    }
+
+    Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
+
+    Group #PlacementPanel {
+      FlexWeight: 1;
+      LayoutMode: Top;
+      Padding: (Full: 12);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+
+      Label #PlacementsHeading {
+        Text: "";
+        Anchor: (Height: 22, Bottom: 6);
+        Style: (FontSize: 14, TextColor: #cdd8e6, RenderBold: true, VerticalAlignment: Center);
+      }
+
+      Group #Rows {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 4);
+      }
+
+      Label #Empty {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 40, Top: 8);
+        Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+      }
+    }
+
+    Group #PlacePanel {
+      Anchor: (Height: 250, Top: 12);
+      LayoutMode: Top;
+      Padding: (Full: 12);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+
+      Label #PlaceHeading {
+        Text: "";
+        Anchor: (Height: 22, Bottom: 2);
+        Style: (FontSize: 14, TextColor: #cdd8e6, RenderBold: true, VerticalAlignment: Center);
+      }
+
+      Label #PlaceHint {
+        Text: "";
+        Anchor: (Height: 18, Bottom: 6);
+        Style: (FontSize: 11, TextColor: #8696a8, Wrap: true);
+      }
+
+      $C.@TextField #Search {
+        Anchor: (Height: 30, Bottom: 8);
+        Padding: (Horizontal: 8);
+      }
+
+      Group #RoleRows {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 4);
+      }
+
+      Label #NoRoles {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 34, Top: 6);
+        Style: (FontSize: 12, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+      }
+    }
+
+    Group #Footer {
+      Anchor: (Height: 36, Top: 12);
+      LayoutMode: Left;
+
+      Group { FlexWeight: 1; }
+
+      Button #BackButton {
+        Style: $Z.@ZigRichRowBtnStyle;
+        Anchor: (Width: 140, Height: 32);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+    }
+  }
+}

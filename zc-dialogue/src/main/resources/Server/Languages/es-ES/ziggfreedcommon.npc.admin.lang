@@ -19,3 +19,23 @@ place.noPosition = No se pudo leer tu posición, así que no hay dónde ponerlo.
 place.idTaken = "{0}" ya nombra una colocación. Elige otro id con --id=<id>, o edita la existente.
 place.roleNotSpawnable = "{0}" no es un rol que este servidor pueda colocar. Puede estar mal escrito, o ser una plantilla abstracta sobre la que se construyen otros roles.
 place.writeFailed = No se pudo escribir en {0}. El archivo se dejó tal cual estaba.
+
+# The admin PAGE (NpcPlacementAdminPage), opened from a consumer's admin surface.
+page.title = Colocaciones de PNJ
+page.subtitle = Lo que debería estar en {0}, y lo que realmente está.
+page.back = Atrás
+page.placements = En este mundo
+page.empty = Ninguna colocación apunta a {0}. Una que nombre otro mundo no aparece aquí.
+page.row.title = {0}  ({1})
+page.state.standing = Colocado: {0}
+page.state.pending = Todavía sin colocar. Aparece cuando su sitio se carga.
+page.state.denied = Bloqueado: {0}
+page.on = Sí
+page.off = No
+page.blocked = Bloqueado
+page.toggle.done = {0} ahora está en {1}.
+page.toggle.failed = No se pudo cambiar {0}. El archivo del propietario se dejó tal cual.
+page.place.heading = Colocar uno aquí
+page.place.hint = Escribe para filtrar y luego coloca. Solo se ofrecen roles que este servidor puede generar.
+page.place.button = Colocar
+page.place.none = Ningún rol coincide. Borra el filtro para ver lo que tiene este servidor.

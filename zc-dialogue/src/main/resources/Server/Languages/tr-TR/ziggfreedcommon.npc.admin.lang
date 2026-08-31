@@ -19,3 +19,23 @@ place.noPosition = Konumun okunamadı, bu yüzden koyacak bir yer yok.
 place.idTaken = "{0}" zaten bir yerleşimin adı. --id=<id> ile başka bir kimlik seç veya mevcut olanı düzenle.
 place.roleNotSpawnable = "{0}" bu sunucunun yerleştirebileceği bir rol değil. Yanlış yazılmış olabilir veya diğer rollerin üzerine kurulduğu soyut bir şablon olabilir.
 place.writeFailed = {0} dosyasına yazılamadı. Dosya olduğu gibi bırakıldı.
+
+# The admin PAGE (NpcPlacementAdminPage), opened from a consumer's admin surface.
+page.title = NPC Yerleşimleri
+page.subtitle = {0} dünyasında ne durmalı ve gerçekte ne duruyor.
+page.back = Geri
+page.placements = Bu dünyada
+page.empty = Hiçbir yerleşim {0} dünyasını hedeflemiyor. Başka bir dünyayı belirten burada görünmez.
+page.row.title = {0}  ({1})
+page.state.standing = Duruyor: {0}
+page.state.pending = Henüz yerleştirilmedi. Yeri yüklendiğinde görünür.
+page.state.denied = Engellendi: {0}
+page.on = Açık
+page.off = Kapalı
+page.blocked = Engellendi
+page.toggle.done = {0} artık {1}.
+page.toggle.failed = {0} değiştirilemedi. Sahip dosyası olduğu gibi bırakıldı.
+page.place.heading = Buraya bir tane koy
+page.place.hint = Filtrelemek için yaz, sonra yerleştir. Yalnızca bu sunucunun oluşturabileceği roller sunulur.
+page.place.button = Yerleştir
+page.place.none = Eşleşen rol yok. Bu sunucuda ne olduğunu görmek için filtreyi temizle.

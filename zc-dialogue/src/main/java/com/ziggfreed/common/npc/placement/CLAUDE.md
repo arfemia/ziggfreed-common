@@ -293,10 +293,17 @@ registries are about where an NPC stands and whether it stands at all.
   since the formula is what is read, so it is a remark about clarity). The destination's OWN audit
   runs in the cross-asset half (`Destinations.validate`), so a type's params are checked by the mod
   that registered it, under that mod's domain, rather than by a check here that could only guess.
-  **Whether the named ROLE exists is not checked here and cannot be**: role parsing is a bespoke
-  builder framework rather than an asset store, and asking the shared `BuilderManager` about a role
-  is either a lie before the packs load or a live-state mutation afterwards. A misspelled role id
-  shows up as the boot log's own role-load error. Reports shared
+  **Whether the named ROLE exists is not checked BY THIS AUDIT, and at audit time cannot be**: role
+  parsing is a bespoke builder framework rather than an asset store, and asking the shared
+  `BuilderManager` about a role is either a lie before the packs load or a live-state mutation
+  afterwards. A misspelled role id shows up as the boot log's own role-load error.
+  **At LIVE time the question is perfectly answerable, and is not the same question.** Once the
+  server is up, `NPCPlugin.hasRoleName` answers whether a role exists and `validateSpawnableRole`
+  additionally refuses an ABSTRACT one, which is a placement that can never appear; the first-party
+  entity tool's spawn page reads the same registry through `getRoleTemplateNames(true)` to list what
+  it may spawn. `NpcPlacementAuthoring.isSpawnable` / `spawnableRoles` wrap both for the command and
+  the admin page, and both answer permissively when there is no registry to ask, so they stay a
+  courtesy check at the point somebody TYPES a role rather than a second gate the engine consults. Reports shared
   [`validation.Finding`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/validation/CLAUDE.md)
   values under domain `placement`.
   **TWO entry points, because the checks answer two kinds of question, and asking the second kind

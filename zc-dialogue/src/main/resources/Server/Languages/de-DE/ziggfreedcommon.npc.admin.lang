@@ -19,3 +19,23 @@ place.noPosition = Deine Position konnte nicht gelesen werden, also gibt es kein
 place.idTaken = "{0}" benennt bereits eine Platzierung. Wähle mit --id=<id> eine andere, oder bearbeite die vorhandene.
 place.roleNotSpawnable = "{0}" ist keine Rolle, die dieser Server aufstellen kann. Vielleicht ist sie falsch geschrieben oder eine abstrakte Vorlage, auf der andere Rollen aufbauen.
 place.writeFailed = {0} konnte nicht geschrieben werden. Die Datei blieb unverändert.
+
+# The admin PAGE (NpcPlacementAdminPage), opened from a consumer's admin surface.
+page.title = NPC-Platzierungen
+page.subtitle = Was in {0} stehen soll, und was tatsächlich steht.
+page.back = Zurück
+page.placements = In dieser Welt
+page.empty = Keine Platzierung zielt auf {0}. Eine, die eine andere Welt nennt, erscheint hier nicht.
+page.row.title = {0}  ({1})
+page.state.standing = Steht: {0}
+page.state.pending = Noch nicht platziert. Erscheint, sobald der Ort geladen wird.
+page.state.denied = Blockiert: {0}
+page.on = An
+page.off = Aus
+page.blocked = Blockiert
+page.toggle.done = {0} ist jetzt {1}.
+page.toggle.failed = {0} konnte nicht geändert werden. Die Besitzerdatei blieb unverändert.
+page.place.heading = Hier eine aufstellen
+page.place.hint = Tippe zum Filtern, dann aufstellen. Nur Rollen, die dieser Server erzeugen kann, werden angeboten.
+page.place.button = Aufstellen
+page.place.none = Keine Rolle passt. Leere den Filter, um zu sehen, was dieser Server hat.

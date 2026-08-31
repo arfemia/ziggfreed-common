@@ -19,3 +19,23 @@ place.noPosition = Impossible de lire votre position, il n'y a donc nulle part o
 place.idTaken = "{0}" désigne déjà un placement. Choisissez un autre id avec --id=<id>, ou modifiez l'existant.
 place.roleNotSpawnable = "{0}" n'est pas un rôle que ce serveur peut placer. Il est peut-être mal orthographié, ou il s'agit d'un modèle abstrait sur lequel d'autres rôles sont construits.
 place.writeFailed = Impossible d'écrire dans {0}. Le fichier a été laissé tel quel.
+
+# The admin PAGE (NpcPlacementAdminPage), opened from a consumer's admin surface.
+page.title = Placements de PNJ
+page.subtitle = Ce qui devrait se tenir dans {0}, et ce qui s'y tient vraiment.
+page.back = Retour
+page.placements = Dans ce monde
+page.empty = Aucun placement ne vise {0}. Un placement nommant un autre monde n'apparaît pas ici.
+page.row.title = {0}  ({1})
+page.state.standing = En place : {0}
+page.state.pending = Pas encore placé. Apparaît dès que son emplacement se charge.
+page.state.denied = Bloqué : {0}
+page.on = Oui
+page.off = Non
+page.blocked = Bloqué
+page.toggle.done = {0} est maintenant sur {1}.
+page.toggle.failed = Impossible de modifier {0}. Le fichier du propriétaire a été laissé tel quel.
+page.place.heading = En placer un ici
+page.place.hint = Tapez pour filtrer, puis placez. Seuls les rôles que ce serveur peut faire apparaître sont proposés.
+page.place.button = Placer
+page.place.none = Aucun rôle ne correspond. Videz le filtre pour voir ce que ce serveur possède.

@@ -20,3 +20,23 @@ place.noPosition = Could not read your position, so there is nowhere to put it.
 place.idTaken = "{0}" already names a placement. Choose another id with --id=<id>, or edit the existing one.
 place.roleNotSpawnable = "{0}" is not a role this server can stand up. It may be misspelled, or an abstract template other roles are built on.
 place.writeFailed = Could not write to {0}. The file was left as it was.
+
+# The admin PAGE (NpcPlacementAdminPage), opened from a consumer's admin surface.
+page.title = NPC Placements
+page.subtitle = What should be standing in {0}, and what actually is.
+page.back = Back
+page.placements = In this world
+page.empty = No placement targets {0}. One that names another world is not shown here.
+page.row.title = {0}  ({1})
+page.state.standing = Standing: {0}
+page.state.pending = Not placed yet. It appears once its spot loads.
+page.state.denied = Blocked: {0}
+page.on = On
+page.off = Off
+page.blocked = Blocked
+page.toggle.done = {0} is now {1}.
+page.toggle.failed = Could not change {0}. The owner file was left as it was.
+page.place.heading = Stand one here
+page.place.hint = Type to filter, then place. Only roles this server can spawn are offered.
+page.place.button = Place
+page.place.none = No role matches. Clear the filter to see what this server has.
