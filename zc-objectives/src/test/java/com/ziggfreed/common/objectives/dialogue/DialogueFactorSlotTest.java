@@ -29,10 +29,10 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 
 /**
- * The library's OWN dialogue factor vocabulary, wired the way the wiring root wires it at setup:
- * the portable {@code hytale:} standard library installed into the shared engine's one factor
- * slot. This module is the test's home for the same reason the wiring root is the install's: it is
- * the layer that sees both the dialogue engine and the entity module owning the standard library.
+ * The library's OWN dialogue factor vocabulary, wired the way {@code DialogueBootstrap} wires it at
+ * library setup: the portable {@code hytale:} standard library installed into the shared engine's
+ * one factor slot. The install lives in this module for the reason the test does: it is the layer
+ * that sees both the dialogue engine and the entity module owning the standard library.
  *
  * <p>What is pinned is the bare-server story: with NO consumer mod installed, a pack's
  * {@code Factor} condition on a {@code hytale:} id must be ANSWERABLE (the id is registered, so

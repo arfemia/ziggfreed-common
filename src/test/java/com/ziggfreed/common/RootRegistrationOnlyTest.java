@@ -16,7 +16,8 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * The wiring root is REGISTRATION ONLY. This test is the enforcement half of that rule.
+ * The wiring root is REGISTRATION ONLY - and so is every module {@code *Bootstrap} it calls. This
+ * test is the enforcement half of that rule.
  *
  * <p><b>Why the root is special.</b> It is the one place in the library where an edge between any
  * two modules is legal, so it silently absorbs every awkward dependency that does not fit the
@@ -27,10 +28,18 @@ import org.junit.jupiter.api.Test;
  * seam the root merely fills.
  *
  * <p><b>What is scanned</b>: EVERY {@code .java} file under the root module's {@code
- * src/main/java}, discovered by walking the tree rather than by naming files. A named list is the
- * one way this guard can be silently disarmed - the root grows a fourth file, nobody adds it, and
- * the "build-enforced" claim quietly stops being true of the new file. Comments, javadoc and string
- * literals are stripped first, so prose and log lines are free to say whatever they need to.
+ * src/main/java}, PLUS every {@code *Bootstrap.java} under any module's {@code src/main/java} -
+ * both discovered by walking the tree rather than by naming files. A named list is the one way
+ * this guard can be silently disarmed - the root grows a fourth file, nobody adds it, and the
+ * "build-enforced" claim quietly stops being true of the new file; modules are found the same way,
+ * by listing the project root for directories carrying a source tree. The bootstraps are in scope
+ * because the root's phase bodies live in them now: each module hosts its own registration phases
+ * in a {@code *Bootstrap} class the root's {@code setup()} calls, so the rule has to follow
+ * registration code wherever it lives, and lifting a body out of the root must never be a way out
+ * from under the guard. That makes the {@code *Bootstrap} name load-bearing: the suffix is what
+ * puts a lifted phase in scope, so a registration class that wires at setup is NAMED
+ * {@code *Bootstrap}, never something the walk cannot see. Comments, javadoc and string literals
+ * are stripped first, so prose and log lines are free to say whatever they need to.
  *
  * <p><b>What fails</b>: a loop ({@code for} / {@code while} / {@code do}), a {@code switch}, or an
  * {@code else} branch - each of them a decision rather than a registration. A {@code try}/
@@ -54,6 +63,12 @@ class RootRegistrationOnlyTest {
     /** The root module's main source tree. Every {@code .java} file under it is held to the rule. */
     private static final Path ROOT_SOURCE_DIR = Path.of("src", "main", "java");
 
+    /**
+     * The suffix that puts a MODULE file in scope: a lifted registration phase lives in a class
+     * named {@code *Bootstrap}, so the walk can find it without naming modules or files.
+     */
+    private static final String BOOTSTRAP_SUFFIX = "Bootstrap.java";
+
     /** Control flow that is a decision however it is written. */
     private static final Pattern DECISION = Pattern.compile("\\b(for|while|do|switch|else)\\b");
 
@@ -74,8 +89,14 @@ class RootRegistrationOnlyTest {
 
     @Test
     void theWiringRootRegistersAndDecidesNothing() throws IOException {
-        List<Path> sources = rootSources();
+        List<Path> sources = new ArrayList<>(rootSources());
         assertFalse(sources.isEmpty(), "no root sources found under " + ROOT_SOURCE_DIR.toAbsolutePath());
+
+        List<Path> bootstraps = moduleBootstrapSources();
+        assertFalse(bootstraps.isEmpty(), "no module *Bootstrap sources found - the modules host the"
+                + " root's lifted phase bodies, so an empty find means this walk is broken (wrong"
+                + " working directory?) rather than that no registration code exists");
+        sources.addAll(bootstraps);
 
         List<String> hits = new ArrayList<>();
         for (Path source : sources) {
@@ -97,6 +118,34 @@ class RootRegistrationOnlyTest {
                     .sorted()
                     .toList();
         }
+    }
+
+    /**
+     * Every {@code *Bootstrap.java} in every module, in a stable order. Modules are DISCOVERED by
+     * listing the project root for directories that carry a {@code src/main/java} tree - never by
+     * naming them, for the same reason the root walk never names files: a new module's bootstrap
+     * must fall in scope the moment it exists. The root's own tree is not re-walked here; it is
+     * already covered whole by {@link #rootSources()}.
+     */
+    private static List<Path> moduleBootstrapSources() throws IOException {
+        List<Path> out = new ArrayList<>();
+        List<Path> moduleTrees;
+        try (Stream<Path> top = Files.list(Path.of("."))) {
+            moduleTrees = top.filter(Files::isDirectory)
+                    .map(dir -> dir.resolve(ROOT_SOURCE_DIR))
+                    .filter(Files::isDirectory)
+                    .sorted()
+                    .toList();
+        }
+        for (Path tree : moduleTrees) {
+            try (Stream<Path> walk = Files.walk(tree)) {
+                out.addAll(walk.filter(Files::isRegularFile)
+                        .filter(p -> p.getFileName().toString().endsWith(BOOTSTRAP_SUFFIX))
+                        .sorted()
+                        .toList());
+            }
+        }
+        return out;
     }
 
     private static void scan(Path source, List<String> hits) throws IOException {
@@ -247,6 +296,8 @@ class RootRegistrationOnlyTest {
     }
 
     private static String report(Path source, List<String> raw, int index, String what) {
-        return source.getFileName() + ":" + (index + 1) + ": [" + what + "] " + raw.get(index).trim();
+        // The whole path, not just the file name: with every module's bootstraps in scope, two
+        // modules may legitimately hold classes sharing a simple name.
+        return source + ":" + (index + 1) + ": [" + what + "] " + raw.get(index).trim();
     }
 }

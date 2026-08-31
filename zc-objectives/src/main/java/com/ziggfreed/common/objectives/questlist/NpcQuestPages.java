@@ -19,19 +19,19 @@ import com.ziggfreed.common.util.SafeLog;
  * The way in to {@link ZigNpcQuestPage}: one call that opens a character's quest list, and one place
  * a consumer says what it wants that page to know.
  *
- * <p><b>This class is the whole of the wiring root's job.</b> {@link #open(String, Store, Ref,
+ * <p><b>Registering this page is one call.</b> {@link #open(String, String, Store, Ref,
  * Player)} is written to the exact shape the quest-list host seam expects, so registering
  * this page as the default screen the shared {@code Quests} destination opens is a method reference
- * and nothing else:
+ * and nothing else ({@code ProgressionBootstrap.registerQuestListHost()} makes it at library setup):
  *
  * <pre>{@code
- * NpcQuestListHosts.register("ziggfreedcommon", "ziggfreedcommon", NpcQuestPages::open);
+ * NpcQuestListHosts.register(NpcQuestPages.OWNER, NpcQuestPages.OWNER, NpcQuestPages::open);
  * }</pre>
  *
- * <p>That indirection is deliberate rather than incidental: the host interface lives in the dialogue
- * module, which sits BESIDE this one in the graph rather than under it, so implementing it here would
- * be an edge this module may not have. The root is the one place both are visible, and a method
- * reference carries no logic for it to hold.
+ * <p>That indirection is deliberate rather than incidental: the host seam lives in the dialogue
+ * module so that a conversation can route to WHATEVER quest UI a server has, and this page joins
+ * the walk as one host among any number rather than being named by anything. A method reference
+ * carries no logic, so the page and the seam stay reasoned about separately.
  *
  * <p><b>Deps are resolved LAZILY, at open time.</b> A consumer's naming, theme and routing are built
  * long after this module's setup runs, so a supplier is registered once and asked on each open; a

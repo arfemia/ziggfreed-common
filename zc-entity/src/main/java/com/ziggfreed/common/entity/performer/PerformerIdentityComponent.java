@@ -22,7 +22,7 @@ import com.ziggfreed.common.CommonLog;
  * {@link PerformerReconciler#sweep}) instead of tracking refs in per-session maps that go stale
  * across a restart.
  *
- * <p><b>Registration.</b> ZiggfreedCommon's own wiring root registers this component in its
+ * <p><b>Registration.</b> ZiggfreedCommon's {@code EntityBootstrap} registers this component at its
  * {@code setup()} (matching the library's other component types) via
  * {@link #register(ComponentRegistryProxy)} (which sets {@link #TYPE}), so a server running any
  * performer-driven consumer gets working identity/reconcile without that consumer having to
@@ -90,9 +90,9 @@ public final class PerformerIdentityComponent implements Component<EntityStore> 
     }
 
     /**
-     * Registers this component type on {@code registry} (the library wiring root's
+     * Registers this component type on {@code registry} (the library plugin's
      * {@code getEntityStoreRegistry()}), setting {@link #TYPE}. The ONE caller is
-     * {@code ZiggfreedCommonPlugin.registerPerformerIdentity()} at the library's own
+     * {@code EntityBootstrap.registerPerformerIdentity()} at the library's own
      * {@code setup()}; a consumer never calls this. Never throws - a registration failure logs and
      * leaves {@link #TYPE} unset (performers still work, just without reconcile).
      *

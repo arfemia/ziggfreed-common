@@ -22,7 +22,7 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link NpcPlacementLedger} for that half, and for why the two cannot be one authority.
  *
  * <p><b>Registration.</b> A library component has no plugin of its own, so
- * {@code ZiggfreedCommonPlugin} registers it once at {@code setup()} via
+ * {@code NpcBootstrap} registers it once at library {@code setup()} via
  * {@link #register(ComponentRegistryProxy)}. Every attach and query site guards on
  * {@code TYPE != null}, so a registration failure degrades the engine to "no reconcile" rather
  * than breaking spawning.

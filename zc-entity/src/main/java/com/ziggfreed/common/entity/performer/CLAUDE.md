@@ -90,8 +90,9 @@ sections 4b-4d) + decisions 46-54 in `rpg-stations-extraction-design.md`.
   stable `code()` is what the identity component stores.
 - **[`PerformerIdentityComponent`](PerformerIdentityComponent.java)** - a REGISTERED ECS component
   (`OwnerUuid`/`StationKey`/`Kind`/`SpawnedAtMs`, PascalCase codec keys) both backends attach in
-  `preAddToWorld`. **ZiggfreedCommon's own wiring root registers it ONCE at its own `setup()`**
-  (`ZiggfreedCommonPlugin.registerPerformerIdentity`, matching the library's other component types),
+  `preAddToWorld`. **ZiggfreedCommon itself registers it ONCE at its own `setup()`**
+  (`EntityBootstrap.registerPerformerIdentity`, called from the root's ordered `setup()` list,
+  matching the library's other component types),
   not a consumer; every attach/query guards on `TYPE != null` regardless. `toIdentity()` is
   the pure [`PerformerIdentity`](PerformerIdentity.java) snapshot the decision core runs on.
   `persist=false` (default) marks `NonSerialized` (transient, matches every shipped puppet);

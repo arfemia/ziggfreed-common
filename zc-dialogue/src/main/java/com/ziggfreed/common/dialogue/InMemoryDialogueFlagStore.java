@@ -20,7 +20,7 @@ import javax.annotation.Nonnull;
  * <p>Keyed by player UUID and static, because the state has to outlive the per-render context that
  * reads it while needing no component, no codec and no saved world. {@link #forgetPlayer} is what a
  * consumer with a shorter window than a login - a minigame round, an instance visit - calls at its
- * own boundary; the wiring root already calls it when the player disconnects.
+ * own boundary; {@code DialogueBootstrap} already calls it when the player disconnects.
  */
 public final class InMemoryDialogueFlagStore {
 
@@ -36,7 +36,7 @@ public final class InMemoryDialogueFlagStore {
     }
 
     /**
-     * Drop everything this player remembers for the session. Called from the wiring root when they
+     * Drop everything this player remembers for the session. Called from {@code DialogueBootstrap} when they
      * disconnect, and callable by a consumer whose own session boundary is shorter than that.
      */
     public static void forgetPlayer(@Nonnull UUID playerId) {

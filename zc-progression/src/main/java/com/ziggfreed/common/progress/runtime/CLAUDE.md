@@ -116,8 +116,9 @@ conflict over, which is what a registry is for.
 - **An expensive value rides as a `Supplier` and a hook says whether it ANSWERS the moment.**
   `ProgressionFeedbackHook.answers(momentId)` defaults to yes (the honest answer for a hook that
   cannot tell), and a hook reading authored files knows for free - `ProgressionFeedbackHook.of(fire,
-  answers)` pairs the two when they live in different modules, which is exactly the wiring root's
-  case. `fire` asks the question BEFORE it builds the argument map, so a moment nobody authored
+  answers)` pairs the two when they live in different modules, which is exactly the case for
+  `zc-objectives`' `ProgressionBootstrap`, the registration that joins these engines to the
+  authored feedback files. `fire` asks the question BEFORE it builds the argument map, so a moment nobody authored
   costs the engine nothing; that is what lets `Quest_Objective_Progressed` be announced on every
   block broken, with its title and its step sentence composed only when a reader exists. It is an
   optimisation and never a decision: answering yes and doing nothing is correct, answering no is a
@@ -144,7 +145,7 @@ conflict over, which is what a registry is for.
 `ProgressionFactors` turns this runtime into four ordinary factor ids
 (`ziggfreedcommon:quest_completed` / `quest_completions` / `achievement_earned` /
 `achievement_points`), claimed process-wide through `FactorContributions` by ONE `contribute()` call
-from the wiring root. That is the shape because there is one progression per server and any number of
+from `zc-objectives`' `ProgressionBootstrap` at library setup. That is the shape because there is one progression per server and any number of
 vocabularies reading it: a storefront, a board, an NPC placement, a conversation and a loot roll all
 resolve the same ids without a single registration between them, and a consumer that genuinely wants
 its own engine answered instead uses `registerInto` on its own registry, which always outranks a

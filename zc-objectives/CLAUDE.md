@@ -65,7 +65,7 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
     so an owner who switched a system off for a player still has it off).
   - `objectives/questlist/` - the NPC quest page (`ZigNpcQuestPage`), its consumer seams
     (`NpcQuestPageDeps`), the pure ordering core (`NpcQuestSections`), and `NpcQuestPages`, the one
-    call a wiring root makes. Reward chips read through `zc-loot`'s shared `RewardChips` (the
+    call `ProgressionBootstrap` registers as the default quest-list host. Reward chips read through `zc-loot`'s shared `RewardChips` (the
     `RewardChipSource` seam IS its `Source` shape), so this page, a storefront and a results strip
     all read one reward the same way.
   - `objectives/hud/` - the tracked-quest HUD (`TrackedQuestHud` over `zc-presentation`'s
@@ -105,32 +105,20 @@ producers) unless it registers its own equivalents through the same surface; the
 only genuinely optional pieces (the HUD attaches to every player and hides itself when nothing is
 pinned; an owner switches it off through the `enabled` supplier on its deps).
 
-**The wiring root registers the NPC quest page as the quest-list host.** The host interface lives in
-`zc-dialogue` and the root is the one place a registration joining two domains belongs, so both
-`NpcQuestPages.open` overloads are written to that interface's two shapes byte-exactly and the root
-supplies the object - pure delegation, no logic:
+**This module registers the NPC quest page as the quest-list host**
+(`ProgressionBootstrap.registerQuestListHost`, called once from the root's `setup()`). The host
+interface lives in `zc-dialogue`, which this module already depends on, and its ONE abstract method
+is the highlight-carrying shape - so the registration is a bare method reference and nothing else,
+pure delegation with no logic:
 
 ```java
-NpcQuestListHosts.register(NpcQuestPages.OWNER, NpcQuestPages.OWNER, new NpcQuestListHost() {
-    @Override public boolean open(String npcId, Store<EntityStore> store, Ref<EntityStore> ref,
-            Player player) {
-        return NpcQuestPages.open(npcId, store, ref, player);
-    }
-    @Override public boolean open(String npcId, String highlightQuestId, Store<EntityStore> store,
-            Ref<EntityStore> ref, Player player) {
-        return NpcQuestPages.open(npcId, highlightQuestId, store, ref, player);
-    }
-});
+NpcQuestListHosts.register(NpcQuestPages.OWNER, NpcQuestPages.OWNER, NpcQuestPages::open);
 ```
 
-**A bare `NpcQuestPages::open` method reference COMPILES here and silently loses every highlight**,
-which is the one mistake to know about. The host's highlighting method is a DEFAULT that delegates to
-the plain one, so a lambda or method reference - which can only ever implement the single abstract
-method - inherits that default and routes a hand-in to an unhighlighted list. The object form above
-overrides both. (The interface could remove the hazard by making the highlighting method the abstract
-one and the plain one the default, which would make a single method reference correct; that is
-`zc-dialogue`'s call.) A consumer wanting a different screen registers its own host; the first host to
-take the screen wins.
+`NpcQuestPages.open(npcId, highlightQuestId, store, ref, player)` matches that abstract shape
+byte-exactly (the plain overload without a highlight delegates into it), so a routed hand-in keeps
+its highlighted row. A consumer wanting a different screen registers its own host; the first host
+to take the screen wins.
 
 ## Tests
 

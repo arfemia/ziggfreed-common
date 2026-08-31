@@ -16,7 +16,8 @@ removes the disagreement structurally rather than by everybody remembering to ag
 |---|---|
 | [`PlacedBlockLedger`](PlacedBlockLedger.java) | the only reader-facing surface: `trackPlacement` / `consumePlacement` / `isPlaced` for positions, `trackPlacedItem` / `consumePlacedItem` for item ids, plus the policy and the item-half sweep |
 | [`PlacedBlockSection`](PlacedBlockSection.java) | where a BLOCK's answer is kept: one bit per block on the block's own chunk section, a plugin-registered `Component<ChunkStore>` |
-| [`PlacedBlockRecorder`](PlacedBlockRecorder.java) | the single ECS `PlaceBlockEvent` system that WRITES it, registered from the wiring root |
+| [`PlacedBlockRecorder`](PlacedBlockRecorder.java) | the single ECS `PlaceBlockEvent` system that WRITES it, registered from [`PlacedBlockBootstrap`](PlacedBlockBootstrap.java) at library setup |
+| [`PlacedBlockBootstrap`](PlacedBlockBootstrap.java) | the setup phase (`setupPlacedBlockLedger`, called once from the root's `setup()`): the chunk component FIRST, then the recorder, then the legacy-file retirement, each under its own guard |
 
 ## Rules that bite
 

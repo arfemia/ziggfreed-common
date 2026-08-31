@@ -297,7 +297,7 @@ the whole quest log, the ACHIEVEMENTS tab a two-panel browser. `ObjectiveBookPag
 (frame, tab strip, consumer chrome, every verb and partial update); [`book/BookQuestsTab`](book/BookQuestsTab.java)
 and [`book/BookAchievementsTab`](book/BookAchievementsTab.java) paint the two surfaces.
 `book/ObjectiveBookOpenInteraction` (`Type` name `ZigOpenObjectiveBook`) opens it, registered from
-the wiring root; the shipped `Server/Item/Items/Consumables/Ziggfreed_Objective_Book.json` chains
+`runtime/ProgressionBootstrap` at library setup; the shipped `Server/Item/Items/Consumables/Ziggfreed_Objective_Book.json` chains
 it off a short Charging hold. Nothing hands the item out: it is a `/give` or an authored reward,
 by design.
 
@@ -519,12 +519,12 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
   and the flavor line is the fallback, so content carrying per-state paragraphs reads with them and
   content carrying none is unaffected. It is a DEFAULT-bodied seam addition rather than a schema leaf:
   the words already exist under the consumer's own convention keys.
-- **Registration is in the wiring root, and it is an OBJECT rather than a method reference** - the
-  hazard is written out in full in the [module router](../../../../../../CLAUDE.md), because the
-  method-reference form compiles and silently drops every highlight. Both `NpcQuestPages.open`
-  overloads match the host interface's two shapes byte-exactly; the root supplies an implementation
-  overriding both. A consumer that wants a different screen registers its own host and outranks
-  nothing - first host to take the screen wins.
+- **Registration is `ProgressionBootstrap.registerQuestListHost` (this module), a bare method
+  reference** - the host interface's one abstract method is the highlight-carrying shape, which
+  `NpcQuestPages.open(npcId, highlightQuestId, store, ref, player)` matches byte-exactly, so
+  `NpcQuestPages::open` carries every highlight (details in the
+  [module router](../../../../../../CLAUDE.md)). A consumer that wants a different screen registers
+  its own host and outranks nothing - first host to take the screen wins.
 - **`.ui` contract**: `Pages/ZigNpcQuestPage.ui` plus zc-presentation's shared appended
   `Pages/ZigSelectRow.ui` (ONE template for both a quest row and a section heading, since a list
   mixing two templates would give two different child sets at one index; the commerce pages append

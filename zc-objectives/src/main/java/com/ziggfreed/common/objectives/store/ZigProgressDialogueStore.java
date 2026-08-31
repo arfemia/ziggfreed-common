@@ -37,7 +37,7 @@ import com.ziggfreed.common.util.SafeLog;
  */
 public final class ZigProgressDialogueStore implements DialogueMemories.PersistentStore {
 
-    /** The single instance the wiring root installs; it holds no state of its own. */
+    /** The single instance {@code DialogueBootstrap} installs; it holds no state of its own. */
     public static final ZigProgressDialogueStore INSTANCE = new ZigProgressDialogueStore();
 
     private ZigProgressDialogueStore() {

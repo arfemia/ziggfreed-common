@@ -53,7 +53,7 @@ import com.ziggfreed.common.util.SafeLog;
  * kept, and nothing would have told any other that its authors' memories were never being reset.
  *
  * <p>The quest engine calls it ITSELF, through the reset hook the progression module declares and
- * the wiring root fills with {@link #forgetQuest(Subject, String)} - so a quest abandoned, a
+ * {@code DialogueBootstrap} fills with {@link #forgetQuest(Subject, String)} - so a quest abandoned, a
  * repeatable coming round, or a bounty re-offered forgets what its conversations remembered on
  * every server, whoever wrote the quest.
  *
@@ -120,7 +120,7 @@ public final class DialogueMemories {
     private DialogueMemories() {
     }
 
-    /** Install the persistent backend. Called once, from the wiring root's {@code setup()}. */
+    /** Install the persistent backend. Called once, from {@code DialogueBootstrap} at library setup. */
     public static void install(@Nonnull PersistentStore store) {
         persistent = store;
     }
@@ -230,7 +230,7 @@ public final class DialogueMemories {
 
     /**
      * End this player's SESSION: drop everything declared {@code Session} and leave the persistent
-     * half alone. The wiring root calls it on disconnect; a consumer whose own boundary is shorter
+     * half alone. {@code DialogueBootstrap} calls it on disconnect; a consumer whose own boundary is shorter
      * (a minigame round, an instance visit) calls it at that boundary too.
      */
     public static void forgetSession(@Nullable UUID playerId) {
@@ -300,7 +300,7 @@ public final class DialogueMemories {
         SafeLog.warn("[dialogue] no persistent memory backend is installed, so every memory"
                 + " lasts only as long as the player's session. A conversation's first-visit"
                 + " beats and one-shot gifts will come back on their next login. The fill is"
-                + " DialogueMemories.install(PersistentStore) from the wiring root's setup();"
+                + " DialogueMemories.install(PersistentStore) at library setup;"
                 + " a unit JVM with no server anywhere near it is the one place this is expected.");
         return true;
     }

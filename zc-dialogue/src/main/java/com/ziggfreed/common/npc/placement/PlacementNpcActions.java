@@ -6,8 +6,9 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Registers the placement engine's own NPC action with the engine.
  *
- * <p>Called once from {@code ZiggfreedCommonPlugin.setup()}, BEFORE any NPC role asset that
- * references {@link #PLACEMENT_INTERACT_TYPE} loads - a role naming an unregistered action type
+ * <p>Called once from {@code NpcBootstrap.setupPlacementEngine} at library {@code setup()}, BEFORE
+ * any NPC role asset that references {@link #PLACEMENT_INTERACT_TYPE} loads - a role naming an
+ * unregistered action type
  * silently fails to parse, which shows up as an NPC that ignores press-F rather than as an error.
  *
  * <p>Idempotent and guarded: a second call is a no-op, and a failure logs rather than throwing

@@ -42,7 +42,8 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     cases of the same moment), `FeedbackMomentConfig` (the `defaults < pack < owner` fold) and
     `FeedbackEngine.fire(momentId, Subject, args)`. It knows nothing about what PRODUCED a moment,
     which is what lets a quest engine, a shop and a mod that does not exist yet share one authoring
-    surface; joining the two ends is the wiring root's job. A moment nobody authored a file for does
+    surface; joining the two ends belongs to a layer that sees both (`zc-objectives`'
+    `ProgressionBootstrap.registerFeedbackMoments` does it for the progression engines). A moment nobody authored a file for does
     nothing, a line naming a value the moment did not carry is skipped, and a part that throws costs
     its own part. A `Key` is authored WITHOUT a namespace and resolved through `i18n/ContentKeys`,
     exactly like every other authored key in this library (a full registered id passes through
@@ -66,7 +67,7 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     from chattering: an ordinary tick shows only when it crosses a multiple of that many percent
     (the finish always shows). `FeedbackEngine.answers(momentId)` is the cheap "is there a file for
     this at all" question a producer asks before composing what an expensive moment would carry,
-    and the wiring root pairs it with the reaction through `ProgressionFeedbackHook.of`.
+    and `ProgressionBootstrap` pairs it with the reaction through `ProgressionFeedbackHook.of`.
     `FeedbackAudience` is the one thing a static file cannot answer: the SUBJECT's own handle says
     whether this player wants the personal notification for this moment, told the moment's values
     plus `milestone` (whether a progress tick crossed the authored mark) so a consumer's own

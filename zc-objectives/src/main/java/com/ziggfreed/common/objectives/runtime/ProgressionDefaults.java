@@ -123,8 +123,8 @@ public final class ProgressionDefaults {
     // ==================== registration ====================
 
     /**
-     * Register every default part. Call from the wiring root's {@code setup()}, before any consumer's
-     * - though rank, not order, is what actually decides who wins.
+     * Register every default part. Call from {@code ProgressionBootstrap} at library {@code setup()},
+     * before any consumer's - though rank, not order, is what actually decides who wins.
      */
     public static synchronized void register() {
         if (registered) {
@@ -199,7 +199,7 @@ public final class ProgressionDefaults {
     /**
      * The kinds this library's own producers fire, as one readable list.
      *
-     * <p>Named rather than counted because the wiring root's failure line uses it too: if
+     * <p>Named rather than counted because the bootstrap's failure line uses it too: if
      * {@link #install} throws part way, the producers after the throw were never registered and
      * their moments simply stop happening, which is the one failure here nothing else reports.
      */

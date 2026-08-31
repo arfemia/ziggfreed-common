@@ -44,7 +44,7 @@ compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggre
   chunks cost memory and nothing is ever scanned or rewritten on a timer; placed ITEM ids stay an
   in-memory per-player count that expires in minutes and is deliberately not persisted.
   `PlacedBlockRecorder` is the single ECS `PlaceBlockEvent` system that writes it, wired
-  from the wiring root. **The ledger is the LIBRARY's, not a consumer's**: any mod counting block
+  from this module's own `placed/PlacedBlockBootstrap` (called once from the root's `setup()`). **The ledger is the LIBRARY's, not a consumer's**: any mod counting block
   breaks or pickups wants the same refusal, and one authority is what keeps XP, statistics, quests
   and achievements from disagreeing about a single break. Its `Policy` is three independent knobs
   read LIVE (`enabled` / `guardsPlacementsBy` / `itemExpireMinutes`), so a consumer whose

@@ -223,8 +223,9 @@ over these belongs in a Factors file.
   `0` rather than this package's usual unanswerable `null` precisely so `Max: 0` has something to
   match - a `null` would shut the `Max: 0` gate on the very servers it exists for - but that same
   `0` is why the bounds-less shortcut fails for this id where it works for every other one. A
-  MALFORMED `Param` still reads `null`. Contributed once from the wiring root, so every vocabulary
-  on the server resolves it with nothing to wire.
+  MALFORMED `Param` still reads `null`. Contributed once at library setup (`zc-objectives`'
+  `ProgressionBootstrap`, beside the progression readings), so every vocabulary on the server
+  resolves it with nothing to wire.
 
 ## The portable standard library (zc-entity)
 
@@ -300,8 +301,9 @@ over these belongs in a Factors file.
   achievement is earned the moment its criteria are met and its claim is a separate courtesy. They
   live beside the runtime that answers them because that is the one progression a server has,
   whoever contributed to it.
-- **They are CONTRIBUTED, not registered per consumer**: the wiring root calls `contribute()` once,
-  so every vocabulary on the server resolves them - a storefront's `Requires`, a board, a placement
+- **They are CONTRIBUTED, not registered per consumer**: the library calls `contribute()` once at
+  its own setup (`ProgressionBootstrap.setupProgressionRuntime`), so every vocabulary on the server
+  resolves them - a storefront's `Requires`, a board, a placement
   gate, a dialogue condition, a loot roll - with nothing to wire. `registerInto` is the same four
   ids over somebody else's engine, for a consumer running a private one.
 - **An id nothing knows reads `null`, never `0`.** A mistyped quest id answering `0` would read as
@@ -341,9 +343,10 @@ and it is gate-able, scale-able and roll-able from that moment on.
   subject (a placement gate is asked before anything stands there to ask about).
 - **`dialogue`** - the generic `{"Type":"Factor", Factor/Param/Min/Max}` condition, resolved against
   the registry installed into the shared engine's ONE factor slot (`DialogueEngine.installFactors`,
-  first-install-wins); store + subject are both the player. The library's own wiring root installs
-  the `hytale:` standard library into that slot at setup (`ZiggfreedCommonPlugin
-  .registerDialogueVocabulary` - the root because zc-dialogue cannot see zc-entity), so a bare
+  first-install-wins); store + subject are both the player. The library itself installs
+  the `hytale:` standard library into that slot at setup (`zc-objectives`' `DialogueBootstrap
+  .registerDialogueVocabulary` - hosted there because zc-dialogue cannot see zc-entity, and
+  zc-objectives sees both), so a bare
   server's `Factor` conditions resolve out of the box; a sandbox engine built with NO registry still
   fails every condition closed after one warn. The slot being singular is also why a mod CONTRIBUTES
   the ids its own dialogues gate on: the holder answers its own registrations plus the process-wide
@@ -351,7 +354,8 @@ and it is gate-able, scale-able and roll-able from that moment on.
 - **a CONTRIBUTING mod** - one that registers ids through `FactorContributions` rather than reading
   any vocabulary of its own, so its numbers reach every consumer's content with no edge in either
   direction (a mob-difficulty mod publishing rarity / difficulty / region readings is the shape).
-  The library's own progression readings are contributed the same way, from the wiring root.
+  The library's own progression readings are contributed the same way, from `zc-objectives`'
+  `ProgressionBootstrap` at library setup.
 - **a shared `Requires` block** -
   [`progress/gate`](../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/progress/gate/CLAUDE.md)'s
   `Factors` leaf is a `FactorCondition[]` over the consumer's registry, so a requirement on any

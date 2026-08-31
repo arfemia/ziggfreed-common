@@ -4,23 +4,16 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.UUID;
 
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.logger.HytaleLogger;
-import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.events.AddWorldEvent;
-import com.hypixel.hytale.server.core.universe.world.events.RemoveWorldEvent;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.FrameworkAssetRegistrar;
 import com.ziggfreed.common.board.asset.BoardConfig;
-import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.commerce.CommerceComponent;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.command.ZigCommerceCommand;
@@ -31,19 +24,10 @@ import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.commerce.fold.CurrencyRewardKind;
 import com.ziggfreed.common.commerce.page.CurrencyChipReading;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
-import com.ziggfreed.common.dialogue.DialogueEngine;
-import com.ziggfreed.common.dialogue.DialogueMemories;
-import com.ziggfreed.common.quest.QuestResets;
-import com.ziggfreed.common.rotation.SelectionStrategies;
-import com.ziggfreed.common.shop.asset.ShopConfig;
-import com.ziggfreed.common.shop.asset.ShopPoolConfig;
-import com.ziggfreed.common.entity.PlayerIdentityCache;
-import com.ziggfreed.common.entity.flair.ZigFlairComponent;
-import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
+import com.ziggfreed.common.entity.EntityBootstrap;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
-import com.ziggfreed.common.factor.ModFactors;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
 import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEditorDataSets;
@@ -55,36 +39,19 @@ import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.stamp.StackStatsStamper;
 import com.ziggfreed.common.loot.stamp.StamperRegistry;
-import com.ziggfreed.common.npc.NpcActions;
+import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
-import com.ziggfreed.common.npc.NpcQuestListHosts;
-import com.ziggfreed.common.objectives.questlist.NpcQuestPages;
-import com.ziggfreed.common.npc.NpcTalkDialogue;
-import com.ziggfreed.common.npc.TalkCredits;
-import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
-import com.ziggfreed.common.npc.placement.NpcPlacementLedger;
-import com.ziggfreed.common.npc.placement.NpcPlacementOverrides;
-import com.ziggfreed.common.npc.placement.command.ZigNpcCommand;
-import com.ziggfreed.common.npc.placement.NpcPlacementReconciler;
-import com.ziggfreed.common.npc.placement.PlacedNpcComponent;
-import com.ziggfreed.common.npc.placement.PlacementMarkerSystem;
 import com.ziggfreed.common.npc.placement.PlacementFactorRegistry;
-import com.ziggfreed.common.npc.placement.PlacementNpcActions;
-import com.ziggfreed.common.objectives.dialogue.ActiveObjectiveHeader;
-import com.ziggfreed.common.objectives.book.ObjectiveBookInteractions;
-import com.ziggfreed.common.objectives.command.ZigProgressCommand;
+import com.ziggfreed.common.objectives.dialogue.DialogueBootstrap;
+import com.ziggfreed.common.objectives.runtime.ProgressionBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
-import com.ziggfreed.common.objectives.store.ZigProgressComponent;
-import com.ziggfreed.common.objectives.store.ZigProgressDialogueStore;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
-import com.ziggfreed.common.progress.runtime.ProgressionFactors;
-import com.ziggfreed.common.progress.runtime.ProgressionFeedbackHook;
-import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.reward.EffectRewardKind;
+import com.ziggfreed.common.rotation.SelectionStrategies;
+import com.ziggfreed.common.shop.asset.ShopConfig;
+import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.util.SafeLog;
-import com.ziggfreed.common.world.placed.PlacedBlockLedger;
-import com.ziggfreed.common.world.placed.PlacedBlockRecorder;
-import com.ziggfreed.common.world.placed.PlacedBlockSection;
+import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
 
 /**
  * Entry point for Ziggfreed Common, a shared, mod-agnostic Hytale utility mod.
@@ -98,48 +65,37 @@ import com.ziggfreed.common.world.placed.PlacedBlockSection;
  * no per-player component, and no Perfect Utils coupling here - the only dependency is the Hytale
  * server jar.
  *
- * <p>The static primitives register nothing (a consumer calls them directly), but this plugin DOES
- * own ten registrations of its own:
+ * <p>The static primitives register nothing (a consumer calls them directly), and the library's own
+ * registrations live in per-module bootstraps this class calls in one authoritative order:
+ * {@code EntityBootstrap} (zc-entity), {@code NpcBootstrap} (zc-dialogue),
+ * {@code PlacedBlockBootstrap} (zc-world), and {@code ProgressionBootstrap} +
+ * {@code DialogueBootstrap} (zc-objectives). Each bootstrap lives in the module that already sees
+ * everything its phase wires, so the phase can be read and reasoned about without standing up the
+ * whole plugin. What remains a ROOT-OWNED body is only what no single module can host, each phase
+ * pinned by a specific line:
  * <ul>
- *   <li>the per-player COMPONENT types the library's own state is kept on (progress, commerce,
- *       and the unlocked-flair set), because a component type registered after a world has loaded
- *       cannot be read off entities that were saved carrying it - so none of them can wait to find
- *       out whether a consumer brings its own store;</li>
- *   <li>the {@code /zigcommerce} admin command family, because the module that owns an engine owns
- *       the commands that drive it, and its permission nodes are derived and enforced by the command
- *       system itself;</li>
- *   <li>the framework asset stores ({@link FrameworkAssetRegistrar}), so common owns each store at
- *       {@code Server/ZiggfreedCommon/<Type>/} exactly once;</li>
- *   <li>the two generic destinations ({@link NpcDestinations}), because a conversation is this
- *       library's own engine and a character's quest list routes through a host seam, so neither
- *       needs anything a consumer has to wire;</li>
- *   <li>the Asset Editor pick lists for the fields naming a factor id ({@link EditorDataSets}),
- *       because the vocabulary they offer spans the placement registry and the Factors assets and
- *       only this wiring root can see both;</li>
- *   <li>the NPC placement engine's component, marker system, press-F action and first-player-ready
- *       content audit, because that engine is common's own and no consumer can be asked to register
- *       another mod's pieces;</li>
- *   <li><b>its own {@code AddWorldEvent}/{@code RemoveWorldEvent} listeners.</b> World eviction
- *       used to be driven only from CONSUMER listeners, so with two consumer mods installed the
- *       fan-out fired twice per world. That is harmless for an evictor that removes a map entry
- *       and corrupting for one that maintains a reference count, which the placement chunk-pin
- *       bookkeeping does. Common driving it itself, plus the idempotence guard in
- *       {@link WorldEvictors}, makes the count right however many consumers are installed.</li>
- *   <li><b>the dialogue engine's memory store</b> ({@link #registerDialogueMemories}), because the
- *       persistent half of it is kept on a component in the module that depends on the dialogue
- *       one - so the dialogue module declares a seam it structurally cannot fill, and this is the
- *       one place both ends are visible;</li>
- *   <li><b>the dialogue engine's factor vocabulary</b> ({@link #registerDialogueVocabulary}), for
- *       the mirrored reason: the standard library it should default to lives in the entity module
- *       the dialogue one cannot see, so without this root a bare server's {@code Factor}
- *       conditions would all fail closed;</li>
- *   <li><b>the {@link PlayerIdentityCache} lifecycle listeners.</b> The cache is common's own
- *       primitive and the only supported way to identify a player off the world thread, so it has
- *       to be kept current here rather than by whichever consumer happens to read it.</li>
- *   <li>the {@link PerformerIdentityComponent} station-performer identity type, for the same reason
- *       as the other component types above: a consumer must not be trusted to remember to register
- *       another library's component before any world loads.</li>
+ *   <li>{@link #registerDestinations()} - {@code NpcDestinations} alone is zc-dialogue's, but
+ *       {@code CommerceDestinations.register()} pins the pair here: nothing in the library depends
+ *       on zc-commerce, and commerce may never import dialogue (the reverse-edge ban in
+ *       zc-commerce's build file), so no module can seed both;</li>
+ *   <li>{@link FrameworkAssetRegistrar#registerAll} - the framework asset stores, owned at
+ *       {@code Server/ZiggfreedCommon/<Type>/} exactly once; its registrations span the commerce,
+ *       dialogue, progression and instance domains at once, and only this wiring root sees all of
+ *       them;</li>
+ *   <li>{@link #registerEditorDataSets()} - the Asset Editor pick lists; pinned by its
+ *       {@code CommerceEditorDataSets} datasets (currencies, shops, shop pools, boards, selection
+ *       types), which sit beside loot, progression and factor datasets no module could reach
+ *       together with them;</li>
+ *   <li>{@link #registerLootVocabulary()} - pinned by
+ *       {@code EffectRewardKind.registerInto(RewardKinds.shared())}: {@link EffectRewardKind}
+ *       lives in this root module because the loot layer may never see the effect module, and no
+ *       module can see the root;</li>
+ *   <li>{@link #registerCommerce()} - pinned by
+ *       {@code CommerceEngines.installGates(ProgressionDefaults::gateEvaluator)}: nothing in the
+ *       library depends on zc-commerce, so no module sees commerce and objectives together.</li>
  * </ul>
+ * Both of the last two stay WHOLE rather than being split so an orphan line could move: the one
+ * pinned line documents the constraint better than a phase scattered across two files would.
  *
  * <p><b>REGISTRATION ONLY (build-enforced).</b> This class registers, wires and populates; it never
  * DECIDES. The wiring root is the one place in the library where an edge between any two modules is
@@ -147,14 +103,12 @@ import com.ziggfreed.common.world.placed.PlacedBlockSection;
  * logic no module can be tested or reasoned about without standing up the whole plugin. When a
  * choice has to be made, it belongs in the module that owns it, behind a seam this class fills.
  * {@code RootRegistrationOnlyTest} fails the build on a loop, a {@code switch} or an {@code else}
- * here; a try/catch guard, a null-or-early-return {@code if}, and a null-defaulting ternary all
+ * here AND in every module's {@code *Bootstrap} - the rule follows registration code wherever it
+ * lives; a try/catch guard, a null-or-early-return {@code if}, and a null-defaulting ternary all
  * pass. The escape hatch is {@code // ROOT-LOGIC-OK: <reason>} with a real reason, and reaching for
  * it should feel like a defeat.
  */
 public class ZiggfreedCommonPlugin extends JavaPlugin {
-
-    /** Who the library attributes its own registrations to in every shared ledger. */
-    private static final String LIBRARY_OWNER = "ziggfreed-common";
 
     /**
      * The library's logger, kept here as a convenience for anything already holding the plugin
@@ -191,180 +145,40 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         registerEditorDataSets();
         registerLootVocabulary();
         registerCommerce();
-        setupPlacementEngine();
-        registerPerformerIdentity();
-        registerFlairs();
-        setupTalkCredit();
-        registerWorldLifecycle();
-        registerPlayerIdentity();
-        setupPlacedBlockLedger();
-        setupProgressionRuntime();
-        registerFeedbackMoments();
-        registerDialogueVocabulary();
-        registerDialogueMemories();
-        registerQuestListHost();
+        NpcBootstrap.setupPlacementEngine(this);
+        DialogueBootstrap.registerActiveObjectiveHeader();
+        EntityBootstrap.registerPerformerIdentity(this);
+        EntityBootstrap.registerFlairs(this);
+        NpcBootstrap.setupTalkCredit(this);
+        NpcBootstrap.registerWorldLifecycle(this);
+        EntityBootstrap.registerPlayerIdentity(this);
+        PlacedBlockBootstrap.setupPlacedBlockLedger(this);
+        ProgressionBootstrap.setupProgressionRuntime(this);
+        ProgressionBootstrap.registerFeedbackMoments();
+        DialogueBootstrap.registerDialogueVocabulary();
+        DialogueBootstrap.registerDialogueMemories(this);
+        ProgressionBootstrap.registerQuestListHost();
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
     }
 
     /**
-     * The library's own NPC quest page is the DEFAULT target the Quests destination opens - a bare
-     * server gets a working quest list from this jar alone. A consumer wanting a different screen
-     * registers its own host under its own id; the walk tries hosts in sorted id order.
+     * Seed the two destinations every server has - a conversation and a character's quest list - into
+     * the shared routing vocabulary.
+     *
+     * <p>It runs in {@code setup()} because a file naming a destination {@code Type} nothing has
+     * registered fails to load, and assets are read only after every plugin's setup has returned.
+     * Both belong to common rather than to a consumer: the library owns the dialogue engine, and the
+     * quest list routes to whatever quest UI registered a host, which is nothing to wire where none
+     * did.
      */
-    private void registerQuestListHost() {
+    private void registerDestinations() {
         try {
-            NpcQuestListHosts.register("ziggfreedcommon", "ziggfreedcommon", NpcQuestPages::open);
+            NpcDestinations.register();
+            CommerceDestinations.register();
         } catch (Throwable t) {
-            SafeLog.warn("[questlist] default quest-page host wiring failed", t);
+            SafeLog.warn("[destination] could not seed the generic destinations", t);
         }
-    }
-
-    /**
-     * Wire this library's parts of THE shared progression runtime: the persisted per-player progress
-     * component, the Objective Book's interaction Type (which the shipped book item names, so it
-     * must be registered before any asset decode), the default registrations plus the player
-     * lifecycle and generic producer systems behind {@link ProgressionDefaults#install}, and the
-     * {@code /zigprogress} admin family that drives the runtime ({@link ZigProgressCommand}).
-     *
-     * <p>Every registration is unconditional, and none of them decides anything. There is one
-     * runtime per server whoever is on it; a consumer that brings its own store or gates registers
-     * them at its own {@code setup()} and outranks the defaults registered here. A component type
-     * registered after a world has loaded cannot be read off entities saved carrying it, and an ECS
-     * system is a setup-time registration, so neither can wait for that. The five generic producers
-     * always run into whichever store is registered, and the component is attached to every player
-     * either way, because it also holds what conversations remember. The sixth producer, the
-     * instance-round listener, is not an ECS system at all (a round ending is announced about a group
-     * of players on the shared bus rather than happening to one entity) and is registered by the same
-     * {@code install} beside the five, so one place says what the library produces.
-     *
-     * <p>The progression READINGS ({@link ProgressionFactors#contribute()}) come next: four factor
-     * ids claimed process-wide, so any content anywhere - a storefront, a board, a placement, a
-     * conversation, a loot roll - can gate on a finished quest or an earned achievement with no Java
-     * and no dependency on the engine that owns the answer. It is a contribution rather than a
-     * registration into one vocabulary, which is why it belongs beside the runtime it reads and not
-     * inside any consumer's own setup.
-     *
-     * <p>{@link ModFactors#contribute()} runs right after it, claiming {@code hytale:mod_installed},
-     * the presence reading that lets one authored file be correct both on a server carrying some other
-     * mod and on a server without it. It is contributed from here for the same reason: a claim on an
-     * id belongs beside the thing that answers it, and the engine plugin table answers for everybody.
-     */
-    private void setupProgressionRuntime() {
-        try {
-            ZigProgressComponent.register(getEntityStoreRegistry());
-            ObjectiveBookInteractions.register(this);
-            ProgressionDefaults.install(this);
-            ProgressionFactors.contribute();
-            ModFactors.contribute();
-            getCommandRegistry().registerCommand(new ZigProgressCommand());
-        } catch (Throwable t) {
-            // Naming the kinds because this is the one failure nothing downstream reports: the
-            // producers are registered one after another, so a throw part way leaves the rest
-            // unregistered and their moments simply stop happening, in silence, for the whole boot.
-            SafeLog.warn("[progression] shared runtime wiring failed - some or all of "
-                    + ProgressionDefaults.producedKinds()
-                    + " will not produce quest or achievement progress this boot", t);
-        }
-    }
-
-    /**
-     * Join the progression engines' lifecycle MOMENTS to the engine that answers them from authored
-     * JSON, so a quest completing or an achievement being earned draws its toast, plays its jingle
-     * and runs its command with no Java anywhere.
-     *
-     * <p>The wiring root's job again, and for the same reason as the memory store: the two ends sit
-     * in modules that structurally cannot see each other. The progression module produces a moment
-     * and must never learn what a notification is; the presentation module knows what a
-     * notification is and must never learn what a quest is. This class is the one place both are
-     * visible.
-     *
-     * <p>It is a CONTRIBUTION, so a consumer mod that wants to react to the same moments registers
-     * its own hook beside this one and both fire. Nothing here can be displaced, and nothing here
-     * displaces anybody.
-     *
-     * <p>Registered through the same LIBRARY-DEFAULT registrar the rest of this library's own
-     * registrations use. Rank decides nothing for a contribution, but the rank recorded against an
-     * owner NAME is decided by whichever registration under it ran first, and this library's name
-     * must always read as a library default whoever got there first.
-     *
-     * <p>It is registered with its own "do I answer this moment?" question beside its reaction, so a
-     * moment nobody authored a file for costs the engine that announced it nothing - which is what
-     * lets one be announced on every objective tick.
-     */
-    private void registerFeedbackMoments() {
-        try {
-            ProgressionRuntime.defaults(ProgressionDefaults.OWNER).feedbackHook(
-                    ProgressionFeedbackHook.of(FeedbackEngine::fire, FeedbackEngine::answers));
-        } catch (Throwable t) {
-            SafeLog.warn("[feedback] could not wire the authored feedback moments", t);
-        }
-    }
-
-    /**
-     * Join the dialogue engine's memory to the place a persistent one is kept, and end a session's
-     * memories when the session does.
-     *
-     * <p>This is the wiring root's whole reason for existing, in one call. A memory whose author did
-     * not declare it {@code Session} outlives a restart, so it needs the persisted progress
-     * component - which lives in the module that DEPENDS on the dialogue one, so the dialogue module
-     * declares a seam and cannot fill it. Only this class can see both ends.
-     *
-     * <p>The disconnect listener is the other half of the same contract: {@code Session} means "for
-     * as long as this player is connected", and something has to be the moment that ends. A consumer
-     * whose own boundary is shorter - a minigame round, an instance visit - calls
-     * {@code DialogueMemories.forgetSession} at that boundary too.
-     *
-     * <p>The quest hook is the third: a memory declared to reset with a quest has to be forgotten
-     * when that quest is re-armed, and the two ends are again in modules that cannot see each other
-     * - the engine reporting the re-arm sits BELOW the dialogue module that holds the memory. So the
-     * progression module declares {@code QuestResets} and this fills it, and a declared lifetime is
-     * honoured on every server rather than by whichever consumer wrote a clear of its own.
-     */
-    private void registerDialogueMemories() {
-        try {
-            DialogueMemories.install(ZigProgressDialogueStore.INSTANCE);
-            QuestResets.install(DialogueMemories::forgetQuest);
-            getEventRegistry().register(PlayerDisconnectEvent.class, event -> {
-                PlayerRef playerRef = event.getPlayerRef();
-                UUID uuid = playerRef == null ? null : playerRef.getUuid();
-                if (uuid != null) {
-                    DialogueMemories.forgetSession(uuid);
-                }
-            });
-        } catch (Throwable t) {
-            SafeLog.warn("[dialogue] could not wire the dialogue memory store", t);
-        }
-    }
-
-    /**
-     * The factor vocabulary a conversation's {@code Factor} conditions resolve against: the
-     * portable {@code hytale:} standard library, installed into the dialogue engine's ONE factor
-     * slot so a pack gates an option on native engine data - a stat channel, what the player is
-     * holding - with no Java at all, on a server running nothing but this jar. It is wired from up
-     * here because the dialogue module cannot see the entity module that owns the standard
-     * library, and this root is the one place that sees both (the loot vocabulary above is seeded
-     * the same way for the same reason).
-     *
-     * <p>The slot is first-install-wins and this library loads before every consumer, so a
-     * consumer offering its own registry is refused and loses nothing: an id a mod's own
-     * conversations gate on belongs in the process-wide {@code FactorContributions} table, which
-     * every registry consults whoever holds the slot.
-     */
-    private void registerDialogueVocabulary() {
-        try {
-            DialogueEngine.installFactors(LIBRARY_OWNER, dialogueFactorVocabulary());
-        } catch (Throwable t) {
-            SafeLog.warn("[dialogue] could not install the dialogue factor vocabulary", t);
-        }
-    }
-
-    /** The portable engine readings about the acting player; nothing dialogue-specific in it. */
-    @Nonnull
-    private static FactorRegistry dialogueFactorVocabulary() {
-        FactorRegistry registry = new FactorRegistry("dialogue");
-        HytaleFactors.registerInto(registry, LIBRARY_OWNER);
-        return registry;
     }
 
     /**
@@ -378,6 +192,47 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * The dropdown is a convenience either way: a hand-written JSON never passes through the editor,
      * so the validators stay the real check, and a free-typed id still resolves.
      */
+    private void registerEditorDataSets() {
+        EditorDataSets.live(getEventRegistry(), EditorDataSets.PLACEMENT_FACTORS,
+                ZiggfreedCommonPlugin::factorVocabulary);
+        EditorDataSets.live(getEventRegistry(), LootEditorDataSets.LOOTABLES,
+                LootEditorDataSets::lootableIds);
+        EditorDataSets.live(getEventRegistry(), LootEditorDataSets.ROLL_POOLS,
+                LootEditorDataSets::rollPoolIds);
+        EditorDataSets.live(getEventRegistry(), LootEditorDataSets.REWARD_KINDS,
+                LootEditorDataSets::rewardKindIds);
+        EditorDataSets.live(getEventRegistry(), EditorDataSets.FACTORS,
+                ZiggfreedCommonPlugin::factorVocabulary);
+        // The quest vocabularies are per-consumer (each mod builds its own registries), so they are
+        // answered from whatever consumers have advertised, plus the engine-generic objective kinds
+        // every engine starts with.
+        EditorDataSets.live(getEventRegistry(), ProgressEditorDataSets.OBJECTIVE_KINDS,
+                ProgressEditorDataSets::objectiveKindIds);
+        EditorDataSets.live(getEventRegistry(), ProgressEditorDataSets.REWARD_KINDS,
+                ProgressEditorDataSets::rewardKindIds);
+        // The commerce pick lists answer off the folded content itself, so an author picks a wallet,
+        // a storefront, a shelf or a board that this server genuinely has - and a pack loaded later
+        // simply widens the next answer.
+        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.CURRENCIES,
+                CurrencyConfig.getInstance()::ids);
+        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.SHOPS,
+                ShopConfig.getInstance()::ids);
+        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.SHOP_POOLS,
+                ShopPoolConfig.getInstance()::ids);
+        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.BOARDS,
+                BoardConfig.getInstance()::ids);
+        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.SELECTION_TYPES,
+                SelectionStrategies::types);
+    }
+
+    /** Every factor id an author can name here: registered placement providers plus derived assets. */
+    @Nonnull
+    private static Collection<String> factorVocabulary() {
+        Set<String> ids = new TreeSet<>(PlacementFactorRegistry.registeredIds());
+        ids.addAll(DerivedFactorConfig.getInstance().definedIds());
+        return ids;
+    }
+
     /**
      * The loot vocabulary a bare server starts with: the three framework reward kinds, the droplist
      * kind (a native drop table rolled onto the ground), the effect kind (registered from up here
@@ -415,6 +270,20 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // the presenter; a cue nobody authored a moment for does nothing, which is the feedback
         // engine's own rule.
         LootCues.register((cueId, subject, sourceId) -> FeedbackEngine.fire(cueId, subject, Map.of()));
+    }
+
+    /**
+     * The factor vocabulary a rolled reward reads through: the portable engine readings about the
+     * receiving player, plus the two instance readings ({@code instance_score} / {@code instance_win}),
+     * which answer only where the asking moment carried a run outcome and stay unanswerable - so
+     * fail-closed - everywhere else.
+     */
+    @Nonnull
+    private static FactorRegistry lootFactorVocabulary() {
+        FactorRegistry registry = new FactorRegistry("loot");
+        HytaleFactors.registerInto(registry, LootFactors.OWNER);
+        LootFactors.registerInto(registry, LootFactors.OWNER);
+        return registry;
     }
 
     /**
@@ -468,264 +337,6 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     event -> CommerceAudit.runLateAudit());
         } catch (Throwable t) {
             SafeLog.warn("[commerce] economy wiring failed", t);
-        }
-    }
-
-    /**
-     * The factor vocabulary a rolled reward reads through: the portable engine readings about the
-     * receiving player, plus the two instance readings ({@code instance_score} / {@code instance_win}),
-     * which answer only where the asking moment carried a run outcome and stay unanswerable - so
-     * fail-closed - everywhere else.
-     */
-    @Nonnull
-    private static FactorRegistry lootFactorVocabulary() {
-        FactorRegistry registry = new FactorRegistry("loot");
-        HytaleFactors.registerInto(registry, LootFactors.OWNER);
-        LootFactors.registerInto(registry, LootFactors.OWNER);
-        return registry;
-    }
-
-    /**
-     * Seed the two destinations every server has - a conversation and a character's quest list - into
-     * the shared routing vocabulary.
-     *
-     * <p>It runs in {@code setup()} because a file naming a destination {@code Type} nothing has
-     * registered fails to load, and assets are read only after every plugin's setup has returned.
-     * Both belong to common rather than to a consumer: the library owns the dialogue engine, and the
-     * quest list routes to whatever quest UI registered a host, which is nothing to wire where none
-     * did.
-     */
-    private void registerDestinations() {
-        try {
-            NpcDestinations.register();
-            CommerceDestinations.register();
-        } catch (Throwable t) {
-            SafeLog.warn("[destination] could not seed the generic destinations", t);
-        }
-    }
-
-    private void registerEditorDataSets() {
-        EditorDataSets.live(getEventRegistry(), EditorDataSets.PLACEMENT_FACTORS,
-                ZiggfreedCommonPlugin::factorVocabulary);
-        EditorDataSets.live(getEventRegistry(), LootEditorDataSets.LOOTABLES,
-                LootEditorDataSets::lootableIds);
-        EditorDataSets.live(getEventRegistry(), LootEditorDataSets.ROLL_POOLS,
-                LootEditorDataSets::rollPoolIds);
-        EditorDataSets.live(getEventRegistry(), LootEditorDataSets.REWARD_KINDS,
-                LootEditorDataSets::rewardKindIds);
-        EditorDataSets.live(getEventRegistry(), EditorDataSets.FACTORS,
-                ZiggfreedCommonPlugin::factorVocabulary);
-        // The quest vocabularies are per-consumer (each mod builds its own registries), so they are
-        // answered from whatever consumers have advertised, plus the engine-generic objective kinds
-        // every engine starts with.
-        EditorDataSets.live(getEventRegistry(), ProgressEditorDataSets.OBJECTIVE_KINDS,
-                ProgressEditorDataSets::objectiveKindIds);
-        EditorDataSets.live(getEventRegistry(), ProgressEditorDataSets.REWARD_KINDS,
-                ProgressEditorDataSets::rewardKindIds);
-        // The commerce pick lists answer off the folded content itself, so an author picks a wallet,
-        // a storefront, a shelf or a board that this server genuinely has - and a pack loaded later
-        // simply widens the next answer.
-        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.CURRENCIES,
-                CurrencyConfig.getInstance()::ids);
-        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.SHOPS,
-                ShopConfig.getInstance()::ids);
-        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.SHOP_POOLS,
-                ShopPoolConfig.getInstance()::ids);
-        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.BOARDS,
-                BoardConfig.getInstance()::ids);
-        EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.SELECTION_TYPES,
-                SelectionStrategies::types);
-    }
-
-    /** Every factor id an author can name here: registered placement providers plus derived assets. */
-    @Nonnull
-    private static Collection<String> factorVocabulary() {
-        Set<String> ids = new TreeSet<>(PlacementFactorRegistry.registeredIds());
-        ids.addAll(DerivedFactorConfig.getInstance().definedIds());
-        return ids;
-    }
-
-    /**
-     * Wire the NPC placement engine. The component and the press-F action must both be registered
-     * before any asset decode: a role naming an unregistered action type silently fails to parse,
-     * and a component registered after a world loads cannot be read off entities that were saved
-     * carrying it.
-     *
-     * <p>The last registration is the placement content's CROSS-ASSET audit, on the first player
-     * ready. Those checks ask another store, an open registry or the engine's loaded assets whether
-     * an id exists, and only by then have every store folded and every mod's {@code setup()} run -
-     * asked at fold time they report whatever had not loaded yet. The audit runs once per boot and
-     * stands down where a consumer claimed it, both decided by
-     * {@link NpcPlacementConfig#runLateAudit()}.
-     */
-    private void setupPlacementEngine() {
-        try {
-            PlacedNpcComponent.register(getEntityStoreRegistry());
-            PlacementNpcActions.register();
-            // The header note a conversation can show under the speaker's name. Contributed here
-            // rather than by a consumer because it reads the library's own quest engine, so it
-            // answers for every mod's quests and no mod has to ship one to get it.
-            ActiveObjectiveHeader.register(LIBRARY_OWNER);
-            getEntityStoreRegistry().registerSystem(new PlacementMarkerSystem());
-            NpcPlacementOverrides.getInstance().load();
-            getCommandRegistry().registerCommand(new ZigNpcCommand());
-            NpcPlacementLedger.getInstance().load();
-            getEventRegistry().registerGlobal(PlayerReadyEvent.class,
-                    event -> NpcPlacementConfig.getInstance().runLateAudit());
-        } catch (Throwable t) {
-            SafeLog.warn("[placement] engine setup failed", t);
-        }
-    }
-
-    /**
-     * Register the station-performer identity component ({@link PerformerIdentityComponent}), so a
-     * server running any performer-driven consumer (RPG Stations today) gets working orphan-reconcile
-     * without that consumer having to remember to register another library's component itself. A
-     * component registered after a world has loaded cannot be read off entities that were saved
-     * carrying it, so this cannot wait for a consumer's own {@code setup()} to decide whether it will.
-     */
-    private void registerPerformerIdentity() {
-        try {
-            PerformerIdentityComponent.register(getEntityStoreRegistry());
-        } catch (Throwable t) {
-            SafeLog.warn("[performer] could not register PerformerIdentityComponent", t);
-        }
-    }
-
-    /**
-     * Register the per-player unlocked-flair set ({@link ZigFlairComponent}) and hang its connect
-     * hook, so what a player unlocked is remembered by the library whoever grants it and whoever
-     * renders it - the same reasoning as the progress component: per-player state two different
-     * mods meet over belongs to the library both already load.
-     */
-    private void registerFlairs() {
-        try {
-            ZigFlairComponent.register(getEntityStoreRegistry());
-            ZigFlairComponent.install(this);
-        } catch (Throwable t) {
-            SafeLog.warn("[flair] could not register ZigFlairComponent", t);
-        }
-    }
-
-    /**
-     * Wire the talk-credit engine: register the {@code ZigTalkCredit} NPC action, join a
-     * conversation's {@code MarkTalked} beat to it, and drop a departing player's re-trigger windows.
-     *
-     * <p>All three belong to common rather than to a consumer. The dialogue engine deliberately stops
-     * at resolving WHO a beat is about, so something has to say what crediting that character means;
-     * the NPC action needs nothing from any consumer, unlike {@code ZigOpenDialogue}, which cannot
-     * work without one; and the re-trigger window is in memory, so a player who leaves and returns
-     * should not find their next conversation swallowed by the last one.
-     *
-     * <p>The action registration runs here, in {@code setup()}, because a role asset naming a
-     * {@code Type} nothing has registered yet silently fails to parse.
-     */
-    private void setupTalkCredit() {
-        try {
-            NpcActions.registerTalkCredit();
-            NpcTalkDialogue.install();
-            getEventRegistry().register(PlayerDisconnectEvent.class, event -> {
-                PlayerRef playerRef = event.getPlayerRef();
-                UUID uuid = playerRef == null ? null : playerRef.getUuid();
-                if (uuid != null) {
-                    TalkCredits.clearPlayer(uuid);
-                }
-            });
-        } catch (Throwable t) {
-            SafeLog.warn("[talk] could not wire the talk-credit engine", t);
-        }
-    }
-
-    /**
-     * Drive world eviction from common itself (see the class javadoc for why), and sweep a world
-     * for missing placements as it is added.
-     */
-    private void registerWorldLifecycle() {
-        try {
-            getEventRegistry().registerGlobal(AddWorldEvent.class, event -> {
-                try {
-                    if (event.isCancelled()) {
-                        return;
-                    }
-                    World added = event.getWorld();
-                    if (added == null) {
-                        return;
-                    }
-                    WorldEvictors.onWorldAdded(added);
-                    NpcPlacementReconciler.clearDebounce(added);
-                    NpcPlacementReconciler.requestSweep(added, added.getEntityStore().getStore());
-                } catch (Throwable t) {
-                    SafeLog.warn("[placement] world-add handling failed: " + t.getMessage());
-                }
-            });
-            getEventRegistry().registerGlobal(RemoveWorldEvent.class, event -> {
-                try {
-                    if (event.isCancelled()) {
-                        return;
-                    }
-                    World removed = event.getWorld();
-                    if (removed != null) {
-                        WorldEvictors.onWorldRemoved(removed);
-                    }
-                } catch (Throwable t) {
-                    SafeLog.warn("[placement] world-removal teardown failed: " + t.getMessage());
-                }
-            });
-        } catch (Throwable t) {
-            SafeLog.warn("[placement] could not register the world lifecycle listeners", t);
-        }
-    }
-
-    /**
-     * Keep {@link PlayerIdentityCache} current. Common owns these two listeners for the same reason
-     * it owns the world-lifecycle pair above: the cache is common's own primitive, several
-     * consumers read it off the world thread, and no consumer can be asked to register another
-     * mod's plumbing (nor should two installed consumers each register their own copy).
-     */
-    private void registerPlayerIdentity() {
-        try {
-            getEventRegistry().registerGlobal(PlayerReadyEvent.class, PlayerIdentityCache::onPlayerReady);
-            getEventRegistry().register(PlayerDisconnectEvent.class, PlayerIdentityCache::onPlayerDisconnect);
-        } catch (Throwable t) {
-            SafeLog.warn("[identity] could not register the player-identity listeners", t);
-        }
-    }
-
-    /**
-     * Wire the placed-block ledger: the ONE writer into it, plus the saved placements from the last
-     * run. The ledger is the library's answer to "did the breaker put that there themselves", read
-     * by this library's own producers and by every consumer's XP path, so common owns both the
-     * recording system and the file rather than asking a consumer to register another mod's
-     * plumbing.
-     *
-     * <p>The system registers at {@code setup()} because an ECS system is a setup-time
-     * registration, and the load happens here so the first break after a restart is answered from
-     * the same ledger the last one was.
-     *
-     * <p>The two halves are guarded SEPARATELY on purpose. Shared under one try, a failed recorder
-     * registration would skip the load as well, and the ledger would then answer "nobody placed
-     * that" for every position saved by the last run - the exploit the ledger exists to close,
-     * silently reopened for one boot by a failure in the other half.
-     */
-    private void setupPlacedBlockLedger() {
-        // The chunk component FIRST, and before any world loads: it is where a placement is
-        // recorded, so a recorder registered without it would remember nothing.
-        try {
-            PlacedBlockSection.register(getChunkStoreRegistry());
-        } catch (Throwable t) {
-            SafeLog.warn("[placed] the placed-block chunk component could not be registered:"
-                    + " nothing will be remembered this boot, so place-then-break pays out", t);
-        }
-        try {
-            getEntityStoreRegistry().registerSystem(new PlacedBlockRecorder());
-        } catch (Throwable t) {
-            SafeLog.warn("[placed] the placed-block recorder could not be registered: nothing will"
-                    + " be remembered this boot, so place-then-break pays out", t);
-        }
-        try {
-            PlacedBlockLedger.getInstance().retireLegacyFile();
-        } catch (Throwable t) {
-            SafeLog.warn("[placed] the retired placements file could not be renamed aside", t);
         }
     }
 

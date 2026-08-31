@@ -21,6 +21,7 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.LibraryOwner;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
@@ -155,7 +156,7 @@ public final class DialogueEngine {
     private static final RegistryLedger<FactorRegistry> SHARED_FACTORS = new RegistryLedger<>("dialogue");
 
     /** How the library attributes the generic vocabulary it seeds into the shared engine itself. */
-    private static final String LIBRARY_OWNER = "ziggfreed-common";
+    private static final String LIBRARY_OWNER = LibraryOwner.NAME;
 
     /**
      * Where the shared engine reports, when something other than the log has to hear it. Null means

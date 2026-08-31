@@ -51,8 +51,8 @@ import com.ziggfreed.common.util.SafeLog;
  * caller; a lookup that has not been populated yet returns {@code null}, and a caller is expected
  * to fail CLOSED on that rather than reach for a deprecated fallback.
  *
- * <p><b>Wiring.</b> {@code ZiggfreedCommonPlugin} registers both handlers itself, so a consumer
- * needs no setup: call {@link #uuidOf} and go.
+ * <p><b>Wiring.</b> {@code EntityBootstrap} registers both handlers itself at library setup, so a
+ * consumer needs no setup: call {@link #uuidOf} and go.
  */
 public final class PlayerIdentityCache {
 
@@ -128,7 +128,7 @@ public final class PlayerIdentityCache {
         }
     }
 
-    // ---- engine hooks (registered by ZiggfreedCommonPlugin) ----
+    // ---- engine hooks (registered by EntityBootstrap) ----
 
     /**
      * Cache the ready player's identity. Hops onto that player's own world first, because the UUID

@@ -85,7 +85,7 @@ public final class ModFactors {
     // ==================== registration ====================
 
     /**
-     * Claim {@link #MOD_INSTALLED} process-wide. One call from the wiring root's {@code setup()};
+     * Claim {@link #MOD_INSTALLED} process-wide. One call from {@code ProgressionBootstrap.setupProgressionRuntime};
      * from then on every {@link FactorRegistry} on the server resolves it, including registries built
      * before this ran. Idempotent - the provider is a stable method reference, so re-running a setup
      * re-registers the same instance silently.

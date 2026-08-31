@@ -31,8 +31,9 @@ import com.ziggfreed.common.util.SafeLog;
  * record, and a dialogue memory declared without {@code Session} means "survives a restart", so it
  * needs one. The dialogue module cannot hold it - this module depends on THAT one, and the edge
  * runs one way - so the state lives here and {@code DialogueMemories} reaches it through the seam
- * the wiring root fills with {@link ZigProgressDialogueStore}. That is also why the component is
- * attached to every player rather than only where these progression stores are the active ones: a
+ * this module's {@code DialogueBootstrap} fills with {@link ZigProgressDialogueStore}. That is
+ * also why the component is attached to every player rather than only where these progression
+ * stores are the active ones: a
  * conversation remembers things on a server whose quests belong to somebody else.
  *
  * <p><b>Twelve packed string leaves, not twelve collections.</b> Each one travels as a single
@@ -47,7 +48,7 @@ import com.ziggfreed.common.util.SafeLog;
  * logic in one place and unit-testable with no server anywhere near it.
  *
  * <p><b>Registration.</b> A library component has no plugin of its own, so
- * {@code ZiggfreedCommonPlugin} registers it once at {@code setup()} via
+ * {@code ProgressionBootstrap} registers it once at library {@code setup()} via
  * {@link #register(ComponentRegistryProxy)}, whether or not these stores end up being the active
  * ones: a component type registered after a world has loaded cannot be read off entities saved
  * carrying it, so it cannot wait to find out. Registering an unused type costs nothing - no entity

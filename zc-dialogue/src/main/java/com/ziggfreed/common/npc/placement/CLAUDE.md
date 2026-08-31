@@ -16,7 +16,7 @@ and a fourth-party mod can both compose against it without Java. Content is auth
 - **[`PlacedNpcComponent`](PlacedNpcComponent.java)** (`ZiggfreedCommon:PlacedNpc`) is the
   **despawn/orphan authority**: a sweep over it answers "what is standing that should not be"
   (placement deleted / gate denies / `Where` no longer matches). Registered once by
-  `ZiggfreedCommonPlugin`, attached on the **pre-add `Holder`** (no live-ref race). Its pure
+  `NpcBootstrap`, attached on the **pre-add `Holder`** (no live-ref race). Its pure
   snapshot is [`PlacedNpcIdentity`](PlacedNpcIdentity.java).
 - **[`NpcPlacementLedger`](NpcPlacementLedger.java)** is the **place authority**: a persisted
   `(world | placementId | anchorKey) -> uuid` row that survives both the chunk sleeping and the
@@ -320,13 +320,13 @@ registries are about where an NPC stands and whether it stands at all.
   is up, so the full audit belongs at first player-ready, never at a layer fold or at plugin setup.
 - **The two moments on [`NpcPlacementConfig`](NpcPlacementConfig.java)**: every layer merge calls
   `logFindings()`, which logs `auditFileLocal()` only; `runLateAudit()` runs and logs the full
-  `audit()` ONCE per boot, driven from the first `PlayerReadyEvent` by `ZiggfreedCommonPlugin`. A
+  `audit()` ONCE per boot, driven from the first `PlayerReadyEvent` by `NpcBootstrap`. A
   consumer that folds these placements into its own content report calls
   `claimLateAudit("<mod>")` at its `setup()` and common's own late audit stands down with one line
   naming it, so the same findings are reported once rather than twice. `lateAuditOwner()` is who
   holds the claim.
 
-## Wiring (what `ZiggfreedCommonPlugin` owns)
+## Wiring (what `NpcBootstrap` owns, called from the root's `setup()`)
 
 `PlacedNpcComponent.register(...)`, `PlacementNpcActions.register()`, the `PlacementMarkerSystem`,
 the overrides + ledger load, the first-`PlayerReadyEvent` listener driving
