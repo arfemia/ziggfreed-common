@@ -39,6 +39,7 @@ import com.ziggfreed.common.npc.NpcIdentityAsset;
 import com.ziggfreed.common.npc.NpcIdentityConfig;
 import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
+import com.ziggfreed.common.npc.placement.NpcPlacementOverrides;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.party.PartySettingsConfig;
 import com.ziggfreed.common.board.asset.BoardAsset;
@@ -254,9 +255,15 @@ public final class FrameworkAssetRegistrar {
                 new DefaultAssetMap<String, NpcPlacementAsset>(), "ZiggfreedCommon/NpcPlacements",
                 NpcPlacementAsset::getId, NpcPlacementAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, NpcPlacementAsset.class,
-                (LoadedAssetsEvent<String, NpcPlacementAsset, DefaultAssetMap<String, NpcPlacementAsset>> ev) ->
-                        NpcPlacementConfig.getInstance().mergePackLayer(
-                                AssetMergeAdapter.layer(ev.getAssetMap())));
+                (LoadedAssetsEvent<String, NpcPlacementAsset, DefaultAssetMap<String, NpcPlacementAsset>> ev) -> {
+                    NpcPlacementConfig.getInstance().mergePackLayer(
+                            AssetMergeAdapter.layer(ev.getAssetMap()));
+                    // The owner file's own placements land HERE rather than at setup, for the same
+                    // reason the commerce owner layers do: an owner entry is decoded against
+                    // whatever the packs already say about that id, so it has nothing to inherit
+                    // from until the pack layer has landed.
+                    NpcPlacementOverrides.getInstance().applyOwnerLayer();
+                });
 
         // --- NPC identities (Pattern A) - the OVERLAY on top of the naming convention: aliases, one
         //     character across two roles, a rename. Most NPCs need no file here at all, because a

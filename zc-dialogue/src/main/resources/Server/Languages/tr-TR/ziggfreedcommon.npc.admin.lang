@@ -1,0 +1,20 @@
+# The /zignpc admin command family: help text and answers.
+# The file name is the key PREFIX: an entry resolves as ziggfreedcommon.npc.admin.<key>.
+
+desc.family = Bu sunucudaki NPC yerleşimlerini incele ve yönet.
+desc.place = Bir NPC rolünü durduğun yere yerleştir ve orada tut.
+
+desc.arg.role = Burada duracak NPC rolü, rol dosyasının kimliğiyle.
+desc.arg.id = Yazılacak yerleşim kimliği. Varsayılan olarak rol kimliği.
+desc.arg.dialogue = F tuşunun açtığı konuşma. Varsayılan olarak karakterin görev listesi.
+desc.arg.world = Yerleşimin geçerli olduğu dünya. Varsayılan olarak içinde bulunduğun dünya.
+
+place.done = "{0}" ({1}) {2} içine yerleştirildi.
+place.at = {0}, {1}, {2} konumunda duruyor, {3} yönüne bakıyor.
+place.file = {0} dosyasına yazıldı; oradan düzenleyebilir veya kaldırabilirsin.
+place.needsPlayer = Bunu oyun içinde çalıştır: yerleşim durduğun yere yazılır ve konsol hiçbir yerde değildir.
+place.needsRole = Yerleştirilecek rolü --role=<role> ile belirt.
+place.needsWorld = Dünya belirlenemedi. --world=<name> ile bir tane belirt.
+place.noPosition = Konumun okunamadı, bu yüzden koyacak bir yer yok.
+place.idTaken = "{0}" zaten bir yerleşimin adı. --id=<id> ile başka bir kimlik seç veya mevcut olanı düzenle.
+place.writeFailed = {0} dosyasına yazılamadı. Dosya olduğu gibi bırakıldı.

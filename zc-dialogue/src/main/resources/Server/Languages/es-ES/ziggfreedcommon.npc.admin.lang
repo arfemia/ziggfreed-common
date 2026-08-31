@@ -1,0 +1,20 @@
+# The /zignpc admin command family: help text and answers.
+# The file name is the key PREFIX: an entry resolves as ziggfreedcommon.npc.admin.<key>.
+
+desc.family = Inspecciona y administra las colocaciones de PNJ de este servidor.
+desc.place = Coloca un rol de PNJ donde estás y mantenlo ahí.
+
+desc.arg.role = El rol de PNJ que debe estar aquí, por el id de su archivo de rol.
+desc.arg.id = El id de colocación que se escribirá. Por defecto, el id del rol.
+desc.arg.dialogue = La conversación que abre la tecla F. Por defecto, la lista de misiones del personaje.
+desc.arg.world = El mundo al que se aplica la colocación. Por defecto, aquel en el que estás.
+
+place.done = "{0}" ({1}) colocado en {2}.
+place.at = Situado en {0}, {1}, {2} mirando hacia {3}.
+place.file = Escrito en {0}, donde puedes editarlo o quitarlo.
+place.needsPlayer = Ejecuta esto en el juego: la colocación se escribe donde estás, y la consola no está en ninguna parte.
+place.needsRole = Indica el rol que hay que colocar con --role=<role>.
+place.needsWorld = No se pudo determinar el mundo. Indica uno con --world=<name>.
+place.noPosition = No se pudo leer tu posición, así que no hay dónde ponerlo.
+place.idTaken = "{0}" ya nombra una colocación. Elige otro id con --id=<id>, o edita la existente.
+place.writeFailed = No se pudo escribir en {0}. El archivo se dejó tal cual estaba.

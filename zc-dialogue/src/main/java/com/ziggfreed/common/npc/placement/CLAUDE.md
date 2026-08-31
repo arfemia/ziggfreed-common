@@ -254,8 +254,18 @@ registries are about where an NPC stands and whether it stands at all.
   reads the NPC's own stamp, resolves the placement's `Interact.destination()` (the `Dialogue` alias
   or the explicit `Open`, falling back to the character's quest list when the placement authors
   neither), and dispatches it through `ui/route/Destinations`. Reading identity off the ENTITY is
-  what lets one base role serve every placement in the server; a role cannot carry per-placement
-  data, so an action that encoded a destination would need one role per destination.
+  what lets one base role serve every placement in the server; a role cannot carry PER-PLACEMENT
+  data, so an action told its destination only in the role file would need one role per placement.
+  **An NPC with NO stamp is not a dead end**: the stamp is attached only by the sweep, so one spawned
+  by a command, an egg, a prefab or another mod carries none, and a press-F that found none used to
+  render its prompt and then silently do nothing. The builder therefore reads two OPTIONAL role-level
+  fields, `Dialogue` (a `StringHolder`, so a native `Variant` can bind it per character through its
+  template's own `Parameters`) and `Open` (raw JSON, decoded on FIRST PRESS-F rather than at role
+  load, since decoding marks the destination vocabulary as read and a role asset is read while mods
+  are still registering theirs; not computable, because a `Compute` object is not a destination).
+  They are a FALLBACK, never an override - a placement standing this NPC still decides, so one shared
+  role can be re-pointed per standing - and with no placement the identity comes from
+  `NpcIdentities.npcIdOfEntity` instead, so `@self` and a `MarkTalked` beat still resolve.
   **The identity travels with every open**, whatever the destination turns out to be: without it a
   `MarkTalked` beat has nobody to credit, `@self` substitutes nothing, and every quest-aware
   condition asks about a character with no name and is answered no. The placement knows exactly who

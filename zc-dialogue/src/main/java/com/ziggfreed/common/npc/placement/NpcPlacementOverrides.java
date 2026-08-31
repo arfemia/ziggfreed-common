@@ -15,6 +15,8 @@ import javax.annotation.Nullable;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.util.JsonOverrideWriter;
 import com.ziggfreed.common.util.OwnerFiles;
 import com.ziggfreed.common.util.SafeLog;
@@ -22,17 +24,33 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * The server owner's switch over placements, at {@code mods/ziggfreedcommon/npc-placements.json}.
  *
- * <p>It exists because an admin needs to stop an NPC a content pack ships WITHOUT editing that
- * pack (which an update would overwrite) and without waiting for a restart. It feeds the gate
- * chain, so a stop despawns whatever is already standing on the next sweep.
+ * <p>It exists because an admin needs to change an NPC a content pack ships WITHOUT editing that
+ * pack (which an update would overwrite) and without waiting for a restart. Switching one off feeds
+ * the gate chain, so a stop despawns whatever is already standing on the next sweep.
  *
  * <pre>{@code
  * {
  *   "mmo_hub":   { "enabled": false },   // one placement, by id
  *   "yourmod_*": { "enabled": false },   // every placement whose id starts with "yourmod_"
- *   "*":         { "enabled": false }    // everything, the global stop
+ *   "*":         { "enabled": false },   // everything, the global stop
+ *
+ *   // A whole placement, or any part of one: the same fields a pack authors.
+ *   "spawn_greeter": {
+ *     "Identity": { "Role": "MyMod_Guide" },
+ *     "Where":    { "Match": ["orbis"] },
+ *     "Anchor":   { "Coords": { "X": 120.5, "Y": 68.0, "Z": -44.5, "Yaw": 180.0 } },
+ *     "Interact": { "Dialogue": "guide_intro" }
+ *   }
  * }
  * }</pre>
+ *
+ * <p><b>An entry is a switch, a body, or both, and they never collide.</b> The switch is the
+ * lower-case {@code enabled} leaf; an asset's own fields all start upper-case, which the codec
+ * requires, so an entry carrying settings is telling the store what this placement IS while
+ * {@code enabled} still says whether it may stand. A body is decoded against whatever the packs
+ * already say about that id, so writing one leaf changes that leaf and keeps the rest. Only an
+ * entry naming ONE id may carry a body: a wildcard key describes no single placement, so settings
+ * under one are skipped and named.
  *
  * <p><b>One key grammar, no sections.</b> A key is a placement id, a trailing-{@code *} prefix, or
  * the bare {@code *}. The prefix form is how a whole mod's placements are addressed at once (ship
@@ -76,6 +94,14 @@ public final class NpcPlacementOverrides {
     @Nonnull
     private volatile Map<String, Boolean> entries = Map.of();
 
+    /**
+     * Immutable snapshot: placement id (lower-cased) to the authored placement BODY, exactly as
+     * written. Kept as raw JSON rather than decoded, because an entry inherits from whatever the
+     * packs say about its id and the packs have not folded when this file is first read.
+     */
+    @Nonnull
+    private volatile Map<String, JsonObject> bodies = Map.of();
+
     private NpcPlacementOverrides() {
     }
 
@@ -98,6 +124,7 @@ public final class NpcPlacementOverrides {
      */
     public void load() {
         Map<String, Boolean> parsed = new LinkedHashMap<>();
+        Map<String, JsonObject> parsedBodies = new LinkedHashMap<>();
         Path path = file;
         try {
             if (Files.exists(path)) {
@@ -106,7 +133,7 @@ public final class NpcPlacementOverrides {
                     JsonElement root = JsonParser.parseString(body);
                     if (root != null && root.isJsonObject()) {
                         if (OwnerFiles.schemaReadable(root.getAsJsonObject(), "placement", path)) {
-                            parse(root.getAsJsonObject(), parsed);
+                            parse(root.getAsJsonObject(), parsed, parsedBodies);
                         }
                     } else {
                         SafeLog.warn("[placement] " + path + " is not a JSON object - overrides ignored");
@@ -116,11 +143,14 @@ public final class NpcPlacementOverrides {
         } catch (Exception e) {
             SafeLog.warn("[placement] could not read " + path + ": " + e.getMessage());
             parsed.clear();
+            parsedBodies.clear();
         }
         entries = Collections.unmodifiableMap(parsed);
+        bodies = Collections.unmodifiableMap(parsedBodies);
     }
 
-    private static void parse(@Nonnull JsonObject root, @Nonnull Map<String, Boolean> out) {
+    private static void parse(@Nonnull JsonObject root, @Nonnull Map<String, Boolean> out,
+            @Nonnull Map<String, JsonObject> bodiesOut) {
         for (Map.Entry<String, JsonElement> e : root.entrySet()) {
             String key = e.getKey();
             if (OwnerFiles.isReservedKey(key)) {
@@ -130,11 +160,45 @@ public final class NpcPlacementOverrides {
             if (value == null || !value.isJsonObject()) {
                 continue;
             }
-            JsonElement enabled = value.getAsJsonObject().get(ENABLED);
+            JsonObject entry = value.getAsJsonObject();
+            String id = key.trim().toLowerCase(Locale.ROOT);
+
+            JsonElement enabled = entry.get(ENABLED);
             if (enabled != null && enabled.isJsonPrimitive() && enabled.getAsJsonPrimitive().isBoolean()) {
-                out.put(key.trim().toLowerCase(Locale.ROOT), enabled.getAsBoolean());
+                out.put(id, enabled.getAsBoolean());
+            }
+
+            if (!carriesBody(entry)) {
+                continue;
+            }
+            if (isPattern(id)) {
+                SafeLog.warn("[placement] the entry '" + key + "' matches placements by pattern, so it"
+                        + " can only switch them on and off - its other settings describe no single"
+                        + " placement and were skipped");
+                continue;
+            }
+            bodiesOut.put(id, entry);
+        }
+    }
+
+    /**
+     * Does this entry say anything BEYOND the on/off switch? The switch is the lower-case
+     * {@code enabled} leaf and an asset's own fields all start upper-case
+     * (the codec requires it), so the two can never be confused for one another and an entry may
+     * carry both.
+     */
+    private static boolean carriesBody(@Nonnull JsonObject entry) {
+        for (String key : entry.keySet()) {
+            if (!ENABLED.equals(key) && !OwnerFiles.isReservedKey(key)) {
+                return true;
             }
         }
+        return false;
+    }
+
+    /** Is {@code key} a wildcard match rather than one placement's id? */
+    private static boolean isPattern(@Nonnull String key) {
+        return key.endsWith(ALL);
     }
 
     /** Is {@code placementId} allowed by the owner file? Absent from every key means yes. */
@@ -190,6 +254,61 @@ public final class NpcPlacementOverrides {
     @Nonnull
     public Map<String, Boolean> all() {
         return entries;
+    }
+
+    /** The authored bodies, as raw JSON (diagnostics, a listing command). */
+    @Nonnull
+    public Map<String, JsonObject> allBodies() {
+        return bodies;
+    }
+
+    /**
+     * Decode whatever bodies this file carries and install them as the placement store's owner
+     * layer, replacing the previous one wholesale.
+     *
+     * <p><b>Call this once the pack layer has folded, never at plugin setup.</b> Each entry is
+     * decoded against what the packs already say about its id, so a file overriding one leaf of a
+     * placement somebody shipped keeps every other leaf; run before the packs land, that base is
+     * empty and a partial entry would silently become the whole placement. A single unreadable entry
+     * is skipped and named rather than costing the rest of the file.
+     */
+    public void applyOwnerLayer() {
+        NpcPlacementConfig config = NpcPlacementConfig.getInstance();
+        Map<String, JsonObject> snapshot = bodies;
+        if (snapshot.isEmpty()) {
+            config.mergeOwnerLayer(Map.of());
+            return;
+        }
+
+        Map<String, NpcPlacementAsset> layer = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonObject> e : snapshot.entrySet()) {
+            NpcPlacementAsset decoded = decode(e.getKey(), e.getValue(), config);
+            if (decoded != null) {
+                layer.put(e.getKey(), decoded);
+            }
+        }
+        config.mergeOwnerLayer(layer);
+        if (!layer.isEmpty()) {
+            SafeLog.info("[placement] " + file + ": " + layer.size() + " placement(s) authored or"
+                    + " overridden by the server owner");
+        }
+    }
+
+    /** One entry, decoded against whatever the packs already say about its id. */
+    @Nullable
+    private NpcPlacementAsset decode(@Nonnull String id, @Nonnull JsonObject body,
+            @Nonnull NpcPlacementConfig config) {
+        NpcPlacementAsset base = config.resolve(id);
+        try {
+            AssetExtraInfo.Data data =
+                    new AssetExtraInfo.Data(NpcPlacementAsset.class, id, base == null ? null : id);
+            return NpcPlacementAsset.CODEC.decodeAndInheritJsonAsset(
+                    RawJsonReader.fromJsonString(body.toString()), base, new AssetExtraInfo<>(data));
+        } catch (Exception ex) {
+            SafeLog.warn("[placement] " + file + ": the placement '" + id + "' could not be read, so"
+                    + " it was skipped: " + ex.getMessage());
+            return null;
+        }
     }
 
     // ==================== write ====================

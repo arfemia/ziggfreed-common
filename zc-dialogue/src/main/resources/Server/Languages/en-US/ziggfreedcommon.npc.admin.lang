@@ -1,0 +1,21 @@
+# The /zignpc admin command family: help text and answers.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.npc.admin.<key>.
+# The desc.* keys are what the engine's own help resolves a command or an argument through.
+
+desc.family = Inspect and administer the NPC placements on this server.
+desc.place = Stand an NPC role where you are, and keep it there.
+
+desc.arg.role = The NPC role to stand here, by its role file id.
+desc.arg.id = The placement id to write. Defaults to the role id.
+desc.arg.dialogue = The conversation pressing F opens. Defaults to the character's quest list.
+desc.arg.world = The world the placement applies to. Defaults to the one you are standing in.
+
+place.done = Placed "{0}" ({1}) in {2}.
+place.at = Standing at {0}, {1}, {2} facing {3}.
+place.file = Written to {0}, where you can edit or remove it.
+place.needsPlayer = Run this in game: the placement is written where you are standing, and the console is nowhere.
+place.needsRole = Name the role to stand, with --role=<role>.
+place.needsWorld = Could not tell which world to use. Name one with --world=<name>.
+place.noPosition = Could not read your position, so there is nowhere to put it.
+place.idTaken = "{0}" already names a placement. Choose another id with --id=<id>, or edit the existing one.
+place.writeFailed = Could not write to {0}. The file was left as it was.

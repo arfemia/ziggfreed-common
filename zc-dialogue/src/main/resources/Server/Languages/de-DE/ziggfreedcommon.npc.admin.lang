@@ -1,0 +1,20 @@
+# The /zignpc admin command family: help text and answers.
+# The file name is the key PREFIX: an entry resolves as ziggfreedcommon.npc.admin.<key>.
+
+desc.family = Die NPC-Platzierungen auf diesem Server ansehen und verwalten.
+desc.place = Eine NPC-Rolle dort aufstellen, wo du stehst, und dort behalten.
+
+desc.arg.role = Die NPC-Rolle, die hier stehen soll, anhand ihrer Rollendatei-ID.
+desc.arg.id = Die zu schreibende Platzierungs-ID. Standard ist die Rollen-ID.
+desc.arg.dialogue = Das Gespräch, das F öffnet. Standard ist die Questliste der Figur.
+desc.arg.world = Die Welt, für die die Platzierung gilt. Standard ist die Welt, in der du stehst.
+
+place.done = "{0}" ({1}) in {2} aufgestellt.
+place.at = Steht bei {0}, {1}, {2} mit Blickrichtung {3}.
+place.file = Nach {0} geschrieben, wo du sie bearbeiten oder entfernen kannst.
+place.needsPlayer = Führe das im Spiel aus: Die Platzierung wird dort geschrieben, wo du stehst, und die Konsole steht nirgends.
+place.needsRole = Nenne die aufzustellende Rolle mit --role=<role>.
+place.needsWorld = Die Welt konnte nicht bestimmt werden. Nenne eine mit --world=<name>.
+place.noPosition = Deine Position konnte nicht gelesen werden, also gibt es keinen Ort dafür.
+place.idTaken = "{0}" benennt bereits eine Platzierung. Wähle mit --id=<id> eine andere, oder bearbeite die vorhandene.
+place.writeFailed = {0} konnte nicht geschrieben werden. Die Datei blieb unverändert.

@@ -64,6 +64,7 @@ import com.ziggfreed.common.npc.TalkCredits;
 import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.NpcPlacementLedger;
 import com.ziggfreed.common.npc.placement.NpcPlacementOverrides;
+import com.ziggfreed.common.npc.placement.command.ZigNpcCommand;
 import com.ziggfreed.common.npc.placement.NpcPlacementReconciler;
 import com.ziggfreed.common.npc.placement.PlacedNpcComponent;
 import com.ziggfreed.common.npc.placement.PlacementMarkerSystem;
@@ -566,6 +567,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             ActiveObjectiveHeader.register(LIBRARY_OWNER);
             getEntityStoreRegistry().registerSystem(new PlacementMarkerSystem());
             NpcPlacementOverrides.getInstance().load();
+            getCommandRegistry().registerCommand(new ZigNpcCommand());
             NpcPlacementLedger.getInstance().load();
             getEventRegistry().registerGlobal(PlayerReadyEvent.class,
                     event -> NpcPlacementConfig.getInstance().runLateAudit());

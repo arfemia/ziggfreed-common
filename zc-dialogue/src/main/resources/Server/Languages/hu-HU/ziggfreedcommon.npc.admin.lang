@@ -1,0 +1,20 @@
+# The /zignpc admin command family: help text and answers.
+# The file name is the key PREFIX: an entry resolves as ziggfreedcommon.npc.admin.<key>.
+
+desc.family = A szerver NPC-elhelyezéseinek megtekintése és kezelése.
+desc.place = Egy NPC-szerep felállítása oda, ahol állsz, és ott tartása.
+
+desc.arg.role = Az itt álló NPC-szerep, a szerepfájl azonosítója szerint.
+desc.arg.id = A kiírandó elhelyezés-azonosító. Alapértelmezésben a szerep azonosítója.
+desc.arg.dialogue = A beszélgetés, amit az F megnyit. Alapértelmezésben a karakter küldetéslistája.
+desc.arg.world = A világ, amelyre az elhelyezés vonatkozik. Alapértelmezésben az, amelyikben állsz.
+
+place.done = "{0}" ({1}) elhelyezve itt: {2}.
+place.at = Itt áll: {0}, {1}, {2}, ebbe az irányba néz: {3}.
+place.file = Ide írva: {0}, ahol szerkesztheted vagy törölheted.
+place.needsPlayer = Ezt a játékban futtasd: az elhelyezés oda kerül, ahol állsz, a konzol pedig sehol sincs.
+place.needsRole = Nevezd meg a felállítandó szerepet a --role=<role> kapcsolóval.
+place.needsWorld = Nem sikerült megállapítani a világot. Nevezz meg egyet a --world=<name> kapcsolóval.
+place.noPosition = Nem sikerült beolvasni a pozíciódat, így nincs hova tenni.
+place.idTaken = "{0}" már egy elhelyezés neve. Válassz másik azonosítót a --id=<id> kapcsolóval, vagy szerkeszd a meglévőt.
+place.writeFailed = Nem sikerült írni ide: {0}. A fájl változatlan maradt.

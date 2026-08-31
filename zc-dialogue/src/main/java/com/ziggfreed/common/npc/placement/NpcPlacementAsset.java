@@ -126,10 +126,12 @@ public final class NpcPlacementAsset
             .add()
             .appendInherited(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
                     (a, v) -> a.where = v, a -> a.where, (a, p) -> a.where = p.where)
-            .documentation("Which worlds this placement applies to: Match (world-name patterns), "
+            .documentation("Which worlds this placement PUTS AN NPC IN: Match (world-name patterns), "
                     + "GameplayConfig (exact config keys) and ExcludeMatch. Leave it out and the "
                     + "placement stands in the world named 'default', the ordinary persistent world "
-                    + "players log into rather than any instance.")
+                    + "players log into rather than any instance. It governs placement and nothing "
+                    + "else: an NPC standing in some other world, by whatever route it got there, "
+                    + "still answers press-F normally.")
             .add()
             .appendInherited(new KeyedCodec<>("Anchor", Anchor.CODEC, false),
                     (a, v) -> a.anchor = v, a -> a.anchor, (a, p) -> a.anchor = p.anchor)

@@ -1,0 +1,20 @@
+# The /zignpc admin command family: help text and answers.
+# The file name is the key PREFIX: an entry resolves as ziggfreedcommon.npc.admin.<key>.
+
+desc.family = Esamina e amministra i posizionamenti di PNG di questo server.
+desc.place = Colloca un ruolo di PNG dove ti trovi, e mantienilo lì.
+
+desc.arg.role = Il ruolo di PNG da collocare qui, tramite l'id del suo file di ruolo.
+desc.arg.id = L'id di posizionamento da scrivere. Per impostazione predefinita, l'id del ruolo.
+desc.arg.dialogue = La conversazione che apre il tasto F. Per impostazione predefinita, l'elenco missioni del personaggio.
+desc.arg.world = Il mondo a cui si applica il posizionamento. Per impostazione predefinita, quello in cui ti trovi.
+
+place.done = "{0}" ({1}) collocato in {2}.
+place.at = Si trova a {0}, {1}, {2}, rivolto verso {3}.
+place.file = Scritto in {0}, dove puoi modificarlo o rimuoverlo.
+place.needsPlayer = Esegui questo comando in gioco: il posizionamento viene scritto dove ti trovi, e la console non è da nessuna parte.
+place.needsRole = Indica il ruolo da collocare con --role=<role>.
+place.needsWorld = Non è stato possibile determinare il mondo. Indicane uno con --world=<name>.
+place.noPosition = Non è stato possibile leggere la tua posizione, quindi non c'è dove metterlo.
+place.idTaken = "{0}" indica già un posizionamento. Scegli un altro id con --id=<id>, oppure modifica quello esistente.
+place.writeFailed = Non è stato possibile scrivere in {0}. Il file è stato lasciato com'era.

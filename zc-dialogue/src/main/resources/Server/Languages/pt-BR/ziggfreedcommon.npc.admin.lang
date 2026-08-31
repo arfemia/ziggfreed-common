@@ -1,0 +1,20 @@
+# The /zignpc admin command family: help text and answers.
+# The file name is the key PREFIX: an entry resolves as ziggfreedcommon.npc.admin.<key>.
+
+desc.family = Inspecione e administre os posicionamentos de NPC deste servidor.
+desc.place = Posicione um papel de NPC onde você está, e mantenha-o ali.
+
+desc.arg.role = O papel de NPC que deve ficar aqui, pelo id do seu arquivo de papel.
+desc.arg.id = O id de posicionamento a escrever. Por padrão, o id do papel.
+desc.arg.dialogue = A conversa que a tecla F abre. Por padrão, a lista de missões do personagem.
+desc.arg.world = O mundo ao qual o posicionamento se aplica. Por padrão, aquele em que você está.
+
+place.done = "{0}" ({1}) posicionado em {2}.
+place.at = Parado em {0}, {1}, {2}, virado para {3}.
+place.file = Escrito em {0}, onde você pode editá-lo ou removê-lo.
+place.needsPlayer = Execute isto no jogo: o posicionamento é escrito onde você está, e o console não está em lugar nenhum.
+place.needsRole = Informe o papel a posicionar com --role=<role>.
+place.needsWorld = Não foi possível determinar o mundo. Informe um com --world=<name>.
+place.noPosition = Não foi possível ler sua posição, então não há onde colocá-lo.
+place.idTaken = "{0}" já nomeia um posicionamento. Escolha outro id com --id=<id>, ou edite o existente.
+place.writeFailed = Não foi possível escrever em {0}. O arquivo foi deixado como estava.
