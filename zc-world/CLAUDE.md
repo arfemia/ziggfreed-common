@@ -36,15 +36,22 @@ compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggre
   parse and sort identically. Also `SurfaceProbe` (top-solid-Y column probe -> floor-snap) and
   `SpawnPlacement` (ring/near-player runtime spawn positions, foliage-skip surface snap).
 - [`world/placed/`](src/main/java/com/ziggfreed/common/world/placed/CLAUDE.md) - the placed-block
-  ledger; has its own router, read it before touching either class. `PlacedBlockLedger` remembers which positions and
-  which item ids a player put down (world-scoped, expiring, gson-persisted to
-  `mods/ziggfreedcommon/placed-blocks.json`) and answers the one question "did the breaker place
-  this?"; `PlacedBlockRecorder` is the single ECS `PlaceBlockEvent` system that writes it, wired
+  ledger; has its own router, read it before touching any of the three classes. `PlacedBlockLedger`
+  answers the one question "did the breaker place this?"; `PlacedBlockSection` is where a block's
+  answer is KEPT - one bit per block on the block's own chunk section, a plugin-registered
+  `Component<ChunkStore>` laid out like the engine's own `BlockPhysics` (lazily allocated byte array
+  behind a versioned single-byte-array codec), so the engine's chunk save carries it, only loaded
+  chunks cost memory and nothing is ever scanned or rewritten on a timer; placed ITEM ids stay an
+  in-memory per-player count that expires in minutes and is deliberately not persisted.
+  `PlacedBlockRecorder` is the single ECS `PlaceBlockEvent` system that writes it, wired
   from the wiring root. **The ledger is the LIBRARY's, not a consumer's**: any mod counting block
   breaks or pickups wants the same refusal, and one authority is what keeps XP, statistics, quests
-  and achievements from disagreeing about a single break. Its `Policy` is four independent knobs
-  (`enabled` / `strict` / `blockExpireMinutes` / `itemExpireMinutes`) read LIVE, so a consumer whose
-  own config already carries them installs a policy once and a reload moves them with no re-push. Several
+  and achievements from disagreeing about a single break. Its `Policy` is three independent knobs
+  read LIVE (`enabled` / `guardsPlacementsBy` / `itemExpireMinutes`), so a consumer whose
+  own config already carries them installs a policy once and a reload moves them with no re-push.
+  `guardsPlacementsBy` is how a consumer exempts somebody BUILDING for others to work (creative
+  placers are already skipped without asking): an exempt placement is simply never recorded, and
+  still earns the placer whatever placing is worth. Several
   systems read ONE native event in an order nobody specifies, so a consumed BLOCK row keeps
   answering for `READ_GRACE_MS` (a position is the moment) and a placed-ITEM read names its moment
   (`consumePlacedItem(uuid, itemId, momentKey)`) so one pickup spends exactly one remembered copy
@@ -72,9 +79,12 @@ misconfigured `Where` loud instead of silently matching nothing.
 
 ## Tests
 
-8 files: `PlacedBlockLedgerTest` (the ledger's whole contract: the strict and fairness readings,
-the several-readers grace window, aging out driven from a hand-written file, and the persistence
-round-trip that saves placements and deliberately drops placed items), `WorldSelectorMatchTest` (the two positive axes, the exclusion filter, the codec's
+8 files: `PlacedBlockSectionTest` (where a block's answer is decided: which bit a position maps to,
+that every block in a section has its own, that spending a mark clears it, that the array is only
+allocated once something is marked and released again when nothing is, and the write-out/read-back
+round trip a chunk save and load puts it through; the ledger's own block path needs a live world
+and lands in in-game smoke, while its item half is pinned in `zc-objectives`'
+`PlacedGuardProducerTest`), `WorldSelectorMatchTest` (the two positive axes, the exclusion filter, the codec's
 null-is-null contract, and the pin that a bare `default` is an exact name rather than a contains),
 `WhereValidatorTest` (the shape findings plus the describes-a-real-world check and its "cannot
 tell" contract), `MatchRankTest` (the world ladder: the shared bands plus the `GameplayConfig` rung

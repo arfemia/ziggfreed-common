@@ -1,40 +1,28 @@
 package com.ziggfreed.common.world.placed;
 
-import java.io.Reader;
-import java.io.Writer;
-import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.reflect.TypeToken;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * What a player put there themselves - the record that stops "place it, break it, place it again"
- * from paying out. Block positions are scoped by world, and placed ITEM ids are counted separately
- * so a placed sapling cannot be harvested straight back for credit.
+ * from paying out. Placed BLOCKS are remembered on the chunk they belong to; placed ITEM ids are
+ * counted separately, so a placed sapling cannot be harvested straight back for credit.
  *
  * <p><b>Any mod counting block breaks or pickups wants this, which is why it lives here.</b> A
  * reward for breaking a block is a reward for finding one, and a block the breaker set down a
@@ -42,69 +30,42 @@ import com.ziggfreed.common.util.SafeLog;
  * the answer is worth, so a quest producer, an XP engine and a statistics counter can all ask it
  * and can never disagree about whether a given block was placed.
  *
- * <p><b>The library default is STRICT: nobody earns from a placement, whoever breaks it.</b> That
- * is the right answer on a server where players would otherwise hand each other ore rather than
- * mine it. Setting {@link Policy#strict()} false narrows the refusal to the placer alone, which is
- * the fairer reading in a shared world: one player's building work then stops poisoning every block
- * their neighbours mine, at the cost of a two-player version of the exploit.
+ * <p><b>Nobody earns from a placement, whoever breaks it.</b> Anything else is a two-player version
+ * of the same exploit, with one player standing ore up for another to mine. A placement that SHOULD
+ * pay - an admin building a mine for players to work - is settled when the block goes down, by not
+ * recording it at all: see {@link PlacedBlockRecorder} for which placements count.
+ *
+ * <p><b>Where a placement is kept.</b> A block's mark lives on its own chunk section, one bit per
+ * block, saved and loaded with the chunk by the engine ({@link PlacedBlockSection}). Only loaded
+ * chunks cost anything, a lookup is an array index, and there is nothing to scan, copy or write on
+ * a timer. Placed items are counted in memory and deliberately not persisted at all: they are
+ * forgotten in minutes and a restart takes longer than that.
  *
  * <p><b>One native event has SEVERAL readers.</b> A single break is seen by the library's own
- * producer and by every consumer's own event system in the same tick, in an order nobody
- * specifies, and every one of them has to be told the same thing while the moment costs the ledger
- * exactly once. Blocks get that for free, because a position IS the moment: a consumed row keeps
- * answering "placed" for {@link #READ_GRACE_MS} before it is dropped, which is far longer than one
- * tick and far shorter than any human place-then-break cycle. Placed ITEMS are counted rather than
- * positioned, so several copies of one id share a row and the moment has to be named: a reader
- * passes a {@code momentKey} that is stable for the one event it is handling (the picked-up stack's
- * own identity does it), and a second reader arriving with the SAME key inside the grace window is
- * told the same answer without a second copy being spent.
- *
- * <p>Persisted to {@code mods/ziggfreedcommon/placed-blocks.json}. Blocks are saved; placed items
- * are not, because they are forgotten in minutes and a restart takes longer than that. Reads are
- * lock-free: a position index sits beside the per-player sets, so a break costs one hash probe
- * rather than a scan of every player's placements.
+ * producer and by every consumer's own event system in the same tick, in an order nobody specifies,
+ * and every one of them has to be told the same thing. Blocks get that from the position itself:
+ * spending a mark also remembers the position for {@link #READ_GRACE_MS}, which keeps answering
+ * "placed" to whoever reads the same break second - far longer than one tick, and far shorter than
+ * any human place-then-break cycle. Without it the second reader would be told the block was
+ * ordinary and would pay out on exactly the exploit the first one refused. Placed ITEMS are counted
+ * rather than positioned, so several copies of one id share a row and the moment has to be named: a
+ * reader passes a {@code momentKey} that is stable for the one event it is handling (the picked-up
+ * stack's own identity does it), and a second reader arriving with the SAME key inside the grace
+ * window is told the same answer without a second copy being spent.
  */
 public final class PlacedBlockLedger {
 
     /**
-     * How long a consumed row keeps answering "placed", so every reader of ONE native event
+     * How long a spent item row keeps answering "placed", so every reader of ONE native event
      * agrees. See the class javadoc.
      */
     public static final long READ_GRACE_MS = 1_000L;
 
-    /** How rarely housekeeping runs off ordinary placement traffic. */
+    /** How rarely the item half is swept, off ordinary pickup traffic rather than a scheduler. */
     private static final long CLEANUP_INTERVAL_MS = 60_000L;
 
-    /**
-     * How often the traffic-driven beat is allowed to flush a dirty ledger to disk. The ledger
-     * otherwise persists only at shutdown, and a crashed server never reaches shutdown - every
-     * placement since boot would be forgotten, reopening the place-and-break payout this record
-     * exists to close. Thirty seconds keeps the exploit window shorter than any deliberate farm
-     * cycle while costing at most two small writes a minute under constant traffic. Package-visible
-     * so the test can drive the beat with its own clock.
-     */
-    static final long FLUSH_INTERVAL_MS = 30_000L;
-
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-
-    /**
-     * The one file shape this build reads and writes; also what a file with no {@code "version"}
-     * means, since every file written before the envelope existed is a version-1 file.
-     */
-    static final int SCHEMA_VERSION = 1;
-
-    /** The rows inside the envelope: placer uuid to a list of {worldUuid, x, y, z, placedTime} rows. */
-    private static final Type SAVE_TYPE = new TypeToken<Map<String, List<SavedBlock>>>() {}.getType();
-
-    /**
-     * On-disk shape: {@code {"version": 1, "players": {"<uuid>": [rows]}}}. A bare-map file with no
-     * envelope (the pre-marker shape) still loads as version 1; the writer always writes the
-     * envelope, so a later structural change can tell an old file from a new one.
-     */
-    private static final class Envelope {
-        int version;
-        Map<String, List<SavedBlock>> players;
-    }
+    /** The file earlier builds kept placements in, retired on the first boot that finds it. */
+    private static final String LEGACY_FILE = "placed-blocks.json";
 
     private static final PlacedBlockLedger INSTANCE = new PlacedBlockLedger();
 
@@ -114,16 +75,13 @@ public final class PlacedBlockLedger {
     }
 
     /**
-     * How strict the ledger is and how long it remembers. Four independent knobs, read LIVE, so a
-     * consumer whose owner config already carries some of them installs a policy that reads its
-     * own values and never has to push an update when that config reloads.
+     * How strict the ledger is and how long it remembers. Read LIVE, so a consumer whose owner
+     * config already carries these installs a policy that reads its own values and never has to
+     * push an update when that config reloads.
      */
     public interface Policy {
 
-        /**
-         * The library's own answer: remember placements, let nobody earn from any of them, and
-         * forget a placed item after five minutes.
-         */
+        /** The library's own answer: remember placements, and forget a placed item after five minutes. */
         Policy DEFAULT = new Policy() {
         };
 
@@ -132,39 +90,27 @@ public final class PlacedBlockLedger {
             return true;
         }
 
-        /** True: no player earns from ANY placement. False: only the placer is refused their own. */
-        default boolean strict() {
+        /**
+         * Should this player's placements be guarded? False leaves whatever they put down
+         * indistinguishable from a block that was always there, so anybody who breaks it earns
+         * from it normally.
+         *
+         * <p>This is for the case the guard would otherwise get backwards: someone standing up an
+         * ore vein, a farm or a quarry FOR other players to work. Creative-mode placements are
+         * already exempt without asking (see {@link PlacedBlockRecorder}); this is how a consumer
+         * exempts a builder who is in survival, typically by asking whether they hold a permission.
+         *
+         * <p>It decides only whether the placement is REMEMBERED. Whether the placer earns for
+         * placing is a separate question that this never touches, so an exempt builder still gets
+         * whatever their placement is normally worth.
+         */
+        default boolean guardsPlacementsBy(@Nonnull PlayerRef placer) {
             return true;
-        }
-
-        /** Minutes before a placed BLOCK is forgotten; {@code 0} remembers it for good. */
-        default int blockExpireMinutes() {
-            return 0;
         }
 
         /** Minutes before a placed ITEM is forgotten. Always finite - a dropped item does not last. */
         default int itemExpireMinutes() {
             return 5;
-        }
-    }
-
-    /** A block position, scoped to a world so two worlds' coordinates never collide. */
-    public record BlockPosition(@Nonnull String worldUuid, int x, int y, int z) {
-    }
-
-    /** One remembered placement, in its placer's own set. */
-    private record TrackedBlock(@Nonnull BlockPosition position, long placedTime) {
-    }
-
-    /**
-     * The position index's value: who placed it, when, and when a reader first consumed it
-     * ({@code 0} while nobody has). Kept in lockstep with {@link #playerPlacedBlocks}.
-     */
-    private record IndexEntry(@Nonnull UUID placer, long placedTime, long consumedAt) {
-
-        @Nonnull
-        IndexEntry consumedAt(long now) {
-            return new IndexEntry(placer, placedTime, now);
         }
     }
 
@@ -182,14 +128,19 @@ public final class PlacedBlockLedger {
         }
     }
 
-    /** Placer uuid to the placements they are remembered for. */
-    private final Map<UUID, Set<TrackedBlock>> playerPlacedBlocks = new ConcurrentHashMap<>();
-
-    /** Position to placer plus timestamps. The O(1) side of every ask; always in step with the sets. */
-    private final Map<BlockPosition, IndexEntry> placedByPosition = new ConcurrentHashMap<>();
+    /** A block position, scoped to a world so two worlds' coordinates never collide. */
+    public record BlockPosition(@Nonnull UUID worldUuid, int x, int y, int z) {
+    }
 
     /** Placer uuid to item id to how many of that item they put down. */
     private final Map<UUID, Map<String, TrackedItem>> playerPlacedItems = new ConcurrentHashMap<>();
+
+    /**
+     * Positions whose mark was spent in the last {@link #READ_GRACE_MS}, so every reader of ONE
+     * break is told the same thing. Never more than the positions broken in the last second, and
+     * swept on the same beat as the item half.
+     */
+    private final Map<BlockPosition, Long> recentlySpent = new ConcurrentHashMap<>();
 
     @Nonnull
     private volatile Policy policy = Policy.DEFAULT;
@@ -198,47 +149,15 @@ public final class PlacedBlockLedger {
     @Nullable
     private volatile String policyOwner;
 
-    /** When housekeeping last ran, so a long session reclaims spent rows without a scheduler. */
+    /** When the item half was last swept, so a long session reclaims rows without a scheduler. */
     private volatile long lastCleanup = System.currentTimeMillis();
 
-    /** True while the in-memory block state has changes the file does not; cleared by a save. */
-    private volatile boolean dirty;
+    /** When spent positions were last swept; their own beat, see {@link #sweepRecentlySpent}. */
+    private volatile long lastSpentSweep = System.currentTimeMillis();
 
-    /** When the ledger last flushed, CAS-guarded so two traffic threads never double-write. */
-    private final AtomicLong lastFlush = new AtomicLong(System.currentTimeMillis());
-
-    /** One consistent copy of the block state, stamped so an older copy can never overwrite a newer one. */
-    private record Snapshot(long seq, @Nonnull Map<String, List<SavedBlock>> document) {
-    }
-
-    /** Stamps each snapshot; monotonically increasing, so write order is decidable under the lock. */
-    private final AtomicLong snapshotSeq = new AtomicLong();
-
-    /**
-     * The newest snapshot awaiting a background write. Latest-wins: a beat firing while a write is
-     * in flight REPLACES an unwritten older snapshot instead of queueing behind it, so the writer
-     * coalesces bursts into one write of the freshest state.
-     */
-    private final AtomicReference<Snapshot> pendingSnapshot = new AtomicReference<>();
-
-    /** True while the single background writer is running (single-flight; see {@link #requestBackgroundWrite}). */
-    private final AtomicBoolean flushInFlight = new AtomicBoolean(false);
-
-    /** Completes when the current background writer exits; {@link #save()} awaits it before writing. */
-    @Nonnull
-    private volatile CompletableFuture<Void> backgroundWrite = CompletableFuture.completedFuture(null);
-
-    /**
-     * Serializes the actual file write plus the {@link #lastWrittenSeq} check, so the shutdown
-     * {@link #save()} and an in-flight background flush can never interleave writers on one file.
-     */
-    private final Object writeLock = new Object();
-
-    /** The seq of the last snapshot actually written; guarded by {@link #writeLock}. */
-    private long lastWrittenSeq;
-
+    /** Where the retired file is looked for; null once somebody has pointed it at nothing. */
     @Nullable
-    private volatile Path dataPath = Paths.get("mods", "ziggfreedcommon", "placed-blocks.json");
+    private volatile Path legacyPath = Paths.get("mods", "ziggfreedcommon", LEGACY_FILE);
 
     private PlacedBlockLedger() {
     }
@@ -248,123 +167,131 @@ public final class PlacedBlockLedger {
      * so a consumer wiring its own owner config in here never has to re-push after a reload.
      *
      * <p>ONE slot, like every other one-slot part in this library: a SECOND owner arriving is
-     * reported at SEVERE naming both, because two mods each answering "how strict is this server"
-     * is a disagreement nobody can see from in game. The later one still wins, since refusing it
-     * would leave the ledger answering with a config its owner has already stopped honouring.
+     * refused and logged, rather than silently replacing the first.
      */
-    public void setPolicy(@Nonnull String owner, @Nullable Policy value) {
-        String previous = policyOwner;
-        if (value != null && previous != null && !previous.equals(owner)) {
-            SafeLog.severe("[placed] two mods installed a placed-block policy: '" + previous
-                    + "' then '" + owner + "'. The later one is in force; they cannot both be.");
-        }
-        this.policy = value == null ? Policy.DEFAULT : value;
-        this.policyOwner = value == null ? null : owner;
-    }
-
-    /** The policy in force. */
+    /** The policy in force, for the recorder's exemption ask. */
     @Nonnull
     public Policy policy() {
         return policy;
     }
 
+    public void setPolicy(@Nonnull String owner, @Nonnull Policy newPolicy) {
+        String current = policyOwner;
+        if (current != null && !current.equals(owner)) {
+            SafeLog.warn("[placed] '" + owner + "' tried to install a second placed-block policy;"
+                    + " '" + current + "' already owns it, so the new one is ignored");
+            return;
+        }
+        policyOwner = owner;
+        policy = newPolicy;
+    }
+
     // ==================== placements ====================
 
-    /** Remember that {@code placerUuid} put a block down at this position. */
+    /**
+     * Remember that a player put a block down at this position.
+     *
+     * <p>The placer's uuid is accepted for the caller's convenience and deliberately not stored:
+     * the guard refuses credit for a placement whoever breaks it, so the identity would never be
+     * read back.
+     */
     public void trackPlacement(@Nonnull UUID placerUuid, @Nonnull UUID worldUuid, int x, int y, int z) {
         if (!policy.enabled()) {
             return;
         }
-        maybeCleanup();
-        BlockPosition pos = new BlockPosition(worldUuid.toString(), x, y, z);
-        long now = System.currentTimeMillis();
-        playerPlacedBlocks
-                .computeIfAbsent(placerUuid, key -> ConcurrentHashMap.newKeySet())
-                .add(new TrackedBlock(pos, now));
-
-        // A fresh placement always wins the position, so the row left behind by whoever filled this
-        // spot before is dropped from THEIR set too, rather than left dangling. That includes the
-        // same player re-filling a spot they had already used: the older row is keyed by its own
-        // timestamp, so leaving it would double-count the position in the set and in the file, and
-        // a restart could hand the position back the OLDER timestamp and expire the guard early.
-        IndexEntry previous = placedByPosition.put(pos, new IndexEntry(placerUuid, now, 0L));
-        if (previous != null && !(previous.placer().equals(placerUuid) && previous.placedTime() == now)) {
-            forgetFromPlacerSet(pos, previous);
-        }
-        dirty = true;
+        withSection(worldUuid, x, y, z, (store, sectionRef) -> {
+            PlacedBlockSection.mark(store, sectionRef, x, y, z);
+            return true;
+        });
     }
 
     /**
-     * Did {@code breakerUuid} just break something that had been placed? A true answer consumes
-     * the row, which then keeps answering true for {@link #READ_GRACE_MS} so every system reading
-     * the same break agrees, and is dropped after that. This is the question a break-time handler
-     * asks.
+     * Did this break take away something that had been placed? A true answer clears the mark, which
+     * is correct however many readers follow: the block itself is gone. This is the question a
+     * break-time handler asks.
      */
     public boolean consumePlacement(@Nonnull UUID breakerUuid, @Nonnull UUID worldUuid, int x, int y, int z) {
         if (!policy.enabled()) {
             return false;
         }
-        // The housekeeping/flush beat rides break traffic too: a session of pure breaking (no
-        // placements) must still flush its row drops within the interval cap.
         maybeCleanup();
-        BlockPosition pos = new BlockPosition(worldUuid.toString(), x, y, z);
-        IndexEntry entry = placedByPosition.get(pos);
-        if (entry == null || !answersFor(entry, breakerUuid)) {
-            return false;
-        }
         long now = System.currentTimeMillis();
-        if (entry.consumedAt() != 0L) {
-            if (now - entry.consumedAt() <= READ_GRACE_MS) {
+        sweepRecentlySpent(now);
+        BlockPosition position = new BlockPosition(worldUuid, x, y, z);
+        Long spentAt = recentlySpent.get(position);
+        if (spentAt != null) {
+            if (now - spentAt <= READ_GRACE_MS) {
+                // Somebody else already read this same break. Same answer, nothing spent twice.
                 return true;
             }
-            drop(pos, entry);
-            dirty = true;
-            return false;
+            recentlySpent.remove(position, spentAt);
         }
-        if (blockExpired(entry, now)) {
-            drop(pos, entry);
-            dirty = true;
-            return false;
+        boolean placed = withSection(worldUuid, x, y, z,
+                (store, sectionRef) -> PlacedBlockSection.consume(store, sectionRef, x, y, z));
+        if (placed) {
+            recentlySpent.put(position, now);
         }
-        // No dirty mark: consumedAt is in-memory only (SavedBlock never serializes it), so this
-        // bump changes nothing the file would carry.
-        placedByPosition.replace(pos, entry, entry.consumedAt(now));
-        return true;
+        return placed;
     }
 
     /**
-     * The same question WITHOUT consuming anything: the read for a caller that is only LOOKING.
-     *
-     * <p>It exists because the consuming read cannot be used to observe this ledger - asking spends
-     * the row - so anything that wants to know the state without changing it needs its own door.
-     * Today that is `PlacedBlockLedgerTest`, which pins the expiry and grace rules by watching a
-     * row it must not spend; a break-time handler always wants {@link #consumePlacement}.
+     * The same question WITHOUT clearing anything: the read for a caller that is only LOOKING.
+     * A break-time handler always wants {@link #consumePlacement}.
      */
     public boolean isPlaced(@Nonnull UUID breakerUuid, @Nonnull UUID worldUuid, int x, int y, int z) {
         if (!policy.enabled()) {
             return false;
         }
-        BlockPosition pos = new BlockPosition(worldUuid.toString(), x, y, z);
-        IndexEntry entry = placedByPosition.get(pos);
-        if (entry == null || !answersFor(entry, breakerUuid)) {
-            return false;
-        }
-        long now = System.currentTimeMillis();
-        if (entry.consumedAt() != 0L) {
-            return now - entry.consumedAt() <= READ_GRACE_MS;
-        }
-        return !blockExpired(entry, now);
+        return withSection(worldUuid, x, y, z,
+                (store, sectionRef) -> PlacedBlockSection.isPlaced(store, sectionRef, x, y, z));
     }
 
-    /** Forget everything remembered about one player. */
-    public void clearPlayer(@Nonnull UUID playerUuid) {
-        Set<TrackedBlock> placements = playerPlacedBlocks.remove(playerUuid);
-        if (placements != null) {
-            for (TrackedBlock placement : placements) {
-                dropIfStillOwnedBy(placement, playerUuid);
+    /** What a caller wants done once the block's chunk section has been resolved. */
+    private interface SectionWork {
+        boolean run(@Nonnull Store<ChunkStore> store, @Nonnull Ref<ChunkStore> sectionRef);
+    }
+
+    /**
+     * Resolve the chunk section holding this position and run {@code work} against it, answering
+     * false when there is no section to ask.
+     *
+     * <p>An unloaded chunk answers "not placed", which is the same answer it would have given while
+     * loaded for a block nobody placed, and the only honest one: the record lives with the chunk,
+     * so if the chunk is not here neither is the record. Nothing can break a block in a chunk that
+     * is not loaded, so this is a guard rather than a case that happens in play.
+     */
+    private boolean withSection(@Nonnull UUID worldUuid, int x, int y, int z, @Nonnull SectionWork work) {
+        try {
+            Universe universe = Universe.get();
+            if (universe == null) {
+                return false;
             }
-            dirty = true;
+            World world = universe.getWorld(worldUuid);
+            if (world == null || !world.isAlive()) {
+                return false;
+            }
+            var chunkStore = world.getChunkStore();
+            if (chunkStore == null) {
+                return false;
+            }
+            Ref<ChunkStore> sectionRef = chunkStore.getChunkSectionReferenceAtBlock(x, y, z);
+            if (sectionRef == null || !sectionRef.isValid()) {
+                return false;
+            }
+            return work.run(chunkStore.getStore(), sectionRef);
+        } catch (Throwable t) {
+            SafeLog.warn("[placed] could not reach the chunk holding (" + x + ", " + y + ", " + z
+                    + "); treating it as never placed", t);
+            return false;
         }
+    }
+
+    /**
+     * Forget the placed ITEMS remembered for one player. Placed BLOCKS are not per-player - they
+     * belong to their chunk and are cleared when the block goes - so nothing about them is dropped
+     * here.
+     */
+    public void clearPlayer(@Nonnull UUID playerUuid) {
         playerPlacedItems.remove(playerUuid);
     }
 
@@ -375,6 +302,7 @@ public final class PlacedBlockLedger {
         if (!policy.enabled()) {
             return;
         }
+        maybeCleanup();
         playerPlacedItems
                 .computeIfAbsent(placerUuid, key -> new ConcurrentHashMap<>())
                 .computeIfAbsent(itemId, key -> new TrackedItem())
@@ -399,6 +327,7 @@ public final class PlacedBlockLedger {
         if (!policy.enabled()) {
             return false;
         }
+        maybeCleanup();
         Map<String, TrackedItem> items = playerPlacedItems.get(playerUuid);
         if (items == null) {
             return false;
@@ -427,32 +356,17 @@ public final class PlacedBlockLedger {
         return true;
     }
 
+    private boolean itemExpired(@Nonnull TrackedItem tracked, long now) {
+        long expireMillis = Math.max(1, policy.itemExpireMinutes()) * 60_000L;
+        return now - tracked.lastPlacedTime >= expireMillis;
+    }
+
     // ==================== housekeeping ====================
 
-    /** Drop everything that has aged out or has already been answered for. Cheap; call it periodically. */
+    /** Drop placed-item rows that have aged out or have already been answered for. */
     public void cleanupExpired() {
         long now = System.currentTimeMillis();
-        int blockExpireMinutes = policy.blockExpireMinutes();
-        long blockExpireMillis = blockExpireMinutes * 60_000L;
-
-        for (Map.Entry<UUID, Set<TrackedBlock>> entry : playerPlacedBlocks.entrySet()) {
-            UUID placer = entry.getKey();
-            entry.getValue().removeIf(placement -> {
-                boolean aged = blockExpireMinutes > 0 && (now - placement.placedTime()) >= blockExpireMillis;
-                IndexEntry indexed = placedByPosition.get(placement.position());
-                boolean spent = indexed != null
-                        && indexed.placer().equals(placer)
-                        && indexed.consumedAt() != 0L
-                        && (now - indexed.consumedAt()) > READ_GRACE_MS;
-                if (aged || spent) {
-                    dropIfStillOwnedBy(placement, placer);
-                    return true;
-                }
-                return false;
-            });
-        }
-        playerPlacedBlocks.entrySet().removeIf(entry -> entry.getValue().isEmpty());
-
+        recentlySpent.entrySet().removeIf(entry -> now - entry.getValue() > READ_GRACE_MS);
         long itemExpireMillis = Math.max(1, policy.itemExpireMinutes()) * 60_000L;
         for (Map<String, TrackedItem> items : playerPlacedItems.values()) {
             items.entrySet().removeIf(entry -> {
@@ -466,12 +380,22 @@ public final class PlacedBlockLedger {
     }
 
     /**
-     * Housekeeping on a slow beat, driven by ordinary traffic rather than by a scheduler. Every
-     * placement AND every break-time ask is a chance to reclaim rows that were spent or aged out
-     * minutes ago, so a long-running server does not hold every placement it ever saw until
-     * shutdown - and a chance to flush a dirty ledger to disk, so a crash (which never reaches the
-     * shutdown save) loses at most {@link #FLUSH_INTERVAL_MS} of placements instead of the whole
-     * session.
+     * Drop spent positions older than the grace window. Its own beat rather than the item half's,
+     * because these rows live for a second and a mass harvest would otherwise pile up a minute of
+     * them between sweeps.
+     */
+    private void sweepRecentlySpent(long now) {
+        if (recentlySpent.isEmpty() || now - lastSpentSweep <= READ_GRACE_MS) {
+            return;
+        }
+        lastSpentSweep = now;
+        recentlySpent.entrySet().removeIf(entry -> now - entry.getValue() > READ_GRACE_MS);
+    }
+
+    /**
+     * Sweep the item half on a slow beat, driven by ordinary pickup traffic rather than by a
+     * scheduler. Cheap: the item half holds a row per item id a player has recently put down, and
+     * every one of them expires in minutes.
      */
     private void maybeCleanup() {
         long now = System.currentTimeMillis();
@@ -479,360 +403,54 @@ public final class PlacedBlockLedger {
             lastCleanup = now;
             cleanupExpired();
         }
-        maybeFlush(now);
-    }
-
-    /**
-     * The crash-durability half of the beat: when the ledger is dirty and the last flush is at
-     * least {@link #FLUSH_INTERVAL_MS} old, take a cheap in-memory snapshot of the block state and
-     * hand it to the background writer - serialization and disk I/O never run on the world thread.
-     * The timestamp is claimed by CAS first, so two traffic threads arriving together produce one
-     * snapshot; quiet (fine-level) logging, because under steady traffic this runs twice a minute
-     * and the shutdown save's INFO line is the one an operator wants to see. Package-visible so
-     * the test can drive the beat with its own clock.
-     */
-    void maybeFlush(long now) {
-        if (!dirty) {
-            return;
-        }
-        long last = lastFlush.get();
-        if (now - last < FLUSH_INTERVAL_MS || !lastFlush.compareAndSet(last, now)) {
-            return;
-        }
-        // Clear BEFORE snapshotting, so a mutation landing mid-snapshot re-arms the flag and is
-        // picked up by the next beat rather than lost.
-        dirty = false;
-        cleanupExpired();
-        requestBackgroundWrite(takeSnapshot());
-    }
-
-    /**
-     * Post {@code snapshot} for the single-flight background writer. Exactly one writer runs at a
-     * time; a snapshot posted while it runs REPLACES any unwritten older one (latest wins), and
-     * the writer picks it up before exiting. The writer runs on the JVM's common pool (daemon
-     * threads, no executor of this class's own to shut down or strand).
-     */
-    private void requestBackgroundWrite(@Nonnull Snapshot snapshot) {
-        pendingSnapshot.set(snapshot);
-        if (!flushInFlight.compareAndSet(false, true)) {
-            return; // the in-flight writer drains the newer snapshot (or the re-check reclaims it)
-        }
-        backgroundWrite = CompletableFuture.runAsync(this::drainPendingSnapshots);
-    }
-
-    /** The background writer body: write every pending snapshot until none is left, then retire. */
-    private void drainPendingSnapshots() {
-        for (;;) {
-            Snapshot snapshot = pendingSnapshot.getAndSet(null);
-            if (snapshot != null) {
-                writeSnapshot(snapshot, true);
-                continue;
-            }
-            flushInFlight.set(false);
-            // A snapshot posted between the null read above and the flag clear would otherwise
-            // wait a whole beat: re-check, and reclaim the flag when it is still free.
-            if (pendingSnapshot.get() == null || !flushInFlight.compareAndSet(false, true)) {
-                return;
-            }
-        }
-    }
-
-    /**
-     * Await the in-flight background write (bounded), so a caller about to write synchronously
-     * knows the writer has retired. Package-visible so the test can join its background writes.
-     */
-    void awaitBackgroundWrite() {
-        CompletableFuture<Void> inFlight = backgroundWrite;
-        try {
-            inFlight.get(10, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            SafeLog.warn("[placed] awaiting the in-flight background ledger write failed", e);
-        }
-    }
-
-    /** How many placements are remembered right now. */
-    public int trackedBlockCount() {
-        return playerPlacedBlocks.values().stream().mapToInt(Set::size).sum();
     }
 
     /** How many placed items are still owed an answer. */
     public int trackedItemCount() {
-        return playerPlacedItems.values().stream()
-                .mapToInt(items -> items.values().stream()
-                        .mapToInt(item -> Math.max(0, item.count.get()))
-                        .sum())
-                .sum();
+        return playerPlacedItems.values().stream().mapToInt(Map::size).sum();
     }
 
-    /** How many players the ledger remembers anything about. */
-    public int trackedPlayerCount() {
-        Set<UUID> everyone = ConcurrentHashMap.newKeySet();
-        everyone.addAll(playerPlacedBlocks.keySet());
-        everyone.addAll(playerPlacedItems.keySet());
-        return everyone.size();
-    }
-
-    // ==================== persistence ====================
-
-    /** One saved placement. Gson reads and writes this shape directly. */
-    private static final class SavedBlock {
-
-        String worldUuid;
-        int x;
-        int y;
-        int z;
-        long placedTime;
-
-        SavedBlock() {
-        }
-
-        SavedBlock(String worldUuid, int x, int y, int z, long placedTime) {
-            this.worldUuid = worldUuid;
-            this.x = x;
-            this.y = y;
-            this.z = z;
-            this.placedTime = placedTime;
-        }
-    }
-
-    /** Point the ledger at a different file (a test's temp dir, or a consumer with its own data dir). */
-    public void setFile(@Nullable Path path) {
-        this.dataPath = path;
-    }
+    // ==================== the retired file ====================
 
     /**
-     * Where the ledger writes today, or null once somebody has pointed it at nothing. Read it before
-     * redirecting the ledger so the original can be put back afterwards; a null path makes
-     * {@link #load()} and {@link #save()} no-ops, which is exactly what a test must not leave behind.
+     * Point the legacy-file check somewhere else (a test's own directory), or at nothing.
      */
-    @Nullable
-    public Path file() {
-        return dataPath;
+    public void setLegacyPath(@Nullable Path path) {
+        this.legacyPath = path;
     }
 
     /**
-     * Read the saved placements back, every row as it was written.
+     * Retire the file earlier builds kept placements in.
      *
-     * <p>Nothing is aged out here, deliberately. Loading happens at boot, before a consumer has had
-     * a chance to install its policy, so an expiry applied at this moment would be measured against
-     * the library default rather than against the owner's number. Every read applies the live
-     * policy instead, and housekeeping sweeps what has aged out once the server is running.
+     * <p>Placements live on their chunks now, and a saved row cannot be put back onto a chunk that
+     * is not loaded - holding the whole file in memory until enough chunks came in would keep
+     * exactly the cost this move removes. So the file is renamed aside with one notice rather than
+     * carried across: blocks placed before the update stop being remembered and pay out if broken,
+     * and everything placed from here on is guarded again. It is an anti-exploit record, not
+     * anybody's progress.
      */
-    public void load() {
-        playerPlacedBlocks.clear();
-        placedByPosition.clear();
-        dirty = false;
-        Path path = dataPath;
+    public void retireLegacyFile() {
+        Path path = legacyPath;
         if (path == null || !Files.exists(path)) {
             return;
         }
-        try (Reader reader = Files.newBufferedReader(path)) {
-            Map<String, List<SavedBlock>> loaded = readDocument(reader);
-            if (loaded == null) {
-                return;
-            }
-            for (Map.Entry<String, List<SavedBlock>> entry : loaded.entrySet()) {
-                UUID placer = parseUuid(entry.getKey());
-                if (placer == null || entry.getValue() == null) {
-                    continue;
-                }
-                Set<TrackedBlock> placements = ConcurrentHashMap.newKeySet();
-                for (SavedBlock saved : entry.getValue()) {
-                    if (saved == null) {
-                        continue;
-                    }
-                    BlockPosition pos = new BlockPosition(
-                            saved.worldUuid == null ? "" : saved.worldUuid, saved.x, saved.y, saved.z);
-                    placements.add(new TrackedBlock(pos, saved.placedTime));
-                    placedByPosition.put(pos, new IndexEntry(placer, saved.placedTime, 0L));
-                }
-                if (!placements.isEmpty()) {
-                    playerPlacedBlocks.put(placer, placements);
-                }
-            }
-            SafeLog.info("[placed] ledger loaded: " + trackedBlockCount() + " placements for "
-                    + playerPlacedBlocks.size() + " players");
-        } catch (Exception e) {
-            SafeLog.warn("[placed] could not read the ledger", e);
-        }
-    }
-
-    /**
-     * The saved rows, whichever readable shape the file speaks: the {@code {"version","players"}}
-     * envelope every save writes, or a bare map with no envelope, which reads as version
-     * {@value #SCHEMA_VERSION} (every file written before the envelope existed is one). Null when
-     * the file holds nothing usable, or declares a version newer than this build reads - that one
-     * is warned about and left unread rather than misread as today's shape.
-     */
-    @Nullable
-    private static Map<String, List<SavedBlock>> readDocument(@Nonnull Reader reader) {
-        JsonElement root = JsonParser.parseReader(reader);
-        if (root == null || !root.isJsonObject()) {
-            return null;
-        }
-        JsonObject object = root.getAsJsonObject();
-        if (!object.has("version")) {
-            // The pre-envelope shape: the whole object IS the players map.
-            return GSON.fromJson(object, SAVE_TYPE);
-        }
-        Envelope envelope = GSON.fromJson(object, Envelope.class);
-        if (envelope == null) {
-            return null;
-        }
-        if (envelope.version > SCHEMA_VERSION) {
-            SafeLog.warn("[placed] the ledger declares version " + envelope.version + ", newer than "
-                    + "the " + SCHEMA_VERSION + " this build reads; leaving it unread rather than "
-                    + "misreading it");
-            return null;
-        }
-        return envelope.players;
-    }
-
-    /**
-     * Write the placements out, synchronously and unconditionally (a clean ledger still writes) -
-     * the shutdown/manual save, INFO-logged. Any in-flight background write is awaited first, and
-     * this save's snapshot carries the newest stamp, so a background straggler can never put an
-     * older copy back over the file (see {@link #writeSnapshot}). Placed items are deliberately
-     * not saved; they expire in minutes.
-     */
-    public void save() {
-        lastFlush.set(System.currentTimeMillis());
-        awaitBackgroundWrite();
-        cleanupExpired();
-        dirty = false;
-        writeSnapshot(takeSnapshot(), false);
-    }
-
-    /** One consistent, stamped copy of the block state, cheap plain-object rows (no Gson here). */
-    @Nonnull
-    private Snapshot takeSnapshot() {
-        Map<String, List<SavedBlock>> document = new HashMap<>();
-        for (Map.Entry<UUID, Set<TrackedBlock>> entry : playerPlacedBlocks.entrySet()) {
-            List<SavedBlock> rows = new ArrayList<>();
-            for (TrackedBlock placement : entry.getValue()) {
-                rows.add(new SavedBlock(
-                        placement.position().worldUuid(),
-                        placement.position().x(),
-                        placement.position().y(),
-                        placement.position().z(),
-                        placement.placedTime()));
-            }
-            if (!rows.isEmpty()) {
-                document.put(entry.getKey().toString(), rows);
-            }
-        }
-        return new Snapshot(snapshotSeq.incrementAndGet(), document);
-    }
-
-    /**
-     * The one writer behind both {@link #save()} (INFO-logged) and the background flush (quiet).
-     * Serialized on {@link #writeLock} so the two can never interleave on the file, and stamped:
-     * a snapshot older than the last one written is refused, so a background write finishing after
-     * the shutdown save cannot roll the file back.
-     */
-    private void writeSnapshot(@Nonnull Snapshot snapshot, boolean quiet) {
-        Path path = dataPath;
-        if (path == null) {
-            return;
-        }
-        synchronized (writeLock) {
-            if (snapshot.seq() <= lastWrittenSeq) {
-                return;
-            }
-            lastWrittenSeq = snapshot.seq();
-            Map<String, List<SavedBlock>> document = snapshot.document();
-            try {
-                if (document.isEmpty()) {
-                    Files.deleteIfExists(path);
-                    return;
-                }
-                Path parent = path.getParent();
-                if (parent != null) {
-                    Files.createDirectories(parent);
-                }
-                Envelope envelope = new Envelope();
-                envelope.version = SCHEMA_VERSION;
-                envelope.players = document;
-                try (Writer writer = Files.newBufferedWriter(path)) {
-                    GSON.toJson(envelope, writer);
-                }
-                int rows = document.values().stream().mapToInt(List::size).sum();
-                String summary = "[placed] ledger saved: " + rows + " placements for "
-                        + document.size() + " players";
-                if (quiet) {
-                    SafeLog.fine(summary);
-                } else {
-                    SafeLog.info(summary);
-                }
-            } catch (Exception e) {
-                SafeLog.warn("[placed] could not write the ledger", e);
-            }
-        }
-    }
-
-    /** Drop everything, in memory only. The test reset. */
-    public void clear() {
-        playerPlacedBlocks.clear();
-        placedByPosition.clear();
-        playerPlacedItems.clear();
-        pendingSnapshot.set(null);
-        dirty = false;
-    }
-
-    /** Is there in-memory block state the file does not have yet? Package-visible for the test. */
-    boolean isDirty() {
-        return dirty;
-    }
-
-    // ==================== internals ====================
-
-    /** Does this row answer for {@code asker}? Strict says every row does; otherwise only their own. */
-    private boolean answersFor(@Nonnull IndexEntry entry, @Nonnull UUID asker) {
-        return policy.strict() || entry.placer().equals(asker);
-    }
-
-    private boolean blockExpired(@Nonnull IndexEntry entry, long now) {
-        int minutes = policy.blockExpireMinutes();
-        return minutes > 0 && (now - entry.placedTime()) / 60_000L >= minutes;
-    }
-
-    private boolean itemExpired(@Nonnull TrackedItem tracked, long now) {
-        long minutes = Math.max(1, policy.itemExpireMinutes());
-        return (now - tracked.lastPlacedTime) / 60_000L >= minutes;
-    }
-
-    /** Drop a row from the index and its placer's set. Compare-and-remove, so a re-place survives. */
-    private void drop(@Nonnull BlockPosition pos, @Nonnull IndexEntry entry) {
-        if (placedByPosition.remove(pos, entry)) {
-            forgetFromPlacerSet(pos, entry);
-        }
-    }
-
-    private void forgetFromPlacerSet(@Nonnull BlockPosition pos, @Nonnull IndexEntry entry) {
-        Set<TrackedBlock> placements = playerPlacedBlocks.get(entry.placer());
-        if (placements != null) {
-            placements.remove(new TrackedBlock(pos, entry.placedTime()));
-        }
-    }
-
-    private void dropIfStillOwnedBy(@Nonnull TrackedBlock placement, @Nonnull UUID placer) {
-        IndexEntry indexed = placedByPosition.get(placement.position());
-        if (indexed != null
-                && indexed.placer().equals(placer)
-                && indexed.placedTime() == placement.placedTime()) {
-            placedByPosition.remove(placement.position(), indexed);
-        }
-    }
-
-    @Nullable
-    private static UUID parseUuid(@Nullable String key) {
-        if (key == null || key.isBlank()) {
-            return null;
-        }
+        Path retired = path.resolveSibling(path.getFileName() + ".legacy");
         try {
-            return UUID.fromString(key);
-        } catch (IllegalArgumentException notAUuid) {
-            return null;
+            Files.move(path, retired, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            SafeLog.warn("[placed] " + path + " is no longer read: placements are kept on the chunk"
+                    + " they belong to now, saved and loaded with it. The old file has been renamed"
+                    + " to " + retired.getFileName() + " and nothing was carried across, so blocks"
+                    + " placed before this update are no longer remembered. Everything placed from"
+                    + " now on is guarded as before.");
+        } catch (Exception e) {
+            SafeLog.warn("[placed] " + path + " is no longer read, but it could not be renamed"
+                    + " aside; it is harmless where it is and can be deleted by hand", e);
         }
+    }
+
+    /** Drop the in-memory halves (placed items, and positions inside the grace window). The test reset. */
+    public void clear() {
+        playerPlacedItems.clear();
+        recentlySpent.clear();
     }
 }

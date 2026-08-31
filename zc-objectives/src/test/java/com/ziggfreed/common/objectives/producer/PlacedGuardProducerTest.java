@@ -3,7 +3,6 @@ package com.ziggfreed.common.objectives.producer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,8 +24,8 @@ import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.world.placed.PlacedBlockLedger;
 
 /**
- * The anti-exploit half of the block-break and pickup producers, driven all the way to a real
- * engine: a block the breaker placed advances NOTHING, while an ordinary one advances the quest.
+ * The anti-exploit half of the pickup producer, driven all the way to a real engine: an item the
+ * picker placed advances NOTHING, while an ordinary one advances the quest.
  *
  * <p>Each test runs the producer's own two steps in the producer's own order - ask the shared
  * {@link PlacedBlockLedger}, and dispatch only on a no - over the real
@@ -34,19 +33,22 @@ import com.ziggfreed.common.world.placed.PlacedBlockLedger;
  * event into a store, a ref and a {@code PlayerRef}) is what lands behind in-game smoke, as with
  * every other producer.
  *
+ * <p><b>The BLOCK half is not driven from here.</b> A placement is kept on its own chunk section
+ * now, so asking the ledger about one needs a live world and a loaded chunk. What decides the
+ * answer is pinned in {@code PlacedBlockSectionTest} (which bit a position maps to, that spending a
+ * mark clears it, that marks survive a save and load); the producer's own branch - refuse when the
+ * ledger says placed, dispatch otherwise - is the same shape as the pickup one below, and lands in
+ * in-game smoke.
+ *
  * <p>The guard living in the LIBRARY is what makes it trustworthy: a consumer's own XP path reads
  * the SAME ledger, so quest progress and XP can never disagree about whether a block was placed.
  */
 class PlacedGuardProducerTest {
 
     private static final UUID PLAYER = UUID.fromString("00000000-0000-0000-0000-00000000e001");
-    private static final UUID WORLD = UUID.fromString("00000000-0000-0000-0000-00000000e002");
     private static final String OWNER = "test";
 
     private final PlacedBlockLedger ledger = PlacedBlockLedger.getInstance();
-
-    /** Where the shipped ledger writes, captured so a test never leaves it pointing nowhere. */
-    private final Path shippedFile = ledger.file();
 
     private Subject player;
     private QuestEngine quests;
@@ -55,8 +57,7 @@ class PlacedGuardProducerTest {
     @BeforeEach
     void setUp() {
         ledger.clear();
-        ledger.setPolicy(OWNER, null);
-        ledger.setFile(shippedFile);
+        ledger.setPolicy(OWNER, PlacedBlockLedger.Policy.DEFAULT);
 
         player = Subject.of(PLAYER, "tester");
         quests = QuestEngine.builder()
@@ -74,8 +75,7 @@ class PlacedGuardProducerTest {
     @AfterEach
     void tearDown() {
         ledger.clear();
-        ledger.setPolicy(OWNER, null);
-        ledger.setFile(shippedFile);
+        ledger.setPolicy(OWNER, PlacedBlockLedger.Policy.DEFAULT);
     }
 
     @Nonnull
@@ -90,15 +90,6 @@ class PlacedGuardProducerTest {
         return quest;
     }
 
-    /** Exactly what {@code ZigBlockBreakProducer.handle} does, minus the ECS plumbing. */
-    private void handleBreak(@Nonnull String blockId, int x, int y, int z) {
-        if (ledger.consumePlacement(PLAYER, WORLD, x, y, z)) {
-            return;
-        }
-        ProgressDispatch.dispatch(quests, achievements, player, player,
-                ZigBlockBreakProducer.KIND, blockId, null, 1L, null);
-    }
-
     /** Exactly what {@code ZigPickupProducer.handle} does, {@code momentKey} and all. */
     private void handlePickup(@Nonnull String itemId, long momentKey) {
         if (ledger.consumePlacedItem(PLAYER, itemId, momentKey)) {
@@ -111,27 +102,6 @@ class PlacedGuardProducerTest {
     private int progress(@Nonnull String questId, @Nonnull String objectiveId) {
         ObjectiveProgressState state = quests.progressOf(player, questId, objectiveId);
         return state == null ? 0 : state.current();
-    }
-
-    @Test
-    void aPlacedThenBrokenBlockDispatchesNoBreakBlockProgress() {
-        quest("q_mine", "stone", ZigBlockBreakProducer.KIND, "Stone");
-        ledger.trackPlacement(PLAYER, WORLD, 12, 64, 12);
-
-        handleBreak("Stone", 12, 64, 12);
-
-        assertEquals(0, progress("q_mine", "stone"),
-                "placing a block and breaking it back cannot advance a break-blocks objective");
-    }
-
-    @Test
-    void aBlockNobodyPlacedDispatchesBreakBlockProgress() {
-        quest("q_mine", "stone", ZigBlockBreakProducer.KIND, "Stone");
-        ledger.trackPlacement(PLAYER, WORLD, 12, 64, 12);
-
-        handleBreak("Stone", 30, 40, 50);
-
-        assertEquals(1, progress("q_mine", "stone"), "an untouched block is ordinary work");
     }
 
     @Test
@@ -155,25 +125,12 @@ class PlacedGuardProducerTest {
     }
 
     /**
-     * Two systems read one native break: this producer and the consumer's own XP system, in an
+     * Two systems read one native pickup: this producer and the consumer's own XP system, in an
      * order nobody specifies. Both have to hear the same answer, or whichever ran second would pay
      * out on exactly the exploit the first one refused.
-     */
-    @Test
-    void bothReadersOfOneBreakAreRefusedTogether() {
-        quest("q_mine", "stone", ZigBlockBreakProducer.KIND, "Stone");
-        ledger.trackPlacement(PLAYER, WORLD, 12, 64, 12);
-
-        assertTrue(ledger.consumePlacement(PLAYER, WORLD, 12, 64, 12), "whichever reads it first");
-        handleBreak("Stone", 12, 64, 12);
-
-        assertEquals(0, progress("q_mine", "stone"),
-                "and the one that reads it second is refused on the same terms");
-    }
-
-    /**
-     * The pickup peer, where the record is a COUNT rather than a position and the moment therefore
-     * has to be named. Two copies placed and two readers per pickup must still cost two pickups,
+     *
+     * <p>The record is a COUNT rather than a position and the moment therefore has to be named. Two
+     * copies placed and two readers per pickup must still cost two pickups,
      * not one: a version without a moment key spends both copies on the first pickup and hands the
      * second one back.
      */

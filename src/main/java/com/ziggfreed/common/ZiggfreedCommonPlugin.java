@@ -84,6 +84,7 @@ import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.placed.PlacedBlockLedger;
 import com.ziggfreed.common.world.placed.PlacedBlockRecorder;
+import com.ziggfreed.common.world.placed.PlacedBlockSection;
 
 /**
  * Entry point for Ziggfreed Common, a shared, mod-agnostic Hytale utility mod.
@@ -707,6 +708,14 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * silently reopened for one boot by a failure in the other half.
      */
     private void setupPlacedBlockLedger() {
+        // The chunk component FIRST, and before any world loads: it is where a placement is
+        // recorded, so a recorder registered without it would remember nothing.
+        try {
+            PlacedBlockSection.register(getChunkStoreRegistry());
+        } catch (Throwable t) {
+            SafeLog.warn("[placed] the placed-block chunk component could not be registered:"
+                    + " nothing will be remembered this boot, so place-then-break pays out", t);
+        }
         try {
             getEntityStoreRegistry().registerSystem(new PlacedBlockRecorder());
         } catch (Throwable t) {
@@ -714,25 +723,16 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     + " be remembered this boot, so place-then-break pays out", t);
         }
         try {
-            PlacedBlockLedger.getInstance().load();
+            PlacedBlockLedger.getInstance().retireLegacyFile();
         } catch (Throwable t) {
-            SafeLog.warn("[placed] the saved placements could not be loaded: everything placed"
-                    + " before this restart reads as never placed", t);
+            SafeLog.warn("[placed] the retired placements file could not be renamed aside", t);
         }
     }
 
     @Override
     protected void shutdown() {
-        savePlacedBlockLedger();
+        // Nothing to write for placements: each one rides its own chunk's save, so a restart finds
+        // them exactly where it left them without this plugin persisting anything of its own.
         LOGGER.atInfo().log("ZiggfreedCommon shutdown complete.");
-    }
-
-    /** Write the remembered placements out, so a restart does not hand every one of them back. */
-    private void savePlacedBlockLedger() {
-        try {
-            PlacedBlockLedger.getInstance().save();
-        } catch (Throwable t) {
-            SafeLog.warn("[placed] could not save the placed-block ledger", t);
-        }
     }
 }

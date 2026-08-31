@@ -30,6 +30,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * <p><b>A CREATIVE-mode placement is not recorded.</b> An admin walling in an ore vein for survival
  * players to mine is doing the opposite of the exploit this guards against, and the block carries
  * no signal at break time about who put it there, so the decision has to be made now.
+ *
+ * <p><b>Nor is a placement by anyone the policy exempts.</b> Same case, for a builder who is in
+ * survival rather than creative: {@link PlacedBlockLedger.Policy#guardsPlacementsBy} lets the
+ * consumer name them (typically by permission). An exempt placement is simply never remembered, so
+ * whoever breaks it later earns from it as they would from any other block. It still counts as a
+ * placement for everything else, including whatever the placer earns for making it.
  */
 public final class PlacedBlockRecorder extends EntityEventSystem<EntityStore, PlaceBlockEvent> {
 
@@ -63,8 +69,14 @@ public final class PlacedBlockRecorder extends EntityEventSystem<EntityStore, Pl
         if (playerRef == null) {
             return;
         }
-        var position = event.getTargetBlock();
         PlacedBlockLedger ledger = PlacedBlockLedger.getInstance();
+        if (!ledger.policy().guardsPlacementsBy(playerRef)) {
+            // Somebody building FOR other players to work: what they put down is meant to pay out,
+            // so it is left unrecorded and reads as an ordinary block from here on. They still earn
+            // for placing it - this decides only whether the block is remembered.
+            return;
+        }
+        var position = event.getTargetBlock();
         ledger.trackPlacement(playerRef.getUuid(), playerRef.getWorldUuid(),
                 position.x, position.y, position.z);
         ledger.trackPlacedItem(playerRef.getUuid(), itemId);
