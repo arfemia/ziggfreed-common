@@ -17,4 +17,5 @@ place.needsRole = Yerleştirilecek rolü --role=<role> ile belirt.
 place.needsWorld = Dünya belirlenemedi. --world=<name> ile bir tane belirt.
 place.noPosition = Konumun okunamadı, bu yüzden koyacak bir yer yok.
 place.idTaken = "{0}" zaten bir yerleşimin adı. --id=<id> ile başka bir kimlik seç veya mevcut olanı düzenle.
+place.roleNotSpawnable = "{0}" bu sunucunun yerleştirebileceği bir rol değil. Yanlış yazılmış olabilir veya diğer rollerin üzerine kurulduğu soyut bir şablon olabilir.
 place.writeFailed = {0} dosyasına yazılamadı. Dosya olduğu gibi bırakıldı.

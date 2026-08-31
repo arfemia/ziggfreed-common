@@ -18,4 +18,5 @@ place.needsRole = Name the role to stand, with --role=<role>.
 place.needsWorld = Could not tell which world to use. Name one with --world=<name>.
 place.noPosition = Could not read your position, so there is nowhere to put it.
 place.idTaken = "{0}" already names a placement. Choose another id with --id=<id>, or edit the existing one.
+place.roleNotSpawnable = "{0}" is not a role this server can stand up. It may be misspelled, or an abstract template other roles are built on.
 place.writeFailed = Could not write to {0}. The file was left as it was.

@@ -17,4 +17,5 @@ place.needsRole = Indiquez le rôle à placer avec --role=<role>.
 place.needsWorld = Impossible de déterminer le monde. Indiquez-en un avec --world=<name>.
 place.noPosition = Impossible de lire votre position, il n'y a donc nulle part où le mettre.
 place.idTaken = "{0}" désigne déjà un placement. Choisissez un autre id avec --id=<id>, ou modifiez l'existant.
+place.roleNotSpawnable = "{0}" n'est pas un rôle que ce serveur peut placer. Il est peut-être mal orthographié, ou il s'agit d'un modèle abstrait sur lequel d'autres rôles sont construits.
 place.writeFailed = Impossible d'écrire dans {0}. Le fichier a été laissé tel quel.

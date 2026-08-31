@@ -1,5 +1,6 @@
 package com.ziggfreed.common.npc.placement;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -11,7 +12,9 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.util.JsonOverrideWriter;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Writing a placement from OUTSIDE a content pack: the shared half of "stand this role here".
@@ -36,6 +39,8 @@ public final class NpcPlacementAuthoring {
         PLACED,
         /** The id already names a placement; nothing was written. */
         ID_TAKEN,
+        /** No such role, or one that exists but can never be spawned; nothing was written. */
+        ROLE_NOT_SPAWNABLE,
         /** The owner file could not be written; it was left exactly as it was. */
         WRITE_FAILED
     }
@@ -71,6 +76,9 @@ public final class NpcPlacementAuthoring {
         if (NpcPlacementConfig.getInstance().has(key)) {
             return new Result(Outcome.ID_TAKEN, key, role, worldName, x, y, z, yaw);
         }
+        if (!isSpawnable(role)) {
+            return new Result(Outcome.ROLE_NOT_SPAWNABLE, key, role, worldName, x, y, z, yaw);
+        }
 
         Map<String, Object> leaves = new LinkedHashMap<>();
         leaves.put(key + ".Identity.Role", role);
@@ -95,6 +103,52 @@ public final class NpcPlacementAuthoring {
         NpcPlacementReconciler.forceSweep(world, store);
 
         return new Result(Outcome.PLACED, key, role, worldName, x, y, z, yaw);
+    }
+
+    /**
+     * The roles a placement could actually stand up, for a picker to offer: every registered role
+     * that is SPAWNABLE, so the abstract templates other roles are built on are left out - naming
+     * one would write a placement that can never appear. Sorted, so a listing is stable.
+     *
+     * <p>Empty when there is no role registry to ask (a unit JVM, a call before the NPC plugin is
+     * up). That reads as "cannot tell", never as "this server has no roles", which is the same
+     * convention the name and world lookups already follow.
+     */
+    @Nonnull
+    public static List<String> spawnableRoles() {
+        try {
+            NPCPlugin npc = NPCPlugin.get();
+            if (npc == null) {
+                return List.of();
+            }
+            List<String> names = new ArrayList<>(npc.getRoleTemplateNames(true));
+            names.sort(java.util.Comparator.naturalOrder());
+            return names;
+        } catch (Throwable t) {
+            SafeLog.fine("[placement] could not list the spawnable roles: " + t.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Can {@code role} actually be stood up? False for an unknown role AND for an abstract one, both
+     * of which produce a placement that never appears with nothing on screen to explain it.
+     *
+     * <p>Answers TRUE when there is no registry to ask, so a call made before the NPC plugin is up
+     * refuses nothing: this is a courtesy check at the moment somebody types a role, not the
+     * placement engine's own gate.
+     */
+    public static boolean isSpawnable(@Nonnull String role) {
+        try {
+            NPCPlugin npc = NPCPlugin.get();
+            if (npc == null) {
+                return true;
+            }
+            npc.validateSpawnableRole(role.trim());
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     /** {@code value} to {@code places} decimals, so the written file reads like something authored. */

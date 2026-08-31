@@ -113,6 +113,8 @@ final class NpcPlaceCommand extends AbstractAsyncCommand {
         String file = NpcPlacementOverrides.getInstance().getFile().toString();
         switch (result.outcome()) {
             case ID_TAKEN -> NpcAdminMessages.refused(ctx, "place.idTaken", result.id());
+            case ROLE_NOT_SPAWNABLE ->
+                    NpcAdminMessages.refused(ctx, "place.roleNotSpawnable", result.role());
             case WRITE_FAILED -> NpcAdminMessages.refused(ctx, "place.writeFailed", file);
             case PLACED -> {
                 NpcAdminMessages.done(ctx, "place.done", result.id(), result.role(),

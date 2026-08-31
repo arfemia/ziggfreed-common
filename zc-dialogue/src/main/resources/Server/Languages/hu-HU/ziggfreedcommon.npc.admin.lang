@@ -17,4 +17,5 @@ place.needsRole = Nevezd meg a felállítandó szerepet a --role=<role> kapcsol�
 place.needsWorld = Nem sikerült megállapítani a világot. Nevezz meg egyet a --world=<name> kapcsolóval.
 place.noPosition = Nem sikerült beolvasni a pozíciódat, így nincs hova tenni.
 place.idTaken = "{0}" már egy elhelyezés neve. Válassz másik azonosítót a --id=<id> kapcsolóval, vagy szerkeszd a meglévőt.
+place.roleNotSpawnable = "{0}" nem olyan szerep, amelyet ez a szerver fel tud állítani. Lehet, hogy elírtad, vagy egy absztrakt sablon, amelyre más szerepek épülnek.
 place.writeFailed = Nem sikerült írni ide: {0}. A fájl változatlan maradt.

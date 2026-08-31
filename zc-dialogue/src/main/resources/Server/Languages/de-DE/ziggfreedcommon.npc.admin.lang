@@ -17,4 +17,5 @@ place.needsRole = Nenne die aufzustellende Rolle mit --role=<role>.
 place.needsWorld = Die Welt konnte nicht bestimmt werden. Nenne eine mit --world=<name>.
 place.noPosition = Deine Position konnte nicht gelesen werden, also gibt es keinen Ort dafür.
 place.idTaken = "{0}" benennt bereits eine Platzierung. Wähle mit --id=<id> eine andere, oder bearbeite die vorhandene.
+place.roleNotSpawnable = "{0}" ist keine Rolle, die dieser Server aufstellen kann. Vielleicht ist sie falsch geschrieben oder eine abstrakte Vorlage, auf der andere Rollen aufbauen.
 place.writeFailed = {0} konnte nicht geschrieben werden. Die Datei blieb unverändert.

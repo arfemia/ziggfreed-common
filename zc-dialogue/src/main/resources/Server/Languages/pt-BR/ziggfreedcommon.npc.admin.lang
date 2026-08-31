@@ -17,4 +17,5 @@ place.needsRole = Informe o papel a posicionar com --role=<role>.
 place.needsWorld = Não foi possível determinar o mundo. Informe um com --world=<name>.
 place.noPosition = Não foi possível ler sua posição, então não há onde colocá-lo.
 place.idTaken = "{0}" já nomeia um posicionamento. Escolha outro id com --id=<id>, ou edite o existente.
+place.roleNotSpawnable = "{0}" não é um papel que este servidor possa posicionar. Pode estar escrito errado, ou ser um modelo abstrato sobre o qual outros papeis sao construidos.
 place.writeFailed = Não foi possível escrever em {0}. O arquivo foi deixado como estava.
