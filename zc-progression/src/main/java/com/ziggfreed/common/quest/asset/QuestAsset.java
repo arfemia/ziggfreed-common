@@ -33,10 +33,10 @@ import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestTurnInSite;
+import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.time.DurationGroup;
 
 /**

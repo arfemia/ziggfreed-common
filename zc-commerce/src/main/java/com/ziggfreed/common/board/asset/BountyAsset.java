@@ -25,12 +25,12 @@ import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * One CONTRACT a board can post, at {@code Server/ZiggfreedCommon/Bounties/<ns>/<Id>.json}. The FILE

@@ -1,7 +1,10 @@
-# command/ - running an AUTHORED command line
+# command/ - running an AUTHORED command line, and the shared admin-verb resolution walk
 
-`zc-core`. `CommandRunner` is the zero-code integration surface a pack author gets when a reward, a
-drop or a station grant needs to do something the mod has no schema for.
+`zc-core`. Two unrelated primitives share this package because both are "command" plumbing with
+two or more callers and no domain vocabulary of their own. `CommandRunner` is the zero-code
+integration surface a pack author gets when a reward, a drop or a station grant needs to do
+something the mod has no schema for. `AbstractTargetPlayerCommand` is the shared walk behind every
+`/zigcommerce`/`/zigprogress` admin verb that targets one player.
 
 ## Why one primitive rather than a helper per consumer
 
@@ -52,6 +55,31 @@ nothing to check (it records the line, or hands it somewhere that cannot answer)
 in a comment why that is honest. Failures go to a caller-supplied `Consumer<String>` rather than a
 logger, so a consumer routes them into its own guarded log seam, a validation report, or a test list.
 A sink that itself throws costs its own line, never the grant loop.
+
+## `AbstractTargetPlayerCommand<T>` - the shared per-player admin-verb walk
+
+`/zigcommerce` (zc-commerce) and `/zigprogress` (zc-objectives) each ran their own copy of the same
+walk: read an optional `player` argument, fall back to the sender when they are one, refuse when
+neither resolves or the resolved player is offline, then hop to that player's own world thread and
+build whatever the family's engines need. The walk (argument, online check, world-thread hop,
+the two universal refusals `player.needed`/`player.offline`) is IDENTICAL between the two and now
+lives here once; only `buildTarget(store, ref, playerRef)` differs, because the two families read
+different subject sources - zc-commerce builds a `Subject` straight off the player's own
+`Player`/`PlayerRef` components, zc-objectives instead keeps the raw handles and asks
+`ProgressionRuntime.subjects()` for a quest or achievement subject later, per verb.
+
+- **Generic over `T`**: whatever a family's `execute(ctx, T target)` receives. A family that can
+  build a `T` directly returns it from `buildTarget`; a family with nothing to build returns null
+  and the base speaks the same `player.offline` refusal a genuinely offline player gets, because
+  neither is a case worth a different sentence.
+- **`Refusal` is the message-catalogue seam** (`refuse(ctx, key, args...)`) - each family answers
+  through its own admin-message class (`CommerceAdminMessages::refused` /
+  `ProgressAdminMessages::refused`), so the wording and the lang file stay the family's own; this
+  base never resolves a message itself.
+- **Each family keeps its OWN `TargetPlayerSubCommand`**, package-private in its own `command/`
+  package, so every existing per-verb command's call site (`super(name)` / `super(group, verb)`,
+  `execute(ctx, subject)` / `execute(ctx, target)`) is untouched. Only the two walks collapsed into
+  one; the two families' constructor shapes and per-verb subclasses did not move.
 
 ## Relationship to `util/CommandExecutor`
 

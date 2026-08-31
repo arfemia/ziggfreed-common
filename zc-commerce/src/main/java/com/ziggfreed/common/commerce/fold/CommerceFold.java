@@ -22,7 +22,6 @@ import com.ziggfreed.common.cost.ItemCost;
 import com.ziggfreed.common.currency.CurrencyDef;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.loot.reward.RewardSpec;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.rotation.PoolSlot;
 import com.ziggfreed.common.rotation.RerollSpec;
@@ -30,6 +29,7 @@ import com.ziggfreed.common.rotation.RotationSpec;
 import com.ziggfreed.common.rotation.SelectionSpec;
 import com.ziggfreed.common.shop.PurchaseLimits;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
+import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.time.DurationGroup;
 import com.ziggfreed.common.util.SafeLog;
 

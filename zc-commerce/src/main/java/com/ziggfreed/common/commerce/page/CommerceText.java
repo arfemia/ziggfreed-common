@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.Message;
 
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
+import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.util.NumberFormatter;
 import com.ziggfreed.common.util.PeriodMath;
 

@@ -1,4 +1,4 @@
-package com.ziggfreed.common.progress.asset;
+package com.ziggfreed.common.text;
 
 import java.util.ArrayList;
 import java.util.List;

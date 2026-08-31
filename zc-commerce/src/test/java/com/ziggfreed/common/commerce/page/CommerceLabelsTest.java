@@ -19,7 +19,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.LangCatalog;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * Which key a band or a shelf is printed under, which is the whole of the bug this ladder exists for:

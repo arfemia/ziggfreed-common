@@ -10,11 +10,11 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
-import com.ziggfreed.common.validation.Finding;
-import com.ziggfreed.common.validation.Severity;
 import com.ziggfreed.common.factor.FactorFormula.Clamp;
 import com.ziggfreed.common.factor.FactorFormula.Term;
+import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.validation.Severity;
 
 /**
  * The audit that makes an asset-defined factor's silent failures visible at load. Every case here

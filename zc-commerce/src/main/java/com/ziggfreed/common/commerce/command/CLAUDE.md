@@ -14,7 +14,7 @@ what it settles below is meant to be copied by the next one.
 | [`ZigCommerceCommand`](ZigCommerceCommand.java) | the family, and the one place its verbs are listed |
 | [`CommerceCommandLine`](CommerceCommandLine.java) | the names, and the replayable `give` line. A LEAF: it imports nothing |
 | [`CommerceAdminMessages`](CommerceAdminMessages.java) | every line this family says, and the two rules it says them by |
-| [`TargetPlayerSubCommand`](TargetPlayerSubCommand.java) | the shared half of a per-player verb: name a player, be on their world thread, hold a `Subject` |
+| [`TargetPlayerSubCommand`](TargetPlayerSubCommand.java) | this family's fill of zc-core's shared [`AbstractTargetPlayerCommand`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/command/CLAUDE.md) walk: builds a `Subject` straight off the resolved player's own `Player`/`PlayerRef` components |
 | [`CommerceValidateCommand`](CommerceValidateCommand.java) | `validate`, over `commerce/fold/CommerceAudit` |
 | [`CommerceWalletsCommand`](CommerceWalletsCommand.java) | `wallets` |
 | [`CommerceShopsCommand`](CommerceShopsCommand.java) | `shops [--shop=<id>]` |

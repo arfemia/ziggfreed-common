@@ -27,9 +27,9 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * One authored achievement, at {@code Server/ZiggfreedCommon/Achievements/<id>.json}. The FILE NAME

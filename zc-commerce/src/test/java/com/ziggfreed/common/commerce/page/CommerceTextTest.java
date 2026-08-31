@@ -10,7 +10,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
+import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.util.PeriodMath;
 
 /**

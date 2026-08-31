@@ -10,8 +10,8 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.registry.RegistryLedger;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * What a factor is CALLED, answered entirely from the {@code Server/ZiggfreedCommon/Factors/}

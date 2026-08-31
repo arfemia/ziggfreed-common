@@ -34,7 +34,9 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
 - [`codec/`](src/main/java/com/ziggfreed/common/codec/CLAUDE.md) - `InheritMapCodec`,
   `JsonParentResolver`, `JsonTreeCodec`, the shared authorable leaves `Vec3`/`Rotation`/`TagMatch`.
 - [`command/`](src/main/java/com/ziggfreed/common/command/CLAUDE.md) - `CommandRunner`, the
-  authored-command primitive (map-driven placeholders, the `/give --quantity` fix).
+  authored-command primitive (map-driven placeholders, the `/give --quantity` fix), plus
+  `AbstractTargetPlayerCommand`, the shared per-player admin-verb resolution walk zc-commerce and
+  zc-objectives each fill with their own subject source.
 - [`counter/`](src/main/java/com/ziggfreed/common/counter/CLAUDE.md) - `CounterMap`/`CounterStore`/
   `Counters`, named long tallies per subject. Admitted under the one-module carve-out (see the root
   admission table); never merges with `stats/` in zc-entity.
@@ -80,6 +82,10 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
   [`zc-cast`'s `cast/`](../zc-cast/src/main/java/com/ziggfreed/common/cast/CLAUDE.md); this is the
   other half of that split package, kept here because three modules need only this one class and
   not the other 37 in the runtime. No router of its own (one file).
+- `text/` - `ContentTextAsset` only, the `TitleKey`/`FlavorKey`/`DisplayName` authoring group named
+  by this module's own `factor/DerivedFactorAsset` plus zc-commerce and zc-progression's content
+  codecs. Not a split package: the whole class lives here, reached by every consumer above through
+  the ordinary module edge. No router of its own (one file).
 - [`util/`](src/main/java/com/ziggfreed/common/util/CLAUDE.md) - `AssetIndexCache`,
   `NumberFormatter`, `CommandExecutor`, `HostilityUtil`, `EntityIdentifierUtil`,
   `DamageCauseCache`, `JsonTreeUtil`/`JsonOverrideWriter`.

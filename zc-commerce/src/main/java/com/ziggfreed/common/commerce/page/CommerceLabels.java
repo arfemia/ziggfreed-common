@@ -10,8 +10,8 @@ import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
 import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.shop.asset.StorefrontAsset;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * What a difficulty BAND and a shelf CATEGORY are called, on one ladder both screens read.

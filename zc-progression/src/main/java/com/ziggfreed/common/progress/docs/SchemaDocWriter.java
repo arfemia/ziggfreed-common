@@ -24,7 +24,6 @@ import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
 import com.ziggfreed.common.achievement.asset.AchievementMilestoneAsset;
 import com.ziggfreed.common.codec.JsonTreeCodec;
 import com.ziggfreed.common.factor.FactorCondition;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.asset.GeneratorAxisAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
@@ -33,6 +32,7 @@ import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.asset.QuestAsset;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
+import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.time.DurationGroup;
 
 /**

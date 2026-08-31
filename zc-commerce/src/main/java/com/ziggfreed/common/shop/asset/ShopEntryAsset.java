@@ -21,9 +21,9 @@ import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * One OFFER, at {@code Server/ZiggfreedCommon/ShopEntries/<ns>/<Id>.json}. The FILE NAME is the

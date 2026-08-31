@@ -21,7 +21,7 @@ import com.ziggfreed.common.commerce.asset.RerollAsset;
 import com.ziggfreed.common.commerce.asset.RotationAsset;
 import com.ziggfreed.common.commerce.asset.SelectionAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * One ROTATING SHELF inside a storefront, at

@@ -17,8 +17,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.progress.asset.ContentMeta;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * One WALLET a player can hold, at {@code Server/ZiggfreedCommon/Currencies/<ns>/<Id>.json}. The

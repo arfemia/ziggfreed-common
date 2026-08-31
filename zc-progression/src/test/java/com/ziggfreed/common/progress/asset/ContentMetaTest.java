@@ -22,6 +22,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.achievement.asset.AchievementAsset;
 import com.ziggfreed.common.quest.asset.QuestAsset;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * The {@code Meta} extension leaf: a namespace a consumer owns rides through the schema untouched,

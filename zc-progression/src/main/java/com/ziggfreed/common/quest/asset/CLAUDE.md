@@ -34,7 +34,7 @@ consumer: store.resolveAll(enumerators)           -> expand generators -> decode
 | `QuestAxisRow`, `QuestValueEnumerator`, `QuestEnumeratorRegistry` | the OPEN value-source vocabulary an axis may name |
 | `QuestAssetStore` | the loaded content, and the fold into a pool |
 | `QuestPoolValidator` (+ `.NpcIdProbe`) | the content audit; reports shared `validation.Finding` values under domain `quest`. The probe is the optional seam for "does anything answer to this character id", since who stands where is declared above this module |
-| [`progress.asset`](../../progress/asset/CLAUDE.md) `ContentTextAsset`, `ObjectiveLeafAsset`, `RewardEntryAsset`, `ProgressEditorDataSets` | the groups SHARED with the achievement asset layer, declared once so their field names cannot drift |
+| [`progress.asset`](../../progress/asset/CLAUDE.md) `ObjectiveLeafAsset`, `RewardEntryAsset`, `ProgressEditorDataSets`, plus zc-core's `ContentTextAsset` (`com.ziggfreed.common.text`) | the groups SHARED with the achievement asset layer, declared once so their field names cannot drift |
 | `codec.JsonTreeCodec` (zc-core) | verbatim capture of an authored JSON subtree (the generator's `Child`, an axis's `Values`) |
 
 ## Rules to keep

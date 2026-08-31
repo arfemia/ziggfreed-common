@@ -7,9 +7,14 @@ Package root `com.ziggfreed.common.progress.asset`. Imports zc-core and `../` on
 `../../quest/` or `../../achievement/`; a group that only one engine can have belongs to that
 engine's own codec.
 
+`Text` (the `TitleKey` / `FlavorKey` / `DisplayName` group both engines' codecs decode through
+`ContentTextAsset`) is NOT a class in this package: `ContentTextAsset` lives in zc-core's
+`com.ziggfreed.common.text`, because the factor naming asset (`factor.DerivedFactorAsset`, a module
+below this one) carries the same group - a shared group a lower module needs cannot live up here.
+Imported the same way any other zc-core leaf is.
+
 | Class | The group it declares |
 |---|---|
-| `ContentTextAsset` | `Text`: `TitleKey` / `FlavorKey` / `DisplayName`. The FILE lives in zc-core (same package), because the factor naming asset (`factor.DerivedFactorAsset`, a module below this one) carries the same group - the precedent for a shared group a lower module needs |
 | `ContentMeta` | `Meta`: the namespace -> verbatim-block map both engines carry, plus the `decode` seam a consumer reads its own namespace through |
 | `ObjectiveLeafAsset` (+ `appendLeaves`) | the seven leaves every authored objective carries: `Kind` / `Target` / `MatchMode` / `Qualifier` / `Amount` / `Zone` / `TextKey` |
 | `ContentListingAsset` (+ `appendLeaves` / `appendPresentationLeaves` / `appendVisibilityLeaves`) | `Listing`: the five presentation leaves (`Category` / `SortOrder` / `Tags` / `Chains` / `Icon`) plus the two visibility ones (`Hidden` / `RequirePrerequisites`); a type whose visibility is its own policy (a bounty contract) appends only the presentation five, so no visibility leaf exists there to decode and do nothing |

@@ -16,9 +16,9 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.i18n.PlainText;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateRefusal;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * The one token-and-record-to-line mapping every locked surface reads. What is pinned here is the

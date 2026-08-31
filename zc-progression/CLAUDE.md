@@ -31,9 +31,11 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
   `ObjectiveMatch`/`ZoneRef`/`ZoneLocator` (the ONE read of where a player is, off the engine's
   `WorldMapTracker`), `ObjectiveProgressState`, `ObjectiveIndex`, `DispatchOptions`, and `ObjectiveComposer`/`NeutralObjectiveComposer` (the sentence a key-less step reads with: a consumer-installable slot over the shipped nine-locale per-kind family in this module's `ziggfreedcommon.progress.lang`).
   - [`progress/asset/`](src/main/java/com/ziggfreed/common/progress/asset/CLAUDE.md) - the authoring
-    groups both engines share (`ContentTextAsset`, `ObjectiveLeafAsset`, `RewardEntryAsset`,
+    groups both engines share (`ContentMeta`, `ObjectiveLeafAsset`, `RewardEntryAsset`,
     `ProgressEditorDataSets`), declared once so their field names cannot drift between quest and
-    achievement files.
+    achievement files, plus `ContentTextAsset` (`Text`), which both engines' codecs decode through
+    but which lives in zc-core's `com.ziggfreed.common.text` since a module below this one needs it
+    too.
   - `progress/docs/` - `SchemaDocWriter`, generating this module's `SCHEMA.md` on demand
     (`gradlew :zc-progression:generateSchemaDocs`, guarded by `SchemaDocDriftTest`). No router.
   - `progress/gate/` - `GateClause`/`GateSpec`/`GateKind`/`GateKindRegistry`/`GateEvaluator`/

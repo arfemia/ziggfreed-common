@@ -25,8 +25,8 @@ import com.ziggfreed.common.commerce.asset.RerollAsset;
 import com.ziggfreed.common.commerce.asset.RotationAsset;
 import com.ziggfreed.common.commerce.asset.SelectionAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**

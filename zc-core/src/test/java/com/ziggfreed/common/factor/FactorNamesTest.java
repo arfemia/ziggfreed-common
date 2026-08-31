@@ -17,7 +17,7 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 import com.hypixel.hytale.server.core.Message;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * The asset-driven factor NAMING walk: several files may address one factor, the most specific

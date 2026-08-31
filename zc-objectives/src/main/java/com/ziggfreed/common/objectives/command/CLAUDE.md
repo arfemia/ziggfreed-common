@@ -16,7 +16,7 @@ progression verb acts on content the runtime merges from several mods.
 | [`ZigProgressCommand`](ZigProgressCommand.java) | the family, its three groups, and the one place every verb is listed |
 | [`ProgressCommandLine`](ProgressCommandLine.java) | the names: family, groups, verbs. A LEAF: it imports nothing |
 | [`ProgressAdminMessages`](ProgressAdminMessages.java) | every line this family says, the rules it says them by, and the words for the runtime's statuses |
-| [`TargetPlayerSubCommand`](TargetPlayerSubCommand.java) | the shared half of a per-player verb: name a player, be on their world thread, hold the handles the runtime builds a `Subject` from |
+| [`TargetPlayerSubCommand`](TargetPlayerSubCommand.java) | this family's fill of zc-core's shared [`AbstractTargetPlayerCommand`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/command/CLAUDE.md) walk: keeps the resolved `(store, ref, playerRef)` handles as a `Target` rather than building a `Subject` here |
 | [`ContentArgs`](ContentArgs.java) | the `--quest` / `--achievement` argument read against the shared catalogue, with one spelling of each refusal |
 | [`ProgressReloadCommand`](ProgressReloadCommand.java) | `reload`, over `ProgressionDefaults.publishAssetContent` |
 | [`QuestListCommand`](QuestListCommand.java) | `quest list [--tag=<tag>]` |

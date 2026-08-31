@@ -16,8 +16,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.registry.RegistryLedger;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * One {@code Server/ZiggfreedCommon/Factors/<file>.json} file, doing either or both of two jobs

@@ -19,10 +19,10 @@ import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.asset.AchievementDefinition;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.progress.asset.ContentTextAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.asset.QuestDefinition;
+import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
  * What an author wrote into a key's numbered slots has to reach the line the player reads.
