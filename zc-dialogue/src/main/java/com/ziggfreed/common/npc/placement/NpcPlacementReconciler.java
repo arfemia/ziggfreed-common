@@ -16,6 +16,7 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -165,6 +166,43 @@ public final class NpcPlacementReconciler {
         return in.respawn() ? PlaceDecision.REPLACE : PlaceDecision.SKIP;
     }
 
+    /**
+     * Ask the engine for the chunk under {@code position}, once, and sweep again when it arrives.
+     *
+     * <p>An anchor that resolves into a sleeping chunk is not a race to wait out - it is the
+     * ordinary shape of a placement standing somewhere nobody has walked: a world spawn point the
+     * player did not spawn at, a structure sighted from a distance. Nothing will ever load that
+     * chunk on its own, so the placement would simply never appear no matter how long the retry
+     * budget ran. Requesting it turns the position itself into the reason to load it.
+     *
+     * <p>No pin is taken (see {@link NpcPlacementService#requestChunk}): once the NPC is placed and
+     * nobody is nearby, the chunk goes cold and unloads again on the engine's own schedule, taking
+     * the NPC with it and leaving the ledger row - the steady state the whole sweep is built
+     * around. Only {@code Lifecycle.KeepAlive} holds a chunk awake.
+     *
+     * <p>Requested once per chunk per world: the same anchor is walked on every pass, and a repeat
+     * request would re-enter the loader each time for a chunk already on its way in. The claim is
+     * released when the load completes, so a chunk that later sleeps again can be asked for again.
+     *
+     * @return true when a request was made on this call
+     */
+    private static boolean requestAnchorChunk(@Nonnull World world, @Nonnull String worldName,
+            @Nonnull AnchorPosition position) {
+        String key = worldName + '|' + ChunkUtil.indexChunkFromBlock(position.x(), position.z());
+        if (!CHUNK_REQUESTS.add(key)) {
+            return false;
+        }
+        boolean requested = NpcPlacementService.requestChunk(world, position.x(), position.z(), () -> {
+            CHUNK_REQUESTS.remove(key);
+            // The chunk is in and ticking now, so the place decision that skipped can go through.
+            defer(world);
+        });
+        if (!requested) {
+            CHUNK_REQUESTS.remove(key);
+        }
+        return requested;
+    }
+
     // ==================== sweep state ====================
 
     /** Worlds already swept since the last invalidation. */
@@ -172,6 +210,37 @@ public final class NpcPlacementReconciler {
 
     /** Instances currently being placed, keyed {@code world|placementId|anchorKey}. */
     private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Worlds with a sweep queued or running. The pump admits ONE chain per world at a time.
+     *
+     * <p>Triggers are not rare: a world being walked through kicks a sweep per newly-sighted
+     * structure marker, and each of those clears the debounce latch first. Letting every trigger
+     * start its own retry chain means a world carrying a single placement that cannot resolve pays
+     * the whole retry budget once per sighting, concurrently - overlapping chains, each re-scanning
+     * every entity in the world, each ending in its own identical give-up line. One chain is
+     * enough: it re-sweeps on a timer anyway, so whatever changed while it was running is picked up
+     * by its next pass.
+     */
+    private static final Set<World> PUMPING = ConcurrentHashMap.newKeySet();
+
+    /** Worlds whose trigger arrived mid-chain: one more sweep is owed once the chain ends. */
+    private static final Set<World> RESWEEP = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Worlds that spent their whole resolve-retry budget. A later trigger still sweeps - a sighting
+     * or a chunk arriving can resolve what could not be resolved before - but as a ONE-SHOT pass,
+     * never another chain, and the give-up is reported once per world rather than once per trigger.
+     * Cleared by anything that genuinely changes the answer: a forced sweep, an asset reload, the
+     * world going away.
+     */
+    private static final Set<World> RETRY_EXHAUSTED = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Anchor chunks already asked for, keyed {@code worldName|chunkIndex}, so a chunk is requested
+     * once rather than on every pass over the same unplaced anchor.
+     */
+    private static final Set<String> CHUNK_REQUESTS = ConcurrentHashMap.newKeySet();
 
     static {
         WorldEvictors.registerEvictor(NpcPlacementReconciler::onWorldRemoved);
@@ -183,6 +252,7 @@ public final class NpcPlacementReconciler {
     /** Clear every world's debounce latch (an asset reload changed what the answer is). */
     public static void clearDebounce() {
         SWEPT.clear();
+        RETRY_EXHAUSTED.clear();
     }
 
     /** Clear one world's debounce latch (a gate change, a new sighting, a zone discovery). */
@@ -207,9 +277,13 @@ public final class NpcPlacementReconciler {
             return;
         }
         SWEPT.remove(world);
+        PUMPING.remove(world);
+        RESWEEP.remove(world);
+        RETRY_EXHAUSTED.remove(world);
         String name = NpcPlacementService.worldName(world);
         if (!name.isEmpty()) {
             IN_FLIGHT.removeIf(k -> k.startsWith(name + '|'));
+            CHUNK_REQUESTS.removeIf(k -> k.startsWith(name + '|'));
             NpcPlacementLedger.getInstance().dropWorld(name);
             NpcPlacementPositionCache.forgetWorld(name);
         }
@@ -234,6 +308,9 @@ public final class NpcPlacementReconciler {
      */
     public static void forceSweep(@Nonnull World world, @Nonnull Store<EntityStore> store) {
         SWEPT.add(world);
+        // The content itself just changed, so a world that had given up earns its retry budget
+        // back: what could not resolve before may resolve against the new answer.
+        RETRY_EXHAUSTED.remove(world);
         defer(world);
     }
 
@@ -243,8 +320,14 @@ public final class NpcPlacementReconciler {
      * nothing left unresolved - stops retrying on its own the moment
      * {@link SweepSummary#unresolvedAnchors()} reads 0, so this budget only bounds the
      * pathological case (a race that somehow never resolves) rather than the ordinary one.
+     *
+     * <p>It is deliberately SHORT, because the one case that used to need a long one is now
+     * answered directly instead of waited out: an anchor whose position resolved into a sleeping
+     * chunk gets that chunk requested (see the place pass), and the request's completion sweeps the
+     * world again. What is left for the budget to cover is the brief startup race where an anchor
+     * provider has not settled yet, which resolves in the first pass or two or not at all.
      */
-    private static final int MAX_RESOLVE_RETRIES = 40;
+    private static final int MAX_RESOLVE_RETRIES = 8;
 
     /**
      * The wall-clock spacing between resolve retries. {@code World.execute(Runnable)} offers
@@ -256,13 +339,39 @@ public final class NpcPlacementReconciler {
      * task queue once the delay has genuinely elapsed, which is why every retry below goes
      * through it instead of a second {@code execute()} call.
      */
-    private static final long RETRY_DELAY_MS = 250L;
+    private static final long RETRY_DELAY_MS = 500L;
 
+    /**
+     * Queue a sweep for {@code world} unless one is already queued or running, in which case the
+     * running chain is simply owed one more pass when it ends (see {@link #PUMPING}).
+     */
     private static void defer(@Nonnull World world) {
+        if (!PUMPING.add(world)) {
+            RESWEEP.add(world);
+            return;
+        }
+        startChain(world);
+    }
+
+    /** Hand the world's own task queue the first sweep of a chain, holding the pump for it. */
+    private static void startChain(@Nonnull World world) {
+        RESWEEP.remove(world);
+        // A world that already spent its budget sweeps once and does not chain: the trigger still
+        // gets its answer, without paying for a retry burst that has already proved it cannot help.
+        int budget = RETRY_EXHAUSTED.contains(world) ? 0 : MAX_RESOLVE_RETRIES;
         try {
-            world.execute(() -> runSweepAndMaybeRetry(world, MAX_RESOLVE_RETRIES));
+            world.execute(() -> runSweepAndMaybeRetry(world, budget));
         } catch (Throwable t) {
+            releasePump(world);
             SafeLog.warn("[placement] could not schedule a sweep: " + t.getMessage());
+        }
+    }
+
+    /** Release the pump at the end of a chain, running the pass a mid-chain trigger is owed. */
+    private static void releasePump(@Nonnull World world) {
+        PUMPING.remove(world);
+        if (RESWEEP.remove(world) && PUMPING.add(world)) {
+            startChain(world);
         }
     }
 
@@ -275,8 +384,10 @@ public final class NpcPlacementReconciler {
             // chunk load kicks a sweep per new sighting). The trail for an NPC that never appears
             // survives the quiet: each unresolved-anchor reason has its own once-per-world INFO
             // line, and exhausting the retries is the WARN below.
+            String attempt = RETRY_EXHAUSTED.contains(world) ? "one-shot"
+                    : (MAX_RESOLVE_RETRIES - retriesLeft + 1) + "/" + (MAX_RESOLVE_RETRIES + 1);
             String line = "[placement] sweep '" + NpcPlacementService.worldName(world) + "' (attempt "
-                    + (MAX_RESOLVE_RETRIES - retriesLeft + 1) + "/" + (MAX_RESOLVE_RETRIES + 1)
+                    + attempt
                     + "): scanned=" + summary.scanned() + " despawned=" + summary.despawned()
                     + " adopted=" + summary.rebound() + " placed=" + summary.placed()
                     + " unresolvedAnchors=" + summary.unresolvedAnchors();
@@ -286,14 +397,19 @@ public final class NpcPlacementReconciler {
                 SafeLog.fine(line);
             }
             if (summary.unresolvedAnchors() == 0) {
+                releasePump(world);
                 return;
             }
             if (retriesLeft <= 0) {
-                SafeLog.warn("[placement] '" + NpcPlacementService.worldName(world) + "': "
-                        + summary.unresolvedAnchors() + " placement(s) still could not resolve an "
-                        + "anchor position after " + MAX_RESOLVE_RETRIES + " retries - giving up "
-                        + "for this world (a role-agnostic WorldSpawn provider that never resolves, "
-                        + "or content whose anchor genuinely never matches)");
+                if (RETRY_EXHAUSTED.add(world)) {
+                    SafeLog.warn("[placement] '" + NpcPlacementService.worldName(world) + "': "
+                            + summary.unresolvedAnchors() + " placement(s) still could not resolve an "
+                            + "anchor position after " + MAX_RESOLVE_RETRIES + " retries - no further "
+                            + "retry bursts for this world (a role-agnostic WorldSpawn provider that "
+                            + "never resolves, or content whose anchor genuinely never matches). A "
+                            + "later sighting, chunk arrival or admin reconcile still sweeps once.");
+                }
+                releasePump(world);
                 return;
             }
             // Not a content problem - an eligible, ledger-missing placement asked for a position
@@ -305,6 +421,7 @@ public final class NpcPlacementReconciler {
             world.scheduleAfter(() -> runSweepAndMaybeRetry(world, retriesLeft - 1),
                     RETRY_DELAY_MS, TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
+            releasePump(world);
             SafeLog.warn("[placement] sweep failed for world '"
                     + NpcPlacementService.worldName(world) + "': " + t.getMessage());
         }
@@ -550,25 +667,32 @@ public final class NpcPlacementReconciler {
                             ledgerHit && isResident(store, ledger.uuidOf(worldName, placementId, anchorKey)),
                             respawn, atCapacity, IN_FLIGHT.contains(flightKey)));
                     if (decision == PlaceDecision.SKIP) {
-                        if (!ledgerHit && !chunkLoaded) {
+                        // atCapacity is deliberately excluded: this placement would skip even with
+                        // the chunk in hand, so neither a retry nor a chunk load could change the
+                        // answer. Counting it would keep the world retrying over a decision that
+                        // is already final.
+                        if (!ledgerHit && !chunkLoaded && !atCapacity) {
                             // The anchor group resolved a position just fine (unlike the
                             // positions.isEmpty() case above) - what is missing is the CHUNK at
                             // that position, which the very first (AddWorldEvent-triggered) sweep
                             // of a freshly-created world hits every time: nothing has forced that
                             // chunk to load yet, because no player has even entered the world at
-                            // that instant. Never yet placed anywhere plus chunk asleep is the
-                            // SAME startup race as an unresolved anchor group, one step later -
-                            // worth the same retry. A row that exists but is asleep (an already-
-                            // placed NPC whose chunk went back to sleep) is NOT this case: that is
-                            // steady-state behavior the design deliberately never retries against.
+                            // that instant. Nor need one ever: an anchor can name a spot no route
+                            // through the world passes, and waiting on that chunk is waiting on
+                            // nothing. So the chunk is asked for outright (requestAnchorChunk),
+                            // and the retry below only covers the wait until it arrives. A row
+                            // that exists but is asleep (an already-placed NPC whose chunk went
+                            // back to sleep) is NOT this case: that is steady-state behavior the
+                            // design deliberately never retries against.
                             unresolvedAnchors++;
+                            boolean asked = requestAnchorChunk(world, worldName, position);
                             PlacementDiag.once(world, "unresolved-asleep|" + placementId + '|' + anchorKey,
                                     "[placement] '" + placementId + "' in '" + worldName
                                             + "': anchor " + anchorKey + " resolved ("
                                             + Math.round(position.x()) + ","
                                             + Math.round(position.y()) + ","
                                             + Math.round(position.z()) + ") but that chunk is not"
-                                            + " loaded - retrying");
+                                            + " loaded - " + (asked ? "loading it" : "retrying"));
                         }
                         continue;
                     }
@@ -641,5 +765,9 @@ public final class NpcPlacementReconciler {
     static void clearForTests() {
         SWEPT.clear();
         IN_FLIGHT.clear();
+        PUMPING.clear();
+        RESWEEP.clear();
+        RETRY_EXHAUSTED.clear();
+        CHUNK_REQUESTS.clear();
     }
 }

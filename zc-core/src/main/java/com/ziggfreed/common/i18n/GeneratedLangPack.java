@@ -181,13 +181,12 @@ public final class GeneratedLangPack {
                 return false;
             }
             // Unregister BEFORE rebuilding (see the javadoc ordering note): a registered zip is
-            // held open by the engine and cannot be replaced on Windows. First call: nothing
-            // registered, the unregister is a guarded no-op.
-            try {
-                am.unregisterPack(packId);
-            } catch (Throwable ignored) {
-                // no prior registration on the first call; nothing to unregister
-            }
+            // held open by the engine and cannot be replaced on Windows. Routed through the same
+            // presence-guarded core the public unregister uses, which is what keeps the FIRST call
+            // quiet: unregistering an id nothing holds is not an error, but the engine logs a
+            // warning for it, and a warning every boot for the ordinary case teaches a server owner
+            // to ignore the one that matters.
+            unregisterZipPack(liveRegistry(), group, name);
             if (!rebuildZip(stagingRoot, zip, group, name, semver)) {
                 // Fail-soft restore: keep serving the previous zip if one exists on disk.
                 if (Files.isRegularFile(zip)) {

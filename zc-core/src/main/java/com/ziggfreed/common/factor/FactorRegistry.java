@@ -140,6 +140,25 @@ public final class FactorRegistry {
     }
 
     /**
+     * Register {@code factorId} as a DELIBERATE layer over a registration this same registry
+     * already carries, without the ledger's overwrite warning.
+     *
+     * <p>That warning exists to catch a surprise - two owners wanting one id, where the loser's
+     * behaviour silently vanishes. It is the wrong signal for a registry built in one place by one
+     * owner that seeds a base vocabulary and then answers a few of those ids its own way: the
+     * replacement IS the design, it is written directly above the seeding call, and a server owner
+     * reading the warning has nothing to act on. Use {@link #register} everywhere else, including
+     * for an id this registry does not already hold - a genuine collision must stay loud.
+     */
+    public void registerOverride(@Nullable String factorId, @Nullable String owner, @Nullable FactorProvider provider) {
+        if (factorId == null || factorId.isBlank() || provider == null) {
+            return;
+        }
+        ledger.putQuietly(factorId, owner, provider);
+        warned.remove(RegistryLedger.normalize(factorId));
+    }
+
+    /**
      * Replace (or clear with {@code null}) the source consulted when nothing is registered for an
      * id. Every registry starts wired to the shared {@link DerivedFactorConfig}, so this is for a
      * consumer that wants a vocabulary of its own or none at all. Call once at setup, before the

@@ -82,9 +82,19 @@ public final class WhereValidator {
      * misconfiguration a renamed main world produces: the file is well formed, every pattern is
      * spelled right, and the content simply never appears.
      *
-     * <p>An empty {@code worlds} means "cannot tell" and reports nothing. Even with worlds in hand
-     * this stays a WARNING rather than an error, because a {@code Where} aimed at an instance world
-     * is CORRECT while no instance happens to be running.
+     * <p>An empty {@code worlds} means "cannot tell" and reports nothing. It is never an error
+     * either: a {@code Where} aimed at a world that is not running right now can be perfectly
+     * correct.
+     *
+     * <p><b>How loudly it is reported depends on HOW the selector names its worlds</b>, because the
+     * two axes carry different odds of being a mistake. A {@code Match} pattern names worlds by
+     * NAME, and a name that matches nothing loaded is most often a typo or a world someone renamed
+     * - worth a WARNING. A selector whose only positive axis is {@code GameplayConfig} addresses a
+     * world by its gameplay-config key, which is exactly how content aims at an INSTANCE: the
+     * instance's name carries a fresh uuid every time it is entered, so the key is the only stable
+     * handle, and the instance is not running most of the time by design. Warning about that on
+     * every boot would train a server owner to skip the line that does mean something, so it is a
+     * note instead.
      */
     @Nonnull
     public static List<Finding> validateAgainstWorlds(@Nullable WorldSelector selector,
@@ -98,12 +108,21 @@ public final class WhereValidator {
                 return out;
             }
         }
-        out.add(Finding.warning(DOMAIN, "MATCHES_NO_LOADED_WORLD",
-                "this Where matches none of the worlds currently loaded (" + worldNames(worlds)
-                        + "), so whatever it gates never appears - check its patterns against your "
-                        + "server's real world names, or ignore this if it is aimed at an instance "
-                        + "world that is not running", contextId));
+        String message = "this Where matches none of the worlds currently loaded (" + worldNames(worlds)
+                + "), so whatever it gates never appears - check its patterns against your "
+                + "server's real world names, or ignore this if it is aimed at an instance "
+                + "world that is not running";
+        out.add(namesWorldsByConfigOnly(selector)
+                ? Finding.info(DOMAIN, "MATCHES_NO_LOADED_WORLD", message, contextId)
+                : Finding.warning(DOMAIN, "MATCHES_NO_LOADED_WORLD", message, contextId));
         return out;
+    }
+
+    /** Does {@code selector} name its worlds ONLY by gameplay-config key (the instance shape)? */
+    private static boolean namesWorldsByConfigOnly(@Nonnull WorldSelector selector) {
+        String[] match = selector.getMatch();
+        String[] config = selector.getGameplayConfig();
+        return (match == null || isAllBlank(match)) && config != null && !isAllBlank(config);
     }
 
     @Nonnull
