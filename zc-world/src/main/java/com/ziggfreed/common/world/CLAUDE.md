@@ -28,7 +28,7 @@ Nested package with [its own router](placed/CLAUDE.md); read that before touchin
 - **[`placed/PlacedBlockSection`](placed/PlacedBlockSection.java)** - where a BLOCK's answer is actually kept: one bit per block on the block's own chunk section, a plugin-registered `Component<ChunkStore>` (`REGISTRY_ID` `ZigPlacedBlocks`) whose array is allocated only once a mark lands and released again when the last one is spent. No file and no timer: a lookup is an array index, only loaded chunks cost memory, and a failed registration answers "not placed" rather than refusing every break.
 - **[`placed/PlacedBlockBootstrap`](placed/PlacedBlockBootstrap.java)** - the `setupPlacedBlockLedger` phase called once from the root's `setup()`: the chunk component FIRST (before any world loads), then the recorder, then the legacy-file retirement, each under its own guard so one failure cannot silently skip the next.
 
-## Block IO + per-block records
+## Block IO, patterns + per-block records
 
 - **[`BlockOps`](BlockOps.java)** - single-block read/write at world coordinates over the engine's
   CURRENT block surface, the one place the library touches raw block IO (a consumer probing a
@@ -37,12 +37,26 @@ Nested package with [its own router](placed/CLAUDE.md); read that before touchin
   (`ChunkStore.getChunkSectionReferenceAtBlock`, a map lookup that NEVER loads a chunk), reads
   `BlockSection`, and answers the block ITEM id - air answers the engine's own `"Empty"` key, null
   strictly means "cannot tell" (unloaded section / failure), so a matcher can tell an empty cell
-  from an unknowable one. `setBlock(chunkStore, x, y, z, blockItemId[, rotationIndex])` runs the
+  from an unknowable one. `rotationIndexAt(chunkStore|store, x, y, z)` reads the stored rotation
+  index at a position through the same section resolution (rotation lives in its own storage layer
+  beside the block ids; null = cannot tell), feeding `RotationTuple.get` and `setBlock`'s rotation
+  parameter. `setBlock(chunkStore, x, y, z, blockItemId[, rotationIndex])` runs the
   engine's full `BlockOperations.setBlock` (heightmap, particles, block-entity swap, lighting,
   fillers, physics), the rotation parameter letting a caller that replaces a block preserve the
   rotation it read. `setInteractionState(chunkStore, x, y, z, state, force)` moves a block to one
-  of its OWN authored `State` siblings (an on/off pair), keeping rotation. Fail-closed +
-  world-thread throughout.
+  of its OWN authored `State` siblings (an on/off pair), keeping rotation. Beside the IO sit the
+  id-based IDENTITY reads, so every consumer classifying blocks resolves identity one way:
+  `baseItemIdOf(id)` (a state-variant block reads back under its own generated id; this answers
+  the block that authored the state family, in one hop via the variant's containing block type -
+  deliberately NOT the asset parent key, which an item-level `Parent` also fills and which would
+  mis-fold an ordinary inheriting block onto its template; a base/unknown id answers ITSELF, never
+  null), `itemOf(id)` (the containing `Item` asset via `BlockType.getItem()`; a block type can
+  only be defined inside an item, and a state variant shares its base's item; the engine's few
+  synthetic block types answer null), `rawTagsOf(id)` / `resourceTypeIdsOf(id)` (BOTH read the
+  ITEM - `item.getData().getRawTags()` / `item.getResourceTypes()` - because the block type's own
+  tag map exists but is empty in practice, so a block-side read would see nothing; ids in authored
+  order, empty list = "has none", null = "cannot resolve"). Fail-closed + world-thread throughout
+  (the identity reads are asset-map lookups, safe wherever assets are loaded).
 - **[`record/BlockRecordSection<T>`](record/BlockRecordSection.java)** - the GENERIC per-block
   keyed-record `Component<ChunkStore>`: one payload value of the caller's own `BuilderCodec` type
   per block position, kept on the section and saved/loaded with the chunk (the keyed, sparse
@@ -60,6 +74,39 @@ Nested package with [its own router](placed/CLAUDE.md); read that before touchin
   thread, so `clone` deep-copies every record through the payload codec - a mid-save mutation can
   never tear the bytes being written. An empty section serializes to the bare version marker.
   World-thread only.
+- **[`pattern/`](pattern/BlockPattern.java)** - generic structure-pattern matching: does the world
+  around a candidate position hold this shape? The PuppetNav split, applied to shape matching: a
+  pure core over functional seams, one thin live wiring.
+  - **`PatternCell<P>`** - one cell: an integer offset in whole blocks plus an OPAQUE caller
+    payload `P`. What a cell accepts is entirely the payload's meaning to the caller; zc never
+    inspects it and holds ZERO matching vocabulary (no ids, no tags, no acceptance rules).
+  - **`BlockPattern<P>.compile(cells, anchorIndex, rotate, mirror)`** - the compiled pattern.
+    Exactly ONE anchor cell, named by index; compile re-bases every authored offset so the anchor
+    sits at the origin (order and the anchor INDEX are preserved), and every rotation/mirror
+    pivots on it, so a variant's match position IS its anchor position. Expands up to 8
+    precomputed **`PatternVariant`s**: 4 yaw quarter-turns, each optionally X-mirrored (mirror
+    negates authored X FIRST, then the turns). **Rotation convention**: one positive quarter-turn
+    maps `(x, y, z)` to `(z, y, -x)` - the engine's own yaw `Ninety` vector turn - so
+    `yawQuarterTurns` (0..3) lines up with the engine `Rotation` ordinals and a matched
+    orientation carries straight into a block write. NO variant dedup (payloads are opaque, so
+    symmetry cannot be proven here; a fully symmetric pattern compiles with `rotate` false).
+    `boundingRadius()` = the largest absolute offset component over all cells (Chebyshev,
+    identical for every orientation), for proximity pruning.
+  - **Matching** - `variant.matchAt(ax, ay, az, reader, predicate)` walks the cells in authored
+    order through two seams, short-circuiting on the first fail: **`BlockReader`** `(x, y, z) ->
+    block item id or null`, where null strictly means "cannot tell" and ALWAYS fails the cell (an
+    unloaded section never matches and is never loaded; air arrives as the engine's `"Empty"`
+    key, so must-be-air cells are testable), and **`CellPredicate<P>`** `(payload, blockItemId) ->
+    boolean`, the caller's whole acceptance rule. `anchorFromCell(cellIndex, x, y, z)` derives the
+    implied anchor from any known cell position; `matchFromCell(...)` does derive + walk + wrap in
+    one call and answers a **`PatternMatch<P>`** (pattern, variantIndex, anchor position,
+    yawQuarterTurns, mirrored) or null. `BlockReader.over(chunkStore)` is the ONE live wiring
+    (delegates to `BlockOps.blockItemIdAt`; world-thread only).
+  - **`PatternIndex<P>`** - block item id -> caller-registered `(pattern, variantIndex,
+    cellIndex)` candidates. The CALLER decides which cells are indexable (exact-id cells); the
+    index stores and answers, exact-case keys, duplicates ignored, plus `maxBoundingRadius()`
+    over every registered pattern for pending-candidate proximity checks. Not thread-safe; the
+    caller confines it.
 - **[`stash/`](stash/BlockStashes.java)** - the first record-section consumer: what one block
   position is HOLDING for players, persisted with the chunk. `BlockStash` (`Owner`, `Piles` by
   pile key, `ProgressGameTime`/`LastGameTime` - both WORLD GAME TIME, never wall clock, so a
