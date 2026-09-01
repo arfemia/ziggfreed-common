@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.entity.flair.ZigFlairComponent;
 import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
+import com.ziggfreed.common.stats.EquipStatBridge;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -21,7 +22,51 @@ import com.ziggfreed.common.util.SafeLog;
  */
 public final class EntityBootstrap {
 
+    /** The one bridge, installed here so a stamped stat is real on any server running the library. */
+    private static volatile EquipStatBridge equipStatBridge;
+
     private EntityBootstrap() {
+    }
+
+    /**
+     * Install the ONE {@link EquipStatBridge}, which is what makes a stamped stat mean anything: it
+     * turns a held / worn / offhand stack's stored entries into real modifiers on the entity, and
+     * takes them off again when the item comes off.
+     *
+     * <p>It is the library's rather than a consumer's for the same reason the stamper is. A server
+     * running the library and a station mod, with no other consumer at all, still stamps items - and
+     * a stamp that never becomes a stat would be a number written on an item that does nothing,
+     * which is worse than not offering it. One installer also means one set of modifier keys: two
+     * would each apply the same stack's entries under their own namespace and double every bonus.
+     *
+     * <p>A consumer reaches the installed bridge through {@link #equipStatBridge()} to hang its own
+     * post-apply work; it must not install a second one, and must not register its own copies of
+     * the three trigger systems below.
+     */
+    public static void installEquipStatBridge(@Nonnull PluginBase plugin) {
+        try {
+            EquipStatBridge bridge = EquipStatBridge.install("ziggfreedcommon");
+            equipStatBridge = bridge;
+            // The ECS system registry is class-keyed, so the three abstract trigger bases are
+            // registered as concrete subclasses here, once, by the library that owns the bridge.
+            // A consumer must NOT register its own: a second set would be a second recompute of
+            // the same stacks. Active-slot switch, held/armor content change, and offhand content
+            // change are the three moments an item can start or stop being worn.
+            plugin.getEntityStoreRegistry().registerSystem(
+                    new EquipStatBridge.ActiveSlotTrigger(bridge) {});
+            plugin.getEntityStoreRegistry().registerSystem(
+                    new EquipStatBridge.ContentChangeTrigger(bridge) {});
+            plugin.getEntityStoreRegistry().registerSystem(
+                    new EquipStatBridge.UtilityContentChangeTrigger(bridge) {});
+        } catch (Throwable t) {
+            SafeLog.warn("[stats] could not install EquipStatBridge", t);
+        }
+    }
+
+    /** The installed bridge, or null when installation failed. Never install another. */
+    @javax.annotation.Nullable
+    public static EquipStatBridge equipStatBridge() {
+        return equipStatBridge;
     }
 
     /**

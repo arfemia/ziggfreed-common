@@ -35,6 +35,8 @@ import com.ziggfreed.common.loot.reward.RewardKindFold;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.stamp.RollPoolAsset;
 import com.ziggfreed.common.loot.stamp.RollPoolConfig;
+import com.ziggfreed.common.loot.stamp.StatDisplayAsset;
+import com.ziggfreed.common.loot.stamp.StatDisplayConfig;
 import com.ziggfreed.common.npc.NpcIdentityAsset;
 import com.ziggfreed.common.npc.NpcIdentityConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
@@ -159,6 +161,18 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, RollPoolAsset.class,
                 (LoadedAssetsEvent<String, RollPoolAsset, DefaultAssetMap<String, RollPoolAsset>> ev) ->
                         RollPoolConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Stat displays (Pattern A) - what ONE stat is CALLED on a stamped item. Most stats need
+        //     no file: the default naming reads the client's own itemTooltip label first, so a stat
+        //     the game (or a mod) already names is named correctly with nothing authored. A file is
+        //     for wording or colouring a stat that would otherwise read badly, and it outranks
+        //     whatever a mod registered in code, so a server can correct any stat's wording. ---
+        AssetStoreRegistrar.registerStore(StatDisplayAsset.class,
+                new DefaultAssetMap<String, StatDisplayAsset>(), StatDisplayAsset.TYPE_ROOT,
+                StatDisplayAsset::getId, StatDisplayAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, StatDisplayAsset.class,
+                (LoadedAssetsEvent<String, StatDisplayAsset, DefaultAssetMap<String, StatDisplayAsset>> ev) ->
+                        StatDisplayConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Reward kinds (Pattern A) - a reward KIND written as a file: a declared parameter
         //     schema plus one console command line, so a server with an admin command it wants paid
@@ -457,7 +471,7 @@ public final class FrameworkAssetRegistrar {
         try {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
-                            + "Lootables, RollPools, RewardKinds, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
+                            + "Lootables, RollPools, StatDisplays, RewardKinds, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, "
                             + "Quests, QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "

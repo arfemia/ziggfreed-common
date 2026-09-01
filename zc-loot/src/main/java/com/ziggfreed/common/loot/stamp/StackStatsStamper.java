@@ -7,6 +7,7 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.ziggfreed.common.stats.StackStats;
 
@@ -21,6 +22,17 @@ import com.ziggfreed.common.stats.StackStats;
  *
  * <p>What a stamped stat actually DOES to a wearer is not decided here. This class owns the format
  * only; something else reads those entries and turns them into a real effect on equip.
+ *
+ * <p><b>Durability is the one id that never reaches the record.</b> It is raised on the STACK
+ * instead, because durability is a property of the item rather than a stat channel, so there is
+ * nothing for an equip bridge to put a modifier on. The roll math never learns the difference - a
+ * pool rolls it against the same budget as everything else - and only the write knows.
+ *
+ * <p>What a stamped stat is CALLED is not decided here either, and for a sharper reason: a stat id
+ * belongs to the mod that invented it, so only that mod can say what it means, in what colour, in a
+ * player's own language. It says so through {@link StatNamer}, which the tooltip consults per line
+ * and {@link #describe} answers from. With none
+ * registered the write is unchanged and complete - the stats are simply reported plainly.
  *
  * <p>Re-stamping SUMS: two points of damage stamped twice reads as four, and the stamp count goes up
  * by one so budget math can see the history.
@@ -45,8 +57,46 @@ public final class StackStatsStamper implements Stamper {
         if (added.isEmpty()) {
             return stack;
         }
-        Map<String, Double> merged = StackStats.mergeWith(stack, added);
-        return StackStats.stampReplacingWithCount(stack, merged, StackStats.stampCountOf(stack) + 1);
+        double durability = 0;
+        Map<String, Double> stats = new LinkedHashMap<>();
+        for (Map.Entry<String, Double> entry : added.entrySet()) {
+            if (DefaultStatNames.isDurability(entry.getKey())) {
+                durability += entry.getValue();
+            } else {
+                stats.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        ItemStack result = stack;
+        if (durability > 0) {
+            result = result.withMaxDurability(result.getMaxDurability() + durability)
+                    .withIncreasedDurability(durability);
+        }
+        if (stats.isEmpty()) {
+            // A durability-only stamp is still a stamp: it spent the budget, and the repeat cost has
+            // to see it, so the count advances even though the record gained no entry.
+            Map<String, Double> carried = StackStats.entriesOf(result);
+            return StackStats.stampReplacingWithCount(result,
+                    carried != null ? carried : Map.of(), StackStats.stampCountOf(result) + 1);
+        }
+        Map<String, Double> merged = StackStats.mergeWith(result, stats);
+        ItemStack stamped = StackStats.stampReplacingWithCount(result, merged,
+                StackStats.stampCountOf(result) + 1);
+        // The numbers and the way they READ are written in the SAME operation, so a stamped item can
+        // never carry stats its tooltip does not show. The merged map goes in, not the added one:
+        // the tooltip states the item's whole current condition, not this one stamp's delta.
+        return StampTooltip.apply(stamped, merged, null);
+    }
+
+    /**
+     * Answered through {@link StatNamerRegistry}, so the line a reporting surface prints is the same
+     * one the item's own tooltip shows. Never null: an id no vocabulary claims still reads as itself
+     * with its points, which is more use to whoever has to debug it than a blank.
+     */
+    @Override
+    @Nonnull
+    public Message describe(@Nonnull StatRoll entry) {
+        return StatNamerRegistry.name(entry.statId(), entry.points());
     }
 
     /**

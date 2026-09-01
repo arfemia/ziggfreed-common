@@ -152,6 +152,12 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         NpcBootstrap.setupTalkCredit(this);
         NpcBootstrap.registerWorldLifecycle(this);
         EntityBootstrap.registerPlayerIdentity(this);
+        // What makes a stamped stat real: the equip bridge turns a held / worn / offhand stack's
+        // stored entries into modifiers on the entity, and takes them off again with the item. It is
+        // installed here so a server running this library and nothing else still gets working
+        // stamped gear; a consumer hangs its own post-apply work on the installed instance rather
+        // than installing a second one, which would double every bonus.
+        EntityBootstrap.installEquipStatBridge(this);
         PlacedBlockBootstrap.setupPlacedBlockLedger(this);
         ProgressionBootstrap.setupProgressionRuntime(this);
         ProgressionBootstrap.registerFeedbackMoments();
