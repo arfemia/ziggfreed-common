@@ -28,6 +28,53 @@ Nested package with [its own router](placed/CLAUDE.md); read that before touchin
 - **[`placed/PlacedBlockSection`](placed/PlacedBlockSection.java)** - where a BLOCK's answer is actually kept: one bit per block on the block's own chunk section, a plugin-registered `Component<ChunkStore>` (`REGISTRY_ID` `ZigPlacedBlocks`) whose array is allocated only once a mark lands and released again when the last one is spent. No file and no timer: a lookup is an array index, only loaded chunks cost memory, and a failed registration answers "not placed" rather than refusing every break.
 - **[`placed/PlacedBlockBootstrap`](placed/PlacedBlockBootstrap.java)** - the `setupPlacedBlockLedger` phase called once from the root's `setup()`: the chunk component FIRST (before any world loads), then the recorder, then the legacy-file retirement, each under its own guard so one failure cannot silently skip the next.
 
+## Block IO + per-block records
+
+- **[`BlockOps`](BlockOps.java)** - single-block read/write at world coordinates over the engine's
+  CURRENT block surface, the one place the library touches raw block IO (a consumer probing a
+  neighbour cell or swapping a block calls this, never the deprecated `World.getBlock` /
+  `WorldChunk` accessor family). `blockItemIdAt(chunkStore|store, x, y, z)` resolves the section
+  (`ChunkStore.getChunkSectionReferenceAtBlock`, a map lookup that NEVER loads a chunk), reads
+  `BlockSection`, and answers the block ITEM id - air answers the engine's own `"Empty"` key, null
+  strictly means "cannot tell" (unloaded section / failure), so a matcher can tell an empty cell
+  from an unknowable one. `setBlock(chunkStore, x, y, z, blockItemId[, rotationIndex])` runs the
+  engine's full `BlockOperations.setBlock` (heightmap, particles, block-entity swap, lighting,
+  fillers, physics), the rotation parameter letting a caller that replaces a block preserve the
+  rotation it read. `setInteractionState(chunkStore, x, y, z, state, force)` moves a block to one
+  of its OWN authored `State` siblings (an on/off pair), keeping rotation. Fail-closed +
+  world-thread throughout.
+- **[`record/BlockRecordSection<T>`](record/BlockRecordSection.java)** - the GENERIC per-block
+  keyed-record `Component<ChunkStore>`: one payload value of the caller's own `BuilderCodec` type
+  per block position, kept on the section and saved/loaded with the chunk (the keyed, sparse
+  counterpart to `placed/PlacedBlockSection`'s one-bit array; the map-keyed-by-section-local-index
+  layout mirrors the engine's own `BlockComponentSection` `"Blocks"` shape). `register(registry,
+  registryId, payloadCodec)` at plugin setup (BEFORE any world loads) hands back a typed `Handle`
+  with the position-facing accessors (`get` / `ensureAndGet` / `remove` / `forEach` / `count` /
+  `markDirty`); a failed registration degrades every read to "nothing was ever stored". One class
+  backs any number of registrations, each under its own registry id. **Two persistence facts are
+  wired in, read out of the engine's save path**: (1) the engine saves a section only when its
+  `ChunkSection` is flagged (`markNeedsSaving`) and nothing watches a plugin component, so the
+  mutating accessors flag it themselves and a caller that mutates a FETCHED record in place owes
+  one `markDirty` (a record write, unlike a block place/break, has no engine block change raising
+  the flag for it); (2) the save snapshots on the world thread (`clone`) but serializes on an IO
+  thread, so `clone` deep-copies every record through the payload codec - a mid-save mutation can
+  never tear the bytes being written. An empty section serializes to the bare version marker.
+  World-thread only.
+- **[`stash/`](stash/BlockStashes.java)** - the first record-section consumer: what one block
+  position is HOLDING for players, persisted with the chunk. `BlockStash` (`Owner`, `Piles` by
+  pile key, `ProgressGameTime`/`LastGameTime` - both WORLD GAME TIME, never wall clock, so a
+  server outage advances them by zero - and an opaque consumer `Tag`) over `StashPile` (`Owner`,
+  `Items` counted by item id in INSERTION order - oldest-first drain order is load-bearing -
+  `Unique`, one whole `ItemStack` through the engine's own item codec so per-stack metadata
+  round-trips byte-identically, behind a `codec/DeferredCodec` so the class stays loadable without
+  the engine's item statics, and `PendingCycles`, accrued counts for work settled while nobody was
+  present). **Pure storage**: no accept rule, no consume policy, no ownership enforcement - the
+  consumer rules who may take, the stash only records who placed. `BlockStashes` is the ONE shared
+  store every consumer reads (`stashAt` / `ensureStashAt` / `removeStashAt` / `forEachInSection` /
+  `countInSection` / `markDirty`; registry id `ZigBlockStash`), registered once by
+  `stash/BlockStashBootstrap` from the root's `setup()`. Whoever mutates a fetched stash in place
+  calls `markDirty` once when done.
+
 ## Terrain / placement helpers
 
 - **[`SurfaceProbe`](SurfaceProbe.java)** - `topSolidY(world, x, z, fallback)` / `standableY(...)`: scan a column down for the top OPAQUE-solid block (skips air + `Opacity.Transparent` foliage/glass), mirroring the engine's `GeneratedBlockChunk.getHeight` but reading a live `World` via `World.getBlock(int,int,int)`. **World-thread only** (call inside `world.execute`); every read is try-guarded so an unloaded chunk degrades to the caller's fallback. Use it to floor-snap runtime-placed prefabs/entities onto procedural, uneven terrain instead of a hardcoded Y (e.g. Kweebec's `ArenaBuilder` snaps shrine/exit/gate/cave-shaft pastes to the rolling grove surface). **Skip-set overloads** (`topSolidY(... Set<String> skipBlockKeys)`, `standableY(... skip)`) ALSO scan past caller-given block keys: a RUNTIME paste runs AFTER worldgen has decorated trees onto the surface, so the plain probe stops on a tree trunk/leaf above the ground; pass the foliage keys (see `BlockTypeLists`) to reach the genuine floor. Worldgen's own snap dodges this (it runs against the terrain buffer BEFORE the prop/tree phase).

@@ -52,6 +52,7 @@ import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
+import com.ziggfreed.common.world.stash.BlockStashBootstrap;
 
 /**
  * Entry point for Ziggfreed Common, a shared, mod-agnostic Hytale utility mod.
@@ -68,8 +69,9 @@ import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
  * <p>The static primitives register nothing (a consumer calls them directly), and the library's own
  * registrations live in per-module bootstraps this class calls in one authoritative order:
  * {@code EntityBootstrap} (zc-entity), {@code NpcBootstrap} (zc-dialogue),
- * {@code PlacedBlockBootstrap} (zc-world), and {@code ProgressionBootstrap} +
- * {@code DialogueBootstrap} (zc-objectives). Each bootstrap lives in the module that already sees
+ * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} (zc-world), and
+ * {@code ProgressionBootstrap} + {@code DialogueBootstrap} (zc-objectives). Each bootstrap lives in
+ * the module that already sees
  * everything its phase wires, so the phase can be read and reasoned about without standing up the
  * whole plugin. What remains a ROOT-OWNED body is only what no single module can host, each phase
  * pinned by a specific line:
@@ -159,6 +161,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // than installing a second one, which would double every bonus.
         EntityBootstrap.installEquipStatBridge(this);
         PlacedBlockBootstrap.setupPlacedBlockLedger(this);
+        BlockStashBootstrap.registerBlockStash(this);
         ProgressionBootstrap.setupProgressionRuntime(this);
         ProgressionBootstrap.registerFeedbackMoments();
         DialogueBootstrap.registerDialogueVocabulary();

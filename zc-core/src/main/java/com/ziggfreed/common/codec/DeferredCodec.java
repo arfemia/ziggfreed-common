@@ -1,4 +1,4 @@
-package com.ziggfreed.common.dialogue.schema;
+package com.ziggfreed.common.codec;
 
 import java.io.IOException;
 import java.util.function.Supplier;
@@ -17,14 +17,26 @@ import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
- * A codec that stands in for one that cannot exist yet, resolving to the real codec the first time
- * anything actually decodes.
+ * A codec that stands in for one that cannot be referenced yet, resolving to the real codec the
+ * first time anything actually decodes. Two situations want it, for the same reason - a codec is a
+ * static field, built when its class loads, and the real codec is not safe to touch at that moment:
  *
- * <p>An asset's codec is a static field, built when its class loads; the dialogue body codec cannot
- * be, because its shape depends on the action / condition / shorthand vocabulary the consumer mods
- * register while they are starting up. This closes that gap without giving anything up: the server
- * finishes starting every plugin BEFORE it reads a single asset file, so by the time a dialogue is
- * decoded the vocabulary is complete and this hands over the finished codec.
+ * <ul>
+ *   <li><b>The real codec does not EXIST yet.</b> A field's shape depends on a vocabulary consumer
+ *       mods register while they are starting up (the dialogue engine's conversation fields). The
+ *       server finishes starting every plugin BEFORE it reads a single asset file, so by decode
+ *       time the vocabulary is complete and this hands over the finished codec.</li>
+ *   <li><b>The real codec exists but must not be CLASS-LOADED yet.</b> An engine codec constant
+ *       (say {@code ItemStack.CODEC}) drags its class's whole static graph - asset maps, validator
+ *       caches, the engine log manager - into any JVM that merely class-loads the type referencing
+ *       it. Behind this forwarder the embedding type stays loadable anywhere (a bare unit JVM,
+ *       early boot); the engine class initializes only when a value actually flows.</li>
+ * </ul>
+ *
+ * <p>The delegate is asked for FRESH every time rather than remembered here: a vocabulary can
+ * still change (a mod registering later than it should), and a memo taken at the first read would
+ * pin the shape from before that - which is the sort of staleness nobody would think to look for.
+ * The supplier's own side does the caching (a constant field read costs nothing anyway).
  *
  * <p>It forwards {@link InheritCodec} as well, so a field declared through it still takes part in
  * {@code Parent} inheritance (the engine only offers the merge path to a field whose codec is an
@@ -46,10 +58,8 @@ public final class DeferredCodec<T> implements Codec<T>, InheritCodec<T> {
     }
 
     /**
-     * The real codec, asked for fresh every time rather than remembered here. The vocabulary can
-     * still change (a mod registering later than it should), and a memo taken at the first read
-     * would pin the shape from before that - which is the sort of staleness nobody would think to
-     * look for. The supplier's own side does the caching.
+     * The real codec, asked for fresh every time rather than remembered here (see the class
+     * javadoc for why a memo would be the wrong kind of helpful).
      */
     @Nonnull
     public Codec<T> delegate() {

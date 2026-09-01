@@ -13,7 +13,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.ziggfreed.common.asset.EditorSchema;
-import com.ziggfreed.common.dialogue.schema.DeferredCodec;
+import com.ziggfreed.common.codec.DeferredCodec;
 import com.ziggfreed.common.dialogue.schema.DialogueChrome;
 import com.ziggfreed.common.dialogue.state.DialogueMemory;
 import com.ziggfreed.common.dialogue.schema.DialogueNode;

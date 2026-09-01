@@ -23,5 +23,6 @@ internals public. The engine's whole story is the parent [`../CLAUDE.md`](../CLA
   the per-character page chrome override and the additive header-note vocabulary.
 - **[`DialogueFragmentConfig`](DialogueFragmentConfig.java)** - the server-wide shared option
   groups (`Server/ZiggfreedCommon/DialogueFragments/`), looked up after a conversation's own.
-- **[`DeferredCodec`](DeferredCodec.java)** - resolves a conversation field's codec out of the
-  table at first read, forwarding the `InheritCodec` merge question to its delegate.
+- The conversation fields resolve their codecs out of the table at first read through the shared
+  [`codec/DeferredCodec`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/codec/DeferredCodec.java),
+  which forwards the `InheritCodec` merge question to its delegate.

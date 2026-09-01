@@ -9,6 +9,25 @@ Router for `com.ziggfreed.common.codec`. The mod-agnostic pieces of native(-lite
   codec's JOML carrier has PRIMITIVE axes (unauthored becomes an authored-looking `0.0`, erasing
   null-means-inherit overlay granularity) and per-axis non-null validators that REJECT partial
   authoring (`"Offset": {"Y": -0.1}`). Lifted from the rpg-stations schema wave (2026-08-05).
+- **[`Vec3i`](Vec3i.java)** - the ONE whole-block offset leaf: `Vec3`'s integer sibling for a field
+  that addresses BLOCK CELLS (a relative block position, a cell in a multi-block shape). Same shape
+  (`{X, Y, Z}` independently nullable, per-leaf inherit, partial authoring per axis), but Integer
+  leaves: a block cell has no fractional coordinate, and doubles would load `0.5` happily and round
+  it far from the file that authored it - the integer codec refuses a decimal at decode, so a
+  fractional cell is a loud load error. Embed via `new KeyedCodec<>("Offset", Vec3i.CODEC, false)`.
+- **[`DeferredCodec`](DeferredCodec.java)** - the stand-in for a codec that cannot be referenced at
+  class-load time, resolving its `Supplier<Codec<T>>` at each actual decode/encode (deliberately
+  NOT memoized: a registration-built vocabulary can still change, and the supplier's own side does
+  any caching). Two reasons to reach for it: the real codec does not EXIST yet (the dialogue
+  conversation fields, whose shapes are built from what consumer mods register during startup -
+  assets are only read after every plugin's setup, so the vocabulary is complete by decode time),
+  or it exists but must not be CLASS-LOADED yet (an engine codec constant like `ItemStack.CODEC`
+  drags asset maps / validator caches / the engine log manager into any JVM that class-loads the
+  referencing type - `world/stash/StashPile`'s `Unique` leaf). Forwards `InheritCodec` so a field
+  declared through it still takes part in `Parent` inheritance, asking the delegate the same
+  merge-or-replace question the engine would have; wire format, validation and schema stay the
+  delegate's own. Consumers: `ZcDialogueAsset`'s four conversation fields, `DialogueFragmentAsset`,
+  the stash `Unique` leaf.
 - **[`Rotation`](Rotation.java)** - the ONE rotation leaf: `{Yaw, Pitch, Roll}` independently
   nullable DEGREES, the engine's own rotation vocabulary (it reserves `{X,Y,Z}` for POSITION).
   Consumers convert to radians once at their own apply site (engine Y-X-Z intrinsic euler order).
