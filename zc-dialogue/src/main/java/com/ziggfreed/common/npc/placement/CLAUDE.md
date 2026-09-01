@@ -5,6 +5,21 @@ press-F do something, and keep exactly one of it standing", with open registries
 and a fourth-party mod can both compose against it without Java. Content is authored at
 `Server/ZiggfreedCommon/NpcPlacements/<id>.json`; common ships ZERO placement content.
 
+## Layout
+
+Five subpackages beside the pre-existing `admin/` + `command/`: [`asset/`](asset/CLAUDE.md) (the
+asset, its config fold, the owner switch, authoring helpers and the validator),
+[`registry/`](registry/CLAUDE.md) (the open registries and the gate chain),
+[`anchor/`](anchor/CLAUDE.md) (where an NPC may stand: positions, the structure and zone indexes,
+the marker system), [`runtime/`](runtime/CLAUDE.md) (the reconciler, the two authorities, the
+service, pins, caches, diagnostics), and `interact/` (press-F:
+[`ActionPlacementInteract`](interact/ActionPlacementInteract.java) + its
+[builder](interact/BuilderActionPlacementInteract.java), registered `"ZigPlacementInteract"` by
+[`PlacementNpcActions`](interact/PlacementNpcActions.java) - three files, described in full under
+The runtime below). This file stays the engine's whole story; each subpackage router is the short
+map of what lives there. The test package mirrors the split, each test beside its subject;
+`RoleGenerationRetirementTest` stays at the package root, pinning what must never reappear there.
+
 ## Read this first: the two authorities
 
 > **NEVER place from absence alone.** A chunk unload REMOVES an entity from the store and restores
@@ -13,12 +28,12 @@ and a fourth-party mod can both compose against it without Java. Content is auth
 > into range. Placement requires `ledgerMiss && anchorChunkLoaded`. `Lifecycle.KeepAlive` masks the
 > problem for one placement and for nothing else, so it is not a fix.
 
-- **[`PlacedNpcComponent`](PlacedNpcComponent.java)** (`ZiggfreedCommon:PlacedNpc`) is the
+- **[`PlacedNpcComponent`](runtime/PlacedNpcComponent.java)** (`ZiggfreedCommon:PlacedNpc`) is the
   **despawn/orphan authority**: a sweep over it answers "what is standing that should not be"
   (placement deleted / gate denies / `Where` no longer matches). Registered once by
   `NpcBootstrap`, attached on the **pre-add `Holder`** (no live-ref race). Its pure
-  snapshot is [`PlacedNpcIdentity`](PlacedNpcIdentity.java).
-- **[`NpcPlacementLedger`](NpcPlacementLedger.java)** is the **place authority**: a persisted
+  snapshot is [`PlacedNpcIdentity`](runtime/PlacedNpcIdentity.java).
+- **[`NpcPlacementLedger`](runtime/NpcPlacementLedger.java)** is the **place authority**: a persisted
   `(world | placementId | anchorKey) -> uuid` row that survives both the chunk sleeping and the
   server restarting. `mods/ziggfreedcommon/npc-placement-ledger.json`.
 
@@ -26,7 +41,7 @@ Neither can do the other's job, which is why there are two.
 
 ## The asset
 
-- **[`NpcPlacementAsset`](NpcPlacementAsset.java)** - Pattern A, **every leaf `appendInherited`**,
+- **[`NpcPlacementAsset`](asset/NpcPlacementAsset.java)** - Pattern A, **every leaf `appendInherited`**,
   so a `Parent`-linked child overriding one leaf keeps every untouched sibling. A `Parent` value
   must spell the target's EXACT filename (minus `.json`, case and all): same-pack parent resolution
   is case-sensitive in the engine, and a mismatched ref drops the child at load with a boot
@@ -113,7 +128,7 @@ Neither can do the other's job, which is why there are two.
   factor cannot RESOLVE at all (never a zero), and a `FactorCondition` rejects an unresolvable value
   whatever its bounds say - including the bounds-less presence-check form, which is exactly the
   shape "only where this mod is installed" is written in.
-- **[`NpcPlacementConfig`](NpcPlacementConfig.java)** - the `defaults < pack < owner` fold. Every
+- **[`NpcPlacementConfig`](asset/NpcPlacementConfig.java)** - the `defaults < pack < owner` fold. Every
   merge clears the sweep debounce + the position cache, so a reload lands on the next sweep, and
   logs the FILE-LOCAL findings only (the cross-asset half waits for `runLateAudit()` - see the
   validator below). Registered by [`../../asset/FrameworkAssetRegistrar`](../../../../../../../../../src/main/java/com/ziggfreed/common/asset/FrameworkAssetRegistrar.java)
@@ -127,7 +142,7 @@ OPENS is no longer one of them**: that is the shared destination vocabulary
 (`ui/route/Destinations`), which any mod registers a typed screen into, so a placement's own
 registries are about where an NPC stands and whether it stands at all.
 
-- **[`PlacementRegistryLedger<T>`](PlacementRegistryLedger.java)** is this engine's naming of the
+- **[`PlacementRegistryLedger<T>`](registry/PlacementRegistryLedger.java)** is this engine's naming of the
   shared [`registry/RegistryLedger`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/registry/CLAUDE.md):
   a one-line subclass that fixes the `[placement]` log label, so an overwrite warning says which
   engine it came from. Every semantic lives in the parent (per id: a value, its owning mod name, a
@@ -137,7 +152,7 @@ registries are about where an NPC stands and whether it stands at all.
   qualified `PlacementRegistryLedger.RegistrationInfo` resolves as before, while an `import`
   statement must name the declaring `RegistryLedger`. The registries below hold no map of
   their own.
-- **[`PlacementFactorRegistry`](PlacementFactorRegistry.java)** - the static facade over ONE shared
+- **[`PlacementFactorRegistry`](registry/PlacementFactorRegistry.java)** - the static facade over ONE shared
   [`factor/FactorRegistry`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/factor/CLAUDE.md)
   instance (process-wide because placement CONTENT is: one asset store, one sweep, one ledger).
   `register(factorId[, owner], provider)` takes the shared `factor.FactorProvider`; `resolve`
@@ -148,14 +163,14 @@ registries are about where an NPC stands and whether it stands at all.
   anything stands there to ask about. **The gate-never-silently-opens rule**: unregistered,
   throwing, non-finite and cannot-answer all resolve to nothing, and nothing fails every condition
   shape, so a bounds-less presence check on a missing mod's factor keeps the placement absent.
-- **[`AnchorResolverRegistry`](AnchorResolverRegistry.java)** - `register(providerId, resolver)` or
+- **[`AnchorResolverRegistry`](registry/AnchorResolverRegistry.java)** - `register(providerId, resolver)` or
   `register(providerId, owner, resolver)`, `info()`, backing `Anchor.Custom{Provider,Params}`, so a
   fourth party adds an anchor with ZERO common changes. Returned positions are re-stamped `CUSTOM`
   with the provider id folded into the instance id (two providers can never collide). **A
   resolver's `instanceId` must be STABLE across restarts** - a bare loop index changes with
   ordering and mints a duplicate NPC.
-- **[`PlacementGates`](PlacementGates.java)** - the ordered veto chain over
-  [`PlacementGate`](PlacementGate.java) (`GateContext{placement, world, worldNames, store}` ->
+- **[`PlacementGates`](registry/PlacementGates.java)** - the ordered veto chain over
+  [`PlacementGate`](registry/PlacementGate.java) (`GateContext{placement, world, worldNames, store}` ->
   `GateVerdict{allowed, reasonKey}`). **Any deny wins and the FIRST deny is reported**, so ordering
   matters; the three built-ins are the asset's `Enabled`, the owner override, then the authored
   `Requires`. A throwing gate is skipped, not treated as a deny. **A deny DESPAWNS the standing
@@ -163,7 +178,7 @@ registries are about where an NPC stands and whether it stands at all.
 
 ## The runtime
 
-- **[`NpcPlacementReconciler`](NpcPlacementReconciler.java)** - the correctness core. Two PURE
+- **[`NpcPlacementReconciler`](runtime/NpcPlacementReconciler.java)** - the correctness core. Two PURE
   decision cores (`decideResident` -> KEEP/DESPAWN/REBIND, `decidePlace` -> PLACE/REPLACE/SKIP) plus
   a three-pass live `sweep(world, store)`: **DESPAWN** (component-authoritative, frees a
   `MaxPerWorld` slot in the same pass, and MINTS a ledger row for a correct-but-unrecorded resident
@@ -198,27 +213,27 @@ registries are about where an NPC stands and whether it stands at all.
   | absent | ledger miss + chunk loaded + under capacity | -> PLACE |
   | absent | ledger hit + chunk loaded + entity gone + `Respawn` | -> REPLACE |
 
-- **[`NpcPlacementService`](NpcPlacementService.java)** - thin policy over
+- **[`NpcPlacementService`](runtime/NpcPlacementService.java)** - thin policy over
   [`../NpcSpawnService`](../NpcSpawnService.java) (which gained an ADDITIVE `preAdd`+`postSpawn`
   overload for the no-race stamp attach): `place`/`despawn`/`releaseInstance`/`fortify`/`pinChunk`/
   `isChunkLoaded`. `fortify` raises max health enormously because a role's `Invulnerable` flag is
   NOT consulted by a direct stat-map health write, so a "true damage" effect can otherwise kill a
   service NPC and take every player's access to it with it.
-- **[`PlacementKeepAlivePins`](PlacementKeepAlivePins.java)** - `addKeepLoaded` is REFERENCE
+- **[`PlacementKeepAlivePins`](runtime/PlacementKeepAlivePins.java)** - `addKeepLoaded` is REFERENCE
   COUNTED with no auto-release, so a sweep re-pinning a standing NPC would raise the count forever.
   Owns `world -> chunk -> Set<placementKey>`: **pin on FIRST insert, unpin on LAST removal**, whole
   world dropped by a `WorldEvictors` evictor (which is also what stops an instance teardown leaking
   pins). `applyClaim` is the PURE edge core.
-- **[`PlacementAnchors`](PlacementAnchors.java)** - the union/limits engine. Several groups produce
+- **[`PlacementAnchors`](runtime/PlacementAnchors.java)** - the union/limits engine. Several groups produce
   the UNION, each an independent instance keyed `(kind, instanceId)`; `MaxPerWorld` counts ACROSS the
   union; `OncePerWorld` collapses to the first in DECLARATION order (WorldSpawn, Coords, Structure,
   Zone, Custom) so the survivor is readable off the file, not dependent on chunk-load timing;
   `SpawnChance` is a DETERMINISTIC `SplitMix64` roll over `(worldSeed, placementId, anchorKey)`,
   never `java.util.Random`.
-- **[`AnchorPosition`](AnchorPosition.java)** - `(kind, instanceId, x, y, z, yaw)`; `anchorKey()` is
+- **[`AnchorPosition`](anchor/AnchorPosition.java)** - `(kind, instanceId, x, y, z, yaw)`; `anchorKey()` is
   a PERSISTED format (it is a ledger key component), so changing it orphans every row.
-- **[`StructureAnchorIndex`](StructureAnchorIndex.java)** + **[`PlacementMarkerSystem`](PlacementMarkerSystem.java)**
-  + **[`StructureMarkerSightings`](StructureMarkerSightings.java)** - the structure driver. A marker
+- **[`StructureAnchorIndex`](anchor/StructureAnchorIndex.java)** + **[`PlacementMarkerSystem`](anchor/PlacementMarkerSystem.java)**
+  + **[`StructureMarkerSightings`](anchor/StructureMarkerSightings.java)** - the structure driver. A marker
   is only knowable when its chunk loads, so the system records sightings into the live index (what
   anchors read) and the bounded ring buffer (what an author reads to discover real marker ids), then
   clears the debounce and asks for a sweep. **Keyed by the marker's FLOORED world position, and
@@ -233,14 +248,14 @@ registries are about where an NPC stands and whether it stands at all.
   its block. `/mmonpc list markers` scans the LIVE store (the ground truth) beside `list
   structures` (what got recorded). The index is transient by design: an unknown marker and an
   unloaded one lead to the same correct decision to do nothing.
-- **[`ZoneAnchorIndex`](ZoneAnchorIndex.java)** - `notifyZoneDiscovered(world, store, zoneName,
+- **[`ZoneAnchorIndex`](anchor/ZoneAnchorIndex.java)** - `notifyZoneDiscovered(world, store, zoneName,
   regionName, x, y, z)`. **The engine owns the anchor; the consumer supplies the trigger** (only a
   consumer knows what a zone is and what counts as discovering one). A discovery kicks a sweep.
-- **[`NpcPlacementPositionCache`](NpcPlacementPositionCache.java)** - keyed `(worldName,
+- **[`NpcPlacementPositionCache`](runtime/NpcPlacementPositionCache.java)** - keyed `(worldName,
   placementId, anchorKey)`, **never by placement id alone**: two concurrent instances of one dungeon
   share a placement id, and a single-key cache would point a player in instance A at instance B. NOT
   an authority - it exists so a quest-waypoint feature can point at an NPC whose chunk is asleep.
-- **[`NpcPlacementOverrides`](NpcPlacementOverrides.java)** - the owner switch at
+- **[`NpcPlacementOverrides`](asset/NpcPlacementOverrides.java)** - the owner switch at
   `mods/ziggfreedcommon/npc-placements.json`, `{"<key>": {"enabled": false}}`. **One key grammar,
   no nested sections**: a placement id, a trailing-`*` prefix (which IS the per-mod section), or the
   bare `*`. Most specific wins (exact > longest prefix > `*`), so `{"*":{"enabled":false},
@@ -248,9 +263,9 @@ registries are about where an NPC stands and whether it stands at all.
   [`../../util/JsonOverrideWriter`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/util/JsonOverrideWriter.java) (atomic, `$Comment` and
   siblings preserved); a malformed file is never overwritten. **A caller must force a sweep after
   writing** or the switch waits for the next restart.
-- **[`ActionPlacementInteract`](ActionPlacementInteract.java)** + its
-  [builder](BuilderActionPlacementInteract.java), registered `"ZigPlacementInteract"` by
-  [`PlacementNpcActions`](PlacementNpcActions.java) - ONE press-F action for every placement. It
+- **[`ActionPlacementInteract`](interact/ActionPlacementInteract.java)** + its
+  [builder](interact/BuilderActionPlacementInteract.java), registered `"ZigPlacementInteract"` by
+  [`PlacementNpcActions`](interact/PlacementNpcActions.java) - ONE press-F action for every placement. It
   reads the NPC's own stamp, resolves the placement's `Interact.destination()` (the `Dialogue` alias
   or the explicit `Open`, falling back to the character's quest list when the placement authors
   neither), and dispatches it through `ui/route/Destinations`. Reading identity off the ENTITY is
@@ -272,10 +287,10 @@ registries are about where an NPC stands and whether it stands at all.
   stands here, so it says so in the `DestinationContext` (npc ref, npc id, placement id, plus the
   role's dialogue-deps key), and pressing F behaves identically to opening the same destination from
   anywhere else.
-- **[`NpcPlacementService.roleFor`](NpcPlacementService.java)** is the whole role resolution: the
+- **[`NpcPlacementService.roleFor`](runtime/NpcPlacementService.java)** is the whole role resolution: the
   authored `Identity.Role`, trimmed, or `null`. There is no fallback that invents one, so a
   placement naming no role stands nothing up and the validator says so as `NO_ROLE`.
-- **[`NpcPlacementValidator`](NpcPlacementValidator.java)** - the findings that are otherwise
+- **[`NpcPlacementValidator`](asset/NpcPlacementValidator.java)** - the findings that are otherwise
   SILENT (an NPC that never appears is indistinguishable from one you have not walked to): no
   `Identity` at all (`NO_IDENTITY`) or one naming no role (`NO_ROLE`), an anchor group with no
   usable params, `SpawnChance <= 0` (suppressed when a working
@@ -318,7 +333,7 @@ registries are about where an NPC stands and whether it stands at all.
   a role registry that has not loaded. Those answers
   are only trustworthy once every store has folded, every mod's `setup()` has run and the universe
   is up, so the full audit belongs at first player-ready, never at a layer fold or at plugin setup.
-- **The two moments on [`NpcPlacementConfig`](NpcPlacementConfig.java)**: every layer merge calls
+- **The two moments on [`NpcPlacementConfig`](asset/NpcPlacementConfig.java)**: every layer merge calls
   `logFindings()`, which logs `auditFileLocal()` only; `runLateAudit()` runs and logs the full
   `audit()` ONCE per boot, driven from the first `PlayerReadyEvent` by `NpcBootstrap`. A
   consumer that folds these placements into its own content report calls
@@ -350,12 +365,14 @@ covers identity-vs-equality overwrite warnings, failure counting and the `info()
 the subclass (the base contract itself is `zc-core`'s `RegistryLedgerTest`);
 `NpcPlacementValidatorTest` covers the both-forms Interact error plus the identity that names no
 role;
-`NpcPlacementAuditScopeTest` pins the fold-time / late split - no cross-asset code from
+`NpcPlacementAuditScopeTest` (in `registry/`, beside the registries it clears) pins the fold-time /
+late split - no cross-asset code from
 `auditFileLocal`, the file-local ones still reported there, all of them back in `audit`, the
-not-yet-registered factor that used to produce a phantom finding mid-fold, the two checks whose
+not-yet-registered factor that used to produce a phantom finding mid-fold, and the two checks whose
 SOURCE can be absent (the conversation store and the role registry) staying silent rather than
-naming every placement at once, and the late
-audit's run-once plus claimed stand-down;
+naming every placement at once; `NpcPlacementConfigAuditTest` (in `asset/`, beside the config whose
+test hooks it needs) pins the config's two moments - the fold logging only the file-local half, the
+late audit's run-once, and the claimed stand-down;
 `RoleGenerationRetirementTest` pins that a placement has exactly one way to say who stands there -
 `Identity` carries a role id, a character id and its aliases and nothing describing a look, a name
 or a prompt, and `roleFor` returns the authored id or nothing rather than inventing one;

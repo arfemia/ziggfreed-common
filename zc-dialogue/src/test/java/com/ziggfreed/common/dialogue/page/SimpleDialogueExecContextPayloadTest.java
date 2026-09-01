@@ -11,7 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.dialogue.DialoguePayloads;
-import com.ziggfreed.common.dialogue.NpcDialogue;
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 
 /**
  * Payload precedence, which is what keeps a mod's own conversations behaving exactly as they did

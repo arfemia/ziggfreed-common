@@ -1,0 +1,24 @@
+# npc/placement/asset/ - the placement asset and its fold
+
+Router for `com.ziggfreed.common.npc.placement.asset`: what a placement FILE says and how the
+layers fold. The engine's whole story (authoring rules, the two authorities, the sweep) is the
+parent [`../CLAUDE.md`](../CLAUDE.md); this is the map of what lives here.
+
+- **[`NpcPlacementAsset`](NpcPlacementAsset.java)** - the Pattern A codec, every leaf
+  `appendInherited` for native `Parent` reuse. Groups: `Identity` / `Where` / `Anchor` /
+  `Requires` / `Limits` / `Lifecycle` / `Interact`.
+- **[`NpcPlacementConfig`](NpcPlacementConfig.java)** - the `defaults < pack < owner` fold
+  singleton; every merge clears the sweep debounce + position cache and logs the FILE-LOCAL
+  findings; `runLateAudit()` runs the full audit once per boot and stands down when a consumer
+  `claimLateAudit`s it.
+- **[`NpcPlacementOverrides`](NpcPlacementOverrides.java)** - the owner switch at
+  `mods/ziggfreedcommon/npc-placements.json` (exact > longest `*`-prefix > bare `*`).
+- **[`NpcPlacementAuthoring`](NpcPlacementAuthoring.java)** - the courtesy role checks
+  (`isSpawnable` / `spawnableRoles`) the command and admin page consult where somebody TYPES a
+  role id; permissive when there is no registry to ask.
+- **[`NpcPlacementValidator`](NpcPlacementValidator.java)** - the two audit entry points:
+  `auditFileLocal` (shape / spelling / self-contradiction, safe at any boot stage) and `audit`
+  (plus the cross-asset half, trustworthy only once everything is up).
+
+Tests here: `NpcPlacementAssetCodecTest`, `NpcPlacementOverridesFileTest`,
+`NpcPlacementValidatorTest`, `NpcPlacementConfigAuditTest` (the config's fold-vs-late moments).

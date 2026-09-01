@@ -9,6 +9,11 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
+import com.ziggfreed.common.dialogue.state.DialogueFlagStore;
+import com.ziggfreed.common.dialogue.state.DialogueMemory;
+import com.ziggfreed.common.dialogue.type.DialogueConditionEvaluator;
+
 /**
  * The opaque per-player evaluation handle the engine threads through condition
  * checks. The engine never inspects the consumer-specific parts: it only forwards

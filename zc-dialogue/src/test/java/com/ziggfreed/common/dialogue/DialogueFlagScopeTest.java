@@ -10,6 +10,8 @@ import javax.annotation.Nonnull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.dialogue.state.DialogueFlagScope;
+import com.ziggfreed.common.dialogue.state.DialogueStateKeys;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**

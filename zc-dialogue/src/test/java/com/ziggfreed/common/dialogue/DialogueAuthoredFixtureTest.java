@@ -21,6 +21,16 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
+import com.ziggfreed.common.dialogue.schema.DialogueNode;
+import com.ziggfreed.common.dialogue.schema.DialogueOption;
+import com.ziggfreed.common.dialogue.schema.DialogueSugar;
+import com.ziggfreed.common.dialogue.schema.DialogueSugarValues;
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
+import com.ziggfreed.common.dialogue.type.DialogueAction;
+import com.ziggfreed.common.dialogue.type.DialogueActionExecutor;
+import com.ziggfreed.common.dialogue.type.DialogueActionType;
+import com.ziggfreed.common.dialogue.type.DialogueCondition;
+import com.ziggfreed.common.dialogue.type.DialogueConditionType;
 import com.ziggfreed.common.npc.NpcDestinations;
 
 /**

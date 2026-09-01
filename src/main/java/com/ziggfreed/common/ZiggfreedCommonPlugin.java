@@ -41,7 +41,7 @@ import com.ziggfreed.common.loot.stamp.StackStatsStamper;
 import com.ziggfreed.common.loot.stamp.StamperRegistry;
 import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
-import com.ziggfreed.common.npc.placement.PlacementFactorRegistry;
+import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
 import com.ziggfreed.common.objectives.dialogue.DialogueBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;

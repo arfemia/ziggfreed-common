@@ -16,9 +16,9 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncC
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.npc.placement.NpcPlacementAuthoring;
-import com.ziggfreed.common.npc.placement.NpcPlacementOverrides;
-import com.ziggfreed.common.npc.placement.NpcPlacementService;
+import com.ziggfreed.common.npc.placement.asset.NpcPlacementAuthoring;
+import com.ziggfreed.common.npc.placement.asset.NpcPlacementOverrides;
+import com.ziggfreed.common.npc.placement.runtime.NpcPlacementService;
 
 /**
  * Stand a new NPC where the caller is standing, and keep it there.

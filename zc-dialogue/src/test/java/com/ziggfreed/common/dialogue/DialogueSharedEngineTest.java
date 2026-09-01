@@ -17,6 +17,13 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
+import com.ziggfreed.common.dialogue.schema.DialogueOption;
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
+import com.ziggfreed.common.dialogue.type.DialogueAction;
+import com.ziggfreed.common.dialogue.type.DialogueActionExecutor;
+import com.ziggfreed.common.dialogue.type.DialogueActionType;
+import com.ziggfreed.common.dialogue.type.DialogueCondition;
+import com.ziggfreed.common.dialogue.type.DialogueConditionType;
 import com.ziggfreed.common.quest.QuestStateReader;
 
 /**

@@ -19,8 +19,8 @@ import com.hypixel.hytale.server.npc.util.expression.ExecutionContext;
 import com.hypixel.hytale.server.npc.util.expression.Scope;
 import com.hypixel.hytale.server.spawning.ISpawnableWithModel;
 import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
-import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
+import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
+import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.util.SafeLog;
 
 /**

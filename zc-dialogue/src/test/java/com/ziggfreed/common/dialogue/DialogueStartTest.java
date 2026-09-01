@@ -16,6 +16,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
+import com.ziggfreed.common.dialogue.state.DialogueStateKeys;
 import com.ziggfreed.common.dialogue.validate.DialogueStructureValidator;
 import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.quest.NpcOfferProviders;

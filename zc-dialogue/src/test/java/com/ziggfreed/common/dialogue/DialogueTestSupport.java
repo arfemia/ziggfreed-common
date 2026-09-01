@@ -9,6 +9,10 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.dialogue.schema.DialogueFragmentConfig;
+import com.ziggfreed.common.dialogue.schema.DialogueOption;
+import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationType;
 import com.ziggfreed.common.ui.route.Destinations;
@@ -21,8 +25,14 @@ import com.ziggfreed.common.validation.Finding;
  * that registers its own types has to start from a clean one or it inherits whatever the previous
  * test class taught the table. {@link #reset()} does that, and every test class calls it before each
  * test.
+ *
+ * <p>Public: most of the suite stays in this flat package and never needs it, but
+ * {@code state.DialogueMemoriesTest} lives beside its {@code DialogueMemories} subject and reaches
+ * back here for shared plumbing. Widening a TEST helper across a test-package boundary is not the
+ * same as widening production code, so {@link #reset()} and {@link #decodeWithParent} are public;
+ * every other member here is used only from this package and stays as it was.
  */
-final class DialogueTestSupport {
+public final class DialogueTestSupport {
 
     private DialogueTestSupport() {
     }
@@ -33,7 +43,7 @@ final class DialogueTestSupport {
      * itself. Both are process-wide (one asset store, one chance to read a file), so a test that
      * skipped this would inherit whatever the previous test class left behind.
      */
-    static void reset() {
+    public static void reset() {
         DialogueTypeTable.get().resetForTests();
         // The server's one engine, and the per-class payload suppliers registered into it, are
         // process-wide for exactly the same reason the schema is. Dropping the engine beside the
@@ -78,7 +88,7 @@ final class DialogueTestSupport {
      * file carrying {@code "Parent"} - the codec's own inherit-decode, not a hand-rolled merge.
      */
     @Nullable
-    static NpcDialogue decodeWithParent(@Nonnull DialogueEngine engine, @Nonnull String id,
+    public static NpcDialogue decodeWithParent(@Nonnull DialogueEngine engine, @Nonnull String id,
                                         @Nonnull String json, @Nonnull NpcDialogue parent)
             throws Exception {
         NpcDialogue child = engine.dialogueCodec()

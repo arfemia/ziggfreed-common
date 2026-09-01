@@ -13,14 +13,14 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.ziggfreed.common.asset.EditorSchema;
-import com.ziggfreed.common.dialogue.DeferredCodec;
-import com.ziggfreed.common.dialogue.DialogueChrome;
-import com.ziggfreed.common.dialogue.DialogueMemory;
-import com.ziggfreed.common.dialogue.DialogueNode;
-import com.ziggfreed.common.dialogue.DialogueOption;
-import com.ziggfreed.common.dialogue.DialogueStart;
-import com.ziggfreed.common.dialogue.DialogueTypeTable;
-import com.ziggfreed.common.dialogue.NpcDialogue;
+import com.ziggfreed.common.dialogue.schema.DeferredCodec;
+import com.ziggfreed.common.dialogue.schema.DialogueChrome;
+import com.ziggfreed.common.dialogue.state.DialogueMemory;
+import com.ziggfreed.common.dialogue.schema.DialogueNode;
+import com.ziggfreed.common.dialogue.schema.DialogueOption;
+import com.ziggfreed.common.dialogue.schema.DialogueStart;
+import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 
 /**
  * One authored conversation, at {@code Server/ZiggfreedCommon/Dialogues/<id>.json}. The FILE NAME is

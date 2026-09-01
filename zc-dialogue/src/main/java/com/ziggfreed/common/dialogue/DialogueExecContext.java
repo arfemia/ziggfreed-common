@@ -2,6 +2,9 @@ package com.ziggfreed.common.dialogue;
 
 import javax.annotation.Nonnull;
 
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
+import com.ziggfreed.common.dialogue.type.DialogueActionExecutor;
+
 /**
  * A {@link DialogueContext} enriched with the option being executed, handed to
  * action handlers. The extra fields let a handler key per-(dialogue,node,option)

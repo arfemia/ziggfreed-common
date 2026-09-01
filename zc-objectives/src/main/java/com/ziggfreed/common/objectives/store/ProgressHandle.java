@@ -8,7 +8,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.dialogue.DialogueMemories;
+import com.ziggfreed.common.dialogue.state.DialogueMemories;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.subject.Subject;
 

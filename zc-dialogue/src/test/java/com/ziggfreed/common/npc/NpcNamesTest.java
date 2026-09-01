@@ -13,8 +13,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
-import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
+import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
+import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 
 /**
  * What a character is called, and what happens when nothing says.

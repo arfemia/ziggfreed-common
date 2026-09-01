@@ -11,9 +11,9 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
-import com.ziggfreed.common.dialogue.DeferredCodec;
-import com.ziggfreed.common.dialogue.DialogueOption;
-import com.ziggfreed.common.dialogue.DialogueTypeTable;
+import com.ziggfreed.common.dialogue.schema.DeferredCodec;
+import com.ziggfreed.common.dialogue.schema.DialogueOption;
+import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
 
 /**
  * One group of lines several conversations repeat, at

@@ -27,9 +27,9 @@ import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.role.Role;
 import com.hypixel.hytale.server.npc.role.builders.BuilderRoleVariant;
 import com.hypixel.hytale.server.npc.role.support.WorldSupport;
-import com.ziggfreed.common.npc.placement.NpcPlacementAsset;
-import com.ziggfreed.common.npc.placement.NpcPlacementConfig;
-import com.ziggfreed.common.npc.placement.PlacedNpcComponent;
+import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
+import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
+import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.util.SafeLog;
 
 /**

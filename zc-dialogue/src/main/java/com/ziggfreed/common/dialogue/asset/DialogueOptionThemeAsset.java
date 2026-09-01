@@ -10,15 +10,15 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 
-import com.ziggfreed.common.dialogue.DialogueOptionTheme;
+import com.ziggfreed.common.dialogue.style.DialogueOptionTheme;
 
 /**
  * Pack-authorable, mod-agnostic look of ONE dialogue-option style kind, loaded from
  * {@code Server/ZiggfreedCommon/DialogueOptionTheme/<Kind>.json} (the filename - accept / turnin
  * / continue / neutral / farewell - is the id, matching
- * {@link com.ziggfreed.common.dialogue.DialogueOptionStyle#key()}). Lifts the tint + glyph the
+ * {@link com.ziggfreed.common.dialogue.style.DialogueOptionStyle#key()}). Lifts the tint + glyph the
  * {@code DialogueOptionStyle} enum previously hard-coded into authorable data, resolved
- * {@code defaults < pack < owner} by {@link com.ziggfreed.common.dialogue.DialogueOptionThemeConfig}.
+ * {@code defaults < pack < owner} by {@link com.ziggfreed.common.dialogue.style.DialogueOptionThemeConfig}.
  *
  * <p><b>Pattern A - full structured asset</b> (mirrors {@code PartySettingsAsset} /
  * {@code InstancePresetAsset}). The engine decodes it DIRECTLY into typed fields via {@link #CODEC}

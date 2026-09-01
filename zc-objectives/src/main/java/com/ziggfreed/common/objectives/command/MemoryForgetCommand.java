@@ -3,7 +3,7 @@ package com.ziggfreed.common.objectives.command;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.command.system.CommandContext;
-import com.ziggfreed.common.dialogue.DialogueMemories;
+import com.ziggfreed.common.dialogue.state.DialogueMemories;
 
 /**
  * {@code memory forget}: forget everything every conversation remembers about a player, without

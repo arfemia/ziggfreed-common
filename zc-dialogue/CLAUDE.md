@@ -36,7 +36,12 @@ compiles as `:zc-dialogue`). See the root [`CLAUDE.md`](../CLAUDE.md) for the ag
   the process-wide `DialogueTypeTable` that reads the files. Seeds
   `Goto`/`Close`/`Remember`/`Forget`/`MarkTalked`/`OpenPage` actions and the
   `Remembered`/`NotRemembered`/`World`/`Factor` + `AllOf`/`AnyOf`/`Not` conditions once. The
-  builder stays for an isolated test engine. Subpackages `dialogue/asset/` (native `Parent` inheritance,
+  builder stays for an isolated test engine. The six front-door classes (`DialogueEngine`,
+  `DialogueContext`, `DialogueExecContext`, `DialoguePayloads`, `DialogueQuestView`,
+  `DialogueTalk`) sit at the package root; around them `dialogue/type/` (the registration
+  contract), `dialogue/schema/` (the model + codec assembly) and `dialogue/state/` (seen-ness,
+  memories, flag stores) each carry their own router, and `dialogue/style/` (the option look +
+  its data-driven theme) is covered by the parent. Subpackages `dialogue/asset/` (native `Parent` inheritance,
   `Server/ZiggfreedCommon/Dialogues/`), `dialogue/i18n/`, `dialogue/page/` (`DialoguePage`, the
   `.ui` this module ships), `dialogue/validate/` (the `Finding`-reporting content audit) have no
   routers of their own; the parent `dialogue/` router covers them.
@@ -47,8 +52,10 @@ compiles as `:zc-dialogue`). See the root [`CLAUDE.md`](../CLAUDE.md) for the ag
   `DialoguePage` on press-F via a registered NPC Action) + `NpcSpawnService`.
   - [`npc/placement/`](src/main/java/com/ziggfreed/common/npc/placement/CLAUDE.md) - the NPC
     placement engine: put an NPC somewhere, make press-F do something, keep exactly one of it
-    standing. `NpcPlacementAsset`/`NpcPlacementConfig` at `Server/ZiggfreedCommon/NpcPlacements/`,
-    resolving `Where` through `zc-world`'s selector vocabulary.
+    standing. `asset/NpcPlacementAsset`/`asset/NpcPlacementConfig` at
+    `Server/ZiggfreedCommon/NpcPlacements/`, resolving `Where` through `zc-world`'s selector
+    vocabulary. Split into `asset/` + `registry/` + `anchor/` + `runtime/` + `interact/` (each of
+    the first four with its own router) beside the pre-existing `admin/` + `command/`.
 
 ## Shipped resources
 
@@ -72,7 +79,7 @@ the one spelling of "which worlds?" in the library.
 
 ## Tests
 
-36 test files beside three shared fixtures, the largest suite in the library: the engine core
+38 test files beside three shared fixtures, the largest suite in the library: the engine core
 (`DialogueEngineTest`, `DialogueAuthoredFixtureTest`, `DialogueAuthoringAuditTest`), the opening
 ladder (`DialogueStartTest`: the fixed rung order, the READY rule, the weighted draw against an
 injected number, and the audit's Start findings), the state/scope model
@@ -86,6 +93,7 @@ refusing a second runtime, and the builder's sandbox staying separate) plus its 
 (`page/SimpleDialogueExecContextPayloadTest`: explicit-first, then the registered supplier), and the
 placement engine (`NpcPlacementAssetCodecTest`,
 `NpcPlacementReconcilerTest`, `NpcPlacementValidatorTest`, `NpcPlacementAuditScopeTest`,
+`NpcPlacementConfigAuditTest`,
 `PlacementAnchorsTest`,
 `PlacementChanceFormulaTest`, `PlacementGateChainTest`, `PlacementKeepAlivePinsTest`,
 `PlacementRegistryTest`, `PlacementRegistryLedgerTest`, `RoleGenerationRetirementTest`).

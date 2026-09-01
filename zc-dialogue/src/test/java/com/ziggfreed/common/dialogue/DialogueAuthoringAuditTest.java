@@ -13,6 +13,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
+import com.ziggfreed.common.dialogue.type.DialogueAction;
+import com.ziggfreed.common.dialogue.type.DialogueActionType;
+import com.ziggfreed.common.dialogue.type.DialogueCondition;
+import com.ziggfreed.common.dialogue.type.DialogueConditionType;
 import com.ziggfreed.common.dialogue.validate.DialogueStructureValidator;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;

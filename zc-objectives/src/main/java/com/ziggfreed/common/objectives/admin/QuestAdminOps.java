@@ -6,7 +6,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.dialogue.DialogueMemories;
+import com.ziggfreed.common.dialogue.state.DialogueMemories;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.QuestEngine;

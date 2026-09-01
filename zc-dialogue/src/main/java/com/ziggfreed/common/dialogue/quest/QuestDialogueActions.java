@@ -10,12 +10,12 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.ziggfreed.common.dialogue.DialogueAction;
-import com.ziggfreed.common.dialogue.DialogueActionExecutor;
-import com.ziggfreed.common.dialogue.DialogueActionType;
+import com.ziggfreed.common.dialogue.type.DialogueAction;
+import com.ziggfreed.common.dialogue.type.DialogueActionExecutor;
+import com.ziggfreed.common.dialogue.type.DialogueActionType;
 import com.ziggfreed.common.dialogue.DialogueExecContext;
-import com.ziggfreed.common.dialogue.DialogueOptionStyle;
-import com.ziggfreed.common.dialogue.DialogueSugar;
+import com.ziggfreed.common.dialogue.style.DialogueOptionStyle;
+import com.ziggfreed.common.dialogue.schema.DialogueSugar;
 import com.ziggfreed.common.subject.Subject;
 
 /**

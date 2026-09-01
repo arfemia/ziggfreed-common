@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
@@ -25,6 +26,24 @@ import com.ziggfreed.common.LibraryOwner;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
+import com.ziggfreed.common.dialogue.schema.DialogueNode;
+import com.ziggfreed.common.dialogue.schema.DialogueOption;
+import com.ziggfreed.common.dialogue.schema.DialogueStart;
+import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
+import com.ziggfreed.common.dialogue.state.DialogueMemory;
+import com.ziggfreed.common.dialogue.state.DialogueOnce;
+import com.ziggfreed.common.dialogue.state.DialogueStateKeys;
+import com.ziggfreed.common.dialogue.state.DialogueWorlds;
+import com.ziggfreed.common.dialogue.style.DialogueOptionStyle;
+import com.ziggfreed.common.dialogue.type.DialogueAction;
+import com.ziggfreed.common.dialogue.type.DialogueActionExecutor;
+import com.ziggfreed.common.dialogue.type.DialogueActionHandler;
+import com.ziggfreed.common.dialogue.type.DialogueActionType;
+import com.ziggfreed.common.dialogue.type.DialogueCondition;
+import com.ziggfreed.common.dialogue.type.DialogueConditionEvaluator;
+import com.ziggfreed.common.dialogue.type.DialogueConditionType;
+import com.ziggfreed.common.dialogue.type.GenericActions;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.factor.FactorRegistry;
@@ -34,8 +53,6 @@ import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.registry.RegistryLedger;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.route.Destination;
-import com.ziggfreed.common.ui.route.DestinationContext;
-import com.ziggfreed.common.ui.route.Destinations;
 
 /**
  * The dialogue runtime: what an action DOES, what a condition ANSWERS, which page an
@@ -211,10 +228,11 @@ public final class DialogueEngine {
         SHARED_SELF[0] = engine;
         registerCombinatorEvaluators(evaluators, SHARED_SELF);
         seedGenericConditions(type -> engine.adopt(LIBRARY_OWNER, type), SHARED_SELF);
-        seedGenericActions(type -> engine.adopt(LIBRARY_OWNER, type), SHARED_SELF);
+        GenericActions.seedActions(type -> engine.adopt(LIBRARY_OWNER, type),
+                (name, ctx) -> SHARED_SELF[0].memoryKey(name, ctx));
         seedQuestVocabulary(type -> engine.adopt(LIBRARY_OWNER, type),
                 type -> engine.adopt(LIBRARY_OWNER, type), SHARED_SELF);
-        engine.adopt(LIBRARY_OWNER, openPageType());
+        engine.adopt(LIBRARY_OWNER, GenericActions.openPageType());
         return engine;
     }
 
@@ -976,7 +994,7 @@ public final class DialogueEngine {
 
         Builder() {
             seedGenericConditions(this::condition, self);
-            seedGenericActions(this::action, self);
+            GenericActions.seedActions(this::action, (name, ctx) -> self[0].memoryKey(name, ctx));
             seedQuestVocabulary(this::action, this::condition, self);
         }
 
@@ -1037,7 +1055,7 @@ public final class DialogueEngine {
 
         @Nonnull
         public DialogueEngine build() {
-            actions.putIfAbsent("OpenPage", openPageType());
+            actions.putIfAbsent("OpenPage", GenericActions.openPageType());
 
             DialogueTypeTable table = DialogueTypeTable.get();
             Map<Class<? extends DialogueAction>, DialogueActionHandler<?>> handlers = new HashMap<>();
@@ -1066,73 +1084,6 @@ public final class DialogueEngine {
             return engine;
         }
 
-    }
-
-    private static void seedGenericActions(@Nonnull Consumer<DialogueActionType<?>> action,
-            @Nonnull DialogueEngine[] self) {
-        action.accept(DialogueActionType.of("Goto", DialogueAction.Goto.class, DialogueAction.Goto.CODEC,
-                        (DialogueAction.Goto a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) ->
-                                out.goTo(a.getNode()))
-                .withStyle(DialogueOptionStyle.CONTINUE)
-                .withSugar(DialogueSugar.string("Goto", 60, node -> {
-                    DialogueAction.Goto go = new DialogueAction.Goto();
-                    go.node = node;
-                    return go;
-                })));
-
-        action.accept(DialogueActionType.of("Close", DialogueAction.Close.class, DialogueAction.Close.CODEC,
-                        (DialogueAction.Close a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) ->
-                                out.requestClose())
-                .withStyle(DialogueOptionStyle.FAREWELL)
-                .withSugar(DialogueSugar.close("Close", 70)));
-
-        // Remember / Forget write a memory the dialogue DECLARED in its Memories map; the
-        // scope and lifetime live in that declaration, so the use site is just the name.
-        // A null key means the memory does not exist here (per world family, wrong world),
-        // which makes the write a deliberate no-op. Orders 32/33 keep the memory writes clear
-        // of the quest band (20/30), so a bare {"TurnIn": ..., "Remember": ...} records the
-        // memory AFTER the turn-in that justifies it rather than before.
-        action.accept(DialogueActionType.of("Remember", DialogueAction.Remember.class,
-                        DialogueAction.Remember.CODEC,
-                        (DialogueAction.Remember a, DialogueExecContext ctx,
-                         DialogueActionExecutor.Mut out) -> {
-                            String key = self[0].memoryKey(a.getMemory(), ctx);
-                            if (key != null) {
-                                ctx.flags().set(key);
-                            }
-                        })
-                .withSugar(DialogueSugar.string("Remember", 32, name -> {
-                    DialogueAction.Remember remember = new DialogueAction.Remember();
-                    remember.memory = name;
-                    return remember;
-                })));
-
-        action.accept(DialogueActionType.of("Forget", DialogueAction.Forget.class,
-                        DialogueAction.Forget.CODEC,
-                        (DialogueAction.Forget a, DialogueExecContext ctx,
-                         DialogueActionExecutor.Mut out) -> {
-                            String key = self[0].memoryKey(a.getMemory(), ctx);
-                            if (key != null) {
-                                ctx.flags().clear(key);
-                            }
-                        })
-                .withSugar(DialogueSugar.string("Forget", 33, name -> {
-                    DialogueAction.Forget forget = new DialogueAction.Forget();
-                    forget.memory = name;
-                    return forget;
-                })));
-
-        // MarkTalked is the credit beat, and it has NO sugar on purpose: crediting a conversation
-        // is a deliberate statement about the story, so it is written out in full rather than
-        // hidden inside a one-word shorthand that reads like a flag. Order 10 keeps it with the
-        // other "record what just happened" writes, ahead of the quest band.
-        action.accept(DialogueActionType.of("MarkTalked", DialogueAction.MarkTalked.class,
-                DialogueAction.MarkTalked.CODEC,
-                (DialogueAction.MarkTalked a, DialogueExecContext ctx,
-                 DialogueActionExecutor.Mut out) ->
-                        DialogueTalk.credit(ctx,
-                                DialogueActionExecutor.resolveTarget(a.getTarget(), ctx.contextId()),
-                                a.getQualifier())));
     }
 
     private static void seedGenericConditions(@Nonnull Consumer<DialogueConditionType<?>> condition,
@@ -1181,47 +1132,6 @@ public final class DialogueEngine {
         for (DialogueActionType<?> type : QuestDialogueActions.types(() -> self[0].quests())) {
             action.accept(type);
         }
-    }
-
-    /**
-     * The generic {@code OpenPage} action: the option says WHAT it opens in the shared routing
-     * vocabulary, and whichever mod registered that {@code Type} opens it. Nothing here parses a
-     * target string.
-     */
-    @Nonnull
-    private static DialogueActionType<DialogueAction.OpenPage> openPageType() {
-        return DialogueActionType.of("OpenPage",
-                        DialogueAction.OpenPage.class, DialogueAction.OpenPage.CODEC,
-                        (DialogueAction.OpenPage a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) -> {
-                            if (openDestination(a.getTarget(), ctx)) {
-                                out.markOpenedOtherPage();
-                            }
-                        })
-                .withStyle(DialogueOptionStyle.NEUTRAL)
-                .withSugar(DialogueSugar.of("Open", 50, Destination.CODEC,
-                        (Destination target, DialogueSugarValues values) -> {
-                            DialogueAction.OpenPage open = new DialogueAction.OpenPage();
-                            open.target = target;
-                            return open;
-                        }));
-    }
-
-    /**
-     * Hand a destination to whichever mod registered its {@code Type}, with the character the
-     * conversation is about travelling in the context so a per-character screen never has to be
-     * told who it is for a second time.
-     *
-     * <p>The page is opened on the PLAYER: an option click comes back on the player's own ref, and
-     * the NPC's entity is not something a conversation still holds by then.
-     */
-    private static boolean openDestination(@Nullable Destination destination,
-            @Nonnull DialogueExecContext ctx) {
-        if (destination == null) {
-            return false;
-        }
-        DestinationContext target = new DestinationContext(ctx.store(), ctx.ref(),
-                ctx.player(), null, ctx.contextId(), null);
-        return Destinations.open(destination, target);
     }
 
     /**

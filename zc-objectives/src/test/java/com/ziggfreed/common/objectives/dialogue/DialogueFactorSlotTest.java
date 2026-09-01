@@ -20,11 +20,11 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.DialogueContext;
 import com.ziggfreed.common.dialogue.DialogueEngine;
-import com.ziggfreed.common.dialogue.DialogueFlagStore;
-import com.ziggfreed.common.dialogue.DialogueNode;
-import com.ziggfreed.common.dialogue.DialogueOption;
-import com.ziggfreed.common.dialogue.InMemoryDialogueFlagStore;
-import com.ziggfreed.common.dialogue.NpcDialogue;
+import com.ziggfreed.common.dialogue.state.DialogueFlagStore;
+import com.ziggfreed.common.dialogue.schema.DialogueNode;
+import com.ziggfreed.common.dialogue.schema.DialogueOption;
+import com.ziggfreed.common.dialogue.state.InMemoryDialogueFlagStore;
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 

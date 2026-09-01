@@ -40,9 +40,11 @@ import com.ziggfreed.common.CommonLog;
  * <p>Two routes, picked by whether the representative item has a native {@code BlockType}:
  * <ul>
  * <li><b>Block-shaped item</b> ({@link Item#hasBlockType()}) - a {@link BlockEntity} renders the
- * REAL block model (not a flat icon), including the base {@code EntityScaleComponent}
- * scale-doubling ({@link #BLOCK_ENTITY_BASE_SCALE}) that exemplar branch applies (its own tuned
- * default for how a {@code BlockEntity} renders at "true" scale).</li>
+ * REAL block model (not a flat icon). {@code scale} is written to {@link EntityScaleComponent}
+ * VERBATIM, exactly as the exemplar branch and every other first-party {@code BlockEntity} spawn
+ * writes it, so {@code 1.0} is one block wide and a caller's number means the same thing on both
+ * routes (the builder-tools prefab anchor pins that reading: it scales its own {@code BlockEntity}
+ * to {@code 1.05} purely to sit a hair proud of the real block it overlays).</li>
  * <li><b>Everything else</b> (most weapons/tools - no dedicated entity-atlas {@code ModelAsset})
  * - a bare {@link ItemComponent} with {@code setOverrideDroppedItemAnimation(true)}, the generic
  * "dropped item minus physics" prop.</li>
@@ -74,12 +76,6 @@ import com.ziggfreed.common.CommonLog;
  * every engine-touching call is try-guarded to a no-op / {@code null}, never a throw.
  */
 public final class ItemPropEntityService {
-
-    /**
-     * The engine's own tuned default for how a {@link BlockEntity} renders at "true" scale
-     * ({@code EntitySpawnPage.BLOCK_ENTITY_BASE_SCALE}, hytale-shared-source NPC module).
-     */
-    private static final float BLOCK_ENTITY_BASE_SCALE = 2f;
 
     private ItemPropEntityService() {
     }
@@ -113,8 +109,7 @@ public final class ItemPropEntityService {
         Holder<EntityStore> holder = EntityStore.REGISTRY.newHolder();
         holder.addComponent(BlockEntity.getComponentType(), new BlockEntity(itemId));
         holder.addComponent(TransformComponent.getComponentType(), new TransformComponent(position, rotation));
-        holder.addComponent(EntityScaleComponent.getComponentType(),
-                new EntityScaleComponent(scale * BLOCK_ENTITY_BASE_SCALE));
+        holder.addComponent(EntityScaleComponent.getComponentType(), new EntityScaleComponent(scale));
         ItemStack tooltip = new ItemStack(itemId, 1);
         tooltip.setOverrideDroppedItemAnimation(true);
         holder.addComponent(ItemComponent.getComponentType(), new ItemComponent(tooltip));

@@ -12,18 +12,27 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
+import com.ziggfreed.common.dialogue.state.DialogueFlagStore;
+
 /**
  * A server-free {@link DialogueExecContext} for the pure engine tests: a dialogue plus an
  * in-memory state store. The engine-handle accessors throw, which is exactly the "world cannot be
  * read" path the world-scope resolution is guarded for, so a world-scoped Once or memory resolves
  * to no key here - the off-world case the tests assert directly.
+ *
+ * <p>Public, and so are {@link Flags} + {@link #state()} + the single-argument constructor:
+ * {@code state.DialogueMemoriesTest} lives beside its subject in a different test package and
+ * reaches back here for this shared plumbing. Widening a TEST helper across a test-package boundary
+ * is not the same as widening production code; the two-argument constructor and
+ * {@link #talkingTo(String)} are unused outside this package and stay as they were.
  */
-final class TestDialogueContext implements DialogueExecContext {
+public final class TestDialogueContext implements DialogueExecContext {
 
     /** The consumer-side state store, plus the prefix clear a quest reset performs. */
-    static final class Flags implements DialogueFlagStore {
+    public static final class Flags implements DialogueFlagStore {
 
-        final Set<String> keys = new LinkedHashSet<>();
+        public final Set<String> keys = new LinkedHashSet<>();
 
         @Override public boolean has(@Nonnull String flag) { return keys.contains(flag); }
 
@@ -32,7 +41,7 @@ final class TestDialogueContext implements DialogueExecContext {
         @Override public void clear(@Nonnull String flag) { keys.remove(flag); }
 
         /** What a consumer's quest reset does: drop everything filed under a leading prefix. */
-        void clearPrefix(@Nonnull String prefix) {
+        public void clearPrefix(@Nonnull String prefix) {
             keys.removeIf(key -> key.startsWith(prefix));
         }
     }
@@ -41,7 +50,7 @@ final class TestDialogueContext implements DialogueExecContext {
     private final Flags flags;
     @Nullable private String contextId;
 
-    TestDialogueContext(@Nonnull NpcDialogue dialogue) {
+    public TestDialogueContext(@Nonnull NpcDialogue dialogue) {
         this(dialogue, new Flags());
     }
 
@@ -50,7 +59,7 @@ final class TestDialogueContext implements DialogueExecContext {
         this.flags = flags;
     }
 
-    @Nonnull Flags state() { return flags; }
+    @Nonnull public Flags state() { return flags; }
 
     /** Stand in for the character being talked to, which is what an alias answer set is asked about. */
     @Nonnull TestDialogueContext talkingTo(@Nullable String contextId) {

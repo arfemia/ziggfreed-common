@@ -6,7 +6,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.DialogueExecContext;
-import com.ziggfreed.common.dialogue.NpcDialogue;
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.ui.route.DestinationContext;
 import com.ziggfreed.common.ui.route.Destinations;

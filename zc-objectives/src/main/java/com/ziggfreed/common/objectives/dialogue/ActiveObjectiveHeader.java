@@ -11,7 +11,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
-import com.ziggfreed.common.dialogue.DialogueHeaders;
+import com.ziggfreed.common.dialogue.schema.DialogueHeaders;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.progress.ObjectiveDef;

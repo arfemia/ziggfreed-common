@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
 import com.google.gson.JsonObject;
 
 import com.ziggfreed.common.dialogue.DialogueEngine;
-import com.ziggfreed.common.dialogue.NpcDialogue;
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 import com.ziggfreed.common.util.SafeLog;
 
 /**

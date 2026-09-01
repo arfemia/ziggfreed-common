@@ -11,6 +11,9 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
+import com.ziggfreed.common.npc.placement.runtime.NpcPlacementService;
+
 /**
  * A placement names an NPC role and the role file describes the character. There is no second route.
  *

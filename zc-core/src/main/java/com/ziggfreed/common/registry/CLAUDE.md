@@ -31,10 +31,10 @@ claim an id in.
   registration continues around it.
 
 Consumers: [`../factor/FactorRegistry`](../factor/CLAUDE.md), the dialogue engine's two singular
-seams plus `dialogue/DialoguePayloads` and `dialogue/DialogueHeaders`
+seams plus `dialogue/DialoguePayloads` and `dialogue/schema/DialogueHeaders`
 ([zc-dialogue](../../../../../../../../zc-dialogue/src/main/java/com/ziggfreed/common/dialogue/CLAUDE.md)),
 and the three placement registries
-through their own `npc.placement.PlacementRegistryLedger` (a thin subclass that only fixes the
+through their own `npc.placement.registry.PlacementRegistryLedger` (a thin subclass that only fixes the
 `[placement]` log label - every semantic, and the inherited `RegistrationInfo` record, lives here).
 **An import must name THIS class** (`RegistryLedger.RegistrationInfo`); a qualified reference
 through a subclass (`PlacementRegistryLedger.RegistrationInfo`) resolves normally.

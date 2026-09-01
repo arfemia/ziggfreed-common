@@ -9,7 +9,7 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.LibraryOwner;
 import com.ziggfreed.common.dialogue.DialogueEngine;
-import com.ziggfreed.common.dialogue.DialogueMemories;
+import com.ziggfreed.common.dialogue.state.DialogueMemories;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.objectives.store.ZigProgressDialogueStore;

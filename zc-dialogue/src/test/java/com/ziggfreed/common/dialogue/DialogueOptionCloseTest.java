@@ -10,6 +10,10 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.dialogue.schema.DialogueOption;
+import com.ziggfreed.common.dialogue.schema.NpcDialogue;
+import com.ziggfreed.common.dialogue.type.DialogueAction;
+
 /**
  * Pure-logic coverage for {@link DialogueOption#anyCloses}, the predicate behind the page's
  * implicit-"Farewell" row: an authored {@code "Close": true} option is real sugar for a genuine
