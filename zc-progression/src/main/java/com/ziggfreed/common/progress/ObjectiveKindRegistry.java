@@ -98,6 +98,35 @@ public final class ObjectiveKindRegistry {
      */
     private static final Set<String> BUILT_IN_PLACE_TARGETED = Set.of("TALK_TO_NPC", "REACH_LOCATION");
 
+    /**
+     * The pre-seeded kinds whose TARGET names something a player can hold, so a surface listing one
+     * of their steps may draw the target's own picture beside it.
+     *
+     * <p>{@code TURN_IN} belongs here because what its target names is the thing being delivered.
+     * A hand-in that delivers nothing carries no target at all, so it is pictured by whatever a
+     * consumer says about it, or not at all.
+     */
+    private static final Set<String> BUILT_IN_ITEM_TARGETED = Set.of(
+            "BREAK_BLOCK", "PLACE_BLOCK", "CRAFT_ITEM", "PICKUP_ITEM", "CATCH_FISH",
+            "TURN_IN", "CONSUME_ITEM");
+
+    /**
+     * The pre-seeded kinds whose TARGET names a creature, drawn from that creature's own generated
+     * portrait rather than from an item.
+     *
+     * <p>Independent of the two sets above: {@code TALK_TO_NPC} names both somewhere to go and the
+     * character standing there, and is in both.
+     */
+    private static final Set<String> BUILT_IN_ENTITY_TARGETED = Set.of(
+            "KILL_ENTITY", "DEAL_DAMAGE", "TALK_TO_NPC", "BREED_ANIMAL", "FEED_ANIMAL",
+            "HARVEST_ANIMAL", "COMPANION_COMBAT");
+
+    /**
+     * The pre-seeded kinds whose TARGET names another piece of CONTENT, drawn with that content's
+     * own icon - the picture it is already listed under everywhere else.
+     */
+    private static final Set<String> BUILT_IN_CONTENT_TARGETED = Set.of("COMPLETE_QUEST");
+
     /** The owner name the pre-seeded kinds are attributed to in the ledger. */
     public static final String BUILT_IN_OWNER = "built-in";
 
@@ -121,9 +150,13 @@ public final class ObjectiveKindRegistry {
     /** Register the twenty-three engine-generic kinds, all producible, each with its own arithmetic. */
     private void seedBuiltIns() {
         for (String id : BUILT_IN_ACCUMULATING) {
-            ledger.put(id, BUILT_IN_OWNER, BUILT_IN_PLACE_TARGETED.contains(id)
-                    ? ObjectiveKind.placeTargeted(id)
-                    : ObjectiveKind.of(id));
+            ledger.put(id, BUILT_IN_OWNER, new ObjectiveKind(id, false, true,
+                    BUILT_IN_PLACE_TARGETED.contains(id),
+                    BUILT_IN_ITEM_TARGETED.contains(id),
+                    BUILT_IN_ENTITY_TARGETED.contains(id),
+                    false,
+                    BUILT_IN_CONTENT_TARGETED.contains(id),
+                    false));
         }
         for (String id : BUILT_IN_VALUE_BASED) {
             ledger.put(id, BUILT_IN_OWNER, ObjectiveKind.valueBased(id));
@@ -172,6 +205,19 @@ public final class ObjectiveKindRegistry {
             return;
         }
         ledger.put(kind.id(), owner, kind);
+    }
+
+    /**
+     * Register (or replace) a fully-built kind WITHOUT the ledger's replacement notice, for a caller
+     * whose whole job is to lay one description over another - an authored file merged over the
+     * Java registration it refines. Every other caller should use {@link #register(String,
+     * ObjectiveKind)} and let a genuine collision be heard.
+     */
+    public void registerQuietly(@Nullable String owner, @Nullable ObjectiveKind kind) {
+        if (kind == null) {
+            return;
+        }
+        ledger.putQuietly(kind.id(), owner, kind);
     }
 
     /** The kind registered under {@code kindId} (case-insensitive), or null when nothing is. */

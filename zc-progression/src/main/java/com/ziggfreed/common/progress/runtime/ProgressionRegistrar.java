@@ -311,4 +311,14 @@ public final class ProgressionRegistrar {
         return this;
     }
 
+    /**
+     * Answer for what one of this mod's steps LOOKS like, for the steps whose picture the generic
+     * reading cannot recover. Ordinary steps need no source at all.
+     */
+    @Nonnull
+    public ProgressionRegistrar iconSource(@Nonnull ProgressionIconSource source) {
+        ProgressionRuntime.addIconSource(this, source);
+        return this;
+    }
+
 }

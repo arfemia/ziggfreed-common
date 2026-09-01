@@ -35,7 +35,12 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
     `ProgressEditorDataSets`), declared once so their field names cannot drift between quest and
     achievement files, plus `ContentTextAsset` (`Text`), which both engines' codecs decode through
     but which lives in zc-core's `com.ziggfreed.common.text` since a module below this one needs it
-    too.
+    too. Beside them, `ObjectiveKindAsset`/`ObjectiveKindConfig`/`ObjectiveKindFold` are the KIND
+    itself written as a file (`Server/ZiggfreedCommon/ObjectiveKinds/<Id>.json`, filename = the id
+    content writes as its `Kind`): the ONE place a kind is described - what it counts and how, what
+    its target names, and how it reads and looks - merged leaf by leaf over whatever code registered
+    the same id, so a file stating one fact leaves the rest alone. The module ships one for each of
+    the 23 built-in kinds.
   - `progress/docs/` - `SchemaDocWriter`, generating this module's `SCHEMA.md` on demand
     (`gradlew :zc-progression:generateSchemaDocs`, guarded by `SchemaDocDriftTest`). No router.
   - `progress/gate/` - `GateClause`/`GateSpec`/`GateKind`/`GateKindRegistry`/`GateEvaluator`/
@@ -95,8 +100,10 @@ reordering entries never moves anyone's progress - asserted directly in the engi
 
 ## Tests
 
-43 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
-`ObjectiveProgressStateTest`, `ContentMetaTest`), `NeutralObjectiveComposerTest` and
+44 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
+`ObjectiveProgressStateTest`, `ContentMetaTest`, `ObjectiveKindFoldTest` - the merge a kind
+file performs over a registered kind, leaf by leaf, plus the shipped files decoding as the server
+reads them), `NeutralObjectiveComposerTest` and
 `ProgressionFactorOverlaysTest` (the library's own shipped sentence family and the naming overlays
 for its two progression factor ids), the quest engine (`QuestEngineFlowTest`,
 `QuestEngineTurnInTest`, `QuestLifecycleTest`, `RepeatEvaluatorTest` (the ONE repeat evaluator, and

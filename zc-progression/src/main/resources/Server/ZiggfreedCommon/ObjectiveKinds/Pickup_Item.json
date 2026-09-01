@@ -1,0 +1,13 @@
+{
+  "$Comment": "Picking an item up off the ground.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Item": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Furniture_Crude_Chest_Small"
+    }
+  }
+}

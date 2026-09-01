@@ -1,0 +1,10 @@
+{
+  "$Comment": "Winning a round of an instanced mode.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Deco_Trophy_Harvest"
+    }
+  }
+}

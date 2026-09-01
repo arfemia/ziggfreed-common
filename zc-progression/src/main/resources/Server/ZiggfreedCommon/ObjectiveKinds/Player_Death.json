@@ -1,0 +1,10 @@
+{
+  "$Comment": "Dying.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Deco_Bone_Skulls"
+    }
+  }
+}

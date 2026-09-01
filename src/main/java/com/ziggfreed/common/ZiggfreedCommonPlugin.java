@@ -22,7 +22,10 @@ import com.ziggfreed.common.commerce.fold.CommerceDefaults;
 import com.ziggfreed.common.commerce.fold.CommerceDestinations;
 import com.ziggfreed.common.commerce.fold.CommerceEngines;
 import com.ziggfreed.common.commerce.fold.CurrencyRewardKind;
+import com.ziggfreed.common.commerce.page.CommercePages;
 import com.ziggfreed.common.commerce.page.CurrencyChipReading;
+import com.ziggfreed.common.commerce.page.CommerceStepIcons;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.entity.EntityBootstrap;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
@@ -337,6 +340,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             CommerceDefaults.install(this);
             CurrencyRewardKind.registerInto(RewardKinds.shared());
             RewardChips.contribute(CurrencyChipReading.source());
+            // A step about a wallet or a board is drawn with that wallet's or board's own icon. The
+            // kind's file says which a step is about; only this module knows what either looks like.
+            ProgressionRuntime.registrar(CommercePages.OWNER).iconSource(CommerceStepIcons.source());
             CommerceEngines.installGates(ProgressionDefaults::gateEvaluator);
             getCommandRegistry().registerCommand(new ZigCommerceCommand());
             getEventRegistry().registerGlobal(PlayerReadyEvent.class,

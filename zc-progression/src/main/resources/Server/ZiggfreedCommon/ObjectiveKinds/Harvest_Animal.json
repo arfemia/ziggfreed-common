@@ -1,0 +1,13 @@
+{
+  "$Comment": "Harvesting from an animal - shearing, milking, collecting.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Entity": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Tool_Sickle_Crude"
+    }
+  }
+}

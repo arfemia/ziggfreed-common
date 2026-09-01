@@ -651,7 +651,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         for (int i = 0; i < shown; i++) {
             RewardChip chip = chips.get(i);
             CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#RewardsList", i), chip.label(),
-                    CommerceChips.COLOR_LINE, chip.iconItemId());
+                    CommerceChips.COLOR_LINE, chip.icon());
         }
     }
 
@@ -678,7 +678,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
             line = text(refusal.key());
         }
         CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#StatusList", index), line,
-                CommerceChips.COLOR_REFUSAL, null);
+                CommerceChips.COLOR_REFUSAL);
     }
 
     /**
@@ -707,7 +707,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         if (!check.ok()) {
             paintLocked(cmd, "#RerollBtn");
             CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#StatusList", statusIndex),
-                    refusalLine(check.reason()), CommerceChips.COLOR_REFUSAL, null);
+                    refusalLine(check.reason()), CommerceChips.COLOR_REFUSAL);
             return;
         }
         Cost price = shelf.reroll().cost();

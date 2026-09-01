@@ -1,0 +1,10 @@
+{
+  "$Comment": "Distance covered at a sprint.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Armor_Bronze_Legs"
+    }
+  }
+}

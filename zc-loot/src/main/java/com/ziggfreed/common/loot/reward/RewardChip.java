@@ -5,6 +5,8 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
+import com.ziggfreed.common.icon.IconSpec;
+
 /**
  * One reward as it READS: an optional item icon and one already-composed, client-resolved line.
  *
@@ -16,6 +18,9 @@ import com.hypixel.hytale.server.core.Message;
  * <p>The icon is nullable because a great many rewards have no item to show (a payout of experience,
  * a title, a console line). A chip with no icon renders as its line alone rather than borrowing some
  * unrelated item's picture, which would read as a promise of that item.
+ *
+ * <p>{@link #icon()} is what a row paints, and it is the same {@link IconSpec} every other pictured
+ * row in this library paints, so a payout and a step drawn side by side are drawn by one seam.
  *
  * <p>It lives beside the reward vocabulary rather than on any one screen, because every surface that
  * previews a payout - a quest detail panel, a storefront offer, a board contract, a results strip -
@@ -39,5 +44,11 @@ public record RewardChip(@Nullable String iconItemId, @Nonnull Message label) {
     /** Is there a picture to paint? */
     public boolean hasIcon() {
         return iconItemId != null && !iconItemId.isBlank();
+    }
+
+    /** The picture to paint, in the form every pictured row in this library takes; null when none. */
+    @Nullable
+    public IconSpec icon() {
+        return hasIcon() ? IconSpec.ofItem(iconItemId) : null;
     }
 }

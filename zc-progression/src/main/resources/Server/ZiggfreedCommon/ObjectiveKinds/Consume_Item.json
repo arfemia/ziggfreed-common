@@ -1,0 +1,13 @@
+{
+  "$Comment": "Eating or drinking something.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Item": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Food_Bread"
+    }
+  }
+}

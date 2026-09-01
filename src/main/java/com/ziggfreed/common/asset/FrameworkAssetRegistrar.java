@@ -68,6 +68,10 @@ import com.ziggfreed.common.achievement.asset.AchievementMilestoneConfig;
 import com.ziggfreed.common.feedback.moment.FeedbackMomentAsset;
 import com.ziggfreed.common.feedback.moment.FeedbackMomentConfig;
 import com.ziggfreed.common.quest.asset.QuestAsset;
+import com.ziggfreed.common.progress.asset.ObjectiveKindAsset;
+import com.ziggfreed.common.progress.asset.ObjectiveKindConfig;
+import com.ziggfreed.common.progress.asset.ObjectiveKindFold;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
@@ -173,6 +177,22 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, StatDisplayAsset.class,
                 (LoadedAssetsEvent<String, StatDisplayAsset, DefaultAssetMap<String, StatDisplayAsset>> ev) ->
                         StatDisplayConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Objective kinds (Pattern A) - one kind of quest or achievement step written as a file:
+        //     what it counts and how, what its target names, the sentence it reads as and the picture
+        //     beside it, all in ONE place. Unlike a reward kind, a file here MERGES over whatever code
+        //     registered the same id, leaf by leaf: a file usually means to state one fact about a
+        //     kind, so an unmentioned leaf is not an instruction. Folding is part of the SAME listener
+        //     for the same reason it is there - it must run after every Java registration and after
+        //     the layers resolve. ---
+        AssetStoreRegistrar.registerStore(ObjectiveKindAsset.class,
+                new DefaultAssetMap<String, ObjectiveKindAsset>(), ObjectiveKindAsset.TYPE_ROOT,
+                ObjectiveKindAsset::getId, ObjectiveKindAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ObjectiveKindAsset.class,
+                (LoadedAssetsEvent<String, ObjectiveKindAsset, DefaultAssetMap<String, ObjectiveKindAsset>> ev) -> {
+                    ObjectiveKindConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    ObjectiveKindFold.foldInto(ProgressionRuntime.objectiveKinds());
+                });
 
         // --- Reward kinds (Pattern A) - a reward KIND written as a file: a declared parameter
         //     schema plus one console command line, so a server with an admin command it wants paid

@@ -1,0 +1,10 @@
+{
+  "$Comment": "Distance covered swimming.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Container_Bucket"
+    }
+  }
+}

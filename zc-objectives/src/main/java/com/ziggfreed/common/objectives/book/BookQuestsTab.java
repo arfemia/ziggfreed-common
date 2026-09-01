@@ -19,11 +19,13 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.objectives.hud.TrackedQuestPanelRenderer;
 import com.ziggfreed.common.quest.LockReasons;
+import com.ziggfreed.common.progress.runtime.ProgressionIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
@@ -37,6 +39,7 @@ import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.StatusTones;
 import com.ziggfreed.common.ui.TagColors;
+import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 
@@ -705,6 +708,11 @@ final class BookQuestsTab {
         }
         cmd.set(objSel + " #ObjText.TextSpans", text);
         cmd.set(objSel + " #ObjText.Style.TextColor", color);
+
+        // The picture beside the step, and the slot that holds it. A step with nothing to show keeps
+        // the slot collapsed so its text starts where an unpictured step's text has always started.
+        IconSpec icon = ProgressionIcons.forObjective(quest.id(), objective);
+        cmd.set(objSel + " #LineIconSlot.Visible", IconRenderer.applyIcon(cmd, objSel, icon));
     }
 
     /** Are all objectives in groups BELOW {@code targetOrder} complete? */

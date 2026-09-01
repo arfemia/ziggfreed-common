@@ -1,0 +1,13 @@
+{
+  "$Comment": "Arriving somewhere. The target is a place, which is matched whole and is never drawn from.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Place": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Objective_Treasure_Map"
+    }
+  }
+}

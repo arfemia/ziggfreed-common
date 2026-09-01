@@ -1,0 +1,13 @@
+{
+  "$Comment": "Placing a block.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Item": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Bench_WorkBench"
+    }
+  }
+}

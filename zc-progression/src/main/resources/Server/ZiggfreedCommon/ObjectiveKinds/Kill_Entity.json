@@ -1,0 +1,18 @@
+{
+  "$Comment": "Defeating a creature. A step naming one is drawn with that creature's own portrait; name a family here to point it at whichever member represents it.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Entity": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Weapon_Sword_Crude"
+    },
+    "TargetIcons": {
+      "Trork": {
+        "TexturePath": "Icons/ModelsGenerated/Trork_Brawler.png"
+      }
+    }
+  }
+}

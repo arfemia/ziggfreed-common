@@ -31,6 +31,7 @@ import com.ziggfreed.common.achievement.asset.AchievementCategoryConfig;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.progress.runtime.ProgressionIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
@@ -38,6 +39,7 @@ import com.ziggfreed.common.progress.asset.ContentListingAsset.ChainMembership;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.StatusTones;
+import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 
@@ -780,6 +782,8 @@ final class BookAchievementsTab {
             Message line = ProgressionTexts.objective(achievement.id(), Integer.toString(i));
             cmd.set(cSel + " #CritText.TextSpans",
                     line != null ? line : page.text("book.achievements.criterion.untitled"));
+            cmd.set(cSel + " #LineIconSlot.Visible", IconRenderer.applyIcon(cmd, cSel,
+                    ProgressionIcons.forObjective(achievement.id(), achievement.criteria().get(i))));
             cmd.set(cSel + " #CritText.Style.TextColor", met ? "#b6c9de" : "#96a9be");
             cmd.set(cSel + " #CritProgress.TextSpans", Msg.raw(current + "/" + required));
         }

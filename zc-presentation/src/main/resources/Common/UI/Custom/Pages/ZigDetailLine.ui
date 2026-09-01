@@ -1,14 +1,21 @@
-$Z = "../Common/ZigButtons.ui";
-
 // One line of a detail panel: a step and its count, a reward and its picture, or a reason
 // something is out of reach. ONE template for all three, because the three differ in what they SAY
 // rather than in what they are, and a page that appended three near-identical templates would be
 // three places to fix a spacing change. Appended into a panel's list container and addressed via
 // the INDEXED PARENT ("#MyList[0] #LineText").
 //
-// The icon slot is hidden until a line has a picture to show. A reward with no item behind it (a
-// payout of experience, a title) renders as its line alone rather than borrowing an unrelated
-// item's picture, which would read as a promise of that item.
+// It lives in this module because more than one module appends it - the objective book's giver
+// screen and the storefront and board pages all do - and a second copy beside one of those callers
+// would ship at the same asset path as this one, so only one of the two would ever reach a client.
+//
+// The icon slot is hidden until a line has a picture to show. A line with nothing behind it (a
+// payout of experience, a step that asks for a whole family of blocks) renders as its text alone
+// rather than borrowing an unrelated thing's picture, which would read as a promise of that thing.
+//
+// Two sibling widgets, exactly one of which is ever visible, both driven by ui/icon/IconRenderer:
+// #IcoItem draws an item's own generated icon from a plain item id, and #IcoTex draws a
+// Common-rooted texture path - which is how a creature is shown, from the still the client renders
+// of it. #IcoTex carries a fallback so a creature that never had one rendered still lines up.
 //
 // All text lands on #LineText.TextSpans: a Message on a Label's .Text neither substitutes {0} nor
 // renders markup.
@@ -20,12 +27,16 @@ Group #ZigDetailLine {
   Group #LineIconSlot {
     Anchor: (Width: 24, Height: 24, Right: 8);
     Visible: false;
-    ItemGrid #LineIcon {
+
+    ItemIcon #IcoItem {
       Anchor: (Width: 24, Height: 24);
-      SlotsPerRow: 1;
-      AreItemsDraggable: false;
-      DisplayItemQuantity: false;
-      Style: $Z.@ZigIconGrid24;
+      Visible: false;
+    }
+
+    AssetImage #IcoTex {
+      Anchor: (Width: 24, Height: 24);
+      Visible: false;
+      FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
     }
   }
 
