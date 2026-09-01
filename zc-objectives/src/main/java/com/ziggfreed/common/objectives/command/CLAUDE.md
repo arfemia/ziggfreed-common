@@ -27,8 +27,8 @@ progression verb acts on content the runtime merges from several mods.
 | [`QuestLogCommand`](QuestLogCommand.java) | `quest accept` / `claim` / `abandon`, three registered verbs from one class |
 | [`AchievementListCommand`](AchievementListCommand.java) | `achievement list [--tag=<tag>]` |
 | [`AchievementStatusCommand`](AchievementStatusCommand.java) | `achievement status [--achievement=<id>] [--player=<name>]` |
-| [`AchievementGiveCommand`](AchievementGiveCommand.java) | `achievement give --achievement=<id>`, the force-it verb (same word, same meaning as `quest give`) |
-| [`AchievementClaimCommand`](AchievementClaimCommand.java) | `achievement claim --achievement=<id|all>`, the peer of `quest claim` |
+| [`AchievementGiveCommand`](AchievementGiveCommand.java) | `achievement give --achievement=<id> [--player=<name>]`, the force-it verb (same word, same meaning as `quest give`) |
+| [`AchievementClaimCommand`](AchievementClaimCommand.java) | `achievement claim --achievement=<id|all> [--player=<name>]`, the peer of `quest claim` |
 | [`AchievementResetCommand`](AchievementResetCommand.java) | `achievement reset --achievement=<id|all> [--player=<name>]`, one-or-all like `quest reset` |
 | [`MemoryForgetCommand`](MemoryForgetCommand.java) | `memory forget [--player=<name>]`, over `DialogueMemories.forgetAll` |
 

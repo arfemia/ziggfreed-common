@@ -1,12 +1,12 @@
 # CLAUDE.md - zc-entity
 
-Puppets, performers, and the item-carried stat bridge: the entity-presentation and entity-stat
-primitives that need real engine entity/item data, split out from the domain-free `factor/` and
-`stats/` cores that live in `zc-core`.
+Puppets, performers, per-player flair, and the item-carried stat bridge: the entity-presentation and
+entity-stat primitives that need real engine entity/item data, split out from the domain-free
+`factor/` and `stats/` cores that live in `zc-core`.
 
 ## Build
 
-Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-entity`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -27,10 +27,15 @@ compiles as `:zc-entity`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggr
   over `CollisionModule`), `HeldItemUtil` (a held tool's gather-power SPREAD selection, e.g. picking
   the right power out of a dozen authored on one item), `PlayerIdentityCache` (resolves a player's
   UUID on the world thread, so an off-thread engine callback holding a bare `Player` never needs the
-  deprecated-for-removal `Entity.getUuid()`).
+  deprecated-for-removal `Entity.getUuid()`), and `EntityBootstrap` (this module's own three
+  `setup()` registration phases: `registerPerformerIdentity` / `registerFlairs` /
+  `registerPlayerIdentity`, called from the wiring root's ordered list).
   - [`entity/performer/`](src/main/java/com/ziggfreed/common/entity/performer/CLAUDE.md) - the
     `StationPerformer` contract (`HolderPerformer`/`NpcRolePerformer` backends,
     `PerformerIdentityComponent` + `PerformerReconciler`).
+  - `entity/flair/` - `ZigFlairComponent`, the registered per-player unlocked-flair id set the
+    library persists so a granting mod and a rendering mod meet over one record (ids lower-cased at
+    write, an id carrying `|` or `:` refused). No router of its own (one file).
 - `factor/` - `HytaleFactors` only, the portable `hytale:` factor standard library: nine straight
   reads of engine data about the context's own subject - its stat channels, what it is holding, and
   (`hytale:permission`) the permission nodes its connection holds. This is one half of a deliberate
@@ -59,12 +64,13 @@ the rule stated in full. The performer contract's mutating methods each take a F
 
 ## Tests
 
-14 files: the stat bridge (`EquipStatBridgeTest`, `StatMirrorTest`, `StatChannelAuditTest`), the
-factor standard library (`HytaleFactorsTest`), the puppet/performer stack (`PlayerPuppetServiceTest`,
-`PuppetNavTest`, `PuppetWalkMathTest`, `ItemPropEntityServiceTest`, `PerformerContractTest`,
-`PerformerIdentityCodecTest`, `PerformerReconcileTest`, `PerformerWalkMathTest`), and
-`HeldItemUtil`'s tool-power selection (`ToolPowerSelectionTest`, `ToolTierSelectionTest`, both
-fixture-authored per their own file javadoc so a real tool's balance pass never drags a test with
-it). The engine-touching paths (puppet spawn/despawn, performer presentation) await maintainer
+16 files: the stat bridge (`EquipStatBridgeTest`, `EquipStatBridgeAppliedListenerTest`,
+`StatMirrorTest`, `StatChannelAuditTest`), the factor standard library (`HytaleFactorsTest`), the
+per-player flair set (`ZigFlairComponentTest`), the puppet/performer stack
+(`PlayerPuppetServiceTest`, `PuppetNavTest`, `PuppetWalkMathTest`, `ItemPropEntityServiceTest`,
+`PerformerContractTest`, `PerformerIdentityCodecTest`, `PerformerReconcileTest`,
+`PerformerWalkMathTest`), and `HeldItemUtil`'s tool-power selection (`ToolPowerSelectionTest`,
+`ToolTierSelectionTest`, both fixture-authored per their own file javadoc so a real tool's balance
+pass never drags a test with it). The engine-touching paths (puppet spawn/despawn, performer presentation) await maintainer
 in-game smoke per their package router; the pure decision cores (walk math, reconcile policy,
 tool-power selection) are fully unit-tested.

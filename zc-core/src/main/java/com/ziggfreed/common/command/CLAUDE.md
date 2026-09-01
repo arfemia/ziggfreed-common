@@ -80,6 +80,10 @@ different subject sources - zc-commerce builds a `Subject` straight off the play
   package, so every existing per-verb command's call site (`super(name)` / `super(group, verb)`,
   `execute(ctx, subject)` / `execute(ctx, target)`) is untouched. Only the two walks collapsed into
   one; the two families' constructor shapes and per-verb subclasses did not move.
+- **`executeAsync` is deliberately NOT final.** A verb that steps outside the per-player walk on one
+  authored flag overrides it and calls back into `super.executeAsync(ctx)` for the ordinary case,
+  rather than the base teaching every family about a broadcast only one verb wants. `QuestGiveCommand`
+  is the one that does, on its `--everyone` flag.
 
 ## Relationship to `util/CommandExecutor`
 

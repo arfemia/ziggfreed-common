@@ -162,8 +162,9 @@ over these belongs in a Factors file.
   mod's ids never leak into another's. Backed by [`../registry/RegistryLedger`](../registry/CLAUDE.md)
   for owner attribution + failure counting; `register`/`resolve`/`ids`/`isRegistered`/`info`/
   `clear`, ids matched case-insensitively, last write wins. A library engine whose CONTENT is
-  process-wide may still put ONE instance behind a static facade (`npc.placement
-  .PlacementFactorRegistry` does) - that is the facade's call, not this class's.
+  process-wide may still put ONE instance behind a static facade
+  (`npc.placement.registry.PlacementFactorRegistry` does) - that is the facade's call, not this
+  class's.
   - **Two shared layers sit under every registry, consulted in this order and only on a local miss**:
     `FactorContributions` (below), then its `DerivedFactorSource`. So a consumer's own registration
     always wins, a contributing mod's claim beats an asset definition of the same id, and an id
@@ -201,16 +202,20 @@ over these belongs in a Factors file.
   FACTORY**, `codec(dataSetId)`, because every consumer wants its OWN Asset Editor pick list on the
   `Factor` field; `CODEC` is the no-dropdown instance. Only name a dataset your mod actually serves
   - an unserved id renders an EMPTY pick list, which is worse for an author than free text.
-- **[`FactorConditions`](FactorConditions.java)** - the ONE array evaluator, in THREE shapes, all in
+- **[`FactorConditions`](FactorConditions.java)** - the ONE array evaluator, in FOUR shapes, all in
   `List` and array form. `firstFailure(conditions, registry, ctx)` SHORT-CIRCUITS and returns the
   first failing factor id (so the caller can name it in the gate reason); `pass(...)` is the boolean
   wrapper over the same walk; `allFailures(...)` walks the WHOLE array instead and returns every
   failing CONDITION, in authored order, for a caller listing everything still in the way rather than
-  naming the next thing to go and do. It hands back the conditions rather than their factor ids
+  naming the next thing to go and do; `allFailuresResolved(...)` is the same whole-array walk with
+  each failure carrying the READING it was decided on (a `Failure(condition, resolved)` pair,
+  `resolved` null when the factor could not be answered at all), which is what a surface writing "you
+  have 12, you need 30" needs and what `GateEvaluator` calls - `allFailures` is that same walk with
+  the readings dropped. It hands back the conditions rather than their factor ids
   precisely because a caller writing several sentences needs each one's own `Param` and bound, and
   looking a condition back up by bare id is ambiguous the moment one array bounds a factor twice.
   Pick by what the surface is for: a per-row boolean check in a loop wants `pass`, a detail panel
-  wants `allFailures`. A BLANK entry (no factor id) is SKIPPED by all three rather than failing - a
+  wants `allFailures`. A BLANK entry (no factor id) is SKIPPED by all four rather than failing - a
   half-authored line is an authoring slip, and hiding working content behind it makes that slip much
   harder to find than a validator finding does. Each entry is re-scoped with its OWN `Param`, so two
   entries can address one factor differently.
@@ -229,7 +234,7 @@ over these belongs in a Factors file.
 
 ## The portable standard library (zc-entity)
 
-- **[`HytaleFactors`](../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/factor/HytaleFactors.java)** -
+- **[`HytaleFactors`](../../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/factor/HytaleFactors.java)** -
   `registerInto(registry, owner)` claims nine `hytale:` ids, all straight reads of NATIVE engine
   data about the context's own subject: `stat` (Param = a registered `EntityStatType` id, answering
   its EFFECTIVE folded max), `tool_power` (Param = a native `GatherType`; omit for the best of any
@@ -282,13 +287,13 @@ over these belongs in a Factors file.
 - **A consumer may re-register the SAME ids with its own resolution** in its OWN registry (a work
   session holding a tool snapshot rather than reading the live hand). Same vocabulary,
   context-appropriate answer - that is the point of the registry being per consumer.
-- **[`../entity/HeldItemUtil`](../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/entity/HeldItemUtil.java)**
+- **[`../entity/HeldItemUtil`](../../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/entity/HeldItemUtil.java)**
   is the guarded read layer underneath (active hotbar stack, item asset, raw tags, tool powers,
   quality value, item level, durability percent). Same rule: null means "cannot tell", never zero.
 
 ## The progression readings (zc-progression)
 
-- **[`ProgressionFactors`](../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/progress/runtime/ProgressionFactors.java)** -
+- **[`ProgressionFactors`](../../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/progress/runtime/ProgressionFactors.java)** -
   four `ziggfreedcommon:` ids answering for THE shared progression runtime: `quest_completed`
   (Param = a quest id, 1 when the quest has been finished AND its reward collected - stored status
   `COMPLETED`; a quest waiting in `COMPLETED_UNCLAIMED` reads 0), `quest_completions` (Param = a

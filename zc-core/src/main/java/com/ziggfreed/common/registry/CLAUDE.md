@@ -30,12 +30,21 @@ claim an id in.
 - **`info()` is a fresh snapshot**, so an admin listing command reads a stable map while
   registration continues around it.
 
-Consumers: [`../factor/FactorRegistry`](../factor/CLAUDE.md), the dialogue engine's two singular
+Consumers: [`../factor/FactorRegistry`](../factor/CLAUDE.md) and its `factor/FactorContributions`
+sibling, the open kind/host registries every content family registers into
+(`loot/reward/RewardKindRegistry`, `progress/ObjectiveKindRegistry`, `progress/gate/GateKindRegistry`,
+`ui/route/Destinations`, `quest/NpcOfferProviders`, `quest/asset/QuestEnumeratorRegistry`,
+`objectives/admin/SystemSwitches`, `rotation/SelectionStrategies`, `npc/TalkCredits`,
+`npc/NpcQuestListHosts`, `dialogue/quest/QuestDialogueHosts`), the dialogue engine's two singular
 seams plus `dialogue/DialoguePayloads` and `dialogue/schema/DialogueHeaders`
 ([zc-dialogue](../../../../../../../../zc-dialogue/src/main/java/com/ziggfreed/common/dialogue/CLAUDE.md)),
-and the three placement registries
-through their own `npc.placement.registry.PlacementRegistryLedger` (a thin subclass that only fixes the
-`[placement]` log label - every semantic, and the inherited `RegistrationInfo` record, lives here).
+and the placement engine: `npc.placement.registry.AnchorResolverRegistry` through its own
+`npc.placement.registry.PlacementRegistryLedger` (a thin subclass that only fixes the `[placement]`
+log label - every semantic, and the inherited `RegistrationInfo` record, lives here), and
+`PlacementFactorRegistry` through the ledger inside its `FactorRegistry`, labelled `placement` for
+the same reason. The static `normalize(id)` reaches wider still, into callers that own no ledger at
+all (`factor/FactorNames`, `factor/FeatureFlags`, `factor/DerivedFactorAsset`,
+`factor/DerivedFactorValidator`).
 **An import must name THIS class** (`RegistryLedger.RegistrationInfo`); a qualified reference
 through a subclass (`PlacementRegistryLedger.RegistrationInfo`) resolves normally.
 

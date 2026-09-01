@@ -100,7 +100,7 @@ conflict over, which is what a registry is for.
   where failing open costs at most the one refusal that gate meant to make.
 - **A surface wraps mutating calls in the registered scope**, or a claim from it pays out in silence
   while the same claim from the owning mod's own menu does everything.
-- **Sealed parts** (`factors`, both match flavors, `maxTracked`, `maxPinned`) are read ONCE, when the
+- **Sealed parts** (`factors`, `maxTracked`, `maxPinned`, `rewardRetryQueue`) are read ONCE, when the
   engines are built. A late one is refused, loudly. An identical value is silent, which is why two
   mods agreeing costs nothing. `maxActive` is deliberately NOT sealed: it is an owner's config value
   a reload has to move, so it is read live and a consumer may register an `IntSupplier` for it.

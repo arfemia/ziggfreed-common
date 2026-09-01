@@ -7,8 +7,8 @@ Package root `com.ziggfreed.common.progress.asset`. Imports zc-core and `../` on
 `../../quest/` or `../../achievement/`; a group that only one engine can have belongs to that
 engine's own codec.
 
-`Text` (the `TitleKey` / `FlavorKey` / `DisplayName` group both engines' codecs decode through
-`ContentTextAsset`) is NOT a class in this package: `ContentTextAsset` lives in zc-core's
+`Text` (the `TitleKey` / `FlavorKey` / `DisplayName` / `TextArgs` group both engines' codecs decode
+through `ContentTextAsset`) is NOT a class in this package: `ContentTextAsset` lives in zc-core's
 `com.ziggfreed.common.text`, because the factor naming asset (`factor.DerivedFactorAsset`, a module
 below this one) carries the same group - a shared group a lower module needs cannot live up here.
 Imported the same way any other zc-core leaf is.

@@ -6,11 +6,12 @@ across renders, worlds and restarts. The authored semantics (`Once`, `Memories`,
 map of what lives here.
 
 - **[`DialogueOnce`](DialogueOnce.java)** - the authored seen-ness knob on a `Start` entry or an
-  option (`true`, or `{"World": "<name or pattern>"}`); `keyFor` resolves the storage key for the
-  player's current world.
+  option (`true`, or `{"Where": {Match|GameplayConfig|ExcludeMatch}}`, the shared `WorldSelector`;
+  the old `World` leaf is retired and refuses with a message naming `Where`); `keyFor` resolves the
+  storage key for the player's current world.
 - **[`DialogueMemory`](DialogueMemory.java)** - one declared memory's scope and lifetime
-  (`Where` / `ResetWithQuest` / `Shared`, all nullable and orthogonal); `keyFor` resolves its
-  storage key.
+  (`Where` / `ResetWithQuest` / `Shared` / `Session`, all nullable and orthogonal; a retired
+  `World` leaf refuses and names `Where`); `keyFor` resolves its storage key.
 - **[`DialogueMemories`](DialogueMemories.java)** - THE store: routes each key to the session or
   persistent backend by declared lifetime, and honours `ResetWithQuest` itself off the quest
   engine's re-arm report (`SubjectHandles` is how a consumer's subject reaches a live player).

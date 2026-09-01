@@ -65,7 +65,7 @@ a throw into the caller.
 The one fact worth internalizing: **inside a hit leaf, `owner` is the caster and `target` is the
 swept entity**, because a Selector's `HitEntity` fork does `context.duplicate()` - which carries
 the ORIGINAL owning/running entity forward unchanged - and only overwrites the meta-store's
-`TARGET_ENTITY` (`SelectInteraction.java:331-336`). `owner(ctx)` resolves `getOwningEntity()` when
+`TARGET_ENTITY` (`SelectInteraction.java:310-312`). `owner(ctx)` resolves `getOwningEntity()` when
 valid, else falls back to `getEntity()` (the firing entity), else null - the same pair the
 engine's own `DamageEntityInteraction` resolves.
 

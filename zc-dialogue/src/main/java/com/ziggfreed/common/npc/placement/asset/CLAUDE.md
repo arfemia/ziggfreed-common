@@ -13,9 +13,13 @@ parent [`../CLAUDE.md`](../CLAUDE.md); this is the map of what lives here.
   `claimLateAudit`s it.
 - **[`NpcPlacementOverrides`](NpcPlacementOverrides.java)** - the owner switch at
   `mods/ziggfreedcommon/npc-placements.json` (exact > longest `*`-prefix > bare `*`).
-- **[`NpcPlacementAuthoring`](NpcPlacementAuthoring.java)** - the courtesy role checks
-  (`isSpawnable` / `spawnableRoles`) the command and admin page consult where somebody TYPES a
-  role id; permissive when there is no registry to ask.
+- **[`NpcPlacementAuthoring`](NpcPlacementAuthoring.java)** - writing a placement from OUTSIDE a
+  pack: `place(...)` is the one implementation behind `/zignpc place` and any consumer alias (it
+  writes an ordinary `Identity` / `Where` / `Anchor.Coords` / `Interact` entry into the owner file,
+  re-reads the owner layer, then force-sweeps), refusing an id that already exists and reporting
+  `PLACED` / `ID_TAKEN` / `ROLE_NOT_SPAWNABLE` / `WRITE_FAILED` for the caller to word. Plus the
+  courtesy role checks (`isSpawnable` / `spawnableRoles`) the command and admin page consult where
+  somebody TYPES a role id; permissive when there is no registry to ask.
 - **[`NpcPlacementValidator`](NpcPlacementValidator.java)** - the two audit entry points:
   `auditFileLocal` (shape / spelling / self-contradiction, safe at any boot stage) and `audit`
   (plus the cross-asset half, trustworthy only once everything is up).

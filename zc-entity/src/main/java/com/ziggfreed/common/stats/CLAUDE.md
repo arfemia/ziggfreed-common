@@ -115,8 +115,10 @@ onto a channel through `StatMirror` - not a merged package.
   site) after every jar-bundled + dynamically-registered channel has had its chance to register.
   Does NOT detect an item whose authored modifier already silently dropped (out of scope) - only
   that the CHANNEL itself is missing.
-- **[`StatIndexCache`](StatIndexCache.java)** - package-private, shared by all four classes above:
-  memoizes an `EntityStatType` id -> asset-map index (mirrors `util.DamageCauseCache`'s technique
+- **[`StatIndexCache`](StatIndexCache.java)** - public (the `hytale:stat` factor provider reads it
+  from `factor/`), shared by `EquipStatBridge`, `StatMirror`, `StatChannelAudit` and
+  [`../factor/HytaleFactors`](../factor/HytaleFactors.java): memoizes an `EntityStatType` id ->
+  asset-map index (mirrors `util.DamageCauseCache`'s technique
   for a different asset type; deliberately NOT `util.AssetIndexCache`, whose "cache only `idx > 0`"
   rule would wrongly treat a legitimately-index-0 custom stat channel as unresolved forever - see
   its javadoc).

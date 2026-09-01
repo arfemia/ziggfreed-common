@@ -7,13 +7,15 @@ consumer needs at runtime even without a compile edge, because a page's `.ui` fi
 
 ## Build
 
-Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
 
-- **Depends on**: `zc-core` only.
-- **Depended on by (compile edge)**: `zc-dialogue`, `zc-instance`, `zc-objectives`.
+- **Depends on**: `zc-core`, plus `zc-loot` for ONE seam - `ui/toast/RewardToastLines`, the bridge
+  from the reward-chip reading to toast body rows. That edge points DOWN the graph (zc-loot reaches
+  only zc-core), so it can never cycle.
+- **Depended on by (compile edge)**: `zc-commerce`, `zc-dialogue`, `zc-instance`, `zc-objectives`.
 - **Depended on by (runtime `.ui` reference only, no compile edge)**: every module that ships a
   page - see the root module table's "Ships `.ui`" column. A module can need this one at runtime
   and Gradle will never say so; the day anything ships as a separate jar, that column is the audit
@@ -84,7 +86,11 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
 - [`sound/`](src/main/java/com/ziggfreed/common/sound/CLAUDE.md) - `Sound3D`.
 - `ui/` - `CustomHudHelper`, `ZigRichButton` (the clickable-rich-text primitive every labeled
   button in the library uses), `UiRetint` (the generic palette-to-selector retint primitive),
-  `SettingsUiUtil` (settings-form binding helper), `StatusTones` (the six-tone status-colour
+  `SettingsUiUtil` (settings-form binding helper), `UiText` (the ONE way a page writes a `.Text`
+  property, pinned by `TextSinkGoesThroughUiTextTest`: a translation is sent for the client to
+  resolve, anything else is flattened through `flatten`, because a non-`MessageId` `Message`
+  document in that slot DISCONNECTS the client - so a String-only sink resolves its translation
+  through `flatten`), `StatusTones` (the six-tone status-colour
   vocabulary progression and commerce surfaces paint state with: ready / available / in progress /
   soft block / limited / locked), `TagColors` (the deterministic keyword + hash colour table for
   free-string tag chips, so one tag reads one colour everywhere). No router at this top level
@@ -143,10 +149,12 @@ Thin relative to the package count: `HudPositionTest` (corner-preset parsing + a
 `SettingsFormTest` (field-spec render/refresh/collect round trip), and `DestinationsTest` (the
 routing vocabulary's decode + dispatch + audit contract: a registered type's own fields, the
 bare-string form as the same value, an unknown or mis-cased `Type` failing the read, a late
-registration still taking effect, a throwing handler counted against its owner). The toast engine,
-retint engine,
-and rich-button primitive have no unit coverage here; they are validated in-game per the general
-`.ui` rule (`.ui` files are not compiled, validate in-game). `FeedbackEngineTest` covers the moment
+registration still taking effect, a throwing handler counted against its owner). The retint engine and
+rich-button primitive have no unit coverage here; they are validated in-game per the general `.ui`
+rule (`.ui` files are not compiled, validate in-game). `RewardToastLinesTest` pins the toast
+engine's chip-to-row bridge (a chip becomes one row, its icon carries quantity one because the
+label already says how many, and a list past the row budget spends its last row on the caller's
+overflow line rather than cutting silently). `FeedbackEngineTest` covers the moment
 schema's decode and inheritance, variant selection, `KeyArg`, the `EveryPercent` mark and the
 audience question, plus everything a broken authoring file or an absent player could turn into a
 throw; `ShippedFeedbackMomentsTest` decodes every shipped default and checks each line's key against

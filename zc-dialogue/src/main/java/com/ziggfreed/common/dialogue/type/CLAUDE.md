@@ -10,7 +10,7 @@ ordering) is the parent [`../CLAUDE.md`](../CLAUDE.md); this is the map of what 
 - **[`GenericActions`](GenericActions.java)** - what `DialogueEngine` seeds `Goto`/`Close`/
   `Remember`/`Forget`/`MarkTalked`/`OpenPage` FROM. Lives here (not on `DialogueEngine`) because its
   sugar lambdas construct those nested `DialogueAction` types directly, writing their
-  package-private `node`/`memory`/`target` fields; `Remember`/`Forget` take the declared-memory-key
+  protected `node`/`memory`/`target` fields; `Remember`/`Forget` take the declared-memory-key
   lookup as an injected `BiFunction` rather than reaching back into `DialogueEngine` for it.
 - **[`DialogueCondition`](DialogueCondition.java)** - the condition base and its generics
   (`Remembered`, `NotRemembered`, `World`, `Factor`, the `Combinator` family `AllOf`/`AnyOf`/`Not`).

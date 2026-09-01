@@ -6,7 +6,7 @@ apply/remove/track primitive, and the timed + banded encounter framework built o
 
 ## Build
 
-Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-effects`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies

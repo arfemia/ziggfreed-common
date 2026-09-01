@@ -2,12 +2,16 @@
 
 **FROZEN this cycle: zero file edits, zero deletions, zero signature changes - ONE deliberate,
 maintainer-approved exception below.** A monorepo-wide grep (`import com\.ziggfreed\.common\.cast`)
-shows every class in `cast/` and `cast/step/` has at least one live importer: rpg-stations imports
+shows every class in `cast/` and `cast/step/` is either imported by a sibling mod or reached
+through one that is (`HitContext`/`HitAction` have no external importer of their own, they ride
+`HitResolver`'s API): rpg-stations imports
 `step.CastKernel`/`StepHandler`/`StepRegistry`/`StepSemantics` plus
-`AbstractWorldFrameSystem`/`WorldEvictors`/`WorldKeyedQueues`/`ModelParticleService` (`cast.step` is
+`AbstractWorldFrameSystem`/`WorldEvictors`/`WorldKeyedQueues` (`cast.step` is
 its station-PROGRAM engine, a consumer with zero relation to abilities); mmo-mob-scaling imports
-`OnHitRegistry`/`CastParams`; the hyMMO MMO imports nearly every class in both packages including
-`step.CastKernel`/`step.StepSemantics`. Deleting or renaming anything here breaks a shipped sibling
+`OnHitRegistry`/`CastParams`; the hyMMO MMO imports most of `cast/`
+(`AbstractWorldFrameSystem`/`ArmedStateStore`/`BlockRaystep`/`HitResolver`/`ModelParticleService`/`ObserverRegistry`/`RaycastTargeting`/`WorldEvictors`/`WorldKeyedQueues`)
+and nothing from `cast.step` at all - its Java step engine is retired, so `cast.step`'s only live
+importer is rpg-stations. Deleting or renaming anything here breaks a shipped sibling
 mod this cycle is not touching, so the cast / ability rewrite lands as a NEW tree instead: the
 generic interaction-composition framework now lives in [`../interaction/`](../interaction/CLAUDE.md)
 (+ `interaction/type/`, `interaction/param/`, `interaction/target/`) and COMPOSES with these
@@ -33,7 +37,7 @@ consumer-facing runtime layer rather than framework plumbing. Do not "tidy" `Wor
 into zc-cast - that single file would re-attach the whole 38-class cast/interaction runtime to
 zc-entity, zc-world and zc-dialogue.
 
-Router for `com.ziggfreed.common.cast` (+ `cast.step`). The mod-agnostic runtime seams a consumer's cast / ability system needs: the generic step-dispatch KERNEL, an on-hit builder registry, a per-hit resolver, a per-caster armed-state store, a guarded observer registry, ray + block targeting, and the per-world tick partition (frame gate, world-keyed queues, evictor fan-out, and the abstract drain system). Lifted config-free from a consumer; every engine-touching call is try-guarded to a no-op / `false`, and world-thread work is asserted in javadoc, not enforced. No content, no ids, no step vocabulary baked in - the consumer supplies all types and registers all policy. The layer is ADDITIVE-ONLY once frozen (new methods / overloads / `HitContext` fields OK; renames / removals / callback-widening forbidden).
+Router for `com.ziggfreed.common.cast` (+ `cast.step`). The mod-agnostic runtime seams a consumer's cast / ability system needs: the generic step-dispatch KERNEL, an on-hit builder registry, a per-hit resolver, a per-caster armed-state store, a guarded observer registry, ray + block targeting, and the per-world tick partition (world-keyed queues, evictor fan-out, and the abstract drain system). Lifted config-free from a consumer; every engine-touching call is try-guarded to a no-op / `false`, and world-thread work is asserted in javadoc, not enforced. No content, no ids, no step vocabulary baked in - the consumer supplies all types and registers all policy. The layer is ADDITIVE-ONLY once frozen (new methods / overloads / `HitContext` fields OK; renames / removals / callback-widening forbidden).
 
 ## Step-dispatch kernel (`cast.step`)
 

@@ -7,17 +7,20 @@ UI primitives (`zc-presentation`).
 
 ## Build
 
-Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-dialogue`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
 
 - **Depends on**: `zc-core`, `zc-presentation`, `zc-world`, `zc-progression`.
-- **Depended on by**: `zc-objectives`, and only for NPC IDENTITY - its NPC quest page names a
-  character through `npc/NpcNames` and folds the character's alias set through `npc/NpcIdentities`,
-  rather than making every consumer say who is standing there. That module is the top of the graph,
-  so the edge closes nothing. Nothing else in the library depends on this one; a mod that wants
-  dialogue depends on it directly.
+- **Depended on by**: `zc-objectives`, for NPC IDENTITY and for the library's own dialogue wiring -
+  its NPC quest page names a character through `npc/NpcNames` and folds the character's alias set
+  through `npc/NpcIdentities`, and its `objectives/dialogue/DialogueBootstrap` fills the seams only a
+  module above both can reach: it installs the `hytale:` factor standard library into
+  `DialogueEngine`'s singular factor slot, fills `state/DialogueMemories`' persistent backend and
+  joins it to progression's `QuestResets`, and registers the active-objective `schema/DialogueHeaders`
+  source. That module is the top of the graph, so the edge closes nothing. Nothing else in the
+  library depends on this one; a mod that wants dialogue depends on it directly.
 - **Reverse-edge trap**: `zc-progression` sits below this module and may never import anything from
   here. The quest-aware conversation vocabulary (`QuestState`/`ReadyToTurnIn`/`Accept`/`TurnIn`) is
   a one-way read through progression's narrow `QuestStateReader` seam and nothing else - never
@@ -62,7 +65,11 @@ compiles as `:zc-dialogue`). See the root [`CLAUDE.md`](../CLAUDE.md) for the ag
 `Common/UI/Custom/Pages/{ZigDialoguePage.ui, ZigDialogueOptionRow.ui}` (the dialogue page + option
 row, imports the shared frames from `zc-presentation`). `Server/ZiggfreedCommon/DialogueOptionTheme/
 {Accept,Continue,Farewell,Neutral,Turnin}.json` (the five presentation themes an authored option's
-`Presentation` block can reference by name).
+`Presentation` block can reference by name). `Common/UI/Custom/Pages/ZigNpcPlacementAdminPage.ui`
+(the placement admin page `npc/placement/admin/NpcPlacementAdminPage.java` opens). Two lang families
+in nine locales, `Server/Languages/<bcp47>/{ziggfreedcommon.dialogue.lang,
+ziggfreedcommon.npc.admin.lang}`: the dialogue page's own chrome lines and the placement admin
+wording. Every AUTHORED conversation key resolves in the shipping mod's own namespace instead.
 
 ## Conventions
 

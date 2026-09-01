@@ -39,9 +39,9 @@ the store's load event, long after any `setup()`).
 ## Shared with the quest asset layer, deliberately
 
 The overlapping groups are declared ONCE in [`../../progress/asset/`](../../progress/asset/CLAUDE.md)
-and [`../../progress/gate/`](../../progress/gate/) so their field names cannot drift apart:
+and [`../../progress/gate/`](../../progress/gate/CLAUDE.md) so their field names cannot drift apart:
 
-- `ContentTextAsset` (zc-core's `com.ziggfreed.common.text`) - the `Text` group (`TitleKey` / `FlavorKey` / `DisplayName`)
+- `ContentTextAsset` (zc-core's `com.ziggfreed.common.text`) - the `Text` group (`TitleKey` / `FlavorKey` / `DisplayName` / `TextArgs`)
 - `ObjectiveLeafAsset` - the seven objective leaves each `Criteria` entry carries
 - `RewardEntryAsset` - one entry of a `Rewards` bucket (`Kind` + open `Params`)
 - `ContentRewardsAsset` - the `Rewards` group (`Auto` pays on settling, `Claim` waits to be collected)

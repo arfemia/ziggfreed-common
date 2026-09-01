@@ -11,7 +11,7 @@ first - it doubles as this module's deepest router and this file does not repeat
 
 ## Build
 
-Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-loot`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -19,7 +19,9 @@ compiles as `:zc-loot`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggreg
 - **Depends on**: `zc-core` only.
 - **Depended on by**: `zc-instance` (the reward granter + `InstanceReward`), `zc-objectives` (the
   same, plus the loot core for its native-event producers), `zc-progression` (the shared reward
-  VOCABULARY in `loot/reward/` - what a reward is, who pays it out).
+  VOCABULARY in `loot/reward/` - what a reward is, who pays it out), `zc-presentation` (one seam,
+  `RewardToastLines`, turning a reward-chip reading into toast body rows), and `zc-commerce` (the
+  same vocabulary a priced offer carries and `ShopEngine` pays out through `RewardGrants`).
 - **Reverse-edge trap**: this module may NEVER import `zc-progression`, `zc-instance`,
   `zc-dialogue`, `zc-presentation`, `zc-world`, or `zc-effects` - sitting below two consumers means
   any edge back up is an immediate cycle. A grant that needs a native effect, a page, a world
@@ -38,8 +40,9 @@ compiles as `:zc-loot`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggreg
   - [`loot/reward/`](src/main/java/com/ziggfreed/common/loot/reward/CLAUDE.md) - the ONE reward
     vocabulary every payout site shares: `RewardSpec`, `RewardHandler`, `RewardKindRegistry`,
     `RewardGrants`. `LootRewardKinds` ships the four kinds the framework itself pays out (`Item`,
-    `Lootable`, `Stamped_Item`, `Command`); `Effect` is added by the wiring root, because this
-    module may never see the effect module.
+    `Lootable`, `Stamped_Item`, `Command`), and `DroplistRewardKind` a fifth that rolls a native
+    `ItemDropList` onto the ground; the wiring root registers `Droplist` beside `Effect`, the
+    latter because this module may never see the effect module.
   - [`loot/stamp/`](src/main/java/com/ziggfreed/common/loot/stamp/CLAUDE.md) - rolling stats onto
     an item: `StatRollEntry`/`RollPoolAsset`/`StampSpec` authored, `StampCapEngine` the pure
     decision (lowest budget binds, a fully-capped attempt denied so nothing is charged), the
@@ -58,8 +61,11 @@ compiles as `:zc-loot`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggreg
 
 ## Shipped resources
 
-None. `LootableAsset` is a registered content TYPE (`Server/ZiggfreedCommon/Lootables/`), but this
-module ships no default content - the framework asset-store paradigm is defaults-optional.
+Three reward-kind presentation files, `Server/ZiggfreedCommon/RewardKinds/{Droplist,Effect,Lootable}.json`
+- how each roll-at-grant-time kind READS on a chip before it pays out, nothing about what it pays
+- plus the nine-locale `Server/Languages/<bcp47>/ziggfreedcommon.loot.lang` family holding the three
+labels they name. `LootableAsset` is a registered content TYPE (`Server/ZiggfreedCommon/Lootables/`)
+that ships no default table - the framework asset-store paradigm is defaults-optional.
 
 ## Conventions
 
@@ -74,15 +80,24 @@ own router.
 
 ## Tests
 
-25 files: the loot core (`LootEngineTest`, `RollEvaluatorTest`, `LootableAssetCodecTest`,
+29 files: the loot core (`LootEngineTest`, `RollEvaluatorTest`, `LootableAssetCodecTest`,
 `LootableContributionTest`, `LootableValidatorTest`, `LootPoolTest`, `LootFactorGateTest`,
 `LootEntryTest`), the reward vocabulary (`RewardKindRegistryTest`, `RewardKindFoldTest`,
 `RewardKindAssetCodecTest`, `RewardKindAssetFoldTest`, `RewardKindValidatorTest`,
 `RewardGrantsTest`, `CommandRewardKindTest`, `DroplistRewardKindTest`, `FrameworkKindFailLoudTest`,
 `RewardChipsTest` - how one reward READS before it is granted, from strings alone,
-`CommandRewardFitTest` - which command rewards need inventory room at all),
-the stamp math (`StampCapEngineTest`, `StamperDescribeTest`), and the deferred-payout layer
-(`DeferredRewardsTest`, `InstanceRewardParseTest`, `InstanceRewardMergeTest`,
-`NativeLootServiceTest`). `NativeLootServiceTest`'s unknown-id/disabled-module/throwing-engine
+`CommandRewardFitTest` - which command rewards need inventory room at all, `RewardJsonTest` - how a
+hand-authored reward reads as a kind plus flat parameters, how a consumer's dialect renames both,
+and why a reward missing what its kind requires is refused at LOAD rather than at payout,
+`LootableRewardSinksTest` - that a rolled table's own `Rewards` genuinely pay through the registry
+the kind was registered into, and that its earned cues reach whatever presenter the server
+registered, and `ShippedRewardKindFilesTest` - the three presentation-only kind files this module
+ships (`Lootable`, `Droplist`, `Effect`) decoding command-less and reading as the generic localized
+line under a stand-in icon), the stamp math (`StampCapEngineTest`, `StamperDescribeTest`), and the
+deferred-payout layer (`DeferredRewardsTest`, `InstanceRewardParseTest`, `InstanceRewardMergeTest`,
+`NativeLootServiceTest`, `PendingRewardStoreTest` - the durable file's version marker exercised
+through queue/drain/has across a re-read: a file written before the marker existed reads as version
+1, every write carries the version, and a file declaring a newer one is left unread).
+`NativeLootServiceTest`'s unknown-id/disabled-module/throwing-engine
 cases run against the real unbooted engine (a bare unit-test JVM cannot construct an `ItemStack` at
 all here) - see that package's router for why.

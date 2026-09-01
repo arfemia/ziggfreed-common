@@ -13,7 +13,7 @@ build.
 
 ## Dependencies
 
-- **Depends on**: `zc-core` (SafeLog, `Subject`, `inventory/`, `counter/`, the factor model,
+- **Depends on**: `zc-core` (SafeLog, `Subject`, `inventory/`, the factor model,
   `validation/`, `registry/`, the asset bases, `time/DurationGroup`, `util/PeriodMath`), `zc-loot`
   (the ONE reward vocabulary and the ONE issuance pass), `zc-progression` (bounties ARE quests, and
   every gate is the shared `progress.gate` evaluator), `zc-presentation` (the pages), `zc-world`

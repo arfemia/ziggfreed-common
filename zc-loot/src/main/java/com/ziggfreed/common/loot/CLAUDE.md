@@ -116,7 +116,7 @@ engine above can reach the loot core without any of them reaching each other.
   whatever presenter a consumer installed, and with none installed it does nothing.
 - **Decision stays pure, effects stay behind seams.** A new side effect is a new seam on `Sinks`, never
   a call inside `RollEvaluator`.
-- **A weighted pick goes through [`util/WeightedPick`](../util/CLAUDE.md)** - never a local copy.
+- **A weighted pick goes through [`util/WeightedPick`](../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/util/CLAUDE.md)** - never a local copy.
 - **A pool ADDS a way to compose, it never becomes a second engine.** An entry's `Grants` is the same
   `LootGrants` a roll's is, its `Conditions` are the same `FactorCondition[]`, and its draw goes
   through the same `WeightedPick`. If a pool ever needs something a roll has, give the roll's version

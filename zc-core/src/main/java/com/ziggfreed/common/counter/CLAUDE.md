@@ -27,7 +27,7 @@ Package root `com.ziggfreed.common.counter`. Depends on `subject.Subject` and no
 - **No domain vocabulary, no engine types.** This package counts; it has no idea what is being
   counted. No `Player`, no `Store`, no component, no consumer's key names.
 - **`counter/` vs `stats/` never merge** (the rule is stated in full in
-  [`stats/CLAUDE.md`](../stats/CLAUDE.md)): a "how many times has this subject done X" number is a
+  [`stats/CLAUDE.md`](../../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/stats/CLAUDE.md)): a "how many times has this subject done X" number is a
   tally and belongs here; a "what does this sword add to Attack Damage" number is an item-carried
   stat and belongs there. A consumer wanting both mirrors a tally onto a channel through
   `StatMirror` - it does not merge the packages.

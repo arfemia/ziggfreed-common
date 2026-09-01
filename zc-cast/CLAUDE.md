@@ -7,7 +7,7 @@ module; it ships EMPTY of content (no baked step vocabulary, no consumer-specifi
 
 ## Build
 
-Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-cast`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -27,9 +27,9 @@ compiles as `:zc-cast`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggreg
   step-dispatch kernel (`StepHandler`/`StepRegistry`/`StepSemantics`/`CastKernel`, parameterized
   over a consumer's own context/step/result types), `OnHitRegistry`, `HitContext`/`HitAction`/
   `HitResolver`, `ObserverRegistry`, `CastParams`, `ArmedStateStore`, `RaycastTargeting`/
-  `BlockRaystep`, the per-world tick partition (`WorldFrameGate`/`WorldKeyedQueues`/
-  `AbstractWorldFrameSystem` - `WorldEvictors` itself is the zc-core split-package file this module
-  composes with by FQN), `ModelParticleService`.
+  `BlockRaystep`, the per-world tick partition (`WorldKeyedQueues`/`AbstractWorldFrameSystem`,
+  which rides the engine's own once-per-world-per-tick dispatch - `WorldEvictors` itself is the
+  zc-core split-package file this module composes with by FQN), `ModelParticleService`.
 - [`interaction/`](src/main/java/com/ziggfreed/common/interaction/CLAUDE.md) - the generic
   interaction-composition framework: `NativeChainFire` (fire a named native `RootInteraction`
   chain by id) + `NativeInputGate` (read whether a root can currently do anything, off its own

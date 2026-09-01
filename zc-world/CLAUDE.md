@@ -8,7 +8,7 @@ vocabulary.
 
 ## Build
 
-Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -17,8 +17,10 @@ compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggre
   placement engine's identity resolution lean on entity-layer primitives).
 - **Depended on by**: `zc-dialogue` (`DialogueCondition.World` resolves through the shared
   `WorldSelector` group; `WhereValidator` backs the placement engine's `Where` audit),
-  `zc-objectives` (`world/placed/PlacedBlockLedger` only - its block-break and pickup producers
-  refuse to credit a block the breaker put down themselves).
+  `zc-commerce` (a storefront or a board carries the same `Where` group, audited by the same
+  `WhereValidator`), `zc-objectives` (`world/placed/` only - its block-break and pickup producers
+  ask `PlacedBlockLedger` before crediting a block the breaker put down themselves, and its place
+  producer counts exactly what `PlacedBlockRecorder`'s own `placementCounts` predicate counts).
 - **Reverse-edge trap**: none declared today. This module is targeting infrastructure, not domain
   content, so an edge upward to a domain module (dialogue, progression, instance) would mean world
   targeting had started depending on the very content it is supposed to gate.
@@ -34,7 +36,12 @@ compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggre
   .Pattern` is a `NamePattern` and `MatchRank` is a `NameMatchRank` plus the one world-specific
   `GameplayConfig` rung, so a world-targeting field and any other name-matched field in the library
   parse and sort identically. Also `SurfaceProbe` (top-solid-Y column probe -> floor-snap) and
-  `SpawnPlacement` (ring/near-player runtime spawn positions, foliage-skip surface snap).
+  `SpawnPlacement` (ring/near-player runtime spawn positions, foliage-skip surface snap). Also
+  `WeightedPrefabPlacementAsset` + `WeightedPrefabPlacementConfig`, the module's ONE pack-authorable
+  asset type (`Server/ZiggfreedCommon/PrefabPlacements/*.json`, registered by the root
+  `FrameworkAssetRegistrar`, folded `defaults < pack < owner` through `AbstractKeyedAssetConfig`
+  with pure seeded `select`/`selectWeighted` helpers). The package router carries the detail on it
+  and on `BlockTypeLists`, `AtmosphereService` and `ForcedMusicService`.
 - [`world/placed/`](src/main/java/com/ziggfreed/common/world/placed/CLAUDE.md) - the placed-block
   ledger; has its own router, read it before touching any of the three classes. `PlacedBlockLedger`
   answers the one question "did the breaker place this?"; `PlacedBlockSection` is where a block's
@@ -66,7 +73,9 @@ compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggre
 
 ## Shipped resources
 
-None. This module is code only.
+None. `WeightedPrefabPlacementAsset` is a registered content TYPE
+(`Server/ZiggfreedCommon/PrefabPlacements/`), but this module ships no default content - the
+framework asset-store paradigm is defaults-optional.
 
 ## Conventions
 
@@ -79,7 +88,7 @@ misconfigured `Where` loud instead of silently matching nothing.
 
 ## Tests
 
-8 files: `PlacedBlockSectionTest` (where a block's answer is decided: which bit a position maps to,
+7 files: `PlacedBlockSectionTest` (where a block's answer is decided: which bit a position maps to,
 that every block in a section has its own, that spending a mark clears it, that the array is only
 allocated once something is marked and released again when nothing is, and the write-out/read-back
 round trip a chunk save and load puts it through; the ledger's own block path needs a live world

@@ -39,10 +39,19 @@ present" - the exact thing the value side exists to express - look broken.
 
 ## Who reports into it
 
-`WhereValidator` (`where`), `NpcPlacementValidator` (`placement`),
-`DerivedFactorValidator` (`factor`), `DialogueStructureValidator` (`dialogue`), `LootableValidator`
-(`lootable`), `QuestPoolValidator` + `QuestAssetStore`/`QuestGeneratorExpander` (`quest`),
-`AchievementPoolValidator` (`achievement`). Each exposes its domain as a `DOMAIN` constant.
+`WhereValidator` (`where`), `NpcPlacementValidator` (`placement`), `NpcIdentityValidator`
+(`identity`), `DerivedFactorValidator` (`factor`), `DialogueStructureValidator` (`dialogue`),
+`LootableValidator` (`lootable`), `RewardKindValidator` (`rewardkind`), `QuestPoolValidator` +
+`QuestAssetStore`/`QuestGeneratorExpander` (`quest`), `AchievementPoolValidator` (`achievement`),
+and the economy trio `CurrencyValidator` (`commerce`) / `ShopValidator` (`shop`) / `BoardValidator`
+(`board`), which `commerce/fold/CommerceAudit` aggregates. Each exposes its domain as a `DOMAIN`
+constant; `QuestCompletionDialogueValidator` deliberately reuses `QuestPoolValidator.DOMAIN` rather
+than minting a near-duplicate.
+
+Two SHARED checks report into the same vocabulary with no domain of their own, stamping the
+CALLER's: `progress/gate/GateValidator` is the one gate audit for every content family that carries
+a `Requires` block, and `ui/route/DestinationCheck` audits an authored `Destination`. Pass your own
+domain and fold the result into your report rather than growing a copy.
 
 ## There is one shape, and `Finding` is it
 

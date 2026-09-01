@@ -9,7 +9,7 @@ engine's own native events.
 
 ## Build
 
-Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -25,8 +25,10 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
   answers to, both read off the placement + identity assets - which is what lets the page at a
   character name it and fold its aliases with no consumer filling a seam), `zc-world` (`world.placed`
   ONLY: the shared placed-block ledger the break and pickup producers consult, so neither credits a
-  block or an item the player put down themselves). One-way in every case; zc-world sits below this
-  module and never reaches back.
+  block or an item the player put down themselves), `zc-instance` (the generic
+  `InstanceRoundCompletedEvent`, so a finished minigame round feeds the same engines every other
+  moment feeds). One-way in every case; zc-world and zc-instance both sit below this module and
+  neither reaches back.
 - **Depended on by**: no other library module. This module sits ABOVE both `zc-progression` and
   `zc-presentation` and nothing sits above it - a progression book needs the engines and a page,
   and neither of those two modules may reach the other (`zc-progression` may never import
@@ -76,9 +78,15 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
   - `objectives/runtime/` - this module's own registration glue over `zc-progression`'s
     `ProgressionRegistrar`.
   - `objectives/store/` - the persisted per-player progress component + its codec.
+  - `objectives/command/` - `/zigprogress`, the admin family over THE runtime (quest / achievement
+    / memory groups plus `reload`); see
+    [its router](src/main/java/com/ziggfreed/common/objectives/command/CLAUDE.md).
+  - `objectives/dialogue/` - `DialogueBootstrap`, this module's fill of the seams `zc-dialogue`
+    declares and structurally cannot fill (the `hytale:` factor vocabulary, the persistent memory
+    store over the progress component, the quest-reset hook), plus `ActiveObjectiveHeader`.
 
-  None of the seven subpackages above has its own router; the parent `objectives/` router covers
-  them all.
+  None of the eight router-less subpackages above has its own router; the parent `objectives/`
+  router covers them all (`command/` carries its own).
 
 ## Shipped resources
 
@@ -122,7 +130,7 @@ to take the screen wins.
 
 ## Tests
 
-19 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
+30 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
 this module's own suite covers the parts it contributes - `DefaultPartsHandInTest`,
 `DefaultPartsRewardGrantTest` (the registered store + producer parts pulling their weight inside a
 real runtime), `ZigProgressComponentTest`, `ProgressBlobTest` (the persisted per-player codec),

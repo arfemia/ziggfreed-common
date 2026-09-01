@@ -6,7 +6,7 @@ screens, presets, leaderboards, plus the lobby and party systems that feed them.
 
 ## Build
 
-Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-instance`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -93,7 +93,7 @@ its own reward-spec kind (e.g. `xp`) by registering a `RewardAuthoring` adapter 
 
 ## Tests
 
-6 files, thin relative to the package count: `LeaderboardTest`, `MatchmakingQueueTest`,
-`PartyServiceTest`, `QueueModeSetTest`, `WinConditionResolverTest`, `ZoneHoldTimerTest`. The page
-rendering itself (every `.ui` file listed above) has no unit coverage; `.ui` files are not compiled
-and validate in-game per the library-wide rule.
+7 files, thin relative to the package count: `InstanceRoundCompletedEventTest`, `LeaderboardTest`,
+`MatchmakingQueueTest`, `PartyServiceTest`, `QueueModeSetTest`, `WinConditionResolverTest`,
+`ZoneHoldTimerTest`. The page rendering itself (every `.ui` file listed above) has no unit coverage;
+`.ui` files are not compiled and validate in-game per the library-wide rule.

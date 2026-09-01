@@ -71,7 +71,7 @@ module or grow a second, subtly different idea of what a reward is.
   that needs no room answers true, INCLUDING the two it cannot know about (a `Lootable` rolls its
   contents at grant time; another mod's kind is that mod's business), so a false answer always names
   a specific item that specifically will not fit. It probes through
-  [`inventory/InventoryGrant.canAdd`](../../inventory/CLAUDE.md) - the same machinery a grant lands
+  [`inventory/InventoryGrant.canAdd`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/inventory/CLAUDE.md) - the same machinery a grant lands
   through, and the one fit check every consumer mod shares. **`canAdd` answers about ONE reward.
   Checking a LIST with it in a loop is a bug**: each call asks about the same last free slot, so
   every reward answers yes and the last one still lands on the floor. `canAddAll(rewards, subject
@@ -79,14 +79,14 @@ module or grow a second, subtly different idea of what a reward is.
   player in hand builds a `Subject` for them and asks this, rather than wrapping it in a probe of
   its own.
   - **A `Command` reward whose line is a `give` counts as an item**, so `stackFor(spec, subject,
-    sourceId)` reads one back through [`command/CommandRunner.readGive`](../../command/CLAUDE.md)
+    sourceId)` reads one back through [`command/CommandRunner.readGive`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/command/CLAUDE.md)
     and it joins the same batch. The line is resolved exactly as the grant will resolve it, so the
     probe and the payout cannot disagree about the item or the count. A command that hands over
     nothing still answers null and needs no room, and a line that cannot be resolved at all is read
     as needing no room rather than as a refusal - reporting a full bag for an authoring mistake
     would hide the mistake, and the grant path already fails loudly on it. `stackFor(spec)` without
     a subject stays the item-only reading, for a caller that has nobody to resolve a line for.
-- **[`DroplistRewardKind`](DroplistRewardKind.java)** - the fourth framework kind, `Droplist`
+- **[`DroplistRewardKind`](DroplistRewardKind.java)** - the fifth framework kind, `Droplist`
   (`Droplist`/`Rolls`/`Position`): rolls a NATIVE Hytale `ItemDropList` asset and spills the stacks on
   the GROUND through the same call the engine drops mob loot with, delegating both halves to
   [`instance/reward/NativeLootService`](../../instance/reward/CLAUDE.md). It sits in its own class
@@ -249,7 +249,7 @@ that order to registration order.
 - **[`RewardKindConfig`](RewardKindConfig.java)** - the `defaults < pack < owner` table, like every
   other keyed type. What is in it is not yet payable; the fold is what makes it so.
 - **[`CommandRewardKind`](CommandRewardKind.java)** - the handler: resolve the template, run it
-  through [`command/CommandRunner`](../../command/CLAUDE.md) as the server console (so the `/give`
+  through [`command/CommandRunner`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/command/CLAUDE.md) as the server console (so the `/give`
   positional-quantity fix rides along), and THROW when a `Required` parameter went unanswered.
   `retryCommand` is the same resolved line, and is null for exactly the specs that could not be
   granted - a reward that cannot say what it pays is not replayable either. `resolve` is public so a

@@ -3,10 +3,10 @@
 Router for `com.ziggfreed.common.entity.performer`. The ONE internal seam a station-puppet
 controller drives to present a "double performing the work", so it never branches on the look
 source. Both backends implement `StationPerformer`; the caller supplies POLICY (which source, which
-anchors, which prop), the backend owns MECHANISM. Design authority:
-`../../../../../../../.claude/research/raw/rpg-stations-look-source-performer-seam-2026-07-24.md`
-(the contract section) + `rpg-stations-npc-performer-feasibility-2026-07-24.md` (the NPC recipes,
-sections 4b-4d) + decisions 46-54 in `rpg-stations-extraction-design.md`.
+anchors, which prop), the backend owns MECHANISM. Design authority: the hyMMO monorepo's
+`.claude/research/raw/rpg-stations-look-source-performer-seam-2026-07-24.md` (the contract section)
++ `.claude/research/raw/rpg-stations-npc-performer-feasibility-2026-07-24.md` (the NPC recipes,
+sections 4b-4d) + decisions 46-54 in `.claude/research/rpg-stations-extraction-design.md`.
 
 ## The contract
 

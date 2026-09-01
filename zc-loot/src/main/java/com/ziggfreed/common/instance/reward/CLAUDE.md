@@ -21,12 +21,13 @@ loot model appearing here is a mistake; add the knob to the one core instead.
 
 `zc-loot` depends on **zc-core and nothing else**, and that is the whole point of it existing: loot
 and rewards are the grant substrate the progression engines and the instance-experience layer both
-rest on, so it has to be reachable from anywhere in the graph. `zc-progression` and `zc-instance`
-both depend on it - progression for the shared reward vocabulary in `loot/reward/`, instance for this
-package.
+rest on, so it has to be reachable from anywhere in the graph. `zc-progression`, `zc-objectives`,
+`zc-instance`, `zc-presentation` and `zc-commerce` all depend on it - progression and objectives for
+the shared reward vocabulary in `loot/reward/`, presentation for what a reward chip renders, commerce
+for what a priced offer pays out, instance for this package.
 
 **REVERSE-EDGE TRAP - this module may never import progression, instance, dialogue, presentation, or
-world.** Sitting below two consumers means any edge back up is an immediate cycle. A grant that needs
+world.** Sitting below five consumers means any edge back up is an immediate cycle. A grant that needs
 a native effect, a page, a world identity or a conversation is a SEAM this module declares and the
 wiring root or the consumer fills - concretely, a registered reward KIND whose handler lives wherever
 the capability does. `zc-effects` in particular must never appear here (nor the reverse): an

@@ -7,7 +7,9 @@ in-world tracked-quest HUD that repaints off the quest engine's own events.
 
 Module edges: `zc-core`, `zc-loot`, `zc-progression`, `zc-presentation`, `zc-cast`, `zc-entity`,
 `zc-dialogue` (NPC identity, for the page at a character; `DialogueMemories`, for the admin verbs that
-forget them) - all one-way `implementation`. Package
+forget them, and `DialogueEngine`, for the seams `dialogue/DialogueBootstrap` fills), `zc-world`
+(`world.placed` only, the ledger the break and pickup producers consult) and `zc-instance`
+(`InstanceRoundCompletedEvent`, the sixth producer) - all one-way `implementation`. Package
 root `com.ziggfreed.common.objectives`.
 
 **Why this module exists at all.** The book needs BOTH the engines and a page, and the tracked-quest
@@ -103,7 +105,7 @@ unqualified, byte-identical to a bare server. `KillQualifierProducerTest` pins t
 
 | Package | What it is |
 |---|---|
-| `runtime/` | `ProgressionDefaults`: the default registrations, the asset fold + its audit, the text source, the player lifecycle, and the `onProgressDirty` / `onProgressFlush` persistence contributions |
+| `runtime/` | `ProgressionBootstrap` (the three setup phases this module owns, each called once from the root's `setup()`: the shared runtime + `/zigprogress`, the authored feedback moments, the default quest-list host) and `ProgressionDefaults`: the default registrations, the asset fold + its audit, the text source, the player lifecycle, and the `onProgressDirty` / `onProgressFlush` persistence contributions |
 | `store/` | `ZigProgressComponent` (the persisted state) + `ProgressBlob` (the packing) + `ProgressHandle`/`ProgressSubjects` (the subject) + `ZigQuestStore`/`ZigAchievementStore` (the two adapters) |
 | `producer/` | `ProgressDispatch` plus the six generic producers (block break, mob kill, craft, pickup, place block, and the instance-round listener off zc-instance's `InstanceRoundCompletedEvent`) and their six typed `MomentPayload` records |
 | `book/` | the in-game two-tab surface and the item that opens it |
@@ -111,6 +113,7 @@ unqualified, byte-identical to a bare server. `KillQualifierProducerTest` pins t
 | `command/` | `/zigprogress`: the admin family over THE runtime - quest, achievement and memory groups; see [its router](command/CLAUDE.md) |
 | `admin/` | the progression admin page: `SystemSwitch` + `SystemSwitches` (the registered server-wide system switches) and `ProgressionAdminPage`/`Pages`/`Deps` (audience DEFAULT DENY, opened only by direct static call) - see below |
 | `hud/` | the tracked-quest HUD (`TrackedQuestHud` + `TrackedQuestHuds` + `TrackedQuestHudDeps` + `TrackedQuestSnapshot` + `RepaintCoalescer`) and the tracked-quests side-panel renderer a page embeds (`TrackedQuestPanelRenderer`) |
+| `dialogue/` | `DialogueBootstrap`: this module's fill of the seams `zc-dialogue` declares and structurally cannot fill - the `hytale:` factor vocabulary its `Factor` conditions resolve against, the persistent memory store (this module's own progress component) plus the disconnect that ends a `Session` memory, and the `QuestResets` hook that forgets a `ResetWithQuest` memory - and `ActiveObjectiveHeader`, the header note a conversation shows under the speaker's name |
 
 ## What these defaults MUST wire, because nothing works without them
 

@@ -93,7 +93,7 @@ holds chain FIRE + chain WALK; three sub-packages extend the same charter with t
   RootInteraction)` with a guarding `Collector`, so it follows each concrete node's OWN declared
   child refs (including fork edges like `SelectInteraction`'s `HitEntity`/`HitEntityRules`) -
   strictly more than the flat compiled `getOperation(i)` view the MMO's own
-  `ability.NativeChainAudit` uses (fork-blind prior art this generalizes past).
+  `ability.catalog.NativeChainAudit` uses (fork-blind prior art this generalizes past).
   - **Two engine limitations, surfaced not hidden.** (1) The engine `Collector` contract has no
     "prune this branch" return - a `collect` returning `true` (a cycle or an exceeded cap) ENDS THE
     ENTIRE WALK, never just the offending branch; the result (`ChainWalk`) carries the flag plus

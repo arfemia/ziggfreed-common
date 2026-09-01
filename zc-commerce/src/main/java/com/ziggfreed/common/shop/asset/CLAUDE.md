@@ -47,8 +47,8 @@ registers are the SAME ones the quest generators read - see
 | `ShopAssetStore` | the loaded offers + generators, and the fold into one catalogue |
 | `ShopValidator` (+ `.CurrencyProbe`) | the content audit; shared `validation.Finding` values under domain `shop` |
 | [`commerce/asset`](../../commerce/asset/CLAUDE.md) | the groups shared with boards: `Cost`, `Rotation`, `Selection`, `Slot`, `Reroll` |
-| [`progress/asset`](../../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/progress/asset/CLAUDE.md) | the groups shared with quests and achievements: `Text`, `Listing`, `Rewards`, `Meta`, and the generator core |
-| [`progress/gate`](../../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/progress/gate/CLAUDE.md) | `Requires`: the same block a quest carries, and the same audit |
+| [`progress/asset`](../../../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/progress/asset/CLAUDE.md) | the groups shared with quests and achievements: `Listing`, `Rewards`, `Meta`, and the generator core (the `Text` group is zc-core's own `text/ContentTextAsset`, reached through the ordinary module edge) |
+| [`progress/gate`](../../../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/progress/gate/CLAUDE.md) | `Requires`: the same block a quest carries, and the same audit |
 
 ## Rules to keep
 

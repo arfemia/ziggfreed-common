@@ -1,7 +1,11 @@
 # CLAUDE.md - zc-core
 
-The foundation module. The shared logger handle, JSON/codec leaves, the client-resolved `Msg`
-factory, the generic keyed-asset store bases, and the inventory/health engine wrappers, plus the
+The foundation module. The shared logger handle and the library's own attribution name
+(`LibraryOwner.NAME`, the hyphenated `ziggfreed-common` a shared ledger files a registration under -
+an attribution for refusal logs and admin diagnostics, NEVER a lookup key; the unhyphenated
+`ziggfreedcommon` the per-domain `OWNER` constants carry is the separate id vocabulary), JSON/codec
+leaves, the client-resolved `Msg` factory, the generic keyed-asset store bases, and the
+inventory/health engine wrappers, plus the
 small primitive-floor packages admitted here because two or more other modules need them and they
 carry no domain vocabulary (see the root router's "zc-core admission rule" table for the full
 per-package justification). It depends on nothing but the Hytale server jar, so every other module
@@ -9,7 +13,7 @@ in the library can rest on it without risk of a cycle.
 
 ## Build
 
-Part of the twelve-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-core`). Not independently loadable: it produces a compile-time jar with no
 `manifest.json`, merged into the single `ZiggfreedCommon-<version>.jar` by the wiring root. See the
 root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
@@ -18,9 +22,11 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
 
 - **Depends on**: nothing but the Hytale server jar (`compileOnly`) and `jsr305` (`api`, so the
   `@Nonnull`/`@Nullable` annotations resolve for every consumer compiling against the aggregate).
-- **Depended on by**: every other module (`zc-cast`, `zc-dialogue`, `zc-effects`, `zc-entity`,
-  `zc-instance`, `zc-loot`, `zc-objectives`, `zc-presentation`, `zc-progression`, `zc-world`) plus
-  the wiring root. This is the bottom of the graph; nothing here may import anything above it.
+- **Depended on by**: every module that declares a dependency at all (`zc-cast`, `zc-commerce`,
+  `zc-dialogue`, `zc-effects`, `zc-entity`, `zc-instance`, `zc-loot`, `zc-objectives`,
+  `zc-presentation`, `zc-progression`, `zc-world`) plus the wiring root. `zc-scaling` is the one
+  module that depends on nothing at all, not even this one: it is pure band math with no engine
+  types. This is the bottom of the graph; nothing here may import anything above it.
 - **Reverse-edge trap**: none possible in the other direction (there is nothing below zc-core to
   import), but an edge added FROM here to any other module is itself the violation - it would make
   the one module every other module rests on reachable only after building something above it.
@@ -86,6 +92,11 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
   by this module's own `factor/DerivedFactorAsset` plus zc-commerce and zc-progression's content
   codecs. Not a split package: the whole class lives here, reached by every consumer above through
   the ordinary module edge. No router of its own (one file).
+- `time/` - `DurationGroup` only, the ONE duration codec leaf: a nested `{Days, Hours, Minutes,
+  Seconds}` group of independently nullable whole numbers that are simply SUMMED, so an asset
+  authors a span in units instead of a raw millisecond count. A negative value contributes nothing,
+  and `isEmpty()` (nothing authored) is a separate answer from a `totalMs()` of zero. No router of
+  its own (one file).
 - [`util/`](src/main/java/com/ziggfreed/common/util/CLAUDE.md) - `AssetIndexCache`,
   `NumberFormatter`, `CommandExecutor`, `HostilityUtil`, `EntityIdentifierUtil`,
   `DamageCauseCache`, `JsonTreeUtil`/`JsonOverrideWriter`.
@@ -97,8 +108,9 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
 
 `Server/Languages/<locale>/ziggfreedcommon.fmt.lang`, 9 locales (de-DE, en-US, es-ES, fr-FR,
 hu-HU, it-IT, pt-BR, ru-RU, tr-TR): the glue/format keys (`ziggfreedcommon.fmt.cat` and friends)
-`Msg.cat` depends on. No `.ui` and no `Server/ZiggfreedCommon/` content types; this module ships no
-authorable asset TYPE of its own.
+`Msg.cat` depends on, plus `Server/ZiggfreedCommon/Factors/*.json`: the nine `Hytale_*` standard-library
+derived factors read by this module's own authorable type, `factor/DerivedFactorAsset` (registered by the
+wiring root's `FrameworkAssetRegistrar`). No `.ui`.
 
 ## Conventions
 
@@ -111,7 +123,7 @@ try-guards real rather than decorative.
 
 ## Tests
 
-25 files in `src/test/java/com/ziggfreed/common/`, one per primitive above plus the factor-model
+34 files in `src/test/java/com/ziggfreed/common/`, one per primitive above plus the factor-model
 core (`FactorFormulaTest`, `FactorVocabularyTest`, `FactorContextTest`, `FactorContributionsTest`,
 `DerivedFactorTest`, `DerivedFactorValidatorTest`), the name-matching core (`NamePatternTest`,
 `NameMatchRankTest`), the codec leaves (`InheritMapCodecTest`, `JsonParentResolverTest`,

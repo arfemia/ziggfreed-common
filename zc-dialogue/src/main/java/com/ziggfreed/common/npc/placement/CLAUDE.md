@@ -19,6 +19,10 @@ service, pins, caches, diagnostics), and `interact/` (press-F:
 The runtime below). This file stays the engine's whole story; each subpackage router is the short
 map of what lives there. The test package mirrors the split, each test beside its subject;
 `RoleGenerationRetirementTest` stays at the package root, pinning what must never reappear there.
+`admin/` is the placement admin SCREEN: [`NpcPlacementAdminPages`](admin/NpcPlacementAdminPages.java)
+is the only way in, deliberately NOT a registered destination (so a pack can never point press-F at
+it), and its [`NpcPlacementAdminDeps`](admin/NpcPlacementAdminDeps.java) audience seam defaults to
+DENY because the library cannot know what an admin is on a given server.
 
 ## Read this first: the two authorities
 
@@ -50,7 +54,7 @@ Neither can do the other's job, which is why there are two.
   about the character - see the next two bullets); `Where` (a
   [`WorldSelector`](../../../../../../../../../zc-world/src/main/java/com/ziggfreed/common/world/WorldSelector.java) - a null/empty `Where` defaults to
   `Match:["default"]` **at this read site**); `Anchor{WorldSpawn,Coords,Structure,Zone,Custom}`
-  (nullable ORTHOGONAL groups, never a placement-mode enum); `Requires{Conditions[]}`;
+  (nullable ORTHOGONAL groups, never a placement-mode enum); `Requires{Factors[]}`;
   `Limits{SpawnChance,ChanceFormula,MaxPerWorld,OncePerWorld}`; `Lifecycle{KeepAlive,Respawn,Fortify,
   FortifyHealth}` (ALL opt-in, default false - each costs a pinned chunk / a re-place / a health
   pool); `Interact{Dialogue,Open}`.
@@ -121,7 +125,7 @@ Neither can do the other's job, which is why there are two.
     unknown `Type` FAILS THE READ naming the file, so a placement can never carry a button that
     silently does nothing. Common seeds `Dialogue` and `Quests` in
     [`../NpcDestinations`](../CLAUDE.md).
-- **`Requires.Conditions` is the shared [`factor/FactorCondition`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/factor/CLAUDE.md)**
+- **`Requires.Factors` is the shared [`factor/FactorCondition`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/factor/CLAUDE.md)**
   `{Factor,Param?,Min?,Max?}` - a condition asks a registered provider for a number. Same leaf, same
   keys, same meaning a
   dialogue `Factor` condition has, so authored JSON is unchanged. **Fails closed**: an unregistered
@@ -344,9 +348,11 @@ registries are about where an NPC stands and whether it stands at all.
 ## Wiring (what `NpcBootstrap` owns, called from the root's `setup()`)
 
 `PlacedNpcComponent.register(...)`, `PlacementNpcActions.register()`, the `PlacementMarkerSystem`,
-the overrides + ledger load, the first-`PlayerReadyEvent` listener driving
-`NpcPlacementConfig.runLateAudit()`, **and common's own `AddWorldEvent`/`RemoveWorldEvent`
-listeners**.
+the overrides + ledger load, the `/zignpc` admin family ([`ZigNpcCommand`](command/ZigNpcCommand.java),
+one verb `place`; nodes `ziggfreed.ziggfreedcommon.command.zignpc[.<verb>]`, so a consumer wanting
+`/mmonpc` registers an alias rather than a second implementation), the first-`PlayerReadyEvent`
+listener driving `NpcPlacementConfig.runLateAudit()`, **and common's own
+`AddWorldEvent`/`RemoveWorldEvent` listeners**.
 That last one is not tidiness: eviction used to be driven only from CONSUMER listeners, so two
 consumer mods fired the `WorldEvictors` fan-out twice per world - harmless for a `map::remove`,
 corrupting for a refcounted unpin. `WorldEvictors.onWorldRemoved` also gained an idempotence guard

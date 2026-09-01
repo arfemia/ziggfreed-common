@@ -70,7 +70,14 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
 
 ## Shipped resources
 
-None directly. `SCHEMA.md` (repo-committed at this module's root) is the authoring reference for
+`Server/Languages/<bcp47>/ziggfreedcommon.progress.lang`, 9 locales (de-DE, en-US, es-ES, fr-FR,
+hu-HU, it-IT, pt-BR, ru-RU, tr-TR): the neutral objective sentence family
+`NeutralObjectiveComposer` falls back to, the shared lock-reason lines, and the names the factor
+overlays point at. Plus `Server/ZiggfreedCommon/Factors/Progression_{Quest_Completed,
+Achievement_Earned}.json`, the two naming overlays that let `ziggfreedcommon:quest_completed` and
+`ziggfreedcommon:achievement_earned` read as a sentence in a requirement line with no Java.
+
+`SCHEMA.md` (repo-committed at this module's root) is the authoring reference for
 the quest and achievement asset types, regenerated on demand from the actual codecs, deliberately
 NOT wired into `processResources` since it is documentation rather than a jar resource -
 `SchemaDocDriftTest` fails the build if the committed file drifts from the codecs.
@@ -88,13 +95,15 @@ reordering entries never moves anyone's progress - asserted directly in the engi
 
 ## Tests
 
-39 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
-`ObjectiveProgressStateTest`, `ContentMetaTest`), the quest engine (`QuestEngineFlowTest`,
+43 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
+`ObjectiveProgressStateTest`, `ContentMetaTest`), `NeutralObjectiveComposerTest` and
+`ProgressionFactorOverlaysTest` (the library's own shipped sentence family and the naming overlays
+for its two progression factor ids), the quest engine (`QuestEngineFlowTest`,
 `QuestEngineTurnInTest`, `QuestLifecycleTest`, `RepeatEvaluatorTest` (the ONE repeat evaluator, and
 where the "the repeat rules count FINISHES, not collections" half of the completion record is
 pinned), `CompletionRecordTest` (the record's own invariants, the collected-clamp above all),
-`QuestGateTest`, `QuestGeneratorTest`,
-`QuestAssetCodecTest`, `QuestPoolValidatorTest`, `QuestStateReaderTest`, `QuestNestedIdTest`,
+`QuestGateTest`, `QuestGeneratorTest`, `LockReasonsTest` (the token-to-line decision every locked
+surface reads), `QuestAssetCodecTest`, `QuestPoolValidatorTest`, `QuestStateReaderTest`, `QuestNestedIdTest`,
 `QuestResetsTest`, `QuestCompleteAtTest` / `QuestTurnInAtCodecTest` (where a quest may be collected),
 `QuestProgressPayloadTest`, `QuestStatThresholdTest`, `QuestTrackedEventTest`, `RepeatPeriodTest`,
 `NpcOfferProvidersTest`,
@@ -108,7 +117,8 @@ it delivered something, and earning, a reached milestone, a re-arm and a catalog
 commit nothing at all), the achievement engine
 (`AchievementEngineTest`, `AchievementListingTest`, `AchievementAssetCodecTest`, `AchievementPoolValidatorTest`,
 `AchievementProgressStoreTest`, `AchievementStatThresholdTest`, `AchievementTaxonomyCodecTest`),
-the shared runtime (`ProgressionRuntimeTest`, `ProgressionFeedbackHookTest` - which moments each
+the shared runtime (`ProgressionRuntimeTest`, `FeatureLiftTest` - which top-level conditions lift
+out of a `Requires` block onto the caller's hide axis and which stay, `ProgressionFeedbackHookTest` - which moments each
 engine announces, exactly once, with the subject and the values in scope, plus the contribution
 properties (a late hook still fires, two hooks both fire, a throwing one costs only itself),
 `ProgressionFactorsTest` - each factor ladder over a
