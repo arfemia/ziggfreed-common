@@ -35,7 +35,7 @@ import com.ziggfreed.common.util.SafeLog;
  * with a guarding {@code Collector}, so it follows each concrete node's OWN declared child refs
  * (including fork edges such as {@code SelectInteraction}'s {@code HitEntity}/{@code
  * HitEntityRules}) - strictly more than the flat compiled {@code getOperation(i)} view used by
- * {@code com.ziggfreed.mmoskilltree.ability.NativeChainAudit} (the narrower prior art this
+ * {@code com.ziggfreed.mmoskilltree.ability.catalog.NativeChainAudit} (the narrower prior art this
  * generalizes past), which is blind to forks that dispatch to a separately-compiled chain.
  *
  * <p><b>Two engine limitations are surfaced, not hidden.</b>

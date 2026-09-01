@@ -34,7 +34,7 @@ needs it), so it lives here, not duplicated in a consumer.
   - **"Shared", not "the only copy anywhere."** A caller already holding the section component
     still reads it directly - `entity/HeldItemUtil` in this library, and a handful of MMO sites
     (`util/CombatWeaponUtil`, `interaction/MmoDamageInteraction`, `command/ItemEnhanceCommand`,
-    `ability/GearAbilityModSource`). What this class guarantees is that the accessor SHAPE has one
+    `ability/modifier/GearAbilityModSource`). What this class guarantees is that the accessor SHAPE has one
     home, so a deprecated engine accessor's replacement is never re-derived. `InventoryGrant`'s
     own `hotbarOf`/`storageOf` fold onto it and keep only the unwrap to the section's container.
   - Pure DRY convergence plus the module-graph constraint that forces it here (zc-core sits below
