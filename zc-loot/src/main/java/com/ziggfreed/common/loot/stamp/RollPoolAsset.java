@@ -47,6 +47,8 @@ public final class RollPoolAsset implements JsonAssetWithMap<String, DefaultAsse
     private AssetExtraInfo.Data data;
 
     @Nullable private StatRollEntry[] entries;
+    @Nullable private String stampName;
+    @Nullable private String quality;
 
     public static final AssetBuilderCodec<String, RollPoolAsset> CODEC = AssetBuilderCodec.builder(
                     RollPoolAsset.class,
@@ -61,6 +63,15 @@ public final class RollPoolAsset implements JsonAssetWithMap<String, DefaultAsse
                     a -> a.id)
             .documentation("A human-readable label for editors. The pool's id comes from the filename, so "
                     + "changing this changes nothing at runtime.").add()
+            .appendInherited(new KeyedCodec<>("StampName", Codec.STRING, false),
+                    (a, v) -> a.stampName = v, a -> a.stampName, (a, parent) -> a.stampName = parent.stampName)
+            .documentation("A full translation key renaming anything stamped from this pool, handed the item's "
+                    + "own name as an {item} argument. Omit to keep the item's own name. A stamp may override "
+                    + "this with its own Name.").add()
+            .appendInherited(new KeyedCodec<>("Quality", Codec.STRING, false),
+                    (a, v) -> a.quality = v, a -> a.quality, (a, parent) -> a.quality = parent.quality)
+            .documentation("An ItemQuality asset id giving anything stamped from this pool that rarity. Omit to "
+                    + "leave the item's rarity alone. A stamp may override this with its own Quality.").add()
             .appendInherited(new KeyedCodec<>("Entries",
                             new ArrayCodec<>(StatRollEntry.codec(EditorDataSets.FACTORS), StatRollEntry[]::new), false),
                     (a, v) -> a.entries = v, a -> a.entries, (a, parent) -> a.entries = parent.entries)
@@ -91,6 +102,18 @@ public final class RollPoolAsset implements JsonAssetWithMap<String, DefaultAsse
     @Override
     public String getId() {
         return id;
+    }
+
+    /** The rename key this pool applies, or null to keep each item's own name. */
+    @Nullable
+    public String getName() {
+        return stampName;
+    }
+
+    /** The ItemQuality id this pool applies, or null to leave rarity alone. */
+    @Nullable
+    public String getQuality() {
+        return quality;
     }
 
     @Nullable

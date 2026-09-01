@@ -32,6 +32,8 @@ import com.ziggfreed.common.loot.Roll;
 import com.ziggfreed.common.loot.stamp.StampCapEngine;
 import com.ziggfreed.common.loot.stamp.StampInspection;
 import com.ziggfreed.common.loot.stamp.StampPlan;
+import com.ziggfreed.common.loot.stamp.RollPoolConfig;
+import com.ziggfreed.common.loot.stamp.StampIdentity;
 import com.ziggfreed.common.loot.stamp.StampSpec;
 import com.ziggfreed.common.loot.stamp.StatRoll;
 import com.ziggfreed.common.loot.stamp.Stamper;
@@ -491,7 +493,7 @@ public final class LootRewardKinds {
             Stamper stamper = StamperRegistry.get();
             List<StatRoll> rolls = rollsFor(spec, subject);
             if (stamper != null && !rolls.isEmpty()) {
-                stack = stamper.apply(stack, rolls);
+                stack = stamper.apply(stack, rolls, identityFor(spec));
             }
             deliver(subject, stack);
         }
@@ -527,6 +529,20 @@ public final class LootRewardKinds {
         StampPlan plan = StampCapEngine.resolve(stampSpec, StampInspection.empty(),
                 lookupFor(subject), () -> ThreadLocalRandom.current().nextDouble());
         return plan.entries();
+    }
+
+    /**
+     * The rename and rarity a stamped reward carries: whatever the named pool authored. A reward
+     * writing its stats out by hand names no pool and so carries no identity, which is right - it
+     * asked for exactly those stats and nothing else.
+     */
+    @Nullable
+    private static StampIdentity identityFor(@Nonnull RewardSpec spec) {
+        String poolId = spec.paramOr("pool", "").trim();
+        if (poolId.isEmpty()) {
+            return null;
+        }
+        return StampIdentity.resolve(null, RollPoolConfig.getInstance().resolve(poolId));
     }
 
     /** {@code "Damage:5,Speed:2"} read as a stat list; a malformed pair is skipped, never fatal. */

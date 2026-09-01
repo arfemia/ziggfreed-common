@@ -60,6 +60,8 @@ public final class StampSpec {
     @Nullable protected Picks picks;
     @Nullable protected Boolean unique;
     @Nullable protected Caps caps;
+    @Nullable protected String name;
+    @Nullable protected String quality;
 
     /** The plain codec: a factor id stays a free text field. */
     public static final BuilderCodec<StampSpec> CODEC = codec(null);
@@ -85,6 +87,16 @@ public final class StampSpec {
                         (o, v) -> o.unique = v, o -> o.unique, (o, p) -> o.unique = p.unique)
                 .documentation("When true the same stat is never drawn twice in one stamp, so several picks mean "
                         + "several different stats. Omit to let a lucky stat come up twice and stack.").add()
+                .appendInherited(new KeyedCodec<>("Name", Codec.STRING, false),
+                        (o, v) -> o.name = v, o -> o.name, (o, p) -> o.name = p.name)
+                .documentation("A full translation key renaming the stamped item, handed the item's own name "
+                        + "as an {item} argument (so \"Honed {item}\" reads correctly on anything). Omit to "
+                        + "keep the item's own name - nothing is renamed unless this says so.").add()
+                .appendInherited(new KeyedCodec<>("Quality", Codec.STRING, false),
+                        (o, v) -> o.quality = v, o -> o.quality, (o, p) -> o.quality = p.quality)
+                .documentation("An ItemQuality asset id giving the stamped item that rarity - the engine's own "
+                        + "per-instance channel, so the client colours the name, frame and slot for free. Omit "
+                        + "to leave the item's rarity alone.").add()
                 .appendInherited(new KeyedCodec<>("Caps", Caps.codec(editorDropdownDataSetId), false),
                         (o, v) -> o.caps = v, o -> o.caps, (o, p) -> o.caps = p.caps)
                 .documentation("What holds the result down, measured against what the item already carries.").add()
@@ -105,6 +117,16 @@ public final class StampSpec {
         s.unique = unique;
         s.caps = caps;
         return s;
+    }
+
+    @Nullable
+    public String getName() {
+        return name;
+    }
+
+    @Nullable
+    public String getQuality() {
+        return quality;
     }
 
     @Nullable

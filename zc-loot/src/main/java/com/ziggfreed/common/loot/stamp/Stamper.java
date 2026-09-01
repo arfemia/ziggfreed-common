@@ -50,6 +50,19 @@ public interface Stamper {
     ItemStack apply(@Nonnull ItemStack stack, @Nonnull List<StatRoll> entries);
 
     /**
+     * {@link #apply} plus the authored identity: a rename and a rarity, both optional.
+     *
+     * <p>Separate from the entries because it is not a stat and never was: nothing here is rolled,
+     * budgeted or capped. It is what a pool or a stamp SAID this item should be called and look
+     * like, and a stamper that has no opinion on identity keeps the default and writes the stats.
+     */
+    @Nonnull
+    default ItemStack apply(@Nonnull ItemStack stack, @Nonnull List<StatRoll> entries,
+            @Nullable StampIdentity identity) {
+        return apply(stack, entries);
+    }
+
+    /**
      * How {@code entry} reads to a player - a fully-styled, client-resolved line naming the stat and
      * its points - or null when this stamper has no wording for it.
      *

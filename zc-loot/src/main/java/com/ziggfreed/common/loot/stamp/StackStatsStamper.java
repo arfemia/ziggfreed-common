@@ -8,7 +8,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.asset.type.item.config.ItemQuality;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.stats.StackStats;
 
 /**
@@ -86,6 +88,58 @@ public final class StackStatsStamper implements Stamper {
         // never carry stats its tooltip does not show. The merged map goes in, not the added one:
         // the tooltip states the item's whole current condition, not this one stamp's delta.
         return StampTooltip.apply(stamped, merged, null);
+    }
+
+    /**
+     * The stats, then the authored identity. Identity is applied LAST so a rename lands on the stack
+     * that already carries its tooltip, and it is applied at all only where a file asked for it.
+     */
+    @Override
+    @Nonnull
+    public ItemStack apply(@Nonnull ItemStack stack, @Nonnull List<StatRoll> entries,
+            @Nullable StampIdentity identity) {
+        ItemStack stamped = apply(stack, entries);
+        if (identity == null || identity.isEmpty()) {
+            return stamped;
+        }
+        return applyIdentity(stamped, identity);
+    }
+
+    /**
+     * The rename and the rarity, each independent and each skipped when unauthored.
+     *
+     * <p>The quality id is resolved to its index HERE rather than stored anywhere: the index is
+     * registration order, so it is only meaningful against the asset map as it stands right now.
+     */
+    @Nonnull
+    private static ItemStack applyIdentity(@Nonnull ItemStack stack, @Nonnull StampIdentity identity) {
+        ItemStack result = stack;
+        String qualityId = identity.qualityId();
+        if (qualityId != null && !qualityId.isBlank()) {
+            try {
+                result = result.withQuality(ItemQuality.getAssetMap()
+                        .getIndexOrDefault(qualityId, ItemQuality.DEFAULT_INDEX));
+            } catch (Throwable ignored) {
+                // An unknown quality id costs the tint, never the stamp.
+            }
+        }
+        String nameKey = identity.nameKey();
+        if (nameKey != null && !nameKey.isBlank()) {
+            try {
+                Message renamed = Msg.keyNamed(nameKey,
+                        Map.of("item", result.getItem().getTranslationMessage()));
+                result = StampTooltip.apply(result, orEmpty(StackStats.entriesOf(result)), renamed);
+            } catch (Throwable ignored) {
+                // A bad rename key costs the name, never the stats already written.
+            }
+        }
+        return result;
+    }
+
+    /** A stored entries map that is never null, for the identity rewrite. */
+    @Nonnull
+    private static Map<String, Double> orEmpty(@Nullable Map<String, Double> entries) {
+        return entries != null ? entries : Map.of();
     }
 
     /**
