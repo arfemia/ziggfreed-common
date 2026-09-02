@@ -113,6 +113,16 @@ conflict over, which is what a registry is for.
   which is what the hook carries. Every value goes into ONE map: a localized value as a `Message`
   and stays one, anything else as plain data, and a value nobody could supply is OMITTED rather than
   passed as null so a reader can tell "nothing to say" from "say this, and it is empty".
+- **A moment fires off a state TRANSITION, never off a state being re-read.** Every engine path that
+  announces one records the change first and returns early on the second ask: `Achievement_Unlocked`
+  and `_Claimed` behind the status flip, `Quest_Completed`/`_Parked` behind `markCompleted` /
+  `markUnclaimed`, `Quest_Objective_Progressed` only when a counter actually moved. This is what
+  keeps a login quiet, because self-heal re-asks EVERY standing answer - and it runs on connect, on
+  every world or instance entry, and whenever a surface opens. The one moment with no state behind
+  it, `Achievement_Server_First_Lost` (a lost race deliberately records nothing, so the decision can
+  be revisited), was announced by every one of those sweeps until it was told the occasion apart;
+  see `achievement/UnlockOccasion`. A NEW moment with nothing recorded behind it needs the same
+  answer before it ships.
 - **An expensive value rides as a `Supplier` and a hook says whether it ANSWERS the moment.**
   `ProgressionFeedbackHook.answers(momentId)` defaults to yes (the honest answer for a hook that
   cannot tell), and a hook reading authored files knows for free - `ProgressionFeedbackHook.of(fire,
