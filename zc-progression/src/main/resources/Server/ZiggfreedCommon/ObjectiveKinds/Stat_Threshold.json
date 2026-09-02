@@ -1,0 +1,10 @@
+{
+  "$Comment": "Reaching a standing value - a level, a total, a rating. Producers fire the player's CURRENT value rather than an increment, so progress is a high-water mark: a run of 5 then 4 leaves it at 5, not 9.",
+  "ValueBased": true,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Ingredient_Crystal_Blue"
+    }
+  }
+}

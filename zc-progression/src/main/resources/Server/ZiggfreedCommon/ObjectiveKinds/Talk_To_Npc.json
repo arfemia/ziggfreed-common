@@ -1,0 +1,9 @@
+{
+  "$Comment": "Speaking to a character. The target names both somewhere to go and somebody with a face, so a step naming one is drawn with that character's own portrait.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Place": true,
+    "Entity": true
+  }
+}

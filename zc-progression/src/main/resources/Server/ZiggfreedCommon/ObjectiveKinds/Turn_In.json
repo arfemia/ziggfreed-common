@@ -1,0 +1,8 @@
+{
+  "$Comment": "Handing something over. The target is the thing being DELIVERED, so a delivery is drawn with that item's picture; a step that delivers nothing carries no target and is left to whoever hosts the hand-in to picture.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Item": true
+  }
+}

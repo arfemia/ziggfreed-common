@@ -66,6 +66,7 @@ import com.ziggfreed.common.util.SafeLog;
  * @param killQualifier             every registered kill qualifier, first real answer wins
  * @param feedbackHook              every registered feedback hook, fanned out
  * @param textSources               every registered text source, in registration order
+ * @param iconSources               every registered icon source, in registration order
  */
 record ProgressionParts(@Nonnull QuestProgressStore questStore,
                         @Nonnull AchievementProgressStore achievementStore,
@@ -87,7 +88,8 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                         @Nonnull KillAttribution killAttribution,
                         @Nonnull KillQualifier killQualifier,
                         @Nonnull ProgressionFeedbackHook feedbackHook,
-                        @Nonnull List<ProgressionTextSource> textSources) {
+                        @Nonnull List<ProgressionTextSource> textSources,
+                        @Nonnull List<ProgressionIconSource> iconSources) {
 
     /** Default warn sink, guarded so a log-manager-less test JVM cannot crash on it. */
     static final Consumer<String> DEFAULT_WARN = message -> SafeLog.warn("[progression] " + message);
@@ -124,7 +126,8 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
             ProgressionCallScope.DIRECT, ProgressionCallScope.DIRECT,
             null, DEFAULT_WARN, QuestGates.OPEN, AchievementGates.OPEN,
             ProgressionSystemGate.OPEN, ProgressDispatchTap.NONE, MomentListener.NONE,
-            KillAttribution.NONE, KillQualifier.NONE, ProgressionFeedbackHook.NONE, List.of());
+            KillAttribution.NONE, KillQualifier.NONE, ProgressionFeedbackHook.NONE, List.of(),
+            List.of());
 
     // ==================== the forwarders the engines are built over ====================
 
@@ -800,6 +803,11 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
     /** A defensive copy of {@code sources} in registration order. */
     @Nonnull
     static List<ProgressionTextSource> freezeTextSources(@Nonnull List<ProgressionTextSource> sources) {
+        return List.copyOf(new ArrayList<>(sources));
+    }
+
+    @Nonnull
+    static List<ProgressionIconSource> freezeIconSources(@Nonnull List<ProgressionIconSource> sources) {
         return List.copyOf(new ArrayList<>(sources));
     }
 }

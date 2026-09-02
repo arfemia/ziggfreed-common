@@ -1,0 +1,10 @@
+{
+  "$Comment": "Taking damage from a fall.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Ingredient_Feathers_Light"
+    }
+  }
+}

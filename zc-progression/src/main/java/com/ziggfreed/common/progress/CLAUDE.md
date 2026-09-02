@@ -28,7 +28,7 @@ the server's progression.
 | Class | What it is |
 |---|---|
 | `ObjectiveDef` (+ `.Builder`) | one authored objective: kind, target, match mode, qualifier, amount, zone, order, hand-in lock |
-| `ObjectiveKind`, `ObjectiveKindRegistry` | the open objective vocabulary plus the three INDEPENDENT facts a kind carries (`valueBased` which arithmetic a dispatch uses, `producible` whether content may author it, `targetsPlace` whether its target names somewhere to go); 23 engine-generic kinds pre-seeded, per consumer, never a shared mutable global |
+| `ObjectiveKind`, `ObjectiveKindRegistry` | the open objective vocabulary plus the six INDEPENDENT facts a kind carries (`valueBased` which arithmetic a dispatch uses, `producible` whether content may author it, and four saying what its TARGET names: `targetsPlace` somewhere to go, `targetsItem` something holdable, `targetsEntity` a creature, `targetsCurrency` a wallet - the last three are what let a surface DRAW a step), plus a `Presentation` (the wording key, the fallback picture, the per-target pictures) so ONE thing describes a kind; 23 engine-generic kinds pre-seeded, per consumer, never a shared mutable global. `asset/ObjectiveKindAsset` is the same description written as a file, merged leaf by leaf over the Java registration by `asset/ObjectiveKindFold` |
 | `StatThresholdProbe` | reads a `STAT_THRESHOLD` objective's stat channel for one subject, so an engine can settle a standing-value objective itself |
 | `MatchMode`, `ObjectiveMatch` | the matching core - ONE forgiving rule |
 | `ZoneRef` | the zone / region an event happened in, for a zone-scoped objective |
@@ -65,6 +65,14 @@ a surface say "this step resolves HERE" about a step with no hand-in of its own.
 orthogonal to the arithmetic - a kind accumulates or tracks a value, and independently does or does
 not point at a place. `TURN_IN` is deliberately not one of them: what its target names is the thing
 being delivered, and where it may be delivered is its own `turnInLockId`.
+
+**Seven declare `targetsItem` and seven `targetsEntity`**, the two facets that let a surface DRAW a
+step: an item id is a picture of itself, a creature id is that creature's own generated portrait.
+They are orthogonal to `targetsPlace` and to each other, so `TALK_TO_NPC` is both a place and a face,
+and `TURN_IN` names the item being delivered. `targetsCurrency` is the fourth, seeded on nothing
+here: this module defines no wallet, so the flag exists for a consumer's own kind to set and for
+whoever owns currencies to answer the picture - which is the whole division, the kind carrying the
+fact and the vocabulary's owner carrying the reading.
 
 `STAT_THRESHOLD` is the one VALUE-BASED built-in, and the one that names a STATE rather than a
 moment:
@@ -128,7 +136,9 @@ the high-water arithmetic is identical either way.
 - A new objective kind is a consumer call to `ObjectiveKindRegistry.register`; only add to
   `BUILT_IN_ACCUMULATING` / `BUILT_IN_VALUE_BASED` when the kind is meaningful in ANY game with no
   assumptions. Those two lists are the ARITHMETIC split, so a kind lands in exactly one of them;
-  `BUILT_IN_PLACE_TARGETED` is orthogonal to both and names whichever of them also point somewhere.
+  `BUILT_IN_PLACE_TARGETED` / `BUILT_IN_ITEM_TARGETED` / `BUILT_IN_ENTITY_TARGETED` are orthogonal to
+  both and to each other, naming whichever of them point somewhere, name something holdable, or name
+  a creature.
   A consumer contributing its own vocabulary skips every id `ObjectiveKindRegistry.isBuiltIn` already
   names, so a built-in is described once, here, with every flag it carries - including one this class
   learns to seed after that consumer was written.

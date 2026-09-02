@@ -16,8 +16,6 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -25,6 +23,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.loot.reward.RewardChips;
@@ -33,6 +32,7 @@ import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Section;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
+import com.ziggfreed.common.progress.runtime.ProgressionIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.quest.LockReasons;
@@ -43,6 +43,7 @@ import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.StatusTones;
+import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -679,6 +680,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
                 name = text("book.quests.step.untitled");
             }
             String sel = appendLine(cmd, "#ObjectivesSection", i);
+            setLineIcon(cmd, sel, ProgressionIcons.forObjective(quest.id(), objective));
             if (!carried) {
                 setLine(cmd, sel, name, LINE_UNSTARTED);
                 continue;
@@ -704,11 +706,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             RewardChip chip = chips.get(i);
             String sel = appendLine(cmd, "#RewardsList", i);
             setLine(cmd, sel, chip.label(), LINE_OPEN);
-            if (chip.hasIcon()) {
-                cmd.set(sel + " #LineIcon.Slots",
-                        List.of(new ItemGridSlot(new ItemStack(chip.iconItemId(), 1))));
-                cmd.set(sel + " #LineIconSlot.Visible", true);
-            }
+            setLineIcon(cmd, sel, chip.icon());
         }
     }
 
@@ -746,6 +744,15 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             @Nonnull Message text, @Nonnull String color) {
         cmd.set(sel + " #LineText.TextSpans", text);
         cmd.set(sel + " #LineText.Style.TextColor", color);
+    }
+
+    /**
+     * The picture beside one line, and the slot that holds it. A line with nothing to show keeps the
+     * slot collapsed so its text starts where an unpictured line's text has always started.
+     */
+    private static void setLineIcon(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
+            @Nullable IconSpec icon) {
+        cmd.set(sel + " #LineIconSlot.Visible", IconRenderer.applyIcon(cmd, sel, icon));
     }
 
     private void bindDetailButtons(@Nonnull UIEventBuilder events) {

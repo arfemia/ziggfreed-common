@@ -1,0 +1,13 @@
+{
+  "$Comment": "Finishing another quest. The target is that quest's id, so a step naming one is drawn with the picture that quest is listed under everywhere else.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Content": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Deco_Scroll"
+    }
+  }
+}

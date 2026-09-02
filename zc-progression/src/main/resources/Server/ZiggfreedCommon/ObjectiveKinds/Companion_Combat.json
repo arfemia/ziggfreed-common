@@ -1,0 +1,13 @@
+{
+  "$Comment": "A tamed companion fighting alongside its owner.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Entity": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Tool_Feedbag"
+    }
+  }
+}

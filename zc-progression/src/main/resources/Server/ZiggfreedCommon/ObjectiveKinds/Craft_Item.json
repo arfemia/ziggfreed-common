@@ -1,0 +1,13 @@
+{
+  "$Comment": "Crafting an item.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Item": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Bench_WorkBench"
+    }
+  }
+}

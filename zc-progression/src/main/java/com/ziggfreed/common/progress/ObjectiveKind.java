@@ -1,8 +1,12 @@
 package com.ziggfreed.common.progress;
 
 import java.util.Locale;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import com.ziggfreed.common.icon.IconSpec;
 
 /**
  * One entry in an engine's objective vocabulary: the id content authors write, plus the facts the
@@ -24,13 +28,73 @@ import javax.annotation.Nonnull;
  *   so set it for a kind whose target is somewhere to go. The comparison it feeds is one whole id
  *   against one whole id: a place is never matched by prefix or substring, because a target written
  *   to catch a family of block ids would otherwise catch character ids too.
+ *   <li>{@code targetsItem} says the target names something a player can hold, so a surface may
+ *   DRAW the target: an item id is a picture of itself, and a step that asks for a crude pickaxe
+ *   can show one. Set it for a kind whose target is an item or a block id.
+ *   <li>{@code targetsEntity} says the target names a creature, drawn from that creature's own
+ *   generated portrait rather than from an item. Set it for a kind whose target is an NPC role id.
+ *   <li>{@code targetsCurrency} says the target names a wallet, drawn with that wallet's own icon.
+ *   The engines here define no currency, so the picture is answered by whoever does; the flag is
+ *   what tells them a step is about one.
+ *   <li>{@code targetsContent} says the target names another quest or achievement, drawn with THAT
+ *   content's own icon - the one it is already listed under everywhere else. This module owns both
+ *   catalogues, so it answers this one itself.
+ *   <li>{@code targetsBoard} says the target names a notice board, answered like a wallet by
+ *   whoever defines boards.
  * </ul>
+ *
+ * <p>The last two are independent of each other and of everything above, and a kind may set both - a
+ * target that resolves to neither an item nor a portrait simply goes unpictured.
+ *
+ * <p>{@link Presentation} is the other half of the same description: not what the engine counts, but
+ * what a player sees when it is listed. It rides here rather than in a table of its own so that ONE
+ * thing describes a kind - the file that states a kind's arithmetic states its wording and its
+ * picture in the same breath.
  *
  * <p>{@code id} is normalized to upper case at construction, which is the spelling every surface
  * displays; lookups themselves are case-insensitive.
  */
 public record ObjectiveKind(@Nonnull String id, boolean valueBased, boolean producible,
-                            boolean targetsPlace) {
+                            boolean targetsPlace, boolean targetsItem, boolean targetsEntity,
+                            boolean targetsCurrency, boolean targetsContent, boolean targetsBoard,
+                            @Nonnull Presentation presentation) {
+
+    /**
+     * How a step of this kind reads and looks: the sentence key it renders through, the picture
+     * beside a step whose own target has none, and the targets given a picture of their own.
+     *
+     * <p>{@code targetIcons} is keyed by target id and exists for the target a derivation cannot
+     * answer - most often a FAMILY name whose members each have a portrait but which has none
+     * itself, pointed at whichever member represents it.
+     */
+    public record Presentation(@Nullable String textKey, @Nullable IconSpec icon,
+                               @Nonnull Map<String, IconSpec> targetIcons) {
+
+        /** A kind that says nothing about how it reads or looks. */
+        public static final Presentation NONE = new Presentation(null, null, Map.of());
+
+        public Presentation {
+            targetIcons = Map.copyOf(targetIcons);
+        }
+
+        /** The picture authored for one exact target, or null when none was. */
+        @Nullable
+        public IconSpec iconForTarget(@Nullable String target) {
+            if (target == null || target.isBlank() || targetIcons.isEmpty()) {
+                return null;
+            }
+            IconSpec exact = targetIcons.get(target);
+            if (exact != null) {
+                return exact;
+            }
+            for (Map.Entry<String, IconSpec> entry : targetIcons.entrySet()) {
+                if (entry.getKey().equalsIgnoreCase(target)) {
+                    return entry.getValue();
+                }
+            }
+            return null;
+        }
+    }
 
     public ObjectiveKind {
         id = id.trim().toUpperCase(Locale.ROOT);
@@ -39,6 +103,34 @@ public record ObjectiveKind(@Nonnull String id, boolean valueBased, boolean prod
     /** A kind whose target names a thing rather than a place, which is the common case. */
     public ObjectiveKind(@Nonnull String id, boolean valueBased, boolean producible) {
         this(id, valueBased, producible, false);
+    }
+
+    /** A kind stating its arithmetic and whether its target is somewhere to go. */
+    public ObjectiveKind(@Nonnull String id, boolean valueBased, boolean producible,
+                         boolean targetsPlace) {
+        this(id, valueBased, producible, targetsPlace, false, false);
+    }
+
+    /** A kind whose target names a thing or a place, saying nothing yet about how it reads or looks. */
+    public ObjectiveKind(@Nonnull String id, boolean valueBased, boolean producible,
+                         boolean targetsPlace, boolean targetsItem, boolean targetsEntity) {
+        this(id, valueBased, producible, targetsPlace, targetsItem, targetsEntity, false);
+    }
+
+    /** A kind stating every flag, saying nothing yet about how it reads or looks. */
+    public ObjectiveKind(@Nonnull String id, boolean valueBased, boolean producible,
+                         boolean targetsPlace, boolean targetsItem, boolean targetsEntity,
+                         boolean targetsCurrency) {
+        this(id, valueBased, producible, targetsPlace, targetsItem, targetsEntity, targetsCurrency,
+                false, false, Presentation.NONE);
+    }
+
+    /** A kind stating every flag, saying nothing yet about how it reads or looks. */
+    public ObjectiveKind(@Nonnull String id, boolean valueBased, boolean producible,
+                         boolean targetsPlace, boolean targetsItem, boolean targetsEntity,
+                         boolean targetsCurrency, boolean targetsContent, boolean targetsBoard) {
+        this(id, valueBased, producible, targetsPlace, targetsItem, targetsEntity, targetsCurrency,
+                targetsContent, targetsBoard, Presentation.NONE);
     }
 
     /** An accumulating, producible kind - the common case. */
@@ -57,5 +149,36 @@ public record ObjectiveKind(@Nonnull String id, boolean valueBased, boolean prod
     @Nonnull
     public static ObjectiveKind placeTargeted(@Nonnull String id) {
         return new ObjectiveKind(id, false, true, true);
+    }
+
+    /** A producible kind whose target names an item or block id, so a surface may draw it. */
+    @Nonnull
+    public static ObjectiveKind itemTargeted(@Nonnull String id) {
+        return new ObjectiveKind(id, false, true, false, true, false);
+    }
+
+    /** A producible kind whose target names a wallet, drawn with that wallet's own icon. */
+    @Nonnull
+    public static ObjectiveKind currencyTargeted(@Nonnull String id) {
+        return new ObjectiveKind(id, false, true, false, false, false, true);
+    }
+
+    /** A producible kind whose target names another quest or achievement, drawn with its own icon. */
+    @Nonnull
+    public static ObjectiveKind contentTargeted(@Nonnull String id) {
+        return new ObjectiveKind(id, false, true, false, false, false, false, true, false);
+    }
+
+    /** A producible kind whose target names a creature, drawn from its own portrait. */
+    @Nonnull
+    public static ObjectiveKind entityTargeted(@Nonnull String id) {
+        return new ObjectiveKind(id, false, true, false, false, true);
+    }
+
+    /** This kind reading and looking as {@code presentation} says. */
+    @Nonnull
+    public ObjectiveKind withPresentation(@Nonnull Presentation presentation) {
+        return new ObjectiveKind(id, valueBased, producible, targetsPlace, targetsItem, targetsEntity,
+                targetsCurrency, targetsContent, targetsBoard, presentation);
     }
 }

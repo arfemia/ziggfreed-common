@@ -129,6 +129,7 @@ public final class ProgressionRuntime {
     private static final List<Contribution<KillQualifier>> KILL_QUALIFIERS = new ArrayList<>();
     private static final List<Contribution<ProgressionFeedbackHook>> FEEDBACK_HOOKS = new ArrayList<>();
     private static final List<Contribution<ProgressionTextSource>> TEXT_SOURCES = new ArrayList<>();
+    private static final List<Contribution<ProgressionIconSource>> ICON_SOURCES = new ArrayList<>();
 
     private record Contribution<T>(@Nonnull String owner, @Nonnull T value) {
     }
@@ -335,6 +336,13 @@ public final class ProgressionRuntime {
     static synchronized void addTextSource(@Nonnull ProgressionRegistrar registrar,
                                            @Nonnull ProgressionTextSource source) {
         if (addContribution(TEXT_SOURCES, registrar.owner(), source)) {
+            rederive();
+        }
+    }
+
+    static synchronized void addIconSource(@Nonnull ProgressionRegistrar registrar,
+                                           @Nonnull ProgressionIconSource source) {
+        if (addContribution(ICON_SOURCES, registrar.owner(), source)) {
             rederive();
         }
     }
@@ -576,6 +584,12 @@ public final class ProgressionRuntime {
         return parts.textSources();
     }
 
+    /** Every registered icon source, in registration order; first non-null wins. */
+    @Nonnull
+    public static List<ProgressionIconSource> iconSources() {
+        return parts.iconSources();
+    }
+
     /** The live snapshot every forwarder reads. */
     @Nonnull
     static ProgressionParts parts() {
@@ -755,6 +769,7 @@ public final class ProgressionRuntime {
         FEEDBACK_HOOKS.clear();
         ProgressionParts.FEEDBACK_SILENCE_REPORTED.set(false);
         TEXT_SOURCES.clear();
+        ICON_SOURCES.clear();
         REGISTRARS.clear();
         QUEST_LAYERS.clear();
         ACHIEVEMENT_LAYERS.clear();
@@ -794,7 +809,8 @@ public final class ProgressionRuntime {
                 ProgressionParts.composeKillAttributions(values(KILL_ATTRIBUTIONS), warn),
                 ProgressionParts.composeKillQualifiers(values(KILL_QUALIFIERS), warn),
                 ProgressionParts.composeFeedbackHooks(values(FEEDBACK_HOOKS), warn),
-                ProgressionParts.freezeTextSources(values(TEXT_SOURCES)));
+                ProgressionParts.freezeTextSources(values(TEXT_SOURCES)),
+                ProgressionParts.freezeIconSources(values(ICON_SOURCES)));
     }
 
     @Nonnull

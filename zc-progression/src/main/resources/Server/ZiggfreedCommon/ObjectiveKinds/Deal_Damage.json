@@ -1,0 +1,13 @@
+{
+  "$Comment": "Dealing damage, counted in points rather than in kills.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Entity": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Weapon_Sword_Crude"
+    }
+  }
+}

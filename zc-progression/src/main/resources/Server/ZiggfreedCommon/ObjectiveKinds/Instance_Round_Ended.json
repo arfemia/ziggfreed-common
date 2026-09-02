@@ -1,0 +1,10 @@
+{
+  "$Comment": "Finishing a round of an instanced mode, won or lost.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Deco_Trophy_Harvest"
+    }
+  }
+}

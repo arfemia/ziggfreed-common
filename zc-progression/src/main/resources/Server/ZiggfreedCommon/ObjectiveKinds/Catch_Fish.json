@@ -1,0 +1,13 @@
+{
+  "$Comment": "Landing a catch.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Item": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Fish_Bluegill_Item"
+    }
+  }
+}

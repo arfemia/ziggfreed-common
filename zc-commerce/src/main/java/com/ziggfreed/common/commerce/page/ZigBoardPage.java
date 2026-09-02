@@ -40,12 +40,14 @@ import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 import com.ziggfreed.common.progress.gate.GateRefusal;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.progress.runtime.ProgressionIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.quest.Quest;
@@ -581,8 +583,9 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             ObjectiveDef objective = objectives.get(i);
             String sel = CommerceChips.appendLine(cmd, "#ObjectivesList", i);
             Message name = objectiveName(ref, quest, objective);
+            IconSpec icon = ProgressionIcons.forObjective(quest.id(), objective);
             if (!carried) {
-                CommerceChips.setLine(cmd, sel, name, "#8fa6bd", null);
+                CommerceChips.setLine(cmd, sel, name, "#8fa6bd", icon);
                 continue;
             }
             ObjectiveProgressState state = progress.get(objective.id());
@@ -591,7 +594,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             boolean done = state != null && state.isCompleted();
             CommerceChips.setLine(cmd, sel,
                     Msg.join(name, Msg.raw("  "), text("board.progress", current, required)),
-                    done ? CommerceChips.COLOR_DONE : CommerceChips.COLOR_LINE, null);
+                    done ? CommerceChips.COLOR_DONE : CommerceChips.COLOR_LINE, icon);
         }
     }
 
@@ -606,7 +609,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         for (int i = 0; i < shown; i++) {
             RewardChip chip = chips.get(i);
             CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#RewardsList", i), chip.label(),
-                    CommerceChips.COLOR_LINE, chip.iconItemId());
+                    CommerceChips.COLOR_LINE, chip.icon());
         }
     }
 
@@ -655,7 +658,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             return index;
         }
         CommerceChips.setLine(cmd, CommerceChips.appendLine(cmd, "#StatusList", index), line,
-                CommerceChips.COLOR_REFUSAL, null);
+                CommerceChips.COLOR_REFUSAL);
         return index + 1;
     }
 

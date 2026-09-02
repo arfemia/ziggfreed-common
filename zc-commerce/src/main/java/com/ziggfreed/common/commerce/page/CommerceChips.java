@@ -19,6 +19,8 @@ import com.ziggfreed.common.currency.CurrencyCatalog;
 import com.ziggfreed.common.currency.CurrencyDef;
 import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.icon.IconSpec;
+import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -224,12 +226,22 @@ public final class CommerceChips {
         return container + "[" + index + "]";
     }
 
-    /** Fill an appended line: its sentence, its colour, and the picture beside it if any. */
+    /** Fill an appended line that has no picture beside it: its sentence and its colour. */
     public static void setLine(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
-            @Nonnull Message text, @Nonnull String color, @Nullable String iconItemId) {
+            @Nonnull Message text, @Nonnull String color) {
+        setLine(cmd, sel, text, color, null);
+    }
+
+    /**
+     * Fill an appended line and the picture beside it. The picture is a spec rather than an item id
+     * so a line can show a creature's own portrait as readily as an item, which an id alone cannot
+     * express; a null one leaves the slot collapsed.
+     */
+    public static void setLine(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
+            @Nonnull Message text, @Nonnull String color, @Nullable IconSpec icon) {
         cmd.set(sel + " #LineText.TextSpans", text);
         cmd.set(sel + " #LineText.Style.TextColor", color);
-        applyIcon(cmd, sel + " #LineIconSlot", sel + " #LineIcon", iconItemId);
+        cmd.set(sel + " #LineIconSlot.Visible", IconRenderer.applyIcon(cmd, sel, icon));
     }
 
     /**
