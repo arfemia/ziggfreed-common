@@ -9,14 +9,10 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
-import com.hypixel.hytale.server.core.asset.type.item.config.ItemUtility;
 import com.hypixel.hytale.server.core.asset.type.item.config.metadata.ItemDisplayMetadata;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.i18n.Msg;
-
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 
 /**
  * How a stamped item READS: its own prose, an "Enhancements" heading, and one line per stat.
@@ -74,16 +70,9 @@ public final class StampTooltip {
             @Nullable Message nameOverride, @Nonnull Predicate<String> keyExists,
             @Nonnull Predicate<String> keyValueHasMarkup) {
         Item baseItem = stack.getItem();
-        String baseKey = baseDescriptionKey(hasGeneratedToolStats(baseItem), stack.getItemId(),
-                baseItem.getDescriptionTranslationKey(), keyExists, keyValueHasMarkup);
-        Message base;
-        if (baseKey == null) {
-            base = null;
-        } else if (hasGeneratedToolStats(baseItem)) {
-            base = Msg.key(baseKey);
-        } else {
-            base = baseItem.getDescriptionTranslationMessage();
-        }
+        String baseKey = baseDescriptionKey(baseItem.getDescriptionTranslationKey(), keyExists,
+                keyValueHasMarkup);
+        Message base = baseKey != null ? baseItem.getDescriptionTranslationMessage() : null;
         return stack.withMetadata(ItemDisplayMetadata.KEYED_CODEC,
                 new ItemDisplayMetadata(nameOverride, descriptionFor(base, entries)));
     }
@@ -121,25 +110,18 @@ public final class StampTooltip {
     }
 
     /**
-     * Which description key to nest as the base line, or null for none.
+     * The item's own description key when it is safe to nest as the base line, or null for none.
      *
-     * <p>Three cases. A tool whose own description is GENERATED (it authors native utility stat
-     * modifiers, so its plain description is markup plus a stat row) nests the authored, markup-free
-     * {@code .description.base} prose instead. Any other item nests its own description key, unless
-     * that key's value carries markup, which this surface cannot render. And every candidate is
-     * checked for existence first, so a descriptionless item yields null rather than a phantom line
-     * that would print its own key at the player.
+     * <p>Two checks. The key must exist in the catalogue, so a descriptionless item yields null
+     * rather than a phantom line that would print its own key at the player. And its value must
+     * carry no markup, which this surface cannot render. An item's description is always its own
+     * key, the one the client resolves natively; nothing ever swaps in another.
      *
      * <p>Pure - unit tested.
      */
     @Nullable
-    static String baseDescriptionKey(boolean toolStatsTag, @Nonnull String itemId,
-            @Nonnull String ownDescriptionKey, @Nonnull Predicate<String> keyExists,
-            @Nonnull Predicate<String> keyValueHasMarkup) {
-        if (toolStatsTag) {
-            String key = "server.items." + itemId + ".description.base";
-            return keyExists.test(key) ? key : null;
-        }
+    static String baseDescriptionKey(@Nonnull String ownDescriptionKey,
+            @Nonnull Predicate<String> keyExists, @Nonnull Predicate<String> keyValueHasMarkup) {
         if (!keyExists.test(ownDescriptionKey)) {
             return null;
         }
@@ -152,15 +134,5 @@ public final class StampTooltip {
     /** True when {@code value} carries a markup tag this surface would print literally. */
     public static boolean hasMarkup(@Nullable String value) {
         return value != null && MARKUP.matcher(value).find();
-    }
-
-    /**
-     * True when this item's plain description is generator-owned, i.e. it authors native utility
-     * stat modifiers, so something rewrote its description into markup plus a stat row.
-     */
-    private static boolean hasGeneratedToolStats(@Nonnull Item baseItem) {
-        ItemUtility utility = baseItem.getUtility();
-        Int2ObjectMap<StaticModifier[]> mods = utility != null ? utility.getStatModifiers() : null;
-        return mods != null && !mods.isEmpty();
     }
 }
