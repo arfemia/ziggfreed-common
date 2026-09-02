@@ -1,8 +1,10 @@
-# match/ - the shared name-pattern grammar + specificity ladder
+# match/ - the shared name-pattern grammar, specificity ladder + item-identity core
 
-Router for `com.ziggfreed.common.match`. Two pure classes, and between them they answer the two
-questions every "which one of these does this name mean?" surface in the library asks: **does this
-pattern match**, and **when several match, which wins**. Zero engine types, zero domain vocabulary.
+Router for `com.ziggfreed.common.match`. Three pure classes: `NamePattern` + `NameMatchRank` answer
+the two questions every "which one of these does this name mean?" surface in the library asks -
+**does this pattern match**, and **when several match, which wins** - and `ItemMatch` answers
+"does this item satisfy this authored reference?" over the three item-identity routes. Zero engine
+types, zero domain vocabulary.
 
 ## The grammar
 
@@ -41,6 +43,23 @@ pattern match**, and **when several match, which wins**. Zero engine types, zero
   - **Band 0 is a reserved rung, not a lever.** Use it for an identifier that cannot be a coincidence
     (a world's `GameplayConfig` machine key), never as a shortcut for "I want this rule to win".
 
+## The item-identity core
+
+- **[`ItemMatch`](ItemMatch.java)** - three route predicates over a candidate item's
+  already-resolved identity (its id, its raw tag map, its resource-family ids): `itemId` (exact,
+  case-insensitive), `tags` (the shared `TagMatch` map - ANY-of family+values, PLUS the presence
+  form where an authored family with an EMPTY value array matches on the key alone, which is
+  exactly how the engine's expanded raw-tag map answers a single native tag), and `resourceFamily`
+  (any of the candidate's family set). `any` is the OR-composition, parameter-ordered to the
+  native consumption precedence (exact > tag > family, `InternalContainerUtilMaterial`).
+  - **A route not taken answers false, never true.** Each predicate is false on a null/blank/empty
+    required side, and `any` is false when NO route is authored - what a route-less reference
+    MEANS (catch-all, match-anything ingredient, closed gate) is the consumer's decision at the
+    call site, never this core's.
+  - **The consumer keeps its leaf; this core keeps the loops.** A codec's field names, its
+    exactly-one-of or any-of rule, and its live identity resolution all stay consumer-side; only
+    the comparing lives here, so two consumers can never drift one route apart.
+
 ## Consumers
 
 - **[`world/`](../../../../../../../../zc-world/src/main/java/com/ziggfreed/common/world/CLAUDE.md)** -
@@ -51,6 +70,9 @@ pattern match**, and **when several match, which wins**. Zero engine types, zero
   same grammar (the MMO's `BonusDropsAsset` and mob-scaling's validator name it directly), which is
   why it lives here rather than in the world module: a loot or consumer surface needs no
   `zc-world` edge to speak a pattern.
+- **rpg-stations** - its `Ingredient` (recipe rows, step Consume/Produce) and `ActionInput` (held
+  -item action selection, custody placement acceptance) both delegate their route answering to
+  `ItemMatch`, route-parity-tested on the consumer side so the two leaves can never drift apart.
 
 **Do not extend `NamePattern` to change how a pattern parses or matches.** It is subclassable for
 exactly one reason - a consumer that published its own pattern TYPE before the grammar was shared can
@@ -62,4 +84,6 @@ keep that name - and a second grammar wearing this type is the thing the class e
 contract, the decorated-name case that only contains reaches, and the catch-all.
 `NameMatchRankTest` pins the band order, core-length-dominates-anchoring, the anchoring tie-break,
 the first-wins-on-tie fold, and the whole ladder exercised as a SELECTION over a rule list, which is
-how every consumer actually uses it. Pure decision cores: no engine, no server, no balance data.
+how every consumer actually uses it. `ItemMatchTest` pins each identity route's semantics, the tag
+presence form, the route-not-taken false contract, and the `any` OR including the no-route-authored
+answer. Pure decision cores: no engine, no server, no balance data.

@@ -55,9 +55,12 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
   `EntityStats` heal + max-health scale, `Store`/`Ref` and ref-less `Holder` forms).
 - [`match/`](src/main/java/com/ziggfreed/common/match/CLAUDE.md) - `NamePattern` (the ONE
   name-pattern grammar: exact / prefix / suffix / contains / catch-all) + `NameMatchRank` (the
-  specificity ladder that orders two patterns matching one name). Named by zc-world (a world
-  selector) and by consumer mods' trigger keys (the MMO's BonusDrops `When.Match`, mob-scaling's
-  validator); it sits at the bottom so a consumer needs no zc-world edge to speak the grammar.
+  specificity ladder that orders two patterns matching one name) + `ItemMatch` (the ONE
+  item-identity matching core: exact-id / native-tags / resource-family route predicates plus the
+  `any` OR, native consumption precedence documented, route-not-taken always false). Named by
+  zc-world (a world selector), consumer mods' trigger keys (the MMO's BonusDrops `When.Match`,
+  mob-scaling's validator) and rpg-stations' `Ingredient`/`ActionInput` leaves; it sits at the
+  bottom so a consumer needs no zc-world edge to speak the grammar.
 - [`i18n/`](src/main/java/com/ziggfreed/common/i18n/CLAUDE.md) - `Msg`, the mod-agnostic
   client-resolved `Message` factory (caller-prefixed `tr`, `raw`, `join`, `cat`, `bold`/`color`).
 - [`inventory/`](src/main/java/com/ziggfreed/common/inventory/CLAUDE.md) - `PlayerAccess` (the
@@ -123,10 +126,10 @@ try-guards real rather than decorative.
 
 ## Tests
 
-34 files in `src/test/java/com/ziggfreed/common/`, one per primitive above plus the factor-model
+37 files in `src/test/java/com/ziggfreed/common/`, one per primitive above plus the factor-model
 core (`FactorFormulaTest`, `FactorVocabularyTest`, `FactorContextTest`, `FactorContributionsTest`,
-`DerivedFactorTest`, `DerivedFactorValidatorTest`), the name-matching core (`NamePatternTest`,
-`NameMatchRankTest`), the codec leaves (`InheritMapCodecTest`, `JsonParentResolverTest`,
+`DerivedFactorTest`, `DerivedFactorValidatorTest`), the matching core (`NamePatternTest`,
+`NameMatchRankTest`, `ItemMatchTest`), the codec leaves (`InheritMapCodecTest`, `JsonParentResolverTest`,
 `JsonTreeCodecTest`, `JsonOverrideWriterTest`), and `NativeNamesTest`/`GeneratedLangPackTest` for
 the i18n overlay primitive. The two cross-cutting guard tests that touch every module
 (`AssetCodecInitTest`, `RootRegistrationOnlyTest`) live in the wiring root's own test set, not
