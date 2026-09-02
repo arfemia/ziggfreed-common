@@ -22,6 +22,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.achievement.AchievementGates;
+import com.ziggfreed.common.achievement.UnlockOccasion;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
@@ -260,7 +261,8 @@ class ProgressionRuntimeTest {
         Set<String> heldBack = new HashSet<>(Set.of("first_ore"));
         ProgressionRuntime.registrar(CONSUMER).achievementGates(new AchievementGates() {
             @Override
-            public boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+            public boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement,
+                    @Nonnull UnlockOccasion occasion) {
                 return !heldBack.contains(achievement.id());
             }
         });

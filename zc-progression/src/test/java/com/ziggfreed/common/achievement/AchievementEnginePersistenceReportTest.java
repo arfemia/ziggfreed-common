@@ -208,7 +208,8 @@ class AchievementEnginePersistenceReportTest {
         private boolean open;
 
         @Override
-        public boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+        public boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement,
+                @Nonnull UnlockOccasion occasion) {
             return open;
         }
     }

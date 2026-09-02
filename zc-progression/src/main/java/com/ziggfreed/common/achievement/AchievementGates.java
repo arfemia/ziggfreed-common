@@ -33,8 +33,15 @@ public interface AchievementGates {
      * May this subject EARN it, now that everything is met? This is where a claim that only one
      * subject can win is arbitrated: refuse for whoever lost, and the criteria stay met so the
      * decision can be revisited without anything being lost.
+     *
+     * <p>The {@code occasion} says whether the criteria were met in this very moment or whether a
+     * standing state is being re-tested. It never changes the DECISION - a gate that answers
+     * differently on the two would hand an achievement out on a login it refused on the day - and it
+     * is there for what a refusal is worth SAYING: a race lost once is re-discovered by every later
+     * sweep, and only the first of those is news.
      */
-    default boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+    default boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement,
+            @Nonnull UnlockOccasion occasion) {
         return true;
     }
 

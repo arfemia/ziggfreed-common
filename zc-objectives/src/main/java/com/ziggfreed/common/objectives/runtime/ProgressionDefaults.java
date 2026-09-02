@@ -719,17 +719,32 @@ public final class ProgressionDefaults {
             if (store == null) {
                 return;
             }
-            // The subject source below resolves the player itself and answers null for anything
-            // that is not one, so this asks once rather than reading the component twice.
-            Subject subject = ProgressionRuntime.subjects().questSubject(store, ref);
-            if (subject == null) {
-                return;
-            }
+            // The subject source resolves the player itself and answers null for anything that is
+            // not one. Each half asks for its OWN subject, the way a dispatch does: the two carry
+            // different handles on a server that keeps only one of the systems.
+            Subject questSubject = ProgressionRuntime.subjects().questSubject(store, ref);
+            Subject achievementSubject = ProgressionRuntime.subjects().achievementSubject(store, ref);
             QuestEngine quests = ProgressionRuntime.quests();
             AchievementEngine achievements = ProgressionRuntime.achievements();
-            quests.selfHeal(subject);
-            achievements.selfHeal(subject);
-            quests.autoAcceptAvailable(subject);
+            // WRAPPED in the registered call scope, exactly as ProgressDispatch wraps each half of a
+            // moment. This pass is not the read-only sweep it looks like: self-heal re-reads every
+            // carried threshold step, and a step that has come to be met settles the quest and pays
+            // it out - a real claim, firing the same outbound events a claim made at a menu fires.
+            // Called bare, those events reach a consumer's listeners with no context published, and
+            // a listener that resolves its player from the call in progress finds nothing and does
+            // nothing: the payout lands, the consumer's half of it (its achievements credit, its
+            // reset targets, its own follow-on grants) is skipped in silence. Auto-accept is wrapped
+            // for the same reason - an accept whose objectives are already satisfied settles on the
+            // spot. A server with no consumer runs the DIRECT scope and pays nothing.
+            if (questSubject != null) {
+                ProgressionRuntime.questScope().run(questSubject, quests::selfHeal);
+            }
+            if (achievementSubject != null) {
+                ProgressionRuntime.achievementScope().run(achievementSubject, achievements::selfHeal);
+            }
+            if (questSubject != null) {
+                ProgressionRuntime.questScope().run(questSubject, quests::autoAcceptAvailable);
+            }
         } catch (Throwable t) {
             SafeLog.warn("[progression] player-ready maintenance failed", t);
         }

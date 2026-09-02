@@ -20,6 +20,7 @@ import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.achievement.FirstClaimStore;
 import com.ziggfreed.common.achievement.FirstClaims;
 import com.ziggfreed.common.achievement.InMemoryAchievementProgressStore;
+import com.ziggfreed.common.achievement.UnlockOccasion;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -236,9 +237,9 @@ class RequiresGatesTest {
         Subject winner = Subject.of(UUID.randomUUID(), "winner");
         Subject loser = Subject.of(UUID.randomUUID(), "loser");
 
-        assertTrue(gates.canUnlock(winner, first));
-        assertFalse(gates.canUnlock(loser, first));
-        assertTrue(gates.canUnlock(winner, first),
+        assertTrue(gates.canUnlock(winner, first, UnlockOccasion.JUST_MET));
+        assertFalse(gates.canUnlock(loser, first, UnlockOccasion.JUST_MET));
+        assertTrue(gates.canUnlock(winner, first, UnlockOccasion.STANDING),
                 "the winner asking again is still the winner, so a self-heal cannot lose it");
     }
 
@@ -250,7 +251,8 @@ class RequiresGatesTest {
             asked.incrementAndGet();
             return true;
         });
-        assertTrue(gates.canUnlock(PLAYER, Achievement.builder("ordinary").build()));
+        assertTrue(gates.canUnlock(PLAYER, Achievement.builder("ordinary").build(),
+                UnlockOccasion.JUST_MET));
         assertEquals(0, asked.get());
     }
 
@@ -261,15 +263,18 @@ class RequiresGatesTest {
         FirstClaims.install(refuseEverything);
         assertFalse(FirstClaims.isDefault());
 
-        assertFalse(gates.canUnlock(PLAYER, Achievement.builder("first").serverFirst(true).build()));
+        assertFalse(gates.canUnlock(PLAYER, Achievement.builder("first").serverFirst(true).build(),
+                UnlockOccasion.JUST_MET));
     }
 
     /** A subject nobody can identify must never take a claim only one player may ever hold. */
     @Test
     void anAnonymousSubjectNeverTakesAClaim() {
         Subject nobody = Subject.of(new UUID(0L, 0L), "");
-        assertFalse(gates.canUnlock(nobody, Achievement.builder("first").serverFirst(true).build()));
-        assertTrue(gates.canUnlock(PLAYER, Achievement.builder("first").serverFirst(true).build()),
+        assertFalse(gates.canUnlock(nobody, Achievement.builder("first").serverFirst(true).build(),
+                UnlockOccasion.JUST_MET));
+        assertTrue(gates.canUnlock(PLAYER, Achievement.builder("first").serverFirst(true).build(),
+                UnlockOccasion.JUST_MET),
                 "and the claim is still there for a real player afterwards");
     }
 
@@ -284,10 +289,35 @@ class RequiresGatesTest {
                 told.add(momentId + ":" + subject.name() + ":" + args.get("achievement")));
         Achievement first = Achievement.builder("first").serverFirst(true).build();
 
-        gates.canUnlock(Subject.of(UUID.randomUUID(), "winner"), first);
-        gates.canUnlock(Subject.of(UUID.randomUUID(), "loser"), first);
+        gates.canUnlock(Subject.of(UUID.randomUUID(), "winner"), first, UnlockOccasion.JUST_MET);
+        gates.canUnlock(Subject.of(UUID.randomUUID(), "loser"), first, UnlockOccasion.JUST_MET);
 
         assertEquals(List.of("Achievement_Server_First_Lost:loser:first"), told);
+    }
+
+    /**
+     * And it is announced ONCE, at the moment the race is actually lost. Everything that re-tests a
+     * standing state - the self-heal sweep on login and on every world change, an achievement screen
+     * opening, a scripted grant - re-discovers the same settled loss, and telling the player about
+     * it again each time is how a player who qualifies for several taken claims ends up reading a
+     * column of them every time they walk through a portal.
+     */
+    @Test
+    void aLossAlreadySettledIsNotAnnouncedAgain() {
+        List<String> told = new ArrayList<>();
+        ProgressionRuntime.registrar("test").feedbackHook((momentId, subject, args) ->
+                told.add(momentId + ":" + subject.name()));
+        Achievement first = Achievement.builder("first").serverFirst(true).build();
+        Subject loser = Subject.of(UUID.randomUUID(), "loser");
+        gates.canUnlock(Subject.of(UUID.randomUUID(), "winner"), first, UnlockOccasion.JUST_MET);
+
+        assertFalse(gates.canUnlock(loser, first, UnlockOccasion.STANDING),
+                "the claim is still tested, so a claim an admin has cleared can still be won");
+        assertEquals(List.of(), told, "but a re-discovered loss is not news");
+
+        assertFalse(gates.canUnlock(loser, first, UnlockOccasion.JUST_MET));
+        assertEquals(List.of("Achievement_Server_First_Lost:loser"), told,
+                "and the moment the race is really lost still says so");
     }
 
     // ==================== the live seams the consumer supplies ====================
@@ -383,6 +413,45 @@ class RequiresGatesTest {
         featureOn.set(false);
         assertTrue(engine.canAccept(PLAYER, quest).reasons().contains(QuestGates.REASON_UNAVAILABLE),
                 "the same cached quest object refuses once the feature behind it is off");
+    }
+
+    /**
+     * The end of the bug this rule exists for, driven through a real engine: a login sweep re-tests
+     * every claim the player has met the criteria for, and one of those sweeps runs on every world
+     * change. Announcing each re-discovered loss meant a player who qualified for several taken
+     * claims read a column of losses every time they entered an instance.
+     */
+    @Test
+    void aSelfHealSweepReAsksTheClaimWithoutAnnouncingTheLossAgain() {
+        List<String> told = new ArrayList<>();
+        ProgressionRuntime.registrar("test").feedbackHook((momentId, subject, args) ->
+                told.add(momentId + ":" + subject.name()));
+        AchievementEngine engine = AchievementEngine.builder()
+                .store(new InMemoryAchievementProgressStore())
+                .gates(gates)
+                .nativeEvents(false)
+                .build();
+        Achievement first = Achievement.builder("first_ore")
+                .serverFirst(true)
+                .criterion(ObjectiveDef.builder("0", "PICKUP_ITEM").target("Ore").amount(1).build())
+                .build();
+        engine.setAchievements(List.of(first));
+        Subject winner = Subject.of(UUID.randomUUID(), "winner");
+        Subject loser = Subject.of(UUID.randomUUID(), "loser");
+
+        engine.dispatch(winner, "PICKUP_ITEM", "Ore", null, 1L);
+        engine.dispatch(loser, "PICKUP_ITEM", "Ore", null, 1L);
+        assertTrue(engine.isUnlocked(winner, "first_ore"));
+        assertFalse(engine.isUnlocked(loser, "first_ore"));
+        assertEquals(List.of("Achievement_Server_First_Lost:loser"), told,
+                "losing the race is said once, when it is lost");
+
+        told.clear();
+        engine.selfHeal(loser);
+        engine.selfHeal(loser);
+        assertEquals(List.of(), told, "and never again by the sweeps that re-ask");
+        assertTrue(engine.allCriteriaComplete(loser, first),
+                "with the criteria still met, so clearing the claim still hands it back");
     }
 
     /** The achievement side reads the same predicate, at every place the engine asks. */

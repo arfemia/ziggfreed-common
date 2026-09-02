@@ -26,6 +26,7 @@ which one shared instance cannot afford, and it is exactly why that method exist
 | `AchievementProgressStore` | THE persistence seam. Composite `"<id>#<criterionId>"` keys and the reserved-character check both live here as DEFAULTS; a bare-id record from a very old save is only ever swept clear, never read back as a tally |
 | `InMemoryAchievementProgressStore` | the complete store that dies with the process |
 | `AchievementGates` | the consumer's say: `canProgress` / `canUnlock` / `canReceiveRewards` / `visible`, all default-yes. FILLED by `quest.RequiresGates`, the same gate the quest side reads, so one `Requires` block means one thing |
+| `UnlockOccasion` | why an unlock is being attempted: `JUST_MET` (the criteria completed in this very moment) or `STANDING` (a state being re-tested - the self-heal sweep, a meta off one, a scripted grant). Passed to `canUnlock`; it never changes the DECISION, only whether a refusal is worth ANNOUNCING |
 | `FirstClaimStore`, `FirstClaims` | the server-first claim TABLE, and where a consumer installs a durable one. The RULE (exactly one winner, a loser keeps their criteria met) is the gate's; only the table and the words a loser reads are the consumer's |
 | `AchievementEngine.Builder#factors` / `#factorContext` | the OPTIONAL factor pair, the same two knobs the quest engine takes; unwired, `STAT_THRESHOLD` is purely consumer-fired |
 | `AchievementMilestone` | a reward for a points TOTAL rather than for any one achievement |
@@ -75,10 +76,16 @@ which one shared instance cannot afford, and it is exactly why that method exist
   rather than quietly bypassing the gate through a path no producer fired.
 - **A refusal loses nothing.** `canUnlock` refusing leaves the criteria MET, so `selfHeal` earns it
   the moment the answer changes. That is what makes a race arbitrable without a rollback.
+- **The decision is re-taken every time; the ANNOUNCEMENT is not.** Because a refusal loses nothing,
+  every sweep asks again - and a sweep runs on login, on every world change and whenever an
+  achievement surface opens. A gate reads `UnlockOccasion` to tell a moment from a re-reading, and
+  says something only on `JUST_MET`. A gate that instead answered the two occasions differently would
+  hand out on a login what it refused on the day, which is the one thing the occasion must not do.
 - **`serverFirst` is a FLAG on the achievement and the arbitration is the gate's.** A consumer
   supplies the claim table through `FirstClaims` (an in-memory one ships, correct for one boot). The
   loss is ANNOUNCED rather than handled, as the `Achievement_Server_First_Lost` feedback moment,
-  which a server answers with an authored file and no Java. Nothing in this module can write words a
+  which a server answers with an authored file and no Java, and only for the occasion the race is
+  really lost on (`JUST_MET`). Nothing in this module can write words a
   player reads. **There is no second fan-out beside it**: a mod that wants to do something other
   than tell the player - log a race, hand out a consolation - registers a feedback hook through the
   progression registrar and reads the same announcement additively, which is strictly more than a

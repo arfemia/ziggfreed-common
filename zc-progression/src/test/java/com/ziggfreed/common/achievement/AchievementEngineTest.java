@@ -205,7 +205,8 @@ class AchievementEngineTest {
         AchievementEngine engine = engine()
                 .gates(new AchievementGates() {
                     @Override
-                    public boolean canUnlock(Subject subject, Achievement achievement) {
+                    public boolean canUnlock(Subject subject, Achievement achievement,
+                            UnlockOccasion occasion) {
                         return !refused.contains(achievement.id());
                     }
                 })

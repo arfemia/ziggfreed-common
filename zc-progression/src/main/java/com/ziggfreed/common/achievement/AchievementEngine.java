@@ -426,7 +426,7 @@ public final class AchievementEngine {
             store.markDirty(subject);
         }
         for (Achievement achievement : earned) {
-            unlock(subject, achievement);
+            unlock(subject, achievement, UnlockOccasion.JUST_MET);
         }
     }
 
@@ -440,13 +440,28 @@ public final class AchievementEngine {
      * first, and a scripted grant deliberately does not. It DOES ask the consumer's
      * {@link AchievementGates#canUnlock}, which is where a claim only one subject can win is settled.
      *
+     * <p>Earned on a {@link UnlockOccasion#STANDING} occasion, which is what a caller outside the
+     * engine's own dispatch is doing: the criteria are already met and something is acting on that.
+     *
      * @return true when this call earned it
      */
     public boolean unlock(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+        return unlock(subject, achievement, UnlockOccasion.STANDING);
+    }
+
+    /**
+     * Earn it, saying whether the criteria were met in this very moment or whether a standing state
+     * is being acted on. The gates see the occasion and the decision is theirs either way; what it
+     * buys is a refusal that knows whether it is news (see {@link UnlockOccasion}).
+     *
+     * @return true when this call earned it
+     */
+    public boolean unlock(@Nonnull Subject subject, @Nonnull Achievement achievement,
+            @Nonnull UnlockOccasion occasion) {
         if (store.status(subject, achievement.id()).isUnlocked()) {
             return false;
         }
-        if (!safeGate(() -> gates.canUnlock(subject, achievement), "canUnlock", achievement)) {
+        if (!safeGate(() -> gates.canUnlock(subject, achievement, occasion), "canUnlock", achievement)) {
             return false;
         }
         store.setStatus(subject, achievement.id(), AchievementStatus.UNLOCKED);
@@ -468,7 +483,7 @@ public final class AchievementEngine {
         // subject already has. Collecting is the boundary, and it commits.
         store.markDirty(subject);
 
-        cascadeMeta(subject, achievement.id());
+        cascadeMeta(subject, achievement.id(), occasion);
         checkMilestones(subject);
         return true;
     }
@@ -551,8 +566,12 @@ public final class AchievementEngine {
      * Earn every meta achievement that was waiting on {@code childId} and is now complete, then keep
      * going for a meta standing on that meta. Bounded by the catalogue size, so a cycle in authored
      * content cannot spin here.
+     *
+     * <p>Carries the occasion of the earn that set it off: a meta completed by a child earned in
+     * this very moment is itself being met in this very moment, and one picked up by a sweep is not.
      */
-    private void cascadeMeta(@Nonnull Subject subject, @Nonnull String childId) {
+    private void cascadeMeta(@Nonnull Subject subject, @Nonnull String childId,
+            @Nonnull UnlockOccasion occasion) {
         List<String> queue = new ArrayList<>(metaParents.getOrDefault(childId, List.of()));
         int guard = achievements.size() + 1;
         while (!queue.isEmpty() && guard-- > 0) {
@@ -564,7 +583,7 @@ public final class AchievementEngine {
             if (store.status(subject, parentId).isUnlocked() || !metaChildrenComplete(subject, parent)) {
                 continue;
             }
-            if (unlock(subject, parent)) {
+            if (unlock(subject, parent, occasion)) {
                 queue.addAll(metaParents.getOrDefault(parentId, List.of()));
             }
         }

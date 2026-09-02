@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.FirstClaims;
 import com.ziggfreed.common.achievement.InMemoryAchievementProgressStore;
+import com.ziggfreed.common.achievement.UnlockOccasion;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
@@ -298,8 +299,8 @@ class ProgressionFeedbackHookTest {
                 .icon("Weapon_Longsword_Iron")
                 .build();
 
-        gates.canUnlock(Subject.of(UUID.randomUUID(), "winner"), onlyOnce);
-        gates.canUnlock(player, onlyOnce);
+        gates.canUnlock(Subject.of(UUID.randomUUID(), "winner"), onlyOnce, UnlockOccasion.JUST_MET);
+        gates.canUnlock(player, onlyOnce, UnlockOccasion.JUST_MET);
 
         Moment lost = only("Achievement_Server_First_Lost");
         assertSame(player, lost.subject(), "the moment is about whoever was beaten");

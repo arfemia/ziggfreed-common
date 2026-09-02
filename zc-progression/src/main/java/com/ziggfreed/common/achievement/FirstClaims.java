@@ -99,6 +99,11 @@ public final class FirstClaims {
      * <p>Announced from here rather than from the gate that decides it, because this is the one
      * place that knows a race was lost however the decision was reached. It deliberately carries no
      * picture: a loss is a quiet note, and an icon would make it read like the unlock it is not.
+     *
+     * <p>A race is lost ONCE, at the moment the loser finishes, and that is the only moment this is
+     * fired for. The claim is re-tested long afterwards - a login sweep and every achievement screen
+     * ask again, since a cleared claim is one the subject can now win - and none of those is a new
+     * loss to announce. The caller tells the two apart by {@link UnlockOccasion}.
      */
     public static void fireLost(@Nonnull Subject subject, @Nonnull Achievement achievement) {
         ProgressionFeedbackHook.fire(ProgressionRuntime.feedback(), SafeLog::warn,

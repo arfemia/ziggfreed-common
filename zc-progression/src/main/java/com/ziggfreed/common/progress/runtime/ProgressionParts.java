@@ -20,6 +20,7 @@ import com.ziggfreed.common.achievement.AchievementGates;
 import com.ziggfreed.common.achievement.AchievementProgressStore;
 import com.ziggfreed.common.achievement.AchievementStatus;
 import com.ziggfreed.common.achievement.InMemoryAchievementProgressStore;
+import com.ziggfreed.common.achievement.UnlockOccasion;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ProgressDispatchTap;
@@ -448,8 +449,9 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
         }
 
         @Override
-        public boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement) {
-            return ProgressionRuntime.parts().achievementGates().canUnlock(subject, achievement);
+        public boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement,
+                @Nonnull UnlockOccasion occasion) {
+            return ProgressionRuntime.parts().achievementGates().canUnlock(subject, achievement, occasion);
         }
 
         @Override
@@ -563,9 +565,10 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
             }
 
             @Override
-            public boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+            public boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement,
+                    @Nonnull UnlockOccasion occasion) {
                 for (AchievementGates gate : frozen) {
-                    if (!gate.canUnlock(subject, achievement)) {
+                    if (!gate.canUnlock(subject, achievement, occasion)) {
                         return false;
                     }
                 }

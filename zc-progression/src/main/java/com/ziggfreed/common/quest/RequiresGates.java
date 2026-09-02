@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementGates;
 import com.ziggfreed.common.achievement.FirstClaims;
+import com.ziggfreed.common.achievement.UnlockOccasion;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.progress.gate.GateEvaluator;
 import com.ziggfreed.common.progress.gate.GateSpec;
@@ -168,11 +169,20 @@ public final class RequiresGates implements QuestGates, AchievementGates {
      * wins the claim and the rest are refused, and a refusal deliberately leaves the criteria MET so
      * the decision can be revisited without anything being lost.
      *
+     * <p>The claim is tested on every occasion, because a claim an admin has since cleared is one
+     * this subject can now win and a sweep is where they find that out. The LOSS, though, is
+     * announced only when the criteria were met in this very moment - the one time a subject
+     * actually loses a race. Every later attempt re-discovers that same settled loss, and there are
+     * many of them: the self-heal sweep runs on login, on every world change and whenever an
+     * achievement surface opens, so a player standing on several taken claims was told about each of
+     * them again every time they walked through a portal.
+     *
      * <p>The loss is announced rather than handled here - what a player is told about it is
      * presentation, which this module cannot write.
      */
     @Override
-    public boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+    public boolean canUnlock(@Nonnull Subject subject, @Nonnull Achievement achievement,
+            @Nonnull UnlockOccasion occasion) {
         if (!achievement.serverFirst()) {
             return true;
         }
@@ -182,7 +192,9 @@ public final class RequiresGates implements QuestGates, AchievementGates {
         if (FirstClaims.store().tryClaim(achievement.id(), subject.id(), subject.name())) {
             return true;
         }
-        FirstClaims.fireLost(subject, achievement);
+        if (occasion == UnlockOccasion.JUST_MET) {
+            FirstClaims.fireLost(subject, achievement);
+        }
         return false;
     }
 
