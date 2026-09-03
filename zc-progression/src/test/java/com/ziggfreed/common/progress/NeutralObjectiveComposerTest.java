@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
@@ -26,9 +27,15 @@ class NeutralObjectiveComposerTest {
 
     private static final String NS = "ziggfreedcommon.progress.";
 
-    /** A composer over exactly the shipped keys a test declares. */
+    /** A composer over exactly the shipped keys a test declares, with no registered kind vocabulary. */
     private static NeutralObjectiveComposer over(Set<String> shippedKeys) {
-        return new NeutralObjectiveComposer(shippedKeys::contains);
+        return over(shippedKeys, kindId -> null);
+    }
+
+    /** A composer over exactly the shipped keys and the kind lookup a test declares. */
+    private static NeutralObjectiveComposer over(Set<String> shippedKeys,
+            Function<String, ObjectiveKind> kindLookup) {
+        return new NeutralObjectiveComposer(shippedKeys::contains, kindLookup);
     }
 
     private static ObjectiveDef step(String kind, String target, long amount) {
@@ -97,6 +104,66 @@ class NeutralObjectiveComposerTest {
                     "the author's own line wins over the generated sentence");
             assertNotNull(param(line, "0"), "and it resolves WITH its arguments, so a {0} slot is "
                     + "never painted literally");
+        } finally {
+            LangCatalog.overrideForTests(null);
+        }
+    }
+
+    @Test
+    void theKindsOwnTextKeyReadsWhenTheStepAuthoredNoneAndTheRegistryKnowsTheKind() {
+        LangCatalog.overrideForTests(Map.of(
+                "rpgstations.objective.text.work_station", "Work {0} cycles at {1}",
+                "rpgstations.objective.text.work_station.any", "Work {0} cycles at any station"));
+        try {
+            ObjectiveKind kind = ObjectiveKind.of("WORK_STATION").withPresentation(
+                    new ObjectiveKind.Presentation("objective.text.work_station", null, Map.of()));
+            NeutralObjectiveComposer composer = over(Set.of(), kindId -> kind);
+
+            Message targeted = composer.compose(step("WORK_STATION", "Sawmill", 5), null);
+            assertEquals("rpgstations.objective.text.work_station", targeted.getMessageId(),
+                    "the registered kind's own TextKey answers before the library's convention rung");
+
+            Message any = composer.compose(step("WORK_STATION", "", 5), null);
+            assertEquals("rpgstations.objective.text.work_station.any", any.getMessageId(),
+                    "and its .any twin answers a targetless step, the same as the convention rung does");
+        } finally {
+            LangCatalog.overrideForTests(null);
+        }
+    }
+
+    @Test
+    void aKindWithNoTextKeyFallsThroughToTheConventionKeyAsToday() {
+        ObjectiveKind kind = ObjectiveKind.of("KILL_ENTITY"); // Presentation.NONE: no TextKey authored
+        NeutralObjectiveComposer composer = over(Set.of(NS + "objective.kill_entity"), kindId -> kind);
+
+        Message line = composer.compose(step("KILL_ENTITY", "Trork", 10), null);
+        assertEquals(NS + "objective.kill_entity", line.getMessageId(),
+                "a registered kind that names no TextKey falls through to the convention rung unchanged");
+    }
+
+    @Test
+    void aKindTheRegistryDoesNotKnowFallsThroughUnchanged() {
+        NeutralObjectiveComposer composer = over(Set.of(NS + "objective.kill_entity"), kindId -> null);
+
+        Message line = composer.compose(step("KILL_ENTITY", "Trork", 10), null);
+        assertEquals(NS + "objective.kill_entity", line.getMessageId(),
+                "an id the registry does not know reads through to the convention rung exactly as "
+                        + "before this seam existed");
+    }
+
+    @Test
+    void theStepsOwnAuthoredKeyStillOutranksTheKindsTextKey() {
+        LangCatalog.overrideForTests(Map.of(
+                "fixture.yourmod.step.custom", "Custom words {0} {1}",
+                "rpgstations.objective.text.work_station", "Work {0} cycles at {1}"));
+        try {
+            ObjectiveKind kind = ObjectiveKind.of("WORK_STATION").withPresentation(
+                    new ObjectiveKind.Presentation("objective.text.work_station", null, Map.of()));
+            NeutralObjectiveComposer composer = over(Set.of(), kindId -> kind);
+
+            Message line = composer.compose(step("WORK_STATION", "Sawmill", 5), "yourmod.step.custom");
+            assertEquals("fixture.yourmod.step.custom", line.getMessageId(),
+                    "the step's own authored key still outranks the kind's generated template");
         } finally {
             LangCatalog.overrideForTests(null);
         }

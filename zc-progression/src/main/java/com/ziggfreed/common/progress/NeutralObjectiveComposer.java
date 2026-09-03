@@ -1,6 +1,7 @@
 package com.ziggfreed.common.progress;
 
 import java.util.Locale;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
@@ -12,6 +13,7 @@ import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.i18n.NativeNames;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.util.NumberFormatter;
 
 /**
@@ -27,6 +29,10 @@ import com.ziggfreed.common.util.NumberFormatter;
  *   <li>the step's own authored key, resolved WITH its arguments ({@code {0}} the amount,
  *       {@code {1}} the target's name) - the author's words are never outranked by a generated
  *       sentence;</li>
+ *   <li>the step's registered KIND's own authored {@link ObjectiveKind.Presentation#textKey()},
+ *       when the registry knows the kind and it named one - resolved the same namespace-agnostic
+ *       way as the step's own key, with the same {@code .any} twin for a targetless step (a kind
+ *       file, not this class, is the schema authority for its sentence);</li>
  *   <li>{@code objective.<kind>.any} when the step targets nothing in particular;</li>
  *   <li>{@code objective.<kind>} with the amount and the target's name;</li>
  *   <li>{@code objective.default} (or its {@code .any} twin), the last shipped resort;</li>
@@ -45,8 +51,14 @@ import com.ziggfreed.common.util.NumberFormatter;
  */
 final class NeutralObjectiveComposer implements ObjectiveComposer {
 
-    /** The instance {@link ObjectiveComposer#line} falls back to, probing the live catalogue. */
-    static final NeutralObjectiveComposer INSTANCE = new NeutralObjectiveComposer(LangCatalog::has);
+    /**
+     * The instance {@link ObjectiveComposer#line} falls back to, probing the live catalogue and
+     * re-reading the shared runtime's objective-kind registry on every call (never a captured
+     * snapshot, so a kind registered - or a registry swapped in a test reset - after this constant
+     * was built is still seen).
+     */
+    static final NeutralObjectiveComposer INSTANCE = new NeutralObjectiveComposer(
+            LangCatalog::has, kindId -> ProgressionRuntime.objectiveKinds().kind(kindId));
 
     /** This library's own lang namespace plus the domain file the sentence family lives in. */
     private static final String PREFIX = "ziggfreedcommon.";
@@ -56,10 +68,13 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
     private static final String STAT_FACTOR = "hytale:stat";
 
     private final Predicate<String> keyExists;
+    private final Function<String, ObjectiveKind> kindLookup;
 
-    /** Package-visible so a unit test can drive the ladder over a fixture catalogue. */
-    NeutralObjectiveComposer(@Nonnull Predicate<String> keyExists) {
+    /** Package-visible so a unit test can drive the ladder over a fixture catalogue and vocabulary. */
+    NeutralObjectiveComposer(@Nonnull Predicate<String> keyExists,
+                            @Nonnull Function<String, ObjectiveKind> kindLookup) {
         this.keyExists = keyExists;
+        this.kindLookup = kindLookup;
     }
 
     @Override
@@ -72,6 +87,9 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
         Message sentence = null;
         if (authoredKey != null && !authoredKey.isBlank() && ContentKeys.known(authoredKey.trim())) {
             sentence = ContentKeys.tr(authoredKey.trim(), amount, target);
+        }
+        if (sentence == null) {
+            sentence = fromKindTextKey(objective, emptyTarget, amount, target);
         }
         if (sentence == null) {
             String kindKey = "objective." + objective.kind().toLowerCase(Locale.ROOT);
@@ -98,6 +116,31 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
             sentence = text("objective.zone", sentence, NativeNames.zoneNameMsg(zone));
         }
         return sentence;
+    }
+
+    /**
+     * The step's registered KIND's own {@code Presentation.TextKey}, or null when the registry does
+     * not know the kind or the kind named none - the rung a kind file (its schema, not this class)
+     * owns. Resolved namespace-agnostically through {@link ContentKeys}, exactly like the step's own
+     * authored key, with the same {@code .any} twin for a targetless step that the convention rung
+     * below carries.
+     */
+    @Nullable
+    private Message fromKindTextKey(@Nonnull ObjectiveDef objective, boolean emptyTarget,
+                                    @Nonnull String amount, @Nonnull Message target) {
+        ObjectiveKind kind = kindLookup.apply(objective.kind());
+        String textKey = kind == null ? null : kind.presentation().textKey();
+        if (textKey == null || textKey.isBlank()) {
+            return null;
+        }
+        String trimmed = textKey.trim();
+        if (emptyTarget && ContentKeys.known(trimmed + ".any")) {
+            return ContentKeys.tr(trimmed + ".any", amount);
+        }
+        if (ContentKeys.known(trimmed)) {
+            return ContentKeys.tr(trimmed, amount, target);
+        }
+        return null;
     }
 
     /**
