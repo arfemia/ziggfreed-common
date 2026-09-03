@@ -30,6 +30,8 @@ import com.ziggfreed.common.dialogue.schema.DialogueStart;
 import com.ziggfreed.common.dialogue.asset.DialogueFragmentAsset;
 import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
+import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
+import com.ziggfreed.common.encounter.asset.EncounterParticipationAsset;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
@@ -109,6 +111,26 @@ class AssetCodecInitTest {
     @Test
     void multiPhaseBossAssetCodecInitializes() {
         assertNotNull(MultiPhaseBossAsset.CODEC, "MultiPhaseBossAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void encounterBindingAssetCodecInitializes() {
+        assertNotNull(EncounterBindingAsset.CODEC, "EncounterBindingAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(EncounterBindingAsset.Subject.CODEC, "the Subject group codec must static-init");
+        assertNotNull(EncounterBindingAsset.Participation.CODEC, "the Participation group codec must static-init");
+        assertNotNull(EncounterBindingAsset.Scale.CODEC, "the Scale group codec must static-init");
+        assertNotNull(EncounterBindingAsset.Timing.CODEC, "the Timing group codec must static-init");
+        assertNotNull(EncounterBindingAsset.Loot.CODEC, "the Loot group codec must static-init");
+        assertNotNull(EncounterBindingAsset.Leaderboard.CODEC, "the Leaderboard group codec must static-init");
+        assertNotNull(EncounterBindingAsset.Progression.CODEC, "the Progression group codec must static-init");
+        assertNotNull(EncounterBindingAsset.Feedback.CODEC, "the Feedback group codec must static-init");
+        assertNotNull(EncounterBindingAsset.Discovery.CODEC, "the Discovery group codec must static-init");
+    }
+
+    @Test
+    void encounterParticipationAssetCodecInitializes() {
+        assertNotNull(EncounterParticipationAsset.CODEC,
+                "EncounterParticipationAsset.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

@@ -1,0 +1,58 @@
+{
+  "$Comment": [
+    "The defeat beat, whole: when the Target sensor loses the boss, clear the bar, stop the music,",
+    "release the slot, send zc:defeated and move to the state Next points at. Reference it as the",
+    "last instruction of the fight's final phase:",
+    "",
+    "  { \"Reference\": \"Zc_Defeat_Beat\", \"Modify\": { \"_ExportStates\": [ \"Complete\" ] } }",
+    "",
+    "The library settles credit the instant the boss's death lands, so the beat here is the fallback",
+    "for a fight with no bound boss and the authoritative place the bar comes down. A zc:defeated",
+    "beat without a ClearEncounterBossBar beside it fails the content audit, because a dead boss's",
+    "bar otherwise stays on every screen until the corpse is removed."
+  ],
+  "Class": "Instruction",
+  "Type": "Component",
+  "Interface": "Hytale.Instruction.Encounter.Phase.Transition",
+  "Parameters": {
+    "_ImportStates": [ "Next" ],
+    "Slot": {
+      "Value": "Boss",
+      "Description": "The target slot holding the boss."
+    },
+    "Range": {
+      "Value": 100,
+      "Description": "How far the boss may be from the encounter entity to still count as present."
+    }
+  },
+  "Content": {
+    "Sensor": {
+      "Type": "Not",
+      "Sensor": {
+        "Type": "Target",
+        "Range": { "Compute": "Range" },
+        "TargetSlot": { "Compute": "Slot" }
+      }
+    },
+    "Actions": [
+      {
+        "Type": "ClearEncounterBossBar"
+      },
+      {
+        "Type": "StopEncounterMusic"
+      },
+      {
+        "Type": "ReleaseTarget",
+        "TargetSlot": { "Compute": "Slot" }
+      },
+      {
+        "Type": "SignalWorldEvent",
+        "SignalId": "zc:defeated"
+      },
+      {
+        "Type": "ParentState",
+        "State": "Next"
+      }
+    ]
+  }
+}

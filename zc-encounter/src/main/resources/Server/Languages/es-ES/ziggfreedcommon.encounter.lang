@@ -1,0 +1,67 @@
+# El marco de encuentros: el nombre de respaldo de la barra de jefe, el nombre del ejemplo incluido y
+# la familia de comandos /zigencounter (textos de ayuda, listados y respuestas).
+# El nombre del archivo es el PREFIJO de clave: una entrada aquí se resuelve como ziggfreedcommon.encounter.<key>.
+
+bar.default = Jefe
+example.name = Encuentro de ejemplo
+
+admin.desc.family = Inspeccionar y dirigir los encuentros de este servidor.
+admin.desc.list = Listar cada encuentro en curso, con su ejecución y su estado.
+admin.desc.inspect = Mostrar la ejecución de un encuentro: su objetivo, sus miembros y quién ha ganado qué.
+admin.desc.spawn = Levantar un guion de encuentro, junto a ti, en el punto de aparición de un mundo o en unas coordenadas.
+admin.desc.end = Retirar un encuentro en curso; un combate ya empezado cuenta como derrota del grupo.
+admin.desc.state = Forzar el guion de un encuentro a un estado.
+admin.desc.validate = Auditar cada guion de encuentro, fila de vinculación y regla de participación cargados.
+admin.desc.reload = Releer los archivos del propietario sobre las vinculaciones y las reglas de participación.
+admin.desc.arg.ref = Un encuentro en curso: un prefijo de su id de ejecución tal como lo muestra list, o su id de guion.
+admin.desc.arg.asset = El id del guion de encuentro, su nombre de archivo bajo Server/EncounterManager.
+admin.desc.arg.world = El mundo donde levantarlo. Por defecto el tuyo, o el mundo por defecto desde la consola.
+admin.desc.arg.x = La coordenada X donde levantarlo; indica las tres o ninguna.
+admin.desc.arg.y = La coordenada Y donde levantarlo; indica las tres o ninguna.
+admin.desc.arg.z = La coordenada Z donde levantarlo; indica las tres o ninguna.
+admin.desc.arg.state = El nombre de estado propio del guion.
+admin.desc.arg.substate = El subestado, o el predeterminado del guion si se omite.
+
+admin.more = ... y {0} más, en el registro del servidor.
+
+admin.list.header = Encuentros en curso ({0}):
+admin.list.none = No hay ningún encuentro en curso.
+admin.list.row = {0} ejecución {1} en {2}: estado {3}, {4} miembros, fase {5}
+admin.list.row.idle = {0} ejecución {1} en {2}: estado {3}, a la espera
+
+admin.inspect.header = Encuentro {0}, ejecución {1}:
+admin.inspect.world = mundo: {0}
+admin.inspect.state = estado: {0}
+admin.inspect.engaged = en combate desde hace {0} segundos, fase {1}, {2} oleadas hasta ahora
+admin.inspect.idle = aún no ha empezado
+admin.inspect.subject = objetivo: {0}
+admin.inspect.subject.none = objetivo: nada vinculado todavía
+admin.inspect.members = miembros: {0}, muertes: {1}
+admin.inspect.concluded = resuelto: {0}
+admin.inspect.participant = {0}: {1} infligido, {2} recibido, {3}s presente, cuota {4}%
+admin.inspect.participants.none = Nadie ha ganado crédito todavía.
+
+admin.ref.needed = Indica un encuentro con --ref=<prefijo del id de ejecución o id de guion>.
+admin.ref.unknown = Ningún encuentro en curso coincide con '{0}'. Prueba /zigencounter list.
+admin.ref.ambiguous = '{0}' nombra más de un encuentro en curso; da un prefijo más largo del id de ejecución.
+admin.ref.gone = Ese encuentro ya no está en curso.
+
+admin.spawn.done = {0} levantado en {1} en {2}, {3}, {4}.
+admin.spawn.unknown = Ningún guion de encuentro se llama '{0}'.
+admin.spawn.notspawnable = '{0}' es un guion base, no uno que se pueda levantar.
+admin.spawn.disabled = '{0}' está desactivado en su fila de vinculación.
+admin.spawn.failed = El motor se negó a levantar '{0}'.
+admin.spawn.world.unknown = Ningún mundo se llama '{0}'.
+admin.spawn.world.needed = Indica un mundo con --world=<nombre>, o ejecuta esto como jugador.
+admin.spawn.position.needed = Ese mundo no tiene punto de aparición; indica --x= --y= --z=.
+
+admin.end.done = {0} terminado (ejecución {1}).
+
+admin.state.done = {0} está ahora en el estado {1}.
+admin.state.refused = {0} no tiene ninguna máquina de estados que fijar.
+
+admin.validate.clean = Contenido de encuentros: nada que informar.
+admin.validate.counts = Contenido de encuentros: {0} errores, {1} avisos, {2} notas.
+admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = Archivos del propietario releídos: {0} vinculaciones y {1} reglas de participación en vigor, {2} guiones cargados.

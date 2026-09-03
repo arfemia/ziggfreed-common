@@ -1,0 +1,67 @@
+# Karşılaşma çerçevesi: patron çubuğunun yedek adı, birlikte gelen örneğin adı ve /zigencounter
+# komut ailesi (yardım metinleri, listeler ve yanıtlar).
+# Dosya adı anahtar ÖN EKİDİR: buradaki bir girdi ziggfreedcommon.encounter.<key> olarak çözülür.
+
+bar.default = Patron
+example.name = Örnek Karşılaşma
+
+admin.desc.family = Bu sunucunun karşılaşmalarını incele ve yönet.
+admin.desc.list = Süren her karşılaşmayı, koşusu ve durumuyla listele.
+admin.desc.inspect = Bir karşılaşmanın koşusunu göster: hedefi, üyeleri ve kimin ne kazandığı.
+admin.desc.spawn = Bir karşılaşma betiğini ayağa kaldır: yanında, bir dünyanın doğma noktasında ya da koordinatlarda.
+admin.desc.end = Süren bir karşılaşmayı kaldır; başlamış bir dövüş grup yenilgisi sayılır.
+admin.desc.state = Bir karşılaşmanın betiğini bir duruma zorla.
+admin.desc.validate = Yüklü her karşılaşma betiğini, bağlama satırını ve katılım kuralını denetle.
+admin.desc.reload = Karşılaşma bağlamaları ve katılım kuralları üzerindeki sahip dosyalarını yeniden oku.
+admin.desc.arg.ref = Süren bir karşılaşma: list'in gösterdiği koşu kimliğinin başı ya da betik kimliği.
+admin.desc.arg.asset = Karşılaşma betiğinin kimliği, Server/EncounterManager altındaki dosya adı.
+admin.desc.arg.world = Kaldırılacağı dünya. Varsayılan seninki, konsoldan ise varsayılan dünya.
+admin.desc.arg.x = Kaldırılacağı X koordinatı; üçünü de ver ya da hiçbirini.
+admin.desc.arg.y = Kaldırılacağı Y koordinatı; üçünü de ver ya da hiçbirini.
+admin.desc.arg.z = Kaldırılacağı Z koordinatı; üçünü de ver ya da hiçbirini.
+admin.desc.arg.state = Betiğin kendi durum adı.
+admin.desc.arg.substate = Alt durum, ya da verilmezse betiğin varsayılanı.
+
+admin.more = ... ve {0} tane daha, sunucu günlüğünde.
+
+admin.list.header = Süren karşılaşmalar ({0}):
+admin.list.none = Süren karşılaşma yok.
+admin.list.row = {0} koşu {1}, {2} içinde: durum {3}, {4} üye, evre {5}
+admin.list.row.idle = {0} koşu {1}, {2} içinde: durum {3}, bekliyor
+
+admin.inspect.header = Karşılaşma {0}, koşu {1}:
+admin.inspect.world = dünya: {0}
+admin.inspect.state = durum: {0}
+admin.inspect.engaged = {0} saniyedir dövüşte, evre {1}, şimdiye dek {2} dalga
+admin.inspect.idle = henüz başlamadı
+admin.inspect.subject = hedef: {0}
+admin.inspect.subject.none = hedef: henüz bir şey bağlı değil
+admin.inspect.members = üyeler: {0}, ölümler: {1}
+admin.inspect.concluded = sonuçlandı: {0}
+admin.inspect.participant = {0}: {1} verildi, {2} alındı, {3} sn mevcut, pay %{4}
+admin.inspect.participants.none = Henüz kimse pay kazanmadı.
+
+admin.ref.needed = Bir karşılaşma belirt: --ref=<koşu kimliğinin başı ya da betik kimliği>.
+admin.ref.unknown = '{0}' ile eşleşen süren bir karşılaşma yok. /zigencounter list dene.
+admin.ref.ambiguous = '{0}' birden fazla süren karşılaşmayı belirtiyor; daha uzun bir koşu kimliği başı ver.
+admin.ref.gone = O karşılaşma artık sürmüyor.
+
+admin.spawn.done = {0}, {1} içinde {2}, {3}, {4} noktasında ayağa kaldırıldı.
+admin.spawn.unknown = '{0}' adlı bir karşılaşma betiği yok.
+admin.spawn.notspawnable = '{0}' bir temel betik, ayağa kaldırılabilecek bir betik değil.
+admin.spawn.disabled = '{0}' bağlama satırında kapalı.
+admin.spawn.failed = Motor '{0}' betiğini ayağa kaldırmayı reddetti.
+admin.spawn.world.unknown = '{0}' adlı bir dünya yok.
+admin.spawn.world.needed = --world=<ad> ile bir dünya belirt ya da bunu oyuncu olarak çalıştır.
+admin.spawn.position.needed = O dünyanın doğma noktası yok; --x= --y= --z= ver.
+
+admin.end.done = {0} bitirildi (koşu {1}).
+
+admin.state.done = {0} artık {1} durumunda.
+admin.state.refused = {0} ayarlanacak bir durum makinesi taşımıyor.
+
+admin.validate.clean = Karşılaşma içeriği: bildirilecek bir şey yok.
+admin.validate.counts = Karşılaşma içeriği: {0} hata, {1} uyarı, {2} not.
+admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = Sahip dosyaları yeniden okundu: {0} bağlama ve {1} katılım kuralı yürürlükte, {2} betik yüklü.

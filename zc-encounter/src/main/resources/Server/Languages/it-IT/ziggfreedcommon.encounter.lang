@@ -1,0 +1,67 @@
+# Il framework degli incontri: il nome di riserva della barra del boss, il nome dell'esempio incluso e
+# la famiglia di comandi /zigencounter (testi di aiuto, elenchi e risposte).
+# Il nome del file è il PREFISSO della chiave: una voce qui si risolve come ziggfreedcommon.encounter.<key>.
+
+bar.default = Boss
+example.name = Incontro di esempio
+
+admin.desc.family = Ispezionare e guidare gli incontri di questo server.
+admin.desc.list = Elencare ogni incontro in corso, con la sua esecuzione e il suo stato.
+admin.desc.inspect = Mostrare l'esecuzione di un incontro: il bersaglio, i membri e chi ha guadagnato cosa.
+admin.desc.spawn = Avviare uno script di incontro, accanto a te, al punto di comparsa di un mondo o a delle coordinate.
+admin.desc.end = Rimuovere un incontro in corso; un combattimento già iniziato conta come sconfitta del gruppo.
+admin.desc.state = Forzare lo script di un incontro in uno stato.
+admin.desc.validate = Verificare ogni script di incontro, riga di collegamento e regola di partecipazione caricati.
+admin.desc.reload = Rileggere i file del proprietario sui collegamenti degli incontri e sulle regole di partecipazione.
+admin.desc.arg.ref = Un incontro in corso: un prefisso del suo id di esecuzione come lo mostra list, o l'id del suo script.
+admin.desc.arg.asset = L'id dello script di incontro, il suo nome di file sotto Server/EncounterManager.
+admin.desc.arg.world = Il mondo in cui avviarlo. Per impostazione predefinita il tuo, o il mondo predefinito dalla console.
+admin.desc.arg.x = La coordinata X in cui avviarlo; indica tutte e tre o nessuna.
+admin.desc.arg.y = La coordinata Y in cui avviarlo; indica tutte e tre o nessuna.
+admin.desc.arg.z = La coordinata Z in cui avviarlo; indica tutte e tre o nessuna.
+admin.desc.arg.state = Il nome di stato proprio dello script.
+admin.desc.arg.substate = Il sottostato, o quello predefinito dello script se omesso.
+
+admin.more = ... e altri {0}, nel registro del server.
+
+admin.list.header = Incontri in corso ({0}):
+admin.list.none = Nessun incontro è in corso.
+admin.list.row = {0} esecuzione {1} in {2}: stato {3}, {4} membri, fase {5}
+admin.list.row.idle = {0} esecuzione {1} in {2}: stato {3}, in attesa
+
+admin.inspect.header = Incontro {0}, esecuzione {1}:
+admin.inspect.world = mondo: {0}
+admin.inspect.state = stato: {0}
+admin.inspect.engaged = in combattimento da {0} secondi, fase {1}, {2} ondate finora
+admin.inspect.idle = non ancora iniziato
+admin.inspect.subject = bersaglio: {0}
+admin.inspect.subject.none = bersaglio: niente di collegato ancora
+admin.inspect.members = membri: {0}, morti: {1}
+admin.inspect.concluded = concluso: {0}
+admin.inspect.participant = {0}: {1} inflitti, {2} subiti, {3}s di presenza, quota {4}%
+admin.inspect.participants.none = Nessuno ha ancora guadagnato credito.
+
+admin.ref.needed = Indica un incontro con --ref=<prefisso dell'id di esecuzione o id dello script>.
+admin.ref.unknown = Nessun incontro in corso corrisponde a '{0}'. Prova /zigencounter list.
+admin.ref.ambiguous = '{0}' indica più di un incontro in corso; fornisci un prefisso più lungo dell'id di esecuzione.
+admin.ref.gone = Quell'incontro non è più in corso.
+
+admin.spawn.done = {0} avviato in {1} a {2}, {3}, {4}.
+admin.spawn.unknown = Nessuno script di incontro si chiama '{0}'.
+admin.spawn.notspawnable = '{0}' è uno script di base, non uno che si può avviare.
+admin.spawn.disabled = '{0}' è disattivato nella sua riga di collegamento.
+admin.spawn.failed = Il motore ha rifiutato di avviare '{0}'.
+admin.spawn.world.unknown = Nessun mondo si chiama '{0}'.
+admin.spawn.world.needed = Indica un mondo con --world=<nome>, oppure esegui questo come giocatore.
+admin.spawn.position.needed = Quel mondo non ha un punto di comparsa; indica --x= --y= --z=.
+
+admin.end.done = {0} terminato (esecuzione {1}).
+
+admin.state.done = {0} è ora nello stato {1}.
+admin.state.refused = {0} non ha alcuna macchina a stati da impostare.
+
+admin.validate.clean = Contenuto degli incontri: niente da segnalare.
+admin.validate.counts = Contenuto degli incontri: {0} errori, {1} avvisi, {2} note.
+admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = File del proprietario riletti: {0} collegamenti e {1} regole di partecipazione in vigore, {2} script caricati.

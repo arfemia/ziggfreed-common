@@ -1,0 +1,226 @@
+{
+  "$Comment": [
+    "The base every zc encounter script builds on. It is Abstract, so it never spawns on its own: a",
+    "boss is a Variant of it (Type Variant, Reference Zc_Encounter_Base, Modify the parameters below)",
+    "or a Generic script that copies its shape.",
+    "",
+    "What it does, in order. A Player sensor with the EncounterMembers collector keeps the roster the",
+    "boss bar and the music are applied through, and the roster the library credits presence from. In",
+    "Intro, while nothing is bound in SubjectSlot, TriggerSpawners fires the SpawnMarker within",
+    "SummonRange and binds the first spawn into the slot; the moment the Target sensor sees it, the",
+    "boss is made vulnerable, the bar goes up under BossBarName, the Music starts, the zc:engaged beat",
+    "tells the library the fight is on, and the state moves to Fight. In Fight, the FightBehavior slot",
+    "runs whatever macro a Variant hands it (Zc_Adds_Wave, say, or a macro of your own on the",
+    "Hytale.Instruction.Encounter.Phase.Behavior interface), and the moment the Target sensor loses",
+    "the boss the defeat beat clears the bar, stops the music, releases the slot and sends",
+    "zc:defeated. Complete waits RearmSeconds, sends zc:reset and returns to Intro, so the same",
+    "entity runs the fight again the next time a player comes near.",
+    "",
+    "The release runs on the Target sensor alone, so a boss role does not have to send a beacon to",
+    "start the fight. Phase transitions are not in this base: add them in a Generic script with the",
+    "Zc_Phase_At_Health macro, or set FightBehavior to a macro that carries them.",
+    "",
+    "A blocking action list keeps running only while its sensor keeps matching, and a sensor marked",
+    "Once is spent after its first tick. So a list that spans ticks (a Timeout, a wait for a spawn)",
+    "sits under a plain sensor and ends with the state change that stops it, the way Complete does",
+    "here; the content audit warns about a blocking list under a Once sensor.",
+    "",
+    "The library reads the zc: beats and nothing else: it credits everyone who fought, scales the",
+    "boss's health with the party, pays what the binding row under",
+    "Server/ZiggfreedCommon/Encounters names, and fires the feedback moments. Override this file by",
+    "id from your own pack to change the skeleton for every script built on it."
+  ],
+  "Class": "EncounterManager",
+  "Type": "Abstract",
+  "StartState": "Intro",
+  "CleanupOnRemove": true,
+  "Parameters": {
+    "SubjectSlot": {
+      "Value": "Boss",
+      "Description": "The target slot the boss is bound into and tracked through. Name the same slot in the binding row's Subject.TargetSlot."
+    },
+    "SpawnMarker": {
+      "Value": "Test_Boss_Marker",
+      "Description": "The manual-trigger spawn marker that raises the boss. Author one for your boss under Server/NPC/Spawn/Markers and stamp it into the arena."
+    },
+    "SummonRange": {
+      "Value": 30,
+      "Description": "How far from the encounter entity a spawn marker may be to be fired."
+    },
+    "SensorRange": {
+      "Value": 30,
+      "Description": "How close a player has to stand to count as a member of the fight."
+    },
+    "TargetRange": {
+      "Value": 100,
+      "Description": "How far the bound boss may roam before the Target sensor loses it."
+    },
+    "BossBarName": {
+      "Value": "ziggfreedcommon.encounter.bar.default",
+      "Description": "The lang key the boss bar shows, resolved on each player's own client."
+    },
+    "Music": {
+      "Value": "Track_Encounter_Cave_Test",
+      "Description": "The MusicContainer started for every member at the release and stopped at the defeat."
+    },
+    "FightBehavior": {
+      "Value": "$Null",
+      "Description": "A macro on the Hytale.Instruction.Encounter.Phase.Behavior interface run while the fight is on, or $Null for none. Zc_Adds_Wave is one."
+    },
+    "RearmSeconds": {
+      "Value": [ 30, 30 ],
+      "Description": "How long after the defeat the script waits before it re-arms for the next run, as a [min, max] range."
+    }
+  },
+  "Instructions": [
+    {
+      "Sensor": {
+        "Type": "Player",
+        "Range": { "Compute": "SensorRange" },
+        "Collector": {
+          "Type": "EncounterMembers"
+        }
+      },
+      "Instructions": [
+        {
+          "Sensor": {
+            "Type": "State",
+            "State": "Intro"
+          },
+          "Instructions": [
+            {
+              "Sensor": {
+                "Type": "Target",
+                "Range": { "Compute": "TargetRange" },
+                "TargetSlot": { "Compute": "SubjectSlot" }
+              },
+              "Actions": [
+                {
+                  "Type": "SetTargetNPCInvulnerable",
+                  "Invulnerable": false
+                },
+                {
+                  "Type": "SetEncounterBossBar",
+                  "Name": { "Compute": "BossBarName" }
+                },
+                {
+                  "Type": "StartEncounterMusic",
+                  "MusicContainer": { "Compute": "Music" }
+                },
+                {
+                  "Type": "SignalWorldEvent",
+                  "SignalId": "zc:engaged"
+                },
+                {
+                  "Type": "State",
+                  "State": "Fight"
+                }
+              ]
+            },
+            {
+              "Sensor": {
+                "Type": "Not",
+                "Sensor": {
+                  "Type": "Target",
+                  "Range": { "Compute": "TargetRange" },
+                  "TargetSlot": { "Compute": "SubjectSlot" }
+                }
+              },
+              "ActionsBlocking": true,
+              "Actions": [
+                {
+                  "Type": "Timeout",
+                  "Delay": [ 1, 1 ]
+                },
+                {
+                  "Type": "TriggerSpawners",
+                  "Count": 1,
+                  "Range": { "Compute": "SummonRange" },
+                  "SpawnMarker": { "Compute": "SpawnMarker" },
+                  "TargetSlot": { "Compute": "SubjectSlot" },
+                  "Rebind": true
+                },
+                {
+                  "Type": "Timeout",
+                  "Delay": [ 2, 2 ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Sensor": {
+            "Type": "State",
+            "State": "Fight"
+          },
+          "Instructions": [
+            {
+              "Reference": { "Compute": "FightBehavior" },
+              "Interfaces": [ "Hytale.Instruction.Encounter.Phase.Behavior" ],
+              "AcceptsForward": true,
+              "Nullable": true
+            },
+            {
+              "Sensor": {
+                "Type": "Not",
+                "Sensor": {
+                  "Type": "Target",
+                  "Range": { "Compute": "TargetRange" },
+                  "TargetSlot": { "Compute": "SubjectSlot" }
+                }
+              },
+              "Actions": [
+                {
+                  "Type": "ClearEncounterBossBar"
+                },
+                {
+                  "Type": "StopEncounterMusic"
+                },
+                {
+                  "Type": "ReleaseTarget",
+                  "TargetSlot": { "Compute": "SubjectSlot" }
+                },
+                {
+                  "Type": "SignalWorldEvent",
+                  "SignalId": "zc:defeated"
+                },
+                {
+                  "Type": "State",
+                  "State": "Complete"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Sensor": {
+            "Type": "State",
+            "State": "Complete"
+          },
+          "Instructions": [
+            {
+              "Sensor": {
+                "Type": "Any"
+              },
+              "ActionsBlocking": true,
+              "Actions": [
+                {
+                  "Type": "Timeout",
+                  "Delay": { "Compute": "RearmSeconds" }
+                },
+                {
+                  "Type": "SignalWorldEvent",
+                  "SignalId": "zc:reset"
+                },
+                {
+                  "Type": "State",
+                  "State": "Intro"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

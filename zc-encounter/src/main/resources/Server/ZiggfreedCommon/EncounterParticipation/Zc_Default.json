@@ -1,0 +1,27 @@
+{
+  "$Comment": [
+    "How credit for a fight is shared out when no narrower rule matches its subject. Three counters",
+    "are kept per participant while the fight is on: damage dealt to the boss, damage taken while a",
+    "member, and seconds spent as a member. Each weight below says what one unit of that counter is",
+    "worth; a participant's score is the weighted sum, and their share is that score against the top",
+    "contributor's, so the player who did most reads 1.0 and the rest a fraction of it. Loot rolls",
+    "are kept with a chance equal to the share, and a share under MinShare is credited with the",
+    "attempt but paid nothing.",
+    "",
+    "A weight can be a bare number, as here, or a factor formula read about each participant, e.g.",
+    "{ \"Base\": 0.1, \"Factors\": [ { \"Factor\": \"hytale:stat\", \"Param\": \"Luck\", \"Weight\": 0.01 } ] }.",
+    "Presence only accrues on a script whose Player sensor carries the EncounterMembers collector.",
+    "",
+    "Match is a name pattern on the boss's mob id and Where the shared world selector, so a pack",
+    "ships a narrower rule beside this one (\"Match\": \"*Warden*\") without touching this file; the",
+    "most specific match wins. Retune this file for the whole server from",
+    "mods/ziggfreedcommon/encounter-participation.json under the key zc_default."
+  ],
+  "Match": "*",
+  "DamageDealt": 1.0,
+  "DamageTaken": 0.25,
+  "Presence": 0.1,
+  "MinShare": 0.05,
+  "CreditDead": true,
+  "CreditDisconnected": true
+}

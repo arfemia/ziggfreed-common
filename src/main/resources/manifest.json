@@ -12,5 +12,9 @@
   "ServerVersion": ">=0.6.0-pre.13 <0.7.0",
   "DisabledByDefault": false,
   "Main": "com.ziggfreed.common.ZiggfreedCommonPlugin",
+  "Dependencies": {
+    "Hytale:NPC": "*",
+    "Hytale:EncounterManager": "*"
+  },
   "IncludesAssetPack": true
 }

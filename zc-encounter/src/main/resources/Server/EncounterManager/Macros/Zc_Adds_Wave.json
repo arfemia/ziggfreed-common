@@ -1,0 +1,52 @@
+{
+  "$Comment": [
+    "Summon a wave of adds once, and tell the library a wave went out. Reference it inside a state's",
+    "Instructions (or hand it to a base script's FightBehavior slot):",
+    "",
+    "  { \"Reference\": \"Zc_Adds_Wave\",",
+    "    \"Modify\": { \"Spawner\": \"My_Adds_Marker\", \"Count\": 3, \"Signal\": \"zc:wave:first\" } }",
+    "",
+    "Spawner is a manual-trigger spawn marker stamped near the encounter entity; Count 0 fires every",
+    "matching marker within Range. Signal is the beat the library hears (zc:wave, or zc:wave:<label>",
+    "to tell waves apart in a listener); it counts the wave and fires the generic signal event."
+  ],
+  "Class": "Instruction",
+  "Type": "Component",
+  "Interface": "Hytale.Instruction.Encounter.Phase.Behavior",
+  "Parameters": {
+    "Range": {
+      "Value": 30,
+      "Description": "How far from the encounter entity a spawn marker may be to be fired."
+    },
+    "Count": {
+      "Value": 0,
+      "Description": "How many matching markers to fire at random; 0 fires all of them."
+    },
+    "Spawner": {
+      "Value": "Test_Boss_Marker",
+      "Description": "The manual-trigger spawn marker the adds rise from."
+    },
+    "Signal": {
+      "Value": "zc:wave",
+      "Description": "The beat sent as the wave goes out: zc:wave, or zc:wave:<label>."
+    }
+  },
+  "Content": {
+    "Sensor": {
+      "Type": "Any",
+      "Once": true
+    },
+    "Actions": [
+      {
+        "Type": "TriggerSpawners",
+        "Range": { "Compute": "Range" },
+        "Count": { "Compute": "Count" },
+        "SpawnMarker": { "Compute": "Spawner" }
+      },
+      {
+        "Type": "SignalWorldEvent",
+        "SignalId": { "Compute": "Signal" }
+      }
+    ]
+  }
+}

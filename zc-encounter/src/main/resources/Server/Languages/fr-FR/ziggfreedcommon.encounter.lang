@@ -1,0 +1,67 @@
+# Le cadre des rencontres : le nom de repli de la barre de boss, le nom de l'exemple fourni et la
+# famille de commandes /zigencounter (textes d'aide, listes et réponses).
+# Le nom du fichier est le PRÉFIXE de clé : une entrée ici se résout en ziggfreedcommon.encounter.<key>.
+
+bar.default = Boss
+example.name = Rencontre d'exemple
+
+admin.desc.family = Inspecter et piloter les rencontres de ce serveur.
+admin.desc.list = Lister chaque rencontre en cours, avec son déroulement et son état.
+admin.desc.inspect = Afficher le déroulement d'une rencontre : sa cible, ses membres et ce que chacun a gagné.
+admin.desc.spawn = Mettre en place un script de rencontre, près de vous, au point d'apparition d'un monde ou à des coordonnées.
+admin.desc.end = Retirer une rencontre en cours ; un combat engagé compte comme une défaite du groupe.
+admin.desc.state = Forcer le script d'une rencontre dans un état.
+admin.desc.validate = Auditer chaque script de rencontre, ligne de liaison et règle de participation chargés.
+admin.desc.reload = Relire les fichiers du propriétaire sur les liaisons et les règles de participation.
+admin.desc.arg.ref = Une rencontre en cours : un préfixe de son identifiant de déroulement tel que list l'affiche, ou l'identifiant de son script.
+admin.desc.arg.asset = L'identifiant du script de rencontre, son nom de fichier sous Server/EncounterManager.
+admin.desc.arg.world = Le monde où la placer. Par défaut le vôtre, ou le monde par défaut depuis la console.
+admin.desc.arg.x = La coordonnée X où la placer ; donnez les trois ou aucune.
+admin.desc.arg.y = La coordonnée Y où la placer ; donnez les trois ou aucune.
+admin.desc.arg.z = La coordonnée Z où la placer ; donnez les trois ou aucune.
+admin.desc.arg.state = Le nom d'état propre au script.
+admin.desc.arg.substate = Le sous-état, ou celui par défaut du script s'il est omis.
+
+admin.more = ... et {0} de plus, dans le journal du serveur.
+
+admin.list.header = Rencontres en cours ({0}) :
+admin.list.none = Aucune rencontre n'est en cours.
+admin.list.row = {0} déroulement {1} dans {2} : état {3}, {4} membres, phase {5}
+admin.list.row.idle = {0} déroulement {1} dans {2} : état {3}, en attente
+
+admin.inspect.header = Rencontre {0}, déroulement {1} :
+admin.inspect.world = monde : {0}
+admin.inspect.state = état : {0}
+admin.inspect.engaged = engagée depuis {0} secondes, phase {1}, {2} vagues jusqu'ici
+admin.inspect.idle = pas encore engagée
+admin.inspect.subject = cible : {0}
+admin.inspect.subject.none = cible : rien de lié pour l'instant
+admin.inspect.members = membres : {0}, morts : {1}
+admin.inspect.concluded = réglée : {0}
+admin.inspect.participant = {0} : {1} infligés, {2} subis, {3}s de présence, part {4}%
+admin.inspect.participants.none = Personne n'a encore gagné de crédit.
+
+admin.ref.needed = Nommez une rencontre avec --ref=<préfixe de l'identifiant de déroulement ou identifiant du script>.
+admin.ref.unknown = Aucune rencontre en cours ne correspond à '{0}'. Essayez /zigencounter list.
+admin.ref.ambiguous = '{0}' désigne plus d'une rencontre en cours ; donnez un préfixe plus long.
+admin.ref.gone = Cette rencontre n'est plus en cours.
+
+admin.spawn.done = {0} placée dans {1} en {2}, {3}, {4}.
+admin.spawn.unknown = Aucun script de rencontre ne s'appelle '{0}'.
+admin.spawn.notspawnable = '{0}' est un script de base, pas un script que l'on peut placer.
+admin.spawn.disabled = '{0}' est désactivée dans sa ligne de liaison.
+admin.spawn.failed = Le moteur a refusé de placer '{0}'.
+admin.spawn.world.unknown = Aucun monde ne s'appelle '{0}'.
+admin.spawn.world.needed = Nommez un monde avec --world=<nom>, ou lancez ceci en tant que joueur.
+admin.spawn.position.needed = Ce monde n'a pas de point d'apparition ; donnez --x= --y= --z=.
+
+admin.end.done = {0} terminée (déroulement {1}).
+
+admin.state.done = {0} est maintenant dans l'état {1}.
+admin.state.refused = {0} n'a pas de machine à états à régler.
+
+admin.validate.clean = Contenu des rencontres : rien à signaler.
+admin.validate.counts = Contenu des rencontres : {0} erreurs, {1} avertissements, {2} notes.
+admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = Fichiers du propriétaire relus : {0} liaisons et {1} règles de participation en vigueur, {2} scripts chargés.

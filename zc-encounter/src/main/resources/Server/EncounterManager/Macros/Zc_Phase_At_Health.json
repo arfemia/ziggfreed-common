@@ -1,0 +1,78 @@
+{
+  "$Comment": [
+    "A phase transition on the boss's health, with the beat the library listens for. Reference it",
+    "inside a state's Instructions with _ExportStates naming the state to move to, and set Signal to",
+    "zc:phase:<that state> so the library records the phase, reconciles the health scale and fires",
+    "the phase feedback moment:",
+    "",
+    "  { \"Reference\": \"Zc_Phase_At_Health\",",
+    "    \"Modify\": { \"_ExportStates\": [ \"Phase_2\" ], \"HealthRange\": [ 0, 0.5 ], \"Signal\": \"zc:phase:Phase_2\" } }",
+    "",
+    "HealthRange is the boss's health as a fraction of its maximum, so [0, 0.5] fires at half. Set",
+    "SwapRole true and Role to a role id to change the boss's role in place at the transition (the",
+    "engine keeps its aggro, its target slot and its uuid across the swap); leave SwapRole false to",
+    "change nothing but the state."
+  ],
+  "Class": "Instruction",
+  "Type": "Component",
+  "Interface": "Hytale.Instruction.Encounter.Phase.Transition",
+  "Parameters": {
+    "_ImportStates": [ "Next" ],
+    "Slot": {
+      "Value": "Boss",
+      "Description": "The target slot holding the boss."
+    },
+    "Range": {
+      "Value": 100,
+      "Description": "How far the boss may be from the encounter entity to be sensed."
+    },
+    "HealthRange": {
+      "Value": [ 0, 0.5 ],
+      "Description": "Fire when the boss's health over its maximum falls inside this range."
+    },
+    "Signal": {
+      "Value": "zc:phase:Phase_2",
+      "Description": "The beat sent as the phase changes: zc:phase: followed by the state Next points at."
+    },
+    "SwapRole": {
+      "Value": false,
+      "Description": "Whether to change the boss's role in place at the transition."
+    },
+    "Role": {
+      "Value": "Test_Boss_Basic",
+      "Description": "The role to change the boss to when SwapRole is true."
+    }
+  },
+  "Content": {
+    "Sensor": {
+      "Type": "Target",
+      "Range": { "Compute": "Range" },
+      "TargetSlot": { "Compute": "Slot" },
+      "Filters": [
+        {
+          "Type": "Stat",
+          "StatTarget": "Value",
+          "RelativeTo": "Health",
+          "Stat": "Health",
+          "RelativeToTarget": "Max",
+          "ValueRange": { "Compute": "HealthRange" }
+        }
+      ]
+    },
+    "Actions": [
+      {
+        "Type": "ChangeTargetRole",
+        "Role": { "Compute": "Role" },
+        "Enabled": { "Compute": "SwapRole" }
+      },
+      {
+        "Type": "SignalWorldEvent",
+        "SignalId": { "Compute": "Signal" }
+      },
+      {
+        "Type": "ParentState",
+        "State": "Next"
+      }
+    ]
+  }
+}

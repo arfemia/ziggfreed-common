@@ -27,6 +27,8 @@ import com.ziggfreed.common.commerce.page.CurrencyChipReading;
 import com.ziggfreed.common.commerce.page.CommerceStepIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.encounter.EncounterBootstrap;
+import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.entity.EntityBootstrap;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
@@ -172,6 +174,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         DialogueBootstrap.registerDialogueVocabulary();
         DialogueBootstrap.registerDialogueMemories(this);
         ProgressionBootstrap.registerQuestListHost();
+        EncounterBootstrap.install(this);
+        registerEncounterSeams();
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
     }
@@ -354,6 +358,28 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     event -> CommerceAudit.runLateAudit());
         } catch (Throwable t) {
             SafeLog.warn("[commerce] economy wiring failed", t);
+        }
+    }
+
+    /**
+     * The questions the encounter module cannot answer alone, each answered by the progression
+     * runtime that already owns the answer: who a non-player attacker acts for (the composed kill
+     * attribution every kill producer asks), who a player IS to the engines that pay and notify them
+     * (the registered subject source, so a consumer's own handle and its notification preferences
+     * reach an encounter payout exactly as they reach a quest payout), and where an offline payout
+     * waits (the registered reward retry queue). Each is read LIVE at the moment of asking, because
+     * a consumer registers its own parts in its own setup, after this one. Pinned here because the
+     * encounter module may never import the progression modules: this root is the one place that
+     * sees both. The party-power seam has no library answer and stays for a companion to fill.
+     */
+    private void registerEncounterSeams() {
+        try {
+            EncounterSeams.fillAttribution((store, attackerRef) ->
+                    ProgressionRuntime.killAttribution().actsFor(store, attackerRef));
+            EncounterSeams.fillSubjectSource((store, ref) -> ProgressionRuntime.subjects().questSubject(store, ref));
+            EncounterSeams.fillRewardQueue(ProgressionRuntime::rewardRetryQueue);
+        } catch (Throwable t) {
+            SafeLog.warn("[encounter] seam wiring failed", t);
         }
     }
 

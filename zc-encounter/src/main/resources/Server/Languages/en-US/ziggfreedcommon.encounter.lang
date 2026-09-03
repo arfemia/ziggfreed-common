@@ -1,0 +1,70 @@
+# The encounter framework: the boss bar's fallback name, the shipped example's name, and the
+# /zigencounter admin command family (help text, listings and answers).
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.encounter.<key>, so the
+# admin family under admin. resolves as ziggfreedcommon.encounter.admin.<key>.
+# The admin.desc.* keys are what the engine's own help resolves a command or an argument through.
+# Nothing in this file names a boss, a loot table or a number: those belong to whoever ships the fight.
+
+bar.default = Boss
+example.name = Example Encounter
+
+admin.desc.family = Inspect and drive this server's encounters.
+admin.desc.list = List every live encounter, with its run and state.
+admin.desc.inspect = Show one encounter's run: its subject, its members and who has earned what.
+admin.desc.spawn = Stand an encounter script up, at you, at a world's spawn point or at coordinates.
+admin.desc.end = Remove a live encounter, settling an engaged fight as a wipe.
+admin.desc.state = Force an encounter's script into a state.
+admin.desc.validate = Audit every loaded encounter script, binding row and participation rule.
+admin.desc.reload = Re-read the owner files over the encounter bindings and participation rules.
+admin.desc.arg.ref = A live encounter: a prefix of its run id as list prints it, or its script id.
+admin.desc.arg.asset = The encounter script id, its file name under Server/EncounterManager.
+admin.desc.arg.world = The world to spawn in. Defaults to yours, or to the default world from the console.
+admin.desc.arg.x = The X coordinate to spawn at; give all three or none.
+admin.desc.arg.y = The Y coordinate to spawn at; give all three or none.
+admin.desc.arg.z = The Z coordinate to spawn at; give all three or none.
+admin.desc.arg.state = The script's own state name.
+admin.desc.arg.substate = The sub-state, or the script's default when omitted.
+
+admin.more = ... and {0} more, in the server log.
+
+admin.list.header = Live encounters ({0}):
+admin.list.none = No encounter is live.
+admin.list.row = {0} run {1} in {2}: state {3}, {4} members, phase {5}
+admin.list.row.idle = {0} run {1} in {2}: state {3}, waiting
+
+admin.inspect.header = Encounter {0}, run {1}:
+admin.inspect.world = world: {0}
+admin.inspect.state = state: {0}
+admin.inspect.engaged = engaged {0} seconds ago, phase {1}, {2} waves so far
+admin.inspect.idle = not engaged yet
+admin.inspect.subject = subject: {0}
+admin.inspect.subject.none = subject: nothing bound yet
+admin.inspect.members = members: {0}, deaths: {1}
+admin.inspect.concluded = settled: {0}
+admin.inspect.participant = {0}: dealt {1}, taken {2}, present {3}s, share {4}%
+admin.inspect.participants.none = Nobody has earned credit yet.
+
+admin.ref.needed = Name an encounter with --ref=<run id prefix or script id>.
+admin.ref.unknown = No live encounter matches '{0}'. Try /zigencounter list.
+admin.ref.ambiguous = '{0}' names more than one live encounter; give a longer run id prefix.
+admin.ref.gone = That encounter is not live any more.
+
+admin.spawn.done = Spawned {0} in {1} at {2}, {3}, {4}.
+admin.spawn.unknown = No encounter script is called '{0}'.
+admin.spawn.notspawnable = '{0}' is a base script, not a spawnable one.
+admin.spawn.disabled = '{0}' is switched off in its binding row.
+admin.spawn.failed = The engine refused to spawn '{0}'.
+admin.spawn.world.unknown = No world is called '{0}'.
+admin.spawn.world.needed = Name a world with --world=<name>, or run this as a player.
+admin.spawn.position.needed = That world has no spawn point; give --x= --y= --z=.
+
+admin.end.done = Ended {0} (run {1}).
+
+admin.state.done = {0} is now in state {1}.
+admin.state.refused = {0} carries no state machine to set.
+
+admin.validate.clean = Encounter content: nothing to report.
+admin.validate.counts = Encounter content: {0} errors, {1} warnings, {2} notes.
+admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = Re-read the owner files: {0} bindings and {1} participation rules in force, {2} scripts loaded.

@@ -54,7 +54,8 @@ class LangFileIntegrityTest {
             Path.of("zc-progression", "src", "main", "resources", "Server", "Languages"),
             Path.of("zc-objectives", "src", "main", "resources", "Server", "Languages"),
             Path.of("zc-loot", "src", "main", "resources", "Server", "Languages"),
-            Path.of("zc-commerce", "src", "main", "resources", "Server", "Languages"));
+            Path.of("zc-commerce", "src", "main", "resources", "Server", "Languages"),
+            Path.of("zc-encounter", "src", "main", "resources", "Server", "Languages"));
 
     private static final String EN_US = "en-US";
 
@@ -63,6 +64,9 @@ class LangFileIntegrityTest {
     // this captures the same index for all three forms. Only the opening is asserted; a translator
     // may legally drop or keep the trailing format spec as long as the index SET matches.
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\s*(\\d+)\\s*[,}]");
+
+    /** The banned character, spelled by code point so this file never carries one itself. */
+    private static final char EM_DASH = (char) 0x2014;
 
     @Test
     void translationsKeepPlaceholdersBanEmDashesAndHaveNoDuplicateKeys() throws IOException {
@@ -114,7 +118,7 @@ class LangFileIntegrityTest {
         }
         Map<String, String> english = englishByFile.getOrDefault(langFile.getFileName().toString(), Map.of());
         for (Map.Entry<String, String> e : entries.entrySet()) {
-            if (e.getValue().indexOf('—') >= 0) {
+            if (e.getValue().indexOf(EM_DASH) >= 0) {
                 problems.add(where + ": em-dash in '" + e.getKey() + "'");
             }
             if (EN_US.equals(locale)) {
