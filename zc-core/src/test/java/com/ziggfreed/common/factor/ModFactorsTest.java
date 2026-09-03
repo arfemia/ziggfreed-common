@@ -57,6 +57,16 @@ class ModFactorsTest {
     }
 
     @Test
+    void thePackNameIsTheManifestSpellingTheAssetModuleFilesUnder() {
+        ModFactors.ModRef mod = ModFactors.parseModRef(" Ziggfreed : MMOSkillStationsPack ");
+
+        assertNotNull(mod);
+        assertEquals("Ziggfreed:MMOSkillStationsPack", mod.packName(),
+                "an asset-only pack is looked up by exactly the Group:Name its manifest declares,"
+                        + " with the author's spacing gone");
+    }
+
+    @Test
     void aMissingParamNamesNoMod() {
         assertNull(ModFactors.parseModRef(null));
         assertNull(ModFactors.parseModRef(""));

@@ -1,0 +1,25 @@
+# A /zigflair adminparancs-család: súgószövegek és válaszok.
+# A fájlnév a kulcs ELŐTAGJA: egy itteni bejegyzés ziggfreedcommon.flair.admin.<key> néven oldódik fel.
+# A desc.* kulcsokon keresztül oldja fel a szerver saját súgója a parancsokat és argumentumokat.
+
+desc.family = Egy játékos kozmetikai flairjeinek megadása, elvétele és listázása.
+desc.grant = Egy flair feloldása egy játékosnak.
+desc.revoke = Egy flair elvétele egy játékostól.
+desc.list = Egy játékos feloldott flairjeinek listázása.
+desc.arg.player = Az érintett játékos. Alapértelmezés: te magad.
+desc.arg.flair = A flair azonosítója.
+
+player.needed = Adj meg egy játékost a --player=<name> kapcsolóval.
+player.offline = Ez a játékos nincs online, és a flairjei a saját entitásán élnek.
+player.no_record = {0} játékosnak nincs flair-rekordja, amibe írni lehetne.
+flair.needed = Adj meg egy flairt a --flair=<id> kapcsolóval.
+flair.refused = A(z) '{0}' nem használható flair-azonosító: '|' vagy ':' jelet tartalmaz, amit a mentési formátum fenntart.
+
+grant.done = A(z) '{1}' flair feloldva {0} játékosnak.
+grant.already = {0} játékosnak már megvan a(z) '{1}' flair.
+grant.unknown = Semmi betöltött nem nevez meg '{0}' flairt; mindenesetre feloldva, hátha a szállító csomag később töltődik be.
+revoke.done = A(z) '{1}' flair elvéve {0} játékostól.
+revoke.absent = {0} játékosnak nem volt meg a(z) '{1}' flair.
+list.header = {0} feloldott flairjei ({1}):
+list.row = - {0}
+list.none = {0} játékosnak nincs feloldott flairje.

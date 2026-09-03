@@ -168,8 +168,10 @@ module or grow a second, subtly different idea of what a reward is.
   rewards all read one way names them with zero per-reward authoring - the worked examples are
   zc-commerce's `Currency` kind reading as its wallet's own name and icon (`CurrencyChipReading`,
   contributed by the wiring root; the label is the shared reward amount-and-name composition,
-  "+50 Bounty Tokens" with the amount a typed number the client groups) and the MMO's
-  `MmoChipReading` (its computed boost/ability-mod/command lines). The library's own
+  "+50 Bounty Tokens" with the amount a typed number the client groups), zc-objectives' `Flair`
+  kind reading as the flair's `flair.<id>.name` under whichever loaded lang file ships it, else the
+  id spelled out (`FlairChipReading`, contributed by its `FlairBootstrap`; the same ladder the
+  unlock toast reads) and the MMO's `MmoChipReading` (its computed boost/ability-mod/command lines). The library's own
   roll-at-grant-time kinds need no rung at all: zc-loot SHIPS presentation-only kind files for
   `Lootable`/`Droplist`/`Effect` (`src/main/resources/Server/ZiggfreedCommon/RewardKinds/`, NameKey
   into its own `ziggfreedcommon.loot.lang` family, stand-in icons, no `Command` - the
@@ -214,7 +216,7 @@ that order to registration order.
   declared default, else empty - so a command line, a chip label and an icon lookup cannot read one
   parameter differently. Id = filename. **The id convention is native-asset style, PascalCase with
   underscores**: the framework's own kinds are UNPREFIXED (`Item`, `Lootable`, `Stamped_Item`,
-  `Effect`, `Droplist`, `Command`), a consumer's carry that mod's prefix (`Mmo_Xp`, `Mmo_Boost_Token`), so two mods
+  `Effect`, `Droplist`, `Command`, `Flair`), a consumer's carry that mod's prefix (`Mmo_Xp`, `Mmo_Boost_Token`), so two mods
   installed together cannot collide by accident. A `$`-prefixed key is authoring metadata the codec
   ignores, on the file and inside `Params` alike - and a shipped `$Comment` is read by whoever opens
   the file next, so it says what the reward does and what each parameter means in game, never how the

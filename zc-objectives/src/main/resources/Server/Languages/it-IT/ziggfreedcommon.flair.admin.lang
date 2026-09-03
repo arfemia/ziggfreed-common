@@ -1,0 +1,25 @@
+# La famiglia di comandi di amministrazione /zigflair: testi di aiuto e risposte.
+# Il nome del file è il PREFISSO della chiave: una voce qui si risolve come ziggfreedcommon.flair.admin.<key>.
+# Le chiavi desc.* sono ciò con cui l'aiuto del server risolve un comando o un argomento.
+
+desc.family = Concedere, revocare ed elencare i flair cosmetici di un giocatore.
+desc.grant = Sbloccare un flair per un giocatore.
+desc.revoke = Togliere un flair a un giocatore.
+desc.list = Elencare i flair che un giocatore ha sbloccato.
+desc.arg.player = Il giocatore interessato. Predefinito: tu.
+desc.arg.flair = L'id del flair.
+
+player.needed = Indica un giocatore con --player=<name>.
+player.offline = Quel giocatore non è online, e i suoi flair vivono sulla sua entità.
+player.no_record = {0} non ha alcun registro dei flair su cui scrivere.
+flair.needed = Indica un flair con --flair=<id>.
+flair.refused = '{0}' non è un id di flair utilizzabile: contiene '|' o ':', che il formato di salvataggio riserva.
+
+grant.done = Flair '{1}' sbloccato per {0}.
+grant.already = {0} ha già il flair '{1}'.
+grant.unknown = Nulla di caricato nomina un flair '{0}'; viene sbloccato comunque, nel caso il pacchetto che lo fornisce si carichi più tardi.
+revoke.done = Flair '{1}' tolto a {0}.
+revoke.absent = {0} non aveva il flair '{1}'.
+list.header = Flair sbloccati da {0} ({1}):
+list.row = - {0}
+list.none = {0} non ha alcun flair sbloccato.

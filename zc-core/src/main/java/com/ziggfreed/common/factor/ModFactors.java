@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.common.plugin.PluginIdentifier;
+import com.hypixel.hytale.server.core.asset.AssetModule;
 import com.hypixel.hytale.server.core.plugin.PluginManager;
 
 /**
@@ -17,6 +18,12 @@ import com.hypixel.hytale.server.core.plugin.PluginManager;
  * dialogue option or a loot roll on a mod's mere presence with no Java on either side and nothing for
  * the other mod to opt into.
  *
+ * <p><b>A mod is a code plugin OR an asset-only pack.</b> The engine keeps the two in different
+ * tables: a jar with an entry class enters the plugin table, while a pack that is nothing but a
+ * {@code manifest.json} and assets never does - it is enumerated by the asset module alone, under
+ * the same {@code Group:Name} its manifest declares. This reading asks BOTH, so a content pack that
+ * ships no Java at all still reads as installed, exactly as a plugin does.
+ *
  * <p><b>It is SERVER-scoped: it needs no entity at all.</b> Which mods are loaded is one fact about
  * the process, so the reading is the same whoever the question is about, and it answers just as well
  * from a placement sweep with no subject as from a dialogue render with one.
@@ -28,16 +35,16 @@ import com.hypixel.hytale.server.core.plugin.PluginManager;
  * <table>
  *   <caption>The reading</caption>
  *   <tr><th>Situation</th><th>Value</th></tr>
- *   <tr><td>the named mod is loaded</td><td>{@code 1}</td></tr>
- *   <tr><td>the named mod is not loaded</td><td>{@code 0}</td></tr>
+ *   <tr><td>the named mod is loaded, as a code plugin or as an asset-only pack</td><td>{@code 1}</td></tr>
+ *   <tr><td>neither table knows the named mod</td><td>{@code 0}</td></tr>
  *   <tr><td>{@code Param} absent, blank, or not {@code Group:Name}</td><td>{@code null}</td></tr>
- *   <tr><td>no plugin table to ask (very early boot, or the read threw)</td><td>{@code null}</td></tr>
+ *   <tr><td>a table to ask is not there yet (very early boot), or a read threw</td><td>{@code null}</td></tr>
  * </table>
  *
  * <p><b>Absent is a DEFINITE {@code 0}, and that is the whole point of the id.</b> Every other
  * unanswerable reading in this package resolves {@code null} so a gate on it fails closed, but "that
- * mod is not here" is not a failure to answer - it is the answer, and it has to be a real number for
- * both halves of the question to be writable:
+ * mod is not here" - no plugin AND no pack under that name - is not a failure to answer; it is the
+ * answer, and it has to be a real number for both halves of the question to be writable:
  *
  * <pre>
  * // only where RPG Stations is installed - Min: 1 is required, not optional
@@ -107,13 +114,14 @@ public final class ModFactors {
     // ==================== provider ====================
 
     /**
-     * The {@link #MOD_INSTALLED} reading. Asks the engine's plugin table for the identity named by
-     * {@code Param}; see the class javadoc for the whole truth table and for why an absent mod is a
-     * definite {@code 0} while a malformed {@code Param} is not.
+     * The {@link #MOD_INSTALLED} reading. Asks the engine's plugin table and then its asset-pack
+     * registry for the identity named by {@code Param}; see the class javadoc for the whole truth
+     * table and for why an absent mod is a definite {@code 0} while a malformed {@code Param} is not.
      *
-     * <p>The engine read is wrapped whole: a plugin table that does not exist yet, or one that
-     * throws, is "cannot tell" rather than "not installed", because reporting a definite {@code 0}
-     * there would open every {@code Max: 0} gate on the server for as long as it lasted.
+     * <p>Both engine reads are wrapped whole: a table that does not exist yet, or one that throws,
+     * is "cannot tell" rather than "not installed", because reporting a definite {@code 0} there
+     * would open every {@code Max: 0} gate on the server for as long as it lasted. The pack read is
+     * asked only after the plugin table said no, so a code plugin costs one lookup as before.
      */
     @Nullable
     static Double resolveModInstalled(@Nonnull FactorContext ctx) {
@@ -126,7 +134,14 @@ public final class ModFactors {
             if (plugins == null) {
                 return null;
             }
-            return plugins.getPlugin(new PluginIdentifier(mod.group(), mod.name())) == null ? NO : YES;
+            if (plugins.getPlugin(new PluginIdentifier(mod.group(), mod.name())) != null) {
+                return YES;
+            }
+            AssetModule assets = AssetModule.get();
+            if (assets == null) {
+                return null;
+            }
+            return assets.getAssetPack(mod.packName()) == null ? NO : YES;
         } catch (Throwable t) {
             return null;
         }
@@ -136,6 +151,15 @@ public final class ModFactors {
 
     /** One mod's identity pair, parsed out of an authored {@code Param}. */
     record ModRef(@Nonnull String group, @Nonnull String name) {
+
+        /**
+         * The name the asset module files a pack under: the manifest's own {@code Group:Name}
+         * spelling, which is also what {@code PluginIdentifier#toString} prints.
+         */
+        @Nonnull
+        String packName() {
+            return group + ':' + name;
+        }
     }
 
     /**

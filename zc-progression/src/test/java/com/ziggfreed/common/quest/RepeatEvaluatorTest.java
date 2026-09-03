@@ -36,7 +36,7 @@ class RepeatEvaluatorTest {
 
     private static Repeat windowOnly(int times) {
         return new Repeat(0L, CooldownFrom.CLAIM,
-                new Reset(Reset.Period.DAILY, 0, DayOfWeek.MONDAY, times), 0);
+                new Reset(DAY, 0, DayOfWeek.MONDAY, times), 0);
     }
 
     private static Repeat cappedAt(int max) {
@@ -153,7 +153,7 @@ class RepeatEvaluatorTest {
 
     @Test
     void theLifetimeCapOutranksASpentWindowWhichOutranksARunningCooldown() {
-        Reset daily = new Reset(Reset.Period.DAILY, 0, DayOfWeek.MONDAY, 1);
+        Reset daily = new Reset(DAY, 0, DayOfWeek.MONDAY, 1);
         Repeat all = new Repeat(4 * HOUR, CooldownFrom.CLAIM, daily, 2);
 
         assertEquals(QuestGates.REASON_MAX_COMPLETIONS, QuestLifecycle.repeatCheck(all, MIDDAY,

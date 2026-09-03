@@ -118,6 +118,7 @@ class ProgressionFactorsTest {
     /** Fixture reads: one finished quest, one catalogued-but-unfinished, one earned achievement. */
     private static final class FakeReads implements ProgressionFactors.Reads {
 
+        private boolean ready = true;
         private final List<String> knownQuests = new ArrayList<>(List.of("done", "todo"));
         private boolean recordsCompletions = true;
         private int completions = 3;
@@ -125,8 +126,13 @@ class ProgressionFactorsTest {
         private int points = 40;
 
         @Override
+        public boolean runtimeReady() {
+            return ready;
+        }
+
+        @Override
         public boolean questKnown(@Nonnull String questId) {
-            return knownQuests.contains(questId);
+            return ready && knownQuests.contains(questId);
         }
 
         @Override
@@ -178,6 +184,15 @@ class ProgressionFactorsTest {
         @BeforeEach
         void registered() {
             vocabulary(ALWAYS, new FakeReads());
+        }
+
+        @Test
+        void aKnownQuestReadsOneAndAnUnknownOneReadsAdefiniteZero() {
+            assertEquals(1.0, resolve(ProgressionFactors.QUEST_KNOWN, "done"));
+            assertEquals(1.0, resolve(ProgressionFactors.QUEST_KNOWN, "todo"),
+                    "known is about the catalogue, not about whether this player finished it");
+            assertEquals(0.0, resolve(ProgressionFactors.QUEST_KNOWN, "another_mods_quest"),
+                    "presence is the whole question, so an id nothing knows IS the no");
         }
 
         @Test
@@ -236,7 +251,7 @@ class ProgressionFactorsTest {
         void noParamReadsNothingOnEveryIdThatAddressesOne() {
             vocabulary(ALWAYS, new FakeReads());
 
-            for (String id : List.of(ProgressionFactors.QUEST_COMPLETED,
+            for (String id : List.of(ProgressionFactors.QUEST_KNOWN, ProgressionFactors.QUEST_COMPLETED,
                     ProgressionFactors.QUEST_COMPLETIONS, ProgressionFactors.ACHIEVEMENT_EARNED)) {
                 assertNull(resolve(id, null), id + " has nothing to answer about with no Param");
                 assertNull(resolve(id, "  "), id + " must not treat blank as an id");
@@ -244,7 +259,7 @@ class ProgressionFactorsTest {
         }
 
         @Test
-        void noPlayerInTheQuestionReadsNothingOnEveryId() {
+        void noPlayerInTheQuestionReadsNothingOnEveryPerPlayerId() {
             vocabulary(NOBODY, new FakeReads());
 
             assertNull(resolve(ProgressionFactors.QUEST_COMPLETED, "done"));
@@ -252,6 +267,25 @@ class ProgressionFactorsTest {
             assertNull(resolve(ProgressionFactors.ACHIEVEMENT_EARNED, "earned"));
             assertNull(resolve(ProgressionFactors.ACHIEVEMENT_POINTS, null),
                     "a points bound must fail closed where there is nobody to count for");
+        }
+
+        @Test
+        void whetherAQuestExistsNeedsNoPlayer() {
+            vocabulary(NOBODY, new FakeReads());
+
+            assertEquals(1.0, resolve(ProgressionFactors.QUEST_KNOWN, "done"),
+                    "a validator or a placement sweep asks with nobody on the context");
+            assertEquals(0.0, resolve(ProgressionFactors.QUEST_KNOWN, "another_mods_quest"));
+        }
+
+        @Test
+        void whetherAQuestExistsIsUnknowableBeforeTheCatalogueIsBuilt() {
+            FakeReads reads = new FakeReads();
+            reads.ready = false;
+            vocabulary(ALWAYS, reads);
+
+            assertNull(resolve(ProgressionFactors.QUEST_KNOWN, "done"),
+                    "not built yet must never read as not catalogued");
         }
 
         @Test
@@ -272,6 +306,7 @@ class ProgressionFactorsTest {
                     ProgressionFactors.Subjects.RUNTIME, ProgressionFactors.Reads.RUNTIME);
 
             assertFalse(ProgressionRuntime.isBuilt());
+            assertNull(resolve(ProgressionFactors.QUEST_KNOWN, "done"));
             assertNull(resolve(ProgressionFactors.QUEST_COMPLETED, "done"));
             assertNull(resolve(ProgressionFactors.ACHIEVEMENT_POINTS, null));
             assertFalse(ProgressionRuntime.isBuilt(),
@@ -336,6 +371,14 @@ class ProgressionFactorsTest {
         void aQuestNoCatalogueCarriesStillReadsNothing() {
             assertNull(resolve(ProgressionFactors.QUEST_COMPLETED, "another_mods_quest"));
             assertNull(resolve(ProgressionFactors.ACHIEVEMENT_EARNED, "another_mods_achievement"));
+        }
+
+        @Test
+        void theCatalogueItselfAnswersWhetherAQuestExists() {
+            assertEquals(1.0, resolve(ProgressionFactors.QUEST_KNOWN, "done"));
+            assertEquals(1.0, resolve(ProgressionFactors.QUEST_KNOWN, "todo"));
+            assertEquals(0.0, resolve(ProgressionFactors.QUEST_KNOWN, "another_mods_quest"),
+                    "the built catalogue does not hold it, which is a real answer");
         }
 
         @Test
@@ -473,10 +516,10 @@ class ProgressionFactorsTest {
     class TheContribution {
 
         @Test
-        void contributeClaimsAllFourIdsForEveryVocabularyOnTheServer() {
+        void contributeClaimsAllFiveIdsForEveryVocabularyOnTheServer() {
             ProgressionFactors.contribute();
 
-            for (String id : List.of(ProgressionFactors.QUEST_COMPLETED,
+            for (String id : List.of(ProgressionFactors.QUEST_KNOWN, ProgressionFactors.QUEST_COMPLETED,
                     ProgressionFactors.QUEST_COMPLETIONS, ProgressionFactors.ACHIEVEMENT_EARNED,
                     ProgressionFactors.ACHIEVEMENT_POINTS)) {
                 assertTrue(FactorContributions.isContributed(id), id + " must be claimed once");
@@ -490,7 +533,8 @@ class ProgressionFactorsTest {
             assertEquals(List.of(ProgressionFactors.ACHIEVEMENT_EARNED,
                             ProgressionFactors.ACHIEVEMENT_POINTS,
                             ProgressionFactors.QUEST_COMPLETED,
-                            ProgressionFactors.QUEST_COMPLETIONS),
+                            ProgressionFactors.QUEST_COMPLETIONS,
+                            ProgressionFactors.QUEST_KNOWN),
                     FactorContributions.contributors().get(ProgressionFactors.OWNER),
                     "the contributed set is fixed - a new id here is a deliberate vocabulary addition");
         }

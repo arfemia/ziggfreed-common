@@ -85,7 +85,19 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
     declares and structurally cannot fill (the `hytale:` factor vocabulary, the persistent memory
     store over the progress component, the quest-reset hook), plus `ActiveObjectiveHeader`.
 
-  None of the eight router-less subpackages above has its own router; the parent `objectives/`
+  - `objectives/flair/` - the flair GRANT surface over zc-entity's `ZigFlairComponent`:
+    `FlairUnlocks` (the ONE write path: unlock / revoke / list over `(store, ref, playerRef)`,
+    answering an `Outcome`; it fires `ZigFlairChangedEvent` through `FlairEvents` and the authored
+    `Flair_Unlocked` moment on a REAL change only), `FlairRewardKind` (the unprefixed `Flair` kind,
+    `Flair`/`FlairId` param, a flair already held is a successful no-op, a `zigflair grant` retry
+    line when no player is live), `FlairText` + `FlairChipReading` (the `flair.<id>.name` name
+    ladder every surface shares, resolved namespace-agnostically, else the id spelled out),
+    `ZigFlairCommand` (`/zigflair grant|revoke|list`, engine-derived nodes, zc-core's shared
+    target-player walk; `grant` warns on an id no loaded lang file names and grants anyway) and
+    `FlairBootstrap`, the `setup()` phase registering all three. It lives here rather than beside
+    the component because it is the one module that sees the record (entity), the reward
+    vocabulary and chip ladder (loot), the toast engine (presentation) and the command walk (core).
+  None of the nine router-less subpackages above has its own router; the parent `objectives/`
   router covers them all (`command/` carries its own).
 
 ## Shipped resources
@@ -103,7 +115,11 @@ beside it (`ObjectivePanelContainer.png`, `ObjectiveTaskIconDefault.png`,
 `ObjectiveTaskIconComplete.png`), which a server-shipped document resolves by name next to itself.
 `Server/Item/Items/Consumables/Ziggfreed_Objective_Book.json` (the book item, whose Use opens the
 page via the `zc-cast` interaction-Type registration). `Server/Languages/<locale>/{items.lang,
-ziggfreedcommon.progression.lang}`, 9 locales.
+ziggfreedcommon.progression.lang}`, 9 locales, plus `ziggfreedcommon.flair.lang` (the
+`Flair_Unlocked` toast line) and `ziggfreedcommon.flair.admin.lang` (the `/zigflair` family), 9
+locales each, and `Server/ZiggfreedCommon/FeedbackMoments/Flair_Unlocked.json`, the library's
+neutral flair-unlock notice a pack or an owner overrides by name (`FlairAdminKeysTest` pins the
+moment's key to the shipped line and every spoken admin key to the admin file).
 
 ## Conventions
 

@@ -75,6 +75,7 @@ factor.held_item = Gehaltener Gegenstand
 factor.held_tag = Art des gehaltenen Gegenstands
 factor.permission = Berechtigung
 factor.quest_completed = eine abgeschlossene Quest
+factor.quest_known = eine bekannte Quest
 factor.achievement_earned = einen freigeschalteten Erfolg
 factor.tool_durability_percent = Werkzeug-Haltbarkeit
 factor.tool_item_level = Gegenstandsstufe des Werkzeugs

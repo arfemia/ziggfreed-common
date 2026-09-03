@@ -1,0 +1,31 @@
+{
+  "$Comment": [
+    "What a player sees and hears the instant a cosmetic flair is unlocked for them, whether a",
+    "quest or an achievement paid it as a Flair reward or an administrator ran /zigflair grant. It",
+    "fires only for a flair the player did not already have; granting one again is silent.",
+    "",
+    "This is the library's own neutral default, so a bare server gets a notice out of the box. A",
+    "mod that ships a file with this same name in its own pack replaces it (a pack that lists this",
+    "library as a dependency loads after it), and a server owner can do the same from the owner",
+    "layer. Override the whole file rather than editing this one.",
+    "",
+    "The moment carries 'flair' (its id) and 'name' (what the flair is called, already in the",
+    "reader's language: the flair.<id>.name entry from whichever lang file ships it, else the id",
+    "spelled out as words). 'player' is always the name of who unlocked it.",
+    "",
+    "Key is a line from a .lang file; Args names which of those values fill its blanks, in order.",
+    "Sound is any SoundEvent id, played at the player's own position. Delete either group in your",
+    "override to drop that half; add a Broadcast group to tell the whole server. Tone colours the",
+    "whole notification - gold Reward here, because an unlock is a payout."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.flair.unlocked",
+      "Args": ["name"]
+    },
+    "Tone": "Reward"
+  },
+  "Sound": {
+    "Id": "SFX_Discovery_Z2_Short"
+  }
+}

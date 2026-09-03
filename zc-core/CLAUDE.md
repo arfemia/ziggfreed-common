@@ -95,8 +95,14 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
   by this module's own `factor/DerivedFactorAsset` plus zc-commerce and zc-progression's content
   codecs. Not a split package: the whole class lives here, reached by every consumer above through
   the ordinary module edge. No router of its own (one file).
-- `time/` - `DurationGroup` only, the ONE duration codec leaf: a nested `{Days, Hours, Minutes,
-  Seconds}` group of independently nullable whole numbers that are simply SUMMED, so an asset
+- `event/` - `NativeEventSeam` only, the one guarded dispatcher every native `IEvent<Void>` family
+  in the library fires through: resolve the engine dispatcher, fire only if it `hasListener()`
+  (the event is built lazily, after that check), dispatch synchronously on the calling thread, and
+  never let a failure escape. One instance per family, each with a `publishTo` seam a bus-less host
+  or a test redirects; `quest.event.QuestEvents` and `objectives.flair.FlairEvents` both sit on one.
+  No router of its own (one file).
+- `time/` - `DurationGroup` only, the ONE duration codec leaf: a nested `{Weeks, Days, Hours,
+  Minutes, Seconds}` group of independently nullable whole numbers that are simply SUMMED, so an asset
   authors a span in units instead of a raw millisecond count. A negative value contributes nothing,
   and `isEmpty()` (nothing authored) is a separate answer from a `totalMs()` of zero. No router of
   its own (one file).

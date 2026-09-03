@@ -38,6 +38,7 @@ import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.time.DurationGroup;
+import com.ziggfreed.common.util.PeriodMath;
 
 /**
  * One authored quest, at {@code Server/ZiggfreedCommon/Quests/<id>.json}. The FILE NAME is the
@@ -521,9 +522,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                         + "to a rotating offer, so collecting late does not burn a slot in the next period.").add()
                 .appendInherited(new KeyedCodec<>("Reset", Reset.CODEC, false),
                         (o, v) -> o.reset = v, o -> o.reset, (o, p) -> o.reset = p.reset)
-                .documentation("A calendar allowance: how many times the quest may be finished inside one day "
-                        + "or one week, counted from a fixed boundary rather than from the player's last go. "
-                        + "Unauthored means no calendar limit.").add()
+                .documentation("A calendar allowance: how many times the quest may be finished inside one "
+                        + "fixed window (a day, a week, eight hours, a fortnight), counted from a boundary on "
+                        + "the clock rather than from the player's last go. Unauthored means no calendar "
+                        + "limit.").add()
                 .appendInherited(new KeyedCodec<>("MaxCompletions", Codec.INTEGER, false),
                         (o, v) -> o.maxCompletions = v, o -> o.maxCompletions,
                         (o, p) -> o.maxCompletions = p.maxCompletions)
@@ -641,6 +643,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
          * The calendar allowance: how many times the quest may be finished inside one fixed window.
          * Counted from a boundary on the server's own clock (UTC), not from the player's last go, so
          * everybody's daily rolls over at the same instant.
+         *
+         * <p>The window's LENGTH is {@code Every}, a duration group of whole units; {@code Period}
+         * is the shorthand for the two commonest lengths and desugars to {@code Every {Days: 1}} or
+         * {@code Every {Weeks: 1}}. When both are authored {@code Every} wins and the audit says so.
          */
         public static final class Reset {
 
@@ -650,32 +656,62 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             /** {@code Period} authored as a week. */
             public static final String PERIOD_WEEKLY = "Weekly";
 
+            /** The two window lengths {@code Period} is shorthand for. */
+            public enum Period {
+                DAILY(PeriodMath.DAY_MS),
+                WEEKLY(PeriodMath.WEEK_MS);
+
+                private final long ms;
+
+                Period(long ms) {
+                    this.ms = ms;
+                }
+
+                /** The window length this word stands for. */
+                public long ms() {
+                    return ms;
+                }
+            }
+
+            @Nullable protected DurationGroup every;
             @Nullable protected String period;
             @Nullable protected Integer atMinutes;
             @Nullable protected String weekday;
             @Nullable protected Integer times;
 
             public static final BuilderCodec<Reset> CODEC = BuilderCodec.builder(Reset.class, Reset::new)
+                    .appendInherited(new KeyedCodec<>("Every", DurationGroup.CODEC, false),
+                            (o, v) -> o.every = v, o -> o.every, (o, p) -> o.every = p.every)
+                    .documentation("How long one window lasts, in whole units that add up: {\"Hours\": 8} for "
+                            + "three windows a day, {\"Days\": 1} for a daily, {\"Weeks\": 2} for a fortnight. "
+                            + "Boundaries fall on a fixed grid counted from 1 January 1970 UTC, shifted by "
+                            + "AtMinutes and, for a window that is a whole number of weeks, by Weekday. "
+                            + "Unauthored means whatever Period says, which is one day when that is unauthored "
+                            + "too.").add()
                     .appendInherited(new KeyedCodec<>("Period", Codec.STRING, false),
                             (o, v) -> o.period = v, o -> o.period, (o, p) -> o.period = p.period)
                     .metadata(EditorSchema.oneOfDocumented(
                             PERIOD_DAILY, "The window is one day",
                             PERIOD_WEEKLY, "The window is one week"))
                     .metadata(EditorSchema.defaultValue(PERIOD_DAILY))
-                    .documentation("Daily or Weekly. Unauthored means Daily.").add()
+                    .documentation("Daily or Weekly: shorthand for Every {\"Days\": 1} or Every {\"Weeks\": 1}. "
+                            + "Unauthored means Daily. When Every is authored as well, Every is the window "
+                            + "and this is ignored.").add()
                     .appendInherited(new KeyedCodec<>("AtMinutes", Codec.INTEGER, false),
                             (o, v) -> o.atMinutes = v, o -> o.atMinutes, (o, p) -> o.atMinutes = p.atMinutes)
                     .documentation("How many minutes past the boundary the window rolls over, on the server "
                             + "clock in UTC. Unauthored means midnight UTC; 240 moves it to 04:00, which is how "
                             + "a server whose players are all in one part of the world stops a daily flipping "
-                            + "over in the middle of their evening.").add()
+                            + "over in the middle of their evening. On an eight-hour window it shifts every "
+                            + "boundary of the day by the same amount.").add()
                     .appendInherited(new KeyedCodec<>("Weekday", Codec.STRING, false),
                             (o, v) -> o.weekday = v, o -> o.weekday, (o, p) -> o.weekday = p.weekday)
                     .metadata(EditorSchema.oneOf("Monday", "Tuesday", "Wednesday", "Thursday",
                             "Friday", "Saturday", "Sunday"))
                     .metadata(EditorSchema.defaultValue("Monday"))
-                    .documentation("Which day a Weekly window starts on (Monday, Tuesday, ...). Unauthored "
-                            + "means Monday. It does nothing on a Daily window.").add()
+                    .documentation("Which day the window starts on (Monday, Tuesday, ...), for a window that is "
+                            + "a whole number of weeks: Weekly, or Every {\"Weeks\": 2}. Unauthored means "
+                            + "Monday. It does nothing on any other length.").add()
                     .appendInherited(new KeyedCodec<>("Times", Codec.INTEGER, false),
                             (o, v) -> o.times = v, o -> o.times, (o, p) -> o.times = p.times)
                     .metadata(EditorSchema.defaultValue(1))
@@ -690,12 +726,25 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             @Nonnull
             public static Reset of(@Nullable String period, @Nullable Integer atMinutes,
                     @Nullable String weekday, @Nullable Integer times) {
+                return of(null, period, atMinutes, weekday, times);
+            }
+
+            @Nonnull
+            public static Reset of(@Nullable DurationGroup every, @Nullable String period,
+                    @Nullable Integer atMinutes, @Nullable String weekday, @Nullable Integer times) {
                 Reset r = new Reset();
+                r.every = every;
                 r.period = period;
                 r.atMinutes = atMinutes;
                 r.weekday = weekday;
                 r.times = times;
                 return r;
+            }
+
+            /** The authored window length exactly as written; null when unauthored. */
+            @Nullable
+            public DurationGroup getEvery() {
+                return every;
             }
 
             /** The authored period exactly as written, unparsed; null when unauthored. */
@@ -704,18 +753,35 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 return period;
             }
 
-            /** The parsed window length, or null when a value was authored that is neither. */
+            /**
+             * The parsed shorthand: {@code DAILY} when unauthored, or null when a value was authored
+             * that is neither word. It says nothing about {@code Every}; ask {@link #periodMs()} for
+             * the window that is actually used.
+             */
             @Nullable
-            public Quest.Repeat.Reset.Period parsedPeriod() {
+            public Period parsedPeriod() {
                 if (period == null || period.isBlank()) {
-                    return Quest.Repeat.Reset.Period.DAILY;
+                    return Period.DAILY;
                 }
                 String value = period.trim();
                 if (PERIOD_DAILY.equalsIgnoreCase(value)) {
-                    return Quest.Repeat.Reset.Period.DAILY;
+                    return Period.DAILY;
                 }
-                return PERIOD_WEEKLY.equalsIgnoreCase(value)
-                        ? Quest.Repeat.Reset.Period.WEEKLY : null;
+                return PERIOD_WEEKLY.equalsIgnoreCase(value) ? Period.WEEKLY : null;
+            }
+
+            /**
+             * The window length that is used: an authored {@code Every} that adds up to anything,
+             * else what {@code Period} says, else one day. A validator is what tells the author
+             * about an {@code Every} that adds up to nothing or a {@code Period} nobody understood;
+             * falling back here keeps a typo from taking a whole quest out of circulation.
+             */
+            public long periodMs() {
+                if (every != null && every.totalMs() > 0L) {
+                    return every.totalMs();
+                }
+                Period parsedPeriod = parsedPeriod();
+                return (parsedPeriod == null ? Period.DAILY : parsedPeriod).ms();
             }
 
             /** The authored weekday exactly as written, unparsed; null when unauthored. */
@@ -756,10 +822,8 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
              */
             @Nonnull
             public Quest.Repeat.Reset toReset() {
-                Quest.Repeat.Reset.Period parsedPeriod = parsedPeriod();
                 DayOfWeek parsedWeekday = parsedWeekday();
-                return new Quest.Repeat.Reset(
-                        parsedPeriod == null ? Quest.Repeat.Reset.Period.DAILY : parsedPeriod,
+                return new Quest.Repeat.Reset(periodMs(),
                         atMinutes == null ? 0 : atMinutes.intValue(),
                         parsedWeekday == null ? DayOfWeek.MONDAY : parsedWeekday,
                         times == null ? 1 : times.intValue());

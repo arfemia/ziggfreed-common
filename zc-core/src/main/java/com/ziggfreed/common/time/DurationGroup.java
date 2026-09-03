@@ -8,15 +8,15 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 
 /**
- * The ONE duration codec leaf: a nested {@code {Days, Hours, Minutes, Seconds}} group of
+ * The ONE duration codec leaf: a nested {@code {Weeks, Days, Hours, Minutes, Seconds}} group of
  * independently nullable whole numbers that are simply SUMMED. Embed it wherever an asset codec
  * authors a span of time ({@code new KeyedCodec<>("Cooldown", DurationGroup.CODEC, false)}).
  *
  * <p>Authoring a duration as units rather than as one raw number is what makes a file readable
- * without arithmetic: {@code {"Hours": 24}} says a day, {@code {"Days": 7}} says a week, and
+ * without arithmetic: {@code {"Hours": 24}} says a day, {@code {"Weeks": 1}} says a week, and
  * {@code {"Minutes": 90}} says an hour and a half without anybody multiplying by sixty. The units
  * compose, so {@code {"Hours": 1, "Minutes": 30}} is the same ninety minutes written the other way
- * round.
+ * round, and {@code {"Weeks": 2}} is the same fortnight as {@code {"Days": 14}}.
  *
  * <p>Every leaf is independently nullable (unauthored = contributes nothing) so partial authoring,
  * native {@code Parent} reuse, and any per-leaf overlay convention all keep single-unit
@@ -44,6 +44,10 @@ public final class DurationGroup {
     /** Milliseconds in one day. */
     private static final long DAY_MS = 24L * HOUR_MS;
 
+    /** Milliseconds in one week. */
+    private static final long WEEK_MS = 7L * DAY_MS;
+
+    @Nullable protected Integer weeks;
     @Nullable protected Integer days;
     @Nullable protected Integer hours;
     @Nullable protected Integer minutes;
@@ -51,10 +55,14 @@ public final class DurationGroup {
 
     public static final BuilderCodec<DurationGroup> CODEC =
             BuilderCodec.builder(DurationGroup.class, DurationGroup::new)
+                    .appendInherited(new KeyedCodec<>("Weeks", Codec.INTEGER, false),
+                            (o, v) -> o.weeks = v, o -> o.weeks, (o, p) -> o.weeks = p.weeks)
+                    .documentation("Whole weeks. Unauthored means none; every unit here is optional and they "
+                            + "add up, so a fortnight is either Weeks 2 or Days 14.").add()
                     .appendInherited(new KeyedCodec<>("Days", Codec.INTEGER, false),
                             (o, v) -> o.days = v, o -> o.days, (o, p) -> o.days = p.days)
-                    .documentation("Whole days. Unauthored means none; every unit here is optional and they "
-                            + "add up, so a day and a half is either 36 hours or Days 1 plus Hours 12.").add()
+                    .documentation("Whole days, added to whatever the other units carry. Unauthored means "
+                            + "none, so a day and a half is either 36 hours or Days 1 plus Hours 12.").add()
                     .appendInherited(new KeyedCodec<>("Hours", Codec.INTEGER, false),
                             (o, v) -> o.hours = v, o -> o.hours, (o, p) -> o.hours = p.hours)
                     .documentation("Whole hours, added to whatever the other units carry. Unauthored means "
@@ -74,9 +82,11 @@ public final class DurationGroup {
 
     /** Java-side factory; sets the same fields the codec fills. */
     @Nonnull
-    public static DurationGroup of(@Nullable Integer days, @Nullable Integer hours,
-                                   @Nullable Integer minutes, @Nullable Integer seconds) {
+    public static DurationGroup of(@Nullable Integer weeks, @Nullable Integer days,
+                                   @Nullable Integer hours, @Nullable Integer minutes,
+                                   @Nullable Integer seconds) {
         DurationGroup d = new DurationGroup();
+        d.weeks = weeks;
         d.days = days;
         d.hours = hours;
         d.minutes = minutes;
@@ -84,10 +94,34 @@ public final class DurationGroup {
         return d;
     }
 
+    /** {@link #of(Integer, Integer, Integer, Integer, Integer)} with no weeks. */
+    @Nonnull
+    public static DurationGroup of(@Nullable Integer days, @Nullable Integer hours,
+                                   @Nullable Integer minutes, @Nullable Integer seconds) {
+        return of(null, days, hours, minutes, seconds);
+    }
+
     /** A group carrying just this many whole seconds. */
     @Nonnull
     public static DurationGroup ofSeconds(int seconds) {
         return of(null, null, null, Integer.valueOf(seconds));
+    }
+
+    /** A group carrying just this many whole weeks. */
+    @Nonnull
+    public static DurationGroup ofWeeks(int weeks) {
+        return of(Integer.valueOf(weeks), null, null, null, null);
+    }
+
+    /** A group carrying just this many whole days. */
+    @Nonnull
+    public static DurationGroup ofDays(int days) {
+        return of(Integer.valueOf(days), null, null, null);
+    }
+
+    @Nullable
+    public Integer getWeeks() {
+        return weeks;
     }
 
     @Nullable
@@ -112,17 +146,19 @@ public final class DurationGroup {
 
     /** True when not one unit was authored, which is a different fact from "it adds up to zero". */
     public boolean isEmpty() {
-        return days == null && hours == null && minutes == null && seconds == null;
+        return weeks == null && days == null && hours == null && minutes == null && seconds == null;
     }
 
     /** True when at least one unit was authored as a negative number, which contributes nothing. */
     public boolean hasNegativeUnit() {
-        return isNegative(days) || isNegative(hours) || isNegative(minutes) || isNegative(seconds);
+        return isNegative(weeks) || isNegative(days) || isNegative(hours) || isNegative(minutes)
+                || isNegative(seconds);
     }
 
     /** The whole span in milliseconds, every authored unit summed. Never negative. */
     public long totalMs() {
-        return unit(days) * DAY_MS
+        return unit(weeks) * WEEK_MS
+                + unit(days) * DAY_MS
                 + unit(hours) * HOUR_MS
                 + unit(minutes) * MINUTE_MS
                 + unit(seconds) * SECOND_MS;

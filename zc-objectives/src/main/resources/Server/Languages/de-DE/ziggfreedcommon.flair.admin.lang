@@ -1,0 +1,25 @@
+# Die Befehlsfamilie /zigflair: Hilfetexte und Antworten.
+# Der Dateiname ist das Schlüssel-PRÄFIX: ein Eintrag hier heißt ziggfreedcommon.flair.admin.<key>.
+# Die desc.*-Schlüssel sind das, worüber die Hilfe des Servers einen Befehl oder ein Argument auflöst.
+
+desc.family = Kosmetische Flairs eines Spielers verleihen, entziehen und auflisten.
+desc.grant = Ein Flair für einen Spieler freischalten.
+desc.revoke = Einem Spieler ein Flair entziehen.
+desc.list = Die Flairs auflisten, die ein Spieler freigeschaltet hat.
+desc.arg.player = Der betroffene Spieler. Standard: du selbst.
+desc.arg.flair = Die Flair-ID.
+
+player.needed = Nenne einen Spieler mit --player=<name>.
+player.offline = Dieser Spieler ist nicht online, und seine Flairs liegen auf seiner eigenen Entität.
+player.no_record = {0} hat keinen Flair-Datensatz, in den geschrieben werden könnte.
+flair.needed = Nenne ein Flair mit --flair=<id>.
+flair.refused = '{0}' ist keine brauchbare Flair-ID: sie enthält '|' oder ':', was das Speicherformat reserviert.
+
+grant.done = Flair '{1}' für {0} freigeschaltet.
+grant.already = {0} hat das Flair '{1}' bereits.
+grant.unknown = Nichts Geladenes benennt ein Flair '{0}'; es wird trotzdem freigeschaltet, falls das Paket, das es liefert, später lädt.
+revoke.done = Flair '{1}' wurde {0} entzogen.
+revoke.absent = {0} hatte das Flair '{1}' nicht.
+list.header = Von {0} freigeschaltete Flairs ({1}):
+list.row = - {0}
+list.none = {0} hat keine Flairs freigeschaltet.

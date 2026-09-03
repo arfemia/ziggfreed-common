@@ -73,7 +73,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Cooldown` | [Duration](#type-duration) | `null` | A rolling wait before the quest can be taken again, authored in whole units that add up: {"Hours": 24} for a day, {"Days": 7} for a week. Unauthored means no rolling wait at all. |
 | `CooldownFrom` | `string` | `null` | Which instant the rolling wait counts from: Claim (the reward being taken, the default) or Complete (the steps being finished). Choose Complete for a quest belonging to a rotating offer, so collecting late does not burn a slot in the next period. |
-| `Reset` | [Reset](#field-questasset-repeat-reset) | `null` | A calendar allowance: how many times the quest may be finished inside one day or one week, counted from a fixed boundary rather than from the player's last go. Unauthored means no calendar limit. |
+| `Reset` | [Reset](#field-questasset-repeat-reset) | `null` | A calendar allowance: how many times the quest may be finished inside one fixed window (a day, a week, eight hours, a fortnight), counted from a boundary on the clock rather than from the player's last go. Unauthored means no calendar limit. |
 | `MaxCompletions` | `integer` | `null` | A lifetime cap: how many times one player may ever finish it. 0 or unauthored means uncapped. A player who has spent the cap sees the quest as finished for good. |
 | `ResetsOnComplete` | array of `string` | `null` | Quest ids whose progress is wiped when this one finishes, so a chain can come round again. Handy for a weekly that re-arms its dailies. |
 
@@ -106,9 +106,10 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Period` | `string` | `null` | Daily or Weekly. Unauthored means Daily. |
-| `AtMinutes` | `integer` | `null` | How many minutes past the boundary the window rolls over, on the server clock in UTC. Unauthored means midnight UTC; 240 moves it to 04:00, which is how a server whose players are all in one part of the world stops a daily flipping over in the middle of their evening. |
-| `Weekday` | `string` | `null` | Which day a Weekly window starts on (Monday, Tuesday, ...). Unauthored means Monday. It does nothing on a Daily window. |
+| `Every` | [Duration](#type-duration) | `null` | How long one window lasts, in whole units that add up: {"Hours": 8} for three windows a day, {"Days": 1} for a daily, {"Weeks": 2} for a fortnight. Boundaries fall on a fixed grid counted from 1 January 1970 UTC, shifted by AtMinutes and, for a window that is a whole number of weeks, by Weekday. Unauthored means whatever Period says, which is one day when that is unauthored too. |
+| `Period` | `string` | `null` | Daily or Weekly: shorthand for Every {"Days": 1} or Every {"Weeks": 1}. Unauthored means Daily. When Every is authored as well, Every is the window and this is ignored. |
+| `AtMinutes` | `integer` | `null` | How many minutes past the boundary the window rolls over, on the server clock in UTC. Unauthored means midnight UTC; 240 moves it to 04:00, which is how a server whose players are all in one part of the world stops a daily flipping over in the middle of their evening. On an eight-hour window it shifts every boundary of the day by the same amount. |
+| `Weekday` | `string` | `null` | Which day the window starts on (Monday, Tuesday, ...), for a window that is a whole number of weeks: Weekly, or Every {"Weeks": 2}. Unauthored means Monday. It does nothing on any other length. |
 | `Times` | `integer` | `null` | How many FINISHES fit inside one window. Unauthored means 1. A run whose reward is still waiting to be collected has already spent its slot here. |
 
 <a id="type-questobjective"></a>
@@ -271,7 +272,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Kind` | `string` | `null` | Which registered reward kind pays this out, by id: Item, Lootable, Stamped_Item, Effect and Droplist come with the framework, and a kind a mod brings carries that mod's prefix (Yourmod_Coin). A kind nothing registered is reported rather than silently skipped, so an owner can see which mod was expected to provide it. |
+| `Kind` | `string` | `null` | Which registered reward kind pays this out, by id: Item, Lootable, Stamped_Item, Effect, Droplist, Command and Flair come with the framework, and a kind a mod brings carries that mod's prefix (Yourmod_Coin). A kind nothing registered is reported rather than silently skipped, so an owner can see which mod was expected to provide it. |
 | `Params` | map of `scalarString` | `null` | The kind's own parameters. Which keys matter is documented by whoever registered the kind; nothing here interprets them. A number or true/false may be written bare (Amount: 50), a value with any other shape takes quotes. |
 
 <a id="type-requires"></a>
@@ -312,7 +313,8 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 | Key | Type | Default | Documentation |
 |---|---|---|---|
-| `Days` | `integer` | `null` | Whole days. Unauthored means none; every unit here is optional and they add up, so a day and a half is either 36 hours or Days 1 plus Hours 12. |
+| `Weeks` | `integer` | `null` | Whole weeks. Unauthored means none; every unit here is optional and they add up, so a fortnight is either Weeks 2 or Days 14. |
+| `Days` | `integer` | `null` | Whole days, added to whatever the other units carry. Unauthored means none, so a day and a half is either 36 hours or Days 1 plus Hours 12. |
 | `Hours` | `integer` | `null` | Whole hours, added to whatever the other units carry. Unauthored means none. |
 | `Minutes` | `integer` | `null` | Whole minutes, added to whatever the other units carry. Unauthored means none. |
 | `Seconds` | `integer` | `null` | Whole seconds, added to whatever the other units carry. Unauthored means none. |

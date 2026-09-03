@@ -1,0 +1,6 @@
+# The player-facing flair lines: what a player reads when a cosmetic flair is unlocked for them.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.flair.<key>.
+# {0} is the flair's own name: the flair.<id>.name entry from whichever lang file ships it, else the
+# id spelled out as words. Name a flair by shipping flair.<id>.name in your own lang file.
+
+unlocked = Flair unlocked: {0}

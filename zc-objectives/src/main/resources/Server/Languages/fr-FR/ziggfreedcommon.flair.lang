@@ -1,0 +1,5 @@
+# Les lignes de flair pour les joueurs : ce qu'un joueur lit quand un flair cosmétique est débloqué pour lui.
+# Le nom du fichier est le PRÉFIXE de clé : une entrée ici se résout en ziggfreedcommon.flair.<key>.
+# {0} est le nom du flair (flair.<id>.name du fichier de langue qui le fournit, sinon l'id écrit en mots).
+
+unlocked = Flair débloqué : {0}

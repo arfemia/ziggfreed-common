@@ -34,8 +34,9 @@ import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
  *
  * <p><b>A reward is a registered KIND plus that kind's own parameters</b>, the same entry shape as a
  * quest's or an achievement's, so a payout written for one reads and behaves identically on the
- * next. {@code Item}, {@code Lootable}, {@code Stamped_Item}, {@code Effect} and {@code Droplist}
- * come with the framework; a kind a mod brings carries that mod's prefix. Matching is
+ * next. {@code Item}, {@code Lootable}, {@code Stamped_Item}, {@code Effect}, {@code Droplist},
+ * {@code Command} and {@code Flair} come with the framework; a kind a mod brings carries that
+ * mod's prefix. Matching is
  * case-insensitive, and which parameters a kind reads is documented by whoever registered it.
  *
  * <p><b>Two reward lists, because there are two moments.</b> {@code Auto} is paid the instant the

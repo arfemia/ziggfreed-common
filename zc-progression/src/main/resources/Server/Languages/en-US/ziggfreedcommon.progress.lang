@@ -86,6 +86,7 @@ factor.held_item = Held item
 factor.held_tag = Held item type
 factor.permission = Permission
 factor.quest_completed = a completed quest
+factor.quest_known = a known quest
 factor.achievement_earned = an earned achievement
 factor.tool_durability_percent = Tool durability
 factor.tool_item_level = Tool item level

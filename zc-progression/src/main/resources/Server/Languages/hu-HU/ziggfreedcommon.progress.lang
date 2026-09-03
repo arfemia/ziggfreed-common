@@ -75,6 +75,7 @@ factor.held_item = Kézben tartott tárgy
 factor.held_tag = Kézben tartott tárgy típusa
 factor.permission = Jogosultság
 factor.quest_completed = egy teljesített küldetés
+factor.quest_known = egy ismert küldetés
 factor.achievement_earned = egy megszerzett eredmény
 factor.tool_durability_percent = Szerszám tartóssága
 factor.tool_item_level = Szerszám tárgyszintje

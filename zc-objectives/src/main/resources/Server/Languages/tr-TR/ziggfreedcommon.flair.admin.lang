@@ -1,0 +1,25 @@
+# /zigflair yönetici komut ailesi: yardım metinleri ve yanıtlar.
+# Dosya adı anahtar ÖN EKİDİR: buradaki bir giriş ziggfreedcommon.flair.admin.<key> olarak çözülür.
+# desc.* anahtarları, sunucunun kendi yardımının bir komutu veya argümanı çözdüğü anahtarlardır.
+
+desc.family = Bir oyuncunun kozmetik flair'lerini ver, geri al ve listele.
+desc.grant = Bir oyuncu için bir flair aç.
+desc.revoke = Bir oyuncudan bir flair'i geri al.
+desc.list = Bir oyuncunun açtığı flair'leri listele.
+desc.arg.player = İşlem yapılacak oyuncu. Varsayılan: sen.
+desc.arg.flair = Flair kimliği.
+
+player.needed = --player=<name> ile bir oyuncu belirt.
+player.offline = O oyuncu çevrimiçi değil ve flair'leri kendi varlığında yaşıyor.
+player.no_record = {0} oyuncusunun yazılacak bir flair kaydı yok.
+flair.needed = --flair=<id> ile bir flair belirt.
+flair.refused = '{0}' kullanılabilir bir flair kimliği değil: kayıt biçiminin ayırdığı '|' veya ':' içeriyor.
+
+grant.done = '{1}' flair'i {0} için açıldı.
+grant.already = {0} oyuncusunda '{1}' flair'i zaten var.
+grant.unknown = Yüklü hiçbir şey '{0}' adında bir flair tanımlamıyor; onu sağlayan paket sonradan yüklenirse diye yine de açıldı.
+revoke.done = '{1}' flair'i {0} oyuncusundan geri alındı.
+revoke.absent = {0} oyuncusunda '{1}' flair'i yoktu.
+list.header = {0} oyuncusunun açtığı flair'ler ({1}):
+list.row = - {0}
+list.none = {0} oyuncusunun açık flair'i yok.

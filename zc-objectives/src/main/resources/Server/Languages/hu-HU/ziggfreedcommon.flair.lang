@@ -1,0 +1,5 @@
+# A játékosnak szóló flair-sorok: amit a játékos olvas, amikor egy kozmetikai flair feloldódik neki.
+# A fájlnév a kulcs ELŐTAGJA: egy itteni bejegyzés ziggfreedcommon.flair.<key> néven oldódik fel.
+# {0} a flair neve (a flair.<id>.name bejegyzés abból a nyelvi fájlból, amelyik szállítja, különben az azonosító szavakkal).
+
+unlocked = Flair feloldva: {0}

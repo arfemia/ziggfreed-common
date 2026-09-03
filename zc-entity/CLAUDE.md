@@ -35,7 +35,11 @@ compiles as `:zc-entity`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggr
     `PerformerIdentityComponent` + `PerformerReconciler`).
   - `entity/flair/` - `ZigFlairComponent`, the registered per-player unlocked-flair id set the
     library persists so a granting mod and a rendering mod meet over one record (ids lower-cased at
-    write, an id carrying `|` or `:` refused). No router of its own (one file).
+    write, an id carrying `|` or `:` refused). The WRITE path is zc-objectives'
+    `objectives/flair/FlairUnlocks` (the `Flair` reward kind and `/zigflair` both go through it),
+    which fires `ZigFlairChangedEvent` on the engine bus and the `Flair_Unlocked` toast on every
+    real change; this module keeps only the record and its refusal rule. No router of its own (one
+    file).
 - `factor/` - `HytaleFactors` only, the portable `hytale:` factor standard library: nine straight
   reads of engine data about the context's own subject - its stat channels, what it is holding, and
   (`hytale:permission`) the permission nodes its connection holds. This is one half of a deliberate

@@ -75,6 +75,7 @@ factor.held_item = Objeto en mano
 factor.held_tag = Tipo de objeto en mano
 factor.permission = Permiso
 factor.quest_completed = una misión completada
+factor.quest_known = una misión conocida
 factor.achievement_earned = un logro conseguido
 factor.tool_durability_percent = Durabilidad de la herramienta
 factor.tool_item_level = Nivel de objeto de la herramienta

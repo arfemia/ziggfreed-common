@@ -111,8 +111,8 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
     `Factors/Hytale_*.json`): `hytale:stat` in the pattern form
     (`ziggfreedcommon.progress.factor.stat.{param}`, the engine's own channels named in the nine
     `ziggfreedcommon.progress.lang` files), `hytale:held_item` patterned straight onto
-    `server.items.{param}.name`, the rest with a bare `Text`. zc-progression ships two more for
-    its own `ziggfreedcommon:quest_completed` / `achievement_earned` ids (bare `Text`; a condition
+    `server.items.{param}.name`, the rest with a bare `Text`. zc-progression ships three more for
+    its own `ziggfreedcommon:quest_known` / `quest_completed` / `achievement_earned` ids (bare `Text`; a condition
     naming a specific quest or achievement already reads with that content's own title through
     `quest.LockReasons`).
 - **[`DerivedFactorValidator`](DerivedFactorValidator.java)** - the load-time audit for the silent
@@ -149,9 +149,9 @@ formula can reach - and gets a naming overlay instead:
 
 - the nine `HytaleFactors` ids read live engine data off the context's subject (a stat fold, the
   held stack's tool spec/tags/durability, a permission check on the connection);
-- `ModFactors`' `hytale:mod_installed` reads the engine's plugin table;
-- `ProgressionFactors`' four `ziggfreedcommon:` ids read a player's stored quest/achievement
-  records through the runtime's registered stores;
+- `ModFactors`' `hytale:mod_installed` reads the engine's plugin table and its asset-pack registry;
+- `ProgressionFactors`' five `ziggfreedcommon:` ids read a player's stored quest/achievement
+  records through the runtime's registered stores (and, for `quest_known`, its catalogue);
 - `FeatureFlags`' `<namespace>:feature` reads a consumer's live config suppliers.
 
 A new code registration should have to justify itself the same way; anything that is arithmetic
@@ -221,7 +221,10 @@ over these belongs in a Factors file.
   entries can address one factor differently.
 - **[`ModFactors`](ModFactors.java)** - `hytale:mod_installed`, the one `hytale:` id that lives
   HERE rather than in zc-entity because it reads no entity at all: `Param` is another mod's
-  `Group:Name` and the engine's own plugin table answers it. **The presence-check idiom**: `Min: 1`
+  `Group:Name` and the engine answers it from BOTH its tables - the plugin table (a jar with an
+  entry class) and, when that says no, the asset-pack registry (`AssetModule.getAssetPack`, keyed
+  by the same `Group:Name`), because an asset-only `manifest.json` pack never enters the plugin
+  table and must still read as installed. **The presence-check idiom**: `Min: 1`
   reads as "only where that mod is installed" and `Max: 0` as "only where it is NOT" - a
   BOUNDS-LESS condition is NOT the same as `Min: 1` here, because it passes on ANY finite reading
   including the absent-mod `0`, so it never actually gates on presence. An absent mod is a definite
@@ -294,7 +297,10 @@ over these belongs in a Factors file.
 ## The progression readings (zc-progression)
 
 - **[`ProgressionFactors`](../../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/progress/runtime/ProgressionFactors.java)** -
-  four `ziggfreedcommon:` ids answering for THE shared progression runtime: `quest_completed`
+  five `ziggfreedcommon:` ids answering for THE shared progression runtime: `quest_known` (Param
+  = a quest id, 1 when the shared catalogue holds it and a DEFINITE 0 when the built catalogue does
+  not - presence is the whole question, the `mod_installed` reasoning, so `Min: 1` and `Max: 0` are
+  both writable; null until the runtime is built, and needing NO player), `quest_completed`
   (Param = a quest id, 1 when the quest has been finished AND its reward collected - stored status
   `COMPLETED`; a quest waiting in `COMPLETED_UNCLAIMED` reads 0), `quest_completions` (Param = a
   quest id, the lifetime count a repeatable is gated on - CLAIMS, the same rule, so a parked run
@@ -309,7 +315,7 @@ over these belongs in a Factors file.
 - **They are CONTRIBUTED, not registered per consumer**: the library calls `contribute()` once at
   its own setup (`ProgressionBootstrap.setupProgressionRuntime`), so every vocabulary on the server
   resolves them - a storefront's `Requires`, a board, a placement
-  gate, a dialogue condition, a loot roll - with nothing to wire. `registerInto` is the same four
+  gate, a dialogue condition, a loot roll - with nothing to wire. `registerInto` is the same five
   ids over somebody else's engine, for a consumer running a private one.
 - **An id nothing knows reads `null`, never `0`.** A mistyped quest id answering `0` would read as
   "they have not done it" and OPEN a bounds-less gate, so the ladder is: the player's own RECORD

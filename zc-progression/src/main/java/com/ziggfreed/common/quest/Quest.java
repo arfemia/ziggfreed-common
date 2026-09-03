@@ -12,6 +12,7 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.ContentText;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.util.PeriodMath;
 
 /**
  * A RESOLVED quest definition: the shape the engine runs, after any authoring layer has finished
@@ -76,29 +77,54 @@ public final class Quest {
          * the SERVER clock in UTC: a boundary that moved with an owner's timezone setting would move
          * every already-stamped completion with it.
          *
+         * <p>A window is ONE LENGTH in milliseconds, whatever the author wrote it as: a day, a
+         * week, eight hours, a fortnight. Boundaries fall on a fixed grid counted from the epoch,
+         * shifted by {@code atMinutes} and, for a window that is a whole number of weeks, by which
+         * weekday it starts on ({@link #weekAligned()}). There is deliberately no daily/weekly enum
+         * beside the number: two readings of one window would be two things that can disagree.
+         *
+         * @param periodMs  how long one window lasts; a non-positive length reads as one day
          * @param atMinutes minutes past the period boundary the window rolls over, wrapped into one
          *                  period; the escape hatch for a day that should start at 04:00
-         * @param weekStart which day a weekly window starts on; ignored for a daily one
+         * @param weekStart which day a week-aligned window starts on; ignored for any other length
          * @param times     how many completions fit inside one window; at least 1
          */
-        public record Reset(@Nonnull Period period, int atMinutes, @Nonnull DayOfWeek weekStart,
-                            int times) {
-
-            /** Which calendar window is counted. */
-            public enum Period { DAILY, WEEKLY }
+        public record Reset(long periodMs, int atMinutes, @Nonnull DayOfWeek weekStart, int times) {
 
             public Reset {
-                period = period == null ? Period.DAILY : period;
+                periodMs = periodMs <= 0L ? PeriodMath.DAY_MS : periodMs;
                 weekStart = weekStart == null ? DayOfWeek.MONDAY : weekStart;
                 times = Math.max(1, times);
-                long lengthMinutes = period == Period.WEEKLY ? 7L * 24L * 60L : 24L * 60L;
-                atMinutes = (int) Math.floorMod((long) atMinutes, lengthMinutes);
+                // A window shorter than a minute has no whole minute to wrap into; treat it as one.
+                atMinutes = (int) Math.floorMod((long) atMinutes,
+                        Math.max(1L, periodMs / PeriodMath.MINUTE_MS));
             }
 
-            /** A window of this period with every other knob at its default. */
+            /** A window of this length with every other knob at its default. */
             @Nonnull
-            public static Reset of(@Nonnull Period period) {
-                return new Reset(period, 0, DayOfWeek.MONDAY, 1);
+            public static Reset every(long periodMs) {
+                return new Reset(periodMs, 0, DayOfWeek.MONDAY, 1);
+            }
+
+            /** One day, every other knob at its default. */
+            @Nonnull
+            public static Reset daily() {
+                return every(PeriodMath.DAY_MS);
+            }
+
+            /** One week starting on Monday, every other knob at its default. */
+            @Nonnull
+            public static Reset weekly() {
+                return every(PeriodMath.WEEK_MS);
+            }
+
+            /**
+             * Whether the window is a whole number of weeks, which is when {@link #weekStart()}
+             * takes part: a two- or three-week window starts on the authored weekday exactly as a
+             * one-week window does, and a window of any other length has no weekday to start on.
+             */
+            public boolean weekAligned() {
+                return periodMs % PeriodMath.WEEK_MS == 0L;
             }
         }
 
@@ -106,6 +132,23 @@ public final class Quest {
             cooldownMs = Math.max(0L, cooldownMs);
             cooldownFrom = cooldownFrom == null ? CooldownFrom.CLAIM : cooldownFrom;
             maxCompletions = Math.max(0, maxCompletions);
+        }
+
+        /**
+         * The window length a calendar allowance imposes, or 0 when there is none: the calendar
+         * half of the two clocks {@link QuestCadence} weighs against each other.
+         */
+        public long periodMs() {
+            return reset == null ? 0L : reset.periodMs();
+        }
+
+        /**
+         * How often this quest comes round, in the ONE vocabulary every surface classifies with
+         * ({@link QuestCadence#of}): the longer of the rolling wait and the calendar window decides.
+         */
+        @Nonnull
+        public QuestCadence cadence() {
+            return QuestCadence.of(this);
         }
 
         /**

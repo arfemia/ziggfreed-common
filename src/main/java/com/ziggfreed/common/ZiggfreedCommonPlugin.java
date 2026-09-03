@@ -46,6 +46,7 @@ import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
 import com.ziggfreed.common.objectives.dialogue.DialogueBootstrap;
+import com.ziggfreed.common.objectives.flair.FlairBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
@@ -154,6 +155,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         DialogueBootstrap.registerActiveObjectiveHeader();
         EntityBootstrap.registerPerformerIdentity(this);
         EntityBootstrap.registerFlairs(this);
+        FlairBootstrap.registerFlairRewards(this);
         NpcBootstrap.setupTalkCredit(this);
         NpcBootstrap.registerWorldLifecycle(this);
         EntityBootstrap.registerPlayerIdentity(this);

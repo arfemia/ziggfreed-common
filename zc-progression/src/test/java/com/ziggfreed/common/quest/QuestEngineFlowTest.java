@@ -723,7 +723,7 @@ class QuestEngineFlowTest {
             Quest windowed = quest("q_windowed")
                     .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
                     .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM,
-                            Quest.Repeat.Reset.of(Quest.Repeat.Reset.Period.DAILY), 0))
+                            Quest.Repeat.Reset.daily(), 0))
                     .build();
             QuestEngine engine = engine().build();
             engine.setQuests(List.of(capped, windowed));
@@ -746,7 +746,7 @@ class QuestEngineFlowTest {
             Quest windowed = quest("q_windowed")
                     .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
                     .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM,
-                            Quest.Repeat.Reset.of(Quest.Repeat.Reset.Period.DAILY), 0))
+                            Quest.Repeat.Reset.daily(), 0))
                     .build();
             QuestEngine engine = QuestEngine.builder()
                     .store(new ForgetfulStore())

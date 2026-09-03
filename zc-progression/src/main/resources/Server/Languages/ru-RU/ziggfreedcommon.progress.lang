@@ -75,6 +75,7 @@ factor.held_item = Предмет в руке
 factor.held_tag = Тип предмета в руке
 factor.permission = Разрешение
 factor.quest_completed = завершённое задание
+factor.quest_known = известное задание
 factor.achievement_earned = полученное достижение
 factor.tool_durability_percent = Прочность инструмента
 factor.tool_item_level = Уровень предмета инструмента

@@ -54,8 +54,8 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
     `ProgressionTextSource`, `ProgressionFeedbackHook` (the contributed reaction seam both engines
     announce their lifecycle moments through, so a toast, a jingle or a broadcast is somebody
     else's job entirely),
-    and `ProgressionFactors` (the four `ziggfreedcommon:` readings OF that runtime - finished quest,
-    completion count, earned achievement, points total - claimed process-wide so any content
+    and `ProgressionFactors` (the five `ziggfreedcommon:` readings OF that runtime - known quest,
+    finished quest, completion count, earned achievement, points total - claimed process-wide so any content
     anywhere can gate on progression with no Java and no edge to this module).
     Has its own router; read it before touching runtime registration.
 - [`quest/`](src/main/java/com/ziggfreed/common/quest/CLAUDE.md) (+ `quest/asset/`,
@@ -78,9 +78,9 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
 `Server/Languages/<bcp47>/ziggfreedcommon.progress.lang`, 9 locales (de-DE, en-US, es-ES, fr-FR,
 hu-HU, it-IT, pt-BR, ru-RU, tr-TR): the neutral objective sentence family
 `NeutralObjectiveComposer` falls back to, the shared lock-reason lines, and the names the factor
-overlays point at. Plus `Server/ZiggfreedCommon/Factors/Progression_{Quest_Completed,
-Achievement_Earned}.json`, the two naming overlays that let `ziggfreedcommon:quest_completed` and
-`ziggfreedcommon:achievement_earned` read as a sentence in a requirement line with no Java.
+overlays point at. Plus `Server/ZiggfreedCommon/Factors/Progression_{Quest_Known, Quest_Completed,
+Achievement_Earned}.json`, the three naming overlays that let `ziggfreedcommon:quest_known`,
+`quest_completed` and `achievement_earned` read as a sentence in a requirement line with no Java.
 
 `SCHEMA.md` (repo-committed at this module's root) is the authoring reference for
 the quest and achievement asset types, regenerated on demand from the actual codecs, deliberately

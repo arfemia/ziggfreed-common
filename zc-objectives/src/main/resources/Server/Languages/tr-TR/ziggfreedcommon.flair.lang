@@ -1,0 +1,5 @@
+# Oyunculara yönelik flair satırları: kozmetik bir flair oyuncu için açıldığında okuduğu şey.
+# Dosya adı anahtar ÖN EKİDİR: buradaki bir giriş ziggfreedcommon.flair.<key> olarak çözülür.
+# {0} flair'in adıdır (onu sağlayan dil dosyasındaki flair.<id>.name, yoksa kelimelerle yazılmış id).
+
+unlocked = Flair açıldı: {0}

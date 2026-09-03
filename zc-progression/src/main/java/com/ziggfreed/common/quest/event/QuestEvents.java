@@ -2,28 +2,23 @@ package com.ziggfreed.common.quest.event;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.event.IEvent;
-import com.hypixel.hytale.event.IEventDispatcher;
-import com.hypixel.hytale.server.core.HytaleServer;
-import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.event.NativeEventSeam;
 
 /**
  * Fires the quest engine's native event POJOs on the shared engine event bus.
  *
- * <p><b>The contract, identical for every fire:</b> resolve the dispatcher, guard on
- * {@code hasListener()} so a server with no listeners pays nothing at all, then dispatch
- * synchronously on the CALLING thread. Fire from a world-thread context - a listener runs
- * synchronously on the firing thread, so it can resolve a player and then hop if it needs to.
- *
- * <p>The whole body of every fire is guarded. These events are an outbound courtesy: a listener
- * blowing up, or an event bus that is not there yet, must never take a quest completion down with
- * it. A failure is logged and the quest carries on.
+ * <p><b>The contract is the library-wide one</b> ({@link NativeEventSeam}): guard on
+ * {@code hasListener()} so a server with no listeners pays nothing at all, build the event only
+ * then, dispatch synchronously on the CALLING thread, and never let a failure escape. Fire from a
+ * world-thread context - a listener runs synchronously on the firing thread, so it can resolve a
+ * player and then hop if it needs to. A listener blowing up, or an event bus that is not there yet,
+ * must never take a quest completion down with it: the failure is logged and the quest carries on.
  *
  * <p>This is the entire cross-mod surface for quest moments. A consumer publishes by letting the
  * engine fire, and a third party listens with no compile-time dependency on either side beyond these
@@ -37,27 +32,18 @@ import com.ziggfreed.common.util.SafeLog;
 public final class QuestEvents {
 
     /**
-     * Where a fired event is published. Asked for every fire; {@code build} is to be called only
+     * Where a fired quest event is published: this family's own name for the shared
+     * {@link NativeEventSeam.Publisher}. Asked for every fire; {@code build} is to be called only
      * when somebody is actually listening, because it is asked on every objective tick of ordinary
      * play.
      */
-    public interface Publisher {
-
-        <E extends IEvent<Void>> void publish(@Nonnull Class<E> type, @Nonnull Supplier<E> build);
+    public interface Publisher extends NativeEventSeam.Publisher {
     }
 
     /** The shared engine bus: dispatch when it has a listener, allocate nothing when it has none. */
-    public static final Publisher ENGINE_BUS = new Publisher() {
-        @Override
-        public <E extends IEvent<Void>> void publish(@Nonnull Class<E> type, @Nonnull Supplier<E> build) {
-            IEventDispatcher<E, E> dispatcher = HytaleServer.get().getEventBus().dispatchFor(type);
-            if (dispatcher.hasListener()) {
-                dispatcher.dispatch(build.get());
-            }
-        }
-    };
+    public static final NativeEventSeam.Publisher ENGINE_BUS = NativeEventSeam.ENGINE_BUS;
 
-    private static final AtomicReference<Publisher> PUBLISHER = new AtomicReference<>(ENGINE_BUS);
+    private static final NativeEventSeam SEAM = new NativeEventSeam("[quest]");
 
     private QuestEvents() {
     }
@@ -68,7 +54,7 @@ public final class QuestEvents {
      * engine fires. Not for a mod: on a live server the bus is the one place a listener looks.
      */
     public static void publishTo(@Nullable Publisher publisher) {
-        PUBLISHER.set(publisher != null ? publisher : ENGINE_BUS);
+        SEAM.publishTo(publisher);
     }
 
     /** A player took on a quest. */
@@ -116,16 +102,12 @@ public final class QuestEvents {
     }
 
     /**
-     * The one dispatch body every fire shares. The event is BUILT lazily, after the listener check,
-     * so a server nobody is listening on never allocates one - which matters for the per-objective
-     * event that fires on ordinary play.
+     * The one dispatch body every fire shares, which is the seam's. The event is BUILT lazily,
+     * after the listener check, so a server nobody is listening on never allocates one - which
+     * matters for the per-objective event that fires on ordinary play.
      */
     private static <E extends IEvent<Void>> void fire(@Nonnull String label, @Nonnull Class<E> type,
                                                       @Nonnull Supplier<E> build) {
-        try {
-            PUBLISHER.get().publish(type, build);
-        } catch (Throwable t) {
-            SafeLog.warn("[quest] failed to fire " + label + " event: " + t.getMessage());
-        }
+        SEAM.fire(label, type, build);
     }
 }

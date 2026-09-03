@@ -31,6 +31,8 @@ import com.ziggfreed.common.validation.Finding;
  */
 class QuestAssetCodecTest {
 
+    private static final long DAY_MS = 86_400_000L;
+
     static QuestAsset decode(String json, String id, String parentId, QuestAsset parent) throws IOException {
         AssetExtraInfo.Data data = new AssetExtraInfo.Data(QuestAsset.class, id, parentId);
         return QuestAsset.CODEC.decodeAndInheritJsonAsset(
@@ -159,8 +161,82 @@ class QuestAssetCodecTest {
             assertNotNull(repeat);
             assertEquals(0L, repeat.cooldownMs(), "no rolling wait was authored");
             assertNotNull(repeat.reset());
-            assertEquals(Quest.Repeat.Reset.Period.DAILY, repeat.reset().period());
+            assertEquals(DAY_MS, repeat.reset().periodMs());
             assertEquals(1, repeat.reset().times(), "unauthored Times means once per window");
+        }
+
+        @Test
+        void dailyIsShorthandForEveryOneDayAndWeeklyForEveryOneWeek() throws Exception {
+            assertEquals(reset("{ \"Period\": \"Daily\" }"), reset("{ \"Every\": { \"Days\": 1 } }"),
+                    "the two spellings fold to the same runtime window");
+            assertEquals(reset("{ \"Period\": \"Weekly\", \"Weekday\": \"Sunday\" }"),
+                    reset("{ \"Every\": { \"Weeks\": 1 }, \"Weekday\": \"Sunday\" }"));
+            assertEquals(reset("{ }"), reset("{ \"Period\": \"Daily\" }"),
+                    "nothing authored is a day, exactly as the word is");
+        }
+
+        @Test
+        void everyTakesAnyLength() throws Exception {
+            assertEquals(8L * 3_600_000L, reset("{ \"Every\": { \"Hours\": 8 } }").periodMs());
+            assertEquals(14L * DAY_MS, reset("{ \"Every\": { \"Weeks\": 2 } }").periodMs(),
+                    "Weeks is a unit the duration group adds up like the others");
+            assertEquals(reset("{ \"Every\": { \"Weeks\": 2 } }"),
+                    reset("{ \"Every\": { \"Days\": 14 } }"), "a fortnight is a fortnight either way");
+            assertTrue(reset("{ \"Every\": { \"Weeks\": 3 } }").weekAligned());
+            assertFalse(reset("{ \"Every\": { \"Days\": 3 } }").weekAligned());
+        }
+
+        @Test
+        void everyWinsOverPeriodAndTheAuditSaysSo() throws Exception {
+            QuestAsset asset = decodeRoot("""
+                    { "Repeat": { "Reset": { "Period": "Weekly", "Every": { "Hours": 8 } } } }
+                    """, "both");
+
+            assertEquals(8L * 3_600_000L, asset.toDefinition(null).quest().repeat().reset().periodMs(),
+                    "the explicit length is the window; the shorthand beside it is ignored");
+            assertTrue(codes(asset).contains("REPEAT_EVERY_AND_PERIOD"),
+                    "the author is told the Period is redundant");
+        }
+
+        @Test
+        void anEveryThatAddsUpToNothingFallsBackToADayAndTheAuditSaysSo() throws Exception {
+            QuestAsset asset = decodeRoot("""
+                    { "Repeat": { "Reset": { "Every": { "Hours": 0 } } } }
+                    """, "empty");
+
+            assertEquals(DAY_MS, asset.toDefinition(null).quest().repeat().reset().periodMs(),
+                    "a window of no length would refuse every completion, so a day is used instead");
+            assertTrue(codes(asset).contains("REPEAT_EVERY_EMPTY"));
+        }
+
+        @Test
+        void aWeekdayOnAWindowThatIsNotWholeWeeksIsReported() throws Exception {
+            QuestAsset eightHours = decodeRoot("""
+                    { "Repeat": { "Reset": { "Every": { "Hours": 8 }, "Weekday": "Sunday" } } }
+                    """, "eight");
+            QuestAsset fortnight = decodeRoot("""
+                    { "Repeat": { "Reset": { "Every": { "Weeks": 2 }, "Weekday": "Sunday" } } }
+                    """, "fortnight");
+
+            assertTrue(codes(eightHours).contains("REPEAT_WEEKDAY_ON_DAILY"));
+            assertFalse(codes(fortnight).contains("REPEAT_WEEKDAY_ON_DAILY"),
+                    "a two-week window starts on the authored weekday, so the knob is doing something");
+        }
+
+        private Quest.Repeat.Reset reset(String resetJson) throws Exception {
+            Quest.Repeat repeat = decodeRoot("{ \"Repeat\": { \"Reset\": " + resetJson + " } }", "r")
+                    .toDefinition(null).quest().repeat();
+            assertNotNull(repeat);
+            assertNotNull(repeat.reset());
+            return repeat.reset();
+        }
+
+        private static List<String> codes(QuestAsset asset) {
+            List<String> codes = new ArrayList<>();
+            for (Finding finding : QuestPoolValidator.repeatFindings(asset.getRepeat(), "r")) {
+                codes.add(finding.code());
+            }
+            return codes;
         }
 
         @Test
@@ -189,8 +265,7 @@ class QuestAssetCodecTest {
             assertEquals(Quest.Repeat.CooldownFrom.COMPLETE, child.cooldownFrom());
             assertEquals(5, child.maxCompletions(), "the child's own leaf lands");
             assertNotNull(child.reset());
-            assertEquals(Quest.Repeat.Reset.Period.DAILY, child.reset().period(),
-                    "the child's own window leaf wins");
+            assertEquals(DAY_MS, child.reset().periodMs(), "the child's own window leaf wins");
             assertEquals(3, child.reset().times(),
                     "inheritance reaches leaf by leaf right into the nested window, so a child that"
                             + " retunes one knob keeps the rest of the parent's - the same rule the"
@@ -209,7 +284,7 @@ class QuestAssetCodecTest {
             assertEquals(Quest.Repeat.CooldownFrom.CLAIM, folded.cooldownFrom(),
                     "a typo must not take a whole quest out of circulation");
             assertNotNull(folded.reset());
-            assertEquals(Quest.Repeat.Reset.Period.DAILY, folded.reset().period());
+            assertEquals(DAY_MS, folded.reset().periodMs());
 
             List<String> codes = new ArrayList<>();
             for (Finding finding : QuestPoolValidator.repeatFindings(asset.getRepeat(), "typo")) {

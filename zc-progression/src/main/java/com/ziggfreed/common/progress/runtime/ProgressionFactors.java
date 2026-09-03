@@ -22,21 +22,25 @@ import com.ziggfreed.common.subject.Subject;
  *
  * <p><b>Why they exist.</b> A requirement is a factor everywhere else in this library - a level, a
  * tool's tier, another mod's rarity reading - and progression was the one thing a gate could only
- * ask about through a bespoke leaf. With these four ids any content anywhere can gate on finished
+ * ask about through a bespoke leaf. With these five ids any content anywhere can gate on finished
  * content with no Java and no dependency on the engine that owns it: a storefront, a board, an NPC
  * placement, a dialogue option and a loot roll all read them through the same
  * {@link FactorRegistry} they read everything else through.
  *
  * <p><b>They answer for THE shared runtime</b> ({@link ProgressionRuntime}), because that is the one
- * progression a server has however many mods contribute to it. {@link #contribute()} claims all four
+ * progression a server has however many mods contribute to it. {@link #contribute()} claims all five
  * ids process-wide through {@link FactorContributions}, so every vocabulary on the server resolves
- * them without anybody wiring anything; {@link #registerInto} is the same four ids pointed at
+ * them without anybody wiring anything; {@link #registerInto} is the same five ids pointed at
  * somebody else's engine, for a consumer running a private one (a round that dies with the match)
  * or for a test.
  *
  * <table>
  *   <caption>The progression factor ids</caption>
  *   <tr><th>Id</th><th>Param</th><th>Value</th></tr>
+ *   <tr><td>{@code ziggfreedcommon:quest_known}</td><td>a quest id</td>
+ *       <td>1 when the shared catalogue holds a quest under that id, else 0 - a SERVER reading
+ *       that needs no player, for content that must know whether a quest another mod ships exists
+ *       here at all</td></tr>
  *   <tr><td>{@code ziggfreedcommon:quest_completed}</td><td>a quest id</td>
  *       <td>1 when the quest's stored status is {@code COMPLETED} right now - finished AND collected
  *       - else 0. A CURRENT reading, so a parked reward reads 0, and so does a repeatable a re-arm
@@ -51,21 +55,34 @@ import com.ziggfreed.common.subject.Subject;
  *       <td>the player's earned points total</td></tr>
  * </table>
  *
- * <p><b>Every one of them is fail-closed, and an id nothing knows is the case that matters.</b> A
- * quest id no catalogue on the server carries reads {@code null}, never {@code 0} - a typo must not
- * read as "they have not done it" and open a bounds-less gate, which is exactly what a {@code 0}
- * would do. The ladder is: the RECORD first (a player who finished it answers even if the content
- * has since been retired), then the CATALOGUE (known, not done: 0), then nothing.
+ * <p><b>Every per-player reading is fail-closed, and an id nothing knows is the case that
+ * matters.</b> A quest id no catalogue on the server carries reads {@code null} from the four
+ * per-player ids, never {@code 0} - a typo must not read as "they have not done it" and open a
+ * bounds-less gate, which is exactly what a {@code 0} would do. The ladder is: the RECORD first (a
+ * player who finished it answers even if the content has since been retired), then the CATALOGUE
+ * (known, not done: 0), then nothing.
+ *
+ * <p><b>{@code quest_known} is the one reading for which "nothing knows it" IS the answer.</b>
+ * Presence is the whole question, so a built catalogue that does not hold the id answers a DEFINITE
+ * {@code 0}, the same reasoning {@code hytale:mod_installed} follows for an absent mod: both halves
+ * ("only where that quest exists" with {@code Min: 1}, "only where it does not" with {@code Max: 0})
+ * have to be writable, and a {@code null} would shut the second one on every server. It exists
+ * because a dialogue {@code QuestState} condition on an unknown quest reads {@code NOT_STARTED} by
+ * design, so a conversation in one mod could not otherwise tell whether a quest another pack ships
+ * is on this server at all.
  *
  * <p><b>A factor read never BUILDS the runtime.</b> Reading either engine off
  * {@link ProgressionRuntime} would seal it, and a gate evaluated early - a placement sweep, a
  * content audit - would then seal it before every consumer had registered its parts. So these
  * readings answer {@code null} until the runtime is built, which shuts a gate for a moment rather
- * than moving where a player's data lives for the rest of the boot.
+ * than moving where a player's data lives for the rest of the boot. {@code quest_known} asks
+ * {@link Reads#runtimeReady()} for exactly this reason: before the catalogue exists, "not built" must
+ * not be mistaken for "not catalogued".
  *
- * <p><b>The reads are narrow by construction.</b> {@link Reads} names six questions, all of them
- * answers about a player, and nothing here can accept a quest, pay one out or touch a store - the
- * same discipline {@code QuestStateReader} exists to keep for a conversation.
+ * <p><b>The reads are narrow by construction.</b> {@link Reads} names seven questions, six of them
+ * answers about a player or the catalogue and one about whether the catalogue exists yet, and
+ * nothing here can accept a quest, pay one out or touch a store - the same discipline
+ * {@code QuestStateReader} exists to keep for a conversation.
  *
  * <p><b>A finished quest means a CLAIMED one, both ways it can be written.</b> A {@code Requires}
  * block's {@code Quests} prerequisite and the {@code ziggfreedcommon:quest_completed} factor are
@@ -79,6 +96,13 @@ public final class ProgressionFactors {
 
     /** Who these registrations are attributed to in the registry ledger. */
     public static final String OWNER = "ziggfreedcommon";
+
+    /**
+     * {@code ziggfreedcommon:quest_known} - 1 when the shared catalogue holds a quest under the id
+     * named by Param, 0 when it is built and does not; null with no Param, and null until the
+     * runtime is built. Needs no player.
+     */
+    public static final String QUEST_KNOWN = "ziggfreedcommon:quest_known";
 
     /**
      * {@code ziggfreedcommon:quest_completed} - 1 when the quest named by Param is finished AND its
@@ -153,14 +177,22 @@ public final class ProgressionFactors {
     }
 
     /**
-     * The six READS these factors are allowed to make - every one a question about a player, none
-     * of them able to change anything.
+     * The seven READS these factors are allowed to make - questions about a player or the
+     * catalogue, none of them able to change anything.
      *
      * <p>The two {@code known} questions are what keeps a mistyped id from reading as a definite
      * "not done": they ask whether anything on this server carries that id at all, so the providers
-     * can answer nothing instead of zero.
+     * can answer nothing instead of zero. {@link #runtimeReady()} is what keeps "the catalogue is
+     * not built yet" apart from "the catalogue does not hold it", the one distinction a presence
+     * reading cannot do without.
      */
     public interface Reads {
+
+        /**
+         * Is there a catalogue to ask at all? {@code false} while the runtime is not built, when
+         * every other answer here is a placeholder rather than a fact.
+         */
+        boolean runtimeReady();
 
         /** Does any catalogued quest carry this id? */
         boolean questKnown(@Nonnull String questId);
@@ -197,6 +229,11 @@ public final class ProgressionFactors {
          * more than the moment of shut gates it costs.
          */
         Reads RUNTIME = new Reads() {
+
+            @Override
+            public boolean runtimeReady() {
+                return ProgressionRuntime.isBuilt();
+            }
 
             @Override
             public boolean questKnown(@Nonnull String questId) {
@@ -250,7 +287,7 @@ public final class ProgressionFactors {
     // ==================== registration ====================
 
     /**
-     * Claim all four ids process-wide, answered from THE shared runtime. One call from the wiring
+     * Claim all five ids process-wide, answered from THE shared runtime. One call from the wiring
      * root's {@code setup()}; from then on every {@link FactorRegistry} on the server resolves them,
      * including registries built before this ran.
      */
@@ -260,6 +297,7 @@ public final class ProgressionFactors {
 
     /** {@link #contribute()} over somebody else's subject resolution and reads. */
     public static void contribute(@Nonnull Subjects subjects, @Nonnull Reads reads) {
+        FactorContributions.register(QUEST_KNOWN, OWNER, questKnown(reads));
         FactorContributions.register(QUEST_COMPLETED, OWNER, questCompleted(subjects, reads));
         FactorContributions.register(QUEST_COMPLETIONS, OWNER, questCompletions(subjects, reads));
         FactorContributions.register(ACHIEVEMENT_EARNED, OWNER, achievementEarned(subjects, reads));
@@ -267,7 +305,7 @@ public final class ProgressionFactors {
     }
 
     /**
-     * Register all four ids into ONE vocabulary, answered by {@code subjects} + {@code reads}. This
+     * Register all five ids into ONE vocabulary, answered by {@code subjects} + {@code reads}. This
      * is the private-engine form: a consumer's own registration always beats the process-wide claim
      * {@link #contribute()} makes, so the same content reads that consumer's engine inside its own
      * evaluation site and the shared one everywhere else.
@@ -275,6 +313,7 @@ public final class ProgressionFactors {
     public static void registerInto(@Nonnull FactorRegistry registry, @Nullable String owner,
                                     @Nonnull Subjects subjects, @Nonnull Reads reads) {
         String attributed = owner == null || owner.isBlank() ? OWNER : owner;
+        registry.register(QUEST_KNOWN, attributed, questKnown(reads));
         registry.register(QUEST_COMPLETED, attributed, questCompleted(subjects, reads));
         registry.register(QUEST_COMPLETIONS, attributed, questCompletions(subjects, reads));
         registry.register(ACHIEVEMENT_EARNED, attributed, achievementEarned(subjects, reads));
@@ -282,6 +321,32 @@ public final class ProgressionFactors {
     }
 
     // ==================== providers ====================
+
+    /**
+     * {@code 1} when the shared catalogue holds a quest under the id named by {@code Param},
+     * {@code 0} when the catalogue is built and does not, {@code null} with no {@code Param} and
+     * {@code null} until the runtime is built.
+     *
+     * <p><b>The {@code 0} is definite on purpose.</b> Presence is the whole question, and "nothing
+     * on this server knows it" is the no - the one reading here where an unknown id must NOT read
+     * as nothing, because a conversation pointing a player at content another pack ships has to be
+     * able to write "only where that quest exists" ({@code Min: 1}) and "only where it does not"
+     * ({@code Max: 0}) and have both hold on every server.
+     *
+     * <p><b>It needs no player.</b> Which quests are catalogued is one fact about the server, so the
+     * reading is the same whoever the question is about, and it answers from a validator or a
+     * placement sweep with no live entity on the context exactly as from a dialogue render with one.
+     */
+    @Nonnull
+    public static FactorProvider questKnown(@Nonnull Reads reads) {
+        return ctx -> {
+            String questId = trimmed(ctx.param());
+            if (questId == null || !reads.runtimeReady()) {
+                return null;
+            }
+            return reads.questKnown(questId) ? YES : NO;
+        };
+    }
 
     /**
      * {@code 1} when this player has ever finished AND collected the quest named by {@code Param},

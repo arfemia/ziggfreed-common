@@ -1,0 +1,5 @@
+# Die Flair-Zeilen für Spieler: was ein Spieler liest, wenn ein kosmetisches Flair für ihn freigeschaltet wird.
+# Der Dateiname ist das Schlüssel-PRÄFIX: ein Eintrag hier heißt ziggfreedcommon.flair.<key>.
+# {0} ist der Name des Flairs (flair.<id>.name aus der Sprachdatei, die es liefert, sonst die ID in Worten).
+
+unlocked = Flair freigeschaltet: {0}

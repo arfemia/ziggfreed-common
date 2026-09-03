@@ -17,6 +17,7 @@ import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestProgressStore;
 import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.time.DurationGroup;
+import com.ziggfreed.common.util.PeriodMath;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.validation.Finding;
@@ -178,22 +179,38 @@ public final class QuestPoolValidator {
     private static void validateReset(@Nonnull QuestAsset.Repeat.Reset reset, @Nonnull String questId,
             @Nonnull List<Finding> out) {
 
-        Quest.Repeat.Reset.Period period = reset.parsedPeriod();
+        QuestAsset.Repeat.Reset.Period period = reset.parsedPeriod();
         if (period == null) {
             out.add(Finding.error(DOMAIN, "REPEAT_UNKNOWN_PERIOD",
                     "Repeat.Reset.Period is '" + reset.getPeriod() + "', which is neither "
                             + QuestAsset.Repeat.Reset.PERIOD_DAILY + " nor "
-                            + QuestAsset.Repeat.Reset.PERIOD_WEEKLY + "; a daily window is used instead",
-                    questId));
+                            + QuestAsset.Repeat.Reset.PERIOD_WEEKLY + "; it is ignored, and the window is "
+                            + "Every when that is authored, else one day", questId));
+        }
+        DurationGroup every = reset.getEvery();
+        if (every != null) {
+            if (every.hasNegativeUnit()) {
+                out.add(Finding.warning(DOMAIN, "REPEAT_NEGATIVE_EVERY_UNIT",
+                        "Repeat.Reset.Every carries a negative unit, which adds nothing to the window; write "
+                                + "the units you want or leave the group out entirely", questId));
+            }
+            if (every.totalMs() <= 0L) {
+                out.add(Finding.error(DOMAIN, "REPEAT_EVERY_EMPTY",
+                        "Repeat.Reset.Every adds up to no time at all, so a daily window is used instead; "
+                                + "write the units the window should last, or drop the group", questId));
+            } else if (reset.getPeriod() != null) {
+                out.add(Finding.warning(DOMAIN, "REPEAT_EVERY_AND_PERIOD",
+                        "Repeat.Reset authors both Every and Period; Every wins, so drop Period", questId));
+            }
         }
         if (reset.parsedWeekday() == null) {
             out.add(Finding.error(DOMAIN, "REPEAT_UNKNOWN_WEEKDAY",
                     "Repeat.Reset.Weekday is '" + reset.getWeekday() + "', which is not a day name; the "
                             + "window starts on Monday instead", questId));
-        } else if (period == Quest.Repeat.Reset.Period.DAILY && reset.getWeekday() != null) {
+        } else if (reset.getWeekday() != null && !reset.toReset().weekAligned()) {
             out.add(Finding.warning(DOMAIN, "REPEAT_WEEKDAY_ON_DAILY",
-                    "Repeat.Reset.Weekday does nothing on a daily window; either drop it or set Period to "
-                            + QuestAsset.Repeat.Reset.PERIOD_WEEKLY, questId));
+                    "Repeat.Reset.Weekday only takes part when the window is a whole number of weeks; either "
+                            + "drop it or make the window Weekly (or Every {Weeks: N})", questId));
         }
         Integer times = reset.getTimes();
         if (times != null && times.intValue() < 1) {
@@ -202,7 +219,7 @@ public final class QuestPoolValidator {
                             + "as 1", questId));
         }
         Integer atMinutes = reset.getAtMinutes();
-        long windowMinutes = period == Quest.Repeat.Reset.Period.WEEKLY ? 7L * 24L * 60L : 24L * 60L;
+        long windowMinutes = Math.max(1L, reset.periodMs() / PeriodMath.MINUTE_MS);
         if (atMinutes != null && (atMinutes.intValue() < 0 || atMinutes.intValue() >= windowMinutes)) {
             out.add(Finding.warning(DOMAIN, "REPEAT_AT_MINUTES_OUT_OF_RANGE",
                     "Repeat.Reset.AtMinutes is " + atMinutes + ", which is outside one window; it wraps "

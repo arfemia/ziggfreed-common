@@ -56,7 +56,8 @@ a server running two content mods work.
 | `QuestTurnInSite` | WHERE a quest may be collected: a named character, or wherever this player took it from. Nullable on `Quest`, and its presence is the restriction |
 | `QuestProgressPayload` | packs one quest's whole `progress.ObjectiveProgressState` map into the opaque string a store persists |
 | `QuestStatus`, `QuestLifecycle` | the state machine, the effective-status rule, and `repeatCheck` - the ONE evaluator for whether a repeatable may be taken again |
-| `RepeatPeriod` | the pure calendar arithmetic behind a `Repeat.Reset` window (UTC, `floorDiv`-indexed, saturating) |
+| `RepeatPeriod` | the pure calendar arithmetic behind a `Repeat.Reset` window of ANY length - a day, a week, eight hours, a fortnight (UTC, `floorDiv`-indexed, saturating; the weekday start takes part only for a window that is a whole number of weeks) |
+| `QuestCadence` | the ONE classification of how often a quest comes round (`NONE` / `REPEATABLE` / `DAILY` / `WEEKLY`) from the LONGER of the rolling cooldown and the calendar window, thresholds twenty hours and six days spelled once on the enum; `Repeat.cadence()` delegates to it, and every listing badge, achievement qualifier or rotation label reads it rather than bucketing on its own |
 | `QuestProgressStore` (+ `.CompletionRecord`), `InMemoryQuestProgressStore` | THE persistence seam and a ready-made in-memory one |
 | `QuestGates`, `QuestPossessionProbe`, `QuestInventoryConsumer`, `QuestI18n`, `progress.runtime.ProgressionFeedbackHook` | the consumer seams (the dispatch tap is shared: `progress.ProgressDispatchTap`; the feedback hook is a CONTRIBUTION, see [`../progress/runtime/`](../progress/runtime/CLAUDE.md)). `QuestGates` is FILLED by `RequiresGates` above: a consumer implementing it again is registering a second decision over one model. Accepting asks it ONE question, `opensFor`, which the default answers by asking `prerequisitesMet` and `accepts` in turn; a gate reading both off one requirement block overrides it and reads once |
 | `QuestEngine.Builder#factors` / `#factorContext` | the OPTIONAL factor pair, wired the way a gate evaluator's is; unwired, `STAT_THRESHOLD` is purely consumer-fired |
@@ -116,6 +117,12 @@ a server running two content mods work.
   come back in three hours for a quest they can never take again is the worse message), then the
   spent window, then the running clock. Never add a fourth answer anywhere else - a surface wanting
   the specific reason asks `canAccept`.
+- **A `Reset` window is one LENGTH, not a daily/weekly enum.** `Quest.Repeat.Reset(periodMs,
+  atMinutes, weekStart, times)`: the asset's `Every` duration group (or its `Period` Daily|Weekly
+  sugar) folds to the length, `weekAligned()` says whether `weekStart` takes part (a whole number
+  of weeks), and `RepeatPeriod` indexes the epoch grid with it. Two readings of one window would
+  be two things that can disagree, so there is no enum beside the number; `QuestCadence` is the
+  one bucketing, and it weighs this length against the rolling `cooldownMs`.
 - **`CooldownFrom` is an ANCHOR, not a mode.** It names the single instant one clock counts from
   (`CLAIM` the reward being taken, `COMPLETE` the objectives being met) and toggles nothing else.
   `COMPLETE` is what a quest belonging to a rotating, period-based offer wants, so collecting late

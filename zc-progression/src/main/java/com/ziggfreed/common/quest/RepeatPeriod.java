@@ -11,7 +11,9 @@ import com.ziggfreed.common.util.PeriodMath;
  *
  * <p>What a {@code Reset} MEANS in window terms lives here - how long its window lasts and how far
  * its boundary is shifted - while the arithmetic over those two numbers is
- * {@link PeriodMath} in zc-core, so every recurring window in the library indexes the same way.
+ * {@link PeriodMath} in zc-core, so every recurring window in the library indexes the same way. A
+ * window is any length (a day, a week, eight hours, a fortnight); only a window that is a whole
+ * number of weeks has a weekday to start on.
  *
  * <p>Pure and static - no store, no clock, no engine type - so every boundary is exercisable by
  * handing it two numbers.
@@ -33,17 +35,18 @@ public final class RepeatPeriod {
     private RepeatPeriod() {
     }
 
-    /** How long one window lasts, in milliseconds. */
+    /** How long one window lasts, in milliseconds: whatever length the reset was authored with. */
     public static long lengthMs(@Nonnull Reset reset) {
-        return reset.period() == Reset.Period.WEEKLY ? WEEK_MS : DAY_MS;
+        return reset.periodMs();
     }
 
     /**
-     * How far the window boundary is shifted from the raw epoch grid: the weekday start (weekly
-     * only, because a daily window has no weekday to start on) plus the authored minutes.
+     * How far the window boundary is shifted from the raw epoch grid: the weekday start (for a
+     * window that is a whole number of weeks, because any other length has no weekday to start on)
+     * plus the authored minutes.
      */
     public static long anchorOffsetMs(@Nonnull Reset reset) {
-        long weekdayShift = reset.period() == Reset.Period.WEEKLY
+        long weekdayShift = reset.weekAligned()
                 ? PeriodMath.weekdayAnchorMs(reset.weekStart())
                 : 0L;
         return weekdayShift - reset.atMinutes() * PeriodMath.MINUTE_MS;

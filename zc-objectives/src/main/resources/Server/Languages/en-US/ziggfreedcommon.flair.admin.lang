@@ -1,0 +1,25 @@
+# The /zigflair admin command family: help text and answers.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.flair.admin.<key>.
+# The desc.* keys are what the engine's own help resolves a command or an argument through.
+
+desc.family = Grant, revoke and list a player's cosmetic flairs.
+desc.grant = Unlock a flair for a player.
+desc.revoke = Take a flair away from a player.
+desc.list = List the flairs a player has unlocked.
+desc.arg.player = The player to act on. Defaults to you.
+desc.arg.flair = The flair id.
+
+player.needed = Name a player with --player=<name>.
+player.offline = That player is not online, and their flairs live on their own entity.
+player.no_record = {0} has no flair record to write to.
+flair.needed = Name a flair with --flair=<id>.
+flair.refused = '{0}' is not a usable flair id: it carries '|' or ':', which the save format reserves.
+
+grant.done = Unlocked the flair '{1}' for {0}.
+grant.already = {0} already has the flair '{1}'.
+grant.unknown = Nothing loaded names a flair '{0}'; it is unlocked anyway, in case the pack that ships it loads later.
+revoke.done = Took the flair '{1}' away from {0}.
+revoke.absent = {0} did not have the flair '{1}'.
+list.header = Flairs {0} has unlocked ({1}):
+list.row = - {0}
+list.none = {0} has no flairs unlocked.

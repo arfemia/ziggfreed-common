@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:quest_known reading for requirement lines. The factor answers 1 when the shared catalogue holds a quest under the Param id and 0 when it does not, with or without a player in the question, so a dialogue option or a Requires block can point at content another pack ships only where that pack is actually on this server (Min 1), or say something else where it is not (Max 0). A requirement naming a specific quest already reads with that quest's own title; this name covers the bare factor.",
+  "Factor": "ziggfreedcommon:quest_known",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.quest_known" }
+}

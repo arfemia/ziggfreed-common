@@ -54,7 +54,8 @@ public final class RewardEntryAsset {
                             (o, v) -> o.kind = v, o -> o.kind, (o, p) -> o.kind = p.kind)
                     .metadata(new UIEditor(new UIEditor.Dropdown(ProgressEditorDataSets.REWARD_KINDS)))
                     .documentation("Which registered reward kind pays this out, by id: Item, Lootable, "
-                            + "Stamped_Item, Effect and Droplist come with the framework, and a kind a mod brings "
+                            + "Stamped_Item, Effect, Droplist, Command and Flair come with the framework, and a "
+                            + "kind a mod brings "
                             + "carries that mod's prefix (Yourmod_Coin). A kind nothing registered is reported "
                             + "rather than silently skipped, so an owner can see which mod was expected to "
                             + "provide it.").add()

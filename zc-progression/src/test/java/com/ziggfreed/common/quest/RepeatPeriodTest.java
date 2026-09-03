@@ -26,12 +26,18 @@ class RepeatPeriodTest {
     /** Thursday 1 January 1970, 00:00 UTC, is epoch 0 - which is what the weekday shift is measured from. */
     private static final long EPOCH_THURSDAY = 0L;
 
+    private static final long HOUR = 60L * MINUTE;
+
     private static Reset daily(int atMinutes) {
-        return new Reset(Reset.Period.DAILY, atMinutes, DayOfWeek.MONDAY, 1);
+        return new Reset(DAY, atMinutes, DayOfWeek.MONDAY, 1);
     }
 
     private static Reset weekly(DayOfWeek start) {
-        return new Reset(Reset.Period.WEEKLY, 0, start, 1);
+        return new Reset(7 * DAY, 0, start, 1);
+    }
+
+    private static Reset every(long lengthMs, int atMinutes, DayOfWeek start) {
+        return new Reset(lengthMs, atMinutes, start, 1);
     }
 
     @Test
@@ -98,6 +104,69 @@ class RepeatPeriodTest {
     void aClockNearTheEndOfTimeSaturatesRatherThanWrapping() {
         assertEquals(Long.MAX_VALUE, RepeatPeriod.nextBoundaryMs(daily(0), Long.MAX_VALUE - 10L),
                 "a wrapped boundary would read as offerable right now, which is the wrong way to fail");
+    }
+
+    @Test
+    void anEightHourWindowRollsOverThreeTimesADayOnTheEpochGrid() {
+        Reset reset = every(8 * HOUR, 0, DayOfWeek.MONDAY);
+        long dayStart = 10 * DAY;
+        assertEquals(dayStart, RepeatPeriod.periodStartMs(reset, dayStart + 3 * HOUR));
+        assertEquals(dayStart + 8 * HOUR, RepeatPeriod.nextBoundaryMs(reset, dayStart + 3 * HOUR));
+        assertEquals(dayStart + 8 * HOUR, RepeatPeriod.periodStartMs(reset, dayStart + 9 * HOUR),
+                "the second window of the day starts eight hours in");
+        assertEquals(dayStart + 16 * HOUR, RepeatPeriod.periodStartMs(reset, dayStart + 23 * HOUR),
+                "the third starts sixteen hours in, and the next day's first at midnight again");
+        assertNotEquals(RepeatPeriod.periodIndex(reset, dayStart + 8 * HOUR - 1),
+                RepeatPeriod.periodIndex(reset, dayStart + 8 * HOUR),
+                "one millisecond either side of a boundary is two windows");
+    }
+
+    @Test
+    void atMinutesShiftsEveryBoundaryOfAShortWindowByTheSameAmount() {
+        Reset reset = every(8 * HOUR, 60, DayOfWeek.MONDAY);
+        long dayStart = 10 * DAY;
+        assertEquals(dayStart + HOUR, RepeatPeriod.periodStartMs(reset, dayStart + 2 * HOUR));
+        assertEquals(dayStart + 9 * HOUR, RepeatPeriod.periodStartMs(reset, dayStart + 10 * HOUR),
+                "an hour past the boundary moves the second window's start to 09:00 as well");
+        assertTrue(RepeatPeriod.samePeriod(reset, dayStart + HOUR, dayStart + 9 * HOUR - 1));
+        assertTrue(!RepeatPeriod.samePeriod(reset, dayStart + HOUR, dayStart + 9 * HOUR));
+    }
+
+    @Test
+    void aTwoWeekWindowStartsOnTheAuthoredWeekday() {
+        Reset reset = every(14 * DAY, 0, DayOfWeek.MONDAY);
+        long instant = EPOCH_THURSDAY + 100 * DAY + 5 * MINUTE;
+        long start = RepeatPeriod.periodStartMs(reset, instant);
+        assertEquals(DayOfWeek.MONDAY, weekdayOf(start), "a fortnight begins on the authored weekday");
+        assertEquals(start + 14 * DAY, RepeatPeriod.nextBoundaryMs(reset, instant),
+                "and the next one begins two weeks on, on a Monday again");
+        assertEquals(start, RepeatPeriod.periodStartMs(reset, start + 13 * DAY),
+                "thirteen days in is still the same fortnight");
+        assertEquals(DayOfWeek.SUNDAY,
+                weekdayOf(RepeatPeriod.periodStartMs(every(14 * DAY, 0, DayOfWeek.SUNDAY), instant)),
+                "a fortnight starting on Sunday starts on a Sunday, as a week does");
+    }
+
+    /** The weekday of a UTC instant, counted from the Thursday the epoch fell on. */
+    private static DayOfWeek weekdayOf(long ms) {
+        return DayOfWeek.THURSDAY.plus((int) Math.floorMod(Math.floorDiv(ms, DAY), 7L));
+    }
+
+    @Test
+    void aWindowShorterThanAMinuteStillWrapsAtMinutesRatherThanThrowing() {
+        Reset reset = every(30 * 1000L, 5, DayOfWeek.MONDAY);
+        assertEquals(0, reset.atMinutes(), "there is no whole minute to shift by, so the shift is none");
+        assertEquals(30 * 1000L, RepeatPeriod.nextBoundaryMs(reset, 0L));
+    }
+
+    @Test
+    void aWindowThatIsNotWholeWeeksHasNoWeekdayToStartOn() {
+        long dayStart = 10 * DAY;
+        assertEquals(RepeatPeriod.periodStartMs(every(3 * DAY, 0, DayOfWeek.MONDAY), dayStart + HOUR),
+                RepeatPeriod.periodStartMs(every(3 * DAY, 0, DayOfWeek.SUNDAY), dayStart + HOUR),
+                "a three-day window is the same three-day window whatever weekday was written");
+        assertEquals(RepeatPeriod.periodStartMs(every(8 * HOUR, 0, DayOfWeek.MONDAY), dayStart + HOUR),
+                RepeatPeriod.periodStartMs(every(8 * HOUR, 0, DayOfWeek.FRIDAY), dayStart + HOUR));
     }
 
     @Test

@@ -49,9 +49,10 @@ public final class ProgressionBootstrap {
      * of players on the shared bus rather than happening to one entity) and is registered by the same
      * {@code install} beside the five, so one place says what the library produces.
      *
-     * <p>The progression READINGS ({@link ProgressionFactors#contribute()}) come next: four factor
+     * <p>The progression READINGS ({@link ProgressionFactors#contribute()}) come next: five factor
      * ids claimed process-wide, so any content anywhere - a storefront, a board, a placement, a
-     * conversation, a loot roll - can gate on a finished quest or an earned achievement with no Java
+     * conversation, a loot roll - can gate on a finished quest, an earned achievement or the mere
+     * presence of a quest another pack ships ({@code quest_known}) with no Java
      * and no dependency on the engine that owns the answer. It is a contribution rather than a
      * registration into one vocabulary, which is why it belongs beside the runtime it reads and not
      * inside any consumer's own setup.

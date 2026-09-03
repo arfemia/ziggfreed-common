@@ -24,7 +24,7 @@ consumer: store.resolveAll(enumerators)           -> expand generators -> decode
 
 | Class | What it is |
 |---|---|
-| `QuestAsset` (+ `Listing`/`Flow`/`Repeat`(+`.Reset`)/`Npc`) | one authored quest; Pattern A, the codec IS the schema. Its `Text`, `Rewards`, and `Requires` groups are the SHARED ones below, and the two visibility leaves (`Hidden`, `RequirePrerequisites`) ride `Listing`, folding into the engine's `Quest.Visibility` at the fold. Authoring `Repeat` AT ALL is what makes a quest repeatable, so `"Repeat": {}` is the smallest one; `TurnInAt` and `CompletionDialogue` are top-level leaves beside `Npc` |
+| `QuestAsset` (+ `Listing`/`Flow`/`Repeat`(+`.Reset`)/`Npc`) | one authored quest; Pattern A, the codec IS the schema. Its `Text`, `Rewards`, and `Requires` groups are the SHARED ones below, and the two visibility leaves (`Hidden`, `RequirePrerequisites`) ride `Listing`, folding into the engine's `Quest.Visibility` at the fold. Authoring `Repeat` AT ALL is what makes a quest repeatable, so `"Repeat": {}` is the smallest one; `Reset.Every` is the window length as a `DurationGroup` (`Weeks`/`Days`/`Hours`/`Minutes`/`Seconds`, any length) with `Period` Daily|Weekly as its sugar (both authored: `Every` wins and `REPEAT_EVERY_AND_PERIOD` says so); `TurnInAt` and `CompletionDialogue` are top-level leaves beside `Npc` |
 | `QuestObjectiveAsset` | a quest's objective: the shared `progress.asset.ObjectiveLeafAsset` leaves plus the two only a quest has (`Order`, `TurnInNpcId`) |
 | [`progress.gate`](../../progress/gate/CLAUDE.md) `GateClause`, `GateSpec` | the `Requires` block: four shared leaves plus `AllOf`/`AnyOf`. SHARED with achievements |
 | `progress.gate` `GateKind`, `GateKindRegistry` | the OPEN requirement vocabulary a consumer extends |

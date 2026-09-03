@@ -34,7 +34,7 @@ match). They are the wrong tool for a mod that wants the server's progression.
 | `ProgressionTextSource` | how a surface with no catalogue NAMES a piece of content. Its `lore` DEFAULT is the shared `quest.<id>.md.<state>` convention, so the narrative rule is one rule rather than one per source |
 | `ProgressionTexts` | the ONE static walk over every registered text source, first non-null winning, each source guarded on its own - what a title, flavor line, step line or lore read is asked through on ANY shared surface (the book, the board page, the offer page, the tracked panel, a consumer's commands). `titleOrUntitled` / `objectiveOrUntitled` fall back to this module's own placeholder lines (`ziggfreedcommon.progress.untitled` / `.step.untitled`) for a slot that must show something |
 | `ProgressionGates` | THE `GateEvaluator` and the ONE `RequiresGates` over it, built on first ask and holding no registration - the vocabulary, the context and the requirement kinds are read live off the runtime, so a surface asking during another mod's setup and one asking in play are on the same instance |
-| `ProgressionFactors` | the four `ziggfreedcommon:` READINGS of this runtime, claimed process-wide so any content can gate on finished progression with no Java |
+| `ProgressionFactors` | the five `ziggfreedcommon:` READINGS of this runtime (`quest_known` among them: catalogue presence, a definite 0 for an unknown id, no player needed), claimed process-wide so any content can gate on finished progression with no Java |
 
 ## Two shapes of registration, and they behave differently
 
