@@ -3,5 +3,7 @@ build/
 .idea/
 *.iml
 out/
-run/
+# The dev-server working dir at the repo root only: an unanchored run/ also swallowed the
+# zc-encounter source package com.ziggfreed.common.encounter.run and its test twin.
+/run/
 local.properties

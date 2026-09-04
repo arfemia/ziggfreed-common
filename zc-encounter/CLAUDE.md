@@ -91,11 +91,15 @@ and the encounter component type are live in `setup()` when the Types and system
 - **An action always answers finished.** To the engine a `false` from an action's `execute` is
   "still running", and a blocking action list waits on it; a registered action with nothing to do
   says so in the log and answers true.
-- **An open fight holds its chunk ticking; a settled one lets go.** The tick resets the encounter
-  chunk's active timer while the run is engaged and not settled, so `WipeGraceSeconds` and
-  `MaxRunSeconds` are measured by the tick rather than cut short by a chunk going cold. After the
-  settlement the engine's own schedule takes over: the chunk unloads, the entity is stored with
-  it, and the script re-arms from its start state on the next load.
+- **An open fight holds its chunk ticking, and so does an owned one from its spawn; a settled one
+  lets go.** The tick resets the encounter chunk's active timer while the run is engaged and not
+  settled, so `WipeGraceSeconds` and `MaxRunSeconds` are measured by the tick rather than cut short
+  by a chunk going cold; a run spawned WITH an owner key (a round's boss, stood up at its arena
+  while the party is still elsewhere) is held from the moment it is added, because its owner,
+  difficulty, party and multiplier live only on the codec-less run and an unload would hand back a
+  fresh, unowned one. An unowned run that has not engaged (a placed world boss, a console spawn) is
+  not held. After the settlement the engine's own schedule takes over: the chunk unloads, the entity
+  is stored with it, and the script re-arms from its start state on the next load.
 - **A spawn into a chunk nobody stands in brings the chunk up first** (`spawnWhenLoaded`): the
   engine unloads an entity added into a chunk that is not ticking on the spot.
 - **`Once` never heads a blocking list.** A leaf instruction re-runs its action list only while its

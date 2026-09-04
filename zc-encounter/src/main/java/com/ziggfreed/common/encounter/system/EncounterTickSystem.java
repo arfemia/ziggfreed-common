@@ -45,9 +45,9 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Once per tick per encounter entity, AFTER the engine's own tick has run the script: re-resolve
  * the subject and the members and refresh the hot indexes, seed the party, credit presence, apply
- * or reconcile the health scale, hold the chunk ticking while the fight is open, watch for a wipe
- * or a timeout, and move the map marker. Nothing here decides the fight; it reads what the engine
- * decided.
+ * or reconcile the health scale, hold the chunk ticking while the fight is open (or owned and still
+ * waiting for its party), watch for a wipe or a timeout, and move the map marker. Nothing here
+ * decides the fight; it reads what the engine decided.
  *
  * <p>Not parallel: members are player entities that may stand in two overlapping fights at once,
  * which is the same reason the engine's own member tick is serial.
@@ -158,10 +158,17 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
             scale(store, subject, run, row, memberRefs);
         }
 
-        // A wipe, or a run that outlived its budget. While the fight is open its chunk is held
-        // ticking, so both guards are measured by this tick and never cut short by a cold chunk.
-        if (run.isEngaged() && !run.isConcluded()) {
+        // The chunk hold. An OPEN fight holds its chunk ticking so the two guards below are measured by
+        // this tick and never cut short by a cold chunk; a fight someone OWNS (a round's, spawned at its
+        // arena while the party is still elsewhere) holds it from the spawn, so the encounter waits at its
+        // anchor for them instead of being unloaded, and its run (owner, difficulty, party, multiplier,
+        // none of it saved with the chunk) lost, seconds after it rose.
+        if (!run.isConcluded() && (run.isEngaged() || run.ownerKey() != null)) {
             EncounterChunkHold.holdTicking(store, ref);
+        }
+
+        // A wipe, or a run that outlived its budget.
+        if (run.isEngaged() && !run.isConcluded()) {
             EncounterBindingAsset.Timing timing = row == null ? null : row.getTiming();
             int wipeGrace = timing == null ? EncounterBindingAsset.Timing.DEFAULT_WIPE_GRACE_SECONDS : timing.wipeGraceSeconds();
             int maxRun = timing == null ? EncounterBindingAsset.Timing.DEFAULT_MAX_RUN_SECONDS : timing.maxRunSeconds();
