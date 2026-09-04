@@ -1,5 +1,6 @@
 package com.ziggfreed.common.encounter.payout;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,9 +27,12 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>The arguments a moment can name: {@code encounter} (the script id), {@code title} (the fight's
  * name, a nested message the reader's client resolves), {@code phase}, {@code members},
- * {@code seconds}, and at a settlement {@code share} (the reader's own, as a typed number) and
- * {@code rank} (their place, 1 for the top contributor). A moment nobody authored costs one cheap
- * probe and nothing else.
+ * {@code seconds}, and at a settlement {@code share} (the reader's own, as whole percent points of
+ * the top contributor's, a typed number) and {@code rank} (their place, 1 for the top contributor).
+ * Two more ride for an authored BANNER rather than for a line: {@code participants} (the players
+ * the beat is about, so a banner's {@code ToParticipants} reaches them wherever they stand) and
+ * {@code source} (the script id again, so a banner's {@code MinSecondsBetween} is kept per fight).
+ * A moment nobody authored costs one cheap probe and nothing else.
  */
 public final class EncounterFeedback {
 
@@ -49,8 +53,9 @@ public final class EncounterFeedback {
         if (playerIds.isEmpty() || !FeedbackEngine.answers(momentId)) {
             return;
         }
+        Map<String, Object> shared = forBanner(args, List.copyOf(playerIds));
         for (UUID playerId : playerIds) {
-            fireTo(store, momentId, playerId, args);
+            fireTo(store, momentId, playerId, shared);
         }
     }
 
@@ -60,14 +65,36 @@ public final class EncounterFeedback {
         if (shares.isEmpty() || !FeedbackEngine.answers(momentId)) {
             return;
         }
+        List<UUID> participants = new ArrayList<>(shares.size());
+        for (ParticipantShare share : shares) {
+            participants.add(share.playerId());
+        }
+        Map<String, Object> shared = forBanner(args, List.copyOf(participants));
         int rank = 0;
         for (ParticipantShare share : shares) {
             rank++;
-            Map<String, Object> own = new LinkedHashMap<>(args);
-            own.put(SHARE_ARG, share.share());
+            Map<String, Object> own = new LinkedHashMap<>(shared);
+            own.put(SHARE_ARG, sharePercent(share.share()));
             own.put(RANK_ARG, rank);
             fireTo(store, momentId, share.playerId(), own);
         }
+    }
+
+    /** A share, 0 to 1 of the top contributor's, as the whole percent points a line shows. */
+    static long sharePercent(double share) {
+        return Math.round(Math.max(0.0, Math.min(1.0, share)) * 100.0);
+    }
+
+    /** The beat's args plus what an authored banner scopes on: who the beat is about, and what it is about. */
+    @Nonnull
+    private static Map<String, Object> forBanner(@Nonnull Map<String, Object> args, @Nonnull List<UUID> participants) {
+        Map<String, Object> shared = new LinkedHashMap<>(args);
+        shared.put(FeedbackEngine.PARTICIPANTS_ARG, participants);
+        Object encounterId = args.get(ENCOUNTER_ARG);
+        if (encounterId != null) {
+            shared.putIfAbsent(FeedbackEngine.SOURCE_ARG, encounterId);
+        }
+        return shared;
     }
 
     private static void fireTo(@Nonnull Store<EntityStore> store, @Nonnull String momentId, @Nonnull UUID playerId,

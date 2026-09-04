@@ -14,6 +14,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.icon.IconSpec;
 
@@ -89,6 +90,12 @@ public final class ObjectiveKindAsset
                                 (t, v) -> t.board = v, t -> t.board)
                         .documentation("A notice board, so a step naming one is drawn with that board's own "
                                 + "icon. Answered by whoever defines boards.").add()
+                        .append(new KeyedCodec<>("Encounter", Codec.BOOLEAN, false),
+                                (t, v) -> t.encounter = v, t -> t.encounter)
+                        .metadata(EditorSchema.defaultValue(false))
+                        .documentation("A boss fight, named by its encounter script id rather than by the "
+                                + "creature standing in for it (a fight that swaps roles between phases has "
+                                + "no one creature id). Answered by whoever binds encounters.").add()
                         .build();
 
         @Nullable private Boolean place;
@@ -97,6 +104,7 @@ public final class ObjectiveKindAsset
         @Nullable private Boolean currency;
         @Nullable private Boolean content;
         @Nullable private Boolean board;
+        @Nullable private Boolean encounter;
 
         public TargetNames() {
         }
@@ -129,6 +137,11 @@ public final class ObjectiveKindAsset
         @Nullable
         public Boolean getBoard() {
             return board;
+        }
+
+        @Nullable
+        public Boolean getEncounter() {
+            return encounter;
         }
     }
 
@@ -186,6 +199,7 @@ public final class ObjectiveKindAsset
     private AssetExtraInfo.Data data;
 
     @Nullable private Boolean valueBased;
+    @Nullable private Boolean atMost;
     @Nullable private Boolean producible;
     @Nullable private TargetNames targetNames;
     @Nullable private Presentation presentation;
@@ -200,11 +214,21 @@ public final class ObjectiveKindAsset
                     a -> a.data)
             .appendInherited(new KeyedCodec<>("ValueBased", Codec.BOOLEAN, false),
                     (a, v) -> a.valueBased = v, a -> a.valueBased, (a, p) -> a.valueBased = p.valueBased)
+            .metadata(EditorSchema.defaultValue(false))
             .documentation("Whether producers fire the player's CURRENT value rather than an increment, so "
                     + "progress is a high-water mark instead of a running total. Omit to keep whatever the "
                     + "mod that registered this kind said.").add()
+            .appendInherited(new KeyedCodec<>("AtMost", Codec.BOOLEAN, false),
+                    (a, v) -> a.atMost = v, a -> a.atMost, (a, p) -> a.atMost = p.atMost)
+            .metadata(EditorSchema.defaultValue(false))
+            .documentation("For a ValueBased kind: read a step's Amount as a CEILING, so the step is met the "
+                    + "first time the fired value comes in at or under it (a clear in under so many seconds, "
+                    + "a fight with at most so many deaths) and a value over it moves nothing. Progress "
+                    + "shows as met or not rather than as a count. Means nothing on a kind that "
+                    + "accumulates. Omit to keep whatever the mod that registered this kind said.").add()
             .appendInherited(new KeyedCodec<>("Producible", Codec.BOOLEAN, false),
                     (a, v) -> a.producible = v, a -> a.producible, (a, p) -> a.producible = p.producible)
+            .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether content may use this kind at all. Setting false leaves the kind readable "
                     + "but refuses new authoring of it, which is how a vocabulary that has no producer yet "
                     + "says so.").add()
@@ -229,6 +253,11 @@ public final class ObjectiveKindAsset
     @Nullable
     public Boolean getValueBased() {
         return valueBased;
+    }
+
+    @Nullable
+    public Boolean getAtMost() {
+        return atMost;
     }
 
     @Nullable

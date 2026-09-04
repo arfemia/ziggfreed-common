@@ -16,10 +16,13 @@ import com.ziggfreed.common.subject.Subject;
  * type ({@link Subject.HandleFacets}), the engine asks before it draws a toast, and a handle that
  * says nothing is simply a player who wants what was authored.
  *
- * <p><b>Only the personal toast is gated.</b> A server-wide banner belongs to everyone watching, a
- * sound is the moment being audible, and a command is server business; a player turning their own
+ * <p><b>Only the personal toast is gated.</b> A banner belongs to everyone watching, a sound is
+ * the moment being audible, and a command is server business; a player turning their own
  * notifications down is a statement about their own screen and nothing else. That split is
- * deliberate and matches what consumers already do by hand.
+ * deliberate and matches what consumers already do by hand. WHO is watching a banner is the
+ * authored moment's own business (the {@code Broadcast} group's participants, world, radius and
+ * rate leaves narrow it), never this per-player preference: a scoped banner is still shown to
+ * every player it reaches, whatever they said about their own toasts.
  *
  * <p><b>The moment's values come with the question</b>, so a consumer whose setting is finer than
  * on-or-off can read them: a moment reporting progress carries {@code current}, {@code required}

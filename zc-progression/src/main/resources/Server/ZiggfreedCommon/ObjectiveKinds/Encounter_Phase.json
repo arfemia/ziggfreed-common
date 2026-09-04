@@ -1,0 +1,13 @@
+{
+  "$Comment": "Pushing a boss fight into one of its phases. Target is the encounter SCRIPT id (the file name under Server/EncounterManager); Qualifier is the phase's own state name exactly as the script signals it (zc:phase:<State>), so {\"Kind\": \"ENCOUNTER_PHASE\", \"Target\": \"Zc_Encounter_Example\", \"Qualifier\": \"Phase_2\", \"Amount\": 1} is met the first time that fight reaches Phase_2 with the player in it. Fires once per live member on every phase beat, whether or not they have dealt damage yet, because a member who is still in the fight is still part of it; Amount is 1 per beat. Leave Qualifier out to count every phase, and Target empty to count any boss.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Encounter": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Furniture_Outlander_Banner"
+    }
+  }
+}

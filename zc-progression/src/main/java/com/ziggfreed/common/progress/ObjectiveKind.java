@@ -18,6 +18,11 @@ import com.ziggfreed.common.icon.IconSpec;
  *   ({@link ObjectiveProgressState#applyValue}) instead of an accumulating delta
  *   ({@link ObjectiveProgressState#advance}). Set it when producers fire the player's CURRENT
  *   value rather than an increment, or a run of 5 then 4 wrongly tallies 9.
+ *   <li>{@code atMost} turns a value-based kind's reading into a CEILING: the objective is met the
+ *   first time the fired value is at or under the authored amount (a clear in under five minutes,
+ *   a fight with at most two deaths). It composes with {@code valueBased} and means nothing
+ *   without it, because only a fired current value can be under a ceiling; see
+ *   {@link ObjectiveArithmetic} for the one compare every engine runs.
  *   <li>{@code producible} decides whether authored content may USE the id. An unproducible kind
  *   parses and renders but nothing ever fires it, so a validator rejects authoring one instead of
  *   letting a dead objective ship. Register a kind unproducible when the vocabulary exists before
@@ -41,10 +46,14 @@ import com.ziggfreed.common.icon.IconSpec;
  *   catalogues, so it answers this one itself.
  *   <li>{@code targetsBoard} says the target names a notice board, answered like a wallet by
  *   whoever defines boards.
+ *   <li>{@code targetsEncounter} says the target names a boss fight: an encounter script id, which
+ *   is neither an item nor a creature (an in-place role change means the boss's creature id is not
+ *   even stable across the fight). The picture is answered by whoever binds encounters, exactly as
+ *   a wallet's is.
  * </ul>
  *
- * <p>The last two are independent of each other and of everything above, and a kind may set both - a
- * target that resolves to neither an item nor a portrait simply goes unpictured.
+ * <p>The target facets are independent of each other and of everything above, and a kind may set
+ * several - a target that resolves to none of them simply goes unpictured.
  *
  * <p>{@link Presentation} is the other half of the same description: not what the engine counts, but
  * what a player sees when it is listed. It rides here rather than in a table of its own so that ONE
@@ -57,6 +66,7 @@ import com.ziggfreed.common.icon.IconSpec;
 public record ObjectiveKind(@Nonnull String id, boolean valueBased, boolean producible,
                             boolean targetsPlace, boolean targetsItem, boolean targetsEntity,
                             boolean targetsCurrency, boolean targetsContent, boolean targetsBoard,
+                            boolean targetsEncounter, boolean atMost,
                             @Nonnull Presentation presentation) {
 
     /**
@@ -133,6 +143,18 @@ public record ObjectiveKind(@Nonnull String id, boolean valueBased, boolean prod
                 targetsContent, targetsBoard, Presentation.NONE);
     }
 
+    /**
+     * A kind stating the six thing-shaped target facets and its presentation, neither about an
+     * encounter nor a ceiling - the shape every registration before those two knobs existed used.
+     */
+    public ObjectiveKind(@Nonnull String id, boolean valueBased, boolean producible,
+                         boolean targetsPlace, boolean targetsItem, boolean targetsEntity,
+                         boolean targetsCurrency, boolean targetsContent, boolean targetsBoard,
+                         @Nonnull Presentation presentation) {
+        this(id, valueBased, producible, targetsPlace, targetsItem, targetsEntity, targetsCurrency,
+                targetsContent, targetsBoard, false, false, presentation);
+    }
+
     /** An accumulating, producible kind - the common case. */
     @Nonnull
     public static ObjectiveKind of(@Nonnull String id) {
@@ -143,6 +165,15 @@ public record ObjectiveKind(@Nonnull String id, boolean valueBased, boolean prod
     @Nonnull
     public static ObjectiveKind valueBased(@Nonnull String id) {
         return new ObjectiveKind(id, true, true, false);
+    }
+
+    /**
+     * A producible kind whose producers fire a current value that must come in AT OR UNDER the
+     * authored amount: value-based and a ceiling.
+     */
+    @Nonnull
+    public static ObjectiveKind atMost(@Nonnull String id) {
+        return valueBased(id).withAtMost(true);
     }
 
     /** A producible kind whose target names somewhere to go. */
@@ -175,10 +206,30 @@ public record ObjectiveKind(@Nonnull String id, boolean valueBased, boolean prod
         return new ObjectiveKind(id, false, true, false, false, true);
     }
 
+    /** A producible kind whose target names a boss fight by its encounter script id. */
+    @Nonnull
+    public static ObjectiveKind encounterTargeted(@Nonnull String id) {
+        return of(id).withTargetsEncounter(true);
+    }
+
     /** This kind reading and looking as {@code presentation} says. */
     @Nonnull
     public ObjectiveKind withPresentation(@Nonnull Presentation presentation) {
         return new ObjectiveKind(id, valueBased, producible, targetsPlace, targetsItem, targetsEntity,
-                targetsCurrency, targetsContent, targetsBoard, presentation);
+                targetsCurrency, targetsContent, targetsBoard, targetsEncounter, atMost, presentation);
+    }
+
+    /** This kind with its ceiling knob set as given; everything else kept. */
+    @Nonnull
+    public ObjectiveKind withAtMost(boolean atMost) {
+        return new ObjectiveKind(id, valueBased, producible, targetsPlace, targetsItem, targetsEntity,
+                targetsCurrency, targetsContent, targetsBoard, targetsEncounter, atMost, presentation);
+    }
+
+    /** This kind with its encounter facet set as given; everything else kept. */
+    @Nonnull
+    public ObjectiveKind withTargetsEncounter(boolean targetsEncounter) {
+        return new ObjectiveKind(id, valueBased, producible, targetsPlace, targetsItem, targetsEntity,
+                targetsCurrency, targetsContent, targetsBoard, targetsEncounter, atMost, presentation);
     }
 }

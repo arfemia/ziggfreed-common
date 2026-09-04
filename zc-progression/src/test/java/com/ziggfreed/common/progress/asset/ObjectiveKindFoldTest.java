@@ -147,6 +147,70 @@ class ObjectiveKindFoldTest {
     }
 
     @Test
+    void aFileStatingOnlyAPictureKeepsTheRegisteredCeiling() throws IOException {
+        kinds.register("mod", ObjectiveKind.atMost("CLEAR_SECONDS"));
+
+        fold("Clear_Seconds", """
+                { "Presentation": { "Icon": { "ItemId": "Weapon_Sword_Crude" } } }
+                """);
+
+        ObjectiveKind folded = kinds.kind("CLEAR_SECONDS");
+        assertTrue(folded.valueBased(), "an unmentioned leaf is not an instruction to change it");
+        assertTrue(folded.atMost(), "the ceiling the mod registered survives a file about its picture");
+    }
+
+    @Test
+    void aFileMayTurnAValueBasedKindIntoACeiling() throws IOException {
+        kinds.register("mod", ObjectiveKind.valueBased("CLEAR_SECONDS"));
+
+        fold("Clear_Seconds", """
+                { "AtMost": true }
+                """);
+
+        ObjectiveKind folded = kinds.kind("CLEAR_SECONDS");
+        assertTrue(folded.atMost(), "the authored leaf landed");
+        assertTrue(folded.valueBased(), "the arithmetic it composes with survived");
+        assertTrue(folded.producible(), "the flags it did not mention survived");
+    }
+
+    @Test
+    void aFileNamingAnUnregisteredIdDefaultsToNoCeiling() throws IOException {
+        fold("Brand_New", """
+                { "ValueBased": true }
+                """);
+
+        assertFalse(kinds.kind("BRAND_NEW").atMost(), "an unstated AtMost reads as a high-water mark");
+    }
+
+    @Test
+    void aKindMayDeclareThatItsTargetNamesAFight() throws IOException {
+        // The engines here know nothing about encounters, so the flag is the whole of what they can
+        // say: it is what lets whoever binds encounters answer the picture without this module
+        // importing it, the same division a wallet has.
+        fold("Slay_Boss", """
+                { "TargetNames": { "Encounter": true } }
+                """);
+
+        ObjectiveKind folded = kinds.kind("SLAY_BOSS");
+        assertTrue(folded.targetsEncounter(), "the authored flag landed");
+        assertFalse(folded.targetsEntity(), "an encounter id is not a creature id, whatever stands in for it");
+        assertFalse(folded.targetsItem(), "and not an item id");
+    }
+
+    @Test
+    void theShippedEncounterKindsNameAFightAndCarryAPicture() throws IOException {
+        for (String id : new String[] {"Encounter_Defeated", "Encounter_Phase", "Encounter_Attempt"}) {
+            ObjectiveKindAsset asset = read("/Server/ZiggfreedCommon/ObjectiveKinds/" + id + ".json", id);
+            assertNotNull(asset.getTargetNames(), id + " says what its target names");
+            assertEquals(Boolean.TRUE, asset.getTargetNames().getEncounter(),
+                    id + ": a boss step's target is the encounter script");
+            assertEquals(Boolean.FALSE, asset.getValueBased(), id + " accumulates, one per fight");
+            assertNotNull(asset.getPresentation(), id + " carries a presentation");
+            assertNotNull(asset.getPresentation().getIcon(), id + ": a listed step is never blank");
+        }
+    }
+
+    @Test
     void theShippedQuestKindDrawsFromTheQuestItNames() throws IOException {
         ObjectiveKindAsset asset =
                 read("/Server/ZiggfreedCommon/ObjectiveKinds/Complete_Quest.json", "Complete_Quest");
@@ -160,7 +224,7 @@ class ObjectiveKindFoldTest {
         // The files this module ships describe the built-in vocabulary. A file that stopped decoding
         // would leave its kind silently undescribed, so each one is read here as the server reads it.
         for (String id : new String[] {"Break_Block", "Craft_Item", "Kill_Entity", "Stat_Threshold",
-                "Talk_To_Npc", "Turn_In"}) {
+                "Talk_To_Npc", "Turn_In", "Encounter_Defeated", "Encounter_Phase", "Encounter_Attempt"}) {
             ObjectiveKindAsset asset = read("/Server/ZiggfreedCommon/ObjectiveKinds/" + id + ".json", id);
             assertNotNull(asset, id + " decodes");
             assertNotNull(asset.getProducible(), id + " states whether content may use it");

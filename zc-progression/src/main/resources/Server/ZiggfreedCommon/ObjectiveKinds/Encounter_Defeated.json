@@ -1,0 +1,13 @@
+{
+  "$Comment": "Beating a boss fight run by the game's own encounter scripts. Target is the encounter SCRIPT id (the file name under Server/EncounterManager), never the boss creature's id: a fight that swaps roles between phases has no one creature id, so a step naming the script holds through every phase. Fires once per credited participant when the boss falls; Qualifier is the run's difficulty label (from the spawn call or the binding row's Progression.Difficulty) and Amount is 1 per fight. A step reads {\"Kind\": \"ENCOUNTER_DEFEATED\", \"Target\": \"Zc_Encounter_Example\", \"Amount\": 1}; leave Target empty to count any boss. A participant whose share fell under the fight's MinShare is not credited here and counts under ENCOUNTER_ATTEMPT instead.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Encounter": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Deco_Bone_Skulls_Feran_Large"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$Comment": [
+    "What a member of a boss fight sees when the fight moves into its next phase: the script",
+    "signalled a phase beat, and whatever it changes (a role swap, a wave of adds, a new stance) is",
+    "about to land.",
+    "",
+    "This is the library's own neutral default; a mod's same-named file or the owner layer",
+    "replaces it, and the binding row's Feedback.PhaseChanged leaf can point a fight elsewhere.",
+    "",
+    "The moment fires once per live member and carries 'encounter' (the script id), 'title' (the",
+    "fight's name in the reader's language), 'phase' (the script's own state name for the phase,",
+    "exactly as signalled, so a script that names its states readably reads well here), 'members',",
+    "'seconds', 'participants' and 'source'. 'player' is the member it is about.",
+    "",
+    "A quiet personal notice by default, in the plain Info tone: a phase is a beat inside a fight,",
+    "not a payout. Add a Sound to give it a sting, or a Broadcast to tell the arena."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.feedback.encounter.phase_changed",
+      "Args": ["title", "phase"]
+    },
+    "Tone": "Info"
+  }
+}

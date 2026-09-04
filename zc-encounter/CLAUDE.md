@@ -24,9 +24,10 @@ and the encounter component type are live in `setup()` when the Types and system
   `MatchRank`, `WorldMapMarkers`), `zc-effects` (the native-effect primitive a phase reaction
   composes with), `zc-loot` (`LootRef`, `LootEngine`, `RewardGrants`, the reward kinds,
   `NativeLootService`), `zc-presentation` (`FeedbackEngine`), `zc-scaling` (the power fold).
-- **Depended on by**: nothing in the library today. `zc-objectives` (an objective producer) and
-  `zc-instance` (a leaderboard listener) are the two edges the design reserves; both point AT this
-  module and listen to its events.
+- **Depended on by**: `zc-objectives` (`ZigEncounterProducer`, the three encounter objective kinds'
+  producer, and `EncounterQuestAxes`, the encounters generator axis over the folded binding rows)
+  and `zc-instance` (`EncounterLeaderboardListener`, the one class that writes a defeat's rows).
+  Both point AT this module and only listen to its events or read its folded rows.
 - **Reverse-edge trap, BUILD-ENFORCED**: this module never imports `zc-instance` (except the two
   packages that only look like it: `instance.reward` is zc-loot, `instance.effect` is zc-effects),
   `zc-objectives`, `zc-progression`, `zc-dialogue` or `zc-commerce`. `EncounterEdgeTest` scans every

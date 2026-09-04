@@ -1,0 +1,13 @@
+{
+  "$Comment": "Fighting a boss to the end, won or lost. Target is the encounter SCRIPT id (the file name under Server/EncounterManager), so a step naming the boss holds through every phase. Fires once per participant when a fight settles either way, the defeat and the wipe alike, so 'fight it ten times' and 'beat it ten times' are two different objectives; Qualifier is the run's difficulty label and Amount is 1 per fight. Every participant counts here, including one whose share fell under the fight's MinShare. Leave Target empty to count any boss.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Encounter": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Deco_Bone_Skulls"
+    }
+  }
+}

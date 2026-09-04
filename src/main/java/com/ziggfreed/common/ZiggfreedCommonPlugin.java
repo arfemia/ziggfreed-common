@@ -30,6 +30,7 @@ import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.entity.EntityBootstrap;
+import com.ziggfreed.common.instance.InstanceBootstrap;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
@@ -176,6 +177,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         ProgressionBootstrap.registerQuestListHost();
         EncounterBootstrap.install(this);
         registerEncounterSeams();
+        InstanceBootstrap.installEncounterLeaderboard(this);
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
     }

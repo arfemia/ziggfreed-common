@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Set;
+import java.util.TreeSet;
+
 import org.junit.jupiter.api.Test;
 
 /** The objective vocabulary: what it starts with, how a consumer extends it, and how lookups behave. */
@@ -14,27 +17,73 @@ class ObjectiveKindRegistryTest {
     void theBuiltInVocabularyIsPresentAndEveryKindIsProducible() {
         ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
 
-        assertEquals(23, registry.ids().size(), "the engine-generic vocabulary");
+        assertEquals(26, registry.ids().size(), "the engine-generic vocabulary");
         for (String id : registry.ids()) {
             ObjectiveKind kind = registry.kind(id);
             assertTrue(kind.producible(), id + " should be authorable");
         }
     }
 
+    /**
+     * The seeded arithmetic, stated as sets rather than as one name: the value-based built-ins are
+     * exactly the threshold, no built-in reads a ceiling, and everything else accumulates. A new
+     * seeded kind must place itself in one of those sentences to pass.
+     */
     @Test
-    void theThresholdKindIsTheOneValueBasedBuiltIn() {
+    void theThresholdIsTheOneValueBasedBuiltInAndNoBuiltInReadsACeiling() {
         ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
 
-        assertTrue(registry.isRegistered(ObjectiveKindRegistry.STAT_THRESHOLD));
-        assertTrue(registry.isValueBased(ObjectiveKindRegistry.STAT_THRESHOLD),
-                "a threshold tracks a standing value, so a lower reading must not add to a higher one");
-        assertTrue(registry.isProducible(ObjectiveKindRegistry.STAT_THRESHOLD));
-
+        Set<String> valueBased = new TreeSet<>();
+        Set<String> ceilings = new TreeSet<>();
         for (String id : registry.ids()) {
-            if (!id.equalsIgnoreCase(ObjectiveKindRegistry.STAT_THRESHOLD)) {
-                assertFalse(registry.isValueBased(id), id + " should accumulate");
+            // The ledger lists ids folded; the kind itself carries the canonical upper-case spelling.
+            String canonical = registry.kind(id).id();
+            if (registry.isValueBased(id)) {
+                valueBased.add(canonical);
+            }
+            if (registry.isAtMost(id)) {
+                ceilings.add(canonical);
             }
         }
+        assertEquals(Set.of(ObjectiveKindRegistry.STAT_THRESHOLD), valueBased,
+                "a threshold tracks a standing value, so a lower reading must not add to a higher one;"
+                        + " every other seeded kind accumulates");
+        assertEquals(Set.of(), ceilings,
+                "no seeded kind reads its amount as a ceiling; a ceiling kind is a consumer's or a file's to add");
+        assertTrue(registry.isProducible(ObjectiveKindRegistry.STAT_THRESHOLD));
+    }
+
+    @Test
+    void theEncounterKindsAreTheBuiltInsWhoseTargetIsAFight() {
+        ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
+
+        Set<String> fights = new TreeSet<>();
+        for (String id : registry.ids()) {
+            if (registry.isEncounterTargeted(id)) {
+                fights.add(registry.kind(id).id());
+            }
+        }
+        assertEquals(Set.of("ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT"), fights,
+                "a boss step names the encounter script, and nothing else does");
+        for (String id : fights) {
+            assertFalse(registry.kind(id).targetsEntity(), id + ": an encounter id is not a creature id");
+            assertFalse(registry.kind(id).targetsItem(), id + ": an encounter id is not an item id");
+        }
+        assertFalse(registry.isEncounterTargeted("NOT_A_KIND"),
+                "a kind nobody registered names no fight rather than every fight");
+    }
+
+    @Test
+    void aConsumerCanRegisterACeilingKindAndTheKnobComposesWithValueBased() {
+        ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
+        registry.register("mod", ObjectiveKind.atMost("CLEAR_SECONDS"));
+        registry.register("mod", ObjectiveKind.of("KILL_FAST").withAtMost(true));
+
+        assertTrue(registry.isValueBased("clear_seconds"));
+        assertTrue(registry.isAtMost("clear_seconds"));
+        assertFalse(registry.isAtMost("kill_fast"),
+                "at-most is a reading of a fired VALUE, so it means nothing on an accumulating kind");
+        assertFalse(registry.isAtMost("NOT_A_KIND"));
     }
 
     @Test

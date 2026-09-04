@@ -25,6 +25,7 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.progress.DispatchOptions;
+import com.ziggfreed.common.progress.ObjectiveArithmetic;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveIndex;
 import com.ziggfreed.common.progress.ObjectiveKind;
@@ -428,10 +429,11 @@ public final class QuestEngine implements QuestStateReader {
 
         Map<String, ObjectiveProgressState> progress = new LinkedHashMap<>();
         for (ObjectiveDef objective : quest.objectives()) {
-            ObjectiveProgressState state = new ObjectiveProgressState(0, objective.amountAsInt());
+            ObjectiveKind kind = objectiveKinds.kind(objective.kind());
+            ObjectiveProgressState state = ObjectiveArithmetic.fresh(kind, objective);
             long preSatisfied = preSatisfiedFor(subject, quest, objective);
             if (preSatisfied > 0) {
-                state.applyValue(preSatisfied);
+                ObjectiveArithmetic.applyStanding(kind, objective, state, preSatisfied);
             }
             progress.put(objective.id(), state);
         }
@@ -604,12 +606,12 @@ public final class QuestEngine implements QuestStateReader {
 
             Map<String, ObjectiveProgressState> progress = progressOf(subject, quest.id());
             ObjectiveProgressState state = progress.computeIfAbsent(objective.id(),
-                    key -> new ObjectiveProgressState(0, objective.amountAsInt()));
+                    key -> ObjectiveArithmetic.fresh(kind, objective));
             if (state.isCompleted()) {
                 continue;
             }
             int before = state.current();
-            boolean justCompleted = kind.valueBased() ? state.applyValue(amount) : state.advance(amount);
+            boolean justCompleted = ObjectiveArithmetic.apply(kind, objective, state, amount);
             if (state.current() == before && !justCompleted) {
                 continue;
             }
@@ -977,7 +979,7 @@ public final class QuestEngine implements QuestStateReader {
         }
         Map<String, ObjectiveProgressState> progress = progressOf(subject, quest.id());
         ObjectiveProgressState state = progress.computeIfAbsent(objectiveId,
-                key -> new ObjectiveProgressState(0, objective.amountAsInt()));
+                key -> ObjectiveArithmetic.fresh(objectiveKinds.kind(objective.kind()), objective));
         if (state.isCompleted()) {
             return 0;
         }
@@ -1591,13 +1593,15 @@ public final class QuestEngine implements QuestStateReader {
             if (progress == null) {
                 progress = progressOf(subject, quest.id());
             }
+            ObjectiveKind kind = objectiveKinds.kind(objective.kind());
             ObjectiveProgressState state = progress.computeIfAbsent(objective.id(),
-                    key -> new ObjectiveProgressState(0, objective.amountAsInt()));
+                    key -> ObjectiveArithmetic.fresh(kind, objective));
             if (state.isCompleted()) {
                 continue;
             }
             int before = state.current();
-            boolean justCompleted = state.applyValue(statProbe.valueFor(subject, objective));
+            boolean justCompleted = ObjectiveArithmetic.applyStanding(kind, objective, state,
+                    statProbe.valueFor(subject, objective));
             if (state.current() == before && !justCompleted) {
                 continue;
             }

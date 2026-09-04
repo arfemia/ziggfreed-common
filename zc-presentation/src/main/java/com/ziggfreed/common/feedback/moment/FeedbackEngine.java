@@ -11,10 +11,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import org.joml.Vector3d;
 import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.feedback.EventTitles;
 import com.ziggfreed.common.feedback.Notify;
@@ -94,6 +97,24 @@ public final class FeedbackEngine {
      */
     public static final String MILESTONE_ARG = "milestone";
 
+    /**
+     * The players a moment is ABOUT as a group, by uuid, under one fixed name: a fight's members, a
+     * round's party. A producer with such a group offers it here and an authored banner's
+     * {@code ToParticipants} reaches them wherever they stand; a moment that carries none is
+     * unaffected. Read as a collection of uuids and never bound into a line.
+     */
+    public static final String PARTICIPANTS_ARG = "participants";
+
+    /**
+     * What the moment is about, as one id (a boss's encounter, a quest), under one fixed name: what
+     * an authored banner's {@code MinSecondsBetween} is kept per, so one fight's repeated beats hold
+     * back while another fight announces. Absent, the throttle is kept per moment alone.
+     */
+    public static final String SOURCE_ARG = "source";
+
+    /** The one table of banners being held back, across every moment and every world. */
+    private static final BroadcastScope.Throttle THROTTLE = new BroadcastScope.Throttle();
+
     private FeedbackEngine() {
     }
 
@@ -136,7 +157,7 @@ public final class FeedbackEngine {
         if (toastSpec != null && playerRef != null) {
             toast(toastSpec, playerRef, values, wantsToast(subject, momentId, toastSpec, values));
         }
-        broadcast(resolved.broadcast(), values);
+        broadcast(momentId, resolved.broadcast(), playerRef, values);
         sound(resolved.sound(), playerRef);
         command(resolved.command(), subject, values);
     }
@@ -177,12 +198,18 @@ public final class FeedbackEngine {
     }
 
     /**
-     * The banner, sent to each player SEPARATELY so every one of them resolves it in their own
-     * language. Sending finished text once would pin the announcement to whichever language the
-     * server happened to be in.
+     * The banner, sent to each admitted player SEPARATELY as the same unresolved message, so every
+     * one of them resolves it in their own language; sending finished text once would pin the
+     * announcement to whichever language the server happened to be in.
+     *
+     * <p>Who is admitted is the authored group's business ({@link BroadcastScope#admits}): with
+     * nothing authored, everybody online. The subject's own world and position anchor a
+     * world-scoped or radius-scoped banner; a subject that is not a live player anchors nothing,
+     * so such a banner reaches only the moment's participants. The throttle is asked once the
+     * title has been built, so a banner that would have shown nothing spends no window.
      */
-    private static void broadcast(@Nullable FeedbackMomentAsset.Broadcast spec,
-            @Nonnull Map<String, Object> args) {
+    private static void broadcast(@Nonnull String momentId, @Nullable FeedbackMomentAsset.Broadcast spec,
+            @Nullable PlayerRef subjectRef, @Nonnull Map<String, Object> args) {
         if (spec == null) {
             return;
         }
@@ -191,15 +218,101 @@ public final class FeedbackEngine {
             if (title == null) {
                 return;
             }
+            Anchor anchor = Anchor.of(subjectRef);
+            if (!THROTTLE.allow(throttleKey(momentId, spec, anchor, args), spec.minSecondsBetween(),
+                    System.currentTimeMillis())) {
+                return;
+            }
             Message secondary = line(spec.getSecondary(), args);
             Message body = secondary != null ? secondary : Msg.raw("");
+            Collection<?> participants = participants(args);
             for (PlayerRef viewer : Universe.get().getPlayers()) {
-                if (viewer != null) {
+                if (viewer == null) {
+                    continue;
+                }
+                boolean participant = spec.toParticipants() && participants.contains(viewer.getUuid());
+                if (!spec.isScoped()
+                        || BroadcastScope.admits(spec, participant, anchor.sameWorld(viewer), anchor.distanceTo(viewer))) {
                     EventTitles.show(viewer, title, body, spec.isMajor());
                 }
             }
         } catch (Throwable t) {
             SafeLog.fine("moment broadcast failed: " + t.getMessage());
+        }
+    }
+
+    /**
+     * What one banner is throttled under: the moment, what it is about ({@link #SOURCE_ARG}, so two
+     * fights announce separately), and the world when the banner is world-scoped (so two worlds
+     * each hear their own).
+     */
+    @Nonnull
+    static String throttleKey(@Nonnull String momentId, @Nonnull FeedbackMomentAsset.Broadcast spec,
+            @Nonnull Anchor anchor, @Nonnull Map<String, Object> args) {
+        String source = text(args.get(SOURCE_ARG));
+        return momentId + '|' + (source == null ? "" : source) + '|'
+                + (spec.sameWorldOnly() ? anchor.worldName() : "*");
+    }
+
+    /** The participant ids under {@link #PARTICIPANTS_ARG}, or empty when the moment lists none. */
+    @Nonnull
+    private static Collection<?> participants(@Nonnull Map<String, Object> args) {
+        return args.get(PARTICIPANTS_ARG) instanceof Collection<?> listed ? listed : List.of();
+    }
+
+    /**
+     * Where the moment happened, as far as a banner needs to know: the subject's store (their world)
+     * and their position, both absent for a subject that is not a live player.
+     */
+    static final class Anchor {
+
+        @Nullable private final Store<EntityStore> store;
+        @Nullable private final Vector3d position;
+        @Nonnull private final String worldName;
+
+        private Anchor(@Nullable Store<EntityStore> store, @Nullable Vector3d position, @Nonnull String worldName) {
+            this.store = store;
+            this.position = position;
+            this.worldName = worldName;
+        }
+
+        @Nonnull
+        static Anchor of(@Nullable PlayerRef subjectRef) {
+            Ref<EntityStore> ref = subjectRef == null ? null : subjectRef.getReference();
+            if (ref == null || !ref.isValid()) {
+                return new Anchor(null, null, "");
+            }
+            Store<EntityStore> store = ref.getStore();
+            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+            String world;
+            try {
+                world = store.getExternalData().getWorld().getName();
+            } catch (Throwable t) {
+                world = "";
+            }
+            return new Anchor(store, transform == null ? null : new Vector3d(transform.getPosition()), world);
+        }
+
+        @Nonnull
+        String worldName() {
+            return worldName;
+        }
+
+        /** Whether the viewer stands in the subject's world: the same store, on this same thread. */
+        boolean sameWorld(@Nonnull PlayerRef viewer) {
+            Ref<EntityStore> ref = viewer.getReference();
+            return store != null && ref != null && ref.isValid() && ref.getStore() == store;
+        }
+
+        /** The viewer's distance from the subject in blocks, or {@code NaN} when it cannot be read. */
+        double distanceTo(@Nonnull PlayerRef viewer) {
+            if (position == null || !sameWorld(viewer)) {
+                return Double.NaN;
+            }
+            Ref<EntityStore> ref = viewer.getReference();
+            TransformComponent transform = ref == null ? null
+                    : store.getComponent(ref, TransformComponent.getComponentType());
+            return transform == null ? Double.NaN : transform.getPosition().distance(position);
         }
     }
 

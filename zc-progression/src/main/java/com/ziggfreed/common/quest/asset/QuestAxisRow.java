@@ -78,8 +78,20 @@ public final class QuestAxisRow {
     public static final class Builder {
 
         private final Map<String, JsonPrimitive> bindings = new LinkedHashMap<>();
+        @Nullable private JsonPrimitive value;
 
         private Builder() {
+        }
+
+        /**
+         * The value the axis's OWN token binds to, beside the named bindings: a row that is one
+         * thing (an encounter id) carrying a few facts about it (its name key) under names of
+         * their own.
+         */
+        @Nonnull
+        public Builder value(@Nonnull String value) {
+            this.value = new JsonPrimitive(value);
+            return this;
         }
 
         @Nonnull
@@ -108,7 +120,7 @@ public final class QuestAxisRow {
 
         @Nonnull
         public QuestAxisRow build() {
-            return new QuestAxisRow(null, bindings);
+            return new QuestAxisRow(value, bindings);
         }
     }
 }

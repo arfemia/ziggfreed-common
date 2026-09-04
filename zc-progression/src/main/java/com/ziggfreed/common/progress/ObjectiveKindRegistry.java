@@ -20,14 +20,16 @@ import com.ziggfreed.common.registry.RegistryLedger;
  * that reads it, so there is no registration race and one consumer's vocabulary never leaks into
  * another's.
  *
- * <p><b>Twenty-three engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
+ * <p><b>Twenty-six engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
  * whose meaning does not depend on any particular game's systems: breaking a block, killing an
- * entity, talking to somebody, handing something in, standing at some measured value. All twenty-three
- * seed as producible, all but {@link #STAT_THRESHOLD} accumulate, and two of them
- * ({@code TALK_TO_NPC}, {@code REACH_LOCATION}) seed as place-targeted; a consumer that has no
- * producer for one can re-register it unproducible so its validator says so. Domain kinds (anything
- * tied to a consumer's own progression, economy, or classes) are the consumer's to add - registering
- * one is a single call and overrides a built-in of the same id.
+ * entity, talking to somebody, handing something in, standing at some measured value, fighting a
+ * boss. All twenty-six seed as producible, all but {@link #STAT_THRESHOLD} accumulate, none reads a
+ * ceiling, two of them ({@code TALK_TO_NPC}, {@code REACH_LOCATION}) seed as place-targeted and
+ * three ({@code ENCOUNTER_DEFEATED}, {@code ENCOUNTER_PHASE}, {@code ENCOUNTER_ATTEMPT}) as
+ * encounter-targeted; a consumer that has no producer for one can re-register it unproducible so
+ * its validator says so. Domain kinds (anything tied to a consumer's own progression, economy, or
+ * classes) are the consumer's to add - registering one is a single call and overrides a built-in
+ * of the same id.
  *
  * <p><b>A consumer registers only what it ADDS.</b> {@link #isBuiltIn} is there so a consumer
  * walking its own vocabulary can skip the ids this class already states: re-registering one restates
@@ -41,6 +43,15 @@ import com.ziggfreed.common.registry.RegistryLedger;
  * {@code INSTANCE_ROUND_ENDED} fires once per PARTICIPANT on every completion, win or lose,
  * and {@code INSTANCE_ROUND_WON} fires once per WINNER and only on a win - so "play ten
  * rounds" and "win ten rounds" are two different objectives rather than one with a flag.
+ *
+ * <p><b>Three describe a BOSS FIGHT</b> run by the engine's own encounter scripts, and share one
+ * contract: {@code Target} is the encounter SCRIPT id (never the boss creature's id, which an
+ * in-place role swap changes mid-fight), so a step naming a boss survives every phase. {@code
+ * ENCOUNTER_DEFEATED} fires once per CREDITED participant when the boss falls, {@code Qualifier}
+ * the run's difficulty label; {@code ENCOUNTER_ATTEMPT} fires once per participant when a fight
+ * settles either way, won or wiped, same qualifier, so "fight it ten times" and "beat it ten
+ * times" are two objectives; {@code ENCOUNTER_PHASE} fires once per member on every phase beat,
+ * {@code Qualifier} the phase's own state name. {@code Amount} is 1 per fire.
  *
  * <p>Registration bookkeeping (who owns an id, how often it has misbehaved) lives in the shared
  * {@link RegistryLedger}; ids are matched case-insensitively and registration is idempotent per id
@@ -79,7 +90,8 @@ public final class ObjectiveKindRegistry {
             "TAKE_FALL_DAMAGE", "PLAYER_DEATH", "SPRINT_DISTANCE", "SWIM_DISTANCE",
             "BREED_ANIMAL", "FEED_ANIMAL", "HARVEST_ANIMAL", "COMPANION_COMBAT",
             "REACH_LOCATION", "CONSUME_ITEM",
-            "INSTANCE_ROUND_WON", "INSTANCE_ROUND_ENDED");
+            "INSTANCE_ROUND_WON", "INSTANCE_ROUND_ENDED",
+            "ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT");
 
     /**
      * The pre-seeded kinds whose producers fire a CURRENT value rather than an increment, so a
@@ -127,6 +139,13 @@ public final class ObjectiveKindRegistry {
      */
     private static final Set<String> BUILT_IN_CONTENT_TARGETED = Set.of("COMPLETE_QUEST");
 
+    /**
+     * The pre-seeded kinds whose TARGET names a boss fight by its encounter script id, answered
+     * with a picture by whoever binds encounters - the same division a wallet has.
+     */
+    private static final Set<String> BUILT_IN_ENCOUNTER_TARGETED = Set.of(
+            "ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT");
+
     /** The owner name the pre-seeded kinds are attributed to in the ledger. */
     public static final String BUILT_IN_OWNER = "built-in";
 
@@ -147,7 +166,7 @@ public final class ObjectiveKindRegistry {
         seedBuiltIns();
     }
 
-    /** Register the twenty-three engine-generic kinds, all producible, each with its own arithmetic. */
+    /** Register the twenty-six engine-generic kinds, all producible, each with its own arithmetic. */
     private void seedBuiltIns() {
         for (String id : BUILT_IN_ACCUMULATING) {
             ledger.put(id, BUILT_IN_OWNER, new ObjectiveKind(id, false, true,
@@ -156,7 +175,10 @@ public final class ObjectiveKindRegistry {
                     BUILT_IN_ENTITY_TARGETED.contains(id),
                     false,
                     BUILT_IN_CONTENT_TARGETED.contains(id),
-                    false));
+                    false,
+                    BUILT_IN_ENCOUNTER_TARGETED.contains(id),
+                    false,
+                    ObjectiveKind.Presentation.NONE));
         }
         for (String id : BUILT_IN_VALUE_BASED) {
             ledger.put(id, BUILT_IN_OWNER, ObjectiveKind.valueBased(id));
@@ -164,7 +186,7 @@ public final class ObjectiveKindRegistry {
     }
 
     /**
-     * Is {@code kindId} one of the twenty-three this class seeds? A consumer registering its own
+     * Is {@code kindId} one of the twenty-six this class seeds? A consumer registering its own
      * vocabulary asks this to add only what it ADDS, leaving the built-ins stated once, here, with
      * every flag they carry - including any this class learns to seed later.
      */
@@ -254,6 +276,17 @@ public final class ObjectiveKindRegistry {
     public boolean isPlaceTargeted(@Nullable String kindId) {
         ObjectiveKind kind = ledger.get(kindId);
         return kind != null && kind.targetsPlace();
+    }
+
+    /** Does {@code kindId}'s target name a boss fight by its encounter script id? False when unknown. */
+    public boolean isEncounterTargeted(@Nullable String kindId) {
+        ObjectiveKind kind = ledger.get(kindId);
+        return kind != null && kind.targetsEncounter();
+    }
+
+    /** Does {@code kindId} read its amount as a ceiling on a fired value? False when unknown. */
+    public boolean isAtMost(@Nullable String kindId) {
+        return ObjectiveArithmetic.isCeiling(ledger.get(kindId));
     }
 
     /** Every registered id, sorted (diagnostics, an authoring hint, a validator message). */

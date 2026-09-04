@@ -1,0 +1,28 @@
+{
+  "$Comment": [
+    "What a participant sees when a boss fight is lost: every member dead or gone for the fight's",
+    "WipeGraceSeconds, or the fight torn down mid-run.",
+    "",
+    "This is the library's own neutral default; a mod's same-named file or the owner layer",
+    "replaces it, and the binding row's Feedback.Wiped leaf can point a fight elsewhere.",
+    "",
+    "The moment fires once per participant and carries 'encounter' (the script id), 'title' (the",
+    "fight's name in the reader's language), 'members', 'seconds' (how long the fight lasted),",
+    "'share' (this reader's share, whole percent points) and 'rank', plus 'participants' and",
+    "'source'. 'player' is the participant it is about.",
+    "",
+    "A plain Info notice: a wipe is news, not a payout, and it is deliberately quiet, since the",
+    "screen already went grey. Add a Sound for a sting, or a Broadcast to tell the arena."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.feedback.encounter.wiped",
+      "Args": ["title"]
+    },
+    "Secondary": {
+      "Key": "ziggfreedcommon.feedback.encounter.wiped.seconds",
+      "Args": ["seconds"]
+    },
+    "Tone": "Info"
+  }
+}
