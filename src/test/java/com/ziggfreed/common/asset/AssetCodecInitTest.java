@@ -37,8 +37,6 @@ import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.feedback.moment.FeedbackMomentAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
-import com.ziggfreed.common.instance.encounter.EncounterRuleAsset;
-import com.ziggfreed.common.instance.encounter.MultiPhaseBossAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.preset.InstancePresetAsset;
 import com.ziggfreed.common.loot.LootGrants;
@@ -109,11 +107,6 @@ class AssetCodecInitTest {
     }
 
     @Test
-    void multiPhaseBossAssetCodecInitializes() {
-        assertNotNull(MultiPhaseBossAsset.CODEC, "MultiPhaseBossAsset.CODEC must static-init (PascalCase keys)");
-    }
-
-    @Test
     void encounterBindingAssetCodecInitializes() {
         assertNotNull(EncounterBindingAsset.CODEC, "EncounterBindingAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(EncounterBindingAsset.Subject.CODEC, "the Subject group codec must static-init");
@@ -136,11 +129,6 @@ class AssetCodecInitTest {
     @Test
     void bandedEffectAssetCodecInitializes() {
         assertNotNull(BandedEffectAsset.CODEC, "BandedEffectAsset.CODEC must static-init (PascalCase keys)");
-    }
-
-    @Test
-    void encounterRuleAssetCodecInitializes() {
-        assertNotNull(EncounterRuleAsset.CODEC, "EncounterRuleAsset.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

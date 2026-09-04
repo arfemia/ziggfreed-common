@@ -50,9 +50,27 @@ public final class EncounterValidator {
     public static final String RULE_MIN_SHARE_OUT_OF_RANGE = "ENCOUNTER_RULE_MIN_SHARE_OUT_OF_RANGE";
     public static final String RULE_BAD_MATCH = "ENCOUNTER_RULE_BAD_MATCH";
     public static final String ONCE_BLOCKS_LIST = "ENCOUNTER_ONCE_BLOCKS_LIST";
+    public static final String SCRIPT_ID_IS_ROLE_ID = "ENCOUNTER_SCRIPT_ID_IS_ROLE_ID";
+
+    /** The naming convention that keeps a script's id off every role's: a trailing suffix. */
+    public static final String SCRIPT_ID_SUFFIX = "_Encounter";
 
     /** How close a custom moment word has to be to a reserved one to read as a typo. */
     private static final int TYPO_DISTANCE = 2;
+
+    /**
+     * Something on this server that names an NPC role by id: a spawn marker's roster entry, an NPC
+     * placement's {@code Identity.Role}. The validator reads these against the loaded scripts,
+     * because the engine keeps ONE builder per name across roles and encounter scripts, so a
+     * script named after a role replaces the role at load and every reference to that role is
+     * left pointing at a fight.
+     *
+     * @param roleId  the role id as written
+     * @param kind    what kind of thing names it ({@code spawn marker}, {@code placement}), for the message
+     * @param namedBy the id of the thing naming it, the finding's source
+     */
+    public record RoleReference(@Nonnull String roleId, @Nonnull String kind, @Nonnull String namedBy) {
+    }
 
     private EncounterValidator() {
     }
@@ -67,6 +85,23 @@ public final class EncounterValidator {
             @Nonnull Collection<EncounterBindingAsset> bindings,
             @Nonnull Collection<EncounterParticipationAsset> rules,
             @Nullable Predicate<String> lootableExists) {
+        return validate(scripts, bindings, rules, lootableExists, List.of(), null);
+    }
+
+    /**
+     * Audit everything, including every place a role id is named against the scripts.
+     *
+     * @param lootableExists answers whether a shared loot table id is loaded, or null to skip that check
+     * @param roleReferences every role id something on this server names, with what names it
+     * @param roleExists     answers whether an id resolves to a loaded NPC role, or null when nothing can say
+     */
+    @Nonnull
+    public static List<Finding> validate(@Nonnull Map<String, EncounterScriptScan> scripts,
+            @Nonnull Collection<EncounterBindingAsset> bindings,
+            @Nonnull Collection<EncounterParticipationAsset> rules,
+            @Nullable Predicate<String> lootableExists,
+            @Nonnull Collection<RoleReference> roleReferences,
+            @Nullable Predicate<String> roleExists) {
         List<Finding> findings = new ArrayList<>();
         Map<String, EncounterScriptScan> byLowerId = new HashMap<>();
         for (EncounterScriptScan scan : scripts.values()) {
@@ -75,7 +110,18 @@ public final class EncounterValidator {
         }
         Map<String, EncounterBindingAsset> boundScripts = new HashMap<>();
         for (EncounterBindingAsset row : bindings) {
-            findings.addAll(auditBinding(row, byLowerId, boundScripts, rules, lootableExists));
+            findings.addAll(auditBinding(row, byLowerId, boundScripts, rules, lootableExists, roleExists));
+        }
+        for (RoleReference reference : roleReferences) {
+            EncounterScriptScan script = byLowerId.get(reference.roleId().toLowerCase(Locale.ROOT));
+            if (script != null) {
+                findings.add(Finding.warning(DOMAIN, SCRIPT_ID_IS_ROLE_ID, "This " + reference.kind()
+                        + " names the role '" + reference.roleId() + "', but that id resolves to the encounter "
+                        + "script '" + script.id() + "': the engine keeps one builder per name across roles and "
+                        + "scripts, the script loaded last, and the role is gone, so nothing can spawn it. Rename "
+                        + "the script (a trailing " + SCRIPT_ID_SUFFIX + " is the convention) and follow its "
+                        + "references.", reference.namedBy()));
+            }
         }
         for (EncounterScriptScan scan : scripts.values()) {
             if (scan.spawnable() && scan.firesFrameworkSignals()
@@ -130,7 +176,8 @@ public final class EncounterValidator {
     @Nonnull
     private static List<Finding> auditBinding(@Nonnull EncounterBindingAsset row,
             @Nonnull Map<String, EncounterScriptScan> scripts, @Nonnull Map<String, EncounterBindingAsset> boundScripts,
-            @Nonnull Collection<EncounterParticipationAsset> rules, @Nullable Predicate<String> lootableExists) {
+            @Nonnull Collection<EncounterParticipationAsset> rules, @Nullable Predicate<String> lootableExists,
+            @Nullable Predicate<String> roleExists) {
         List<Finding> findings = new ArrayList<>();
         String id = row.getId();
         String script = row.encounterAsset();
@@ -142,7 +189,13 @@ public final class EncounterValidator {
         }
         EncounterScriptScan scan = scripts.get(scriptLower);
         if (scan == null) {
-            if (!scripts.isEmpty()) {
+            if (roleExists != null && roleExists.test(script)) {
+                findings.add(Finding.warning(DOMAIN, SCRIPT_ID_IS_ROLE_ID, "'" + script + "' resolves to an NPC role, "
+                        + "not an encounter script: the engine keeps one builder per name across roles and scripts, "
+                        + "the role loaded last, and the script is gone, so this binding binds nothing. Rename the "
+                        + "script (a trailing " + SCRIPT_ID_SUFFIX + " is the convention) and follow its references, "
+                        + "this binding's EncounterAsset included.", id));
+            } else if (!scripts.isEmpty()) {
                 findings.add(Finding.warning(DOMAIN, BINDING_UNKNOWN_SCRIPT, "No encounter script called '" + script
                         + "' is loaded, so this binding binds nothing. That is expected when the pack shipping it is "
                         + "not installed; check the spelling otherwise.", id));

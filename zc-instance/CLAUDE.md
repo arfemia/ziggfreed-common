@@ -25,15 +25,11 @@ compiles as `:zc-instance`). See the root [`CLAUDE.md`](../CLAUDE.md) for the ag
 
 ## Packages
 
-- `instance/arena/`, `instance/encounter/`, `instance/leaderboard/`, `instance/match/`,
-  `instance/metadata/`, `instance/play/`, `instance/zone/` each have their own router (see the
-  links below); `instance/preset/` and `instance/result/` do not (small, self-contained).
+- `instance/arena/`, `instance/leaderboard/`, `instance/match/`, `instance/metadata/`,
+  `instance/play/`, `instance/zone/` each have their own router (see the links below);
+  `instance/preset/` and `instance/result/` do not (small, self-contained).
   - [`instance/arena/`](src/main/java/com/ziggfreed/common/instance/arena/CLAUDE.md) -
     `ArenaDefinitionAsset`, the instance arena content type.
-  - [`instance/encounter/`](src/main/java/com/ziggfreed/common/instance/encounter/CLAUDE.md) - the
-    reusable ENCOUNTER framework's spawn half: `SpawnRoster<T>`/`SpawnUnit<T>` (weighted,
-    tier-gated picks) + `EncounterDirector` (cooldown/cap/per-round-max gating), pure logic, no
-    engine deps. `MultiPhaseBossAsset` + `EncounterRuleAsset` are the authoring layer.
   - [`instance/leaderboard/`](src/main/java/com/ziggfreed/common/instance/leaderboard/CLAUDE.md) -
     `Leaderboard` + `LeaderboardPage`, generalized bucketed scoring, `LeaderboardLayoutAsset`.
   - [`instance/match/`](src/main/java/com/ziggfreed/common/instance/match/CLAUDE.md) - match rules

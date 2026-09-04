@@ -3,11 +3,14 @@ package com.ziggfreed.common.encounter.validate;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -20,6 +23,7 @@ import com.hypixel.hytale.builtin.encountermanager.EncounterManager;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.hypixel.hytale.server.npc.asset.builder.BuilderInfo;
 import com.hypixel.hytale.server.npc.asset.builder.BuilderManager;
+import com.hypixel.hytale.server.spawning.assets.spawnmarker.config.SpawnMarker;
 import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.signal.EncounterSignal;
 import com.ziggfreed.common.util.SafeLog;
@@ -97,6 +101,54 @@ public final class EncounterScripts {
     /** Drop every cached answer; called on a builder reload. */
     public static void invalidate() {
         AUTHORS_ENGAGED.clear();
+    }
+
+    /**
+     * Whether an id resolves to a loaded NPC ROLE (a builder of the role category, which an
+     * encounter script of the same name is not), or null when the engine is not up to ask.
+     */
+    @Nullable
+    public static Predicate<String> roleExists() {
+        NPCPlugin npc = NPCPlugin.get();
+        if (npc == null) {
+            return null;
+        }
+        return id -> {
+            try {
+                return npc.hasRoleName(id);
+            } catch (Throwable t) {
+                return false;
+            }
+        };
+    }
+
+    /**
+     * Every role the loaded spawn markers name, keyed by marker id: what {@code TriggerSpawners}
+     * and a worldgen marker would raise, and the first place a role id is named that the engine
+     * refuses only at spawn time. Empty when the engine is not up.
+     */
+    @Nonnull
+    public static Map<String, List<String>> spawnMarkerRoles() {
+        Map<String, List<String>> out = new LinkedHashMap<>();
+        try {
+            for (SpawnMarker marker : SpawnMarker.getAssetMap().getAssetMap().values()) {
+                if (marker == null || marker.getId() == null || marker.getWeightedConfigurations() == null) {
+                    continue;
+                }
+                List<String> roles = new ArrayList<>();
+                marker.getWeightedConfigurations().forEach(configuration -> {
+                    if (configuration != null && configuration.getNpc() != null && !configuration.getNpc().isBlank()) {
+                        roles.add(configuration.getNpc());
+                    }
+                });
+                if (!roles.isEmpty()) {
+                    out.put(marker.getId(), roles);
+                }
+            }
+        } catch (Throwable t) {
+            SafeLog.fine(Encounters.LOG_PREFIX + " the spawn markers could not be read: " + t.getMessage());
+        }
+        return out;
     }
 
     @Nullable

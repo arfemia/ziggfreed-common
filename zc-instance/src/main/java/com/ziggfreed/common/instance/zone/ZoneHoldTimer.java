@@ -8,7 +8,7 @@ package com.ziggfreed.common.instance.zone;
  * king-of-the-hill objective, a ward-defense hold.
  *
  * <p><b>Pure + deterministic.</b> No engine calls and no wall-clock reads: the caller feeds the live
- * occupant/required counts and its own {@code nowMillis} each tick (mirroring {@code EncounterDirector}),
+ * occupant/required counts and its own {@code nowMillis} each tick (an injected clock, never a read),
  * so this never reaches into a {@code Store}/{@code World} and never calls {@link System#currentTimeMillis()}
  * itself. The consumer owns WHO counts as an occupant, WHERE the zone is, and what happens on completion;
  * this owns only the continuous-hold-with-reset state machine + the HUD-facing progress queries.

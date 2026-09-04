@@ -93,7 +93,7 @@ class EncounterEdgeTest {
 
     @Test
     void theCarveOutsAreExactlyTheTwoLootAndEffectPackages() {
-        assertTrue(isForbidden("com.ziggfreed.common.instance.encounter.MultiPhaseBossAsset"));
+        assertTrue(isForbidden("com.ziggfreed.common.instance.preset.InstancePresetAsset"));
         assertTrue(isForbidden("com.ziggfreed.common.instance.metadata.InstanceRounds"));
         assertTrue(!isForbidden("com.ziggfreed.common.instance.reward.NativeLootService"));
         assertTrue(!isForbidden("com.ziggfreed.common.instance.effect.EffectBandLadder"));

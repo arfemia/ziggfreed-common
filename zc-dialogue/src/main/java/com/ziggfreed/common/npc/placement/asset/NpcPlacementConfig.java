@@ -1,5 +1,6 @@
 package com.ziggfreed.common.npc.placement.asset;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,6 +49,23 @@ public final class NpcPlacementConfig extends AbstractKeyedAssetConfig<NpcPlacem
     @Nonnull
     public static NpcPlacementConfig getInstance() {
         return INSTANCE;
+    }
+
+    /**
+     * The role each folded placement stands, keyed by placement id, for an audit that reads role
+     * ids against another registry (a placement naming no role is not listed; that is its own
+     * {@code NO_ROLE} finding). A fresh map on every call.
+     */
+    @Nonnull
+    public Map<String, List<String>> rolesByPlacement() {
+        Map<String, List<String>> out = new LinkedHashMap<>();
+        for (Map.Entry<String, NpcPlacementAsset> entry : all().entrySet()) {
+            NpcPlacementAsset.Identity identity = entry.getValue() == null ? null : entry.getValue().getIdentity();
+            if (identity != null && identity.namesRole()) {
+                out.put(entry.getKey(), List.of(identity.getRole().trim()));
+            }
+        }
+        return out;
     }
 
     @Override

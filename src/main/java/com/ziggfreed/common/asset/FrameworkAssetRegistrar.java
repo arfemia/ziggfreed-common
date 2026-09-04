@@ -24,10 +24,6 @@ import com.ziggfreed.common.instance.arena.ArenaDefinitionAsset;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionConfig;
 import com.ziggfreed.common.instance.effect.BandedEffectAsset;
 import com.ziggfreed.common.instance.effect.BandedEffectConfig;
-import com.ziggfreed.common.instance.encounter.EncounterRuleAsset;
-import com.ziggfreed.common.instance.encounter.EncounterRuleConfig;
-import com.ziggfreed.common.instance.encounter.MultiPhaseBossAsset;
-import com.ziggfreed.common.instance.encounter.MultiPhaseBossConfig;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutAsset;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardLayoutConfig;
 import com.ziggfreed.common.instance.preset.InstancePresetAsset;
@@ -215,14 +211,6 @@ public final class FrameworkAssetRegistrar {
                     RewardKindFold.foldInto(RewardKinds.shared());
                 });
 
-        // --- Multi-phase bosses (Pattern A). ---
-        AssetStoreRegistrar.registerStore(MultiPhaseBossAsset.class,
-                new DefaultAssetMap<String, MultiPhaseBossAsset>(), "ZiggfreedCommon/Bosses",
-                MultiPhaseBossAsset::getId, MultiPhaseBossAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, MultiPhaseBossAsset.class,
-                (LoadedAssetsEvent<String, MultiPhaseBossAsset, DefaultAssetMap<String, MultiPhaseBossAsset>> ev) ->
-                        MultiPhaseBossConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
-
         // --- Banded effects (Pattern A) - the codec face of EffectBand/EffectBandLadder. ---
         AssetStoreRegistrar.registerStore(BandedEffectAsset.class,
                 new DefaultAssetMap<String, BandedEffectAsset>(), "ZiggfreedCommon/BandedEffects",
@@ -230,14 +218,6 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, BandedEffectAsset.class,
                 (LoadedAssetsEvent<String, BandedEffectAsset, DefaultAssetMap<String, BandedEffectAsset>> ev) ->
                         BandedEffectConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
-
-        // --- Encounter rules (Pattern A) - generic EncounterDirector config. ---
-        AssetStoreRegistrar.registerStore(EncounterRuleAsset.class,
-                new DefaultAssetMap<String, EncounterRuleAsset>(), "ZiggfreedCommon/EncounterRules",
-                EncounterRuleAsset::getId, EncounterRuleAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, EncounterRuleAsset.class,
-                (LoadedAssetsEvent<String, EncounterRuleAsset, DefaultAssetMap<String, EncounterRuleAsset>> ev) ->
-                        EncounterRuleConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
 
         // --- Weighted prefab placements (Pattern A). ---
         AssetStoreRegistrar.registerStore(WeightedPrefabPlacementAsset.class,
@@ -522,7 +502,7 @@ public final class FrameworkAssetRegistrar {
         try {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
-                            + "Lootables, RollPools, StatDisplays, RewardKinds, Bosses, BandedEffects, EncounterRules, PrefabPlacements, Leaderboard, "
+                            + "Lootables, RollPools, StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, "
                             + "Quests, QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "

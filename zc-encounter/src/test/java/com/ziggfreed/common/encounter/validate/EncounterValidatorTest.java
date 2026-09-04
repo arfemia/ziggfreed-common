@@ -138,4 +138,43 @@ class EncounterValidatorTest {
                 "Boss", script("Boss", true, List.of("zc:engaged", "zc:defeated"), Set.of("Boss"), true, 0));
         assertTrue(EncounterValidator.validate(scripts, List.of(row), List.of(), null).isEmpty());
     }
+
+    @Test
+    void aRoleReferenceThatResolvesToAScriptIsReportedAgainstWhatNamesIt() throws IOException {
+        EncounterBindingAsset row = EncounterBindingCodecTest.binding("{\"EncounterAsset\": \"Warden\"}", "row", null);
+        Map<String, EncounterScriptScan> scripts = Map.of(
+                "Warden", script("Warden", true, List.of("zc:engaged", "zc:defeated"), Set.of("Boss"), true, 0));
+        List<EncounterValidator.RoleReference> references = List.of(
+                new EncounterValidator.RoleReference("warden", "spawn marker", "Warden_Roost"),
+                new EncounterValidator.RoleReference("Guide", "placement", "grove_guide"));
+        List<Finding> findings = EncounterValidator.validate(scripts, List.of(row), List.of(), null, references, null);
+        Finding finding = find(findings, EncounterValidator.SCRIPT_ID_IS_ROLE_ID);
+        assertEquals(Severity.WARNING, finding.severity());
+        assertEquals("Warden_Roost", finding.sourceId(), "the marker that names the lost role is the source");
+        assertTrue(finding.message().contains("spawn marker") && finding.message().contains("'Warden'"),
+                "the finding says what named the role and which script took its name");
+        assertEquals(1, findings.stream().filter(f -> f.code().equals(EncounterValidator.SCRIPT_ID_IS_ROLE_ID)).count(),
+                "a role no script is named after is not reported");
+        assertFalse(has(EncounterValidator.validate(scripts, List.of(row), List.of(), null, List.of(), null),
+                EncounterValidator.SCRIPT_ID_IS_ROLE_ID), "nothing naming a role, nothing to report");
+    }
+
+    @Test
+    void aBindingWhoseScriptResolvesToARoleIsTheSameFindingFromTheOtherSide() throws IOException {
+        EncounterBindingAsset row = EncounterBindingCodecTest.binding("{\"EncounterAsset\": \"Warden\"}", "row", null);
+        Map<String, EncounterScriptScan> scripts = Map.of(
+                "Boss", script("Boss", true, List.of("zc:engaged", "zc:defeated"), Set.of("Boss"), true, 0));
+        List<Finding> asRole = EncounterValidator.validate(scripts, List.of(row), List.of(), null, List.of(),
+                id -> id.equals("Warden"));
+        Finding finding = find(asRole, EncounterValidator.SCRIPT_ID_IS_ROLE_ID);
+        assertEquals("row", finding.sourceId(), "the binding that names the lost script is the source");
+        assertFalse(has(asRole, EncounterValidator.BINDING_UNKNOWN_SCRIPT),
+                "a script that lost its name to a role is not reported as merely unknown");
+        List<Finding> unknown = EncounterValidator.validate(scripts, List.of(row), List.of(), null, List.of(),
+                id -> false);
+        assertTrue(has(unknown, EncounterValidator.BINDING_UNKNOWN_SCRIPT));
+        assertFalse(has(unknown, EncounterValidator.SCRIPT_ID_IS_ROLE_ID));
+        assertTrue(has(EncounterValidator.validate(scripts, List.of(row), List.of(), null),
+                EncounterValidator.BINDING_UNKNOWN_SCRIPT), "with nothing to ask about roles the old answer stands");
+    }
 }

@@ -29,6 +29,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
+import com.ziggfreed.common.encounter.validate.EncounterAudit;
 import com.ziggfreed.common.entity.EntityBootstrap;
 import com.ziggfreed.common.instance.InstanceBootstrap;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
@@ -47,6 +48,7 @@ import com.ziggfreed.common.loot.stamp.StackStatsStamper;
 import com.ziggfreed.common.loot.stamp.StamperRegistry;
 import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
+import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
 import com.ziggfreed.common.objectives.dialogue.DialogueBootstrap;
 import com.ziggfreed.common.objectives.flair.FlairBootstrap;
@@ -373,6 +375,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * a consumer registers its own parts in its own setup, after this one. Pinned here because the
      * encounter module may never import the progression modules: this root is the one place that
      * sees both. The party-power seam has no library answer and stays for a companion to fill.
+     * The same root hands the encounter audit the placement engine's role references (which
+     * placement stands which role), so a script named after a placed role is reported by the
+     * placement that names it.
      */
     private void registerEncounterSeams() {
         try {
@@ -380,6 +385,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                     ProgressionRuntime.killAttribution().actsFor(store, attackerRef));
             EncounterSeams.fillSubjectSource((store, ref) -> ProgressionRuntime.subjects().questSubject(store, ref));
             EncounterSeams.fillRewardQueue(ProgressionRuntime::rewardRetryQueue);
+            EncounterAudit.addRoleNameSource("placement", NpcPlacementConfig.getInstance()::rolesByPlacement);
         } catch (Throwable t) {
             SafeLog.warn("[encounter] seam wiring failed", t);
         }

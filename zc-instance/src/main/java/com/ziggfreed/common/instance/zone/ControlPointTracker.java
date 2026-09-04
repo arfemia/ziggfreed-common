@@ -19,8 +19,8 @@ import javax.annotation.Nullable;
  * its own state machine, not a tweak of the hold timer.
  *
  * <p><b>Pure + deterministic.</b> No engine calls and no wall-clock reads: the caller feeds the live
- * per-team occupant counts and its own {@code nowMillis} each tick (mirroring {@code EncounterDirector} and
- * {@code ZoneHoldTimer}), so this never reaches into a {@code Store}/{@code World} and never calls
+ * per-team occupant counts and its own {@code nowMillis} each tick (the same injected clock
+ * {@code ZoneHoldTimer} takes), so this never reaches into a {@code Store}/{@code World} and never calls
  * {@link System#currentTimeMillis()} itself. The consumer owns WHO counts as an occupant of which team and
  * WHERE the point is; this owns only the capture/contest/control state machine + the HUD-facing queries.
  *
