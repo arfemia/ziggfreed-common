@@ -453,6 +453,17 @@ public final class ProgressionRuntime {
         return parts.subjects();
     }
 
+    /**
+     * Where a failed reward's replayable command is parked for the player's next connect, read LIVE:
+     * the queue a consumer registered, or null when this server has none. The same queue every
+     * library payout retries through, so a payout site outside these modules queues where a quest
+     * payout would.
+     */
+    @Nullable
+    public static BiConsumer<Subject, String> rewardRetryQueue() {
+        return parts.rewardRetryQueue();
+    }
+
     /** What to publish around a mutating QUEST call. Never null; {@code DIRECT} when nobody asked. */
     @Nonnull
     public static ProgressionCallScope questScope() {

@@ -8,6 +8,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.AchievementEngine;
+import com.ziggfreed.common.achievement.FirstClaims;
 import com.ziggfreed.common.progress.DispatchOptions;
 import com.ziggfreed.common.progress.ZoneLocator;
 import com.ziggfreed.common.progress.ZoneRef;
@@ -18,6 +19,7 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionSubjectSource;
 import com.ziggfreed.common.progress.runtime.ProgressionSystem;
 import com.ziggfreed.common.progress.runtime.ProgressionSystemGate;
+import com.ziggfreed.common.progress.runtime.SharedCredit;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -162,9 +164,14 @@ public final class ProgressDispatch {
         if (moment.questSubject() == null && moment.achievementSubject() == null) {
             return;
         }
-        dispatch(quests, achievements, moment.questSubject(), moment.achievementSubject(),
-                moment.kindId(), moment.target(), moment.qualifier(), moment.amount(),
-                moment.zone(), DispatchOptions.FULL);
+        // A moment that is one event shared by several players (a party's boss kill, dispatched
+        // once per member) runs its engine half under that shared credit, so a server-first one of
+        // them wins inside it is a win for the rest of them rather than a race lost to a teammate.
+        SharedCredit shared = moment.payload(SharedCredit.class);
+        FirstClaims.withSharedCredit(shared == null ? null : shared.creditKey(), () ->
+                dispatch(quests, achievements, moment.questSubject(), moment.achievementSubject(),
+                        moment.kindId(), moment.target(), moment.qualifier(), moment.amount(),
+                        moment.zone(), DispatchOptions.FULL));
     }
 
     /**

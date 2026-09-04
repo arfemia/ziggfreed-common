@@ -1,0 +1,67 @@
+# O framework de encontros: o nome reserva da barra de chefe, o nome do exemplo incluído e a
+# família de comandos /zigencounter (textos de ajuda, listagens e respostas).
+# O nome do arquivo é o PREFIXO da chave: uma entrada aqui é resolvida como ziggfreedcommon.encounter.<key>.
+
+bar.default = Chefe
+example.name = Encontro de exemplo
+
+admin.desc.family = Inspecionar e conduzir os encontros deste servidor.
+admin.desc.list = Listar cada encontro em andamento, com sua execução e seu estado.
+admin.desc.inspect = Mostrar a execução de um encontro: seu alvo, seus membros e quem ganhou o quê.
+admin.desc.spawn = Erguer um script de encontro, junto a você, no ponto de surgimento de um mundo ou em coordenadas.
+admin.desc.end = Remover um encontro em andamento; um combate já iniciado conta como derrota do grupo.
+admin.desc.state = Forçar o script de um encontro para um estado.
+admin.desc.validate = Auditar cada script de encontro, linha de vínculo e regra de participação carregados.
+admin.desc.reload = Reler os arquivos do proprietário sobre os vínculos de encontro e as regras de participação.
+admin.desc.arg.ref = Um encontro em andamento: um prefixo do id de execução como o list mostra, ou o id do script.
+admin.desc.arg.asset = O id do script de encontro, seu nome de arquivo em Server/EncounterManager.
+admin.desc.arg.world = O mundo onde erguer. Por padrão o seu, ou o mundo padrão a partir do console.
+admin.desc.arg.x = A coordenada X onde erguer; informe as três ou nenhuma.
+admin.desc.arg.y = A coordenada Y onde erguer; informe as três ou nenhuma.
+admin.desc.arg.z = A coordenada Z onde erguer; informe as três ou nenhuma.
+admin.desc.arg.state = O nome de estado próprio do script.
+admin.desc.arg.substate = O subestado, ou o padrão do script se omitido.
+
+admin.more = ... e mais {0}, no registro do servidor.
+
+admin.list.header = Encontros em andamento ({0}):
+admin.list.none = Nenhum encontro está em andamento.
+admin.list.row = {0} execução {1} em {2}: estado {3}, {4} membros, fase {5}
+admin.list.row.idle = {0} execução {1} em {2}: estado {3}, aguardando
+
+admin.inspect.header = Encontro {0}, execução {1}:
+admin.inspect.world = mundo: {0}
+admin.inspect.state = estado: {0}
+admin.inspect.engaged = em combate há {0} segundos, fase {1}, {2} ondas até agora
+admin.inspect.idle = ainda não começou
+admin.inspect.subject = alvo: {0}
+admin.inspect.subject.none = alvo: nada vinculado ainda
+admin.inspect.members = membros: {0}, mortes: {1}
+admin.inspect.concluded = resolvido: {0}
+admin.inspect.participant = {0}: {1} causado, {2} sofrido, {3}s presente, cota {4}%
+admin.inspect.participants.none = Ninguém ganhou crédito ainda.
+
+admin.ref.needed = Indique um encontro com --ref=<prefixo do id de execução ou id do script>.
+admin.ref.unknown = Nenhum encontro em andamento corresponde a '{0}'. Tente /zigencounter list.
+admin.ref.ambiguous = '{0}' indica mais de um encontro em andamento; dê um prefixo mais longo do id de execução.
+admin.ref.gone = Esse encontro não está mais em andamento.
+
+admin.spawn.done = {0} erguido em {1} em {2}, {3}, {4}.
+admin.spawn.unknown = Nenhum script de encontro se chama '{0}'.
+admin.spawn.notspawnable = '{0}' é um script base, não um que possa ser erguido.
+admin.spawn.disabled = '{0}' está desligado em sua linha de vínculo.
+admin.spawn.failed = O motor se recusou a erguer '{0}'.
+admin.spawn.world.unknown = Nenhum mundo se chama '{0}'.
+admin.spawn.world.needed = Indique um mundo com --world=<nome>, ou execute isto como jogador.
+admin.spawn.position.needed = Esse mundo não tem ponto de surgimento; informe --x= --y= --z=.
+
+admin.end.done = {0} encerrado (execução {1}).
+
+admin.state.done = {0} está agora no estado {1}.
+admin.state.refused = {0} não tem máquina de estados para definir.
+
+admin.validate.clean = Conteúdo de encontros: nada a relatar.
+admin.validate.counts = Conteúdo de encontros: {0} erros, {1} avisos, {2} notas.
+admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = Arquivos do proprietário relidos: {0} vínculos e {1} regras de participação em vigor, {2} scripts carregados.

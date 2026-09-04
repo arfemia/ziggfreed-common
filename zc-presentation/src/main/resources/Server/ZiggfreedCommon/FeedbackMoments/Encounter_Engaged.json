@@ -1,0 +1,37 @@
+{
+  "$Comment": [
+    "What players see the moment a boss fight starts: the fight is engaged, the boss is",
+    "vulnerable and the first member is on it.",
+    "",
+    "This is the library's own neutral default. A mod that ships a file with this same name in its",
+    "own pack replaces it, and a server owner can do the same from the owner layer; the binding row",
+    "under Server/ZiggfreedCommon/Encounters can also point a fight at a moment of another name",
+    "through its Feedback.Engaged leaf.",
+    "",
+    "The moment fires once PER MEMBER of the fight, and carries 'encounter' (the script id),",
+    "'title' (the fight's name, already in the reader's language), 'members' (how many are in it),",
+    "'seconds' (how long the run has been going), 'participants' (the members, for the banner's",
+    "ToParticipants) and 'source' (the script id again, for the banner's MinSecondsBetween).",
+    "'player' is always the name of the member it is about.",
+    "",
+    "A boss engaging is the one beat here that speaks to players who did not ask: the banner is",
+    "kept to the world the fight is in (SameWorldOnly), shown once a minute per fight however many",
+    "members fire it (MinSecondsBetween), and always shown to the members themselves",
+    "(ToParticipants). Add RadiusBlocks to keep it to the arena, or drop the Broadcast group to",
+    "tell nobody but the members through a Toast of your own. The fight's own music is the",
+    "script's business, which is why there is no Sound here."
+  ],
+  "Broadcast": {
+    "Title": {
+      "Key": "ziggfreedcommon.feedback.encounter.engaged",
+      "Args": ["title"]
+    },
+    "Secondary": {
+      "Key": "ziggfreedcommon.feedback.encounter.engaged.members",
+      "Args": ["members"]
+    },
+    "ToParticipants": true,
+    "SameWorldOnly": true,
+    "MinSecondsBetween": 60
+  }
+}

@@ -1,24 +1,14 @@
 package com.ziggfreed.common.commerce.fold;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.LinkedHashMap;
-import java.util.Locale;
-import java.util.Map;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.assetstore.JsonAsset;
 import com.hypixel.hytale.assetstore.codec.AssetBuilderCodec;
-import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
+import com.ziggfreed.common.asset.OwnerLayerReader;
 import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
@@ -28,7 +18,6 @@ import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.util.OwnerFiles;
-import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The SERVER OWNER's last word on commerce content, at {@code mods/ziggfreedcommon/*.json}.
@@ -64,12 +53,16 @@ import com.ziggfreed.common.util.SafeLog;
  * file with one warning).
  *
  * <p>Read AFTER the pack layer has merged, which is why the wiring root calls each of these from the
- * store's own load event rather than from setup.
+ * store's own load event rather than from setup. The reading itself is the library-wide
+ * {@link OwnerLayerReader}; this class only says which four files the economy keeps and where.
  */
 public final class CommerceOwnerLayers {
 
     /** Where a server owner's commerce files live. */
     public static final Path DEFAULT_DIRECTORY = Paths.get("mods", "ziggfreedcommon");
+
+    /** The log prefix every commerce owner-file line carries. */
+    private static final String LOG_TAG = "commerce";
 
     /** The owner file over the wallets. */
     public static final String CURRENCIES_FILE = "currencies.json";
@@ -122,94 +115,10 @@ public final class CommerceOwnerLayers {
                 ShopPoolConfig.getInstance(), "shelf");
     }
 
-    /**
-     * Read one owner file and replace that type's owner layer with what it says.
-     *
-     * @param noun what one entry is CALLED in a line written for the server owner reading the log
-     */
+    /** Read one owner file under the commerce directory through the shared reader. */
     private static <T extends JsonAsset<String>> void apply(@Nonnull String fileName,
             @Nonnull Class<T> assetClass, @Nonnull AssetBuilderCodec<String, T> codec,
             @Nonnull AbstractKeyedAssetConfig<T> config, @Nonnull String noun) {
-
-        // Drop the previous layer FIRST: every entry below resolves its own base out of the pack
-        // layer, and leaving the last read's answers in place would stack one override on another.
-        config.mergeOwnerLayer(Map.of());
-
-        Path file = directory.resolve(fileName);
-        JsonObject root = readObject(file);
-        if (root == null || !OwnerFiles.schemaReadable(root, "commerce", file)) {
-            return;
-        }
-
-        Map<String, T> layer = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonElement> entry : root.entrySet()) {
-            String key = entry.getKey();
-            if (OwnerFiles.isReservedKey(key)) {
-                continue; // $Comment, $SchemaVersion and friends are file-level, not entries
-            }
-            String id = key.trim().toLowerCase(Locale.ROOT);
-            T decoded = decode(entry.getValue(), id, assetClass, codec, config, file, noun);
-            if (decoded != null) {
-                layer.put(id, decoded);
-            }
-        }
-
-        config.mergeOwnerLayer(layer);
-        if (!layer.isEmpty()) {
-            SafeLog.info("[commerce] " + file + ": " + layer.size() + " " + noun
-                    + " override(s) in force");
-        }
-    }
-
-    /** One entry, decoded against whatever the packs already say about its id. */
-    @Nullable
-    private static <T extends JsonAsset<String>> T decode(@Nullable JsonElement body, @Nonnull String id,
-            @Nonnull Class<T> assetClass, @Nonnull AssetBuilderCodec<String, T> codec,
-            @Nonnull AbstractKeyedAssetConfig<T> config, @Nonnull Path file, @Nonnull String noun) {
-
-        if (body == null || !body.isJsonObject()) {
-            SafeLog.warn("[commerce] " + file + ": the " + noun + " override '" + id
-                    + "' is not a block of settings, so it was skipped");
-            return null;
-        }
-        T base = config.resolve(id);
-        try {
-            AssetExtraInfo.Data data =
-                    new AssetExtraInfo.Data(assetClass, id, base == null ? null : id);
-            return codec.decodeAndInheritJsonAsset(RawJsonReader.fromJsonString(body.toString()), base,
-                    new AssetExtraInfo<>(data));
-        } catch (Exception e) {
-            SafeLog.warn("[commerce] " + file + ": the " + noun + " override '" + id
-                    + "' could not be read, so it was skipped: " + e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * The file as a JSON object, or null when there is nothing usable to read. A missing file is the
-     * common case and says nothing; a malformed one warns and is left exactly as the owner wrote it.
-     */
-    @Nullable
-    private static JsonObject readObject(@Nonnull Path file) {
-        try {
-            if (!Files.exists(file)) {
-                return null;
-            }
-            String body = Files.readString(file, StandardCharsets.UTF_8);
-            if (body.isBlank()) {
-                return null;
-            }
-            JsonElement root = JsonParser.parseString(body);
-            if (root == null || !root.isJsonObject()) {
-                SafeLog.warn("[commerce] " + file + " is not a block of entries keyed by id, so nothing "
-                        + "in it is in force");
-                return null;
-            }
-            return root.getAsJsonObject();
-        } catch (Exception e) {
-            SafeLog.warn("[commerce] could not read " + file + ", so nothing in it is in force: "
-                    + e.getMessage());
-            return null;
-        }
+        OwnerLayerReader.apply(LOG_TAG, directory.resolve(fileName), assetClass, codec, config, noun);
     }
 }

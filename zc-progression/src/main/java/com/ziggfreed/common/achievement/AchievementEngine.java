@@ -25,6 +25,7 @@ import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.DispatchOptions;
+import com.ziggfreed.common.progress.ObjectiveArithmetic;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveIndex;
 import com.ziggfreed.common.progress.ObjectiveKind;
@@ -278,8 +279,7 @@ public final class AchievementEngine {
     public ObjectiveProgressState progressOf(@Nonnull Subject subject, @Nonnull Achievement achievement,
                                              @Nonnull ObjectiveDef criterion) {
         long current = store.criterionProgress(subject, achievement.id(), criterion.id());
-        return new ObjectiveProgressState((int) Math.min(Integer.MAX_VALUE, Math.max(0L, current)),
-                criterion.amountAsInt());
+        return ObjectiveArithmetic.stored(objectiveKinds.kind(criterion.kind()), criterion, current);
     }
 
     /** This subject's progress on every criterion, in criterion order. */
@@ -411,7 +411,7 @@ public final class AchievementEngine {
                 continue;
             }
             int before = state.current();
-            boolean justCompleted = kind.valueBased() ? state.applyValue(amount) : state.advance(amount);
+            boolean justCompleted = ObjectiveArithmetic.apply(kind, criterion, state, amount);
             if (state.current() == before && !justCompleted) {
                 continue;
             }
@@ -854,7 +854,8 @@ public final class AchievementEngine {
                 continue;
             }
             int before = state.current();
-            boolean justCompleted = state.applyValue(statProbe.valueFor(subject, criterion));
+            boolean justCompleted = ObjectiveArithmetic.applyStanding(objectiveKinds.kind(criterion.kind()),
+                    criterion, state, statProbe.valueFor(subject, criterion));
             if (state.current() == before && !justCompleted) {
                 continue;
             }

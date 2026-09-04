@@ -1,0 +1,34 @@
+{
+  "$Comment": [
+    "What a participant sees and hears the instant a boss falls, with their own part in it.",
+    "",
+    "This is the library's own neutral default; a mod's same-named file or the owner layer",
+    "replaces it, and the binding row's Feedback.Defeated leaf can point a fight elsewhere.",
+    "",
+    "The moment fires once per participant the fight credited and carries 'encounter' (the script",
+    "id), 'title' (the fight's name in the reader's language), 'members', 'seconds' (how long the",
+    "fight took), 'share' (THIS reader's credited share of the fight as whole percent points, the",
+    "top contributor reading 100, which is what their loot rolls were scaled by) and 'rank' (their",
+    "place, 1 for the top contributor), plus 'participants' and 'source'. 'player' is the",
+    "participant it is about. Showing the share is how everyone sees why they got what they got.",
+    "",
+    "Gold Reward tone, because a boss falling is a payout, and a jingle at the reader's own",
+    "position. Add a Broadcast (with MinSecondsBetween, since this fires once per participant) to",
+    "tell the world; the rewards the fight pays list themselves as rows under the headline on the",
+    "in-page toast."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.feedback.encounter.defeated",
+      "Args": ["title"]
+    },
+    "Secondary": {
+      "Key": "ziggfreedcommon.feedback.encounter.defeated.share",
+      "Args": ["share", "seconds"]
+    },
+    "Tone": "Reward"
+  },
+  "Sound": {
+    "Id": "SFX_Discovery_Z2_Short"
+  }
+}

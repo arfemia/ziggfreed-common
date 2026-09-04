@@ -13,6 +13,11 @@ import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
 import com.ziggfreed.common.dialogue.asset.DialogueFragmentAsset;
 import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
+import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
+import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
+import com.ziggfreed.common.encounter.asset.EncounterOwnerLayers;
+import com.ziggfreed.common.encounter.asset.EncounterParticipationAsset;
+import com.ziggfreed.common.encounter.asset.EncounterParticipationConfig;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.instance.arena.ArenaDefinitionAsset;
@@ -488,6 +493,32 @@ public final class FrameworkAssetRegistrar {
                     CommerceCatalogs.publishBounties();
                 });
 
+        // --- Encounter bindings (Pattern A) - what the server owes for a native encounter script it
+        //     does not describe: credit rules, health scale, loot, feedback moments, a map marker. The
+        //     fight itself is the engine's own Server/EncounterManager script. Owner layer
+        //     mods/ziggfreedcommon/encounters.json, re-read on the same event and for the same reason
+        //     the commerce owner files are. ---
+        AssetStoreRegistrar.registerStore(EncounterBindingAsset.class,
+                new DefaultAssetMap<String, EncounterBindingAsset>(), EncounterBindingAsset.TYPE_ROOT,
+                EncounterBindingAsset::getId, EncounterBindingAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, EncounterBindingAsset.class,
+                (LoadedAssetsEvent<String, EncounterBindingAsset, DefaultAssetMap<String, EncounterBindingAsset>> ev) -> {
+                    EncounterBindingConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    EncounterOwnerLayers.reloadBindings();
+                });
+
+        // --- Encounter participation rules (Pattern A) - how credit for a fight is shared out, matched
+        //     per subject mob id and per world; the library ships the match-all default. Owner layer
+        //     mods/ziggfreedcommon/encounter-participation.json. ---
+        AssetStoreRegistrar.registerStore(EncounterParticipationAsset.class,
+                new DefaultAssetMap<String, EncounterParticipationAsset>(), EncounterParticipationAsset.TYPE_ROOT,
+                EncounterParticipationAsset::getId, EncounterParticipationAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, EncounterParticipationAsset.class,
+                (LoadedAssetsEvent<String, EncounterParticipationAsset, DefaultAssetMap<String, EncounterParticipationAsset>> ev) -> {
+                    EncounterParticipationConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    EncounterOwnerLayers.reloadParticipation();
+                });
+
         try {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
@@ -495,7 +526,7 @@ public final class FrameworkAssetRegistrar {
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, "
                             + "Quests, QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "
-                            + "ShopEntryGenerators, Boards, Bounties).");
+                            + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }

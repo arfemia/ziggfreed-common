@@ -96,6 +96,7 @@ public final class ObjectiveKindFold {
     private static ObjectiveKind mergeOver(@Nullable ObjectiveKind current, @Nonnull String id,
             @Nonnull ObjectiveKindAsset row) {
         boolean valueBased = or(row.getValueBased(), current != null && current.valueBased());
+        boolean atMost = or(row.getAtMost(), current != null && current.atMost());
         boolean producible = or(row.getProducible(), current == null || current.producible());
 
         ObjectiveKindAsset.TargetNames names = row.getTargetNames();
@@ -111,9 +112,11 @@ public final class ObjectiveKindFold {
                 current != null && current.targetsContent());
         boolean targetsBoard = or(names == null ? null : names.getBoard(),
                 current != null && current.targetsBoard());
+        boolean targetsEncounter = or(names == null ? null : names.getEncounter(),
+                current != null && current.targetsEncounter());
 
         return new ObjectiveKind(id, valueBased, producible, targetsPlace, targetsItem, targetsEntity,
-                targetsCurrency, targetsContent, targetsBoard,
+                targetsCurrency, targetsContent, targetsBoard, targetsEncounter, atMost,
                 mergePresentation(current == null ? null : current.presentation(), row.getPresentation()));
     }
 

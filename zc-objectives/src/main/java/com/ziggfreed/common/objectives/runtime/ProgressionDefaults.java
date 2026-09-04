@@ -38,6 +38,7 @@ import com.ziggfreed.common.inventory.InventoryUtil;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
+import com.ziggfreed.common.objectives.producer.ZigEncounterProducer;
 import com.ziggfreed.common.objectives.producer.ZigInstanceRoundProducer;
 import com.ziggfreed.common.objectives.producer.ZigMobKillProducer;
 import com.ziggfreed.common.objectives.producer.ZigPickupProducer;
@@ -190,6 +191,7 @@ public final class ProgressionDefaults {
         plugin.getEntityStoreRegistry().registerSystem(new ZigPickupProducer());
         plugin.getEntityStoreRegistry().registerSystem(new ZigPlaceBlockProducer());
         ZigInstanceRoundProducer.install(plugin);
+        ZigEncounterProducer.install(plugin);
         SafeLog.info("[progression] producers always-on: " + producedKinds()
                 + " (a mod firing a new moment calls ProgressDispatch.fire directly, no registration"
                 + " needed)");
@@ -207,7 +209,9 @@ public final class ProgressionDefaults {
     public static String producedKinds() {
         return String.join(", ", ZigBlockBreakProducer.KIND, ZigMobKillProducer.KIND,
                 ZigCraftProducer.KIND, ZigPickupProducer.KIND, ZigPlaceBlockProducer.KIND,
-                ZigInstanceRoundProducer.KIND_ENDED, ZigInstanceRoundProducer.KIND_WON);
+                ZigInstanceRoundProducer.KIND_ENDED, ZigInstanceRoundProducer.KIND_WON,
+                ZigEncounterProducer.KIND_ATTEMPT, ZigEncounterProducer.KIND_DEFEATED,
+                ZigEncounterProducer.KIND_PHASE);
     }
 
     // ==================== persistence notifications ====================

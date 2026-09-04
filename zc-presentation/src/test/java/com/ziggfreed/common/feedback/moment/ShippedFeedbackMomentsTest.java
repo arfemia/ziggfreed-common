@@ -45,10 +45,14 @@ class ShippedFeedbackMomentsTest {
     /** The lang file's own namespace, which every shipped line writes out in full. */
     private static final String PREFIX = "ziggfreedcommon.feedback.";
 
-    /** The moments the two progression engines and the claim table announce today. */
+    /**
+     * The moments the two progression engines, the claim table and the encounter framework
+     * announce today (the encounter four are the binding row's own default moment ids).
+     */
     private static final Set<String> ANNOUNCED = Set.of(
             "Quest_Completed", "Quest_Parked", "Quest_Claimed", "Quest_Objective_Progressed",
-            "Achievement_Unlocked", "Achievement_Claimed", "Achievement_Server_First_Lost");
+            "Achievement_Unlocked", "Achievement_Claimed", "Achievement_Server_First_Lost",
+            "Encounter_Engaged", "Encounter_Phase_Changed", "Encounter_Defeated", "Encounter_Wiped");
 
     @Test
     void everyAnnouncedMomentShipsADefaultThatDecodes() throws IOException {
@@ -101,6 +105,30 @@ class ShippedFeedbackMomentsTest {
 
         assertFalse(full.toast().getTitle().getKey().equals(collect.toast().getTitle().getKey()),
                 "a full bag reads a different line from a quest waiting to be collected");
+    }
+
+    /**
+     * A boss engaging is the one default that speaks to players who did not ask, so its banner is
+     * kept to the fight's world, held to once a minute per fight however many members fire it, and
+     * always shown to the members; the other three encounter defaults tell nobody but the player.
+     */
+    @Test
+    void theEngagedDefaultScopesItsBannerAndTheOtherThreeStayPersonal() throws IOException {
+        Map<String, FeedbackMomentAsset> shipped = shipped();
+        FeedbackMomentAsset.Broadcast engaged = shipped.get("Encounter_Engaged").getBroadcast();
+        assertNotNull(engaged, "the engage is announced");
+        assertTrue(engaged.sameWorldOnly(), "kept to the world the fight is in");
+        assertTrue(engaged.toParticipants(), "the members always hear it");
+        assertEquals(60, engaged.minSecondsBetween(), "once a minute per fight");
+        assertEquals(null, engaged.getRadiusBlocks(), "no radius: the whole world hears it");
+
+        for (String personal : new String[] {"Encounter_Phase_Changed", "Encounter_Defeated", "Encounter_Wiped"}) {
+            assertEquals(null, shipped.get(personal).getBroadcast(), personal + " tells nobody else by default");
+            assertNotNull(shipped.get(personal).getToast(), personal + " tells the player");
+        }
+        FeedbackMomentAsset.Line share = shipped.get("Encounter_Defeated").getToast().getSecondary();
+        assertNotNull(share, "the defeat says what the reader's own part in it was");
+        assertEquals("share", share.getArgs()[0], "bound as the typed number the framework carries");
     }
 
     // ==================== helpers ====================

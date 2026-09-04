@@ -1,0 +1,210 @@
+{
+  "$Comment": [
+    "A spawnable example that walks the whole framework with no boss and no player: stand it up with",
+    "/zigencounter spawn Zc_Encounter_Example and watch the [encounter] lines in the server log. It",
+    "sends zc:engaged, a zc:wave beat, a zc:phase beat and zc:defeated, uses each of the five zc",
+    "instruction Types once, then re-arms with zc:reset a few seconds later and runs again until it",
+    "is ended. Its binding row is Server/ZiggfreedCommon/Encounters/Zc_Encounter_Example.json, so it",
+    "also shows what a row pays.",
+    "",
+    "The Player sensor with the EncounterMembers collector sits first and never blocks the story:",
+    "a player who walks up counts as a member and earns presence credit, and with nobody near the",
+    "story runs on regardless. The five Types, each legal only inside an encounter script:",
+    "ZigScaleTarget applies the binding row's health scale to the bound subject now (here there is",
+    "none, and it says so); ZigMembers is true while the member count is inside a range; ZigFeedback",
+    "draws a FeedbackMoment for each member; ZigFactor is true while a factor reading about the fight",
+    "is inside a range; ZigGrant pays every credited participant a loot reference, scaled by their",
+    "share.",
+    "",
+    "A real boss takes the shape of Zc_Encounter_Base instead: TriggerSpawners raising the boss into",
+    "a target slot, the release on the Target sensor, phases through Zc_Phase_At_Health, the defeat",
+    "through Zc_Defeat_Beat. This file skips all of that on purpose, so it runs on a headless server",
+    "with nobody online."
+  ],
+  "Class": "EncounterManager",
+  "Type": "Generic",
+  "StartState": "Intro",
+  "Instructions": [
+    {
+      "Continue": true,
+      "Sensor": {
+        "Type": "Player",
+        "Range": 30,
+        "Collector": {
+          "Type": "EncounterMembers"
+        }
+      },
+      "Actions": [
+        {
+          "Type": "Nothing"
+        }
+      ]
+    },
+    {
+      "Sensor": {
+        "Type": "State",
+        "State": "Intro"
+      },
+      "Instructions": [
+        {
+          "Sensor": {
+            "Type": "Any"
+          },
+          "ActionsBlocking": true,
+          "Actions": [
+            {
+              "Type": "Log",
+              "Message": "[Zc_Encounter_Example] the story begins"
+            },
+            {
+              "Type": "SignalWorldEvent",
+              "SignalId": "zc:engaged"
+            },
+            {
+              "Type": "ZigScaleTarget"
+            },
+            {
+              "Type": "Timeout",
+              "Delay": [ 2, 2 ]
+            },
+            {
+              "Type": "State",
+              "State": "Phase_1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Sensor": {
+        "Type": "State",
+        "State": "Phase_1"
+      },
+      "Instructions": [
+        {
+          "Continue": true,
+          "Sensor": {
+            "Type": "ZigMembers",
+            "Count": [ 0, 0 ]
+          },
+          "Actions": [
+            {
+              "Type": "Nothing"
+            }
+          ]
+        },
+        {
+          "Sensor": {
+            "Type": "Any"
+          },
+          "ActionsBlocking": true,
+          "Actions": [
+            {
+              "Type": "SignalWorldEvent",
+              "SignalId": "zc:wave:first"
+            },
+            {
+              "Type": "ZigFeedback",
+              "Moment": "Encounter_Phase_Changed",
+              "ToMembers": true,
+              "Args": {
+                "phase": "Phase_2"
+              }
+            },
+            {
+              "Type": "Timeout",
+              "Delay": [ 2, 2 ]
+            },
+            {
+              "Type": "SignalWorldEvent",
+              "SignalId": "zc:phase:Phase_2"
+            },
+            {
+              "Type": "State",
+              "State": "Phase_2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Sensor": {
+        "Type": "State",
+        "State": "Phase_2"
+      },
+      "Instructions": [
+        {
+          "Sensor": {
+            "Type": "ZigFactor",
+            "Factor": "ziggfreedcommon:encounter_waves",
+            "Value": [ 1, 1000000 ]
+          },
+          "ActionsBlocking": true,
+          "Actions": [
+            {
+              "Type": "Timeout",
+              "Delay": [ 2, 2 ]
+            },
+            {
+              "Type": "ClearEncounterBossBar"
+            },
+            {
+              "Type": "SignalWorldEvent",
+              "SignalId": "zc:defeated"
+            },
+            {
+              "Type": "ZigGrant",
+              "ToMembers": true,
+              "Loot": {
+                "Rolls": [
+                  {
+                    "Grants": {
+                      "Items": [
+                        {
+                          "Item": "Ingredient_Bar_Copper",
+                          "Count": 2
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "Type": "State",
+              "State": "Complete"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Sensor": {
+        "Type": "State",
+        "State": "Complete"
+      },
+      "Instructions": [
+        {
+          "Sensor": {
+            "Type": "Any"
+          },
+          "ActionsBlocking": true,
+          "Actions": [
+            {
+              "Type": "Timeout",
+              "Delay": [ 4, 4 ]
+            },
+            {
+              "Type": "SignalWorldEvent",
+              "SignalId": "zc:reset"
+            },
+            {
+              "Type": "State",
+              "State": "Intro"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

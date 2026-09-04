@@ -1,0 +1,67 @@
+# Das Begegnungs-Framework: der Ersatzname der Bossleiste, der Name des mitgelieferten Beispiels und
+# die Befehlsfamilie /zigencounter (Hilfetexte, Listen und Antworten).
+# Der Dateiname ist das Schlüssel-PRÄFIX: ein Eintrag hier heißt ziggfreedcommon.encounter.<key>.
+
+bar.default = Boss
+example.name = Beispielbegegnung
+
+admin.desc.family = Die Begegnungen dieses Servers ansehen und steuern.
+admin.desc.list = Jede laufende Begegnung mit ihrem Durchlauf und Zustand auflisten.
+admin.desc.inspect = Den Durchlauf einer Begegnung zeigen: Ziel, Mitglieder und wer sich was verdient hat.
+admin.desc.spawn = Ein Begegnungsskript aufstellen: bei dir, am Spawnpunkt einer Welt oder an Koordinaten.
+admin.desc.end = Eine laufende Begegnung entfernen; ein begonnener Kampf zählt als Wipe.
+admin.desc.state = Das Skript einer Begegnung in einen Zustand zwingen.
+admin.desc.validate = Jedes geladene Begegnungsskript, jede Bindungszeile und jede Beteiligungsregel prüfen.
+admin.desc.reload = Die Besitzerdateien über den Begegnungsbindungen und Beteiligungsregeln neu einlesen.
+admin.desc.arg.ref = Eine laufende Begegnung: der Anfang ihrer Durchlauf-ID, wie list sie zeigt, oder ihre Skript-ID.
+admin.desc.arg.asset = Die Skript-ID der Begegnung, ihr Dateiname unter Server/EncounterManager.
+admin.desc.arg.world = Die Welt zum Aufstellen. Standard: deine, oder von der Konsole aus die Standardwelt.
+admin.desc.arg.x = Die X-Koordinate zum Aufstellen; alle drei oder keine angeben.
+admin.desc.arg.y = Die Y-Koordinate zum Aufstellen; alle drei oder keine angeben.
+admin.desc.arg.z = Die Z-Koordinate zum Aufstellen; alle drei oder keine angeben.
+admin.desc.arg.state = Der eigene Zustandsname des Skripts.
+admin.desc.arg.substate = Der Unterzustand, oder der Standard des Skripts, wenn weggelassen.
+
+admin.more = ... und {0} weitere, im Serverprotokoll.
+
+admin.list.header = Laufende Begegnungen ({0}):
+admin.list.none = Es läuft keine Begegnung.
+admin.list.row = {0} Durchlauf {1} in {2}: Zustand {3}, {4} Mitglieder, Phase {5}
+admin.list.row.idle = {0} Durchlauf {1} in {2}: Zustand {3}, wartet
+
+admin.inspect.header = Begegnung {0}, Durchlauf {1}:
+admin.inspect.world = Welt: {0}
+admin.inspect.state = Zustand: {0}
+admin.inspect.engaged = seit {0} Sekunden im Kampf, Phase {1}, bisher {2} Wellen
+admin.inspect.idle = noch nicht im Kampf
+admin.inspect.subject = Ziel: {0}
+admin.inspect.subject.none = Ziel: noch nichts gebunden
+admin.inspect.members = Mitglieder: {0}, Tode: {1}
+admin.inspect.concluded = abgeschlossen: {0}
+admin.inspect.participant = {0}: {1} ausgeteilt, {2} eingesteckt, {3}s anwesend, Anteil {4}%
+admin.inspect.participants.none = Niemand hat sich bisher etwas verdient.
+
+admin.ref.needed = Nenne eine Begegnung mit --ref=<Anfang der Durchlauf-ID oder Skript-ID>.
+admin.ref.unknown = Keine laufende Begegnung passt zu '{0}'. Versuche /zigencounter list.
+admin.ref.ambiguous = '{0}' nennt mehr als eine laufende Begegnung; gib einen längeren Anfang der Durchlauf-ID an.
+admin.ref.gone = Diese Begegnung läuft nicht mehr.
+
+admin.spawn.done = {0} in {1} bei {2}, {3}, {4} aufgestellt.
+admin.spawn.unknown = Kein Begegnungsskript heißt '{0}'.
+admin.spawn.notspawnable = '{0}' ist ein Basisskript und kann nicht aufgestellt werden.
+admin.spawn.disabled = '{0}' ist in seiner Bindungszeile abgeschaltet.
+admin.spawn.failed = Die Engine hat das Aufstellen von '{0}' verweigert.
+admin.spawn.world.unknown = Keine Welt heißt '{0}'.
+admin.spawn.world.needed = Nenne eine Welt mit --world=<Name>, oder führe das als Spieler aus.
+admin.spawn.position.needed = Diese Welt hat keinen Spawnpunkt; gib --x= --y= --z= an.
+
+admin.end.done = {0} beendet (Durchlauf {1}).
+
+admin.state.done = {0} ist jetzt im Zustand {1}.
+admin.state.refused = {0} hat keinen Zustandsautomaten, den man setzen könnte.
+
+admin.validate.clean = Begegnungsinhalte: nichts zu melden.
+admin.validate.counts = Begegnungsinhalte: {0} Fehler, {1} Warnungen, {2} Hinweise.
+admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = Besitzerdateien neu eingelesen: {0} Bindungen und {1} Beteiligungsregeln in Kraft, {2} Skripte geladen.

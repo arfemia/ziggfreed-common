@@ -1,10 +1,15 @@
 apply from: "$rootDir/gradle/zc-module.gradle"
 
-// The instance-experience layer: arena, encounter director, match rules, play/queue and results
-// screens, presets, leaderboards, plus the lobby and party systems that feed them.
+// The instance-experience layer: arena, match rules, play/queue and results screens, presets,
+// leaderboards, plus the lobby and party systems that feed them.
 
 dependencies {
     implementation project(':zc-core')
     implementation project(':zc-presentation')
     implementation project(':zc-loot')
+    // The boss framework's defeat event and its folded binding rows, for exactly one class: the
+    // leaderboard listener that writes a defeat's rows into the bucket the binding row names. It
+    // only listens; nothing here reaches into a fight, and the presets stay boss-unaware. One-way:
+    // zc-encounter never imports this module (EncounterEdgeTest fails its build if it tries).
+    implementation project(':zc-encounter')
 }

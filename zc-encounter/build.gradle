@@ -1,0 +1,30 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// The boss framework over the engine's own EncounterManager: the fight is authored in a native
+// encounter script and the engine runs it; this module gives that fight a voice (native events off
+// the script's SignalWorldEvent beats), a ledger (participation credit), a scale (party and power
+// health scaling) and a payout (loot, feedback, discovery), all OUTSIDE the script. Nothing here
+// re-implements a phase, a bar, an add spawner or a music cue: what the engine does, the engine does.
+//
+// It depends on the primitive floor and the three vocabularies a payout needs (loot, presentation,
+// world) plus the pure scaling fold, and NEVER on a domain engine: no zc-instance, zc-objectives,
+// zc-progression, zc-dialogue or zc-commerce. Those reach THIS module through its native events and
+// the seams the wiring root fills (EncounterSeams), never the other way round. EncounterEdgeTest
+// fails the build on a forbidden import, so a convenient reach-up cannot ship by accident.
+
+dependencies {
+    // SafeLog, Subject, the factor model, validation, the asset bases, i18n, the owner-file reader.
+    implementation project(':zc-core')
+    // PlayerIdentityCache, PlayerAccess-adjacent entity reads, the portable hytale: factor library.
+    implementation project(':zc-entity')
+    // The Where selector and its ranking (a participation rule is per world), the map-marker layer.
+    implementation project(':zc-world')
+    // The native-effect primitive a consumer's phase reaction composes with.
+    implementation project(':zc-effects')
+    // LootRef, the roll engine, the reward vocabulary and the ONE issuance pass, native drop spawns.
+    implementation project(':zc-loot')
+    // The authored FeedbackMoment engine a run's beats fire through.
+    implementation project(':zc-presentation')
+    // The pure power fold a party's aggregated power is folded with.
+    implementation project(':zc-scaling')
+}

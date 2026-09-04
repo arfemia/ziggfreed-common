@@ -3,7 +3,7 @@ plugins {
 }
 
 // The wiring root. It holds only the plugin entry point and the asset registrar that reaches into
-// every domain to register its store; all the library code lives in the thirteen zc-* modules, and
+// every domain to register its store; all the library code lives in the fourteen zc-* modules, and
 // this project merges their jars back into the ONE ZiggfreedCommon-<version>.jar a server loads.
 //
 // Consumers are unaffected by the module layout: the aggregate jar has the same flat classpath it
@@ -25,7 +25,7 @@ repositories {
 def zcModules = [
         ':zc-core', ':zc-presentation', ':zc-cast', ':zc-entity', ':zc-effects', ':zc-loot',
         ':zc-dialogue', ':zc-progression', ':zc-objectives', ':zc-instance', ':zc-world', ':zc-scaling',
-        ':zc-commerce'
+        ':zc-commerce', ':zc-encounter'
 ]
 
 // Entries a module jar carries for its own sake that must not reach the aggregate: a second

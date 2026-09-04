@@ -5,12 +5,7 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.Universe;
-import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.instance.metadata.InstanceRoundCompletedEvent;
 import com.ziggfreed.common.instance.metadata.RoundMetadata;
 import com.ziggfreed.common.util.SafeLog;
@@ -44,18 +39,9 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>Which world each player is dispatched on.</b> The event carries no world - it is a flat
  * pure-data payload by design - and its participants are not guaranteed to be anywhere in particular
  * by the time it fires (somebody may already have been sent home). So the world is resolved PER
- * PLAYER from that player's own live {@code Ref}'s own {@code Store} ({@code ref.getStore()} ->
- * {@code getExternalData()} -> {@code getWorld()}), the same engine-stable chain
- * {@code cast.WorldEvictors} reads, rather than {@code PlayerRef.getWorldUuid()} - a field a world
- * transfer writes only from {@code updatePosition}, so it can still name the world a player just
- * left for a tick or more after they have actually moved. When that world is the thread already
- * running (the normal case, since a round fires on the instance world its players are standing in)
- * the dispatch happens inline; otherwise it hops with {@code world.execute}, because
- * {@link ProgressDispatch} and the engines under it are world-thread only. A player who has gone
- * offline, or whose world is gone, is skipped at fine level: their round genuinely ended somewhere
- * this server can no longer credit, and warning about it would warn on every disconnect. A transfer
- * that lands squarely between the hop and the run is caught at the top of {@link #fireFor}, which
- * re-checks the store is on its own thread before dispatching.
+ * PLAYER, by {@link PlayerMomentDispatch}, the engine half every bus producer shares: inline when
+ * that world is the thread already running (the normal case, since a round fires on the instance
+ * world its players are standing in), else with a hop onto it.
  */
 public final class ZigInstanceRoundProducer {
 
@@ -149,71 +135,11 @@ public final class ZigInstanceRoundProducer {
 
     /**
      * Resolve one player and feed the moment to both engines, on the world thread that player is
-     * actually on. See the class javadoc for why the world is per player rather than per event.
+     * actually on; the shared bus-producer half ({@link PlayerMomentDispatch}) owns the resolution
+     * and the hop.
      */
     private static void dispatch(@Nonnull UUID playerId, @Nonnull String kindId,
             @Nonnull String target, @Nullable String qualifier, @Nonnull InstanceRoundPayload payload) {
-        World world = worldOf(playerId);
-        if (world == null) {
-            SafeLog.fine("[progression] instance-round " + kindId + " skipped for " + playerId
-                    + " - no live world for that player");
-            return;
-        }
-        if (world.isInThread()) {
-            fireFor(playerId, kindId, target, qualifier, payload);
-            return;
-        }
-        world.execute(() -> fireFor(playerId, kindId, target, qualifier, payload));
-    }
-
-    /**
-     * The world the player is on right now, or null when they are offline or their world has gone.
-     * Read off the live {@code Ref}'s own {@code Store} rather than {@code PlayerRef.getWorldUuid()}:
-     * that field is written only by {@code updatePosition}, so it can still name the world a player
-     * just transferred out of, while the store a fresh {@code Ref} resolves to is always where the
-     * engine actually holds their entity right now.
-     */
-    @Nullable
-    private static World worldOf(@Nonnull UUID playerId) {
-        Universe universe = Universe.get();
-        if (universe == null) {
-            return null;
-        }
-        PlayerRef playerRef = universe.getPlayer(playerId);
-        Ref<EntityStore> ref = playerRef == null ? null : playerRef.getReference();
-        World world = ref == null ? null : ref.getStore().getExternalData().getWorld();
-        return world != null && world.isAlive() ? world : null;
-    }
-
-    /**
-     * The dispatch itself, always on the owning world thread. The player is re-resolved HERE rather
-     * than captured: on the hop path a tick or more has passed, and a stale {@code Ref} would write
-     * this player's progress onto whatever now occupies that slot.
-     */
-    private static void fireFor(@Nonnull UUID playerId, @Nonnull String kindId,
-            @Nonnull String target, @Nullable String qualifier, @Nonnull InstanceRoundPayload payload) {
-        Universe universe = Universe.get();
-        PlayerRef playerRef = universe == null ? null : universe.getPlayer(playerId);
-        if (playerRef == null) {
-            SafeLog.fine("[progression] instance-round " + kindId + " skipped for " + playerId
-                    + " - player left before it could be credited");
-            return;
-        }
-        Ref<EntityStore> ref = playerRef.getReference();
-        if (ref == null || !ref.isValid()) {
-            SafeLog.fine("[progression] instance-round " + kindId + " skipped for " + playerId
-                    + " - their entity is no longer in this store");
-            return;
-        }
-        if (!ref.getStore().isInThread()) {
-            // A world transfer landed between the hop and this run: the store worldOf resolved is no
-            // longer the one running right now, so writing to it would credit the wrong world's
-            // thread. Skip clean; the player's own next moment resolves fresh.
-            SafeLog.fine("[progression] instance-round " + kindId + " skipped for " + playerId
-                    + " - a world transfer landed before this could dispatch");
-            return;
-        }
-        // No command buffer: this is not an ECS system, so there is none to carry.
-        ProgressDispatch.fire(ref.getStore(), ref, null, kindId, target, qualifier, AMOUNT, payload);
+        PlayerMomentDispatch.fire("instance-round", playerId, kindId, target, qualifier, AMOUNT, payload);
     }
 }

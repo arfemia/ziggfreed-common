@@ -92,9 +92,11 @@ public final class FeedbackMomentAsset
             .add()
             .appendInherited(new KeyedCodec<>("Broadcast", Broadcast.CODEC, false),
                     (a, v) -> a.broadcast = v, a -> a.broadcast, (a, p) -> a.broadcast = p.broadcast)
-            .documentation("A centered banner every player online sees. Each of them is sent it "
-                    + "individually, so everyone reads it in their own language. Save it for the rare "
-                    + "moment worth interrupting a whole server for.")
+            .documentation("A centered banner for the players around the moment: every player online "
+                    + "unless its ToParticipants, SameWorldOnly, RadiusBlocks and MinSecondsBetween "
+                    + "leaves narrow who and how often. Each of them is sent it individually, so everyone "
+                    + "reads it in their own language. Save it for a moment worth interrupting other "
+                    + "people for.")
             .add()
             .appendInherited(new KeyedCodec<>("Sound", Sound.CODEC, false),
                     (a, v) -> a.sound = v, a -> a.sound, (a, p) -> a.sound = p.sound)
@@ -418,12 +420,25 @@ public final class FeedbackMomentAsset
 
     // ==================== Broadcast ====================
 
-    /** The centered banner every player online is shown, each in their own language. */
+    /**
+     * The centered banner shown to players other than the one the moment is about, each in their
+     * own language.
+     *
+     * <p>Unauthored, the four scoping leaves reach every player online, which is what a server-first
+     * claim wants; a moment that fires often, or that only matters near where it happened, narrows
+     * WHO with {@code SameWorldOnly} and {@code RadiusBlocks}, keeps its own participants in with
+     * {@code ToParticipants}, and stops repeating itself with {@code MinSecondsBetween}. The four
+     * are independent and compose; none of them is a mode.
+     */
     public static final class Broadcast {
 
         @Nullable protected Line title;
         @Nullable protected Line secondary;
         @Nullable protected Boolean major;
+        @Nullable protected Boolean toParticipants;
+        @Nullable protected Boolean sameWorldOnly;
+        @Nullable protected Double radiusBlocks;
+        @Nullable protected Integer minSecondsBetween;
 
         public static final BuilderCodec<Broadcast> CODEC =
                 BuilderCodec.builder(Broadcast.class, Broadcast::new)
@@ -438,8 +453,43 @@ public final class FeedbackMomentAsset
                         .add()
                         .appendInherited(new KeyedCodec<>("Major", Codec.BOOLEAN, false),
                                 (o, v) -> o.major = v, o -> o.major, (o, p) -> o.major = p.major)
+                        .metadata(EditorSchema.defaultValue(false))
                         .documentation("Render it in the larger style reserved for the big moments. "
                                 + "Unauthored means the ordinary size.")
+                        .add()
+                        .appendInherited(new KeyedCodec<>("ToParticipants", Codec.BOOLEAN, false),
+                                (o, v) -> o.toParticipants = v, o -> o.toParticipants,
+                                (o, p) -> o.toParticipants = p.toParticipants)
+                        .metadata(EditorSchema.defaultValue(false))
+                        .documentation("Always show the banner to the players the moment lists as its "
+                                + "participants (a fight's members, a round's party), wherever they are, "
+                                + "even when SameWorldOnly or RadiusBlocks would leave them out. Unauthored "
+                                + "treats a participant like any other viewer. A moment that names no "
+                                + "participants is unaffected.")
+                        .add()
+                        .appendInherited(new KeyedCodec<>("SameWorldOnly", Codec.BOOLEAN, false),
+                                (o, v) -> o.sameWorldOnly = v, o -> o.sameWorldOnly,
+                                (o, p) -> o.sameWorldOnly = p.sameWorldOnly)
+                        .metadata(EditorSchema.defaultValue(false))
+                        .documentation("Show the banner only to players in the same world as whoever the "
+                                + "moment is about. Unauthored reaches every world.")
+                        .add()
+                        .appendInherited(new KeyedCodec<>("RadiusBlocks", Codec.DOUBLE, false),
+                                (o, v) -> o.radiusBlocks = v, o -> o.radiusBlocks,
+                                (o, p) -> o.radiusBlocks = p.radiusBlocks)
+                        .documentation("Show the banner only to players within this many blocks of whoever "
+                                + "the moment is about (which also means the same world). Unauthored puts no "
+                                + "limit on distance; 0 reaches nobody but the participants.")
+                        .add()
+                        .appendInherited(new KeyedCodec<>("MinSecondsBetween", Codec.INTEGER, false),
+                                (o, v) -> o.minSecondsBetween = v, o -> o.minSecondsBetween,
+                                (o, p) -> o.minSecondsBetween = p.minSecondsBetween)
+                        .documentation("Once this banner has shown, do not show it again for this many "
+                                + "seconds. Kept per moment and per thing it is about (the fight, the quest), "
+                                + "and per world when SameWorldOnly is set, so two different fights announce "
+                                + "separately while one fight's repeated beats do not. A moment fired once per "
+                                + "member of a group needs this beside a Broadcast, or every member's fire "
+                                + "banners everyone again. Unauthored never holds a banner back.")
                         .add()
                         .build();
 
@@ -458,6 +508,32 @@ public final class FeedbackMomentAsset
 
         public boolean isMajor() {
             return major != null && major;
+        }
+
+        /** Whether the moment's own participants are always shown the banner; unauthored means no. */
+        public boolean toParticipants() {
+            return toParticipants != null && toParticipants;
+        }
+
+        /** Whether only the subject's own world is reached; unauthored means every world. */
+        public boolean sameWorldOnly() {
+            return sameWorldOnly != null && sameWorldOnly;
+        }
+
+        /** The block radius around the subject the banner reaches, or null for no limit. */
+        @Nullable
+        public Double getRadiusBlocks() {
+            return radiusBlocks == null || radiusBlocks < 0.0 ? null : radiusBlocks;
+        }
+
+        /** How many seconds must pass before the same banner shows again; 0 when unauthored. */
+        public int minSecondsBetween() {
+            return minSecondsBetween == null || minSecondsBetween < 0 ? 0 : minSecondsBetween;
+        }
+
+        /** Whether any of the four scoping leaves narrows who is shown the banner. */
+        public boolean isScoped() {
+            return toParticipants() || sameWorldOnly() || getRadiusBlocks() != null;
         }
     }
 

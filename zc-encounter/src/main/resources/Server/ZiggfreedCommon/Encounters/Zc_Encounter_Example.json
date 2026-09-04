@@ -1,0 +1,52 @@
+{
+  "$Comment": [
+    "The binding row for the shipped Zc_Encounter_Example script: what the server owes for that",
+    "fight, which the script itself never describes. Copy this beside your own script and change",
+    "EncounterAsset to its file name.",
+    "",
+    "Every group is optional and every leaf can be left out, so write only what you want to differ",
+    "from the defaults. Subject names the script's own target slot the boss is bound into. Scale grows",
+    "the boss's maximum health with the party (HealthPerMember 0.35 makes a four-member fight 2.05",
+    "times the health) and with a companion's power reading. Timing guards the run from outside:",
+    "how long an empty arena counts as a wipe, how long a run may last at most. Loot.OnDefeat is",
+    "rolled per credited participant and scaled by their share; Loot.OnPhase, keyed by the script's",
+    "state name, drops on the ground at the boss. Feedback names the FeedbackMoment fired at each",
+    "beat. Discovery puts a world-map marker over the boss while the fight is on.",
+    "",
+    "Switch the whole binding off with Enabled false, or from mods/ziggfreedcommon/encounters.json",
+    "under the key zc_encounter_example, and the library neither binds, scales nor pays this script."
+  ],
+  "EncounterAsset": "Zc_Encounter_Example",
+  "NameKey": "ziggfreedcommon.encounter.example.name",
+  "Subject": {
+    "TargetSlot": "Boss"
+  },
+  "Scale": {
+    "HealthPerMember": 0.35,
+    "MaxHealthMultiplier": 5.0
+  },
+  "Timing": {
+    "WipeGraceSeconds": 60,
+    "MaxRunSeconds": 600
+  },
+  "Loot": {
+    "OnDefeat": {
+      "Rolls": [
+        {
+          "Grants": {
+            "Items": [
+              {
+                "Item": "Ingredient_Bar_Copper",
+                "Count": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "QueueIfOffline": true
+  },
+  "Discovery": {
+    "MapMarker": false
+  }
+}

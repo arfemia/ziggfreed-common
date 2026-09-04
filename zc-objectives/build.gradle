@@ -40,4 +40,9 @@ dependencies {
     // zc-objectives, so an edge FROM it can never close a loop, and zc-instance carries no
     // progression vocabulary to reach back for.
     implementation project(':zc-instance')
+    // The boss framework's native events and its folded binding rows, so a fight's beats feed the
+    // same engines every other moment feeds (ZigEncounterProducer) and a generated family can fan
+    // out over every bound encounter (EncounterQuestAxes). One-way by the same position argument:
+    // zc-encounter never imports this module, and EncounterEdgeTest fails its build if it tries.
+    implementation project(':zc-encounter')
 }

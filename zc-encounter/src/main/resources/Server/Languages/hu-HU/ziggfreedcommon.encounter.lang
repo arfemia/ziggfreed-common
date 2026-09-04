@@ -1,0 +1,67 @@
+# A találkozás-keretrendszer: a főellenség-sáv tartalék neve, a mellékelt példa neve és a
+# /zigencounter parancscsalád (súgószövegek, listák és válaszok).
+# A fájlnév a kulcs ELŐTAGJA: egy itteni bejegyzés ziggfreedcommon.encounter.<key> néven oldódik fel.
+
+bar.default = Főellenség
+example.name = Példatalálkozás
+
+admin.desc.family = A szerver találkozásainak megtekintése és irányítása.
+admin.desc.list = Minden futó találkozás felsorolása a menetével és az állapotával.
+admin.desc.inspect = Egy találkozás menetének megjelenítése: a célpont, a tagok és hogy ki mit szerzett.
+admin.desc.spawn = Egy találkozás-szkript felállítása: nálad, egy világ kezdőpontján vagy megadott koordinátákon.
+admin.desc.end = Egy futó találkozás eltávolítása; a már megkezdett harc csapatvereségnek számít.
+admin.desc.state = Egy találkozás szkriptjének kényszerítése egy állapotba.
+admin.desc.validate = Minden betöltött találkozás-szkript, kötési sor és részvételi szabály ellenőrzése.
+admin.desc.reload = A tulajdonosi fájlok újraolvasása a találkozás-kötések és a részvételi szabályok felett.
+admin.desc.arg.ref = Egy futó találkozás: a menetazonosítójának eleje, ahogy a list mutatja, vagy a szkript azonosítója.
+admin.desc.arg.asset = A találkozás-szkript azonosítója, a fájlneve a Server/EncounterManager alatt.
+admin.desc.arg.world = A világ, ahol felállítjuk. Alapból a tiéd, vagy konzolról az alapértelmezett világ.
+admin.desc.arg.x = A felállítás X koordinátája; mindhármat add meg, vagy egyiket se.
+admin.desc.arg.y = A felállítás Y koordinátája; mindhármat add meg, vagy egyiket se.
+admin.desc.arg.z = A felállítás Z koordinátája; mindhármat add meg, vagy egyiket se.
+admin.desc.arg.state = A szkript saját állapotneve.
+admin.desc.arg.substate = Az alállapot, vagy elhagyva a szkript alapértelmezettje.
+
+admin.more = ... és még {0}, a szervernaplóban.
+
+admin.list.header = Futó találkozások ({0}):
+admin.list.none = Nem fut találkozás.
+admin.list.row = {0} menet {1} itt: {2}: állapot {3}, {4} tag, fázis {5}
+admin.list.row.idle = {0} menet {1} itt: {2}: állapot {3}, várakozik
+
+admin.inspect.header = Találkozás {0}, menet {1}:
+admin.inspect.world = világ: {0}
+admin.inspect.state = állapot: {0}
+admin.inspect.engaged = {0} másodperce harcban, fázis {1}, eddig {2} hullám
+admin.inspect.idle = még nem kezdődött el
+admin.inspect.subject = célpont: {0}
+admin.inspect.subject.none = célpont: még semmi sincs kötve
+admin.inspect.members = tagok: {0}, halálok: {1}
+admin.inspect.concluded = lezárva: {0}
+admin.inspect.participant = {0}: {1} kiosztva, {2} elszenvedve, {3} mp jelen, részesedés {4}%
+admin.inspect.participants.none = Még senki sem szerzett jóváírást.
+
+admin.ref.needed = Nevezz meg egy találkozást: --ref=<a menetazonosító eleje vagy a szkript azonosítója>.
+admin.ref.unknown = Egyetlen futó találkozás sem illik erre: '{0}'. Próbáld: /zigencounter list.
+admin.ref.ambiguous = '{0}' több futó találkozást is jelöl; adj hosszabb menetazonosító-előtagot.
+admin.ref.gone = Ez a találkozás már nem fut.
+
+admin.spawn.done = {0} felállítva itt: {1}, {2}, {3}, {4}.
+admin.spawn.unknown = Nincs '{0}' nevű találkozás-szkript.
+admin.spawn.notspawnable = A(z) '{0}' alapszkript, nem állítható fel.
+admin.spawn.disabled = A(z) '{0}' ki van kapcsolva a kötési sorában.
+admin.spawn.failed = A motor megtagadta a(z) '{0}' felállítását.
+admin.spawn.world.unknown = Nincs '{0}' nevű világ.
+admin.spawn.world.needed = Adj meg egy világot: --world=<név>, vagy futtasd játékosként.
+admin.spawn.position.needed = Ennek a világnak nincs kezdőpontja; add meg: --x= --y= --z=.
+
+admin.end.done = {0} befejezve (menet {1}).
+
+admin.state.done = {0} most a(z) {1} állapotban van.
+admin.state.refused = A(z) {0} nem hordoz beállítható állapotgépet.
+
+admin.validate.clean = Találkozás-tartalom: nincs jelentenivaló.
+admin.validate.counts = Találkozás-tartalom: {0} hiba, {1} figyelmeztetés, {2} megjegyzés.
+admin.finding = {0} {1} [{2}] {3}
+
+admin.reload.done = Tulajdonosi fájlok újraolvasva: {0} kötés és {1} részvételi szabály érvényben, {2} szkript betöltve.

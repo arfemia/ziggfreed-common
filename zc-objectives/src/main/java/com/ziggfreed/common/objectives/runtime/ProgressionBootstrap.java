@@ -3,6 +3,7 @@ package com.ziggfreed.common.objectives.runtime;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.ziggfreed.common.factor.CounterFactors;
 import com.ziggfreed.common.factor.ModFactors;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
 import com.ziggfreed.common.npc.NpcQuestListHosts;
@@ -61,6 +62,9 @@ public final class ProgressionBootstrap {
      * the presence reading that lets one authored file be correct both on a server carrying some other
      * mod and on a server without it. It is contributed from here for the same reason: a claim on an
      * id belongs beside the thing that answers it, and the engine plugin table answers for everybody.
+     * {@link CounterFactors#contribute()} follows it, claiming {@code ziggfreedcommon:counter}, the
+     * lifetime-tally reading: the id exists on every server so a file naming it always resolves, and
+     * whoever keeps the tallies installs the source that answers it at its own setup.
      */
     public static void setupProgressionRuntime(@Nonnull PluginBase plugin) {
         try {
@@ -69,6 +73,7 @@ public final class ProgressionBootstrap {
             ProgressionDefaults.install(plugin);
             ProgressionFactors.contribute();
             ModFactors.contribute();
+            CounterFactors.contribute();
             plugin.getCommandRegistry().registerCommand(new ZigProgressCommand());
         } catch (Throwable t) {
             // Naming the kinds because this is the one failure nothing downstream reports: the

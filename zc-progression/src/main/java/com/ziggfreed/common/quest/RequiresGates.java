@@ -189,7 +189,7 @@ public final class RequiresGates implements QuestGates, AchievementGates {
         if (NOBODY.equals(subject.id())) {
             return false;
         }
-        if (FirstClaims.store().tryClaim(achievement.id(), subject.id(), subject.name())) {
+        if (FirstClaims.claim(achievement.id(), subject)) {
             return true;
         }
         if (occasion == UnlockOccasion.JUST_MET) {

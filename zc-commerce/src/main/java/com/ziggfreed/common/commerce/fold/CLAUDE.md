@@ -21,7 +21,7 @@ author may write; each of those already has an owner one package over.
 | [`CommerceCatalogs`](CommerceCatalogs.java) | all three, plus the value-source seam a generator's axes read and the refresh the wiring root calls |
 | [`CommerceDefaults`](CommerceDefaults.java) | what a BARE server's economy runs on: the component-backed state store, its connect hook, and the currency engine, both producer-replaceable |
 | [`CommerceAudit`](CommerceAudit.java) | the ONE pass over every authored wallet, storefront and board, asking each validator only what this server can answer; runs once per boot at first player ready (`runLateAudit`, hung by the wiring root) and on demand via `/zigcommerce validate` |
-| [`CommerceOwnerLayers`](CommerceOwnerLayers.java) | the server owner's `mods/ziggfreedcommon/*.json` to each type's owner layer |
+| [`CommerceOwnerLayers`](CommerceOwnerLayers.java) | which four `mods/ziggfreedcommon/*.json` files the economy keeps and where; the reading itself is zc-core's `asset/OwnerLayerReader`, shared with every other owner file in the library |
 | [`CurrencyRewardKind`](CurrencyRewardKind.java) | the shared reward table to the currency engine (`{"Kind": "Currency"}`) |
 | [`CommerceDestinations`](CommerceDestinations.java) | the shared routing vocabulary to this module's pages (`Shop` / `Board`) |
 | [`ShelfSpec`](ShelfSpec.java) | one authored rotating shelf to the `ShopShelf` seam a draw asks |
