@@ -3,6 +3,12 @@ $Z = "../Common/ZigButtons.ui";
 // One criterion line in the achievement detail column: a met/unmet tick, the criterion's own
 // picture and line, and its count. Colours are set from Java per state.
 //
+// It keeps a template of its own rather than the shared Pages/ZigDetailLine.ui because of the two
+// columns that line has no place for, the tick and the right-aligned count; its row height, icon
+// rung and font are the shared line's, so a criterion here and a quest step there read at one
+// size. Change the size in step with that file, and pick the ZigButtons.ui ladder rung matching
+// the grid's Anchor.
+//
 // The icon slot is hidden until a criterion has a picture to show. Two sibling widgets, exactly one
 // of which is ever visible, both driven by ui/icon/IconRenderer: #IcoItem is a one-slot ItemGrid
 // drawing an item's own generated icon from a plain item id (its Style comes from the shared
@@ -12,30 +18,30 @@ $Z = "../Common/ZigButtons.ui";
 
 Group #ZigAchCriterionRow {
   LayoutMode: Left;
-  Anchor: (Height: 22, Bottom: 2);
+  Anchor: (Height: 30, Bottom: 2);
   Padding: (Left: 11, Right: 4);
 
   Label #StatusTick {
     Text: "";
     Anchor: (Width: 14);
-    Style: (FontSize: 12, TextColor: #6a7a8e, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+    Style: (FontSize: 14, TextColor: #6a7a8e, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
   }
 
   Group #LineIconSlot {
-    Anchor: (Width: 18, Height: 18, Right: 6);
+    Anchor: (Width: 28, Height: 28, Right: 8);
     Visible: false;
 
     ItemGrid #IcoItem {
-      Anchor: (Width: 18, Height: 18);
+      Anchor: (Width: 28, Height: 28);
       Visible: false;
       SlotsPerRow: 1;
       AreItemsDraggable: false;
       DisplayItemQuantity: false;
-      Style: $Z.@ZigIconGrid18;
+      Style: $Z.@ZigIconGrid28;
     }
 
     AssetImage #IcoTex {
-      Anchor: (Width: 18, Height: 18);
+      Anchor: (Width: 28, Height: 28);
       Visible: false;
       FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
     }
@@ -44,12 +50,12 @@ Group #ZigAchCriterionRow {
   Label #CritText {
     Text: "";
     FlexWeight: 1;
-    Style: (FontSize: 14, TextColor: #96a9be, VerticalAlignment: Center);
+    Style: (FontSize: 16, TextColor: #96a9be, VerticalAlignment: Center);
   }
 
   Label #CritProgress {
     Text: "";
-    Anchor: (Width: 90, Height: 22);
-    Style: (FontSize: 12, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
+    Anchor: (Width: 90, Height: 30);
+    Style: (FontSize: 14, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
   }
 }

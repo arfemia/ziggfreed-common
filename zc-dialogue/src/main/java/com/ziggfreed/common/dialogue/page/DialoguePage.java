@@ -25,6 +25,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.type.DialogueActionExecutor;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.DialogueExecContext;
+import com.ziggfreed.common.dialogue.DialogueQuestView;
+import com.ziggfreed.common.dialogue.quest.DialogueQuests;
+import com.ziggfreed.common.dialogue.quest.ParkedQuestWatch;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
 import com.ziggfreed.common.dialogue.style.DialogueOptionStyle;
 import com.ziggfreed.common.dialogue.style.DialogueOptionTheme;
@@ -38,6 +41,9 @@ import com.ziggfreed.common.dialogue.i18n.DialogueMessages;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.route.Destination;
+import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
@@ -468,12 +474,23 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             return;
         }
 
+        DialogueQuests quests = DialogueEngine.shared().quests();
+        ParkedQuestWatch parked = ParkedQuestWatch.begin(quests, ctx);
         DialogueActionExecutor.Outcome outcome =
                 DialogueEngine.shared().executor().execute(option.getActions(), ctx);
         // The beat is done: spend the entry's first-visit Once and the option's own.
         DialogueEngine.shared().consumeOnce(pendingEntryOnceKey, dialogue, data.node, option, ctx);
         pendingEntryOnceKey = null;
 
+        // A quest the actions just parked for collection is the bigger moment, and it takes the
+        // screen over whatever the option itself opened, jumped to or closed: the player lands on
+        // that quest with its Collect button in front of them, instead of back in a menu with no
+        // sign anything happened. A quest that pays out on the spot never parks, so it never routes,
+        // and a quest parked before the click is not routed to again.
+        String justParked = parked.newlyParked(quests, ctx);
+        if (justParked != null && openQuest(justParked, ref, store, player)) {
+            return;
+        }
         if (outcome.openedOtherPage()) {
             return;
         }
@@ -487,6 +504,34 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         // Nothing to raise here: whatever just finished announced its own feedback moment, and a
         // moment draws into the page that is open, so its toast is already on its way to this screen.
         player.getPageManager().openCustomPage(ref, store, this);
+    }
+
+    /**
+     * Take the player to one quest: this character's list opened on it, through the same seam a
+     * {@code Start} quest row routes by, so the two agree on what "show me this quest" opens. With
+     * nothing installed to route through nothing opens and the option's own outcome stands. Guarded
+     * whole for the same reason the completion hand-off is: this sits inside a click handler, and a
+     * throw here would cost the player their screen over a jump.
+     *
+     * <p>It deliberately opens the quest LIST and not the quest's closing conversation: that beat is
+     * for the moment the reward is collected, and it plays from the Collect button this lands on.
+     */
+    private boolean openQuest(@Nonnull String questId, @Nonnull Ref<EntityStore> ref,
+                              @Nonnull Store<EntityStore> store, @Nonnull Player player) {
+        try {
+            Destination destination = DialogueQuestView.route(null, questId);
+            if (destination == null) {
+                return false;
+            }
+            // Opened on the PLAYER, as every page an option opens is: the click came back on their
+            // own ref, and the character's entity is not something this page still holds by now.
+            return Destinations.open(destination,
+                    new DestinationContext(store, ref, player, null, contextNpcId, null));
+        } catch (Throwable t) {
+            SafeLog.warn("[dialogue] taking the player to quest '" + questId + "' failed: "
+                    + t.getMessage());
+            return false;
+        }
     }
 
     /**

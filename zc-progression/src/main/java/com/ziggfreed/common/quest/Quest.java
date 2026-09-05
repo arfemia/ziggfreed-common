@@ -185,6 +185,7 @@ public final class Quest {
     private final Visibility visibility;
     @Nullable private final QuestTurnInSite turnInAt;
     private final boolean sequential;
+    private final boolean hideLockedSteps;
     private final boolean autoAccept;
     private final boolean autoTrack;
     private final boolean occupiesLog;
@@ -206,6 +207,7 @@ public final class Quest {
         this.visibility = b.visibility;
         this.turnInAt = b.turnInAt;
         this.sequential = b.sequential;
+        this.hideLockedSteps = b.hideLockedSteps;
         this.autoAccept = b.autoAccept;
         this.autoTrack = b.autoTrack;
         this.occupiesLog = b.occupiesLog;
@@ -236,6 +238,7 @@ public final class Quest {
                 .visibility(visibility)
                 .turnInAt(site)
                 .sequential(sequential)
+                .hideLockedSteps(hideLockedSteps)
                 .autoAccept(autoAccept)
                 .autoTrack(autoTrack)
                 .occupiesLog(occupiesLog)
@@ -271,6 +274,7 @@ public final class Quest {
                 .visibility(visibility)
                 .turnInAt(turnInAt)
                 .sequential(sequential)
+                .hideLockedSteps(hideLockedSteps)
                 .autoAccept(autoAccept)
                 .autoTrack(autoTrack)
                 .occupiesLog(occupiesLog)
@@ -370,6 +374,16 @@ public final class Quest {
      */
     public boolean sequential() {
         return sequential;
+    }
+
+    /**
+     * Whether a FULL list of this quest's steps leaves out the ones the player cannot work on yet
+     * while the quest is being carried, so a step that unlocks later is not read as open beside the
+     * one that is. The lock itself is what {@code QuestEngine.objectiveActive} decides; this only
+     * says whether a locked step is drawn. Off by default, which lists everything.
+     */
+    public boolean hideLockedSteps() {
+        return hideLockedSteps;
     }
 
     /** Accept itself as soon as the player is eligible, with no player action. */
@@ -540,6 +554,7 @@ public final class Quest {
         private Visibility visibility = Visibility.OPEN;
         @Nullable private QuestTurnInSite turnInAt;
         private boolean sequential;
+        private boolean hideLockedSteps;
         private boolean autoAccept;
         private boolean autoTrack;
         private boolean occupiesLog = true;
@@ -655,6 +670,13 @@ public final class Quest {
         @Nonnull
         public Builder sequential(boolean sequential) {
             this.sequential = sequential;
+            return this;
+        }
+
+        /** Leave locked steps off a full list while the quest is carried ({@link Quest#hideLockedSteps()}). */
+        @Nonnull
+        public Builder hideLockedSteps(boolean hideLockedSteps) {
+            this.hideLockedSteps = hideLockedSteps;
             return this;
         }
 

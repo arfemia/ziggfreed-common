@@ -240,6 +240,46 @@ class QuestEngineFlowTest {
         }
 
         @Test
+        void aQuestHidingLockedStepsListsOnlyWhatIsUnlockedWhileItIsCarried() {
+            Quest q = quest("q_reveal")
+                    .objective(ObjectiveDef.builder("step1", "BREAK_BLOCK")
+                            .target("Oak_Log").matchMode(MatchMode.EXACT).amount(1).order(1).build())
+                    .objective(ObjectiveDef.builder("step2", "CRAFT_ITEM")
+                            .target("Plank").matchMode(MatchMode.EXACT).amount(1).order(2).build())
+                    .hideLockedSteps(true)
+                    .build();
+            QuestEngine engine = engine().build();
+            engine.setQuests(List.of(q));
+
+            assertEquals(List.of("step1", "step2"), ids(engine.listedObjectives(player, q)),
+                    "read before it is taken, a quest shows everything it asks for");
+
+            engine.accept(player, q);
+            assertEquals(List.of("step1"), ids(engine.listedObjectives(player, q)),
+                    "carried, the step that waits on an earlier order is not listed");
+
+            engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+            assertEquals(List.of("step1", "step2"), ids(engine.listedObjectives(player, q)),
+                    "the finished step stays listed and the unlocked one joins it");
+        }
+
+        @Test
+        void aQuestThatDoesNotHideLockedStepsListsEverythingAsBefore() {
+            Quest q = quest("q_no_reveal")
+                    .objective(ObjectiveDef.builder("step1", "BREAK_BLOCK")
+                            .target("Oak_Log").matchMode(MatchMode.EXACT).amount(1).order(1).build())
+                    .objective(ObjectiveDef.builder("step2", "CRAFT_ITEM")
+                            .target("Plank").matchMode(MatchMode.EXACT).amount(1).order(2).build())
+                    .build();
+            QuestEngine engine = engine().build();
+            engine.setQuests(List.of(q));
+            engine.accept(player, q);
+
+            assertFalse(q.hideLockedSteps(), "unauthored means listing everything");
+            assertEquals(List.of("step1", "step2"), ids(engine.listedObjectives(player, q)));
+        }
+
+        @Test
         void aQuestWithNoOrdersAndNoSequentialFlagOpensEverything() {
             Quest q = quest("q_open")
                     .objective(objective("a", "BREAK_BLOCK", "Oak_Log", 1))

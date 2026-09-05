@@ -76,7 +76,13 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
 
     static final String PAGE_TEMPLATE = "Pages/ZigObjectiveBookPage.ui";
     static final String QUEST_ROW_TEMPLATE = "Pages/ZigQuestLogRow.ui";
-    static final String OBJECTIVE_ROW_TEMPLATE = "Pages/ZigBookObjectiveRow.ui";
+
+    /**
+     * zc-presentation's shared detail line, ONE template for an objective line, a step heading
+     * (restyled, never a second template in the same list) and a reward line alike; the NPC quest
+     * page and the commerce pages append the same file, so a size change lands everywhere at once.
+     */
+    static final String LINE_TEMPLATE = "Pages/ZigDetailLine.ui";
     static final String TAG_CHIP_TEMPLATE = "Pages/ZigBookTagChip.ui";
     static final String CAT_TAB_TEMPLATE = "Pages/ZigBookCatTab.ui";
     static final String WIDE_TAB_TEMPLATE = "Pages/ZigBookWideTab.ui";
@@ -85,7 +91,6 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     static final String ACH_CRITERION_TEMPLATE = "Pages/ZigAchCriterionRow.ui";
     static final String ACH_CATEGORY_CARD_TEMPLATE = "Pages/ZigAchCategoryCard.ui";
     static final String MILESTONE_TEMPLATE = "Pages/ZigMilestoneCard.ui";
-    static final String REWARD_ROW_TEMPLATE = "Pages/ZigBookRewardRow.ui";
 
     /** The quests tab's search row, an instance of the shared {@link ZigSearchRow}. */
     static final String QUEST_SEARCH = "#QSearch";

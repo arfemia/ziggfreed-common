@@ -106,14 +106,18 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
 
 ## Shipped resources
 
-`Common/UI/Custom/Pages/{ZigObjectiveBookPage.ui, ZigQuestLogRow.ui, ZigBookObjectiveRow.ui,
-ZigBookTagChip.ui, ZigBookCatTab.ui, ZigBookWideTab.ui, ZigBookRewardRow.ui, ZigAchListRow.ui,
-ZigAchChipRow.ui, ZigAchCriterionRow.ui, ZigAchCategoryCard.ui, ZigMilestoneCard.ui,
-ZigNpcQuestPage.ui, ZigTrackedQuestRow.ui, ZigProgressionAdminPage.ui}` (the
-admin page's rows are zc-presentation's shared `ZigFormToggleRow.ui`, appended, not a template of
-this module's own, and the NPC quest page appends zc-presentation's shared `Pages/ZigSelectRow.ui`
-list row and `Pages/ZigDetailLine.ui` detail line the commerce pages share; needs `zc-presentation`
-at RUNTIME as well as compile time, since a page's `.ui` imports the shared frames by path), and
+`Common/UI/Custom/Pages/{ZigObjectiveBookPage.ui, ZigQuestLogRow.ui, ZigBookTagChip.ui,
+ZigBookCatTab.ui, ZigBookWideTab.ui, ZigAchListRow.ui, ZigAchChipRow.ui, ZigAchCriterionRow.ui,
+ZigAchCategoryCard.ui, ZigMilestoneCard.ui, ZigNpcQuestPage.ui, ZigTrackedQuestRow.ui,
+ZigProgressionAdminPage.ui}` (the admin page's rows are zc-presentation's shared
+`ZigFormToggleRow.ui`, appended, not a template of this module's own; the NPC quest page appends
+zc-presentation's shared `Pages/ZigSelectRow.ui` list row; and every objective line, step heading
+and reward line on the NPC quest page AND in the objective book - both tabs, the milestone cards
+included - is zc-presentation's shared `Pages/ZigDetailLine.ui`, the same file the commerce pages
+append, so this module ships no objective or reward row of its own and a size change is an edit
+to that one file; the section headers above those lines take `$Z.@ZigSectionHeaderStyle` from
+`ZigButtons.ui`. Needs `zc-presentation` at RUNTIME as well as compile time, since a page's `.ui`
+imports the shared frames by path), and
 `Common/UI/Custom/Hud/ZigQuestTracker.ui` with the three native objective-HUD textures copied
 beside it (`ObjectivePanelContainer.png`, `ObjectiveTaskIconDefault.png`,
 `ObjectiveTaskIconComplete.png`), which a server-shipped document resolves by name next to itself.

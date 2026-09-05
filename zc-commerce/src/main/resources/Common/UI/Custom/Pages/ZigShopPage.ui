@@ -144,7 +144,7 @@ $F.@ZigDecoratedFrame {
       Label #CostHeader {
         Text: "";
         Anchor: (Height: 20, Bottom: 6);
-        Style: (FontSize: 12, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+        Style: $Z.@ZigSectionHeaderStyle;
       }
 
       Group #CostRow {
@@ -163,7 +163,7 @@ $F.@ZigDecoratedFrame {
         Text: "";
         Visible: false;
         Anchor: (Height: 20, Bottom: 6);
-        Style: (FontSize: 12, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+        Style: $Z.@ZigSectionHeaderStyle;
       }
 
       Group #RewardsList {

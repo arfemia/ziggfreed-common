@@ -47,8 +47,8 @@ import com.ziggfreed.common.ui.ZigSearchRow;
 
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.CAT_TAB_OUTER_WIDTH;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.CAT_TAB_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.LINE_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MAX_ROWS;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.OBJECTIVE_ROW_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.QUEST_ROW_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.TAG_CHIP_TEMPLATE;
 
@@ -74,6 +74,14 @@ final class BookQuestsTab {
     private static final String COLOR_IN_PROGRESS = "#b6c9de";
     private static final String COLOR_NOT_ACCEPTED = "#96a9be";
     private static final String COLOR_LOCKED = "#6a7a8e";
+
+    /**
+     * A step heading between order groups is a section header painted onto the one line template,
+     * so its leaves mirror the shared {@code @ZigSectionHeaderStyle} in {@code ZigButtons.ui}: a
+     * Label's style is pushed leaf by leaf from Java, never as the named constant.
+     */
+    private static final String STEP_HEADING_COLOR = "#8fb4dc";
+    private static final int STEP_HEADING_FONT_SIZE = 12;
 
     /** The colour a custom category's strip hashes to, so one category is always one colour. */
     private static final String[] CUSTOM_CATEGORY_COLORS = {
@@ -627,19 +635,22 @@ final class BookQuestsTab {
     /**
      * The full objective list, order groups included: a step heading opens every order transition
      * past the first, and an objective in a later group renders locked until every earlier group
-     * is complete.
+     * is complete. Which steps are on the list is {@link QuestEngine#listedObjectives}'s answer: all
+     * of them, or, for a quest that hides its locked steps while it is carried, only the unlocked
+     * ones - so a locked group draws neither its heading nor its lines until it opens. The ordering
+     * hint reads the quest's whole shape either way, since that is what it describes.
      */
     private static void paintObjectives(@Nonnull ObjectiveBookPage page,
             @Nonnull UICommandBuilder cmd, @Nonnull String sel, @Nonnull Quest quest,
             @Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull QuestStatus status) {
-        List<ObjectiveDef> objectives = quest.objectives();
+        List<ObjectiveDef> objectives = engine.listedObjectives(subject, quest);
         if (objectives.isEmpty()) {
             return;
         }
         cmd.set(sel + " #ObjectivesContainer.Visible", true);
 
         boolean hasOrderValues = quest.hasOrderedObjectives();
-        if (objectives.size() > 1) {
+        if (quest.objectives().size() > 1) {
             String hintKey;
             if (hasOrderValues) {
                 hintKey = "book.quests.objectives.mixed";
@@ -662,19 +673,19 @@ final class BookQuestsTab {
             if (hasOrderValues && objective.order() > 0 && objective.order() != lastOrder) {
                 if (lastOrder > 0) {
                     // A visual step heading between order groups, reusing the one line template.
-                    cmd.append(sel + " #ObjectivesContainer", OBJECTIVE_ROW_TEMPLATE);
+                    cmd.append(sel + " #ObjectivesContainer", LINE_TEMPLATE);
                     String stepSel = sel + " #ObjectivesContainer[" + appendIndex + "]";
-                    cmd.set(stepSel + " #ObjText.TextSpans",
+                    cmd.set(stepSel + " #LineText.TextSpans",
                             page.text("book.quests.objectives.step", objective.order()));
-                    cmd.set(stepSel + " #ObjText.Style.TextColor", "#4a6a8e");
-                    cmd.set(stepSel + " #ObjText.Style.FontSize", 11);
-                    cmd.set(stepSel + " #ObjText.Style.RenderBold", true);
-                    cmd.set(stepSel + " #ObjText.Style.LetterSpacing", 1);
+                    cmd.set(stepSel + " #LineText.Style.TextColor", STEP_HEADING_COLOR);
+                    cmd.set(stepSel + " #LineText.Style.FontSize", STEP_HEADING_FONT_SIZE);
+                    cmd.set(stepSel + " #LineText.Style.RenderBold", true);
+                    cmd.set(stepSel + " #LineText.Style.LetterSpacing", 1);
                     appendIndex++;
                 }
                 lastOrder = objective.order();
             }
-            cmd.append(sel + " #ObjectivesContainer", OBJECTIVE_ROW_TEMPLATE);
+            cmd.append(sel + " #ObjectivesContainer", LINE_TEMPLATE);
             String objSel = sel + " #ObjectivesContainer[" + appendIndex + "]";
             paintObjectiveLine(page, cmd, objSel, quest, objective, progress,
                     hasOrderValues && objective.order() > 0
@@ -705,8 +716,8 @@ final class BookQuestsTab {
             text = line;
             color = COLOR_NOT_ACCEPTED;
         }
-        cmd.set(objSel + " #ObjText.TextSpans", text);
-        cmd.set(objSel + " #ObjText.Style.TextColor", color);
+        cmd.set(objSel + " #LineText.TextSpans", text);
+        cmd.set(objSel + " #LineText.Style.TextColor", color);
 
         // The picture beside the step, and the slot that holds it. A step with nothing to show keeps
         // the slot collapsed so its text starts where an unpictured step's text has always started.

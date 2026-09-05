@@ -426,12 +426,17 @@ by design.
 - **`.ui` contract**: `Pages/ZigObjectiveBookPage.ui` is the frame (the `Padding: (Full: 12)` on
   `#Content` is load-bearing: at 0 the `#LeftPanel`/`#SidePanel` bevels stack against the frame
   bevel and read as heavy shadow), plus the appended row family: `ZigQuestLogRow.ui` (a quest),
-  `ZigBookObjectiveRow.ui` (one objective line, restyled for step headings), `ZigBookTagChip.ui`,
-  `ZigBookCatTab.ui` / `ZigBookWideTab.ui` (filter chips, narrow and name+count), `ZigAchListRow.ui`
-  (a compact achievement, reused by the overview's recent / nearest / pinned blocks),
-  `ZigAchChipRow.ui` (a related-achievement chip), `ZigAchCriterionRow.ui`,
-  `ZigAchCategoryCard.ui`, `ZigMilestoneCard.ui` and `ZigBookRewardRow.ui` (one reward line,
-  shared by quest rows, the detail column and milestone cards). All text is pushed on `.TextSpans`
+  zc-presentation's shared `Pages/ZigDetailLine.ui` (`ObjectiveBookPage.LINE_TEMPLATE`: ONE
+  template for an objective line, a step heading - the same line with `#LineText` restyled from
+  Java to the shared header's leaves, never a second template in the list - and a reward line,
+  shared by quest rows, the detail column and milestone cards; `paintRewardChip` shows its icon
+  through `IconRenderer.applyItemSlot` so the slot keeps the reward's line as its hover name),
+  `ZigBookTagChip.ui`, `ZigBookCatTab.ui` / `ZigBookWideTab.ui` (filter chips, narrow and
+  name+count), `ZigAchListRow.ui` (a compact achievement, reused by the overview's recent /
+  nearest / pinned blocks), `ZigAchChipRow.ui` (a related-achievement chip),
+  `ZigAchCriterionRow.ui` (its own file for the tick and the right-aligned count, at the shared
+  line's row, icon and font rungs), `ZigAchCategoryCard.ui` and `ZigMilestoneCard.ui`. All text is
+  pushed on `.TextSpans`
   (a `.Text` sink neither substitutes `{0}` nor renders markup; the expand toggle's bare glyph
   goes through `UiText.setText`), every labeled button is a `Button` + inner `#Label` driven by
   `ZigRichButton`, and the pin / track glyph is BAKED in the template (Java toggles the off/on
@@ -453,7 +458,7 @@ runtime: the book is what a player reads with nobody in front of them, this is w
 character. Two panels, the list on the left and the one quest being read on the right, with every
 lifecycle affordance a character can offer - accept, hand in here, collect, abandon, pin.
 
-- **The HERE list is three questions, asked of two authorities.** What a character HANDS OUT is an
+- **The HERE list is four questions, asked of two authorities.** What a character HANDS OUT is an
   authoring-layer association no runtime can read, so it comes from
   [`quest/NpcOfferProviders`](../../../../../../../../zc-progression/src/main/java/com/ziggfreed/common/quest/CLAUDE.md) (this module registers the DEFAULT provider, over the runtime catalogue and each quest's own giver id; it answers the cheap "anything for me" read separately, stopping at the first takeable quest, because that one is asked once per character on screen)
   asked over the character's whole ANSWER SET. The other two are pure quest state, so the engine
@@ -465,7 +470,13 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
   giver's tab while it is being carried even though the offer table has stopped offering it. The rule
   covers finished-but-uncollected quests as well as active ones, deliberately: a quest parked for
   collection at the character it was taken from has to be reachable there, or nobody could collect it.
-  The MINE list is `activeAndUnclaimed` and nothing else.
+  The fourth question is what is FINISHED and may be COLLECTED here (`canCompleteAt`, once per id the
+  character answers to), asked ONLY of a quest waiting to be collected: a quest naming no site is
+  collectable everywhere, so that question alone would put every carried quest on every character's
+  list. It is what lists a quest credited by a `MarkTalked` beat at a character that neither gave it
+  nor is its hand-in (the mastery trainer's meet-me quest is given by the guide) on the list it is
+  collected from. How the four combine is `NpcQuestSections.belongsHere`, pure and asserted beside
+  `classify`. The MINE list is `activeAndUnclaimed` and nothing else.
 - **What the default provider costs, and why it is not indexed.** `RuntimeOffers` walks the whole
   runtime quest catalogue on every ask and filters on `Quest.npcViewId()`, so the per-ask cost is one
   null check plus one `equalsIgnoreCase` per quest on the server against the character's answer set
@@ -486,6 +497,21 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
   `canCompleteAt` once per id the character answers to (the engine compares ONE id by design, which is
   what keeps an identity registry out of the progression module) and shows the status line instead of
   a button that would refuse. The claim, when it is offered, is made AT the id that answered.
+- **Collect and hand in each OWN their response, because the giver may have something to say.** A
+  quest's `CompletionDialogue` is the beat that follows the reward landing in the player's hands, so
+  `claim` plays it exactly as `turnIn` does: toast FIRST (whatever the hand-off opens repaints the
+  shared per-player toast state), then `deps.completion().handOff(...)`, and the page's own
+  `refreshOrReopen` only when nothing took the screen. The routing's own rule keeps a claim from the
+  objective book or out in a field silent (`NO_NPC_CONTEXT`), so neither button asks. A conversation
+  that parks a quest never plays that beat itself: it routes to this page with the quest highlighted
+  (`DialoguePage` + `ParkedQuestWatch`, zc-dialogue), and the Collect press here is what plays it.
+- **A full step list honours `Quest.hideLockedSteps()` through `QuestEngine.listedObjectives`.**
+  Both surfaces that list every step (`renderObjectives` here, `BookQuestsTab.paintObjectives`) walk
+  that list rather than `quest.objectives()`: all of them, or, for a quest that hides its locked
+  steps while it is carried, only the ones `objectiveActive` unlocks, so the synthesized report-back
+  step is not read as open beside the work before it. The tracked-quest HUD and the dialogue header
+  already read `activeStepObjectives` and needed nothing. The book's order-group heading follows the
+  listed steps (a hidden group draws neither), while its ordering hint reads the quest's whole shape.
 - **Accept, hand in and collect all thread the SITE.** Accepting records where the quest was taken
   from, which is what a come-back-to-me quest and the given-here bucketing above both read; handing in
   names the id the step answered under, so the hand-in that finishes a quest at its own collection

@@ -309,13 +309,16 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     /**
-     * What belongs on this character's list, from THREE questions asked of two authorities.
+     * What belongs on this character's list, from FOUR questions asked of two authorities.
      *
      * <p>Which quests a character HANDS OUT is an authoring-layer association the runtime cannot
-     * read, which is exactly what the offer table exists to answer. The other two are pure quest
-     * state, so the engine answers both itself over the whole answer set: which quests point BACK
-     * here, and which were TAKEN here - the accept site the engine records on every accept, which is
-     * what makes "given here" engine data rather than something a consumer has to register.
+     * read, which is exactly what the offer table exists to answer. The other three are pure quest
+     * state, so the engine answers them itself over the whole answer set: which quests point BACK
+     * here, which were TAKEN here - the accept site the engine records on every accept, which is
+     * what makes "given here" engine data rather than something a consumer has to register - and
+     * which are FINISHED and may be COLLECTED here, so a quest credited by a beat at a character
+     * that neither gave it nor is named as its hand-in still reaches the list it is collected from.
+     * How the four combine is {@link NpcQuestSections#belongsHere}, pure and asserted.
      */
     @Nonnull
     private List<Quest> questsHere(@Nonnull Subject subject, @Nonnull QuestEngine engine) {
@@ -334,7 +337,9 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             if (out.containsKey(quest.id())) {
                 continue;
             }
-            if (readyHere(subject, engine, quest) || takenHere(subject, engine, quest)) {
+            if (NpcQuestSections.belongsHere(engine.status(subject, quest),
+                    readyHere(subject, engine, quest), takenHere(subject, engine, quest),
+                    collectionSite(subject, engine, quest) != null)) {
                 out.put(quest.id(), quest);
             }
         }
@@ -666,8 +671,10 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     /**
-     * Every step, with its count where the player is carrying the quest and without one where they
-     * are not - a quest being read BEFORE it is taken shows what it asks for, not a wall of zeroes.
+     * Every step the engine says to list, with its count where the player is carrying the quest and
+     * without one where they are not - a quest being read BEFORE it is taken shows what it asks for,
+     * not a wall of zeroes. Which steps that is comes from {@link QuestEngine#listedObjectives}: all
+     * of them, or, for a quest that hides its locked steps, only the ones the player can work on.
      */
     private void renderObjectives(@Nonnull UICommandBuilder cmd, @Nonnull Subject subject,
             @Nonnull QuestEngine engine, @Nonnull Quest quest, @Nonnull QuestStatus status) {
@@ -675,7 +682,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         boolean carried = status == QuestStatus.ACTIVE || status == QuestStatus.COMPLETED_UNCLAIMED;
         Map<String, ObjectiveProgressState> progress = carried
                 ? engine.progressOf(subject, quest.id()) : Map.of();
-        List<ObjectiveDef> objectives = quest.objectives();
+        List<ObjectiveDef> objectives = engine.listedObjectives(subject, quest);
         int shown = Math.min(objectives.size(), MAX_LINES);
         for (int i = 0; i < shown; i++) {
             ObjectiveDef objective = objectives.get(i);
@@ -812,10 +819,14 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             turnIn(ref, store, player, subject, engine, quest);
             return;
         }
+        if ("claim".equals(action)) {
+            // Collecting owns its own response for the same reason: the giver may have something to
+            // say once the reward is in the player's hands.
+            claim(ref, store, player, subject, engine, quest);
+            return;
+        }
         if ("accept".equals(action)) {
             accept(subject, engine, quest);
-        } else if ("claim".equals(action)) {
-            claim(subject, engine, quest);
         } else if ("abandon".equals(action)) {
             abandon(subject, engine, quest);
         } else if ("track".equals(action)) {
@@ -868,15 +879,32 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     /**
-     * Collect a parked quest AT the id this character answered under. The engine re-checks the site
-     * itself, so a quest belonging somewhere else refuses here even if a stale screen offered it.
+     * Collect a parked quest AT the id this character answered under, and answer the player one way
+     * or another on every path. The engine re-checks the site itself, so a quest belonging somewhere
+     * else refuses here even if a stale screen offered it.
+     *
+     * <p>Collecting is the moment a quest's closing conversation is FOR: a quest that names one has
+     * it played here, through the same hand-off the hand-in uses, and only where there is somebody in
+     * front of the player to speak it. The same claim from the objective book or out in a field stays
+     * silent by that routing's own rule, so nothing here has to ask.
      */
-    private void claim(@Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull Quest quest) {
+    private void claim(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+            @Nonnull Player player, @Nonnull Subject subject, @Nonnull QuestEngine engine,
+            @Nonnull Quest quest) {
         String site = collectionSite(subject, engine, quest);
         boolean ok = Boolean.TRUE.equals(ProgressionRuntime.questScope()
                 .around(subject, s -> Boolean.valueOf(engine.claim(s, quest, site))));
-        showToast(ok ? ToastKind.REWARD : ToastKind.WARNING,
-                text(ok ? "book.toast.claimed" : "book.toast.claim_failed"));
+        if (!ok) {
+            showToast(ToastKind.WARNING, text("book.toast.claim_failed"));
+            refreshOrReopen(ref, store, player, subject, engine, quest);
+            return;
+        }
+        // ORDER IS LOAD-BEARING, exactly as on the hand-in below: the toast goes up FIRST, because
+        // whatever the hand-off opens repaints the shared per-player toast state.
+        showToast(ToastKind.REWARD, text("book.toast.claimed"));
+        if (!handOff(quest, store, ref, player)) {
+            refreshOrReopen(ref, store, player, subject, engine, quest);
+        }
     }
 
     private void abandon(@Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull Quest quest) {

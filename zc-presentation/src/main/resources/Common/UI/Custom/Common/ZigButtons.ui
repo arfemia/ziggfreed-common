@@ -159,6 +159,20 @@ $C = "../Common.ui";
   Sounds: $C.@ButtonSounds
 );
 
+// ── ziggfreed-common shared SECTION HEADER label ──────────────────────────────
+// Imported per page as:  $Z = "../Common/ZigButtons.ui";  then  Style: $Z.@ZigSectionHeaderStyle;
+//
+// The quiet header above one section of a detail panel (OBJECTIVES, REWARDS, COST): small, bold and
+// letter-spaced so it reads as a label over the lines beneath it, not as one of them, in a steel
+// blue a step brighter than a lock reason and a step dimmer than the line text. ONE constant for
+// every such header in the family, so a page never spells its own and the look cannot drift
+// between the board, the storefront and the quest pages. A header that must carry its own colour
+// (a warning-orange requirements header) spreads this and overrides the one leaf:
+//   Style: (...$Z.@ZigSectionHeaderStyle, TextColor: #ff9944);
+// A heading painted from Java into an appended line (the objective book's step headings) sets the
+// same four leaves on its label, since a named style cannot be pushed whole from Java.
+@ZigSectionHeaderStyle = LabelStyle(FontSize: 12, TextColor: #8fb4dc, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+
 // Blank-icon-slot fix: an ItemGrid with no Style renders nothing. This ladder gives every
 // ItemGrid in the library a ready-made style; a page picks the rung matching its own
 // ItemGrid's Anchor Width/Height (18, 20, 22, 24, or 28). Imported per page as:

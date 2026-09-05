@@ -1,5 +1,5 @@
 // One points-milestone card in the achievements overview: title, a status word or a running
-// count, the description, reward lines (Pages/ZigBookRewardRow.ui appended into
+// count, the description, reward lines (the shared Pages/ZigDetailLine.ui appended into
 // #MilestoneRewardsList), a progress bar, and a Claim button once its rewards wait.
 
 $C = "../Common.ui";

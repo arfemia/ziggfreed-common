@@ -25,6 +25,7 @@ merely hosts the result.
 | [`QuestDialogueHost`](QuestDialogueHost.java) | the seam a consumer UI registers: `knows` + `open` |
 | [`QuestDialogueHosts`](QuestDialogueHosts.java) | the open table of them, mirroring `NpcOfferProviders` |
 | [`QuestCompletionDialogueValidator`](QuestCompletionDialogueValidator.java) | the audit for a conversation nothing can open |
+| [`ParkedQuestWatch`](ParkedQuestWatch.java) | the before-and-after read `DialoguePage` routes on: a quest that moved into `COMPLETED_UNCLAIMED` across an option's actions |
 
 - **The policy, in order**: no conversation authored -> `NONE_AUTHORED`; nobody in front of the
   player -> `NO_NPC_CONTEXT`; nothing registered knows it -> `NO_HOST`; otherwise `PLAY`.
@@ -56,7 +57,20 @@ merely hosts the result.
   on the character's PRIMARY id (never whichever alias took the hand-in), so the conversation's
   `@self` targets and its header name the character the player is actually looking at. The
   conversation form keeps `playCompletion`'s false default on purpose: a conversation does not hand
-  off to itself, and a `TurnIn` beat inside a dialogue routes onward with `Goto`.
+  off to itself, and a `TurnIn` beat inside a dialogue routes onward with `Goto` - unless it PARKED
+  the quest, see next.
+- **A conversation that parks a quest takes the player TO it, and never plays the closing beat
+  itself.** `DialoguePage` takes a `ParkedQuestWatch` snapshot right before an option's actions run
+  and reads again after; a quest that moved into `COMPLETED_UNCLAIMED` (exactly what `markUnclaimed`
+  writes, so exactly a quest with something to collect - an autoclaim quest never parks) is routed
+  through the installed `DialogueQuestView` router to the character's quest list with that quest
+  highlighted, and that WINS over the option's own `Goto`, `Close` and `Open`. A quest parked before
+  the click is in the snapshot and is not routed to again. The `CompletionDialogue` is for the
+  moment the reward is collected, so the route opens the LIST; the Collect press on it is what plays
+  the beat (`ZigNpcQuestPage.claim`, zc-objectives). The watch is a comparison rather than a
+  listener because the actions are every mod's own handlers, and it is guarded whole: it sits
+  inside a click handler, where a throw costs the player their screen. `ParkedQuestWatchTest` pins
+  every way it stays quiet.
 
 ## Rules to keep
 

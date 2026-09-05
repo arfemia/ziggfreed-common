@@ -707,6 +707,35 @@ public final class QuestEngine implements QuestStateReader {
     }
 
     /**
+     * The objectives a FULL list shows for this player, in authored order: every objective, unless
+     * the quest {@link Quest#hideLockedSteps() hides its locked steps} and the player is carrying it,
+     * in which case only the ones that are unlocked ({@link #objectiveActive}), finished or not.
+     *
+     * <p>It is the display twin of {@link #activeStepObjectives}: that one is for a surface that
+     * cannot show everything, this one for a surface that can and is told not to. A quest the player
+     * is not carrying lists everything it asks for, because a step they cannot work on YET is only a
+     * meaningful thing to say about a quest they are on: read before it is taken it shows what it
+     * asks for, and read after it is collected it shows what it asked for.
+     */
+    @Nonnull
+    public List<ObjectiveDef> listedObjectives(@Nonnull Subject subject, @Nonnull Quest quest) {
+        if (!quest.hideLockedSteps()) {
+            return quest.objectives();
+        }
+        QuestStatus status = status(subject, quest);
+        if (status != QuestStatus.ACTIVE && status != QuestStatus.COMPLETED_UNCLAIMED) {
+            return quest.objectives();
+        }
+        List<ObjectiveDef> out = new ArrayList<>();
+        for (ObjectiveDef objective : quest.objectives()) {
+            if (objectiveActive(subject, quest, objective.id())) {
+                out.add(objective);
+            }
+        }
+        return out;
+    }
+
+    /**
      * The objectives of the quest's CURRENT step, for a compact display that cannot show them all:
      * every unordered objective plus the objectives of the lowest order group that still has
      * something outstanding. Once a step is done the next becomes current, so the list advances by

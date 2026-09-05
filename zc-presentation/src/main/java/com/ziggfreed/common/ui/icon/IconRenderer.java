@@ -74,6 +74,26 @@ public final class IconRenderer {
         return hasItem || hasTexture;
     }
 
+    /**
+     * Paint a slot the caller already built into the row's {@code #IcoItem}, for a picture that
+     * carries more than an id: a reward's slot names its own line as the hover text, which a plain
+     * id cannot express. The texture widget hides, and a null slot hides both, exactly as
+     * {@link #applyIcon(UICommandBuilder, String, IconSpec)} would with nothing to draw.
+     *
+     * @return whether anything was drawn, for a caller that also collapses a surrounding slot
+     */
+    public static boolean applyItemSlot(@Nonnull UICommandBuilder cmd, @Nonnull String rowSelector,
+            @Nullable ItemGridSlot slot) {
+        String itemSel = rowSelector + " " + ITEM_ICON_ID;
+        boolean hasItem = slot != null;
+        if (hasItem) {
+            cmd.set(itemSel + ".Slots", List.of(slot));
+        }
+        cmd.set(itemSel + ".Visible", hasItem);
+        cmd.set(rowSelector + " " + TEXTURE_ICON_ID + ".Visible", false);
+        return hasItem;
+    }
+
     /** Fill the grid's one slot with {@code itemId}; false when the id cannot be made a stack. */
     private static boolean pushItem(@Nonnull UICommandBuilder cmd, @Nonnull String gridSelector,
             @Nonnull String itemId) {

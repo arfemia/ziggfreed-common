@@ -65,6 +65,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `AutoAccept` | `boolean` | `null` | Start the quest as soon as the player is eligible, with no action from them. Unauthored means false. |
 | `AutoTrack` | `boolean` | `null` | Pin it to the tracker on accept if there is room. It never displaces a pin the player chose. Unauthored means false. |
 | `Sequential` | `boolean` | `null` | Run the steps strictly one after another in authored order. Ignored the moment any objective authors its own Order, which is the finer-grained way to say the same. |
+| `HideLockedSteps` | `boolean` | `null` | While the quest is being carried, leave a step the player cannot work on yet off the full step list: one that waits on an earlier Order, or on the step before it under Sequential. It shows up the moment it unlocks, and a finished step stays listed. It reaches the report-back step Npc.TurnInId adds, which is why it is set here for the whole quest rather than per step. Unauthored means false: every step is listed, the locked ones dimmed. |
 
 <a id="field-questasset-repeat"></a>
 ### QuestAsset.Repeat

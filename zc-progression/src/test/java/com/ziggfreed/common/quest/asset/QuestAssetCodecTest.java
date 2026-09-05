@@ -296,6 +296,33 @@ class QuestAssetCodecTest {
         }
     }
 
+    // ==================== flow ====================
+
+    @Nested
+    class FlowGroup {
+
+        @Test
+        void hidingLockedStepsIsAuthoredOnTheFlowGroupAndReachesTheQuest() throws Exception {
+            Quest quest = decodeRoot("{ \"Flow\": { \"HideLockedSteps\": true } }", "reveal")
+                    .toDefinition(null).quest();
+
+            assertTrue(quest.hideLockedSteps());
+            assertFalse(quest.sequential(), "its siblings stay unauthored");
+        }
+
+        @Test
+        void hidingLockedStepsInheritsLeafByLeafLikeTheRestOfTheGroup() throws Exception {
+            QuestAsset parent = decodeRoot(
+                    "{ \"Flow\": { \"HideLockedSteps\": true, \"AutoTrack\": true } }", "base");
+
+            Quest child = decode("{ \"Flow\": { \"AutoTrack\": false } }", "child", "base", parent)
+                    .toDefinition(null).quest();
+
+            assertTrue(child.hideLockedSteps(), "the leaf the child did not mention is inherited");
+            assertFalse(child.autoTrack(), "and the one it did wins");
+        }
+    }
+
     // ==================== completion conversation ====================
 
     @Nested
@@ -345,6 +372,7 @@ class QuestAssetCodecTest {
             assertFalse(definition.quest().autoAccept());
             assertFalse(definition.quest().autoTrack());
             assertFalse(definition.quest().sequential());
+            assertFalse(definition.quest().hideLockedSteps(), "unauthored means every step is listed");
             assertNull(definition.quest().repeat(), "no Repeat block at all is a one-shot");
             assertFalse(definition.quest().repeatable());
             assertEquals(Quest.Visibility.OPEN, definition.quest().visibility());

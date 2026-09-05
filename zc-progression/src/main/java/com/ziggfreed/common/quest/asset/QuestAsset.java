@@ -361,6 +361,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         Quest.Builder quest = Quest.builder(questId)
                 .available(isEnabled())
                 .sequential(flow != null && flow.isSequential())
+                .hideLockedSteps(flow != null && flow.isHideLockedSteps())
                 .autoAccept(flow != null && flow.isAutoAccept())
                 .autoTrack(flow != null && flow.isAutoTrack())
                 .repeat(repeat == null ? null : repeat.toRepeat())
@@ -428,15 +429,16 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
     // ==================== Flow ====================
 
     /**
-     * How much of the quest the player drives by hand, and whether its steps run in order. Whether
-     * the reward is collected by hand is not decided here: it follows from which {@code Rewards}
-     * bucket the payout is authored in.
+     * How much of the quest the player drives by hand, whether its steps run in order, and whether
+     * a step that has not unlocked yet is listed. Whether the reward is collected by hand is not
+     * decided here: it follows from which {@code Rewards} bucket the payout is authored in.
      */
     public static final class Flow {
 
         @Nullable protected Boolean autoAccept;
         @Nullable protected Boolean autoTrack;
         @Nullable protected Boolean sequential;
+        @Nullable protected Boolean hideLockedSteps;
 
         public static final BuilderCodec<Flow> CODEC = BuilderCodec.builder(Flow.class, Flow::new)
                 .appendInherited(new KeyedCodec<>("AutoAccept", Codec.BOOLEAN, false),
@@ -451,6 +453,15 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                         (o, v) -> o.sequential = v, o -> o.sequential, (o, p) -> o.sequential = p.sequential)
                 .documentation("Run the steps strictly one after another in authored order. Ignored the moment "
                         + "any objective authors its own Order, which is the finer-grained way to say the same.").add()
+                .appendInherited(new KeyedCodec<>("HideLockedSteps", Codec.BOOLEAN, false),
+                        (o, v) -> o.hideLockedSteps = v, o -> o.hideLockedSteps,
+                        (o, p) -> o.hideLockedSteps = p.hideLockedSteps)
+                .documentation("While the quest is being carried, leave a step the player cannot work on yet off "
+                        + "the full step list: one that waits on an earlier Order, or on the step before it under "
+                        + "Sequential. It shows up the moment it unlocks, and a finished step stays listed. It "
+                        + "reaches the report-back step Npc.TurnInId adds, which is why it is set here for the "
+                        + "whole quest rather than per step. Unauthored means false: every step is listed, the "
+                        + "locked ones dimmed.").add()
                 .build();
 
         public Flow() {
@@ -459,10 +470,17 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         @Nonnull
         public static Flow of(@Nullable Boolean autoAccept, @Nullable Boolean autoTrack,
                 @Nullable Boolean sequential) {
+            return of(autoAccept, autoTrack, sequential, null);
+        }
+
+        @Nonnull
+        public static Flow of(@Nullable Boolean autoAccept, @Nullable Boolean autoTrack,
+                @Nullable Boolean sequential, @Nullable Boolean hideLockedSteps) {
             Flow f = new Flow();
             f.autoAccept = autoAccept;
             f.autoTrack = autoTrack;
             f.sequential = sequential;
+            f.hideLockedSteps = hideLockedSteps;
             return f;
         }
 
@@ -476,6 +494,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
 
         public boolean isSequential() {
             return sequential != null && sequential;
+        }
+
+        public boolean isHideLockedSteps() {
+            return hideLockedSteps != null && hideLockedSteps;
         }
     }
 

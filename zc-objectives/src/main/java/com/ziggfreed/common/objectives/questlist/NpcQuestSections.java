@@ -102,6 +102,27 @@ public final class NpcQuestSections {
     }
 
     /**
+     * Whether a quest the player is CARRYING belongs on this character's list, from the three
+     * questions the page asks the engine about it. Pure for the same reason {@link #classify} is:
+     * the page reads, this decides, and the decision is assertable.
+     *
+     * <p>Three ways in: its outstanding step resolves here, it was taken here, or it is FINISHED and
+     * may be collected here. The third is asked of the status on purpose. A quest naming no
+     * collection site may be collected anywhere, so "collectable here" alone is true of nearly every
+     * quest and would put everything a player carries on every character's list; only a quest that is
+     * actually waiting to be collected is let in by it.
+     *
+     * @param status      what the quest EFFECTIVELY is for this player
+     * @param readyHere   whether its outstanding step resolves at this character
+     * @param takenHere   whether the player took it from this character
+     * @param collectHere whether a finished quest may be collected at this character
+     */
+    public static boolean belongsHere(@Nonnull QuestStatus status, boolean readyHere, boolean takenHere,
+            boolean collectHere) {
+        return readyHere || takenHere || (status == QuestStatus.COMPLETED_UNCLAIMED && collectHere);
+    }
+
+    /**
      * The list in the order it renders: the HIGHLIGHTED quest first whatever its section, then by
      * section, then by the consumer's own order, then by id so a restart cannot reshuffle it.
      *

@@ -1,7 +1,9 @@
 package com.ziggfreed.common.objectives.questlist;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
@@ -75,6 +77,29 @@ class NpcQuestSectionsTest {
     }
 
     // ==================== sort ====================
+
+    // ==================== membership ====================
+
+    @Test
+    void aQuestWhoseStepResolvesHereOrThatWasTakenHereBelongsWhateverItsStatus() {
+        assertTrue(NpcQuestSections.belongsHere(QuestStatus.ACTIVE, true, false, false));
+        assertTrue(NpcQuestSections.belongsHere(QuestStatus.ACTIVE, false, true, false));
+        assertTrue(NpcQuestSections.belongsHere(QuestStatus.COMPLETED_UNCLAIMED, false, true, false));
+    }
+
+    @Test
+    void aFinishedQuestCollectableHereBelongsEvenWhereItWasNeitherGivenNorHandedIn() {
+        assertTrue(NpcQuestSections.belongsHere(QuestStatus.COMPLETED_UNCLAIMED, false, false, true),
+                "credited by a beat at a character that neither gave it nor is its hand-in");
+    }
+
+    @Test
+    void beingCollectableHereAdmitsNothingThatIsNotWaitingToBeCollected() {
+        assertFalse(NpcQuestSections.belongsHere(QuestStatus.ACTIVE, false, false, true),
+                "a quest naming no site is collectable everywhere, so this alone must not list it");
+        assertFalse(NpcQuestSections.belongsHere(QuestStatus.COMPLETED_UNCLAIMED, false, false, false),
+                "finished but belonging somewhere else");
+    }
 
     @Test
     void sectionsReadInTheOrderTheyAreDeclared() {

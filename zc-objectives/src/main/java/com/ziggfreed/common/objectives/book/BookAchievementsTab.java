@@ -48,9 +48,9 @@ import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CATEGOR
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CHIP_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CRITERION_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_ROW_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.LINE_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MAX_ROWS;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MILESTONE_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.REWARD_ROW_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.WIDE_TAB_OUTER_WIDTH;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.WIDE_TAB_TEMPLATE;
 
@@ -902,7 +902,7 @@ final class BookAchievementsTab {
             Message tag = page.text(unlocked
                     ? "book.achievements.reward_auto" : "book.achievements.reward_locked");
             String sel = paintRewardChip(cmd, "#DRewardsList", index++, chip, tag);
-            cmd.set(sel + " #RewardName.Style.TextColor", unlocked ? "#96a9be" : "#5a6a7c");
+            cmd.set(sel + " #LineText.Style.TextColor", unlocked ? "#96a9be" : "#5a6a7c");
         }
         for (RewardChip chip : claimChips) {
             Message tag;
@@ -918,7 +918,7 @@ final class BookAchievementsTab {
                 color = "#5a6a7c";
             }
             String sel = paintRewardChip(cmd, "#DRewardsList", index++, chip, tag);
-            cmd.set(sel + " #RewardName.Style.TextColor", color);
+            cmd.set(sel + " #LineText.Style.TextColor", color);
         }
 
         boolean showClaim = unlocked && !claimed && !achievement.claimRewards().isEmpty();
@@ -926,28 +926,28 @@ final class BookAchievementsTab {
     }
 
     /**
-     * One reward line: the chip's icon (with the reward's own line as the hover name) and its
-     * text, plus an optional state tag in brackets. Returns the row selector so the caller can
-     * colour the text. Shared with the quests tab's reward rows.
+     * One reward line on the shared detail line: the chip's icon (with the reward's own line as
+     * the hover name) and its text, plus an optional state tag in brackets. Returns the row
+     * selector so the caller can colour the text. Shared with the quests tab's reward rows.
      */
     @Nonnull
     static String paintRewardChip(@Nonnull UICommandBuilder cmd, @Nonnull String container,
             int index, @Nonnull RewardChip chip, @Nullable Message tag) {
-        cmd.append(container, REWARD_ROW_TEMPLATE);
+        cmd.append(container, LINE_TEMPLATE);
         String sel = container + "[" + index + "]";
         Message label = tag == null ? chip.label()
                 : Msg.join(chip.label(), Msg.raw("  ("), tag, Msg.raw(")"));
-        cmd.set(sel + " #RewardName.TextSpans", label);
+        cmd.set(sel + " #LineText.TextSpans", label);
+        ItemGridSlot slot = null;
         if (chip.hasIcon()) {
             // The icon's hover name is a String-only engine sink: flatten the chip's own line.
-            ItemGridSlot slot = new ItemGridSlot(new ItemStack(chip.iconItemId(), 1));
+            slot = new ItemGridSlot(new ItemStack(chip.iconItemId(), 1));
             String hover = UiText.flatten(chip.label());
             if (!hover.isEmpty()) {
                 slot.setName(hover);
             }
-            cmd.set(sel + " #RewardIcon.Slots", List.of(slot));
-            cmd.set(sel + " #RewardIconSlot.Visible", true);
         }
+        cmd.set(sel + " #LineIconSlot.Visible", IconRenderer.applyItemSlot(cmd, sel, slot));
         return sel;
     }
 

@@ -125,7 +125,7 @@ $F.@ZigDecoratedFrame {
       Label #ObjectivesHeader {
         Text: "";
         Anchor: (Height: 20, Bottom: 6);
-        Style: (FontSize: 12, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+        Style: $Z.@ZigSectionHeaderStyle;
       }
 
       Group #ObjectivesSection {
@@ -137,7 +137,7 @@ $F.@ZigDecoratedFrame {
         Text: "";
         Visible: false;
         Anchor: (Height: 20, Bottom: 6);
-        Style: (FontSize: 12, TextColor: #4a6a8e, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+        Style: $Z.@ZigSectionHeaderStyle;
       }
 
       Group #RewardsList {
@@ -149,7 +149,7 @@ $F.@ZigDecoratedFrame {
         Text: "";
         Visible: false;
         Anchor: (Height: 20, Bottom: 6);
-        Style: (FontSize: 12, TextColor: #ff9944, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+        Style: (...$Z.@ZigSectionHeaderStyle, TextColor: #ff9944);
       }
 
       Group #RequirementsSection {

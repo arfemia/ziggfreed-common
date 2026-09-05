@@ -123,10 +123,12 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     lands on its `.Slots` as an `ItemGridSlot`, since the client has no `ItemIcon` widget type) and
     an `AssetImage #IcoTex` side by side and this toggles the right one by `.Visible`, the item id
     winning when both are set, so no surface re-decides item-versus-texture and a row with nothing
-    to draw keeps both hidden; an item id nothing answers to falls through to the texture. The
-    shipped rows carrying the pair are `Pages/ZigDetailLine.ui` and `Pages/ZigListRow.ui` here (the
-    latter's sits in a hidden `#IconSlot` a consumer shows off the seam's return value) plus the
-    objective book's criterion and objective rows. No router of its own; see the class javadoc.
+    to draw keeps both hidden; an item id nothing answers to falls through to the texture.
+    `applyItemSlot` takes a slot the caller built instead of an id, for a picture that carries its
+    own hover name (a reward line's), and hides the texture the same way. The shipped rows
+    carrying the pair are `Pages/ZigDetailLine.ui` and `Pages/ZigListRow.ui` here (the latter's
+    sits in a hidden `#IconSlot` a consumer shows off the seam's return value) plus the objective
+    book's criterion row. No router of its own; see the class javadoc.
   - `ui/route/` - the DESTINATION vocabulary: `Destination` (a `Type`-discriminated union authored
     as `{"Type": "...", ...}` or as one bare word for a type with no fields) + `Destinations` (the
     open registry a mod claims a type in, over `registry/RegistryLedger`) + `DestinationType`
@@ -157,9 +159,15 @@ every search field in the family instantiates, wired from Java by `ui/ZigSearchR
 ZigFormFieldRow.ui, ZigFormHeaderRow.ui, ZigFormNoteRow.ui, ZigFormToggleRow.ui, ZigListRow.ui,
 ZigSelectRow.ui, ZigDetailLine.ui, ZigToast.ui}` plus `ZigToastFrame.png` (`ZigSelectRow.ui` is the
 one selectable list row - content row and section heading in a single template, `#RowBtn` + hidden
-`#SectionLabel`/`#RowBadge`/`#SectionMeta` - and `ZigDetailLine.ui` the one detail-panel line, both
-appended by the NPC quest page and both commerce pages so a readability step lands everywhere at
-once). Under `Server/`: the eleven neutral default feedback moments (the seven the progression
+`#SectionLabel`/`#RowBadge`/`#SectionMeta` - appended by the NPC quest page and both commerce
+pages; `ZigDetailLine.ui` is the ONE objective / reward / refusal line of the whole family - row
+30, icon 28 on `@ZigIconGrid28`, font 16, the size set in that file and nowhere else - appended by
+the NPC quest page, both commerce pages, the objective book's two tabs and a consumer mod's own
+reward and preview rows alike, so a readability step lands everywhere at once; and the section
+label above any such list is `ZigButtons.ui`'s `@ZigSectionHeaderStyle`, the one header
+`LabelStyle` every page references rather than spelling its own, spread with a `TextColor`
+override where a header must keep its own colour). Under `Server/`: the eleven neutral default
+feedback moments (the seven the progression
 engines announce plus the four the boss framework announces)
 at `Server/ZiggfreedCommon/FeedbackMoments/<moment id>.json` and their wording at
 `Server/Languages/<locale>/ziggfreedcommon.feedback.lang` (nine locales) - the library's own default
