@@ -12,6 +12,8 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.events.AddWorldEvent;
 import com.hypixel.hytale.server.core.universe.world.events.RemoveWorldEvent;
 import com.ziggfreed.common.cast.WorldEvictors;
+import com.ziggfreed.common.icon.Portraits;
+import com.ziggfreed.common.npc.placement.asset.NpcPlacementAuthoring;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.runtime.NpcPlacementLedger;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementOverrides;
@@ -54,6 +56,12 @@ public final class NpcBootstrap {
         try {
             PlacedNpcComponent.register(plugin.getEntityStoreRegistry());
             PlacementNpcActions.register();
+            // Who answers what a role WEARS, for every portrait the library paints. The creature
+            // stills are keyed by model, and a mod's own character is a role wearing somebody
+            // else's model, so without this a quest step saying "speak with the guide" points at a
+            // picture that was never rendered. Installed here because the NPC registry is this
+            // module's to read; zc-core holds only the seam.
+            Portraits.roleArt(NpcPlacementAuthoring::roleIcon);
             plugin.getEntityStoreRegistry().registerSystem(new PlacementMarkerSystem());
             NpcPlacementOverrides.getInstance().load();
             plugin.getCommandRegistry().registerCommand(new ZigNpcCommand());
