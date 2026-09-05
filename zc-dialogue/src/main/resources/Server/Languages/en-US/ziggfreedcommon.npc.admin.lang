@@ -37,6 +37,6 @@ page.blocked = Blocked
 page.toggle.done = {0} is now {1}.
 page.toggle.failed = Could not change {0}. The owner file was left as it was.
 page.place.heading = Stand one here
-page.place.hint = Type to filter, then place. Only roles this server can spawn are offered.
+page.place.hint = Type a role name, press Search, then place. Only roles this server can spawn are offered.
 page.place.button = Place
 page.place.none = No role matches. Clear the filter to see what this server has.

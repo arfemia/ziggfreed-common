@@ -7,19 +7,49 @@ $Z = "../Common/ZigButtons.ui";
 // descendant ids below are safe across many rows AND across mods (the unique indexed parent
 // scopes them - the same rule ZigPartyRow / ZigResultRow rely on).
 //
-// A title (#Title) + subtitle (#Sub) text column that flexes, an optional right-aligned #Badge
-// (e.g. "default" vs "override"), and two RICH action buttons (#EditBtn, #RemoveBtn - each a
-// Button + inner #Label, so their labels are pushed on .TextSpans via ZigRichButton.text, the
-// same substituting sink a TextButton.Text cannot use). The title uses #Title (not #Label) so it
-// never collides with the buttons' inner #Label. Java per row: set #Title / #Sub text, #Badge /
-// #RemoveBtn Visible, the button labels (ZigRichButton.text on "#MyList[i] #EditBtn"), and the
-// click bindings (on "#MyList[i] #EditBtn"). Keep @ZigRichRowBtnStyle (it carries click Sounds).
+// An optional leading picture (#IconSlot), a title (#Title) + subtitle (#Sub) text column that
+// flexes, an optional right-aligned #Badge (e.g. "default" vs "override"), and two RICH action
+// buttons (#EditBtn, #RemoveBtn - each a Button + inner #Label, so their labels are pushed on
+// .TextSpans via ZigRichButton.text, the same substituting sink a TextButton.Text cannot use). The
+// title uses #Title (not #Label) so it never collides with the buttons' inner #Label. Java per row:
+// set #Title / #Sub text, #Badge / #RemoveBtn Visible, the button labels (ZigRichButton.text on
+// "#MyList[i] #EditBtn"), and the click bindings (on "#MyList[i] #EditBtn"). Keep
+// @ZigRichRowBtnStyle (it carries click Sounds).
+//
+// The picture slot ships hidden and stays hidden unless a row paints one, so a list that never
+// does reads exactly as it would without the slot. Two sibling widgets inside it, exactly one of
+// which is ever visible, both driven by ui/icon/IconRenderer.applyIcon on the row's selector:
+// #IcoItem is a one-slot ItemGrid drawing an item's own generated icon from a plain item id (its
+// Style comes from the shared ZigButtons.ui ladder; a grid with no Style draws nothing), and
+// #IcoTex draws a Common-rooted texture path - a creature's portrait, an NPC role's model icon.
+// applyIcon returns whether it drew anything; a row sets "#MyList[i] #IconSlot.Visible" to that.
+// #IcoTex carries a fallback so a picture the client does not have still lines up.
 
 Group #ZigListRow {
   LayoutMode: Left;
   Anchor: (Height: 46, Bottom: 4);
   Padding: (Horizontal: 6, Vertical: 3);
   Background: (TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #2a3442);
+
+  Group #IconSlot {
+    Anchor: (Width: 28, Height: 28, Top: 6, Left: 2);
+    Visible: false;
+
+    ItemGrid #IcoItem {
+      Anchor: (Width: 28, Height: 28);
+      Visible: false;
+      SlotsPerRow: 1;
+      AreItemsDraggable: false;
+      DisplayItemQuantity: false;
+      Style: $Z.@ZigIconGrid28;
+    }
+
+    AssetImage #IcoTex {
+      Anchor: (Width: 28, Height: 28);
+      Visible: false;
+      FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+    }
+  }
 
   Group #TextCol {
     FlexWeight: 1;

@@ -29,6 +29,7 @@ import com.ziggfreed.common.party.PartyService;
 import com.ziggfreed.common.party.PartySnapshot;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.ZigSearchRow;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 
@@ -40,7 +41,10 @@ import com.ziggfreed.common.ui.toast.ToastablePage;
  *       party roster (owner badge; Kick on others when the viewer owns it), and a footer
  *       (Queue + Disband for the owner, Leave for a member).</li>
  *   <li><b>Invite</b> - a searchable list of currently-online players not already in a
- *       party, each with an Invite button (no friends list; the roster is live).</li>
+ *       party, each with an Invite button (no friends list; the roster is live). The search
+ *       is the shared {@link ZigSearchRow}: Search submits, Clear empties, and an Invite
+ *       click carries the live text along so a name typed but not yet searched survives
+ *       the repaint.</li>
  * </ul>
  *
  * <p>All consumer policy (the {@link PartyService}, the chrome {@link PartyScreenMessages},
@@ -60,6 +64,15 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
     private static final String TAB_INVITE = "invite";
     /** Active-tab tint (matches the leaderboard page's painted active tab). */
     private static final String TAB_ACTIVE = "#5a7ba8";
+
+    /** The invite tab's search row, an instance of the shared {@link ZigSearchRow}. */
+    private static final String SEARCH_ROW = "#SearchRow";
+
+    /**
+     * The key the search row's live text rides under. The {@code @} is what makes the client
+     * resolve the value as an element path; {@link PartyEventData} declares the same key.
+     */
+    private static final String SEARCH_KEY = "@Query";
 
     private final PartyPageDeps deps;
     private String activeTab = TAB_PARTY;
@@ -133,8 +146,10 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                 break;
             }
             String sel = appendRow(cmd, row, name(inv.inviter()), null);
-            bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.acceptButton(), "accept", null, inv.partyId());
-            bindRowButton(cmd, events, sel, "#RowBtnSecondary", t.declineButton(), "decline", null, inv.partyId());
+            bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.acceptButton(),
+                    EventData.of("Action", "accept").append("PartyId", inv.partyId()));
+            bindRowButton(cmd, events, sel, "#RowBtnSecondary", t.declineButton(),
+                    EventData.of("Action", "decline").append("PartyId", inv.partyId()));
             row++;
         }
 
@@ -152,7 +167,8 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                 boolean ownerRow = snap.isOwner(m);
                 String sel = appendRow(cmd, row, name(m), ownerRow ? t.ownerBadge() : null);
                 if (viewerOwns && !ownerRow) {
-                    bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.kickButton(), "kick", m.toString(), null);
+                    bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.kickButton(),
+                            EventData.of("Action", "kick").append("Target", m.toString()));
                 }
                 row++;
             }
@@ -189,15 +205,9 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
 
     private void buildInviteTab(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
                                 @Nonnull PartyScreenMessages t, @Nonnull UUID viewer) {
-        cmd.set("#SearchRow.Visible", true);
-        if (searchText != null && !searchText.isEmpty()) {
-            cmd.set("#SearchField.Value", searchText);
-        }
-        // ValueChanged keeps the typed text locally (preserves focus); Search re-renders.
-        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#SearchField",
-                EventData.of("Action", "searchInput").append("@Query", "#SearchField.Value"), false);
-        events.addEventBinding(CustomUIEventBindingType.Activating, "#SearchBtn",
-                EventData.of("Action", "search").append("@Query", "#SearchField.Value"), false);
+        cmd.set(SEARCH_ROW + ".Visible", true);
+        ZigSearchRow.wire(cmd, events, SEARCH_ROW, searchText, SEARCH_KEY,
+                EventData.of("Action", "search"), EventData.of("Action", "clear"));
 
         PartyService svc = deps.service();
         String q = searchText == null ? "" : searchText.trim().toLowerCase(Locale.ROOT);
@@ -224,7 +234,10 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                 continue;
             }
             String sel = appendRow(cmd, row, username, null);
-            bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.inviteButton(), "invite", uid.toString(), null);
+            // The live search text rides the click, so the repaint keeps what was typed.
+            bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.inviteButton(),
+                    ZigSearchRow.carry(EventData.of("Action", "invite").append("Target", uid.toString()),
+                            SEARCH_KEY, SEARCH_ROW));
             row++;
         }
         if (row == 0) {
@@ -250,19 +263,12 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         return sel;
     }
 
+    /** Show a row's button with {@code label} and bind its click to {@code data}. */
     private void bindRowButton(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String sel,
-                               @Nonnull String btnId, @Nonnull Message label, @Nonnull String action,
-                               @Nullable String target, @Nullable String partyId) {
+                               @Nonnull String btnId, @Nonnull Message label, @Nonnull EventData data) {
         cmd.set(sel + " " + btnId + ".Visible", true);
         UiText.setText(cmd, sel + " " + btnId + ".Text", label);
-        EventData ev = EventData.of("Action", action);
-        if (target != null) {
-            ev = ev.append("Target", target);
-        }
-        if (partyId != null) {
-            ev = ev.append("PartyId", partyId);
-        }
-        events.addEventBinding(CustomUIEventBindingType.Activating, sel + " " + btnId, ev, false);
+        events.addEventBinding(CustomUIEventBindingType.Activating, sel + " " + btnId, data, false);
     }
 
     @Nonnull
@@ -302,13 +308,17 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         UUID viewer = playerRef.getUuid();
         String action = data.action == null ? "" : data.action;
 
+        // The live field text rides every binding that carries it, so it is the search truth
+        // whenever it arrives; a click that carries none keeps the last searched text.
+        if (data.query != null) {
+            this.searchText = data.query;
+        }
+
         switch (action) {
-            case "searchInput" -> {
-                // Store the text without re-rendering (keeps input focus).
-                this.searchText = data.query == null ? "" : data.query;
-                return;
+            case "search" -> {
+                // The row's Search button: the carried text above is the whole change.
             }
-            case "search" -> this.searchText = data.query == null ? "" : data.query;
+            case "clear" -> this.searchText = "";
             case "tab" -> this.activeTab = TAB_INVITE.equals(data.target) ? TAB_INVITE : TAB_PARTY;
             case "invite" -> {
                 UUID target = parseUuid(data.target);

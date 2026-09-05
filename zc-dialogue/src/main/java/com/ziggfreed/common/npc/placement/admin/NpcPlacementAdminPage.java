@@ -36,6 +36,8 @@ import com.ziggfreed.common.npc.placement.command.NpcAdminMessages;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.ZigSearchRow;
+import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
@@ -56,10 +58,16 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>The role picker mirrors the first-party entity tool.</b> That page filters
  * {@code getRoleTemplateNames(true)} by a search box, and so does this one, through
  * {@link NpcPlacementAuthoring#spawnableRoles()} - spawnable only, so the abstract templates other
- * roles are built on are never offered: naming one writes a placement that can never appear.
+ * roles are built on are never offered: naming one writes a placement that can never appear. The
+ * box is the shared {@link ZigSearchRow}: type, press Search, and the list repaints; nothing
+ * rebuilds per keystroke, so the field keeps focus while the admin types. Each offered role is
+ * drawn with its own portrait ({@link NpcPlacementAuthoring#roleIcon}, the icon of the model the
+ * role wears) through the one icon seam, and a role the engine cannot picture reads as its name
+ * alone: the lookup never throws, because a page that throws mid-build never arrives.
  *
- * <p>Stateless but for the filter: every binding round-trips the whole state, and the filter rides
- * along on all of them so a Place click after typing still knows what was typed.
+ * <p>Stateless but for the filter: every binding round-trips the whole state, and the field's
+ * live text rides along on all of them ({@link ZigSearchRow#carry}) so a Place click after typing
+ * still knows what was typed.
  */
 public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdminEventData> {
 
@@ -70,6 +78,15 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
 
     /** The shared list row (zc-presentation), appended once per offered role. */
     static final String ROLE_ROW_TEMPLATE = "Pages/ZigListRow.ui";
+
+    /** The role filter: the page's instance of the shared search row. */
+    static final String ROLE_SEARCH = "#RoleSearch";
+
+    /**
+     * The key the filter's live text rides under on every binding. The {@code @} is what makes the
+     * client resolve the value as an element path; the codec declares the same {@code @}-key.
+     */
+    static final String SEARCH_KEY = "@Search";
 
     /** How many matching roles are worth offering before the filter has to do more work. */
     private static final int MAX_ROLES = 12;
@@ -186,8 +203,13 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
                     msg("page.off"));
         }
         events.addEventBinding(CustomUIEventBindingType.Activating, rowSel + " #Toggle",
-                EventData.of("Action", "toggle").append("Id", id).append("Search", "#Search.Value"),
-                false);
+                withFilter(EventData.of("Action", "toggle").append("Id", id)), false);
+    }
+
+    /** {@code data} with the filter's live text carried along, so the rebuild keeps it. */
+    @Nonnull
+    private static EventData withFilter(@Nonnull EventData data) {
+        return ZigSearchRow.carry(data, SEARCH_KEY, ROLE_SEARCH);
     }
 
     /** The gate's answer, or null when it could not be asked. */
@@ -235,10 +257,8 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
     private void buildRolePicker(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
         cmd.set("#PlaceHeading.TextSpans", msg("page.place.heading"));
         cmd.set("#PlaceHint.TextSpans", msg("page.place.hint"));
-        cmd.set("#Search.Value", search);
-        SettingsUiUtil.bindTextField(events, "#Search", "Search");
-        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#Search",
-                EventData.of("Action", "search").append("Search", "#Search.Value"), false);
+        ZigSearchRow.wire(cmd, events, ROLE_SEARCH, search, SEARCH_KEY,
+                EventData.of("Action", "search"), EventData.of("Action", "clear"));
 
         List<String> roles = matchingRoles();
         if (roles.isEmpty()) {
@@ -251,12 +271,14 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
             String sel = "#RoleRows[" + i + "]";
             cmd.append("#RoleRows", ROLE_ROW_TEMPLATE);
             cmd.set(sel + " #Title.TextSpans", Msg.raw(role));
+            // The role's own portrait, where the engine can name one; a row with none reads as
+            // its name alone rather than a placeholder that looks like a different fault.
+            cmd.set(sel + " #IconSlot.Visible",
+                    IconRenderer.applyIcon(cmd, sel, null, NpcPlacementAuthoring.roleIcon(role)));
             ZigRichButton.text(cmd, sel + " #EditBtn", msg("page.place.button"));
             // #RemoveBtn already ships hidden; this row offers Place and nothing else.
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #EditBtn",
-                    EventData.of("Action", "place").append("Role", role)
-                            .append("Search", "#Search.Value"),
-                    false);
+                    withFilter(EventData.of("Action", "place").append("Role", role)), false);
         }
     }
 
@@ -316,6 +338,7 @@ public final class NpcPlacementAdminPage extends ToastablePage<NpcPlacementAdmin
             case "toggle" -> handleToggle(ref, store, player, data.id, filter);
             case "place" -> handlePlace(ref, store, player, data.role, filter);
             case "search" -> reopen(player, ref, store, filter);
+            case "clear" -> reopen(player, ref, store, "");
             case "close", "" -> player.getPageManager().setPage(ref, store, Page.None);
             default -> this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
         }

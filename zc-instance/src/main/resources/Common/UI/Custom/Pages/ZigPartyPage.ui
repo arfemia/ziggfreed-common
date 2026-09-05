@@ -1,13 +1,14 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $M = "../Common/ZigButtons.ui";
+$S = "../Common/ZigSearchRow.ui";
 
 // Generic party + invite screen (com.ziggfreed.common.party.page.PartyInvitePage).
 // Two tabs over the one shared decorated frame: Party (roster + incoming invites +
-// footer) and Invite (searchable online roster). Rows are appended from Java
-// (Pages/ZigPartyRow.ui). Shipped once in ziggfreed-common; neutral Zig* ids avoid
-// colliding with a consumer's own Pages/*.ui when both jars are installed. Smoke-test
-// in-game (.ui is not gradle-validated).
+// footer) and Invite (the online roster behind the shared search row #SearchRow). Rows
+// are appended from Java (Pages/ZigPartyRow.ui). Shipped once in ziggfreed-common;
+// neutral Zig* ids avoid colliding with a consumer's own Pages/*.ui when both jars are
+// installed. Smoke-test in-game (.ui is not gradle-validated).
 
 $C.@PageOverlay {}
 $F.@ZigDecoratedFrame {
@@ -36,14 +37,12 @@ $F.@ZigDecoratedFrame {
       Style: (FontSize: 12, TextColor: #b6c9de);
     }
 
-    // Search row (revealed on the Invite tab from Java).
-    Group #SearchRow {
-      LayoutMode: Left;
-      Anchor: (Height: 30, Bottom: 8);
+    // Search row (revealed on the Invite tab from Java): the shared search row, its field
+    // flexing across the panel.
+    $S.@ZigSearchRow #SearchRow {
+      @Anchor = (Bottom: 8);
+      @SearchWidth = 90;
       Visible: false;
-      $C.@TextField #SearchField { FlexWeight: 1; Anchor: (Height: 30); Padding: (Horizontal: 8); }
-      Group { Anchor: (Width: 6); }
-      TextButton #SearchBtn { Text: "Search"; Anchor: (Width: 90, Height: 30); Padding: (Horizontal: 8); Style: $M.@ZigOptionBtnStyle; }
     }
 
     Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }

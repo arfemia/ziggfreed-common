@@ -22,7 +22,9 @@ map of what lives there. The test package mirrors the split, each test beside it
 `admin/` is the placement admin SCREEN: [`NpcPlacementAdminPages`](admin/NpcPlacementAdminPages.java)
 is the only way in, deliberately NOT a registered destination (so a pack can never point press-F at
 it), and its [`NpcPlacementAdminDeps`](admin/NpcPlacementAdminDeps.java) audience seam defaults to
-DENY because the library cannot know what an admin is on a given server.
+DENY because the library cannot know what an admin is on a given server. Its role picker (the
+shared `ZigSearchRow` over `spawnableRoles`, capped at 12 rows of `ZigListRow.ui`) draws each
+offered role with its portrait from `NpcPlacementAuthoring.roleIcon`, text-only on any miss.
 
 ## Read this first: the two authorities
 
@@ -322,7 +324,10 @@ registries are about where an NPC stands and whether it stands at all.
   entity tool's spawn page reads the same registry through `getRoleTemplateNames(true)` to list what
   it may spawn. `NpcPlacementAuthoring.isSpawnable` / `spawnableRoles` wrap both for the command and
   the admin page, and both answer permissively when there is no registry to ask, so they stay a
-  courtesy check at the point somebody TYPES a role rather than a second gate the engine consults. Reports shared
+  courtesy check at the point somebody TYPES a role rather than a second gate the engine consults.
+  `NpcPlacementAuthoring.roleIcon` sits beside them for the admin page's picker rows (the role's
+  spawn model, then that model's own `Icon`, each hop guarded; null means the row reads as its name
+  alone, painted through `ui/icon/IconRenderer` into `ZigListRow.ui`'s `#IconSlot`). Reports shared
   [`validation.Finding`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/validation/CLAUDE.md)
   values under domain `placement`.
   **TWO entry points, because the checks answer two kinds of question, and asking the second kind

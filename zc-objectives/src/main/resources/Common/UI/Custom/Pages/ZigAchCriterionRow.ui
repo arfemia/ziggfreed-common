@@ -1,11 +1,14 @@
+$Z = "../Common/ZigButtons.ui";
+
 // One criterion line in the achievement detail column: a met/unmet tick, the criterion's own
 // picture and line, and its count. Colours are set from Java per state.
 //
 // The icon slot is hidden until a criterion has a picture to show. Two sibling widgets, exactly one
-// of which is ever visible, both driven by ui/icon/IconRenderer: #IcoItem draws an item's own
-// generated icon from a plain item id, and #IcoTex draws a Common-rooted texture path - which is how
-// a creature is shown, from the still the client renders of it. #IcoTex carries a fallback so a
-// creature that never had one rendered still lines up.
+// of which is ever visible, both driven by ui/icon/IconRenderer: #IcoItem is a one-slot ItemGrid
+// drawing an item's own generated icon from a plain item id (its Style comes from the shared
+// ZigButtons.ui ladder; a grid with no Style draws nothing), and #IcoTex draws a Common-rooted
+// texture path - which is how a creature is shown, from the still the client renders of it.
+// #IcoTex carries a fallback so a creature that never had one rendered still lines up.
 
 Group #ZigAchCriterionRow {
   LayoutMode: Left;
@@ -22,9 +25,13 @@ Group #ZigAchCriterionRow {
     Anchor: (Width: 18, Height: 18, Right: 6);
     Visible: false;
 
-    ItemIcon #IcoItem {
+    ItemGrid #IcoItem {
       Anchor: (Width: 18, Height: 18);
       Visible: false;
+      SlotsPerRow: 1;
+      AreItemsDraggable: false;
+      DisplayItemQuantity: false;
+      Style: $Z.@ZigIconGrid18;
     }
 
     AssetImage #IcoTex {

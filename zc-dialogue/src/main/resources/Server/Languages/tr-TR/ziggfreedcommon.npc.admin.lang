@@ -36,6 +36,6 @@ page.blocked = Engellendi
 page.toggle.done = {0} artık {1}.
 page.toggle.failed = {0} değiştirilemedi. Sahip dosyası olduğu gibi bırakıldı.
 page.place.heading = Buraya bir tane koy
-page.place.hint = Filtrelemek için yaz, sonra yerleştir. Yalnızca bu sunucunun oluşturabileceği roller sunulur.
+page.place.hint = Bir rol adı yaz, Ara'ya bas, sonra yerleştir. Yalnızca bu sunucunun oluşturabileceği roller sunulur.
 page.place.button = Yerleştir
 page.place.none = Eşleşen rol yok. Bu sunucuda ne olduğunu görmek için filtreyi temizle.

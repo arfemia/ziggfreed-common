@@ -1,8 +1,12 @@
 package com.ziggfreed.common.ui.icon;
 
+import java.util.List;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 
 import com.ziggfreed.common.icon.IconSpec;
@@ -14,18 +18,22 @@ import com.ziggfreed.common.icon.IconSpec;
  * <p>A row carrying an icon ships two sibling widgets and this toggles the right one by
  * {@code .Visible}:
  * <ul>
- *   <li>an {@code ItemIcon #IcoItem} whose {@code .ItemId} is the item whose generated icon to draw
- *       (item ids give the widest coverage, exactly the id {@code /give} takes), and</li>
+ *   <li>an {@code ItemGrid #IcoItem} (one slot, a {@code Style} from the {@code ZigButtons.ui}
+ *       ladder, never draggable) whose {@code .Slots} receives the item whose generated icon to
+ *       draw (item ids give the widest coverage, exactly the id {@code /give} takes), and</li>
  *   <li>an {@code AssetImage #IcoTex} whose {@code .AssetPath} is a Common-rooted texture path.</li>
  * </ul>
  *
  * <p>Item id WINS over texture path; with nothing to draw BOTH widgets hide and the row renders its
- * text alone. Both values are pushed as plain Strings, the always-safe form. The child ids
- * ({@code #IcoItem} / {@code #IcoTex}) are fixed by convention across every icon-bearing row.
+ * text alone. The item lands as a single {@link ItemGridSlot} list, the same push every price chip
+ * and reward row in the library makes; the texture path is pushed as a plain String. An item id
+ * nothing answers to costs the picture, never the row: the texture, where there is one, is drawn
+ * instead, and otherwise both hide. The child ids ({@code #IcoItem} / {@code #IcoTex}) are fixed
+ * by convention across every icon-bearing row.
  */
 public final class IconRenderer {
 
-    /** Relative child ids every icon-bearing row must declare (an {@code ItemIcon} and an {@code AssetImage}). */
+    /** Relative child ids every icon-bearing row must declare (an {@code ItemGrid} and an {@code AssetImage}). */
     public static final String ITEM_ICON_ID = "#IcoItem";
 
     public static final String TEXTURE_ICON_ID = "#IcoTex";
@@ -55,17 +63,25 @@ public final class IconRenderer {
             @Nullable String itemId, @Nullable String texturePath) {
         String itemSel = rowSelector + " " + ITEM_ICON_ID;
         String texSel = rowSelector + " " + TEXTURE_ICON_ID;
-        boolean hasItem = itemId != null && !itemId.isBlank();
+        boolean hasItem = itemId != null && !itemId.isBlank() && pushItem(cmd, itemSel, itemId);
         boolean hasTexture = !hasItem && texturePath != null && !texturePath.isBlank();
 
         cmd.set(itemSel + ".Visible", hasItem);
-        if (hasItem) {
-            cmd.set(itemSel + ".ItemId", itemId);
-        }
         cmd.set(texSel + ".Visible", hasTexture);
         if (hasTexture) {
             cmd.set(texSel + ".AssetPath", texturePath);
         }
         return hasItem || hasTexture;
+    }
+
+    /** Fill the grid's one slot with {@code itemId}; false when the id cannot be made a stack. */
+    private static boolean pushItem(@Nonnull UICommandBuilder cmd, @Nonnull String gridSelector,
+            @Nonnull String itemId) {
+        try {
+            cmd.set(gridSelector + ".Slots", List.of(new ItemGridSlot(new ItemStack(itemId, 1))));
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 }

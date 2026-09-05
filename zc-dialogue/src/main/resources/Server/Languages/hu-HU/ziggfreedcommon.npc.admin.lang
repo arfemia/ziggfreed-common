@@ -36,6 +36,6 @@ page.blocked = Blokkolva
 page.toggle.done = {0} mostantól {1}.
 page.toggle.failed = Nem sikerült megváltoztatni: {0}. A tulajdonosi fájl változatlan maradt.
 page.place.heading = Állíts fel egyet itt
-page.place.hint = Gépelj a szűréshez, majd helyezd el. Csak olyan szerepek jelennek meg, amelyeket ez a szerver létre tud hozni.
+page.place.hint = Írj be egy szerepnevet, nyomd meg a Keresés gombot, majd helyezd el. Csak olyan szerepek jelennek meg, amelyeket ez a szerver létre tud hozni.
 page.place.button = Elhelyezés
 page.place.none = Nincs találat. Töröld a szűrőt, hogy lásd, mije van ennek a szervernek.

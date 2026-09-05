@@ -1,13 +1,16 @@
+$Z = "../Common/ZigButtons.ui";
+
 // One objective line inside a quest-log row's expanded content (appended into
 // #ObjectivesContainer). Also reused as a step-group heading: the page restyles #ObjText
 // (size / colour / bold) for that, so this stays the ONE template a container mixes.
 //
 // The icon slot is hidden until a line has a picture to show, which a step-group heading never
 // does. Two sibling widgets, exactly one of which is ever visible, both driven by
-// ui/icon/IconRenderer: #IcoItem draws an item's own generated icon from a plain item id, and
-// #IcoTex draws a Common-rooted texture path - which is how a creature is shown, from the still
-// the client renders of it. #IcoTex carries a fallback so a creature that never had one rendered
-// still lines up.
+// ui/icon/IconRenderer: #IcoItem is a one-slot ItemGrid drawing an item's own generated icon from
+// a plain item id (its Style comes from the shared ZigButtons.ui ladder; a grid with no Style
+// draws nothing), and #IcoTex draws a Common-rooted texture path - which is how a creature is
+// shown, from the still the client renders of it. #IcoTex carries a fallback so a creature that
+// never had one rendered still lines up.
 
 Group {
   LayoutMode: Left;
@@ -17,9 +20,13 @@ Group {
     Anchor: (Width: 18, Height: 18, Right: 6);
     Visible: false;
 
-    ItemIcon #IcoItem {
+    ItemGrid #IcoItem {
       Anchor: (Width: 18, Height: 18);
       Visible: false;
+      SlotsPerRow: 1;
+      AreItemsDraggable: false;
+      DisplayItemQuantity: false;
+      Style: $Z.@ZigIconGrid18;
     }
 
     AssetImage #IcoTex {

@@ -22,7 +22,12 @@ parent [`../CLAUDE.md`](../CLAUDE.md); this is the map of what lives here.
   re-reads the owner layer, then force-sweeps), refusing an id that already exists and reporting
   `PLACED` / `ID_TAKEN` / `ROLE_NOT_SPAWNABLE` / `WRITE_FAILED` for the caller to word. Plus the
   courtesy role checks (`isSpawnable` / `spawnableRoles`) the command and admin page consult where
-  somebody TYPES a role id; permissive when there is no registry to ask.
+  somebody TYPES a role id; permissive when there is no registry to ask. And `roleIcon`, the
+  picture the admin page's picker draws beside each offered role: the role builder's spawn model
+  name read the way the engine's spawner reads it (`ISpawnableWithModel.getSpawnModelName` under a
+  fresh `ExecutionContext`), then that `ModelAsset`'s own `Icon`; null on every miss (no registry,
+  unknown role, no model, model not loaded, no icon) and never a throw, so a row degrades to its
+  name alone.
 - **[`NpcPlacementValidator`](NpcPlacementValidator.java)** - the two audit entry points:
   `auditFileLocal` (shape / spelling / self-contradiction, safe at any boot stage) and `audit`
   (plus the cross-asset half, trustworthy only once everything is up).

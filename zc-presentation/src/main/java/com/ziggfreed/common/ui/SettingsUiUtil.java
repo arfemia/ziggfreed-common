@@ -96,13 +96,38 @@ public final class SettingsUiUtil {
 
     /**
      * Bind a text field {@code ValueChanged} mapping its {@code .Value} to a {@code @}-prefixed codec
-     * key. The caller's event-data codec must declare that key WITH its {@code @}; see
-     * {@link #bindDropdown} for what a bare declaration looks like on screen.
+     * key, for a FORM field whose page wants every edit as it happens. The caller's event-data
+     * codec must declare that key WITH its {@code @}; see {@link #bindDropdown} for what a bare
+     * declaration looks like on screen. A SEARCH field is not this: it is the shared
+     * {@link ZigSearchRow}, which binds nothing per keystroke.
+     *
+     * @throws IllegalArgumentException on a bare key, through {@link #directive}
      */
     public static void bindTextField(@Nonnull UIEventBuilder events, @Nonnull String selector,
             @Nonnull String codecKey) {
         events.addEventBinding(CustomUIEventBindingType.ValueChanged, selector,
-                EventData.of(codecKey, selector + ".Value"), false);
+                EventData.of(directive(codecKey), selector + ".Value"), false);
+    }
+
+    /**
+     * The event-data key a binding names a LIVE element value under, checked for its {@code @}.
+     * The {@code @} is the client's directive to read the value string as an element path
+     * ({@code "#Field.Value"}) and ship that element's current value; a bare key ships the path
+     * string itself, which the page then paints back into the field as if it were typed. Every
+     * helper that maps a {@code .Value} path routes its key through here, so that mistake stops
+     * at the first open of the page instead of on a player's screen.
+     *
+     * @return {@code key}, unchanged
+     * @throws IllegalArgumentException when {@code key} does not start with {@code @}
+     */
+    @Nonnull
+    public static String directive(@Nonnull String key) {
+        if (!key.startsWith("@") || key.length() == 1) {
+            throw new IllegalArgumentException("an event-data key that carries an element value"
+                    + " must start with '@' (the client's resolve-as-path directive), got '" + key
+                    + "'; declare the same '@'-prefixed key in the receiving codec");
+        }
+        return key;
     }
 
     // ---------------------------------------------------------------------

@@ -36,6 +36,6 @@ page.blocked = Bloccato
 page.toggle.done = {0} ora è su {1}.
 page.toggle.failed = Non è stato possibile modificare {0}. Il file del proprietario è stato lasciato com'era.
 page.place.heading = Collocane uno qui
-page.place.hint = Digita per filtrare, poi colloca. Sono offerti solo ruoli che questo server può generare.
+page.place.hint = Digita un nome di ruolo, premi Cerca, poi colloca. Sono offerti solo ruoli che questo server può generare.
 page.place.button = Colloca
 page.place.none = Nessun ruolo corrisponde. Svuota il filtro per vedere che cosa ha questo server.

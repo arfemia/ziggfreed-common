@@ -42,6 +42,7 @@ import com.ziggfreed.common.ui.TagColors;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.ZigSearchRow;
 
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.CAT_TAB_OUTER_WIDTH;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.CAT_TAB_TEMPLATE;
@@ -297,17 +298,11 @@ final class BookQuestsTab {
             }
         }
 
-        // Search: seed the field, bind the button (the full state already captures the live text).
-        cmd.set("#QSearchField.Value", page.searchText());
-        ZigRichButton.text(cmd, "#QSearchBtn", page.text("book.quests.filter.search"));
-        events.addEventBinding(CustomUIEventBindingType.Activating, "#QSearchBtn",
-                page.fullState("search"), false);
-        if (!page.searchText().isEmpty()) {
-            cmd.set("#QClearSearchBtn.Visible", true);
-            ZigRichButton.text(cmd, "#QClearSearchBtn", page.text("book.quests.filter.clear"));
-            events.addEventBinding(CustomUIEventBindingType.Activating, "#QClearSearchBtn",
-                    page.fullState("clear_search"), false);
-        }
+        // Search: the shared row. The full state already carries the live text under the same
+        // key, so the Search click and every other binding agree on what was typed.
+        ZigSearchRow.wire(cmd, events, page.activeSearchRow(), page.searchText(),
+                ObjectiveBookPage.SEARCH_KEY, page.fullState("search"),
+                page.fullState("clear_search"));
 
         // The tag dropdown, collected pre-tag-filter; labels ride the consumer's tag reading.
         // With no tag anywhere in the visible set it stays hidden whole - an empty dropdown

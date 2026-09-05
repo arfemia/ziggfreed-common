@@ -1,3 +1,5 @@
+$Z = "../Common/ZigButtons.ui";
+
 // One line of a detail panel: a step and its count, a reward and its picture, or a reason
 // something is out of reach. ONE template for all three, because the three differ in what they SAY
 // rather than in what they are, and a page that appended three near-identical templates would be
@@ -13,9 +15,11 @@
 // rather than borrowing an unrelated thing's picture, which would read as a promise of that thing.
 //
 // Two sibling widgets, exactly one of which is ever visible, both driven by ui/icon/IconRenderer:
-// #IcoItem draws an item's own generated icon from a plain item id, and #IcoTex draws a
-// Common-rooted texture path - which is how a creature is shown, from the still the client renders
-// of it. #IcoTex carries a fallback so a creature that never had one rendered still lines up.
+// #IcoItem is a one-slot ItemGrid drawing an item's own generated icon from a plain item id (its
+// Style comes from the shared ZigButtons.ui ladder; a grid with no Style draws nothing), and
+// #IcoTex draws a Common-rooted texture path - which is how a creature is shown, from the still
+// the client renders of it. #IcoTex carries a fallback so a creature that never had one rendered
+// still lines up.
 //
 // All text lands on #LineText.TextSpans: a Message on a Label's .Text neither substitutes {0} nor
 // renders markup.
@@ -28,9 +32,13 @@ Group #ZigDetailLine {
     Anchor: (Width: 24, Height: 24, Right: 8);
     Visible: false;
 
-    ItemIcon #IcoItem {
+    ItemGrid #IcoItem {
       Anchor: (Width: 24, Height: 24);
       Visible: false;
+      SlotsPerRow: 1;
+      AreItemsDraggable: false;
+      DisplayItemQuantity: false;
+      Style: $Z.@ZigIconGrid24;
     }
 
     AssetImage #IcoTex {

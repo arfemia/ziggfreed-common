@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
+$S = "../Common/ZigSearchRow.ui";
 
 // The NPC placement admin page (com.ziggfreed.common.npc.placement.admin.NpcPlacementAdminPage).
 // Two stacked panels, each painted from Java:
@@ -9,9 +10,11 @@ $Z = "../Common/ZigButtons.ui";
 //                    Pages/ZigFormToggleRow.ui per placement - id and role on #Title, the live
 //                    state on #Hint, and the owner on/off switch on #Toggle (a denied placement is
 //                    retinted and reads "blocked", since its gate, not the switch, is what stops it).
-//   #PlacePanel      stand a new one where you are. #Search filters the roles this server can
-//                    actually spawn; each match is an appended Pages/ZigListRow.ui whose #EditBtn
-//                    places it.
+//   #PlacePanel      stand a new one where you are. #RoleSearch is the shared search row (type,
+//                    press Search) filtering the roles this server can actually spawn; each match
+//                    is an appended Pages/ZigListRow.ui whose #EditBtn places it, with the role's
+//                    own portrait (its model's icon) in the row's #IconSlot where the engine
+//                    names one.
 //
 // #Rows and #RoleRows are the appendable list containers and MUST stay childless here: rows are
 // addressed by indexed parent ("#Rows[0] #Toggle"), so a pre-authored child would shift every
@@ -92,9 +95,8 @@ $F.@ZigDecoratedFrame {
         Style: (FontSize: 11, TextColor: #8696a8, Wrap: true);
       }
 
-      $C.@TextField #Search {
-        Anchor: (Height: 30, Bottom: 8);
-        Padding: (Horizontal: 8);
+      $S.@ZigSearchRow #RoleSearch {
+        @Anchor = (Bottom: 8);
       }
 
       Group #RoleRows {

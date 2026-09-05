@@ -10,9 +10,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.asset.type.model.config.ModelAsset;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.NPCPlugin;
+import com.hypixel.hytale.server.npc.asset.builder.BuilderInfo;
+import com.hypixel.hytale.server.npc.util.expression.ExecutionContext;
+import com.hypixel.hytale.server.spawning.ISpawnableWithModel;
 import com.ziggfreed.common.npc.placement.runtime.NpcPlacementReconciler;
 import com.ziggfreed.common.util.JsonOverrideWriter;
 import com.ziggfreed.common.util.SafeLog;
@@ -29,6 +33,10 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code mods/ziggfreedcommon/npc-placements.json}, in exactly the shape a pack ships, so the result
  * is readable, editable and removable by hand afterwards. There is no second kind of placement and
  * no privileged path for one written this way.
+ *
+ * <p>The three role-registry reads a picker or a command needs sit here beside the write, so they
+ * are answered the same way wherever a role is offered: {@link #spawnableRoles()},
+ * {@link #isSpawnable(String)} and {@link #roleIcon(String)}.
  *
  * <p><b>World thread</b>, because it sweeps.
  */
@@ -149,6 +157,45 @@ public final class NpcPlacementAuthoring {
             return true;
         } catch (Throwable t) {
             return false;
+        }
+    }
+
+    /**
+     * The picture of {@code role}, for a picker to show beside its name: the icon of the model the
+     * role wears, a Common-rooted texture path an {@code AssetImage} draws. The model is read the
+     * way the engine's own spawner reads it (the role builder's spawn model name, under a fresh
+     * execution scope), and the icon is the model asset's own {@code Icon}, which is what the
+     * client's creature portraits are keyed by.
+     *
+     * <p>Null whenever any hop cannot answer - no role registry, an unknown role, a role that names
+     * no model, a model that is not loaded, a model with no icon - so a caller paints the name
+     * alone rather than a broken picture. Never throws: a picker asks this per row while it builds,
+     * and a page that throws mid-build leaves its player on a screen that never arrives.
+     */
+    @Nullable
+    public static String roleIcon(@Nonnull String role) {
+        try {
+            NPCPlugin npc = NPCPlugin.get();
+            if (npc == null) {
+                return null;
+            }
+            BuilderInfo info = npc.getRoleBuilderInfo(npc.getIndex(role.trim()));
+            if (info == null || !(info.getBuilder() instanceof ISpawnableWithModel spawnable)) {
+                return null;
+            }
+            ExecutionContext context = new ExecutionContext(spawnable.createExecutionScope());
+            String modelId = spawnable.getSpawnModelName(context,
+                    spawnable.createModifierScope(context));
+            if (modelId == null || modelId.isBlank()) {
+                return null;
+            }
+            ModelAsset model = ModelAsset.getAssetMap().getAsset(modelId);
+            String icon = model == null ? null : model.getIcon();
+            return icon == null || icon.isBlank() ? null : icon;
+        } catch (Throwable t) {
+            SafeLog.fine("[placement] could not read the picture of role " + role + ": "
+                    + t.getMessage());
+            return null;
         }
     }
 

@@ -42,6 +42,7 @@ import com.ziggfreed.common.ui.StatusTones;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.ZigSearchRow;
 
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CATEGORY_CARD_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CHIP_TEMPLATE;
@@ -252,17 +253,11 @@ final class BookAchievementsTab {
             }
         }
 
-        // Search, sort chips, status chips.
-        cmd.set("#ASearchField.Value", page.searchText());
-        ZigRichButton.text(cmd, "#ASearchBtn", page.text("book.quests.filter.search"));
-        events.addEventBinding(CustomUIEventBindingType.Activating, "#ASearchBtn",
-                page.fullState("search"), false);
-        if (!page.searchText().isEmpty()) {
-            cmd.set("#AClearSearchBtn.Visible", true);
-            ZigRichButton.text(cmd, "#AClearSearchBtn", page.text("book.quests.filter.clear"));
-            events.addEventBinding(CustomUIEventBindingType.Activating, "#AClearSearchBtn",
-                    page.fullState("clear_search"), false);
-        }
+        // Search (the shared row; the full state already carries the live text under the same
+        // key), sort dropdown, status chips.
+        ZigSearchRow.wire(cmd, events, page.activeSearchRow(), page.searchText(),
+                ObjectiveBookPage.SEARCH_KEY, page.fullState("search"),
+                page.fullState("clear_search"));
         // Sort is a single choice, so it rides the native dropdown and every label renders
         // whole. A dropdown entry is a String-only sink, so labels flatten here.
         List<DropdownEntryInfo> sortEntries = new ArrayList<>(SORT_MODES.length);

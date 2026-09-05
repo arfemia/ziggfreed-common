@@ -37,6 +37,7 @@ import com.ziggfreed.common.ui.StatusTones;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.ZigSearchRow;
 import com.ziggfreed.common.i18n.NativeNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -85,6 +86,18 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     static final String ACH_CATEGORY_CARD_TEMPLATE = "Pages/ZigAchCategoryCard.ui";
     static final String MILESTONE_TEMPLATE = "Pages/ZigMilestoneCard.ui";
     static final String REWARD_ROW_TEMPLATE = "Pages/ZigBookRewardRow.ui";
+
+    /** The quests tab's search row, an instance of the shared {@link ZigSearchRow}. */
+    static final String QUEST_SEARCH = "#QSearch";
+
+    /** The achievements tab's search row, the second instance on the same page. */
+    static final String ACH_SEARCH = "#ASearch";
+
+    /**
+     * The key the active row's live text rides under on every binding. The {@code @} is what
+     * makes the client resolve the value as an element path; the codec declares the same key.
+     */
+    static final String SEARCH_KEY = "@SearchInput";
 
     /** This library's own lang namespace; {@link Msg#tr} concatenates it with the key verbatim. */
     private static final String PREFIX = "ziggfreedcommon.";
@@ -421,21 +434,21 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     /** {@link #fullState(String)} with the tab overridden - the tab buttons' own form. */
     @Nonnull
     EventData fullState(@Nonnull String action, @Nonnull String forTab) {
-        return EventData.of("Action", action)
+        EventData state = EventData.of("Action", action)
                 .append("Tab", forTab)
                 .append("Category", filterCategory)
                 .append("Status", filterStatus)
                 .append("Search", searchText)
                 .append("Tag", filterTag)
                 .append("Subcategory", filterSubcategory)
-                .append("Sort", sortMode)
-                .append("@SearchInput", activeSearchField() + ".Value");
+                .append("Sort", sortMode);
+        return ZigSearchRow.carry(state, SEARCH_KEY, activeSearchRow());
     }
 
-    /** The active tab's search field, the one whose live text every binding captures. */
+    /** The active tab's search row, the one whose live text every binding captures. */
     @Nonnull
-    private String activeSearchField() {
-        return TAB_ACHIEVEMENTS.equals(tab) ? "#ASearchField" : "#QSearchField";
+    String activeSearchRow() {
+        return TAB_ACHIEVEMENTS.equals(tab) ? ACH_SEARCH : QUEST_SEARCH;
     }
 
     private void bindTab(@Nonnull UIEventBuilder events, @Nonnull String selector,

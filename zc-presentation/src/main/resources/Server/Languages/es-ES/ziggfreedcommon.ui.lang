@@ -1,0 +1,5 @@
+# Words the shared UI widgets under Common/UI/Custom/Common/*.ui put on screen.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.ui.<key>.
+
+search.button = Buscar
+search.clear = Borrar

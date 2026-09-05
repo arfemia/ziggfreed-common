@@ -94,8 +94,18 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     the asset's javadoc, which is the authoring reference.
 - [`sound/`](src/main/java/com/ziggfreed/common/sound/CLAUDE.md) - `Sound3D`.
 - `ui/` - `CustomHudHelper`, `ZigRichButton` (the clickable-rich-text primitive every labeled
-  button in the library uses), `UiRetint` (the generic palette-to-selector retint primitive),
-  `SettingsUiUtil` (settings-form binding helper), `UiText` (the ONE way a page writes a `.Text`
+  button in the library uses), `ZigSearchRow` (the Java half of the shared search row
+  `Common/ZigSearchRow.ui`: `wire` seeds the field, labels Search and Clear from this module's
+  own `ziggfreedcommon.ui.lang`, binds both clicks and shows Clear only while there is text;
+  `carry` puts the row's live value on any OTHER binding under an `@`-prefixed key, refusing a
+  bare one, because the `@` is the client's directive to resolve the value as an element path
+  and without it the path string ships literally and lands in the field as typed text;
+  `valuePath` is the scoped `"<row> #SearchField.Value"`. A search field binds NOTHING per
+  keystroke: a rebuild on every character steals focus, so Search submits and the live text
+  rides the page's other bindings, the objective book's shape), `UiRetint` (the generic
+  palette-to-selector retint primitive), `SettingsUiUtil` (settings-form binding helper; its
+  `directive(key)` is the one `@`-check every `.Value`-mapping helper in the family routes
+  through), `UiText` (the ONE way a page writes a `.Text`
   property, pinned by `TextSinkGoesThroughUiTextTest`: a translation is sent for the client to
   resolve, anything else is flattened through `flatten`, because a non-`MessageId` `Message`
   document in that slot DISCONNECTS the client - so a String-only sink resolves its translation
@@ -109,10 +119,14 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
   - [`ui/hud/`](src/main/java/com/ziggfreed/common/ui/hud/CLAUDE.md) - `KeyedCustomHud` +
     `HudPosition`.
   - `ui/icon/` - `IconRenderer`, the ONE seam that paints an `icon.IconSpec` into a row or a chip:
-    a row ships an `ItemIcon #IcoItem` and an `AssetImage #IcoTex` side by side and this toggles the
-    right one by `.Visible`, the item id winning when both are set, so no surface re-decides
-    item-versus-texture and a row with nothing to draw keeps both hidden. No router of its own; see
-    the class javadoc.
+    a row ships a one-slot `ItemGrid #IcoItem` (styled from the `ZigButtons.ui` ladder; the item
+    lands on its `.Slots` as an `ItemGridSlot`, since the client has no `ItemIcon` widget type) and
+    an `AssetImage #IcoTex` side by side and this toggles the right one by `.Visible`, the item id
+    winning when both are set, so no surface re-decides item-versus-texture and a row with nothing
+    to draw keeps both hidden; an item id nothing answers to falls through to the texture. The
+    shipped rows carrying the pair are `Pages/ZigDetailLine.ui` and `Pages/ZigListRow.ui` here (the
+    latter's sits in a hidden `#IconSlot` a consumer shows off the seam's return value) plus the
+    objective book's criterion and objective rows. No router of its own; see the class javadoc.
   - `ui/route/` - the DESTINATION vocabulary: `Destination` (a `Type`-discriminated union authored
     as `{"Type": "...", ...}` or as one bare word for a type with no fields) + `Destinations` (the
     open registry a mod claims a type in, over `registry/RegistryLedger`) + `DestinationType`
@@ -135,8 +149,11 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
 
 ## Shipped resources
 
-`Common/UI/Custom/Common/{ZigButtons.ui, ZigFrames.ui}` (the shared neutral button/frame styles
-every page in the library imports), `Common/UI/Custom/Pages/{ZigFormDropdownRow.ui,
+`Common/UI/Custom/Common/{ZigButtons.ui, ZigFrames.ui, ZigSearchRow.ui}` (the shared neutral
+button/frame styles every page in the library imports, and the parameterised search-row component
+`@ZigSearchRow` - field + Search + Clear under an instance id, so one page can hold two - that
+every search field in the family instantiates, wired from Java by `ui/ZigSearchRow`),
+`Common/UI/Custom/Pages/{ZigFormDropdownRow.ui,
 ZigFormFieldRow.ui, ZigFormHeaderRow.ui, ZigFormNoteRow.ui, ZigFormToggleRow.ui, ZigListRow.ui,
 ZigSelectRow.ui, ZigDetailLine.ui, ZigToast.ui}` plus `ZigToastFrame.png` (`ZigSelectRow.ui` is the
 one selectable list row - content row and section heading in a single template, `#RowBtn` + hidden
@@ -147,21 +164,33 @@ engines announce plus the four the boss framework announces)
 at `Server/ZiggfreedCommon/FeedbackMoments/<moment id>.json` and their wording at
 `Server/Languages/<locale>/ziggfreedcommon.feedback.lang` (nine locales) - the library's own default
 CONTENT a consumer overrides by id, every file carrying a public-facing `$Comment` naming the
-arguments the moment carries and how to override it.
+arguments the moment carries and how to override it. `Server/Languages/<locale>/ziggfreedcommon.ui.lang`
+(nine locales) carries the words the shared widgets put on screen: today the search row's Search
+and Clear.
 
 ## Conventions
 
 Every labeled clickable button is a `ZigRichButton` (a `Button` + inner `#Label` set via
 `.TextSpans`), never a `TextButton` whose `.Text` is set from Java - see the root router's hard
 rule under Conventions for why. Colour/bold/param substitution only render on `.TextSpans`, never
-`.Text`. i18n is parameterized OUT of every primitive here (pre-built `Message`s only); no Java in
-this module owns a namespace prefix - the shipped default moment files name their own lang ids in
-full (`ziggfreedcommon.feedback.<key>`), which the moment engine passes through untouched.
+`.Text`. i18n is parameterized OUT of every primitive that paints a consumer's words (pre-built
+`Message`s only); the Java here owns exactly two lang files of its own - the shipped default moment
+files name their ids in full (`ziggfreedcommon.feedback.<key>`), which the moment engine passes
+through untouched, and the shared search row's two button words resolve from
+`ziggfreedcommon.ui.lang`, since a widget the library ships whole labels itself.
+
+A binding that carries a LIVE element value names it under an `@`-prefixed key (`"@SearchInput"`,
+`"@DropdownValue"`) and the receiving codec declares that same `@`-key: the `@` is the client's
+directive to read the value as an element path. Every helper that maps a `.Value` path routes its
+key through `SettingsUiUtil.directive`, which refuses a bare key. A SEARCH field is never bound
+per keystroke; it is the shared `ZigSearchRow`.
 
 ## Tests
 
 Thin relative to the package count: `HudPositionTest` (corner-preset parsing + anchor math),
-`SettingsFormTest` (field-spec render/refresh/collect round trip), and `DestinationsTest` (the
+`SettingsFormTest` (field-spec render/refresh/collect round trip), `ZigSearchRowTest` (the scoped
+value path, `carry` under an `@`-key and its refusal of a bare one, and the two button words being
+authored in the shipped en-US file), and `DestinationsTest` (the
 routing vocabulary's decode + dispatch + audit contract: a registered type's own fields, the
 bare-string form as the same value, an unknown or mis-cased `Type` failing the read, a late
 registration still taking effect, a throwing handler counted against its owner). The retint engine and

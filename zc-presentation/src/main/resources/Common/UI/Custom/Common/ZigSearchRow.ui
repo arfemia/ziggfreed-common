@@ -1,0 +1,71 @@
+$C = "../Common.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// ── ziggfreed-common shared SEARCH ROW (field + Search + Clear) ───────────────
+// Imported per page as:  $S = "../Common/ZigSearchRow.ui";  then instantiated WITH AN ID:
+//   $S.@ZigSearchRow #QSearch { @Anchor = (Width: 346); @Height = 32; }
+//
+// One text field that flexes to fill the row, a Search button that submits what was
+// typed, and a Clear button that empties it (hidden until there is something to clear).
+// The instance id is what lets a page hold two of these: every inner element is addressed
+// as a descendant of it ("#QSearch #SearchField"), which is how Java seeds the field,
+// labels the buttons and binds the clicks - always through
+// com.ziggfreed.common.ui.ZigSearchRow (wire / carry / valuePath), never by hand.
+//
+// The field carries NO per-keystroke binding on purpose: a page that rebuilt on every
+// character would steal focus from the field and put the typed text back a keystroke
+// late. The Search button is what submits, and a page's OTHER bindings carry the live
+// text along (ZigSearchRow.carry), so a click on anything else never discards what was
+// typed.
+//
+// Parameters: @Anchor (the row's own width and margins; leave Width out and the row
+// fills its parent), @Height (the control height), @SearchWidth / @ClearWidth (the two
+// button widths), @Placeholder (a %key; token for the field's placeholder text; "" for
+// none). Fixed inner ids: #SearchField, #SearchBtn, #ClearBtn. Both buttons are a Button
+// + inner #Label so their words come from the lang file on .TextSpans; keep
+// @ZigRichRowBtnStyle, it carries the click Sounds.
+
+@ZigSearchRow = Group {
+  @Anchor = ();
+  @Height = 30;
+  @SearchWidth = 74;
+  @ClearWidth = 64;
+  @Placeholder = "";
+
+  LayoutMode: Left;
+  Anchor: (...@Anchor, Height: @Height);
+
+  $C.@TextField #SearchField {
+    FlexWeight: 1;
+    Anchor: (Height: @Height);
+    Padding: (Horizontal: 8);
+    PlaceholderText: @Placeholder;
+    Style: (FontSize: 13, TextColor: #b6c9de);
+  }
+
+  Group { Anchor: (Width: 4); }
+
+  Button #SearchBtn {
+    Style: $Z.@ZigRichRowBtnStyle;
+    Anchor: (Width: @SearchWidth, Height: @Height);
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+    }
+  }
+
+  Group { Anchor: (Width: 4); }
+
+  // Shown by Java only while the field holds something to clear.
+  Button #ClearBtn {
+    Style: $Z.@ZigRichRowBtnStyle;
+    Anchor: (Width: @ClearWidth, Height: @Height);
+    Visible: false;
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: 13, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
+    }
+  }
+};

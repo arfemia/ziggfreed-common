@@ -36,6 +36,6 @@ page.blocked = Blockiert
 page.toggle.done = {0} ist jetzt {1}.
 page.toggle.failed = {0} konnte nicht geändert werden. Die Besitzerdatei blieb unverändert.
 page.place.heading = Hier eine aufstellen
-page.place.hint = Tippe zum Filtern, dann aufstellen. Nur Rollen, die dieser Server erzeugen kann, werden angeboten.
+page.place.hint = Tippe einen Rollennamen, drücke Suchen, dann aufstellen. Nur Rollen, die dieser Server erzeugen kann, werden angeboten.
 page.place.button = Aufstellen
 page.place.none = Keine Rolle passt. Leere den Filter, um zu sehen, was dieser Server hat.

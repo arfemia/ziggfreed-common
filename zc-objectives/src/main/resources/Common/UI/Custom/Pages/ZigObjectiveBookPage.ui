@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
+$S = "../Common/ZigSearchRow.ui";
 
 // The Objective Book (com.ziggfreed.common.objectives.book.ObjectiveBookPage): a full-screen
 // two-tab progression menu. Three columns: #LeftPanel is a host column a consumer mod may paint
@@ -9,12 +10,13 @@ $Z = "../Common/ZigButtons.ui";
 // panel on the quests tab or a consumer-painted column on the achievements tab.
 //
 // The quests tab is a filterable quest log: category chips (or a dropdown once the rendered
-// chips cannot fit the strip), search, a tag dropdown (shown only when a visible quest carries a
-// tag), status chips, then ONE scrolling region holding the pre-expanded Active section above the
-// browse list (rows are Pages/ZigQuestLogRow.ui). The achievements tab is a two-panel browser: a
-// filter strip + compact rows (Pages/ZigAchListRow.ui) on the left, the selected achievement's
-// detail on the right, and an overview (recent / nearest / pinned / categories / milestones)
-// filling the right panel while nothing is selected.
+// chips cannot fit the strip), the shared search row (#QSearch), a tag dropdown (shown only when
+// a visible quest carries a tag), status chips, then ONE scrolling region holding the
+// pre-expanded Active section above the browse list (rows are Pages/ZigQuestLogRow.ui). The
+// achievements tab is a two-panel browser: a filter strip (its own search row, #ASearch) +
+// compact rows (Pages/ZigAchListRow.ui) on the left, the selected achievement's detail on the
+// right, and an overview (recent / nearest / pinned / categories / milestones) filling the right
+// panel while nothing is selected.
 //
 // The Full: 12 padding on #Content is load-bearing: at 0 the #LeftPanel / #SidePanel bevels stack
 // against the frame bevel and read as a heavy dark shadow down the menu edges.
@@ -204,36 +206,10 @@ $F.@ZigDecoratedFrame {
           LayoutMode: Left;
           Anchor: (Height: 36);
 
-          $C.@TextField #QSearchField {
-            Anchor: (Width: 200, Height: $C.@SmallButtonHeight);
-            Padding: (Left: 8, Right: 8);
-            PlaceholderText: %ziggfreedcommon.progression.book.quests.filter.searchPlaceholder;
-            Style: (FontSize: 13, TextColor: #b6c9de);
-          }
-
-          Group { Anchor: (Width: 4); }
-
-          Button #QSearchBtn {
-            Style: $Z.@ZigRichRowBtnStyle;
-            Anchor: (Width: 74, Height: $C.@SmallButtonHeight);
-            Label #Label {
-              FlexWeight: 1;
-              Text: "";
-              Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
-            }
-          }
-
-          Group { Anchor: (Width: 4); }
-
-          Button #QClearSearchBtn {
-            Style: $Z.@ZigRichRowBtnStyle;
-            Anchor: (Width: 26, Height: $C.@SmallButtonHeight);
-            Visible: false;
-            Label #Label {
-              FlexWeight: 1;
-              Text: "";
-              Style: (FontSize: 13, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
-            }
+          $S.@ZigSearchRow #QSearch {
+            @Anchor = (Width: 346);
+            @Height = 32;
+            @Placeholder = %ziggfreedcommon.progression.book.quests.filter.searchPlaceholder;
           }
 
           // The tag filter shows only when a visible quest actually carries a tag; an empty
@@ -333,36 +309,10 @@ $F.@ZigDecoratedFrame {
           LayoutMode: Left;
           Anchor: (Height: 36);
 
-          $C.@TextField #ASearchField {
-            Anchor: (Width: 200, Height: $C.@SmallButtonHeight);
-            Padding: (Left: 8, Right: 8);
-            PlaceholderText: %ziggfreedcommon.progression.book.achievements.searchPlaceholder;
-            Style: (FontSize: 13, TextColor: #b6c9de);
-          }
-
-          Group { Anchor: (Width: 4); }
-
-          Button #ASearchBtn {
-            Style: $Z.@ZigRichRowBtnStyle;
-            Anchor: (Width: 74, Height: $C.@SmallButtonHeight);
-            Label #Label {
-              FlexWeight: 1;
-              Text: "";
-              Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
-            }
-          }
-
-          Group { Anchor: (Width: 4); }
-
-          Button #AClearSearchBtn {
-            Style: $Z.@ZigRichRowBtnStyle;
-            Anchor: (Width: 26, Height: $C.@SmallButtonHeight);
-            Visible: false;
-            Label #Label {
-              FlexWeight: 1;
-              Text: "";
-              Style: (FontSize: 13, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
-            }
+          $S.@ZigSearchRow #ASearch {
+            @Anchor = (Width: 346);
+            @Height = 32;
+            @Placeholder = %ziggfreedcommon.progression.book.achievements.searchPlaceholder;
           }
 
           Group { Anchor: (Width: 10); }

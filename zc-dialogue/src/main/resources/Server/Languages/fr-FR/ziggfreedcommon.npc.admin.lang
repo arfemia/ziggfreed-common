@@ -36,6 +36,6 @@ page.blocked = Bloqué
 page.toggle.done = {0} est maintenant sur {1}.
 page.toggle.failed = Impossible de modifier {0}. Le fichier du propriétaire a été laissé tel quel.
 page.place.heading = En placer un ici
-page.place.hint = Tapez pour filtrer, puis placez. Seuls les rôles que ce serveur peut faire apparaître sont proposés.
+page.place.hint = Tapez un nom de rôle, appuyez sur Rechercher, puis placez. Seuls les rôles que ce serveur peut faire apparaître sont proposés.
 page.place.button = Placer
 page.place.none = Aucun rôle ne correspond. Videz le filtre pour voir ce que ce serveur possède.
