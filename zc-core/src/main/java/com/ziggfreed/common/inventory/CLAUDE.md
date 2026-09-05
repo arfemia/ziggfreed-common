@@ -49,9 +49,17 @@ needs it), so it lives here, not duplicated in a consumer.
     JVM - each resolves its `ComponentType` through `EntityModule.get()`, which needs a booted
     server, and no `Player` can be fabricated without one - so reflection is used to read the
     shape (it RESOLVES the engine parameter types without INITIALIZING them). NO test anywhere
-    executes an accessor BODY, so the held 1.6.0 in-game smoke pass is the first thing that ever
-    will: pick up an item, break a block, hand in a turn-in quest, and run a station Consume step
-    are the four moments that cover them, and they belong on that checklist by name.
+    executes an accessor BODY, so only an in-game smoke pass ever will: pick up an item, break a
+    block, hand in a turn-in quest, and run a station Consume step are the four moments that cover
+    them, and they belong on that checklist by name.
+- **[`ItemIds`](ItemIds.java)** - `exists(itemId)`, the honest "does this server ship an item
+  under this id" probe, asked of the asset map. The obvious ways do not work: `ItemStack#getItem()`
+  never answers null (it falls back to `Item.UNKNOWN`, texture `Items/Unknown.png`), so
+  `ItemStack#isValid()` is true for every id that was ever spelled, and a surface that probes either
+  one then draws the id paints the unknown-item picture at the player instead of drawing nothing. A
+  caller that wants to draw or name an item checks this first and falls back to its own no-picture
+  path (`CommerceStepIcons`, `ProgressionIcons`). Safe before assets load and in a JVM with no asset
+  store: false rather than a throw.
 - **[`InventoryUtil`](InventoryUtil.java)** - static helpers keyed by item id, operating
   across ALL inventory sections at once via `InventoryComponent.getCombined(store, ref,
   InventoryComponent.EVERYTHING)`:

@@ -8,8 +8,10 @@ in-world tracked-quest HUD that repaints off the quest engine's own events.
 Module edges: `zc-core`, `zc-loot`, `zc-progression`, `zc-presentation`, `zc-cast`, `zc-entity`,
 `zc-dialogue` (NPC identity, for the page at a character; `DialogueMemories`, for the admin verbs that
 forget them, and `DialogueEngine`, for the seams `dialogue/DialogueBootstrap` fills), `zc-world`
-(`world.placed` only, the ledger the break and pickup producers consult) and `zc-instance`
-(`InstanceRoundCompletedEvent`, the sixth producer) - all one-way `implementation`. Package
+(`world.placed` only, the ledger the break and pickup producers consult), `zc-instance`
+(`InstanceRoundCompletedEvent`, the sixth producer) and `zc-encounter` (the boss framework's
+defeat / wipe / phase events, the seventh producer, plus the folded binding rows
+`EncounterQuestAxes` publishes as a quest axis) - all one-way `implementation`. Package
 root `com.ziggfreed.common.objectives`.
 
 **Why this module exists at all.** The book needs BOTH the engines and a page, and the tracked-quest
@@ -75,6 +77,12 @@ reaction that already saw the action would otherwise pay twice). `ProgressDispat
 it: null-subject and gate-refused moments reach the listener, a throwing listener costs only itself,
 order is not a precedence, late registration fires, and the alias route reaches no listener.
 
+**A moment several players SHARE runs its engine half under one credit.** When the payload
+implements `progress/runtime/SharedCredit` (a party's boss kill, dispatched once per member, keyed
+on the run id), the dispatch wraps both engine calls in `FirstClaims.withSharedCredit`, so a
+server-first claim one member wins inside it is a win for the rest of them rather than a race lost
+to a teammate. A payload that names no credit changes nothing. `SharedCreditDispatchTest` pins it.
+
 **There is deliberately no "is anything listening?" short-circuit in the dispatch.** Both engines can
 answer that cheaply (`index().forKind(kind)`), but the observer tap is fed on a dispatch that matched
 NOTHING on purpose - a lifetime counter has to count a block broken while no content wanted it - and
@@ -107,13 +115,14 @@ unqualified, byte-identical to a bare server. `KillQualifierProducerTest` pins t
 |---|---|
 | `runtime/` | `ProgressionBootstrap` (the three setup phases this module owns, each called once from the root's `setup()`: the shared runtime + `/zigprogress`, the authored feedback moments, the default quest-list host) and `ProgressionDefaults`: the default registrations, the asset fold + its audit, the text source, the player lifecycle, and the `onProgressDirty` / `onProgressFlush` persistence contributions |
 | `store/` | `ZigProgressComponent` (the persisted state) + `ProgressBlob` (the packing) + `ProgressHandle`/`ProgressSubjects` (the subject) + `ZigQuestStore`/`ZigAchievementStore` (the two adapters) |
-| `producer/` | `ProgressDispatch` plus the six generic producers (block break, mob kill, craft, pickup, place block, and the instance-round listener off zc-instance's `InstanceRoundCompletedEvent`) and their six typed `MomentPayload` records |
+| `producer/` | `ProgressDispatch` plus the seven generic producers (block break, mob kill, craft, pickup, place block, the instance-round listener off zc-instance's `InstanceRoundCompletedEvent` and the boss-beat listener off zc-encounter's defeat, wipe and phase events) and their seven typed `MomentPayload` records, plus `PlayerMomentDispatch` (the per-player world resolve and hop the two bus producers share) and `EncounterQuestAxes` (the `ziggfreedcommon:encounters` generator axis over the folded binding rows) |
 | `book/` | the in-game two-tab surface and the item that opens it |
 | `questlist/` | the NPC quest page: what one CHARACTER has to offer, list and detail |
 | `command/` | `/zigprogress`: the admin family over THE runtime - quest, achievement and memory groups; see [its router](command/CLAUDE.md) |
 | `admin/` | the progression admin page: `SystemSwitch` + `SystemSwitches` (the registered server-wide system switches) and `ProgressionAdminPage`/`Pages`/`Deps` (audience DEFAULT DENY, opened only by direct static call) - see below |
 | `hud/` | the tracked-quest HUD (`TrackedQuestHud` + `TrackedQuestHuds` + `TrackedQuestHudDeps` + `TrackedQuestSnapshot` + `RepaintCoalescer`) and the tracked-quests side-panel renderer a page embeds (`TrackedQuestPanelRenderer`) |
 | `dialogue/` | `DialogueBootstrap`: this module's fill of the seams `zc-dialogue` declares and structurally cannot fill - the `hytale:` factor vocabulary its `Factor` conditions resolve against, the persistent memory store (this module's own progress component) plus the disconnect that ends a `Session` memory, and the `QuestResets` hook that forgets a `ResetWithQuest` memory - and `ActiveObjectiveHeader`, the header note a conversation shows under the speaker's name |
+| `flair/` | the flair GRANT surface over zc-entity's `ZigFlairComponent`: `FlairUnlocks` (the ONE write path, firing `ZigFlairChangedEvent` and the authored `Flair_Unlocked` moment on a real change only), the unprefixed `Flair` reward kind, `FlairText`/`FlairChipReading` (the `flair.<id>.name` ladder every surface shares), `/zigflair grant|revoke|list`, and `FlairBootstrap`, the one `setup()` phase registering the kind, the chip reading and the command |
 
 ## What these defaults MUST wire, because nothing works without them
 
@@ -244,16 +253,18 @@ single class can implement both.
 
 ## The producers
 
-All six register unconditionally and all six fire unconditionally; nothing stands one down. The
+All seven register unconditionally and all seven fire unconditionally; nothing stands one down. The
 two that credit a WORLD action first ask zc-world's `world/placed/PlacedBlockLedger` and skip a
 block or an item the player put down themselves - and since a consumer's XP is a REACTION to the
 moment they fire, a placed block produces no moment and nothing reacts, so progress and XP can never
 disagree about it. They never touch an engine - everything goes through
 [`producer/ProgressDispatch`](producer/ProgressDispatch.java), which builds the subject, fans the
 moment to every reaction, feeds both engines, and swallows nothing silently. World-thread
-throughout, which is where an ECS system already is; the one producer that is a BUS listener rather
-than an ECS system (`ZigInstanceRoundProducer`, off zc-instance's `InstanceRoundCompletedEvent`)
-resolves each named player's own live world and hops there when it is not already on it. Each hands
+throughout, which is where an ECS system already is; the two producers that are BUS listeners rather
+than ECS systems (`ZigInstanceRoundProducer` off zc-instance's `InstanceRoundCompletedEvent`, and
+`ZigEncounterProducer` off zc-encounter's defeat, wipe and phase events) share `PlayerMomentDispatch`,
+which resolves each named player's own live world off that player's own `Ref` and hops there when it
+is not already on it. Each hands
 its own typed payload record to the dispatch, so a reaction reaches what the tuple cannot carry.
 
 | Producer | Kind | Target | Amount | Payload |
@@ -264,6 +275,7 @@ its own typed payload record to the dispatch, so a reaction reaches what the tup
 | `ZigPickupProducer` | `PICKUP_ITEM` | the picked-up item's id | 1 | `PickupPayload(event)` |
 | `ZigPlaceBlockProducer` | `PLACE_BLOCK` | the placed item's id | 1 | `PlaceBlockPayload(event)` |
 | `ZigInstanceRoundProducer` | `INSTANCE_ROUND_ENDED` per participant, `INSTANCE_ROUND_WON` per winner | `<modId>:<modeId>` (the `<modId>:` prefix matches any mode), qualifier the preset id | 1 | `InstanceRoundPayload(event)` |
+| `ZigEncounterProducer` | `ENCOUNTER_ATTEMPT` per participant on a settlement, `ENCOUNTER_DEFEATED` per credited participant, `ENCOUNTER_PHASE` per live member on each phase beat | the encounter SCRIPT id, never the boss creature's, so a step holds through an in-place role swap (qualifier: the run's difficulty label on a settlement, null when a wipe carried none, the phase's own state name on a phase beat) | 1 | `EncounterPayload(runId, encounterId, event, share)` |
 
 - **The place-block producer counts exactly what the placement recorder records**, through the
   recorder's own `PlacedBlockRecorder.placementCounts` predicate (a cancelled placement never
@@ -526,7 +538,7 @@ lifecycle affordance a character can offer - accept, hand in here, collect, aban
   reference** - the host interface's one abstract method is the highlight-carrying shape, which
   `NpcQuestPages.open(npcId, highlightQuestId, store, ref, player)` matches byte-exactly, so
   `NpcQuestPages::open` carries every highlight (details in the
-  [module router](../../../../../../CLAUDE.md)). A consumer that wants a different screen registers
+  [module router](../../../../../../../CLAUDE.md)). A consumer that wants a different screen registers
   its own host and outranks nothing - first host to take the screen wins.
 - **`.ui` contract**: `Pages/ZigNpcQuestPage.ui` plus zc-presentation's shared appended
   `Pages/ZigSelectRow.ui` (ONE template for both a quest row and a section heading, since a list

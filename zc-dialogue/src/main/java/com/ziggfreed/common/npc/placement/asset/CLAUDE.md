@@ -10,7 +10,10 @@ parent [`../CLAUDE.md`](../CLAUDE.md); this is the map of what lives here.
 - **[`NpcPlacementConfig`](NpcPlacementConfig.java)** - the `defaults < pack < owner` fold
   singleton; every merge clears the sweep debounce + position cache and logs the FILE-LOCAL
   findings; `runLateAudit()` runs the full audit once per boot and stands down when a consumer
-  `claimLateAudit`s it.
+  `claimLateAudit`s it; `rolesByPlacement()` is a cross-module read - a fresh `placementId -> [role]`
+  map the wiring root hands to zc-encounter's `EncounterAudit.addRoleNameSource`, so a placement
+  naming a role that resolves to a loaded encounter script is reported as
+  `ENCOUNTER_SCRIPT_ID_IS_ROLE_ID` under the `encounter` domain, not this one.
 - **[`NpcPlacementOverrides`](NpcPlacementOverrides.java)** - the owner switch at
   `mods/ziggfreedcommon/npc-placements.json` (exact > longest `*`-prefix > bare `*`).
 - **[`NpcPlacementAuthoring`](NpcPlacementAuthoring.java)** - writing a placement from OUTSIDE a

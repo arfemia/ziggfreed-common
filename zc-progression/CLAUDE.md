@@ -8,7 +8,7 @@ domain vocabulary of its own.
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -40,7 +40,7 @@ compiles as `:zc-progression`). See the root [`CLAUDE.md`](../CLAUDE.md) for the
     content writes as its `Kind`): the ONE place a kind is described - what it counts and how, what
     its target names, and how it reads and looks - merged leaf by leaf over whatever code registered
     the same id, so a file stating one fact leaves the rest alone. The module ships one for each of
-    the 23 built-in kinds.
+    the 26 built-in kinds, the three `Encounter_*` kinds included.
   - `progress/docs/` - `SchemaDocWriter`, generating this module's `SCHEMA.md` on demand
     (`gradlew :zc-progression:generateSchemaDocs`, guarded by `SchemaDocDriftTest`). No router.
   - `progress/gate/` - `GateClause`/`GateSpec`/`GateKind`/`GateKindRegistry`/`GateEvaluator`/
@@ -100,10 +100,12 @@ reordering entries never moves anyone's progress - asserted directly in the engi
 
 ## Tests
 
-44 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
-`ObjectiveProgressStateTest`, `ContentMetaTest`, `ObjectiveKindFoldTest` - the merge a kind
+48 files: the shared cores (`ObjectiveKindRegistryTest`, `ObjectiveMatchTest`,
+`ObjectiveProgressStateTest`, `ContentMetaTest`, `ObjectiveArithmeticTest` - the objective
+arithmetic a kind file can restate, `ObjectiveKindFoldTest` - the merge a kind
 file performs over a registered kind, leaf by leaf, plus the shipped files decoding as the server
-reads them), `NeutralObjectiveComposerTest` and
+reads them - and `ShippedKindFilesTest`, which pins that every seeded kind ships a file and every
+shipped file names a seeded kind), `NeutralObjectiveComposerTest` and
 `ProgressionFactorOverlaysTest` (the library's own shipped sentence family and the naming overlays
 for its two progression factor ids), the quest engine (`QuestEngineFlowTest`,
 `QuestEngineTurnInTest`, `QuestLifecycleTest`, `RepeatEvaluatorTest` (the ONE repeat evaluator, and
@@ -113,7 +115,7 @@ pinned), `CompletionRecordTest` (the record's own invariants, the collected-clam
 surface reads), `QuestAssetCodecTest`, `QuestPoolValidatorTest`, `QuestStateReaderTest`, `QuestNestedIdTest`,
 `QuestResetsTest`, `QuestCompleteAtTest` / `QuestTurnInAtCodecTest` (where a quest may be collected),
 `QuestProgressPayloadTest`, `QuestStatThresholdTest`, `QuestTrackedEventTest`, `RepeatPeriodTest`,
-`NpcOfferProvidersTest`,
+`QuestCadenceTest` (which bucket a repeat window falls in), `NpcOfferProvidersTest`,
 `QuestModuleAgnosticismTest`, `RequiresGatesTest` - the ONE gate both engines share: fail-open for
 content that asks for nothing, one answer whichever layer folded it, the server-first claim, and the
 live cap and availability seams), what each engine OWES a consumer's persistence
@@ -122,7 +124,8 @@ live cap and availability seams), what each engine OWES a consumer's persistence
 COMMIT half is pinned with exact counts: collecting commits exactly once, a payout commits only when
 it delivered something, and earning, a reached milestone, a re-arm and a catalogue-wide self-heal
 commit nothing at all), the achievement engine
-(`AchievementEngineTest`, `AchievementListingTest`, `AchievementAssetCodecTest`, `AchievementPoolValidatorTest`,
+(`AchievementEngineTest`, `SharedCreditClaimTest` (a claim won under a shared credit is won by every
+subject carrying it), `AchievementListingTest`, `AchievementAssetCodecTest`, `AchievementPoolValidatorTest`,
 `AchievementProgressStoreTest`, `AchievementStatThresholdTest`, `AchievementTaxonomyCodecTest`),
 the shared runtime (`ProgressionRuntimeTest`, `FeatureLiftTest` - which top-level conditions lift
 out of a `Requires` block onto the caller's hide axis and which stay, `ProgressionFeedbackHookTest` - which moments each

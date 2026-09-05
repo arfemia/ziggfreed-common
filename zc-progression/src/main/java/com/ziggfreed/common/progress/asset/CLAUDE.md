@@ -21,6 +21,9 @@ Imported the same way any other zc-core leaf is.
 | `ContentRewardsAsset` | `Rewards`: the `{Auto, Claim}` two-bucket group every paying content type carries (quests, achievements, milestones, bounty contracts) - `Auto` lands when the content settles, `Claim` waits to be collected |
 | `RewardEntryAsset` | one reward entry (`Kind` plus an open `Params` map), the element type of both `Rewards` buckets |
 | `ProgressEditorDataSets` | the in-game editor pick lists (`objective_kinds`, `reward_kinds`) both engines' `Kind` fields point at |
+| `ObjectiveKindAsset` | the KIND itself written as a file at `Server/ZiggfreedCommon/ObjectiveKinds/<Id>.json`, filename = the id content writes as its `Kind`: what it counts (`ValueBased`, `AtMost`, `Producible`), what its target names (the seven `TargetNames` facets), and how it reads and looks (`Presentation`) |
+| `ObjectiveKindConfig` | the folded layer, `defaults < pack < owner` through `AbstractKeyedAssetConfig`, read once off the store's load event |
+| `ObjectiveKindFold` | the merge: leaf by leaf over whatever code registered the same id, so a file stating ONE fact leaves every other fact alone. The module ships one file for each of the 26 built-in kinds |
 | `GeneratorAxisAsset` | one `ForEach` axis: `Token` / `Values` / `Source` / `Filter` |
 | `GeneratorSpec` | the four leaves the expander reads off ANY generator asset: `Base`, `IdPattern`, the axes, `Child` |
 | `GeneratedBody` | one piece of content a generator wrote: id, body carrying its `Parent`, base id, generator id |

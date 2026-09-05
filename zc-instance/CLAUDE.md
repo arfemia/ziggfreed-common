@@ -1,18 +1,20 @@
 # CLAUDE.md - zc-instance
 
-The instance-experience layer: arena, encounter director, match rules, play/queue and results
+The instance-experience layer: arena, match rules, play/queue and results
 screens, presets, leaderboards, plus the lobby and party systems that feed them. This is the
 "a consumer minigame gets a full end-game + party/queue framework for free" module.
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-instance`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
 
 - **Depends on**: `zc-core`, `zc-presentation` (every screen here is a page), `zc-loot` (rewards
-  and the reward model the results screen renders).
+  and the reward model the results screen renders), `zc-encounter` (one class only: the leaderboard
+  listener that writes a boss defeat's rows into the bucket its binding row names; it only listens,
+  and zc-encounter never imports back - `EncounterEdgeTest` fails its build if it tries).
 - **Depended on by**: `zc-objectives`, for the round-completion seam below and nothing else (its
   `ZigInstanceRoundProducer` listens for `InstanceRoundCompletedEvent`). A consumer minigame
   (Kweebec is the exemplar) depends on this module directly for its end-game layer.
@@ -31,7 +33,10 @@ compiles as `:zc-instance`). See the root [`CLAUDE.md`](../CLAUDE.md) for the ag
   - [`instance/arena/`](src/main/java/com/ziggfreed/common/instance/arena/CLAUDE.md) -
     `ArenaDefinitionAsset`, the instance arena content type.
   - [`instance/leaderboard/`](src/main/java/com/ziggfreed/common/instance/leaderboard/CLAUDE.md) -
-    `Leaderboard` + `LeaderboardPage`, generalized bucketed scoring, `LeaderboardLayoutAsset`.
+    `Leaderboard` + `LeaderboardPage`, generalized bucketed scoring, `LeaderboardLayoutAsset`, plus
+    `EncounterLeaderboardListener`, this module's one (listen-only) edge to the boss framework: a
+    row per participant on `EncounterDefeatedEvent`, into the bucket the fight's binding row names,
+    on the library's own `encounter-leaderboard` board.
   - [`instance/match/`](src/main/java/com/ziggfreed/common/instance/match/CLAUDE.md) - match rules
     + verdict.
   - [`instance/metadata/`](src/main/java/com/ziggfreed/common/instance/metadata/CLAUDE.md) -
@@ -45,6 +50,9 @@ compiles as `:zc-instance`). See the root [`CLAUDE.md`](../CLAUDE.md) for the ag
   - [`instance/zone/`](src/main/java/com/ziggfreed/common/instance/zone/CLAUDE.md) -
     `ZoneHoldTimer`, the co-op "hold this zone TOGETHER for X seconds, reset on break" objective
     timer. Pure logic.
+- `instance/InstanceBootstrap` - this module's registration phase, called as one line from the
+  wiring root's `setup()`: `installEncounterLeaderboard` opens that board and hangs its listener.
+  Registration only; no router of its own (one file).
 - [`lobby/`](src/main/java/com/ziggfreed/common/lobby/CLAUDE.md) - `MatchmakingQueue`/
   `LobbyService`/`RoundLauncher`, the generic fill-window + countdown matchmaking queue.
 - [`party/`](src/main/java/com/ziggfreed/common/party/CLAUDE.md) - `Party`/`PartyService` +
@@ -74,8 +82,8 @@ only one allowed: this module announces, and never asks anything about progressi
 `Common/UI/Custom/Pages/{ZigLeaderboardPage.ui, ZigLeaderboardRow.ui, ZigLeaderboardStatsRow.ui,
 ZigLeaderboardTab.ui, ZigPartyPage.ui, ZigPartyRow.ui, ZigPlayModeCard.ui, ZigPlayPage.ui,
 ZigQueueRosterRow.ui, ZigResultChip.ui, ZigResultRow.ui, ZigResultsPage.ui}` - every screen in the
-instance-experience layer. No `Server/` content beyond the registered asset TYPES (arenas, bosses,
-encounter rules, leaderboard layouts, party settings, presets), all defaults-optional.
+instance-experience layer. No `Server/` content beyond the registered asset TYPES (arenas, leaderboard
+layouts, party settings, presets), all defaults-optional.
 
 ## Conventions
 
@@ -89,7 +97,7 @@ its own reward-spec kind (e.g. `xp`) by registering a `RewardAuthoring` adapter 
 
 ## Tests
 
-7 files, thin relative to the package count: `InstanceRoundCompletedEventTest`, `LeaderboardTest`,
-`MatchmakingQueueTest`, `PartyServiceTest`, `QueueModeSetTest`, `WinConditionResolverTest`,
-`ZoneHoldTimerTest`. The page rendering itself (every `.ui` file listed above) has no unit coverage;
+8 files, thin relative to the package count: `EncounterLeaderboardListenerTest`,
+`InstanceRoundCompletedEventTest`, `LeaderboardTest`, `MatchmakingQueueTest`, `PartyServiceTest`,
+`QueueModeSetTest`, `WinConditionResolverTest`, `ZoneHoldTimerTest`. The page rendering itself (every `.ui` file listed above) has no unit coverage;
 `.ui` files are not compiled and validate in-game per the library-wide rule.

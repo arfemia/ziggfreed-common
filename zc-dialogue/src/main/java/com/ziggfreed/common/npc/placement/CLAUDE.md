@@ -174,7 +174,7 @@ registries are about where an NPC stands and whether it stands at all.
   resolver's `instanceId` must be STABLE across restarts** - a bare loop index changes with
   ordering and mints a duplicate NPC.
 - **[`PlacementGates`](registry/PlacementGates.java)** - the ordered veto chain over
-  [`PlacementGate`](registry/PlacementGate.java) (`GateContext{placement, world, worldNames, store}` ->
+  [`PlacementGate`](registry/PlacementGate.java) (`GateContext{placement, world, store}` (plus its derived `placementId()`) ->
   `GateVerdict{allowed, reasonKey}`). **Any deny wins and the FIRST deny is reported**, so ordering
   matters; the three built-ins are the asset's `Enabled`, the owner override, then the authored
   `Requires`. A throwing gate is skipped, not treated as a deny. **A deny DESPAWNS the standing

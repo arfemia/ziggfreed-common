@@ -44,14 +44,18 @@ present" - the exact thing the value side exists to express - look broken.
 `LootableValidator` (`lootable`), `RewardKindValidator` (`rewardkind`), `QuestPoolValidator` +
 `QuestAssetStore`/`QuestGeneratorExpander` (`quest`), `AchievementPoolValidator` (`achievement`),
 and the economy trio `CurrencyValidator` (`commerce`) / `ShopValidator` (`shop`) / `BoardValidator`
-(`board`), which `commerce/fold/CommerceAudit` aggregates. Each exposes its domain as a `DOMAIN`
-constant; `QuestCompletionDialogueValidator` deliberately reuses `QuestPoolValidator.DOMAIN` rather
-than minting a near-duplicate.
+(`board`), which `commerce/fold/CommerceAudit` aggregates, plus `EncounterValidator` (`encounter`),
+which `encounter/validate/EncounterAudit` aggregates over every loaded encounter script, binding
+row and participation rule. Each exposes its domain as a `DOMAIN` constant;
+`QuestCompletionDialogueValidator` deliberately reuses `QuestPoolValidator.DOMAIN` rather than
+minting a near-duplicate.
 
-Two SHARED checks report into the same vocabulary with no domain of their own, stamping the
-CALLER's: `progress/gate/GateValidator` is the one gate audit for every content family that carries
-a `Requires` block, and `ui/route/DestinationCheck` audits an authored `Destination`. Pass your own
-domain and fold the result into your report rather than growing a copy.
+Two SHARED checks report into this same vocabulary. `progress/gate/GateValidator` is the one gate
+audit for every content family that carries a `Requires` block, and it stamps the CALLER's domain:
+pass your own domain and fold the result into your report rather than growing a copy.
+`ui/route/DestinationCheck` runs the other way round: the mod that REGISTERED a destination type
+supplies the check with its registration, so it takes only the destination and a `sourceId` and
+reports under its own domain.
 
 ## There is one shape, and `Finding` is it
 

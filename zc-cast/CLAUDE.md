@@ -7,7 +7,7 @@ module; it ships EMPTY of content (no baked step vocabulary, no consumer-specifi
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-cast`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies

@@ -9,7 +9,7 @@ engine's own native events.
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -27,8 +27,10 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
   ONLY: the shared placed-block ledger the break and pickup producers consult, so neither credits a
   block or an item the player put down themselves), `zc-instance` (the generic
   `InstanceRoundCompletedEvent`, so a finished minigame round feeds the same engines every other
-  moment feeds). One-way in every case; zc-world and zc-instance both sit below this module and
-  neither reaches back.
+  moment feeds), `zc-encounter` (the boss framework's native events, so a fight's beats feed the same
+  engines every other moment feeds, and its folded binding rows, so a generated family can fan out
+  over every bound encounter). One-way in every case; zc-world, zc-instance and zc-encounter all sit
+  below this module and none reaches back (`EncounterEdgeTest` fails zc-encounter's build if it tries).
 - **Depended on by**: no other library module. This module sits ABOVE both `zc-progression` and
   `zc-presentation` and nothing sits above it - a progression book needs the engines and a page,
   and neither of those two modules may reach the other (`zc-progression` may never import
@@ -43,9 +45,9 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
 ## Packages
 
 - [`objectives/`](src/main/java/com/ziggfreed/common/objectives/CLAUDE.md) - `ProgressionDefaults`
-  (the default per-player component store plus the six generic producers: block break, mob kill,
-  craft, pickup and place block off native ECS events, and a finished instance round off the
-  shared bus) and the two-tab objective book page. **There is no second
+  (the default per-player component store plus the seven generic producers: block break, mob kill,
+  craft, pickup and place block off native ECS events, and a finished instance round plus a boss
+  fight's own beats off the shared bus) and the two-tab objective book page. **There is no second
   runtime here** - these are contributions like any other, registered into
   `progress.runtime.ProgressionRuntime` from this module's `setup()`; a consumer mod running its
   own progression REPLACES the parts it answers for through the same registration surface, so
@@ -61,10 +63,12 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
     (`ObjectiveBookPage` the host + verbs, `BookQuestsTab` the quest log, `BookAchievementsTab`
     the two-panel achievements browser), its consumer seams (`ObjectiveBookDeps`, registered via
     `ObjectiveBookPages.deps`), and the item interaction that opens it.
-  - `objectives/producer/` - the six producers plus `ProgressDispatch`, the one route
+  - `objectives/producer/` - the seven producers plus `ProgressDispatch`, the one route
     from any producer to both engines (it resolves each engine's own subject, the zone, and the
     consumer's registered call scope, and asks every contributed `ProgressionSystemGate` per half,
-    so an owner who switched a system off for a player still has it off).
+    so an owner who switched a system off for a player still has it off), and `PlayerMomentDispatch`,
+    the engine half the two BUS producers share: resolve the named player's own live world, hop to
+    it, then dispatch.
   - `objectives/questlist/` - the NPC quest page (`ZigNpcQuestPage`), its consumer seams
     (`NpcQuestPageDeps`), the pure ordering core (`NpcQuestSections`), and `NpcQuestPages`, the one
     call `ProgressionBootstrap` registers as the default quest-list host. Reward chips read through `zc-loot`'s shared `RewardChips` (the
@@ -146,7 +150,7 @@ to take the screen wins.
 
 ## Tests
 
-30 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
+37 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
 this module's own suite covers the parts it contributes - `DefaultPartsHandInTest`,
 `DefaultPartsRewardGrantTest` (the registered store + producer parts pulling their weight inside a
 real runtime), `ZigProgressComponentTest`, `ProgressBlobTest` (the persisted per-player codec),

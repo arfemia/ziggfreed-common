@@ -28,7 +28,8 @@ the server's progression.
 | Class | What it is |
 |---|---|
 | `ObjectiveDef` (+ `.Builder`) | one authored objective: kind, target, match mode, qualifier, amount, zone, order, hand-in lock |
-| `ObjectiveKind`, `ObjectiveKindRegistry` | the open objective vocabulary plus the six INDEPENDENT facts a kind carries (`valueBased` which arithmetic a dispatch uses, `producible` whether content may author it, and four saying what its TARGET names: `targetsPlace` somewhere to go, `targetsItem` something holdable, `targetsEntity` a creature, `targetsCurrency` a wallet - the last three are what let a surface DRAW a step), plus a `Presentation` (the wording key, the fallback picture, the per-target pictures) so ONE thing describes a kind; 23 engine-generic kinds pre-seeded, per consumer, never a shared mutable global. `asset/ObjectiveKindAsset` is the same description written as a file, merged leaf by leaf over the Java registration by `asset/ObjectiveKindFold` |
+| `ObjectiveKind`, `ObjectiveKindRegistry` | the open objective vocabulary plus the ten INDEPENDENT facts a kind carries (`valueBased` which arithmetic a dispatch uses, `atMost` whether a value-based kind reads its amount as a CEILING instead of a target, `producible` whether content may author it, and seven saying what its TARGET names: `targetsPlace` somewhere to go, `targetsItem` something holdable, `targetsEntity` a creature, `targetsCurrency` a wallet, `targetsContent` another quest or achievement, `targetsBoard` a notice board, `targetsEncounter` a boss fight by its script id - the last six are what let a surface DRAW a step), plus a `Presentation` (the wording key, the fallback picture, the per-target pictures) so ONE thing describes a kind; 26 engine-generic kinds pre-seeded, per consumer, never a shared mutable global. `asset/ObjectiveKindAsset` is the same description written as a file, merged leaf by leaf over the Java registration by `asset/ObjectiveKindFold` |
+| `ObjectiveArithmetic` | the ONE compare both engines run when a moment reaches an objective: accumulate, raise a high-water mark, or - for a value-based kind that is also `atMost` - treat the authored amount as a CEILING met the first time a fired value comes in at or under it. A ceiling records a binary `0/1` rather than the value, so a zero ceiling ("no deaths") is not born completed the way a zero count would be. Both engines mint states through `fresh`/`stored` and apply through `apply` (a produced moment) or `applyStanding` (a value an engine read for itself), so the third reading exists in exactly one place |
 | `StatThresholdProbe` | reads a `STAT_THRESHOLD` objective's stat channel for one subject, so an engine can settle a standing-value objective itself |
 | `MatchMode`, `ObjectiveMatch` | the matching core - ONE forgiving rule |
 | `ZoneRef` | the zone / region an event happened in, for a zone-scoped objective |
@@ -45,21 +46,30 @@ the server's progression.
 
 ## The pre-seeded vocabulary
 
-Twenty-three ids, every one producible. Twenty-two ACCUMULATE (`BREAK_BLOCK`, `PLACE_BLOCK`,
+Twenty-six ids, every one producible. Twenty-five ACCUMULATE (`BREAK_BLOCK`, `PLACE_BLOCK`,
 `CRAFT_ITEM`, `KILL_ENTITY`, `DEAL_DAMAGE`, `PICKUP_ITEM`, `TALK_TO_NPC`, `CATCH_FISH`, `TURN_IN`,
 `COMPLETE_QUEST`, `TAKE_FALL_DAMAGE`, `PLAYER_DEATH`, `SPRINT_DISTANCE`, `SWIM_DISTANCE`,
 `BREED_ANIMAL`, `FEED_ANIMAL`, `HARVEST_ANIMAL`, `COMPANION_COMBAT`, `REACH_LOCATION`,
-`CONSUME_ITEM`, `INSTANCE_ROUND_WON`, `INSTANCE_ROUND_ENDED`): each names a MOMENT, a producer fires
-a delta, the tally grows.
+`CONSUME_ITEM`, `ENCOUNTER_DEFEATED`, `ENCOUNTER_PHASE`, `ENCOUNTER_ATTEMPT`, `INSTANCE_ROUND_WON`,
+`INSTANCE_ROUND_ENDED`): each names a MOMENT, a producer fires a delta, the tally grows.
 
-The last two describe a finished instance ROUND and share one contract: `Target` is
-`<modId>:<modeId>` (so the prefix `kweebec:` matches any mode of that mod), `Qualifier` is the preset
-id, `Amount` is 1 per round. `INSTANCE_ROUND_ENDED` fires per PARTICIPANT on every completion and
-`INSTANCE_ROUND_WON` per WINNER only on a win, so "play ten rounds" and "win ten rounds" are two
-objectives rather than one with a flag. Fed by zc-objectives' `ZigInstanceRoundProducer` off
-zc-instance's `InstanceRoundCompletedEvent`.
+`INSTANCE_ROUND_WON` and `INSTANCE_ROUND_ENDED` describe a finished instance ROUND and share one
+contract: `Target` is `<modId>:<modeId>` (so the prefix `kweebec:` matches any mode of that mod),
+`Qualifier` is the preset id, `Amount` is 1 per round. `INSTANCE_ROUND_ENDED` fires per PARTICIPANT
+on every completion and `INSTANCE_ROUND_WON` per WINNER only on a win, so "play ten rounds" and "win
+ten rounds" are two objectives rather than one with a flag. Fed by zc-objectives'
+`ZigInstanceRoundProducer` off zc-instance's `InstanceRoundCompletedEvent`.
 
-**Two of the twenty-three also declare `targetsPlace`**, `TALK_TO_NPC` and `REACH_LOCATION`: their
+The three `ENCOUNTER_*` ids describe a boss fight and share their own contract: `Target` is the
+encounter SCRIPT id, never the boss creature's id, so a step naming the boss holds through an
+in-place role swap mid-fight, and `Amount` is 1 per fire. `ENCOUNTER_DEFEATED` fires once per
+CREDITED participant when the boss falls, `ENCOUNTER_ATTEMPT` once per participant whenever a fight
+SETTLES, on a defeat and on a wipe alike, and `ENCOUNTER_PHASE` for every live member on each phase
+beat. The qualifier is the run's difficulty label for the two settlement kinds and the phase's own
+state name for the phase kind. Fed by zc-objectives' `ZigEncounterProducer`, which listens to the
+three settled beats and deliberately never to a reset, so a reload or a world unload credits nobody.
+
+**Two of the twenty-six also declare `targetsPlace`**, `TALK_TO_NPC` and `REACH_LOCATION`: their
 TARGET names somewhere a player can stand rather than something an event carries, which is what lets
 a surface say "this step resolves HERE" about a step with no hand-in of its own. The facet is
 orthogonal to the arithmetic - a kind accumulates or tracks a value, and independently does or does
@@ -69,10 +79,13 @@ being delivered, and where it may be delivered is its own `turnInLockId`.
 **Seven declare `targetsItem` and seven `targetsEntity`**, the two facets that let a surface DRAW a
 step: an item id is a picture of itself, a creature id is that creature's own generated portrait.
 They are orthogonal to `targetsPlace` and to each other, so `TALK_TO_NPC` is both a place and a face,
-and `TURN_IN` names the item being delivered. `targetsCurrency` is the fourth, seeded on nothing
-here: this module defines no wallet, so the flag exists for a consumer's own kind to set and for
-whoever owns currencies to answer the picture - which is the whole division, the kind carrying the
-fact and the vocabulary's owner carrying the reading.
+and `TURN_IN` names the item being delivered. Four more facets sit beside them. `targetsContent` is
+seeded here on `COMPLETE_QUEST`, because this module owns both catalogues and can answer that
+picture itself, and `targetsEncounter` on the three `ENCOUNTER_*` ids, whose target is a fight's
+script id rather than a creature. `targetsCurrency` and `targetsBoard` are seeded on nothing: this
+module defines neither a wallet nor a board, so the flag exists for a consumer's own kind to set and
+for whoever owns currencies or boards to answer the picture - which is the whole division, the kind
+carrying the fact and the vocabulary's owner carrying the reading.
 
 `STAT_THRESHOLD` is the one VALUE-BASED built-in, and the one that names a STATE rather than a
 moment:
@@ -136,9 +149,10 @@ the high-water arithmetic is identical either way.
 - A new objective kind is a consumer call to `ObjectiveKindRegistry.register`; only add to
   `BUILT_IN_ACCUMULATING` / `BUILT_IN_VALUE_BASED` when the kind is meaningful in ANY game with no
   assumptions. Those two lists are the ARITHMETIC split, so a kind lands in exactly one of them;
-  `BUILT_IN_PLACE_TARGETED` / `BUILT_IN_ITEM_TARGETED` / `BUILT_IN_ENTITY_TARGETED` are orthogonal to
-  both and to each other, naming whichever of them point somewhere, name something holdable, or name
-  a creature.
+  `BUILT_IN_PLACE_TARGETED` / `BUILT_IN_ITEM_TARGETED` / `BUILT_IN_ENTITY_TARGETED` /
+  `BUILT_IN_CONTENT_TARGETED` / `BUILT_IN_ENCOUNTER_TARGETED` are orthogonal to both and to each
+  other, naming whichever of them point somewhere, name something holdable, name a creature, name
+  another piece of content, or name a boss fight.
   A consumer contributing its own vocabulary skips every id `ObjectiveKindRegistry.isBuiltIn` already
   names, so a built-in is described once, here, with every flag it carries - including one this class
   learns to seed after that consumer was written.

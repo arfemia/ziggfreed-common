@@ -70,5 +70,6 @@ deterministically so every buyer sees the same thing and a restart changes nothi
 - **A reroll never hands back something already turned down.** The replacement draw excludes
   everything on show AND everything that has already sat at that position this period.
 - **The reroll refusal tokens are spelled IDENTICALLY to the board's**, so one consumer-side mapping
-  turns either engine's answer into words. `ShopEngineTest` and `CommerceRefusalsTest` both pin
-  that.
+  turns either engine's answer into words. `CommerceRefusalsTest` pins that, asserting each reroll
+  constant against the board's own and discovering both engines' `REASON_*` by reflection so a new
+  token is a failing test rather than a quiet degrade.

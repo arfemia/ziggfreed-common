@@ -7,7 +7,7 @@ consumer needs at runtime even without a compile edge, because a page's `.ui` fi
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -15,7 +15,7 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
 - **Depends on**: `zc-core`, plus `zc-loot` for ONE seam - `ui/toast/RewardToastLines`, the bridge
   from the reward-chip reading to toast body rows. That edge points DOWN the graph (zc-loot reaches
   only zc-core), so it can never cycle.
-- **Depended on by (compile edge)**: `zc-commerce`, `zc-dialogue`, `zc-instance`, `zc-objectives`.
+- **Depended on by (compile edge)**: `zc-commerce`, `zc-dialogue`, `zc-encounter` (the boss framework's payout fires its beats through the authored-feedback engine), `zc-instance`, `zc-objectives`.
 - **Depended on by (runtime `.ui` reference only, no compile edge)**: every module that ships a
   page - see the root module table's "Ships `.ui`" column. A module can need this one at runtime
   and Gradle will never say so; the day anything ships as a separate jar, that column is the audit
@@ -38,7 +38,11 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
   - `feedback/moment/` - the authored-feedback engine: `FeedbackMomentAsset` (Pattern A, the file
     name IS the moment id, at `Server/ZiggfreedCommon/FeedbackMoments/`, with four independent
     groups - `Toast` / `Broadcast` / `Sound` / `Command` - over one reused `Line` leaf of
-    `{Key, KeyArg, Args, Color}` (`Toast` adds `Tone` and a `Rows` group of its own), plus `Variants`: an ordered list of `{When, <groups>}` entries
+    `{Key, KeyArg, Args, Color}` (`Toast` adds `Tone` and a `Rows` group of its own; `Broadcast` adds
+    `Major` plus four independent SCOPING knobs deciding who sees a banner and how often,
+    `ToParticipants` / `SameWorldOnly` / `RadiusBlocks` / `MinSecondsBetween`, answered by
+    `BroadcastScope` off the two fixed argument names `participants` and `source` a producer
+    supplies, so a moment fired once per participant announces to the world once), plus `Variants`: an ordered list of `{When, <groups>}` entries
     where the first whose `When` values all match the moment's arguments overlays only the groups
     it restates, so ONE file says "your bags are full" and "collect it where you took it" for two
     cases of the same moment), `FeedbackMomentConfig` (the `defaults < pack < owner` fold) and
@@ -75,14 +79,19 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     plus `milestone` (whether a progress tick crossed the authored mark) so a consumer's own
     "every tick / milestones / finishes / nothing" setting is answered from them (a handle with no
     opinion gets what was authored), and only the toast is gated that way - a banner, a sound and a
-    command are not one player's screen. **This module SHIPS the library's neutral default file for
-    each of the seven moments the progression engines announce** (`Quest_Completed`, `Quest_Parked`,
-    `Quest_Claimed`, `Quest_Objective_Progressed`, `Achievement_Unlocked`, `Achievement_Claimed`,
+    command are not one player's screen. **This module SHIPS the library's neutral default file
+    for each of the ELEVEN moments the library's own engines announce**: the seven the
+    progression engines fire (`Quest_Completed`, `Quest_Parked`, `Quest_Claimed`,
+    `Quest_Objective_Progressed`, `Achievement_Unlocked`, `Achievement_Claimed`,
     `Achievement_Server_First_Lost`), each authoring its `Tone` (payouts Reward, the lost race
-    Warning, the progress tick Info with a Success finish, the full-bag park Error) and no per-line
-    `Color`, plus their wording in `ziggfreedcommon.feedback.lang` (nine locales); a consumer's same-id file wins by pack order (`FeedbackMomentOverrideOrderTest` pins
-    it through the engine map). No router of its own; see the asset's javadoc, which is the
-    authoring reference.
+    Warning, the progress tick Info with a Success finish, the full-bag park Error) and no
+    per-line `Color`, plus the four the boss framework announces (`Encounter_Engaged`,
+    `Encounter_Phase_Changed`, `Encounter_Defeated`, `Encounter_Wiped`, the ids
+    `EncounterBindingAsset`'s four feedback leaves read as when unauthored), where the engaged
+    notice is a scoped `Broadcast` rather than a toast; the wording for all eleven lives in
+    `ziggfreedcommon.feedback.lang` (nine locales); a consumer's same-id file wins by pack order
+    (`FeedbackMomentOverrideOrderTest` pins it through the engine map). No router of its own; see
+    the asset's javadoc, which is the authoring reference.
 - [`sound/`](src/main/java/com/ziggfreed/common/sound/CLAUDE.md) - `Sound3D`.
 - `ui/` - `CustomHudHelper`, `ZigRichButton` (the clickable-rich-text primitive every labeled
   button in the library uses), `UiRetint` (the generic palette-to-selector retint primitive),
@@ -99,6 +108,11 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     `SettingsForm`, the generic settings-form engine.
   - [`ui/hud/`](src/main/java/com/ziggfreed/common/ui/hud/CLAUDE.md) - `KeyedCustomHud` +
     `HudPosition`.
+  - `ui/icon/` - `IconRenderer`, the ONE seam that paints an `icon.IconSpec` into a row or a chip:
+    a row ships an `ItemIcon #IcoItem` and an `AssetImage #IcoTex` side by side and this toggles the
+    right one by `.Visible`, the item id winning when both are set, so no surface re-decides
+    item-versus-texture and a row with nothing to draw keeps both hidden. No router of its own; see
+    the class javadoc.
   - `ui/route/` - the DESTINATION vocabulary: `Destination` (a `Type`-discriminated union authored
     as `{"Type": "...", ...}` or as one bare word for a type with no fields) + `Destinations` (the
     open registry a mod claims a type in, over `registry/RegistryLedger`) + `DestinationType`
@@ -128,7 +142,8 @@ ZigSelectRow.ui, ZigDetailLine.ui, ZigToast.ui}` plus `ZigToastFrame.png` (`ZigS
 one selectable list row - content row and section heading in a single template, `#RowBtn` + hidden
 `#SectionLabel`/`#RowBadge`/`#SectionMeta` - and `ZigDetailLine.ui` the one detail-panel line, both
 appended by the NPC quest page and both commerce pages so a readability step lands everywhere at
-once). Under `Server/`: the seven neutral default feedback moments
+once). Under `Server/`: the eleven neutral default feedback moments (the seven the progression
+engines announce plus the four the boss framework announces)
 at `Server/ZiggfreedCommon/FeedbackMoments/<moment id>.json` and their wording at
 `Server/Languages/<locale>/ziggfreedcommon.feedback.lang` (nine locales) - the library's own default
 CONTENT a consumer overrides by id, every file carrying a public-facing `$Comment` naming the
@@ -159,5 +174,6 @@ schema's decode and inheritance, variant selection, `KeyArg`, the `EveryPercent`
 audience question, plus everything a broken authoring file or an absent player could turn into a
 throw; `ShippedFeedbackMomentsTest` decodes every shipped default and checks each line's key against
 the shipped en-US lang file; `FeedbackMomentOverrideOrderTest` pins that a consumer's same-id file
-replaces the library's through the engine map's own pack chain. The drawing itself is packets and is
-validated in game.
+replaces the library's through the engine map's own pack chain; `BroadcastScopeTest` pins who a
+scoped banner admits, and the one-banner-per-key-per-window throttle. The drawing itself is packets
+and is validated in game.

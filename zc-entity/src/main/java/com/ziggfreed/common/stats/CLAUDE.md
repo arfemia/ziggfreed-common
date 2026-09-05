@@ -53,16 +53,17 @@ onto a channel through `StatMirror` - not a merged package.
     its asset `Utility.StatModifiers`, which the engine DOES apply natively (Compatible-gated);
     applying them again would double-count.
 
-  `install(namespace[, entryFilter])` returns a bound instance; the consumer's contract is (a)
-  register ONE of its own concrete subclasses of the THREE ABSTRACT trigger bases (`new
-  EquipStatBridge.ActiveSlotTrigger(bridge) {}` / `new EquipStatBridge.ContentChangeTrigger(bridge)
-  {}` / `new EquipStatBridge.UtilityContentChangeTrigger(bridge) {}`) via its own
-  `getEntityStoreRegistry().registerSystem(...)` - **the ECS system registry is CLASS-KEYED (a
-  second `registerSystem` with the same Class collides), so this package ships only the abstract
-  bases, exactly like `cast.AbstractWorldFrameSystem`; never make these concrete or two
-  consumers/namespaces sharing one class will collide** - and (b) call `recomputeAll(store, ref)`
-  once at `PlayerReadyEvent` (inventory components are ensured/hydrated strictly before that event,
-  E6-proven, so a full recompute there is the safe hydrate authority).
+  `install(namespace[, entryFilter])` returns a bound instance, and the LIBRARY installs the one
+  bridge: `EntityBootstrap.installEquipStatBridge` binds it under the `ziggfreedcommon` namespace and
+  registers a concrete subclass of each of the THREE ABSTRACT trigger bases (`ActiveSlotTrigger` /
+  `ContentChangeTrigger` / `UtilityContentChangeTrigger`) - **the ECS system registry is CLASS-KEYED
+  (a second `registerSystem` with the same Class collides), so this package ships only the abstract
+  bases, exactly like `cast.AbstractWorldFrameSystem`, and one installer means one set of modifier
+  keys; a consumer never installs a second bridge and never registers its own copies of the three
+  triggers, it reads the installed one back through `EntityBootstrap.equipStatBridge()`** - and the
+  consumer's own contract is to call `recomputeAll(store, ref)` once at `PlayerReadyEvent`
+  (inventory components are ensured/hydrated strictly before that event, E6-proven, so a full
+  recompute there is the safe hydrate authority).
   - **Post-apply seam** - `addAppliedListener(AppliedListener)` fires `onApplied(store, ref)` after
     every `recomputeAll` pass, world-thread. A consumer keeping DERIVED state in step with these
     channels (the MMO's per-school resist effect sync) hangs it HERE instead of registering a
@@ -132,6 +133,8 @@ onto a channel through `StatMirror` - not a merged package.
 - **Never write to the `EntityStatMap` outside a keyed `putModifier`/`removeModifier` call** - no
   class here ever calls `setStatValue`/`addStatValue` (that would mutate the CURRENT value, not a
   modifier bound, and would not diff/sweep cleanly on the next recompute).
-- **A consumer never subclasses `StackStats`/`StatMirror`/`StatChannelAudit`** -
-  those are plain static/data classes. Only `EquipStatBridge`'s three trigger bases are meant to be
-  subclassed, and only for the class-keyed-registry reason above.
+- **A consumer subclasses NOTHING in this package.** `StackStats`/`StatMirror`/`StatChannelAudit` are
+  plain static/data classes, and `EquipStatBridge`'s three trigger bases are subclassed once by the
+  library itself in `EntityBootstrap.installEquipStatBridge` (the class-keyed-registry reason above is
+  exactly why there is only one set); a consumer with post-apply work of its own registers an
+  `AppliedListener` on the installed bridge instead.

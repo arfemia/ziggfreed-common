@@ -139,6 +139,16 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
   form usable as "the declaring mod is installed" - the `ModFactors` precedent), a missing `Param`
   is unanswerable (`null`), and an undeclared NAMESPACE is just an uncontributed id failing closed
   as everything does. Additive as of 2.0.0; nothing in the library consumes it yet.
+- **[`CounterFactors`](CounterFactors.java)** + **[`CounterSource`](CounterSource.java)** - a
+  lifetime TALLY as an ordinary reading, `ziggfreedcommon:counter`, whose `Param` is a flat counter
+  key in the `counter/` package's own grammar (a plain key for a grand total, `category/name` for
+  one line of a breakdown). `contribute()` claims the id process-wide from `zc-objectives`'
+  `ProgressionBootstrap`, beside `ModFactors`, so the id resolves on every server whether or not
+  anything keeps tallies; `source(CounterSource)` is how the mod that DOES keep them answers, one
+  source per server. Fail-closed the standing way: no source, no live subject, a blank `Param` or a
+  throwing source all read `null`, and an unfilled seam reports itself once the first time a
+  condition actually asks. A key nobody has ever counted reads `0`, so every authored condition on
+  this id needs a `Min`.
 
 ### The R6 audit: which factors are assets, which stay Java, and why
 
@@ -152,7 +162,9 @@ formula can reach - and gets a naming overlay instead:
 - `ModFactors`' `hytale:mod_installed` reads the engine's plugin table and its asset-pack registry;
 - `ProgressionFactors`' five `ziggfreedcommon:` ids read a player's stored quest/achievement
   records through the runtime's registered stores (and, for `quest_known`, its catalogue);
-- `FeatureFlags`' `<namespace>:feature` reads a consumer's live config suppliers.
+- `FeatureFlags`' `<namespace>:feature` reads a consumer's live config suppliers;
+- `CounterFactors`' `ziggfreedcommon:counter` reads a player's lifetime tallies through the
+  `CounterSource` installed by whichever mod keeps them (no source installed, no answer).
 
 A new code registration should have to justify itself the same way; anything that is arithmetic
 over these belongs in a Factors file.
@@ -397,7 +409,9 @@ installed one, plus local-beats-contributed precedence and per-contributor attri
 `DerivedFactorTest` runs an asset-defined factor end to end and
 pins the two silent killers (a cycle fails closed ALL the way out rather than being swallowed by the
 degrade-to-zero rule, and a definition reloaded away is not cached open); `DerivedFactorValidatorTest`
-covers the findings. `zc-progression`'s `progress/runtime/ProgressionFactorsTest` walks each
+covers the findings; `CounterFactorsTest` pins the tally reading over a stand-in source (the
+category key, a never-counted key reading zero, the unfilled and throwing sources both reading
+null). `zc-progression`'s `progress/runtime/ProgressionFactorsTest` walks each
 progression ladder rung by rung over a double AND over the real engines on in-memory stores, and
 pins the two rules a reader has to trust: an id nothing knows answers nothing (so a bounds-less gate
 on a typo stays shut), and the `Quests` prerequisite leaf and `quest_completed` agree about one

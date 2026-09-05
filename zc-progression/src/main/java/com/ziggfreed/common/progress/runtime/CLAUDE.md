@@ -29,10 +29,13 @@ match). They are the wrong tool for a mod that wants the server's progression.
 | `ProgressionCallScope` | what a consumer publishes around a mutating call, so a shared surface fires what its own menu would |
 | `ProgressionFeedbackHook` | "this lifecycle moment just happened to this subject, and here is what was in scope" - a free-string moment id plus a `Map<String,Object>` of named values, so a reaction reads the consumer's own handle off the `Subject` instead of finding the player again off a uuid. A CONTRIBUTION: every hook sees every moment, each guarded, order irrelevant, and a moment announced into a fan-out NOBODY filled says so once through the warn sink rather than vanishing. Seven moments today, six from inside the engines: `Quest_Objective_Progressed`, `Quest_Completed`, `Quest_Parked`, `Quest_Claimed`, `Achievement_Unlocked`, `Achievement_Claimed`, plus `Achievement_Server_First_Lost` from `FirstClaims`. `ProgressionRuntime.feedback()` hands out the live fan-out for a moment the engines do not own |
 | `MomentListener` + `Moment` + `MomentPayload` | "this just happened to this player" - a REACTION to a PRODUCED moment (a block broken, a mob killed, an item crafted / picked up / placed, or anything a fourth-party producer fires through `ProgressDispatch.fire`), carrying the tuple both engines get (kind, target, qualifier, amount, zone) PLUS what a reaction needs and an engine never does: the `Store` / `Ref` / producer `CommandBuffer` to write against, both subjects as resolved (either may be null), and the producer's own typed `MomentPayload` (an OPEN marker, never sealed; the records live beside the producers in zc-objectives). A CONTRIBUTION registered through `ProgressionRegistrar.momentListener`: every listener sees every moment, each guarded, order irrelevant, late registration fires (`ProgressionRuntime.momentListener()` is the live fan-out). **Fanned FIRST from `ProgressDispatch.fire`, before the subject test and both system gates, unconditionally** - a consumer's reaction is its own product, not a progression half, so a player with no quest subject and an owner with a system switched off still get it. **It is NOT the tap** (the tap says "an engine considered this", fires inside each engine after its subject and its gate, once per action) **and it is NOT a gate** (nothing a listener does can refuse a moment or stand a producer down) |
+| `SharedCredit` | a `MomentPayload` sub-interface for a moment fired for SEVERAL subjects at once as ONE event (a party's boss kill, dispatched once per participant in the same tick). The key is a RUN identity, never a time window, so two parties finishing the same fight seconds apart still race. The one thing that reads it is the server-first arbitration: a claim one credited subject wins under a key is a win for every other subject whose fire carried it, so a five-player world first pays five players instead of one winner and four lost-the-race toasts. A re-test with no key (the login sweep, a scripted grant) co-claims nothing |
 | `KillAttribution` | "this non-player attacker acts for THAT player" - the seam a kill producer asks before it credits nobody for a kill a turret, a summon or a pet landed, so the moment fires for the owner. A CONTRIBUTION registered through `ProgressionRegistrar.killAttribution`: every one asked in registration order, first non-null answer wins, a throwing one skipped with a warn, nothing registered means a non-player attacker credits nobody (`ProgressionRuntime.killAttribution()` is the live composed answer). Answer only ever a PLAYER's ref; the producer checks |
 | `KillQualifier` | "this killed entity carries THAT qualifier" - the seam the kill producer asks ONCE at fire time, so the one primary `KILL_ENTITY` dispatch can carry a qualifier for the victim (e.g. a difficulty tier a companion mod attributes) and a criterion authoring it matches. A CONTRIBUTION registered through `ProgressionRegistrar.killQualifier`, the `KillAttribution` shape exactly: asked in registration order, first non-null answer wins, a throwing one skipped with a warn, nothing registered means every kill fires unqualified as before (`ProgressionRuntime.killQualifier()` is the live composed answer). Never a second qualified re-fire - the matching rule reads an empty AUTHORED qualifier as "any", so a re-fire would count one kill twice for every unqualified criterion |
 | `ProgressionTextSource` | how a surface with no catalogue NAMES a piece of content. Its `lore` DEFAULT is the shared `quest.<id>.md.<state>` convention, so the narrative rule is one rule rather than one per source |
 | `ProgressionTexts` | the ONE static walk over every registered text source, first non-null winning, each source guarded on its own - what a title, flavor line, step line or lore read is asked through on ANY shared surface (the book, the board page, the offer page, the tracked panel, a consumer's commands). `titleOrUntitled` / `objectiveOrUntitled` fall back to this module's own placeholder lines (`ziggfreedcommon.progress.untitled` / `.step.untitled`) for a slot that must show something |
+| `ProgressionIconSource` | how a consumer PICTURES one of its own steps when it knows something the generic reading cannot recover (a hand-in with no target delivered to a character with a face, an id in a registry only that mod can draw). Several may register; walked in order, first non-null wins, each guarded, and answering null is how a source declines |
+| `ProgressionIcons` | what one step LOOKS like, asked the way `ProgressionTexts` asks what it is CALLED, so a step cannot be pictured one way on a giver's screen and another in the book. Four rungs: a registered source, then the picture the kind's own file gives that exact target, then the target drawn as itself (an item as its own picture, a creature as its portrait, another quest or achievement as its icon), then the kind's fallback. A step with no target goes straight to the fallback, and a step nothing can picture answers null and renders as text alone |
 | `ProgressionGates` | THE `GateEvaluator` and the ONE `RequiresGates` over it, built on first ask and holding no registration - the vocabulary, the context and the requirement kinds are read live off the runtime, so a surface asking during another mod's setup and one asking in play are on the same instance |
 | `ProgressionFactors` | the five `ziggfreedcommon:` READINGS of this runtime (`quest_known` among them: catalogue presence, a definite 0 for an unknown id, no player needed), claimed process-wide so any content can gate on finished progression with no Java |
 
@@ -62,12 +65,12 @@ match). They are the wrong tool for a mod that wants the server's progression.
     the player already had. Both engine routers (`quest/CLAUDE.md`, `achievement/CLAUDE.md`) carry
     the obligation, because that is where the code being added lives.
 - **contribution** (gates, system gates, taps, moment listeners, kill attributions, kill
-  qualifiers, feedback hooks, text sources): every registration
+  qualifiers, feedback hooks, text sources, icon sources): every registration
   applies. Gates AND with `accepts` collecting EVERY reason (no short-circuit),
   `preSatisfiedAmount` folding as a MAX; system gates AND with every gate asked, so registration
   order cannot decide the answer; taps, moment listeners and feedback hooks fan out, each
-  individually guarded; kill attributions, kill qualifiers and text
-  sources answer in order, first non-null wins.
+  individually guarded; kill attributions, kill qualifiers, text sources and icon sources answer in
+  order, first non-null wins.
 
 The three shared VOCABULARIES are not registrar methods - `objectiveKinds()`, `rewardKinds()` and
 `gateKinds()` hand out the live registries and a consumer registers into them. There is no slot to
@@ -152,8 +155,8 @@ conflict over, which is what a registry is for.
 
 ## The readings, and why they are contributed rather than registered
 
-`ProgressionFactors` turns this runtime into four ordinary factor ids
-(`ziggfreedcommon:quest_completed` / `quest_completions` / `achievement_earned` /
+`ProgressionFactors` turns this runtime into five ordinary factor ids
+(`ziggfreedcommon:quest_known` / `quest_completed` / `quest_completions` / `achievement_earned` /
 `achievement_points`), claimed process-wide through `FactorContributions` by ONE `contribute()` call
 from `zc-objectives`' `ProgressionBootstrap` at library setup. That is the shape because there is one progression per server and any number of
 vocabularies reading it: a storefront, a board, an NPC placement, a conversation and a loot roll all
@@ -165,7 +168,7 @@ Three rules hold them honest, pinned by `ProgressionFactorsTest` - with the fini
 the third pinned by `RepeatEvaluatorTest`, which is where the repeat rules are actually driven, and
 the clamp underneath it by `CompletionRecordTest`:
 
-- **The reads are NARROW** (`Reads`: six questions, every one an answer about a player). A factor
+- **The reads are NARROW** (`Reads`: seven questions - four about a player, three about the catalogue and whether the runtime is even built). A factor
   read may never reach a mutating engine - the same discipline `QuestStateReader` keeps for a
   conversation - so nothing here can accept, pay out or write.
 - **An id nothing knows answers nothing.** Record first, catalogue second, then null. A typo must

@@ -11,7 +11,7 @@ first - it doubles as this module's deepest router and this file does not repeat
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-loot`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -20,11 +20,14 @@ compiles as `:zc-loot`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggreg
 - **Depended on by**: `zc-instance` (the reward granter + `InstanceReward`), `zc-objectives` (the
   same, plus the loot core for its native-event producers), `zc-progression` (the shared reward
   VOCABULARY in `loot/reward/` - what a reward is, who pays it out), `zc-presentation` (one seam,
-  `RewardToastLines`, turning a reward-chip reading into toast body rows), and `zc-commerce` (the
-  same vocabulary a priced offer carries and `ShopEngine` pays out through `RewardGrants`).
-- **Reverse-edge trap**: this module may NEVER import `zc-progression`, `zc-instance`,
-  `zc-dialogue`, `zc-presentation`, `zc-world`, or `zc-effects` - sitting below two consumers means
-  any edge back up is an immediate cycle. A grant that needs a native effect, a page, a world
+  `RewardToastLines`, turning a reward-chip reading into toast body rows), `zc-commerce` (the
+  same vocabulary a priced offer carries and `ShopEngine` pays out through `RewardGrants`), and
+  `zc-encounter` (a defeated boss's payout: it rolls a `LootRef` through the loot core, turns the
+  grants into `RewardSpec`s and pays each credited participant through `RewardGrants`, share-scaled).
+- **Reverse-edge trap**: this module may NEVER import `zc-progression`, `zc-objectives`,
+  `zc-instance`, `zc-encounter`, `zc-commerce`, `zc-dialogue`, `zc-presentation`, `zc-world`, or
+  `zc-effects` - sitting below six consumers means any edge back up is an immediate cycle. A grant
+  that needs a native effect, a page, a world
   identity, or a conversation is a SEAM this module declares (a registered `RewardSpec` kind) and
   the wiring root or the consumer fills, never an import. `zc-effects` in particular must never
   appear here nor the reverse - see that module's own reverse-edge note.
@@ -65,7 +68,12 @@ Three reward-kind presentation files, `Server/ZiggfreedCommon/RewardKinds/{Dropl
 - how each roll-at-grant-time kind READS on a chip before it pays out, nothing about what it pays
 - plus the nine-locale `Server/Languages/<bcp47>/ziggfreedcommon.loot.lang` family holding the three
 labels they name. `LootableAsset` is a registered content TYPE (`Server/ZiggfreedCommon/Lootables/`)
-that ships no default table - the framework asset-store paradigm is defaults-optional.
+that ships no default table - the framework asset-store paradigm is defaults-optional. The stamp
+side ships a second nine-locale family, `Server/Languages/<bcp47>/ziggfreedcommon.stamp.lang` (the
+"Enhancements" tooltip heading and the one built-in stat label, durability), and two more registered
+TYPES of that same defaults-optional shape: `RollPoolAsset` (`Server/ZiggfreedCommon/RollPools/`) and
+`StatDisplayAsset` (`Server/ZiggfreedCommon/StatDisplays/`, `{Key, Color}` keyed by stat id). Both are
+detailed in the `loot/stamp/` router.
 
 ## Conventions
 
@@ -80,7 +88,7 @@ own router.
 
 ## Tests
 
-29 files: the loot core (`LootEngineTest`, `RollEvaluatorTest`, `LootableAssetCodecTest`,
+30 files: the loot core (`LootEngineTest`, `RollEvaluatorTest`, `LootableAssetCodecTest`,
 `LootableContributionTest`, `LootableValidatorTest`, `LootPoolTest`, `LootFactorGateTest`,
 `LootEntryTest`), the reward vocabulary (`RewardKindRegistryTest`, `RewardKindFoldTest`,
 `RewardKindAssetCodecTest`, `RewardKindAssetFoldTest`, `RewardKindValidatorTest`,
@@ -93,7 +101,10 @@ and why a reward missing what its kind requires is refused at LOAD rather than a
 the kind was registered into, and that its earned cues reach whatever presenter the server
 registered, and `ShippedRewardKindFilesTest` - the three presentation-only kind files this module
 ships (`Lootable`, `Droplist`, `Effect`) decoding command-less and reading as the generic localized
-line under a stand-in icon), the stamp math (`StampCapEngineTest`, `StamperDescribeTest`), and the
+line under a stand-in icon), the stamp math (`StampCapEngineTest`, `StamperDescribeTest`,
+`StampTooltipGateTest` - whether an item's own description key is safe to nest above the enhancement
+lines, refusing a key the catalogue does not carry and one carrying markup this surface cannot
+parse), and the
 deferred-payout layer (`DeferredRewardsTest`, `InstanceRewardParseTest`, `InstanceRewardMergeTest`,
 `NativeLootServiceTest`, `PendingRewardStoreTest` - the durable file's version marker exercised
 through queue/drain/has across a re-read: a file written before the marker existed reads as version

@@ -54,7 +54,11 @@ even with a null `ctx` (only the state write is skipped), which is what makes it
 A Type able to resolve `Failed` must return `WaitForDataFrom.Server` from `getWaitForDataFrom()`
 (the `SimpleInteraction` contract) - it costs a round trip at that node. A Type that only ever
 resolves `Finished` may stay `None`. Decision 38 (the ability-system-rework design authority in
-the hyMMO monorepo) binds ability BODIES to Server/None only.
+the hyMMO monorepo), as amended 2026-08-03, bans from an ability BODY only a node that READS
+client-sourced input (the Selector / Charging / FirstClick / MovementCondition deny-list); a
+`WaitForDataFrom.Client` node on the verified client-EXECUTED roster (`ApplyForce` today) is
+allowed, and any other Client-declaring node is a warning rather than a ban - so a custom Type of
+your own still declares Server or None.
 
 ## Owner vs target - [`InteractionCtx`](InteractionCtx.java)
 

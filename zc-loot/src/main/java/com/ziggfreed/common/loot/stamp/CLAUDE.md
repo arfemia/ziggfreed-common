@@ -16,12 +16,20 @@ separate from where the numbers end up.
 - **[`RollPoolAsset`](RollPoolAsset.java)** + **[`RollPoolConfig`](RollPoolConfig.java)** - the named
   pool, `Server/ZiggfreedCommon/RollPools/<Name>.json`, id = filename lower-cased, folded
   `defaults < pack < owner`. `Entries` REPLACES on inherit, like every table of this shape.
-- **[`StampSpec`](StampSpec.java)** - a whole stamp: `{Pool, Entries[], Picks{Min,Max}, Unique, Caps}`.
+- **[`StampSpec`](StampSpec.java)** - a whole stamp: `{Pool, Entries[], Picks{Min,Max}, Unique, Name, Quality, Caps}`.
   **No `Picks` authored draws ZERO** - deliberate, so a spec with only `Always` entries is fully
   predictable and one that forgot its Picks is visibly inert rather than quietly free.
   `Caps.Budgets[]` is the total ceiling and the one that BINDS is the LOWEST, which is what lets a
   hard absolute maximum sit beside a factor-scaled earned allowance; `Caps.PerStat` is a separate
   additional ceiling per stat id.
+- **[`StampIdentity`](StampIdentity.java)** - what a stamp makes the item CALLED and how rare it looks,
+  both AUTHORED and never derived: `Name` is a full translation key handed the item's own name as an
+  `{item}` argument, so `"Honed {item}"` localizes onto whatever it is stamped; `Quality` names an
+  engine `ItemQuality` asset, which already drives the name colour, the tooltip frame, the slot
+  texture and a localized rarity word, so nothing here invents a rarity model. `resolve(spec, pool)`
+  takes each field from the STAMP, falling back per field to the pool it drew from, so a stamp naming
+  an item without restating the pool's rarity does not silently drop that rarity. Unauthored, the item
+  keeps its own name and its own rarity.
 
 ## The decision, and the write
 
@@ -86,14 +94,14 @@ separate from where the numbers end up.
   the denial, and a re-stamp against a fake stamper). `StamperDescribeTest` pins the one thing a
   default method can silently break: a stamper that overrides nothing still ANSWERS `describe`, and
   answers null, so a caller's fallback is the documented path rather than an exception.
-  `StampTooltipGateTest` - the base-description gate, pure: a key that does not exist and a key whose
-  value carries markup both yield no base prose, and a generated-tool item nests its authored
-  markup-free prose instead.
+  `StampTooltipGateTest` - the base-description gate, pure: an item's own key that is missing and one
+  whose value carries markup both yield no base prose, while a key that exists and is markup-free
+  nests as the base line, plus the three `hasMarkup` cases.
 
 ## Evidence
 
 The engine provides NONE of this: no native per-instance stat application, and no enchant / affix /
-socket / reforge mechanism anywhere in the server source or the 114 asset schemas. Audited across the
+socket / reforge mechanism anywhere in the server source or the 113 asset schemas. Audited across the
 shared source by three scouts, with the metadata mechanics that bite (an empty document deletes its
 own key; an undecodable one THROWS; reads are never cached) written up in
 `.claude/research/native-item-enhancement-audit.md`.

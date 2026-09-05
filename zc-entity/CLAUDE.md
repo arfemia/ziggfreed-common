@@ -6,7 +6,7 @@ entity-stat primitives that need real engine entity/item data, split out from th
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-entity`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -14,7 +14,9 @@ compiles as `:zc-entity`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggr
 - **Depends on**: `zc-core` only. The world-eviction seam a performer's per-world bookkeeping
   registers against is the `cast.WorldEvictors` zc-core primitive, which is why this module rests
   on core alone rather than needing an edge to `zc-cast`.
-- **Depended on by**: `zc-objectives`, `zc-world`.
+- **Depended on by**: `zc-objectives`, `zc-world`, `zc-encounter` (the boss framework folds this
+  module's portable `hytale:` factor library into its own registry; it reads nothing out of
+  `entity/`).
 - **Reverse-edge trap**: none declared today. This module carries no domain vocabulary of its own
   (it is entity-presentation + item-stat plumbing), so an edge upward to a domain module (loot,
   progression, dialogue) would be the first sign something domain-specific had leaked in here.
@@ -27,9 +29,11 @@ compiles as `:zc-entity`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggr
   over `CollisionModule`), `HeldItemUtil` (a held tool's gather-power SPREAD selection, e.g. picking
   the right power out of a dozen authored on one item), `PlayerIdentityCache` (resolves a player's
   UUID on the world thread, so an off-thread engine callback holding a bare `Player` never needs the
-  deprecated-for-removal `Entity.getUuid()`), and `EntityBootstrap` (this module's own three
-  `setup()` registration phases: `registerPerformerIdentity` / `registerFlairs` /
-  `registerPlayerIdentity`, called from the wiring root's ordered list).
+  deprecated-for-removal `Entity.getUuid()`), and `EntityBootstrap` (this module's own four
+  `setup()` registration phases: `installEquipStatBridge` (the ONE `EquipStatBridge`, its three
+  trigger systems and the `equipStatBridge()` accessor a consumer reads it back through) /
+  `registerPerformerIdentity` / `registerFlairs` / `registerPlayerIdentity`, called from the wiring
+  root's ordered list).
   - [`entity/performer/`](src/main/java/com/ziggfreed/common/entity/performer/CLAUDE.md) - the
     `StationPerformer` contract (`HolderPerformer`/`NpcRolePerformer` backends,
     `PerformerIdentityComponent` + `PerformerReconciler`).

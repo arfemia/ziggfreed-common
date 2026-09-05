@@ -4,9 +4,9 @@ The AUTHORING groups every commerce type shares. Every class here exists because
 Shops / ShopPools / ShopEntries / Boards / Bounties would otherwise declare the same fields twice and
 drift apart one edit at a time.
 
-Package root `com.ziggfreed.common.commerce.asset`. Imports zc-core, zc-progression and zc-world
-only; it must never import a commerce ENGINE package, because an authored group is what the engine
-reads, not the other way round.
+Package root `com.ziggfreed.common.commerce.asset`. It imports zc-core only, and may never import a
+commerce ENGINE package, because an authored group is what the engine reads, not the other way
+round.
 
 | Class | The group it declares |
 |---|---|

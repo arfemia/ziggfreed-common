@@ -6,16 +6,17 @@ module to hold one small, genuinely standalone algorithm).
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-scaling`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
 
 - **Depends on**: nothing (not even `zc-core`) - see the `build.gradle` comment: "no engine types
   at all". Pure math over primitives.
-- **Depended on by**: no other library module. Consumed directly by the sibling `mmo-mob-scaling`
-  mod at the aggregate-jar level, which is the whole reason this exists as a domain-free primitive
-  rather than mob-scaling policy baked into a domain module.
+- **Depended on by**: `zc-encounter` (the power fold a party's aggregated power is folded with).
+  Also consumed directly by the sibling `mmo-mob-scaling` mod at the aggregate-jar level, which is
+  the whole reason this exists as a domain-free primitive rather than mob-scaling policy baked into
+  a domain module.
 - **Reverse-edge trap**: an edge FROM here to anything, even `zc-core`, is the first sign this
   module has stopped being pure math. If a future change needs logging or a factor read, that is a
   sign the change belongs in the consumer, not here.

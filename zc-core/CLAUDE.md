@@ -13,7 +13,7 @@ in the library can rest on it without risk of a cycle.
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-core`). Not independently loadable: it produces a compile-time jar with no
 `manifest.json`, merged into the single `ZiggfreedCommon-<version>.jar` by the wiring root. See the
 root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
@@ -23,8 +23,9 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
 - **Depends on**: nothing but the Hytale server jar (`compileOnly`) and `jsr305` (`api`, so the
   `@Nonnull`/`@Nullable` annotations resolve for every consumer compiling against the aggregate).
 - **Depended on by**: every module that declares a dependency at all (`zc-cast`, `zc-commerce`,
-  `zc-dialogue`, `zc-effects`, `zc-entity`, `zc-instance`, `zc-loot`, `zc-objectives`,
-  `zc-presentation`, `zc-progression`, `zc-world`) plus the wiring root. `zc-scaling` is the one
+  `zc-dialogue`, `zc-effects`, `zc-encounter`, `zc-entity`, `zc-instance`, `zc-loot`,
+  `zc-objectives`, `zc-presentation`, `zc-progression`, `zc-world`) plus the wiring root.
+  `zc-scaling` is the one
   module that depends on nothing at all, not even this one: it is pure band math with no engine
   types. This is the bottom of the graph; nothing here may import anything above it.
 - **Reverse-edge trap**: none possible in the other direction (there is nothing below zc-core to
@@ -63,6 +64,11 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
   bottom so a consumer needs no zc-world edge to speak the grammar.
 - [`i18n/`](src/main/java/com/ziggfreed/common/i18n/CLAUDE.md) - `Msg`, the mod-agnostic
   client-resolved `Message` factory (caller-prefixed `tr`, `raw`, `join`, `cat`, `bold`/`color`).
+- `icon/` - `IconSpec` (the ONE picture reference: an item id OR a Common-rooted texture path, as a
+  nested codec group) + `Portraits` (where the client keeps its pre-rendered still of each
+  creature, spelled once). It lands BELOW zc-presentation deliberately: a module that merely NAMES
+  a picture has no edge to the renderer that paints one (`ui/icon/IconRenderer`). No router of its
+  own (two files).
 - [`inventory/`](src/main/java/com/ziggfreed/common/inventory/CLAUDE.md) - `PlayerAccess` (the
   shared non-deprecated replacements for the engine's deprecated `Inventory` section accessors and
   `Player#getPlayerRef`; here rather than in zc-entity so a consumer needing only the accessor
@@ -99,7 +105,8 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
   in the library fires through: resolve the engine dispatcher, fire only if it `hasListener()`
   (the event is built lazily, after that check), dispatch synchronously on the calling thread, and
   never let a failure escape. One instance per family, each with a `publishTo` seam a bus-less host
-  or a test redirects; `quest.event.QuestEvents` and `objectives.flair.FlairEvents` both sit on one.
+  or a test redirects; `quest.event.QuestEvents`, `objectives.flair.FlairEvents` and
+  `encounter.event.Encounters` (the six boss-fight events) each sit on one.
   No router of its own (one file).
 - `time/` - `DurationGroup` only, the ONE duration codec leaf: a nested `{Weeks, Days, Hours,
   Minutes, Seconds}` group of independently nullable whole numbers that are simply SUMMED, so an asset
@@ -132,7 +139,7 @@ try-guards real rather than decorative.
 
 ## Tests
 
-37 files in `src/test/java/com/ziggfreed/common/`, one per primitive above plus the factor-model
+38 files in `src/test/java/com/ziggfreed/common/`, one per primitive above plus the factor-model
 core (`FactorFormulaTest`, `FactorVocabularyTest`, `FactorContextTest`, `FactorContributionsTest`,
 `DerivedFactorTest`, `DerivedFactorValidatorTest`), the matching core (`NamePatternTest`,
 `NameMatchRankTest`, `ItemMatchTest`), the codec leaves (`InheritMapCodecTest`, `JsonParentResolverTest`,

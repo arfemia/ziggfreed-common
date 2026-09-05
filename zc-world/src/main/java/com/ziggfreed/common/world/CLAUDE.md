@@ -31,9 +31,11 @@ Nested package with [its own router](placed/CLAUDE.md); read that before touchin
 ## Block IO, patterns + per-block records
 
 - **[`BlockOps`](BlockOps.java)** - single-block read/write at world coordinates over the engine's
-  CURRENT block surface, the one place the library touches raw block IO (a consumer probing a
-  neighbour cell or swapping a block calls this, never the deprecated `World.getBlock` /
-  `WorldChunk` accessor family). `blockItemIdAt(chunkStore|store, x, y, z)` resolves the section
+  CURRENT block surface, the one place the library WRITES a block, and the read a consumer probing
+  a neighbour cell or swapping one should call rather than the deprecated `World.getBlock` /
+  `WorldChunk` accessor family (`SurfaceProbe`'s column scan, zc-cast's `BlockRaystep` and
+  zc-presentation's `BlockStateSound` still read through that deprecated family).
+  `blockItemIdAt(chunkStore|store, x, y, z)` resolves the section
   (`ChunkStore.getChunkSectionReferenceAtBlock`, a map lookup that NEVER loads a chunk), reads
   `BlockSection`, and answers the block ITEM id - air answers the engine's own `"Empty"` key, null
   strictly means "cannot tell" (unloaded section / failure), so a matcher can tell an empty cell

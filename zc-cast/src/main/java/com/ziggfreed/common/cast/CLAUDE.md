@@ -35,7 +35,7 @@ nothing but `CommonLog` and four engine types - lives in **zc-core** while keepi
 lives in **zc-cast**, which as a result no library module depends on: correct, because this is a
 consumer-facing runtime layer rather than framework plumbing. Do not "tidy" `WorldEvictors` back
 into zc-cast - that single file would re-attach the whole 38-class cast/interaction runtime to
-zc-entity, zc-world and zc-dialogue.
+zc-entity, zc-dialogue and zc-loot.
 
 Router for `com.ziggfreed.common.cast` (+ `cast.step`). The mod-agnostic runtime seams a consumer's cast / ability system needs: the generic step-dispatch KERNEL, an on-hit builder registry, a per-hit resolver, a per-caster armed-state store, a guarded observer registry, ray + block targeting, and the per-world tick partition (world-keyed queues, evictor fan-out, and the abstract drain system). Lifted config-free from a consumer; every engine-touching call is try-guarded to a no-op / `false`, and world-thread work is asserted in javadoc, not enforced. No content, no ids, no step vocabulary baked in - the consumer supplies all types and registers all policy. The layer is ADDITIVE-ONLY once frozen (new methods / overloads / `HitContext` fields OK; renames / removals / callback-widening forbidden).
 

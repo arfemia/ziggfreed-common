@@ -2,19 +2,21 @@
 
 Native effect application. Two self-contained packages a consumer can want without dragging the
 rest of the instance-experience layer along: the plain id-in/id-out native `EntityEffect`
-apply/remove/track primitive, and the timed + banded encounter framework built on it.
+apply/remove/track primitive, and, beside it, the timed + banded encounter framework with its own
+apply path.
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-effects`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
 
 - **Depends on**: `zc-core` only.
-- **Depended on by**: no other library module today. This module is consumed directly by sibling
-  mods at the aggregate-jar level (Kweebec's hunter pace-band swap is the exemplar), not by another
-  `zc-*` module.
+- **Depended on by**: `zc-encounter`, which declares this module for the native-effect primitive a
+  phase reaction composes with. Otherwise it is consumed directly by sibling mods at the
+  aggregate-jar level (Kweebec's hunter pace-band swap is the exemplar), not by another `zc-*`
+  module.
 - **Reverse-edge trap**: this module must NEVER gain an edge to `zc-loot`, in either direction. A
   loot grant that applies a native effect dispatches through a registered reward kind the wiring
   root populates (`reward/EffectRewardKind`), which is exactly what keeps a reward that grants an

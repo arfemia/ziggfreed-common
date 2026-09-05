@@ -7,7 +7,7 @@ that list; splitting them would manufacture an edge between two halves of one do
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention,
 Java 25, compiles as `:zc-commerce`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate
 build.
 

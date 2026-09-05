@@ -8,7 +8,7 @@ vocabulary.
 
 ## Build
 
-Part of the thirteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
+Part of the fourteen-module `ziggfreed-common` build (`gradle/zc-module.gradle` convention, Java 25,
 compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build.
 
 ## Dependencies
@@ -20,7 +20,9 @@ compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggre
   `zc-commerce` (a storefront or a board carries the same `Where` group, audited by the same
   `WhereValidator`), `zc-objectives` (`world/placed/` only - its block-break and pickup producers
   ask `PlacedBlockLedger` before crediting a block the breaker put down themselves, and its place
-  producer counts exactly what `PlacedBlockRecorder`'s own `placementCounts` predicate counts).
+  producer counts exactly what `PlacedBlockRecorder`'s own `placementCounts` predicate counts),
+  `zc-encounter` (a participation rule carries the same `Where` group and is ranked by it, and a
+  live fight puts a `worldmap/` marker over its subject from the engage until the run resets).
 - **Reverse-edge trap**: none declared today. This module is targeting infrastructure, not domain
   content, so an edge upward to a domain module (dialogue, progression, instance) would mean world
   targeting had started depending on the very content it is supposed to gate.
@@ -62,9 +64,11 @@ compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggre
   systems read ONE native event in an order nobody specifies, so a consumed BLOCK row keeps
   answering for `READ_GRACE_MS` (a position is the moment) and a placed-ITEM read names its moment
   (`consumePlacedItem(uuid, itemId, momentKey)`) so one pickup spends exactly one remembered copy
-  no matter how many mods read it. **Fairness**: the default is `strict`, so nobody earns from a
-  placement at all; setting `strict` false narrows the refusal to the placer alone, for a server
-  that would rather a builder never poisoned their neighbours' blocks.
+  no matter how many mods read it. **Fairness**: nobody earns from a remembered placement, whoever
+  breaks it, and no setting narrows that refusal to the placer alone - a placement that SHOULD pay
+  is settled when the block goes down, by never recording it.
+- [`world/pattern/`](src/main/java/com/ziggfreed/common/world/pattern/BlockPattern.java) - generic structure-pattern matching over caller seams: `BlockPattern<P>` compiles anchor-relative cells carrying an OPAQUE caller payload and expands up to eight variants (four yaw quarter-turns x optional X-mirror), matched through the `BlockReader` / `CellPredicate<P>` seams; `PatternIndex<P>` maps block item ids to candidate (pattern, variant, cell) triples plus a bounding radius for proximity pruning. This module holds ZERO matching vocabulary: what a cell accepts is the payload's meaning to the caller. Detail in the package router.
+- [`world/record/`](src/main/java/com/ziggfreed/common/world/record/BlockRecordSection.java) + [`world/stash/`](src/main/java/com/ziggfreed/common/world/stash/BlockStashes.java) - the per-block RECORD substrate and its first consumer. `BlockRecordSection<T>` is the generic per-block keyed-record `Component<ChunkStore>` over a caller-supplied payload codec, saved and loaded with the chunk; `world/stash/` rides it as the ONE "what is this block holding for players?" store (`BlockStashes`, `BlockStash` piles + game-time clocks + `StashPile`), registered by its own `stash/BlockStashBootstrap`. Both world-thread only; detail in the package router.
 - [`worldmap/`](src/main/java/com/ziggfreed/common/worldmap/CLAUDE.md) - `WorldMapMarkers`
   (global + per-player POI/compass markers over the native `WorldMapManager`), `MapDiscovery` (+
   `DiscoveryMode`: hidden-until-discovered POIs, trigger x visibility as two orthogonal knobs), and
@@ -88,7 +92,7 @@ misconfigured `Where` loud instead of silently matching nothing.
 
 ## Tests
 
-7 files: `PlacedBlockSectionTest` (where a block's answer is decided: which bit a position maps to,
+12 files: `PlacedBlockSectionTest` (where a block's answer is decided: which bit a position maps to,
 that every block in a section has its own, that spending a mark clears it, that the array is only
 allocated once something is marked and released again when nothing is, and the write-out/read-back
 round trip a chunk save and load puts it through; the ledger's own block path needs a live world
@@ -100,4 +104,13 @@ tell" contract), `MatchRankTest` (the world ladder: the shared bands plus the `G
 on top), `WorldNameMatcherTest` (the grammar as the world SELECTS through it - parses and scores,
 never selects, per its own javadoc), `MapDiscoveryTest`, `WaypointSnapshotsTest`. The grammar's and
 the ladder's own contracts are pinned once in zc-core (`NamePatternTest`, `NameMatchRankTest`);
-these cover what the world adds.
+these cover what the world adds. Beside them sit the pattern, record and stash tests:
+`BlockPatternMatchTest` and `BlockPatternVariantTest` (the cell walk through the stubbed reader and
+predicate seams, and the eight yaw-and-mirror variants a compile expands to), `PatternIndexTest`
+(which candidates an item id answers with, and the widest registered bounding radius),
+`BlockRecordSectionTest` (which record a position maps to, records in one section staying
+independent, remove and clone, the chunk save-and-load round trip, and the degraded
+no-registration handle) and `BlockStashCodecTest` (a stash's authored leaves, its piles' and its
+items' insertion order and its pending cycles surviving that same round trip; no fixture authors
+the `Unique` leaf, since a bare unit JVM cannot initialize the engine's `ItemStack`, so a real
+stack through it lands in in-game smoke).
