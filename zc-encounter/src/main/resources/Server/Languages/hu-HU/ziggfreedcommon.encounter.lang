@@ -38,6 +38,9 @@ admin.inspect.subject = célpont: {0}
 admin.inspect.subject.none = célpont: még semmi sincs kötve
 admin.inspect.members = tagok: {0}, halálok: {1}
 admin.inspect.concluded = lezárva: {0}
+admin.inspect.rest = pihenő egy győzelem után: {0} másodperc a világ óráján
+admin.inspect.rest.resting = pihen: még {0} másodperc a világ óráján
+admin.inspect.rest.rested = kipihent: a hely újra felkeltheti a főellenségét
 admin.inspect.participant = {0}: {1} kiosztva, {2} elszenvedve, {3} mp jelen, részesedés {4}%
 admin.inspect.participants.none = Még senki sem szerzett jóváírást.
 

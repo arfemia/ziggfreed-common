@@ -38,6 +38,9 @@ admin.inspect.subject = bersaglio: {0}
 admin.inspect.subject.none = bersaglio: niente di collegato ancora
 admin.inspect.members = membri: {0}, morti: {1}
 admin.inspect.concluded = concluso: {0}
+admin.inspect.rest = riposo dopo una vittoria: {0} secondi sull'orologio del mondo
+admin.inspect.rest.resting = a riposo: mancano {0} secondi sull'orologio del mondo
+admin.inspect.rest.rested = riposato: il sito può rialzare il suo boss
 admin.inspect.participant = {0}: {1} inflitti, {2} subiti, {3}s di presenza, quota {4}%
 admin.inspect.participants.none = Nessuno ha ancora guadagnato credito.
 

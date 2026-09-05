@@ -1,5 +1,9 @@
 package com.ziggfreed.common.encounter.validate;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -8,10 +12,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.hypixel.hytale.assetstore.AssetPack;
+import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.server.core.asset.AssetModule;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import com.hypixel.hytale.server.spawning.blockstates.SpawnMarkerBlock;
 import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationConfig;
 import com.ziggfreed.common.encounter.event.Encounters;
@@ -35,10 +49,16 @@ import com.ziggfreed.common.validation.ValidationReport;
  * <p>The spawn markers are read here, since the engine owns them. Any other store that names a
  * role by id (an NPC placement's identity lives in a module this one may not import) registers
  * itself through {@link #addRoleNameSource}, which the wiring root does for the placement engine.
+ *
+ * <p>The prefabs are read here too: every loaded pack's {@code Server/Prefabs/**.prefab.json},
+ * each spawner block entry checked for the per-block state a builder-page paste needs
+ * ({@link EncounterPrefabAudit}). The game's own pack is left out; its prefabs are the engine's.
  */
 public final class EncounterAudit {
 
     private static final AtomicBoolean LATE_AUDIT_RAN = new AtomicBoolean();
+
+    private static final String PREFAB_SUFFIX = ".prefab.json";
 
     /** Every registered "what names a role" source, by the kind word its findings are worded with. */
     private static final Map<String, Supplier<Map<String, ? extends Collection<String>>>> ROLE_NAME_SOURCES =
@@ -72,7 +92,82 @@ public final class EncounterAudit {
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " the encounter content could not be audited", t);
         }
+        out.addAll(prefabFindings());
         return out;
+    }
+
+    /**
+     * Every loaded pack's prefabs, each spawner block read for its per-block state. Total and
+     * fail-soft: a pack that cannot be walked costs its own findings and one line.
+     */
+    @Nonnull
+    static List<Finding> prefabFindings() {
+        List<Finding> out = new ArrayList<>();
+        Predicate<String> spawnerBlock = spawnerBlocks();
+        List<AssetPack> packs;
+        try {
+            packs = AssetModule.get().getAssetPacks();
+        } catch (Throwable t) {
+            return out;
+        }
+        for (AssetPack pack : packs) {
+            if (pack == null || pack.isCoreMod()) {
+                continue;
+            }
+            try {
+                out.addAll(prefabFindings(pack, spawnerBlock));
+            } catch (Throwable t) {
+                SafeLog.warn(Encounters.LOG_PREFIX + " the prefabs of " + pack.getName() + " could not be audited", t);
+            }
+        }
+        return out;
+    }
+
+    @Nonnull
+    private static List<Finding> prefabFindings(@Nonnull AssetPack pack, @Nonnull Predicate<String> spawnerBlock)
+            throws IOException {
+        List<Finding> out = new ArrayList<>();
+        Path prefabs = pack.getRoot().resolve("Server").resolve("Prefabs");
+        if (!Files.isDirectory(prefabs)) {
+            return out;
+        }
+        try (Stream<Path> files = Files.walk(prefabs)) {
+            for (Path file : files.filter(f -> f.getFileName().toString().endsWith(PREFAB_SUFFIX)).sorted().toList()) {
+                JsonObject root = readJson(file);
+                if (root == null) {
+                    continue;
+                }
+                String relative = prefabs.relativize(file).toString().replace('\\', '/');
+                String prefabId = relative.substring(0, relative.length() - PREFAB_SUFFIX.length());
+                out.addAll(EncounterPrefabAudit.audit(prefabId, root, spawnerBlock));
+            }
+        }
+        return out;
+    }
+
+    /** Whether a block type keeps a spawn marker alive: its block-entity template carries the marker component. */
+    @Nonnull
+    private static Predicate<String> spawnerBlocks() {
+        return name -> {
+            try {
+                BlockType type = BlockType.getAssetMap().getAsset(name);
+                Holder<ChunkStore> entity = type == null ? null : type.getBlockEntity();
+                return entity != null && entity.getComponent(SpawnMarkerBlock.getComponentType()) != null;
+            } catch (Throwable t) {
+                return false;
+            }
+        };
+    }
+
+    @Nullable
+    private static JsonObject readJson(@Nonnull Path file) {
+        try {
+            JsonElement root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8));
+            return root != null && root.isJsonObject() ? root.getAsJsonObject() : null;
+        } catch (Exception e) {
+            SafeLog.fine(Encounters.LOG_PREFIX + " could not read the prefab at " + file + ": " + e.getMessage());
+            return null;
+        }
     }
 
     /** Every role id named on this server: the spawn markers, then each registered source. */

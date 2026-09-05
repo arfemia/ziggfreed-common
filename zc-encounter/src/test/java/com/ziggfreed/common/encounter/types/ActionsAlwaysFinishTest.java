@@ -43,7 +43,7 @@ class ActionsAlwaysFinishTest {
                 }
             }
         }
-        assertEquals(EncounterTypes.ALL.size() - 2, scanned, "the three registered actions were scanned");
+        assertEquals(EncounterTypes.ACTIONS.size(), scanned, "every registered action was scanned");
         assertTrue(hits.isEmpty(), () -> "a registered action answers the engine 'still running' (" + hits.size()
                 + " hit(s)); answer true and say in the log why nothing was done:\n" + String.join("\n", hits));
     }

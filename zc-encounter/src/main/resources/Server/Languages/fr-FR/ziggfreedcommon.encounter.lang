@@ -38,6 +38,9 @@ admin.inspect.subject = cible : {0}
 admin.inspect.subject.none = cible : rien de lié pour l'instant
 admin.inspect.members = membres : {0}, morts : {1}
 admin.inspect.concluded = réglée : {0}
+admin.inspect.rest = repos après une victoire : {0} secondes sur l'horloge du monde
+admin.inspect.rest.resting = en repos : encore {0} secondes sur l'horloge du monde
+admin.inspect.rest.rested = reposé : le site peut relever son boss
 admin.inspect.participant = {0} : {1} infligés, {2} subis, {3}s de présence, part {4}%
 admin.inspect.participants.none = Personne n'a encore gagné de crédit.
 

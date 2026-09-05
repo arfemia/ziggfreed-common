@@ -38,6 +38,9 @@ admin.inspect.subject = Ziel: {0}
 admin.inspect.subject.none = Ziel: noch nichts gebunden
 admin.inspect.members = Mitglieder: {0}, Tode: {1}
 admin.inspect.concluded = abgeschlossen: {0}
+admin.inspect.rest = Ruhe nach einem Sieg: {0} Sekunden auf der Weltuhr
+admin.inspect.rest.resting = ruht: noch {0} Sekunden auf der Weltuhr
+admin.inspect.rest.rested = ausgeruht: der Ort kann seinen Boss wieder erwecken
 admin.inspect.participant = {0}: {1} ausgeteilt, {2} eingesteckt, {3}s anwesend, Anteil {4}%
 admin.inspect.participants.none = Niemand hat sich bisher etwas verdient.
 

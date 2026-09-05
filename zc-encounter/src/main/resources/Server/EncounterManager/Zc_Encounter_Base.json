@@ -6,8 +6,8 @@
     "",
     "What it does, in order. A Player sensor with the EncounterMembers collector keeps the roster the",
     "boss bar and the music are applied through, and the roster the library credits presence from. In",
-    "Intro, while nothing is bound in SubjectSlot, TriggerSpawners fires the SpawnMarker within",
-    "SummonRange and binds the first spawn into the slot; the moment the Target sensor sees it, the",
+    "Intro, while nothing is bound in SubjectSlot and the site has rested, TriggerSpawners fires the",
+    "SpawnMarker within SummonRange and binds the first spawn into the slot; the moment the Target sensor sees it, the",
     "boss is made vulnerable, the bar goes up under BossBarName, the Music starts, the zc:engaged beat",
     "tells the library the fight is on, and the state moves to Fight. In Fight, the FightBehavior slot",
     "runs whatever macro a Variant hands it (Zc_Adds_Wave, say, or a macro of your own on the",
@@ -24,6 +24,23 @@
     "Once is spent after its first tick. So a list that spans ticks (a Timeout, a wait for a spawn)",
     "sits under a plain sensor and ends with the state change that stops it, the way Complete does",
     "here; the content audit warns about a blocking list under a Once sensor.",
+    "",
+    "The rest between fights is the binding row's, not the marker's and not this script's. A manual",
+    "spawn marker never reads its own respawn gate (it fires whenever the script asks and its spawn",
+    "is dead), and the engine keeps nothing of a script across a chunk load but its id and its",
+    "rebound slots, so a Timeout here starts over on every load. So the row's Timing.Rest (an ISO",
+    "duration on the world's clock, P1D for one game day) is stamped on this entity at each defeat",
+    "and saved with the world, and the ZigRested sensor in the summon leaf below answers false until",
+    "the clock is past it. A script that also carries a no-show timeout gates that on ZigRested too,",
+    "so a resting site waits quietly in Intro instead of trying its marker. Complete's RearmSeconds",
+    "stays the short wait right after a kill; both must pass before the boss rises again.",
+    "",
+    "The six zc instruction Types, each legal only inside an encounter script: ZigGrant pays the",
+    "credited participants a loot reference scaled by share; ZigFeedback draws a FeedbackMoment for",
+    "each member; ZigScaleTarget applies the row's health scale to the bound subject now; ZigMembers",
+    "is true while the member count is inside a range; ZigFactor is true while a factor reading",
+    "about the fight is inside a range; ZigRested is true while the site carries no rest or the",
+    "world's clock is past the one its last defeat stamped.",
     "",
     "The library reads the zc: beats and nothing else: it credits everyone who fought, scales the",
     "boss's health with the party, pays what the binding row under",
@@ -119,12 +136,20 @@
             },
             {
               "Sensor": {
-                "Type": "Not",
-                "Sensor": {
-                  "Type": "Target",
-                  "Range": { "Compute": "TargetRange" },
-                  "TargetSlot": { "Compute": "SubjectSlot" }
-                }
+                "Type": "And",
+                "Sensors": [
+                  {
+                    "Type": "Not",
+                    "Sensor": {
+                      "Type": "Target",
+                      "Range": { "Compute": "TargetRange" },
+                      "TargetSlot": { "Compute": "SubjectSlot" }
+                    }
+                  },
+                  {
+                    "Type": "ZigRested"
+                  }
+                ]
               },
               "ActionsBlocking": true,
               "Actions": [

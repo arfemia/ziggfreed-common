@@ -38,6 +38,9 @@ admin.inspect.subject = objetivo: {0}
 admin.inspect.subject.none = objetivo: nada vinculado todavía
 admin.inspect.members = miembros: {0}, muertes: {1}
 admin.inspect.concluded = resuelto: {0}
+admin.inspect.rest = descanso tras una victoria: {0} segundos en el reloj del mundo
+admin.inspect.rest.resting = descansando: faltan {0} segundos en el reloj del mundo
+admin.inspect.rest.rested = descansado: el lugar puede alzar a su jefe de nuevo
 admin.inspect.participant = {0}: {1} infligido, {2} recibido, {3}s presente, cuota {4}%
 admin.inspect.participants.none = Nadie ha ganado crédito todavía.
 

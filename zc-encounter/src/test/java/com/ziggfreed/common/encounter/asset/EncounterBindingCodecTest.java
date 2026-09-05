@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
 
@@ -59,6 +60,7 @@ public class EncounterBindingCodecTest {
         assertTrue(row.getScale().reconcileOnPhase());
         assertEquals(20, row.getTiming().wipeGraceSeconds());
         assertEquals(EncounterBindingAsset.Timing.DEFAULT_MAX_RUN_SECONDS, row.getTiming().maxRunSeconds());
+        assertNull(row.getTiming().rest(), "no rest beyond the script's own timeout when none is authored");
         assertTrue(row.getLoot().toKiller());
         assertTrue(row.getLoot().queueIfOffline());
         assertEquals("My_Defeated", row.getFeedback().defeated());
@@ -67,6 +69,18 @@ public class EncounterBindingCodecTest {
         assertEquals(EncounterBindingAsset.Discovery.DEFAULT_FOLLOW_SECONDS, row.getDiscovery().followSeconds());
         assertEquals("bosses", row.getLeaderboard().getBucket());
         assertEquals("hard", row.getProgression().getDifficulty());
+    }
+
+    @Test
+    void theRestIsAnIsoDurationOnTheWorldClockAndSurvivesAnOverlay() throws IOException {
+        EncounterBindingAsset pack = binding("{\"Timing\": {\"WipeGraceSeconds\": 45, \"Rest\": \"P1D\"}}", "row", null);
+        assertEquals(Duration.ofDays(1), pack.getTiming().rest());
+        assertEquals(45, pack.getTiming().wipeGraceSeconds());
+        EncounterBindingAsset hours = binding("{\"Timing\": {\"Rest\": \"PT8H\"}}", "hours", null);
+        assertEquals(Duration.ofHours(8), hours.getTiming().rest());
+        EncounterBindingAsset owner = binding("{\"Timing\": {\"WipeGraceSeconds\": 30}}", "row", pack);
+        assertEquals(Duration.ofDays(1), owner.getTiming().rest(), "an overlay that says nothing of the rest keeps it");
+        assertEquals(30, owner.getTiming().wipeGraceSeconds());
     }
 
     @Test

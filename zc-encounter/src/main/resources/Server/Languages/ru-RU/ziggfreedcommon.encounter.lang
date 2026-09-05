@@ -38,6 +38,9 @@ admin.inspect.subject = цель: {0}
 admin.inspect.subject.none = цель: пока ничего не привязано
 admin.inspect.members = участников: {0}, смертей: {1}
 admin.inspect.concluded = завершено: {0}
+admin.inspect.rest = отдых после победы: {0} с по часам мира
+admin.inspect.rest.resting = отдыхает: осталось {0} с по часам мира
+admin.inspect.rest.rested = отдохнул: место снова может поднять своего босса
 admin.inspect.participant = {0}: нанесено {1}, получено {2}, присутствие {3} с, доля {4}%
 admin.inspect.participants.none = Никто пока не заработал зачёт.
 

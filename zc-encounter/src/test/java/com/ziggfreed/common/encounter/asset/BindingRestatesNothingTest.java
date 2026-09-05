@@ -64,7 +64,7 @@ class BindingRestatesNothingTest {
         List<String> keys = keys();
         for (String expected : List.of("EncounterAsset", "Enabled", "Subject", "Participation", "Scale", "Timing",
                 "Loot", "Leaderboard", "Progression", "Feedback", "Discovery", "TargetSlot", "MinShare",
-                "HealthPerMember", "WipeGraceSeconds", "OnDefeat", "OnPhase", "QueueIfOffline", "Match", "Where",
+                "HealthPerMember", "WipeGraceSeconds", "Rest", "OnDefeat", "OnPhase", "QueueIfOffline", "Match", "Where",
                 "DamageDealt", "DamageTaken", "Presence", "CreditDead", "CreditDisconnected")) {
             assertTrue(keys.contains(expected), "the codec lost the key " + expected);
         }

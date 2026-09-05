@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.encounter.command.ZigEncounterCommand;
 import com.ziggfreed.common.encounter.event.Encounters;
+import com.ziggfreed.common.encounter.run.ZigEncounterRest;
 import com.ziggfreed.common.encounter.run.ZigEncounterRun;
 import com.ziggfreed.common.encounter.signal.EncounterSignalSystem;
 import com.ziggfreed.common.encounter.system.EncounterDamageSystem;
@@ -24,9 +25,9 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The encounter module's registration phase, called as one line from the wiring root's
- * {@code setup()}: the run component, the five encounter Types, the systems, the builder reload
- * listener, the content audit, the command family and the boot self-test. Registration only; every
- * decision lives in the module behind it.
+ * {@code setup()}: the run and rest components, the six encounter Types, the systems, the builder
+ * reload listener, the content audit, the command family and the boot self-test. Registration
+ * only; every decision lives in the module behind it.
  */
 public final class EncounterBootstrap {
 
@@ -35,7 +36,7 @@ public final class EncounterBootstrap {
 
     /** Install the whole module. */
     public static void install(@Nonnull JavaPlugin plugin) {
-        registerRunComponent(plugin);
+        registerComponents(plugin);
         EncounterTypes.register();
         registerSystems(plugin);
         registerReloadListener();
@@ -47,10 +48,13 @@ public final class EncounterBootstrap {
     /**
      * The run component, registered without a codec so a chunk save never carries it: the engine
      * rebuilds a fight from its script on every load, and a persisted run beside that would be a
-     * second state machine.
+     * second state machine. The rest component, registered WITH one: the rest between fights is
+     * the one thing about a site that must outlive a reload, since the script restarts at its
+     * start state on every load and a manual spawn marker never reads its own respawn gate.
      */
-    private static void registerRunComponent(@Nonnull JavaPlugin plugin) {
+    private static void registerComponents(@Nonnull JavaPlugin plugin) {
         ZigEncounterRun.register(plugin.getEntityStoreRegistry());
+        ZigEncounterRest.register(plugin.getEntityStoreRegistry());
     }
 
     /**

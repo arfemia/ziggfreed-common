@@ -1,5 +1,6 @@
 package com.ziggfreed.common.encounter.asset;
 
+import java.time.Duration;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
@@ -35,7 +36,7 @@ import com.ziggfreed.common.loot.LootRef;
  *   "NameKey": "ziggfreedcommon.encounter.example.name",
  *   "Subject":       { "TargetSlot": "Boss" },
  *   "Scale":         { "HealthPerMember": 0.35, "MaxHealthMultiplier": 5.0 },
- *   "Timing":        { "WipeGraceSeconds": 15 },
+ *   "Timing":        { "WipeGraceSeconds": 15, "Rest": "P1D" },
  *   "Loot":          { "OnDefeat": { "Rolls": [ ... ] }, "QueueIfOffline": true },
  *   "Feedback":      { "Defeated": "Encounter_Defeated" },
  *   "Discovery":     { "MapMarker": true }
@@ -127,8 +128,8 @@ public final class EncounterBindingAsset
             .appendInherited(new KeyedCodec<>("Timing", Timing.CODEC, false),
                     (a, v) -> a.timing = v, a -> a.timing, (a, p) -> a.timing = p.timing)
             .documentation("The guards AROUND the fight: how long an unannounced engage waits, how long "
-                    + "an empty arena counts as a wipe, how long a run may last at most. Pacing INSIDE "
-                    + "the fight is the script's own Timers.")
+                    + "an empty arena counts as a wipe, how long a run may last at most, and how long the "
+                    + "site rests after a defeat. Pacing INSIDE the fight is the script's own Timers.")
             .add()
             .appendInherited(new KeyedCodec<>("Loot", Loot.CODEC, false),
                     (a, v) -> a.loot = v, a -> a.loot, (a, p) -> a.loot = p.loot)
@@ -436,6 +437,7 @@ public final class EncounterBindingAsset
         @Nullable protected Integer engageGraceSeconds;
         @Nullable protected Integer wipeGraceSeconds;
         @Nullable protected Integer maxRunSeconds;
+        @Nullable protected Duration rest;
 
         public static final BuilderCodec<Timing> CODEC = BuilderCodec.builder(Timing.class, Timing::new)
                 .appendInherited(new KeyedCodec<>("EngageGraceSeconds", Codec.INTEGER, false),
@@ -459,9 +461,24 @@ public final class EncounterBindingAsset
                 .documentation("The longest a run may last once engaged; past it the run resets so a "
                         + "script that never concludes cannot hold credit forever.")
                 .add()
+                .appendInherited(new KeyedCodec<>("Rest", Codec.DURATION, false),
+                        (o, v) -> o.rest = v, o -> o.rest, (o, p) -> o.rest = p.rest)
+                .documentation("How long the site rests after a defeat before its script may raise the "
+                        + "boss again, as an ISO-8601 duration on the WORLD's clock (\"P1D\" is one game "
+                        + "day, \"PT8H\" a third of one). The library stamps the instant the rest ends on "
+                        + "the encounter entity at the defeat and saves it with the world; a ZigRested "
+                        + "sensor in the script answers false until then. Leave it out for no rest beyond "
+                        + "the script's own Complete timeout.")
+                .add()
                 .build();
 
         public Timing() {
+        }
+
+        /** The rest after a defeat on the world's clock, or null when the row authors none. */
+        @Nullable
+        public Duration rest() {
+            return rest;
         }
 
         public int engageGraceSeconds() {

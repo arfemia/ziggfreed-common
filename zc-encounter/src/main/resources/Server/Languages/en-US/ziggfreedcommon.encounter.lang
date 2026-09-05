@@ -41,6 +41,9 @@ admin.inspect.subject = subject: {0}
 admin.inspect.subject.none = subject: nothing bound yet
 admin.inspect.members = members: {0}, deaths: {1}
 admin.inspect.concluded = settled: {0}
+admin.inspect.rest = rest after a defeat: {0} seconds on the world clock
+admin.inspect.rest.resting = resting: {0} seconds on the world clock to go
+admin.inspect.rest.rested = rested: the site may raise its boss again
 admin.inspect.participant = {0}: dealt {1}, taken {2}, present {3}s, share {4}%
 admin.inspect.participants.none = Nobody has earned credit yet.
 

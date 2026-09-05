@@ -24,7 +24,9 @@ import com.ziggfreed.common.validation.Finding;
  * SILENCE. A mistyped {@code zc:} beat fires nothing and nobody is told; a binding naming a script
  * that does not exist binds nothing; a subject slot the script never fills means no credit, no scale
  * and no defeat; a defeat beat with no bar clear leaves a dead boss's bar on every screen; a
- * blocking action list under a sensor marked {@code Once} runs its first action and stops dead.
+ * blocking action list under a sensor marked {@code Once} runs its first action and stops dead; a
+ * prefab whose spawner block carries no per-block state pastes an egg sack with no marker under it
+ * ({@link EncounterPrefabAudit}, read by the audit over every loaded pack).
  *
  * <p>Severity says what it means. An ERROR is content that cannot work as written (a defeat beat
  * that does not clear the bar is one, by rule). A WARNING is content that works but almost certainly
@@ -51,6 +53,8 @@ public final class EncounterValidator {
     public static final String RULE_BAD_MATCH = "ENCOUNTER_RULE_BAD_MATCH";
     public static final String ONCE_BLOCKS_LIST = "ENCOUNTER_ONCE_BLOCKS_LIST";
     public static final String SCRIPT_ID_IS_ROLE_ID = "ENCOUNTER_SCRIPT_ID_IS_ROLE_ID";
+    /** A pack prefab's spawner block with no per-block state; the check itself is {@link EncounterPrefabAudit}. */
+    public static final String PREFAB_SPAWNER_WITHOUT_STATE = "ENCOUNTER_PREFAB_SPAWNER_WITHOUT_STATE";
 
     /** The naming convention that keeps a script's id off every role's: a trailing suffix. */
     public static final String SCRIPT_ID_SUFFIX = "_Encounter";

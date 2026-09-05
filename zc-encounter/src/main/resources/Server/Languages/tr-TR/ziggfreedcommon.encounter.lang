@@ -38,6 +38,9 @@ admin.inspect.subject = hedef: {0}
 admin.inspect.subject.none = hedef: henüz bir şey bağlı değil
 admin.inspect.members = üyeler: {0}, ölümler: {1}
 admin.inspect.concluded = sonuçlandı: {0}
+admin.inspect.rest = zaferden sonra dinlenme: dünya saatinde {0} saniye
+admin.inspect.rest.resting = dinleniyor: dünya saatinde {0} saniye kaldı
+admin.inspect.rest.rested = dinlendi: mekan patronunu yeniden çıkarabilir
 admin.inspect.participant = {0}: {1} verildi, {2} alındı, {3} sn mevcut, pay %{4}
 admin.inspect.participants.none = Henüz kimse pay kazanmadı.
 

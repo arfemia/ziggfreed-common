@@ -66,14 +66,15 @@ public final class EncounterSignalSystem extends EntityEventSystem<EntityStore, 
                 return;
             }
             run.bindWorld(EncounterLifecycle.worldUuid(store));
-            dispatch(store, ref, run, encounterId, signal);
+            dispatch(store, commandBuffer, ref, run, encounterId, signal);
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " handling the signal '" + event.signalId() + "' failed", t);
         }
     }
 
-    private static void dispatch(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull ZigEncounterRun run, @Nonnull String encounterId, @Nonnull EncounterSignal signal) {
+    private static void dispatch(@Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> ref, @Nonnull ZigEncounterRun run, @Nonnull String encounterId,
+            @Nonnull EncounterSignal signal) {
         switch (signal.moment()) {
             case ENGAGED -> EncounterLifecycle.engage(store, ref, run, encounterId, "signal");
             case PHASE -> {
@@ -87,7 +88,7 @@ public final class EncounterSignalSystem extends EntityEventSystem<EntityStore, 
                 }
                 EncounterLifecycle.phase(store, ref, run, encounterId, signal.detail());
             }
-            case DEFEATED -> EncounterLifecycle.defeat(store, ref, run, encounterId, null, "signal");
+            case DEFEATED -> EncounterLifecycle.defeat(store, commandBuffer, ref, run, encounterId, null, "signal");
             case RESET -> EncounterLifecycle.reset(store, ref, run, encounterId, ResetReason.RESET_SIGNAL, true);
             case WAVE, CUSTOM -> EncounterLifecycle.signal(store, ref, run, encounterId, signal);
         }

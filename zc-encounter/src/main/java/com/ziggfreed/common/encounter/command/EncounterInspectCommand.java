@@ -1,8 +1,11 @@
 package com.ziggfreed.common.encounter.command;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -14,13 +17,19 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.encounter.ledger.ParticipantShare;
 import com.ziggfreed.common.encounter.ledger.ParticipationShares;
 import com.ziggfreed.common.encounter.run.EncounterLifecycle;
+import com.ziggfreed.common.encounter.run.EncounterRest;
 import com.ziggfreed.common.encounter.run.EncounterRun;
 import com.ziggfreed.common.encounter.run.EncounterRuns;
 import com.ziggfreed.common.encounter.run.EncounterRuntime;
+import com.ziggfreed.common.encounter.run.ZigEncounterRest;
+import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.asset.ParticipationSpec;
 
-/** One run in detail: where it is, what it is fighting, who is in it and what they have earned. */
+/**
+ * One run in detail: where it is, what it is fighting, who is in it, what they have earned, and the
+ * rest the site owes between fights.
+ */
 final class EncounterInspectCommand extends AbstractAsyncCommand {
 
     private final RequiredArg<String> refArg;
@@ -69,8 +78,9 @@ final class EncounterInspectCommand extends AbstractAsyncCommand {
         if (run.concluded()) {
             EncounterAdminMessages.detail(ctx, "inspect.concluded", run.defeated() ? "defeated" : "wiped");
         }
-        ParticipationSpec spec = EncounterLifecycle.specFor(store, live.run(),
-                EncounterBindingConfig.getInstance().forEncounter(live.encounterId()));
+        EncounterBindingAsset row = EncounterBindingConfig.getInstance().forEncounter(live.encounterId());
+        rest(ctx, store, live, row);
+        ParticipationSpec spec = EncounterLifecycle.specFor(store, live.run(), row);
         ParticipationShares shares = EncounterLifecycle.settle(store, live.run(), spec);
         if (shares.isEmpty()) {
             EncounterAdminMessages.detail(ctx, "inspect.participants.none");
@@ -80,6 +90,25 @@ final class EncounterInspectCommand extends AbstractAsyncCommand {
             EncounterAdminMessages.detail(ctx, "inspect.participant", share.playerName(),
                     Math.round(share.damageDealt()), Math.round(share.damageTaken()),
                     Math.round(share.presenceSeconds()), Math.round(share.share() * 100.0));
+        }
+    }
+
+    /** The rest the row owes, in world-clock seconds, and where the site stands in it when one is stamped. */
+    private static void rest(@Nonnull CommandContext ctx, @Nonnull Store<EntityStore> store,
+            @Nonnull EncounterRuns.Live live, @Nullable EncounterBindingAsset row) {
+        Duration owed = row == null || row.getTiming() == null ? null : row.getTiming().rest();
+        if (owed != null) {
+            EncounterAdminMessages.detail(ctx, "inspect.rest", owed.toSeconds());
+        }
+        ZigEncounterRest stamped = EncounterRest.restOn(store, live.encounterRef());
+        if (stamped == null || stamped.restUntil() == null) {
+            return;
+        }
+        Instant now = EncounterRest.gameTime(store);
+        if (now != null && !stamped.isRested(now)) {
+            EncounterAdminMessages.detail(ctx, "inspect.rest.resting", stamped.secondsLeft(now));
+        } else {
+            EncounterAdminMessages.detail(ctx, "inspect.rest.rested");
         }
     }
 }

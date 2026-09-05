@@ -9,6 +9,7 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -125,14 +126,17 @@ public final class EncounterLifecycle {
     // ==================== defeated ====================
 
     /**
-     * The subject is down. Latched: only the first call settles the run; the rest do nothing.
+     * The subject is down. Latched: only the first call settles the run; the rest do nothing. The
+     * rest the row owes ({@code Timing.Rest}) is stamped on the encounter entity through
+     * {@code commandBuffer}, since a defeat is decided inside a system.
      *
-     * @param subjectRef the subject's live reference when the death system has it, else null
-     * @param how        what decided it, for the log line
+     * @param commandBuffer the calling system's buffer, which the rest stamp lands through
+     * @param subjectRef    the subject's live reference when the death system has it, else null
+     * @param how           what decided it, for the log line
      */
-    public static void defeat(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> encounterRef,
-            @Nonnull ZigEncounterRun run, @Nonnull String encounterId, @Nullable Ref<EntityStore> subjectRef,
-            @Nonnull String how) {
+    public static void defeat(@Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> encounterRef, @Nonnull ZigEncounterRun run, @Nonnull String encounterId,
+            @Nullable Ref<EntityStore> subjectRef, @Nonnull String how) {
         if (!run.conclude(true)) {
             return;
         }
@@ -151,6 +155,7 @@ public final class EncounterLifecycle {
                 run.subjectUuid(), run.subjectMobId(), shares.participants(), shares.participantIds(),
                 shares.shares(), shares.damageDealt(), elapsedSeconds, run.memberDeaths(), difficulty,
                 run.lastHitter()));
+        EncounterRest.stamp(store, commandBuffer, encounterRef, run, encounterId, row);
         EncounterLoot.grantDefeat(store, run, encounterId, row, spec, shares);
         Map<String, Object> args = baseArgs(run, encounterId, row, memberIds.size(), now);
         args.put(EncounterFeedback.SECONDS_ARG, Math.round(elapsedSeconds));

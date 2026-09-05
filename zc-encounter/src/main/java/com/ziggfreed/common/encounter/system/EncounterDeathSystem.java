@@ -41,7 +41,7 @@ public final class EncounterDeathSystem extends DeathSystems.OnDeathSystem {
         try {
             UUID subjectRun = EncounterRuns.runOfSubject(victimRef);
             if (subjectRun != null) {
-                onSubjectDied(store, victimRef, death, subjectRun);
+                onSubjectDied(store, commandBuffer, victimRef, death, subjectRun);
                 return;
             }
             UUID memberRun = EncounterRuns.runOfMember(victimRef);
@@ -53,8 +53,8 @@ public final class EncounterDeathSystem extends DeathSystems.OnDeathSystem {
         }
     }
 
-    private static void onSubjectDied(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> victimRef,
-            @Nonnull DeathComponent death, @Nonnull UUID runId) {
+    private static void onSubjectDied(@Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer,
+            @Nonnull Ref<EntityStore> victimRef, @Nonnull DeathComponent death, @Nonnull UUID runId) {
         EncounterRuns.Live live = EncounterRuns.live(runId);
         if (live == null || live.run().isConcluded()) {
             return;
@@ -67,7 +67,8 @@ public final class EncounterDeathSystem extends DeathSystems.OnDeathSystem {
             live.run().noteHitter(killer.getUuid());
             live.run().noteMember(killer.getUuid(), killer.getUsername());
         }
-        EncounterLifecycle.defeat(store, live.encounterRef(), live.run(), live.encounterId(), victimRef, "death");
+        EncounterLifecycle.defeat(store, commandBuffer, live.encounterRef(), live.run(), live.encounterId(), victimRef,
+                "death");
     }
 
     private static void onMemberDied(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> victimRef,
