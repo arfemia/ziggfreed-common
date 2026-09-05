@@ -24,6 +24,7 @@ import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.objectives.hud.TrackedQuestPanelRenderer;
+import com.ziggfreed.common.objectives.render.QuestCadenceBadge;
 import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.progress.runtime.ProgressionIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
@@ -412,6 +413,9 @@ final class BookQuestsTab {
 
         cmd.set(sel + " #CategoryStrip.Background", categoryColor(quest.category()));
         cmd.set(sel + " #QuestName.TextSpans", nameOf(quest));
+        // How often it comes round, read off the quest's own repeat rule rather than off anything
+        // an author wrote twice. The same badge the NPC quest list paints, in the same words.
+        QuestCadenceBadge.paint(cmd, sel + " #QuestCadence", quest);
         Message flavor = ProgressionTexts.flavor(quest.id());
         cmd.set(sel + " #QuestDescription.TextSpans", flavor != null ? flavor : Msg.raw(""));
 

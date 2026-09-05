@@ -71,6 +71,19 @@ Group #ZigQuestLogRow {
 
     Group { Anchor: (Width: 4); }
 
+    // How often the quest comes round, when it comes round at all. Written from the quest's own
+    // repeat rule and hidden on a one-shot, so most rows never show it. Fixed width, right-aligned,
+    // so the badges line up in a column down the list instead of drifting with the title's length;
+    // widen it if a locale's longest cadence word clips at FontSize 12.
+    Label #QuestCadence {
+      Text: "";
+      Visible: false;
+      Anchor: (Width: 80);
+      Style: (FontSize: 12, TextColor: #c47fff, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+    }
+
+    Group { Anchor: (Width: 8); }
+
     Label #QuestStatus {
       Text: "";
       Anchor: (Width: 130);

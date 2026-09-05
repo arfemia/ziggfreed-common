@@ -29,6 +29,7 @@ import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Entry;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Section;
+import com.ziggfreed.common.objectives.render.QuestCadenceBadge;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
@@ -499,6 +500,9 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         builtRowOrder.add(quest.id());
         ZigRichButton.text(cmd, sel + " #RowBtn", questName(quest.id()));
         cmd.set(sel + " #StatusDot.Background", dotColor(entry.section()));
+        // How often it comes round, from the quest's own repeat rule: a daily that is being waited
+        // out sits under Locked, and the badge is what says the row will open again on its own.
+        QuestCadenceBadge.paint(cmd, sel + " #RowBadge", quest);
         if (quest.id().equals(selectedQuestId)) {
             paintRowSelected(cmd, sel, true);
         }

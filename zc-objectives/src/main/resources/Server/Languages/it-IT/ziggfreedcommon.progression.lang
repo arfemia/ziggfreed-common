@@ -6,6 +6,12 @@ book.empty.achievements = Non hai ancora traguardi disponibili.
 book.progress = {0}/{1}
 book.more = +{0} altri
 
+# How often a quest comes round, badged on every list that shows quests. Derived from the
+# quest's own repeat rule, so nothing is authored on a quest to make it appear.
+quest.cadence.repeatable = Ripetibile
+quest.cadence.daily = Giornaliera
+quest.cadence.weekly = Settimanale
+
 book.quests.section.active = In corso
 book.quests.section.ready = Pronte da riscuotere
 book.quests.section.available = Disponibili

@@ -6,6 +6,12 @@ book.empty.achievements = Henüz sana açık bir başarım yok.
 book.progress = {0}/{1}
 book.more = +{0} tane daha
 
+# How often a quest comes round, badged on every list that shows quests. Derived from the
+# quest's own repeat rule, so nothing is authored on a quest to make it appear.
+quest.cadence.repeatable = Tekrarlı
+quest.cadence.daily = Günlük
+quest.cadence.weekly = Haftalık
+
 book.quests.section.active = Devam ediyor
 book.quests.section.ready = Alınmayı bekliyor
 book.quests.section.available = Mevcut

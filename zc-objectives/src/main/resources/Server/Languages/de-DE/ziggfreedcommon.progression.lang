@@ -6,6 +6,12 @@ book.empty.achievements = Für dich sind noch keine Errungenschaften verfügbar.
 book.progress = {0}/{1}
 book.more = +{0} weitere
 
+# How often a quest comes round, badged on every list that shows quests. Derived from the
+# quest's own repeat rule, so nothing is authored on a quest to make it appear.
+quest.cadence.repeatable = Wiederholbar
+quest.cadence.daily = Täglich
+quest.cadence.weekly = Wöchentlich
+
 book.quests.section.active = In Arbeit
 book.quests.section.ready = Abholbereit
 book.quests.section.available = Verfügbar

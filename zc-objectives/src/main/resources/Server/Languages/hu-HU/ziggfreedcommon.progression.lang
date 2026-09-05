@@ -6,6 +6,12 @@ book.empty.achievements = Még nincs elérhető teljesítményed.
 book.progress = {0}/{1}
 book.more = +{0} további
 
+# How often a quest comes round, badged on every list that shows quests. Derived from the
+# quest's own repeat rule, so nothing is authored on a quest to make it appear.
+quest.cadence.repeatable = Ismételhető
+quest.cadence.daily = Napi
+quest.cadence.weekly = Heti
+
 book.quests.section.active = Folyamatban
 book.quests.section.ready = Átvehető
 book.quests.section.available = Elérhető
