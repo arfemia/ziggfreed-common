@@ -11,6 +11,7 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.ziggfreed.common.asset.AssetStoreWriter;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.FrameworkAssetRegistrar;
 import com.ziggfreed.common.board.asset.BoardConfig;
@@ -395,6 +396,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     protected void shutdown() {
         // Nothing to write for placements: each one rides its own chunk's save, so a restart finds
         // them exactly where it left them without this plugin persisting anything of its own.
+        AssetStoreWriter.shutdown();
         LOGGER.atInfo().log("ZiggfreedCommon shutdown complete.");
     }
 }

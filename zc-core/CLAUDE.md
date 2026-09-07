@@ -36,8 +36,10 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
 
 - [`asset/`](src/main/java/com/ziggfreed/common/asset/CLAUDE.md) - the framework asset-store bases
   (`AbstractKeyedAssetConfig`, `AbstractRawJsonAsset`, `AssetStoreRegistrar`/`AssetMergeAdapter`,
-  `NestedAssetId`, `EditorDataSets`). The root's own `FrameworkAssetRegistrar` lives in the wiring
-  root, not here, because it reaches into every domain.
+  `NestedAssetId`, `EditorDataSets`) plus `AssetStoreWriter`, the one runtime store-write seam
+  (inline off a ticking world, deferred to the `ziggfreed-asset-writer` thread from inside one).
+  The root's own `FrameworkAssetRegistrar` lives in the wiring root, not here, because it reaches
+  into every domain.
 - [`codec/`](src/main/java/com/ziggfreed/common/codec/CLAUDE.md) - `InheritMapCodec`,
   `JsonParentResolver`, `JsonTreeCodec`, the shared authorable leaves `Vec3`/`Rotation`/`TagMatch`.
 - [`command/`](src/main/java/com/ziggfreed/common/command/CLAUDE.md) - `CommandRunner`, the
