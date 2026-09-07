@@ -88,6 +88,14 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     merge (the finishing tick, landing on the counter it finishes) authors the leaf itself. `FeedbackEngine.answers(momentId)` is the cheap "is there a file for
     this at all" question a producer asks before composing what an expensive moment would carry,
     and `ProgressionBootstrap` pairs it with the reaction through `ProgressionFeedbackHook.of`.
+    `FeedbackSurfaces` is the third branch of the toast's "where is the player looking"
+    decision, beside the open-page one: a surface that ALREADY spells a moment out registers a
+    `Reader` from its own layer, and a moment it claims draws nothing in the corner feed (the
+    library registers the tracked-quest HUD's, so a step counting up on a pinned quest does not also
+    stack a notice per tick over everything else). Asked only on the feed branch, after the page
+    check - a menu covers such a panel, so a moment drawn into the menu repeats nothing - and only
+    the feed notice is dropped: the sound, the banner and the command are untouched. Readers are
+    additive, asked until one says yes, and one that throws costs its own answer only.
     `FeedbackAudience` is the one thing a static file cannot answer: the SUBJECT's own handle says
     whether this player wants the personal notification for this moment, told the moment's values
     plus `milestone` (whether a progress tick crossed the authored mark) so a consumer's own

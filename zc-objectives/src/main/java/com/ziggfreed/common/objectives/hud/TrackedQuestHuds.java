@@ -20,6 +20,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.feedback.moment.FeedbackEngine;
 import com.ziggfreed.common.quest.event.QuestAbandonedEvent;
 import com.ziggfreed.common.quest.event.QuestAcceptedEvent;
 import com.ziggfreed.common.quest.event.QuestClaimedEvent;
@@ -68,6 +69,13 @@ public final class TrackedQuestHuds {
 
         /** Is this quest on the tracker as last painted? True when never painted, so a repaint is safe. */
         boolean shows(@Nonnull String questId);
+
+        /**
+         * Is this quest ON SCREEN right now - the panel showing and this quest painted on it? False
+         * when never painted: this answer lets something else go quiet, so the safe reading is that
+         * the player cannot see it.
+         */
+        boolean drawing(@Nonnull String questId);
     }
 
     /** Every live tracker by player uuid: written at attach, dropped at detach, read by every event. */
@@ -184,6 +192,20 @@ public final class TrackedQuestHuds {
         return true;
     }
 
+    /**
+     * Is {@code questId} on {@code playerId}'s tracker RIGHT NOW - a tracker attached, its panel
+     * showing, and that quest one of the blocks last painted on it? False for a player with no
+     * tracker, one who has hidden it, one a world rule hides it from, and one whose quest sits past
+     * the panel's block count.
+     *
+     * <p>What it is FOR: a notice that would only repeat what the panel already reads. Any thread,
+     * two map reads and a set lookup, no paint.
+     */
+    public static boolean drawing(@Nonnull UUID playerId, @Nonnull String questId) {
+        Tracker tracker = LIVE.get(playerId);
+        return tracker != null && tracker.drawing(questId);
+    }
+
     /** {@link #repaint(UUID)} for a caller holding the reference: the consumer's push path. */
     public static boolean repaint(@Nonnull PlayerRef playerRef) {
         UUID uuid = playerRef.getUuid();
@@ -276,6 +298,40 @@ public final class TrackedQuestHuds {
         } catch (Throwable t) {
             SafeLog.warn("[progression] tracked-quest HUD detach failed on the world thread", t);
         }
+    }
+
+    // ==================== what the panel already says ====================
+
+    /** The moment a pinned quest's panel already spells out, tick by tick. */
+    private static final String OBJECTIVE_PROGRESSED = "Quest_Objective_Progressed";
+
+    /** The value that moment carries the quest's id under, the name the quest engine fires it with. */
+    private static final String QUEST_ARG = "quest";
+
+    /**
+     * A {@code FeedbackSurfaces.Reader}: is this moment already on {@code viewer}'s screen HERE?
+     *
+     * <p>A step counting up on a tracker the player pinned it to is on their screen already, so the
+     * same count in the corner feed is a second copy of what they are looking at - and one per cycle
+     * of a fast job buries the pickups and finds around it. Saying yes here drops that feed notice;
+     * the panel is the notice. Nothing else about the moment changes: its sound still plays, its
+     * banner still goes out, and with a menu open the moment is drawn into the menu a step earlier,
+     * before this is ever asked, because a menu covers the panel.
+     *
+     * <p><b>The tick that FINISHES a step still announces.</b> A finish is a result rather than a
+     * reading, and all the panel does for it is tick a box, so silencing it would leave the moment a
+     * player most wants to see as the quietest thing on screen.
+     *
+     * <p>Everything else keeps its notice: another moment, a moment naming no quest, a quest this
+     * panel is not painting, a player who hid the tracker, and a player who has none.
+     */
+    public static boolean alreadyShows(@Nonnull UUID viewer, @Nonnull String momentId,
+            @Nonnull Map<String, Object> args) {
+        if (!OBJECTIVE_PROGRESSED.equals(momentId)
+                || Boolean.TRUE.equals(args.get(FeedbackEngine.FINISHED_ARG))) {
+            return false;
+        }
+        return args.get(QUEST_ARG) instanceof String questId && drawing(viewer, questId);
     }
 
     // ==================== registry, for the lifecycle and for a test ====================

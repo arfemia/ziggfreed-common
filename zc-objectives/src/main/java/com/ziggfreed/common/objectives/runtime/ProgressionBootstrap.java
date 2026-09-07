@@ -6,9 +6,11 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.factor.CounterFactors;
 import com.ziggfreed.common.factor.ModFactors;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
+import com.ziggfreed.common.feedback.moment.FeedbackSurfaces;
 import com.ziggfreed.common.npc.NpcQuestListHosts;
 import com.ziggfreed.common.objectives.book.ObjectiveBookInteractions;
 import com.ziggfreed.common.objectives.command.ZigProgressCommand;
+import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.objectives.questlist.NpcQuestPages;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
 import com.ziggfreed.common.progress.runtime.ProgressionFactors;
@@ -113,6 +115,7 @@ public final class ProgressionBootstrap {
         try {
             ProgressionRuntime.defaults(ProgressionDefaults.OWNER).feedbackHook(
                     ProgressionFeedbackHook.of(FeedbackEngine::fire, FeedbackEngine::answers));
+            FeedbackSurfaces.register(TrackedQuestHuds::alreadyShows);
         } catch (Throwable t) {
             SafeLog.warn("[feedback] could not wire the authored feedback moments", t);
         }

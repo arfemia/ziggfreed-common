@@ -612,6 +612,21 @@ after the maintenance pass has hopped to the world thread, so the first paint sh
   Titles and lines come from the shared `progress.runtime.ProgressionTexts` walk (the registered
   text sources, else its own placeholder lines), so the HUD speaks NO key of its own. The drawing onto the document's fixed,
   positional slots is the mechanical half and is in-game smoke.
+- **The panel IS the notice: a step it is drawing goes quiet in the corner feed.**
+  `TrackedQuestHuds.alreadyShows` is a `feedback.moment.FeedbackSurfaces.Reader`, registered once
+  from `ProgressionBootstrap.registerFeedbackMoments` (the one layer that sees both the tracker and
+  the feed), and the engine asks it after the open-page branch and before it sends: an ordinary
+  `Quest_Objective_Progressed` tick for a quest this player's panel is painting draws NOTHING in the
+  feed, because the count is already on their screen and one notice per cycle of a fast job buries
+  the pickups and finds around it. The tick that FINISHES a step still announces (a finish is a
+  result, not a reading, and all the panel does for it is tick a box), and so does every other
+  moment, a moment naming no quest, a quest past the panel's block count, a hidden panel and a player
+  with no tracker. Nothing but the feed notice is affected: the sound, the banner and the command all
+  still run, and with a menu open the moment is drawn INTO the menu one step earlier, since a menu
+  covers the panel. The question is `Tracker.drawing`, the strict twin of `shows`: the panel showing
+  AND the quest among the blocks last painted, false before any paint - the opposite default to
+  `shows`, because this answer lets something else go silent. It reads the last paint rather than
+  recomputing, so it is cheap enough for an ordinary tick and at worst trails by one tick.
 - **The consumer's part is [`hud/TrackedQuestHudDeps`](hud/TrackedQuestHudDeps.java)**, registered
   once through `TrackedQuestHuds.deps(Supplier)` and asked lazily on every paint: a `HudTheme` paint
   over the appended document (default nothing, which IS the native look; a theme retints through

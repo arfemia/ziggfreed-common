@@ -67,6 +67,9 @@ public final class TrackedQuestHud extends KeyedCustomHud implements TrackedQues
     /** What the last paint showed, read off-thread by the objective-event pre-filter. */
     private volatile Set<String> shownQuestIds = null;
 
+    /** Whether the panel itself was showing at that same paint; false until one has happened. */
+    private volatile boolean shownPanelVisible = false;
+
     public TrackedQuestHud(@Nonnull PlayerRef playerRef) {
         super(playerRef, HUD_KEY);
     }
@@ -142,6 +145,23 @@ public final class TrackedQuestHud extends KeyedCustomHud implements TrackedQues
         return shown == null || shown.contains(questId);
     }
 
+    /**
+     * Is {@code questId} on screen RIGHT NOW - the panel showing, and this quest one of the blocks
+     * last painted on it? The opposite default to {@link #shows}: a tracker that has never painted
+     * is drawing nothing, because this answer decides whether something ELSE may go quiet, and the
+     * safe reading there is "the player cannot see it".
+     *
+     * <p>It reads the last paint rather than recomputing, which is what makes it cheap enough to
+     * ask on an ordinary progress tick. A paint is queued the same tick as the state that moved,
+     * so at worst this trails by one tick and a single notice is drawn beside a panel that is about
+     * to say the same thing.
+     */
+    @Override
+    public boolean drawing(@Nonnull String questId) {
+        Set<String> shown = shownQuestIds;
+        return shownPanelVisible && shown != null && shown.contains(questId);
+    }
+
     /** World thread: one partial update carrying the current state. */
     private void paintNow() {
         try {
@@ -160,6 +180,7 @@ public final class TrackedQuestHud extends KeyedCustomHud implements TrackedQues
     private TrackedQuestSnapshot snapshot(@Nonnull TrackedQuestHudDeps deps) {
         TrackedQuestSnapshot snapshot = TrackedQuestSnapshot.of(ProgressionRuntime.quests(), subject(), deps);
         shownQuestIds = snapshot.questIds();
+        shownPanelVisible = snapshot.panelVisible();
         return snapshot;
     }
 

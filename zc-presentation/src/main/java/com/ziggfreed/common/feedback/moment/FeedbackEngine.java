@@ -191,6 +191,14 @@ public final class FeedbackEngine {
                 ToastablePage.showOnActive(viewer, inPageToast(spec, args, title, secondary));
                 return;
             }
+            // The same rule one surface further out: a panel that already spells this moment out
+            // (a step counting up on the quest tracker it is pinned to) makes the feed notice a
+            // second copy of what the player is looking at, so it is dropped rather than stacked on
+            // top. Asked only here, after the page branch: a menu covers such a panel, and a moment
+            // drawn INTO the menu is not a repeat of anything.
+            if (viewer != null && FeedbackSurfaces.alreadyReadable(viewer, momentId, args)) {
+                return;
+            }
             Notify.withIcon(playerRef, title, secondary, icon(args), spec.tone().feedStyle(),
                     feedTag(momentId, spec, args));
         } catch (Throwable t) {

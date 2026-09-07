@@ -33,11 +33,16 @@ import com.ziggfreed.common.quest.event.QuestTrackedEvent;
  */
 class TrackedQuestHudEventTest {
 
-    /** A tracker that counts repaints and shows a fixed set of quests. */
+    /**
+     * A tracker that counts repaints and shows a fixed set of quests, on a panel that is up or
+     * hidden. Both are needed because the two questions a real tracker answers differ: whether a
+     * quest is worth repainting for, and whether it is on screen right now.
+     */
     private static final class Recording implements TrackedQuestHuds.Tracker {
 
         final AtomicInteger repaints = new AtomicInteger();
         final Set<String> showing;
+        boolean panelVisible = true;
 
         Recording(@Nonnull Set<String> showing) {
             this.showing = showing;
@@ -51,6 +56,11 @@ class TrackedQuestHudEventTest {
         @Override
         public boolean shows(@Nonnull String questId) {
             return showing.contains(questId);
+        }
+
+        @Override
+        public boolean drawing(@Nonnull String questId) {
+            return panelVisible && showing.contains(questId);
         }
     }
 
@@ -153,6 +163,29 @@ class TrackedQuestHudEventTest {
         assertTrue(TrackedQuestHuds.repaint(watcher));
         assertEquals(1, fresh.repaints.get());
         assertEquals(0, watcherHud.repaints.get(), "the stale one from the old session is gone");
+    }
+
+    // ==================== what the panel is already showing ====================
+
+    /**
+     * {@code drawing} is the question something else goes quiet on, so it is answered strictly: the
+     * panel up AND this quest painted on it, for a player who has a tracker at all.
+     */
+    @Test
+    void drawingIsTrueOnlyForAQuestActuallyOnAShowingPanel() {
+        assertTrue(TrackedQuestHuds.drawing(watcher, "q_pinned"));
+        assertFalse(TrackedQuestHuds.drawing(watcher, "q_elsewhere"),
+                "a quest the panel is not painting is not on screen");
+
+        watcherHud.panelVisible = false;
+        assertFalse(TrackedQuestHuds.drawing(watcher, "q_pinned"),
+                "a hidden panel shows nobody anything, whatever it last painted");
+    }
+
+    /** A player with no tracker at all is looking at nothing, so nothing may go quiet for them. */
+    @Test
+    void drawingIsFalseForAPlayerWithNoTracker() {
+        assertFalse(TrackedQuestHuds.drawing(UUID.randomUUID(), "q_pinned"));
     }
 
     @Test

@@ -50,6 +50,7 @@ class FeedbackEngineTest {
 
     @BeforeEach
     void setUp() {
+        FeedbackSurfaces.clearForTests();
         FeedbackMomentConfig.getInstance().mergePackLayer(Map.of());
         LangCatalog.overrideForTests(null);
         handleless = Subject.of(UUID.randomUUID(), "tester");
@@ -57,6 +58,7 @@ class FeedbackEngineTest {
 
     @AfterEach
     void tearDown() {
+        FeedbackSurfaces.clearForTests();
         FeedbackMomentConfig.getInstance().mergePackLayer(Map.of());
         LangCatalog.overrideForTests(null);
     }
@@ -461,6 +463,43 @@ class FeedbackEngineTest {
         return moment("Quest_Objective_Progressed", """
                 { "Toast": { "Title": { "Key": "tick", "Args": ["step"] }, "Merge": true } }
                 """).getToast();
+    }
+
+    // ==================== surfaces that already show the moment ====================
+
+    /**
+     * With nothing registered nothing is ever suppressed, which is every server that installs no
+     * such surface: the corner feed behaves exactly as it always did.
+     */
+    @Test
+    void nothingRegisteredMeansTheFeedIsNeverHeldBack() {
+        assertFalse(FeedbackSurfaces.alreadyReadable(UUID.randomUUID(), "m", Map.of()));
+    }
+
+    /** One surface saying yes is enough, and each is asked with everything the moment carried. */
+    @Test
+    void aRegisteredSurfaceCanSpeakForOneMomentAndNotAnother() {
+        FeedbackSurfaces.register((viewer, momentId, args) -> "m".equals(momentId));
+
+        assertTrue(FeedbackSurfaces.alreadyReadable(UUID.randomUUID(), "m", Map.of()));
+        assertFalse(FeedbackSurfaces.alreadyReadable(UUID.randomUUID(), "other", Map.of()));
+    }
+
+    /**
+     * A reader that throws costs its own answer and nothing else: a notice too many is better than
+     * one lost to a surface that could not make up its mind.
+     */
+    @Test
+    void aReaderThatThrowsIsNotAllowedToDecideForTheOthers() {
+        FeedbackSurfaces.register((viewer, momentId, args) -> {
+            throw new IllegalStateException("no");
+        });
+        assertFalse(FeedbackSurfaces.alreadyReadable(UUID.randomUUID(), "m", Map.of()),
+                "one that throws reads as not on screen");
+
+        FeedbackSurfaces.register((viewer, momentId, args) -> true);
+        assertTrue(FeedbackSurfaces.alreadyReadable(UUID.randomUUID(), "m", Map.of()),
+                "and the one after it is still asked");
     }
 
     // ==================== tone and reward rows on the in-page toast ====================
