@@ -8,17 +8,25 @@
     "",
     "The moment carries 'quest' (its id), 'title' (its name in the reader's language), 'objective'",
     "(the step's id), 'step' (the step's own sentence in the reader's language, for instance",
-    "'Break 12 logs'), 'current' and 'required' (how far along, out of how many) and 'finished'",
-    "(true on the tick that completes the step). 'player' is always the name of who moved it.",
+    "'Break 12 logs'), 'current' and 'required' (how far along, out of how many), 'finished'",
+    "(true on the tick that completes the step) and 'source' (the one step this notice is about).",
+    "'player' is always the name of who moved it.",
     "",
-    "EveryPercent on the Toast keeps a long step from chattering: an ordinary tick shows only when",
-    "it crosses a multiple of that many percent of the way (25 gives the quarter marks); the",
-    "finishing tick always shows. Delete it to show every tick. A mod that lets each player pick",
-    "how chatty their own screen is decides for them and is told whether the tick crossed a mark.",
+    "Merge is what keeps a step that moves quickly to ONE line: each tick rewrites the notice",
+    "already on screen instead of adding another under it, so a player milling twenty logs still",
+    "sees their pickups and their finds rather than a column of counters. It is kept per 'source',",
+    "so three steps moving at once keep three lines. Turn it off to have every tick queue up.",
+    "",
+    "EveryPercent keeps a long step from chattering even so: an ordinary tick shows only when it",
+    "crosses a multiple of that many percent of the way (25 gives the quarter marks); the finishing",
+    "tick always shows. Delete it to show every tick. A mod that lets each player pick how chatty",
+    "their own screen is decides for them and is told whether the tick crossed a mark.",
     "",
     "The Variants entry swaps the whole Toast for the finishing tick, so its wording and tone can",
     "differ from an ordinary tick's without a second file: an ordinary tick is neutral Info, the",
-    "finish is green Success. Tone colours the in-page frame and the words, and picks the matching corner-feed style."
+    "finish is green Success. It repeats Merge because a variant replaces the whole group, and",
+    "keeping it means the finish lands ON the counter it finishes rather than beside it. Tone",
+    "colours the in-page frame and the words, and picks the matching corner-feed style."
   ],
   "Toast": {
     "Title": {
@@ -26,7 +34,8 @@
       "Args": ["step", "current", "required"]
     },
     "Tone": "Info",
-    "EveryPercent": 25
+    "EveryPercent": 25,
+    "Merge": true
   },
   "Variants": [
     {
@@ -36,7 +45,8 @@
           "Key": "ziggfreedcommon.feedback.quest.objective_finished",
           "Args": ["step"]
         },
-        "Tone": "Success"
+        "Tone": "Success",
+        "Merge": true
       }
     }
   ]

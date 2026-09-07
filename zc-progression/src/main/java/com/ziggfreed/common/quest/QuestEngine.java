@@ -2028,7 +2028,12 @@ public final class QuestEngine implements QuestStateReader {
                 "step", (Supplier<?>) () -> quest.text().objective(objective.id()),
                 "current", Integer.valueOf(state.current()),
                 "required", Integer.valueOf(state.required()),
-                "finished", Boolean.valueOf(justCompleted));
+                "finished", Boolean.valueOf(justCompleted),
+                // What this moment is ABOUT, under the shared name every moment names it by: the one
+                // step, not the quest, so a player carrying three moving steps keeps three notices
+                // rather than one that flips between them. It is what an authored notice is filed
+                // under when it rewrites itself in place instead of stacking.
+                "source", quest.id() + '/' + objective.id());
     }
 
     /**

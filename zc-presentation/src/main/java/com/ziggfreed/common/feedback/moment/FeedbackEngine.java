@@ -155,7 +155,7 @@ public final class FeedbackEngine {
         // for, asks whether this player wanted one; the other three parts are not one player's
         // screen, and a subject with no screen is nobody to ask.
         if (toastSpec != null && playerRef != null) {
-            toast(toastSpec, playerRef, values, wantsToast(subject, momentId, toastSpec, values));
+            toast(momentId, toastSpec, playerRef, values, wantsToast(subject, momentId, toastSpec, values));
         }
         broadcast(momentId, resolved.broadcast(), playerRef, values);
         sound(resolved.sound(), playerRef);
@@ -170,8 +170,8 @@ public final class FeedbackEngine {
      * none simply draws a toast without one. Naming it in the file would only let an author
      * mis-spell a value they cannot see anyway.
      */
-    private static void toast(@Nonnull FeedbackMomentAsset.Toast spec, @Nonnull PlayerRef playerRef,
-            @Nonnull Map<String, Object> args, boolean wanted) {
+    private static void toast(@Nonnull String momentId, @Nonnull FeedbackMomentAsset.Toast spec,
+            @Nonnull PlayerRef playerRef, @Nonnull Map<String, Object> args, boolean wanted) {
         if (!wanted) {
             return;
         }
@@ -191,10 +191,31 @@ public final class FeedbackEngine {
                 ToastablePage.showOnActive(viewer, inPageToast(spec, args, title, secondary));
                 return;
             }
-            Notify.withIcon(playerRef, title, secondary, icon(args), spec.tone().feedStyle());
+            Notify.withIcon(playerRef, title, secondary, icon(args), spec.tone().feedStyle(),
+                    feedTag(momentId, spec, args));
         } catch (Throwable t) {
             SafeLog.fine("moment toast failed: " + t.getMessage());
         }
+    }
+
+    /**
+     * What a merging moment's corner notice is filed under, so its next showing rewrites this one
+     * in place instead of stacking beneath it: the moment and what it is about ({@link
+     * #SOURCE_ARG}, so two quests, two fights or two stations each keep their own line). Null for a
+     * moment that authored no {@code Merge}, which is every moment that has not asked for this.
+     *
+     * <p>A moment that asked to merge but carries NO source still gets a tag, and that is
+     * deliberate: it said its repeats are the same notice said again, and without a source there is
+     * only one of it to say.
+     */
+    @Nullable
+    static String feedTag(@Nonnull String momentId, @Nonnull FeedbackMomentAsset.Toast spec,
+            @Nonnull Map<String, Object> args) {
+        if (!spec.merge()) {
+            return null;
+        }
+        String source = text(args.get(SOURCE_ARG));
+        return momentId + '|' + (source == null ? "" : source);
     }
 
     /**

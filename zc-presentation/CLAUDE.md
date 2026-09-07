@@ -29,10 +29,18 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
 
 - [`camera/`](src/main/java/com/ziggfreed/common/camera/CLAUDE.md) - `CameraShakeService` +
   `ServerCameraService`.
-- `feedback/` - `Notify` (Default/Danger/Warning/Success toasts, the item-keyed stacking form, and
-  `withIcon` for a two-line toast ILLUSTRATED by an item with no quantity badge and no client-side
-  stacking, plus an explicit-`NotificationStyle` overload for a notice carrying its own tone),
-  `EventTitles` (centered banner), `PickupMimic` (native-pickup-mimic notifier for a
+- `feedback/` - `Notify` (Default/Danger/Warning/Success toasts, the item-keyed gain form, and
+  `withIcon` for a two-line toast ILLUSTRATED by an item with no quantity badge, plus an
+  explicit-`NotificationStyle` overload for a notice carrying its own tone). **Every entry point
+  has a `tag` form, and a tag is the ONLY thing that stops a repeating notice piling up**: the
+  native `Notification` packet carries a `Tag` the client merges on, so a later notice under the
+  same tag REPLACES the showing one in place (an item notice naming the same item ADDS to its
+  quantity badge instead) while an untagged notice is always one more entry in the feed. A merged
+  item entry keeps the FIRST send's words and only its badge climbs, so one tag covers one wording
+  (a lucky find and an ordinary one are two tags) and the changing number rides the badge, never
+  the title; two notices that must both be READ never share a tag. This is the first-party idiom,
+  not a trick: `BuilderToolsPlugin` tags its own per-stroke progress notices exactly this way.
+  Also here: `EventTitles` (centered banner), `PickupMimic` (native-pickup-mimic notifier for a
   programmatic item grant that never went through a real ground pickup), `ObjectiveHud`. No router
   of its own; see the root router's `feedback/` bullet for the full primitive list.
   - `feedback/moment/` - the authored-feedback engine: `FeedbackMomentAsset` (Pattern A, the file
@@ -71,7 +79,13 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     never disagree; the in-page toast is built `silent()` because the moment's own `Sound` group
     is the one audio authority. `Toast.EveryPercent` keeps a progress moment
     from chattering: an ordinary tick shows only when it crosses a multiple of that many percent
-    (the finish always shows). `FeedbackEngine.answers(momentId)` is the cheap "is there a file for
+    (the finish always shows). `Toast.Merge` is the other half of that, for the CORNER FEED: a
+    merging moment's notice goes out under a tag of `<momentId>|<source>`
+    (`FeedbackEngine.feedTag`), so repeats about the same thing rewrite ONE line instead of stacking
+    a column of counters over whatever else the player needed to see, and two sources keep two
+    lines. Default false, because a moment the player has to actually READ must not be replaced
+    before they get to it; a `Variant` restates the WHOLE `Toast` group, so a variant that must
+    merge (the finishing tick, landing on the counter it finishes) authors the leaf itself. `FeedbackEngine.answers(momentId)` is the cheap "is there a file for
     this at all" question a producer asks before composing what an expensive moment would carry,
     and `ProgressionBootstrap` pairs it with the reaction through `ProgressionFeedbackHook.of`.
     `FeedbackAudience` is the one thing a static file cannot answer: the SUBJECT's own handle says

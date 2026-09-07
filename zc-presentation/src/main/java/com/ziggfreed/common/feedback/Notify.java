@@ -18,6 +18,19 @@ import com.ziggfreed.common.CommonLog;
  * and never reads a locale) to one player with a {@link NotificationStyle}, plus
  * named helpers for the four common styles (Default / Danger / Warning / Success).
  *
+ * <p><b>Tags are how a notice updates itself instead of piling up.</b> Every entry point below has
+ * a form taking a {@code tag}: the client merges a new notification only into a showing toast
+ * carrying the SAME tag, and a notice with no tag is always one more entry in the feed. That is the
+ * difference between a job reporting progress on one line that keeps rewriting itself and the same
+ * job shouting a fresh line every step, burying whatever else the player needed to see. Give a
+ * stable tag to anything that speaks repeatedly about ONE thing (a step counting up, a pile of one
+ * item growing) and no tag to a one-off. Two notices that must BOTH be read never share a tag: the
+ * second replaces the first outright.
+ *
+ * <p>A merged ITEM notice keeps the first one's words and only grows its quantity badge, so one tag
+ * covers exactly one wording: keep the changing number in the badge, and give anything that changes
+ * the WORDS a tag of its own.
+ *
  * <p>World-thread: writes a packet via the player's handler. Fully try-guarded so a
  * notification can never throw into the caller.
  */
@@ -46,24 +59,33 @@ public final class Notify {
         send(playerRef, message, NotificationStyle.Success);
     }
 
-    /** Send a notification with an explicit style. */
+    /** Send a notification with an explicit style, as its own entry in the feed. */
     public static void send(@Nonnull PlayerRef playerRef, @Nonnull Message message, @Nonnull NotificationStyle style) {
+        send(playerRef, message, style, null);
+    }
+
+    /**
+     * {@link #send(PlayerRef, Message, NotificationStyle)} under a {@code tag}: a later notice
+     * carrying the same tag REPLACES this one where it stands instead of stacking beneath it. Null
+     * tags nothing.
+     */
+    public static void send(@Nonnull PlayerRef playerRef, @Nonnull Message message,
+            @Nonnull NotificationStyle style, @Nullable String tag) {
         try {
             PacketHandler handler = playerRef.getPacketHandler();
-            NotificationUtil.sendNotification(handler, message, style);
+            NotificationUtil.sendNotification(handler, message, null, null, null, style, tag(tag));
         } catch (Throwable t) {
             CommonLog.LOGGER.atFine().log("Notify.send failed: " + t.getMessage());
         }
     }
 
     /**
-     * A two-line notification illustrated by an item, with NO quantity badge and no client-side
-     * stacking: the item is a picture here, not a pickup.
+     * A two-line notification illustrated by an item, with NO quantity badge and no merging: the
+     * item is a picture here, not a pickup.
      *
-     * <p>Quantity zero is what suppresses both - a badge reading "x1" beside an achievement's
-     * trophy is noise, and letting two of them coalesce would replace the second one's words with
-     * the first one's. Use {@link #itemKeyed} instead when the item really is a thing the player
-     * just gained and consecutive ones SHOULD merge.
+     * <p>Quantity zero is what suppresses the badge - one reading "x1" beside an achievement's
+     * trophy is noise. Use {@link #itemKeyed} instead when the item really is a thing the player
+     * just gained and consecutive ones SHOULD merge into one growing entry.
      *
      * <p>A null or blank {@code iconItemId} simply sends the same notification without a picture.
      * Try-guarded so it never throws into the caller.
@@ -81,6 +103,23 @@ public final class Notify {
     public static void withIcon(@Nonnull PlayerRef playerRef, @Nonnull Message title,
             @Nullable Message secondary, @Nullable String iconItemId,
             @Nonnull NotificationStyle style) {
+        withIcon(playerRef, title, secondary, iconItemId, style, null);
+    }
+
+    /**
+     * {@link #withIcon(PlayerRef, Message, Message, String, NotificationStyle)} under a {@code
+     * tag}, which is what a notice speaking repeatedly about ONE thing wants: a step counting up
+     * rewrites its own line rather than adding another, the newest send supplying the words. Null
+     * tags nothing and stacks as before.
+     *
+     * <p>Two sends that merge and carry the SAME picture read as the same item to the client, which
+     * grows a badge rather than rewriting words. So a notice whose WORDS change every time (a
+     * counter) is illustrated by nothing, or by a picture that changes with them; the picture and
+     * the live number are not both available on one line.
+     */
+    public static void withIcon(@Nonnull PlayerRef playerRef, @Nonnull Message title,
+            @Nullable Message secondary, @Nullable String iconItemId,
+            @Nonnull NotificationStyle style, @Nullable String tag) {
         try {
             ItemWithAllMetadata icon = null;
             if (iconItemId != null && !iconItemId.isBlank()) {
@@ -89,35 +128,52 @@ public final class Notify {
                 icon.quantity = 0;
             }
             NotificationUtil.sendNotification(playerRef.getPacketHandler(), title, secondary,
-                    null, icon, style);
+                    null, icon, style, tag(tag));
         } catch (Throwable t) {
             CommonLog.LOGGER.atFine().log("Notify.withIcon failed: " + t.getMessage());
         }
     }
 
     /**
-     * A notification carrying an item IDENTITY the client can stack on: the {@code Item} slot
-     * (built via {@link ItemStack#toPacket()}) is the only identity-bearing field on the
-     * Notification packet, so consecutive notifications sharing the same {@code itemId} coalesce
-     * client-side into one growing entry (native pickup behavior; no id/group/stack-key field
-     * exists on the packet itself). The stacked entry FREEZES on {@code title}'s text; only the
-     * item-slot {@code quantity} keeps updating - so a caller wanting live-looking stacked totals
-     * must keep the amount OUT of {@code title} and IN {@code quantity} (the coalescing XP toast
-     * and a native-pickup-style item toast both rely on this).
-     *
-     * <p>Default style (matches a native pickup notification); no SFX and no
-     * {@code ShowItemPickupNotifications} gate here (that policy belongs to a caller like {@code
-     * PickupMimic} that specifically mimics a real pickup - this helper is the bare stacking
-     * mechanism). Try-guarded so it never throws into the caller.
+     * A notification carrying an item the player just gained, as its own entry in the feed. Pass a
+     * tag through {@link #itemKeyed(PlayerRef, Message, Message, String, int, String)} to have a run
+     * of them GROW one entry instead, which is what a repeating gain wants.
      */
     public static void itemKeyed(@Nonnull PlayerRef playerRef, @Nonnull Message title,
             @Nullable Message secondary, @Nonnull String itemId, int quantity) {
+        itemKeyed(playerRef, title, secondary, itemId, quantity, null);
+    }
+
+    /**
+     * A notification carrying an item the player just gained, merged under {@code tag}: a later
+     * notice with the same tag naming the same item ADDS its quantity to the showing entry's badge
+     * rather than stacking a second line, which is how a pile that keeps growing reads as one pile.
+     *
+     * <p>The merged entry keeps the FIRST send's words and only its badge climbs, so keep the amount
+     * OUT of {@code title} and IN {@code quantity}, and give any line whose WORDS differ a tag of
+     * its own (a lucky find and an ordinary one are two wordings, so two tags). A null tag makes
+     * each send its own entry.
+     *
+     * <p>Default style (matches a native pickup notification); no SFX and no
+     * {@code ShowItemPickupNotifications} gate here (that policy belongs to a caller like {@code
+     * PickupMimic} that specifically mimics a real pickup - this helper is the bare mechanism).
+     * Try-guarded so it never throws into the caller.
+     */
+    public static void itemKeyed(@Nonnull PlayerRef playerRef, @Nonnull Message title,
+            @Nullable Message secondary, @Nonnull String itemId, int quantity, @Nullable String tag) {
         try {
             PacketHandler handler = playerRef.getPacketHandler();
             ItemStack itemStack = new ItemStack(itemId, Math.max(1, quantity));
-            NotificationUtil.sendNotification(handler, title, secondary, itemStack.toPacket());
+            NotificationUtil.sendNotification(handler, title, secondary, null, itemStack.toPacket(),
+                    NotificationStyle.Default, tag(tag));
         } catch (Throwable t) {
             CommonLog.LOGGER.atFine().log("Notify.itemKeyed failed: " + t.getMessage());
         }
+    }
+
+    /** A blank tag is no tag: an empty string would merge every untagged-looking notice together. */
+    @Nullable
+    private static String tag(@Nullable String tag) {
+        return tag == null || tag.isBlank() ? null : tag.trim();
     }
 }

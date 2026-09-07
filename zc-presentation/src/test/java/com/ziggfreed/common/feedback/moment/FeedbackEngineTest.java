@@ -3,6 +3,7 @@ package com.ziggfreed.common.feedback.moment;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -390,6 +391,76 @@ class FeedbackEngineTest {
         FeedbackEngine.wantsToast(curious, "m", toastWith(null), progress(1, 8, false));
         assertFalse(asked.get(2).containsKey(FeedbackEngine.MILESTONE_ARG),
                 "no mark authored, nothing to report: absent rather than false");
+    }
+
+    // ==================== the corner feed's merge tag ====================
+
+    /**
+     * A moment that authored no {@code Merge} is filed under nothing, so every notice it draws is
+     * one more entry in the feed: the established behaviour, and what a moment the player has to
+     * actually READ depends on.
+     */
+    @Test
+    void aMomentThatDidNotAskToMergeIsSentUnderNoTag() throws IOException {
+        assertNull(FeedbackEngine.feedTag("Quest_Completed", toastWith(null),
+                Map.of(FeedbackEngine.SOURCE_ARG, "q1/o1")),
+                "carrying a source is not asking to merge");
+    }
+
+    /**
+     * A merging moment is filed under itself AND what it is about, so a player carrying two moving
+     * steps keeps two lines rather than one that flips between them.
+     */
+    @Test
+    void aMergingMomentIsFiledUnderWhatItIsAbout() throws IOException {
+        FeedbackMomentAsset.Toast merging = mergingToast();
+
+        String first = FeedbackEngine.feedTag("Quest_Objective_Progressed", merging,
+                Map.of(FeedbackEngine.SOURCE_ARG, "q1/o1"));
+        String second = FeedbackEngine.feedTag("Quest_Objective_Progressed", merging,
+                Map.of(FeedbackEngine.SOURCE_ARG, "q1/o2"));
+        String again = FeedbackEngine.feedTag("Quest_Objective_Progressed", merging,
+                Map.of(FeedbackEngine.SOURCE_ARG, "q1/o1", "current", 7));
+
+        assertNotNull(first);
+        assertEquals(first, again, "the same step keeps rewriting one line however far it has got");
+        assertNotEquals(first, second, "a different step gets its own line");
+        assertNotEquals(first, FeedbackEngine.feedTag("Quest_Completed", merging,
+                Map.of(FeedbackEngine.SOURCE_ARG, "q1/o1")),
+                "and a different moment about the same thing never lands on it");
+    }
+
+    /**
+     * A merging moment carrying no source still merges: it said its repeats are the same notice said
+     * again, and with nothing to tell two of them apart there is only one of it to say.
+     */
+    @Test
+    void aMergingMomentWithNothingToTellItsRepeatsApartStillMerges() throws IOException {
+        assertEquals(FeedbackEngine.feedTag("Heartbeat", mergingToast(), Map.of()),
+                FeedbackEngine.feedTag("Heartbeat", mergingToast(), Map.of("current", 3)));
+    }
+
+    /** The whole Toast group is swapped for a variant, so a variant that must merge says so itself. */
+    @Test
+    void aVariantCarriesItsOwnMergeRatherThanInheritingOne() throws IOException {
+        FeedbackMomentAsset asset = moment("Quest_Objective_Progressed", """
+                { "Toast": { "Title": { "Key": "tick" }, "Merge": true },
+                  "Variants": [ { "When": { "finished": true },
+                                  "Toast": { "Title": { "Key": "done" } } } ] }
+                """);
+
+        assertTrue(asset.getToast().merge(), "the file's own group asked to merge");
+        FeedbackMomentAsset.Toast finished = asset.resolve(Map.of("finished", true)).toast();
+        assertNotNull(finished);
+        assertFalse(finished.merge(),
+                "a variant restating the group restates all of it, this leaf included");
+    }
+
+    @Nonnull
+    private static FeedbackMomentAsset.Toast mergingToast() throws IOException {
+        return moment("Quest_Objective_Progressed", """
+                { "Toast": { "Title": { "Key": "tick", "Args": ["step"] }, "Merge": true } }
+                """).getToast();
     }
 
     // ==================== tone and reward rows on the in-page toast ====================

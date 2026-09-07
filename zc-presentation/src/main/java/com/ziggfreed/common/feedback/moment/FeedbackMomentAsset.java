@@ -289,6 +289,7 @@ public final class FeedbackMomentAsset
         @Nullable protected String tone;
         @Nullable protected Rows rows;
         @Nullable protected Integer everyPercent;
+        @Nullable protected Boolean merge;
 
         public static final BuilderCodec<Toast> CODEC = BuilderCodec.builder(Toast.class, Toast::new)
                 .appendInherited(new KeyedCodec<>("Title", Line.CODEC, false),
@@ -330,6 +331,21 @@ public final class FeedbackMomentAsset
                         + "Unauthored shows every tick. A mod that lets each player pick how chatty their "
                         + "own screen is decides for them instead, and is told whether the tick crossed "
                         + "this mark.")
+                .add()
+                .appendInherited(new KeyedCodec<>("Merge", Codec.BOOLEAN, false),
+                        (o, v) -> o.merge = v, o -> o.merge, (o, p) -> o.merge = p.merge)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("For a moment that speaks REPEATEDLY about one thing: rewrite the "
+                        + "notice already on screen instead of adding another under it, so a step "
+                        + "counting up occupies one line however many times it moves and leaves the "
+                        + "rest of the feed for everything else. Which thing a notice is about comes "
+                        + "from the moment's own 'source' value, so two quests, two fights or two "
+                        + "stations each keep their own line. Leave it off for a notice the player "
+                        + "has to actually read, since a second one would replace the first before "
+                        + "they got to it. A merging notice whose WORDS change every time is best left "
+                        + "without a picture: two showings of the same picture read as the same item, "
+                        + "which grows a count rather than rewriting the line. This is the corner feed "
+                        + "only: with a menu open the same words are drawn into the page as before.")
                 .add()
                 .build();
 
@@ -374,6 +390,15 @@ public final class FeedbackMomentAsset
         @Nullable
         public Integer getEveryPercent() {
             return everyPercent == null || everyPercent <= 0 ? null : everyPercent;
+        }
+
+        /**
+         * Whether a repeat of this moment about the same thing rewrites the notice already on the
+         * corner feed rather than stacking a second one under it. Unauthored reads as false, so a
+         * moment that says nothing about this keeps every notice as its own entry.
+         */
+        public boolean merge() {
+            return Boolean.TRUE.equals(merge);
         }
 
         /**
