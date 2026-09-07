@@ -31,6 +31,7 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastLine;
+import com.ziggfreed.common.ui.toast.ToastRenderer;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
@@ -428,6 +429,43 @@ class FeedbackEngineTest {
                 { "Toast": { "Title": { "Key": "notify.quest_complete" }, "Tone": "reward" } }
                 """);
         assertEquals(ToastKind.REWARD, cased.getToast().tone(), "the tone reads case-insensitively");
+    }
+
+    @Test
+    void theInPageToastKeepsTheTitleAsItsHeadlineAndCarriesTheSecondaryAsARow() throws IOException {
+        FeedbackMomentAsset asset = moment("Achievement_Unlocked", """
+                { "Toast": { "Title": { "Key": "notify.achievement_unlocked", "Args": ["title"] },
+                             "Secondary": { "Key": "notify.achievement_points", "Args": ["points"] },
+                             "Tone": "Reward" } }
+                """);
+        Message title = Msg.raw("Achievement Unlocked: First Quest");
+        Message secondary = Msg.raw("+5 achievement points");
+
+        ToastSpec spec = FeedbackEngine.inPageToast(asset.getToast(), Map.of(), title, secondary);
+
+        assertSame(title, spec.message(),
+                "the sentence naming what happened stays the headline, as the corner notice reads it");
+        assertEquals(1, spec.lines().size(), "the secondary rides as a body row");
+        assertSame(secondary, spec.lines().get(0).text());
+        assertFalse(spec.lines().get(0).hasIcon(), "a secondary is words, not a reward chip");
+    }
+
+    @Test
+    void aSecondaryRowSpendsOneOfThePanelsRewardRows() throws IOException {
+        FeedbackMomentAsset asset = moment("Achievement_Unlocked", """
+                { "Toast": { "Title": { "Key": "notify.achievement_unlocked" },
+                             "Secondary": { "Key": "notify.achievement_points" } } }
+                """);
+        Map<String, Object> args = Map.of("rewards", namedRewards(ToastRenderer.MAX_LINES + 2));
+        Message secondary = Msg.raw("secondary");
+
+        ToastSpec spec = FeedbackEngine.inPageToast(asset.getToast(), args,
+                Msg.raw("headline"), secondary);
+
+        assertTrue(spec.lines().size() <= ToastRenderer.MAX_LINES,
+                "the secondary plus its rewards still fit the panel's pre-baked rows");
+        assertSame(secondary, spec.lines().get(0).text(),
+                "the secondary is still the first row when the rewards overflow");
     }
 
     @Test

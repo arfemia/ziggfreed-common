@@ -1,4 +1,4 @@
-package com.ziggfreed.common.objectives.book;
+package com.ziggfreed.common.objectives.render;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,12 +19,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The book's claim toasts carry their payout: one row per reward just handed over, through the ONE
- * shared chip bridge, capped with the overflow line. All three claim verbs (a quest's Claim, an
- * achievement's Claim, a milestone's Claim) build their toast through this same reading, so what a
- * claim toast says is pinned here once.
+ * A claim toast carries its payout: one row per reward just handed over, through the ONE shared chip
+ * bridge, capped with the overflow line. Every claim verb (a quest's Claim, an achievement's Claim,
+ * a milestone's Claim, and the same collection made at a character) builds its toast through this
+ * reading, so what a claim toast says is pinned here once.
  */
-class BookClaimToastTest {
+class ClaimToastTest {
 
     @Test
     void aClaimToastCarriesOneRowPerRewardAndReadsGold() {

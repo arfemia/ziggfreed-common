@@ -25,6 +25,7 @@ import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.hud.TrackedQuestPanelRenderer;
+import com.ziggfreed.common.objectives.render.ClaimToasts;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
@@ -664,8 +665,10 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                     scope.around(subject, s -> Boolean.valueOf(engine.claim(s, quest))));
             UICommandBuilder cmd = new UICommandBuilder();
             if (ok) {
+                // The rows are the CLAIM rewards this press paid, never the auto ones the quest
+                // settled with earlier: a toast that lists a payout twice reads as a double reward.
                 showRewardToast(text("book.toast.quest_complete", BookQuestsTab.nameOf(quest)),
-                        quest.rewards());
+                        quest.claimRewards());
                 // The claimed quest leaves the pinned Active list. Hide its row in place - hide,
                 // NOT remove, so the sibling #ActiveQuestList[i] selectors do not drift - and
                 // refresh the counts + the tracked panel.

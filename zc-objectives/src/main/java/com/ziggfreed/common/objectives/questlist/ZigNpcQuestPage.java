@@ -29,6 +29,7 @@ import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Entry;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Section;
+import com.ziggfreed.common.objectives.render.ClaimToasts;
 import com.ziggfreed.common.objectives.render.QuestCadenceBadge;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
@@ -901,7 +902,13 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         }
         // ORDER IS LOAD-BEARING, exactly as on the hand-in below: the toast goes up FIRST, because
         // whatever the hand-off opens repaints the shared per-player toast state.
-        showToast(ToastKind.REWARD, text("book.toast.claimed"));
+        //
+        // The toast NAMES what was collected, one row per reward, through the same chip reading the
+        // detail panel previewed the claim with - a player who presses Collect should not have to
+        // open the book to find out what they were given. The rows are the CLAIM rewards this press
+        // paid, never the auto ones the quest settled with earlier.
+        showToast(ClaimToasts.rewardToast(text("book.toast.claimed"), quest.claimRewards(),
+                deps.rewardChips(), dropped -> text("book.more", dropped)));
         if (!handOff(quest, store, ref, player)) {
             refreshOrReopen(ref, store, player, subject, engine, quest);
         }

@@ -1,4 +1,4 @@
-package com.ziggfreed.common.objectives.book;
+package com.ziggfreed.common.objectives.render;
 
 import java.util.List;
 import java.util.function.IntFunction;
@@ -15,15 +15,20 @@ import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
- * The ONE claim-toast reading for the book's three claim verbs (a quest's Claim, an achievement's
- * Claim, a milestone's Claim): a gold headline plus one row per reward just handed over, read
+ * The ONE claim-toast reading for every surface a payout is collected on - the book's three claim
+ * verbs (a quest's Claim, an achievement's Claim, a milestone's Claim) and the same collection made
+ * standing in front of a character: a gold headline plus one row per reward just handed over, read
  * through the shared chip bridge so the toast and the panel that previewed the claim can never
  * disagree, capped with the caller's overflow line.
  *
+ * <p>A player who presses Collect is told WHAT they collected. A bare headline leaves the payout to
+ * be guessed at, which is why every collecting surface composes its toast here rather than sending
+ * a line of its own.
+ *
  * <p>Pure and page-free on purpose: what a claim toast says is decided (and testable) with no page
- * or server anywhere; {@code ObjectiveBookPage} only shows what this composes.
+ * or server anywhere; a page only shows what this composes.
  */
-final class ClaimToasts {
+public final class ClaimToasts {
 
     private ClaimToasts() {
     }
@@ -33,7 +38,7 @@ final class ClaimToasts {
      * {@code source} is the consumer's own chip reading, exactly as on every chip surface.
      */
     @Nonnull
-    static ToastSpec rewardToast(@Nonnull Message headline, @Nonnull List<RewardSpec> rewards,
+    public static ToastSpec rewardToast(@Nonnull Message headline, @Nonnull List<RewardSpec> rewards,
             @Nullable RewardChips.Source source, @Nullable IntFunction<Message> overflow) {
         return ToastSpec.of(ToastKind.REWARD, headline)
                 .withLines(RewardToastLines.lines(rewards, source, overflow));

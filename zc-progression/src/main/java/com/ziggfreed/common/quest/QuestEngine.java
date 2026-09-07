@@ -2047,7 +2047,9 @@ public final class QuestEngine implements QuestStateReader {
      *
      * <p>Both also carry the quest's whole payout under {@code rewards} - deferred, like the
      * sentences on the progress moment, so a moment nobody authored never composes it - which is
-     * what lets an authored toast list what was (or waits to be) handed over.
+     * what lets an authored toast list what was (or waits to be) handed over, and the quest's own
+     * picture under the fixed {@code icon} name, so a notice about it is illustrated by the thing
+     * the quest book shows it as. A quest that names no icon simply omits it.
      *
      * @param parkedReason why it parked, or null for a quest paying out now
      */
@@ -2059,6 +2061,7 @@ public final class QuestEngine implements QuestStateReader {
         }
         ProgressionFeedbackHook.fire(feedbackHook, warn, parked ? "Quest_Parked" : "Quest_Completed",
                 subject, "quest", quest.id(), "title", quest.text().titleOr(quest.id()),
+                "icon", quest.icon(),
                 // Carried on BOTH ids, so a hook handed either one can tell which case it is
                 // without reading meaning into the id it was called with.
                 "parked", Boolean.valueOf(parked),
@@ -2071,7 +2074,8 @@ public final class QuestEngine implements QuestStateReader {
      * The rewards were paid, either the instant the quest finished or when the player came to
      * collect them; {@code collected} tells the two apart, so a jingle authored for collecting a
      * parked reward does not also play over the completion jingle of one that settled on the spot.
-     * The list just paid rides under {@code rewards}, deferred like the completion moment's.
+     * The list just paid rides under {@code rewards}, deferred like the completion moment's, and
+     * the quest's own picture under {@code icon}, exactly as on the completion moment.
      */
     private void fireClaimed(@Nonnull Quest quest, @Nonnull Subject subject,
                              @Nonnull RewardGrants.GrantOutcome outcome, boolean collected) {
@@ -2081,6 +2085,7 @@ public final class QuestEngine implements QuestStateReader {
         }
         ProgressionFeedbackHook.fire(feedbackHook, warn, "Quest_Claimed", subject,
                 "quest", quest.id(), "title", quest.text().titleOr(quest.id()),
+                "icon", quest.icon(),
                 "collected", Boolean.valueOf(collected),
                 "granted", Integer.valueOf(outcome.granted()),
                 "queued", Integer.valueOf(outcome.queued()),

@@ -375,14 +375,30 @@ public final class FeedbackEngine {
      * disagree; it is built {@code silent()} because the moment's own {@code Sound} group owns the
      * audio and a toned toast must not add a second chime. The moment's rewards, when it carries
      * any under {@link #REWARDS_ARG}, paint one row each under the headline.
+     *
+     * <p><b>The headline is the moment's {@code Title}, exactly as the corner notice reads it, and
+     * a {@code Secondary} rides as the first body row.</b> A panel has one headline and a stack of
+     * rows, so a second line has nowhere else to be; putting the secondary in the headline instead
+     * would drop the title, which is the whole sentence - the words naming what just happened. The
+     * secondary spends a row out of the panel's budget, so the rewards under it take one fewer.
      */
     @Nonnull
     static ToastSpec inPageToast(@Nonnull FeedbackMomentAsset.Toast spec,
             @Nonnull Map<String, Object> args, @Nonnull Message title, @Nullable Message secondary) {
-        return ToastSpec.of(spec.tone(), secondary != null ? secondary : title)
-                .withTitle(secondary != null ? title : null)
+        // Two slots go before the rewards do when there is a secondary: its own row, and the one
+        // rewardRows may spend on a "+N more" line of its own. Budgeting for both is what keeps the
+        // whole panel inside the pre-baked rows, since a row past the last one paints nowhere.
+        int budget = secondary == null ? ToastRenderer.MAX_LINES : ToastRenderer.MAX_LINES - 2;
+        List<ToastLine> rows = rewardRows(spec, args, budget);
+        if (secondary != null) {
+            List<ToastLine> withSecondary = new ArrayList<>(rows.size() + 1);
+            withSecondary.add(ToastLine.text(secondary));
+            withSecondary.addAll(rows);
+            rows = withSecondary;
+        }
+        return ToastSpec.of(spec.tone(), title)
                 .withIcon(icon(args))
-                .withLines(rewardRows(spec, args))
+                .withLines(rows)
                 .silent();
     }
 
@@ -395,17 +411,29 @@ public final class FeedbackEngine {
     @Nonnull
     static List<ToastLine> rewardRows(@Nonnull FeedbackMomentAsset.Toast spec,
             @Nonnull Map<String, Object> args) {
+        return rewardRows(spec, args, ToastRenderer.MAX_LINES);
+    }
+
+    /**
+     * {@link #rewardRows(FeedbackMomentAsset.Toast, Map)} under a row budget narrower than the
+     * panel's, for a toast whose other content has already spent rows of its own. The authored
+     * {@code Rows.Max} still applies: whichever is tighter wins, so an author capping the list at
+     * two never gets three because the panel had room.
+     */
+    @Nonnull
+    static List<ToastLine> rewardRows(@Nonnull FeedbackMomentAsset.Toast spec,
+            @Nonnull Map<String, Object> args, int budget) {
         FeedbackMomentAsset.Toast.Rows rows = spec.getRows();
         if (rows != null && !rows.showRows()) {
             return List.of();
         }
         List<RewardSpec> rewards = rewards(args);
-        if (rewards.isEmpty()) {
+        if (rewards.isEmpty() || budget <= 0) {
             return List.of();
         }
         Integer max = rows == null ? null : rows.getMax();
         return RewardToastLines.lines(rewards, null,
-                max == null ? ToastRenderer.MAX_LINES : max,
+                Math.min(budget, max == null ? ToastRenderer.MAX_LINES : max),
                 dropped -> Msg.tr("ziggfreedcommon.feedback.", "rewards.more", dropped));
     }
 

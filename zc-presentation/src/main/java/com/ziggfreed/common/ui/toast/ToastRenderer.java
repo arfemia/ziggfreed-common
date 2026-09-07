@@ -27,6 +27,10 @@ import com.ziggfreed.common.ui.UiRetint;
  * the bordered panel is invisible when idle. This lets a toast show without a page reopen,
  * preserving scroll position.
  *
+ * <p><b>The headline.</b> It sits in a Left-laid row ({@code #ZigToastHead}) so a picture can
+ * lead it; the icon cell and its gap collapse to zero width when the toast carries none, and the
+ * centered label takes the whole panel width back.
+ *
  * <p><b>Body rows.</b> The fragment pre-bakes {@link #MAX_LINES} reward rows
  * ({@code #ZigToastRow<i>}: a 24px {@code ItemGrid} icon + a Label), because a
  * {@code sendUpdate} can only restyle existing elements, never append new ones. A used row
@@ -53,6 +57,10 @@ public final class ToastRenderer {
     private static final int ROW_GAP = 6;
     private static final int ROW_H = 28;
     private static final int ICON_W = 24;
+    // The headline's own picture and the gap between it and the words. Both collapse to 0 for a
+    // toast carrying no icon, which hands the centered label the full panel width back.
+    private static final int HEAD_ICON_W = 24;
+    private static final int HEAD_ICON_GAP = 8;
 
     private ToastRenderer() {}
 
@@ -68,6 +76,7 @@ public final class ToastRenderer {
         // pattern). The kind colour stays on the base Style.TextColor (the Message carries no colour).
         cmd.set("#ZigToastText.TextSpans", spec.message());
         cmd.set("#ZigToastText.Style.TextColor", spec.kind().textColor());
+        setHeadIcon(cmd, spec.iconItemId());
         // Tint the white frame texture to the kind color (gold REWARD / green SUCCESS / red ERROR)
         // through the shared retint primitive (the ToastKind hex is always 6-digit, so the
         // primitive's hex guard is a no-op here).
@@ -81,9 +90,25 @@ public final class ToastRenderer {
     public static void applyIdle(@Nonnull UICommandBuilder cmd) {
         cmd.setObject("#ZigToast.Anchor", anchor(0, 0));
         cmd.set("#ZigToastText.TextSpans", Message.empty());
+        setHeadIcon(cmd, null);
         for (int i = 0; i < MAX_LINES; i++) {
             setRow(cmd, i, null);
         }
+    }
+
+    /**
+     * Show the headline's picture, or ({@code itemId} null or blank) collapse and clear it.
+     *
+     * <p>The item is a PICTURE here, not a pickup: quantity one and no badge, the same reading the
+     * body rows take, because the words beside it already say what it is and how many.
+     */
+    private static void setHeadIcon(@Nonnull UICommandBuilder cmd, @Nullable String itemId) {
+        boolean shown = itemId != null && !itemId.isBlank();
+        cmd.setObject("#ZigToastIcon.Anchor", anchorWh(shown ? HEAD_ICON_W : 0, shown ? HEAD_ICON_W : 0));
+        cmd.setObject("#ZigToastIconGap.Anchor", anchorWh(shown ? HEAD_ICON_GAP : 0, 0));
+        cmd.set("#ZigToastIcon.Slots", shown
+                ? List.of(new ItemGridSlot(new ItemStack(itemId.trim(), 1)))
+                : List.<ItemGridSlot>of());
     }
 
     /** Fill + expand one body row, or ({@code line == null}) collapse + clear it. */
