@@ -8,6 +8,12 @@ step.untitled = Unnamed step
 # Why content is out of reach.
 lock.unavailable = Not offered right now
 lock.on_cooldown = Available again later
+lock.on_cooldown.in = Available again in {0}
+lock.period_spent = Comes back later
+lock.period_spent.in = Comes back in {0}
+lock.max_completions = You have finished this one for good
+lock.already_started = Already in your quest log
+lock.system_disabled = Quests are switched off here
 lock.prerequisites = Requirements not met
 lock.other = Not available yet
 lock.quest = Complete quest: {0}
@@ -21,6 +27,13 @@ lock.any_of = Unlocked by: {0}
 lock.any_of.join = or
 lock.not = Unavailable while a condition is active
 lock.not.met = Unavailable while this is met: {0}
+
+# How long until something comes back, carried inside a lock line as its {0}. Whole numbers only,
+# bound as typed params, so each player's own client writes the digits.
+wait.days = {0, number}d {1, number}h
+wait.hours = {0, number}h {1, number}m
+wait.minutes = {0, number}m
+wait.under_minute = under a minute
 
 # One sentence per objective kind: {0} is the amount, {1} what it is about. The .any twin reads
 # when a step targets nothing in particular. A mod adding its own kind ships

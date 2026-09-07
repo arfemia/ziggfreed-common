@@ -52,6 +52,7 @@ shop.action.reroll = Reroll
 
 shop.toast.bought = Bought {0}.
 shop.toast.bought_queued = Bought {0}. Some of it is waiting for your next login.
+shop.toast.more = +{0} more
 shop.toast.reroll_confirm = Reroll for {0}? Press again to confirm.
 
 # ==================== the board ====================
@@ -97,6 +98,7 @@ board.toast.turned_in = Handed in.
 board.toast.turn_in_failed = That could not be handed in.
 board.toast.turn_in_short = You have {0} of {1}.
 board.toast.completed = Contract complete.
+board.toast.more = +{0} more
 board.toast.reroll_confirm = Reroll for {0}? Press again to confirm.
 
 # ==================== why something refused ====================

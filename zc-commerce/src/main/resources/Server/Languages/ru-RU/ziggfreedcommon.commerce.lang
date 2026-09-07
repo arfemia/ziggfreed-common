@@ -34,6 +34,7 @@ shop.action.reroll = Заменить
 
 shop.toast.bought = Куплено: {0}.
 shop.toast.bought_queued = Куплено: {0}. Часть покупки ждёт вашего следующего входа.
+shop.toast.more = +{0} ещё
 shop.toast.reroll_confirm = Заменить за {0}? Нажмите ещё раз для подтверждения.
 
 board.title = Доска
@@ -77,6 +78,7 @@ board.toast.turned_in = Сдано.
 board.toast.turn_in_failed = Это не удалось сдать.
 board.toast.turn_in_short = У вас {0} из {1}.
 board.toast.completed = Контракт выполнен.
+board.toast.more = +{0} ещё
 board.toast.reroll_confirm = Заменить за {0}? Нажмите ещё раз для подтверждения.
 
 refuse.locked = Вам это пока недоступно.

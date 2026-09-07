@@ -16,9 +16,11 @@ import com.ziggfreed.common.quest.QuestStatus;
  *
  * <p>The sections are ordered by WHAT THE PLAYER CAN DO ABOUT THEM, most actionable first: a reward
  * waiting to be taken, then an errand this character can settle right now, then everything else being
- * carried, then what can be taken on, then what is visible but out of reach, then what is finished.
- * A quest waiting out a repeat cooldown reads as locked rather than vanishing, because a daily that
- * disappears between runs reads as content having been taken away.
+ * carried, then what can be taken on, then what is finished but collected elsewhere, then what
+ * comes back on its own, then what a gate refuses, then what is finished. A quest waiting out a
+ * repeat reads under its own "comes back" heading rather than vanishing (a daily that disappears
+ * between runs reads as content having been taken away) and rather than as locked, since nothing
+ * is refusing it: a clock is running, and the row says how long.
  */
 public final class NpcQuestSections {
 
@@ -50,7 +52,13 @@ public final class NpcQuestSections {
          */
         PARKED,
 
-        /** Visible but out of reach: a gate refuses it, or a repeat is still on the clock. */
+        /**
+         * Finished, and coming back on its own: a repeatable waiting out its cooldown or its
+         * calendar window. Nothing refuses it, so it is not locked; the row says how long.
+         */
+        COOLDOWN,
+
+        /** Visible but out of reach: a gate refuses it. */
         LOCKED,
 
         /** Finished and collected. */
@@ -96,7 +104,7 @@ public final class NpcQuestSections {
             case COMPLETED_UNCLAIMED -> collectHere ? Section.READY : Section.PARKED;
             case ACTIVE -> settlesHere ? Section.TURN_IN : Section.ACTIVE;
             case NOT_STARTED -> acceptable ? Section.AVAILABLE : Section.LOCKED;
-            case ON_COOLDOWN -> Section.LOCKED;
+            case ON_COOLDOWN -> Section.COOLDOWN;
             case COMPLETED -> Section.DONE;
         };
     }

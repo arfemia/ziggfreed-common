@@ -66,7 +66,10 @@ engine above can reach the loot core without any of them reaching each other.
 - **[`LootEngine`](LootEngine.java)** - the half that acts, entirely through SEAMS (`Sinks`: item sink,
   drop-list sink, command dispatcher + placeholders, reward registry + subject, retry queue, warn).
   A caller supplying none gets a full evaluation with no effects, which is what a preview wants.
-  `Result` reports what LANDED, not what was attempted. **Deciding and doing are separate CALLS**:
+  `Result` reports what LANDED, not what was attempted: the merged `getItems()` tally, the earned
+  cues, and `getRewardReceipt()`, what the registered-kind `Rewards` actually handed over (their
+  handlers' `GrantOutcome.receipt()`, so a nested table folds in as what it rolled and a queued or
+  lost reward is absent). **Deciding and doing are separate CALLS**:
   `select(rolls, pools, trigger, lookup, sample)` answers the ordered `Selected(grants, cue)` list a
   pass settled on and touches nothing, and `rollAndGrant` is that answer applied. A site that pays out
   LATER - an end-of-run spoils screen, a claim waiting for the player to walk back - calls `select`

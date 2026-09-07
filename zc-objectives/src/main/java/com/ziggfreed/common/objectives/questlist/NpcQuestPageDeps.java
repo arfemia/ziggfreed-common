@@ -1,6 +1,8 @@
 package com.ziggfreed.common.objectives.questlist;
 
+import java.util.List;
 import java.util.Set;
+import java.util.function.IntFunction;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -15,9 +17,13 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.quest.QuestCompletionRouting;
 import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.loot.reward.RewardGrants;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.NpcNames;
+import com.ziggfreed.common.objectives.render.ClaimToasts;
 import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
@@ -44,8 +50,11 @@ import com.ziggfreed.common.ui.toast.ToastSpec;
  *       policy (authored, somebody in front of the player, something installed that can open it),
  *       so the giver's closing conversation plays for every quest-bearing consumer without a fill;
  *       the page merely HOSTS the beat.</li>
- *   <li>{@link CompletionToast} - the toast a consumer floats when a quest settles here, so a
- *       hand-in made on this page reads exactly like one made in that mod's own menu.</li>
+ *   <li>{@link CompletionToast} - the toast a consumer floats when a quest PAYS OUT here, so a
+ *       hand-in made on this page reads exactly like one made in that mod's own menu. It is asked
+ *       with the rows the page decided on (what the hand-in actually handed over), through
+ *       {@link #resolveCompletionToast}; a hand-in that only parked the quest is the library's own
+ *       line ({@link #handInToast}), because nothing was paid for a consumer to announce.</li>
  *   <li>{@link PageTheme} - how the page frame is painted, for a consumer shipping a theme.</li>
  * </ul>
  *
@@ -108,12 +117,27 @@ public final class NpcQuestPageDeps {
                 @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
     }
 
-    /** The toast a consumer floats when a quest settles here; null for the library's own line. */
+    /**
+     * The toast a consumer floats when a quest settles here; null for the library's own line. The
+     * page asks {@link #forCompleted(Quest, List)} with the rows the toast should list; its default
+     * hands off to the one-argument form, so a fill that composes its own rows keeps working.
+     */
     @FunctionalInterface
     public interface CompletionToast {
 
         @Nullable
         ToastSpec forCompleted(@Nonnull Quest quest);
+
+        /**
+         * The same toast, handed what it should list: what the hand-in actually handed over when
+         * the quest paid out here (a rolled table as the items it produced), and nothing at all
+         * when it parked for collecting somewhere else, because nothing has been paid. A fill that
+         * paints rows paints these rather than reading the quest's own list.
+         */
+        @Nullable
+        default ToastSpec forCompleted(@Nonnull Quest quest, @Nonnull List<RewardSpec> rewards) {
+            return forCompleted(quest);
+        }
     }
 
     /** Append and nothing else: the honest default for a server shipping no theme. */
@@ -236,6 +260,51 @@ public final class NpcQuestPageDeps {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    /**
+     * The toast for a hand-in that finished a quest here, split by what {@code paid} says
+     * happened. PAID here ({@code paid} non-null): the gold reward line under {@code paidHeadline}
+     * with the payout's receipt as its rows, through {@link #resolveCompletionToast(Quest, List,
+     * Message, IntFunction)}. PARKED ({@code paid} null, a full bag or a quest that collects
+     * somewhere else): the plain success line {@code parkedHeadline} and no rows at all. Gold is
+     * the payout colour and a "complete" headline over an empty receipt reads as a payout that
+     * paid nothing, when in truth nothing has been paid yet; the moment the engine fires alongside
+     * says where it waits, so this line does not.
+     */
+    @Nonnull
+    public ToastSpec handInToast(@Nonnull Quest quest, @Nullable RewardGrants.GrantOutcome paid,
+            @Nonnull Message paidHeadline, @Nonnull Message parkedHeadline,
+            @Nullable IntFunction<Message> overflow) {
+        if (paid == null) {
+            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline);
+        }
+        return resolveCompletionToast(quest, paid.receipt(), paidHeadline, overflow);
+    }
+
+    /**
+     * The toast for a quest that just finished here, guarded: the consumer's own when it answers
+     * one (asked with {@code rewards}, so a fill that paints rows paints these), else the library's
+     * gold line under {@code headline} with one row per entry of {@code rewards} through the
+     * consumer chip reading, capped on the caller's {@code overflow} line. A consumer toast that
+     * throws costs its own line, never the hand-in that earned it.
+     *
+     * <p>{@code rewards} is what the toast lists: what was actually handed over, which is the
+     * payout's receipt. A hand-in that may have parked the quest instead goes through
+     * {@link #handInToast}, which decides whether there was a payout to list at all.
+     */
+    @Nonnull
+    public ToastSpec resolveCompletionToast(@Nonnull Quest quest, @Nonnull List<RewardSpec> rewards,
+            @Nonnull Message headline, @Nullable IntFunction<Message> overflow) {
+        try {
+            ToastSpec spec = completionToast.forCompleted(quest, rewards);
+            if (spec != null) {
+                return spec;
+            }
+        } catch (Throwable ignored) {
+            // A consumer's toast failing costs its own line, never the hand-in that earned it.
+        }
+        return ClaimToasts.rewardToast(headline, rewards, rewardChips, overflow);
     }
 
     /** Immutable-by-copy assembly; every knob defaults to the library's own answer. */

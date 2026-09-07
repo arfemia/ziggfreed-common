@@ -27,6 +27,7 @@ import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Entry;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Section;
 import com.ziggfreed.common.objectives.render.ClaimToasts;
@@ -507,7 +508,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         ZigRichButton.text(cmd, sel + " #RowBtn", questName(quest.id()));
         cmd.set(sel + " #StatusDot.Background", dotColor(entry.section()));
         // How often it comes round, from the quest's own repeat rule: a daily that is being waited
-        // out sits under Locked, and the badge is what says the row will open again on its own.
+        // out sits under "Comes back", and the badge is what says how often it does.
         QuestCadenceBadge.paint(cmd, sel + " #RowBadge", quest);
         if (quest.id().equals(selectedQuestId)) {
             paintRowSelected(cmd, sel, true);
@@ -630,7 +631,9 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
                 ZigRichButton.text(cmd, "#AcceptBtn", text("book.action.accept"));
                 cmd.set("#AcceptBtn.Visible", true);
             }
-            case LOCKED -> renderRefusals(cmd, engine.canAccept(subject, quest).reasons());
+            // A gate's refusal and a running clock read the same way: one line per reason under
+            // the REQUIRED header, and for the clock that line says when it comes back.
+            case LOCKED, COOLDOWN -> renderRefusals(cmd, engine.canAccept(subject, quest));
             case READY -> {
                 ZigRichButton.text(cmd, "#ClaimBtn", text("book.action.claim"));
                 cmd.set("#ClaimBtn.Visible", true);
@@ -723,14 +726,16 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     /**
-     * Why a visible quest cannot be taken, so a locked row explains itself instead of sitting inert.
+     * Why a visible quest cannot be taken, so a locked row explains itself instead of sitting inert,
+     * and when a repeat comes back, so a waiting row says how long.
      *
      * <p>The token-to-line mapping is {@link LockReasons}, the same one the objective book reads,
-     * so the two surfaces cannot disagree - and a gate shut by another quest names that quest
-     * instead of reading as a generic "not available".
+     * so the two surfaces cannot disagree - a gate shut by another quest names that quest instead
+     * of reading as a generic "not available", and a daily finished today quotes the wait the
+     * engine's check already carries rather than "not available yet".
      */
-    private void renderRefusals(@Nonnull UICommandBuilder cmd, @Nonnull List<String> reasons) {
-        List<Message> lines = LockReasons.lines(reasons);
+    private void renderRefusals(@Nonnull UICommandBuilder cmd, @Nonnull QuestEngine.AcceptCheck check) {
+        List<Message> lines = LockReasons.lines(check);
         if (lines.isEmpty()) {
             return;
         }
@@ -893,9 +898,9 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             @Nonnull Player player, @Nonnull Subject subject, @Nonnull QuestEngine engine,
             @Nonnull Quest quest) {
         String site = collectionSite(subject, engine, quest);
-        boolean ok = Boolean.TRUE.equals(ProgressionRuntime.questScope()
-                .around(subject, s -> Boolean.valueOf(engine.claim(s, quest, site))));
-        if (!ok) {
+        RewardGrants.GrantOutcome paid = ProgressionRuntime.questScope()
+                .around(subject, s -> engine.tryClaim(s, quest, site));
+        if (paid == null) {
             showToast(ToastKind.WARNING, text("book.toast.claim_failed"));
             refreshOrReopen(ref, store, player, subject, engine, quest);
             return;
@@ -903,11 +908,12 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         // ORDER IS LOAD-BEARING, exactly as on the hand-in below: the toast goes up FIRST, because
         // whatever the hand-off opens repaints the shared per-player toast state.
         //
-        // The toast NAMES what was collected, one row per reward, through the same chip reading the
-        // detail panel previewed the claim with - a player who presses Collect should not have to
-        // open the book to find out what they were given. The rows are the CLAIM rewards this press
-        // paid, never the auto ones the quest settled with earlier.
-        showToast(ClaimToasts.rewardToast(text("book.toast.claimed"), quest.claimRewards(),
+        // The toast NAMES what was collected, one row per thing actually handed over, through the
+        // same chip reading the detail panel previewed the claim with - a player who presses
+        // Collect should not have to open the book to find out what they were given. The rows are
+        // the claim's RECEIPT (a rolled table as the items it produced), never the authored list
+        // and never the auto rewards the quest settled with earlier.
+        showToast(ClaimToasts.rewardToast(text("book.toast.claimed"), paid.receipt(),
                 deps.rewardChips(), dropped -> text("book.more", dropped)));
         if (!handOff(quest, store, ref, player)) {
             refreshOrReopen(ref, store, player, subject, engine, quest);
@@ -953,9 +959,9 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         // EVERY outstanding step this character is owed, not just the first: three separate
         // deliveries to one person is one errand to the player, and making them press the button
         // once per line reads as the earlier presses having failed.
-        Integer handed = ProgressionRuntime.questScope().around(subject,
-                s -> Integer.valueOf(engine.attemptAllTurnIns(s, quest, turnIn.atId())));
-        if (handed == null || handed.intValue() <= 0) {
+        QuestEngine.TurnInOutcome handed = ProgressionRuntime.questScope().around(subject,
+                s -> engine.tryAllTurnIns(s, quest, turnIn.atId()));
+        if (handed == null || !handed.creditedAny()) {
             ObjectiveProgressState state = engine.progressOf(subject, quest.id(), turnIn.step().id());
             showToast(ToastKind.WARNING, state == null
                     ? text("book.toast.turn_in_failed")
@@ -968,20 +974,23 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             refreshOrReopen(ref, store, player, subject, engine, quest);
             return;
         }
-        // A hand-in made HERE also COLLECTS here: a player who just walked the delivery over
-        // should not have to press a second button for a reward the engine is already holding for
-        // them. The claim is attempted in the SAME call scope, right behind the hand-in that
-        // earned it; a refusal (no room, or the quest wants collecting somewhere else) simply
-        // leaves it parked, and the completion toast and hand-off below cover both outcomes alike.
+        // What this press PAID: the settle inside the hand-in when the quest paid out here, else
+        // the collect right behind it. A hand-in made HERE also COLLECTS here: a player who just
+        // walked the delivery over should not have to press a second button for a reward the
+        // engine is already holding for them. The claim is attempted in the SAME call scope,
+        // right behind the hand-in that earned it; a refusal (no room, or the quest wants
+        // collecting somewhere else) simply leaves it parked with nothing paid, and the completion
+        // toast and hand-off below cover both outcomes alike.
+        RewardGrants.GrantOutcome paid = handed.paid();
         if (engine.status(subject, quest) == QuestStatus.COMPLETED_UNCLAIMED) {
-            ProgressionRuntime.questScope().around(subject,
-                    s -> Boolean.valueOf(engine.claim(s, quest, turnIn.atId())));
+            paid = ProgressionRuntime.questScope().around(subject,
+                    s -> engine.tryClaim(s, quest, turnIn.atId()));
         }
 
         // ORDER IS LOAD-BEARING: the toast goes up FIRST, because whatever the hand-off opens
         // repaints the shared per-player toast state, so showing it afterwards would post it to a
         // screen that has already gone.
-        showToast(completionToast(quest));
+        showToast(handInToast(quest, paid));
         // What follows a settled quest is the routing layer's decision, never this page's: the giver
         // reacts, or nothing does because the quest names no conversation, nobody carries it, or
         // there is nobody in front of the player. False means nothing was painted, so this page
@@ -991,17 +1000,20 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         }
     }
 
+    /**
+     * The toast for a quest this hand-in finished: when it paid out here, the same gold "quest
+     * complete" line the book's Collect floats, listing what was actually handed over (a rolled
+     * table as the items it produced, an empty roll as no row); when it only parked, for a full
+     * bag or a collect somewhere else, the plain "Handed in." line with nothing under it, since
+     * nothing has been paid. The split is the deps' to apply, so it is pinned with no page behind
+     * it.
+     */
     @Nonnull
-    private ToastSpec completionToast(@Nonnull Quest quest) {
-        try {
-            ToastSpec spec = deps.completionToast().forCompleted(quest);
-            if (spec != null) {
-                return spec;
-            }
-        } catch (Throwable ignored) {
-            // A consumer's toast failing costs its own line, never the hand-in that earned it.
-        }
-        return ToastSpec.of(ToastKind.SUCCESS, text("book.toast.turned_in"));
+    private ToastSpec handInToast(@Nonnull Quest quest, @Nullable RewardGrants.GrantOutcome paid) {
+        return deps.handInToast(quest, paid,
+                text("book.toast.quest_complete", questName(quest.id())),
+                text("book.toast.turned_in"),
+                dropped -> text("book.more", dropped));
     }
 
     private boolean handOff(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
@@ -1071,6 +1083,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             case ACTIVE -> text("npcquests.section.active");
             case AVAILABLE -> text("npcquests.section.available");
             case PARKED -> text("npcquests.section.parked");
+            case COOLDOWN -> text("npcquests.section.cooldown");
             case LOCKED -> text("npcquests.section.locked");
             case DONE -> text("npcquests.section.done");
         };
@@ -1079,7 +1092,8 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     /**
      * One colour vocabulary for a row's dot and the detail panel's status line: the shared
      * {@link StatusTones}, so this list, the objective book's rows and any other progression
-     * surface say "ready" and "locked" in the same colour.
+     * surface say "ready", "locked" and "comes back on its own" in the same colours (the last is
+     * the purple every cadence badge and cooldown readout already wears).
      */
     @Nonnull
     private static String dotColor(@Nonnull Section section) {
@@ -1087,6 +1101,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             case READY, TURN_IN, DONE -> StatusTones.READY.hex();
             case ACTIVE -> StatusTones.IN_PROGRESS.hex();
             case AVAILABLE -> StatusTones.AVAILABLE.hex();
+            case COOLDOWN -> StatusTones.LIMITED.hex();
             case PARKED, LOCKED -> StatusTones.SOFT_BLOCK.hex();
         };
     }

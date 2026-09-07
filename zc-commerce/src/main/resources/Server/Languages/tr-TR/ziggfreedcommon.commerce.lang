@@ -34,6 +34,7 @@ shop.action.reroll = Değiştir
 
 shop.toast.bought = {0} satın alındı.
 shop.toast.bought_queued = {0} satın alındı. Bir kısmı bir sonraki girişini bekliyor.
+shop.toast.more = +{0} tane daha
 shop.toast.reroll_confirm = {0} karşılığında değiştirilsin mi? Onaylamak için tekrar bas.
 
 board.title = İlan panosu
@@ -77,6 +78,7 @@ board.toast.turned_in = Teslim edildi.
 board.toast.turn_in_failed = Bu teslim edilemedi.
 board.toast.turn_in_short = {1} taneden {0} tanesi sende.
 board.toast.completed = Sözleşme tamamlandı.
+board.toast.more = +{0} tane daha
 board.toast.reroll_confirm = {0} karşılığında değiştirilsin mi? Onaylamak için tekrar bas.
 
 refuse.locked = Bunu henüz yapamazsın.

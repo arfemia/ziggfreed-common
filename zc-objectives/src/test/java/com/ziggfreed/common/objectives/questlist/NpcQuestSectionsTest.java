@@ -63,11 +63,15 @@ class NpcQuestSectionsTest {
     }
 
     @Test
-    void aRepeatableWaitingOutItsClockReadsAsLockedRatherThanVanishing() {
+    void aRepeatableWaitingOutItsClockReadsAsComingBackRatherThanLockedOrVanishing() {
         // Leaving it out entirely makes a daily disappear between runs, which reads to a player as
-        // content having been taken away rather than as a wait.
-        assertEquals(Section.LOCKED,
+        // content having been taken away rather than as a wait; filing it under Locked says a gate
+        // refuses it when nothing does. It gets its own heading, and Locked means only "refused".
+        assertEquals(Section.COOLDOWN,
                 NpcQuestSections.classify(QuestStatus.ON_COOLDOWN, true, false, true));
+        assertEquals(Section.COOLDOWN,
+                NpcQuestSections.classify(QuestStatus.ON_COOLDOWN, false, false, false),
+                "the wait is the whole story: neither the gate nor the place changes it");
     }
 
     @Test
@@ -104,16 +108,19 @@ class NpcQuestSectionsTest {
     @Test
     void sectionsReadInTheOrderTheyAreDeclared() {
         // Most actionable HERE first: a reward to take, a step to hand over, what is being carried,
-        // what can be taken on, then the two nothing can be done about here, then what is finished.
+        // what can be taken on, then the three nothing can be done about here (collected elsewhere,
+        // coming back on its own, refused by a gate), then what is finished.
         List<String> ids = NpcQuestSections.sortedIds(List.of(
                 Entry.of("done", Section.DONE, false),
                 Entry.of("locked", Section.LOCKED, false),
+                Entry.of("cooldown", Section.COOLDOWN, false),
                 Entry.of("parked", Section.PARKED, false),
                 Entry.of("available", Section.AVAILABLE, false),
                 Entry.of("active", Section.ACTIVE, false),
                 Entry.of("turnin", Section.TURN_IN, false),
                 Entry.of("ready", Section.READY, false)));
-        assertEquals(List.of("ready", "turnin", "active", "available", "parked", "locked", "done"), ids);
+        assertEquals(List.of("ready", "turnin", "active", "available", "parked", "cooldown", "locked",
+                "done"), ids);
     }
 
     @Test

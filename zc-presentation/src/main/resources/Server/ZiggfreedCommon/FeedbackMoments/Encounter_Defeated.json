@@ -8,14 +8,16 @@
     "The moment fires once per participant the fight credited and carries 'encounter' (the script",
     "id), 'title' (the fight's name in the reader's language), 'members', 'seconds' (how long the",
     "fight took), 'share' (THIS reader's credited share of the fight as whole percent points, the",
-    "top contributor reading 100, which is what their loot rolls were scaled by) and 'rank' (their",
-    "place, 1 for the top contributor), plus 'participants' and 'source'. 'player' is the",
-    "participant it is about. Showing the share is how everyone sees why they got what they got.",
+    "top contributor reading 100, which is what their loot rolls were scaled by), 'rank' (their",
+    "place, 1 for the top contributor) and 'rewards' (what THIS reader's roll actually put in their",
+    "hands, one entry per thing; a reader whose roll landed nothing carries none), plus",
+    "'participants' and 'source'. 'player' is the participant it is about. Showing the share is",
+    "how everyone sees why they got what they got.",
     "",
     "Gold Reward tone, because a boss falling is a payout, and a jingle at the reader's own",
     "position. Add a Broadcast (with MinSecondsBetween, since this fires once per participant) to",
-    "tell the world; the rewards the fight pays list themselves as rows under the headline on the",
-    "in-page toast."
+    "tell the world. On the in-page toast each participant's own rewards list themselves as rows",
+    "under the headline, never another player's, and an empty roll shows the headline alone."
   ],
   "Toast": {
     "Title": {

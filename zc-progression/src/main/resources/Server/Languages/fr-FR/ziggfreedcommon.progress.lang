@@ -5,6 +5,12 @@ step.untitled = Étape sans nom
 
 lock.unavailable = Pas proposé pour le moment
 lock.on_cooldown = De nouveau disponible plus tard
+lock.on_cooldown.in = De nouveau disponible dans {0}
+lock.period_spent = Revient plus tard
+lock.period_spent.in = Revient dans {0}
+lock.max_completions = Vous avez terminé celle-ci pour de bon
+lock.already_started = Déjà dans votre journal de quêtes
+lock.system_disabled = Les quêtes sont désactivées ici
 lock.prerequisites = Conditions non remplies
 lock.other = Pas encore disponible
 lock.quest = Terminez la quête : {0}
@@ -18,6 +24,11 @@ lock.any_of = Déverrouillé par : {0}
 lock.any_of.join = ou
 lock.not = Indisponible tant qu'une condition reste active
 lock.not.met = Indisponible tant que ceci est rempli : {0}
+
+wait.days = {0, number} j {1, number} h
+wait.hours = {0, number} h {1, number} min
+wait.minutes = {0, number} min
+wait.under_minute = moins d'une minute
 
 objective.break_block = Cassez {0} {1}
 objective.break_block.any = Cassez {0} blocs

@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -286,5 +287,139 @@ class RewardGrantsTest {
         assertEquals("second", copy.param("id"));
         assertEquals("x", copy.param("extra"));
         assertEquals("GOOD", copy.kind());
+    }
+
+    // ==================== the receipt ====================
+
+    /**
+     * A handler that implements only the two-argument grant hands over exactly what the spec said,
+     * so the default receipt is the spec itself, in grant order.
+     */
+    @Test
+    void theReceiptIsTheSpecItselfForAHandlerThatPaysWhatItSaid() {
+        RewardSpec first = RewardSpec.of("GOOD", "id", "first");
+        RewardSpec second = RewardSpec.of("GOOD", "id", "second");
+
+        RewardGrants.GrantOutcome outcome = grant(List.of(first, second));
+
+        assertEquals(List.of(first, second), outcome.receipt(),
+                "an ordinary handler's receipt is the spec it was handed, in order");
+    }
+
+    /** A handler that decides at grant time reports what landed, and the spec is not in the receipt. */
+    @Test
+    void aRollingHandlerReportsWhatItHandedOverInsteadOfItsSpec() {
+        RewardSpec rolledA = RewardSpec.of("Item", Map.of("Item", "Coin_Gold", "Count", "3"));
+        RewardSpec rolledB = RewardSpec.of("Item", Map.of("Item", "Gem_Ruby", "Count", "1"));
+        kinds.register("ROLL", new RewardHandler() {
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+                granted.add("rolled");
+            }
+
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                    @Nonnull String sourceId, @Nonnull Consumer<RewardSpec> receipt) {
+                grant(spec, subject);
+                receipt.accept(rolledA);
+                receipt.accept(rolledB);
+            }
+        });
+        RewardSpec table = RewardSpec.of("ROLL", "table", "demo");
+
+        RewardGrants.GrantOutcome outcome = grant(List.of(table));
+
+        assertEquals(1, outcome.granted());
+        assertEquals(List.of(rolledA, rolledB), outcome.receipt(),
+                "the receipt is what the roll produced, never the table's own spec");
+        assertFalse(outcome.receipt().contains(table));
+    }
+
+    /** A rolling handler whose roll produced nothing contributes no row at all. */
+    @Test
+    void anEmptyRollContributesNothingToTheReceipt() {
+        kinds.register("EMPTY_ROLL", new RewardHandler() {
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+            }
+
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                    @Nonnull String sourceId, @Nonnull Consumer<RewardSpec> receipt) {
+                // Rolled, landed nothing, reported nothing.
+            }
+        });
+
+        RewardGrants.GrantOutcome outcome = grant(List.of(
+                RewardSpec.of("EMPTY_ROLL"), RewardSpec.of("GOOD", "id", "after")));
+
+        assertEquals(2, outcome.granted(), "an empty roll still counts as a grant that ran");
+        assertEquals(1, outcome.receipt().size(), "and it adds no row; the reward after it still does");
+        assertEquals("after", outcome.receipt().get(0).param("id"));
+    }
+
+    /**
+     * Only a reward that was handed over NOW is in the receipt: a failed one is absent, a queued one
+     * is absent, and whatever a handler wrote onto the receipt before it threw is discarded with it.
+     */
+    @Test
+    void aFailedOrQueuedRewardReportsNothingEvenIfItWroteToTheReceiptFirst() {
+        kinds.register("BROKEN", (spec, subject) -> {
+            throw new IllegalStateException("no");
+        });
+        kinds.register("HALF", new RewardHandler() {
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+            }
+
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                    @Nonnull String sourceId, @Nonnull Consumer<RewardSpec> receipt) {
+                receipt.accept(RewardSpec.of("Item", Map.of("Item", "Half_Landed", "Count", "1")));
+                throw new IllegalStateException("fell over after reporting");
+            }
+
+            @Override
+            @Nullable
+            public String retryCommand(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                    @Nonnull String sourceId) {
+                return "give tester Half_Landed";
+            }
+        });
+        RewardSpec good = RewardSpec.of("GOOD", "id", "only");
+
+        RewardGrants.GrantOutcome outcome = grant(List.of(
+                RewardSpec.of("BROKEN"), RewardSpec.of("HALF"), good));
+
+        assertEquals(1, outcome.granted());
+        assertEquals(1, outcome.queued(), "the half-reported reward was queued for a retry");
+        assertEquals(1, outcome.failed());
+        assertEquals(List.of(good), outcome.receipt(),
+                "neither the lost reward nor the queued one is listed as handed over");
+    }
+
+    /** The three-count form still builds, and carries no receipt. */
+    @Test
+    void theThreeCountConstructorCarriesAnEmptyReceipt() {
+        RewardGrants.GrantOutcome outcome = new RewardGrants.GrantOutcome(2, 1, 0);
+        assertTrue(outcome.receipt().isEmpty());
+        assertEquals(2, outcome.granted());
+        assertTrue(RewardGrants.GrantOutcome.EMPTY.receipt().isEmpty());
+    }
+
+    /**
+     * The rule every completion toast reads its rows through: a payout lists its receipt, and no
+     * payout lists NOTHING - never the authored list, which would show a player things they were
+     * not given under a headline saying they were.
+     */
+    @Test
+    void aToastAfterNoPayoutListsNothingRatherThanThePromise() {
+        RewardSpec rolled = RewardSpec.of("Item", Map.of("Item", "Coin_Gold", "Count", "3"));
+        RewardGrants.GrantOutcome paid = new RewardGrants.GrantOutcome(1, 0, 0, List.of(rolled));
+
+        assertEquals(List.of(rolled), RewardGrants.GrantOutcome.receiptOf(paid),
+                "a payout lists exactly what it handed over");
+        assertTrue(RewardGrants.GrantOutcome.receiptOf(null).isEmpty(),
+                "no payout (a parked quest, a refused claim) lists no row at all");
     }
 }

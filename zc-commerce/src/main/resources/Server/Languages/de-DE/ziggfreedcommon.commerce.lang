@@ -34,6 +34,7 @@ shop.action.reroll = Neu würfeln
 
 shop.toast.bought = {0} gekauft.
 shop.toast.bought_queued = {0} gekauft. Ein Teil davon wartet auf deine nächste Anmeldung.
+shop.toast.more = +{0} weitere
 shop.toast.reroll_confirm = Für {0} neu würfeln? Zum Bestätigen erneut drücken.
 
 board.title = Anschlagbrett
@@ -77,6 +78,7 @@ board.toast.turned_in = Abgegeben.
 board.toast.turn_in_failed = Das konnte nicht abgegeben werden.
 board.toast.turn_in_short = Du hast {0} von {1}.
 board.toast.completed = Auftrag abgeschlossen.
+board.toast.more = +{0} weitere
 board.toast.reroll_confirm = Für {0} neu würfeln? Zum Bestätigen erneut drücken.
 
 refuse.locked = Das kannst du noch nicht.

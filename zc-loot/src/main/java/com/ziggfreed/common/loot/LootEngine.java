@@ -75,6 +75,7 @@ public final class LootEngine {
 
         private final Map<String, Integer> items = new LinkedHashMap<>();
         private final List<String> cues = new ArrayList<>();
+        private final List<RewardSpec> rewardReceipt = new ArrayList<>();
         private int commandsRun;
         private int rewardsPaid;
         private int rewardsLost;
@@ -83,6 +84,19 @@ public final class LootEngine {
         @Nonnull
         public Map<String, Integer> getItems() {
             return items;
+        }
+
+        /**
+         * What the registered-kind rewards this pass paid ACTUALLY handed over, one spec per
+         * thing, as their handlers reported it ({@link RewardGrants.GrantOutcome#receipt()}), in
+         * grant order. Beside {@link #getItems()} it is the whole of what a pass put in the
+         * player's hands: a table that grants a currency reward names the currency here, and a
+         * nested table's own roll folds in as what it rolled. A reward that was queued or lost is
+         * not in it.
+         */
+        @Nonnull
+        public List<RewardSpec> getRewardReceipt() {
+            return rewardReceipt;
         }
 
         /**
@@ -354,6 +368,7 @@ public final class LootEngine {
             int paid = outcome.granted() + outcome.queued();
             result.rewardsPaid += paid;
             result.rewardsLost += outcome.failed();
+            result.rewardReceipt.addAll(outcome.receipt());
             if (paid > 0) {
                 produced = true;
             }

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -333,5 +334,35 @@ class ShopEngineTest {
     void theDayNumberComesFromTheInjectedClock() {
         assertEquals(100L, ShopEngine.epochDay(DAY_ONE));
         assertEquals(101L, ShopEngine.epochDay(DAY_TWO));
+    }
+
+    @Test
+    @DisplayName("the outcome carries what the purchase actually handed over, for the toast that follows it")
+    void theOutcomeCarriesWhatThePurchaseHandedOver() {
+        currencies.credit(SUBJECT, "Bounty_Token", 500);
+        RewardSpec rolled = RewardSpec.of("Item", Map.of("Item", "Coin_Gold", "Count", "3"));
+        kinds.register("Test_Roll", "test", new RewardHandler() {
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+                granted.add("rolled");
+            }
+
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                    @Nonnull String sourceId, @Nonnull Consumer<RewardSpec> receipt) {
+                grant(spec, subject);
+                receipt.accept(rolled);
+            }
+        });
+        RewardSpec plain = RewardSpec.of(KIND, "what", "boost");
+        TestOffer offer = new TestOffer("bundle", Cost.single("Bounty_Token", 150),
+                List.of(plain, RewardSpec.of("Test_Roll", "table", "demo")), true, null, null);
+
+        ShopEngine.PurchaseOutcome outcome = shop.purchase(SUBJECT, offer, DAY_ONE);
+
+        assertTrue(outcome.ok());
+        assertEquals(2, outcome.grants().granted());
+        assertEquals(List.of(plain, rolled), outcome.grants().receipt(),
+                "an ordinary reward reports itself, a rolled one reports what it produced");
     }
 }

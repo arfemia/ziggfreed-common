@@ -5,6 +5,12 @@ step.untitled = Unbenannter Schritt
 
 lock.unavailable = Zurzeit nicht angeboten
 lock.on_cooldown = Später wieder verfügbar
+lock.on_cooldown.in = In {0} wieder verfügbar
+lock.period_spent = Kommt später wieder
+lock.period_spent.in = Kommt in {0} wieder
+lock.max_completions = Diese hast du endgültig abgeschlossen
+lock.already_started = Schon in deinem Questlog
+lock.system_disabled = Quests sind hier abgeschaltet
 lock.prerequisites = Voraussetzungen nicht erfüllt
 lock.other = Noch nicht verfügbar
 lock.quest = Schließe die Quest ab: {0}
@@ -18,6 +24,11 @@ lock.any_of = Freigeschaltet durch: {0}
 lock.any_of.join = oder
 lock.not = Nicht verfügbar, solange eine Bedingung aktiv ist
 lock.not.met = Nicht verfügbar, solange dies erfüllt ist: {0}
+
+wait.days = {0, number} Tg {1, number} Std
+wait.hours = {0, number} Std {1, number} Min
+wait.minutes = {0, number} Min
+wait.under_minute = unter einer Minute
 
 objective.break_block = Baue {0} {1} ab
 objective.break_block.any = Baue {0} Blöcke ab

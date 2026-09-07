@@ -1,15 +1,23 @@
 package com.ziggfreed.common.commerce.page;
 
+import java.util.List;
+import java.util.function.IntFunction;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.loot.reward.RewardGrants;
+import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.ui.toast.RewardToastLines;
+import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 
 /**
@@ -70,12 +78,28 @@ public final class CommercePageDeps {
         ToastSpec forPurchase(@Nonnull String offerId);
     }
 
-    /** The toast a consumer floats when a contract settles; null for the library's own line. */
+    /**
+     * The toast a consumer floats when a contract settles; null for the library's own line. The
+     * board asks {@link #forCompleted(String, List)} with the rows the toast should list; its
+     * default hands off to the one-argument form, so a fill that composes its own rows keeps
+     * working.
+     */
     @FunctionalInterface
     public interface CompletionToast {
 
         @Nullable
         ToastSpec forCompleted(@Nonnull String bountyId);
+
+        /**
+         * The same toast, handed what it should list: what the collect or hand-in actually handed
+         * over when the contract paid out at this board (a rolled table as the items it produced),
+         * and nothing at all when it parked for collecting, because nothing has been paid. A fill
+         * that paints rows paints these rather than reading the contract's own list.
+         */
+        @Nullable
+        default ToastSpec forCompleted(@Nonnull String bountyId, @Nonnull List<RewardSpec> rewards) {
+            return forCompleted(bountyId);
+        }
     }
 
     /**
@@ -164,6 +188,50 @@ public final class CommercePageDeps {
     @Nonnull
     public CompletionHandOff completion() {
         return completion;
+    }
+
+    /**
+     * The toast for a hand-in that finished a contract at a board, split by what {@code paid} says
+     * happened. PAID here ({@code paid} non-null): the gold line under {@code paidHeadline} with
+     * the payout's receipt as its rows, through {@link #resolveCompletionToast(String, List,
+     * Message, IntFunction)}. PARKED ({@code paid} null, the contract waiting to be collected):
+     * the plain success line {@code parkedHeadline} and no rows at all, because gold is the payout
+     * colour and nothing has been paid yet.
+     */
+    @Nonnull
+    public ToastSpec handInToast(@Nonnull String bountyId, @Nullable RewardGrants.GrantOutcome paid,
+            @Nonnull Message paidHeadline, @Nonnull Message parkedHeadline,
+            @Nullable IntFunction<Message> overflow) {
+        if (paid == null) {
+            return ToastSpec.of(ToastKind.SUCCESS, parkedHeadline);
+        }
+        return resolveCompletionToast(bountyId, paid.receipt(), paidHeadline, overflow);
+    }
+
+    /**
+     * The toast for a contract that just settled at a board, guarded: the consumer's own when it
+     * answers one (asked with {@code rewards}, so a fill that paints rows paints these), else the
+     * library's gold line under {@code headline} with one row per entry of {@code rewards} through
+     * the consumer chip reading, capped on the caller's {@code overflow} line. A consumer toast that
+     * throws costs its own line, never the collect or hand-in that earned it.
+     *
+     * <p>{@code rewards} is what the toast lists: what was actually handed over, which is the
+     * payout's receipt. A hand-in that may have parked the contract instead goes through
+     * {@link #handInToast}, which decides whether there was a payout to list at all.
+     */
+    @Nonnull
+    public ToastSpec resolveCompletionToast(@Nonnull String bountyId, @Nonnull List<RewardSpec> rewards,
+            @Nonnull Message headline, @Nullable IntFunction<Message> overflow) {
+        try {
+            ToastSpec spec = completionToast.forCompleted(bountyId, rewards);
+            if (spec != null) {
+                return spec;
+            }
+        } catch (Throwable ignored) {
+            // A consumer's toast failing costs its own line, never the hand-in that earned it.
+        }
+        return ToastSpec.of(ToastKind.REWARD, headline)
+                .withLines(RewardToastLines.lines(rewards, rewardChips, overflow));
     }
 
     /** Immutable-by-copy assembly; every knob defaults to the library's own answer. */

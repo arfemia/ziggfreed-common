@@ -13,7 +13,6 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
-import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -469,12 +468,13 @@ public final class AchievementEngine {
         // A pin marks something being worked toward, so an earned achievement gives its slot back.
         store.clearPin(subject, achievement.id());
 
-        fireUnlocked(achievement, subject, achievement.requiresClaim());
-
+        // Paid FIRST, announced second: the earn moment lists what the immediate rewards actually
+        // handed over, so a rolled table reads as the items it produced rather than its name.
         RewardGrants.GrantOutcome outcome = grant(subject, achievement, achievement.autoRewards());
+        fireUnlocked(achievement, subject, achievement.requiresClaim(), outcome.receipt());
         if (!achievement.requiresClaim()) {
             store.setStatus(subject, achievement.id(), AchievementStatus.CLAIMED);
-            fireClaimed(achievement, subject, outcome, achievement.autoRewards(), false);
+            fireClaimed(achievement, subject, outcome, false);
         }
         // Reported as a change, NOT committed. Earning is something the engine decides rather than
         // something the subject asked for, and it arrives in bulk: a self-heal walks the whole
@@ -495,19 +495,31 @@ public final class AchievementEngine {
      * @return true when the rewards were paid
      */
     public boolean claim(@Nonnull Subject subject, @Nonnull Achievement achievement) {
+        return tryClaim(subject, achievement) != null;
+    }
+
+    /**
+     * {@link #claim} answering WHAT it paid: the payout's outcome, whose
+     * {@link RewardGrants.GrantOutcome#receipt() receipt} is what actually reached the subject - a
+     * rolled table as the items it produced - so a surface that presses Collect can list it rather
+     * than the authored promise. Null when the claim was refused, on exactly the rules
+     * {@code claim} refuses on.
+     */
+    @Nullable
+    public RewardGrants.GrantOutcome tryClaim(@Nonnull Subject subject, @Nonnull Achievement achievement) {
         if (store.status(subject, achievement.id()) != AchievementStatus.UNLOCKED) {
-            return false;
+            return null;
         }
         if (!safeGate(() -> gates.canReceiveRewards(subject, achievement), "canReceiveRewards", achievement)) {
-            return false;
+            return null;
         }
         RewardGrants.GrantOutcome outcome = grant(subject, achievement, achievement.claimRewards());
         store.setStatus(subject, achievement.id(), AchievementStatus.CLAIMED);
         // Collecting is a subject-owned transaction boundary, so the writes are committed here.
         store.markDirty(subject);
         store.flush(subject);
-        fireClaimed(achievement, subject, outcome, achievement.claimRewards(), true);
-        return true;
+        fireClaimed(achievement, subject, outcome, true);
+        return outcome;
     }
 
     /**
@@ -659,16 +671,28 @@ public final class AchievementEngine {
      * @return true when the rewards were paid
      */
     public boolean claimMilestone(@Nonnull Subject subject, int threshold) {
+        return tryClaimMilestone(subject, threshold) != null;
+    }
+
+    /**
+     * {@link #claimMilestone} answering WHAT it paid: the payout's outcome, whose
+     * {@link RewardGrants.GrantOutcome#receipt() receipt} is what actually reached the subject - a
+     * rolled table as the items it produced - so a surface that presses Collect on a rung can list
+     * it rather than the rung as authored. Null when the claim was refused, on exactly the rules
+     * {@code claimMilestone} refuses on.
+     */
+    @Nullable
+    public RewardGrants.GrantOutcome tryClaimMilestone(@Nonnull Subject subject, int threshold) {
         AchievementMilestone milestone = milestone(threshold);
         if (milestone == null || store.milestoneStatus(subject, threshold) != AchievementStatus.UNLOCKED) {
-            return false;
+            return null;
         }
-        grantMilestone(subject, milestone, milestone.claimRewards());
+        RewardGrants.GrantOutcome outcome = grantMilestone(subject, milestone, milestone.claimRewards());
         store.setMilestoneStatus(subject, threshold, AchievementStatus.CLAIMED);
         // Collecting is a subject-owned transaction boundary, so the writes are committed here.
         store.markDirty(subject);
         store.flush(subject);
-        return true;
+        return outcome;
     }
 
     /** The milestone at this exact threshold, or null. */
@@ -885,9 +909,11 @@ public final class AchievementEngine {
                 rewardRetryQueue, warn);
     }
 
-    private void grantMilestone(@Nonnull Subject subject, @Nonnull AchievementMilestone milestone,
-                                @Nonnull List<RewardSpec> rewards) {
-        RewardGrants.grantAll(rewards, subject, "milestone:" + milestone.threshold(), rewardKinds,
+    @Nonnull
+    private RewardGrants.GrantOutcome grantMilestone(@Nonnull Subject subject,
+                                                     @Nonnull AchievementMilestone milestone,
+                                                     @Nonnull List<RewardSpec> rewards) {
+        return RewardGrants.grantAll(rewards, subject, "milestone:" + milestone.threshold(), rewardKinds,
                 rewardRetryQueue, warn);
     }
 
@@ -913,14 +939,16 @@ public final class AchievementEngine {
     }
 
     /**
-     * It is EARNED. The icon travels with the moment under the fixed key {@code icon}, because it is
-     * the achievement's own - written onto the definition when the catalogue was folded, so nothing
-     * downstream has to go looking for one - and so does everything else the fold attached under
-     * {@link Achievement#momentArgs()}, beneath the engine's own names. What the earn pays on the
-     * spot rides under {@code rewards}, deferred so a moment nobody authored never composes it.
+     * It is EARNED, and its immediate rewards are already paid. The icon travels with the moment
+     * under the fixed key {@code icon}, because it is the achievement's own - written onto the
+     * definition when the catalogue was folded, so nothing downstream has to go looking for one -
+     * and so does everything else the fold attached under {@link Achievement#momentArgs()}, beneath
+     * the engine's own names. What the earn actually handed over rides under {@code rewards}: the
+     * grant's receipt, so a rolled table lists the items it produced and an empty roll adds no row.
+     * It is fired AFTER that grant for exactly that reason.
      */
     private void fireUnlocked(@Nonnull Achievement achievement, @Nonnull Subject subject,
-                              boolean awaitingClaim) {
+                              boolean awaitingClaim, @Nonnull List<RewardSpec> receipt) {
         if (nativeEvents) {
             AchievementEvents.fireUnlocked(achievement.id(), subject.id(), achievement.points(),
                     awaitingClaim, achievement.tags());
@@ -931,20 +959,19 @@ public final class AchievementEngine {
                 "icon", achievement.icon(),
                 "points", Integer.valueOf(achievement.points()),
                 "awaiting_claim", Boolean.valueOf(awaitingClaim),
-                "rewards", (Supplier<?>) achievement::autoRewards);
+                "rewards", receipt);
     }
 
     /**
      * The rewards were paid, either as it was earned or when the subject came to collect them;
      * {@code collected} tells the two apart, so a jingle authored for collecting does not also
-     * play over the unlock jingle of one that settled in the same breath. The list this grant
-     * actually paid rides under {@code rewards} - the auto rewards when it settled as it was
-     * earned, the claim rewards when the subject came to collect - deferred so a moment nobody
-     * authored never composes it.
+     * play over the unlock jingle of one that settled in the same breath. What this grant actually
+     * handed over rides under {@code rewards} - the outcome's receipt, whether it was the auto
+     * rewards settling as it was earned or the claim rewards the subject came to collect - so a
+     * rolled table reads as what it rolled.
      */
     private void fireClaimed(@Nonnull Achievement achievement, @Nonnull Subject subject,
-                             @Nonnull RewardGrants.GrantOutcome outcome,
-                             @Nonnull List<RewardSpec> rewards, boolean collected) {
+                             @Nonnull RewardGrants.GrantOutcome outcome, boolean collected) {
         if (nativeEvents) {
             AchievementEvents.fireClaimed(achievement.id(), subject.id(), outcome.granted(),
                     outcome.queued(), outcome.failed(), achievement.tags());
@@ -958,7 +985,7 @@ public final class AchievementEngine {
                 "granted", Integer.valueOf(outcome.granted()),
                 "queued", Integer.valueOf(outcome.queued()),
                 "failed", Integer.valueOf(outcome.failed()),
-                "rewards", (Supplier<?>) () -> rewards);
+                "rewards", outcome.receipt());
     }
 
     /** Report an authoring mistake that would otherwise repeat on every event exactly once. */

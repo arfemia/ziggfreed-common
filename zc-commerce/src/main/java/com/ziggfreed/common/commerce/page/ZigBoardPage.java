@@ -40,6 +40,8 @@ import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.loot.reward.RewardGrants;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
@@ -823,12 +825,15 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         showToast(ToastKind.ERROR, refusalLine(result == null ? null : result.reason()));
     }
 
-    /** Collect a finished contract AT this board, which is where the engine will allow it. */
+    /**
+     * Collect a finished contract AT this board, which is where the engine will allow it. The toast
+     * lists what the collect actually handed over, never the contract's authored list.
+     */
     private void doClaim(@Nonnull QuestEngine quests, @Nonnull Subject subject,
             @Nonnull BoardAssetSpec board, @Nonnull Quest quest) {
-        Boolean ok = scoped(subject, s -> Boolean.valueOf(quests.claim(s, quest, board.boardId())));
-        if (Boolean.TRUE.equals(ok)) {
-            showToast(completionToast(quest));
+        RewardGrants.GrantOutcome paid = scoped(subject, s -> quests.tryClaim(s, quest, board.boardId()));
+        if (paid != null) {
+            showToast(completionToast(quest, paid.receipt()));
             return;
         }
         showToast(ToastKind.WARNING, text("board.toast.claim_failed"));
@@ -860,9 +865,9 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         }
         // EVERY outstanding delivery this board is owed, not just the first: one contract asking
         // for three things is one errand, and a button that discharges a third of it reads as broken.
-        Integer handed = scoped(subject, s ->
-                Integer.valueOf(quests.attemptAllTurnIns(s, quest, board.boardId())));
-        if (handed == null || handed.intValue() <= 0) {
+        QuestEngine.TurnInOutcome handed = scoped(subject, s ->
+                quests.tryAllTurnIns(s, quest, board.boardId()));
+        if (handed == null || !handed.creditedAny()) {
             ObjectiveProgressState state = quests.progressOf(subject, quest.id(), step.id());
             showToast(ToastKind.WARNING, state == null
                     ? text("board.toast.turn_in_failed")
@@ -877,8 +882,9 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         }
         // ORDER IS LOAD-BEARING: the toast goes up FIRST, because whatever the hand-off opens
         // repaints the shared per-player toast state, so showing it afterwards would post it to a
-        // screen that has already gone.
-        showToast(completionToast(quest));
+        // screen that has already gone. Gold with the receipt when the contract settled at this
+        // board, the plain "Handed in." line when it parked to be collected.
+        showToast(handInToast(quest, handed.paid()));
         if (!handOff(quest, store, ref, player)) {
             player.getPageManager().openCustomPage(ref, store, this);
         }
@@ -936,17 +942,28 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         }
     }
 
+    /**
+     * The toast for a contract that just paid out here, listing only what was actually handed
+     * over (a rolled table as the items it produced, an empty roll as no row). The consumer's own
+     * toast is asked with those rows; the library's line is the gold "contract complete" with the
+     * same rows under it.
+     */
     @Nonnull
-    private ToastSpec completionToast(@Nonnull Quest quest) {
-        try {
-            ToastSpec spec = deps.completionToast().forCompleted(quest.id());
-            if (spec != null) {
-                return spec;
-            }
-        } catch (Throwable ignored) {
-            // A consumer's toast failing costs its own line, never the hand-in that earned it.
-        }
-        return ToastSpec.of(ToastKind.REWARD, text("board.toast.completed"));
+    private ToastSpec completionToast(@Nonnull Quest quest, @Nonnull List<RewardSpec> receipt) {
+        return deps.resolveCompletionToast(quest.id(), receipt, text("board.toast.completed"),
+                dropped -> text("board.toast.more", dropped));
+    }
+
+    /**
+     * The toast for a hand-in that finished a contract here: {@link #completionToast} when it paid
+     * out at this board, the plain "Handed in." line with nothing under it when it parked for the
+     * player to collect, since nothing has been paid. The split is the deps' to apply, so it is
+     * pinned with no page behind it.
+     */
+    @Nonnull
+    private ToastSpec handInToast(@Nonnull Quest quest, @Nullable RewardGrants.GrantOutcome paid) {
+        return deps.handInToast(quest.id(), paid, text("board.toast.completed"),
+                text("board.toast.turned_in"), dropped -> text("board.toast.more", dropped));
     }
 
     private boolean handOff(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,

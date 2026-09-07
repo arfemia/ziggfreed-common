@@ -63,6 +63,7 @@ npcquests.section.turn_in = Listas para entregar
 npcquests.section.active = En curso
 npcquests.section.available = Disponibles
 npcquests.section.parked = Recoger en otro sitio
+npcquests.section.cooldown = Vuelve
 npcquests.section.locked = Bloqueadas
 npcquests.section.done = Completadas
 
@@ -93,7 +94,7 @@ book.quests.status.locked = Bloqueada
 book.quests.status.active = En progreso
 book.quests.status.unclaimed = Lista para reclamar
 book.quests.status.completed = Completada
-book.quests.status.cooldown = Enfriamiento: {0}
+book.quests.status.cooldown = Vuelve en {0}
 book.quests.btn.accept = Aceptar
 book.quests.btn.claim = Reclamar
 book.quests.btn.abandon = Abandonar

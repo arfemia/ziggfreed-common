@@ -37,6 +37,7 @@ import com.ziggfreed.common.currency.CurrencyEngine;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.shop.PurchaseLimits;
 import com.ziggfreed.common.shop.ShopEngine;
@@ -49,6 +50,7 @@ import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.toast.RewardToastLines;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -819,6 +821,11 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
      * The toast a completed purchase floats: the consumer's own when it has one, else this library's
      * line, and the queued variant when some of what was bought is waiting for the next connect -
      * because a player who paid and saw nothing arrive needs to be told why.
+     *
+     * <p>Under the headline, one row per thing the purchase actually handed over: the grant pass's
+     * receipt, read through the same chip source the offer card previewed the payout with, so a
+     * rolled table lists the items it produced and a reward still waiting for the next connect adds
+     * no row. A bare headline left the player to guess what "Bought X" put in their bag.
      */
     @Nonnull
     private ToastSpec purchaseToast(@Nonnull ShopOffer offer,
@@ -831,9 +838,12 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         } catch (Throwable ignored) {
             // A consumer's toast failing costs its own line, never the purchase that earned it.
         }
+        List<RewardSpec> receipt = outcome.grants() == null ? List.of() : outcome.grants().receipt();
         return ToastSpec.of(ToastKind.REWARD, outcome.anyQueued()
                 ? text("shop.toast.bought_queued", offerName(offer))
-                : text("shop.toast.bought", offerName(offer)));
+                : text("shop.toast.bought", offerName(offer)))
+                .withLines(RewardToastLines.lines(receipt, deps.rewardChips(),
+                        dropped -> text("shop.toast.more", dropped)));
     }
 
     /**

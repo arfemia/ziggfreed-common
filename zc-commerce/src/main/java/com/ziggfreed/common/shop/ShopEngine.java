@@ -119,7 +119,9 @@ public final class ShopEngine {
     /**
      * What happened. {@code grants} is null when the purchase never got as far as paying out; when
      * it is not, its three counts are the only record of what reached the buyer, what is waiting
-     * for their next connect, and what was lost.
+     * for their next connect, and what was lost, and its {@code receipt} is what the buyer was
+     * actually handed - a rolled table as the items it produced - which is what a toast raised
+     * after the purchase lists.
      */
     public record PurchaseOutcome(boolean ok, @Nullable String reason,
             @Nullable RewardGrants.GrantOutcome grants, @Nonnull Cost charged) {

@@ -34,6 +34,7 @@ shop.action.reroll = Csere
 
 shop.toast.bought = Megvetted: {0}.
 shop.toast.bought_queued = Megvetted: {0}. Egy része a következő belépésedre vár.
+shop.toast.more = +{0} további
 shop.toast.reroll_confirm = Csere ennyiért: {0}? Nyomd meg újra a megerősítéshez.
 
 board.title = Hirdetőtábla
@@ -77,6 +78,7 @@ board.toast.turned_in = Leadva.
 board.toast.turn_in_failed = Ezt nem sikerült leadni.
 board.toast.turn_in_short = {1} darabból {0} van meg.
 board.toast.completed = Megbízás teljesítve.
+board.toast.more = +{0} további
 board.toast.reroll_confirm = Csere ennyiért: {0}? Nyomd meg újra a megerősítéshez.
 
 refuse.locked = Ezt még nem teheted meg.

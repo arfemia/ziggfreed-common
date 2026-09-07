@@ -34,6 +34,7 @@ shop.action.reroll = Relancer
 
 shop.toast.bought = {0} acheté.
 shop.toast.bought_queued = {0} acheté. Une partie t'attend à ta prochaine connexion.
+shop.toast.more = +{0} de plus
 shop.toast.reroll_confirm = Relancer pour {0} ? Appuie encore pour confirmer.
 
 board.title = Tableau
@@ -77,6 +78,7 @@ board.toast.turned_in = Rendu.
 board.toast.turn_in_failed = Impossible de rendre ça.
 board.toast.turn_in_short = Tu en as {0} sur {1}.
 board.toast.completed = Contrat terminé.
+board.toast.more = +{0} de plus
 board.toast.reroll_confirm = Relancer pour {0} ? Appuie encore pour confirmer.
 
 refuse.locked = Tu ne peux pas encore faire ça.

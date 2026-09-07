@@ -2,6 +2,7 @@ package com.ziggfreed.common.quest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,12 +10,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.loot.reward.RewardGrants;
+import com.ziggfreed.common.loot.reward.RewardHandler;
+import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKind;
@@ -66,8 +72,14 @@ class QuestEngineTurnInTest {
 
     @Nonnull
     private QuestEngine engineWith(@Nonnull Quest... quests) {
+        return engineWith(new RewardKindRegistry(), quests);
+    }
+
+    @Nonnull
+    private QuestEngine engineWith(@Nonnull RewardKindRegistry rewardKinds, @Nonnull Quest... quests) {
         QuestEngine engine = QuestEngine.builder()
                 .store(store)
+                .rewardKinds(rewardKinds)
                 .possessionProbe(bag)
                 .inventoryConsumer(bag)
                 .nativeEvents(false)
@@ -75,6 +87,28 @@ class QuestEngineTurnInTest {
                 .build();
         engine.setQuests(List.of(quests));
         return engine;
+    }
+
+    /** What the stand-in rolled table below reports handed over: never its own spec. */
+    private static final RewardSpec ROLLED =
+            RewardSpec.of("Item", Map.of("Item", "Coin_Gold", "Count", "3"));
+
+    /** A kind that only learns what it pays while paying it, standing in for a rolled table. */
+    @Nonnull
+    private static RewardKindRegistry rollingKind() {
+        RewardKindRegistry kinds = new RewardKindRegistry();
+        kinds.register("ROLL", new RewardHandler() {
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+            }
+
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                    @Nonnull String sourceId, @Nonnull Consumer<RewardSpec> receipt) {
+                receipt.accept(ROLLED);
+            }
+        });
+        return kinds;
     }
 
     @Nonnull
@@ -272,6 +306,100 @@ class QuestEngineTurnInTest {
                 "a part-load is credited and the pass stops where the player runs out");
         assertFalse(engine.allObjectivesComplete(player, q));
         assertEquals(3, engine.remainingFor(player, q, q.objective("essence")));
+    }
+
+    // ==================== What a hand-in paid ====================
+
+    /**
+     * The press that finishes a quest where it pays out answers what the payout actually handed
+     * over - what the roll produced, never the table's own spec - so a hand-in button's toast can
+     * list it. The counting form still answers the count.
+     */
+    @Test
+    void aHandInThatFinishesTheQuestAnswersWhatItPaid() {
+        Quest q = Quest.builder("q_paid")
+                .objective(handIn("give", "Iron_Ore", 2))
+                .autoReward(RewardSpec.of("ROLL", "table", "demo"))
+                .build();
+        QuestEngine engine = engineWith(rollingKind(), q);
+        engine.accept(player, q);
+        bag.put("Iron_Ore", 2);
+
+        QuestEngine.TurnInOutcome handed = engine.tryAllTurnIns(player, q, "Anybody");
+
+        assertEquals(2, handed.credited());
+        assertTrue(handed.creditedAny());
+        assertEquals(QuestStatus.COMPLETED, engine.status(player, q));
+        assertNotNull(handed.paid(), "the last step settled the quest, and the press says what that paid");
+        assertEquals(List.of(ROLLED), handed.paid().receipt(),
+                "what the roll produced, never the table's spec");
+    }
+
+    @Test
+    void aSingleStepHandInAnswersWhatItPaidToo() {
+        Quest q = Quest.builder("q_single")
+                .objective(handIn("give", "Iron_Ore", 1))
+                .autoReward(RewardSpec.of("ROLL", "table", "demo"))
+                .build();
+        QuestEngine engine = engineWith(rollingKind(), q);
+        engine.accept(player, q);
+        bag.put("Iron_Ore", 1);
+
+        QuestEngine.TurnInOutcome handed = engine.tryTurnIn(player, q, "give", null);
+
+        assertEquals(1, handed.credited());
+        assertNotNull(handed.paid());
+        assertEquals(List.of(ROLLED), handed.paid().receipt());
+        assertEquals(QuestEngine.TurnInOutcome.NOTHING, engine.tryTurnIn(player, q, "give", null),
+                "a finished quest has nothing left to hand in");
+    }
+
+    /**
+     * A hand-in that PARKS the quest (a reward authored to be collected) has paid nothing, so it
+     * answers no payout; the collect right behind it is what answers the receipt.
+     */
+    @Test
+    void aHandInThatParksTheQuestAnswersNoPayoutAndTheCollectAnswersIt() {
+        Quest q = Quest.builder("q_parked")
+                .objective(handIn("give", "Iron_Ore", 2))
+                .reward(RewardSpec.of("ROLL", "table", "demo"))
+                .build();
+        QuestEngine engine = engineWith(rollingKind(), q);
+        engine.accept(player, q);
+        bag.put("Iron_Ore", 2);
+
+        QuestEngine.TurnInOutcome handed = engine.tryAllTurnIns(player, q, "Anybody");
+
+        assertEquals(2, handed.credited());
+        assertEquals(QuestStatus.COMPLETED_UNCLAIMED, engine.status(player, q));
+        assertNull(handed.paid(), "nothing has been paid: the quest parked for collecting");
+
+        RewardGrants.GrantOutcome paid = engine.tryClaim(player, q, "Anybody");
+
+        assertNotNull(paid, "the collect answers what it paid");
+        assertEquals(List.of(ROLLED), paid.receipt());
+    }
+
+    @Test
+    void aHandInThatLeavesAStepOutstandingAnswersTheCreditAndNoPayout() {
+        Quest q = Quest.builder("q_short_paid")
+                .objective(handIn("give", "Iron_Ore", 5))
+                .autoReward(RewardSpec.of("ROLL", "table", "demo"))
+                .build();
+        QuestEngine engine = engineWith(rollingKind(), q);
+        engine.accept(player, q);
+        bag.put("Iron_Ore", 2);
+
+        QuestEngine.TurnInOutcome handed = engine.tryAllTurnIns(player, q, "Anybody");
+
+        assertEquals(2, handed.credited());
+        assertNull(handed.paid(), "the quest is still open, so nothing was paid");
+        assertEquals(QuestStatus.ACTIVE, engine.status(player, q));
+
+        bag.put("Iron_Ore", 3);
+        assertEquals(3, engine.attemptAllTurnIns(player, q, "Anybody"),
+                "the counting form answers the count of the press that finished it");
+        assertEquals(QuestStatus.COMPLETED, engine.status(player, q));
     }
 
     @Test

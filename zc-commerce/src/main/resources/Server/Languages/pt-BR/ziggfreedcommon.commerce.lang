@@ -34,6 +34,7 @@ shop.action.reroll = Trocar
 
 shop.toast.bought = Você comprou {0}.
 shop.toast.bought_queued = Você comprou {0}. Parte disso espera pelo seu próximo login.
+shop.toast.more = +{0} a mais
 shop.toast.reroll_confirm = Trocar por {0}? Aperte de novo para confirmar.
 
 board.title = Mural
@@ -77,6 +78,7 @@ board.toast.turned_in = Entregue.
 board.toast.turn_in_failed = Não foi possível entregar isso.
 board.toast.turn_in_short = Você tem {0} de {1}.
 board.toast.completed = Contrato concluído.
+board.toast.more = +{0} a mais
 board.toast.reroll_confirm = Trocar por {0}? Aperte de novo para confirmar.
 
 refuse.locked = Você ainda não pode fazer isso.

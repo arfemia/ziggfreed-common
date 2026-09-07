@@ -77,48 +77,66 @@ public final class EncounterLoot {
     /**
      * Pay the defeat: {@code Loot.OnDefeat} per credited participant (plus the last hitter at a full
      * share when {@code ToKiller}), share-scaled, offline participants queued when the row allows.
+     *
+     * @return each paid player's own RECEIPT - what their share-scaled roll actually put in their
+     *         hands, one spec per thing, as the grant pass reported it - keyed by player id, so the
+     *         defeat moment that follows can list a participant their own roll and never another's.
+     *         A player whose roll landed nothing, or whose whole payout was queued, has no entry.
      */
-    public static void grantDefeat(@Nonnull Store<EntityStore> store, @Nonnull ZigEncounterRun run,
-            @Nonnull String encounterId, @Nullable EncounterBindingAsset row, @Nonnull ParticipationSpec spec,
-            @Nonnull ParticipationShares shares) {
+    @Nonnull
+    public static Map<UUID, List<RewardSpec>> grantDefeat(@Nonnull Store<EntityStore> store,
+            @Nonnull ZigEncounterRun run, @Nonnull String encounterId, @Nullable EncounterBindingAsset row,
+            @Nonnull ParticipationSpec spec, @Nonnull ParticipationShares shares) {
         EncounterBindingAsset.Loot loot = row == null ? null : row.getLoot();
         LootRef ref = loot == null ? null : loot.getOnDefeat();
         if (ref == null || ref.isEmpty()) {
-            return;
+            return Map.of();
         }
         List<Recipient> recipients = recipients(run, shares, loot.toKiller());
         if (recipients.isEmpty()) {
             SafeLog.info(Encounters.LOG_PREFIX + " payout run=" + EncounterRun.shortId(run.runId()) + " encounter="
                     + encounterId + ": no credited participant to pay");
-            return;
+            return Map.of();
         }
-        LootEngine.Resolved resolved = LootEngine.resolve(ref, unknown -> SafeLog.warn(Encounters.LOG_PREFIX
-                + " '" + encounterId + "' names no loot table called '" + unknown + "'"));
-        String sourceId = SOURCE_PREFIX + encounterId;
-        for (Recipient recipient : recipients) {
-            grantTo(store, run, encounterId, sourceId, resolved, recipient, spec, loot.queueIfOffline());
-        }
+        return grantEach(store, run, encounterId, ref, spec, recipients, loot.queueIfOffline());
     }
 
     /**
      * Pay everybody credited in {@code shares} the loot {@code ref}, share-scaled: the path the
-     * {@code ZigGrant} action takes, with no row involved.
+     * {@code ZigGrant} action takes, with no row involved. Answers the same per-player receipts as
+     * {@link #grantDefeat}.
      */
-    public static void grantShares(@Nonnull Store<EntityStore> store, @Nonnull ZigEncounterRun run,
-            @Nonnull String encounterId, @Nonnull LootRef ref, @Nonnull ParticipationSpec spec,
-            @Nonnull ParticipationShares shares, boolean toKiller, boolean queueIfOffline, @Nonnull String label) {
+    @Nonnull
+    public static Map<UUID, List<RewardSpec>> grantShares(@Nonnull Store<EntityStore> store,
+            @Nonnull ZigEncounterRun run, @Nonnull String encounterId, @Nonnull LootRef ref,
+            @Nonnull ParticipationSpec spec, @Nonnull ParticipationShares shares, boolean toKiller,
+            boolean queueIfOffline, @Nonnull String label) {
         List<Recipient> recipients = recipients(run, shares, toKiller);
         if (recipients.isEmpty()) {
             SafeLog.info(Encounters.LOG_PREFIX + " " + label + " run=" + EncounterRun.shortId(run.runId()) + " encounter="
                     + encounterId + ": nobody to pay (0 credited participants)");
-            return;
+            return Map.of();
         }
+        return grantEach(store, run, encounterId, ref, spec, recipients, queueIfOffline);
+    }
+
+    /** Resolve {@code ref} once and pay every recipient their own roll of it, collecting the receipts. */
+    @Nonnull
+    private static Map<UUID, List<RewardSpec>> grantEach(@Nonnull Store<EntityStore> store,
+            @Nonnull ZigEncounterRun run, @Nonnull String encounterId, @Nonnull LootRef ref,
+            @Nonnull ParticipationSpec spec, @Nonnull List<Recipient> recipients, boolean queueIfOffline) {
         LootEngine.Resolved resolved = LootEngine.resolve(ref, unknown -> SafeLog.warn(Encounters.LOG_PREFIX
                 + " '" + encounterId + "' names no loot table called '" + unknown + "'"));
         String sourceId = SOURCE_PREFIX + encounterId;
+        Map<UUID, List<RewardSpec>> receipts = new LinkedHashMap<>();
         for (Recipient recipient : recipients) {
-            grantTo(store, run, encounterId, sourceId, resolved, recipient, spec, queueIfOffline);
+            List<RewardSpec> receipt = grantTo(store, run, encounterId, sourceId, resolved, recipient, spec,
+                    queueIfOffline);
+            if (!receipt.isEmpty()) {
+                receipts.put(recipient.playerId(), receipt);
+            }
         }
+        return receipts;
     }
 
     /** Roll the row's {@code Loot.OnPhase[state]} once and spill it at the subject. */
@@ -209,7 +227,13 @@ public final class EncounterLoot {
         return out;
     }
 
-    private static void grantTo(@Nonnull Store<EntityStore> store, @Nonnull ZigEncounterRun run,
+    /**
+     * Pay one recipient their share-scaled roll, answering what actually reached them: the grant
+     * pass's receipt, empty for a roll that landed nothing, for a payout parked on the queue, or for
+     * a participant this call could not pay at all.
+     */
+    @Nonnull
+    private static List<RewardSpec> grantTo(@Nonnull Store<EntityStore> store, @Nonnull ZigEncounterRun run,
             @Nonnull String encounterId, @Nonnull String sourceId, @Nonnull LootEngine.Resolved resolved,
             @Nonnull Recipient recipient, @Nonnull ParticipationSpec spec, boolean queueIfOffline) {
         try {
@@ -221,17 +245,17 @@ public final class EncounterLoot {
             if (online) {
                 subject = EncounterSeams.subjectFor(store, ref);
                 if (subject == null) {
-                    return;
+                    return List.of();
                 }
             } else {
                 if (!spec.creditDisconnected() || !queueIfOffline) {
                     SafeLog.info(Encounters.LOG_PREFIX + " payout run=" + EncounterRun.shortId(run.runId())
                             + ": " + recipient.name() + " is offline and is credited but not paid");
-                    return;
+                    return List.of();
                 }
                 queue = EncounterSeams.rewardQueue();
                 if (queue == null) {
-                    return;
+                    return List.of();
                 }
                 subject = Subject.of(recipient.playerId(), recipient.name());
             }
@@ -263,8 +287,10 @@ public final class EncounterLoot {
                     + (recipient.killer() ? " (killer)" : "") + " rolls=" + kept + "/" + won.size()
                     + " granted=" + outcome.granted() + " queued=" + outcome.queued() + " lost=" + outcome.failed()
                     + (online ? "" : " (offline)"));
+            return outcome.receipt();
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " paying " + recipient.name() + " for '" + encounterId + "' failed", t);
+            return List.of();
         }
     }
 

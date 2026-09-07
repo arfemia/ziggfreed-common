@@ -24,6 +24,7 @@ import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.DispatchOptions;
 import com.ziggfreed.common.progress.ObjectiveArithmetic;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -91,11 +92,27 @@ public final class QuestEngine implements QuestStateReader {
      */
     public static final String PARKED_AWAY = "away";
 
-    /** Whether a player may take a quest, and every reason they may not. */
-    public record AcceptCheck(boolean allowed, @Nonnull List<String> reasons) {
+    /**
+     * Whether a player may take a quest, every reason they may not, and WHEN a repeat rule that
+     * refused it lets go.
+     *
+     * @param waitMs how long until the repeat rule holding this quest back lets go, from the
+     *               instant of the check: {@code 0} when no repeat rule is holding it back (or
+     *               nothing is), a positive wait for a running cooldown or a spent calendar
+     *               window, {@link Long#MAX_VALUE} for a spent lifetime cap that nothing brings
+     *               back. It rides beside the tokens so a surface can say "comes back in 5h 12m"
+     *               rather than "not available yet"; {@link LockReasons} takes it beside the
+     *               reasons and never a clock of its own
+     */
+    public record AcceptCheck(boolean allowed, @Nonnull List<String> reasons, long waitMs) {
 
         /** Yes, with nothing to explain. */
-        public static final AcceptCheck ALLOWED = new AcceptCheck(true, List.of());
+        public static final AcceptCheck ALLOWED = new AcceptCheck(true, List.of(), 0L);
+
+        /** A check with no repeat rule behind it, so nothing to wait for. */
+        public AcceptCheck(boolean allowed, @Nonnull List<String> reasons) {
+            this(allowed, reasons, 0L);
+        }
 
         /** The first refusal reason, or null when allowed. Enough for a one-line message. */
         @Nullable
@@ -110,6 +127,28 @@ public final class QuestEngine implements QuestStateReader {
         /** Completion as a 0..1 fraction, safe when the quest has no objectives. */
         public double fraction() {
             return total <= 0 ? 0d : (double) completed / total;
+        }
+    }
+
+    /**
+     * What a hand-in press did: how many were credited across the steps it discharged, and, when
+     * the last of them finished the quest somewhere it pays out, what that payout actually handed
+     * over ({@link RewardGrants.GrantOutcome#receipt()}, a rolled table as the items it produced).
+     *
+     * <p>{@code paid} is null when the press finished nothing, or when it finished the quest but
+     * the quest PARKED for the player to collect - a place-bound quest handed in elsewhere, a bag
+     * with no room, rewards authored to be collected. Nothing has been paid then, so a toast raised
+     * for it lists no row at all ({@link RewardGrants.GrantOutcome#receiptOf}); the collect that
+     * follows answers its own receipt through {@link #tryClaim}.
+     */
+    public record TurnInOutcome(int credited, @Nullable RewardGrants.GrantOutcome paid) {
+
+        /** Nothing could be handed over at all. */
+        public static final TurnInOutcome NOTHING = new TurnInOutcome(0, null);
+
+        /** True when at least one thing was credited by this press. */
+        public boolean creditedAny() {
+            return credited > 0;
         }
     }
 
@@ -288,9 +327,19 @@ public final class QuestEngine implements QuestStateReader {
         return QuestLifecycle.effectiveStatus(quest, subject, store, now());
     }
 
-    /** Milliseconds left on this quest's cooldown for this player, or 0. */
+    /** Milliseconds left on this quest's ROLLING cooldown for this player, or 0. */
     public long cooldownRemainingMs(@Nonnull Subject subject, @Nonnull Quest quest) {
         return QuestLifecycle.cooldownRemainingMs(quest, subject, store, now());
+    }
+
+    /**
+     * When this quest comes back for this player, whatever is holding it: {@code 0} now, the wait
+     * in milliseconds for a running cooldown or a spent calendar window, {@link Long#MAX_VALUE}
+     * never. The whole truth, unlike {@link #cooldownRemainingMs}, which reads the rolling clock
+     * alone and answers 0 for a daily held by its window.
+     */
+    public long offerableInMs(@Nonnull Subject subject, @Nonnull Quest quest) {
+        return QuestLifecycle.offerableInMs(quest, subject, store, now());
     }
 
     /** Is this player carrying this quest right now? */
@@ -374,14 +423,17 @@ public final class QuestEngine implements QuestStateReader {
             reasons.add(QuestGates.REASON_UNAVAILABLE);
         }
         QuestStatus status = status(subject, quest);
+        long waitMs = 0L;
         if (status == QuestStatus.ON_COOLDOWN
                 || (status == QuestStatus.COMPLETED && quest.repeatable())) {
             // Ask the evaluator rather than inferring. ON_COOLDOWN is ONE display state covering a
             // running clock and a spent calendar window alike, and a repeatable reading COMPLETED is
             // one whose lifetime cap is spent - a caller deciding what to tell a player wants to know
-            // which of the three it is.
-            String reason = QuestLifecycle.repeatCheck(quest, subject, store, now()).reason();
-            reasons.add(reason != null ? reason : QuestGates.REASON_ALREADY_STARTED);
+            // which of the three it is, and WHEN it comes back, which the same check already knows.
+            long now = now();
+            QuestLifecycle.RepeatCheck repeat = QuestLifecycle.repeatCheck(quest, subject, store, now);
+            reasons.add(repeat.reason() != null ? repeat.reason() : QuestGates.REASON_ALREADY_STARTED);
+            waitMs = repeat.waitMs(now);
         } else if (status != QuestStatus.NOT_STARTED) {
             reasons.add(QuestGates.REASON_ALREADY_STARTED);
         }
@@ -394,7 +446,8 @@ public final class QuestEngine implements QuestStateReader {
         if (!gates.opensFor(subject, quest, reasons) && reasons.isEmpty()) {
             reasons.add(QuestGates.REASON_PREREQUISITES);
         }
-        return reasons.isEmpty() ? AcceptCheck.ALLOWED : new AcceptCheck(false, List.copyOf(reasons));
+        return reasons.isEmpty() ? AcceptCheck.ALLOWED
+                : new AcceptCheck(false, List.copyOf(reasons), waitMs);
     }
 
     /** {@link #accept(Subject, Quest, String)} from a surface with no place attached to it. */
@@ -996,25 +1049,37 @@ public final class QuestEngine implements QuestStateReader {
      */
     public int attemptTurnIn(@Nonnull Subject subject, @Nonnull Quest quest,
                              @Nonnull String objectiveId, @Nullable String atId) {
+        return tryTurnIn(subject, quest, objectiveId, atId).credited();
+    }
+
+    /**
+     * {@link #attemptTurnIn(Subject, Quest, String, String)} answering WHAT it did: the same
+     * credit, plus the payout when this hand-in finished the quest somewhere it pays out, so a
+     * surface that raises its own toast after the hand-in can list what was actually handed over
+     * rather than the authored promise. See {@link TurnInOutcome} for when {@code paid} is null.
+     */
+    @Nonnull
+    public TurnInOutcome tryTurnIn(@Nonnull Subject subject, @Nonnull Quest quest,
+                                   @Nonnull String objectiveId, @Nullable String atId) {
         if (!isActive(subject, quest.id())) {
-            return 0;
+            return TurnInOutcome.NOTHING;
         }
         ObjectiveDef objective = quest.objective(objectiveId);
         if (objective == null || !isTurnIn(objective)) {
-            return 0;
+            return TurnInOutcome.NOTHING;
         }
         if (!objectiveActive(subject, quest, objectiveId)) {
-            return 0;
+            return TurnInOutcome.NOTHING;
         }
         Map<String, ObjectiveProgressState> progress = progressOf(subject, quest.id());
         ObjectiveProgressState state = progress.computeIfAbsent(objectiveId,
                 key -> ObjectiveArithmetic.fresh(objectiveKinds.kind(objective.kind()), objective));
         if (state.isCompleted()) {
-            return 0;
+            return TurnInOutcome.NOTHING;
         }
         int remaining = Math.max(0, state.required() - state.current());
         if (remaining <= 0) {
-            return 0;
+            return TurnInOutcome.NOTHING;
         }
 
         int credited;
@@ -1024,17 +1089,15 @@ public final class QuestEngine implements QuestStateReader {
         } else {
             credited = clampTaken(subject, itemId, remaining);
             if (credited <= 0) {
-                return 0;
+                return TurnInOutcome.NOTHING;
             }
         }
         boolean justCompleted = state.advance(credited);
         saveProgress(subject, quest.id(), progress);
         store.markDirty(subject);
         fireObjectiveProgressed(quest, objective, subject, state, justCompleted);
-        if (justCompleted) {
-            checkCompletion(subject, quest, atId);
-        }
-        return credited;
+        RewardGrants.GrantOutcome paid = justCompleted ? trySettle(subject, quest, atId) : null;
+        return new TurnInOutcome(credited, paid);
     }
 
     /**
@@ -1057,25 +1120,41 @@ public final class QuestEngine implements QuestStateReader {
      */
     public int attemptAllTurnIns(@Nonnull Subject subject, @Nonnull Quest quest,
                                  @Nullable String atId) {
+        return tryAllTurnIns(subject, quest, atId).credited();
+    }
+
+    /**
+     * {@link #attemptAllTurnIns} answering WHAT it did: the same total, plus the payout when the
+     * last step it discharged finished the quest somewhere it pays out - the receipt a hand-in
+     * button's own toast lists. At most one lap can finish the quest, so the outcome carries at
+     * most one payout; see {@link TurnInOutcome} for when it carries none.
+     */
+    @Nonnull
+    public TurnInOutcome tryAllTurnIns(@Nonnull Subject subject, @Nonnull Quest quest,
+                                       @Nullable String atId) {
         int total = 0;
+        RewardGrants.GrantOutcome paid = null;
         int laps = 0;
         while (++laps < MAX_ARM_PASSES) {
             ObjectiveDef step = firstActiveTurnIn(subject, quest, atId);
             if (step == null) {
                 break;
             }
-            int credited = attemptTurnIn(subject, quest, step.id(), atId);
-            if (credited <= 0) {
+            TurnInOutcome lap = tryTurnIn(subject, quest, step.id(), atId);
+            if (!lap.creditedAny()) {
                 break;
             }
-            total += credited;
+            total += lap.credited();
+            if (lap.paid() != null) {
+                paid = lap.paid();
+            }
             // A settled quest has nothing left to be handed: carrying on would ask an inactive
             // quest for its next step and be refused once per lap.
             if (status(subject, quest) != QuestStatus.ACTIVE) {
                 break;
             }
         }
-        return total;
+        return new TurnInOutcome(total, paid);
     }
 
     /**
@@ -1154,6 +1233,12 @@ public final class QuestEngine implements QuestStateReader {
         checkCompletion(subject, quest, null);
     }
 
+    /** {@link #trySettle(Subject, Quest, String)} from nowhere in particular. */
+    @Nullable
+    public RewardGrants.GrantOutcome trySettle(@Nonnull Subject subject, @Nonnull Quest quest) {
+        return trySettle(subject, quest, null);
+    }
+
     /**
      * Settle a quest whose objectives may now all be met: nothing happens unless every objective is
      * complete, and then the quest either pays out or parks for the player to collect.
@@ -1170,35 +1255,67 @@ public final class QuestEngine implements QuestStateReader {
      * the spot. Pass null from anywhere the moment has no place.
      */
     public void checkCompletion(@Nonnull Subject subject, @Nonnull Quest quest, @Nullable String atId) {
+        trySettle(subject, quest, atId);
+    }
+
+    /**
+     * {@link #checkCompletion(Subject, Quest, String)} answering WHAT it paid: the payout's outcome
+     * when the quest settled on the spot, whose {@link RewardGrants.GrantOutcome#receipt() receipt}
+     * is what actually reached the player - a rolled table as the items it produced - so a surface
+     * that raises its own toast after the settle can list it rather than the authored promise.
+     *
+     * <p>Null whenever nothing was paid now: the quest is not active, a step is still outstanding,
+     * or it finished but PARKED for the player to collect (on exactly the rules above). A parked
+     * quest is announced through {@code Quest_Parked} with the promise, and the collect that
+     * follows answers its own receipt through {@link #tryClaim}.
+     */
+    @Nullable
+    public RewardGrants.GrantOutcome trySettle(@Nonnull Subject subject, @Nonnull Quest quest,
+                                               @Nullable String atId) {
         if (store.status(subject, quest.id()) != QuestStatus.ACTIVE) {
-            return;
+            return null;
         }
         if (!allObjectivesComplete(subject, quest)) {
-            return;
+            return null;
         }
         String parkedReason = parkedReason(subject, quest, atId);
         if (parkedReason != null) {
             markUnclaimed(subject, quest);
             store.markDirty(subject);
-            fireCompleted(quest, subject, parkedReason);
+            fireParked(quest, subject, parkedReason);
             // Parking records the completion, so whatever this quest was gating is unlocked NOW,
             // not when the reward is eventually collected.
             armAutoAccepts(subject);
-            return;
+            return null;
         }
+        RewardGrants.GrantOutcome outcome = settleAndAnnounce(subject, quest);
+        armAutoAccepts(subject);
+        return outcome;
+    }
+
+    /**
+     * The settle-on-the-spot payout shared by a quest finishing at its own site and an
+     * administrator's close-out: mark it finished, pay it, commit when something was paid, and
+     * only THEN announce it - both the completion and the payout moments are told what the grant
+     * actually handed over, so a toast raised for either lists the items a table rolled rather than
+     * the table's name.
+     *
+     * <p>A quest that pays out the instant it finishes is a transaction boundary exactly like a
+     * collected one - but only when something was actually paid. A quest carrying no rewards has
+     * nothing a crash could cost the player, so it waits for the batch like any other change, and
+     * a sweep that settles several such quests costs a backend nothing.
+     */
+    @Nonnull
+    private RewardGrants.GrantOutcome settleAndAnnounce(@Nonnull Subject subject, @Nonnull Quest quest) {
         markCompleted(subject, quest);
-        fireCompleted(quest, subject, null);
         RewardGrants.GrantOutcome outcome = grantRewards(subject, quest);
         store.markDirty(subject);
-        // A quest that pays out the instant it finishes is a transaction boundary exactly like a
-        // collected one - but only when something was actually paid. A quest carrying no rewards
-        // has nothing a crash could cost the player, so it waits for the batch like any other
-        // change, and a sweep that settles several such quests costs a backend nothing.
         if (outcome.anyDelivered()) {
             store.flush(subject);
         }
+        fireCompleted(quest, subject, outcome.receipt());
         fireClaimed(quest, subject, outcome, false);
-        armAutoAccepts(subject);
+        return outcome;
     }
 
     /**
@@ -1261,14 +1378,33 @@ public final class QuestEngine implements QuestStateReader {
      * @return true when the rewards were granted
      */
     public boolean claim(@Nonnull Subject subject, @Nonnull Quest quest, @Nullable String atId) {
+        return tryClaim(subject, quest, atId) != null;
+    }
+
+    /** {@link #tryClaim(Subject, Quest, String)} from a surface with no place attached. */
+    @Nullable
+    public RewardGrants.GrantOutcome tryClaim(@Nonnull Subject subject, @Nonnull Quest quest) {
+        return tryClaim(subject, quest, null);
+    }
+
+    /**
+     * {@link #claim(Subject, Quest, String)} answering WHAT it paid: the payout's outcome, whose
+     * {@link RewardGrants.GrantOutcome#receipt() receipt} is what actually reached the player -
+     * a rolled table as the items it produced - so a surface that presses Collect can list it,
+     * rather than the authored promise. Null when the claim was refused, on exactly the rules
+     * {@code claim} refuses on.
+     */
+    @Nullable
+    public RewardGrants.GrantOutcome tryClaim(@Nonnull Subject subject, @Nonnull Quest quest,
+                                              @Nullable String atId) {
         if (store.status(subject, quest.id()) != QuestStatus.COMPLETED_UNCLAIMED) {
-            return false;
+            return null;
         }
         if (!canCompleteAt(subject, quest, atId)) {
-            return false;
+            return null;
         }
         if (!gates.canReceiveRewards(subject, quest)) {
-            return false;
+            return null;
         }
         markCompleted(subject, quest);
         RewardGrants.GrantOutcome outcome = grantRewards(subject, quest);
@@ -1283,7 +1419,7 @@ public final class QuestEngine implements QuestStateReader {
         // reward waits for the player's next login, because the pass that ran when the quest parked
         // saw a prerequisite that was not finished yet.
         armAutoAccepts(subject);
-        return true;
+        return outcome;
     }
 
     /**
@@ -1300,20 +1436,23 @@ public final class QuestEngine implements QuestStateReader {
      * @return true when this call closed the quest out
      */
     public boolean forceComplete(@Nonnull Subject subject, @Nonnull Quest quest) {
+        return tryForceComplete(subject, quest) != null;
+    }
+
+    /**
+     * {@link #forceComplete} answering WHAT it paid, on the same rule {@link #tryClaim} answers
+     * for a collect: the payout's outcome, whose receipt is what actually reached the player, or
+     * null when the quest was already finished and left alone.
+     */
+    @Nullable
+    public RewardGrants.GrantOutcome tryForceComplete(@Nonnull Subject subject, @Nonnull Quest quest) {
         if (store.status(subject, quest.id()) == QuestStatus.COMPLETED && !quest.repeatable()) {
-            return false;
+            return null;
         }
-        markCompleted(subject, quest);
-        fireCompleted(quest, subject, null);
-        RewardGrants.GrantOutcome outcome = grantRewards(subject, quest);
-        store.markDirty(subject);
-        // Commits when it paid, on the same rule as the settle-on-the-spot path above.
-        if (outcome.anyDelivered()) {
-            store.flush(subject);
-        }
-        fireClaimed(quest, subject, outcome, false);
+        // Paid and committed on the same rule as the settle-on-the-spot path.
+        RewardGrants.GrantOutcome outcome = settleAndAnnounce(subject, quest);
         armAutoAccepts(subject);
-        return true;
+        return outcome;
     }
 
     /**
@@ -2050,37 +2189,51 @@ public final class QuestEngine implements QuestStateReader {
      * so ONE authored file can say "your bags are full" and "collect it where you took it" as two
      * cases of the same moment.
      *
-     * <p>Both also carry the quest's whole payout under {@code rewards} - deferred, like the
-     * sentences on the progress moment, so a moment nobody authored never composes it - which is
-     * what lets an authored toast list what was (or waits to be) handed over, and the quest's own
-     * picture under the fixed {@code icon} name, so a notice about it is illustrated by the thing
-     * the quest book shows it as. A quest that names no icon simply omits it.
-     *
-     * @param parkedReason why it parked, or null for a quest paying out now
+     * <p>Both also carry a payout under {@code rewards}, and WHICH payout is the whole difference
+     * between them. A parked quest has paid nothing yet, so it carries the promise: the quest's
+     * authored list, deferred like the sentences on the progress moment so a moment nobody authored
+     * never composes it. A quest that settled carries the RECEIPT: what the grant that just ran
+     * actually handed over, so a rolled table lists the items it produced and an empty roll adds no
+     * row. Both carry the quest's own picture under the fixed {@code icon} name, so a notice about
+     * it is illustrated by the thing the quest book shows it as; a quest that names no icon simply
+     * omits it.
      */
+    private void fireParked(@Nonnull Quest quest, @Nonnull Subject subject, @Nonnull String reason) {
+        fireCompletion(quest, subject, true, reason, (Supplier<?>) quest::rewards);
+    }
+
+    /** See {@link #fireParked}: the settled twin, fired AFTER the grant with what it handed over. */
     private void fireCompleted(@Nonnull Quest quest, @Nonnull Subject subject,
-                               @Nullable String parkedReason) {
-        boolean parked = parkedReason != null;
+                               @Nonnull List<RewardSpec> receipt) {
+        fireCompletion(quest, subject, false, null, receipt);
+    }
+
+    /**
+     * The one body behind {@link #fireParked} and {@link #fireCompleted}, so the two moments' argument
+     * maps cannot drift: {@code parked} and {@code reason} are carried on BOTH ids, so a hook handed
+     * either one can tell which case it is without reading meaning into the id it was called with.
+     */
+    private void fireCompletion(@Nonnull Quest quest, @Nonnull Subject subject, boolean parked,
+                                @Nullable String parkedReason, @Nonnull Object rewards) {
         if (nativeEvents) {
             QuestEvents.fireCompleted(quest.id(), subject.id(), parked, quest.tags());
         }
         ProgressionFeedbackHook.fire(feedbackHook, warn, parked ? "Quest_Parked" : "Quest_Completed",
                 subject, "quest", quest.id(), "title", quest.text().titleOr(quest.id()),
                 "icon", quest.icon(),
-                // Carried on BOTH ids, so a hook handed either one can tell which case it is
-                // without reading meaning into the id it was called with.
                 "parked", Boolean.valueOf(parked),
                 "reason", parkedReason,
                 "turnIn", turnInToken(quest),
-                "rewards", (Supplier<?>) quest::rewards);
+                "rewards", rewards);
     }
 
     /**
      * The rewards were paid, either the instant the quest finished or when the player came to
      * collect them; {@code collected} tells the two apart, so a jingle authored for collecting a
      * parked reward does not also play over the completion jingle of one that settled on the spot.
-     * The list just paid rides under {@code rewards}, deferred like the completion moment's, and
-     * the quest's own picture under {@code icon}, exactly as on the completion moment.
+     * What the grant actually handed over rides under {@code rewards} (the outcome's receipt, so a
+     * rolled table reads as what it rolled), and the quest's own picture under {@code icon},
+     * exactly as on the completion moment.
      */
     private void fireClaimed(@Nonnull Quest quest, @Nonnull Subject subject,
                              @Nonnull RewardGrants.GrantOutcome outcome, boolean collected) {
@@ -2095,7 +2248,7 @@ public final class QuestEngine implements QuestStateReader {
                 "granted", Integer.valueOf(outcome.granted()),
                 "queued", Integer.valueOf(outcome.queued()),
                 "failed", Integer.valueOf(outcome.failed()),
-                "rewards", (Supplier<?>) quest::rewards);
+                "rewards", outcome.receipt());
     }
 
     /**

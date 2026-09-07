@@ -26,7 +26,16 @@ import com.ziggfreed.common.util.NumberFormatter;
  * gate.
  *
  * <p>Tokens come in two families. The engine's own flat tokens ({@link QuestGates}) each map to a
- * fixed line. The requirement evaluator's tokens ({@link GateEvaluator}) are STRUCTURED - {@code
+ * fixed line - every one of them, so a daily finished today reads "Comes back in 5h 12m" and a
+ * quest already carried reads "Already in your quest log" rather than both collapsing onto the
+ * catch-all. The two clock tokens ({@code on_cooldown}, {@code period_spent}) quote WHEN when the
+ * caller hands over the remaining wait beside the tokens ({@link #lines(List, long)} and its
+ * siblings, or the {@link QuestEngine.AcceptCheck} forms that carry it already), and fall back to
+ * their no-clock twins when a caller has no wait to hand over (a token lifted from somewhere with
+ * no record behind it). The wait is composed by {@link #waitLine} as its own translatable line, whole
+ * numbers bound as typed params so each client writes its own digits, and rides the lock line as a
+ * NESTED param. This class holds no clock: the wait is always passed in, never read here. The
+ * requirement evaluator's tokens ({@link GateEvaluator}) are STRUCTURED - {@code
  * quest:<id>}, {@code factor:<id>}, {@code gate:<kind>} - and several render as the actual ask
  * rather than being discarded: a quest requirement names the quest ("Complete quest: X"), and a
  * FACTOR requirement whose factor has a naming overlay ({@link FactorNames}, the
@@ -57,13 +66,34 @@ public final class LockReasons {
     private LockReasons() {
     }
 
+    /** A wait this short reads as "under a minute" rather than as a count of nothing. */
+    private static final long MINUTE_MS = 60_000L;
+    private static final long HOUR_MS = 60L * MINUTE_MS;
+    private static final long DAY_MS = 24L * HOUR_MS;
+
+    /** No wait to quote: the clock tokens read their no-clock twins. */
+    private static final long NO_WAIT = 0L;
+
     /**
      * Every refusal as its own line: deduplicated (several tokens can fold to one sentence, and a
      * list repeating it reads as a bug rather than as emphasis), with the flat requirements line
-     * dropped when a specific requirement line already covers it.
+     * dropped when a specific requirement line already covers it. With no wait to hand over, the
+     * clock tokens read their no-clock twins; see {@link #lines(List, long)}.
      */
     @Nonnull
     public static List<Message> lines(@Nonnull List<String> reasons) {
+        return lines(reasons, NO_WAIT);
+    }
+
+    /**
+     * {@link #lines(List)} told WHEN the quest comes back: {@code waitMs} is the remaining wait a
+     * repeat rule imposes, as {@link QuestEngine.AcceptCheck#waitMs()} carries it - {@code 0} for
+     * none to quote, a positive wait for a running cooldown or a spent calendar window (quoted on
+     * the clock token's line through {@link #waitLine}), {@link Long#MAX_VALUE} for a spent lifetime
+     * cap, which reads as the finished-for-good line rather than as a number.
+     */
+    @Nonnull
+    public static List<Message> lines(@Nonnull List<String> reasons, long waitMs) {
         boolean specific = false;
         for (String reason : reasons) {
             specific |= isSpecific(reason);
@@ -75,10 +105,16 @@ public final class LockReasons {
                 continue;
             }
             if (seen.add(dedupeKey(reason))) {
-                lines.add(line(reason));
+                lines.add(line(reason, waitMs));
             }
         }
         return lines;
+    }
+
+    /** {@link #lines(List, long)} straight off the engine's answer, wait included. */
+    @Nonnull
+    public static List<Message> lines(@Nonnull QuestEngine.AcceptCheck check) {
+        return lines(check.reasons(), check.waitMs());
     }
 
     /**
@@ -99,37 +135,118 @@ public final class LockReasons {
         return lines;
     }
 
-    /** The single most specific line, for a surface with room for only one. */
+    /**
+     * The single most specific line, for a surface with room for only one. With no wait to hand
+     * over, the clock tokens read their no-clock twins; see {@link #bestLine(List, long)}.
+     */
     @Nonnull
     public static Message bestLine(@Nonnull List<String> reasons) {
-        for (String reason : reasons) {
-            if (isSpecific(reason)) {
-                return line(reason);
-            }
-        }
-        return reasons.isEmpty() ? line((String) null) : line(reasons.get(0));
+        return bestLine(reasons, NO_WAIT);
     }
 
-    /** The player-facing line for one refusal token; never null and never the raw token. */
+    /** {@link #bestLine(List)} told when the quest comes back, on the terms of {@link #lines(List, long)}. */
+    @Nonnull
+    public static Message bestLine(@Nonnull List<String> reasons, long waitMs) {
+        for (String reason : reasons) {
+            if (isSpecific(reason)) {
+                return line(reason, waitMs);
+            }
+        }
+        return reasons.isEmpty() ? line(null, waitMs) : line(reasons.get(0), waitMs);
+    }
+
+    /** {@link #bestLine(List, long)} straight off the engine's answer, wait included. */
+    @Nonnull
+    public static Message bestLine(@Nonnull QuestEngine.AcceptCheck check) {
+        return bestLine(check.reasons(), check.waitMs());
+    }
+
+    /**
+     * The player-facing line for one refusal token; never null and never the raw token. With no
+     * wait to hand over, a clock token reads its no-clock twin; see {@link #line(String, long)}.
+     */
     @Nonnull
     public static Message line(@Nullable String reason) {
-        if (QuestGates.REASON_UNAVAILABLE.equals(reason)) {
-            return text("lock.unavailable");
+        return line(reason, NO_WAIT);
+    }
+
+    /**
+     * {@link #line(String)} told when the quest comes back. Only the two clock tokens read the
+     * wait: a positive one is quoted on their "in {0}" line through {@link #waitLine}, none
+     * ({@code 0}) leaves the no-clock twin, and {@link Long#MAX_VALUE} - nothing brings it back -
+     * reads as the finished-for-good line rather than as a number no player can use. Every other
+     * token reads its fixed line whatever the wait says.
+     */
+    @Nonnull
+    public static Message line(@Nullable String reason, long waitMs) {
+        if (reason == null) {
+            return text("lock.other");
         }
-        if (QuestGates.REASON_ON_COOLDOWN.equals(reason)) {
-            return text("lock.on_cooldown");
+        return switch (reason) {
+            case QuestGates.REASON_UNAVAILABLE -> text("lock.unavailable");
+            case QuestGates.REASON_ON_COOLDOWN -> clockLine("lock.on_cooldown", waitMs);
+            case QuestGates.REASON_PERIOD_SPENT -> clockLine("lock.period_spent", waitMs);
+            case QuestGates.REASON_MAX_COMPLETIONS -> text("lock.max_completions");
+            case QuestGates.REASON_ALREADY_STARTED -> text("lock.already_started");
+            case QuestGates.REASON_SYSTEM_DISABLED -> text("lock.system_disabled");
+            case QuestGates.REASON_PREREQUISITES -> text("lock.prerequisites");
+            case QuestGates.REASON_LOG_FULL -> text("lock.log_full");
+            default -> {
+                GateRefusal structured = GateRefusal.fromToken(reason);
+                yield structured != null ? line(structured) : text("lock.other");
+            }
+        };
+    }
+
+    /**
+     * A clock token's line: its {@code .in} form quoting the wait when there is one to quote, its
+     * no-clock twin when there is none, the finished-for-good line when the wait is forever.
+     */
+    @Nonnull
+    private static Message clockLine(@Nonnull String key, long waitMs) {
+        if (waitMs == Long.MAX_VALUE) {
+            return text("lock.max_completions");
         }
-        if (QuestGates.REASON_PREREQUISITES.equals(reason)) {
-            return text("lock.prerequisites");
+        return waitMs > NO_WAIT ? text(key + ".in", waitLine(waitMs)) : text(key);
+    }
+
+    /**
+     * How long a wait is, as a line a player reads and a lock line can carry as its {@code {0}}:
+     * days and hours past a day, hours and minutes past an hour, minutes past a minute, and one
+     * fixed "under a minute" line below that, so a repeat about to come back never reads as a wait
+     * of nothing. Each number binds as a TYPED param on a {@code {N, number}} blank, so the
+     * player's own client writes the digits; the line itself is a translation, so it renders
+     * nested inside a lock line (a {@code Msg.tr} result carries a message id, which is what a
+     * param needs to render at all). Whole units, rounded down: a player told "5m" with 5m 40s
+     * left is not misled the way one told "0m" would be.
+     *
+     * <p>A wait that never ends ({@link Long#MAX_VALUE}, what a spent lifetime cap answers) reads
+     * as the finished-for-good line rather than as the hundred billion days the arithmetic would
+     * otherwise produce. It is a whole sentence rather than a span, so it is the answer for a
+     * caller painting this on its own, never something to nest inside "comes back in {0}" - and
+     * nothing does, because a lock line asks {@link #clockLine} instead, which decides the forever
+     * case before it ever composes. The guard is here because this method is public and a caller
+     * holding a raw engine value ({@code QuestEngine.offerableInMs}) should not have to know that
+     * one value out of the range means something else.
+     */
+    @Nonnull
+    public static Message waitLine(long waitMs) {
+        if (waitMs == Long.MAX_VALUE) {
+            return text("lock.max_completions");
         }
-        if (QuestGates.REASON_LOG_FULL.equals(reason)) {
-            return text("lock.log_full");
+        if (waitMs < MINUTE_MS) {
+            return text("wait.under_minute");
         }
-        GateRefusal structured = GateRefusal.fromToken(reason);
-        if (structured != null) {
-            return line(structured);
+        long days = waitMs / DAY_MS;
+        long hours = (waitMs % DAY_MS) / HOUR_MS;
+        long minutes = (waitMs % HOUR_MS) / MINUTE_MS;
+        if (days > 0L) {
+            return text("wait.days", days, hours);
         }
-        return text("lock.other");
+        if (hours > 0L) {
+            return text("wait.hours", hours, minutes);
+        }
+        return text("wait.minutes", minutes);
     }
 
     /**
@@ -299,8 +416,9 @@ public final class LockReasons {
 
     /**
      * The identity a rendered line deduplicates under: the token itself where the line embeds it
-     * (two quest requirements are two different sentences, and so are two named factors), the
-     * bucket for everything that folds to a fixed sentence.
+     * (two quest requirements are two different sentences, and so are two named factors) and for
+     * each of the engine's flat tokens (every one has its own sentence, so two of them are two
+     * lines), the bucket for everything that folds to a fixed sentence.
      */
     @Nonnull
     private static String dedupeKey(@Nullable String reason) {
@@ -311,14 +429,14 @@ public final class LockReasons {
         if (structured != null) {
             return dedupeKey(structured);
         }
-        if (QuestGates.REASON_UNAVAILABLE.equals(reason) || QuestGates.REASON_ON_COOLDOWN.equals(reason)
-                || QuestGates.REASON_LOG_FULL.equals(reason)) {
-            return reason;
-        }
-        if (QuestGates.REASON_PREREQUISITES.equals(reason)) {
-            return "prerequisites";
-        }
-        return "other";
+        return switch (reason) {
+            case QuestGates.REASON_UNAVAILABLE, QuestGates.REASON_ON_COOLDOWN,
+                    QuestGates.REASON_PERIOD_SPENT, QuestGates.REASON_MAX_COMPLETIONS,
+                    QuestGates.REASON_ALREADY_STARTED, QuestGates.REASON_SYSTEM_DISABLED,
+                    QuestGates.REASON_LOG_FULL -> reason;
+            case QuestGates.REASON_PREREQUISITES -> "prerequisites";
+            default -> "other";
+        };
     }
 
     /**

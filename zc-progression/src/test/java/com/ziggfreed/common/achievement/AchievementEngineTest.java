@@ -10,9 +10,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
+
+import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.loot.reward.RewardGrants;
+import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.MatchMode;
@@ -452,5 +457,94 @@ class AchievementEngineTest {
         engine.dispatch(ALICE, "BREAK_BLOCK", "Copper_Ore", null, 1L);
         assertEquals(0, engine.selfHeal(ALICE), "nothing to heal when everything is settled");
         assertTrue(engine.isUnlocked(ALICE, "prospector"), "and nothing already earned is disturbed");
+    }
+
+    // ==================== What a moment lists: the receipt after the grant ====================
+
+    /** A kind that only learns what it pays while paying it, standing in for a rolled table. */
+    private void registerRollingKind(@Nonnull RewardKindRegistry into, @Nonnull List<String> order,
+            @Nonnull List<RewardSpec> rolled) {
+        into.register("test:roll", new RewardHandler() {
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+                order.add("grant");
+            }
+
+            @Override
+            public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                    @Nonnull String sourceId, @Nonnull Consumer<RewardSpec> receipt) {
+                grant(spec, subject);
+                rolled.forEach(receipt);
+            }
+        });
+    }
+
+    /**
+     * The earn moment fires AFTER the immediate rewards are paid and carries what they actually
+     * handed over; the collect answers its own receipt and the claim moment carries the same.
+     */
+    @Test
+    void theUnlockMomentFiresAfterTheAutoGrantAndBothMomentsCarryTheReceipt() {
+        List<String> order = new ArrayList<>();
+        List<RewardSpec> rolled = List.of(
+                RewardSpec.of("Item", Map.of("Item", "Coin_Gold", "Count", "3")),
+                RewardSpec.of("Item", Map.of("Item", "Gem_Ruby", "Count", "1")));
+        RewardKindRegistry kinds = rewards();
+        registerRollingKind(kinds, order, rolled);
+        Map<String, Map<String, Object>> byMoment = new LinkedHashMap<>();
+        AchievementEngine engine = engine()
+                .rewardKinds(kinds)
+                .feedbackHook((momentId, subject, args) -> {
+                    order.add(momentId);
+                    byMoment.put(momentId, args);
+                })
+                .build();
+        Achievement achievement = Achievement.builder("prospector")
+                .criterion(criterion(0, "BREAK_BLOCK", "Copper_Ore", 1))
+                .autoReward(RewardSpec.of("test:roll", "Id", "instant"))
+                .claimReward(RewardSpec.of("test:roll", "Id", "later"))
+                .build();
+        engine.setAchievements(List.of(achievement));
+
+        engine.dispatch(ALICE, "BREAK_BLOCK", "Copper_Ore", null, 1L);
+
+        assertEquals(List.of("grant", "Achievement_Unlocked"), order,
+                "the earn is announced after the immediate rewards are paid");
+        assertEquals(rolled, byMoment.get("Achievement_Unlocked").get("rewards"),
+                "and it carries what the roll produced, not the authored spec");
+
+        RewardGrants.GrantOutcome paid = engine.tryClaim(ALICE, achievement);
+
+        assertTrue(paid != null, "the collect answers what it paid");
+        assertEquals(rolled, paid.receipt());
+        assertEquals(rolled, byMoment.get("Achievement_Claimed").get("rewards"));
+        assertEquals(null, engine.tryClaim(ALICE, achievement), "collecting twice answers nothing");
+    }
+
+    /** Collecting a points milestone answers what it paid, the same way an achievement's collect does. */
+    @Test
+    void collectingAMilestoneAnswersTheReceipt() {
+        List<RewardSpec> rolled = List.of(
+                RewardSpec.of("Item", Map.of("Item", "Coin_Gold", "Count", "3")));
+        RewardKindRegistry kinds = rewards();
+        registerRollingKind(kinds, new ArrayList<>(), rolled);
+        AchievementEngine engine = engine()
+                .rewardKinds(kinds)
+                .milestone(AchievementMilestone.claimable(25,
+                        List.of(RewardSpec.of("test:roll", "Id", "silver"))))
+                .build();
+        Achievement worth30 = Achievement.builder("a").points(30)
+                .criterion(criterion(0, "BREAK_BLOCK", "A", 1)).build();
+        engine.setAchievements(List.of(worth30));
+        engine.dispatch(ALICE, "BREAK_BLOCK", "A", null, 1L);
+        assertEquals(AchievementStatus.UNLOCKED, engine.milestoneStatus(ALICE, 25));
+
+        RewardGrants.GrantOutcome paid = engine.tryClaimMilestone(ALICE, 25);
+
+        assertTrue(paid != null, "the collect answers what it paid");
+        assertEquals(rolled, paid.receipt(), "what the roll produced, never the rung's own spec");
+        assertEquals(AchievementStatus.CLAIMED, engine.milestoneStatus(ALICE, 25));
+        assertEquals(null, engine.tryClaimMilestone(ALICE, 25), "collecting twice answers nothing");
+        assertEquals(null, engine.tryClaimMilestone(ALICE, 999), "an unknown rung answers nothing");
     }
 }

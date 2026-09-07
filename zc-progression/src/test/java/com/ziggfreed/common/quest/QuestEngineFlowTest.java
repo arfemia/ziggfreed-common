@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 
@@ -18,6 +19,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.loot.reward.RewardGrants;
+import com.ziggfreed.common.loot.reward.RewardHandler;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.DispatchOptions;
@@ -780,6 +783,65 @@ class QuestEngineFlowTest {
                     "neither is offerable yet, so neither is re-armed");
         }
 
+        /**
+         * The refusal carries WHEN the quest comes back beside WHY, off the same repeat check that
+         * chose the token: the remaining wait for a running cooldown, forever for a spent lifetime
+         * cap, and nothing at all for a quest nothing is timing. {@code offerableInMs} is the same
+         * reading on its own, and unlike the rolling-clock read it sees a spent calendar window.
+         */
+        @Test
+        void theRefusalCarriesWhenTheQuestComesBack() {
+            Quest daily = quest("q_daily")
+                    .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 1))
+                    .repeat(Quest.Repeat.every(24 * HOUR))
+                    .build();
+            Quest capped = quest("q_capped")
+                    .objective(objective("x", "BREAK_BLOCK", "Stone", 1))
+                    .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM, null, 1))
+                    .build();
+            Quest windowed = quest("q_windowed")
+                    .objective(objective("x", "BREAK_BLOCK", "Iron_Ore", 1))
+                    .repeat(new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM,
+                            Quest.Repeat.Reset.daily(), 0))
+                    .build();
+            Quest untimed = quest("q_untimed")
+                    .objective(objective("x", "BREAK_BLOCK", "Coal_Ore", 1))
+                    .build();
+            QuestEngine engine = engine().build();
+            engine.setQuests(List.of(daily, capped, windowed, untimed));
+
+            engine.accept(player, daily);
+            engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1);
+            clock.addAndGet(3 * HOUR);
+            QuestEngine.AcceptCheck cooling = engine.canAccept(player, daily);
+            assertEquals(QuestGates.REASON_ON_COOLDOWN, cooling.firstReason());
+            assertEquals(21 * HOUR, cooling.waitMs(), "the wait is what is left of the clock");
+            assertEquals(21 * HOUR, engine.offerableInMs(player, daily));
+
+            engine.accept(player, capped);
+            engine.dispatch(player, "BREAK_BLOCK", "Stone", null, 1);
+            QuestEngine.AcceptCheck spent = engine.canAccept(player, capped);
+            assertEquals(QuestGates.REASON_MAX_COMPLETIONS, spent.firstReason());
+            assertEquals(Long.MAX_VALUE, spent.waitMs(), "nothing brings a spent cap back");
+
+            engine.accept(player, windowed);
+            engine.dispatch(player, "BREAK_BLOCK", "Iron_Ore", null, 1);
+            QuestEngine.AcceptCheck held = engine.canAccept(player, windowed);
+            assertEquals(QuestGates.REASON_PERIOD_SPENT, held.firstReason());
+            assertTrue(held.waitMs() > 0L && held.waitMs() <= 24 * HOUR,
+                    "a spent window waits for the next boundary, at most one period away");
+            assertEquals(held.waitMs(), engine.offerableInMs(player, windowed));
+            assertEquals(0L, engine.cooldownRemainingMs(player, windowed),
+                    "the rolling clock alone reads nothing for a window, which is why the "
+                            + "whole-truth read exists");
+
+            engine.accept(player, untimed);
+            QuestEngine.AcceptCheck carried = engine.canAccept(player, untimed);
+            assertEquals(QuestGates.REASON_ALREADY_STARTED, carried.firstReason());
+            assertEquals(0L, carried.waitMs(), "nothing is timing a quest being carried");
+            assertEquals(0L, QuestEngine.AcceptCheck.ALLOWED.waitMs());
+        }
+
         @Test
         void aStoreThatCannotRememberCompletionsSaysSoOnce() {
             List<String> warnings = new ArrayList<>();
@@ -1014,5 +1076,250 @@ class QuestEngineFlowTest {
         assertEquals(handle, subject.handleAs(Map.class));
         assertEquals(null, subject.handleAs(List.class));
         assertEquals(null, Subject.of(UUID.randomUUID(), "bare").handleAs(Map.class));
+    }
+
+    // ==================== What a moment lists: the receipt after a payout, the promise before ====================
+
+    /**
+     * A reward kind that only learns what it pays while paying it, standing in for a rolled table:
+     * its receipt is two items, never its own spec. The moments and the claim answer must list
+     * those two, and the parked moment - which fires before anything is paid - must list the
+     * authored spec instead.
+     */
+    @Nested
+    class Receipts {
+
+        private final RewardSpec rolledA = RewardSpec.of("Item", Map.of("Item", "Coin_Gold", "Count", "3"));
+        private final RewardSpec rolledB = RewardSpec.of("Item", Map.of("Item", "Gem_Ruby", "Count", "1"));
+        private final List<String> order = new ArrayList<>();
+
+        @BeforeEach
+        void registerRollingKind() {
+            rewardKinds.register("ROLL", new RewardHandler() {
+                @Override
+                public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+                    order.add("grant");
+                }
+
+                @Override
+                public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                        @Nonnull String sourceId,
+                        @Nonnull Consumer<RewardSpec> receipt) {
+                    grant(spec, subject);
+                    receipt.accept(rolledA);
+                    receipt.accept(rolledB);
+                }
+            });
+        }
+
+        /**
+         * The grant and the settlement moments in the order they happened. The per-tick progress
+         * moment fires on the dispatch that finishes the last step too; it is not the question here.
+         */
+        @Nonnull
+        private List<String> settled() {
+            return order.stream().filter(entry -> !"Quest_Objective_Progressed".equals(entry)).toList();
+        }
+
+        @Nonnull
+        private QuestEngine recording(@Nonnull Map<String, Map<String, Object>> byMoment) {
+            return engine()
+                    .feedbackHook((momentId, subject, args) -> {
+                        order.add(momentId);
+                        byMoment.put(momentId, args);
+                    })
+                    .build();
+        }
+
+        @Test
+        void aQuestThatSettlesOnTheSpotAnnouncesAfterTheGrantAndListsTheReceipt() {
+            Quest q = quest("q_roll")
+                    .objective(objective("kills", "KILL_ENTITY", "Wolf", 1))
+                    .autoReward(RewardSpec.of("ROLL", "table", "demo"))
+                    .build();
+            Map<String, Map<String, Object>> byMoment = new LinkedHashMap<>();
+            QuestEngine engine = recording(byMoment);
+            engine.setQuests(List.of(q));
+            engine.accept(player, q);
+
+            engine.dispatch(player, "KILL_ENTITY", "Wolf", null, 1);
+
+            assertEquals(List.of("grant", "Quest_Completed", "Quest_Claimed"), settled(),
+                    "the completion moment fires AFTER the grant that pays what it announces");
+            assertEquals(List.of(rolledA, rolledB), byMoment.get("Quest_Completed").get("rewards"),
+                    "and carries what the roll produced, not the table's spec");
+            assertEquals(List.of(rolledA, rolledB), byMoment.get("Quest_Claimed").get("rewards"));
+        }
+
+        @Test
+        void aParkedQuestKeepsThePromiseAndTheCollectListsTheReceipt() {
+            Quest q = quest("q_park")
+                    .objective(objective("kills", "KILL_ENTITY", "Wolf", 1))
+                    .reward(RewardSpec.of("ROLL", "table", "demo"))
+                    .build();
+            Map<String, Map<String, Object>> byMoment = new LinkedHashMap<>();
+            QuestEngine engine = recording(byMoment);
+            engine.setQuests(List.of(q));
+            engine.accept(player, q);
+
+            engine.dispatch(player, "KILL_ENTITY", "Wolf", null, 1);
+
+            assertEquals(QuestStatus.COMPLETED_UNCLAIMED, engine.status(player, q));
+            assertEquals(List.of("Quest_Parked"), settled(), "nothing was paid, so nothing was granted");
+            assertEquals(q.rewards(), byMoment.get("Quest_Parked").get("rewards"),
+                    "a parked quest carries the authored promise: nothing has been rolled yet");
+
+            RewardGrants.GrantOutcome paid = engine.tryClaim(player, q);
+
+            assertTrue(paid != null, "the collect answers what it paid");
+            assertEquals(List.of(rolledA, rolledB), paid.receipt());
+            assertEquals(List.of(rolledA, rolledB), byMoment.get("Quest_Claimed").get("rewards"));
+            assertEquals(null, engine.tryClaim(player, q), "collecting twice answers nothing");
+        }
+
+        @Test
+        void anEmptyRollAddsNoRowToTheSettledMoment() {
+            rewardKinds.register("EMPTY_ROLL", new RewardHandler() {
+                @Override
+                public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) {
+                }
+
+                @Override
+                public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                        @Nonnull String sourceId,
+                        @Nonnull Consumer<RewardSpec> receipt) {
+                    // Rolled, landed nothing, reported nothing.
+                }
+            });
+            Quest q = quest("q_empty")
+                    .objective(objective("kills", "KILL_ENTITY", "Wolf", 1))
+                    .autoReward(RewardSpec.of("EMPTY_ROLL", "table", "demo"))
+                    .build();
+            Map<String, Map<String, Object>> byMoment = new LinkedHashMap<>();
+            QuestEngine engine = recording(byMoment);
+            engine.setQuests(List.of(q));
+            engine.accept(player, q);
+
+            engine.dispatch(player, "KILL_ENTITY", "Wolf", null, 1);
+
+            assertEquals(List.of(), byMoment.get("Quest_Completed").get("rewards"),
+                    "an empty roll lists nothing, never a generic row");
+        }
+
+        @Test
+        void tryForceCompleteAnswersTheReceiptOnceAndNullWhenLeftAlone() {
+            Quest q = quest("q_skip")
+                    .objective(objective("x", "BREAK_BLOCK", "Oak_Log", 99))
+                    .reward(RewardSpec.of("ROLL", "table", "demo"))
+                    .build();
+            Map<String, Map<String, Object>> byMoment = new LinkedHashMap<>();
+            QuestEngine engine = recording(byMoment);
+            engine.setQuests(List.of(q));
+            engine.accept(player, q);
+
+            RewardGrants.GrantOutcome paid = engine.tryForceComplete(player, q);
+
+            assertTrue(paid != null);
+            assertEquals(List.of(rolledA, rolledB), paid.receipt());
+            assertEquals(List.of("grant", "Quest_Completed", "Quest_Claimed"), settled(),
+                    "the administrator's close-out announces after it pays, like the settle path");
+            assertEquals(null, engine.tryForceComplete(player, q), "a finished one-shot is left alone");
+        }
+
+        /** A consumer gate that says the player already stands at every step's amount. */
+        @Nonnull
+        private QuestGates alreadyStanding() {
+            return new QuestGates() {
+                @Override
+                public long preSatisfiedAmount(@Nonnull Subject subject, @Nonnull Quest quest,
+                                               @Nonnull ObjectiveDef objective) {
+                    return objective.amount();
+                }
+            };
+        }
+
+        /**
+         * A quest whose every step a standing value already meets is finished the moment it is
+         * taken: the settle a surface runs right behind the accept answers what it paid, so the
+         * accept feedback can list the roll rather than the table.
+         */
+        @Test
+        void trySettleAnswersTheReceiptForAQuestThatCompletesOnAccept() {
+            Quest q = quest("q_standing")
+                    .objective(objective("level", "REACH_LEVEL", "mining", 5))
+                    .autoReward(RewardSpec.of("ROLL", "table", "demo"))
+                    .build();
+            Map<String, Map<String, Object>> byMoment = new LinkedHashMap<>();
+            QuestEngine engine = engine()
+                    .gates(alreadyStanding())
+                    .feedbackHook((momentId, subject, args) -> {
+                        order.add(momentId);
+                        byMoment.put(momentId, args);
+                    })
+                    .build();
+            engine.setQuests(List.of(q));
+
+            assertTrue(engine.accept(player, q));
+            assertEquals(QuestStatus.ACTIVE, engine.status(player, q),
+                    "the accept seeds the standing value and settles nothing itself");
+
+            RewardGrants.GrantOutcome paid = engine.trySettle(player, q);
+
+            assertTrue(paid != null, "every step was already met, so the settle paid");
+            assertEquals(List.of(rolledA, rolledB), paid.receipt());
+            assertEquals(QuestStatus.COMPLETED, engine.status(player, q));
+            assertEquals(List.of(rolledA, rolledB), byMoment.get("Quest_Completed").get("rewards"));
+            assertEquals(null, engine.trySettle(player, q), "a finished quest settles nothing twice");
+        }
+
+        @Test
+        void trySettleAnswersNothingWhileAStepIsOutstanding() {
+            Quest q = quest("q_open")
+                    .objective(objective("kills", "KILL_ENTITY", "Wolf", 1))
+                    .autoReward(RewardSpec.of("ROLL", "table", "demo"))
+                    .build();
+            QuestEngine engine = recording(new LinkedHashMap<>());
+            engine.setQuests(List.of(q));
+            engine.accept(player, q);
+
+            assertEquals(null, engine.trySettle(player, q));
+            assertEquals(QuestStatus.ACTIVE, engine.status(player, q));
+            assertEquals(List.of(), settled(), "nothing was paid and nothing announced");
+        }
+
+        /** A quest that finishes but PARKS has paid nothing, so the settle answers nothing. */
+        @Test
+        void trySettleAnswersNothingWhenTheQuestParksAndCheckCompletionStillParksIt() {
+            Quest q = quest("q_parks_on_accept")
+                    .objective(objective("level", "REACH_LEVEL", "mining", 5))
+                    .reward(RewardSpec.of("ROLL", "table", "demo"))
+                    .build();
+            Map<String, Map<String, Object>> byMoment = new LinkedHashMap<>();
+            QuestEngine engine = engine()
+                    .gates(alreadyStanding())
+                    .feedbackHook((momentId, subject, args) -> {
+                        order.add(momentId);
+                        byMoment.put(momentId, args);
+                    })
+                    .build();
+            engine.setQuests(List.of(q));
+            engine.accept(player, q);
+
+            assertEquals(null, engine.trySettle(player, q), "it parked: nothing was paid");
+            assertEquals(QuestStatus.COMPLETED_UNCLAIMED, engine.status(player, q));
+            assertEquals(List.of("Quest_Parked"), settled());
+            assertEquals(q.rewards(), byMoment.get("Quest_Parked").get("rewards"),
+                    "a parked quest carries the promise");
+
+            Quest twin = quest("q_parks_twin")
+                    .objective(objective("level", "REACH_LEVEL", "mining", 5))
+                    .reward(RewardSpec.of("ROLL", "table", "demo"))
+                    .build();
+            engine.setQuests(List.of(q, twin));
+            engine.accept(player, twin);
+            engine.checkCompletion(player, twin);
+            assertEquals(QuestStatus.COMPLETED_UNCLAIMED, engine.status(player, twin),
+                    "the answerless form settles exactly as before");
+        }
     }
 }

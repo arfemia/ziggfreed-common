@@ -22,11 +22,18 @@ module or grow a second, subtly different idea of what a reward is.
 - **[`RewardHandler`](RewardHandler.java)** - `grant(spec, subject)` (may throw; the caller isolates)
   plus the optional `retryCommand(spec, subject, sourceId)`. **Write a `retryCommand` whenever the
   reward is replayable** - it is the difference between a failed payout being queued for next connect
-  and being genuinely lost. There is also a `grant(spec, subject, sourceId)` overload, which is the
-  one `RewardGrants` actually calls and which defaults to dropping the label: override it when the
-  handler's own output names its source (a log line, a command placeholder), because without it a
-  handler can only name the label it was REGISTERED under and every quest in the game reports the
-  same word. Live and replayed payouts see the same `sourceId`.
+  and being genuinely lost. There is also a `grant(spec, subject, sourceId)` overload, which
+  defaults to dropping the label: override it when the handler's own output names its source (a
+  log line, a command placeholder), because without it a handler can only name the label it was
+  REGISTERED under and every quest in the game reports the same word. Live and replayed payouts
+  see the same `sourceId`. The fourth form, `grant(spec, subject, sourceId, receipt)`, is the one
+  `RewardGrants` actually calls: `receipt` is a `Consumer<RewardSpec>` the handler writes what it
+  ACTUALLY handed over onto, and the default grants through the labelled form then reports the
+  spec itself (an item is that item, a currency is that amount), so every existing handler keeps
+  working untouched. Override it only where the payout is decided at grant time - the `Lootable`
+  kind reports one `Item` per thing that landed and nothing for an empty roll. Report only what
+  reached the player, and never before the handing over is done: the caller keeps a handler's
+  receipt only when its grant returned normally.
 - **[`RewardKindRegistry`](RewardKindRegistry.java)** - the open kind table over the shared
   `registry.RegistryLedger` (case-insensitive ids, idempotent per id, last-write-wins, per-kind owner
   + failure history via `info()`; `registerQuietly` is the same write minus the ledger's own
@@ -52,7 +59,9 @@ module or grow a second, subtly different idea of what a reward is.
   table pays the same whether a station, a mob drop or a quest reward rolled it, and a nested
   `Lootable` composes up to four levels deep before the grant refuses it as a loop; the pass's
   EARNED cues are forwarded to [`loot/LootCues`](../CLAUDE.md), `LootableRewardSinksTest` pins both
-  halves),
+  halves; its RECEIPT is what the roll produced, never the table's name - `handedOver(result)`
+  folds one `Item` spec per entry of `LootEngine.Result.getItems()` plus the nested
+  `getRewardReceipt()`, and an empty roll reports nothing, `LootableReceiptTest` pins it),
   `Stamped_Item` (`Item`/`Count` plus either `Pool` to roll fresh or `Stats` written out as
   `"Damage:5,Speed:2"`), and `Command` (`Command`/`RunAs`/`DelayTicks` - one authored line, with
   `{player}`, `{uuid}`, `{source}` and the reward's own parameters substituted through the same
@@ -108,12 +117,22 @@ module or grow a second, subtly different idea of what a reward is.
   layer's park. A consumer replaces the policy with its own `overflow(...)` call (consumer setup
   runs after the library's), or clears it with null to restore fail-and-park.
 - **[`RewardGrants`](RewardGrants.java)** - `grantAll(rewards, subject, sourceId, kinds, retryQueue,
-  warn)` -> `GrantOutcome(granted, queued, failed)`. Per-reward isolation: one handler throwing never
+  warn)` -> `GrantOutcome(granted, queued, failed, receipt)`. Per-reward isolation: one handler throwing never
   costs the player the rest, a replayable failure becomes a queued retry, and only a reward that can
   be neither granted nor queued counts as lost. Never throws. The overload taking a `playerOnline`
   flag is the one a payout site should reach for: it asks the two questions that belong to the
   REWARD in front of the pass, `deliverable` then `stamped`, so neither is left to a consumer to
-  remember.
+  remember. **`receipt` is what the `granted` rewards ACTUALLY handed over**, one spec per thing
+  as each handler reported it (the default reports the spec itself, a rolling kind reports what
+  landed); a queued or failed reward is absent, and a handler's own reports are discarded when its
+  grant throws. It is what every toast raised AFTER a payout lists (the progression moments, the
+  book's claim toasts, the storefront's bought toast, a boss defeat's per-participant rows), and a
+  completion toast with NO payout behind it (a hand-in that parked the quest) lists nothing at all,
+  never the authored list - the one rule is the static **`GrantOutcome.receiptOf(paid)`** (the
+  receipt, or an empty list for a null outcome), which every completion toast reads its rows
+  through. Only the `Quest_Parked` notice, whose whole point is saying what is waiting to be
+  collected, carries the authored list. The three-int constructor survives for an outcome that
+  carries no receipt.
   - **`deliverable(rewards, playerOnline, sourceId, warn)`** drops the rewards authored
     `P_QUEUE_IF_OFFLINE` false when nobody is there to receive them, one warning each. That flag is
     the author saying "this one is only worth anything in the moment" - a celebration effect, a

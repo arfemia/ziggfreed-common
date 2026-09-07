@@ -5,6 +5,12 @@ step.untitled = Adsız adım
 
 lock.unavailable = Şu anda sunulmuyor
 lock.on_cooldown = Daha sonra yeniden kullanılabilir
+lock.on_cooldown.in = {0} sonra yeniden kullanılabilir
+lock.period_spent = Daha sonra geri gelir
+lock.period_spent.in = {0} sonra geri gelir
+lock.max_completions = Bunu kalıcı olarak bitirdin
+lock.already_started = Zaten görev günlüğünde
+lock.system_disabled = Görevler burada kapalı
 lock.prerequisites = Gereksinimler karşılanmadı
 lock.other = Henüz kullanılamıyor
 lock.quest = Görevi tamamla: {0}
@@ -18,6 +24,11 @@ lock.any_of = Şununla açılır: {0}
 lock.any_of.join = veya
 lock.not = Bir koşul etkinken kullanılamaz
 lock.not.met = Şu karşılandığı sürece kullanılamaz: {0}
+
+wait.days = {0, number} g {1, number} sa
+wait.hours = {0, number} sa {1, number} dk
+wait.minutes = {0, number} dk
+wait.under_minute = bir dakikadan az
 
 objective.break_block = {0} {1} kır
 objective.break_block.any = {0} blok kır

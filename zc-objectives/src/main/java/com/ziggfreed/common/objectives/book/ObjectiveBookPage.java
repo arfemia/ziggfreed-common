@@ -3,6 +3,7 @@ package com.ziggfreed.common.objectives.book;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -23,6 +24,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.hud.TrackedQuestPanelRenderer;
 import com.ziggfreed.common.objectives.render.ClaimToasts;
@@ -661,14 +663,14 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 this.sendUpdate(cmd, new UIEventBuilder(), false);
                 return;
             }
-            boolean ok = Boolean.TRUE.equals(
-                    scope.around(subject, s -> Boolean.valueOf(engine.claim(s, quest))));
+            RewardGrants.GrantOutcome paid = scope.around(subject, s -> engine.tryClaim(s, quest));
             UICommandBuilder cmd = new UICommandBuilder();
-            if (ok) {
-                // The rows are the CLAIM rewards this press paid, never the auto ones the quest
+            if (paid != null) {
+                // The rows are what THIS press actually handed over - the claim rewards' receipt,
+                // so a rolled table lists the items it produced - never the auto ones the quest
                 // settled with earlier: a toast that lists a payout twice reads as a double reward.
                 showRewardToast(text("book.toast.quest_complete", BookQuestsTab.nameOf(quest)),
-                        quest.claimRewards());
+                        paid.receipt());
                 // The claimed quest leaves the pinned Active list. Hide its row in place - hide,
                 // NOT remove, so the sibling #ActiveQuestList[i] selectors do not drift - and
                 // refresh the counts + the tracked panel.
@@ -703,11 +705,14 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             reopenSame(player, ref, store, liveSearch);
             return;
         }
+        // What the settle right behind the accept paid, when a standing value already met every
+        // step: the feedback seam lists that receipt rather than the authored promise.
+        AtomicReference<RewardGrants.GrantOutcome> settled = new AtomicReference<>();
         boolean ok = Boolean.TRUE.equals(scope.around(subject, s -> {
             boolean accepted = engine.canAccept(s, quest).allowed() && engine.accept(s, quest);
             if (accepted) {
                 // Retroactive completions (a standing value already met) finish it at once.
-                engine.checkCompletion(s, quest);
+                settled.set(engine.trySettle(s, quest));
             }
             return Boolean.valueOf(accepted);
         }));
@@ -716,7 +721,7 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             return;
         }
         try {
-            deps.actionFeedback().accepted(quest, store, ref, player);
+            deps.actionFeedback().accepted(quest, store, ref, player, settled.get());
         } catch (Throwable ignored) {
             // A consumer's feedback failing costs its own moment, never the page.
         }
@@ -936,13 +941,12 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         if (subject != null && id != null) {
             Achievement achievement = engine.achievement(id);
             if (achievement != null) {
-                boolean ok = Boolean.TRUE.equals(ProgressionRuntime.achievementScope()
-                        .around(subject, s -> Boolean.valueOf(engine.claim(s, achievement))));
-                if (ok) {
-                    // The rows are the claim rewards just paid - the same list the detail column's
-                    // chips previewed, through the same reading.
-                    showRewardToast(text("book.achievements.claim_success"),
-                            achievement.claimRewards());
+                RewardGrants.GrantOutcome paid = ProgressionRuntime.achievementScope()
+                        .around(subject, s -> engine.tryClaim(s, achievement));
+                if (paid != null) {
+                    // The rows are what the claim just handed over, read through the same chips
+                    // the detail column previewed it with; a rolled table lists what it rolled.
+                    showRewardToast(text("book.achievements.claim_success"), paid.receipt());
                 } else {
                     showToast(ToastKind.WARNING, text("book.toast.claim_failed"));
                 }
@@ -970,18 +974,22 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         }
         if (subject != null && threshold > 0) {
             // Resolved BEFORE the claim: afterwards the rung reads claimed, and with it which
-            // rewards were the ones this press paid.
+            // rewards were the ones this press paid - the fallback rows for a fill that answers
+            // the outcome alone.
             ObjectiveBookDeps.MilestoneView view = milestoneView(store, ref, subject, threshold);
-            ObjectiveBookDeps.MilestoneClaimOutcome outcome;
+            ObjectiveBookDeps.MilestoneClaimResult result;
             try {
-                outcome = deps.milestoneClaim().claim(threshold, store, ref, player);
+                result = deps.milestoneClaim().tryClaim(threshold, store, ref, player);
             } catch (Throwable t) {
                 SafeLog.warn("[progression] the book's milestone claim failed: " + t.getMessage());
-                outcome = ObjectiveBookDeps.MilestoneClaimOutcome.NOT_READY;
+                result = ObjectiveBookDeps.MilestoneClaimResult.of(
+                        ObjectiveBookDeps.MilestoneClaimOutcome.NOT_READY);
             }
-            switch (outcome) {
+            switch (result.outcome()) {
+                // The rows are what THIS press actually handed over when the fill says so (a
+                // rolled table as the items it produced), else the rung as authored.
                 case SUCCESS -> showRewardToast(text("book.achievements.claim_success"),
-                        view == null ? List.of() : view.rewards());
+                        result.rowsOr(view == null ? List.of() : view.rewards()));
                 case INVENTORY_FULL ->
                         showToast(ToastKind.ERROR, text("book.achievements.inventory_full"));
                 case NOT_READY -> showToast(ToastKind.WARNING, text("book.toast.claim_failed"));

@@ -1,10 +1,20 @@
 package com.ziggfreed.common.objectives.book;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+
+import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.loot.reward.RewardGrants;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.quest.Quest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -116,5 +126,80 @@ class ObjectiveBookDepsTest {
     void prettifyReadsAuthoredIdsAsWords() {
         assertEquals("Wilds Side", ObjectiveBookDeps.prettifyTag("wilds_side"));
         assertEquals("Boss Fights", ObjectiveBookDeps.prettifyTag("boss-fights"));
+    }
+
+    // ==================== the milestone Collect: what the toast lists ====================
+
+    private static final List<RewardSpec> AUTHORED = List.of(
+            RewardSpec.of("Lootable", Map.of("Id", "Milestone_Crate")));
+    private static final List<RewardSpec> ROLLED = List.of(
+            RewardSpec.of("Item", Map.of("Item", "Coin_Gold", "Count", "3")),
+            RewardSpec.of("Item", Map.of("Item", "Gem_Ruby", "Count", "1")));
+
+    /** A fill that answers only the outcome, the way every fill did before the receipt existed. */
+    @Test
+    void aFillAnsweringOnlyTheOutcomeStillWorksAndTheBookListsTheRungAsAuthored() {
+        ObjectiveBookDeps.MilestoneClaim legacy = (threshold, store, ref, player) ->
+                ObjectiveBookDeps.MilestoneClaimOutcome.SUCCESS;
+
+        ObjectiveBookDeps.MilestoneClaimResult result = legacy.tryClaim(100, null, null, null);
+
+        assertEquals(ObjectiveBookDeps.MilestoneClaimOutcome.SUCCESS, result.outcome());
+        assertNull(result.receipt(), "no word on what was handed over");
+        assertEquals(AUTHORED, result.rowsOr(AUTHORED),
+                "so the toast falls back to the rung as authored, resolved before the claim");
+        assertEquals(ObjectiveBookDeps.MilestoneClaimOutcome.NOT_READY,
+                ObjectiveBookDeps.NO_MILESTONE_CLAIM.tryClaim(100, null, null, null).outcome());
+    }
+
+    /** A fill holding the payout's receipt lists what was PAID, never the rung's own list. */
+    @Test
+    void aFillAnsweringTheReceiptListsWhatWasPaid() {
+        ObjectiveBookDeps.MilestoneClaim paying = new ObjectiveBookDeps.MilestoneClaim() {
+            @Override
+            @Nonnull
+            public ObjectiveBookDeps.MilestoneClaimOutcome claim(int threshold,
+                    @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                    @Nonnull Player player) {
+                return tryClaim(threshold, store, ref, player).outcome();
+            }
+
+            @Override
+            @Nonnull
+            public ObjectiveBookDeps.MilestoneClaimResult tryClaim(int threshold,
+                    @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                    @Nonnull Player player) {
+                return ObjectiveBookDeps.MilestoneClaimResult.paid(ROLLED);
+            }
+        };
+
+        ObjectiveBookDeps.MilestoneClaimResult result = paying.tryClaim(100, null, null, null);
+
+        assertEquals(ObjectiveBookDeps.MilestoneClaimOutcome.SUCCESS, result.outcome());
+        assertEquals(ROLLED, result.rowsOr(AUTHORED), "a rolled table reads as the items it rolled");
+        assertEquals(ObjectiveBookDeps.MilestoneClaimOutcome.SUCCESS, paying.claim(100, null, null, null));
+        assertTrue(ObjectiveBookDeps.MilestoneClaimResult.paid(List.of()).rowsOr(AUTHORED).isEmpty(),
+                "an empty roll lists nothing, never the authored list");
+    }
+
+    // ==================== the accept feedback: a fill that ignores the payout ====================
+
+    /** The book announces with the settle's outcome; a fill written for the plain form still hears it. */
+    @Test
+    void aFeedbackFillThatIgnoresThePayoutStillHearsTheAccept() {
+        List<String> heard = new ArrayList<>();
+        ObjectiveBookDeps.ActionFeedback plain = new ObjectiveBookDeps.ActionFeedback() {
+            @Override
+            public void accepted(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
+                    @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+                heard.add(quest.id());
+            }
+        };
+        Quest quest = Quest.builder("q_settled").build();
+
+        plain.accepted(quest, null, null, null, new RewardGrants.GrantOutcome(1, 0, 0, ROLLED));
+        plain.accepted(quest, null, null, null, null);
+
+        assertEquals(List.of("q_settled", "q_settled"), heard);
     }
 }

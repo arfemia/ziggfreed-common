@@ -5,6 +5,12 @@ step.untitled = Etapa sem nome
 
 lock.unavailable = Não oferecida no momento
 lock.on_cooldown = Disponível novamente mais tarde
+lock.on_cooldown.in = Disponível novamente em {0}
+lock.period_spent = Volta mais tarde
+lock.period_spent.in = Volta em {0}
+lock.max_completions = Esta você já concluiu de vez
+lock.already_started = Já está no seu registro de missões
+lock.system_disabled = As missões estão desligadas aqui
 lock.prerequisites = Requisitos não atendidos
 lock.other = Ainda não disponível
 lock.quest = Complete a missão: {0}
@@ -18,6 +24,11 @@ lock.any_of = Desbloqueado por: {0}
 lock.any_of.join = ou
 lock.not = Indisponível enquanto uma condição está ativa
 lock.not.met = Indisponível enquanto isto for atendido: {0}
+
+wait.days = {0, number} d {1, number} h
+wait.hours = {0, number} h {1, number} min
+wait.minutes = {0, number} min
+wait.under_minute = menos de um minuto
 
 objective.break_block = Quebre {0} {1}
 objective.break_block.any = Quebre {0} blocos

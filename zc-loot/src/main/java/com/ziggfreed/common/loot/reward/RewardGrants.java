@@ -44,11 +44,28 @@ public final class RewardGrants {
     /**
      * What became of a payout pass. {@code granted} reached the player now, {@code queued} will on
      * their next connect, {@code failed} did not and will not.
+     *
+     * <p>{@code receipt} is what the {@code granted} rewards ACTUALLY handed over, one spec per
+     * thing, as each handler reported it through
+     * {@link RewardHandler#grant(RewardSpec, Subject, String, java.util.function.Consumer)}: a kind
+     * that pays exactly what it said reports the spec itself, a kind that rolls reports what landed.
+     * A toast raised after the payout lists this rather than the authored list, so a rolled table
+     * reads as the items it produced and an empty roll adds no row. A queued or failed reward is not
+     * in it, because it was not handed over now.
      */
-    public record GrantOutcome(int granted, int queued, int failed) {
+    public record GrantOutcome(int granted, int queued, int failed, @Nonnull List<RewardSpec> receipt) {
 
         /** Nothing to pay out. */
         public static final GrantOutcome EMPTY = new GrantOutcome(0, 0, 0);
+
+        public GrantOutcome {
+            receipt = List.copyOf(receipt);
+        }
+
+        /** The three counts with nothing reported handed over, for an outcome that carries no receipt. */
+        public GrantOutcome(int granted, int queued, int failed) {
+            this(granted, queued, failed, List.of());
+        }
 
         /** True when at least one reward reached the player or is waiting to. */
         public boolean anyDelivered() {
@@ -58,6 +75,18 @@ public final class RewardGrants {
         /** True when every reward was delivered or queued - nothing was lost. */
         public boolean complete() {
             return failed == 0;
+        }
+
+        /**
+         * What a toast raised after a payout lists: {@code paid}'s receipt, or nothing at all when
+         * there was no payout ({@code paid} null). A hand-in or accept that parks a quest, a
+         * refused claim, a settle that never ran - none of them handed anything over, and a toast
+         * listing the authored rewards under a gold "complete" headline shows a player things they
+         * were not given. The one rule every completion toast reads its rows through.
+         */
+        @Nonnull
+        public static List<RewardSpec> receiptOf(@Nullable GrantOutcome paid) {
+            return paid == null ? List.of() : paid.receipt();
         }
     }
 
@@ -85,6 +114,7 @@ public final class RewardGrants {
         int granted = 0;
         int queued = 0;
         int failed = 0;
+        List<RewardSpec> receipt = new ArrayList<>(rewards.size());
         for (RewardSpec spec : rewards) {
             RewardHandler handler = kinds.handler(spec.kind());
             if (handler == null) {
@@ -93,9 +123,14 @@ public final class RewardGrants {
                         + spec.kind() + "' - nothing was paid out for it");
                 continue;
             }
+            // The handler writes onto a receipt of its own, kept only once the grant has returned:
+            // a reward that throws half-way is queued or reported lost, and whatever it had
+            // reported before the throw must not read as handed over.
+            List<RewardSpec> handedOver = new ArrayList<>(1);
             try {
-                handler.grant(spec, subject, sourceId);
+                handler.grant(spec, subject, sourceId, handedOver::add);
                 granted++;
+                receipt.addAll(handedOver);
             } catch (Throwable t) {
                 kinds.recordFailure(spec.kind(), t.getMessage());
                 if (queueRetry(spec, subject, sourceId, handler, retryQueue, warn)) {
@@ -106,7 +141,7 @@ public final class RewardGrants {
                 warn.accept("[grant] " + sourceId + ": reward lost (" + spec.kind() + "): " + t.getMessage());
             }
         }
-        return new GrantOutcome(granted, queued, failed);
+        return new GrantOutcome(granted, queued, failed, receipt);
     }
 
     /**

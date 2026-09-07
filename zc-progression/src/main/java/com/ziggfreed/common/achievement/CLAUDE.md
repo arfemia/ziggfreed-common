@@ -49,9 +49,16 @@ which one shared instance cannot afford, and it is exactly why that method exist
   no second interaction. Never collapse them into one list plus a flag. The `Achievement_Claimed`
   feedback moment carries `collected` (true when the subject came back for what waited, false when
   it settled as it was earned) so a jingle authored for collecting never plays over the unlock;
-  each moment also carries the list ITS grant pays under `rewards` (a deferred `Supplier`:
-  `Achievement_Unlocked` the auto rewards, `Achievement_Claimed` whichever list that claim paid),
-  so an authored toast lists exactly what that moment handed over.
+  each moment also carries what ITS grant actually handed over under `rewards` - the
+  `GrantOutcome.receipt()`, never the authored list: `Achievement_Unlocked` fires AFTER the auto
+  rewards are paid (the native `AchievementEvents.fireUnlocked` moves with it, never split) and
+  carries their receipt, `Achievement_Claimed` the receipt of whichever list that claim paid - so
+  an authored toast lists exactly what that moment put in the subject's hands, a `Lootable` as the
+  items it rolled and an empty roll as no row at all. `tryClaim` / `tryClaimMilestone` are the
+  receipt-answering twins of the boolean `claim` / `claimMilestone` (null where those answer
+  false; the boolean forms are thin wrappers, so the flush lives in the twin), for a surface
+  raising its own toast after a collect - the book's milestone Collect lists a rung's roll through
+  it.
 - **A fold may attach values a moment about the achievement should carry.** `Achievement.momentArgs`
   (builder `momentArg(name, value)`) rides into `Achievement_Unlocked` and `Achievement_Claimed`
   under the fold's own names, beneath the engine's own (`title`, `icon`, `points`, ... win on a

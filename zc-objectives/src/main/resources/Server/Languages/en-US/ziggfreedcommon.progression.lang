@@ -69,6 +69,7 @@ npcquests.section.turn_in = Ready to hand in
 npcquests.section.active = In progress
 npcquests.section.available = Available
 npcquests.section.parked = Collect elsewhere
+npcquests.section.cooldown = Comes back
 npcquests.section.locked = Locked
 npcquests.section.done = Completed
 
@@ -101,7 +102,7 @@ book.quests.status.locked = Locked
 book.quests.status.active = In Progress
 book.quests.status.unclaimed = Ready to Claim
 book.quests.status.completed = Completed
-book.quests.status.cooldown = Cooldown: {0}
+book.quests.status.cooldown = Comes back in {0}
 book.quests.btn.accept = Accept
 book.quests.btn.claim = Claim
 book.quests.btn.abandon = Abandon

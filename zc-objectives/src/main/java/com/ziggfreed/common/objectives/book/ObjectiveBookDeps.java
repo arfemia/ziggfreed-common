@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.questlist.NpcQuestPageDeps;
 import com.ziggfreed.common.quest.Quest;
@@ -203,11 +204,15 @@ public final class ObjectiveBookDeps {
         Message lineFor(@Nonnull Quest quest);
     }
 
-    /** What a quest tag chip says; the colour comes from the shared deterministic table. */
+    /**
+     * What a quest tag chip says; the colour comes from the shared deterministic table. A source
+     * answers null for a tag it has no word for, and the chip then reads the tidied raw tag, so a
+     * consumer says only what it knows rather than re-spelling the library's own fallback.
+     */
     @FunctionalInterface
     public interface TagLabelSource {
 
-        @Nonnull
+        @Nullable
         Message labelOf(@Nonnull String tag);
     }
 
@@ -245,13 +250,64 @@ public final class ObjectiveBookDeps {
     /** What pressing a milestone's Claim button did. */
     public enum MilestoneClaimOutcome { SUCCESS, INVENTORY_FULL, NOT_READY }
 
-    /** Claims one milestone's waiting rewards. */
+    /**
+     * What pressing a milestone's Claim button did AND what it handed over. {@code receipt} is what
+     * the payout actually put in the player's hands (a rolled table as the items it produced, an
+     * empty roll as nothing), or null when the fill answered only the outcome; the toast then lists
+     * the rung as authored, through {@link #rowsOr}.
+     */
+    public record MilestoneClaimResult(@Nonnull MilestoneClaimOutcome outcome,
+                                       @Nullable List<RewardSpec> receipt) {
+
+        public MilestoneClaimResult {
+            receipt = receipt == null ? null : List.copyOf(receipt);
+        }
+
+        /** An outcome with no word on what was handed over. */
+        @Nonnull
+        public static MilestoneClaimResult of(@Nonnull MilestoneClaimOutcome outcome) {
+            return new MilestoneClaimResult(outcome, null);
+        }
+
+        /** A successful claim that handed over exactly {@code receipt}. */
+        @Nonnull
+        public static MilestoneClaimResult paid(@Nonnull List<RewardSpec> receipt) {
+            return new MilestoneClaimResult(MilestoneClaimOutcome.SUCCESS, receipt);
+        }
+
+        /**
+         * What a toast raised after this claim lists: the receipt when the fill answered one, else
+         * {@code authored}, the rung's own list, resolved by the caller BEFORE the claim so which
+         * rewards this press paid is still readable once the rung reads claimed.
+         */
+        @Nonnull
+        public List<RewardSpec> rowsOr(@Nonnull List<RewardSpec> authored) {
+            return receipt != null ? receipt : authored;
+        }
+    }
+
+    /**
+     * Claims one milestone's waiting rewards. A fill implements {@link #claim} for the outcome
+     * alone, or overrides {@link #tryClaim} as well to say what the claim actually handed over.
+     */
     @FunctionalInterface
     public interface MilestoneClaim {
 
         @Nonnull
         MilestoneClaimOutcome claim(int threshold, @Nonnull Store<EntityStore> store,
                 @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
+
+        /**
+         * {@link #claim} answering WHAT it paid beside the outcome. The default runs the claim and
+         * reports no receipt, so a fill that only answers the outcome keeps working and the book
+         * lists the rung as authored; a fill holding the payout's receipt overrides this so a
+         * rolled table lists the items it produced.
+         */
+        @Nonnull
+        default MilestoneClaimResult tryClaim(int threshold, @Nonnull Store<EntityStore> store,
+                @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+            return MilestoneClaimResult.of(claim(threshold, store, ref, player));
+        }
     }
 
     /**
@@ -259,11 +315,28 @@ public final class ObjectiveBookDeps {
      * announcement outright and the book's own accepted/abandoned toasts stand down, so one
      * action is one toast however the consumer words it; unfilled, the book's toasts are the
      * announcement.
+     *
+     * <p>The book asks the five-argument {@link #accepted(Quest, Store, Ref, Player,
+     * RewardGrants.GrantOutcome)}, carrying what the settle right behind the accept paid when the
+     * quest finished the instant it was taken; its default hands off to the four-argument form, so
+     * a fill that does not care about the payout implements that one and hears every accept.
      */
     public interface ActionFeedback {
 
         default void accepted(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
                 @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+        }
+
+        /**
+         * A quest was accepted, and {@code settled} is what the settle right behind the accept
+         * paid - non-null only when a standing value already met every step and the quest paid out
+         * on the spot, so a completion toast raised here lists what was actually handed over. Null
+         * for an ordinary accept, and for one that finished but parked for collecting.
+         */
+        default void accepted(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
+                @Nonnull Ref<EntityStore> ref, @Nonnull Player player,
+                @Nullable RewardGrants.GrantOutcome settled) {
+            accepted(quest, store, ref, player);
         }
 
         default void abandoned(@Nonnull Quest quest, @Nonnull Store<EntityStore> store,
@@ -492,7 +565,7 @@ public final class ObjectiveBookDeps {
         }
     }
 
-    /** A tag chip's label, guarded: a throwing seam falls to the tidied raw tag. */
+    /** A tag chip's label, guarded: a seam that declines or throws falls to the tidied raw tag. */
     @Nonnull
     public Message tagLabelGuarded(@Nonnull String tag) {
         try {

@@ -71,7 +71,7 @@ public final class FeedbackEngine {
      * concept, so there the headline stands alone; the authored {@code Toast.Rows} group switches
      * the rows off or caps them.
      */
-    static final String REWARDS_ARG = "rewards";
+    public static final String REWARDS_ARG = "rewards";
 
     /**
      * The name of whoever the moment is about, always available to a line, a variant and a

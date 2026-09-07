@@ -250,6 +250,26 @@ class LootEngineTest {
             assertEquals(1, result.getRewardsLost());
             assertTrue(result.getCues().isEmpty(), "nothing was produced, so nothing celebrates");
             assertEquals(1, warnings.size());
+            assertTrue(result.getRewardReceipt().isEmpty(), "a lost reward was not handed over");
+        }
+
+        /** What a registered kind reports handed over rides on the result beside the item tally. */
+        @Test
+        void aRegisteredKindsReceiptRidesOnTheResult() {
+            RewardKindRegistry kinds = new RewardKindRegistry("test");
+            kinds.register("currency", "test", (spec, subject) -> { });
+
+            LootGrants grants = LootGrants.of(null, null, null, new LootGrants.Reward[] {
+                    LootGrants.Reward.of("currency", Map.of("id", "token", "amount", "25"))});
+
+            LootEngine.Result result = LootEngine.rollAndGrant(
+                    List.of(alwaysGranting(grants, null)), null, FactorLookup.none(), () -> 0.0,
+                    LootEngine.Sinks.builder().rewards(kinds, subject()).build());
+
+            assertEquals(1, result.getRewardReceipt().size());
+            assertEquals("currency", result.getRewardReceipt().get(0).kind());
+            assertEquals("25", result.getRewardReceipt().get(0).param("amount"),
+                    "an ordinary kind's receipt is the spec it was paid");
         }
 
         static Subject subject() {

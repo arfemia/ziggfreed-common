@@ -34,7 +34,6 @@ import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
-import com.ziggfreed.common.quest.QuestLifecycle;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.SettingsUiUtil;
@@ -467,7 +466,7 @@ final class BookQuestsTab {
         if (status == QuestStatus.NOT_STARTED) {
             Message requirements = page.deps().requirementLineGuarded(quest);
             if (requirements == null && !canAccept) {
-                requirements = LockReasons.bestLine(engine.canAccept(subject, quest).reasons());
+                requirements = LockReasons.bestLine(engine.canAccept(subject, quest));
             }
             if (requirements != null) {
                 cmd.set(sel + " #RequirementsLabel.Visible", true);
@@ -495,9 +494,10 @@ final class BookQuestsTab {
                 statusColor = canAccept ? StatusTones.AVAILABLE.hex() : StatusTones.SOFT_BLOCK.hex();
             }
             case ON_COOLDOWN -> {
-                // The formatted duration is data, passed as a flat param.
+                // The whole truth of when it comes back (a spent calendar window included, which
+                // the rolling clock alone reads as nothing), as a nested translatable wait line.
                 statusText = page.text("book.quests.status.cooldown",
-                        QuestLifecycle.formatCooldown(engine.cooldownRemainingMs(subject, quest)));
+                        LockReasons.waitLine(engine.offerableInMs(subject, quest)));
                 statusColor = StatusTones.LIMITED.hex();
             }
             case COMPLETED -> {
@@ -613,7 +613,7 @@ final class BookQuestsTab {
         if (status == QuestStatus.ON_COOLDOWN) {
             cmd.set(sel + " #CooldownText.Visible", true);
             cmd.set(sel + " #CooldownText.TextSpans", page.text("book.quests.status.cooldown",
-                    QuestLifecycle.formatCooldown(engine.cooldownRemainingMs(subject, quest))));
+                    LockReasons.waitLine(engine.offerableInMs(subject, quest))));
         }
 
         // A finished quest reads dim: still listed, no longer shouting.

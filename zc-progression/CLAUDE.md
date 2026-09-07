@@ -134,4 +134,6 @@ properties (a late hook still fires, two hooks both fire, a throwing one costs o
 `ProgressionFactorsTest` - each factor ladder over a
 double AND over the real engines on in-memory stores, plus the leaf-and-factor agreement),
 `ContentTextArgsTest` (an authored key's numbered slots reach the runtime object, for BOTH content
-kinds), and `SchemaDocDriftTest` guarding the committed `SCHEMA.md`.
+kinds), `ContentTextLadderTest` (the title ladder rung by rung: a key-less, name-less quest is called
+by its first step and never by a raw convention key, the flavor ladder beside it, and the real fold's
+authored step order), and `SchemaDocDriftTest` guarding the committed `SCHEMA.md`.

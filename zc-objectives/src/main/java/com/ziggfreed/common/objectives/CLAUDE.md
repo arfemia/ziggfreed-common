@@ -400,10 +400,33 @@ by design.
   The refusal is the BOOK's alone: `QuestEngine.canAccept` stays open, because the NPC quest page
   is where such a quest is legitimately accepted; hiding one entirely stays `Visibility.hidden`'s
   job, and the row stays listed, trackable, hand-in-able and abandonable. The three claim verbs
-  (quest claim, achievement claim, milestone claim - the milestone rung resolved BEFORE the claim
-  so which rewards this press paid is still readable) toast through the page-free
-  [`book/ClaimToasts`](book/ClaimToasts.java): a gold headline plus one `RewardToastLines` row per
-  reward through the consumer chip source, capped on the shared `book.more` overflow line.
+  (quest claim, achievement claim, milestone claim) toast through the page-free
+  [`render/ClaimToasts`](render/ClaimToasts.java): a gold headline plus one `RewardToastLines` row per
+  reward through the consumer chip source, capped on the shared `book.more` overflow line. The
+  rows are the RECEIPT, never the authored list: the quest and achievement claims (here and the
+  same collect made at a character in `ZigNpcQuestPage.claim`) go through the engines'
+  `tryClaim` and list `GrantOutcome.receipt()`, so a `Lootable` reads as the items it rolled and an
+  empty roll adds no row; the milestone claim asks the consumer seam's `MilestoneClaim.tryClaim`
+  (a `MilestoneClaimResult`: the outcome plus the receipt when the fill answers one; its default
+  wraps the enum-only `claim`, so a fill written for that keeps working) and lists
+  `rowsOr(authored)` - the receipt, else the rung's authored rewards resolved BEFORE the claim so
+  which rewards this press paid is still readable. **The hand-in made at a character
+  (`ZigNpcQuestPage.turnIn`) follows the same before/after rule**: it goes through
+  `QuestEngine.tryAllTurnIns` (a `TurnInOutcome`: the credit plus the payout when the last step
+  settled the quest there), then `tryClaim` when the quest parked and this is its collect site, and
+  its toast SPLITS by outcome (`NpcQuestPageDeps.handInToast`, pinned in `NpcQuestPageDepsTest`):
+  a quest that paid out here floats the gold `book.toast.quest_complete` line listing the receipt
+  of whichever paid, and one still parked floats the plain green `book.toast.turned_in` line with
+  no rows, because gold is the payout colour and nothing has been paid (the `Quest_Parked` moment
+  beside it says where the reward waits). Only the paid branch asks the consumer's
+  `NpcQuestPageDeps.CompletionToast`, with those rows (`forCompleted(quest, rewards)`, defaulting
+  to the one-argument form so a fill that composes its own rows keeps working) through
+  `resolveCompletionToast`, whose library fallback is the same gold line the book's Collect floats;
+  the MMO fills nothing there, since the library names a quest the same way it does. **An accept
+  from the book announces with what the settle behind it paid**: `handlePrimary` runs
+  `QuestEngine.trySettle` (the receipt-answering twin of `checkCompletion`) and hands the outcome to
+  `ActionFeedback.accepted(quest, store, ref, player, settled)`, whose default delegates to the
+  four-argument form, so a fill that ignores the payout still hears every accept.
 - **Status colours are the shared `ui/StatusTones`** (zc-presentation), the same six tones the NPC
   quest list's dots read, so "ready", "in progress" and "locked" are one colour everywhere.
 - **`canDeliverTurnInAt(subject, quest, null)` is ALWAYS false**, so the hand-in button must not be
@@ -729,8 +752,16 @@ smoke like the rest of this module's engine-touching half.
 The NPC quest page is split the same way. `NpcQuestSectionsTest` pins the ordering rules a player
 notices immediately and a refactor breaks silently - which bucket a status lands in, a finished quest
 belonging elsewhere reading as parked rather than offering a button the engine refuses, a repeatable
-waiting out its clock reading as locked rather than vanishing, a routed highlight beating a stale
-selection while a surviving selection beats the first row. How a reward READS from strings alone is
+waiting out its clock reading under its own "Comes back" section (`Section.COOLDOWN`, between
+PARKED and LOCKED, the `StatusTones.LIMITED` purple, heading `npcquests.section.cooldown`) rather
+than as locked or vanishing - so LOCKED means only "a gate refuses this" - a routed highlight
+beating a stale selection while a surviving selection beats the first row. The detail panel of a
+COOLDOWN row renders the same REQUIRED lines a LOCKED one does, through `LockReasons.lines(check)`
+off the engine's `AcceptCheck` (which carries `waitMs` beside the tokens), so the line says WHEN:
+"Comes back in 5h 12m" for a spent daily window, "Available again in 2h 5m" for a rolling cooldown.
+`BookQuestsTab`'s cooldown readout (`book.quests.status.cooldown`, "Comes back in {0}") quotes the
+same instant through `QuestEngine.offerableInMs` + `LockReasons.waitLine`, never the rolling clock
+alone, which read "0m" for a daily held by its calendar window. How a reward READS from strings alone is
 pinned by `zc-loot`'s `RewardChipsTest`, over kind ids of the test's OWN invention, since naming a
 real consumer's kind would disprove the thing being proved. `NpcQuestPageDepsTest` pins that an unfilled seam leaves a
 working page and that a filled one throwing costs its own contribution rather than the screen. The

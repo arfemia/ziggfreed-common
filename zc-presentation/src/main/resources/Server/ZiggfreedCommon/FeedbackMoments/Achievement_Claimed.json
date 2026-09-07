@@ -11,13 +11,16 @@
     "own pack replaces it, and a server owner can do the same from the owner layer.",
     "",
     "The moment carries 'achievement' (its id), 'title' (its name in the reader's language),",
-    "'points', 'collected', the outcome as 'granted' / 'queued' / 'failed' reward counts, and",
+    "'points', 'collected', the outcome as 'granted' / 'queued' / 'failed' reward counts,",
+    "'rewards' (what the payout actually put in the player's hands, one entry per thing), and",
     "anything the mod that catalogued it attached under its own names. 'player' is always the",
     "name of who was paid. Add a Sound group to the Variants entry to give collecting a jingle.",
     "",
     "Tone colours the whole notification, frame and words together - gold Reward here, because",
-    "this moment is a payout. The rewards just paid list themselves as rows under the headline on",
-    "the in-page toast; the Toast's Rows group switches that off or caps how many show."
+    "this moment is a payout. What was just paid lists itself as rows under the headline on the",
+    "in-page toast: a loot table shows the items it rolled rather than its name, and a roll that",
+    "landed nothing adds no row. The Toast's Rows group switches the rows off or caps how many",
+    "show."
   ],
   "Variants": [
     {

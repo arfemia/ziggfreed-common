@@ -34,6 +34,7 @@ shop.action.reroll = Rigenera
 
 shop.toast.bought = Hai comprato {0}.
 shop.toast.bought_queued = Hai comprato {0}. Una parte ti aspetta al prossimo accesso.
+shop.toast.more = +{0} altri
 shop.toast.reroll_confirm = Rigenerare per {0}? Premi di nuovo per confermare.
 
 board.title = Bacheca
@@ -77,6 +78,7 @@ board.toast.turned_in = Consegnato.
 board.toast.turn_in_failed = Non è stato possibile consegnarlo.
 board.toast.turn_in_short = Ne hai {0} su {1}.
 board.toast.completed = Contratto completato.
+board.toast.more = +{0} altri
 board.toast.reroll_confirm = Rigenerare per {0}? Premi di nuovo per confermare.
 
 refuse.locked = Non puoi ancora farlo.

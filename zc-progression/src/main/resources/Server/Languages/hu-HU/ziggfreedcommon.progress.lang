@@ -5,6 +5,12 @@ step.untitled = Névtelen lépés
 
 lock.unavailable = Most nem elérhető
 lock.on_cooldown = Később újra elérhető
+lock.on_cooldown.in = {0} múlva újra elérhető
+lock.period_spent = Később visszatér
+lock.period_spent.in = {0} múlva visszatér
+lock.max_completions = Ezt végleg teljesítetted
+lock.already_started = Már a küldetésnaplódban van
+lock.system_disabled = A küldetések itt ki vannak kapcsolva
 lock.prerequisites = A feltételek nem teljesülnek
 lock.other = Még nem elérhető
 lock.quest = Teljesítsd a küldetést: {0}
@@ -18,6 +24,11 @@ lock.any_of = Elérhető: {0}
 lock.any_of.join = vagy
 lock.not = Nem elérhető, amíg egy feltétel aktív
 lock.not.met = Nem elérhető, amíg ez teljesül: {0}
+
+wait.days = {0, number} nap {1, number} ó
+wait.hours = {0, number} ó {1, number} p
+wait.minutes = {0, number} p
+wait.under_minute = kevesebb mint egy perc
 
 objective.break_block = Törj szét {0} db {1} blokkot
 objective.break_block.any = Törj szét {0} blokkot

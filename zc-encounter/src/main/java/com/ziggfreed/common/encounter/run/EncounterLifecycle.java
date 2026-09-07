@@ -42,6 +42,7 @@ import com.ziggfreed.common.encounter.payout.EncounterFeedback;
 import com.ziggfreed.common.encounter.payout.EncounterLoot;
 import com.ziggfreed.common.encounter.signal.EncounterSignal;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -156,11 +157,14 @@ public final class EncounterLifecycle {
                 shares.shares(), shares.damageDealt(), elapsedSeconds, run.memberDeaths(), difficulty,
                 run.lastHitter()));
         EncounterRest.stamp(store, commandBuffer, encounterRef, run, encounterId, row);
-        EncounterLoot.grantDefeat(store, run, encounterId, row, spec, shares);
+        // Paid before it is announced, and each participant's own receipt rides into their moment:
+        // the toast lists what THEIR roll put in their hands, never a generic row and never
+        // another player's roll.
+        Map<UUID, List<RewardSpec>> receipts = EncounterLoot.grantDefeat(store, run, encounterId, row, spec, shares);
         Map<String, Object> args = baseArgs(run, encounterId, row, memberIds.size(), now);
         args.put(EncounterFeedback.SECONDS_ARG, Math.round(elapsedSeconds));
         EncounterFeedback.fireWithShares(store, feedbackId(row, EncounterBindingAsset.Feedback::defeated,
-                EncounterBindingAsset.DEFAULT_DEFEATED_MOMENT), shares.participants(), args);
+                EncounterBindingAsset.DEFAULT_DEFEATED_MOMENT), shares.participants(), args, receipts);
     }
 
     // ==================== wiped ====================

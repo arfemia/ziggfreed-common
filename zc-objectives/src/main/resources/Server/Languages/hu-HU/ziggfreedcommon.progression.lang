@@ -63,6 +63,7 @@ npcquests.section.turn_in = Leadásra kész
 npcquests.section.active = Folyamatban
 npcquests.section.available = Elérhető
 npcquests.section.parked = Máshol átvehető
+npcquests.section.cooldown = Visszatér
 npcquests.section.locked = Zárolt
 npcquests.section.done = Befejezve
 
@@ -93,7 +94,7 @@ book.quests.status.locked = Zárolt
 book.quests.status.active = Folyamatban
 book.quests.status.unclaimed = Kész az átvételre
 book.quests.status.completed = Teljesítve
-book.quests.status.cooldown = Várakozás: {0}
+book.quests.status.cooldown = {0} múlva visszatér
 book.quests.btn.accept = Elfogadás
 book.quests.btn.claim = Átvétel
 book.quests.btn.abandon = Feladás

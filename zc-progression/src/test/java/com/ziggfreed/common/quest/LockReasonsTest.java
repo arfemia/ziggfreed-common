@@ -12,6 +12,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.protocol.FormattedMessage;
+import com.hypixel.hytale.protocol.LongParamValue;
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
@@ -288,5 +289,144 @@ class LockReasonsTest {
         assertEquals(NS + "lock.other",
                 LockReasons.line("nothing_has_ever_heard_of_this").getMessageId());
         assertEquals(NS + "lock.other", LockReasons.line((String) null).getMessageId());
+    }
+
+    // ==================== every engine token has its own sentence ====================
+
+    /**
+     * The four tokens that used to collapse onto the catch-all: a daily finished today, a lifetime
+     * cap spent, a quest already carried, quests switched off. Each reads its OWN line, because
+     * "Not available yet" tells a player nothing about what to do. The requirements token, which
+     * always had a line of its own, is asserted beside them so a change that reshuffled this
+     * mapping could not quietly fold it in with the rest.
+     */
+    @Test
+    void everyEngineTokenReadsItsOwnLineRatherThanTheCatchAll() {
+        assertEquals(NS + "lock.period_spent",
+                LockReasons.line(QuestGates.REASON_PERIOD_SPENT).getMessageId());
+        assertEquals(NS + "lock.max_completions",
+                LockReasons.line(QuestGates.REASON_MAX_COMPLETIONS).getMessageId());
+        assertEquals(NS + "lock.already_started",
+                LockReasons.line(QuestGates.REASON_ALREADY_STARTED).getMessageId());
+        assertEquals(NS + "lock.system_disabled",
+                LockReasons.line(QuestGates.REASON_SYSTEM_DISABLED).getMessageId());
+        assertEquals(NS + "lock.prerequisites",
+                LockReasons.line(QuestGates.REASON_PREREQUISITES).getMessageId());
+    }
+
+    @Test
+    void theEngineTokensDeduplicateEachUnderTheirOwnSentence() {
+        List<Message> lines = LockReasons.lines(List.of(
+                QuestGates.REASON_ALREADY_STARTED, QuestGates.REASON_SYSTEM_DISABLED,
+                QuestGates.REASON_PERIOD_SPENT, QuestGates.REASON_PERIOD_SPENT));
+
+        assertEquals(3, lines.size(),
+                "three different sentences stay three lines; the repeated token renders once");
+        assertEquals(NS + "lock.already_started", lines.get(0).getMessageId());
+        assertEquals(NS + "lock.system_disabled", lines.get(1).getMessageId());
+        assertEquals(NS + "lock.period_spent", lines.get(2).getMessageId());
+    }
+
+    // ==================== the clock lines quote the wait ====================
+
+    private static final long MINUTE = 60_000L;
+    private static final long HOUR = 60L * MINUTE;
+    private static final long DAY = 24L * HOUR;
+
+    @Test
+    void aClockTokenQuotesTheWaitWhenOneIsSuppliedAndFallsBackToItsTwinWhenNoneIs() {
+        Message cooldown = LockReasons.line(QuestGates.REASON_ON_COOLDOWN, 2 * HOUR + 5 * MINUTE);
+        assertEquals(NS + "lock.on_cooldown.in", cooldown.getMessageId());
+        Message spent = LockReasons.line(QuestGates.REASON_PERIOD_SPENT, 5 * HOUR + 12 * MINUTE);
+        assertEquals(NS + "lock.period_spent.in", spent.getMessageId());
+
+        assertEquals(NS + "lock.on_cooldown",
+                LockReasons.line(QuestGates.REASON_ON_COOLDOWN, 0L).getMessageId(),
+                "no wait to hand over reads the no-clock twin, exactly as the token-only form does");
+        assertEquals(NS + "lock.period_spent",
+                LockReasons.line(QuestGates.REASON_PERIOD_SPENT, 0L).getMessageId());
+        assertEquals(NS + "lock.on_cooldown",
+                LockReasons.line(QuestGates.REASON_ON_COOLDOWN).getMessageId(),
+                "the token-only entry point keeps answering the no-clock line");
+
+        // The wait rides the sentence as its {0} PARAM, and a param renders only when it carries
+        // rawText or a messageId - so the wait must be a translation, never a bare join.
+        FormattedMessage wait = spent.getFormattedMessage().messageParams.get("0");
+        assertNotNull(wait, "the wait rides the lock line as its {0}");
+        assertEquals(NS + "wait.hours", wait.messageId);
+    }
+
+    @Test
+    void aWaitOfForeverReadsAsFinishedForGoodRatherThanAsAHugeNumber() {
+        assertEquals(NS + "lock.max_completions",
+                LockReasons.line(QuestGates.REASON_ON_COOLDOWN, Long.MAX_VALUE).getMessageId());
+        assertEquals(NS + "lock.max_completions",
+                LockReasons.line(QuestGates.REASON_PERIOD_SPENT, Long.MAX_VALUE).getMessageId());
+        assertEquals(NS + "lock.max_completions",
+                LockReasons.bestLine(List.of(QuestGates.REASON_MAX_COMPLETIONS), Long.MAX_VALUE)
+                        .getMessageId());
+    }
+
+    @Test
+    void theWaitOnlyEverChangesTheClockTokens() {
+        assertEquals(NS + "lock.prerequisites",
+                LockReasons.line(QuestGates.REASON_PREREQUISITES, 3 * HOUR).getMessageId());
+        assertEquals(NS + "lock.already_started",
+                LockReasons.line(QuestGates.REASON_ALREADY_STARTED, Long.MAX_VALUE).getMessageId());
+        assertEquals(NS + "lock.log_full",
+                LockReasons.line(QuestGates.REASON_LOG_FULL, 3 * HOUR).getMessageId());
+    }
+
+    @Test
+    void theWaitLinePicksTheMagnitudeARepeatActuallyUsesAndBindsWholeNumbersAsTypedParams() {
+        Message days = LockReasons.waitLine(2 * DAY + 5 * HOUR + 30 * MINUTE);
+        assertEquals(NS + "wait.days", days.getMessageId());
+        assertNumber(days, "0", 2L);
+        assertNumber(days, "1", 5L);
+
+        Message hours = LockReasons.waitLine(5 * HOUR + 12 * MINUTE + 40_000L);
+        assertEquals(NS + "wait.hours", hours.getMessageId());
+        assertNumber(hours, "0", 5L);
+        assertNumber(hours, "1", 12L);
+
+        Message minutes = LockReasons.waitLine(7 * MINUTE + 59_000L);
+        assertEquals(NS + "wait.minutes", minutes.getMessageId());
+        assertNumber(minutes, "0", 7L);
+
+        assertEquals(NS + "wait.under_minute", LockReasons.waitLine(59_999L).getMessageId(),
+                "a wait about to elapse reads as under a minute, never as a count of nothing");
+        assertEquals(NS + "wait.under_minute", LockReasons.waitLine(0L).getMessageId());
+        assertEquals(NS + "wait.minutes", LockReasons.waitLine(MINUTE).getMessageId(),
+                "exactly one minute is a minute");
+        assertEquals(NS + "wait.days", LockReasons.waitLine(DAY).getMessageId(),
+                "exactly one day is a day, with zero hours beside it");
+        assertEquals(NS + "lock.max_completions", LockReasons.waitLine(Long.MAX_VALUE).getMessageId(),
+                "a wait that never ends reads as the finished-for-good line, never as the hundred"
+                        + " billion days the arithmetic would otherwise produce");
+    }
+
+    /** A wait's number binds as a TYPED numeric param, so each client writes its own digits. */
+    private static void assertNumber(Message line, String slot, long expected) {
+        FormattedMessage formatted = line.getFormattedMessage();
+        assertTrue(formatted.params != null && formatted.params.containsKey(slot),
+                "slot " + slot + " binds as a scalar param, never as raw text");
+        assertTrue(formatted.params.get(slot) instanceof LongParamValue,
+                "slot " + slot + " is a typed number, not a server-formatted string");
+        assertEquals(expected, ((LongParamValue) formatted.params.get(slot)).value);
+    }
+
+    // ==================== the engine's own answer, wait included ====================
+
+    @Test
+    void theAcceptCheckFormsCarryTheEngineWaitThroughToTheLine() {
+        QuestEngine.AcceptCheck spentToday = new QuestEngine.AcceptCheck(false,
+                List.of(QuestGates.REASON_PERIOD_SPENT), 5 * HOUR + 12 * MINUTE);
+        assertEquals(NS + "lock.period_spent.in", LockReasons.bestLine(spentToday).getMessageId());
+        assertEquals(NS + "lock.period_spent.in", LockReasons.lines(spentToday).get(0).getMessageId());
+
+        QuestEngine.AcceptCheck lifted = new QuestEngine.AcceptCheck(false,
+                List.of(QuestGates.REASON_ON_COOLDOWN));
+        assertEquals(NS + "lock.on_cooldown", LockReasons.bestLine(lifted).getMessageId(),
+                "the two-argument construction carries no wait, so the twin reads");
     }
 }

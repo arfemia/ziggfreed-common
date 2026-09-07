@@ -63,6 +63,7 @@ npcquests.section.turn_in = Teslim edilmeyi bekliyor
 npcquests.section.active = Devam ediyor
 npcquests.section.available = Mevcut
 npcquests.section.parked = Başka yerden alınır
+npcquests.section.cooldown = Geri gelir
 npcquests.section.locked = Kilitli
 npcquests.section.done = Tamamlandı
 
@@ -93,7 +94,7 @@ book.quests.status.locked = Kilitli
 book.quests.status.active = Devam ediyor
 book.quests.status.unclaimed = Alınmaya hazır
 book.quests.status.completed = Tamamlandı
-book.quests.status.cooldown = Bekleme: {0}
+book.quests.status.cooldown = {0} sonra geri gelir
 book.quests.btn.accept = Kabul et
 book.quests.btn.claim = Al
 book.quests.btn.abandon = Bırak

@@ -1,5 +1,6 @@
 package com.ziggfreed.common.progress;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +36,8 @@ import com.ziggfreed.common.util.NumberFormatter;
  * file literally says; a CONVENTION key is what a mod's own naming rule would call it
  * ({@code quest.<id>.title} and friends), so a pack ships localized titles through {@code .lang}
  * alone with no per-file edit. The explicit key wins when it resolves, the convention key next, the
- * plain fallback after that.
+ * plain fallback after that - and a NAME has one rung more, the first step's own line, so content
+ * that wrote no name at all is still called something a player can act on; see {@link #title()}.
  *
  * <p>Arguments are bound ONCE, where the content is folded, because everything they can say is fixed
  * per row: the amount a step asks for, the thing it names. A caller that wants a localized argument
@@ -66,6 +68,7 @@ public final class ContentText {
     private final Object[] flavorArgs;
     private final Map<String, String> objectiveKeys;
     private final Map<String, Supplier<Message>> objectiveLines;
+    @Nullable private final String firstObjectiveId;
     private final Map<String, String> lore;
 
     private ContentText(@Nonnull Builder b) {
@@ -78,7 +81,16 @@ public final class ContentText {
         this.description = blankToNull(b.description);
         this.flavorArgs = b.flavorArgs;
         this.objectiveKeys = Map.copyOf(b.objectiveKeys);
-        this.objectiveLines = Map.copyOf(b.objectiveLines);
+        // Insertion order is kept on purpose: the first line a fold stamped is the first step the
+        // content asks for, and that step is what names the content when nothing else does.
+        this.objectiveLines = Collections.unmodifiableMap(new LinkedHashMap<>(b.objectiveLines));
+        // A fold may stamp a composed line per step, a key per step, or both, so the first step is
+        // whichever of the two was stamped first rather than whichever map happens to be filled: a
+        // fold that carries only keys still has a first step, and naming content after it is the
+        // whole point of the rung.
+        this.firstObjectiveId = !b.objectiveLines.isEmpty()
+                ? b.objectiveLines.keySet().iterator().next()
+                : (b.objectiveKeys.isEmpty() ? null : b.objectiveKeys.keySet().iterator().next());
         this.lore = Map.copyOf(b.lore);
     }
 
@@ -89,10 +101,26 @@ public final class ContentText {
                 && objectiveKeys.isEmpty() && objectiveLines.isEmpty() && lore.isEmpty();
     }
 
-    /** What this content is called, or null when it carries no name at all. */
+    /**
+     * What this content is called, or null when it carries no name at all.
+     *
+     * <p>The ladder: an explicit key that resolves, a convention key that resolves, the plain
+     * name, then <b>the first step's own line</b> - what content whose author wrote neither key
+     * nor name (a generated entry, a file with no {@code Text} block) reads as ("Mine 10 Iron
+     * Ore"), the same words its step list opens with - and last the explicit key exactly as
+     * written. The step rung sits BEFORE the written
+     * key because a player reads the first and only a translator the second: a sentence about the
+     * work is a name they can act on, a key is not. The written key survives as the last resort
+     * for content with no steps, where it is still the one thing a screenshot can be traced from.
+     */
     @Nullable
     public Message title() {
-        return resolve(titleKey, titleConventionKey, displayName, titleArgs);
+        Message name = resolved(titleKey, titleConventionKey, displayName, titleArgs);
+        if (name != null) {
+            return name;
+        }
+        Message firstStep = firstObjectiveId == null ? null : objective(firstObjectiveId);
+        return firstStep != null ? firstStep : written(titleKey, titleArgs);
     }
 
     /**
@@ -107,10 +135,17 @@ public final class ContentText {
         return title != null ? title : Msg.raw(id);
     }
 
-    /** The line under the title, or null. */
+    /**
+     * The line under the title, or null: an explicit key that resolves, a convention key that
+     * resolves, the plain description, then the explicit key exactly as written. No step rung here
+     * - a step is a name for content with none, not a description of it - and an unfilled
+     * CONVENTION key answers null rather than painting itself, because most content has no line
+     * under its title at all and that is what a missing convention key means.
+     */
     @Nullable
     public Message flavor() {
-        return resolve(flavorKey, flavorConventionKey, description, flavorArgs);
+        Message line = resolved(flavorKey, flavorConventionKey, description, flavorArgs);
+        return line != null ? line : written(flavorKey, flavorArgs);
     }
 
     /**
@@ -198,18 +233,11 @@ public final class ContentText {
     }
 
     /**
-     * The ladder, in one place: an explicit key that resolves, then a convention key that resolves,
-     * then the plain fallback, and finally whichever key was written at all, handed over as it
-     * stands.
-     *
-     * <p>That last rung is the same answer {@link #resolvableTitleKey()} gives, on purpose. A row on
-     * a server whose translation has not landed yet then paints the key rather than nothing at all,
-     * which is a thing somebody reading a screenshot or a support log can trace back to the file it
-     * came from; a blank is not. Only content that wrote no key of either sort answers null, which
-     * is the honest "this carries no name".
+     * The shared head of both ladders: an explicit key that resolves, then a convention key that
+     * resolves, then the plain fallback; null when none of the three has anything to say.
      */
     @Nullable
-    private static Message resolve(@Nullable String explicitKey, @Nullable String conventionKey,
+    private static Message resolved(@Nullable String explicitKey, @Nullable String conventionKey,
             @Nullable String raw, @Nonnull Object[] args) {
         if (explicitKey != null && ContentKeys.known(explicitKey)) {
             return ContentKeys.tr(explicitKey, args);
@@ -217,11 +245,23 @@ public final class ContentText {
         if (conventionKey != null && ContentKeys.known(conventionKey)) {
             return ContentKeys.tr(conventionKey, args);
         }
-        if (raw != null) {
-            return Msg.raw(raw);
-        }
-        String written = explicitKey != null ? explicitKey : conventionKey;
-        return written == null ? null : ContentKeys.tr(written, args);
+        return raw == null ? null : Msg.raw(raw);
+    }
+
+    /**
+     * The last rung of both ladders: the EXPLICIT key handed over exactly as the file wrote it, or
+     * null when the file wrote none.
+     *
+     * <p>A row on a server whose translation has not landed yet then paints the key rather than
+     * nothing at all, which is a thing somebody reading a screenshot or a support log can trace
+     * back to the file it came from; a blank is not. The convention key is deliberately NOT painted
+     * this way: nobody wrote it, a fold derived it from the id, so its absence from every catalogue
+     * is the ordinary state of content with nothing to say there, not a translation that went
+     * missing.
+     */
+    @Nullable
+    private static Message written(@Nullable String explicitKey, @Nonnull Object[] args) {
+        return explicitKey == null ? null : ContentKeys.tr(explicitKey, args);
     }
 
     @Nullable
@@ -337,6 +377,9 @@ public final class ContentText {
          * The line one step reads with, composed by the fold (its authored key resolved with its
          * arguments, or a generated sentence for a step that authored none) and asked for on
          * demand. A blank id or a null supplier is ignored rather than stored.
+         *
+         * <p>Stamp the steps in AUTHORED order: the first one stamped is the step content with no
+         * name of its own is titled by ({@link ContentText#title()}).
          */
         @Nonnull
         public Builder objectiveLine(@Nullable String objectiveId, @Nullable Supplier<Message> line) {

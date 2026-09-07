@@ -361,6 +361,12 @@ public final class LootRewardKinds {
      * pay through the registry this handler was registered into - so a table pays the same whether
      * a station, a mob drop or a quest reward rolled it. The pass's EARNED cues are forwarded to
      * {@link LootCues}, which is where a server's presenter hears about them.
+     *
+     * <p><b>Its receipt is what the roll produced, never the table's name.</b> The reward only
+     * learns what it pays while paying it, so it reports one {@code Item} spec per item that landed
+     * (a native drop list's stacks included) plus whatever the table's own {@code Rewards} reported
+     * in turn - and nothing at all for a roll that produced nothing. A toast raised after the payout
+     * then lists the items the player actually got, and an empty hand adds no row.
      */
     private static final class LootableHandler implements RewardHandler {
 
@@ -383,6 +389,12 @@ public final class LootRewardKinds {
 
         @Override
         public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) throws Exception {
+            grant(spec, subject, "", handedOver -> { });
+        }
+
+        @Override
+        public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+                @Nonnull String sourceId, @Nonnull Consumer<RewardSpec> receipt) throws Exception {
             String tableId = spec.paramOr("lootable", spec.paramOr("id", "")).trim();
             if (tableId.isEmpty()) {
                 throw new IllegalStateException("a reward of kind '" + KIND_LOOTABLE
@@ -406,18 +418,46 @@ public final class LootRewardKinds {
                         + " rolling forever");
             }
             String trigger = spec.param("trigger");
-            String sourceId = "reward:" + tableId;
+            // Labelled by the TABLE rather than by what paid the outer reward: the roll's logs, its
+            // retry commands and its cues all name the table, which is what an owner tuning it
+            // looks for.
+            String tableSource = "reward:" + tableId;
             NESTED.set(depth + 1);
             LootEngine.Result result;
             try {
                 result = LootEngine.rollAndGrant(rolls, trigger, lookupFor(subject),
                         () -> ThreadLocalRandom.current().nextDouble(),
-                        lootableSinks(spec, subject, kinds, sourceId));
+                        lootableSinks(spec, subject, kinds, tableSource));
             } finally {
                 NESTED.set(depth);
             }
-            LootCues.presentAll(result.getCues(), subject, sourceId);
+            LootCues.presentAll(result.getCues(), subject, tableSource);
+            for (RewardSpec landed : handedOver(result)) {
+                receipt.accept(landed);
+            }
         }
+    }
+
+    /**
+     * What one rolled pass put in the player's hands, as the specs a receipt lists: one
+     * {@code Item} per item that landed ({@link LootEngine.Result#getItems()}, native drop-list
+     * stacks already merged in), then whatever the table's own {@code Rewards} reported in turn
+     * ({@link LootEngine.Result#getRewardReceipt()}). Empty for a roll that produced nothing.
+     * Package-private so the fold is pinned with no server behind it.
+     */
+    @Nonnull
+    static List<RewardSpec> handedOver(@Nonnull LootEngine.Result result) {
+        List<RewardSpec> out = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : result.getItems().entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null || entry.getValue() <= 0) {
+                continue;
+            }
+            out.add(RewardSpec.of(KIND_ITEM, Map.of(
+                    "Item", entry.getKey(),
+                    "Count", Integer.toString(entry.getValue()))));
+        }
+        out.addAll(result.getRewardReceipt());
+        return out;
     }
 
     /**

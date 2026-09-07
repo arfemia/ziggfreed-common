@@ -102,6 +102,19 @@ handed straight to a client, so a band nobody had translated rendered as its own
   forever.
 - **A consumer seam that throws costs its own contribution, never the screen.** Theme, naming,
   chips, toasts and the hand-off are each guarded on their own.
+- **A toast raised after a payout lists what was actually handed over, never the authored list.**
+  The storefront's bought toast lists `PurchaseOutcome.grants().receipt()`; the board's Collect goes
+  through `QuestEngine.tryClaim` and floats `completionToast(quest, receipt)`, the gold line with
+  what the collect handed over; its hand-in goes through `tryAllTurnIns` (a `TurnInOutcome`: the
+  credit plus the payout when the last delivery settled the contract at this board) and floats
+  `handInToast(quest, paid)`, which SPLITS by outcome (`CommercePageDeps.handInToast`, pinned in
+  `CommercePageDepsTest`): the gold line with the receipt when the contract paid out here, and the
+  plain green `board.toast.turned_in` line with no rows when it parked to be collected, because
+  gold is the payout colour and nothing has been paid. Only the paid branch asks the consumer's
+  `CommercePageDeps.CompletionToast`, with those rows (`forCompleted(bountyId, rewards)`, defaulting
+  to the one-argument form so a fill that composes its own rows keeps working) through
+  `resolveCompletionToast`, whose library fallback is the gold `board.toast.completed` line with one
+  `RewardToastLines` row per entry, capped on this file's own `board.toast.more` overflow line.
 - **The engines are built PER CALL** through [`fold/CommerceEngines`](../fold/CommerceEngines.java),
   never held in a field: a reload replaces every offer object, and a consumer may install its own
   store or currency engine after this module's setup ran.
