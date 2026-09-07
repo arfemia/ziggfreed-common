@@ -30,6 +30,23 @@ Nested package with [its own router](placed/CLAUDE.md); read that before touchin
 
 ## Block IO, patterns + per-block records
 
+- **[`BuildPermission`](BuildPermission.java)** - may a block go down here? The engine's OWN two
+  build permissions, asked early enough to be useful: the world gameplay config's
+  `AllowBlockPlacement` (the Forgotten Temple and the creative hub both turn it off) and, for a
+  NON-creative placer, the `BlockModificationAllowed` flag of the environment covering the spot (the
+  dungeon environments). **Both are checked by the engine AFTER it dispatches the native place-block
+  event**, and a refused placement hands the item straight back without telling a single listener,
+  so anything paying out per placement pays out for a placement that never happened - which is why
+  `placed/PlacedBlockRecorder.placementCounts` asks here before the ledger records a mark or the
+  `PLACE_BLOCK` moment fires. `allowsPlacement(world, gameMode, x, y, z)` is the engine-facing read;
+  `allowsPlacement(worldAllows, gameMode, environmentAllows)` is the pure decision core the test
+  pins, the same split `WorldSelector.match` uses. It answers PERMISSION only, never whether the
+  block can physically go in that cell (support, replaceability, its own prefab): that is the
+  engine's placement validation, it reads far more state, and mirroring it wrong would silently deny
+  credit for ordinary building. **Cannot tell reads as ALLOWED** - an unresolved world, an unloaded
+  section or an engine throw leaves the answer to the engine rather than refusing on a guess, and
+  the half that matters most (the world permission) is a plain asset field that cannot fail to be
+  read. World-thread only.
 - **[`BlockOps`](BlockOps.java)** - single-block read/write at world coordinates over the engine's
   CURRENT block surface, the one place the library WRITES a block, and the read a consumer probing
   a neighbour cell or swapping one should call rather than the deprecated `World.getBlock` /

@@ -48,16 +48,28 @@ removes the disagreement structurally rather than by everybody remembering to ag
   is settled when the block goes down, by not recording it (see the filters below), never by
   softening the read.
 - **The filters that decide whether a placement counts.**
-  `PlacedBlockRecorder.placementCounts(cancelled, itemId, gameMode)` refuses a cancelled
-  placement (nothing was put down), a null/blank/`Empty` item (nothing was in hand), and a
+  `PlacedBlockRecorder.placementCounts(store, ref, event)` refuses a cancelled
+  placement (nothing was put down), a null/blank/`Empty` item (nothing was in hand), a
   CREATIVE-mode placement (an admin walling in an ore vein for survival players is the opposite
-  of the exploit, and the block carries no signal at break time about who put it there). The
+  of the exploit, and the block carries no signal at break time about who put it there), and a
+  placement the ENGINE is about to refuse (see the next bullet). The three pure filters are the
+  `placementCounts(cancelled, itemId, gameMode)` overload beside it. The
   library's own `PLACE_BLOCK` producer calls that same method rather than re-reading the event,
   so what is remembered as placed and what is produced as a moment can never disagree - a
   consumer that needs the same question answered calls the predicate, it never rewrites the
   filters. Beside it, `Policy.guardsPlacementsBy(placer)` lets the consumer exempt a builder
   working in SURVIVAL (typically by permission); that one only decides whether the placement is
   remembered, so an exempt builder still earns whatever placing is worth.
+- **A placement in a world that does not allow building never happened.** The native place-block
+  event is dispatched BEFORE the engine decides whether the placement is allowed: a world whose
+  gameplay config turns block placement off (the Forgotten Temple and the creative hub both do) and
+  a protected environment a non-creative player may not modify are both checked afterwards, and the
+  refused placement hands the item straight back. Nothing tells the event's listeners, so anything
+  paying out per placement pays for a placement that never happened, as often as the player cares to
+  click. [`world/BuildPermission`](../CLAUDE.md) asks those same two questions inside
+  `placementCounts`, which is where the ledger and the `PLACE_BLOCK` moment both get the answer.
+  Whether the block can PHYSICALLY go in that cell is deliberately not asked: that is the engine's
+  placement validation, and reading it wrong would silently deny credit for ordinary building.
 
 ## Where a placement is kept
 

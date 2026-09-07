@@ -278,10 +278,12 @@ its own typed payload record to the dispatch, so a reaction reaches what the tup
 | `ZigEncounterProducer` | `ENCOUNTER_ATTEMPT` per participant on a settlement, `ENCOUNTER_DEFEATED` per credited participant, `ENCOUNTER_PHASE` per live member on each phase beat | the encounter SCRIPT id, never the boss creature's, so a step holds through an in-place role swap (qualifier: the run's difficulty label on a settlement, null when a wipe carried none, the phase's own state name on a phase beat) | 1 | `EncounterPayload(runId, encounterId, event, share)` |
 
 - **The place-block producer counts exactly what the placement recorder records**, through the
-  recorder's own `PlacedBlockRecorder.placementCounts` predicate (a cancelled placement never
-  happened, an empty or blank item is nothing, a creative-mode placement is exempt), so what is
-  remembered as "placed" and what is produced as a moment can never drift. `ZigPlaceBlockProducerTest`
-  pins the three filters.
+  recorder's own `PlacedBlockRecorder.placementCounts(store, ref, event)` predicate (a cancelled
+  placement never happened, an empty or blank item is nothing, a creative-mode placement is exempt,
+  and a placement the world or the environment does not allow never put a block down - the native
+  event is dispatched BEFORE the engine refuses it, so `world/BuildPermission` asks the engine's own
+  two build permissions here), so what is remembered as "placed" and what is produced as a moment
+  can never drift. `ZigPlaceBlockProducerTest` pins the filters.
 - **The kill producer's credited player may not be the raw attacker**: for a non-player attacker it
   asks the composed `KillAttribution` and fires for the owner it names (see above); the payload's
   death still names the raw attacker, so a reaction can tell the two apart.

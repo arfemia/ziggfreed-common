@@ -20,7 +20,8 @@ compiles as `:zc-world`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggre
   `zc-commerce` (a storefront or a board carries the same `Where` group, audited by the same
   `WhereValidator`), `zc-objectives` (`world/placed/` only - its block-break and pickup producers
   ask `PlacedBlockLedger` before crediting a block the breaker put down themselves, and its place
-  producer counts exactly what `PlacedBlockRecorder`'s own `placementCounts` predicate counts),
+  producer counts exactly what `PlacedBlockRecorder`'s own `placementCounts` predicate counts,
+  `BuildPermission` included),
   `zc-encounter` (a participation rule carries the same `Where` group and is ranked by it, and a
   live fight puts a `worldmap/` marker over its subject from the engage until the run resets).
 - **Reverse-edge trap**: none declared today. This module is targeting infrastructure, not domain

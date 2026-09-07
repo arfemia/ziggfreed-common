@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.world.BuildPermission;
 
 /**
  * The one WRITER into {@link PlacedBlockLedger}: every block a player puts down is recorded here,
@@ -26,6 +27,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * <p><b>A CANCELLED placement is not recorded either</b>, for the plain reason that no block was
  * put down: something else in the chain refused it, and remembering a placement that never happened
  * would refuse the player credit for breaking whatever is genuinely there.
+ *
+ * <p><b>Nor is a placement the world was never going to accept.</b> The native event is dispatched
+ * before the engine checks whether building is allowed at all, so a world with block placement
+ * turned off and a protected environment both let the event through and refuse the block a moment
+ * later, handing the item back. {@link BuildPermission} asks those two questions here, which is what
+ * stops a player standing in such a place from clicking a stack of stone into free credit forever.
  *
  * <p><b>A CREATIVE-mode placement is not recorded.</b> An admin walling in an ore vein for survival
  * players to mine is doing the opposite of the exploit this guards against, and the block carries
@@ -60,9 +67,7 @@ public final class PlacedBlockRecorder extends EntityEventSystem<EntityStore, Pl
         var placed = event.getItemInHand();
         String itemId = placed == null ? null : placed.getItemId();
         Ref<EntityStore> ref = archetypeChunk.getReferenceTo(index);
-        Player player = store.getComponent(ref, Player.getComponentType());
-        if (!placementCounts(event.isCancelled(), itemId,
-                player == null ? null : player.getGameMode())) {
+        if (!placementCounts(store, ref, event)) {
             return;
         }
         PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
@@ -83,11 +88,37 @@ public final class PlacedBlockRecorder extends EntityEventSystem<EntityStore, Pl
     }
 
     /**
-     * Was a block actually put down here, by a player whose placements count? The ONE reading of
-     * the three filters in the class javadoc - a cancelled placement never happened, an empty or
-     * blank item is nothing, and a creative-mode placement is exempt - shared with the library's own
-     * {@code PLACE_BLOCK} producer, so what is recorded here and what is produced as a moment can
-     * never drift apart: a placement one of them counts is a placement the other counts.
+     * The whole question for one native placement event, and the ONE reading of it shared with the
+     * library's own {@code PLACE_BLOCK} producer, so what is recorded here and what is produced as
+     * a moment can never drift apart: a placement one of them counts is a placement the other
+     * counts. It is the three filters in the class javadoc PLUS the engine's own build permission
+     * for the spot ({@link BuildPermission}), because the native event is dispatched BEFORE the
+     * engine refuses a placement in a world with building turned off or in a protected environment,
+     * and neither of those put a block down.
+     *
+     * @param store the entity store the event is being handled on, which also names the world
+     * @param ref   the placing entity
+     * @param event the native placement event, read for the held item, the target and the cancel
+     */
+    public static boolean placementCounts(@Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> ref, @Nonnull PlaceBlockEvent event) {
+        var placed = event.getItemInHand();
+        String itemId = placed == null ? null : placed.getItemId();
+        Player player = store.getComponent(ref, Player.getComponentType());
+        GameMode gameMode = player == null ? null : player.getGameMode();
+        if (!placementCounts(event.isCancelled(), itemId, gameMode)) {
+            return false;
+        }
+        var position = event.getTargetBlock();
+        return BuildPermission.allowsPlacement(store.getExternalData().getWorld(), gameMode,
+                position.x(), position.y(), position.z());
+    }
+
+    /**
+     * The three filters that answer whether a block was put down at all: a cancelled placement never
+     * happened, an empty or blank item is nothing, and a creative-mode placement is exempt. Whether
+     * the world and the spot ALLOW building is the other half of the question, asked together with
+     * these in {@link #placementCounts(Store, Ref, PlaceBlockEvent)}.
      *
      * @param cancelled whether something in the chain refused the placement
      * @param itemId    the placed item's id, or null when nothing was in hand

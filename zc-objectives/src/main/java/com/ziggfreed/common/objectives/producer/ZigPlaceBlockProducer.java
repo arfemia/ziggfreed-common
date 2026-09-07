@@ -9,7 +9,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -24,9 +23,11 @@ import com.ziggfreed.common.world.placed.PlacedBlockRecorder;
  *
  * <p>It counts exactly the placements the shared {@link PlacedBlockRecorder} records, through the
  * recorder's own {@link PlacedBlockRecorder#placementCounts predicate}: a cancelled placement never
- * happened, an empty hand placed nothing, and a creative-mode placement is exempt - the same three
- * filters, read once, so what is remembered as "placed" and what is produced as a moment can never
- * disagree. The moment carries a {@link PlaceBlockPayload}.
+ * happened, an empty hand placed nothing, a creative-mode placement is exempt, and a placement in a
+ * world or an environment where building is not allowed is refused by the engine a moment after
+ * this event and so never put a block down - the same filters, read once, so what is remembered as
+ * "placed" and what is produced as a moment can never disagree. The moment carries a
+ * {@link PlaceBlockPayload}.
  */
 public final class ZigPlaceBlockProducer extends EntityEventSystem<EntityStore, PlaceBlockEvent> {
 
@@ -52,9 +53,7 @@ public final class ZigPlaceBlockProducer extends EntityEventSystem<EntityStore, 
             var placed = event.getItemInHand();
             String itemId = placed == null ? null : placed.getItemId();
             Ref<EntityStore> ref = archetypeChunk.getReferenceTo(index);
-            Player player = store.getComponent(ref, Player.getComponentType());
-            if (!PlacedBlockRecorder.placementCounts(event.isCancelled(), itemId,
-                    player == null ? null : player.getGameMode())) {
+            if (!PlacedBlockRecorder.placementCounts(store, ref, event)) {
                 return;
             }
             ProgressDispatch.fire(store, ref, commandBuffer, KIND, itemId, null, 1L,
