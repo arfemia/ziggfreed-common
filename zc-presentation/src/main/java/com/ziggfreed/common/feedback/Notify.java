@@ -4,16 +4,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.protocol.ItemWithAllMetadata;
-import com.hypixel.hytale.protocol.packets.interface_.HudComponent;
 import com.hypixel.hytale.protocol.packets.interface_.NotificationStyle;
 import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.io.PacketHandler;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.util.NotificationUtil;
 import com.ziggfreed.common.CommonLog;
-import com.ziggfreed.common.inventory.PlayerAccess;
 
 /**
  * A thin, styled wrapper over the engine {@code NotificationUtil} toast API. Routes
@@ -21,18 +18,25 @@ import com.ziggfreed.common.inventory.PlayerAccess;
  * and never reads a locale) to one player with a {@link NotificationStyle}, plus
  * named helpers for the four common styles (Default / Danger / Warning / Success).
  *
- * <p><b>Tags are how a notice updates itself instead of piling up.</b> Every entry point below has
- * a form taking a {@code tag}: the client merges a new notification only into a showing toast
- * carrying the SAME tag, and a notice with no tag is always one more entry in the feed. That is the
- * difference between a job reporting progress on one line that keeps rewriting itself and the same
- * job shouting a fresh line every step, burying whatever else the player needed to see. Give a
- * stable tag to anything that speaks repeatedly about ONE thing (a step counting up, a pile of one
- * item growing) and no tag to a one-off. Two notices that must BOTH be read never share a tag: the
- * second replaces the first outright.
+ * <p><b>The feed is seven lines that drain STRICTLY OLDEST FIRST, and a merge does not move the
+ * entry it lands on.</b> Each entry gets five seconds, but the client stops draining at the first
+ * entry that has not expired, and merging into an entry refreshes its five seconds where it already
+ * sits. So an entry near the front that keeps being merged into holds up everything behind it for as
+ * long as the merges keep coming, and the backlog only clears about five seconds after they stop.
  *
- * <p>A merged ITEM notice keeps the first one's words and only grows its quantity badge, so one tag
- * covers exactly one wording: keep the changing number in the badge, and give anything that changes
- * the WORDS a tag of its own.
+ * <p><b>That makes a tag the wrong tool for anything that repeats often.</b> A value that moves every
+ * few seconds does not belong on this feed at all, tagged or not - draw it on a progress bar
+ * ({@code ui.hud.bar}) and leave the feed for things that happen once. Tags are for a notice that
+ * speaks occasionally about ONE standing thing, where the newest wording is the only one worth a
+ * line. Two notices that must BOTH be read never share a tag: the second replaces the first outright.
+ *
+ * <p>An ITEM notice merges on the ITEM as well, whether or not it carries a tag, keeping the first
+ * one's words and only growing its quantity badge. So a run of pickups of the same item refreshes
+ * one entry over and over, which is the commonest way to pin the feed by accident.
+ *
+ * <p>Nothing takes a notice back off the feed. The packet carries no id and no lifetime, no packet
+ * removes an entry, and hiding the whole component neither clears the list nor lets it drain - it
+ * freezes the clock instead. Sending less is the only control there is.
  *
  * <p>World-thread: writes a packet via the player's handler. Fully try-guarded so a
  * notification can never throw into the caller.
@@ -171,43 +175,6 @@ public final class Notify {
                     NotificationStyle.Default, tag(tag));
         } catch (Throwable t) {
             CommonLog.LOGGER.atFine().log("Notify.itemKeyed failed: " + t.getMessage());
-        }
-    }
-
-    /**
-     * Take every notice currently on {@code playerRef}'s corner feed off it.
-     *
-     * <p>The feed holds seven entries and the engine offers NO way to retire one: the notification
-     * packet carries no id, no lifetime and no clear, and nothing in the interface packet family
-     * removes an entry. Hiding the whole {@code Notifications} component and showing it again in one
-     * breath is the only reach a server has, so that is what this does.
-     *
-     * <p><b>Whether the client rebuilds the feed empty on that round trip is NOT confirmed in game.</b>
-     * It may clear the entries or it may restore them untouched; there is no way to tell from the
-     * server side, and the client is the only authority. Confirm it on a full feed before depending
-     * on it for anything, and treat a caller that needs the feed genuinely empty as unbuilt until
-     * then.
-     *
-     * <p>It is ALL of them, including whatever this mod put there and whatever another mod did. Use
-     * it where a clean feed is worth more than the backlog on it - the start of a long piece of work
-     * whose own output the player will want to read - and never on a timer, since a notice the
-     * player had not got to yet goes with the rest.
-     *
-     * <p>World-thread only: the native HUD map is not concurrent. Try-guarded, and false when the
-     * player could not be resolved.
-     */
-    public static boolean flushFeed(@Nonnull PlayerRef playerRef) {
-        try {
-            Player player = PlayerAccess.player(playerRef);
-            if (player == null) {
-                return false;
-            }
-            player.getHudManager().hideHudComponents(playerRef, HudComponent.Notifications);
-            player.getHudManager().showHudComponents(playerRef, HudComponent.Notifications);
-            return true;
-        } catch (Throwable t) {
-            CommonLog.LOGGER.atFine().log("Notify.flushFeed failed: " + t.getMessage());
-            return false;
         }
     }
 
