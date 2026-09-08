@@ -12,10 +12,11 @@
     "(true on the tick that completes the step) and 'source' (the one step this notice is about).",
     "'player' is always the name of who moved it.",
     "",
-    "Merge is what keeps a step that moves quickly to ONE line: each tick rewrites the notice",
-    "already on screen instead of adding another under it, so a player milling twenty logs still",
-    "sees their pickups and their finds rather than a column of counters. It is kept per 'source',",
-    "so three steps moving at once keep three lines. Turn it off to have every tick queue up.",
+    "A step that moves quickly keeps to ONE line: each tick rewrites the notice already on screen",
+    "instead of adding another under it, so a player milling twenty logs still sees their pickups",
+    "and their finds rather than a column of counters. The line is kept per 'source', so three",
+    "steps moving at once keep three lines. Add \"Merge\": false to a Toast to have every tick",
+    "queue up instead, at the cost of the rest of the feed.",
     "",
     "EveryPercent keeps a long step from chattering even so: an ordinary tick shows only when it",
     "crosses a multiple of that many percent of the way (25 gives the quarter marks); the finishing",
@@ -24,9 +25,10 @@
     "",
     "The Variants entry swaps the whole Toast for the finishing tick, so its wording and tone can",
     "differ from an ordinary tick's without a second file: an ordinary tick is neutral Info, the",
-    "finish is green Success. It repeats Merge because a variant replaces the whole group, and",
-    "keeping it means the finish lands ON the counter it finishes rather than beside it. Tone",
-    "colours the in-page frame and the words, and picks the matching corner-feed style."
+    "finish is green Success. A variant replaces the whole group rather than editing it, so every",
+    "leaf it does not restate is back to its own default - which is why the finish still lands ON",
+    "the counter it finishes rather than beside it. Tone colours the in-page frame and the words,",
+    "and picks the matching corner-feed style."
   ],
   "Toast": {
     "Title": {
@@ -34,8 +36,7 @@
       "Args": ["step", "current", "required"]
     },
     "Tone": "Info",
-    "EveryPercent": 25,
-    "Merge": true
+    "EveryPercent": 25
   },
   "Variants": [
     {
@@ -45,8 +46,7 @@
           "Key": "ziggfreedcommon.feedback.quest.objective_finished",
           "Args": ["step"]
         },
-        "Tone": "Success",
-        "Merge": true
+        "Tone": "Success"
       }
     }
   ]

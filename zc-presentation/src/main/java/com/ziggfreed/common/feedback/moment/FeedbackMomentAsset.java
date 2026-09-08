@@ -334,18 +334,19 @@ public final class FeedbackMomentAsset
                 .add()
                 .appendInherited(new KeyedCodec<>("Merge", Codec.BOOLEAN, false),
                         (o, v) -> o.merge = v, o -> o.merge, (o, p) -> o.merge = p.merge)
-                .metadata(EditorSchema.defaultValue(false))
-                .documentation("For a moment that speaks REPEATEDLY about one thing: rewrite the "
-                        + "notice already on screen instead of adding another under it, so a step "
+                .metadata(EditorSchema.defaultValue(true))
+                .documentation("On by default: a repeat of this moment about the same thing rewrites "
+                        + "the notice already on screen instead of adding another under it, so a step "
                         + "counting up occupies one line however many times it moves and leaves the "
                         + "rest of the feed for everything else. Which thing a notice is about comes "
                         + "from the moment's own 'source' value, so two quests, two fights or two "
-                        + "stations each keep their own line. Leave it off for a notice the player "
-                        + "has to actually read, since a second one would replace the first before "
-                        + "they got to it. A merging notice whose WORDS change every time is best left "
-                        + "without a picture: two showings of the same picture read as the same item, "
-                        + "which grows a count rather than rewriting the line. This is the corner feed "
-                        + "only: with a menu open the same words are drawn into the page as before.")
+                        + "stations each keep their own line. Turn it OFF for a notice the player must "
+                        + "not miss even when another of its kind lands on top of it, such as a warning "
+                        + "raised under a moment whose ordinary tone is good news. A merging notice "
+                        + "whose WORDS change every time is best left without a picture: two showings "
+                        + "of the same picture read as the same item, which grows a count rather than "
+                        + "rewriting the line. This is the corner feed only: with a menu open the same "
+                        + "words are drawn into the page as before.")
                 .add()
                 .build();
 
@@ -394,11 +395,18 @@ public final class FeedbackMomentAsset
 
         /**
          * Whether a repeat of this moment about the same thing rewrites the notice already on the
-         * corner feed rather than stacking a second one under it. Unauthored reads as false, so a
-         * moment that says nothing about this keeps every notice as its own entry.
+         * corner feed rather than stacking a second one under it.
+         *
+         * <p>Unauthored reads as TRUE, because the feed holds seven entries, an eighth pushes the
+         * oldest out of sight, and nothing can retire an entry early: a moment that stacks buys its
+         * repeats at the cost of everything else the player still had to read. Only a repeat of the
+         * SAME moment about the SAME thing ever shares a line, which is the same notice said again,
+         * so this is the right answer almost everywhere. Author {@code false} for the exception: a
+         * notice the player must not miss even when another of its kind lands on top of it, such as
+         * a warning raised under a moment whose ordinary tone is good news.
          */
         public boolean merge() {
-            return Boolean.TRUE.equals(merge);
+            return !Boolean.FALSE.equals(merge);
         }
 
         /**

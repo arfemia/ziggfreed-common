@@ -398,15 +398,29 @@ class FeedbackEngineTest {
     // ==================== the corner feed's merge tag ====================
 
     /**
-     * A moment that authored no {@code Merge} is filed under nothing, so every notice it draws is
-     * one more entry in the feed: the established behaviour, and what a moment the player has to
-     * actually READ depends on.
+     * A moment that authored no {@code Merge} still gets a tag, because merging is the default: the
+     * feed holds seven entries and cannot be drained, so a moment that stacks buys its repeats with
+     * everything else the player had left to read.
      */
     @Test
-    void aMomentThatDidNotAskToMergeIsSentUnderNoTag() throws IOException {
-        assertNull(FeedbackEngine.feedTag("Quest_Completed", toastWith(null),
+    void aMomentThatSaysNothingAboutMergingStillMerges() throws IOException {
+        assertNotNull(FeedbackEngine.feedTag("Quest_Completed", toastWith(null),
                 Map.of(FeedbackEngine.SOURCE_ARG, "q1/o1")),
-                "carrying a source is not asking to merge");
+                "saying nothing takes the default, and the default is one line per thing");
+    }
+
+    /**
+     * Turning it off is what a notice the player must not miss depends on: no tag, so a second one
+     * of its kind lands beneath it instead of rewriting it.
+     */
+    @Test
+    void aMomentThatTurnedMergingOffIsSentUnderNoTag() throws IOException {
+        FeedbackMomentAsset.Toast stacking = moment("Quest_Completed", """
+                { "Toast": { "Title": { "Key": "done" }, "Merge": false } }
+                """).getToast();
+        assertNull(FeedbackEngine.feedTag("Quest_Completed", stacking,
+                Map.of(FeedbackEngine.SOURCE_ARG, "q1/o1")),
+                "carrying a source is not asking to merge once the file said not to");
     }
 
     /**
@@ -446,16 +460,17 @@ class FeedbackEngineTest {
     @Test
     void aVariantCarriesItsOwnMergeRatherThanInheritingOne() throws IOException {
         FeedbackMomentAsset asset = moment("Quest_Objective_Progressed", """
-                { "Toast": { "Title": { "Key": "tick" }, "Merge": true },
+                { "Toast": { "Title": { "Key": "tick" }, "Merge": false },
                   "Variants": [ { "When": { "finished": true },
                                   "Toast": { "Title": { "Key": "done" } } } ] }
                 """);
 
-        assertTrue(asset.getToast().merge(), "the file's own group asked to merge");
+        assertFalse(asset.getToast().merge(), "the file's own group turned merging off");
         FeedbackMomentAsset.Toast finished = asset.resolve(Map.of("finished", true)).toast();
         assertNotNull(finished);
-        assertFalse(finished.merge(),
-                "a variant restating the group restates all of it, this leaf included");
+        assertTrue(finished.merge(),
+                "a variant restating the group restates all of it, so this leaf is back to its"
+                        + " default rather than inheriting the group's answer");
     }
 
     @Nonnull

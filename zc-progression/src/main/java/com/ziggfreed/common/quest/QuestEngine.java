@@ -1949,11 +1949,57 @@ public final class QuestEngine implements QuestStateReader {
 
     // ==================== Progress access ====================
 
-    /** This player's progress on one quest, keyed by objective id. Empty when they have none. */
+    /**
+     * This player's progress on one quest, keyed by objective id. Empty when they have none.
+     *
+     * <p>Each entry is re-sized against what the quest asks for TODAY before it is handed back, so
+     * a step that was re-tuned after this player took the quest counts to the new number rather
+     * than the one their save happens to remember. See {@link #rebaseToDefinition}.
+     */
     @Nonnull
     public Map<String, ObjectiveProgressState> progressOf(@Nonnull Subject subject,
                                                           @Nonnull String questId) {
-        return QuestProgressPayload.deserialize(store.progressPayload(subject, questId));
+        Map<String, ObjectiveProgressState> progress =
+                QuestProgressPayload.deserialize(store.progressPayload(subject, questId));
+        rebaseToDefinition(quest(questId), progress);
+        return progress;
+    }
+
+    /**
+     * Re-size every stored objective to the amount its quest asks for now.
+     *
+     * <p>A quest's progress is persisted as {@code current/required}, so the target a player is
+     * counting towards would otherwise be whatever it was on the day they accepted, while the
+     * sentence the step is DRAWN from reads the live asset: re-tune a step and everyone already
+     * carrying it sees one number in the words and another in the count. Reading the target back
+     * off the definition here is what keeps those two the same thing, and it is what
+     * {@code AchievementEngine} has always done - it stores a bare count and re-derives the target
+     * on every read. The rebased entry is written back on the player's next step, so the save
+     * catches up on its own.
+     *
+     * <p>Work already finished is never taken back: a step recorded as done stays done whatever the
+     * new amount is, and a step still in progress keeps its count, which finishes it outright when
+     * the amount came DOWN past what the player had. An objective the quest no longer declares is
+     * left exactly as stored, since there is nothing to size it against.
+     */
+    private void rebaseToDefinition(@Nullable Quest quest,
+                                    @Nonnull Map<String, ObjectiveProgressState> progress) {
+        if (quest == null || progress.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, ObjectiveProgressState> entry : progress.entrySet()) {
+            ObjectiveDef objective = quest.objective(entry.getKey());
+            if (objective == null) {
+                continue;
+            }
+            ObjectiveProgressState stored = entry.getValue();
+            int required = ObjectiveArithmetic.requiredFor(objectiveKinds.kind(objective.kind()), objective);
+            if (required == stored.required()) {
+                continue;
+            }
+            int current = stored.isCompleted() ? required : Math.min(stored.current(), required);
+            entry.setValue(new ObjectiveProgressState(current, required));
+        }
     }
 
     /** This player's progress on one objective, or null when there is none recorded. */
