@@ -20,6 +20,16 @@
 
 @TaskCountStyle = (FontSize: 15, RenderBold: true, LetterSpacing: 1, TextColor: #b7b8b9, HorizontalAlignment: End, VerticalAlignment: Center);
 
+// The task text and its count share one row, so the row is split into two columns that cannot reach
+// each other: the text wraps inside the first, the count is right-aligned to the panel's inner edge
+// in the second. The count column is sized for a long one ("1372/10000") because an objective
+// counting into the thousands is ordinary here; the native panel reserves far less and lets a wide
+// count run back over its own task text. Both columns are stated ONCE and every row below references
+// them, so widening the panel or re-tuning the split is a single edit. Keep them adding up to the
+// panel's inner width (its Width less its horizontal Padding, 350 - 40 here) with a gap between.
+@TaskTextAnchor = (Left: 20, Width: 176);
+@TaskCountAnchor = (Left: 204, Width: 106);
+
 @TaskIconDefault = PatchStyle(TexturePath: "ObjectiveTaskIconDefault.png");
 
 @TaskIconComplete = PatchStyle(TexturePath: "ObjectiveTaskIconComplete.png");
@@ -51,29 +61,29 @@ Group #ZigQuestHudParent {
           Anchor: (Top: 12);
           Group #IcoDefault0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj0 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count0 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj0 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count0 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow1 {
           Anchor: (Top: 12);
           Group #IcoDefault1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj1 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count1 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj1 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count1 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow2 {
           Anchor: (Top: 12);
           Group #IcoDefault2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj2 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count2 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj2 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count2 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow3 {
           Anchor: (Top: 12);
           Group #IcoDefault3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj3 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count3 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj3 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count3 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
       }
     }
@@ -91,29 +101,29 @@ Group #ZigQuestHudParent {
           Anchor: (Top: 12);
           Group #IcoDefault0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj0 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count0 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj0 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count0 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow1 {
           Anchor: (Top: 12);
           Group #IcoDefault1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj1 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count1 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj1 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count1 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow2 {
           Anchor: (Top: 12);
           Group #IcoDefault2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj2 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count2 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj2 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count2 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow3 {
           Anchor: (Top: 12);
           Group #IcoDefault3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj3 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count3 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj3 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count3 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
       }
     }
@@ -131,29 +141,29 @@ Group #ZigQuestHudParent {
           Anchor: (Top: 12);
           Group #IcoDefault0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj0 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count0 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj0 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count0 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow1 {
           Anchor: (Top: 12);
           Group #IcoDefault1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj1 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count1 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj1 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count1 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow2 {
           Anchor: (Top: 12);
           Group #IcoDefault2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj2 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count2 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj2 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count2 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow3 {
           Anchor: (Top: 12);
           Group #IcoDefault3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj3 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count3 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj3 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count3 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
       }
     }
@@ -171,29 +181,29 @@ Group #ZigQuestHudParent {
           Anchor: (Top: 12);
           Group #IcoDefault0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj0 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count0 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj0 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count0 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow1 {
           Anchor: (Top: 12);
           Group #IcoDefault1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj1 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count1 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj1 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count1 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow2 {
           Anchor: (Top: 12);
           Group #IcoDefault2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj2 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count2 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj2 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count2 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow3 {
           Anchor: (Top: 12);
           Group #IcoDefault3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj3 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count3 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj3 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count3 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
       }
     }
@@ -211,29 +221,29 @@ Group #ZigQuestHudParent {
           Anchor: (Top: 12);
           Group #IcoDefault0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete0 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj0 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count0 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj0 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count0 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow1 {
           Anchor: (Top: 12);
           Group #IcoDefault1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete1 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj1 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count1 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj1 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count1 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow2 {
           Anchor: (Top: 12);
           Group #IcoDefault2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete2 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj2 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count2 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj2 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count2 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
         Group #ObjRow3 {
           Anchor: (Top: 12);
           Group #IcoDefault3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconDefault; }
           Group #IcoComplete3 { Anchor: (Width: 14, Height: 14, Top: 4, Left: 0); Background: @TaskIconComplete; Visible: false; }
-          Label #Obj3 { Text: ""; Anchor: (Left: 20, Width: 240); Style: @TaskTextStyle; }
-          Label #Count3 { Text: ""; Style: @TaskCountStyle; }
+          Label #Obj3 { Text: ""; Anchor: @TaskTextAnchor; Style: @TaskTextStyle; }
+          Label #Count3 { Text: ""; Anchor: @TaskCountAnchor; Style: @TaskCountStyle; }
         }
       }
     }

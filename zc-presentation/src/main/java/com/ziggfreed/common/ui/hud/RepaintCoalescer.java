@@ -1,4 +1,4 @@
-package com.ziggfreed.common.objectives.hud;
+package com.ziggfreed.common.ui.hud;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -8,11 +8,12 @@ import javax.annotation.Nonnull;
 /**
  * Folds a burst of repaint requests into ONE paint, run where the caller says.
  *
- * <p>The quest engine announces an objective moving once per objective per action, so one swing of
- * a pickaxe with several gathering quests pinned is several events in the same instant, and each
- * would otherwise be a full paint and a packet. The first request queues the paint on the given
- * executor; every request that arrives before it has run is folded into it. When the paint runs it
- * reads the LIVE state, so whatever the burst ended on is what gets drawn.
+ * <p>An event-driven HUD is asked to repaint once per event, and several events land in the same
+ * instant on ordinary play: one swing of a pickaxe with several gathering quests pinned is several
+ * objective events, one award moving several bars is several value changes. Each would otherwise
+ * be a full paint and a packet. The first request queues the paint on the given executor; every
+ * request that arrives before it has run is folded into it. When the paint runs it reads the LIVE
+ * state, so whatever the burst ended on is what gets drawn.
  *
  * <p>This is not a poller and there is no clock: nothing runs when nothing was asked for. On a
  * server the executor is the player's own {@code World}, whose task queue is drained inside the
@@ -20,12 +21,12 @@ import javax.annotation.Nonnull;
  * that tick, on the world thread. A request arriving while the paint is running queues one more,
  * which is the right answer: it may have seen state the running paint did not.
  */
-final class RepaintCoalescer {
+public final class RepaintCoalescer {
 
     private final AtomicBoolean queued = new AtomicBoolean();
     private final Runnable paint;
 
-    RepaintCoalescer(@Nonnull Runnable paint) {
+    public RepaintCoalescer(@Nonnull Runnable paint) {
         this.paint = paint;
     }
 
@@ -34,7 +35,7 @@ final class RepaintCoalescer {
      * {@code where} refuses the task (a world that stopped accepting them), the request is dropped
      * and the next one is free to try again.
      */
-    void request(@Nonnull Executor where) {
+    public void request(@Nonnull Executor where) {
         if (!queued.compareAndSet(false, true)) {
             return;
         }
@@ -51,7 +52,7 @@ final class RepaintCoalescer {
     }
 
     /** Whether a paint is queued and not yet run; for a test reading the fold. */
-    boolean isQueued() {
+    public boolean isQueued() {
         return queued.get();
     }
 }

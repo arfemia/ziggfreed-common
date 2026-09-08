@@ -173,8 +173,8 @@ plus the NPC quest page's two pure halves - `NpcQuestSectionsTest`
 defaults, and a consumer seam that throws), and the tracked-quest HUD's four -
 `TrackedQuestSnapshotTest` (what one paint shows, over an in-memory engine),
 `TrackedQuestHudEventTest` (each of the six events repaints the named player once, the objective
-event skipped for an unshown quest, the uuid registry), `RepaintCoalescerTest` (a burst is one
-paint) and `TrackedQuestHudDepsTest` (the theme seam and every guarded reader), plus
+event skipped for an unshown quest, the uuid registry; the coalescer's own `RepaintCoalescerTest`
+lives with the class in zc-presentation) and `TrackedQuestHudDepsTest` (the theme seam and every guarded reader), plus
 `SystemSwitchesTest` (the admin switch registry: additive + live registration, order-then-id
 ordering, a throwing read answering unknown rather than off, an absent or throwing writer refusing
 without a throw). How a reward chip

@@ -3,3 +3,7 @@
 
 search.button = Buscar
 search.clear = Borrar
+
+# The shared progress-bar panel (Common/UI/Custom/Hud/ZigHudBars.ui): the gain beside a bar. A
+# bare signed number, grouped by the player's own client, so the value reads the same everywhere.
+hud.bar.gain = +{0, number}

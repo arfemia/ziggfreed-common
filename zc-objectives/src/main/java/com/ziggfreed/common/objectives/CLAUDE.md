@@ -120,7 +120,7 @@ unqualified, byte-identical to a bare server. `KillQualifierProducerTest` pins t
 | `questlist/` | the NPC quest page: what one CHARACTER has to offer, list and detail |
 | `command/` | `/zigprogress`: the admin family over THE runtime - quest, achievement and memory groups; see [its router](command/CLAUDE.md) |
 | `admin/` | the progression admin page: `SystemSwitch` + `SystemSwitches` (the registered server-wide system switches) and `ProgressionAdminPage`/`Pages`/`Deps` (audience DEFAULT DENY, opened only by direct static call) - see below |
-| `hud/` | the tracked-quest HUD (`TrackedQuestHud` + `TrackedQuestHuds` + `TrackedQuestHudDeps` + `TrackedQuestSnapshot` + `RepaintCoalescer`) and the tracked-quests side-panel renderer a page embeds (`TrackedQuestPanelRenderer`) |
+| `hud/` | the tracked-quest HUD (`TrackedQuestHud` + `TrackedQuestHuds` + `TrackedQuestHudDeps` + `TrackedQuestSnapshot`, folding its bursts through zc-presentation's `ui/hud/RepaintCoalescer`) and the tracked-quests side-panel renderer a page embeds (`TrackedQuestPanelRenderer`) |
 | `dialogue/` | `DialogueBootstrap`: this module's fill of the seams `zc-dialogue` declares and structurally cannot fill - the `hytale:` factor vocabulary its `Factor` conditions resolve against, the persistent memory store (this module's own progress component) plus the disconnect that ends a `Session` memory, and the `QuestResets` hook that forgets a `ResetWithQuest` memory - and `ActiveObjectiveHeader`, the header note a conversation shows under the speaker's name |
 | `flair/` | the flair GRANT surface over zc-entity's `ZigFlairComponent`: `FlairUnlocks` (the ONE write path, firing `ZigFlairChangedEvent` and the authored `Flair_Unlocked` moment on a real change only), the unprefixed `Flair` reward kind, `FlairText`/`FlairChipReading` (the `flair.<id>.name` ladder every surface shares), `/zigflair grant|revoke|list`, and `FlairBootstrap`, the one `setup()` phase registering the kind, the chip reading and the command |
 
@@ -618,7 +618,7 @@ after the maintenance pass has hopped to the world thread, so the first paint sh
   each look the player up by the uuid the event carries in `TrackedQuestHuds.LIVE`, a
   `ConcurrentHashMap` written at attach and cleared at detach, and ask that tracker to repaint. Every
   event handler is one map read plus one queue offer, safe from any thread.
-- **A burst paints once.** [`hud/RepaintCoalescer`](hud/RepaintCoalescer.java) queues the paint on
+- **A burst paints once.** zc-presentation's `ui/hud/RepaintCoalescer` (shared with the progress-bar panel) queues the paint on
   the player's own `World` (an `Executor`) and folds every request that arrives before it runs; the
   world drains its task queue inside the same tick, so a swing of the pickaxe with five gathering
   quests pinned is one paint at the end of that tick. It is not a poller: nothing runs when nothing
@@ -783,9 +783,9 @@ the slot caps, the deps' switches hiding the panel, titles and lines from the re
 `TrackedQuestHudEventTest` drives the six static event handlers over a recording tracker and pins
 one repaint per event for the named player only, the objective event skipped for an unshown quest,
 and the uuid registry (a player who left is never repainted, a reconnect replaces the stale one);
-`RepaintCoalescerTest` pins the fold (a burst is one paint at the end of the tick, the next request
-after it starts a new one, a refusing world leaves nothing phantom-queued, a request during the paint
-queues one more); `TrackedQuestHudDepsTest` pins the theme seam (an empty theme is the native look, a
+zc-presentation's `RepaintCoalescerTest` pins the fold beside the class (a burst is one paint at the
+end of the tick, the next request after it starts a new one, a refusing world leaves nothing
+phantom-queued, a request during the paint queues one more); `TrackedQuestHudDepsTest` pins the theme seam (an empty theme is the native look, a
 filled colour changes only itself) and every guarded reader. The pin event itself is pinned one
 module down in `zc-progression`'s `QuestTrackedEventTest`, through `QuestEvents.publishTo`. The
 attach on the native `HudManager`, the paint onto the document and the disconnect handler are in-game

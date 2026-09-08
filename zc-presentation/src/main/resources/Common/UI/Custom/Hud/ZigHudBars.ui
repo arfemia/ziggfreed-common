@@ -1,0 +1,129 @@
+// The shared progress-bar panel (ziggfreed-common, zc-presentation: ui/hud/bar/HudBarHud). A minimal,
+// semi-transparent stack of up to four bars in the left column, under the other left-column overlays.
+// Each bar is two lines: the name with the gain that has landed beside it, and the fill underneath.
+// Bars come up when the value behind them moves and go away when it stops; the panel itself hides
+// when nothing is showing. Which bars exist, what they are called and what fills them is authored in
+// Server/ZiggfreedCommon/HudBars/*.json; where the panel sits is Server/ZiggfreedCommon/HudBarPanels/.
+//
+// The document path and every root id are prefixed Zig*: the client's UI namespace is flat
+// across mods, so a generic name could be clobbered by another mod's HUD document. Slots are
+// positional (#ZigBar0..3) and addressed by index from Java; the count MUST match
+// HudBarPanelAsset.MAX_SLOTS. Text is pushed on .TextSpans, the fill is an Anchor width push on
+// #Fill and its colour a .Background.Color retint, so no texture ships for the bar.
+//
+// GEOMETRY is stated once here and referenced by every slot below, so a re-tune is a single edit:
+// the panel is 320 wide with 12 of horizontal padding, so a row is 296; the track pads 1 each side,
+// so the fill's full width is 294 (HudBarHud.TRACK_INNER_WIDTH_PX). Keep the three in step.
+
+$Z = "../Common/ZigButtons.ui";
+
+@BarLabelStyle = (FontSize: 13, TextColor: #e6e9ee, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
+
+@BarGainStyle = (FontSize: 13, TextColor: #ffd24a, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: End, VerticalAlignment: Center);
+
+@RowAnchor = (Top: 4, Width: 296);
+@LineAnchor = (Height: 18);
+@IconAnchor = (Width: 18, Height: 18);
+@GainAnchor = (Width: 96, Height: 18);
+@TrackAnchor = (Top: 3, Height: 6, Width: 296);
+@FillAnchor = (Left: 0, Top: 0, Bottom: 0, Width: 0);
+
+// The wrapper carries LayoutMode: Top so the heightless-anchored panel inside sizes to its content
+// instead of stretching from its Top anchor to the screen bottom.
+Group #ZigHudBarsParent {
+  LayoutMode: Top;
+
+  Group #ZigHudBarsPanel {
+    // Static fallback anchor only (NO Height - content-sized); the runtime applyConfiguredPosition
+    // (content-height variant) always wins. Width must match HudBarHud.PANEL_WIDTH_PX.
+    Anchor: (Width: 320, Left: 16, Top: 216);
+    LayoutMode: Top;
+    Padding: (Horizontal: 12, Vertical: 6);
+    Background: #000000(0.35);
+    Visible: false;
+
+    Group #ZigBar0 {
+      Anchor: @RowAnchor;
+      LayoutMode: Top;
+      Visible: false;
+      Group #Line {
+        Anchor: @LineAnchor;
+        LayoutMode: Left;
+        ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
+        AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+        Group #IcoGap { Visible: false; Anchor: (Width: 4); }
+        Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
+        Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
+      }
+      Group #Track {
+        Anchor: @TrackAnchor;
+        Padding: (Full: 1);
+        Background: #000000(0.5);
+        Group #Fill { Anchor: @FillAnchor; Background: #7fb2e0; }
+      }
+    }
+
+    Group #ZigBar1 {
+      Anchor: @RowAnchor;
+      LayoutMode: Top;
+      Visible: false;
+      Group #Line {
+        Anchor: @LineAnchor;
+        LayoutMode: Left;
+        ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
+        AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+        Group #IcoGap { Visible: false; Anchor: (Width: 4); }
+        Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
+        Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
+      }
+      Group #Track {
+        Anchor: @TrackAnchor;
+        Padding: (Full: 1);
+        Background: #000000(0.5);
+        Group #Fill { Anchor: @FillAnchor; Background: #7fb2e0; }
+      }
+    }
+
+    Group #ZigBar2 {
+      Anchor: @RowAnchor;
+      LayoutMode: Top;
+      Visible: false;
+      Group #Line {
+        Anchor: @LineAnchor;
+        LayoutMode: Left;
+        ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
+        AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+        Group #IcoGap { Visible: false; Anchor: (Width: 4); }
+        Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
+        Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
+      }
+      Group #Track {
+        Anchor: @TrackAnchor;
+        Padding: (Full: 1);
+        Background: #000000(0.5);
+        Group #Fill { Anchor: @FillAnchor; Background: #7fb2e0; }
+      }
+    }
+
+    Group #ZigBar3 {
+      Anchor: @RowAnchor;
+      LayoutMode: Top;
+      Visible: false;
+      Group #Line {
+        Anchor: @LineAnchor;
+        LayoutMode: Left;
+        ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
+        AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+        Group #IcoGap { Visible: false; Anchor: (Width: 4); }
+        Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
+        Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
+      }
+      Group #Track {
+        Anchor: @TrackAnchor;
+        Padding: (Full: 1);
+        Background: #000000(0.5);
+        Group #Fill { Anchor: @FillAnchor; Background: #7fb2e0; }
+      }
+    }
+  }
+}

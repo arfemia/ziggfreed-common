@@ -1,0 +1,187 @@
+package com.ziggfreed.common.ui.hud.bar;
+
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.event.EventPriority;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
+import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
+import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.ui.hud.KeyedCustomHud;
+import com.ziggfreed.common.util.SafeLog;
+
+/**
+ * The way in to the shared progress-bar panel: its lifecycle on every player, and the one call a
+ * consumer makes when a value it owns has moved.
+ *
+ * <p><b>Attach and detach.</b> Every player gets a panel at ready and loses it at disconnect. It is
+ * attached LATE on the ready event so it lands after whatever a consumer does there, and kept in
+ * {@link #LIVE} by player uuid so a change reported from any thread finds it in one map read.
+ *
+ * <p><b>The one call.</b> {@link #moved} names a source id and a delta, nothing more. The panel finds
+ * the bar authored for that source, records the gain, and paints; the reading behind the bar is
+ * asked of the registered {@link HudBarSource} at paint time, on the player's world thread. A source
+ * nobody authored a bar for costs nothing and draws nothing, which is what lets a mod report every
+ * value it has and leave the choice of which ones deserve a bar to the files.
+ *
+ * <p>Owner-wide changes go through {@link #repaintAllOnline()} and
+ * {@link #refreshPositionForAllOnline()}; both are called from the asset load events, so a reload
+ * lands on every screen without a reconnect.
+ */
+public final class HudBars {
+
+    /** Every live panel by player uuid: written at attach, dropped at detach, read by every change. */
+    static final Map<UUID, HudBarHud> LIVE = new ConcurrentHashMap<>();
+
+    private HudBars() {
+    }
+
+    // ==================== install ====================
+
+    /** Register the lifecycle. Call once from setup. Guarded and loud, like every HUD install in this library. */
+    public static void install(@Nonnull PluginBase plugin) {
+        try {
+            var events = plugin.getEventRegistry();
+            events.registerGlobal(EventPriority.LATE, PlayerReadyEvent.class, HudBars::onPlayerReady);
+            events.register(PlayerDisconnectEvent.class, HudBars::onPlayerDisconnect);
+            SafeLog.info("[hud] progress-bar panel installed: attaches at player ready, paints on reported"
+                    + " value changes (no tick)");
+        } catch (Throwable t) {
+            SafeLog.warn("[hud] the progress-bar panel could not be installed; no bar will appear this boot", t);
+        }
+    }
+
+    // ==================== the one call ====================
+
+    /**
+     * {@code sourceId}'s value moved by {@code delta} for {@code playerRef}. Returns whether a bar took
+     * it: false for a player with no panel, a source no enabled bar names, or a null reference. Any
+     * thread; the paint runs on the player's world thread.
+     */
+    public static boolean moved(@Nullable PlayerRef playerRef, @Nonnull String sourceId, double delta) {
+        if (playerRef == null) {
+            return false;
+        }
+        UUID uuid = playerRef.getUuid();
+        HudBarHud hud = uuid == null ? null : LIVE.get(uuid);
+        if (hud == null) {
+            return false;
+        }
+        HudBarAsset bar = HudBarConfig.getInstance().bySource(sourceId);
+        if (bar == null) {
+            return false;
+        }
+        hud.moved(bar, delta);
+        return true;
+    }
+
+    // ==================== owner-wide pushes ====================
+
+    /** Repaint every online player's panel: the bars or the panel were reloaded. */
+    public static void repaintAllOnline() {
+        for (HudBarHud hud : LIVE.values()) {
+            hud.repaint();
+        }
+    }
+
+    /** Re-anchor every online player's panel to the folded panel's position: the owner moved it. */
+    public static void refreshPositionForAllOnline() {
+        KeyedCustomHud.refreshPositionForAllOnline(HudBarHud.HUD_KEY,
+                HudBarPanelConfig.getInstance().current().position());
+    }
+
+    // ==================== lifecycle ====================
+
+    private static void onPlayerReady(@Nonnull PlayerReadyEvent event) {
+        try {
+            Player player = event.getPlayer();
+            World world = player.getWorld();
+            if (world == null) {
+                return;
+            }
+            world.execute(() -> attachOnWorldThread(player));
+        } catch (Throwable t) {
+            SafeLog.warn("[hud] progress-bar panel attach failed", t);
+        }
+    }
+
+    /** World thread: build the panel, remember it by uuid, hand it to the native {@code HudManager}. */
+    private static void attachOnWorldThread(@Nonnull Player player) {
+        try {
+            Ref<EntityStore> ref = player.getReference();
+            if (ref == null || !ref.isValid()) {
+                return;
+            }
+            Store<EntityStore> store = ref.getStore();
+            PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
+            UUID uuid = playerRef != null ? playerRef.getUuid() : null;
+            if (uuid == null) {
+                return;
+            }
+            HudBarHud hud = new HudBarHud(playerRef);
+            LIVE.put(uuid, hud);
+            player.getHudManager().addCustomHud(playerRef, hud);
+        } catch (Throwable t) {
+            SafeLog.warn("[hud] progress-bar panel attach failed on the world thread", t);
+        }
+    }
+
+    private static void onPlayerDisconnect(@Nonnull PlayerDisconnectEvent event) {
+        try {
+            PlayerRef playerRef = event.getPlayerRef();
+            UUID uuid = playerRef != null ? playerRef.getUuid() : null;
+            if (uuid == null) {
+                return;
+            }
+            LIVE.remove(uuid);
+            World world = KeyedCustomHud.aliveWorldOf(playerRef);
+            if (world != null) {
+                world.execute(() -> detachOnWorldThread(playerRef));
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[hud] progress-bar panel detach failed", t);
+        }
+    }
+
+    private static void detachOnWorldThread(@Nonnull PlayerRef playerRef) {
+        try {
+            Ref<EntityStore> ref = playerRef.getReference();
+            if (ref == null || !ref.isValid()) {
+                return;
+            }
+            Player player = ref.getStore().getComponent(ref, Player.getComponentType());
+            if (player != null) {
+                player.getHudManager().removeCustomHud(playerRef, HudBarHud.HUD_KEY);
+            }
+        } catch (Throwable t) {
+            SafeLog.warn("[hud] progress-bar panel detach failed on the world thread", t);
+        }
+    }
+
+    // ==================== registry, for a test ====================
+
+    /** Remember {@code hud} as {@code playerId}'s; replaces a stale one from a reconnect. */
+    static void register(@Nonnull UUID playerId, @Nonnull HudBarHud hud) {
+        LIVE.put(playerId, hud);
+    }
+
+    /** Forget {@code playerId}'s panel. */
+    static void unregister(@Nonnull UUID playerId) {
+        LIVE.remove(playerId);
+    }
+
+    /** Whether {@code playerId} has a live panel. */
+    static boolean isLive(@Nonnull UUID playerId) {
+        return LIVE.containsKey(playerId);
+    }
+}

@@ -19,6 +19,7 @@ import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.common.ui.hud.KeyedCustomHud;
+import com.ziggfreed.common.ui.hud.RepaintCoalescer;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -199,20 +200,10 @@ public final class TrackedQuestHud extends KeyedCustomHud implements TrackedQues
         return store == null ? null : ProgressionRuntime.subjects().questSubject(store, ref);
     }
 
-    /**
-     * The alive world holding this player's entity right now, or null when they are gone. Read off
-     * the entity's own store rather than the reference's last-ticked world uuid, because that uuid
-     * lags a hop by up to a tick and a paint queued on the world the player just LEFT would read
-     * the new store off the wrong thread. Plain field reads, safe from any thread.
-     */
+    /** The alive world holding this player's entity right now, or null when they are gone: {@link KeyedCustomHud#aliveWorldOf}. */
     @Nullable
     static World worldOf(@Nonnull PlayerRef playerRef) {
-        Ref<EntityStore> ref = playerRef.getReference();
-        if (ref == null) {
-            return null;
-        }
-        World world = ref.getStore().getExternalData().getWorld();
-        return world != null && world.isAlive() ? world : null;
+        return aliveWorldOf(playerRef);
     }
 
     // ==================== drawing ====================

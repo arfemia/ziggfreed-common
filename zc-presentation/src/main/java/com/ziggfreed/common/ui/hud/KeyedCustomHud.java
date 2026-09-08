@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud;
 import com.hypixel.hytale.server.core.ui.Anchor;
@@ -14,6 +15,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.inventory.PlayerAccess;
 
@@ -123,6 +125,15 @@ public abstract class KeyedCustomHud extends CustomUIHud {
     }
 
     /**
+     * How much of the interval is still to run at {@code now}, in milliseconds; zero once
+     * {@link #dueForPush} would answer true. For a HUD that defers an in-window push to the window's
+     * end rather than dropping it.
+     */
+    protected final long remainingInterval(long now) {
+        return Math.max(0L, updateIntervalMs() - (now - lastPushedMs.get()));
+    }
+
+    /**
      * Atomic acquire for per-frame callers: returns true if the caller should push now,
      * stamping the throttle in the same step. {@code force} bypasses the interval (and
      * still stamps). The CAS makes concurrent ticks emit at most one push per window.
@@ -163,6 +174,23 @@ public abstract class KeyedCustomHud extends CustomUIHud {
     @Nullable
     protected static Player resolvePlayer(@Nonnull PlayerRef playerRef) {
         return PlayerAccess.player(playerRef);
+    }
+
+    /**
+     * The alive world holding {@code playerRef}'s entity right now, or null when they are gone. Read
+     * off the entity's own store rather than the reference's last-ticked world uuid, because that
+     * uuid lags a hop by up to a tick and a paint queued on the world the player just LEFT would
+     * read the new store off the wrong thread. Plain field reads, safe from any thread; this is
+     * the executor an event-driven HUD hands its {@link RepaintCoalescer}.
+     */
+    @Nullable
+    public static World aliveWorldOf(@Nonnull PlayerRef playerRef) {
+        Ref<EntityStore> ref = playerRef.getReference();
+        if (ref == null) {
+            return null;
+        }
+        World world = ref.getStore().getExternalData().getWorld();
+        return world != null && world.isAlive() ? world : null;
     }
 
     /**

@@ -68,6 +68,8 @@ import com.ziggfreed.common.shop.asset.ShopEntryGeneratorAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
 import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.ui.hud.bar.HudBarAsset;
+import com.ziggfreed.common.ui.hud.bar.HudBarPanelAsset;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WorldSelector;
@@ -118,6 +120,13 @@ class AssetCodecInitTest {
         assertNotNull(EncounterBindingAsset.Progression.CODEC, "the Progression group codec must static-init");
         assertNotNull(EncounterBindingAsset.Feedback.CODEC, "the Feedback group codec must static-init");
         assertNotNull(EncounterBindingAsset.Discovery.CODEC, "the Discovery group codec must static-init");
+    }
+
+    @Test
+    void hudBarCodecsInitialize() {
+        assertNotNull(HudBarAsset.CODEC, "HudBarAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(HudBarPanelAsset.CODEC, "HudBarPanelAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(HudBarPanelAsset.Position.CODEC, "the panel Position group codec must static-init");
     }
 
     @Test

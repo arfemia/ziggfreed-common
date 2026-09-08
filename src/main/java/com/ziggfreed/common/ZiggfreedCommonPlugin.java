@@ -60,6 +60,7 @@ import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
+import com.ziggfreed.common.ui.hud.bar.HudBars;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
 import com.ziggfreed.common.world.stash.BlockStashBootstrap;
@@ -181,6 +182,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         EncounterBootstrap.install(this);
         registerEncounterSeams();
         InstanceBootstrap.installEncounterLeaderboard(this);
+        // The shared progress-bar panel on every player: which bars exist is the HudBars store's
+        // business, what fills one is whichever mod registered the bar's namespace, and this only
+        // attaches the panel and takes it down again.
+        HudBars.install(this);
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
     }

@@ -4,13 +4,16 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.protocol.ItemWithAllMetadata;
+import com.hypixel.hytale.protocol.packets.interface_.HudComponent;
 import com.hypixel.hytale.protocol.packets.interface_.NotificationStyle;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.io.PacketHandler;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.util.NotificationUtil;
 import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.inventory.PlayerAccess;
 
 /**
  * A thin, styled wrapper over the engine {@code NotificationUtil} toast API. Routes
@@ -168,6 +171,43 @@ public final class Notify {
                     NotificationStyle.Default, tag(tag));
         } catch (Throwable t) {
             CommonLog.LOGGER.atFine().log("Notify.itemKeyed failed: " + t.getMessage());
+        }
+    }
+
+    /**
+     * Take every notice currently on {@code playerRef}'s corner feed off it.
+     *
+     * <p>The feed holds seven entries and the engine offers NO way to retire one: the notification
+     * packet carries no id, no lifetime and no clear, and nothing in the interface packet family
+     * removes an entry. Hiding the whole {@code Notifications} component and showing it again in one
+     * breath is the only reach a server has, so that is what this does.
+     *
+     * <p><b>Whether the client rebuilds the feed empty on that round trip is NOT confirmed in game.</b>
+     * It may clear the entries or it may restore them untouched; there is no way to tell from the
+     * server side, and the client is the only authority. Confirm it on a full feed before depending
+     * on it for anything, and treat a caller that needs the feed genuinely empty as unbuilt until
+     * then.
+     *
+     * <p>It is ALL of them, including whatever this mod put there and whatever another mod did. Use
+     * it where a clean feed is worth more than the backlog on it - the start of a long piece of work
+     * whose own output the player will want to read - and never on a timer, since a notice the
+     * player had not got to yet goes with the rest.
+     *
+     * <p>World-thread only: the native HUD map is not concurrent. Try-guarded, and false when the
+     * player could not be resolved.
+     */
+    public static boolean flushFeed(@Nonnull PlayerRef playerRef) {
+        try {
+            Player player = PlayerAccess.player(playerRef);
+            if (player == null) {
+                return false;
+            }
+            player.getHudManager().hideHudComponents(playerRef, HudComponent.Notifications);
+            player.getHudManager().showHudComponents(playerRef, HudComponent.Notifications);
+            return true;
+        } catch (Throwable t) {
+            CommonLog.LOGGER.atFine().log("Notify.flushFeed failed: " + t.getMessage());
+            return false;
         }
     }
 

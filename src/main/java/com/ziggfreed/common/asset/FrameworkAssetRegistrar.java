@@ -75,6 +75,12 @@ import com.ziggfreed.common.progress.asset.ObjectiveKindFold;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
+import com.ziggfreed.common.ui.hud.bar.HudBarAsset;
+import com.ziggfreed.common.ui.hud.bar.HudBarConfig;
+import com.ziggfreed.common.ui.hud.bar.HudBarOwnerLayers;
+import com.ziggfreed.common.ui.hud.bar.HudBarPanelAsset;
+import com.ziggfreed.common.ui.hud.bar.HudBarPanelConfig;
+import com.ziggfreed.common.ui.hud.bar.HudBars;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
 
@@ -327,6 +333,36 @@ public final class FrameworkAssetRegistrar {
                         FeedbackMomentConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap())));
 
+        // --- HUD bars (Pattern A) - one bar on the shared progress-bar panel per file: its name key,
+        //     its picture, its colour, its order, how long it lingers, and the namespaced Source id
+        //     whose registered HudBarSource fills it. The library ships no bars; every entry is a
+        //     consumer's. Owner layer mods/ziggfreedcommon/hud-bars.json, re-read on the same event
+        //     the encounter owner files are; every online panel repaints so a reload lands live. ---
+        AssetStoreRegistrar.registerStore(HudBarAsset.class,
+                new DefaultAssetMap<String, HudBarAsset>(), HudBarAsset.TYPE_ROOT,
+                HudBarAsset::getId, HudBarAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HudBarAsset.class,
+                (LoadedAssetsEvent<String, HudBarAsset, DefaultAssetMap<String, HudBarAsset>> ev) -> {
+                    HudBarConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    HudBarOwnerLayers.reloadBars();
+                    HudBars.repaintAllOnline();
+                });
+
+        // --- HUD bar panels (Pattern A) - the panel the bars are drawn on: on/off, position, how many
+        //     at once. The library ships Default.json (zc-presentation's resources) so a bare server
+        //     has a working panel; a consumer's same-id file replaces it by pack order. Owner layer
+        //     mods/ziggfreedcommon/hud-bar-panels.json; a reload re-anchors every online panel. ---
+        AssetStoreRegistrar.registerStore(HudBarPanelAsset.class,
+                new DefaultAssetMap<String, HudBarPanelAsset>(), HudBarPanelAsset.TYPE_ROOT,
+                HudBarPanelAsset::getId, HudBarPanelAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HudBarPanelAsset.class,
+                (LoadedAssetsEvent<String, HudBarPanelAsset, DefaultAssetMap<String, HudBarPanelAsset>> ev) -> {
+                    HudBarPanelConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    HudBarOwnerLayers.reloadPanels();
+                    HudBars.refreshPositionForAllOnline();
+                    HudBars.repaintAllOnline();
+                });
+
         // --- Quests (Pattern A) - one authored quest per file, with native Parent inheritance and a
         //     per-objective-id merge, so a child quest retunes one step and keeps its siblings.
         //     Common ships no quest CONTENT; every entry is consumer pack JSON, and each consumer
@@ -503,7 +539,7 @@ public final class FrameworkAssetRegistrar {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
                             + "Lootables, RollPools, StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
-                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, "
+                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudBars, HudBarPanels, "
                             + "Quests, QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "
                             + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation).");
