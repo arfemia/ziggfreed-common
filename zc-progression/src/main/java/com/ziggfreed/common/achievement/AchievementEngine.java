@@ -471,7 +471,8 @@ public final class AchievementEngine {
         // Paid FIRST, announced second: the earn moment lists what the immediate rewards actually
         // handed over, so a rolled table reads as the items it produced rather than its name.
         RewardGrants.GrantOutcome outcome = grant(subject, achievement, achievement.autoRewards());
-        fireUnlocked(achievement, subject, achievement.requiresClaim(), outcome.receipt());
+        fireUnlocked(achievement, subject, achievement.requiresClaim(),
+                earnedRows(achievement, outcome));
         if (!achievement.requiresClaim()) {
             store.setStatus(subject, achievement.id(), AchievementStatus.CLAIMED);
             fireClaimed(achievement, subject, outcome, false);
@@ -939,12 +940,47 @@ public final class AchievementEngine {
     }
 
     /**
+     * What the earn moment lists: everything the immediate rewards actually handed over, plus, for
+     * an achievement whose payout WAITS to be collected, what is waiting.
+     *
+     * <p>An achievement that pays on the spot is a payout, so it lists its receipt and nothing
+     * else. One that has to be collected is the same shape as a quest that parks: it is finished,
+     * nothing has been handed over yet, and the notice announcing it is the one place a player is
+     * told what they have earned. Listing nothing there would announce a reward-bearing
+     * achievement as worth only its points, which is what a catalogue of collect-later content
+     * reads as when the earn moment can only speak for an empty grant.
+     *
+     * <p>The two never double up: the collect fires {@code Achievement_Claimed} with its own
+     * receipt, so what was promised here is named again as what actually arrived, exactly as a
+     * quest reads across {@code Quest_Parked} and {@code Quest_Claimed}.
+     */
+    @Nonnull
+    private static List<RewardSpec> earnedRows(@Nonnull Achievement achievement,
+                                               @Nonnull RewardGrants.GrantOutcome outcome) {
+        if (!achievement.requiresClaim()) {
+            return outcome.receipt();
+        }
+        List<RewardSpec> waiting = achievement.claimRewards();
+        if (waiting.isEmpty()) {
+            return outcome.receipt();
+        }
+        if (outcome.receipt().isEmpty()) {
+            return waiting;
+        }
+        List<RewardSpec> both = new ArrayList<>(outcome.receipt().size() + waiting.size());
+        both.addAll(outcome.receipt());
+        both.addAll(waiting);
+        return both;
+    }
+
+    /**
      * It is EARNED, and its immediate rewards are already paid. The icon travels with the moment
      * under the fixed key {@code icon}, because it is the achievement's own - written onto the
      * definition when the catalogue was folded, so nothing downstream has to go looking for one -
      * and so does everything else the fold attached under {@link Achievement#momentArgs()}, beneath
-     * the engine's own names. What the earn actually handed over rides under {@code rewards}: the
-     * grant's receipt, so a rolled table lists the items it produced and an empty roll adds no row.
+     * the engine's own names. What the earn is worth rides under {@code rewards}, as
+     * {@link #earnedRows} composes it: the immediate grant's receipt (a rolled table as the items
+     * it produced, an empty roll as no row), and after it whatever still waits to be collected.
      * It is fired AFTER that grant for exactly that reason.
      */
     private void fireUnlocked(@Nonnull Achievement achievement, @Nonnull Subject subject,

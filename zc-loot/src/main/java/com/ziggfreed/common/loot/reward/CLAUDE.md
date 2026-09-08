@@ -162,7 +162,9 @@ module or grow a second, subtly different idea of what a reward is.
 - **[`RewardChips`](RewardChips.java) + [`RewardChip`](RewardChip.java)** - how one reward READS,
   before it is granted. A chip is an optional item icon plus one already-composed client-resolved
   line, assembled from the same three sources the deferred-payout layer reads and in the same order
-  (the spec's own `NameKey`/`Icon`, then the kind FILE's `Presentation`, then the item form), so the
+  (the spec's own `NameKey`/`Icon`, then the kind FILE's `Presentation`, then the item form - a named
+  `Item`/`Id`, else the item a `Command` reward's `/give` line hands over, read by the same
+  `CommandRunner.readGive` the inventory-fit probe reads, counted as the line counts), so the
   same reward cannot read differently on a quest panel, a storefront offer and a results strip. An
   authored `NameKey` is emitted through zc-core's `ContentKeys`, never as written: the engine
   namespaces a key by the `.lang` FILENAME it was defined in while content is authored without that
@@ -174,9 +176,7 @@ module or grow a second, subtly different idea of what a reward is.
   key. A reward's OWN `NameKey` stays as written even when nothing ships it (the author's typo has
   to be findable). The label key's blanks are filled per the kind file's `Presentation.Args` (see
   below); unauthored, the one `{0}` is the reward's amount, typed numerically so a `{0, number}`
-  blank groups digits per locale. `itemChip(itemId, amount)` exposes the item-form reading for a
-  contributed source whose reward turns out to BE an item (a parsed `/give` line), so it reads
-  exactly like a declared item grant.
+  blank groups digits per locale.
   **Nothing branches on a kind id**, and a reward nothing can NAME is dropped rather than guessed at -
   painting a raw kind token at a player reads as a promise of something called that, and the fix is a
   two-line `Presentation` on the kind file. One rung sits between naming and dropping: a kind's OWNER
@@ -190,7 +190,9 @@ module or grow a second, subtly different idea of what a reward is.
   "+50 Bounty Tokens" with the amount a typed number the client groups), zc-objectives' `Flair`
   kind reading as the flair's `flair.<id>.name` under whichever loaded lang file ships it, else the
   id spelled out (`FlairChipReading`, contributed by its `FlairBootstrap`; the same ladder the
-  unlock toast reads) and the MMO's `MmoChipReading` (its computed boost/ability-mod/command lines). The library's own
+  unlock toast reads) and the MMO's `MmoChipReading` (only what its files cannot say: the computed
+  boost sentence, an ability-mod title read out of its catalog, a `/mmoboost give` line, and its
+  own neutral label for a command line nothing parses; a `/give` line is the library's item form). The library's own
   roll-at-grant-time kinds need no rung at all: zc-loot SHIPS presentation-only kind files for
   `Lootable`/`Droplist`/`Effect` (`src/main/resources/Server/ZiggfreedCommon/RewardKinds/`, NameKey
   into its own `ziggfreedcommon.loot.lang` family, stand-in icons, no `Command` - the

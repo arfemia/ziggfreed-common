@@ -55,6 +55,41 @@ class RewardChipsTest {
     }
 
     @Test
+    void aCommandRewardWhoseLineIsAGiveIsTheItemItGives() {
+        // The same reading the inventory-fit probe makes of a Command reward: a /give line IS an
+        // item grant, so it draws that item and counts what the line counts - with no consumer
+        // having to parse the line for every surface of its own.
+        RewardChips.Plan plan = RewardChips.plan(RewardSpec.of("Command",
+                Map.of("Command", "/give {player} Coin_Gold --quantity=3")));
+        assertEquals("Coin_Gold", plan.itemId());
+        assertEquals("Coin_Gold", plan.iconItemId());
+        assertEquals(3L, plan.amount(), "the count is the line's, not an Amount the reward never wrote");
+        assertNull(plan.nameKey());
+
+        RewardChips.Plan positional = RewardChips.plan(RewardSpec.of("Command",
+                Map.of("Command", "give {player} Wood_Planks 32")));
+        assertEquals("Wood_Planks", positional.itemId());
+        assertEquals(32L, positional.amount(), "a positional count still reads as the author meant it");
+
+        RewardChips.Plan other = RewardChips.plan(RewardSpec.of("Command",
+                Map.of("Command", "/tp {player} 0 64 0")));
+        assertNull(other.itemId(), "a line that gives nothing names no item");
+        assertNull(RewardChips.chipFor(RewardSpec.of("Command",
+                Map.of("Command", "/tp {player} 0 64 0"))),
+                "and with nothing else naming it, the generic reading drops it");
+    }
+
+    @Test
+    void aNamedItemOutranksTheGiveLine() {
+        // A reward that names its item AND carries a give line is read by what it names; the line
+        // is only asked when nothing else says what is handed over.
+        RewardChips.Plan plan = RewardChips.plan(RewardSpec.of("Command", Map.of(
+                "Item", "Gem_Ruby", "Count", "2", "Command", "/give {player} Coin_Gold --quantity=3")));
+        assertEquals("Gem_Ruby", plan.itemId());
+        assertEquals(2L, plan.amount());
+    }
+
+    @Test
     void theAmountLadderMatchesWhatThePayoutReads() {
         // A reward that previews as five and pays out one is the failure this ladder exists to stop.
         assertEquals(7L, RewardChips.amountOf(

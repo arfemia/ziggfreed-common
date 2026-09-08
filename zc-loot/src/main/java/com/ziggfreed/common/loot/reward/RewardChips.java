@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 
+import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.instance.reward.DeferredRewards;
@@ -19,9 +20,9 @@ import com.ziggfreed.common.instance.reward.DeferredRewards;
  * means.
  *
  * <p>A reward is a kind plus a bag of strings, and what a kind is called belongs to whoever defined
- * it. So nothing here branches on a kind id: a chip is assembled from the same three sources the
- * deferred-payout layer already reads, in the same order, so a reward previewed on a quest, on a
- * storefront offer and on a results screen cannot disagree about its own name.
+ * it. So nothing here branches on a kind id: a chip is assembled from three sources in a fixed
+ * order, so a reward previewed on a quest, on a storefront offer and on a results screen cannot
+ * disagree about its own name.
  *
  * <ol>
  *   <li>the reward's OWN {@code NameKey} / {@code Icon} parameters, which is one reward saying how it
@@ -33,8 +34,11 @@ import com.ziggfreed.common.instance.reward.DeferredRewards;
  *       not outrank the rungs below it - which is what lets a per-skill key family cover the skills
  *       it names while a skill it never heard of still reads through a contributed rescue instead of
  *       painting a raw key;</li>
- *   <li>the item form: a spec naming an item is drawn with that item's own engine display name, in
- *       whatever locale the player's client speaks.</li>
+ *   <li>the item form: a spec naming an item, or a {@code Command} reward whose line is a
+ *       {@code /give}, is drawn with that item's own engine display name, in whatever locale the
+ *       player's client speaks. The give line is read by the same {@link CommandRunner#readGive}
+ *       the inventory-fit probe reads, so a chip and a grant cannot disagree about what a line
+ *       hands over.</li>
  * </ol>
  *
  * <p><b>A reward nothing can name is DROPPED rather than guessed at.</b> Painting a raw kind token
@@ -54,6 +58,12 @@ public final class RewardChips {
     private static final String P_ITEM = "item";
 
     private static final String P_ID = "id";
+
+    /**
+     * The line a {@code Command} reward runs. Read here for one purpose only: a line that is a
+     * {@code /give} hands over an item, and that item is what the chip shows.
+     */
+    private static final String P_COMMAND = "command";
 
     /**
      * A consumer's own reading of one reward, for a mod that knows something about its own kind the
@@ -91,6 +101,22 @@ public final class RewardChips {
      */
     public static void contribute(@Nonnull Source source) {
         CONTRIBUTED.add(source);
+    }
+
+    /**
+     * Take a contributed reading back out, answering whether one was there to remove.
+     *
+     * <p>The undo of {@link #contribute}, for a caller whose reading outlives its backing: a test
+     * harness tearing its fixtures down, or a reload swapping a reading for a newer one. Without
+     * it a contribution is permanent for the life of the process, so a harness that installs a
+     * wallet reading and then drops the currency engine underneath it leaves every later reader
+     * asking a rung whose answer now depends on a seam that is gone.
+     *
+     * <p>Removes the FIRST equal entry, so a source contributed twice stays contributed once, and
+     * a source nothing contributed is simply not there.
+     */
+    public static boolean forget(@Nonnull Source source) {
+        return CONTRIBUTED.remove(source);
     }
 
     /**
@@ -233,17 +259,6 @@ public final class RewardChips {
         }
     }
 
-    /**
-     * The item-form reading as one reusable chip: the item's own picture beside its own engine
-     * display name, counted. Public so a contributed reading whose reward turns out to BE an item
-     * (a parsed {@code /give} line, say) reads exactly like a declared item grant instead of
-     * composing a second item line.
-     */
-    @Nonnull
-    public static RewardChip itemChip(@Nonnull String itemId, long amount) {
-        return RewardChip.of(itemId, itemLabel(itemId, amount));
-    }
-
     private static boolean isWritten(@Nullable String value) {
         return value != null && !value.isBlank();
     }
@@ -251,6 +266,11 @@ public final class RewardChips {
     /**
      * The pure half: which key, which item and which picture one reward resolves to, reading the
      * spec's own parameters first and the authored kind file second.
+     *
+     * <p>The item is the one the spec names, else the one its command line gives: a reward that
+     * runs {@code /give {player} Coin_Gold --quantity=3} IS three gold coins, on every consumer's
+     * surfaces alike, and it counts what the line counts rather than an {@code Amount} it never
+     * wrote. Read through the same string-only give reader the inventory-fit probe uses.
      */
     @Nonnull
     public static Plan plan(@Nonnull RewardSpec spec) {
@@ -260,7 +280,15 @@ public final class RewardChips {
         String icon = firstWritten(spec.param(DeferredRewards.PARAM_ICON),
                 kind == null ? null : safeIcon(kind, spec));
         String itemId = firstWritten(spec.param(P_ITEM), spec.param(P_ID));
-        return new Plan(nameKey, itemId, firstWritten(icon, itemId), amountOf(spec));
+        long amount = amountOf(spec);
+        if (itemId == null) {
+            CommandRunner.Give give = CommandRunner.readGive(spec.param(P_COMMAND));
+            if (give != null) {
+                itemId = give.itemId();
+                amount = Math.max(1L, give.quantity());
+            }
+        }
+        return new Plan(nameKey, itemId, firstWritten(icon, itemId), amount);
     }
 
     /**

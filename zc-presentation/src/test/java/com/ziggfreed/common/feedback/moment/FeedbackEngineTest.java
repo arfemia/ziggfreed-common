@@ -593,6 +593,34 @@ class FeedbackEngineTest {
                 "the secondary is still the first row when the rewards overflow");
     }
 
+    /**
+     * The budget under a secondary is two rows short of the panel (the secondary's own, and the
+     * one an overflow line may take), and every reward that fits it is DRAWN: a moment whose toast
+     * has a second line still lists its rewards beneath it, none folded away early.
+     */
+    @Test
+    void aSecondaryLeavesRoomForTheRewardsUnderIt() throws IOException {
+        FeedbackMomentAsset asset = moment("Achievement_Unlocked", """
+                { "Toast": { "Title": { "Key": "notify.achievement_unlocked" },
+                             "Secondary": { "Key": "notify.achievement_points" } } }
+                """);
+        int rewards = ToastRenderer.MAX_LINES - 2;
+        Map<String, Object> args = Map.of("rewards", namedRewards(rewards));
+        Message secondary = Msg.raw("+10 achievement points");
+
+        ToastSpec spec = FeedbackEngine.inPageToast(asset.getToast(), args, Msg.raw("headline"),
+                secondary);
+
+        assertEquals(1 + rewards, spec.lines().size(),
+                "the secondary, then every reward row that fits the budget, with no overflow line");
+        assertSame(secondary, spec.lines().get(0).text());
+        for (int i = 0; i < rewards; i++) {
+            assertEquals("test.reward_" + i,
+                    spec.lines().get(1 + i).text().getFormattedMessage().messageId,
+                    "reward row " + i + " is drawn in authored order beneath the secondary");
+        }
+    }
+
     @Test
     void momentRewardsPaintOneRowEachOnTheInPageToast() throws IOException {
         FeedbackMomentAsset asset = moment("Quest_Completed", """

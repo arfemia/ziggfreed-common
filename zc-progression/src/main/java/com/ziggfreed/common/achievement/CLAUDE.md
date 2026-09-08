@@ -49,12 +49,14 @@ which one shared instance cannot afford, and it is exactly why that method exist
   no second interaction. Never collapse them into one list plus a flag. The `Achievement_Claimed`
   feedback moment carries `collected` (true when the subject came back for what waited, false when
   it settled as it was earned) so a jingle authored for collecting never plays over the unlock;
-  each moment also carries what ITS grant actually handed over under `rewards` - the
-  `GrantOutcome.receipt()`, never the authored list: `Achievement_Unlocked` fires AFTER the auto
-  rewards are paid (the native `AchievementEvents.fireUnlocked` moves with it, never split) and
-  carries their receipt, `Achievement_Claimed` the receipt of whichever list that claim paid - so
-  an authored toast lists exactly what that moment put in the subject's hands, a `Lootable` as the
-  items it rolled and an empty roll as no row at all. `tryClaim` / `tryClaimMilestone` are the
+  each moment also carries what it is about under `rewards`: `Achievement_Unlocked` fires AFTER the
+  auto rewards are paid (the native `AchievementEvents.fireUnlocked` moves with it, never split)
+  and carries their `GrantOutcome.receipt()` followed by the claim rewards still WAITING
+  (`earnedRows`; the same shape as `Quest_Parked`, because for a catalogue that pays everything
+  through `Claim` the earn notice is the one place a subject is told what they earned),
+  `Achievement_Claimed` the receipt of whichever list that claim paid - so an authored toast at the
+  collect lists exactly what that moment put in the subject's hands, a `Lootable` as the items it
+  rolled and an empty roll as no row at all. `tryClaim` / `tryClaimMilestone` are the
   receipt-answering twins of the boolean `claim` / `claimMilestone` (null where those answer
   false; the boolean forms are thin wrappers, so the flush lives in the twin), for a surface
   raising its own toast after a collect - the book's milestone Collect lists a rung's roll through

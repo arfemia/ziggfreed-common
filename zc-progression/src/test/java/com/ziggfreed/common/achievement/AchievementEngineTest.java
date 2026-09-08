@@ -176,12 +176,13 @@ class AchievementEngineTest {
     }
 
     /**
-     * Each moment carries the list ITS grant pays under {@code rewards}: the unlock the immediate
-     * rewards, the collect the waiting ones - so an authored toast lists exactly what that moment
-     * handed over.
+     * The earn moment carries what the earn is worth under {@code rewards}: what its immediate
+     * grant handed over, and after it what still waits to be collected; the collect moment carries
+     * what the collect paid - so an authored toast at the earn lists everything the achievement
+     * earned, and the one at the collect lists what arrived.
      */
     @Test
-    void theUnlockAndClaimMomentsCarryTheListTheirGrantPays() {
+    void theUnlockMomentCarriesWhatWasPaidAndWhatWaitsAndTheClaimMomentWhatItPays() {
         Map<String, Map<String, Object>> byMoment = new LinkedHashMap<>();
         AchievementEngine engine = engine()
                 .feedbackHook((momentId, subject, args) -> byMoment.put(momentId, args))
@@ -194,14 +195,49 @@ class AchievementEngineTest {
         engine.setAchievements(List.of(achievement));
 
         engine.dispatch(ALICE, "BREAK_BLOCK", "Copper_Ore", null, 1L);
-        assertEquals(achievement.autoRewards(),
-                byMoment.get("Achievement_Unlocked").get("rewards"),
-                "the unlock moment carries what the earn pays on the spot");
+        List<RewardSpec> earned = new ArrayList<>(achievement.autoRewards());
+        earned.addAll(achievement.claimRewards());
+        assertEquals(earned, byMoment.get("Achievement_Unlocked").get("rewards"),
+                "the unlock moment carries what the earn paid on the spot, then what waits");
 
         engine.claim(ALICE, achievement);
         assertEquals(achievement.claimRewards(),
                 byMoment.get("Achievement_Claimed").get("rewards"),
                 "the collect moment carries what the collect pays");
+    }
+
+    /**
+     * An achievement whose whole payout WAITS is the shape a catalogue of collect-later content
+     * ships, and the earn notice is the one place its subject is told what they have earned: the
+     * unlock moment carries the waiting rewards even though nothing has been handed over yet,
+     * exactly as a parked quest announces what it will pay. One that settles on the spot carries
+     * its receipt and nothing else.
+     */
+    @Test
+    void anEarnWhoseRewardsWaitAnnouncesThemAndOneThatSettlesAnnouncesItsReceipt() {
+        Map<String, Map<String, Object>> byMoment = new LinkedHashMap<>();
+        AchievementEngine engine = engine()
+                .feedbackHook((momentId, subject, args) -> byMoment.put(momentId, args))
+                .build();
+        Achievement waiting = Achievement.builder("patient")
+                .criterion(criterion(0, "BREAK_BLOCK", "Copper_Ore", 1))
+                .claimReward(RewardSpec.of("test:pay", "Id", "later"))
+                .build();
+        Achievement settling = Achievement.builder("instant")
+                .criterion(criterion(0, "BREAK_BLOCK", "Iron_Ore", 1))
+                .autoReward(RewardSpec.of("test:pay", "Id", "now"))
+                .build();
+        engine.setAchievements(List.of(waiting, settling));
+
+        engine.dispatch(ALICE, "BREAK_BLOCK", "Copper_Ore", null, 1L);
+        assertEquals(waiting.claimRewards(), byMoment.get("Achievement_Unlocked").get("rewards"),
+                "an earn with nothing paid yet still announces what is waiting");
+        assertTrue(paid.isEmpty(), "and nothing has actually been handed over");
+
+        engine.dispatch(ALICE, "BREAK_BLOCK", "Iron_Ore", null, 1L);
+        assertEquals(settling.autoRewards(), byMoment.get("Achievement_Unlocked").get("rewards"),
+                "an earn that settles carries its receipt alone");
+        assertEquals(List.of("now"), paid);
     }
 
     @Test
@@ -481,7 +517,8 @@ class AchievementEngineTest {
 
     /**
      * The earn moment fires AFTER the immediate rewards are paid and carries what they actually
-     * handed over; the collect answers its own receipt and the claim moment carries the same.
+     * handed over (a rolled table as what it rolled), then what still waits as authored; the
+     * collect answers its own receipt and the claim moment carries the same.
      */
     @Test
     void theUnlockMomentFiresAfterTheAutoGrantAndBothMomentsCarryTheReceipt() {
@@ -510,8 +547,10 @@ class AchievementEngineTest {
 
         assertEquals(List.of("grant", "Achievement_Unlocked"), order,
                 "the earn is announced after the immediate rewards are paid");
-        assertEquals(rolled, byMoment.get("Achievement_Unlocked").get("rewards"),
-                "and it carries what the roll produced, not the authored spec");
+        List<RewardSpec> earned = new ArrayList<>(rolled);
+        earned.addAll(achievement.claimRewards());
+        assertEquals(earned, byMoment.get("Achievement_Unlocked").get("rewards"),
+                "and it carries what the roll produced, not the authored spec, then what waits");
 
         RewardGrants.GrantOutcome paid = engine.tryClaim(ALICE, achievement);
 
