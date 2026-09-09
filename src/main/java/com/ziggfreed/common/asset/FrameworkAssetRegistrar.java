@@ -558,7 +558,7 @@ public final class FrameworkAssetRegistrar {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
                             + "Lootables, RollPools, StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
-                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudBars, HudBarPanels, "
+                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudBars, HudBarPlacements, HudBarPanels, "
                             + "Quests, QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "
                             + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation).");
