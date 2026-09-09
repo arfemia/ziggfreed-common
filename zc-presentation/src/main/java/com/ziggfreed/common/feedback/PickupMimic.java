@@ -106,7 +106,12 @@ public final class PickupMimic {
         }
     }
 
-    private static void playPickupSfx(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+    /**
+     * The native pickup CUE alone, with no feed entry: for a grant whose notice lands somewhere
+     * other than the notification feed (a HUD row, a page) and only wants to sound like a pickup.
+     * 3D at {@code position} when given, else 2D. Never throws.
+     */
+    public static void playPickupSfx(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nullable Vector3d position) {
         try {
             int idx = PICKUP_SFX_INDEX.resolve();

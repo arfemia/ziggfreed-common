@@ -182,9 +182,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         EncounterBootstrap.install(this);
         registerEncounterSeams();
         InstanceBootstrap.installEncounterLeaderboard(this);
-        // The shared progress-bar panel on every player: which bars exist is the HudBars store's
-        // business, what fills one is whichever mod registered the bar's namespace, and this only
-        // attaches the panel and takes it down again.
+        // The shared progress-bar panel on every player: a row is created by the mod that reports
+        // a value moved, what fills one is whichever mod registered the row's namespace, and this
+        // only attaches the panel and takes it down again.
         HudBars.install(this);
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");

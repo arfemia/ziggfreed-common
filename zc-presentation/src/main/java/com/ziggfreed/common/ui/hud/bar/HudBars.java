@@ -21,18 +21,21 @@ import com.ziggfreed.common.ui.hud.KeyedCustomHud;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The way in to the shared progress-bar panel: its lifecycle on every player, and the one call a
+ * The way in to the shared progress-bar panel: its lifecycle on every player, and the two calls a
  * consumer makes when a value it owns has moved.
  *
  * <p><b>Attach and detach.</b> Every player gets a panel at ready and loses it at disconnect. It is
  * attached LATE on the ready event so it lands after whatever a consumer does there, and kept in
  * {@link #LIVE} by player uuid so a change reported from any thread finds it in one map read.
  *
- * <p><b>The one call.</b> {@link #moved} names a source id and a delta, nothing more. The panel finds
- * the bar authored for that source, records the gain, and paints; the reading behind the bar is
- * asked of the registered {@link HudBarSource} at paint time, on the player's world thread. A source
- * nobody authored a bar for costs nothing and draws nothing, which is what lets a mod report every
- * value it has and leave the choice of which ones deserve a bar to the files.
+ * <p><b>Rows come from the calls, not from files.</b> {@link #moved} names a value id, a delta and
+ * how the row should look ({@link HudBarDisplay}); the panel creates the row on its first move,
+ * dresses it from that display, records the gain and paints, and asks the registered
+ * {@link HudBarSource} for the fill at paint time on the player's world thread. {@link #itemMoved}
+ * names an item and a count and nothing more: the row's name and picture are the item's own, its
+ * number is the running count, and it draws no fill. Both rows share one panel and one
+ * {@code MaxVisible}, fill rows above item rows. A {@link HudBarAsset} authored for a row is an
+ * OPTIONAL override over either, and one switched off keeps the row off the panel.
  *
  * <p>Owner-wide changes go through {@link #repaintAllOnline()} and
  * {@link #refreshPositionForAllOnline()}; both are called from the asset load events, so a reload
@@ -61,14 +64,39 @@ public final class HudBars {
         }
     }
 
-    // ==================== the one call ====================
+    // ==================== the two calls ====================
+
+    /** The prefix of the row an item's output is counted on: {@code item:<ItemId>}. */
+    public static final String ITEM_ROW_PREFIX = "item:";
 
     /**
-     * {@code sourceId}'s value moved by {@code delta} for {@code playerRef}. Returns whether a bar took
-     * it: false for a player with no panel, a source no enabled bar names, or a null reference. Any
-     * thread; the paint runs on the player's world thread.
+     * {@code sourceId}'s value moved by {@code delta} for {@code playerRef}, and this is how its row
+     * should look. Returns whether a row took it: false for a player with no panel, a row an
+     * override switched off, or a null reference. Any thread; the paint runs on the player's world
+     * thread.
      */
-    public static boolean moved(@Nullable PlayerRef playerRef, @Nonnull String sourceId, double delta) {
+    public static boolean moved(@Nullable PlayerRef playerRef, @Nonnull String sourceId, double delta,
+            @Nonnull HudBarDisplay display) {
+        return report(playerRef, sourceId, sourceId, null, delta, display);
+    }
+
+    /**
+     * {@code quantity} of {@code itemId} landed for {@code playerRef}: count it on the item's own
+     * row ({@code item:<ItemId>}), created on first sight and dressed by the item itself
+     * ({@link HudBarDisplay#forItem}). Returns whether a row took it, as {@link #moved} does.
+     */
+    public static boolean itemMoved(@Nullable PlayerRef playerRef, @Nonnull String itemId, double quantity) {
+        return report(playerRef, itemRowId(itemId), null, itemId, quantity, HudBarDisplay.forItem(itemId));
+    }
+
+    /** The id of the row {@code itemId}'s output is counted on. */
+    @Nonnull
+    public static String itemRowId(@Nonnull String itemId) {
+        return ITEM_ROW_PREFIX + itemId;
+    }
+
+    private static boolean report(@Nullable PlayerRef playerRef, @Nonnull String rowId, @Nullable String sourceId,
+            @Nullable String itemId, double delta, @Nonnull HudBarDisplay display) {
         if (playerRef == null) {
             return false;
         }
@@ -77,11 +105,11 @@ public final class HudBars {
         if (hud == null) {
             return false;
         }
-        HudBarAsset bar = HudBarConfig.getInstance().bySource(sourceId);
-        if (bar == null) {
+        HudBarAsset override = HudBarConfig.getInstance().bySource(rowId);
+        if (override != null && !override.enabled()) {
             return false;
         }
-        hud.moved(bar, delta);
+        hud.moved(rowId, sourceId, itemId, delta, display);
         return true;
     }
 

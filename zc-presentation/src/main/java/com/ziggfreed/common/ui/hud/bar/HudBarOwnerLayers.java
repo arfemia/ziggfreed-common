@@ -8,16 +8,17 @@ import javax.annotation.Nonnull;
 import com.ziggfreed.common.asset.OwnerLayerReader;
 
 /**
- * The SERVER OWNER's last word on the bars and their panel, at
+ * The SERVER OWNER's last word on the rows and their panel, at
  * {@code mods/ziggfreedcommon/hud-bars.json} and {@code mods/ziggfreedcommon/hud-bar-panels.json}: a
  * bare map from an id to the leaves that id should read differently, decoded against the packs'
  * own answer through the same codecs the files use, exactly like every other owner file this
- * library reads.
+ * library reads. An entry under an id no pack authored stands on its own, so an owner retunes a
+ * row nobody shipped a file for by naming it in {@code Source}.
  *
  * <pre>{@code
  * // mods/ziggfreedcommon/hud-bars.json
- * { "mmo_fishing": { "Enabled": false },
- *   "mmo_mining":  { "Color": "#c0c0c0", "LingerMs": 8000 } }
+ * { "wood_off":   { "Source": "mymod:wood", "Enabled": false },
+ *   "slow_stone": { "Source": "mymod:stone", "Color": "#c0c0c0", "LingerMs": 8000 } }
  *
  * // mods/ziggfreedcommon/hud-bar-panels.json
  * { "default": { "Position": { "Preset": "BottomLeft", "OffsetY": 220 }, "MaxVisible": 3 } }

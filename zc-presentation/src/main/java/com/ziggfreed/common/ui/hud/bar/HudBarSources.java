@@ -13,15 +13,18 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The registry of {@link HudBarSource}s, one per namespace: the seam through which the panel asks a
- * mod it has never heard of what one of that mod's values reads right now.
+ * mod it has never heard of what one of that mod's values reads right now, to draw the row's fill.
  *
- * <p>A consumer registers once from its own setup, under the namespace its bars' {@code Source} ids
- * start with; the panel splits an authored source id at its colon, looks the namespace up here and
- * hands the source the rest. A bar naming a namespace nothing answers for is reported once per
- * namespace and then drawn as nothing, because a panel that stays quiet about an unfilled seam
- * would be a bar that silently never comes up.
+ * <p>A consumer registers once from its own setup, under the namespace its value ids start with; the
+ * panel splits a row's id at its colon, looks the namespace up here and hands the source the rest.
+ * A row moved under a namespace nothing answers for is reported once per namespace and then drawn
+ * without a fill, because a panel that stays quiet about an unfilled seam would be a bar that
+ * silently never fills.
  */
 public final class HudBarSources {
+
+    /** The separator between the namespace and the local part of a value id. */
+    static final char SOURCE_SEPARATOR = ':';
 
     private static final Map<String, HudBarSource> SOURCES = new ConcurrentHashMap<>();
 
@@ -32,8 +35,8 @@ public final class HudBarSources {
     }
 
     /**
-     * Answer for every bar whose {@code Source} starts with {@code namespace} (case-insensitive;
-     * folded lower). A second registration under the same namespace replaces the first.
+     * Answer for every row whose id starts with {@code namespace} (case-insensitive; folded lower).
+     * A second registration under the same namespace replaces the first.
      */
     public static void register(@Nonnull String namespace, @Nonnull HudBarSource source) {
         SOURCES.put(fold(namespace), source);
@@ -57,22 +60,22 @@ public final class HudBarSources {
     }
 
     /**
-     * The reading behind {@code bar} for {@code playerRef}, or null when its source names nothing,
-     * nothing answers for its namespace, or the source declined. Guarded: a source that throws costs
-     * its own bar for this paint and one line at fine, never the panel.
+     * The reading behind the value {@code sourceId} for {@code playerRef}, or null when the id has no
+     * namespace, nothing answers for its namespace, or the source declined. Guarded: a source that
+     * throws costs its own row's fill for this paint and one line at fine, never the panel.
      */
     @Nullable
-    public static HudBarSource.Reading read(@Nonnull PlayerRef playerRef, @Nonnull HudBarAsset bar) {
-        String namespace = bar.sourceNamespace();
-        String localId = bar.sourceLocalId();
+    public static HudBarSource.Reading read(@Nonnull PlayerRef playerRef, @Nonnull String sourceId) {
+        String namespace = namespaceOf(sourceId);
+        String localId = localIdOf(sourceId);
         if (namespace == null || localId == null) {
             return null;
         }
         HudBarSource source = SOURCES.get(namespace);
         if (source == null) {
             if (REPORTED_UNFILLED.add(namespace)) {
-                SafeLog.warn("[hud] the bar '" + bar.getId() + "' reads a value from '" + namespace
-                        + "', and no mod has registered a source under that name, so it will not be drawn");
+                SafeLog.warn("[hud] a row moved under '" + sourceId + "' reads its fill from '" + namespace
+                        + "', and no mod has registered a source under that name, so it draws no fill");
             }
             return null;
         }
@@ -83,6 +86,39 @@ public final class HudBarSources {
                     + t.getMessage());
             return null;
         }
+    }
+
+    // ==================== a value id's two halves ====================
+
+    /**
+     * The mod a value belongs to: the part of a {@code namespace:local} id before the colon,
+     * lower-cased so a registration and a reported id can never disagree by case. Null when the id
+     * is null or carries no namespace.
+     */
+    @Nullable
+    public static String namespaceOf(@Nullable String sourceId) {
+        if (sourceId == null) {
+            return null;
+        }
+        int at = sourceId.indexOf(SOURCE_SEPARATOR);
+        if (at <= 0) {
+            return null;
+        }
+        return sourceId.substring(0, at).trim().toLowerCase(Locale.ROOT);
+    }
+
+    /** The owning mod's own name for the value: the part after the colon, or null when there is no namespace or nothing after it. */
+    @Nullable
+    public static String localIdOf(@Nullable String sourceId) {
+        if (sourceId == null) {
+            return null;
+        }
+        int at = sourceId.indexOf(SOURCE_SEPARATOR);
+        if (at <= 0 || at == sourceId.length() - 1) {
+            return null;
+        }
+        String local = sourceId.substring(at + 1).trim();
+        return local.isEmpty() ? null : local;
     }
 
     /** Drop every registration and every report; for a test that installs its own. */

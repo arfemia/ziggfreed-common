@@ -333,11 +333,12 @@ public final class FrameworkAssetRegistrar {
                         FeedbackMomentConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap())));
 
-        // --- HUD bars (Pattern A) - one bar on the shared progress-bar panel per file: its name key,
-        //     its picture, its colour, its order, how long it lingers, and the namespaced Source id
-        //     whose registered HudBarSource fills it. The library ships no bars; every entry is a
-        //     consumer's. Owner layer mods/ziggfreedcommon/hud-bars.json, re-read on the same event
-        //     the encounter owner files are; every online panel repaints so a reload lands live. ---
+        // --- HUD bars (Pattern A) - an OPTIONAL override for one row on the shared progress-bar
+        //     panel: the Source names the row as the owning mod moves it, and every other leaf (name
+        //     key, picture, colour, order, linger, Enabled) is authored only to differ from what that
+        //     mod said. Rows exist without files; the library ships none. Owner layer
+        //     mods/ziggfreedcommon/hud-bars.json, re-read on the same event the encounter owner files
+        //     are; every online panel repaints so a reload lands live. ---
         AssetStoreRegistrar.registerStore(HudBarAsset.class,
                 new DefaultAssetMap<String, HudBarAsset>(), HudBarAsset.TYPE_ROOT,
                 HudBarAsset::getId, HudBarAsset.CODEC, null);

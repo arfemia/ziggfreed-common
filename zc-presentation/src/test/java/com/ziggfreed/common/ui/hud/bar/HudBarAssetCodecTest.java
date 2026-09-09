@@ -17,10 +17,11 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
- * The bar file's decode contract: every leaf reads back as written, every unauthored leaf answers its
- * documented default, a child under {@code Parent} keeps the leaves it did not restate, the source id
- * splits into the namespace the registry is keyed by and the local part a source is handed, and the
- * fold's source index answers the enabled bar for a source and nothing for a disabled one.
+ * The override file's decode contract: every authored leaf reads back as written, every unauthored
+ * leaf reads null so it changes nothing about the row, a child under {@code Parent} keeps the
+ * leaves it did not restate, the file's leaves fold into a display, and the fold's row index
+ * answers the override authored for a row, a switched-off one included, and nothing for a row
+ * nobody wrote about.
  */
 class HudBarAssetCodecTest {
 
@@ -50,8 +51,6 @@ class HudBarAssetCodecTest {
 
         assertEquals("Mymod_Wood", bar.getId(), "the id is the file name as written; the fold lower-cases it at merge");
         assertEquals("mymod:wood", bar.source());
-        assertEquals("mymod", bar.sourceNamespace());
-        assertEquals("wood", bar.sourceLocalId());
         assertEquals("mymod.wood.name", bar.labelKey());
         assertNotNull(bar.icon());
         assertEquals("Tool_Hatchet_Crude", bar.icon().itemId());
@@ -62,30 +61,51 @@ class HudBarAssetCodecTest {
     }
 
     @Test
-    void anEmptyFileAnswersEveryDocumentedDefault() throws Exception {
+    void anEmptyFileOverridesNothing() throws Exception {
         HudBarAsset bar = bar("{}", "bare", null, null);
 
-        assertNull(bar.source(), "no source means the bar never comes up");
-        assertNull(bar.sourceNamespace());
-        assertNull(bar.sourceLocalId());
+        assertNull(bar.source(), "no source means the file applies to no row");
         assertNull(bar.labelKey());
         assertNull(bar.icon());
-        assertEquals(HudBarAsset.DEFAULT_COLOR, bar.color());
-        assertEquals(HudBarAsset.DEFAULT_ORDER, bar.order());
-        assertEquals(HudBarAsset.DEFAULT_LINGER_MS, bar.lingerMs());
+        assertNull(bar.color(), "an unauthored colour keeps the reporting mod's");
+        assertNull(bar.order(), "an unauthored order keeps the reporting mod's");
+        assertNull(bar.lingerMs(), "an unauthored linger keeps the reporting mod's");
         assertTrue(bar.enabled());
+
+        HudBarDisplay display = bar.display();
+        assertNull(display.label());
+        assertNull(display.icon());
+        assertNull(display.color());
+        assertNull(display.order());
+        assertNull(display.lingerMs());
     }
 
     @Test
-    void aNonPositiveLingerReadsAsTheDefault() throws Exception {
-        assertEquals(HudBarAsset.DEFAULT_LINGER_MS, bar("{ \"LingerMs\": 0 }", "zero", null, null).lingerMs());
-        assertEquals(HudBarAsset.DEFAULT_LINGER_MS, bar("{ \"LingerMs\": -5 }", "neg", null, null).lingerMs());
+    void aNonPositiveLingerOverridesNothing() throws Exception {
+        assertNull(bar("{ \"LingerMs\": 0 }", "zero", null, null).lingerMs());
+        assertNull(bar("{ \"LingerMs\": -5 }", "neg", null, null).lingerMs());
     }
 
     @Test
     void anIconGroupWithBothLeavesBlankReadsAsNoIcon() throws Exception {
         HudBarAsset bar = bar("{ \"Icon\": { \"ItemId\": \"\", \"TexturePath\": \" \" } }", "blankicon", null, null);
         assertNull(bar.icon());
+    }
+
+    @Test
+    void theFilesLeavesFoldIntoADisplay() throws Exception {
+        HudBarAsset bar = bar("""
+                { "Source": "mymod:wood", "LabelKey": "mymod.wood.name",
+                  "Icon": { "TexturePath": "UI/Wood.png" }, "Color": "#6fbf73", "Order": 20, "LingerMs": 2500 }
+                """, "wood", null, null);
+
+        HudBarDisplay display = bar.display();
+        assertNotNull(display.label(), "an authored label key becomes a client-resolved message");
+        assertNotNull(display.icon());
+        assertEquals("UI/Wood.png", display.icon().texturePath());
+        assertEquals("#6fbf73", display.color());
+        assertEquals(20, display.order());
+        assertEquals(2500L, display.lingerMs());
     }
 
     @Test
@@ -107,42 +127,48 @@ class HudBarAssetCodecTest {
     }
 
     @Test
-    void theSourceIdSplitsAtItsFirstColonAndFoldsTheNamespace() throws Exception {
-        HudBarAsset bar = bar("{ \"Source\": \"  MyMod:skill/WOOD:cutting \" }", "split", null, null);
-
-        assertEquals("mymod", bar.sourceNamespace(), "the namespace is folded lower, so a registration matches by name");
-        assertEquals("skill/WOOD:cutting", bar.sourceLocalId(), "the local part keeps its case and its own colons");
-
-        assertNull(bar("{ \"Source\": \"nonamespace\" }", "none", null, null).sourceNamespace());
-        assertNull(bar("{ \"Source\": \"mymod:\" }", "empty", null, null).sourceLocalId());
-        assertNull(bar("{ \"Source\": \":wood\" }", "leading", null, null).sourceNamespace());
-    }
-
-    @Test
-    void theFoldAnswersTheEnabledBarForASourceAndNothingForADisabledOne() throws Exception {
+    void theFoldAnswersTheOverrideForARowSwitchedOffOrNot() throws Exception {
         HudBarAsset wood = bar("{ \"Source\": \"mymod:wood\", \"Order\": 20 }", "wood", null, null);
         HudBarAsset stone = bar("{ \"Source\": \"mymod:stone\", \"Enabled\": false }", "stone", null, null);
         HudBarAsset woodLater = bar("{ \"Source\": \"MYMOD:WOOD\", \"Order\": 30 }", "wood_two", null, null);
-        HudBarConfig.getInstance().mergePackLayer(Map.of("wood", wood, "stone", stone, "wood_two", woodLater));
+        HudBarAsset plank = bar("{ \"Source\": \"item:Wood_Plank\", \"LingerMs\": 9000 }", "plank", null, null);
+        HudBarConfig.getInstance().mergePackLayer(
+                Map.of("wood", wood, "stone", stone, "wood_two", woodLater, "plank", plank));
 
         assertSame(wood, HudBarConfig.getInstance().bySource("mymod:wood"),
-                "two bars naming one source resolve to the one that sorts first by Order, then id");
+                "two files naming one row resolve to the one that sorts first by Order, then id");
         assertSame(wood, HudBarConfig.getInstance().bySource(" MyMod:Wood "),
                 "the lookup is case-insensitive and trims, like every id in the fold");
-        assertNull(HudBarConfig.getInstance().bySource("mymod:stone"), "a disabled bar answers for no source");
-        assertNull(HudBarConfig.getInstance().bySource("mymod:nothing"));
+        assertSame(stone, HudBarConfig.getInstance().bySource("mymod:stone"),
+                "a switched-off override is still answered, so the panel can keep the row off");
+        assertFalse(HudBarConfig.getInstance().bySource("mymod:stone").enabled());
+        assertSame(plank, HudBarConfig.getInstance().bySource(HudBars.itemRowId("Wood_Plank")),
+                "an item row is overridden by the id it is counted under");
+        assertNull(HudBarConfig.getInstance().bySource("mymod:nothing"),
+                "a row nobody wrote about has no override and reads exactly what its mod said");
         assertNull(HudBarConfig.getInstance().bySource(null));
     }
 
     @Test
     void anOwnerEntryOverTheSameIdWinsInTheIndex() throws Exception {
-        HudBarAsset packWood = bar("{ \"Source\": \"mymod:wood\" }", "wood", null, null);
+        HudBarAsset packWood = bar("{ \"Source\": \"mymod:wood\", \"Color\": \"#6fbf73\" }", "wood", null, null);
         HudBarConfig.getInstance().mergePackLayer(Map.of("wood", packWood));
         assertSame(packWood, HudBarConfig.getInstance().bySource("mymod:wood"));
 
         HudBarAsset ownerWood = bar("{ \"Enabled\": false }", "wood", "wood", packWood);
         HudBarConfig.getInstance().mergeOwnerLayer(Map.of("wood", ownerWood));
-        assertNull(HudBarConfig.getInstance().bySource("mymod:wood"),
-                "an owner switching a bar off takes it out of the index on the next lookup");
+        HudBarAsset answered = HudBarConfig.getInstance().bySource("mymod:wood");
+        assertSame(ownerWood, answered, "the owner's entry is the one the index answers on the next lookup");
+        assertFalse(answered.enabled(), "an owner switching a row off");
+        assertEquals("#6fbf73", answered.color(), "over the pack's leaves it did not restate");
+    }
+
+    @Test
+    void anOwnerEntryWithNoPackParentStandsOnItsOwn() throws Exception {
+        HudBarAsset ownerOnly = bar("{ \"Source\": \"mymod:wood\", \"LingerMs\": 8000 }", "slow_wood", null, null);
+        HudBarConfig.getInstance().mergeOwnerLayer(Map.of("slow_wood", ownerOnly));
+
+        assertSame(ownerOnly, HudBarConfig.getInstance().bySource("mymod:wood"),
+                "an owner retunes a row nobody shipped a file for by naming it in Source");
     }
 }

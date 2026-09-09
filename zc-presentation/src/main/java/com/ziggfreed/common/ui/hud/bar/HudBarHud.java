@@ -18,7 +18,6 @@ import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.hud.HudPosition;
@@ -29,19 +28,26 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * One player's progress-bar panel: a minimal, semi-transparent stack of up to
- * {@value HudBarPanelAsset#MAX_SLOTS} bars, each two lines - the bar's name with the gain that has
- * landed since it came up, and the fill underneath - drawn only while the value behind it is moving.
+ * {@value HudBarPanelAsset#MAX_SLOTS} rows, drawn only while the values behind them are moving.
  *
- * <p><b>What it knows.</b> Bars, from {@link HudBarConfig}; a panel, from {@link HudBarPanelConfig};
- * and readings, from whichever {@link HudBarSource} a bar's namespace registered. It knows nothing
- * about what any value measures. A consumer never touches this class: it ships bar files and calls
- * {@link HudBars#moved} when a value changes.
+ * <p><b>Two parts to a row, freely combined.</b> A row draws a FILL when it has a reading to draw
+ * (its id names a namespace some {@link HudBarSource} answers for, and that source answers), and it
+ * carries an ITEM when it was moved as one ({@link HudBars#itemMoved}), in which case its picture
+ * and name are the item's own and the number beside the name is the running count since the row
+ * came up. A row with a fill is two lines, the name with the gain beside it over the fill; a row
+ * without one is the first line alone. Rows that draw a fill sit above rows that do not.
  *
- * <p><b>How it paints.</b> A change records the gain and starts the bar's linger clock, then asks
+ * <p><b>What it knows.</b> Rows, created on demand by the first move reported under an id and
+ * dressed by the {@link HudBarDisplay} that came with the move; overrides, from
+ * {@link HudBarConfig}; a panel, from {@link HudBarPanelConfig}; and readings, from whichever
+ * source a row's namespace registered. It knows nothing about what any value measures. A consumer
+ * never touches this class: it calls {@link HudBars#moved} or {@link HudBars#itemMoved}.
+ *
+ * <p><b>How it paints.</b> A move records the gain and starts the row's linger clock, then asks
  * for a paint. Paints are folded per tick ({@link RepaintCoalescer}) and held to one every
  * {@value #REPAINT_INTERVAL_MS} ms, with the last change always painted (a paint that arrives inside
  * the window is deferred to the window's end rather than dropped). One sweep is armed at a time, at
- * the earliest linger expiry, and it re-arms itself while anything is still live, so a bar goes
+ * the earliest linger expiry, and it re-arms itself while anything is still live, so a row goes
  * away on time with no tick anywhere. Everything that touches the player runs on their world thread.
  *
  * <p>The document is {@code Hud/ZigHudBars.ui}: four slots {@code #ZigBar0..3}, each a
@@ -77,6 +83,14 @@ public final class HudBarHud extends KeyedCustomHud {
     /** The shared word for a gain, {@code +{0, number}}, grouped by each player's own client. */
     private static final String GAIN_KEY = "ziggfreedcommon.ui.hud.bar.gain";
 
+    /**
+     * How the stack reads: rows that draw a fill first, then the settled order (lower higher), then
+     * the id, so the stack never reshuffles as different rows take the latest move.
+     */
+    static final Comparator<Row> STACK_ORDER = Comparator.comparing((Row r) -> !r.drawsFill())
+            .thenComparingInt(r -> r.look().order())
+            .thenComparing(Row::id);
+
     private final Map<String, LiveBar> live = new ConcurrentHashMap<>();
     private final RepaintCoalescer coalescer = new RepaintCoalescer(this::paintNow);
     private final AtomicBoolean paintDeferred = new AtomicBoolean();
@@ -86,15 +100,36 @@ public final class HudBarHud extends KeyedCustomHud {
         super(playerRef, HUD_KEY);
     }
 
-    /** One bar's moving state: the gain since it came up and when it goes away. Mutated under its own lock. */
+    /**
+     * One row's moving state: the two parts it was moved with (a value id to read a fill through,
+     * an item it counts), the display its last move came with, the gain since it came up and when
+     * it goes away. Mutated under its own lock.
+     */
     private static final class LiveBar {
+        @Nullable String sourceId;
+        @Nullable String itemId;
+        @Nonnull HudBarDisplay display = HudBarDisplay.NONE;
         double gain;
         long lastMovedMs;
         long expiresAtMs;
     }
 
-    /** What one drawn slot needs: the bar, its live state, and the reading behind it. */
-    record Row(@Nonnull HudBarAsset bar, double gain, long lastMovedMs, @Nonnull HudBarSource.Reading reading) {
+    /**
+     * What one drawn slot needs: the row's id, its settled look, the item it carries (null for
+     * none), its live state and the reading behind its fill (null for none).
+     */
+    record Row(@Nonnull String id, @Nonnull HudBarLook look, @Nullable String itemId, double gain,
+            long lastMovedMs, @Nullable HudBarSource.Reading reading) {
+
+        /** Whether the row has a fill to draw. */
+        boolean drawsFill() {
+            return reading != null;
+        }
+
+        /** Whether the row is about an item. */
+        boolean carriesItem() {
+            return itemId != null;
+        }
     }
 
     // ==================== KeyedCustomHud contract ====================
@@ -132,7 +167,7 @@ public final class HudBarHud extends KeyedCustomHud {
         return HudBarPanelConfig.getInstance().current().position();
     }
 
-    /** The first paint, inside the native {@code addCustomHud}: the document, its position, and no bars. */
+    /** The first paint, inside the native {@code addCustomHud}: the document, its position, and no rows. */
     @Override
     protected void build(@Nonnull UICommandBuilder cmd) {
         cmd.append(TEMPLATE);
@@ -143,17 +178,27 @@ public final class HudBarHud extends KeyedCustomHud {
     // ==================== a value moved ====================
 
     /**
-     * {@code bar}'s value changed by {@code delta}: add it to the gain shown since the bar came up,
-     * restart the bar's linger, and paint. Any thread; the paint runs on the player's world thread.
+     * The row {@code rowId} moved by {@code delta}: create it if this is its first move, remember
+     * the two parts it was moved with and the display that came along, add the delta to the gain
+     * shown since it came up, restart its linger, and paint. Any thread; the paint runs on the
+     * player's world thread.
+     *
+     * @param sourceId the value id to read the row's fill through, or null for a row with no fill
+     * @param itemId   the item the row counts, or null for a row about no item
      */
-    public void moved(@Nonnull HudBarAsset bar, double delta) {
+    public void moved(@Nonnull String rowId, @Nullable String sourceId, @Nullable String itemId, double delta,
+            @Nonnull HudBarDisplay display) {
         long now = System.currentTimeMillis();
-        LiveBar state = live.computeIfAbsent(bar.getId(), id -> new LiveBar());
+        long linger = HudBarLook.resolve(rowId, HudBarConfig.getInstance().bySource(rowId), display).lingerMs();
+        LiveBar state = live.computeIfAbsent(rowId, id -> new LiveBar());
         long expiresAt;
         synchronized (state) {
+            state.sourceId = sourceId;
+            state.itemId = itemId;
+            state.display = display;
             state.gain += delta;
             state.lastMovedMs = now;
-            state.expiresAtMs = now + bar.lingerMs();
+            state.expiresAtMs = now + linger;
             expiresAt = state.expiresAtMs;
         }
         requestPaint(now);
@@ -225,32 +270,41 @@ public final class HudBarHud extends KeyedCustomHud {
     }
 
     /**
-     * World thread: every live bar with a reading. A bar whose linger ran out, or whose file is gone
-     * or switched off, is forgotten here; one whose source declines this time is kept live but not
-     * drawn, so it still comes back if the source answers on the next move.
+     * World thread: every live row with something to draw, dressed by its override over its display.
+     * A row whose linger ran out, or whose override switched it off, is forgotten here; a fill row
+     * whose source declines this time and carries no item is kept live but not drawn, so it still
+     * comes back if the source answers on the next move.
      */
     @Nonnull
     private List<Row> collectLive(long now) {
         List<Row> rows = new ArrayList<>();
         for (Map.Entry<String, LiveBar> entry : live.entrySet()) {
+            String id = entry.getKey();
             LiveBar state = entry.getValue();
+            String sourceId;
+            String itemId;
+            HudBarDisplay display;
             double gain;
             long lastMoved;
             long expiresAt;
             synchronized (state) {
+                sourceId = state.sourceId;
+                itemId = state.itemId;
+                display = state.display;
                 gain = state.gain;
                 lastMoved = state.lastMovedMs;
                 expiresAt = state.expiresAtMs;
             }
-            HudBarAsset bar = HudBarConfig.getInstance().resolve(entry.getKey());
-            if (expiresAt <= now || bar == null || !bar.enabled()) {
-                live.remove(entry.getKey(), state);
+            HudBarAsset override = HudBarConfig.getInstance().bySource(id);
+            if (expiresAt <= now || (override != null && !override.enabled())) {
+                live.remove(id, state);
                 continue;
             }
-            HudBarSource.Reading reading = HudBarSources.read(getPlayerRef(), bar);
-            if (reading != null) {
-                rows.add(new Row(bar, gain, lastMoved, reading));
+            HudBarSource.Reading reading = sourceId != null ? HudBarSources.read(getPlayerRef(), sourceId) : null;
+            if (reading == null && itemId == null) {
+                continue;
             }
+            rows.add(new Row(id, HudBarLook.resolve(id, override, display), itemId, gain, lastMoved, reading));
         }
         return rows;
     }
@@ -269,26 +323,26 @@ public final class HudBarHud extends KeyedCustomHud {
     }
 
     /**
-     * Which rows get a slot, and in what order: the {@code maxVisible} most recently moved bars, so a
-     * value that just started moving is never kept off the panel by one that has been idling toward
-     * its expiry, drawn in their authored {@link HudBarAsset#order()} (then id) so the stack reads
-     * the same whichever of them moved last.
+     * Which rows get a slot, and in what order: the {@code maxVisible} most recently moved rows of
+     * either kind, so a value that just started moving is never kept off the panel by one that has
+     * been idling toward its expiry, drawn in {@link #STACK_ORDER} (fill rows above item rows, then
+     * the settled order, then id) so the stack reads the same whichever of them moved last.
      */
     @Nonnull
     static List<Row> choose(@Nonnull List<Row> rows, int maxVisible) {
         int slots = Math.max(0, Math.min(maxVisible, HudBarPanelAsset.MAX_SLOTS));
         List<Row> newest = new ArrayList<>(rows);
-        newest.sort(Comparator.comparingLong(Row::lastMovedMs).reversed()
-                .thenComparing(Row::bar, HudBarConfig::byOrderThenId));
+        newest.sort(Comparator.comparingLong(Row::lastMovedMs).reversed().thenComparing(STACK_ORDER));
         List<Row> shown = new ArrayList<>(newest.subList(0, Math.min(slots, newest.size())));
-        shown.sort(Comparator.comparing(Row::bar, HudBarConfig::byOrderThenId));
+        shown.sort(STACK_ORDER);
         return shown;
     }
 
     /**
      * Map rows onto the document's fixed slots. Every slot is addressed on every paint - shown ones
      * filled, surplus ones hidden - because a partial update can restyle an element that exists but
-     * never add one. The whole panel goes when nothing is showing or the owner switched it off.
+     * never add one. A row with no fill hides its track and is its first line alone. The whole
+     * panel goes when nothing is showing or the owner switched it off.
      */
     static void paint(@Nonnull UICommandBuilder cmd, @Nonnull List<Row> rows, boolean panelEnabled) {
         cmd.set(ROOT + ".Visible", panelEnabled && !rows.isEmpty());
@@ -299,28 +353,25 @@ public final class HudBarHud extends KeyedCustomHud {
                 continue;
             }
             Row row = rows.get(i);
-            HudBarAsset bar = row.bar();
+            HudBarLook look = row.look();
             cmd.set(slot + ".Visible", true);
             // .TextSpans, never .Text: a Message on a Label's String sink crashes the client.
-            cmd.set(slot + " #Line #Label.TextSpans", label(bar));
+            cmd.set(slot + " #Line #Label.TextSpans", look.label());
             boolean hasGain = row.gain() > 0;
             cmd.set(slot + " #Line #Gain.Visible", hasGain);
             if (hasGain) {
                 cmd.set(slot + " #Line #Gain.TextSpans", gain(row.gain()));
             }
-            boolean iconShown = IconRenderer.applyIcon(cmd, slot + " #Line", bar.icon());
+            boolean iconShown = IconRenderer.applyIcon(cmd, slot + " #Line", look.icon());
             cmd.set(slot + " #Line #IcoGap.Visible", iconShown);
-            UiRetint.retintColor(cmd, slot + " #Track #Fill", bar.color());
-            int fillWidth = (int) Math.round(row.reading().fraction() * TRACK_INNER_WIDTH_PX);
-            cmd.setObject(slot + " #Track #Fill.Anchor", fillAnchor(fillWidth));
+            boolean fill = row.drawsFill();
+            cmd.set(slot + " #Track.Visible", fill);
+            if (fill) {
+                UiRetint.retintColor(cmd, slot + " #Track #Fill", look.color());
+                int fillWidth = (int) Math.round(row.reading().fraction() * TRACK_INNER_WIDTH_PX);
+                cmd.setObject(slot + " #Track #Fill.Anchor", fillAnchor(fillWidth));
+            }
         }
-    }
-
-    /** The bar's name, resolved on the client; its own id when the file names no key. */
-    @Nonnull
-    private static Message label(@Nonnull HudBarAsset bar) {
-        String key = bar.labelKey();
-        return key != null ? ContentKeys.tr(key) : Msg.raw(bar.getId());
     }
 
     /**
@@ -346,15 +397,15 @@ public final class HudBarHud extends KeyedCustomHud {
         return a;
     }
 
-    /** Whether {@code barId} is live on this panel right now; for a test reading the state. */
-    boolean isLive(@Nonnull String barId) {
-        return live.containsKey(barId);
+    /** Whether {@code rowId} is live on this panel right now; for a test reading the state. */
+    boolean isLive(@Nonnull String rowId) {
+        return live.containsKey(rowId);
     }
 
-    /** Forget a bar the panel should no longer draw; the next paint hides its slot. */
-    void forget(@Nullable String barId) {
-        if (barId != null) {
-            live.remove(barId);
+    /** Forget a row the panel should no longer draw; the next paint hides its slot. */
+    void forget(@Nullable String rowId) {
+        if (rowId != null) {
+            live.remove(rowId);
         }
     }
 }

@@ -141,9 +141,11 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
   - [`ui/hud/`](src/main/java/com/ziggfreed/common/ui/hud/CLAUDE.md) - `KeyedCustomHud` +
     `HudPosition` + `RepaintCoalescer`.
   - [`ui/hud/bar/`](src/main/java/com/ziggfreed/common/ui/hud/bar/CLAUDE.md) - the shared
-    progress-bar HUD: the `HudBars` and `HudBarPanels` stores, the `HudBarSource` seam a consumer
-    fills under its namespace, `HudBars.moved` the one call a consumer makes, and `HudBarHud` the
-    panel that draws it.
+    progress-bar HUD: rows created on demand by `HudBars.moved` (a value, with the `HudBarDisplay`
+    the consumer supplies) and `HudBars.itemMoved` (an item, dressed by itself), the `HudBarSource`
+    fill seam a consumer registers under its namespace, `HudBarLook` the settled look, the
+    `HudBars` store as an OPTIONAL per-row override and the `HudBarPanels` store for placement,
+    and `HudBarHud` the panel that draws it (fill rows above item rows).
   - `ui/icon/` - `IconRenderer`, the ONE seam that paints an `icon.IconSpec` into a row or a chip:
     a row ships a one-slot `ItemGrid #IcoItem` (styled from the `ZigButtons.ui` ladder; the item
     lands on its `.Slots` as an `ItemGridSlot`, since the client has no `ItemIcon` widget type) and
@@ -200,10 +202,11 @@ at `Server/ZiggfreedCommon/FeedbackMoments/<moment id>.json` and their wording a
 CONTENT a consumer overrides by id, every file carrying a public-facing `$Comment` naming the
 arguments the moment carries and how to override it. `Server/Languages/<locale>/ziggfreedcommon.ui.lang`
 (nine locales) carries the words the shared widgets put on screen: the search row's Search and
-Clear, and the progress-bar panel's gain (`hud.bar.gain`, `+{0, number}`). `Common/UI/Custom/Hud/ZigHudBars.ui`
+Clear, and the progress-bar panel's gain (`hud.bar.gain`, `+{0, number}`, which an item row's running
+count rides too). `Common/UI/Custom/Hud/ZigHudBars.ui`
 is the progress-bar panel's document, and `Server/ZiggfreedCommon/HudBarPanels/Default.json` the
-panel every bar is drawn on (on, TopLeft (16, 352), four bars), a consumer or an owner overriding
-it by id.
+panel every row is drawn on (on, TopLeft (16, 216), four rows), a consumer or an owner overriding
+it by id; the library ships no `HudBars` file, since a row needs none.
 
 ## Conventions
 
@@ -225,9 +228,11 @@ per keystroke; it is the shared `ZigSearchRow`.
 ## Tests
 
 Thin relative to the package count: `HudPositionTest` (corner-preset parsing + anchor math),
-`RepaintCoalescerTest` (a burst is one paint), the four progress-bar suites (`HudBarAssetCodecTest`,
-`HudBarPanelAssetTest` incl. the default position, `HudBarSlotsTest` for which live bars get a slot,
-`HudBarSourcesTest` for the namespace registry),
+`RepaintCoalescerTest` (a burst is one paint), the five progress-bar suites (`HudBarAssetCodecTest`,
+`HudBarPanelAssetTest` incl. the default position, `HudBarSlotsTest` for which live rows get a slot
+and fill rows sorting above item rows, `HudBarSourcesTest` for the namespace registry and the
+value-id split, `HudBarLookTest` for the override-over-display fold, an unauthored item's own row
+and the two row shapes the paint draws),
 `SettingsFormTest` (field-spec render/refresh/collect round trip), `ZigSearchRowTest` (the scoped
 value path, `carry` under an `@`-key and its refusal of a bare one, and the two button words being
 authored in the shipped en-US file), and `DestinationsTest` (the

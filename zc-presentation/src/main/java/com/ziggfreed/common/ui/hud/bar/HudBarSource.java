@@ -6,18 +6,19 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 
 /**
- * Where a bar's numbers come from: the mod that owns a value answers, for one player and one of its
+ * Where a row's FILL comes from: the mod that owns a value answers, for one player and one of its
  * own value ids, how far along the value is and where it tops out. The panel knows nothing else
  * about the value - not what it measures, not what unit it is in, not why it moved.
  *
  * <p>A consumer registers ONE of these under its namespace ({@link HudBarSources#register}) and
- * ships a {@link HudBarAsset} per value it wants a bar for, each naming a {@code namespace:local}
- * source. It is asked on the player's world thread, at paint time, only for a bar that is live, and
- * only with the LOCAL half of the id (the part after the colon), so a source parses its own
- * vocabulary and nothing else.
+ * reports every move of a value as {@link HudBars#moved} with a {@code namespace:local} id and the
+ * row's display. It is asked on the player's world thread, at paint time, only for a row that is
+ * live, and only with the LOCAL half of the id (the part after the colon), so a source parses its
+ * own vocabulary and nothing else.
  *
  * <p>Answer null for a value this source cannot read right now (a player with no data yet, an id it
- * does not recognise, a player who has this display switched off): the bar is simply not drawn.
+ * does not recognise, a player who has this display switched off): a row that carries nothing else
+ * is simply not drawn.
  */
 @FunctionalInterface
 public interface HudBarSource {

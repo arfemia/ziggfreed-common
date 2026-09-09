@@ -10,21 +10,22 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 
 /**
- * The {@code defaults < pack < owner} fold of every {@link HudBarAsset}, keyed by bar id.
+ * The {@code defaults < pack < owner} fold of every {@link HudBarAsset}, keyed by override id.
  *
- * <p>Process-wide, because the defining ASSETS are: one folder, one fold, one answer to "which bar
- * does this value fill", however many mods author bars. The library ships no bars of its own; every
- * entry is a consumer's pack JSON, and a server owner's {@code mods/ziggfreedcommon/hud-bars.json}
- * overlays leaf by leaf ({@link HudBarOwnerLayers}).
+ * <p>Process-wide, because the defining ASSETS are: one folder, one fold, one answer to "has
+ * anyone said anything about this row", however many mods author overrides. The library ships
+ * none of its own; every entry is a pack's JSON or a server owner's
+ * {@code mods/ziggfreedcommon/hud-bars.json} entry ({@link HudBarOwnerLayers}), which overlays a
+ * pack's same-id file leaf by leaf or stands on its own when no pack authored that id.
  *
- * <p>{@link #bySource} is the read the panel makes on every value change, so the source index is
- * kept beside the fold and rebuilt whenever a layer merges rather than scanned per change.
+ * <p>{@link #bySource} is the read the panel makes on every move and every paint, so the index by
+ * row id is kept beside the fold and rebuilt whenever a layer merges rather than scanned per read.
  */
 public final class HudBarConfig extends AbstractKeyedAssetConfig<HudBarAsset> {
 
     private static final HudBarConfig INSTANCE = new HudBarConfig();
 
-    /** Source id (as authored, trimmed) to the bar it fills; rebuilt lazily after a merge. */
+    /** Row id (folded lower) to the override authored for it; rebuilt lazily after a merge. */
     @Nullable private volatile Map<String, HudBarAsset> bySource;
 
     private HudBarConfig() {
@@ -54,9 +55,11 @@ public final class HudBarConfig extends AbstractKeyedAssetConfig<HudBarAsset> {
     }
 
     /**
-     * The enabled bar {@code sourceId} fills, or null when no authored bar names that source (or the
-     * one that does is switched off). Two bars naming one source resolve to the one that sorts first
-     * by {@link HudBarAsset#order()} then id, so the answer is stable across reloads.
+     * The override authored for the row moved under {@code sourceId}, switched off or not, or null
+     * when nothing is authored for it (the common case: the row then reads exactly what the
+     * reporting mod said). A disabled override is answered so the panel can honour the switch. Two
+     * files naming one row resolve to the one that sorts first by {@code Order} then id, so the
+     * answer is stable across reloads.
      */
     @Nullable
     public HudBarAsset bySource(@Nullable String sourceId) {
@@ -74,21 +77,26 @@ public final class HudBarConfig extends AbstractKeyedAssetConfig<HudBarAsset> {
         }
         Map<String, HudBarAsset> built = new LinkedHashMap<>();
         all().values().stream()
-                .filter(bar -> bar.enabled() && bar.source() != null)
+                .filter(bar -> bar.source() != null)
                 .sorted(HudBarConfig::byOrderThenId)
                 .forEach(bar -> built.putIfAbsent(bar.source().toLowerCase(Locale.ROOT), bar));
         bySource = built;
         return built;
     }
 
-    /** The one ordering every listing of bars uses: authored Order, then id. */
+    /** The one ordering two overrides of one row are ranked by: authored Order (unauthored last), then id. */
     static int byOrderThenId(@Nonnull HudBarAsset a, @Nonnull HudBarAsset b) {
-        int byOrder = Integer.compare(a.order(), b.order());
+        int byOrder = Integer.compare(orderOf(a), orderOf(b));
         if (byOrder != 0) {
             return byOrder;
         }
         String idA = a.getId() == null ? "" : a.getId();
         String idB = b.getId() == null ? "" : b.getId();
         return idA.compareTo(idB);
+    }
+
+    private static int orderOf(@Nonnull HudBarAsset bar) {
+        Integer order = bar.order();
+        return order != null ? order : HudBarLook.DEFAULT_ORDER;
     }
 }

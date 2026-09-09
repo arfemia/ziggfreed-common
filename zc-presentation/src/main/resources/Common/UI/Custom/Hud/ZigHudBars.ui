@@ -1,9 +1,12 @@
 // The shared progress-bar panel (ziggfreed-common, zc-presentation: ui/hud/bar/HudBarHud). A minimal,
-// semi-transparent stack of up to four bars in the left column, under the other left-column overlays.
-// Each bar is two lines: the name with the gain that has landed beside it, and the fill underneath.
-// Bars come up when the value behind them moves and go away when it stops; the panel itself hides
-// when nothing is showing. Which bars exist, what they are called and what fills them is authored in
-// Server/ZiggfreedCommon/HudBars/*.json; where the panel sits is Server/ZiggfreedCommon/HudBarPanels/.
+// semi-transparent stack of up to four rows in the left column, under the other left-column overlays.
+// A row is created the moment a mod reports a value moved and dressed by what that mod says about
+// it, so nothing is authored for a row to appear; Server/ZiggfreedCommon/HudBars/*.json is an
+// optional per-row override and Server/ZiggfreedCommon/HudBarPanels/ is where the panel sits.
+// A row that draws a fill is two lines: the name with the gain beside it, and the fill underneath.
+// A row about an item is the first line alone (its icon, its name, the running count) with #Track
+// hidden. Fill rows sit above item rows. Rows come up when the value behind them moves and go away
+// when it stops; the panel itself hides when nothing is showing.
 //
 // The document path and every root id are prefixed Zig*: the client's UI namespace is flat
 // across mods, so a generic name could be clobbered by another mod's HUD document. Slots are
