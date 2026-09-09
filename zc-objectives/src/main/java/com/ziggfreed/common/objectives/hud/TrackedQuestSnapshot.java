@@ -17,6 +17,7 @@ import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.util.NumberFormatter;
 
 /**
  * One paint of the tracker, worked out from the engine and nothing else: which quests are on it,
@@ -39,6 +40,14 @@ public record TrackedQuestSnapshot(boolean panelVisible, @Nonnull List<Block> bl
     /** Objective rows per quest block the tracker document ships ({@code #ObjRow0..3}). */
     public static final int MAX_ROWS = 4;
 
+    /**
+     * The goal from which a count is shown compressed rather than in full: under it the exact
+     * figures fit the row comfortably, at and above it the digits start crowding out the
+     * objective's own line. It reads off the LARGER of the two numbers, so a row is either
+     * exact on both sides or compressed on both, never one of each.
+     */
+    public static final long COMPACT_COUNT_FROM = 10_000L;
+
     /** Nothing on screen: the panel is hidden and there are no blocks to paint. */
     public static final TrackedQuestSnapshot HIDDEN = new TrackedQuestSnapshot(false, List.of());
 
@@ -50,6 +59,10 @@ public record TrackedQuestSnapshot(boolean panelVisible, @Nonnull List<Block> bl
      * One objective line: what it reads as, the {@code current/required} count as the plain string
      * the count label shows (EMPTY for a report-back hand-in, which reads cleaner with none), and
      * whether it is done, which is what flips the glyph and the colours.
+     *
+     * <p>The count is compressed to k/M once the goal reaches {@link #COMPACT_COUNT_FROM}
+     * ({@code 1372/10000} reads {@code 1.4k/10.0k}), so an objective counting into the thousands
+     * stays a few characters wide on a row whose width its own line is competing for.
      */
     public record Row(@Nonnull Message text, @Nonnull String count, boolean complete) {
     }
@@ -108,10 +121,24 @@ public record TrackedQuestSnapshot(boolean panelVisible, @Nonnull List<Block> bl
             boolean complete = state != null && state.isCompleted();
             int required = state != null ? state.required() : objective.amountAsInt();
             int current = complete ? required : (state != null ? state.current() : 0);
-            String count = isReportBack(objective) ? "" : current + "/" + required;
+            String count = isReportBack(objective) ? "" : countOf(current, required);
             rows.add(new Row(ProgressionTexts.objectiveOrUntitled(quest.id(), objective.id()), count, complete));
         }
         return new Block(quest.id(), ProgressionTexts.titleOrUntitled(quest.id()), rows);
+    }
+
+    /**
+     * The {@code current/required} pair as the count label shows it: written out in full while the
+     * goal is small ({@code 24/50}, {@code 8/9500}), and both sides compressed to k/M once it
+     * reaches {@link #COMPACT_COUNT_FROM} ({@code 1372/10000} reads {@code 1.4k/10.0k}). Mixing
+     * the two forms in one pair reads as a mistake, which is why the switch is per ROW.
+     */
+    @Nonnull
+    private static String countOf(int current, int required) {
+        if (Math.max(current, required) < COMPACT_COUNT_FROM) {
+            return current + "/" + required;
+        }
+        return NumberFormatter.compact(current, 1_000L) + "/" + NumberFormatter.compact(required, 1_000L);
     }
 
     /**

@@ -233,6 +233,36 @@ class TrackedQuestSnapshotTest {
         assertEquals("0/4", snapshot().blocks().get(0).rows().get(0).count());
     }
 
+    @Test
+    void aGoalInTheThousandsIsCompressedOnBothSidesOfTheCount() {
+        Quest quest = Quest.builder("q_mill")
+                .objective(objective("lumber", "BREAK_BLOCK", "Oak_Log", 10_000, 0))
+                .reward(RewardSpec.of("NOTE", "text", "parked"))
+                .build();
+        engine.setQuests(List.of(quest));
+        engine.accept(player, quest);
+        engine.track(player, quest.id());
+
+        assertEquals("0/10.0k", snapshot().blocks().get(0).rows().get(0).count());
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 1372);
+        assertEquals("1.4k/10.0k", snapshot().blocks().get(0).rows().get(0).count(),
+                "a compressed row compresses both sides, never one figure of each form");
+    }
+
+    @Test
+    void aGoalUnderTheThresholdKeepsItsExactFigures() {
+        Quest quest = Quest.builder("q_fibre")
+                .objective(objective("fibre", "BREAK_BLOCK", "Oak_Log", 9_500, 0))
+                .reward(RewardSpec.of("NOTE", "text", "parked"))
+                .build();
+        engine.setQuests(List.of(quest));
+        engine.accept(player, quest);
+        engine.track(player, quest.id());
+        engine.dispatch(player, "BREAK_BLOCK", "Oak_Log", null, 8);
+
+        assertEquals("8/9500", snapshot().blocks().get(0).rows().get(0).count());
+    }
+
     // ==================== slots ====================
 
     @Test
