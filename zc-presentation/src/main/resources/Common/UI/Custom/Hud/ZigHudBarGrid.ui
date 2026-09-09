@@ -67,7 +67,7 @@ Group #ZigHudBarGridParent {
         Anchor: (Width: 184);
         LayoutMode: Top;
         Visible: false;
-        Group #ZigBar0_0 {
+        Group #ZigBarC0R0 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -102,7 +102,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_1 {
+        Group #ZigBarC0R1 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -137,7 +137,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_2 {
+        Group #ZigBarC0R2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -178,7 +178,7 @@ Group #ZigHudBarGridParent {
         Padding: (Left: 8);
         LayoutMode: Top;
         Visible: false;
-        Group #ZigBar1_0 {
+        Group #ZigBarC1R0 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -213,7 +213,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_1 {
+        Group #ZigBarC1R1 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -248,7 +248,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_2 {
+        Group #ZigBarC1R2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -289,7 +289,7 @@ Group #ZigHudBarGridParent {
         Padding: (Left: 8);
         LayoutMode: Top;
         Visible: false;
-        Group #ZigBar2_0 {
+        Group #ZigBarC2R0 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -324,7 +324,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar2_1 {
+        Group #ZigBarC2R1 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -359,7 +359,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar2_2 {
+        Group #ZigBarC2R2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -400,7 +400,7 @@ Group #ZigHudBarGridParent {
         Padding: (Left: 8);
         LayoutMode: Top;
         Visible: false;
-        Group #ZigBar3_0 {
+        Group #ZigBarC3R0 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -435,7 +435,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar3_1 {
+        Group #ZigBarC3R1 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -470,7 +470,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar3_2 {
+        Group #ZigBarC3R2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -511,7 +511,7 @@ Group #ZigHudBarGridParent {
         Padding: (Left: 8);
         LayoutMode: Top;
         Visible: false;
-        Group #ZigBar4_0 {
+        Group #ZigBarC4R0 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -546,7 +546,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar4_1 {
+        Group #ZigBarC4R1 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -581,7 +581,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar4_2 {
+        Group #ZigBarC4R2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -622,7 +622,7 @@ Group #ZigHudBarGridParent {
         Padding: (Left: 8);
         LayoutMode: Top;
         Visible: false;
-        Group #ZigBar5_0 {
+        Group #ZigBarC5R0 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -657,7 +657,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar5_1 {
+        Group #ZigBarC5R1 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -692,7 +692,7 @@ Group #ZigHudBarGridParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar5_2 {
+        Group #ZigBarC5R2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;

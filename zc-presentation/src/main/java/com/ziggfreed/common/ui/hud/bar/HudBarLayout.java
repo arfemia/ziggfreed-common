@@ -60,7 +60,9 @@ public record HudBarLayout(@Nonnull String panelId, @Nonnull String hudKey, @Non
      */
     @Nonnull
     public String slotSelector(int column, int row) {
-        return columnSelector(column) + " #ZigBar" + column + "_" + row;
+        // Letters separate the two indices, never an underscore: a UI element id is
+        // [A-Za-z][A-Za-z0-9]* and the client's parser stops dead at anything else.
+        return columnSelector(column) + " #ZigBarC" + column + "R" + row;
     }
 
     /** The selector of a whole column, hidden entirely when the rows in play do not reach it. */

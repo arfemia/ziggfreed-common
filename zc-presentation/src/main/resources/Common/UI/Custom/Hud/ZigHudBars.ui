@@ -16,7 +16,7 @@
 //
 // The document path and every root id are prefixed Zig*: the client's UI namespace is flat across
 // mods, so a generic name could be clobbered by another mod's HUD document. Slots are positional
-// (#ZigBarCol<c> holding #ZigBar<c>_<r>) and addressed by index from Java; the counts MUST match
+// (#ZigBarCol<c> holding #ZigBarC<c>R<r>) and addressed by index from Java; the counts MUST match
 // HudBarStackHud.LAYOUT. Text is pushed on .TextSpans, the fill and the pulse are Anchor width
 // pushes and their colour a .Background.Color retint, so no texture ships for a bar itself.
 //
@@ -76,7 +76,7 @@ Group #ZigHudBarsParent {
         Anchor: (Width: 296);
         LayoutMode: Top;
         Visible: false;
-        Group #ZigBar0_0 {
+        Group #ZigBarC0R0 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -111,7 +111,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_1 {
+        Group #ZigBarC0R1 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -146,7 +146,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_2 {
+        Group #ZigBarC0R2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -181,7 +181,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_3 {
+        Group #ZigBarC0R3 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -216,7 +216,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_4 {
+        Group #ZigBarC0R4 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -251,7 +251,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_5 {
+        Group #ZigBarC0R5 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -286,7 +286,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_6 {
+        Group #ZigBarC0R6 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -321,7 +321,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_7 {
+        Group #ZigBarC0R7 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -356,7 +356,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_8 {
+        Group #ZigBarC0R8 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -391,7 +391,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_9 {
+        Group #ZigBarC0R9 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -426,7 +426,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_10 {
+        Group #ZigBarC0R10 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -461,7 +461,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_11 {
+        Group #ZigBarC0R11 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -496,7 +496,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_12 {
+        Group #ZigBarC0R12 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -537,7 +537,7 @@ Group #ZigHudBarsParent {
         Padding: (Left: 12);
         LayoutMode: Top;
         Visible: false;
-        Group #ZigBar1_0 {
+        Group #ZigBarC1R0 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -572,7 +572,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_1 {
+        Group #ZigBarC1R1 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -607,7 +607,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_2 {
+        Group #ZigBarC1R2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -642,7 +642,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_3 {
+        Group #ZigBarC1R3 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -677,7 +677,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_4 {
+        Group #ZigBarC1R4 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -712,7 +712,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_5 {
+        Group #ZigBarC1R5 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -747,7 +747,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_6 {
+        Group #ZigBarC1R6 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -782,7 +782,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_7 {
+        Group #ZigBarC1R7 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -817,7 +817,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_8 {
+        Group #ZigBarC1R8 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -852,7 +852,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_9 {
+        Group #ZigBarC1R9 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -887,7 +887,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_10 {
+        Group #ZigBarC1R10 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -922,7 +922,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_11 {
+        Group #ZigBarC1R11 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -957,7 +957,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_12 {
+        Group #ZigBarC1R12 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
