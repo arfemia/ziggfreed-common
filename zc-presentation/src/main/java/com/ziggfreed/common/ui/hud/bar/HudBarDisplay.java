@@ -21,6 +21,11 @@ import com.ziggfreed.common.icon.IconSpec;
  * itself: its own name, resolved the way every item name in this library is, and its own generated
  * icon.
  *
+ * <p><b>{@link #countKey}</b> is how a row words its own number: a localization key taking that
+ * number as its one parameter, for a row whose figure is not a gain and reads wrong as "+N". A row
+ * that names none uses the panel's own plain wording. The key is the reporting mod's, and the panel
+ * neither reads it nor learns what is being counted.
+ *
  * <p><b>The two captions</b> ({@link #leadCaption} / {@link #trailCaption}) are the short words a
  * fill row shows at its bar's left and right ends: where the reading is counting FROM and where it
  * is counting TO, in whatever terms the reporting mod measures in. The library never composes them
@@ -31,17 +36,17 @@ import com.ziggfreed.common.icon.IconSpec;
  */
 public record HudBarDisplay(@Nullable Message label, @Nullable IconSpec icon, @Nullable String color,
         @Nullable Integer order, @Nullable Long lingerMs, @Nullable Message leadCaption,
-        @Nullable Message trailCaption) {
+        @Nullable Message trailCaption, @Nullable String countKey) {
 
     /** No preference on any part: the row reads its override, then the defaults. */
     public static final HudBarDisplay NONE =
-            new HudBarDisplay(null, null, null, null, null, null, null);
+            new HudBarDisplay(null, null, null, null, null, null, null, null);
 
     /** A name, a picture, a fill colour and a place in the stack; the linger stays the default. */
     @Nonnull
     public static HudBarDisplay of(@Nullable Message label, @Nullable IconSpec icon, @Nullable String color,
             int order) {
-        return new HudBarDisplay(label, icon, color, order, null, null, null);
+        return new HudBarDisplay(label, icon, color, order, null, null, null, null);
     }
 
     /**
@@ -50,13 +55,32 @@ public record HudBarDisplay(@Nullable Message label, @Nullable IconSpec icon, @N
      */
     @Nonnull
     public HudBarDisplay between(@Nullable Message lead, @Nullable Message trail) {
-        return new HudBarDisplay(label, icon, color, order, lingerMs, lead, trail);
+        return new HudBarDisplay(label, icon, color, order, lingerMs, lead, trail, countKey);
+    }
+
+    /**
+     * These parts, with the row's number worded by {@code key} instead of the panel's own plain
+     * "+N". The key takes the number as its one parameter, so each client still writes the digits
+     * itself; what the key SAYS around them is the reporting mod's business, and the panel neither
+     * reads it nor knows what is being counted.
+     */
+    @Nonnull
+    public HudBarDisplay counting(@Nullable String key) {
+        return new HudBarDisplay(label, icon, color, order, lingerMs, leadCaption, trailCaption, key);
+    }
+
+    /** These parts, held on their panel until something sends them away rather than fading on a clock. */
+    @Nonnull
+    public HudBarDisplay held() {
+        return new HudBarDisplay(label, icon, color, order, HudBarLook.LINGER_HELD, leadCaption,
+                trailCaption, countKey);
     }
 
     /** These parts with {@code color} instead: the one part a consumer re-states per move. */
     @Nonnull
     public HudBarDisplay colored(@Nullable String replacement) {
-        return new HudBarDisplay(label, icon, replacement, order, lingerMs, leadCaption, trailCaption);
+        return new HudBarDisplay(label, icon, replacement, order, lingerMs, leadCaption, trailCaption,
+                countKey);
     }
 
     /**
@@ -68,7 +92,7 @@ public record HudBarDisplay(@Nullable Message label, @Nullable IconSpec icon, @N
     @Nonnull
     public static HudBarDisplay forItem(@Nonnull String itemId) {
         return new HudBarDisplay(NativeNames.itemNameMsg(itemId), IconSpec.ofItem(itemId), null, null, null,
-                null, null);
+                null, null, null);
     }
 
     /** These parts over {@code under}'s: a part this display leaves null reads from {@code under}. */
@@ -81,6 +105,7 @@ public record HudBarDisplay(@Nullable Message label, @Nullable IconSpec icon, @N
                 order != null ? order : under.order,
                 lingerMs != null ? lingerMs : under.lingerMs,
                 leadCaption != null ? leadCaption : under.leadCaption,
-                trailCaption != null ? trailCaption : under.trailCaption);
+                trailCaption != null ? trailCaption : under.trailCaption,
+                countKey != null ? countKey : under.countKey);
     }
 }

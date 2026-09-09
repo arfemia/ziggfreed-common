@@ -13,9 +13,11 @@
 // exactly the stacked panel's, because one class paints both. See ZigHudBars.ui's header for the
 // rules that apply to each; the counts here MUST match HudBarGridHud.LAYOUT.
 //
-// GEOMETRY: six columns of three; 12 of horizontal padding, a 184-wide column and 8 between
-// columns, so the panel runs 208 wide with one column open to 1168 with all six; a 124-wide track
-// between two 26-wide captions, padded a pixel each side, so a fill spans 122.
+// GEOMETRY: six columns of three; 12 of horizontal padding, a 200-wide column and 8 between
+// columns, so the panel runs 224 wide with one column open to 1264 with all six; a 132-wide track
+// between two 30-wide captions, padded a pixel each side, so a fill spans 130. The gain column is
+// 56 here rather than the stacked panel's 96: a cell this size has to leave the name room to be
+// read, and a skill name is what a glance is actually looking for.
 $Z = "../Common/ZigButtons.ui";
 
 @BarLabelStyle = (FontSize: 13, TextColor: #e6e9ee, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
@@ -36,14 +38,14 @@ $Z = "../Common/ZigButtons.ui";
 @Gloss = #ffffff(0.22);
 @BaseShade = #000000(0.22);
 
-@RowAnchor = (Top: 5, Width: 184);
+@RowAnchor = (Top: 5, Width: 200);
 @LineAnchor = (Height: 18);
 @IconAnchor = (Width: 18, Height: 18);
-@GainAnchor = (Width: 96, Height: 18);
-@BarAnchor = (Top: 2, Height: 10, Width: 184);
-@CapAnchor = (Width: 26, Height: 10);
+@GainAnchor = (Width: 56, Height: 18);
+@BarAnchor = (Top: 2, Height: 10, Width: 200);
+@CapAnchor = (Width: 30, Height: 10);
 @CapGapAnchor = (Width: 4);
-@TrackAnchor = (Width: 124, Height: 8);
+@TrackAnchor = (Width: 132, Height: 8);
 @FillAnchor = (Left: 0, Top: 0, Bottom: 0, Width: 0);
 @GlossAnchor = (Left: 0, Right: 0, Top: 0, Height: 3);
 @BaseAnchor = (Left: 0, Right: 0, Bottom: 0, Height: 1);
@@ -57,14 +59,14 @@ Group #ZigHudBarGridParent {
   Group #ZigHudBarGridPanel {
     // Static fallback anchor only (NO Height - content-sized); the runtime paint always pushes its
     // own, at the width of however many columns are actually in use.
-    Anchor: (Width: 1168, Right: 24, Top: 18);
+    Anchor: (Width: 1264, Right: 24, Top: 18);
     LayoutMode: Left;
     Padding: (Horizontal: 12, Vertical: 12);
     Background: (TexturePath: "ObjectivePanelContainer.png", Border: 15);
     Visible: false;
 
       Group #ZigBarCol0 {
-        Anchor: (Width: 184);
+        Anchor: (Width: 200);
         LayoutMode: Top;
         Visible: false;
         Group #ZigBarC0R0 {
@@ -174,7 +176,7 @@ Group #ZigHudBarGridParent {
         }
       }
       Group #ZigBarCol1 {
-        Anchor: (Width: 184);
+        Anchor: (Width: 200);
         Padding: (Left: 8);
         LayoutMode: Top;
         Visible: false;
@@ -285,7 +287,7 @@ Group #ZigHudBarGridParent {
         }
       }
       Group #ZigBarCol2 {
-        Anchor: (Width: 184);
+        Anchor: (Width: 200);
         Padding: (Left: 8);
         LayoutMode: Top;
         Visible: false;
@@ -396,7 +398,7 @@ Group #ZigHudBarGridParent {
         }
       }
       Group #ZigBarCol3 {
-        Anchor: (Width: 184);
+        Anchor: (Width: 200);
         Padding: (Left: 8);
         LayoutMode: Top;
         Visible: false;
@@ -507,7 +509,7 @@ Group #ZigHudBarGridParent {
         }
       }
       Group #ZigBarCol4 {
-        Anchor: (Width: 184);
+        Anchor: (Width: 200);
         Padding: (Left: 8);
         LayoutMode: Top;
         Visible: false;
@@ -618,7 +620,7 @@ Group #ZigHudBarGridParent {
         }
       }
       Group #ZigBarCol5 {
-        Anchor: (Width: 184);
+        Anchor: (Width: 200);
         Padding: (Left: 8);
         LayoutMode: Top;
         Visible: false;

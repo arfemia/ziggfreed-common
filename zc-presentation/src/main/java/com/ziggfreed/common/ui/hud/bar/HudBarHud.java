@@ -202,7 +202,7 @@ public abstract class HudBarHud extends KeyedCustomHud {
      * @param itemId  the item the row counts, or null for a row about no item
      */
     void moved(@Nonnull String rowId, @Nullable HudBarReading reading, @Nullable String itemId, double delta,
-            @Nonnull HudBarDisplay display) {
+            @Nonnull HudBarDisplay display, boolean absolute) {
         long now = System.currentTimeMillis();
         long linger = HudBarLook.resolve(rowId, HudBarConfig.getInstance().bySource(rowId), display).lingerMs();
         LiveBar state = live.computeIfAbsent(rowId, id -> new LiveBar());
@@ -211,13 +211,41 @@ public abstract class HudBarHud extends KeyedCustomHud {
             state.reading = reading;
             state.itemId = itemId;
             state.display = display;
-            state.gain += delta;
+            // A mod that keeps its own running total for the stretch of activity a row belongs to
+            // states the number outright; one that only knows what just happened adds it on.
+            state.gain = absolute ? delta : state.gain + delta;
             state.lastMovedMs = now;
-            state.expiresAtMs = now + linger;
+            // A HELD row has no expiry at all rather than one a very long way off, so the arithmetic
+            // cannot overflow into a time already past and quietly drop the row on its first sweep.
+            state.expiresAtMs = linger == HudBarLook.LINGER_HELD ? Long.MAX_VALUE : now + linger;
             expiresAt = state.expiresAtMs;
         }
         requestPaint(now);
-        armSweep(expiresAt, now);
+        if (expiresAt != Long.MAX_VALUE) {
+            armSweep(expiresAt, now);
+        }
+    }
+
+    /**
+     * Bring every live row's expiry forward to at most {@code withinMs} from now, so a set of rows
+     * held for a stretch of activity goes away together when that activity ends instead of hanging
+     * on its own clock. A row already fading sooner keeps its own time. World thread not required.
+     */
+    void fadeAll(long withinMs) {
+        long now = System.currentTimeMillis();
+        long deadline = now + Math.max(0L, withinMs);
+        boolean any = false;
+        for (LiveBar state : live.values()) {
+            synchronized (state) {
+                if (state.expiresAtMs > deadline) {
+                    state.expiresAtMs = deadline;
+                    any = true;
+                }
+            }
+        }
+        if (any) {
+            armSweep(deadline, now);
+        }
     }
 
     /** Queue a paint on this player's world thread, folded with any other request this tick. Any thread. */
@@ -328,6 +356,8 @@ public abstract class HudBarHud extends KeyedCustomHud {
                 earliest = Math.min(earliest, state.expiresAtMs);
             }
         }
+        // Long.MAX_VALUE is both "nothing is live" and "everything live is HELD"; neither wants a
+        // sweep, and a held row is sent away by fadeAll rather than by a clock.
         if (earliest != Long.MAX_VALUE) {
             armSweep(earliest, now);
         }
@@ -453,7 +483,7 @@ public abstract class HudBarHud extends KeyedCustomHud {
         boolean hasGain = row.gain() > 0;
         cmd.set(slot + " #Line #Gain.Visible", hasGain);
         if (hasGain) {
-            cmd.set(slot + " #Line #Gain.TextSpans", gain(row.gain()));
+            cmd.set(slot + " #Line #Gain.TextSpans", gain(row.gain(), look.countKey()));
         }
         boolean iconShown = IconRenderer.applyIcon(cmd, slot + " #Line", look.icon());
         cmd.set(slot + " #Line #IcoGap.Visible", iconShown);
@@ -493,15 +523,17 @@ public abstract class HudBarHud extends KeyedCustomHud {
     }
 
     /**
-     * The gain as a typed numeric param on the shared key, so each client groups the digits itself. A
-     * whole number binds as a long, so a value that is only ever integral never grows a decimal point.
+     * The row's number as a typed numeric param, so each client groups the digits itself, on the row's
+     * own key when it named one and the panel's plain "+N" otherwise. A whole number binds as a long,
+     * so a value that is only ever integral never grows a decimal point.
      */
     @Nonnull
-    static Message gain(double gain) {
+    static Message gain(double gain, @Nullable String countKey) {
+        String key = countKey != null && !countKey.isBlank() ? countKey : GAIN_KEY;
         if (gain == Math.rint(gain) && Math.abs(gain) < Long.MAX_VALUE) {
-            return Msg.key(GAIN_KEY, (long) gain);
+            return Msg.key(key, (long) gain);
         }
-        return Msg.key(GAIN_KEY, gain);
+        return Msg.key(key, gain);
     }
 
     /**

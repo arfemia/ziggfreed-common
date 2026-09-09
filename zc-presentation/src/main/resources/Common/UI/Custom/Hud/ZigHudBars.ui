@@ -22,8 +22,8 @@
 //
 // GEOMETRY is stated once below and referenced by every slot, so a re-tune is a single edit. Two
 // columns of thirteen; 12 of horizontal padding and a 296-wide column, so the panel is 320 wide
-// with one column open and 628 with both; a 236-wide track between two 26-wide captions, padded a
-// pixel each side, so a fill spans 234 (HudBarStackHud.LAYOUT's trackInnerWidthPx). Keep them in
+// with one column open and 628 with both; a 228-wide track between two 30-wide captions, padded a
+// pixel each side, so a fill spans 226 (HudBarStackHud.LAYOUT's trackInnerWidthPx). Keep them in
 // step: a fill width pushed past its track simply overflows it.
 $Z = "../Common/ZigButtons.ui";
 
@@ -50,9 +50,9 @@ $Z = "../Common/ZigButtons.ui";
 @IconAnchor = (Width: 18, Height: 18);
 @GainAnchor = (Width: 96, Height: 18);
 @BarAnchor = (Top: 2, Height: 10, Width: 296);
-@CapAnchor = (Width: 26, Height: 10);
+@CapAnchor = (Width: 30, Height: 10);
 @CapGapAnchor = (Width: 4);
-@TrackAnchor = (Width: 236, Height: 8);
+@TrackAnchor = (Width: 228, Height: 8);
 @FillAnchor = (Left: 0, Top: 0, Bottom: 0, Width: 0);
 @GlossAnchor = (Left: 0, Right: 0, Top: 0, Height: 3);
 @BaseAnchor = (Left: 0, Right: 0, Bottom: 0, Height: 1);

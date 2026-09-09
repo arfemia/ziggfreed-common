@@ -95,7 +95,7 @@ public final class HudBars {
      */
     public static boolean moved(@Nullable PlayerRef playerRef, @Nonnull String rowId, double delta,
             @Nonnull HudBarReading reading, @Nonnull HudBarDisplay display) {
-        return report(playerRef, HudBarStackHud.HUD_KEY, rowId, reading, null, delta, display);
+        return report(playerRef, HudBarStackHud.HUD_KEY, rowId, reading, null, delta, display, false);
     }
 
     /**
@@ -106,7 +106,7 @@ public final class HudBars {
      */
     public static boolean movedOnGrid(@Nullable PlayerRef playerRef, @Nonnull String rowId, double delta,
             @Nonnull HudBarReading reading, @Nonnull HudBarDisplay display) {
-        return report(playerRef, HudBarGridHud.HUD_KEY, rowId, reading, null, delta, display);
+        return report(playerRef, HudBarGridHud.HUD_KEY, rowId, reading, null, delta, display, false);
     }
 
     /**
@@ -116,7 +116,7 @@ public final class HudBars {
      */
     public static boolean itemMoved(@Nullable PlayerRef playerRef, @Nonnull String itemId, double quantity) {
         return report(playerRef, HudBarStackHud.HUD_KEY, itemRowId(itemId), null, itemId, quantity,
-                HudBarDisplay.forItem(itemId));
+                HudBarDisplay.forItem(itemId), false);
     }
 
     /**
@@ -133,7 +133,7 @@ public final class HudBars {
     public static boolean itemMoved(@Nullable PlayerRef playerRef, @Nonnull String rowId,
             @Nonnull String itemId, double quantity, @Nonnull HudBarDisplay display) {
         return report(playerRef, HudBarStackHud.HUD_KEY, rowId, null, itemId, quantity,
-                display.over(HudBarDisplay.forItem(itemId)));
+                display.over(HudBarDisplay.forItem(itemId)), false);
     }
 
     /** The id of the row {@code itemId}'s output is counted on. */
@@ -142,8 +142,50 @@ public final class HudBars {
         return ITEM_ROW_PREFIX + itemId;
     }
 
+    /**
+     * As {@link #moved}, but {@code total} is the row's number OUTRIGHT rather than something to add
+     * to it: for a mod that already keeps its own running total for the stretch of activity the row
+     * belongs to. Stating the total means the row and whatever else that mod shows the same total on
+     * cannot drift apart, and a row that went away and came back still reads right.
+     */
+    public static boolean totalled(@Nullable PlayerRef playerRef, @Nonnull String rowId, double total,
+            @Nonnull HudBarReading reading, @Nonnull HudBarDisplay display) {
+        return report(playerRef, HudBarStackHud.HUD_KEY, rowId, reading, null, total, display, true);
+    }
+
+    /**
+     * As {@link #itemMoved}'s caller-named form, with {@code total} the row's number outright rather
+     * than something to add to it. See {@link #totalled}.
+     */
+    public static boolean itemTotalled(@Nullable PlayerRef playerRef, @Nonnull String rowId,
+            @Nonnull String itemId, double total, @Nonnull HudBarDisplay display) {
+        return report(playerRef, HudBarStackHud.HUD_KEY, rowId, null, itemId, total,
+                display.over(HudBarDisplay.forItem(itemId)), true);
+    }
+
+    /**
+     * Send every row {@code playerRef} currently has on either panel away within {@code withinMs},
+     * whatever each was going to do on its own: what ends a set of rows held through a stretch of
+     * activity ({@link HudBarLook#LINGER_HELD}) when that activity finishes. A row already fading
+     * sooner keeps its own time, and a player with no panel is a no-op.
+     */
+    public static void fadeAll(@Nullable PlayerRef playerRef, long withinMs) {
+        if (playerRef == null) {
+            return;
+        }
+        UUID uuid = playerRef.getUuid();
+        Map<String, HudBarHud> panels = uuid == null ? null : LIVE.get(uuid);
+        if (panels == null) {
+            return;
+        }
+        for (HudBarHud hud : panels.values()) {
+            hud.fadeAll(withinMs);
+        }
+    }
+
     private static boolean report(@Nullable PlayerRef playerRef, @Nonnull String hudKey, @Nonnull String rowId,
-            @Nullable HudBarReading reading, @Nullable String itemId, double delta, @Nonnull HudBarDisplay display) {
+            @Nullable HudBarReading reading, @Nullable String itemId, double delta,
+            @Nonnull HudBarDisplay display, boolean absolute) {
         if (playerRef == null) {
             return false;
         }
@@ -157,7 +199,7 @@ public final class HudBars {
         if (override != null && !override.enabled()) {
             return false;
         }
-        hud.moved(rowId, reading, itemId, delta, display);
+        hud.moved(rowId, reading, itemId, delta, display, absolute);
         return true;
     }
 

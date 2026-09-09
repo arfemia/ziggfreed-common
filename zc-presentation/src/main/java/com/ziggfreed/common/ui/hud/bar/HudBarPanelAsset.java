@@ -46,7 +46,7 @@ public final class HudBarPanelAsset
 
     /** Where the grid panel sits when nothing says otherwise: the top-right, above the quest tracker. */
     public static final HudPosition GRID_POSITION =
-            new HudPosition(HudPosition.AnchorEdge.TOP, HudPosition.HorizontalEdge.RIGHT, 24, 18);
+            new HudPosition(HudPosition.AnchorEdge.TOP, HudPosition.HorizontalEdge.RIGHT, 24, 10);
 
     /**
      * Where the panel sits when nothing says otherwise: the left column, under the mob inspector

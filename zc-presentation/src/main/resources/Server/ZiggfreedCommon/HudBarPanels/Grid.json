@@ -30,7 +30,7 @@
   "Position": {
     "Preset": "TopRight",
     "OffsetX": 24,
-    "OffsetY": 18
+    "OffsetY": 10
   },
   "Columns": 6,
   "RowsPerColumn": 1,

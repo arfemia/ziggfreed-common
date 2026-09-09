@@ -17,9 +17,9 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
  *
  * <p>Layout and nothing else - every line of the drawing is {@link HudBarHud}'s. The numbers below
  * mirror {@code Hud/ZigHudBarGrid.ui} and must move with it: six columns of three slots, 12 of
- * horizontal padding, a 184-wide column and 8 between columns (so the panel runs 208 wide with one
- * column open to 1168 with all six), and a track spanning 124 of that column between the two
- * 26-wide end captions, padded a pixel each side (so a fill spans 122).
+ * horizontal padding, a 200-wide column and 8 between columns (so the panel runs 224 wide with one
+ * column open to 1264 with all six), and a track spanning 140 of that column between the two
+ * 26-wide end captions, padded a pixel each side (so a fill spans 138).
  */
 public final class HudBarGridHud extends HudBarHud {
 
@@ -35,9 +35,9 @@ public final class HudBarGridHud extends HudBarHud {
             6,
             3,
             12,
-            184,
+            200,
             8,
-            122,
+            130,
             HudBarPanelAsset.GRID_POSITION);
 
     public HudBarGridHud(@Nonnull PlayerRef playerRef) {

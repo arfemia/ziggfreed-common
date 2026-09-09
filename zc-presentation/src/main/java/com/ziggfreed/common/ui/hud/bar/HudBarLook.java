@@ -24,7 +24,8 @@ import com.ziggfreed.common.icon.IconSpec;
  * simply draws a bare bar.
  */
 public record HudBarLook(@Nonnull Message label, @Nullable IconSpec icon, @Nonnull String color, int order,
-        long lingerMs, @Nullable Message leadCaption, @Nullable Message trailCaption) {
+        long lingerMs, @Nullable Message leadCaption, @Nullable Message trailCaption,
+        @Nullable String countKey) {
 
     /** The fill colour a row draws in when neither its override nor its display names one. */
     public static final String DEFAULT_COLOR = "#7fb2e0";
@@ -34,6 +35,15 @@ public record HudBarLook(@Nonnull Message label, @Nullable IconSpec icon, @Nonnu
 
     /** How long a row stays up after its last move when nothing says otherwise. */
     public static final long DEFAULT_LINGER_MS = 5000L;
+
+    /**
+     * A linger meaning HELD: the row does not go away on a clock at all, and stays until something
+     * sends it away ({@link HudBars#fadeAll}). For a row that belongs to a stretch of activity with
+     * a real beginning and end rather than to a single movement - a run at a workstation, a round,
+     * a journey - where a row quietly expiring mid-way would lose a total the player is still
+     * building up.
+     */
+    public static final long LINGER_HELD = Long.MAX_VALUE;
 
     /**
      * Fold {@code override} (null when nothing is authored for the row) over {@code display} over
@@ -51,6 +61,7 @@ public record HudBarLook(@Nonnull Message label, @Nullable IconSpec icon, @Nonnu
                 folded.order() != null ? folded.order() : DEFAULT_ORDER,
                 linger != null && linger > 0 ? linger : DEFAULT_LINGER_MS,
                 folded.leadCaption(),
-                folded.trailCaption());
+                folded.trailCaption(),
+                folded.countKey());
     }
 }

@@ -28,7 +28,7 @@ class HudBarSlotsTest {
     }
 
     private static HudBarLook look(String id, int order) {
-        return HudBarLook.resolve(id, null, new HudBarDisplay(null, null, null, order, null, null, null));
+        return HudBarLook.resolve(id, null, new HudBarDisplay(null, null, null, order, null, null, null, null));
     }
 
     private static List<String> ids(List<Row> rows) {

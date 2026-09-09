@@ -32,7 +32,7 @@ public final class HudBarStackHud extends HudBarHud {
             12,
             296,
             12,
-            234,
+            226,
             HudBarPanelAsset.DEFAULT_POSITION);
 
     public HudBarStackHud(@Nonnull PlayerRef playerRef) {
