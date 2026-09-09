@@ -3,7 +3,7 @@
 // player is in the middle of: a row appears the moment a mod reports a value moved, dressed by what
 // that mod says about it, and goes away when it stops moving. Nothing is authored for a row to
 // appear; Server/ZiggfreedCommon/HudBars/*.json is an optional per-row override and
-// Server/ZiggfreedCommon/HudBarPanels/Default.json is where this panel sits.
+// Server/ZiggfreedCommon/HudBarPanels/Default.json names the spot this panel sits at.
 //
 // A row that draws a fill is two lines: its name with the gain beside it, and the bar underneath
 // between its two end captions. A row about an item is the first line alone, with #Bar hidden.
@@ -66,7 +66,7 @@ Group #ZigHudBarsParent {
   Group #ZigHudBarsPanel {
     // Static fallback anchor only (NO Height - content-sized); the runtime paint always pushes its
     // own, at the width of however many columns are actually in use.
-    Anchor: (Width: 320, Left: 16, Top: 216);
+    Anchor: (Width: 320, Left: 16, Top: 90);
     LayoutMode: Left;
     Padding: (Horizontal: 12, Vertical: 12);
     Background: (TexturePath: "ObjectivePanelContainer.png", Border: 15);

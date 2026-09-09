@@ -1,0 +1,26 @@
+{
+  "$Comment": [
+    "A spot a bar panel can sit at: the top-right, above the quest tracker, so that column reads as",
+    "one thing. Measured for the wide World panel: pinned to the right edge, it grows LEFTWARD as",
+    "columns open and keeps its first column where your eye already is, and with RowsPerColumn 1 it",
+    "runs six bars across before it grows downward at all, which is what keeps it clear of the",
+    "tracker below.",
+    "",
+    "Position is a corner preset plus pixel offsets from the edges that preset pins. Columns and",
+    "RowsPerColumn say how the rows spread out here. Panels lists which panels offer this spot.",
+    "LabelKey names it in the HUD settings.",
+    "",
+    "To retune a leaf without copying this file, add an entry keyed 'TopRight' to",
+    "mods/ziggfreedcommon/hud-bar-placements.json with only the leaves you want different."
+  ],
+  "LabelKey": "ziggfreedcommon.hud.placement.top_right",
+  "Position": {
+    "Preset": "TopRight",
+    "OffsetX": 24,
+    "OffsetY": 10
+  },
+  "Columns": 6,
+  "RowsPerColumn": 1,
+  "Panels": ["Grid"],
+  "Order": 20
+}

@@ -1,5 +1,6 @@
 package com.ziggfreed.common.ui.hud.bar;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,18 +18,21 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.ui.hud.HudPreferences;
 import com.ziggfreed.common.ui.hud.KeyedCustomHud;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The way in to the shared progress-bar panel: its lifecycle on every player, and the two calls a
+ * The way in to the shared progress-bar panels: their lifecycle on every player, and the calls a
  * consumer makes when a value it owns has moved.
  *
  * <p><b>Attach and detach.</b> Every player gets BOTH panels at ready and loses them at disconnect:
  * {@link HudBarStackHud}, the tall ledger in the left column, and {@link HudBarGridHud}, the wide
- * block in the top-right. They are attached LATE on the ready event so they land after whatever a
- * consumer does there, and kept in {@link #LIVE} by player uuid so a change reported from any
- * thread finds the right one in two map reads.
+ * block. They are attached LATE on the ready event so they land after whatever a consumer does
+ * there, and kept in {@link #LIVE} by player uuid so a change reported from any thread finds the
+ * right one in two map reads. Where each sits for a given player is resolved per paint
+ * ({@link HudBarPlacement}), and a player changing their own pick or hiding a panel
+ * ({@link HudPreferences}) repaints theirs through the watcher this class registers at install.
  *
  * <p><b>Which panel a row lands on is the CALLER's choice, made by which call it makes</b>
  * ({@link #moved} or {@link #movedOnGrid}), never by anything this class reads out of the row. Only
@@ -51,18 +55,21 @@ import com.ziggfreed.common.util.SafeLog;
  * the thing measured, nothing more. The one id shape this class owns is the item row's
  * {@value #ITEM_ROW_PREFIX} prefix, its own keying for a row it dresses itself.
  *
- * <p>Owner-wide changes go through {@link #repaintAllOnline()} and
- * {@link #refreshPositionForAllOnline()}; both are called from the asset load events, so a reload
- * lands on every screen without a reconnect.
+ * <p>Owner-wide changes go through {@link #repaintAllOnline()}, called from the three asset load
+ * events and every owner-file write, so a reload lands on every screen without a reconnect; a
+ * repaint re-anchors as it draws, so there is no separate position push.
  */
 public final class HudBars {
 
     /**
-     * Every live panel by player uuid, then by panel id: written at attach, dropped at detach, read
+     * Every live panel by player uuid, then by panel key: written at attach, dropped at detach, read
      * by every change. A player has one of each panel, and which one a movement lands on is decided
      * by the call the reporting mod makes, never by anything read out of the row.
      */
     static final Map<UUID, Map<String, HudBarHud>> LIVE = new ConcurrentHashMap<>();
+
+    /** The two panels every player carries, in the order a settings page lists them. */
+    private static final List<HudBarLayout> PANELS = List.of(HudBarStackHud.LAYOUT, HudBarGridHud.LAYOUT);
 
     private HudBars() {
     }
@@ -75,11 +82,32 @@ public final class HudBars {
             var events = plugin.getEventRegistry();
             events.registerGlobal(EventPriority.LATE, PlayerReadyEvent.class, HudBars::onPlayerReady);
             events.register(PlayerDisconnectEvent.class, HudBars::onPlayerDisconnect);
-            SafeLog.info("[hud] progress-bar panel installed: attaches at player ready, paints on reported"
-                    + " value changes (no tick)");
+            HudPreferences.watch(HudBars::repaintFor);
+            SafeLog.info("[hud] progress-bar panels installed: attach at player ready, paint on reported"
+                    + " value changes (no tick), follow each player's own placement picks");
         } catch (Throwable t) {
-            SafeLog.warn("[hud] the progress-bar panel could not be installed; no bar will appear this boot", t);
+            SafeLog.warn("[hud] the progress-bar panels could not be installed; no bar will appear this boot", t);
         }
+    }
+
+    /** The panels every player carries, in listing order: what a settings page or a command offers by id. */
+    @Nonnull
+    public static List<HudBarLayout> panels() {
+        return PANELS;
+    }
+
+    /** The panel whose id is {@code panelId} (any case), or null when no panel has it. */
+    @Nullable
+    public static HudBarLayout panel(@Nullable String panelId) {
+        if (panelId == null) {
+            return null;
+        }
+        for (HudBarLayout layout : PANELS) {
+            if (layout.panelId().equalsIgnoreCase(panelId.trim())) {
+                return layout;
+            }
+        }
+        return null;
     }
 
     // ==================== the two calls ====================
@@ -170,15 +198,7 @@ public final class HudBars {
      * sooner keeps its own time, and a player with no panel is a no-op.
      */
     public static void fadeAll(@Nullable PlayerRef playerRef, long withinMs) {
-        if (playerRef == null) {
-            return;
-        }
-        UUID uuid = playerRef.getUuid();
-        Map<String, HudBarHud> panels = uuid == null ? null : LIVE.get(uuid);
-        if (panels == null) {
-            return;
-        }
-        for (HudBarHud hud : panels.values()) {
+        for (HudBarHud hud : panelsOf(playerRef)) {
             hud.fadeAll(withinMs);
         }
     }
@@ -203,9 +223,9 @@ public final class HudBars {
         return true;
     }
 
-    // ==================== owner-wide pushes ====================
+    // ==================== repaints ====================
 
-    /** Repaint every online player's panels: the bars or a panel were reloaded. */
+    /** Repaint every online player's panels: the bars, a panel or a spot were reloaded or rewritten. */
     public static void repaintAllOnline() {
         for (Map<String, HudBarHud> panels : LIVE.values()) {
             for (HudBarHud hud : panels.values()) {
@@ -214,13 +234,18 @@ public final class HudBars {
         }
     }
 
-    /** Re-anchor every online player's panels to their folded positions: the owner moved one. */
-    public static void refreshPositionForAllOnline() {
-        HudBarPanelConfig config = HudBarPanelConfig.getInstance();
-        KeyedCustomHud.refreshPositionForAllOnline(HudBarStackHud.HUD_KEY,
-                config.current().position(HudBarStackHud.LAYOUT.defaultPosition()));
-        KeyedCustomHud.refreshPositionForAllOnline(HudBarGridHud.HUD_KEY,
-                config.grid().position(HudBarGridHud.LAYOUT.defaultPosition()));
+    /** Repaint one player's panels: their own pick or hide changed. Any thread. */
+    public static void repaintFor(@Nullable PlayerRef playerRef) {
+        for (HudBarHud hud : panelsOf(playerRef)) {
+            hud.repaint();
+        }
+    }
+
+    @Nonnull
+    private static Iterable<HudBarHud> panelsOf(@Nullable PlayerRef playerRef) {
+        UUID uuid = playerRef == null ? null : playerRef.getUuid();
+        Map<String, HudBarHud> panels = uuid == null ? null : LIVE.get(uuid);
+        return panels == null ? List.of() : panels.values();
     }
 
     // ==================== lifecycle ====================

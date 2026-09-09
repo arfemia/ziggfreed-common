@@ -60,7 +60,11 @@ import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
+import com.ziggfreed.common.ui.hud.HudPreferences;
+import com.ziggfreed.common.ui.hud.bar.HudBarPlacementAsset;
+import com.ziggfreed.common.ui.hud.bar.HudBarPlacementConfig;
 import com.ziggfreed.common.ui.hud.bar.HudBars;
+import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
 import com.ziggfreed.common.world.stash.BlockStashBootstrap;
@@ -182,10 +186,12 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         EncounterBootstrap.install(this);
         registerEncounterSeams();
         InstanceBootstrap.installEncounterLeaderboard(this);
-        // The shared progress-bar panel on every player: a row is created by the mod that reports
-        // a value moved, what fills one is whichever mod registered the row's namespace, and this
-        // only attaches the panel and takes it down again.
+        // The shared progress-bar panels on every player: a row is created by the mod that reports
+        // a value moved and dressed by what it said, and this only attaches the panels and takes
+        // them down again. What a player said about their own HUD, and the page and command that
+        // say it, are registered right after, beside the panels they move.
         HudBars.install(this);
+        registerHudSettings();
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
     }
@@ -251,6 +257,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                 BoardConfig.getInstance()::ids);
         EditorDataSets.live(getEventRegistry(), CommerceEditorDataSets.SELECTION_TYPES,
                 SelectionStrategies::types);
+        // A panel's Placement is picked from the spots any layer authored, so an author never
+        // retypes a spot id; a pack loaded later simply widens the next answer.
+        EditorDataSets.live(getEventRegistry(), HudBarPlacementAsset.EDITOR_DATA_SET,
+                HudBarPlacementConfig.getInstance()::ids);
     }
 
     /** Every factor id an author can name here: registered placement providers plus derived assets. */
@@ -353,6 +363,23 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * this library as a dependency, so the server loads it first and a consumer that keeps this state
      * itself replaces both in its own {@code setup()}.
      */
+    /**
+     * What a player has said about their own HUD, and the two ways they say it: the per-player
+     * {@code HudPreferenceComponent} (where they put each shared panel, which they hid), registered
+     * here BEFORE any world loads so it can be read off entities saved carrying it, and the
+     * {@code /zighud} family, which opens the HUD settings page and drives the same facade the page
+     * does. The page itself is opened by a consumer's own settings menu through
+     * {@code HudSettingsPages.open}; the verb is the way in on a server with no such menu.
+     */
+    private void registerHudSettings() {
+        try {
+            HudPreferences.install(this);
+            getCommandRegistry().registerCommand(new ZigHudCommand());
+        } catch (Throwable t) {
+            SafeLog.warn("[hud] HUD settings wiring failed", t);
+        }
+    }
+
     private void registerCommerce() {
         try {
             CommerceComponent.register(getEntityStoreRegistry());

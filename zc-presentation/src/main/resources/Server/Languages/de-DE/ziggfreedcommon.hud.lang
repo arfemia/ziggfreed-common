@@ -1,0 +1,79 @@
+# Die gemeinsamen HUD-Leisten: die Positionen, an denen sie sitzen können, die Einstellungsseite zum Verschieben und die
+# /zighud-Befehlsfamilie. Der Dateiname ist das Schlüssel-Präfix: Ein Eintrag hier wird als
+# ziggfreedcommon.hud.<key> aufgelöst. Die desc.*-Schlüssel sind das, durch das die Engine-eigene Hilfe einen Befehl oder
+# ein Argument auflöst.
+
+# Die Positionen unter Server/ZiggfreedCommon/HudBarPlacements/, wie die Picker sie auflisten.
+placement.top_left = Oben links
+placement.top_right = Oben rechts
+placement.bottom_left = Unten links
+
+# Die beiden Panels, wie die Picker und die Antworten sie nennen.
+panel.default = Aktivitätsprotokoll
+panel.grid = Welt-Leisten
+
+# Die HUD-Einstellungsseite.
+settings.title = HUD-Leisten
+settings.subtitle = Wo die Leisten-Panels sitzen und welche angezeigt werden.
+settings.tab.mine = Meine
+settings.tab.server = Server
+settings.back = Zurück
+settings.save = Speichern
+settings.on = An
+settings.off = Aus
+settings.hide_all = Alle Leisten ausblenden
+settings.hide_all_hint = Alle Panels bleiben verborgen, bis Sie dies wieder ausschalten.
+settings.show_panel = Dieses Panel anzeigen
+settings.spot = Wo es sitzt
+settings.spot_hint = Wählen Sie eine Position, oder behalten Sie die des Servers.
+settings.server_spot = Wahl des Servers
+settings.shipped_spot = Wie versandt
+settings.server_spot_hint = Die Position, die jeder erhält, es sei denn, Sie wählen Ihre eigene.
+settings.enabled = Für alle an
+settings.offset_x = Versatz X
+settings.offset_y = Versatz Y
+settings.columns = Spalten
+settings.rows_per_column = Zeilen pro Spalte
+settings.server_note = Ein leeres Feld behält den Wert dieser Position. Speichern gilt für alle auf einmal und schreibt mods/ziggfreedcommon/hud-bar-panels.json.
+settings.saved = Gespeichert. Alle Panels der Spieler sind verschoben.
+settings.save_failed = Konnte die Owner-Datei nicht schreiben. Keine Änderung.
+settings.invalid_number = {0} benötigt eine ganze Zahl oder gar nichts.
+settings.pick_saved = {0} sitzt jetzt bei {1}.
+settings.pick_cleared = {0} folgt jetzt wieder der Wahl des Servers.
+settings.hidden = {0} ist für Sie verborgen.
+settings.shown = {0} wird wieder angezeigt.
+settings.hide_all_on = Jede Leiste ist für Sie verborgen.
+settings.hide_all_off = Ihre Leisten werden wieder angezeigt.
+settings.panel_on = {0} ist für alle an.
+settings.panel_off = {0} ist für alle aus.
+settings.not_kept = Das konnte nicht gespeichert werden. Verbinden Sie sich neu und versuchen Sie es erneut.
+
+# Die /zighud-Befehlsfamilie: Hilfetexte und Antworten.
+desc.family = Verschieben oder verstecken Sie die gemeinsamen HUD-Leisten-Panels.
+desc.open = Öffnen Sie die HUD-Leisten-Einstellungen.
+desc.place = Platzieren Sie ein Panel an einer benannten Position für sich selbst.
+desc.hide = Verstecken Sie ein Panel für sich selbst oder alle Panels.
+desc.show = Zeigen Sie ein Panel an, das Sie versteckt haben, oder alle Panels.
+desc.default = Legen Sie die Position fest, an der ein Panel für alle sitzt.
+desc.arg.panel = Das Panel: default (das Aktivitätsprotokoll) oder grid (die Welt-Leisten).
+desc.arg.placement = Die Position nach ihrer ID, oder "server" um der Wahl des Servers zu folgen.
+desc.arg.player = Wessen HUD soll geändert werden. Standard sind Sie.
+desc.arg.panel_or_all = Das Panel oder "all" für alle Panels. Standard ist all.
+
+open.needsPlayer = Führen Sie dies im Spiel aus: Die Einstellungen sind Ihre, und die Konsole hat keine HUD.
+open.failed = Die Einstellungen konnten nicht geöffnet werden.
+player.needed = Nennen Sie einen Spieler mit --player=<name> oder führen Sie dies im Spiel aus.
+player.offline = Dieser Spieler ist nicht online.
+panel.unknown = Kein Panel heißt "{0}". Verwenden Sie default oder grid.
+placement.unknown = Keine Position heißt "{0}".
+placement.unfit = {0} wurde nicht für {1} gemessen, daher wird es dort nicht angeboten.
+place.done = {0} sitzt jetzt bei {1}.
+place.cleared = {0} folgt jetzt wieder der Wahl des Servers.
+place.unchanged = Das ist bereits der Fall.
+hide.done = {0} ist verborgen.
+hide.all = Jedes Panel ist verborgen.
+show.done = {0} wird wieder angezeigt.
+show.all = Jedes Panel wird wieder angezeigt.
+default.done = {0} sitzt bei {1} für alle. Geschrieben nach {2}.
+default.cleared = {0} sitzt wieder dort, wo die versandte Datei sagt. Geschrieben nach {1}.
+default.failed = Konnte nicht in {0} schreiben. Die Datei wurde wie sie war belassen.

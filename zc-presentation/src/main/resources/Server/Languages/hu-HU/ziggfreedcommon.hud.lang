@@ -1,0 +1,78 @@
+# A megosztott HUD sávpanelek: a helyek, ahol ülhetnek, a beállítások oldal, amely mozgatja őket, és a
+# /zighud parancscsalád. A fájl neve a kulcs ELŐTAG: egy bejegyzés itt ziggfreedcommon.hud.<kulcs> lesz.
+# A desc.* kulcsok azok, amelyeket a motor saját súgója egy parancs vagy egy argumentum segítségével felold.
+
+# Az elhelyezések, amelyeket a Server/ZiggfreedCommon/HudBarPlacements/ alatt szállítanak, ahogyan a választók listázzák.
+placement.top_left = Bal fent
+placement.top_right = Jobb fent
+placement.bottom_left = Bal lent
+
+# A két panel, ahogyan a választók és a válaszok nevezik őket.
+panel.default = Tevékenység napló
+panel.grid = Világ sávok
+
+# A HUD beállítások oldal.
+settings.title = HUD sávok
+settings.subtitle = A panelek helye és mely mutatódik.
+settings.tab.mine = Saját
+settings.tab.server = Szerver
+settings.back = Vissza
+settings.save = Mentés
+settings.on = Be
+settings.off = Ki
+settings.hide_all = Minden elrejtése
+settings.hide_all_hint = Minden panel rejtett marad, amíg ki nem kapcsolod.
+settings.show_panel = Panel megjelenítése
+settings.spot = Hely
+settings.spot_hint = Válassz egy saját helyet, vagy tartsd a szerver választását.
+settings.server_spot = Szerver helye
+settings.shipped_spot = Szállítmányú
+settings.server_spot_hint = Az a hely, amelyet mindenki kap, hacsak nem választ magának egyet.
+settings.enabled = Mindenki számára
+settings.offset_x = X eltolás
+settings.offset_y = Y eltolás
+settings.columns = Oszlopok
+settings.rows_per_column = Sorok oszloponként
+settings.server_note = Az üres mező megtartja a hely saját értékét. A mentés mindenkit egyszerre érint és a mods/ziggfreedcommon/hud-bar-panels.json fájlba ír.
+settings.saved = Mentve. Minden játékos panelja mozgatva.
+settings.save_failed = Nem sikerült írni a tulajdonos fájlba. Semmi sem változott.
+settings.invalid_number = {0}-nak egész szám kell, vagy semmi.
+settings.pick_saved = {0} most a {1} helyen ül.
+settings.pick_cleared = {0} ismét követi a szerver választását.
+settings.hidden = {0} rejtett neked.
+settings.shown = {0} ismét megjelenik.
+settings.hide_all_on = Minden sáv rejtett neked.
+settings.hide_all_off = A sávjaid ismét megjelennek.
+settings.panel_on = {0} mindenki számára be van kapcsolva.
+settings.panel_off = {0} mindenki számára ki van kapcsolva.
+settings.not_kept = Ez nem tartható meg. Csatlakozz újra és próbáld meg újra.
+
+# A /zighud család: súgó és válaszok.
+desc.family = A megosztott HUD sávpanelek mozgatása vagy elrejtése.
+desc.open = A HUD sáv beállítások megnyitása.
+desc.place = Helyezz el egy panelt egy elnevezett helyen, magadnak.
+desc.hide = Rejtsd el egy panelt magadnak, vagy minden panelt.
+desc.show = Mutasd meg a panelt, amit elrejtetted, vagy minden panelt.
+desc.default = Állítsd be a helyet, ahol egy panel mindenki számára helyezkedik el.
+desc.arg.panel = A panel: default (a tevékenység napló) vagy grid (a világ sávok).
+desc.arg.placement = A hely az azonosítója szerint, vagy "server" a szerver választása követéséhez.
+desc.arg.player = Kinek a HUD-ját módosítsd. Alapértelmezés szerint a tiéd.
+desc.arg.panel_or_all = A panel, vagy "all" minden panelhez. Alapértelmezés szerint mind.
+
+open.needsPlayer = Futtasd ezt a játékban: a beállítások a tieid, és a konzolnak nincs HUD-ja.
+open.failed = A beállítások nem nyithatók meg.
+player.needed = Nevezz meg egy játékost a --player=<name> segítségével, vagy futtasd ezt a játékban.
+player.offline = Ez a játékos nem online.
+panel.unknown = Nincs "{0}" nevű panel. Használd a default-ot vagy a grid-et.
+placement.unknown = Nincs "{0}" nevű hely.
+placement.unfit = {0} nem lett mérve a {1} számára, ezért nincs ott felkínálva.
+place.done = {0} most a {1} helyen ül.
+place.cleared = {0} ismét követi a szerver választását.
+place.unchanged = Ez már így van.
+hide.done = {0} rejtett.
+hide.all = Minden panel rejtett.
+show.done = {0} ismét megjelenik.
+show.all = Minden panel ismét megjelenik.
+default.done = {0} a {1} helyen ül mindenki számára. Írva a {2} fájlba.
+default.cleared = {0} ismét ott helyezkedik el, ahogy a szállítmányú fájlja mondja. Írva a {1} fájlba.
+default.failed = Nem sikerült írni a {0} fájlba. A fájl úgy maradt, mint volt.

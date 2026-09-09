@@ -1,23 +1,23 @@
-// The wide bar panel in the top-right (ziggfreed-common, zc-presentation:
-// ui/hud/bar/HudBarGridHud over the shared ui/hud/bar/HudBarHud). For values that move while a
-// player is out in the world, where there is no ledger for them to sit beside: it opens a column
-// per row until it has six, so one moving value is a single bar rather than a lone entry in an
-// empty tower, and six are one wide row rather than a tower. It is pinned to the RIGHT edge, so it
-// grows LEFTWARD and its first column is the rightmost one. Where it sits is
-// Server/ZiggfreedCommon/HudBarPanels/Grid.json.
-//
-// It sits ABOVE the quest tracker rather than beside it, so the top-right column reads as one
-// thing; both are content-sized, so an owner who wants more room for either moves one in that file.
+// The wide bar panel (ziggfreed-common, zc-presentation: ui/hud/bar/HudBarGridHud over the shared
+// ui/hud/bar/HudBarHud). For values that move while a player is out in the world, where there is
+// no ledger for them to sit beside: it opens a column per row rather than stacking, so one moving
+// value is a single bar rather than a lone entry in an empty tower. Where it sits is the spot
+// Server/ZiggfreedCommon/HudBarPanels/Grid.json names, one of
+// Server/ZiggfreedCommon/HudBarPlacements/: the shipped default is BottomLeft, two columns wide just
+// below the player's own bars and clear of the hotbar, pinned to the BOTTOM edge so it grows UPWARD
+// and each column fills from the bottom; the other spot measured for it is TopRight, six columns
+// wide above the quest tracker, pinned to the RIGHT edge so it grows LEFTWARD and its first column
+// is the rightmost one. A player may pick either for themselves in the HUD settings.
 //
 // Everything else - the row shape, the dressing, the retint, the pulse, the per-slot selectors - is
 // exactly the stacked panel's, because one class paints both. See ZigHudBars.ui's header for the
 // rules that apply to each; the counts here MUST match HudBarGridHud.LAYOUT.
 //
 // GEOMETRY: six columns of three; 12 of horizontal padding, a 200-wide column and 8 between
-// columns, so the panel runs 224 wide with one column open to 1264 with all six; a 132-wide track
-// between two 30-wide captions, padded a pixel each side, so a fill spans 130. The gain column is
-// 56 here rather than the stacked panel's 96: a cell this size has to leave the name room to be
-// read, and a skill name is what a glance is actually looking for.
+// columns, so the panel runs 224 wide with one column open, 432 with two, to 1264 with all six; a
+// 132-wide track between two 30-wide captions, padded a pixel each side, so a fill spans 130. The
+// gain column is 56 here rather than the stacked panel's 96: a cell this size has to leave the name
+// room to be read, and a skill name is what a glance is actually looking for.
 $Z = "../Common/ZigButtons.ui";
 
 @BarLabelStyle = (FontSize: 13, TextColor: #e6e9ee, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
@@ -59,7 +59,7 @@ Group #ZigHudBarGridParent {
   Group #ZigHudBarGridPanel {
     // Static fallback anchor only (NO Height - content-sized); the runtime paint always pushes its
     // own, at the width of however many columns are actually in use.
-    Anchor: (Width: 1264, Right: 24, Top: 18);
+    Anchor: (Width: 432, Left: 16, Bottom: 16);
     LayoutMode: Left;
     Padding: (Horizontal: 12, Vertical: 12);
     Background: (TexturePath: "ObjectivePanelContainer.png", Border: 15);

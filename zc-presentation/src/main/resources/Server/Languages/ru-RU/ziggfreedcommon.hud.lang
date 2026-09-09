@@ -1,0 +1,79 @@
+# The shared HUD bar panels: the spots they can sit at, the settings page that moves them, and the
+# /zighud command family. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.hud.<key>. The desc.* keys are what the engine's own help resolves a command or
+# an argument through.
+
+# The spots shipped under Server/ZiggfreedCommon/HudBarPlacements/, as the pickers list them.
+placement.top_left = Верхний левый
+placement.top_right = Верхний правый
+placement.bottom_left = Нижний левый
+
+# The two panels, as the pickers and the answers name them.
+panel.default = Журнал действий
+panel.grid = Полосы мира
+
+# The HUD settings page.
+settings.title = Панели HUD
+settings.subtitle = Где расположены панели полосок и какие из них отображаются.
+settings.tab.mine = Мои
+settings.tab.server = Сервер
+settings.back = Назад
+settings.save = Сохранить
+settings.on = Вкл
+settings.off = Выкл
+settings.hide_all = Скрыть все полоски
+settings.hide_all_hint = Все панели остаются скрыты, пока вы не отключите эту опцию.
+settings.show_panel = Показать эту панель
+settings.spot = Где расположена
+settings.spot_hint = Выберите свое место или оставьте выбор сервера.
+settings.server_spot = Выбор сервера
+settings.shipped_spot = Как отправлено
+settings.server_spot_hint = Место, которое получают все, если только они не выберут свое.
+settings.enabled = Включено для всех
+settings.offset_x = Смещение X
+settings.offset_y = Смещение Y
+settings.columns = Столбцы
+settings.rows_per_column = Строк на столбец
+settings.server_note = Пустое поле сохраняет значение места. Сохранение применяется ко всем одновременно и записывает mods/ziggfreedcommon/hud-bar-panels.json.
+settings.saved = Сохранено. Панели всех игроков переместились.
+settings.save_failed = Не удалось записать файл владельца. Ничего не изменилось.
+settings.invalid_number = {0} требует целого числа или ничего.
+settings.pick_saved = {0} теперь находится в {1}.
+settings.pick_cleared = {0} снова следует выбору сервера.
+settings.hidden = {0} скрыта для вас.
+settings.shown = {0} снова отображается.
+settings.hide_all_on = Каждая полоска скрыта для вас.
+settings.hide_all_off = Ваши полоски снова отображаются.
+settings.panel_on = {0} включена для всех.
+settings.panel_off = {0} отключена для всех.
+settings.not_kept = Это не удалось сохранить. Переподключитесь и попробуйте еще раз.
+
+# The /zighud family: help text and answers.
+desc.family = Переместить или скрыть панели общей шкалы HUD.
+desc.open = Откройте параметры панели HUD.
+desc.place = Разместить панель в названном месте для себя.
+desc.hide = Скройте панель для себя или каждую панель.
+desc.show = Показать скрытую панель или каждую панель.
+desc.default = Установить место размещения панели для всех.
+desc.arg.panel = Панель: default (журнал действий) или grid (полосы мира).
+desc.arg.placement = Место по его id или "server" для следования выбору сервера.
+desc.arg.player = Чья HUD изменится. По умолчанию вы.
+desc.arg.panel_or_all = Панель или "all" для каждой панели. По умолчанию все.
+
+open.needsPlayer = Запустите это в игре, параметры ваши, в консоли нет HUD.
+open.failed = Не удалось открыть параметры.
+player.needed = Назовите игрока с помощью --player=<name> или запустите в игре.
+player.offline = Этот игрок не в сети.
+panel.unknown = Панель не называется "{0}". Используйте default или grid.
+placement.unknown = Место не называется "{0}".
+placement.unfit = {0} не был измерен для {1}, поэтому он не предлагается там.
+place.done = {0} теперь находится в {1}.
+place.cleared = {0} снова следует выбору сервера.
+place.unchanged = Это уже так.
+hide.done = {0} скрыта.
+hide.all = Каждая панель скрыта.
+show.done = {0} снова отображается.
+show.all = Каждая панель снова отображается.
+default.done = {0} находится в {1} для всех. Записано в {2}.
+default.cleared = {0} снова находится там, где это сказано в отправленном файле. Записано в {1}.
+default.failed = Не удалось записать в {0}. Файл остался как был.

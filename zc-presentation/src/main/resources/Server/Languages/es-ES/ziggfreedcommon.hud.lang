@@ -1,0 +1,79 @@
+# Los paneles de barras HUD compartidas: las posiciones en las que pueden sentarse, la página de configuración que los mueve y la
+# familia de comandos /zighud. El nombre del archivo es el PREFIJO de la clave: una entrada aquí se resuelve como
+# ziggfreedcommon.hud.<key>. Las claves desc.* son las que el motor resuelve para la ayuda de un comando o
+# un argumento.
+
+# Los puntos enviados bajo Server/ZiggfreedCommon/HudBarPlacements/, como los selectores los enumeran.
+placement.top_left = Arriba izquierda
+placement.top_right = Arriba derecha
+placement.bottom_left = Abajo izquierda
+
+# Los dos paneles, como los selectores y las respuestas los nombran.
+panel.default = Registro de actividad
+panel.grid = Barras del mundo
+
+# La página de configuración de HUD.
+settings.title = Barras HUD
+settings.subtitle = Dónde se posicionan los paneles de barras y cuáles se muestran.
+settings.tab.mine = Mío
+settings.tab.server = Servidor
+settings.back = Atrás
+settings.save = Guardar
+settings.on = Activado
+settings.off = Desactivado
+settings.hide_all = Ocultar todas las barras
+settings.hide_all_hint = Todos los paneles permanecen ocultos hasta que desactives esto de nuevo.
+settings.show_panel = Mostrar este panel
+settings.spot = Dónde se posiciona
+settings.spot_hint = Elige tu propia posición o mantén la del servidor.
+settings.server_spot = Elección del servidor
+settings.shipped_spot = Como se distribuye
+settings.server_spot_hint = La posición que recibe todo el mundo a menos que elija la suya.
+settings.enabled = Activado para todos
+settings.offset_x = Desplazamiento X
+settings.offset_y = Desplazamiento Y
+settings.columns = Columnas
+settings.rows_per_column = Filas por columna
+settings.server_note = Un campo en blanco mantiene el valor propio de la posición. Guardar se aplica a todos a la vez y escribe mods/ziggfreedcommon/hud-bar-panels.json.
+settings.saved = Guardado. Los paneles de todos los jugadores se han movido.
+settings.save_failed = No se pudo escribir el archivo del propietario. Nada cambió.
+settings.invalid_number = {0} necesita un número entero o nada en absoluto.
+settings.pick_saved = {0} ahora se posiciona en {1}.
+settings.pick_cleared = {0} sigue nuevamente la elección del servidor.
+settings.hidden = {0} está oculto para ti.
+settings.shown = {0} se muestra de nuevo.
+settings.hide_all_on = Todas las barras están ocultas para ti.
+settings.hide_all_off = Tus barras se muestran de nuevo.
+settings.panel_on = {0} está activado para todos.
+settings.panel_off = {0} está desactivado para todos.
+settings.not_kept = Eso no se pudo mantener. Reconecta e intenta de nuevo.
+
+# La familia /zighud: texto de ayuda y respuestas.
+desc.family = Mueve u oculta los paneles de barras HUD compartidas.
+desc.open = Abre la configuración de las barras HUD.
+desc.place = Coloca un panel en una posición nombrada, para ti.
+desc.hide = Oculta un panel para ti o todos los paneles.
+desc.show = Muestra un panel que ocultaste o todos los paneles.
+desc.default = Establece la posición en la que se sienta un panel para todos.
+desc.arg.panel = El panel: default (el registro de actividad) o grid (las barras del mundo).
+desc.arg.placement = La posición, por su id, o "server" para seguir la elección del servidor.
+desc.arg.player = De quién cambiar el HUD. Por defecto, el tuyo.
+desc.arg.panel_or_all = El panel, o "all" para todos los paneles. Por defecto, todos.
+
+open.needsPlayer = Ejecuta esto en el juego: la configuración es tuya y la consola no tiene HUD.
+open.failed = La configuración no se pudo abrir.
+player.needed = Nombra un jugador con --player=<name> o ejecuta esto en el juego.
+player.offline = Ese jugador no está en línea.
+panel.unknown = No hay ningún panel llamado "{0}". Usa default o grid.
+placement.unknown = No hay ninguna posición llamada "{0}".
+placement.unfit = {0} no fue medido para {1}, por lo que no se ofrece allí.
+place.done = {0} ahora se posiciona en {1}.
+place.cleared = {0} sigue nuevamente la elección del servidor.
+place.unchanged = Así es como ya es.
+hide.done = {0} está oculto.
+hide.all = Todos los paneles están ocultos.
+show.done = {0} se muestra de nuevo.
+show.all = Todos los paneles se muestran de nuevo.
+default.done = {0} se posiciona en {1} para todos. Escrito en {2}.
+default.cleared = {0} se posiciona donde dice su archivo distribuido de nuevo. Escrito en {1}.
+default.failed = No se pudo escribir en {0}. El archivo se dejó como estaba.

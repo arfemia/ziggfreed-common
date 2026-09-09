@@ -80,6 +80,8 @@ import com.ziggfreed.common.ui.hud.bar.HudBarConfig;
 import com.ziggfreed.common.ui.hud.bar.HudBarOwnerLayers;
 import com.ziggfreed.common.ui.hud.bar.HudBarPanelAsset;
 import com.ziggfreed.common.ui.hud.bar.HudBarPanelConfig;
+import com.ziggfreed.common.ui.hud.bar.HudBarPlacementAsset;
+import com.ziggfreed.common.ui.hud.bar.HudBarPlacementConfig;
 import com.ziggfreed.common.ui.hud.bar.HudBars;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
@@ -349,10 +351,27 @@ public final class FrameworkAssetRegistrar {
                     HudBars.repaintAllOnline();
                 });
 
-        // --- HUD bar panels (Pattern A) - the panel the bars are drawn on: on/off, position, how many
-        //     at once. The library ships Default.json (zc-presentation's resources) so a bare server
-        //     has a working panel; a consumer's same-id file replaces it by pack order. Owner layer
-        //     mods/ziggfreedcommon/hud-bar-panels.json; a reload re-anchors every online panel. ---
+        // --- HUD bar placements (Pattern A) - a named spot a bar panel can sit at: corner, offsets,
+        //     how the rows spread there, and which panels offer it. The library ships three
+        //     (zc-presentation's resources); a pack adds a spot by dropping one more file and every
+        //     picker offers it. Owner layer mods/ziggfreedcommon/hud-bar-placements.json; a reload
+        //     repaints every online panel, which re-anchors it as it draws. ---
+        AssetStoreRegistrar.registerStore(HudBarPlacementAsset.class,
+                new DefaultAssetMap<String, HudBarPlacementAsset>(), HudBarPlacementAsset.TYPE_ROOT,
+                HudBarPlacementAsset::getId, HudBarPlacementAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HudBarPlacementAsset.class,
+                (LoadedAssetsEvent<String, HudBarPlacementAsset, DefaultAssetMap<String, HudBarPlacementAsset>> ev) -> {
+                    HudBarPlacementConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    HudBarOwnerLayers.reloadPlacements();
+                    HudBars.repaintAllOnline();
+                });
+
+        // --- HUD bar panels (Pattern A) - the panel the bars are drawn on: on/off, the spot it names
+        //     (with inline nudges over it), how many at once. The library ships Default.json and
+        //     Grid.json (zc-presentation's resources) so a bare server has working panels; a
+        //     consumer's same-id file replaces one by pack order. Owner layer
+        //     mods/ziggfreedcommon/hud-bar-panels.json, which the HUD settings page writes too; a
+        //     reload repaints every online panel, which re-anchors it as it draws. ---
         AssetStoreRegistrar.registerStore(HudBarPanelAsset.class,
                 new DefaultAssetMap<String, HudBarPanelAsset>(), HudBarPanelAsset.TYPE_ROOT,
                 HudBarPanelAsset::getId, HudBarPanelAsset.CODEC, null);
@@ -360,7 +379,6 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, HudBarPanelAsset, DefaultAssetMap<String, HudBarPanelAsset>> ev) -> {
                     HudBarPanelConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     HudBarOwnerLayers.reloadPanels();
-                    HudBars.refreshPositionForAllOnline();
                     HudBars.repaintAllOnline();
                 });
 

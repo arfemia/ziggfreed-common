@@ -1,0 +1,79 @@
+# The shared HUD bar panels: the spots they can sit at, the settings page that moves them, and the
+# /zighud command family. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.hud.<key>. The desc.* keys are what the engine's own help resolves a command or
+# an argument through.
+
+# The spots shipped under Server/ZiggfreedCommon/HudBarPlacements/, as the pickers list them.
+placement.top_left = Top left
+placement.top_right = Top right
+placement.bottom_left = Bottom left
+
+# The two panels, as the pickers and the answers name them.
+panel.default = Activity ledger
+panel.grid = World bars
+
+# The HUD settings page.
+settings.title = HUD bars
+settings.subtitle = Where the bar panels sit, and which ones show.
+settings.tab.mine = Mine
+settings.tab.server = Server
+settings.back = Back
+settings.save = Save
+settings.on = On
+settings.off = Off
+settings.hide_all = Hide every bar
+settings.hide_all_hint = Every panel stays hidden until you switch this off again.
+settings.show_panel = Show this panel
+settings.spot = Where it sits
+settings.spot_hint = Pick a spot of your own, or keep the server's.
+settings.server_spot = Server's choice
+settings.shipped_spot = As shipped
+settings.server_spot_hint = The spot everyone gets unless they pick their own.
+settings.enabled = On for everyone
+settings.offset_x = Offset X
+settings.offset_y = Offset Y
+settings.columns = Columns
+settings.rows_per_column = Rows per column
+settings.server_note = A blank field keeps the spot's own value. Save applies to everyone at once, and writes mods/ziggfreedcommon/hud-bar-panels.json.
+settings.saved = Saved. Every player's panels moved.
+settings.save_failed = Could not write the owner file. Nothing changed.
+settings.invalid_number = {0} needs a whole number, or nothing at all.
+settings.pick_saved = {0} now sits at {1}.
+settings.pick_cleared = {0} follows the server's choice again.
+settings.hidden = {0} is hidden for you.
+settings.shown = {0} shows again.
+settings.hide_all_on = Every bar is hidden for you.
+settings.hide_all_off = Your bars show again.
+settings.panel_on = {0} is on for everyone.
+settings.panel_off = {0} is off for everyone.
+settings.not_kept = That could not be kept. Reconnect and try again.
+
+# The /zighud family: help text and answers.
+desc.family = Move or hide the shared HUD bar panels.
+desc.open = Open the HUD bar settings.
+desc.place = Put a panel at a named spot, for yourself.
+desc.hide = Hide a panel for yourself, or every panel.
+desc.show = Show a panel you hid, or every panel.
+desc.default = Set the spot a panel sits at for everyone.
+desc.arg.panel = The panel: default (the activity ledger) or grid (the world bars).
+desc.arg.placement = The spot, by its id, or "server" to follow the server's choice.
+desc.arg.player = Whose HUD to change. Defaults to you.
+desc.arg.panel_or_all = The panel, or "all" for every panel. Defaults to all.
+
+open.needsPlayer = Run this in game: the settings are yours, and the console has no HUD.
+open.failed = The settings could not be opened.
+player.needed = Name a player with --player=<name>, or run this in game.
+player.offline = That player is not online.
+panel.unknown = No panel is called "{0}". Use default or grid.
+placement.unknown = No spot is called "{0}".
+placement.unfit = {0} was not measured for {1}, so it is not offered there.
+place.done = {0} now sits at {1}.
+place.cleared = {0} follows the server's choice again.
+place.unchanged = That is already how it is.
+hide.done = {0} is hidden.
+hide.all = Every panel is hidden.
+show.done = {0} shows again.
+show.all = Every panel shows again.
+default.done = {0} sits at {1} for everyone. Written to {2}.
+default.cleared = {0} sits where its shipped file says again. Written to {1}.
+default.failed = Could not write to {0}. The file was left as it was.

@@ -9,28 +9,35 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
-import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.asset.EditorSchema;
-import com.ziggfreed.common.ui.hud.HudPosition;
+import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.i18n.Msg;
 
 /**
- * A panel the bars are drawn on: whether it is on, where it sits, how many bars it shows at once and
- * how they spread out. The FILE NAME is the panel's id, and which panel a row lands on is decided by
- * the mod reporting the movement, by calling that panel's entry point on {@link HudBars}.
+ * A panel the bars are drawn on: whether it is on, what it is called, which spot it sits at, how
+ * many bars it shows at once and how often it redraws. The FILE NAME is the panel's id, and which
+ * panel a row lands on is decided by the mod reporting the movement, by calling that panel's entry
+ * point on {@link HudBars}.
  *
  * <p>Authored at {@code Server/ZiggfreedCommon/HudBarPanels/<id>.json}. This library ships two:
- * {@code Default.json}, the tall stack in the left column, and {@code Grid.json}, the wide
- * few-columns block in the top-right. A pack or a server owner's
- * {@code mods/ziggfreedcommon/hud-bar-panels.json} restates only the leaves it wants different:
+ * {@code Default.json}, the tall stack in the left column, and {@code Grid.json}, the wide block. A
+ * pack or a server owner's {@code mods/ziggfreedcommon/hud-bar-panels.json} restates only the leaves
+ * it wants different:
  * <pre>{@code
  * // mods/ziggfreedcommon/hud-bar-panels.json
- * { "Default": { "Position": { "Preset": "BottomLeft", "OffsetY": 220 } } }
+ * { "Grid": { "Placement": "TopRight" },
+ *   "Default": { "Position": { "OffsetY": 260 }, "MaxVisible": 6 } }
  * }</pre>
  *
- * <p>{@code Position} is the one knob that moves a panel, through the shared {@link HudPosition}
- * presets every HUD in this family reads, so an owner reconciles it with whatever else sits in that
- * corner without touching code. {@code Columns} and {@code RowsPerColumn} decide how a panel's rows
- * spread out as more of them move at once; each is held to what that panel's own layout declares.
+ * <p><b>Where it sits is a {@code Placement}</b>, the id of a spot authored once at
+ * {@code Server/ZiggfreedCommon/HudBarPlacements/} ({@link HudBarPlacementAsset}) that also says
+ * how the rows spread there. The inline {@code Position}, {@code Columns} and {@code RowsPerColumn}
+ * are optional restatements OVER that spot, for an owner who wants a nudge or a different spread
+ * without authoring a spot of their own. A player may pick another offered spot for themselves in
+ * the HUD settings, and their pick replaces the whole group. {@link HudBarPlacement#resolve} is the
+ * one place that fold is worked out.
  */
 public final class HudBarPanelAsset
         implements JsonAssetWithMap<String, DefaultAssetMap<String, HudBarPanelAsset>> {
@@ -41,22 +48,8 @@ public final class HudBarPanelAsset
     /** The id of the stacked panel in the left column (the file is {@code Default.json}; ids fold lower-case). */
     public static final String DEFAULT_ID = "default";
 
-    /** The id of the wide few-columns panel in the top-right (the file is {@code Grid.json}). */
+    /** The id of the wide few-columns panel (the file is {@code Grid.json}). */
     public static final String GRID_ID = "grid";
-
-    /** Where the grid panel sits when nothing says otherwise: the top-right, above the quest tracker. */
-    public static final HudPosition GRID_POSITION =
-            new HudPosition(HudPosition.AnchorEdge.TOP, HudPosition.HorizontalEdge.RIGHT, 24, 10);
-
-    /**
-     * Where the panel sits when nothing says otherwise: the left column, under the mob inspector
-     * overlay a companion draws at the top-left (which ends near y 342).
-     */
-    public static final HudPosition DEFAULT_POSITION =
-            new HudPosition(HudPosition.AnchorEdge.TOP, HudPosition.HorizontalEdge.LEFT, 16, 216);
-
-    /** The preset name {@link #DEFAULT_POSITION} answers to. */
-    static final String DEFAULT_PRESET = "TopLeft";
 
     /**
      * How often a panel repaints at most, when nothing is authored. The paint is a leading-edge
@@ -65,17 +58,13 @@ public final class HudBarPanelAsset
      */
     public static final long DEFAULT_REPAINT_MS = 250L;
 
-    /** How many columns a panel spreads its rows across when nothing is authored: one. */
-    public static final int DEFAULT_COLUMNS = 1;
-
-    /** How many rows a column takes before the next one opens, when nothing is authored. */
-    public static final int DEFAULT_ROWS_PER_COLUMN = 1;
-
     private String id;
     private AssetExtraInfo.Data data;
 
     @Nullable private Boolean enabled;
-    @Nullable private Position position;
+    @Nullable private String labelKey;
+    @Nullable private String placement;
+    @Nullable private HudBarPosition position;
     @Nullable private Integer maxVisible;
     @Nullable private Integer columns;
     @Nullable private Integer rowsPerColumn;
@@ -92,14 +81,29 @@ public final class HudBarPanelAsset
             .appendInherited(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled, (a, p) -> a.enabled = p.enabled)
             .metadata(EditorSchema.defaultValue(true))
-            .documentation("Whether the panel draws at all. Set false to switch every bar off at once. "
-                    + "Unauthored reads true.")
+            .documentation("Whether the panel draws at all, for everyone. Set false to switch every bar "
+                    + "on it off at once. Unauthored reads true. A player hides a panel for themselves "
+                    + "in the HUD settings instead.")
             .add()
-            .appendInherited(new KeyedCodec<>("Position", Position.CODEC, false),
+            .appendInherited(new KeyedCodec<>("LabelKey", Codec.STRING, false),
+                    (a, v) -> a.labelKey = v, a -> a.labelKey, (a, p) -> a.labelKey = p.labelKey)
+            .documentation("A localization key naming this panel in the HUD settings, resolved on each "
+                    + "player's own client. Left out, the panel is listed by its id.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Placement", Codec.STRING, false),
+                    (a, v) -> a.placement = v, a -> a.placement, (a, p) -> a.placement = p.placement)
+            .metadata(new UIEditor(new UIEditor.Dropdown(HudBarPlacementAsset.EDITOR_DATA_SET)))
+            .documentation("The spot the panel sits at, by the id of a file under "
+                    + "Server/ZiggfreedCommon/HudBarPlacements/. That file carries the corner, the "
+                    + "offsets and how the rows spread there; the Position, Columns and RowsPerColumn "
+                    + "below restate single leaves over it. Left out, or naming a spot that does not "
+                    + "exist, the panel sits where its own layout says.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Position", HudBarPosition.CODEC, false),
                     (a, v) -> a.position = v, a -> a.position, (a, p) -> a.position = p.position)
-            .documentation("Where the panel sits on screen: a corner preset plus pixel offsets from the "
-                    + "edges that preset pins. Unauthored puts it at the top-left, under the left-column "
-                    + "overlays other mods draw there.")
+            .documentation("A corner preset and pixel offsets restated over the Placement's: state only "
+                    + "the leaves you want different, and leave the whole group out to take the spot as "
+                    + "authored.")
             .add()
             .appendInherited(new KeyedCodec<>("MaxVisible", Codec.INTEGER, false),
                     (a, v) -> a.maxVisible = v, a -> a.maxVisible, (a, p) -> a.maxVisible = p.maxVisible)
@@ -109,18 +113,16 @@ public final class HudBarPanelAsset
             .add()
             .appendInherited(new KeyedCodec<>("Columns", Codec.INTEGER, false),
                     (a, v) -> a.columns = v, a -> a.columns, (a, p) -> a.columns = p.columns)
-            .metadata(EditorSchema.defaultValue(DEFAULT_COLUMNS))
-            .documentation("The most columns the rows spread across. One stacks them in a single "
-                    + "column. A panel opens a new column only once RowsPerColumn is exceeded, and "
-                    + "never more than its own layout declares.")
+            .documentation("The most columns the rows spread across, restated over the Placement's. One "
+                    + "stacks them in a single column; a new column opens only once RowsPerColumn is "
+                    + "exceeded, and never more than the panel's own layout declares.")
             .add()
             .appendInherited(new KeyedCodec<>("RowsPerColumn", Codec.INTEGER, false),
                     (a, v) -> a.rowsPerColumn = v, a -> a.rowsPerColumn,
                     (a, p) -> a.rowsPerColumn = p.rowsPerColumn)
-            .metadata(EditorSchema.defaultValue(DEFAULT_ROWS_PER_COLUMN))
-            .documentation("How many rows one column takes before another opens. Set it high to keep "
-                    + "a tall single column until the panel is genuinely busy; set it to 1 to spread "
-                    + "rows sideways as soon as there is a second one.")
+            .documentation("How many rows one column takes before another opens, restated over the "
+                    + "Placement's. Set it high to keep a tall single column until the panel is "
+                    + "genuinely busy; set it to 1 to spread rows sideways as soon as there is a second.")
             .add()
             .appendInherited(new KeyedCodec<>("RepaintMs", Codec.LONG, false),
                     (a, v) -> a.repaintMs = v, a -> a.repaintMs, (a, p) -> a.repaintMs = p.repaintMs)
@@ -136,7 +138,7 @@ public final class HudBarPanelAsset
     public HudBarPanelAsset() {
     }
 
-    /** A panel with every leaf unauthored: on, at {@link #DEFAULT_POSITION}, every slot its document has. */
+    /** A panel with every leaf unauthored: on, named by its id, sitting where its document says, every slot its document has. */
     @Nonnull
     public static HudBarPanelAsset defaults() {
         HudBarPanelAsset asset = new HudBarPanelAsset();
@@ -154,32 +156,41 @@ public final class HudBarPanelAsset
         return !Boolean.FALSE.equals(enabled);
     }
 
-    /** Where the panel sits, falling back leaf by leaf to {@link #DEFAULT_POSITION}. */
-    @Nonnull
-    public HudPosition position() {
-        return position(DEFAULT_POSITION);
+    /** The label's localization key, trimmed, or null to list the panel by its id. */
+    @Nullable
+    public String labelKey() {
+        return labelKey == null || labelKey.isBlank() ? null : labelKey.trim();
     }
 
-    /**
-     * Where the panel sits: the authored preset and offsets, each leaf falling back to
-     * {@code fallback} on its own, and the whole of {@code fallback} for a preset nothing
-     * recognises. The fallback is the caller's because each panel sits somewhere different when
-     * nothing is authored, and only the HUD drawing it knows which panel it is.
-     */
+    /** What the panel is called on screen: its key resolved on the client, else its id. */
     @Nonnull
-    public HudPosition position(@Nonnull HudPosition fallback) {
-        Position authored = position;
-        if (authored == null) {
-            return fallback;
-        }
-        int offsetX = authored.offsetX != null ? authored.offsetX : fallback.getOffsetX();
-        int offsetY = authored.offsetY != null ? authored.offsetY : fallback.getOffsetY();
-        if (authored.preset == null || authored.preset.isBlank()) {
-            // Only the offsets were authored: keep the fallback's own corner and move it.
-            return new HudPosition(fallback.getAnchorEdge(), fallback.getHorizontalEdge(), offsetX, offsetY);
-        }
-        HudPosition parsed = HudPosition.parse(authored.preset, offsetX, offsetY);
-        return parsed != null ? parsed : fallback;
+    public Message label() {
+        String key = labelKey();
+        return key != null ? ContentKeys.tr(key) : Msg.raw(id);
+    }
+
+    /** The id of the spot the panel names, trimmed, or null when it names none. */
+    @Nullable
+    public String placement() {
+        return placement == null || placement.isBlank() ? null : placement.trim();
+    }
+
+    /** The inline corner and offsets restated over the spot, or null when the file states none. */
+    @Nullable
+    public HudBarPosition authoredPosition() {
+        return position == null || position.isEmpty() ? null : position;
+    }
+
+    /** The inline column cap restated over the spot, or null (unauthored or not positive). */
+    @Nullable
+    public Integer authoredColumns() {
+        return columns == null || columns <= 0 ? null : columns;
+    }
+
+    /** The inline rows per column restated over the spot, or null (unauthored or not positive). */
+    @Nullable
+    public Integer authoredRowsPerColumn() {
+        return rowsPerColumn == null || rowsPerColumn <= 0 ? null : rowsPerColumn;
     }
 
     /**
@@ -197,60 +208,8 @@ public final class HudBarPanelAsset
         return Math.max(1, Math.min(maxVisible, declared));
     }
 
-    /**
-     * The most columns the rows spread across, held between 1 and {@code documentColumns};
-     * {@value #DEFAULT_COLUMNS} when unauthored. Like {@link #maxVisible}, the ceiling comes from
-     * the document, which declares its columns up front.
-     */
-    public int columns(int documentColumns) {
-        int declared = Math.max(1, documentColumns);
-        int authored = columns == null ? DEFAULT_COLUMNS : columns;
-        return Math.max(1, Math.min(authored, declared));
-    }
-
-    /** How many rows a column takes before another opens; {@value #DEFAULT_ROWS_PER_COLUMN} when unauthored. */
-    public int rowsPerColumn() {
-        if (rowsPerColumn == null) {
-            return DEFAULT_ROWS_PER_COLUMN;
-        }
-        return Math.max(1, rowsPerColumn);
-    }
-
     /** How often the panel redraws at most; {@value #DEFAULT_REPAINT_MS} ms when unauthored or nonsense. */
     public long repaintMs() {
         return repaintMs != null && repaintMs > 0 ? repaintMs : DEFAULT_REPAINT_MS;
-    }
-
-    /** The corner preset and the two offsets, one group so they read and inherit together. */
-    public static final class Position {
-
-        @Nullable protected String preset;
-        @Nullable protected Integer offsetX;
-        @Nullable protected Integer offsetY;
-
-        public static final BuilderCodec<Position> CODEC = BuilderCodec.builder(Position.class, Position::new)
-                .appendInherited(new KeyedCodec<>("Preset", Codec.STRING, false),
-                        (o, v) -> o.preset = v, o -> o.preset, (o, p) -> o.preset = p.preset)
-                .metadata(EditorSchema.oneOf("TopLeft", "TopCenter", "TopRight", "CenterLeft", "Center",
-                        "CenterRight", "BottomLeft", "BottomCenter", "BottomRight"))
-                .metadata(EditorSchema.defaultValue(DEFAULT_PRESET))
-                .documentation("Which corner or edge the panel hangs from. Unauthored reads TopLeft.")
-                .add()
-                .appendInherited(new KeyedCodec<>("OffsetX", Codec.INTEGER, false),
-                        (o, v) -> o.offsetX = v, o -> o.offsetX, (o, p) -> o.offsetX = p.offsetX)
-                .metadata(EditorSchema.defaultValue(DEFAULT_POSITION.getOffsetX()))
-                .documentation("Pixels in from the pinned left or right edge; for a centred preset, a "
-                        + "nudge off centre. Unauthored reads " + DEFAULT_POSITION.getOffsetX() + ".")
-                .add()
-                .appendInherited(new KeyedCodec<>("OffsetY", Codec.INTEGER, false),
-                        (o, v) -> o.offsetY = v, o -> o.offsetY, (o, p) -> o.offsetY = p.offsetY)
-                .metadata(EditorSchema.defaultValue(DEFAULT_POSITION.getOffsetY()))
-                .documentation("Pixels down from a top preset, up from a bottom one. Unauthored reads "
-                        + DEFAULT_POSITION.getOffsetY() + ", which clears the mob inspector overlay.")
-                .add()
-                .build();
-
-        public Position() {
-        }
     }
 }

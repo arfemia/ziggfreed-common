@@ -7,15 +7,22 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.common.ui.hud.bar.HudBarHud.Row;
-import com.ziggfreed.common.ui.hud.bar.HudBarReading;
 
 /**
  * Which live rows get a slot: the most recently moved ones up to the panel's count, whatever kind
  * they are, drawn with every row that draws a fill above every row that does not and each group in
- * its settled order, so the stack never reshuffles as different rows take the latest move.
+ * its settled order, so the stack never reshuffles as different rows take the latest move. And how
+ * they spread: across the columns the resolved spot opens, top-down or bottom-up by its corner.
  */
 class HudBarSlotsTest {
+
+    private static final HudPosition TOP_LEFT =
+            new HudPosition(HudPosition.AnchorEdge.TOP, HudPosition.HorizontalEdge.LEFT, 16, 216);
+
+    private static final HudPosition BOTTOM_LEFT =
+            new HudPosition(HudPosition.AnchorEdge.BOTTOM, HudPosition.HorizontalEdge.LEFT, 16, 16);
 
     /** A row that draws a fill: it was moved with a reading. */
     private static Row fill(String id, int order, long lastMoved) {
@@ -45,7 +52,12 @@ class HudBarSlotsTest {
     /** A document of {@code columns} columns of {@code perColumn} slots; only the counts matter here. */
     private static HudBarLayout layout(int columns, int perColumn) {
         return new HudBarLayout("test", "test:hud", "Hud/Test.ui", "#Test", columns, perColumn,
-                12, 200, 8, 180, HudBarPanelAsset.DEFAULT_POSITION);
+                12, 200, 8, 180, TOP_LEFT);
+    }
+
+    /** A resolved spot with the two spread leaves stated; the corner is the top-left. */
+    private static HudBarPlacement spread(int columns, int rowsPerColumn) {
+        return new HudBarPlacement(TOP_LEFT, columns, rowsPerColumn, null);
     }
 
     @Test
@@ -106,36 +118,49 @@ class HudBarSlotsTest {
     }
 
     @Test
-    void aPanelNobodyAuthoredIsAPlainSingleColumn() {
+    void aSpotNobodyAuthoredIsAPlainSingleColumn() {
         HudBarLayout layout = layout(2, 13);
-        HudBarPanelAsset panel = HudBarPanelAsset.defaults();
+        HudBarPlacement spot = HudBarPlacement.fallback(layout);
 
-        assertEquals(1, HudBarHud.columnsFor(0, layout, panel), "nothing showing is still one column");
-        assertEquals(1, HudBarHud.columnsFor(1, layout, panel));
-        assertEquals(1, HudBarHud.columnsFor(40, layout, panel),
-                "spreading sideways is something a panel is authored to do; unauthored, it stacks, "
+        assertEquals(1, HudBarHud.columnsFor(0, layout, spot), "nothing showing is still one column");
+        assertEquals(1, HudBarHud.columnsFor(1, layout, spot));
+        assertEquals(1, HudBarHud.columnsFor(40, layout, spot),
+                "spreading sideways is something a spot is authored to do; unauthored, it stacks, "
                         + "however many columns the document happens to declare");
     }
 
     @Test
-    void anAuthoredPanelOpensAColumnPerRowUpToWhatTheDocumentHas() throws Exception {
+    void anAuthoredSpotOpensAColumnPerRowUpToWhatTheDocumentHas() {
         HudBarLayout layout = layout(3, 3);
-        HudBarPanelAsset panel = panelWith(3, 1);
+        HudBarPlacement spot = spread(3, 1);
 
-        assertEquals(1, HudBarHud.columnsFor(1, layout, panel), "one moving value is one bar, not a column of one");
-        assertEquals(2, HudBarHud.columnsFor(2, layout, panel));
-        assertEquals(3, HudBarHud.columnsFor(3, layout, panel));
-        assertEquals(3, HudBarHud.columnsFor(40, layout, panel),
+        assertEquals(1, HudBarHud.columnsFor(1, layout, spot), "one moving value is one bar, not a column of one");
+        assertEquals(2, HudBarHud.columnsFor(2, layout, spot));
+        assertEquals(3, HudBarHud.columnsFor(3, layout, spot));
+        assertEquals(3, HudBarHud.columnsFor(40, layout, spot),
                 "never more columns than the document declares, however many rows are moving");
+        assertEquals(3, HudBarHud.columnsFor(40, layout, spread(9, 1)),
+                "nor more than the document declares when the spot asks for more");
     }
 
     @Test
-    void aTallerRowsPerColumnKeepsTheStackNarrowForLonger() throws Exception {
+    void aTallerRowsPerColumnKeepsTheStackNarrowForLonger() {
         HudBarLayout layout = layout(2, 13);
-        HudBarPanelAsset panel = panelWith(2, 8);
+        HudBarPlacement spot = spread(2, 13);
 
-        assertEquals(1, HudBarHud.columnsFor(8, layout, panel), "eight rows still read as one column");
-        assertEquals(2, HudBarHud.columnsFor(9, layout, panel), "the ninth opens the second column");
+        assertEquals(1, HudBarHud.columnsFor(13, layout, spot), "thirteen rows still read as one column");
+        assertEquals(2, HudBarHud.columnsFor(14, layout, spot), "the fourteenth opens the second column");
+    }
+
+    @Test
+    void aSpotDeeperThanTheDocumentIsReadAtTheDocumentsDepth() {
+        // A spot measured for the thirteen-deep ledger, picked for a three-deep block: the fourth
+        // row has to open a column, because no column here can hold it.
+        HudBarLayout layout = layout(6, 3);
+        HudBarPlacement spot = spread(2, 13);
+
+        assertEquals(1, HudBarHud.columnsFor(3, layout, spot));
+        assertEquals(2, HudBarHud.columnsFor(4, layout, spot), "the document is only three deep");
     }
 
     @Test
@@ -150,12 +175,6 @@ class HudBarSlotsTest {
                 "a column never takes more rows than it declares slots");
     }
 
-    /** A panel whose two column leaves are authored; every other leaf stays unauthored. */
-    private static HudBarPanelAsset panelWith(int columns, int rowsPerColumn) throws Exception {
-        return HudBarPanelAssetTest.panel("{ \"Columns\": " + columns
-                + ", \"RowsPerColumn\": " + rowsPerColumn + " }", "default", null, null);
-    }
-
     @Test
     void anAllowedColumnThatEndsUpEmptyIsNotCounted() {
         // Four rows across a three-column allowance split two deep, which fills two columns and
@@ -165,6 +184,31 @@ class HudBarSlotsTest {
         assertEquals(1, HudBarHud.usedColumnsFor(1, 1));
         assertEquals(0, HudBarHud.usedColumnsFor(0, 3), "nothing showing fills no columns");
         assertEquals(0, HudBarHud.usedColumnsFor(5, 0), "no depth fills no columns");
+    }
+
+    @Test
+    void theSlotCapStopsAtWhatTheSpotsColumnsCanHold() throws Exception {
+        // A six-column document at a two-column spot: eighteen slots exist, six are reachable, and
+        // a seventh row would otherwise open a column the spot never allowed.
+        HudBarLayout layout = layout(6, 3);
+
+        assertEquals(6, HudBarHud.slotCap(HudBarPanelAsset.defaults(), spread(2, 1), layout));
+        assertEquals(18, HudBarHud.slotCap(HudBarPanelAsset.defaults(), spread(6, 1), layout));
+        assertEquals(4, HudBarHud.slotCap(HudBarPanelAssetTest.panel("{ \"MaxVisible\": 4 }", "grid", null, null),
+                spread(6, 1), layout), "an authored MaxVisible still caps it lower");
+    }
+
+    @Test
+    void aBottomPinnedColumnFillsFromTheBottom() {
+        // Three slots deep, two rows in use: top-down the first row takes slot 0; bottom-up it
+        // takes the LAST used slot, so the row already on screen stays against the pinned edge and
+        // the next opens above it.
+        assertEquals(0, HudBarHud.ordinalInColumn(0, 2, false));
+        assertEquals(1, HudBarHud.ordinalInColumn(1, 2, false));
+        assertEquals(1, HudBarHud.ordinalInColumn(0, 2, true), "the top used slot draws the second row");
+        assertEquals(0, HudBarHud.ordinalInColumn(1, 2, true), "the bottom used slot draws the first");
+        assertTrue(new HudBarPlacement(BOTTOM_LEFT, 2, 1, null).bottomUp());
+        assertTrue(!new HudBarPlacement(TOP_LEFT, 2, 1, null).bottomUp());
     }
 
     @Test

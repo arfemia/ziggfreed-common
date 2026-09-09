@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.hud.HudPosition;
+import com.ziggfreed.common.ui.hud.HudPreferences;
 import com.ziggfreed.common.ui.hud.KeyedCustomHud;
 import com.ziggfreed.common.ui.hud.RepaintCoalescer;
 import com.ziggfreed.common.ui.icon.IconRenderer;
@@ -42,9 +43,12 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>What it knows.</b> Rows, created on demand by the first move reported under an id and
  * dressed by the {@link HudBarDisplay} that came with the move, each holding the reading its last
- * move brought; overrides, from {@link HudBarConfig}; and a panel, from {@link HudBarPanelConfig}.
- * It asks nothing of anyone at paint time and knows nothing about what any value measures. A
- * consumer never touches this class: it calls {@link HudBars#moved} or {@link HudBars#itemMoved}.
+ * move brought; overrides, from {@link HudBarConfig}; a panel, from {@link HudBarPanelConfig}; and
+ * where THIS player's panel sits, resolved per paint by {@link HudBarPlacement#resolve} from the
+ * spot the panel names, the owner's inline leaves and the player's own pick
+ * ({@link HudPreferences}). It asks nothing of anyone at paint time and knows nothing about what
+ * any value measures. A consumer never touches this class: it calls {@link HudBars#moved} or
+ * {@link HudBars#itemMoved}.
  *
  * <p><b>How it paints.</b> A move records the gain and starts the row's linger clock, then asks for
  * a paint. Paints are folded per tick ({@link RepaintCoalescer}) and held to one per the panel's
@@ -53,10 +57,12 @@ import com.ziggfreed.common.util.SafeLog;
  * inside it is drawn at the window's end rather than dropped, so the number on screen is never
  * waiting on a LATER move to bring it up to date. One sweep is armed at a time, at the earliest
  * linger expiry, and it re-arms itself while anything is still live, so a row goes away on time with
- * no tick anywhere. Everything that touches the player runs on their world thread.
+ * no tick anywhere. A panel the player hid paints only its own {@code Visible} false and keeps its
+ * rows, so showing it again mid-run shows the ledger as it stands. Everything that touches the
+ * player runs on their world thread.
  *
  * <p><b>The document.</b> Slots are declared up front in columns ({@code #ZigBarCol<c>} holding
- * {@code #ZigBar<c>_<r>}), addressed by index and hidden when surplus, because a partial update can
+ * {@code #ZigBarC<c>R<r>}), addressed by index and hidden when surplus, because a partial update can
  * restyle an element that exists but never add one. Each slot is a {@code #Line} (icon pair,
  * {@code #Label}, {@code #Gain}) over a {@code #Bar} holding the two end captions and a
  * {@code #Track} of {@code #Fill} and {@code #Pulse}. Paths and ids are prefixed {@code Zig}
@@ -91,7 +97,7 @@ public abstract class HudBarHud extends KeyedCustomHud {
     private final AtomicBoolean paintDeferred = new AtomicBoolean();
     private final AtomicBoolean sweepArmed = new AtomicBoolean();
 
-    /** Which panel this is: its document, its element names, its declared slots and its default corner. */
+    /** Which panel this is: its document, its element names, its declared slots and its fallback corner. */
     private final HudBarLayout layout;
 
     protected HudBarHud(@Nonnull PlayerRef playerRef, @Nonnull HudBarLayout layout) {
@@ -109,6 +115,18 @@ public abstract class HudBarHud extends KeyedCustomHud {
     @Nonnull
     private HudBarPanelAsset panel() {
         return HudBarPanelConfig.getInstance().panel(layout.panelId());
+    }
+
+    /**
+     * Where THIS player's panel sits and how its rows spread: the player's own pick when they made
+     * one, else the spot the panel names with the owner's inline leaves over it, else the document's
+     * fallback. Read per paint, so a pick, a reload or an owner edit lands on the next paint. World
+     * thread, because the pick is read off the player's entity.
+     */
+    @Nonnull
+    private HudBarPlacement placement() {
+        return HudBarPlacement.resolve(panel(), layout,
+                HudPreferences.placementPick(getPlayerRef(), layout.panelId()));
     }
 
     /**
@@ -179,7 +197,7 @@ public abstract class HudBarHud extends KeyedCustomHud {
     @Nonnull
     @Override
     protected final HudPosition configuredPosition() {
-        return panel().position(layout.defaultPosition());
+        return placement().position();
     }
 
     /** The first paint, inside the native {@code addCustomHud}: the document, its position, and no rows. */
@@ -187,7 +205,7 @@ public abstract class HudBarHud extends KeyedCustomHud {
     protected final void build(@Nonnull UICommandBuilder cmd) {
         cmd.append(layout.template());
         applyConfiguredPosition(cmd);
-        paint(cmd, layout, List.of(), panel(), configuredPosition(), false);
+        paint(cmd, layout, List.of(), panel(), placement(), false);
     }
 
     // ==================== a value moved ====================
@@ -295,16 +313,25 @@ public abstract class HudBarHud extends KeyedCustomHud {
 
     // ==================== the paint ====================
 
-    /** World thread: drop what has expired, read what is left, draw, and keep a sweep armed while anything lives. */
+    /**
+     * World thread: drop what has expired, read what is left, draw, and keep a sweep armed while
+     * anything lives. A panel the player hid paints only its own {@code Visible} false: its rows are
+     * kept and swept exactly as if it showed, so showing it again shows the ledger as it stands.
+     */
     private void paintNow() {
         try {
             markPushed();
             long now = System.currentTimeMillis();
             List<Row> rows = collectLive(now);
             HudBarPanelAsset panel = panel();
+            HudBarPlacement placement = placement();
             UICommandBuilder cmd = new UICommandBuilder();
-            paint(cmd, layout, choose(rows, panel.maxVisible(layout.totalSlots()), layout.totalSlots()),
-                    panel, configuredPosition(), true);
+            if (HudPreferences.isHidden(getPlayerRef(), layout.panelId())) {
+                cmd.set(layout.root() + ".Visible", false);
+            } else {
+                paint(cmd, layout, choose(rows, slotCap(panel, placement, layout), layout.totalSlots()),
+                        panel, placement, true);
+            }
             update(false, cmd);
             rearmSweep(now);
         } catch (Throwable t) {
@@ -364,6 +391,17 @@ public abstract class HudBarHud extends KeyedCustomHud {
     }
 
     /**
+     * How many rows may be drawn at once: the panel's authored {@code MaxVisible}, and never more
+     * than the columns the spot opens can hold, or the rows past that would open a column the spot
+     * never allowed. Pure, tested.
+     */
+    static int slotCap(@Nonnull HudBarPanelAsset panel, @Nonnull HudBarPlacement placement,
+            @Nonnull HudBarLayout layout) {
+        int reachable = placement.columns(layout.columns()) * layout.slotsPerColumn();
+        return Math.max(0, Math.min(panel.maxVisible(layout.totalSlots()), reachable));
+    }
+
+    /**
      * Which rows get a slot, and in what order: the {@code maxVisible} most recently moved rows of
      * either kind, so a value that just started moving is never kept off the panel by one that has
      * been idling toward its expiry, drawn in {@link #STACK_ORDER} (fill rows above item rows, then
@@ -380,16 +418,20 @@ public abstract class HudBarHud extends KeyedCustomHud {
     }
 
     /**
-     * How many columns {@code rows} spread across on {@code panel}: a new column opens only once
-     * the authored {@code RowsPerColumn} is exceeded, and never more than the document declares.
-     * Pure, so the layout can be reasoned about without a client.
+     * How many columns {@code rows} spread across at {@code placement}: a new column opens only once
+     * the spot's {@code RowsPerColumn} is exceeded, and never more than the spot allows or the
+     * document declares. A spot asking for a deeper column than the document has (a spot measured
+     * for the tall ledger, picked for the three-deep block) is read at the document's depth, or the
+     * rows past that depth would be drawn nowhere. Pure, so the layout can be reasoned about without
+     * a client.
      */
-    static int columnsFor(int rows, @Nonnull HudBarLayout layout, @Nonnull HudBarPanelAsset panel) {
+    static int columnsFor(int rows, @Nonnull HudBarLayout layout, @Nonnull HudBarPlacement placement) {
         if (rows <= 0) {
             return 1;
         }
-        int wanted = ceilDiv(rows, panel.rowsPerColumn());
-        return Math.max(1, Math.min(wanted, panel.columns(layout.columns())));
+        int depth = Math.min(placement.rowsPerColumn(), Math.max(1, layout.slotsPerColumn()));
+        int wanted = ceilDiv(rows, depth);
+        return Math.max(1, Math.min(wanted, placement.columns(layout.columns())));
     }
 
     /**
@@ -417,6 +459,17 @@ public abstract class HudBarHud extends KeyedCustomHud {
         return ceilDiv(rows, perColumn);
     }
 
+    /**
+     * Which of a column's {@code perColumn} rows the slot at {@code slotRow} draws. Top-down, the
+     * slot draws its own ordinal. Bottom-up, for a panel pinned to the screen's bottom edge, the
+     * FIRST row goes in the LAST used slot: hidden slots collapse out of the column, so the lowest
+     * visible slot sits against the pinned edge, and a row already on screen stays put when the next
+     * one opens above it instead of being pushed up by a row appearing underneath.
+     */
+    static int ordinalInColumn(int slotRow, int perColumn, boolean bottomUp) {
+        return bottomUp ? perColumn - 1 - slotRow : slotRow;
+    }
+
     private static int ceilDiv(int value, int by) {
         int divisor = Math.max(1, by);
         return (value + divisor - 1) / divisor;
@@ -428,33 +481,32 @@ public abstract class HudBarHud extends KeyedCustomHud {
      * never add one. A row with no fill hides its bar and is its first line alone. The whole panel
      * goes when nothing is showing or the owner switched it off.
      *
-     * <p>Rows fill COLUMN BY COLUMN, so a stack that has grown wide still reads top-to-bottom down
-     * its first column before continuing at the top of the next: the order rows are chosen in is
-     * meaningful, and reading it across the rows instead would scramble it. A column with nothing in
-     * it is hidden outright rather than left as an empty gutter, which is what lets one document
-     * draw a single narrow column and a wide several-column block without knowing which it is.
+     * <p>Rows fill COLUMN BY COLUMN, so a stack that has grown wide still reads down its first
+     * column before continuing at the top of the next: the order rows are chosen in is meaningful,
+     * and reading it across the rows instead would scramble it. A column with nothing in it is
+     * hidden outright rather than left as an empty gutter, which is what lets one document draw a
+     * single narrow column and a wide several-column block without knowing which it is.
+     *
+     * <p>A panel pinned to the RIGHT edge grows leftward as columns open, so its first column is the
+     * RIGHTMOST one, and one pinned to the BOTTOM edge grows upward as rows come up, so each
+     * column's first row is its LOWEST: either way, what is already on screen stays where the eye
+     * left it when the next thing opens beside or above it.
      *
      * <p>{@code animate} is false for the build push, where every row would arrive at once and a
      * leading-edge pulse on all of them reads as noise rather than as movement.
      */
     static void paint(@Nonnull UICommandBuilder cmd, @Nonnull HudBarLayout layout, @Nonnull List<Row> rows,
-            @Nonnull HudBarPanelAsset panel, @Nullable HudPosition position, boolean animate) {
+            @Nonnull HudBarPanelAsset panel, @Nonnull HudBarPlacement placement, boolean animate) {
         cmd.set(layout.root() + ".Visible", panel.enabled() && !rows.isEmpty());
-        int allowed = columnsFor(rows.size(), layout, panel);
+        int allowed = columnsFor(rows.size(), layout, placement);
         int perColumn = rowsPerColumnFor(rows.size(), allowed, layout);
-        int used = usedColumnsFor(rows.size(), perColumn);
-        if (position != null) {
-            // The panel is only as wide as the columns actually in use, so a single-column stack
-            // never draws its background across the gutter a second column would have filled.
-            cmd.setObject(layout.root() + ".Anchor",
-                    position.toAnchorContentHeight(layout.panelWidthFor(Math.max(1, used))));
-        }
-        // A panel pinned to the RIGHT edge grows leftward as columns open, so its first column has
-        // to be the RIGHTMOST one: filling left-to-right there would shift every column already on
-        // screen sideways the moment a new one opened, and drag the rows out from under the eye
-        // reading them. A left-pinned panel grows the other way and fills the ordinary way.
-        boolean rightToLeft = position != null
-                && position.getHorizontalEdge() == HudPosition.HorizontalEdge.RIGHT;
+        int used = Math.min(allowed, usedColumnsFor(rows.size(), perColumn));
+        // The panel is only as wide as the columns actually in use, so a single-column stack never
+        // draws its background across the gutter a second column would have filled.
+        cmd.setObject(layout.root() + ".Anchor",
+                placement.position().toAnchorContentHeight(layout.panelWidthFor(Math.max(1, used))));
+        boolean rightToLeft = placement.rightToLeft();
+        boolean bottomUp = placement.bottomUp();
         long now = System.currentTimeMillis();
         for (int slotColumn = 0; slotColumn < layout.columns(); slotColumn++) {
             boolean columnUsed = slotColumn < used;
@@ -463,8 +515,10 @@ public abstract class HudBarHud extends KeyedCustomHud {
             int firstInColumn = ordinal * perColumn;
             for (int row = 0; row < layout.slotsPerColumn(); row++) {
                 String slot = layout.slotSelector(slotColumn, row);
-                int index = firstInColumn + row;
-                if (!columnUsed || row >= perColumn || index >= rows.size()) {
+                int index = columnUsed && row < perColumn
+                        ? firstInColumn + ordinalInColumn(row, perColumn, bottomUp)
+                        : rows.size();
+                if (index >= rows.size()) {
                     cmd.set(slot + ".Visible", false);
                     continue;
                 }

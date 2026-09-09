@@ -1,0 +1,79 @@
+# The shared HUD bar panels: the spots they can sit at, the settings page that moves them, and the
+# /zighud command family. The file name is the key PREFIX: an entry here resolves as
+# ziggfreedcommon.hud.<key>. The desc.* keys are what the engine's own help resolves a command or
+# an argument through.
+
+# The spots shipped under Server/ZiggfreedCommon/HudBarPlacements/, as the pickers list them.
+placement.top_left = In alto a sinistra
+placement.top_right = In alto a destra
+placement.bottom_left = In basso a sinistra
+
+# The two panels, as the pickers and the answers name them.
+panel.default = Registro attività
+panel.grid = Barre del mondo
+
+# The HUD settings page.
+settings.title = Barre HUD
+settings.subtitle = Dove si posizionano i pannelli barra, e quali sono visibili.
+settings.tab.mine = Mio
+settings.tab.server = Server
+settings.back = Indietro
+settings.save = Salva
+settings.on = Acceso
+settings.off = Spento
+settings.hide_all = Nascondi tutte le barre
+settings.hide_all_hint = Ogni pannello rimane nascosto finché non disattivi questa opzione.
+settings.show_panel = Mostra questo pannello
+settings.spot = Dove si posiziona
+settings.spot_hint = Scegli una posizione personalizzata o mantieni quella del server.
+settings.server_spot = Scelta del server
+settings.shipped_spot = Come inviato
+settings.server_spot_hint = La posizione che riceve chiunque, a meno che non scelga la propria.
+settings.enabled = Attivo per tutti
+settings.offset_x = Offset X
+settings.offset_y = Offset Y
+settings.columns = Colonne
+settings.rows_per_column = Righe per colonna
+settings.server_note = Un campo vuoto mantiene il valore della posizione. Salva si applica a tutti contemporaneamente e scrive mods/ziggfreedcommon/hud-bar-panels.json.
+settings.saved = Salvato. I pannelli di ogni giocatore si sono spostati.
+settings.save_failed = Impossibile scrivere il file di proprietà. Nulla è cambiato.
+settings.invalid_number = {0} richiede un numero intero, o nulla.
+settings.pick_saved = {0} ora si trova in {1}.
+settings.pick_cleared = {0} segue di nuovo la scelta del server.
+settings.hidden = {0} è nascosto per te.
+settings.shown = {0} si mostra di nuovo.
+settings.hide_all_on = Ogni barra è nascosta per te.
+settings.hide_all_off = Le tue barre si mostrano di nuovo.
+settings.panel_on = {0} è attivo per tutti.
+settings.panel_off = {0} è disattivo per tutti.
+settings.not_kept = Non è stato possibile mantenere. Riconnettiti e riprova.
+
+# The /zighud family: help text and answers.
+desc.family = Sposta o nascondi i pannelli barra HUD condivisi.
+desc.open = Apri le impostazioni delle barre HUD.
+desc.place = Posiziona un pannello in un luogo, per te.
+desc.hide = Nascondi un pannello per te, o tutti i pannelli.
+desc.show = Mostra un pannello che hai nascosto, o tutti i pannelli.
+desc.default = Imposta la posizione in cui un pannello si trova per tutti.
+desc.arg.panel = Il pannello: default (il registro attività) o grid (le barre del mondo).
+desc.arg.placement = La posizione, per il suo id, o "server" per seguire la scelta del server.
+desc.arg.player = Di chi modificare l'HUD. Default: te.
+desc.arg.panel_or_all = Il pannello, o "all" per tutti i pannelli. Default: all.
+
+open.needsPlayer = Esegui questo nel gioco: le impostazioni sono tue, e la console non ha HUD.
+open.failed = Le impostazioni non hanno potuto essere aperte.
+player.needed = Specifica un giocatore con --player=<name>, oppure esegui questo nel gioco.
+player.offline = Quel giocatore non è online.
+panel.unknown = Nessun pannello si chiama "{0}". Usa default o grid.
+placement.unknown = Nessun luogo si chiama "{0}".
+placement.unfit = {0} non è stato misurato per {1}, quindi non è offerto lì.
+place.done = {0} ora si trova in {1}.
+place.cleared = {0} segue di nuovo la scelta del server.
+place.unchanged = È già così.
+hide.done = {0} è nascosto.
+hide.all = Ogni pannello è nascosto.
+show.done = {0} si mostra di nuovo.
+show.all = Ogni pannello si mostra di nuovo.
+default.done = {0} si trova in {1} per tutti. Scritto in {2}.
+default.cleared = {0} si trova di nuovo dove dice il suo file inviato. Scritto in {1}.
+default.failed = Impossibile scrivere in {0}. Il file è stato lasciato così com'era.

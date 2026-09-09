@@ -1,0 +1,27 @@
+{
+  "$Comment": [
+    "A spot a bar panel can sit at: the bottom-left, just below your own health and mana bars and",
+    "clear of the hotbar. Measured for the wide World panel: two columns wide, which leaves a skill",
+    "name room to be read and stops well short of the hotbar; pinned to the bottom edge, it grows",
+    "UPWARD as rows come up and fills each column from the bottom, so the bar already on screen",
+    "stays put when the next one opens above it. Three rows deep it reaches the mana bar; a fourth",
+    "overlaps it, which is fine for the moment a busy stretch lasts.",
+    "",
+    "Position is a corner preset plus pixel offsets from the edges that preset pins (OffsetY here",
+    "is measured UP from the bottom). Columns and RowsPerColumn say how the rows spread out here.",
+    "Panels lists which panels offer this spot. LabelKey names it in the HUD settings.",
+    "",
+    "To retune a leaf without copying this file, add an entry keyed 'BottomLeft' to",
+    "mods/ziggfreedcommon/hud-bar-placements.json with only the leaves you want different."
+  ],
+  "LabelKey": "ziggfreedcommon.hud.placement.bottom_left",
+  "Position": {
+    "Preset": "BottomLeft",
+    "OffsetX": 16,
+    "OffsetY": 16
+  },
+  "Columns": 2,
+  "RowsPerColumn": 1,
+  "Panels": ["Grid"],
+  "Order": 30
+}

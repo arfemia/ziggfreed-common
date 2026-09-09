@@ -2,7 +2,7 @@ package com.ziggfreed.common.ui.hud.bar;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -13,19 +13,17 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
-import com.ziggfreed.common.ui.hud.HudPosition;
 
 /**
- * The panel file: its default position is the left column under the other left-column overlays, an
- * authored {@code Position} reads leaf by leaf over that default, a preset nothing recognises falls
- * back whole, {@code MaxVisible} is held to the slots the document declares, and the fold always
- * answers a panel.
+ * The panel file: every leaf is optional and reads as "the layer below decides", the spot it names
+ * and its inline leaves are read back as authored, a child keeps the leaves it did not restate,
+ * {@code MaxVisible} is held to the slots the document declares, and the fold always answers.
+ * Where the panel ends up SITTING is {@link HudBarPlacementTest}'s.
  */
 class HudBarPanelAssetTest {
 
     /** How many slots the panel under test declares; the ceiling is the drawing document's, not the file's. */
     private static final int SLOTS = 4;
-
 
     static HudBarPanelAsset panel(String json, String id, String parentId, HudBarPanelAsset parent)
             throws IOException {
@@ -41,45 +39,41 @@ class HudBarPanelAssetTest {
     }
 
     @Test
-    void theDefaultPositionIsTopLeftUnderTheInspectorCard() {
-        HudPosition position = HudBarPanelAsset.defaults().position();
+    void anUnauthoredPanelIsOnNamesNoSpotAndShowsEverySlot() {
+        HudBarPanelAsset panel = HudBarPanelAsset.defaults();
 
-        assertSame(HudBarPanelAsset.DEFAULT_POSITION, position);
-        assertEquals(HudPosition.AnchorEdge.TOP, position.getAnchorEdge());
-        assertEquals(HudPosition.HorizontalEdge.LEFT, position.getHorizontalEdge());
-        assertEquals(16, position.getOffsetX());
-        assertEquals(216, position.getOffsetY());
-        assertTrue(HudBarPanelAsset.defaults().enabled());
-        assertEquals(SLOTS, HudBarPanelAsset.defaults().maxVisible(SLOTS));
+        assertTrue(panel.enabled());
+        assertNull(panel.placement(), "no spot named: the document decides");
+        assertNull(panel.authoredPosition());
+        assertNull(panel.authoredColumns());
+        assertNull(panel.authoredRowsPerColumn());
+        assertNull(panel.labelKey(), "unnamed: listed by its id");
+        assertEquals(SLOTS, panel.maxVisible(SLOTS));
+        assertEquals(HudBarPanelAsset.DEFAULT_REPAINT_MS, panel.repaintMs());
     }
 
     @Test
-    void anAuthoredPositionReadsLeafByLeafOverTheDefault() throws Exception {
-        HudPosition moved = panel("{ \"Position\": { \"Preset\": \"BottomLeft\", \"OffsetY\": 220 } }",
-                "default", null, null).position();
+    void theSpotAndTheInlineLeavesReadBackAsAuthored() throws Exception {
+        HudBarPanelAsset panel = panel("{ \"Placement\": \" BottomLeft \", \"LabelKey\": \"my.panel\","
+                + " \"Position\": { \"OffsetY\": 220 }, \"Columns\": 3, \"RowsPerColumn\": 2 }",
+                "default", null, null);
 
-        assertEquals(HudPosition.AnchorEdge.BOTTOM, moved.getAnchorEdge());
-        assertEquals(HudPosition.HorizontalEdge.LEFT, moved.getHorizontalEdge());
-        assertEquals(220, moved.getOffsetY(), "the restated offset");
-        assertEquals(HudBarPanelAsset.DEFAULT_POSITION.getOffsetX(), moved.getOffsetX(),
-                "an unauthored offset keeps the default's");
+        assertEquals("BottomLeft", panel.placement(), "trimmed, case kept for the fold to fold");
+        assertEquals("my.panel", panel.labelKey());
+        assertNull(panel.authoredPosition().preset(), "only the offset was restated");
+        assertEquals(220, panel.authoredPosition().offsetY());
+        assertEquals(3, panel.authoredColumns());
+        assertEquals(2, panel.authoredRowsPerColumn());
     }
 
     @Test
-    void offsetsAloneKeepTheDefaultPreset() throws Exception {
-        HudPosition nudged = panel("{ \"Position\": { \"OffsetX\": 40 } }", "default", null, null).position();
+    void anEmptyPositionGroupAndNonPositiveSpreadsReadAsUnauthored() throws Exception {
+        HudBarPanelAsset panel = panel("{ \"Position\": { }, \"Columns\": 0, \"RowsPerColumn\": -2 }",
+                "default", null, null);
 
-        assertEquals(HudPosition.AnchorEdge.TOP, nudged.getAnchorEdge());
-        assertEquals(HudPosition.HorizontalEdge.LEFT, nudged.getHorizontalEdge());
-        assertEquals(40, nudged.getOffsetX());
-        assertEquals(HudBarPanelAsset.DEFAULT_POSITION.getOffsetY(), nudged.getOffsetY());
-    }
-
-    @Test
-    void anUnknownPresetFallsBackWhole() throws Exception {
-        assertSame(HudBarPanelAsset.DEFAULT_POSITION,
-                panel("{ \"Position\": { \"Preset\": \"Sideways\", \"OffsetY\": 9 } }", "default", null, null)
-                        .position());
+        assertNull(panel.authoredPosition(), "a group with no leaves changes nothing");
+        assertNull(panel.authoredColumns());
+        assertNull(panel.authoredRowsPerColumn());
     }
 
     @Test
@@ -92,25 +86,27 @@ class HudBarPanelAssetTest {
     }
 
     @Test
-    void aChildKeepsThePositionLeavesItDidNotRestate() throws Exception {
-        HudBarPanelAsset base = panel("{ \"Position\": { \"Preset\": \"BottomLeft\", \"OffsetX\": 30, \"OffsetY\": 200 },"
+    void aChildKeepsTheLeavesItDidNotRestate() throws Exception {
+        HudBarPanelAsset base = panel("{ \"Placement\": \"TopRight\","
+                + " \"Position\": { \"Preset\": \"BottomLeft\", \"OffsetX\": 30, \"OffsetY\": 200 },"
                 + " \"MaxVisible\": 3 }", "default", null, null);
         HudBarPanelAsset child = panel("{ \"Position\": { \"OffsetY\": 260 }, \"Enabled\": false }",
                 "default", "default", base);
 
         assertFalse(child.enabled());
         assertEquals(3, child.maxVisible(SLOTS));
-        HudPosition position = child.position();
-        assertEquals(HudPosition.AnchorEdge.BOTTOM, position.getAnchorEdge(), "the preset is inherited");
-        assertEquals(30, position.getOffsetX(), "the unrestated offset is inherited");
-        assertEquals(260, position.getOffsetY(), "the restated offset is the child's");
+        assertEquals("TopRight", child.placement(), "the spot is inherited");
+        HudBarPosition position = child.authoredPosition();
+        assertEquals("BottomLeft", position.preset(), "the preset is inherited");
+        assertEquals(30, position.offsetX(), "the unrestated offset is inherited");
+        assertEquals(260, position.offsetY(), "the restated offset is the child's");
     }
 
     @Test
     void theFoldAlwaysAnswersAPanel() throws Exception {
         assertTrue(HudBarPanelConfig.getInstance().current().enabled(),
                 "before anything has loaded, the all-defaults panel answers");
-        assertSame(HudBarPanelAsset.DEFAULT_POSITION, HudBarPanelConfig.getInstance().current().position());
+        assertNull(HudBarPanelConfig.getInstance().grid().placement());
 
         HudBarPanelAsset off = panel("{ \"Enabled\": false }", "Default", null, null);
         HudBarPanelConfig.getInstance().mergePackLayer(Map.of("Default", off));
