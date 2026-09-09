@@ -22,9 +22,10 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>The param grammar is the counter's own.</b> A plain key reads a grand total; a category and
  * a name joined by {@code /} read one line of a breakdown, the shape the counter package files a
- * per-thing tally under beside its total. Which keys exist is the consumer's business: an unknown
- * key and a player who has never done the thing both read {@code 0}, so every authored condition
- * on this id needs a {@code Min}.
+ * per-thing tally under beside its total. A key is matched without regard to case, so an authored
+ * {@code mob_kills} reads the tally kept as {@code Mob_Kills}. Which keys exist is the consumer's
+ * business: an unknown key and a player who has never done the thing both read {@code 0}, so every
+ * authored condition on this id needs a {@code Min}.
  *
  * <p><b>Fail-closed where it matters.</b> With no {@link CounterSource} installed, or with no live
  * player in the question, the reading is {@code null} (unanswerable), never {@code 0}: a gate must
@@ -41,7 +42,7 @@ public final class CounterFactors {
 
     /**
      * {@code ziggfreedcommon:counter} - the player's lifetime tally under the key named by Param
-     * ({@code mob_kills}, {@code mob_kills/Warden}, {@code encounters_defeated/Kweebec_Warden}).
+     * ({@code Mob_Kills}, {@code Mob_Kills/Warden}, {@code Encounters_Defeated/Kweebec_Warden}).
      */
     public static final String COUNTER = "ziggfreedcommon:counter";
 

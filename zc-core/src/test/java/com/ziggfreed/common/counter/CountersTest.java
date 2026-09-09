@@ -73,6 +73,23 @@ class CountersTest {
     }
 
     @Test
+    void aKeyAndACategoryMatchWhateverTheirCase() {
+        Counters counters = new Counters();
+        counters.add(ALICE, "broken", "stone", 4L);
+        counters.add(ALICE, "runs", 2L);
+
+        assertEquals(4L, counters.get(ALICE, "Broken", "Stone"),
+                "a read under another casing finds the tally");
+        assertEquals(2L, counters.get(ALICE, "RUNS"));
+        assertEquals(Map.of("stone", 4L), counters.category(ALICE, "BROKEN"),
+                "the category walk matches its prefix the same way");
+
+        counters.add(ALICE, "Broken", "stone", 1L);
+        assertEquals(Map.of("Broken/stone", 5L, "runs", 2L), counters.all(ALICE),
+                "one tally, re-spelled the way the last writer spelled it");
+    }
+
+    @Test
     void theCategorySeparatorIsReservedInBothHalves() {
         assertEquals("broken/stone", Counters.key("broken", "stone"));
         assertEquals("stone", Counters.key(null, "stone"), "a blank category yields the bare name");

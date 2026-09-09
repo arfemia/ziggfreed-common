@@ -15,42 +15,50 @@ import com.ziggfreed.common.subject.Subject;
  * session (a round, a match, an instance). A consumer that needs them to survive a disconnect writes
  * its own store against the same interface instead.
  *
- * <p>Backed by {@link ConcurrentHashMap} so a count from one thread and a read from another cannot
- * corrupt each other.
+ * <p>One {@link CounterMap} per subject, guarded per bag, so a count from one thread and a read from
+ * another cannot corrupt each other, and every key rule the bag has (a key matched without regard to
+ * case, a zero dropped rather than stored) holds here exactly as it does in a persisted store.
  */
 public final class InMemoryCounterStore implements CounterStore {
 
-    private final Map<UUID, ConcurrentHashMap<String, Long>> subjects = new ConcurrentHashMap<>();
+    private final Map<UUID, CounterMap> subjects = new ConcurrentHashMap<>();
 
     @Nonnull
-    private ConcurrentHashMap<String, Long> state(@Nonnull Subject subject) {
-        return subjects.computeIfAbsent(subject.id(), key -> new ConcurrentHashMap<>());
+    private CounterMap bag(@Nonnull Subject subject) {
+        return subjects.computeIfAbsent(subject.id(), key -> new CounterMap());
     }
 
     @Override
     public long get(@Nonnull Subject subject, @Nonnull String key) {
-        Long value = state(subject).get(key);
-        return value == null ? 0L : value;
+        CounterMap bag = bag(subject);
+        synchronized (bag) {
+            return bag.get(key);
+        }
     }
 
     @Override
     public void put(@Nonnull Subject subject, @Nonnull String key, long value) {
-        if (value == 0L) {
-            state(subject).remove(key);
-        } else {
-            state(subject).put(key, value);
+        CounterMap bag = bag(subject);
+        synchronized (bag) {
+            bag.set(key, value);
         }
     }
 
     @Override
     @Nonnull
     public Map<String, Long> all(@Nonnull Subject subject) {
-        return Map.copyOf(state(subject));
+        CounterMap bag = bag(subject);
+        synchronized (bag) {
+            return bag.all();
+        }
     }
 
     @Override
     public void clear(@Nonnull Subject subject) {
-        state(subject).clear();
+        CounterMap bag = bag(subject);
+        synchronized (bag) {
+            bag.clear();
+        }
     }
 
     /** Forget one subject entirely (they left, the round ended). */

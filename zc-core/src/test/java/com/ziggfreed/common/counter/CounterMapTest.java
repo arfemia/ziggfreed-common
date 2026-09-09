@@ -59,6 +59,36 @@ class CounterMapTest {
     }
 
     @Test
+    void aKeyMatchesWhateverItsCaseAndAWriteAdoptsTheWritersSpelling() {
+        CounterMap map = CounterMap.of(Map.of("mob_kills", 5L));
+
+        assertEquals(5L, map.get("Mob_Kills"), "a read under another casing finds the same tally");
+        assertEquals(5L, map.get("MOB_KILLS"));
+        assertEquals(1, map.size(), "and it is one tally, not one per spelling");
+
+        assertEquals(6L, map.add("Mob_Kills", 1L));
+        assertEquals(Map.of("Mob_Kills", 6L), map.all(),
+                "the write re-spells the entry the writer's way, which is how a key loaded under an"
+                        + " older casing takes the current one on its next write");
+        assertEquals(6L, map.get("mob_kills"), "and the old spelling still reads it");
+
+        assertTrue(map.highWater("MOB_KILLS", 9L));
+        assertEquals(Map.of("MOB_KILLS", 9L), map.all(), "a raised ceiling re-spells it too");
+        assertTrue(map.remove("mob_kills"), "and a removal finds it under any casing");
+        assertTrue(map.isEmpty());
+    }
+
+    @Test
+    void anEntryNobodyWritesAgainKeepsTheSpellingItWasLoadedWith() {
+        CounterMap map = CounterMap.of(Map.of("mob_kills", 5L, "deaths", 2L));
+
+        map.add("Mob_Kills", 1L);
+
+        assertEquals(Map.of("Mob_Kills", 6L, "deaths", 2L), map.all(),
+                "only the key that was written changes spelling; the rest of the bag is untouched");
+    }
+
+    @Test
     void allIsAnUnmodifiableSnapshot() {
         CounterMap map = CounterMap.of(Map.of("runs", 2L));
         Map<String, Long> snapshot = map.all();

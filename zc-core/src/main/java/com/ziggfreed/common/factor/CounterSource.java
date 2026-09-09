@@ -9,11 +9,12 @@ import javax.annotation.Nullable;
  * done this" without the library knowing what a statistics record is.
  *
  * <p>Asked with the factor's own context, whose live subject is the player, and the flat counter
- * key exactly as the {@code Param} spelled it: a plain key for a grand total ({@code mob_kills}), or
- * a category and a name joined by {@code /} for one line of a breakdown ({@code mob_kills/Warden}).
- * Answer the tally, {@code 0} for a player who has never done the thing, and {@code null} when this
- * source cannot say anything about the question (no record for that player, a subject that is not
- * a player at all).
+ * key exactly as the {@code Param} spelled it: a plain key for a grand total ({@code Mob_Kills}), or
+ * a category and a name joined by {@code /} for one line of a breakdown ({@code Mob_Kills/Warden}).
+ * Match it without regard to case, the way the counter package's own bag does, so an authored
+ * {@code mob_kills} reads the same tally. Answer the tally, {@code 0} for a player who has never
+ * done the thing, and {@code null} when this source cannot say anything about the question (no
+ * record for that player, a subject that is not a player at all).
  */
 @FunctionalInterface
 public interface CounterSource {

@@ -7,9 +7,9 @@ Package root `com.ziggfreed.common.counter`. Depends on `subject.Subject` and no
 
 | Class | What it is |
 |---|---|
-| `CounterMap` | a bag of named tallies with no owner: `add`/`increment`/`set`/`highWater`/`mergeSums`/`mergeHighWater`/`all`/`copy`. Field-serializer friendly, so a file-backed table can hold one directly |
+| `CounterMap` | a bag of named tallies with no owner: `add`/`increment`/`set`/`highWater`/`mergeSums`/`mergeHighWater`/`all`/`copy`. Keys match case-insensitively and a write adopts the writer's spelling. Field-serializer friendly, so a file-backed table can hold one directly |
 | `CounterStore` | THE persistence seam: `get`/`put`/`all`/`clear` per `Subject`, plus `markDirty`/`flush` for a store that batches |
-| `InMemoryCounterStore` | the complete store that dies with the process (tests, session-scoped consumers) |
+| `InMemoryCounterStore` | the complete store that dies with the process (tests, session-scoped consumers): one `CounterMap` per subject, guarded per bag |
 | `Counters` | the engine over a store: plain keys, CATEGORY keys, `totals`/`category`/`categories`/`snapshot`/`addAll` |
 
 ## Rules to keep
@@ -20,6 +20,16 @@ Package root `com.ziggfreed.common.counter`. Depends on `subject.Subject` and no
   site that happens to have a value in hand.
 - **A key at exactly zero is DROPPED, never stored as a zero.** `CounterMap` and `CounterStore`
   both follow it, so a reset leaves nothing behind and `isEmpty()` means what it says.
+- **A key is matched without regard to case, and a write spells it the writer's way.**
+  `Mob_Kills`, `mob_kills` and `MOB_KILLS` are one tally in a `CounterMap`: a read under any of
+  them finds it, a write under any of them replaces it re-spelled as written, and
+  `Counters.category` matches its prefix the same way. That is what lets a consumer change a
+  key's casing with no migration: a bag loaded from an older save still answers under the new
+  spelling, takes it on its next write, and an entry nobody writes again keeps the spelling it was
+  saved under. The lookup is exact-first with a scan on a miss, on purpose: the backing map stays
+  a plain one a field-walking serializer round-trips, and a comparator would not survive that trip.
+  Ids are authored `Is_Like_This` (the family convention); the match rule is what keeps an
+  authored `mob_kills` resolving, never a validator refusal.
 - **Grouping rides in the KEY.** `Counters.key(category, name)` joins with `/`, so one flat store
   serves a grand total plus any number of per-thing breakdowns, and a new category needs no schema
   change. `/` is therefore RESERVED in both halves - `Counters.isReservedName` is what a validator

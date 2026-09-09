@@ -19,6 +19,13 @@ import javax.annotation.Nullable;
  * tally at 5, not 9. Merging two bags has the same two flavours ({@link #mergeSums} and
  * {@link #mergeHighWater}), so an aggregate across several bags keeps the meaning each key had.
  *
+ * <p><b>A key is matched without regard to case, and a write spells it the writer's way.</b>
+ * {@code Mob_Kills}, {@code mob_kills} and {@code MOB_KILLS} are one tally: a read under any of them
+ * finds it, and a write under any of them replaces it, re-spelled as the writer spelled it. That is
+ * what lets a consumer change a key's casing with no migration: a bag loaded from an older save
+ * still answers under the new spelling, the entry takes that spelling the next time it is written,
+ * and an entry nobody writes again keeps the spelling it was saved under.
+ *
  * <p>A key whose value reaches exactly zero is DROPPED rather than stored, so a bag that has been
  * cleared out costs nothing to persist and {@link #isEmpty()} means what it says. Reading an absent
  * key is always {@code 0}, never an error.
@@ -47,11 +54,8 @@ public final class CounterMap {
 
     /** This tally, or {@code 0} when the key was never touched. */
     public long get(@Nullable String key) {
-        if (values == null || key == null) {
-            return 0L;
-        }
-        Long value = values.get(key);
-        return value == null ? 0L : value;
+        String stored = storedKey(key);
+        return stored == null ? 0L : values.get(stored);
     }
 
     /** Add {@code delta} and return the new tally. A zero delta is a no-op. */
@@ -69,20 +73,24 @@ public final class CounterMap {
 
     /**
      * Write {@code value} outright and return it. Writing {@code 0} removes the key, which is how a
-     * tally is reset without leaving an entry behind.
+     * tally is reset without leaving an entry behind. A tally already held under another casing of
+     * {@code key} is replaced, and takes this spelling.
      */
     public long set(@Nullable String key, long value) {
         if (key == null || key.isBlank()) {
             return 0L;
         }
+        String stored = storedKey(key);
         if (value == 0L) {
-            if (values != null) {
-                values.remove(key);
+            if (stored != null) {
+                values.remove(stored);
             }
             return 0L;
         }
         if (values == null) {
             values = new LinkedHashMap<>();
+        } else if (stored != null && !stored.equals(key)) {
+            values.remove(stored);
         }
         values.put(key, value);
         return value;
@@ -104,7 +112,8 @@ public final class CounterMap {
 
     /** Forget one key. Returns true when it was there. */
     public boolean remove(@Nullable String key) {
-        return values != null && key != null && values.remove(key) != null;
+        String stored = storedKey(key);
+        return stored != null && values.remove(stored) != null;
     }
 
     /** Forget everything. */
@@ -145,13 +154,13 @@ public final class CounterMap {
         }
     }
 
-    /** Every tally, as an unmodifiable snapshot in insertion order. */
+    /** Every tally, as an unmodifiable snapshot, each key spelled as it is stored. */
     @Nonnull
     public Map<String, Long> all() {
         return values == null ? Map.of() : Map.copyOf(values);
     }
 
-    /** Every key that currently holds a tally. */
+    /** Every key that currently holds a tally, spelled as stored. */
     @Nonnull
     public Set<String> keys() {
         return values == null ? Set.of() : Set.copyOf(values.keySet());
@@ -170,6 +179,29 @@ public final class CounterMap {
     @Nonnull
     public CounterMap copy() {
         return of(values);
+    }
+
+    /**
+     * The spelling {@code key} is held under, or null when no tally matches it. An exact hit is the
+     * common case and costs one lookup; a hit under another casing is found by a scan of the keys.
+     * That scan is the price of keeping the backing map a plain one: a comparator-ordered map would
+     * not survive a field-walking serializer's round trip, and a bag has to answer the same however
+     * it was loaded.
+     */
+    @Nullable
+    private String storedKey(@Nullable String key) {
+        if (values == null || key == null) {
+            return null;
+        }
+        if (values.containsKey(key)) {
+            return key;
+        }
+        for (String candidate : values.keySet()) {
+            if (candidate.equalsIgnoreCase(key)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     @Override

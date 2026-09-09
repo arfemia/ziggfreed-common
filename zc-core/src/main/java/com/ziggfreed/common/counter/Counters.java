@@ -22,6 +22,11 @@ import com.ziggfreed.common.subject.Subject;
  * schema for a category and a consumer adds one without migrating anything. That separator is
  * therefore RESERVED inside a category or a name - see {@link #isReservedName}.
  *
+ * <p><b>A key is matched without regard to case.</b> The bag every shipped store is built on
+ * ({@link CounterMap}) answers a read under any casing of a key and re-spells the entry the
+ * writer's way on a write, and the category walk here ({@link #category}) matches its prefix the
+ * same way, so a consumer can change a key's casing and an existing save still reads.
+ *
  * <p><b>Two ways to move a tally.</b> {@link #add} accumulates; {@link #highWater} raises a ceiling.
  * Picking the wrong one is the one way to corrupt a count, so the choice belongs to whoever knows
  * what the number MEANS, never to the call site that happens to have a value in hand. The same two
@@ -144,7 +149,8 @@ public final class Counters {
 
     /**
      * One category's whole breakdown, keyed by the NAME half (the category prefix is stripped), in
-     * key order. Empty when the subject has counted nothing in it.
+     * key order. The category is matched without regard to case, the way a store matches a key.
+     * Empty when the subject has counted nothing in it.
      */
     @Nonnull
     public Map<String, Long> category(@Nonnull Subject subject, @Nonnull String category) {
@@ -152,7 +158,7 @@ public final class Counters {
         Map<String, Long> stored = store.all(subject);
         Map<String, Long> out = new LinkedHashMap<>();
         for (String key : new TreeSet<>(stored.keySet())) {
-            if (key.startsWith(prefix)) {
+            if (key.regionMatches(true, 0, prefix, 0, prefix.length())) {
                 out.put(key.substring(prefix.length()), stored.get(key));
             }
         }
