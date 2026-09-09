@@ -32,7 +32,7 @@ class HudBarLookTest {
     void withNothingAuthoredARowReadsExactlyWhatItsModSaid() {
         Message name = Msg.raw("Wood");
         IconSpec icon = IconSpec.ofItem("Tool_Hatchet_Crude");
-        HudBarLook look = HudBarLook.resolve("mymod:wood", null, HudBarDisplay.of(name, icon, "#6fbf73", 20));
+        HudBarLook look = HudBarLook.resolve("wood", null, HudBarDisplay.of(name, icon, "#6fbf73", 20));
 
         assertSame(name, look.label());
         assertSame(icon, look.icon());
@@ -43,9 +43,9 @@ class HudBarLookTest {
 
     @Test
     void aModThatSaidNothingGetsTheDefaultsAndItsOwnIdAsAName() {
-        HudBarLook look = HudBarLook.resolve("mymod:wood", null, HudBarDisplay.NONE);
+        HudBarLook look = HudBarLook.resolve("wood", null, HudBarDisplay.NONE);
 
-        assertEquals("mymod:wood", look.label().getRawText(), "an unnamed row is still a row");
+        assertEquals("wood", look.label().getRawText(), "an unnamed row is still a row");
         assertNull(look.icon());
         assertEquals(HudBarLook.DEFAULT_COLOR, look.color());
         assertEquals(HudBarLook.DEFAULT_ORDER, look.order());
@@ -55,10 +55,10 @@ class HudBarLookTest {
     @Test
     void anOverrideWinsLeafByLeafAndLeavesTheRestToTheMod() throws Exception {
         HudBarAsset override = HudBarAssetCodecTest.bar(
-                "{ \"Source\": \"mymod:wood\", \"Color\": \"#ffffff\", \"LingerMs\": 9000 }", "wood", null, null);
+                "{ \"Source\": \"wood\", \"Color\": \"#ffffff\", \"LingerMs\": 9000 }", "wood", null, null);
         Message name = Msg.raw("Wood");
         IconSpec icon = IconSpec.ofItem("Tool_Hatchet_Crude");
-        HudBarLook look = HudBarLook.resolve("mymod:wood", override, HudBarDisplay.of(name, icon, "#6fbf73", 20));
+        HudBarLook look = HudBarLook.resolve("wood", override, HudBarDisplay.of(name, icon, "#6fbf73", 20));
 
         assertEquals("#ffffff", look.color(), "the authored leaf wins");
         assertEquals(9000L, look.lingerMs());

@@ -26,16 +26,17 @@ import com.ziggfreed.common.icon.IconSpec;
  *
  * <p>Authored at {@code Server/ZiggfreedCommon/HudBars/<id>.json} (this codec IS the schema):
  * <pre>{@code
- * // Server/ZiggfreedCommon/HudBars/Mymod_Wood.json
- * { "Source":   "mymod:wood",
+ * // Server/ZiggfreedCommon/HudBars/Wood.json
+ * { "Source":   "WOOD",
  *   "Color":    "#6fbf73",
  *   "Order":    20,
  *   "LingerMs": 8000 }
  * }</pre>
  *
- * <p>{@code Source} is the row's id exactly as the owning mod moves it: a {@code namespace:local}
- * value id for a row that draws a fill, or {@code item:<ItemId>} for the row an item's output
- * lands on. This library never interprets it beyond matching it. Every leaf inherits under a root
+ * <p>{@code Source} is the row's id exactly as the owning mod moves it: the id of the thing the
+ * row measures for a row that draws a fill, or {@code item:<ItemId>} for the row an item's output
+ * lands on. This library never interprets it beyond matching it, case-insensitively, against the
+ * id a move names. Every leaf inherits under a root
  * {@code "Parent": "<override id>"} key, and a server owner's {@code mods/ziggfreedcommon/hud-bars.json}
  * entry restates only the leaves it wants different over whatever a pack authored under that id.
  */
@@ -66,9 +67,9 @@ public final class HudBarAsset implements JsonAssetWithMap<String, DefaultAssetM
             .appendInherited(new KeyedCodec<>("Source", Codec.STRING, false),
                     (a, v) -> a.source = v, a -> a.source, (a, p) -> a.source = p.source)
             .documentation("Which row this file retunes, by the id the mod that owns it reports it "
-                    + "under: a namespaced value id such as \"mymod:wood\" (the part before the colon "
-                    + "names the mod), or \"item:<ItemId>\" for the row an item's output is counted on. "
-                    + "Without a Source this file applies to nothing.")
+                    + "under: the id of the thing the row measures, spelled exactly as that mod spells "
+                    + "it and matched ignoring case, or \"item:<ItemId>\" for the row an item's output is "
+                    + "counted on. Without a Source this file applies to nothing.")
             .add()
             .appendInherited(new KeyedCodec<>("LabelKey", Codec.STRING, false),
                     (a, v) -> a.labelKey = v, a -> a.labelKey, (a, p) -> a.labelKey = p.labelKey)

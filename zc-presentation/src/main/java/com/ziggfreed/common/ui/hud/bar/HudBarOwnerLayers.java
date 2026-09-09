@@ -17,8 +17,8 @@ import com.ziggfreed.common.asset.OwnerLayerReader;
  *
  * <pre>{@code
  * // mods/ziggfreedcommon/hud-bars.json
- * { "wood_off":   { "Source": "mymod:wood", "Enabled": false },
- *   "slow_stone": { "Source": "mymod:stone", "Color": "#c0c0c0", "LingerMs": 8000 } }
+ * { "wood_off":   { "Source": "WOOD", "Enabled": false },
+ *   "slow_stone": { "Source": "STONE", "Color": "#c0c0c0", "LingerMs": 8000 } }
  *
  * // mods/ziggfreedcommon/hud-bar-panels.json
  * { "default": { "Position": { "Preset": "BottomLeft", "OffsetY": 220 }, "MaxVisible": 3 } }

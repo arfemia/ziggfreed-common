@@ -8,7 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.ui.hud.bar.HudBarHud.Row;
-import com.ziggfreed.common.ui.hud.bar.HudBarSource.Reading;
+import com.ziggfreed.common.ui.hud.bar.HudBarReading;
 
 /**
  * Which live rows get a slot: the most recently moved ones up to the panel's count, whatever kind
@@ -17,9 +17,9 @@ import com.ziggfreed.common.ui.hud.bar.HudBarSource.Reading;
  */
 class HudBarSlotsTest {
 
-    /** A row that draws a fill: its id is a value id and it carries a reading. */
+    /** A row that draws a fill: it was moved with a reading. */
     private static Row fill(String id, int order, long lastMoved) {
-        return new Row("t:" + id, look(id, order), null, 1, lastMoved, new Reading(1, 2));
+        return new Row(id, look(id, order), null, 1, lastMoved, new HudBarReading(1, 2));
     }
 
     /** A row about an item: counted under the item prefix, no reading, no fill. */
@@ -41,7 +41,7 @@ class HudBarSlotsTest {
         List<Row> shown = HudBarHud.choose(List.of(
                 fill("a", 10, 300), fill("b", 20, 100), fill("c", 30, 400), fill("d", 40, 200), fill("e", 50, 500)), 4);
 
-        assertEquals(List.of("t:a", "t:c", "t:d", "t:e"), ids(shown),
+        assertEquals(List.of("a", "c", "d", "e"), ids(shown),
                 "the four most recently moved, then sorted by order rather than by recency");
     }
 
@@ -50,7 +50,7 @@ class HudBarSlotsTest {
         List<Row> shown = HudBarHud.choose(List.of(
                 item("plank", 10, 900), fill("wood", 1000, 100), item("log", 5, 500), fill("stone", 20, 300)), 4);
 
-        assertEquals(List.of("t:stone", "t:wood", HudBars.itemRowId("log"), HudBars.itemRowId("plank")), ids(shown),
+        assertEquals(List.of("stone", "wood", HudBars.itemRowId("log"), HudBars.itemRowId("plank")), ids(shown),
                 "every fill row first, in order, then every item row, in order; recency and the "
                         + "item rows' lower numbers do not lift them above a fill");
     }
@@ -62,7 +62,7 @@ class HudBarSlotsTest {
                 fill("a", 10, 100), fill("b", 20, 200), fill("c", 30, 300), fill("d", 40, 400),
                 item("plank", 1000, 500)), 4);
 
-        assertEquals(List.of("t:b", "t:c", "t:d", HudBars.itemRowId("plank")), ids(shown),
+        assertEquals(List.of("b", "c", "d", HudBars.itemRowId("plank")), ids(shown),
                 "one MaxVisible over both kinds: the item row is one of the four newest and the "
                         + "oldest fill row is the one left out");
     }
@@ -70,7 +70,7 @@ class HudBarSlotsTest {
     @Test
     void fewerRowsThanSlotsAreAllShown() {
         List<Row> shown = HudBarHud.choose(List.of(fill("b", 20, 1), fill("a", 10, 2)), 4);
-        assertEquals(List.of("t:a", "t:b"), ids(shown));
+        assertEquals(List.of("a", "b"), ids(shown));
     }
 
     @Test
@@ -88,16 +88,16 @@ class HudBarSlotsTest {
     void aTieOnRecencyIsBrokenByOrderThenId() {
         List<Row> shown = HudBarHud.choose(List.of(fill("x", 20, 7), fill("y", 10, 7), fill("z", 10, 7)), 2);
 
-        assertEquals(List.of("t:y", "t:z"), ids(shown),
+        assertEquals(List.of("y", "z"), ids(shown),
                 "same instant: the lower order wins the slot, and equal orders fall back to the id");
     }
 
     @Test
     void aReadingFractionIsHeldToTheBarAndFullWithNoCeiling() {
-        assertEquals(0.5, new Reading(1, 2).fraction(), 1e-9);
-        assertEquals(1.0, new Reading(5, 2).fraction(), 1e-9, "past the ceiling draws full");
-        assertEquals(0.0, new Reading(-1, 2).fraction(), 1e-9, "below zero draws empty");
-        assertEquals(1.0, new Reading(0, 0).fraction(), 1e-9, "no ceiling left draws full rather than dividing by nothing");
-        assertEquals(1.0, Reading.FULL.fraction(), 1e-9);
+        assertEquals(0.5, new HudBarReading(1, 2).fraction(), 1e-9);
+        assertEquals(1.0, new HudBarReading(5, 2).fraction(), 1e-9, "past the ceiling draws full");
+        assertEquals(0.0, new HudBarReading(-1, 2).fraction(), 1e-9, "below zero draws empty");
+        assertEquals(1.0, new HudBarReading(0, 0).fraction(), 1e-9, "no ceiling left draws full rather than dividing by nothing");
+        assertEquals(1.0, HudBarReading.FULL.fraction(), 1e-9);
     }
 }

@@ -55,18 +55,18 @@ public final class HudBarConfig extends AbstractKeyedAssetConfig<HudBarAsset> {
     }
 
     /**
-     * The override authored for the row moved under {@code sourceId}, switched off or not, or null
-     * when nothing is authored for it (the common case: the row then reads exactly what the
-     * reporting mod said). A disabled override is answered so the panel can honour the switch. Two
-     * files naming one row resolve to the one that sorts first by {@code Order} then id, so the
-     * answer is stable across reloads.
+     * The override authored for the row moved under {@code rowId} (matched whole, ignoring case,
+     * against each file's {@code Source}), switched off or not, or null when nothing is authored
+     * for it (the common case: the row then reads exactly what the reporting mod said). A disabled
+     * override is answered so the panel can honour the switch. Two files naming one row resolve to
+     * the one that sorts first by {@code Order} then id, so the answer is stable across reloads.
      */
     @Nullable
-    public HudBarAsset bySource(@Nullable String sourceId) {
-        if (sourceId == null || sourceId.isBlank()) {
+    public HudBarAsset bySource(@Nullable String rowId) {
+        if (rowId == null || rowId.isBlank()) {
             return null;
         }
-        return index().get(sourceId.trim().toLowerCase(Locale.ROOT));
+        return index().get(rowId.trim().toLowerCase(Locale.ROOT));
     }
 
     @Nonnull

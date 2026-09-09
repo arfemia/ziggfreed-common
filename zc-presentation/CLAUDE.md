@@ -141,9 +141,9 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
   - [`ui/hud/`](src/main/java/com/ziggfreed/common/ui/hud/CLAUDE.md) - `KeyedCustomHud` +
     `HudPosition` + `RepaintCoalescer`.
   - [`ui/hud/bar/`](src/main/java/com/ziggfreed/common/ui/hud/bar/CLAUDE.md) - the shared
-    progress-bar HUD: rows created on demand by `HudBars.moved` (a value, with the `HudBarDisplay`
-    the consumer supplies) and `HudBars.itemMoved` (an item, dressed by itself), the `HudBarSource`
-    fill seam a consumer registers under its namespace, `HudBarLook` the settled look, the
+    progress-bar HUD: rows created on demand by `HudBars.moved` (a value, with the `HudBarReading`
+    and the `HudBarDisplay` the consumer hands over with the move; no source seam and no
+    registry) and `HudBars.itemMoved` (an item, dressed by itself), `HudBarLook` the settled look, the
     `HudBars` store as an OPTIONAL per-row override and the `HudBarPanels` store for placement,
     and `HudBarHud` the panel that draws it (fill rows above item rows).
   - `ui/icon/` - `IconRenderer`, the ONE seam that paints an `icon.IconSpec` into a row or a chip:
@@ -228,11 +228,10 @@ per keystroke; it is the shared `ZigSearchRow`.
 ## Tests
 
 Thin relative to the package count: `HudPositionTest` (corner-preset parsing + anchor math),
-`RepaintCoalescerTest` (a burst is one paint), the five progress-bar suites (`HudBarAssetCodecTest`,
-`HudBarPanelAssetTest` incl. the default position, `HudBarSlotsTest` for which live rows get a slot
-and fill rows sorting above item rows, `HudBarSourcesTest` for the namespace registry and the
-value-id split, `HudBarLookTest` for the override-over-display fold, an unauthored item's own row
-and the two row shapes the paint draws),
+`RepaintCoalescerTest` (a burst is one paint), the four progress-bar suites (`HudBarAssetCodecTest`,
+`HudBarPanelAssetTest` incl. the default position, `HudBarSlotsTest` for which live rows get a slot,
+fill rows sorting above item rows and the reading's fraction clamp, `HudBarLookTest` for the
+override-over-display fold, an unauthored item's own row and the two row shapes the paint draws),
 `SettingsFormTest` (field-spec render/refresh/collect round trip), `ZigSearchRowTest` (the scoped
 value path, `carry` under an `@`-key and its refusal of a bare one, and the two button words being
 authored in the shipped en-US file), and `DestinationsTest` (the
