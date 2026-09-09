@@ -171,6 +171,7 @@ public final class HudBarAsset implements JsonAssetWithMap<String, DefaultAssetM
     @Nonnull
     public HudBarDisplay display() {
         String key = labelKey();
-        return new HudBarDisplay(key != null ? ContentKeys.tr(key) : null, icon(), color(), order(), lingerMs());
+        return new HudBarDisplay(key != null ? ContentKeys.tr(key) : null, icon(), color(), order(), lingerMs(),
+                null, null);
     }
 }

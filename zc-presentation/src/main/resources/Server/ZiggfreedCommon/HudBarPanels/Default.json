@@ -1,19 +1,31 @@
 {
   "$Comment": [
-    "The panel the progress bars are drawn on: whether it shows at all, where it sits, and how many",
-    "bars it stacks at once. The bars themselves are authored one per file under",
-    "Server/ZiggfreedCommon/HudBars/, each naming the value that fills it.",
+    "The stacked bar panel in the left column: the running ledger of whatever a player is in the",
+    "middle of. A row appears the moment a mod reports a value moved and goes away when it stops;",
+    "nothing is authored for one to show up. Server/ZiggfreedCommon/HudBars/ is where you retune a",
+    "single row, and this file is the panel they all sit on.",
     "",
     "Position is a corner preset (TopLeft, TopCenter, TopRight, CenterLeft, Center, CenterRight,",
-    "BottomLeft, BottomCenter, BottomRight) plus pixel offsets from the edges that preset pins; the",
+    "BottomLeft, BottomCenter, BottomRight) plus pixel offsets from the edges that preset pins. The",
     "default sits high in the left column, deliberately over the mob inspector card another mod draws",
-    "there: the panel is transparent and the two read fine stacked. Move it to clear whatever else your",
-    "server puts in that corner. MaxVisible runs from 1 to 4: when more bars are moving than that, the",
-    "most recently moved ones are shown.",
+    "there: the panel is transparent behind its frame and the two read fine stacked. Move it to clear",
+    "whatever else your server puts in that corner.",
+    "",
+    "Columns and RowsPerColumn decide how the rows spread out as more of them move at once. Left as",
+    "they are, the panel stays one narrow column until nine rows are going, then opens a second one",
+    "rather than running off the bottom of the screen. Raise RowsPerColumn for a taller single column,",
+    "or set Columns to 1 to keep it one column however busy things get. MaxVisible is unstated, so",
+    "every slot the panel has is available; state a smaller number to keep it short, and the most",
+    "recently moved rows are the ones you see.",
+    "",
+    "RepaintMs is how often the panel redraws at most. A movement redraws immediately when the last",
+    "redraw is already that old, and one arriving sooner is drawn at the window's end, so a number on",
+    "screen is never left waiting on a later movement to bring it up to date. Lower is livelier and",
+    "costs more network traffic.",
     "",
     "To change a leaf without copying this file, add an entry keyed 'Default' to",
     "mods/ziggfreedcommon/hud-bar-panels.json with only the leaves you want different. Set Enabled to",
-    "false there to switch every bar off at once."
+    "false there to switch this whole panel off."
   ],
   "Enabled": true,
   "Position": {
@@ -21,5 +33,7 @@
     "OffsetX": 16,
     "OffsetY": 216
   },
-  "MaxVisible": 4
+  "Columns": 2,
+  "RowsPerColumn": 8,
+  "RepaintMs": 250
 }

@@ -1,30 +1,21 @@
-// The stacked bar panel in the left column (ziggfreed-common, zc-presentation:
-// ui/hud/bar/HudBarStackHud over the shared ui/hud/bar/HudBarHud). The running ledger of whatever a
-// player is in the middle of: a row appears the moment a mod reports a value moved, dressed by what
-// that mod says about it, and goes away when it stops moving. Nothing is authored for a row to
-// appear; Server/ZiggfreedCommon/HudBars/*.json is an optional per-row override and
-// Server/ZiggfreedCommon/HudBarPanels/Default.json is where this panel sits.
+// The wide bar panel in the top-right (ziggfreed-common, zc-presentation:
+// ui/hud/bar/HudBarGridHud over the shared ui/hud/bar/HudBarHud). For values that move while a
+// player is out in the world, where there is no ledger for them to sit beside: it opens a column
+// per row until it has six, so one moving value is a single bar rather than a lone entry in an
+// empty tower, and six are one wide row rather than a tower. It is pinned to the RIGHT edge, so it
+// grows LEFTWARD and its first column is the rightmost one. Where it sits is
+// Server/ZiggfreedCommon/HudBarPanels/Grid.json.
 //
-// A row that draws a fill is two lines: its name with the gain beside it, and the bar underneath
-// between its two end captions. A row about an item is the first line alone, with #Bar hidden.
-// Fill rows sit above item rows. The panel hides when nothing is showing.
+// It sits ABOVE the quest tracker rather than beside it, so the top-right column reads as one
+// thing; both are content-sized, so an owner who wants more room for either moves one in that file.
 //
-// CHROME: the native ObjectivePanelContainer.png patch, the same one the quest tracker, the zone
-// card and the mob inspector draw, copied in beside this file because a Custom UI document resolves
-// texture paths only under Common/UI/Custom/ - nothing under the game's own Game/Interface tree is
-// reachable from here.
+// Everything else - the row shape, the dressing, the retint, the pulse, the per-slot selectors - is
+// exactly the stacked panel's, because one class paints both. See ZigHudBars.ui's header for the
+// rules that apply to each; the counts here MUST match HudBarGridHud.LAYOUT.
 //
-// The document path and every root id are prefixed Zig*: the client's UI namespace is flat across
-// mods, so a generic name could be clobbered by another mod's HUD document. Slots are positional
-// (#ZigBarCol<c> holding #ZigBar<c>_<r>) and addressed by index from Java; the counts MUST match
-// HudBarStackHud.LAYOUT. Text is pushed on .TextSpans, the fill and the pulse are Anchor width
-// pushes and their colour a .Background.Color retint, so no texture ships for a bar itself.
-//
-// GEOMETRY is stated once below and referenced by every slot, so a re-tune is a single edit. Two
-// columns of thirteen; 12 of horizontal padding and a 296-wide column, so the panel is 320 wide
-// with one column open and 628 with both; a 236-wide track between two 26-wide captions, padded a
-// pixel each side, so a fill spans 234 (HudBarStackHud.LAYOUT's trackInnerWidthPx). Keep them in
-// step: a fill width pushed past its track simply overflows it.
+// GEOMETRY: six columns of three; 12 of horizontal padding, a 184-wide column and 8 between
+// columns, so the panel runs 208 wide with one column open to 1168 with all six; a 124-wide track
+// between two 26-wide captions, padded a pixel each side, so a fill spans 122.
 $Z = "../Common/ZigButtons.ui";
 
 @BarLabelStyle = (FontSize: 13, TextColor: #e6e9ee, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
@@ -45,14 +36,14 @@ $Z = "../Common/ZigButtons.ui";
 @Gloss = #ffffff(0.22);
 @BaseShade = #000000(0.22);
 
-@RowAnchor = (Top: 5, Width: 296);
+@RowAnchor = (Top: 5, Width: 184);
 @LineAnchor = (Height: 18);
 @IconAnchor = (Width: 18, Height: 18);
 @GainAnchor = (Width: 96, Height: 18);
-@BarAnchor = (Top: 2, Height: 10, Width: 296);
+@BarAnchor = (Top: 2, Height: 10, Width: 184);
 @CapAnchor = (Width: 26, Height: 10);
 @CapGapAnchor = (Width: 4);
-@TrackAnchor = (Width: 236, Height: 8);
+@TrackAnchor = (Width: 124, Height: 8);
 @FillAnchor = (Left: 0, Top: 0, Bottom: 0, Width: 0);
 @GlossAnchor = (Left: 0, Right: 0, Top: 0, Height: 3);
 @BaseAnchor = (Left: 0, Right: 0, Bottom: 0, Height: 1);
@@ -60,20 +51,20 @@ $Z = "../Common/ZigButtons.ui";
 
 // The wrapper carries LayoutMode: Top so the heightless-anchored panel inside sizes to its content
 // instead of stretching from its Top anchor to the screen bottom.
-Group #ZigHudBarsParent {
+Group #ZigHudBarGridParent {
   LayoutMode: Top;
 
-  Group #ZigHudBarsPanel {
+  Group #ZigHudBarGridPanel {
     // Static fallback anchor only (NO Height - content-sized); the runtime paint always pushes its
     // own, at the width of however many columns are actually in use.
-    Anchor: (Width: 320, Left: 16, Top: 216);
+    Anchor: (Width: 1168, Right: 24, Top: 18);
     LayoutMode: Left;
     Padding: (Horizontal: 12, Vertical: 12);
     Background: (TexturePath: "ObjectivePanelContainer.png", Border: 15);
     Visible: false;
 
       Group #ZigBarCol0 {
-        Anchor: (Width: 296);
+        Anchor: (Width: 184);
         LayoutMode: Top;
         Visible: false;
         Group #ZigBar0_0 {
@@ -181,360 +172,10 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar0_3 {
-          Anchor: @RowAnchor;
-          LayoutMode: Top;
-          Visible: false;
-          Group #Line {
-            Anchor: @LineAnchor;
-            LayoutMode: Left;
-            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
-            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
-            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
-          }
-          Group #Bar {
-            Anchor: @BarAnchor;
-            LayoutMode: Left;
-            Visible: false;
-            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-            Group { Anchor: @CapGapAnchor; }
-            Group #Track {
-              Anchor: @TrackAnchor;
-              Padding: (Full: 1);
-              Background: @TrackWell;
-              Group #Fill {
-                Anchor: @FillAnchor;
-                Background: #7fb2e0;
-                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
-                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
-              }
-              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
-            }
-            Group { Anchor: @CapGapAnchor; }
-            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-          }
-        }
-        Group #ZigBar0_4 {
-          Anchor: @RowAnchor;
-          LayoutMode: Top;
-          Visible: false;
-          Group #Line {
-            Anchor: @LineAnchor;
-            LayoutMode: Left;
-            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
-            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
-            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
-          }
-          Group #Bar {
-            Anchor: @BarAnchor;
-            LayoutMode: Left;
-            Visible: false;
-            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-            Group { Anchor: @CapGapAnchor; }
-            Group #Track {
-              Anchor: @TrackAnchor;
-              Padding: (Full: 1);
-              Background: @TrackWell;
-              Group #Fill {
-                Anchor: @FillAnchor;
-                Background: #7fb2e0;
-                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
-                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
-              }
-              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
-            }
-            Group { Anchor: @CapGapAnchor; }
-            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-          }
-        }
-        Group #ZigBar0_5 {
-          Anchor: @RowAnchor;
-          LayoutMode: Top;
-          Visible: false;
-          Group #Line {
-            Anchor: @LineAnchor;
-            LayoutMode: Left;
-            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
-            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
-            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
-          }
-          Group #Bar {
-            Anchor: @BarAnchor;
-            LayoutMode: Left;
-            Visible: false;
-            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-            Group { Anchor: @CapGapAnchor; }
-            Group #Track {
-              Anchor: @TrackAnchor;
-              Padding: (Full: 1);
-              Background: @TrackWell;
-              Group #Fill {
-                Anchor: @FillAnchor;
-                Background: #7fb2e0;
-                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
-                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
-              }
-              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
-            }
-            Group { Anchor: @CapGapAnchor; }
-            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-          }
-        }
-        Group #ZigBar0_6 {
-          Anchor: @RowAnchor;
-          LayoutMode: Top;
-          Visible: false;
-          Group #Line {
-            Anchor: @LineAnchor;
-            LayoutMode: Left;
-            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
-            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
-            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
-          }
-          Group #Bar {
-            Anchor: @BarAnchor;
-            LayoutMode: Left;
-            Visible: false;
-            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-            Group { Anchor: @CapGapAnchor; }
-            Group #Track {
-              Anchor: @TrackAnchor;
-              Padding: (Full: 1);
-              Background: @TrackWell;
-              Group #Fill {
-                Anchor: @FillAnchor;
-                Background: #7fb2e0;
-                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
-                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
-              }
-              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
-            }
-            Group { Anchor: @CapGapAnchor; }
-            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-          }
-        }
-        Group #ZigBar0_7 {
-          Anchor: @RowAnchor;
-          LayoutMode: Top;
-          Visible: false;
-          Group #Line {
-            Anchor: @LineAnchor;
-            LayoutMode: Left;
-            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
-            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
-            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
-          }
-          Group #Bar {
-            Anchor: @BarAnchor;
-            LayoutMode: Left;
-            Visible: false;
-            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-            Group { Anchor: @CapGapAnchor; }
-            Group #Track {
-              Anchor: @TrackAnchor;
-              Padding: (Full: 1);
-              Background: @TrackWell;
-              Group #Fill {
-                Anchor: @FillAnchor;
-                Background: #7fb2e0;
-                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
-                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
-              }
-              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
-            }
-            Group { Anchor: @CapGapAnchor; }
-            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-          }
-        }
-        Group #ZigBar0_8 {
-          Anchor: @RowAnchor;
-          LayoutMode: Top;
-          Visible: false;
-          Group #Line {
-            Anchor: @LineAnchor;
-            LayoutMode: Left;
-            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
-            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
-            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
-          }
-          Group #Bar {
-            Anchor: @BarAnchor;
-            LayoutMode: Left;
-            Visible: false;
-            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-            Group { Anchor: @CapGapAnchor; }
-            Group #Track {
-              Anchor: @TrackAnchor;
-              Padding: (Full: 1);
-              Background: @TrackWell;
-              Group #Fill {
-                Anchor: @FillAnchor;
-                Background: #7fb2e0;
-                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
-                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
-              }
-              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
-            }
-            Group { Anchor: @CapGapAnchor; }
-            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-          }
-        }
-        Group #ZigBar0_9 {
-          Anchor: @RowAnchor;
-          LayoutMode: Top;
-          Visible: false;
-          Group #Line {
-            Anchor: @LineAnchor;
-            LayoutMode: Left;
-            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
-            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
-            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
-          }
-          Group #Bar {
-            Anchor: @BarAnchor;
-            LayoutMode: Left;
-            Visible: false;
-            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-            Group { Anchor: @CapGapAnchor; }
-            Group #Track {
-              Anchor: @TrackAnchor;
-              Padding: (Full: 1);
-              Background: @TrackWell;
-              Group #Fill {
-                Anchor: @FillAnchor;
-                Background: #7fb2e0;
-                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
-                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
-              }
-              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
-            }
-            Group { Anchor: @CapGapAnchor; }
-            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-          }
-        }
-        Group #ZigBar0_10 {
-          Anchor: @RowAnchor;
-          LayoutMode: Top;
-          Visible: false;
-          Group #Line {
-            Anchor: @LineAnchor;
-            LayoutMode: Left;
-            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
-            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
-            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
-          }
-          Group #Bar {
-            Anchor: @BarAnchor;
-            LayoutMode: Left;
-            Visible: false;
-            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-            Group { Anchor: @CapGapAnchor; }
-            Group #Track {
-              Anchor: @TrackAnchor;
-              Padding: (Full: 1);
-              Background: @TrackWell;
-              Group #Fill {
-                Anchor: @FillAnchor;
-                Background: #7fb2e0;
-                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
-                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
-              }
-              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
-            }
-            Group { Anchor: @CapGapAnchor; }
-            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-          }
-        }
-        Group #ZigBar0_11 {
-          Anchor: @RowAnchor;
-          LayoutMode: Top;
-          Visible: false;
-          Group #Line {
-            Anchor: @LineAnchor;
-            LayoutMode: Left;
-            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
-            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
-            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
-          }
-          Group #Bar {
-            Anchor: @BarAnchor;
-            LayoutMode: Left;
-            Visible: false;
-            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-            Group { Anchor: @CapGapAnchor; }
-            Group #Track {
-              Anchor: @TrackAnchor;
-              Padding: (Full: 1);
-              Background: @TrackWell;
-              Group #Fill {
-                Anchor: @FillAnchor;
-                Background: #7fb2e0;
-                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
-                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
-              }
-              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
-            }
-            Group { Anchor: @CapGapAnchor; }
-            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-          }
-        }
-        Group #ZigBar0_12 {
-          Anchor: @RowAnchor;
-          LayoutMode: Top;
-          Visible: false;
-          Group #Line {
-            Anchor: @LineAnchor;
-            LayoutMode: Left;
-            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
-            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
-            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
-          }
-          Group #Bar {
-            Anchor: @BarAnchor;
-            LayoutMode: Left;
-            Visible: false;
-            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-            Group { Anchor: @CapGapAnchor; }
-            Group #Track {
-              Anchor: @TrackAnchor;
-              Padding: (Full: 1);
-              Background: @TrackWell;
-              Group #Fill {
-                Anchor: @FillAnchor;
-                Background: #7fb2e0;
-                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
-                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
-              }
-              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
-            }
-            Group { Anchor: @CapGapAnchor; }
-            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
-          }
-        }
       }
       Group #ZigBarCol1 {
-        Anchor: (Width: 296);
-        Padding: (Left: 12);
+        Anchor: (Width: 184);
+        Padding: (Left: 8);
         LayoutMode: Top;
         Visible: false;
         Group #ZigBar1_0 {
@@ -642,7 +283,13 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_3 {
+      }
+      Group #ZigBarCol2 {
+        Anchor: (Width: 184);
+        Padding: (Left: 8);
+        LayoutMode: Top;
+        Visible: false;
+        Group #ZigBar2_0 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -677,7 +324,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_4 {
+        Group #ZigBar2_1 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -712,7 +359,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_5 {
+        Group #ZigBar2_2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -747,7 +394,13 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_6 {
+      }
+      Group #ZigBarCol3 {
+        Anchor: (Width: 184);
+        Padding: (Left: 8);
+        LayoutMode: Top;
+        Visible: false;
+        Group #ZigBar3_0 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -782,7 +435,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_7 {
+        Group #ZigBar3_1 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -817,7 +470,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_8 {
+        Group #ZigBar3_2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -852,7 +505,13 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_9 {
+      }
+      Group #ZigBarCol4 {
+        Anchor: (Width: 184);
+        Padding: (Left: 8);
+        LayoutMode: Top;
+        Visible: false;
+        Group #ZigBar4_0 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -887,7 +546,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_10 {
+        Group #ZigBar4_1 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -922,7 +581,7 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_11 {
+        Group #ZigBar4_2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;
@@ -957,7 +616,83 @@ Group #ZigHudBarsParent {
             Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
           }
         }
-        Group #ZigBar1_12 {
+      }
+      Group #ZigBarCol5 {
+        Anchor: (Width: 184);
+        Padding: (Left: 8);
+        LayoutMode: Top;
+        Visible: false;
+        Group #ZigBar5_0 {
+          Anchor: @RowAnchor;
+          LayoutMode: Top;
+          Visible: false;
+          Group #Line {
+            Anchor: @LineAnchor;
+            LayoutMode: Left;
+            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
+            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
+            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
+            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
+          }
+          Group #Bar {
+            Anchor: @BarAnchor;
+            LayoutMode: Left;
+            Visible: false;
+            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
+            Group { Anchor: @CapGapAnchor; }
+            Group #Track {
+              Anchor: @TrackAnchor;
+              Padding: (Full: 1);
+              Background: @TrackWell;
+              Group #Fill {
+                Anchor: @FillAnchor;
+                Background: #7fb2e0;
+                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
+                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
+              }
+              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
+            }
+            Group { Anchor: @CapGapAnchor; }
+            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
+          }
+        }
+        Group #ZigBar5_1 {
+          Anchor: @RowAnchor;
+          LayoutMode: Top;
+          Visible: false;
+          Group #Line {
+            Anchor: @LineAnchor;
+            LayoutMode: Left;
+            ItemGrid #IcoItem { Visible: false; Anchor: @IconAnchor; SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
+            AssetImage #IcoTex { Visible: false; Anchor: @IconAnchor; FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+            Group #IcoGap { Visible: false; Anchor: (Width: 4); }
+            Label #Label { Text: ""; FlexWeight: 1; Style: @BarLabelStyle; }
+            Label #Gain { Text: ""; Visible: false; Anchor: @GainAnchor; Style: @BarGainStyle; }
+          }
+          Group #Bar {
+            Anchor: @BarAnchor;
+            LayoutMode: Left;
+            Visible: false;
+            Label #Lead { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
+            Group { Anchor: @CapGapAnchor; }
+            Group #Track {
+              Anchor: @TrackAnchor;
+              Padding: (Full: 1);
+              Background: @TrackWell;
+              Group #Fill {
+                Anchor: @FillAnchor;
+                Background: #7fb2e0;
+                Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
+                Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
+              }
+              Group #Pulse { Visible: false; Anchor: @PulseAnchor; Background: #ffffff; }
+            }
+            Group { Anchor: @CapGapAnchor; }
+            Label #Trail { Text: ""; Anchor: @CapAnchor; Style: @BarCapStyle; }
+          }
+        }
+        Group #ZigBar5_2 {
           Anchor: @RowAnchor;
           LayoutMode: Top;
           Visible: false;

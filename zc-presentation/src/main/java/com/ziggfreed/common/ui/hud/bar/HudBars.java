@@ -24,9 +24,16 @@ import com.ziggfreed.common.util.SafeLog;
  * The way in to the shared progress-bar panel: its lifecycle on every player, and the two calls a
  * consumer makes when a value it owns has moved.
  *
- * <p><b>Attach and detach.</b> Every player gets a panel at ready and loses it at disconnect. It is
- * attached LATE on the ready event so it lands after whatever a consumer does there, and kept in
- * {@link #LIVE} by player uuid so a change reported from any thread finds it in one map read.
+ * <p><b>Attach and detach.</b> Every player gets BOTH panels at ready and loses them at disconnect:
+ * {@link HudBarStackHud}, the tall ledger in the left column, and {@link HudBarGridHud}, the wide
+ * block in the top-right. They are attached LATE on the ready event so they land after whatever a
+ * consumer does there, and kept in {@link #LIVE} by player uuid so a change reported from any
+ * thread finds the right one in two map reads.
+ *
+ * <p><b>Which panel a row lands on is the CALLER's choice, made by which call it makes</b>
+ * ({@link #moved} or {@link #movedOnGrid}), never by anything this class reads out of the row. Only
+ * the mod reporting a movement knows what the player is in the middle of, and that is the whole
+ * basis of the choice.
  *
  * <p><b>Rows come from the calls, not from files.</b> {@link #moved} names a row id, a delta, where
  * the value now stands ({@link HudBarReading}) and how the row should look ({@link HudBarDisplay});
@@ -50,8 +57,12 @@ import com.ziggfreed.common.util.SafeLog;
  */
 public final class HudBars {
 
-    /** Every live panel by player uuid: written at attach, dropped at detach, read by every change. */
-    static final Map<UUID, HudBarHud> LIVE = new ConcurrentHashMap<>();
+    /**
+     * Every live panel by player uuid, then by panel id: written at attach, dropped at detach, read
+     * by every change. A player has one of each panel, and which one a movement lands on is decided
+     * by the call the reporting mod makes, never by anything read out of the row.
+     */
+    static final Map<UUID, Map<String, HudBarHud>> LIVE = new ConcurrentHashMap<>();
 
     private HudBars() {
     }
@@ -84,7 +95,18 @@ public final class HudBars {
      */
     public static boolean moved(@Nullable PlayerRef playerRef, @Nonnull String rowId, double delta,
             @Nonnull HudBarReading reading, @Nonnull HudBarDisplay display) {
-        return report(playerRef, rowId, reading, null, delta, display);
+        return report(playerRef, HudBarStackHud.HUD_KEY, rowId, reading, null, delta, display);
+    }
+
+    /**
+     * As {@link #moved}, on the WIDE panel instead: the one for values that move while a player is
+     * out in the world with no ledger beside them. Same row model and same display; only which
+     * panel draws it differs, and that is the caller's to decide because only the caller knows what
+     * the player is in the middle of.
+     */
+    public static boolean movedOnGrid(@Nullable PlayerRef playerRef, @Nonnull String rowId, double delta,
+            @Nonnull HudBarReading reading, @Nonnull HudBarDisplay display) {
+        return report(playerRef, HudBarGridHud.HUD_KEY, rowId, reading, null, delta, display);
     }
 
     /**
@@ -93,7 +115,25 @@ public final class HudBars {
      * ({@link HudBarDisplay#forItem}). Returns whether a row took it, as {@link #moved} does.
      */
     public static boolean itemMoved(@Nullable PlayerRef playerRef, @Nonnull String itemId, double quantity) {
-        return report(playerRef, itemRowId(itemId), null, itemId, quantity, HudBarDisplay.forItem(itemId));
+        return report(playerRef, HudBarStackHud.HUD_KEY, itemRowId(itemId), null, itemId, quantity,
+                HudBarDisplay.forItem(itemId));
+    }
+
+    /**
+     * As {@link #itemMoved}, but on a row the CALLER names and dresses: for an item that landed in a
+     * way worth counting apart from the ordinary running total of the same item. The row still
+     * pictures and names the item itself, so {@code display} only has to say what is different about
+     * it; anything it leaves out falls back to the item's own display, then to an authored override,
+     * then to the defaults, exactly as every other row does.
+     *
+     * <p>The row id is the caller's, matched whole against an override's {@code Source} like any
+     * other, so a mod names such a row after whatever made it special in its own vocabulary. Passing
+     * {@link #itemRowId} here is the same thing as calling {@link #itemMoved}.
+     */
+    public static boolean itemMoved(@Nullable PlayerRef playerRef, @Nonnull String rowId,
+            @Nonnull String itemId, double quantity, @Nonnull HudBarDisplay display) {
+        return report(playerRef, HudBarStackHud.HUD_KEY, rowId, null, itemId, quantity,
+                display.over(HudBarDisplay.forItem(itemId)));
     }
 
     /** The id of the row {@code itemId}'s output is counted on. */
@@ -102,13 +142,14 @@ public final class HudBars {
         return ITEM_ROW_PREFIX + itemId;
     }
 
-    private static boolean report(@Nullable PlayerRef playerRef, @Nonnull String rowId,
+    private static boolean report(@Nullable PlayerRef playerRef, @Nonnull String hudKey, @Nonnull String rowId,
             @Nullable HudBarReading reading, @Nullable String itemId, double delta, @Nonnull HudBarDisplay display) {
         if (playerRef == null) {
             return false;
         }
         UUID uuid = playerRef.getUuid();
-        HudBarHud hud = uuid == null ? null : LIVE.get(uuid);
+        Map<String, HudBarHud> panels = uuid == null ? null : LIVE.get(uuid);
+        HudBarHud hud = panels == null ? null : panels.get(hudKey);
         if (hud == null) {
             return false;
         }
@@ -122,17 +163,22 @@ public final class HudBars {
 
     // ==================== owner-wide pushes ====================
 
-    /** Repaint every online player's panel: the bars or the panel were reloaded. */
+    /** Repaint every online player's panels: the bars or a panel were reloaded. */
     public static void repaintAllOnline() {
-        for (HudBarHud hud : LIVE.values()) {
-            hud.repaint();
+        for (Map<String, HudBarHud> panels : LIVE.values()) {
+            for (HudBarHud hud : panels.values()) {
+                hud.repaint();
+            }
         }
     }
 
-    /** Re-anchor every online player's panel to the folded panel's position: the owner moved it. */
+    /** Re-anchor every online player's panels to their folded positions: the owner moved one. */
     public static void refreshPositionForAllOnline() {
-        KeyedCustomHud.refreshPositionForAllOnline(HudBarHud.HUD_KEY,
-                HudBarPanelConfig.getInstance().current().position());
+        HudBarPanelConfig config = HudBarPanelConfig.getInstance();
+        KeyedCustomHud.refreshPositionForAllOnline(HudBarStackHud.HUD_KEY,
+                config.current().position(HudBarStackHud.LAYOUT.defaultPosition()));
+        KeyedCustomHud.refreshPositionForAllOnline(HudBarGridHud.HUD_KEY,
+                config.grid().position(HudBarGridHud.LAYOUT.defaultPosition()));
     }
 
     // ==================== lifecycle ====================
@@ -163,9 +209,11 @@ public final class HudBars {
             if (uuid == null) {
                 return;
             }
-            HudBarHud hud = new HudBarHud(playerRef);
-            LIVE.put(uuid, hud);
-            player.getHudManager().addCustomHud(playerRef, hud);
+            HudBarHud stack = new HudBarStackHud(playerRef);
+            HudBarHud grid = new HudBarGridHud(playerRef);
+            LIVE.put(uuid, Map.of(HudBarStackHud.HUD_KEY, stack, HudBarGridHud.HUD_KEY, grid));
+            player.getHudManager().addCustomHud(playerRef, stack);
+            player.getHudManager().addCustomHud(playerRef, grid);
         } catch (Throwable t) {
             SafeLog.warn("[hud] progress-bar panel attach failed on the world thread", t);
         }
@@ -196,7 +244,8 @@ public final class HudBars {
             }
             Player player = ref.getStore().getComponent(ref, Player.getComponentType());
             if (player != null) {
-                player.getHudManager().removeCustomHud(playerRef, HudBarHud.HUD_KEY);
+                player.getHudManager().removeCustomHud(playerRef, HudBarStackHud.HUD_KEY);
+                player.getHudManager().removeCustomHud(playerRef, HudBarGridHud.HUD_KEY);
             }
         } catch (Throwable t) {
             SafeLog.warn("[hud] progress-bar panel detach failed on the world thread", t);
@@ -205,9 +254,10 @@ public final class HudBars {
 
     // ==================== registry, for a test ====================
 
-    /** Remember {@code hud} as {@code playerId}'s; replaces a stale one from a reconnect. */
+    /** Remember {@code hud} as {@code playerId}'s panel of its kind; replaces a stale one from a reconnect. */
     static void register(@Nonnull UUID playerId, @Nonnull HudBarHud hud) {
-        LIVE.put(playerId, hud);
+        LIVE.computeIfAbsent(playerId, id -> new ConcurrentHashMap<>())
+                .put(hud.layout().hudKey(), hud);
     }
 
     /** Forget {@code playerId}'s panel. */

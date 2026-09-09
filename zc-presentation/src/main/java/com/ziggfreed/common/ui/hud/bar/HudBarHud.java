@@ -27,8 +27,10 @@ import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * One player's progress-bar panel: a minimal, semi-transparent stack of up to
- * {@value HudBarPanelAsset#MAX_SLOTS} rows, drawn only while the values behind them are moving.
+ * One player's view of one bar panel: rows drawn only while the values behind them are moving. The
+ * drawing is the same whichever panel this is, so it lives here once and reads a {@link HudBarLayout}
+ * for everything that differs; {@link HudBarStackHud} and {@link HudBarGridHud} are that layout and
+ * nothing else.
  *
  * <p><b>Two parts to a row, freely combined.</b> A row draws a FILL when it was moved with a
  * reading ({@link HudBars#moved} hands a {@link HudBarReading} over with every move, and the row
@@ -44,42 +46,34 @@ import com.ziggfreed.common.util.SafeLog;
  * It asks nothing of anyone at paint time and knows nothing about what any value measures. A
  * consumer never touches this class: it calls {@link HudBars#moved} or {@link HudBars#itemMoved}.
  *
- * <p><b>How it paints.</b> A move records the gain and starts the row's linger clock, then asks
- * for a paint. Paints are folded per tick ({@link RepaintCoalescer}) and held to one every
- * {@value #REPAINT_INTERVAL_MS} ms, with the last change always painted (a paint that arrives inside
- * the window is deferred to the window's end rather than dropped). One sweep is armed at a time, at
- * the earliest linger expiry, and it re-arms itself while anything is still live, so a row goes
- * away on time with no tick anywhere. Everything that touches the player runs on their world thread.
+ * <p><b>How it paints.</b> A move records the gain and starts the row's linger clock, then asks for
+ * a paint. Paints are folded per tick ({@link RepaintCoalescer}) and held to one per the panel's
+ * authored {@code RepaintMs}. That window is a leading edge with a trailing flush, not a plain
+ * throttle: a move arriving when the window is already open redraws at once, and one arriving
+ * inside it is drawn at the window's end rather than dropped, so the number on screen is never
+ * waiting on a LATER move to bring it up to date. One sweep is armed at a time, at the earliest
+ * linger expiry, and it re-arms itself while anything is still live, so a row goes away on time with
+ * no tick anywhere. Everything that touches the player runs on their world thread.
  *
- * <p>The document is {@code Hud/ZigHudBars.ui}: four slots {@code #ZigBar0..3}, each a
- * {@code #Line} (icon pair, {@code #Label}, {@code #Gain}) over a {@code #Track} holding the
- * {@code #Fill}. Slots are addressed by index and surplus ones hidden, so a repaint never
- * re-appends. The path and the ids are prefixed {@code Zig} because the client's UI namespace is flat
- * across mods. Text lands on {@code .TextSpans}, the fill is an {@code Anchor} width push and the
- * colour a {@code .Background.Color} retint, so no texture is shipped for it.
+ * <p><b>The document.</b> Slots are declared up front in columns ({@code #ZigBarCol<c>} holding
+ * {@code #ZigBar<c>_<r>}), addressed by index and hidden when surplus, because a partial update can
+ * restyle an element that exists but never add one. Each slot is a {@code #Line} (icon pair,
+ * {@code #Label}, {@code #Gain}) over a {@code #Bar} holding the two end captions and a
+ * {@code #Track} of {@code #Fill} and {@code #Pulse}. Paths and ids are prefixed {@code Zig}
+ * because the client's UI namespace is flat across mods. Text lands on {@code .TextSpans}, the fill
+ * and the pulse are {@code Anchor} width pushes and their colour a {@code .Background.Color}
+ * retint, so no per-colour texture is shipped for a bar.
  */
-public final class HudBarHud extends KeyedCustomHud {
-
-    /** The HUD's key on the native per-player {@code HudManager}, under this library's own id. */
-    public static final String HUD_KEY = "ziggfreedcommon:hud_bars";
-
-    static final String TEMPLATE = "Hud/ZigHudBars.ui";
-    static final String ROOT = "#ZigHudBarsPanel";
-
-    /** Panel WIDTH in pixels; must match {@code #ZigHudBarsPanel}'s anchor in the document. Content-sized vertically. */
-    static final int PANEL_WIDTH_PX = 320;
-
-    /**
-     * The fill's full width: the row width (the panel less its horizontal padding) less the track's
-     * own one-pixel padding each side. Must match {@code #Track} in the document.
-     */
-    static final int TRACK_INNER_WIDTH_PX = 294;
-
-    /** At most one paint per this many milliseconds per player; the last change is never dropped. */
-    static final long REPAINT_INTERVAL_MS = 100L;
+public abstract class HudBarHud extends KeyedCustomHud {
 
     /** A sweep fires this much after the earliest expiry, so a clock read a hair early still finds it past. */
     private static final long SWEEP_SLACK_MS = 20L;
+
+    /** How long after a row moves its fill still shows the leading-edge pulse. */
+    private static final long PULSE_MS = 700L;
+
+    /** How wide that pulse is; it is held narrower on a bar too short to hold it. */
+    private static final int PULSE_WIDTH_PX = 18;
 
     /** The shared word for a gain, {@code +{0, number}}, grouped by each player's own client. */
     private static final String GAIN_KEY = "ziggfreedcommon.ui.hud.bar.gain";
@@ -97,8 +91,24 @@ public final class HudBarHud extends KeyedCustomHud {
     private final AtomicBoolean paintDeferred = new AtomicBoolean();
     private final AtomicBoolean sweepArmed = new AtomicBoolean();
 
-    public HudBarHud(@Nonnull PlayerRef playerRef) {
-        super(playerRef, HUD_KEY);
+    /** Which panel this is: its document, its element names, its declared slots and its default corner. */
+    private final HudBarLayout layout;
+
+    protected HudBarHud(@Nonnull PlayerRef playerRef, @Nonnull HudBarLayout layout) {
+        super(playerRef, layout.hudKey());
+        this.layout = layout;
+    }
+
+    /** Which panel this is. */
+    @Nonnull
+    public final HudBarLayout layout() {
+        return layout;
+    }
+
+    /** The authored leaves for this panel, folded; always answers. */
+    @Nonnull
+    private HudBarPanelAsset panel() {
+        return HudBarPanelConfig.getInstance().panel(layout.panelId());
     }
 
     /**
@@ -137,13 +147,13 @@ public final class HudBarHud extends KeyedCustomHud {
 
     @Nonnull
     @Override
-    protected String rootSelector() {
-        return ROOT;
+    protected final String rootSelector() {
+        return layout.root();
     }
 
     @Override
-    protected int panelWidth() {
-        return PANEL_WIDTH_PX;
+    protected final int panelWidth() {
+        return layout.panelWidthPx();
     }
 
     /** Unused: content-sized, so the anchor omits Height. */
@@ -157,23 +167,27 @@ public final class HudBarHud extends KeyedCustomHud {
         return true;
     }
 
+    /**
+     * The authored repaint window, read per call so a settings reload lands on the next movement
+     * rather than the next restart.
+     */
     @Override
-    protected long updateIntervalMs() {
-        return REPAINT_INTERVAL_MS;
+    protected final long updateIntervalMs() {
+        return panel().repaintMs();
     }
 
     @Nonnull
     @Override
-    protected HudPosition configuredPosition() {
-        return HudBarPanelConfig.getInstance().current().position();
+    protected final HudPosition configuredPosition() {
+        return panel().position(layout.defaultPosition());
     }
 
     /** The first paint, inside the native {@code addCustomHud}: the document, its position, and no rows. */
     @Override
-    protected void build(@Nonnull UICommandBuilder cmd) {
-        cmd.append(TEMPLATE);
+    protected final void build(@Nonnull UICommandBuilder cmd) {
+        cmd.append(layout.template());
         applyConfiguredPosition(cmd);
-        paint(cmd, List.of(), HudBarPanelConfig.getInstance().current().enabled());
+        paint(cmd, layout, List.of(), panel(), configuredPosition(), false);
     }
 
     // ==================== a value moved ====================
@@ -259,9 +273,10 @@ public final class HudBarHud extends KeyedCustomHud {
             markPushed();
             long now = System.currentTimeMillis();
             List<Row> rows = collectLive(now);
-            HudBarPanelAsset panel = HudBarPanelConfig.getInstance().current();
+            HudBarPanelAsset panel = panel();
             UICommandBuilder cmd = new UICommandBuilder();
-            paint(cmd, choose(rows, panel.maxVisible()), panel.enabled());
+            paint(cmd, layout, choose(rows, panel.maxVisible(layout.totalSlots()), layout.totalSlots()),
+                    panel, configuredPosition(), true);
             update(false, cmd);
             rearmSweep(now);
         } catch (Throwable t) {
@@ -325,8 +340,8 @@ public final class HudBarHud extends KeyedCustomHud {
      * the settled order, then id) so the stack reads the same whichever of them moved last.
      */
     @Nonnull
-    static List<Row> choose(@Nonnull List<Row> rows, int maxVisible) {
-        int slots = Math.max(0, Math.min(maxVisible, HudBarPanelAsset.MAX_SLOTS));
+    static List<Row> choose(@Nonnull List<Row> rows, int maxVisible, int declaredSlots) {
+        int slots = Math.max(0, Math.min(maxVisible, declaredSlots));
         List<Row> newest = new ArrayList<>(rows);
         newest.sort(Comparator.comparingLong(Row::lastMovedMs).reversed().thenComparing(STACK_ORDER));
         List<Row> shown = new ArrayList<>(newest.subList(0, Math.min(slots, newest.size())));
@@ -335,38 +350,145 @@ public final class HudBarHud extends KeyedCustomHud {
     }
 
     /**
+     * How many columns {@code rows} spread across on {@code panel}: a new column opens only once
+     * the authored {@code RowsPerColumn} is exceeded, and never more than the document declares.
+     * Pure, so the layout can be reasoned about without a client.
+     */
+    static int columnsFor(int rows, @Nonnull HudBarLayout layout, @Nonnull HudBarPanelAsset panel) {
+        if (rows <= 0) {
+            return 1;
+        }
+        int wanted = ceilDiv(rows, panel.rowsPerColumn());
+        return Math.max(1, Math.min(wanted, panel.columns(layout.columns())));
+    }
+
+    /**
+     * How many rows one column takes once {@code rows} are spread across {@code columns}: an even
+     * split, rounded up so the last column is the short one, and never past what the document
+     * declares per column.
+     */
+    static int rowsPerColumnFor(int rows, int columns, @Nonnull HudBarLayout layout) {
+        if (rows <= 0) {
+            return 0;
+        }
+        return Math.min(ceilDiv(rows, Math.max(1, columns)), layout.slotsPerColumn());
+    }
+
+    /**
+     * How many columns actually END UP with a row in them once {@code rows} are split
+     * {@code perColumn} deep. This is not always what {@link #columnsFor} allowed: four rows across
+     * a three-column allowance split two deep, which fills two columns and leaves the third empty,
+     * and an empty column must neither be drawn nor counted in the panel's width.
+     */
+    static int usedColumnsFor(int rows, int perColumn) {
+        if (rows <= 0 || perColumn <= 0) {
+            return 0;
+        }
+        return ceilDiv(rows, perColumn);
+    }
+
+    private static int ceilDiv(int value, int by) {
+        int divisor = Math.max(1, by);
+        return (value + divisor - 1) / divisor;
+    }
+
+    /**
      * Map rows onto the document's fixed slots. Every slot is addressed on every paint - shown ones
      * filled, surplus ones hidden - because a partial update can restyle an element that exists but
-     * never add one. A row with no fill hides its track and is its first line alone. The whole
-     * panel goes when nothing is showing or the owner switched it off.
+     * never add one. A row with no fill hides its bar and is its first line alone. The whole panel
+     * goes when nothing is showing or the owner switched it off.
+     *
+     * <p>Rows fill COLUMN BY COLUMN, so a stack that has grown wide still reads top-to-bottom down
+     * its first column before continuing at the top of the next: the order rows are chosen in is
+     * meaningful, and reading it across the rows instead would scramble it. A column with nothing in
+     * it is hidden outright rather than left as an empty gutter, which is what lets one document
+     * draw a single narrow column and a wide several-column block without knowing which it is.
+     *
+     * <p>{@code animate} is false for the build push, where every row would arrive at once and a
+     * leading-edge pulse on all of them reads as noise rather than as movement.
      */
-    static void paint(@Nonnull UICommandBuilder cmd, @Nonnull List<Row> rows, boolean panelEnabled) {
-        cmd.set(ROOT + ".Visible", panelEnabled && !rows.isEmpty());
-        for (int i = 0; i < HudBarPanelAsset.MAX_SLOTS; i++) {
-            String slot = "#ZigBar" + i;
-            if (i >= rows.size()) {
-                cmd.set(slot + ".Visible", false);
-                continue;
+    static void paint(@Nonnull UICommandBuilder cmd, @Nonnull HudBarLayout layout, @Nonnull List<Row> rows,
+            @Nonnull HudBarPanelAsset panel, @Nullable HudPosition position, boolean animate) {
+        cmd.set(layout.root() + ".Visible", panel.enabled() && !rows.isEmpty());
+        int allowed = columnsFor(rows.size(), layout, panel);
+        int perColumn = rowsPerColumnFor(rows.size(), allowed, layout);
+        int used = usedColumnsFor(rows.size(), perColumn);
+        if (position != null) {
+            // The panel is only as wide as the columns actually in use, so a single-column stack
+            // never draws its background across the gutter a second column would have filled.
+            cmd.setObject(layout.root() + ".Anchor",
+                    position.toAnchorContentHeight(layout.panelWidthFor(Math.max(1, used))));
+        }
+        // A panel pinned to the RIGHT edge grows leftward as columns open, so its first column has
+        // to be the RIGHTMOST one: filling left-to-right there would shift every column already on
+        // screen sideways the moment a new one opened, and drag the rows out from under the eye
+        // reading them. A left-pinned panel grows the other way and fills the ordinary way.
+        boolean rightToLeft = position != null
+                && position.getHorizontalEdge() == HudPosition.HorizontalEdge.RIGHT;
+        long now = System.currentTimeMillis();
+        for (int slotColumn = 0; slotColumn < layout.columns(); slotColumn++) {
+            boolean columnUsed = slotColumn < used;
+            cmd.set(layout.columnSelector(slotColumn) + ".Visible", columnUsed);
+            int ordinal = rightToLeft ? used - 1 - slotColumn : slotColumn;
+            int firstInColumn = ordinal * perColumn;
+            for (int row = 0; row < layout.slotsPerColumn(); row++) {
+                String slot = layout.slotSelector(slotColumn, row);
+                int index = firstInColumn + row;
+                if (!columnUsed || row >= perColumn || index >= rows.size()) {
+                    cmd.set(slot + ".Visible", false);
+                    continue;
+                }
+                paintRow(cmd, layout, slot, rows.get(index), animate, now);
             }
-            Row row = rows.get(i);
-            HudBarLook look = row.look();
-            cmd.set(slot + ".Visible", true);
-            // .TextSpans, never .Text: a Message on a Label's String sink crashes the client.
-            cmd.set(slot + " #Line #Label.TextSpans", look.label());
-            boolean hasGain = row.gain() > 0;
-            cmd.set(slot + " #Line #Gain.Visible", hasGain);
-            if (hasGain) {
-                cmd.set(slot + " #Line #Gain.TextSpans", gain(row.gain()));
-            }
-            boolean iconShown = IconRenderer.applyIcon(cmd, slot + " #Line", look.icon());
-            cmd.set(slot + " #Line #IcoGap.Visible", iconShown);
-            boolean fill = row.drawsFill();
-            cmd.set(slot + " #Track.Visible", fill);
-            if (fill) {
-                UiRetint.retintColor(cmd, slot + " #Track #Fill", look.color());
-                int fillWidth = (int) Math.round(row.reading().fraction() * TRACK_INNER_WIDTH_PX);
-                cmd.setObject(slot + " #Track #Fill.Anchor", fillAnchor(fillWidth));
-            }
+        }
+    }
+
+    /** One slot: its line, its two bar-end captions and its fill. */
+    private static void paintRow(@Nonnull UICommandBuilder cmd, @Nonnull HudBarLayout layout,
+            @Nonnull String slot, @Nonnull Row row, boolean animate, long now) {
+        HudBarLook look = row.look();
+        cmd.set(slot + ".Visible", true);
+        // .TextSpans, never .Text: a Message on a Label's String sink crashes the client.
+        cmd.set(slot + " #Line #Label.TextSpans", look.label());
+        boolean hasGain = row.gain() > 0;
+        cmd.set(slot + " #Line #Gain.Visible", hasGain);
+        if (hasGain) {
+            cmd.set(slot + " #Line #Gain.TextSpans", gain(row.gain()));
+        }
+        boolean iconShown = IconRenderer.applyIcon(cmd, slot + " #Line", look.icon());
+        cmd.set(slot + " #Line #IcoGap.Visible", iconShown);
+
+        boolean fill = row.drawsFill();
+        cmd.set(slot + " #Bar.Visible", fill);
+        if (!fill) {
+            return;
+        }
+        // The two captions are whatever the reporting mod handed over with the movement: where the
+        // reading counts from, and where it counts to. An end with nothing to say is painted BLANK
+        // rather than hidden, because hiding it would collapse its width out of the row and shift
+        // the track the fill's pixel width is measured against.
+        Message lead = look.leadCaption();
+        Message trail = look.trailCaption();
+        cmd.set(slot + " #Bar #Lead.TextSpans", lead != null ? lead : Msg.raw(""));
+        cmd.set(slot + " #Bar #Trail.TextSpans", trail != null ? trail : Msg.raw(""));
+
+        // The fill is a plain retinted Group, not a native ProgressBar: that element carries no
+        // colour of its own, and a row's colour is chosen at runtime by whoever moved it. Everything
+        // that makes this read as a bar rather than a rectangle - the sunk track, the gloss across
+        // its top, the bright leading edge - is colour-agnostic dressing in the document, so any
+        // colour at all still comes out looking like a bar.
+        String track = slot + " #Bar #Track";
+        UiRetint.retintColor(cmd, track + " #Fill", look.color());
+        int fillWidth = (int) Math.round(row.reading().fraction() * layout.trackInnerWidthPx());
+        cmd.setObject(track + " #Fill.Anchor", fillAnchor(fillWidth));
+
+        // The pulse rides the fill's leading edge for a moment after a movement, so the bar that
+        // just moved is the one the eye goes to. A bar sitting still shows nothing.
+        boolean pulsing = animate && fillWidth > 0 && now - row.lastMovedMs() <= PULSE_MS;
+        cmd.set(track + " #Pulse.Visible", pulsing);
+        if (pulsing) {
+            UiRetint.retintColor(cmd, track + " #Pulse", look.color());
+            cmd.setObject(track + " #Pulse.Anchor", pulseAnchor(fillWidth, layout.trackInnerWidthPx()));
         }
     }
 
@@ -380,6 +502,22 @@ public final class HudBarHud extends KeyedCustomHud {
             return Msg.key(GAIN_KEY, (long) gain);
         }
         return Msg.key(GAIN_KEY, gain);
+    }
+
+    /**
+     * The pulse's anchor: a short bright band sitting ON the fill's leading edge, held back at both
+     * ends so it never hangs off the track at a nearly empty or a full bar.
+     */
+    @Nonnull
+    private static Anchor pulseAnchor(int fillWidth, int trackWidth) {
+        int width = Math.max(1, Math.min(PULSE_WIDTH_PX, fillWidth));
+        int left = Math.max(0, Math.min(fillWidth - width, trackWidth - width));
+        Anchor a = new Anchor();
+        a.setLeft(Value.of(left));
+        a.setTop(Value.of(0));
+        a.setBottom(Value.of(0));
+        a.setWidth(Value.of(width));
+        return a;
     }
 
     /** The fill's anchor: pinned to the track's left and both vertical edges, {@code width} wide. */

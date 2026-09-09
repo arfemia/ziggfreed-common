@@ -23,6 +23,10 @@ import com.ziggfreed.common.ui.hud.HudPosition;
  */
 class HudBarPanelAssetTest {
 
+    /** How many slots the panel under test declares; the ceiling is the drawing document's, not the file's. */
+    private static final int SLOTS = 4;
+
+
     static HudBarPanelAsset panel(String json, String id, String parentId, HudBarPanelAsset parent)
             throws IOException {
         AssetExtraInfo.Data data = new AssetExtraInfo.Data(HudBarPanelAsset.class, id, parentId);
@@ -46,7 +50,7 @@ class HudBarPanelAssetTest {
         assertEquals(16, position.getOffsetX());
         assertEquals(216, position.getOffsetY());
         assertTrue(HudBarPanelAsset.defaults().enabled());
-        assertEquals(HudBarPanelAsset.MAX_SLOTS, HudBarPanelAsset.defaults().maxVisible());
+        assertEquals(SLOTS, HudBarPanelAsset.defaults().maxVisible(SLOTS));
     }
 
     @Test
@@ -80,10 +84,10 @@ class HudBarPanelAssetTest {
 
     @Test
     void maxVisibleIsHeldToTheDocumentsSlots() throws Exception {
-        assertEquals(2, panel("{ \"MaxVisible\": 2 }", "default", null, null).maxVisible());
-        assertEquals(HudBarPanelAsset.MAX_SLOTS, panel("{ \"MaxVisible\": 40 }", "default", null, null).maxVisible(),
+        assertEquals(2, panel("{ \"MaxVisible\": 2 }", "default", null, null).maxVisible(SLOTS));
+        assertEquals(SLOTS, panel("{ \"MaxVisible\": 40 }", "default", null, null).maxVisible(SLOTS),
                 "a document can only repaint slots it declares");
-        assertEquals(1, panel("{ \"MaxVisible\": 0 }", "default", null, null).maxVisible(),
+        assertEquals(1, panel("{ \"MaxVisible\": 0 }", "default", null, null).maxVisible(SLOTS),
                 "a panel that shows nothing is Enabled false, not MaxVisible 0");
     }
 
@@ -95,7 +99,7 @@ class HudBarPanelAssetTest {
                 "default", "default", base);
 
         assertFalse(child.enabled());
-        assertEquals(3, child.maxVisible());
+        assertEquals(3, child.maxVisible(SLOTS));
         HudPosition position = child.position();
         assertEquals(HudPosition.AnchorEdge.BOTTOM, position.getAnchorEdge(), "the preset is inherited");
         assertEquals(30, position.getOffsetX(), "the unrestated offset is inherited");

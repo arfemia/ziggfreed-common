@@ -17,9 +17,14 @@ import com.ziggfreed.common.icon.IconSpec;
  * deliberate word about one row, and the reporting mod's display is what a row reads when nobody
  * has said anything about it. A row with no name from either layer shows its own id, so an
  * unnamed row is still a row rather than a blank line.
+ *
+ * <p>The two bar-end captions are the exception to that precedence, because they come from the
+ * display alone: they are per-move data (what the reading counts from and toward, right now), so
+ * there is nothing for a file to override. Either may be null, and a fill row that has neither
+ * simply draws a bare bar.
  */
 public record HudBarLook(@Nonnull Message label, @Nullable IconSpec icon, @Nonnull String color, int order,
-        long lingerMs) {
+        long lingerMs, @Nullable Message leadCaption, @Nullable Message trailCaption) {
 
     /** The fill colour a row draws in when neither its override nor its display names one. */
     public static final String DEFAULT_COLOR = "#7fb2e0";
@@ -44,6 +49,8 @@ public record HudBarLook(@Nonnull Message label, @Nullable IconSpec icon, @Nonnu
                 folded.icon(),
                 folded.color() != null ? folded.color() : DEFAULT_COLOR,
                 folded.order() != null ? folded.order() : DEFAULT_ORDER,
-                linger != null && linger > 0 ? linger : DEFAULT_LINGER_MS);
+                linger != null && linger > 0 ? linger : DEFAULT_LINGER_MS,
+                folded.leadCaption(),
+                folded.trailCaption());
     }
 }

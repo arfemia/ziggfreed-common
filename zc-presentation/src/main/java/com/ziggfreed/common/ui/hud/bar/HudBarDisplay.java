@@ -20,18 +20,43 @@ import com.ziggfreed.common.icon.IconSpec;
  * panel never learns what the value measures. {@link #forItem} is the display an item derives for
  * itself: its own name, resolved the way every item name in this library is, and its own generated
  * icon.
+ *
+ * <p><b>The two captions</b> ({@link #leadCaption} / {@link #trailCaption}) are the short words a
+ * fill row shows at its bar's left and right ends: where the reading is counting FROM and where it
+ * is counting TO, in whatever terms the reporting mod measures in. The library never composes them
+ * and never reads them - it draws whatever came with the move, and a row that supplies neither
+ * simply draws a bare bar. They are deliberately NOT authorable on {@link HudBarAsset}: a caption
+ * is per-move data that changes as the value moves, so a file has nothing useful to say about it,
+ * while a label or a colour is a settled fact about the row that a file rightly overrides.
  */
 public record HudBarDisplay(@Nullable Message label, @Nullable IconSpec icon, @Nullable String color,
-        @Nullable Integer order, @Nullable Long lingerMs) {
+        @Nullable Integer order, @Nullable Long lingerMs, @Nullable Message leadCaption,
+        @Nullable Message trailCaption) {
 
     /** No preference on any part: the row reads its override, then the defaults. */
-    public static final HudBarDisplay NONE = new HudBarDisplay(null, null, null, null, null);
+    public static final HudBarDisplay NONE =
+            new HudBarDisplay(null, null, null, null, null, null, null);
 
     /** A name, a picture, a fill colour and a place in the stack; the linger stays the default. */
     @Nonnull
     public static HudBarDisplay of(@Nullable Message label, @Nullable IconSpec icon, @Nullable String color,
             int order) {
-        return new HudBarDisplay(label, icon, color, order, null);
+        return new HudBarDisplay(label, icon, color, order, null, null, null);
+    }
+
+    /**
+     * These parts, with the two bar-end captions added: what the reading counts from at the bar's
+     * left, and what it counts toward at its right. Either may be null for an end that shows nothing.
+     */
+    @Nonnull
+    public HudBarDisplay between(@Nullable Message lead, @Nullable Message trail) {
+        return new HudBarDisplay(label, icon, color, order, lingerMs, lead, trail);
+    }
+
+    /** These parts with {@code color} instead: the one part a consumer re-states per move. */
+    @Nonnull
+    public HudBarDisplay colored(@Nullable String replacement) {
+        return new HudBarDisplay(label, icon, replacement, order, lingerMs, leadCaption, trailCaption);
     }
 
     /**
@@ -42,7 +67,8 @@ public record HudBarDisplay(@Nullable Message label, @Nullable IconSpec icon, @N
      */
     @Nonnull
     public static HudBarDisplay forItem(@Nonnull String itemId) {
-        return new HudBarDisplay(NativeNames.itemNameMsg(itemId), IconSpec.ofItem(itemId), null, null, null);
+        return new HudBarDisplay(NativeNames.itemNameMsg(itemId), IconSpec.ofItem(itemId), null, null, null,
+                null, null);
     }
 
     /** These parts over {@code under}'s: a part this display leaves null reads from {@code under}. */
@@ -53,6 +79,8 @@ public record HudBarDisplay(@Nullable Message label, @Nullable IconSpec icon, @N
                 icon != null ? icon : under.icon,
                 color != null ? color : under.color,
                 order != null ? order : under.order,
-                lingerMs != null ? lingerMs : under.lingerMs);
+                lingerMs != null ? lingerMs : under.lingerMs,
+                leadCaption != null ? leadCaption : under.leadCaption,
+                trailCaption != null ? trailCaption : under.trailCaption);
     }
 }

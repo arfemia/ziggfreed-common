@@ -70,7 +70,7 @@ class HudBarLookTest {
     @Test
     void aDisplayFoldsOverAnotherPartByPart() {
         HudBarDisplay under = HudBarDisplay.of(Msg.raw("Under"), IconSpec.ofItem("A"), "#111111", 5);
-        HudBarDisplay over = new HudBarDisplay(null, null, "#222222", null, 700L);
+        HudBarDisplay over = new HudBarDisplay(null, null, "#222222", null, 700L, null, null);
 
         HudBarDisplay folded = over.over(under);
         assertEquals("Under", folded.label().getRawText());
