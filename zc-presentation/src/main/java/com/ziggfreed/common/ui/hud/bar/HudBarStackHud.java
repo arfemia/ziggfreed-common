@@ -20,8 +20,9 @@ import com.ziggfreed.common.ui.hud.HudPosition;
  * <p>Where it sits is its {@code Default.json} panel file's {@code Placement}, the shipped
  * {@code TopLeft} spot: the same origin as the zone card a companion mod draws at the top-left,
  * deliberately OVER it, since this panel attaches after that card at ready and is transparent
- * behind its frame. The corner below is only the document's fallback for a server where that file
- * is gone.
+ * behind its frame. The document holds the panel to that card's own height as a floor, so a ledger
+ * of one or two rows covers the card rather than leaving its lower half showing. The corner below is
+ * only the document's fallback for a server where that file is gone.
  */
 public final class HudBarStackHud extends HudBarHud {
 

@@ -24,7 +24,9 @@
 // columns of thirteen; 12 of horizontal padding and a 296-wide column, so the panel is 320 wide
 // with one column open and 628 with both; a 228-wide track between two 30-wide captions, padded a
 // pixel each side, so a fill spans 226 (HudBarStackHud.LAYOUT's trackInnerWidthPx). Keep them in
-// step: a fill width pushed past its track simply overflows it.
+// step: a fill width pushed past its track simply overflows it. The panel also never draws shorter
+// than 124, the height of the zone difficulty card it sits over, so even a single row covers that
+// card rather than leaving its lower half showing.
 $Z = "../Common/ZigButtons.ui";
 
 @BarLabelStyle = (FontSize: 13, TextColor: #e6e9ee, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
@@ -58,6 +60,13 @@ $Z = "../Common/ZigButtons.ui";
 @BaseAnchor = (Left: 0, Right: 0, Bottom: 0, Height: 1);
 @PulseAnchor = (Left: 0, Top: 0, Bottom: 0, Width: 0);
 
+// The floor under the panel's own height. This panel sits at the same top-left origin as the zone
+// difficulty card a companion mod draws and is transparent behind its frame, so a ledger of one or
+// two rows would leave the bottom of that card showing below it. The zero-width spacer carrying
+// this anchor holds the panel at that card's 124: 100 here plus the 12 of vertical padding at each
+// end. It is a floor and nothing more, so a busier ledger still sizes to its own content.
+@FloorAnchor = (Width: 0, Height: 100);
+
 // The wrapper carries LayoutMode: Top so the heightless-anchored panel inside sizes to its content
 // instead of stretching from its Top anchor to the screen bottom.
 Group #ZigHudBarsParent {
@@ -71,6 +80,9 @@ Group #ZigHudBarsParent {
     Padding: (Horizontal: 12, Vertical: 12);
     Background: (TexturePath: "ObjectivePanelContainer.png", Border: 15);
     Visible: false;
+
+      // Zero width, so it holds the panel to its floor height without widening it.
+      Group #ZigHudBarsFloor { Anchor: @FloorAnchor; }
 
       Group #ZigBarCol0 {
         Anchor: (Width: 296);
