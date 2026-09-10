@@ -77,7 +77,9 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
   - `objectives/hud/` - the tracked-quest HUD (`TrackedQuestHud` over `zc-presentation`'s
     `KeyedCustomHud`, attached to every player by `TrackedQuestHuds`, repainting on the SIX quest
     events with a per-tick `RepaintCoalescer` and no tick anywhere; `TrackedQuestHudDeps` is the
-    consumer's theme / audience / position / enabled seams), plus `TrackedQuestPanelRenderer`, the
+    consumer's theme / audience / position / enabled / card-colour seams - the panel is a HUD card
+    and wears the shared `HudCards` look under the consumer's own `color` answer, pushed on every
+    paint only when it is not the identity), plus `TrackedQuestPanelRenderer`, the
     shared renderer for a tracked-quests side panel a page embeds.
   - `objectives/runtime/` - this module's own registration glue over `zc-progression`'s
     `ProgressionRegistrar`.
@@ -174,7 +176,7 @@ defaults, and a consumer seam that throws), and the tracked-quest HUD's four -
 `TrackedQuestSnapshotTest` (what one paint shows, over an in-memory engine),
 `TrackedQuestHudEventTest` (each of the six events repaints the named player once, the objective
 event skipped for an unshown quest, the uuid registry; the coalescer's own `RepaintCoalescerTest`
-lives with the class in zc-presentation) and `TrackedQuestHudDepsTest` (the theme seam and every guarded reader), plus
+lives with the class in zc-presentation) and `TrackedQuestHudDepsTest` (the theme seam, the card-colour seam and every guarded reader), plus
 `SystemSwitchesTest` (the admin switch registry: additive + live registration, order-then-id
 ordering, a throwing read answering unknown rather than off, an absent or throwing writer refusing
 without a throw). How a reward chip

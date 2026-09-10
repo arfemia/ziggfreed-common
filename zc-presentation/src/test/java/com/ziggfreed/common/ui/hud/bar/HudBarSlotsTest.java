@@ -52,12 +52,12 @@ class HudBarSlotsTest {
     /** A document of {@code columns} columns of {@code perColumn} slots; only the counts matter here. */
     private static HudBarLayout layout(int columns, int perColumn) {
         return new HudBarLayout("test", "test:hud", "Hud/Test.ui", "#Test", columns, perColumn,
-                12, 200, 8, 180, TOP_LEFT);
+                12, 200, 8, 180, 12, 5, 18, 12, TOP_LEFT);
     }
 
     /** A resolved spot with the two spread leaves stated; the corner is the top-left. */
     private static HudBarPlacement spread(int columns, int rowsPerColumn) {
-        return new HudBarPlacement(TOP_LEFT, columns, rowsPerColumn, null);
+        return new HudBarPlacement(TOP_LEFT, columns, rowsPerColumn, null, null, 0, null, null);
     }
 
     @Test
@@ -207,8 +207,51 @@ class HudBarSlotsTest {
         assertEquals(1, HudBarHud.ordinalInColumn(1, 2, false));
         assertEquals(1, HudBarHud.ordinalInColumn(0, 2, true), "the top used slot draws the second row");
         assertEquals(0, HudBarHud.ordinalInColumn(1, 2, true), "the bottom used slot draws the first");
-        assertTrue(new HudBarPlacement(BOTTOM_LEFT, 2, 1, null).bottomUp());
-        assertTrue(!new HudBarPlacement(TOP_LEFT, 2, 1, null).bottomUp());
+        assertTrue(new HudBarPlacement(BOTTOM_LEFT, 2, 1, null, null, 0, null, null).bottomUp());
+        assertTrue(!new HudBarPlacement(TOP_LEFT, 2, 1, null, null, 0, null, null).bottomUp());
+    }
+
+    @Test
+    void aThreeColumnSpotOnASixDeepDocumentSpreadsAcrossThenDown() {
+        // A six-deep document at a three-column spot that opens a column per row: eighteen slots
+        // are reachable, rows spread sideways first, and past the third column they go down.
+        HudBarLayout layout = layout(6, 6);
+        HudBarPlacement spot = spread(3, 1);
+
+        assertEquals(1, HudBarHud.columnsFor(1, layout, spot));
+        assertEquals(3, HudBarHud.columnsFor(3, layout, spot));
+        assertEquals(3, HudBarHud.columnsFor(4, layout, spot), "the fourth row goes down, not across");
+        assertEquals(3, HudBarHud.columnsFor(40, layout, spot), "never more columns than the spot allows");
+        assertEquals(2, HudBarHud.rowsPerColumnFor(4, 3, layout), "four rows across three columns split two deep");
+        assertEquals(6, HudBarHud.rowsPerColumnFor(18, 3, layout), "eighteen fill every column to its depth");
+        assertEquals(6, HudBarHud.rowsPerColumnFor(40, 3, layout), "never deeper than the document declares");
+        assertEquals(2, HudBarHud.usedColumnsFor(4, 2), "four rows two deep leave the third column empty");
+        assertEquals(3, HudBarHud.usedColumnsFor(7, 3));
+        assertEquals(3, HudBarHud.usedColumnsFor(18, 6));
+        assertEquals(18, HudBarHud.slotCap(HudBarPanelAsset.defaults(), spot, layout),
+                "three of six columns, six deep, is eighteen reachable slots");
+    }
+
+    @Test
+    void aThreeColumnSpotOnANineDeepDocumentHoldsTwentySevenRows() {
+        // A nine-deep document at a three-column spot that opens a column per row: twenty-seven
+        // slots are reachable, rows spread sideways first, then down to nine per column and no
+        // further, however many are moving.
+        HudBarLayout layout = layout(6, 9);
+        HudBarPlacement spot = spread(3, 1);
+
+        assertEquals(1, HudBarHud.columnsFor(1, layout, spot));
+        assertEquals(3, HudBarHud.columnsFor(3, layout, spot));
+        assertEquals(3, HudBarHud.columnsFor(4, layout, spot), "the fourth row goes down, not across");
+        assertEquals(3, HudBarHud.columnsFor(40, layout, spot), "never more columns than the spot allows");
+        assertEquals(2, HudBarHud.rowsPerColumnFor(4, 3, layout), "four rows across three columns split two deep");
+        assertEquals(6, HudBarHud.rowsPerColumnFor(18, 3, layout), "eighteen split six deep, with room to spare");
+        assertEquals(9, HudBarHud.rowsPerColumnFor(27, 3, layout), "twenty-seven fill every column to its depth");
+        assertEquals(9, HudBarHud.rowsPerColumnFor(40, 3, layout), "never deeper than the document declares");
+        assertEquals(3, HudBarHud.usedColumnsFor(19, 7), "nineteen rows seven deep fill three columns");
+        assertEquals(3, HudBarHud.usedColumnsFor(27, 9));
+        assertEquals(27, HudBarHud.slotCap(HudBarPanelAsset.defaults(), spot, layout),
+                "three of six columns, nine deep, is twenty-seven reachable slots");
     }
 
     @Test

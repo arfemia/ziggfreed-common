@@ -69,9 +69,12 @@ import com.ziggfreed.common.shop.asset.ShopPoolAsset;
 import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.ui.hud.bar.HudBarAsset;
+import com.ziggfreed.common.ui.hud.bar.HudBarCutout;
+import com.ziggfreed.common.ui.hud.bar.HudBarGap;
 import com.ziggfreed.common.ui.hud.bar.HudBarPanelAsset;
 import com.ziggfreed.common.ui.hud.bar.HudBarPlacementAsset;
 import com.ziggfreed.common.ui.hud.bar.HudBarPosition;
+import com.ziggfreed.common.ui.hud.card.HudCardAsset;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WorldSelector;
@@ -130,6 +133,9 @@ class AssetCodecInitTest {
         assertNotNull(HudBarPanelAsset.CODEC, "HudBarPanelAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(HudBarPlacementAsset.CODEC, "HudBarPlacementAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(HudBarPosition.CODEC, "the shared Position group codec must static-init");
+        assertNotNull(HudBarGap.CODEC, "the shared Gap group codec must static-init");
+        assertNotNull(HudBarCutout.CODEC, "the shared Cutout group codec must static-init");
+        assertNotNull(HudCardAsset.CODEC, "HudCardAsset.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

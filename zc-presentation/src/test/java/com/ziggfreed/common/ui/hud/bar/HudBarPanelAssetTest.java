@@ -47,6 +47,10 @@ class HudBarPanelAssetTest {
         assertNull(panel.authoredPosition());
         assertNull(panel.authoredColumns());
         assertNull(panel.authoredRowsPerColumn());
+        assertNull(panel.authoredGap(), "no band restated: the spot's stands");
+        assertNull(panel.authoredCutout(), "no cut restated: the spot's stands");
+        assertNull(panel.authoredMinHeight(), "no floor restated: the spot's stands");
+        assertNull(panel.authoredColor(), "no colour restated: the spot's, else the shared card look, stands");
         assertNull(panel.labelKey(), "unnamed: listed by its id");
         assertEquals(SLOTS, panel.maxVisible(SLOTS));
         assertEquals(HudBarPanelAsset.DEFAULT_REPAINT_MS, panel.repaintMs());
@@ -55,25 +59,43 @@ class HudBarPanelAssetTest {
     @Test
     void theSpotAndTheInlineLeavesReadBackAsAuthored() throws Exception {
         HudBarPanelAsset panel = panel("{ \"Placement\": \" BottomLeft \", \"LabelKey\": \"my.panel\","
-                + " \"Position\": { \"OffsetY\": 220 }, \"Columns\": 3, \"RowsPerColumn\": 2 }",
+                + " \"Position\": { \"OffsetY\": 220 }, \"Columns\": 3, \"RowsPerColumn\": 2,"
+                + " \"Gap\": { \"AfterRow\": 2, \"Pixels\": 40 }, \"Cutout\": { \"Column\": 3, \"Rows\": 1 },"
+                + " \"MinHeight\": 90, \"Color\": \"#AABBCC80\" }",
                 "default", null, null);
 
         assertEquals("BottomLeft", panel.placement(), "trimmed, case kept for the fold to fold");
+        assertEquals("#aabbcc80", panel.authoredColor(), "normalised, its transparency kept");
         assertEquals("my.panel", panel.labelKey());
         assertNull(panel.authoredPosition().preset(), "only the offset was restated");
         assertEquals(220, panel.authoredPosition().offsetY());
         assertEquals(3, panel.authoredColumns());
         assertEquals(2, panel.authoredRowsPerColumn());
+        assertEquals(2, panel.authoredGap().afterRow());
+        assertEquals(40, panel.authoredGap().pixels());
+        assertEquals(3, panel.authoredCutout().column());
+        assertEquals(1, panel.authoredCutout().rows());
+        assertEquals(90, panel.authoredMinHeight());
     }
 
     @Test
     void anEmptyPositionGroupAndNonPositiveSpreadsReadAsUnauthored() throws Exception {
-        HudBarPanelAsset panel = panel("{ \"Position\": { }, \"Columns\": 0, \"RowsPerColumn\": -2 }",
-                "default", null, null);
+        HudBarPanelAsset panel = panel("{ \"Position\": { }, \"Columns\": 0, \"RowsPerColumn\": -2,"
+                + " \"Gap\": { }, \"Cutout\": { }, \"MinHeight\": 0 }", "default", null, null);
 
         assertNull(panel.authoredPosition(), "a group with no leaves changes nothing");
         assertNull(panel.authoredColumns());
         assertNull(panel.authoredRowsPerColumn());
+        assertNull(panel.authoredGap(), "a band group with no leaves changes nothing");
+        assertNull(panel.authoredCutout(), "a cut group with no leaves changes nothing");
+        assertNull(panel.authoredMinHeight(), "a floor of nothing is no floor");
+    }
+
+    @Test
+    void aColourThatIsNotAHexReadsAsUnauthored() throws Exception {
+        assertNull(panel("{ \"Color\": \"#not-a-colour\" }", "default", null, null).authoredColor(),
+                "ignored with one warning, so the spot's colour or the shared look stands");
+        assertNull(panel("{ \"Color\": \"  \" }", "default", null, null).authoredColor(), "a blank is nothing stated");
     }
 
     @Test
@@ -89,9 +111,10 @@ class HudBarPanelAssetTest {
     void aChildKeepsTheLeavesItDidNotRestate() throws Exception {
         HudBarPanelAsset base = panel("{ \"Placement\": \"TopRight\","
                 + " \"Position\": { \"Preset\": \"BottomLeft\", \"OffsetX\": 30, \"OffsetY\": 200 },"
-                + " \"MaxVisible\": 3 }", "default", null, null);
-        HudBarPanelAsset child = panel("{ \"Position\": { \"OffsetY\": 260 }, \"Enabled\": false }",
-                "default", "default", base);
+                + " \"Gap\": { \"AfterRow\": 2, \"Pixels\": 40 }, \"Cutout\": { \"Column\": 2, \"Rows\": 3 },"
+                + " \"MinHeight\": 60, \"Color\": \"#112233\", \"MaxVisible\": 3 }", "default", null, null);
+        HudBarPanelAsset child = panel("{ \"Position\": { \"OffsetY\": 260 }, \"Gap\": { \"Pixels\": 10 },"
+                + " \"Cutout\": { \"Rows\": 0 }, \"Enabled\": false }", "default", "default", base);
 
         assertFalse(child.enabled());
         assertEquals(3, child.maxVisible(SLOTS));
@@ -100,6 +123,13 @@ class HudBarPanelAssetTest {
         assertEquals("BottomLeft", position.preset(), "the preset is inherited");
         assertEquals(30, position.offsetX(), "the unrestated offset is inherited");
         assertEquals(260, position.offsetY(), "the restated offset is the child's");
+        assertEquals(2, child.authoredGap().afterRow(), "the band's unrestated leaf is inherited");
+        assertEquals(10, child.authoredGap().pixels(), "the band's restated leaf is the child's");
+        assertEquals(2, child.authoredCutout().column(), "the cut's unrestated leaf is inherited");
+        assertEquals(0, child.authoredCutout().rows(), "the cut's restated leaf is the child's: switched off");
+        assertFalse(child.authoredCutout().applies());
+        assertEquals(60, child.authoredMinHeight(), "the floor is inherited");
+        assertEquals("#112233", child.authoredColor(), "the colour is inherited");
     }
 
     @Test

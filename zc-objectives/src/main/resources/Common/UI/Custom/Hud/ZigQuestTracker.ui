@@ -9,7 +9,9 @@
 // across mods, so a generic name could be clobbered by another mod's HUD document. Slots are
 // positional (#ZigQuest0..4, each #ObjRow0..3) and addressed by index from Java; the counts MUST
 // match TrackedQuestSnapshot.MAX_QUESTS / MAX_ROWS. Text is pushed on .TextSpans, colours on
-// .Style.TextColor, and a theme may retint #ZigQuestHudPanel.Background.Color.
+// .Style.TextColor, and #ZigQuestHudPanel.Background.Color is retinted from outside: by the look
+// every HUD card shares (Server/ZiggfreedCommon/HudCards/Default.json, one hex multiplied over the
+// frame, its last two digits a transparency) or a consumer's own answer over it, and by a theme.
 
 // Wrap, like the task lines below: a quest title is authored text of any length, and without it
 // the client truncates a long one to a single ellipsised line. The panel is content-sized, so a

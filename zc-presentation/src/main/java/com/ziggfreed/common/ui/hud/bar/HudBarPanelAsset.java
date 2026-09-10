@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.ui.hud.card.HudCardLook;
 
 /**
  * A panel the bars are drawn on: whether it is on, what it is called, which spot it sits at, how
@@ -33,11 +34,12 @@ import com.ziggfreed.common.i18n.Msg;
  *
  * <p><b>Where it sits is a {@code Placement}</b>, the id of a spot authored once at
  * {@code Server/ZiggfreedCommon/HudBarPlacements/} ({@link HudBarPlacementAsset}) that also says
- * how the rows spread there. The inline {@code Position}, {@code Columns} and {@code RowsPerColumn}
- * are optional restatements OVER that spot, for an owner who wants a nudge or a different spread
- * without authoring a spot of their own. A player may pick another offered spot for themselves in
- * the HUD settings, and their pick replaces the whole group. {@link HudBarPlacement#resolve} is the
- * one place that fold is worked out.
+ * how the rows spread there. The inline {@code Position}, {@code Columns}, {@code RowsPerColumn},
+ * {@code Gap}, {@code Cutout}, {@code MinHeight} and {@code Color} are optional restatements OVER that
+ * spot, for an owner who wants a nudge, a different spread or a look of this panel's own without
+ * authoring a spot of their own. A player may pick another offered spot for themselves in the HUD
+ * settings, and their pick replaces the whole group. {@link HudBarPlacement#resolve} is the one
+ * place that fold is worked out.
  */
 public final class HudBarPanelAsset
         implements JsonAssetWithMap<String, DefaultAssetMap<String, HudBarPanelAsset>> {
@@ -68,6 +70,10 @@ public final class HudBarPanelAsset
     @Nullable private Integer maxVisible;
     @Nullable private Integer columns;
     @Nullable private Integer rowsPerColumn;
+    @Nullable private HudBarGap gap;
+    @Nullable private HudBarCutout cutout;
+    @Nullable private Integer minHeight;
+    @Nullable private String color;
     @Nullable private Long repaintMs;
 
     public static final AssetBuilderCodec<String, HudBarPanelAsset> CODEC = AssetBuilderCodec.builder(
@@ -123,6 +129,36 @@ public final class HudBarPanelAsset
             .documentation("How many rows one column takes before another opens, restated over the "
                     + "Placement's. Set it high to keep a tall single column until the panel is "
                     + "genuinely busy; set it to 1 to spread rows sideways as soon as there is a second.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Gap", HudBarGap.CODEC, false),
+                    (a, v) -> a.gap = v, a -> a.gap, (a, p) -> a.gap = p.gap)
+            .documentation("The band left clear across the rows, restated over the Placement's leaf "
+                    + "by leaf: AfterRow counts rows from the spot's pinned edge, Pixels is the band's "
+                    + "height, and either at zero draws no band. Leave the group out to take the spot's.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Cutout", HudBarCutout.CODEC, false),
+                    (a, v) -> a.cutout = v, a -> a.cutout, (a, p) -> a.cutout = p.cutout)
+            .documentation("The cells left empty at the pinned end of one column, restated over the "
+                    + "Placement's leaf by leaf: Column counts from the panel's own first column, Rows "
+                    + "is how many of its cells nearest the pinned edge stay clear, and either at zero "
+                    + "uses every cell. Leave the group out to take the spot's.")
+            .add()
+            .appendInherited(new KeyedCodec<>("MinHeight", Codec.INTEGER, false),
+                    (a, v) -> a.minHeight = v, a -> a.minHeight, (a, p) -> a.minHeight = p.minHeight)
+            .documentation("The least height the panel draws at, in pixels, restated over the "
+                    + "Placement's. Left out, the spot's own floor stands, and a spot with none draws the "
+                    + "panel exactly as tall as its rows.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Color", Codec.STRING, false),
+                    (a, v) -> a.color = v, a -> a.color, (a, p) -> a.color = p.color)
+            .documentation("The colour this panel's frame is drawn in, as a hex that MULTIPLIES the "
+                    + "shipped frame: #ffffff is exactly the shipped look, a darker hex darkens it, a hue "
+                    + "tints it, and eight digits carry a transparency in the last two (#ffffffb8 is "
+                    + "about 72 percent). Restated over the Placement's Color and over the look every "
+                    + "HUD card shares (Server/ZiggfreedCommon/HudCards/Default.json), so state it here "
+                    + "to colour this one panel wherever it sits. Left out, the spot's stands, and a spot "
+                    + "with none takes the shared look; a value that is not a #rrggbb or #rrggbbaa hex is "
+                    + "ignored with one line in the log.")
             .add()
             .appendInherited(new KeyedCodec<>("RepaintMs", Codec.LONG, false),
                     (a, v) -> a.repaintMs = v, a -> a.repaintMs, (a, p) -> a.repaintMs = p.repaintMs)
@@ -191,6 +227,33 @@ public final class HudBarPanelAsset
     @Nullable
     public Integer authoredRowsPerColumn() {
         return rowsPerColumn == null || rowsPerColumn <= 0 ? null : rowsPerColumn;
+    }
+
+    /** The inline band restated over the spot's, leaf by leaf, or null when the file states no leaf of it. */
+    @Nullable
+    public HudBarGap authoredGap() {
+        return gap == null || gap.isEmpty() ? null : gap;
+    }
+
+    /** The inline cut restated over the spot's, leaf by leaf, or null when the file states no leaf of it. */
+    @Nullable
+    public HudBarCutout authoredCutout() {
+        return cutout == null || cutout.isEmpty() ? null : cutout;
+    }
+
+    /** The inline floor on the panel's height restated over the spot's, or null (unauthored or not positive). */
+    @Nullable
+    public Integer authoredMinHeight() {
+        return minHeight == null || minHeight <= 0 ? null : minHeight;
+    }
+
+    /**
+     * The inline frame colour restated over the spot's, normalised, or null when the file states
+     * none; a value that is not a hex warns once, naming this file and the value, and reads as none.
+     */
+    @Nullable
+    public String authoredColor() {
+        return HudCardLook.authored(color, "Server/" + TYPE_ROOT + "/" + id + ".json (or its owner entry)");
     }
 
     /**

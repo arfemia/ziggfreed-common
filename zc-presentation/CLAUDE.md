@@ -140,6 +140,11 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     `SettingsForm`, the generic settings-form engine.
   - [`ui/hud/`](src/main/java/com/ziggfreed/common/ui/hud/CLAUDE.md) - `KeyedCustomHud` +
     `HudPosition` + `RepaintCoalescer`.
+  - [`ui/hud/card/`](src/main/java/com/ziggfreed/common/ui/hud/card/CLAUDE.md) - the ONE look
+    every HUD card is drawn in: the `HudCards` store (`HudCardAsset` / `HudCardConfig` /
+    `HudCardOwnerLayers`, one `Color` hex with an alpha multiplied over the card's frame, the
+    identity pushing nothing) and `HudCardLook`, the pure arithmetic every card and the bar
+    dressing share.
   - [`ui/hud/bar/`](src/main/java/com/ziggfreed/common/ui/hud/bar/CLAUDE.md) - the shared
     progress-bar HUD: rows created on demand by `HudBars.moved` (a value, with the `HudBarReading`
     and the `HudBarDisplay` the consumer hands over with the move; no source seam and no
@@ -207,6 +212,8 @@ count rides too). `Common/UI/Custom/Hud/ZigHudBars.ui`
 is the progress-bar panel's document, and `Server/ZiggfreedCommon/HudBarPanels/Default.json` the
 panel every row is drawn on (on, TopLeft (16, 216), four rows), a consumer or an owner overriding
 it by id; the library ships no `HudBars` file, since a row needs none.
+`Server/ZiggfreedCommon/HudCards/Default.json` is the one look every HUD card wears, shipped at the
+identity `#ffffffff` (owner layer `mods/ziggfreedcommon/hud-cards.json`).
 
 ## Conventions
 
@@ -231,7 +238,11 @@ Thin relative to the package count: `HudPositionTest` (corner-preset parsing + a
 `RepaintCoalescerTest` (a burst is one paint), the four progress-bar suites (`HudBarAssetCodecTest`,
 `HudBarPanelAssetTest` incl. the default position, `HudBarSlotsTest` for which live rows get a slot,
 fill rows sorting above item rows and the reading's fraction clamp, `HudBarLookTest` for the
-override-over-display fold, an unauthored item's own row and the two row shapes the paint draws),
+override-over-display fold, an unauthored item's own row and the two row shapes the paint draws,
+`HudBarDressingTest` for the dressing following the card's opacity and the Java mirrors matching
+both documents), the card suites (`HudCardLookTest` for the hex in every spelling, the identity
+pushing nothing, the own-over-shared fold and the dimming rule; `HudCardAssetTest` for the leaf, a
+child under `Parent`, and the fold reading shipped until a record lands),
 `SettingsFormTest` (field-spec render/refresh/collect round trip), `ZigSearchRowTest` (the scoped
 value path, `carry` under an `@`-key and its refusal of a bare one, and the two button words being
 authored in the shipped en-US file), and `DestinationsTest` (the

@@ -43,6 +43,7 @@ import com.ziggfreed.common.npc.NpcIdentityConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementOverrides;
+import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.party.PartySettingsConfig;
 import com.ziggfreed.common.board.asset.BoardAsset;
@@ -83,6 +84,9 @@ import com.ziggfreed.common.ui.hud.bar.HudBarPanelConfig;
 import com.ziggfreed.common.ui.hud.bar.HudBarPlacementAsset;
 import com.ziggfreed.common.ui.hud.bar.HudBarPlacementConfig;
 import com.ziggfreed.common.ui.hud.bar.HudBars;
+import com.ziggfreed.common.ui.hud.card.HudCardAsset;
+import com.ziggfreed.common.ui.hud.card.HudCardConfig;
+import com.ziggfreed.common.ui.hud.card.HudCardOwnerLayers;
 import com.ziggfreed.common.world.WeightedPrefabPlacementAsset;
 import com.ziggfreed.common.world.WeightedPrefabPlacementConfig;
 
@@ -382,6 +386,24 @@ public final class FrameworkAssetRegistrar {
                     HudBars.repaintAllOnline();
                 });
 
+        // --- HUD cards (Pattern A) - the ONE shared look every HUD card this family draws reads:
+        //     the colour and the transparency of the card's frame, as one hex that multiplies the
+        //     shipped patch. The library ships Default.json (zc-presentation's resources) with the
+        //     identity value; a consumer's same-id file wins by pack order. Owner layer
+        //     mods/ziggfreedcommon/hud-cards.json; a reload repaints every online bar panel and
+        //     every tracker, which re-read the record as they draw (RPG Stations' summary reads it
+        //     on its next push). ---
+        AssetStoreRegistrar.registerStore(HudCardAsset.class,
+                new DefaultAssetMap<String, HudCardAsset>(), HudCardAsset.TYPE_ROOT,
+                HudCardAsset::getId, HudCardAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HudCardAsset.class,
+                (LoadedAssetsEvent<String, HudCardAsset, DefaultAssetMap<String, HudCardAsset>> ev) -> {
+                    HudCardConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    HudCardOwnerLayers.reload();
+                    HudBars.repaintAllOnline();
+                    TrackedQuestHuds.repaintAllOnline();
+                });
+
         // --- Quests (Pattern A) - one authored quest per file, with native Parent inheritance and a
         //     per-objective-id merge, so a child quest retunes one step and keeps its siblings.
         //     Common ships no quest CONTENT; every entry is consumer pack JSON, and each consumer
@@ -558,7 +580,7 @@ public final class FrameworkAssetRegistrar {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
                             + "Lootables, RollPools, StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
-                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudBars, HudBarPlacements, HudBarPanels, "
+                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudBars, HudBarPlacements, HudBarPanels, HudCards, "
                             + "Quests, QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "
                             + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation).");

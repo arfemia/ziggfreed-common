@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.ui.hud.card.HudCardLook;
 
 /**
  * A named spot a bar panel can sit at: a corner and offsets, plus how the rows spread out there,
@@ -38,6 +39,19 @@ import com.ziggfreed.common.i18n.Msg;
  * a placement that names panels is offered to those alone, and one that names none is offered to
  * every panel. A placement is never a requirement: a panel names one, and a panel that names none,
  * or names one that has gone, sits where its document says.
+ *
+ * <p>Three leaves shape the panel's height at the spot. {@code Gap} ({@link HudBarGap}) leaves a
+ * band clear across every column after so many rows counted from the pinned edge, so a bottom-pinned
+ * stack straddles the player's own bars rather than climbing into them; {@code Cutout}
+ * ({@link HudBarCutout}) leaves the cells at the pinned end of ONE column empty, so the panel steps
+ * around something a client draws under that column alone, that column's rows starting past the
+ * cut and standing taller than the rest; {@code MinHeight} is a floor on the panel's height, for a
+ * spot that sits over something a short panel would otherwise leave partly showing.
+ *
+ * <p>{@code Color} is the look a panel wears at this spot, as the one hex every HUD card
+ * understands ({@link com.ziggfreed.common.ui.hud.card.HudCardLook}: a multiply over the shipped
+ * frame, eight digits carrying a transparency), restated over the shared record every card reads
+ * and under the panel's own inline {@code Color}.
  */
 public final class HudBarPlacementAsset
         implements JsonAssetWithMap<String, DefaultAssetMap<String, HudBarPlacementAsset>> {
@@ -58,6 +72,10 @@ public final class HudBarPlacementAsset
     @Nullable private HudBarPosition position;
     @Nullable private Integer columns;
     @Nullable private Integer rowsPerColumn;
+    @Nullable private HudBarGap gap;
+    @Nullable private HudBarCutout cutout;
+    @Nullable private Integer minHeight;
+    @Nullable private String color;
     @Nullable private String[] panels;
     @Nullable private Integer order;
     @Nullable private Boolean enabled;
@@ -94,6 +112,44 @@ public final class HudBarPlacementAsset
             .documentation("How many rows one column takes before another opens. Set it to 1 to spread "
                     + "sideways as soon as there is a second row, or high to keep a tall single column "
                     + "until the panel is genuinely busy. Left out, the panel's own setting stands.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Gap", HudBarGap.CODEC, false),
+                    (a, v) -> a.gap = v, a -> a.gap, (a, p) -> a.gap = p.gap)
+            .documentation("A band left clear across every column at the same height, so the rows "
+                    + "straddle something already on screen: at a Bottom spot, the player's own health "
+                    + "and mana bars. AfterRow counts from the spot's pinned edge (the rows up to it sit "
+                    + "against that edge, the band follows, the rest continue past it) and Pixels is the "
+                    + "band's height. Left out, or with either number at zero, the rows run unbroken.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Cutout", HudBarCutout.CODEC, false),
+                    (a, v) -> a.cutout = v, a -> a.cutout, (a, p) -> a.cutout = p.cutout)
+            .documentation("The cells left empty at the pinned end of ONE column, so the panel steps "
+                    + "around something a client draws under that column alone: at a Bottom spot, the "
+                    + "utility slot and the hotbar's end under the far column. Column counts from the "
+                    + "panel's own first column, the one at the spot's origin (at a Right spot that is "
+                    + "the rightmost), and Rows is how many of its cells nearest the pinned edge stay "
+                    + "clear. That column's rows start past the cut, so it stands taller than the "
+                    + "others and the frame grows to hold it, with empty frame above the shorter "
+                    + "columns; a column asked to hold more rows than its remaining cells draws the "
+                    + "ones that fit. Left out, with either number at zero, or naming a column the rows "
+                    + "never open, every cell is used.")
+            .add()
+            .appendInherited(new KeyedCodec<>("MinHeight", Codec.INTEGER, false),
+                    (a, v) -> a.minHeight = v, a -> a.minHeight, (a, p) -> a.minHeight = p.minHeight)
+            .documentation("The least height the panel draws at here, in pixels, whatever its rows add "
+                    + "up to: for a spot that sits over something on screen which a panel of one or two "
+                    + "rows would otherwise leave partly showing. Left out, the panel is exactly as tall "
+                    + "as its rows.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Color", Codec.STRING, false),
+                    (a, v) -> a.color = v, a -> a.color, (a, p) -> a.color = p.color)
+            .documentation("The colour a panel's frame is drawn in at this spot, as a hex that MULTIPLIES "
+                    + "the shipped frame: #ffffff is exactly the shipped look, a darker hex darkens it, a "
+                    + "hue tints it, and eight digits carry a transparency in the last two (#ffffffb8 is "
+                    + "about 72 percent). The panel's own Color, if it states one, wins over this. Left "
+                    + "out, the panel takes the look every HUD card shares, "
+                    + "Server/ZiggfreedCommon/HudCards/Default.json; a value that is not a #rrggbb or "
+                    + "#rrggbbaa hex is ignored with one line in the log.")
             .add()
             .appendInherited(new KeyedCodec<>("Panels", Codec.STRING_ARRAY, false),
                     (a, v) -> a.panels = v, a -> a.panels, (a, p) -> a.panels = p.panels)
@@ -152,6 +208,33 @@ public final class HudBarPlacementAsset
     @Nullable
     public Integer rowsPerColumn() {
         return rowsPerColumn == null || rowsPerColumn <= 0 ? null : rowsPerColumn;
+    }
+
+    /** The authored band, or null when the file states no leaf of it; the paint decides whether it applies. */
+    @Nullable
+    public HudBarGap gap() {
+        return gap == null || gap.isEmpty() ? null : gap;
+    }
+
+    /** The authored cut, or null when the file states no leaf of it; the paint decides whether it applies. */
+    @Nullable
+    public HudBarCutout cutout() {
+        return cutout == null || cutout.isEmpty() ? null : cutout;
+    }
+
+    /** The authored floor on the panel's height, or null (unauthored or not positive) for none. */
+    @Nullable
+    public Integer minHeight() {
+        return minHeight == null || minHeight <= 0 ? null : minHeight;
+    }
+
+    /**
+     * The authored frame colour, normalised, or null when the file states none; a value that is not
+     * a hex warns once, naming this file and the value, and reads as none.
+     */
+    @Nullable
+    public String color() {
+        return HudCardLook.authored(color, "Server/" + TYPE_ROOT + "/" + id + ".json (or its owner entry)");
     }
 
     /** Whether this spot is offered to the panel {@code panelId}: it names it, or names no panel at all. */

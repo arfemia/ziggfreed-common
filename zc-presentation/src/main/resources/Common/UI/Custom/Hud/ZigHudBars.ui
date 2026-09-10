@@ -23,10 +23,18 @@
 // GEOMETRY is stated once below and referenced by every slot, so a re-tune is a single edit. Two
 // columns of thirteen; 12 of horizontal padding and a 296-wide column, so the panel is 320 wide
 // with one column open and 628 with both; a 228-wide track between two 30-wide captions, padded a
-// pixel each side, so a fill spans 226 (HudBarStackHud.LAYOUT's trackInnerWidthPx). Keep them in
-// step: a fill width pushed past its track simply overflows it. The panel also never draws shorter
-// than 124, the height of the zone difficulty card it sits over, so even a single row covers that
-// card rather than leaving its lower half showing.
+// pixel each side, so a fill spans 226 (HudBarStackHud.LAYOUT's trackInnerWidthPx). Vertically, 12
+// of padding at each end, a 5 margin above every row (@RowAnchor's Top), an 18 line (@LineAnchor)
+// and a 12 bar block (@BarAnchor's Top plus Height), which HudBarStackHud.LAYOUT mirrors as
+// verticalPaddingPx / rowMarginPx / lineHeightPx / barBlockPx: the panel's height is pushed with
+// every paint from those numbers, because an absolutely anchored panel has no content to size to,
+// and so is each slot's row margin (taller on the first visible slot of a column that sits short of
+// the panel's top or starts past its spot's Cutout, and on the one slot that carries the spot's Gap
+// band). Keep
+// every one of them in step: a fill width pushed past its track simply overflows it, and a height
+// that adds up wrong leaves the frame short of its rows or hanging past them. The least height the
+// panel draws at is its spot's MinHeight (Server/ZiggfreedCommon/HudBarPlacements/), so a spot
+// sitting over something else on screen can keep a short ledger covering it.
 $Z = "../Common/ZigButtons.ui";
 
 @BarLabelStyle = (FontSize: 13, TextColor: #e6e9ee, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
@@ -42,7 +50,12 @@ $Z = "../Common/ZigButtons.ui";
 // ProgressBar element carries no colour of its own and every vanilla HUD bar ships one fill image
 // per colour, neither of which can serve a row whose colour is only known when it moves - so the
 // fill stays a retinted Group and earns its finish from these three overlays instead: a dark well
-// behind it, a highlight across its top, and a shade along its bottom.
+// behind it, a highlight across its top, and a shade along its bottom. The three are MIRRORED by
+// HudBarDressing (colour and alpha) and must move with it: the panel's frame wears the colour every
+// HUD card shares (Server/ZiggfreedCommon/HudCards/Default.json, or the spot's or the panel's own
+// Color), a hex multiplied over the patch whose last two digits are a transparency, and when that
+// card is dimmed the paint pushes these three at the same fraction of their alpha, each keeping
+// its own colour, so the bars stay readable at any opacity. At full opacity nothing is pushed.
 @TrackWell = #05080c(0.72);
 @Gloss = #ffffff(0.22);
 @BaseShade = #000000(0.22);
@@ -60,29 +73,21 @@ $Z = "../Common/ZigButtons.ui";
 @BaseAnchor = (Left: 0, Right: 0, Bottom: 0, Height: 1);
 @PulseAnchor = (Left: 0, Top: 0, Bottom: 0, Width: 0);
 
-// The floor under the panel's own height. This panel sits at the same top-left origin as the zone
-// difficulty card a companion mod draws and is transparent behind its frame, so a ledger of one or
-// two rows would leave the bottom of that card showing below it. The zero-width spacer carrying
-// this anchor holds the panel at that card's 124: 100 here plus the 12 of vertical padding at each
-// end. It is a floor and nothing more, so a busier ledger still sizes to its own content.
-@FloorAnchor = (Width: 0, Height: 100);
-
-// The wrapper carries LayoutMode: Top so the heightless-anchored panel inside sizes to its content
-// instead of stretching from its Top anchor to the screen bottom.
+// The wrapper is a full-viewport box with no LayoutMode, so the panel inside is placed absolutely
+// against the screen's own edges: a Bottom pin holds against the real bottom and a Top pin against
+// the real top, whichever corner the spot names. The panel's size is pushed with every paint.
 Group #ZigHudBarsParent {
-  LayoutMode: Top;
+  Anchor: (Top: 0, Bottom: 0, Left: 0, Right: 0);
 
   Group #ZigHudBarsPanel {
-    // Static fallback anchor only (NO Height - content-sized); the runtime paint always pushes its
-    // own, at the width of however many columns are actually in use.
-    Anchor: (Width: 320, Left: 16, Top: 90);
+    // Static fallback anchor only; the runtime paint always pushes its own, at the width of the
+    // columns in use and the height their rows add up to (this Height is an empty panel's: the
+    // vertical padding alone).
+    Anchor: (Width: 320, Height: 24, Left: 16, Top: 90);
     LayoutMode: Left;
     Padding: (Horizontal: 12, Vertical: 12);
     Background: (TexturePath: "ObjectivePanelContainer.png", Border: 15);
     Visible: false;
-
-      // Zero width, so it holds the panel to its floor height without widening it.
-      Group #ZigHudBarsFloor { Anchor: @FloorAnchor; }
 
       Group #ZigBarCol0 {
         Anchor: (Width: 296);

@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.hud.HudPosition;
+import com.ziggfreed.common.ui.hud.card.HudCardLook;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -33,6 +34,10 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>the position and the enabled flag - SUPPLIERS, asked at build and on every repaint, so a
  *       consumer with an owner layout file of its own answers straight off it and its existing
  *       admin surfaces keep working. Nothing is stored here.</li>
+ *   <li>the card colour - a SUPPLIER too, this card's own leaf over the look every HUD card
+ *       shares ({@code Server/ZiggfreedCommon/HudCards/Default.json}): the one hex
+ *       {@link HudCardLook} explains, multiplied over the panel's frame, with a transparency in
+ *       its last two digits. The default answers nothing, which is the shared look.</li>
  *   <li>the four text colours - the native objective HUD's own by default; a theme restates them
  *       without the tracker hardcoding anybody's palette.</li>
  * </ul>
@@ -87,6 +92,7 @@ public final class TrackedQuestHudDeps {
     @Nonnull private final HudAudience audience;
     @Nonnull private final Supplier<HudPosition> position;
     @Nonnull private final BooleanSupplier enabled;
+    @Nonnull private final Supplier<String> color;
     @Nonnull private final String taskColorInProgress;
     @Nonnull private final String taskColorComplete;
     @Nonnull private final String countColorInProgress;
@@ -97,6 +103,7 @@ public final class TrackedQuestHudDeps {
         this.audience = b.audience;
         this.position = b.position;
         this.enabled = b.enabled;
+        this.color = b.color;
         this.taskColorInProgress = b.taskColorInProgress;
         this.taskColorComplete = b.taskColorComplete;
         this.countColorInProgress = b.countColorInProgress;
@@ -142,6 +149,21 @@ public final class TrackedQuestHudDeps {
         }
     }
 
+    /**
+     * This card's own colour, guarded and validated: the normalised hex the consumer's seam
+     * answers, or null (nothing answered, a value that is not a hex, or a seam that throws) to take
+     * the look every HUD card shares. A value that is not a hex warns once, naming the seam.
+     */
+    @Nullable
+    public String color() {
+        try {
+            return HudCardLook.authored(color.get(), "the tracked-quest HUD's colour seam");
+        } catch (Throwable t) {
+            warn("colour", t);
+            return null;
+        }
+    }
+
     /** Whether {@code subject} wants the tracker, guarded: in doubt, they do. */
     public boolean wantsHud(@Nonnull Subject subject) {
         try {
@@ -184,6 +206,7 @@ public final class TrackedQuestHudDeps {
         @Nonnull private HudAudience audience = EVERYONE;
         @Nonnull private Supplier<HudPosition> position = () -> DEFAULT_POSITION;
         @Nonnull private BooleanSupplier enabled = () -> true;
+        @Nonnull private Supplier<String> color = () -> null;
         @Nonnull private String taskColorInProgress = NATIVE_TASK_IN_PROGRESS;
         @Nonnull private String taskColorComplete = NATIVE_TASK_COMPLETE;
         @Nonnull private String countColorInProgress = NATIVE_COUNT_IN_PROGRESS;
@@ -215,6 +238,17 @@ public final class TrackedQuestHudDeps {
         @Nonnull
         public Builder enabled(@Nullable BooleanSupplier value) {
             this.enabled = value != null ? value : () -> true;
+            return this;
+        }
+
+        /**
+         * This card's own colour, asked on every repaint: a {@code #rrggbb} or {@code #rrggbbaa}
+         * hex over the shared HUD card look, or null for none; a null supplier restores the shared
+         * look.
+         */
+        @Nonnull
+        public Builder color(@Nullable Supplier<String> value) {
+            this.color = value != null ? value : () -> null;
             return this;
         }
 

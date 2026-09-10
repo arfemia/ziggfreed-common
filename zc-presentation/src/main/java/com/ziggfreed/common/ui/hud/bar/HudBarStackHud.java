@@ -14,15 +14,18 @@ import com.ziggfreed.common.ui.hud.HudPosition;
  * <p>Layout and nothing else - every line of the drawing is {@link HudBarHud}'s. The numbers below
  * mirror {@code Hud/ZigHudBars.ui} and must move with it: two columns of thirteen slots, 12 of
  * horizontal padding, a 296-wide column and 12 between columns (so the panel is 320 wide with one
- * column open and 628 with both), and a track spanning 228 of that column between the two 30-wide
- * end captions, padded a pixel each side (so a fill spans 226).
+ * column open and 628 with both), a track spanning 228 of that column between the two 30-wide end
+ * captions, padded a pixel each side (so a fill spans 226), and for the height 12 of vertical
+ * padding, a 5 margin above every row, an 18 line and a 12 bar block (so a row with a fill is 35
+ * tall and a row about an item 23).
  *
  * <p>Where it sits is its {@code Default.json} panel file's {@code Placement}, the shipped
  * {@code TopLeft} spot: the same origin as the zone card a companion mod draws at the top-left,
  * deliberately OVER it, since this panel attaches after that card at ready and is transparent
- * behind its frame. The document holds the panel to that card's own height as a floor, so a ledger
- * of one or two rows covers the card rather than leaving its lower half showing. The corner below is
- * only the document's fallback for a server where that file is gone.
+ * behind its frame. That spot states a {@code MinHeight} of the card's own height, so a ledger of
+ * one or two rows still covers the card rather than leaving its lower half showing; the floor
+ * belongs to the spot, applies to whichever panel sits there, and is tuned in its file. The corner
+ * below is only the document's fallback for a server where that file is gone.
  */
 public final class HudBarStackHud extends HudBarHud {
 
@@ -45,6 +48,10 @@ public final class HudBarStackHud extends HudBarHud {
             296,
             12,
             226,
+            12,
+            5,
+            18,
+            12,
             FALLBACK_POSITION);
 
     public HudBarStackHud(@Nonnull PlayerRef playerRef) {

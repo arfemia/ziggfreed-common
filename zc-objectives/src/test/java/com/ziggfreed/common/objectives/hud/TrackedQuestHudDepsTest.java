@@ -2,6 +2,7 @@ package com.ziggfreed.common.objectives.hud;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -122,10 +123,39 @@ class TrackedQuestHudDepsTest {
         assertSame(TrackedQuestHudDeps.DEFAULT_POSITION, deps.position());
     }
 
+    // ==================== the card colour seam ====================
+
+    @Test
+    void theColourSeamAnswersNothingByDefaultWhichIsTheSharedCardLook() {
+        assertNull(TrackedQuestHudDeps.DEFAULTS.color());
+        assertNull(TrackedQuestHudDeps.builder().color(() -> null).build().color());
+        assertNull(TrackedQuestHudDeps.builder().color(() -> "  ").build().color(), "a blank is nothing answered");
+    }
+
+    @Test
+    void aFilledColourSeamIsValidatedAndNormalisedAndAMalformedOneIsIgnored() {
+        assertEquals("#aabbcc", TrackedQuestHudDeps.builder().color(() -> " #AABBCC ").build().color());
+        assertEquals("#aabbcc80", TrackedQuestHudDeps.builder().color(() -> "aabbcc80").build().color(),
+                "eight digits carry the transparency");
+        assertNull(TrackedQuestHudDeps.builder().color(() -> "#not-a-colour").build().color(),
+                "ignored, so the shared look stands");
+    }
+
+    @Test
+    void aColourSeamThatThrowsCostsItsOwnAnswerAndNotTheTracker() {
+        TrackedQuestHudDeps deps = TrackedQuestHudDeps.builder()
+                .color(() -> {
+                    throw new IllegalStateException("layout file unreadable");
+                })
+                .build();
+        assertNull(deps.color(), "the shared look");
+        assertTrue(deps.isEnabled(), "and nothing beside it is touched");
+    }
+
     @Test
     void clearingASeamGoesBackToTheLibraryDefaultRatherThanToNull() {
         TrackedQuestHudDeps deps = TrackedQuestHudDeps.builder()
-                .theme(null).audience(null).position(null).enabled(null)
+                .theme(null).audience(null).position(null).enabled(null).color(null)
                 .taskColorInProgress(null).taskColorComplete(null)
                 .countColorInProgress(null).countColorComplete(null)
                 .build();
@@ -133,6 +163,7 @@ class TrackedQuestHudDepsTest {
         assertSame(TrackedQuestHudDeps.EVERYONE, deps.audience());
         assertSame(TrackedQuestHudDeps.DEFAULT_POSITION, deps.position());
         assertTrue(deps.isEnabled());
+        assertNull(deps.color(), "the shared card look");
         assertEquals(TrackedQuestHudDeps.NATIVE_TASK_IN_PROGRESS, deps.taskColor(false));
     }
 

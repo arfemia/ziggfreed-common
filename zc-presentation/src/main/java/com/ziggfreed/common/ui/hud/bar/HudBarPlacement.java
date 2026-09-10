@@ -16,15 +16,19 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <ol>
  *   <li><b>The player's own pick</b>, when they made one in the HUD settings and the spot still
- *       exists, is enabled and fits the panel. It swaps the WHOLE group, corner, offsets and
- *       spread together, because an owner's inline nudge belongs to the owner's corner and would
- *       put the player's spot somewhere nobody chose if it folded over it.</li>
+ *       exists, is enabled and fits the panel. It swaps the WHOLE group, corner, offsets, spread,
+ *       band, cut, floor and colour together, because an owner's inline nudge belongs to the
+ *       owner's corner and would put the player's spot somewhere nobody chose if it folded over
+ *       it.</li>
  *   <li>Else <b>the placement the panel names</b> ({@code Placement} on {@link HudBarPanelAsset}),
  *       leaf by leaf over the document's own fallback, with <b>the panel's inline leaves</b>
- *       ({@code Position}, {@code Columns}, {@code RowsPerColumn}) folded over that: how an owner
- *       states custom values without authoring a spot of their own.</li>
+ *       ({@code Position}, {@code Columns}, {@code RowsPerColumn}, {@code Gap}, {@code Cutout},
+ *       {@code MinHeight}, {@code Color}) folded over that: how an owner states custom values
+ *       without authoring a spot of their own.</li>
  *   <li>Else <b>the document's fallback</b>: the corner its layout declares, one column, one row
- *       per column.</li>
+ *       per column, no band, no cut, no floor and no colour of its own (the shared card look, which
+ *       is the layer under every colour here, is folded in by the paint through
+ *       {@link com.ziggfreed.common.ui.hud.card.HudCardLook#resolve}).</li>
  * </ol>
  *
  * <p>A panel naming a placement nothing authored sits at the document's fallback and says so once
@@ -34,10 +38,20 @@ import com.ziggfreed.common.util.SafeLog;
  * @param position      the corner and offsets the panel hangs from
  * @param columns       the most columns the rows spread across, before the document's own ceiling
  * @param rowsPerColumn how many rows one column takes before the next opens
+ * @param gap           the band left clear across the rows, folded leaf by leaf, or null for none;
+ *                      whether a folded band APPLIES ({@link HudBarGap#applies}) is the paint's
+ *                      guard, so a layer switching it off with a zero still folds
+ * @param cutout        the cells left empty at the pinned end of one column, folded leaf by leaf,
+ *                      or null for none; whether it APPLIES ({@link HudBarCutout#applies}) is the
+ *                      paint's guard too
+ * @param minHeight     the least height the panel draws at, 0 for none
+ * @param color         the frame colour the spot or the panel states, already validated, or null
+ *                      to take the shared card look
  * @param id            the placement this was resolved from, or null for a document fallback or an
  *                      inline-only panel
  */
 public record HudBarPlacement(@Nonnull HudPosition position, int columns, int rowsPerColumn,
+        @Nullable HudBarGap gap, @Nullable HudBarCutout cutout, int minHeight, @Nullable String color,
         @Nullable String id) {
 
     /** How many columns a panel spreads across when nothing says otherwise: one. */
@@ -52,6 +66,7 @@ public record HudBarPlacement(@Nonnull HudPosition position, int columns, int ro
     public HudBarPlacement {
         columns = Math.max(1, columns);
         rowsPerColumn = Math.max(1, rowsPerColumn);
+        minHeight = Math.max(0, minHeight);
     }
 
     /** The column cap held to what the document declares: a spread can never exceed the slots that exist. */
@@ -69,10 +84,11 @@ public record HudBarPlacement(@Nonnull HudPosition position, int columns, int ro
         return position.getHorizontalEdge() == HudPosition.HorizontalEdge.RIGHT;
     }
 
-    /** The document's own fallback for {@code layout}: its declared corner, one column, one row per column. */
+    /** The document's own fallback for {@code layout}: its declared corner, one column, one row per column, no band, no cut, no floor, no colour. */
     @Nonnull
     public static HudBarPlacement fallback(@Nonnull HudBarLayout layout) {
-        return new HudBarPlacement(layout.defaultPosition(), DEFAULT_COLUMNS, DEFAULT_ROWS_PER_COLUMN, null);
+        return new HudBarPlacement(layout.defaultPosition(), DEFAULT_COLUMNS, DEFAULT_ROWS_PER_COLUMN,
+                null, null, 0, null, null);
     }
 
     /**
@@ -110,9 +126,17 @@ public record HudBarPlacement(@Nonnull HudPosition position, int columns, int ro
         }
         Integer columns = panel.authoredColumns();
         Integer rowsPerColumn = panel.authoredRowsPerColumn();
+        HudBarGap inlineGap = panel.authoredGap();
+        HudBarCutout inlineCutout = panel.authoredCutout();
+        Integer minHeight = panel.authoredMinHeight();
+        String inlineColor = panel.authoredColor();
         return new HudBarPlacement(position,
                 columns != null ? columns : resolved.columns(),
                 rowsPerColumn != null ? rowsPerColumn : resolved.rowsPerColumn(),
+                inlineGap != null ? inlineGap.over(resolved.gap()) : resolved.gap(),
+                inlineCutout != null ? inlineCutout.over(resolved.cutout()) : resolved.cutout(),
+                minHeight != null ? minHeight : resolved.minHeight(),
+                inlineColor != null ? inlineColor : resolved.color(),
                 resolved.id());
     }
 
@@ -122,9 +146,17 @@ public record HudBarPlacement(@Nonnull HudPosition position, int columns, int ro
         HudBarPosition authored = spot.position();
         Integer spotColumns = spot.columns();
         Integer spotRows = spot.rowsPerColumn();
+        HudBarGap spotGap = spot.gap();
+        HudBarCutout spotCutout = spot.cutout();
+        Integer spotMinHeight = spot.minHeight();
+        String spotColor = spot.color();
         return new HudBarPlacement(authored != null ? authored.over(position) : position,
                 spotColumns != null ? spotColumns : columns,
                 spotRows != null ? spotRows : rowsPerColumn,
+                spotGap != null ? spotGap.over(gap) : gap,
+                spotCutout != null ? spotCutout.over(cutout) : cutout,
+                spotMinHeight != null ? spotMinHeight : minHeight,
+                spotColor != null ? spotColor : color,
                 spot.getId());
     }
 

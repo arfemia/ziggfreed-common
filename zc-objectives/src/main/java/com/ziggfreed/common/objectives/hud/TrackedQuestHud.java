@@ -16,10 +16,13 @@ import com.ziggfreed.common.objectives.hud.TrackedQuestSnapshot.Block;
 import com.ziggfreed.common.objectives.hud.TrackedQuestSnapshot.Row;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.common.ui.hud.KeyedCustomHud;
 import com.ziggfreed.common.ui.hud.RepaintCoalescer;
+import com.ziggfreed.common.ui.hud.card.HudCardConfig;
+import com.ziggfreed.common.ui.hud.card.HudCardLook;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -48,6 +51,14 @@ import com.ziggfreed.common.util.SafeLog;
  * top-level id are prefixed {@code Zig} because the client's UI namespace is flat across mods; a
  * generic name can be clobbered by a co-installed mod's document, after which the anchor set in
  * {@code build()} fails and disconnects the player.
+ *
+ * <p><b>The panel is a HUD card</b>, and wears the colour every card shares
+ * ({@code Server/ZiggfreedCommon/HudCards/Default.json}, {@link HudCardConfig}) under the
+ * consumer's own answer ({@link TrackedQuestHudDeps#color}): one hex multiplied over the frame,
+ * pushed on every paint only when it says something ({@link HudCardLook#cardColor}), so the
+ * shared look costs no command and a reload lands on the next repaint. It lands AFTER the
+ * consumer's theme paints at build, so an authored card colour is the owner's last word and an
+ * absent one keeps the theme.
  */
 public final class TrackedQuestHud extends KeyedCustomHud implements TrackedQuestHuds.Tracker {
 
@@ -218,6 +229,10 @@ public final class TrackedQuestHud extends KeyedCustomHud implements TrackedQues
         // The whole panel goes when nothing is pinned (or the tracker is off for this player), so
         // the screen stays clean; there is no header, each quest's title reads as its own heading.
         cmd.set(ROOT + ".Visible", snapshot.panelVisible());
+        // The card's colour: the consumer's own leaf over the shared record, a multiply over the
+        // frame that pushes nothing for the identity.
+        UiRetint.retintColor(cmd, ROOT,
+                HudCardLook.resolve(deps.color(), HudCardConfig.getInstance().sharedColor()).cardColor());
         for (int qi = 0; qi < TrackedQuestSnapshot.MAX_QUESTS; qi++) {
             String qSel = "#ZigQuest" + qi;
             if (qi >= snapshot.blocks().size()) {

@@ -1,0 +1,112 @@
+package com.ziggfreed.common.ui.hud.bar;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+
+/**
+ * The cells a spot leaves EMPTY at the pinned end of ONE column, as a FILE states it: which column,
+ * and how many of its cells nearest the pinned edge stay clear. A client draws its own things at
+ * the screen's edges (at the bottom, the utility slot and the hotbar's end sit under the far column
+ * of a three-wide panel), and the cut lets the panel step around one of them without moving the
+ * whole panel away. Every leaf is optional, so a file restates only what it wants different from
+ * the layer below it, and {@link #over} folds two, leaf by leaf.
+ *
+ * <p>{@code Column} is ONE-BASED and counts FROM THE PANEL'S OWN FIRST COLUMN, the one at the
+ * spot's origin: at a Left spot column 1 is the leftmost, at a Right spot it is the rightmost,
+ * because a right-pinned panel opens its columns leftward. The number follows the direction the
+ * panel fills, exactly as {@link HudBarGap}'s {@code AfterRow} follows the pinned edge, so it keeps
+ * its meaning if the spot is later pinned to the other side. {@code Rows} is how many of that
+ * column's cells nearest the pinned edge stay empty; its rows start above (or, at a Top spot,
+ * below) the cut, so the column stands that much taller than the others and the frame grows to
+ * hold it. A column has as many usable cells as the document declares less its cut, and one asked
+ * to hold more rows than that draws the ones it has room for.
+ *
+ * <p>One group, shared by {@link HudBarPlacementAsset} (where a spot leaves its cut) and
+ * {@link HudBarPanelAsset} (an inline restatement over the spot a panel names), so the two files
+ * spell it the same way and an author learns it once. Whether a folded group APPLIES at all
+ * ({@link #applies}: both numbers present and positive) is the paint's guard, not the fold's, so a
+ * file switching the cut off with {@code "Rows": 0} still folds leaf by leaf; a {@code Column} no
+ * in-use column reaches simply cuts nothing.
+ */
+public final class HudBarCutout {
+
+    @Nullable protected Integer column;
+    @Nullable protected Integer rows;
+
+    public static final BuilderCodec<HudBarCutout> CODEC = BuilderCodec
+            .builder(HudBarCutout.class, HudBarCutout::new)
+            .appendInherited(new KeyedCodec<>("Column", Codec.INTEGER, false),
+                    (o, v) -> o.column = v, o -> o.column, (o, p) -> o.column = p.column)
+            .documentation("Which column is cut, counted from the panel's own first column, the one at "
+                    + "the spot's origin: 1 is the column nearest the spot's pinned side, so at a Right "
+                    + "spot 1 is the rightmost. Zero, or a column the rows never open, cuts nothing. "
+                    + "Left out, the layer below decides.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Rows", Codec.INTEGER, false),
+                    (o, v) -> o.rows = v, o -> o.rows, (o, p) -> o.rows = p.rows)
+            .documentation("How many of that column's cells nearest the pinned edge stay empty. Its rows "
+                    + "start past the cut, so the column stands that much taller than the rest and the "
+                    + "frame grows to hold it. The column has that many fewer cells to draw in: asked "
+                    + "to hold more rows than are left, it draws the ones that fit and leaves the rest "
+                    + "undrawn. Zero cuts nothing. Left out, the layer below decides.")
+            .add()
+            .build();
+
+    public HudBarCutout() {
+    }
+
+    /** A cut with these two leaves, for code assembling one; a null leaf stays unauthored. */
+    public HudBarCutout(@Nullable Integer column, @Nullable Integer rows) {
+        this.column = column;
+        this.rows = rows;
+    }
+
+    /** Which column is cut, one-based from the panel's first; 0 when unauthored or not positive. */
+    public int column() {
+        return column == null || column <= 0 ? 0 : column;
+    }
+
+    /** How many cells nearest the pinned edge stay empty; 0 when unauthored or not positive. */
+    public int rows() {
+        return rows == null || rows <= 0 ? 0 : rows;
+    }
+
+    /** True when both numbers are stated and positive, so there is a cut to leave. */
+    public boolean applies() {
+        return column() > 0 && rows() > 0;
+    }
+
+    /**
+     * How many cells stay empty at the pinned end of the column at {@code ordinal} (zero-based from
+     * the panel's own first column): {@code Rows} for the one column the cut names, 0 for every
+     * other and whenever the cut does not apply.
+     */
+    public int rowsAt(int ordinal) {
+        return applies() && column() == ordinal + 1 ? rows() : 0;
+    }
+
+    /** True when no leaf is authored, so folding this changes nothing. */
+    public boolean isEmpty() {
+        return column == null && rows == null;
+    }
+
+    /**
+     * These leaves folded over {@code under}: each authored leaf replaces {@code under}'s, an
+     * unauthored one keeps it, and a null {@code under} contributes nothing.
+     */
+    @Nonnull
+    public HudBarCutout over(@Nullable HudBarCutout under) {
+        return new HudBarCutout(
+                column != null ? column : under != null ? under.column : null,
+                rows != null ? rows : under != null ? under.rows : null);
+    }
+
+    @Override
+    public String toString() {
+        return "HudBarCutout{column=" + column + ", rows=" + rows + "}";
+    }
+}

@@ -23,16 +23,19 @@ import com.ziggfreed.common.util.JsonOverrideWriter;
  * spelling, so an owner's hand-written {@code "Grid"} and this writer's {@code grid} never become
  * two entries folding onto one id.
  *
- * <p>Picking a spot CLEARS the inline {@code Position}, {@code Columns} and {@code RowsPerColumn}
- * leaves the entry carried: those were nudges over the previous spot, and an offset measured from
- * one corner is nonsense against another.
+ * <p>Picking a spot CLEARS the inline {@code Position}, {@code Columns}, {@code RowsPerColumn},
+ * {@code Gap}, {@code Cutout} and {@code MinHeight} leaves the entry carried: those were nudges over
+ * the previous spot, and an offset measured from one corner, or a band counted from one edge, or a
+ * cut at one column's end, is nonsense against another. The inline {@code Color} is left alone: a
+ * tint is measured from no corner and means the same at the new spot.
  */
 public final class HudBarPanelOwnerWriter {
 
     private static final String LOG_TAG = "hud";
 
     /** The leaves a spot pick clears, because they were written against the spot before it. */
-    private static final String[] INLINE_LEAVES = {"Position", "Columns", "RowsPerColumn"};
+    private static final String[] INLINE_LEAVES =
+            {"Position", "Columns", "RowsPerColumn", "Gap", "Cutout", "MinHeight"};
 
     private HudBarPanelOwnerWriter() {
     }

@@ -1,0 +1,28 @@
+{
+  "$Comment": [
+    "The one look every HUD card is drawn in: the colour and the transparency of the card's frame,",
+    "as a single hex. A card is any panel wearing the shared frame: the Activity ledger and the",
+    "World bars (Server/ZiggfreedCommon/HudBarPanels/), the quest tracker, and a mod's own panel",
+    "built on the same base (RPG Stations' session summary reads this file too).",
+    "",
+    "Color MULTIPLIES the shipped frame texture, so #ffffff is exactly the shipped look, a darker",
+    "hex darkens the frame and a hue tints it: #806040 is a warm brown card, #405060 a cool one.",
+    "Eight digits carry a transparency in the last two, so #ffffffb8 is the shipped card at about",
+    "72 percent, #ffffff80 at half and #ffffff40 at a quarter; six digits is fully opaque. The",
+    "shipped value below is the identity, and a card left at it is drawn exactly as its document",
+    "says. Text, icons and the bars' fills keep their own colours whatever the card wears.",
+    "",
+    "This ONE file dims or colours every card at once. To treat one card differently, give it a",
+    "Color of its own: a bar spot's file (Server/ZiggfreedCommon/HudBarPlacements/) colours",
+    "whichever panel sits there, a bar panel's file (Server/ZiggfreedCommon/HudBarPanels/) colours",
+    "that panel wherever it sits and wins over the spot's, and a mod's own settings colour its own",
+    "panel; each falls back to this file when it states none. On the bar panels the well behind",
+    "each fill, the gloss across it and the shade under it follow the card's transparency on their",
+    "own, keeping their colours, so a dimmed panel keeps reading as a set of bars.",
+    "",
+    "To change it without copying this file, add an entry keyed 'Default' to",
+    "mods/ziggfreedcommon/hud-cards.json: { \"Default\": { \"Color\": \"#ffffffb8\" } }. A value",
+    "that is not a #rrggbb or #rrggbbaa hex is ignored with one line in the log naming it."
+  ],
+  "Color": "#ffffffff"
+}

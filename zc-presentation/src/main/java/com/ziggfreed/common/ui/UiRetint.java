@@ -43,12 +43,14 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
  * sends a typed {@code PatchStyle} object, and the color forms only ever touch the
  * {@code .Background.Color} / {@code .Style.*.Background.Color} sub-properties.
  *
- * <p><b>Hex contract:</b> only a 6-digit {@code #rrggbb} string is pushed
- * ({@link #isSixDigitHex}); the runtime color parser accepts {@code #rrggbb} /
- * {@code #rrggbbaa} / {@code rgb()} for a {@code cmd.set}, and the parenthesized
- * {@code #rrggbb(alpha)} form is {@code .ui}-markup-only. Each color push is
- * SKIPPED for a null / non-hex value, leaving the element at its authored color -
- * so a partial palette paints only the slots it declares and never red-Xes.
+ * <p><b>Hex contract:</b> {@link #retintColor} pushes a {@code #rrggbb} or a
+ * {@code #rrggbbaa} string ({@link #isHex}; the eight-digit form carries the alpha in
+ * its last two digits and is the engine's own {@code ColorAlpha} spelling), the
+ * button-state and patch forms push a 6-digit {@code #rrggbb} only
+ * ({@link #isSixDigitHex}); the parenthesized {@code #rrggbb(alpha)} form is
+ * {@code .ui}-markup-only. Each color push is SKIPPED for a null / non-hex value,
+ * leaving the element at its authored color - so a partial palette paints only the
+ * slots it declares and never red-Xes.
  */
 public final class UiRetint {
 
@@ -58,14 +60,16 @@ public final class UiRetint {
 
     /**
      * Retint an element's background in place: {@code cmd.set(selector +
-     * ".Background.Color", hex)}. A no-op for a null / non-6-digit-hex value (the
-     * element keeps its authored color). A {@code .set} against a missing id is a
-     * harmless client-side no-op, so calling this for an element absent on the
+     * ".Background.Color", hex)}. The tint MULTIPLIES the element's own texture or
+     * colour, so {@code #ffffff} is exactly the authored look and an eight-digit
+     * {@code #rrggbbaa} dims it by its last two digits. A no-op for a null / non-hex
+     * value (the element keeps its authored color). A {@code .set} against a missing id
+     * is a harmless client-side no-op, so calling this for an element absent on the
      * current page is safe.
      */
     public static void retintColor(@Nonnull UICommandBuilder cmd, @Nonnull String selector,
             @Nullable String hex) {
-        if (!isSixDigitHex(hex)) {
+        if (!isHex(hex)) {
             return;
         }
         cmd.set(selector + ".Background.Color", hex);
@@ -163,12 +167,25 @@ public final class UiRetint {
         cmd.setObject(selector + ".Background", patch);
     }
 
-    /** True only for a {@code #rrggbb} hex string (the validated retint form). */
+    /** True only for a {@code #rrggbb} hex string (the button-state and patch tint form). */
     public static boolean isSixDigitHex(@Nullable String hex) {
-        if (hex == null || hex.length() != 7 || hex.charAt(0) != '#') {
+        return isHexOfLength(hex, 7);
+    }
+
+    /**
+     * True for a {@code #rrggbb} or a {@code #rrggbbaa} hex string: the two spellings the
+     * engine's own colour grammar reads for a tinted patch, the second carrying its alpha
+     * in the last two digits.
+     */
+    public static boolean isHex(@Nullable String hex) {
+        return isHexOfLength(hex, 7) || isHexOfLength(hex, 9);
+    }
+
+    private static boolean isHexOfLength(@Nullable String hex, int length) {
+        if (hex == null || hex.length() != length || hex.charAt(0) != '#') {
             return false;
         }
-        for (int i = 1; i < 7; i++) {
+        for (int i = 1; i < length; i++) {
             char c = hex.charAt(i);
             boolean isHexDigit = (c >= '0' && c <= '9')
                     || (c >= 'a' && c <= 'f')
