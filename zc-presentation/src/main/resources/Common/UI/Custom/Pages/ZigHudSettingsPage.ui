@@ -8,8 +8,9 @@ $Z = "../Common/ZigButtons.ui";
 //   Mine     a hide-every-bar switch, then per panel a spot picker and a show switch, each kept
 //            the moment it changes.
 //   Server   (only when the consumer's audience says the viewer may) per panel an on-for-everyone
-//            switch, a spot picker and the four inline leaves, written by #SaveButton into the
-//            owner file for everyone.
+//            switch, a spot picker and one field per inline leaf (the offsets, the spread, the
+//            band, the cut, the least height, the colour), written by #SaveButton into the owner
+//            file for everyone.
 //
 // #Rows is the appendable list container and MUST stay childless here: rows are the shared
 // Pages/ZigForm*Row.ui templates, addressed by indexed parent ("#Rows[3] #Dropdown"), so a

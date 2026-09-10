@@ -67,6 +67,18 @@ public final class HudBarGap {
         return pixels == null || pixels <= 0 ? 0 : pixels;
     }
 
+    /** The AfterRow leaf exactly as the file states it, zero included, or null when it states none. */
+    @Nullable
+    public Integer authoredAfterRow() {
+        return afterRow;
+    }
+
+    /** The Pixels leaf exactly as the file states it, zero included, or null when it states none. */
+    @Nullable
+    public Integer authoredPixels() {
+        return pixels;
+    }
+
     /** True when both numbers are stated and positive, so there is a band to leave. */
     public boolean applies() {
         return afterRow() > 0 && pixels() > 0;

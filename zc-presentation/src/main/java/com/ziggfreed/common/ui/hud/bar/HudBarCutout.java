@@ -75,6 +75,18 @@ public final class HudBarCutout {
         return rows == null || rows <= 0 ? 0 : rows;
     }
 
+    /** The Column leaf exactly as the file states it, zero included, or null when it states none. */
+    @Nullable
+    public Integer authoredColumn() {
+        return column;
+    }
+
+    /** The Rows leaf exactly as the file states it, zero included, or null when it states none. */
+    @Nullable
+    public Integer authoredRows() {
+        return rows;
+    }
+
     /** True when both numbers are stated and positive, so there is a cut to leave. */
     public boolean applies() {
         return column() > 0 && rows() > 0;
