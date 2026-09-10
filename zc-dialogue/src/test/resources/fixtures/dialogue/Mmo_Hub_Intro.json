@@ -1,11 +1,18 @@
 {
-  "Name": "mmo_hub_intro",
-  "$Comment": "The guide at world spawn, and the same character standing in the Forgotten Temple. Start is declared in sections: the two temple beats outrank everything (the first is played once per instance and credits the meeting, the second is the safety net that can always credit it), the quest rows drive the whole main chain from the quests own state, the two Then beats are the steady state, and menu is the screen of last resort. gather_the_basics writes Ready as true, which sends the player to this characters quest list with that quest highlighted rather than handing it in inside the conversation. The Fragments are shared option groups, written once and pulled into a screen with IncludeOptions, which appends them after the screen's own lines: hub_footer is the full footer every steady screen carries ('I have returned' only while something can be handed in here, then one 'Got any quests?' line written as two mutually exclusive branches - the offer screen when this character has something to give, the quest list otherwise - then 'open menu'), and open_menu is that last row alone, for the screens that lead with their own accept or hand-in line.",
+  "Name": "Mmo_Hub_Intro",
+  "$Comment": "The guide's conversation, bundled in the jar so a fresh server has one working NPC dialogue to read and copy. It needs no content pack, and every beat in it is driven by quest state rather than by any per-player flag, so the player's quest log IS the state machine. It serves the guide standing at world spawn AND the same character standing in the Forgotten Temple: one file, because the conversation belongs to the character, and the character is whoever the player is facing. HOW A BEAT IS PICKED. Start is declared in sections and the engine walks them in a fixed order: First (top to bottom), then a quest that is READY to hand in, then one this character can OFFER, then one that is ACTIVE, then Then (top to bottom), then Fallback. So write each beat where it belongs and the order takes care of itself. First holds the welcome beat and the three temple beats, because they outrank anything about quests. The welcome sits at the very top and shows until the first quest is finished, so a player who reaches the temple before meeting the guide at spawn is welcomed by whichever one they walk up to and can finish that quest where they are standing; once it is done the beat is gone and the temple beats take the top of the ladder. Quests holds one row per quest, keyed by quest id, saying what this conversation does at each of that quest's three moments. Within one band the row order settles ties, so the main chain is written first and the side quests behind it: while a chain quest and a side quest are both active, the guide talks about the chain. Then holds the steady state. A side quest's row says both things a giver can say about it: which line greets the hand-in, and which line the player hears while it is still open. Fallback is the menu, the answer of last resort, so the player is never shown an empty conversation. ADDING YOUR OWN QUEST TAKES NO EDIT HERE. The footer's 'Got any quests?' line asks HasOfferableQuests, which is true whenever this character has anything the player could take on right now, so naming this character as your quest's giver is enough for it to appear. Add a Quests row only when you want a bespoke screen for one of its moments. THE READY ROWS. A row's Ready leaf says what happens the moment a quest can be handed in here. A screen name is a beat you wrote yourself, a line of dialogue worth saying before the hand-in, whose own option then opens this character's quest list with that quest called out; hand-in itself always happens on that screen, never inline in the conversation, so the player sees exactly what they are collecting. Every quest with a Ready row here names a bespoke line of its own, so a hand-in is always greeted by words about the thing that was actually done. ready_generic is the same beat with one line that fits anything: the temple arc's four quests share it, and so can a side quest of YOUR OWN - point its Ready row at ready_generic and it gets a screen without you writing one. A bare true would skip straight to the quest list with no line at all - avoid it, since a player pressing F should always see a screen before being routed anywhere. Leave Ready out and a finished quest changes nothing here. THE BOUNTY BEAT IS CONDITIONAL. It shows only when the player can reach a board with something on it, so with bounties switched off, no board pack installed, or every rotation empty it falls through to the plain menu and the guide never advertises work that is not there. THE TEMPLE BEATS. All three are gated on the temple instance's own gameplay-config id, which is the stable name for a world that is generated fresh each time, and they are tried in the order written: the first-visit greeting, then the still-active meeting, then the steady state once the greeting is spent. The greeting is spent only by the hail line, which writes the temple_greeted memory, so opening the menu or saying goodbye leaves it intact for next time; that memory carries the same Where selector, so it is remembered per temple rather than once per character everywhere. The beat underneath offers the same hail with no seen-ness at all while the meeting quest is active, so a player who wandered down and said hello long before the quest existed can still get the credit. Hailing twice is harmless. THE HAIL FINISHES THE MEETING ON THE SPOT: it credits the talk and then opens this character's quest list with the meeting called out, so the player collects it where they are standing rather than walking back up to hand in a quest about coming down. MarkTalked credits whichever character the player is facing, so the same line credits the temple meeting only when it is spoken in the temple, while a hand-in resolves at either guide. All three carry the full footer, so a player standing in the temple can always reach their quests and their menu. SKIPPING THE TUTORIAL AT THE TEMPLE FOLDS THE MEETING IN: the welcome's skip option force-completes the meeting quest and spends the greeting in the same beat, when it fires inside the temple, so a player who never leaves for the tutorial is not left needing a separate trip back through the spawn guide's footer to pick it up. Away from the temple the skip option does neither, and the meeting stays offered normally through the footer. THE TEMPLE POINTERS LIVE IN ONE FRAGMENT AND FIND THEIR SCREENS BY TAG. mastery_who and sawyer_who are declared together as the temple_pointers group below, whose On places it on every screen tagged Temple_Landing: the steady-state screen and both trainers' own reply screens carry that tag, so a player can ask about either one from any of the three without backing out to the steady-state screen first, and a screen you add to the landing later gets both pointers by carrying the same tag, with no edit to the group. Each hides itself the moment its own trainer's meeting quest stops being NOT_STARTED, which is what lets the same pair sit on a trainer's own reply screen without ever re-offering the one the player just answered. THE MASTERY POINTER appears only when three things are true at once: mastery is switched on, the meeting that brought the player down here is finished, and the introduction has not been taken yet. On a server with mastery off the line simply is not there, and neither is the trainer. Picking it opens a screen about the trainer whose own line takes the errand on, so the player reads who they are being sent to before the quest lands in their log. THE SAWYER POINTER shows only when four things are true at once: the meeting is finished, the introduction to him has not been taken yet, the station engine is running, and a quest called meet_the_sawyer exists on this server at all. That last check is the quest_known factor, which answers 1 when the shared quest catalogue holds a quest under that id and 0 when it does not: a QuestState condition on a quest nobody ships reads NOT_STARTED, so it cannot tell an absent quest from an untaken one, and the factor is what keeps the line off a server without the pack that ships him. Picking it opens a screen saying who he is and where he stands, whose own line takes the introduction on, so the player reads who they are being sent to before the quest lands in their log; the other line simply goes back. What the guide hands out is the walk across the landing and nothing more: the sawyer's own jobs are his to offer, once the player has stood in front of him. Retune or drop either pointer once, in the fragment, and every screen tagged for it changes together; point one at a character of your own to send players there instead. THE FRAGMENTS. Shared option groups, written once. A screen pulls one in with IncludeOptions, which appends it after the screen's own lines, in the array's own order when a screen names more than one; a group can also place itself, through On, on every screen carrying a tag, and those lines land after the screen's own and before the groups its IncludeOptions names. hub_footer is the full footer every steady screen carries: 'I have returned' only while something can be handed in here, then a 'Got any quests?' line that opens the quest list, then everything open_menu says. open_menu is that tail on its own, the temple line and then 'open menu', for the screens that lead with their own accept or hand-in line; hub_footer includes it rather than restating it, so the temple line is written once. THE TEMPLE LINE therefore reaches every screen except the very first greeting, which carries neither fragment: it takes the meeting quest and shows temple_brief, and it hides itself once the quest is taken and again anywhere inside the temple, where asking a man standing in front of you where to find him would be a strange thing to say. Two conditions do that, and an option shows only when every one of them passes. TO RETUNE. Override this file by id from your own pack to replace it wholesale, or point a file of your own at it with Parent and restate only the screens you want to reword.",
+  "Header": ["ActiveObjective"],
   "Memories": {
     "temple_greeted": { "Where": { "GameplayConfig": ["ForgottenTemple"] } }
   },
   "Start": {
     "First": [
+      {
+        "Node": "greet",
+        "When": [
+          { "Type": "Not", "Of": [ { "Type": "QuestState", "Quest": "getting_started", "State": "COMPLETED" } ] }
+        ]
+      },
       {
         "Node": "temple_greet",
         "When": [
@@ -19,6 +26,12 @@
           { "Type": "World", "Where": { "GameplayConfig": ["ForgottenTemple"] } },
           { "Type": "QuestState", "Quest": "meet_at_the_temple", "State": "ACTIVE" }
         ]
+      },
+      {
+        "Node": "temple_talk",
+        "When": [
+          { "Type": "World", "Where": { "GameplayConfig": ["ForgottenTemple"] } }
+        ]
       }
     ],
     "Quests": {
@@ -28,17 +41,21 @@
         "Offerable": "briefing",
         "Active": "briefing"
       },
-      "meet_at_the_temple": { "Ready": "temple_ready" },
-      "make_camp": { "Ready": "camp_ready" },
-      "home_cooking": { "Ready": "cook_ready" },
-      "prove_your_mettle": { "Ready": "mettle_ready" },
       "gather_the_basics": {
-        "Ready": true,
+        "Ready": "gather_ready",
         "Offerable": "tools_to_gather",
         "Active": "gather_brief"
       },
       "into_the_fray": { "Offerable": "gather_to_combat", "Active": "combat_brief" },
-      "climbing_the_ranks": { "Offerable": "combat_to_ranks", "Active": "ranks_brief" }
+      "climbing_the_ranks": { "Offerable": "combat_to_ranks", "Active": "ranks_brief" },
+      "meet_at_the_temple": { "Ready": "temple_ready", "Active": "temple_brief" },
+      "what_the_stones_remember": { "Ready": "ready_generic" },
+      "the_watch_below": { "Ready": "ready_generic" },
+      "keeper_of_the_deep": { "Ready": "ready_generic" },
+      "temple_tribute": { "Ready": "ready_generic" },
+      "make_camp": { "Ready": "camp_ready", "Active": "camp_brief" },
+      "home_cooking": { "Ready": "cook_ready", "Active": "cook_brief" },
+      "prove_your_mettle": { "Ready": "mettle_ready", "Active": "mettle_brief" }
     },
     "Then": [
       {
@@ -67,9 +84,28 @@
         },
         {
           "LabelKey": "dialogue.mmo_hub_intro.greet.opt.skip",
+          "Conditions": [
+            {
+              "Type": "Not",
+              "Of": [ { "Type": "World", "Where": { "GameplayConfig": ["ForgottenTemple"] } } ]
+            }
+          ],
           "Do": [
             { "Complete": "getting_started" },
             { "Accept": "craft_starter_tools" },
+            { "Goto": "briefing" }
+          ]
+        },
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.greet.opt.skip",
+          "Conditions": [
+            { "Type": "World", "Where": { "GameplayConfig": ["ForgottenTemple"] } }
+          ],
+          "Do": [
+            { "Complete": "getting_started" },
+            { "Accept": "craft_starter_tools" },
+            { "Complete": "meet_at_the_temple" },
+            { "Remember": "temple_greeted" },
             { "Goto": "briefing" }
           ]
         }
@@ -84,14 +120,11 @@
       "Options": [
         {
           "LabelKey": "dialogue.mmo_hub_intro.tools_ready.opt.turnin",
-          "Do": [
-            { "TurnIn": "craft_starter_tools" },
-            { "Goto": "tools_to_gather" }
-          ]
+          "Open": { "Type": "Quests", "Highlight": "craft_starter_tools" }
         },
         {
           "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
-          "Open": { "Type": "Quests", "Npc": "mmo_hub" }
+          "Open": "Quests"
         }
       ],
       "IncludeOptions": ["open_menu"]
@@ -99,6 +132,16 @@
     "menu": {
       "TextKey": "dialogue.mmo_hub_intro.menu.text",
       "IncludeOptions": ["hub_footer"]
+    },
+    "ready_generic": {
+      "TextKey": "dialogue.mmo_hub_intro.ready_generic.text",
+      "Options": [
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+          "Open": "Quests"
+        }
+      ],
+      "IncludeOptions": ["open_menu"]
     },
     "bounty_intro": {
       "TextKey": "dialogue.mmo_hub_intro.bounty_intro.text",
@@ -113,6 +156,20 @@
     "tools_done": {
       "TextKey": "dialogue.mmo_hub_intro.tools_done.text",
       "IncludeOptions": ["hub_footer"]
+    },
+    "gather_ready": {
+      "TextKey": "dialogue.mmo_hub_intro.gather_ready.text",
+      "Options": [
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.gather_ready.opt.turnin",
+          "Open": { "Type": "Quests", "Highlight": "gather_the_basics" }
+        },
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+          "Open": "Quests"
+        }
+      ],
+      "IncludeOptions": ["open_menu"]
     },
     "tools_to_gather": {
       "TextKey": "dialogue.mmo_hub_intro.tools_to_gather.text",
@@ -162,70 +219,61 @@
       "TextKey": "dialogue.mmo_hub_intro.ranks_brief.text",
       "IncludeOptions": ["hub_footer"]
     },
-    "quests_offer": {
-      "TextKey": "dialogue.mmo_hub_intro.quests_offer.text",
+    "temple_ready": {
+      "TextKey": "dialogue.mmo_hub_intro.temple_ready.text",
       "Options": [
         {
-          "LabelKey": "dialogue.mmo_hub_intro.odd_jobs.opt.camp",
-          "Conditions": [
-            {
-              "Type": "QuestState",
-              "Quest": "make_camp",
-              "State": "NOT_STARTED"
-            }
-          ],
-          "Do": [{ "Accept": "make_camp" }, { "Goto": "camp_brief" }]
+          "LabelKey": "dialogue.mmo_hub_intro.temple_ready.opt.turnin",
+          "Open": { "Type": "Quests", "Highlight": "meet_at_the_temple" }
         },
         {
-          "LabelKey": "dialogue.mmo_hub_intro.odd_jobs.opt.mettle",
-          "Conditions": [
-            {
-              "Type": "QuestState",
-              "Quest": "prove_your_mettle",
-              "State": "NOT_STARTED"
-            }
-          ],
-          "Do": [
-            { "Accept": "prove_your_mettle" },
-            { "Goto": "mettle_brief" }
-          ]
-        },
-        {
-          "LabelKey": "dialogue.mmo_hub_intro.odd_jobs.opt.cook",
-          "Conditions": [
-            {
-              "Type": "QuestState",
-              "Quest": "make_camp",
-              "State": "COMPLETED"
-            },
-            {
-              "Type": "QuestState",
-              "Quest": "home_cooking",
-              "State": "NOT_STARTED"
-            }
-          ],
-          "Do": [{ "Accept": "home_cooking" }, { "Goto": "cook_brief" }]
-        },
-        {
-          "LabelKey": "dialogue.mmo_hub_intro.quests_offer.opt.temple",
-          "Conditions": [
-            {
-              "Type": "QuestState",
-              "Quest": "meet_at_the_temple",
-              "State": "NOT_STARTED"
-            }
-          ],
-          "Do": [
-            { "Accept": "meet_at_the_temple" },
-            { "Goto": "temple_brief" }
-          ]
-        },
-        {
-          "LabelKey": "dialogue.mmo_hub_intro.quests_offer.opt.viewall",
-          "Style": "neutral",
-          "Open": { "Type": "Quests", "Npc": "mmo_hub" }
+          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+          "Open": "Quests"
         }
-      ]
+      ],
+      "IncludeOptions": ["open_menu"]
+    },
+    "camp_ready": {
+      "TextKey": "dialogue.mmo_hub_intro.camp_ready.text",
+      "Options": [
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.camp_ready.opt.turnin",
+          "Open": { "Type": "Quests", "Highlight": "make_camp" }
+        },
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+          "Open": "Quests"
+        }
+      ],
+      "IncludeOptions": ["open_menu"]
+    },
+    "cook_ready": {
+      "TextKey": "dialogue.mmo_hub_intro.cook_ready.text",
+      "Options": [
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.cook_ready.opt.turnin",
+          "Open": { "Type": "Quests", "Highlight": "home_cooking" }
+        },
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+          "Open": "Quests"
+        }
+      ],
+      "IncludeOptions": ["open_menu"]
+    },
+    "mettle_ready": {
+      "TextKey": "dialogue.mmo_hub_intro.mettle_ready.text",
+      "Options": [
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.mettle_ready.opt.turnin",
+          "Open": { "Type": "Quests", "Highlight": "prove_your_mettle" }
+        },
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+          "Open": "Quests"
+        }
+      ],
+      "IncludeOptions": ["open_menu"]
     },
     "camp_brief": {
       "TextKey": "dialogue.mmo_hub_intro.camp_brief.text",
@@ -239,51 +287,6 @@
       "TextKey": "dialogue.mmo_hub_intro.mettle_brief.text",
       "IncludeOptions": ["hub_footer"]
     },
-    "camp_ready": {
-      "TextKey": "dialogue.mmo_hub_intro.camp_ready.text",
-      "Options": [
-        {
-          "LabelKey": "dialogue.mmo_hub_intro.opt.turnin",
-          "Do": [{ "TurnIn": "make_camp" }, { "Goto": "quests_offer" }]
-        },
-        {
-          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
-          "Open": { "Type": "Quests", "Npc": "mmo_hub" }
-        }
-      ],
-      "IncludeOptions": ["open_menu"]
-    },
-    "cook_ready": {
-      "TextKey": "dialogue.mmo_hub_intro.cook_ready.text",
-      "Options": [
-        {
-          "LabelKey": "dialogue.mmo_hub_intro.opt.turnin",
-          "Do": [{ "TurnIn": "home_cooking" }, { "Goto": "quests_offer" }]
-        },
-        {
-          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
-          "Open": { "Type": "Quests", "Npc": "mmo_hub" }
-        }
-      ],
-      "IncludeOptions": ["open_menu"]
-    },
-    "mettle_ready": {
-      "TextKey": "dialogue.mmo_hub_intro.mettle_ready.text",
-      "Options": [
-        {
-          "LabelKey": "dialogue.mmo_hub_intro.opt.turnin",
-          "Do": [
-            { "TurnIn": "prove_your_mettle" },
-            { "Goto": "quests_offer" }
-          ]
-        },
-        {
-          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
-          "Open": { "Type": "Quests", "Npc": "mmo_hub" }
-        }
-      ],
-      "IncludeOptions": ["open_menu"]
-    },
     "temple_brief": {
       "TextKey": "dialogue.mmo_hub_intro.temple_brief.text",
       "IncludeOptions": ["hub_footer"]
@@ -296,11 +299,14 @@
           "Actions": [
             { "Type": "MarkTalked", "Target": "@self" },
             { "Type": "Remember", "Memory": "temple_greeted" },
-            { "Type": "Goto", "Node": "temple_talk" }
+            {
+              "Type": "OpenPage",
+              "Target": { "Type": "Quests", "Highlight": "meet_at_the_temple" }
+            }
           ]
         }
       ],
-      "IncludeOptions": ["open_menu"]
+      "IncludeOptions": ["hub_footer"]
     },
     "temple_meet": {
       "TextKey": "dialogue.mmo_hub_intro.temple_greet.text",
@@ -309,59 +315,169 @@
           "LabelKey": "dialogue.mmo_hub_intro.temple_greet.opt.hail",
           "Actions": [
             { "Type": "MarkTalked", "Target": "@self" },
-            { "Type": "Goto", "Node": "temple_talk" }
+            {
+              "Type": "OpenPage",
+              "Target": { "Type": "Quests", "Highlight": "meet_at_the_temple" }
+            }
           ]
         }
       ],
-      "IncludeOptions": ["open_menu"]
+      "IncludeOptions": ["hub_footer"]
     },
     "temple_talk": {
       "TextKey": "dialogue.mmo_hub_intro.temple_talk.text",
-      "IncludeOptions": ["open_menu"]
+      "Tags": ["Temple_Landing"],
+      "IncludeOptions": ["hub_footer"]
     },
-    "temple_ready": {
-      "TextKey": "dialogue.mmo_hub_intro.temple_ready.text",
+    "mastery_intro": {
+      "TextKey": "dialogue.mmo_hub_intro.mastery_intro.text",
       "Options": [
         {
-          "LabelKey": "dialogue.mmo_hub_intro.opt.turnin",
+          "LabelKey": "dialogue.mmo_hub_intro.mastery_intro.opt.accept",
+          "Style": "accept",
+          "Conditions": [
+            {
+              "Type": "Gate",
+              "Requirements": {
+                "Factors": [
+                  { "Factor": "mmoskilltree:feature", "Param": "Mastery", "Min": 1 }
+                ]
+              }
+            }
+          ],
           "Do": [
-            { "TurnIn": "meet_at_the_temple" },
-            { "Goto": "quests_offer" }
+            { "Accept": "meet_the_mastery_trainer" },
+            { "Goto": "mastery_brief" }
           ]
-        },
-        {
-          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
-          "Open": { "Type": "Quests", "Npc": "mmo_hub" }
         }
       ],
       "IncludeOptions": ["open_menu"]
+    },
+    "mastery_brief": {
+      "TextKey": "dialogue.mmo_hub_intro.mastery_brief.text",
+      "Tags": ["Temple_Landing"],
+      "IncludeOptions": ["hub_footer"]
+    },
+    "sawyer_intro": {
+      "TextKey": "dialogue.mmo_hub_intro.sawyer_intro.text",
+      "Options": [
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.sawyer_intro.opt.accept",
+          "Style": "accept",
+          "Conditions": [
+            {
+              "Type": "Gate",
+              "Requirements": {
+                "Factors": [
+                  { "Factor": "mmoskilltree:feature", "Param": "Stations", "Min": 1 }
+                ]
+              }
+            },
+            {
+              "Type": "QuestState",
+              "Quest": "meet_the_sawyer",
+              "State": "NOT_STARTED"
+            }
+          ],
+          "Do": [
+            { "Accept": "meet_the_sawyer" },
+            { "Goto": "sawyer_brief" }
+          ]
+        },
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.sawyer_intro.opt.back",
+          "Style": "neutral",
+          "Goto": "temple_talk"
+        }
+      ],
+      "IncludeOptions": ["hub_footer"]
+    },
+    "sawyer_brief": {
+      "TextKey": "dialogue.mmo_hub_intro.sawyer_brief.text",
+      "Tags": ["Temple_Landing"],
+      "IncludeOptions": ["hub_footer"]
     }
   },
   "Fragments": {
-    "hub_footer": [
+    "temple_pointers": {
+      "$Comment": "Who else is standing on this landing. Placed on every screen tagged Temple_Landing, between that screen's own lines and its footer; each line hides itself once its errand is taken, so the group empties on its own. Tag a new landing screen the same way and it gets both pointers.",
+      "On": { "Tags": ["Temple_Landing"] },
+      "Options": [
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.mastery_who",
+          "Style": "neutral",
+          "Conditions": [
+            {
+              "Type": "Gate",
+              "Requirements": {
+                "Quests": ["meet_at_the_temple"],
+                "Factors": [
+                  { "Factor": "mmoskilltree:feature", "Param": "Mastery", "Min": 1 }
+                ]
+              }
+            },
+            {
+              "Type": "QuestState",
+              "Quest": "meet_the_mastery_trainer",
+              "State": "NOT_STARTED"
+            }
+          ],
+          "Goto": "mastery_intro"
+        },
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.sawyer_who",
+          "Style": "neutral",
+          "Conditions": [
+            {
+              "Type": "Gate",
+              "Requirements": {
+                "Quests": ["meet_at_the_temple"],
+                "Factors": [
+                  { "Factor": "ziggfreedcommon:quest_known", "Param": "meet_the_sawyer", "Min": 1 },
+                  { "Factor": "mmoskilltree:feature", "Param": "Stations", "Min": 1 }
+                ]
+              }
+            },
+            {
+              "Type": "QuestState",
+              "Quest": "meet_the_sawyer",
+              "State": "NOT_STARTED"
+            }
+          ],
+          "Goto": "sawyer_intro"
+        }
+      ]
+    },
+    "hub_footer": {
+      "$Comment": "The full footer: the two quest lines, then everything open_menu says, included rather than restated so the temple line is written once.",
+      "Options": [
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.returned",
+          "Style": "accept",
+          "Conditions": [{ "Type": "HasReadyToTurnIn" }],
+          "Open": "Quests"
+        },
+        {
+          "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+          "Style": "neutral",
+          "Open": "Quests"
+        }
+      ],
+      "Include": ["open_menu"]
+    },
+    "open_menu": [
       {
-        "LabelKey": "dialogue.mmo_hub_intro.opt.returned",
-        "Style": "accept",
-        "Conditions": [{ "Type": "HasReadyToTurnIn" }],
-        "Open": { "Type": "Quests", "Npc": "mmo_hub" }
-      },
-      {
-        "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
-        "Style": "neutral",
-        "Conditions": [{ "Type": "HasOfferableQuests" }],
-        "Goto": "quests_offer"
-      },
-      {
-        "LabelKey": "dialogue.mmo_hub_intro.opt.quests",
+        "LabelKey": "dialogue.mmo_hub_intro.opt.temple_where",
         "Style": "neutral",
         "Conditions": [
-          { "Type": "Not", "Of": [{ "Type": "HasOfferableQuests" }] }
+          { "Type": "QuestState", "Quest": "meet_at_the_temple", "State": "NOT_STARTED" },
+          {
+            "Type": "Not",
+            "Of": [{ "Type": "World", "Where": { "GameplayConfig": ["ForgottenTemple"] } }]
+          }
         ],
-        "Open": { "Type": "Quests", "Npc": "mmo_hub" }
+        "Do": [{ "Accept": "meet_at_the_temple" }, { "Goto": "temple_brief" }]
       },
-      { "LabelKey": "dialogue.mmo_hub_intro.menu.opt.open", "Open": "Mmo_Hub" }
-    ],
-    "open_menu": [
       { "LabelKey": "dialogue.mmo_hub_intro.menu.opt.open", "Open": "Mmo_Hub" }
     ]
   }

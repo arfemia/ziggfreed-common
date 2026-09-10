@@ -105,6 +105,12 @@ public abstract class DialogueAction {
      * and lifetime of that name live. Nothing about the storage is repeated at the use site.
      */
     public abstract static class MemoryAction extends DialogueAction {
+
+        /** What the {@code Memory} leaf of both memory actions means, said once. */
+        static final String MEMORY_DOC =
+                "A name declared under Memories. Outside the worlds that declaration's Where names, this "
+                        + "write does nothing and the read answers forgotten.";
+
         @Nullable protected String memory;
 
         /** The declared memory name this action writes, or null when unauthored. */
@@ -119,7 +125,8 @@ public abstract class DialogueAction {
     public static final class Remember extends MemoryAction {
         public static final BuilderCodec<Remember> CODEC = BuilderCodec.builder(Remember.class, Remember::new)
                 .append(new KeyedCodec<>("Memory", Codec.STRING, false),
-                        (a, v) -> a.memory = v, a -> a.memory).add()
+                        (a, v) -> a.memory = v, a -> a.memory)
+                .documentation(MEMORY_DOC).add()
                 .build();
     }
 
@@ -131,7 +138,8 @@ public abstract class DialogueAction {
     public static final class Forget extends MemoryAction {
         public static final BuilderCodec<Forget> CODEC = BuilderCodec.builder(Forget.class, Forget::new)
                 .append(new KeyedCodec<>("Memory", Codec.STRING, false),
-                        (a, v) -> a.memory = v, a -> a.memory).add()
+                        (a, v) -> a.memory = v, a -> a.memory)
+                .documentation(MEMORY_DOC).add()
                 .build();
     }
 
@@ -139,7 +147,9 @@ public abstract class DialogueAction {
     public static final class Goto extends DialogueAction {
         public static final BuilderCodec<Goto> CODEC = BuilderCodec.builder(Goto.class, Goto::new)
                 .append(new KeyedCodec<>("Node", Codec.STRING, false),
-                        (a, v) -> a.node = v, a -> a.node).add()
+                        (a, v) -> a.node = v, a -> a.node)
+                .documentation("The screen to show next, by its name under Nodes. The conversation "
+                        + "re-renders there; the screen's own Conditions are not re-checked on a jump.").add()
                 .build();
 
         @Nullable protected String node;

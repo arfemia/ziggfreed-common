@@ -1,5 +1,6 @@
 package com.ziggfreed.common.dialogue;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -10,6 +11,7 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.dialogue.schema.DialogueFragmentConfig;
+import com.ziggfreed.common.dialogue.schema.DialogueFragmentGroup;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
 import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
 import com.ziggfreed.common.dialogue.schema.NpcDialogue;
@@ -78,9 +80,14 @@ public final class DialogueTestSupport {
     static final class TestDestination extends Destination {
     }
 
-    /** Install shared option groups, standing in for the files under {@code DialogueFragments/}. */
+    /**
+     * Install shared option groups, standing in for the files under {@code DialogueFragments/}. A
+     * file is lines only, so each entry is installed as the pull-only group a file folds to.
+     */
     static void shareFragments(@Nonnull Map<String, DialogueOption[]> groups) {
-        DialogueFragmentConfig.getInstance().mergePackLayer(groups);
+        Map<String, DialogueFragmentGroup> folded = new LinkedHashMap<>();
+        groups.forEach((name, options) -> folded.put(name, DialogueFragmentGroup.ofOptions(options)));
+        DialogueFragmentConfig.getInstance().mergePackLayer(folded);
     }
 
     /**

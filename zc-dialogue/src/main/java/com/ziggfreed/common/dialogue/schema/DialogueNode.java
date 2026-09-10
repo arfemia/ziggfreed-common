@@ -22,6 +22,7 @@ public class DialogueNode {
     @Nullable DialogueCondition[] conditions;
     @Nullable DialogueOption[] options;
     @Nullable String[] includeOptions;
+    @Nullable String[] tags;
 
     /**
      * The option list once this screen's shared groups have been appended, or null while it has none
@@ -45,6 +46,17 @@ public class DialogueNode {
     }
 
     /**
+     * What kind of screen this is, as the words a shared group's {@code On.Tags} selects by
+     * ({@code Temple_Landing}, {@code Steady}): a local statement about the screen in front of the
+     * author, so a group placed on the tag reaches this screen without either naming the other.
+     * Matched without regard to case. Empty when the screen declares none.
+     */
+    @Nonnull
+    public List<String> getTags() {
+        return tags == null ? Collections.emptyList() : List.of(tags);
+    }
+
+    /**
      * A COPY of this screen carrying {@code spliced} as its option list, everything else unchanged.
      * Used once, right after decode, so the conversation that pulled the shared lines in gets its own
      * screen and the one it inherited from keeps hers.
@@ -57,6 +69,7 @@ public class DialogueNode {
         copy.conditions = conditions;
         copy.options = options;
         copy.includeOptions = includeOptions;
+        copy.tags = tags;
         copy.splicedOptions = spliced;
         return copy;
     }

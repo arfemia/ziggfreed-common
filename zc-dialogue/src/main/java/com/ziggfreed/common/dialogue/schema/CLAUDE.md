@@ -7,10 +7,16 @@ package-private internals of `DialogueOption`, `DialogueStart` and `DialogueSuga
 internals public. The engine's whole story is the parent [`../CLAUDE.md`](../CLAUDE.md).
 
 - **[`NpcDialogue`](NpcDialogue.java)** - the decoded conversation (id, nodes, start, memories,
-  fragments; `spliceFragments` is the post-decode shared-group fold).
+  fragments; `spliceFragments` is the post-decode shared-group fold: a screen's own lines, then
+  every group whose `On` selects it, then every group its `IncludeOptions` names, each group's
+  lines being its own followed by what it `Include`s, with a loop dropped where it re-enters).
+- **[`DialogueFragmentGroup`](DialogueFragmentGroup.java)** / **[`NodeSelector`](NodeSelector.java)**
+  - one `Fragments` entry (a bare array of lines, or `{Options, On, Include}`) and the
+  `{Nodes, Tags, Exclude}` selector that says which screens get it; the array-or-object value codec
+  lives on the group and inherits per leaf in its object form, whole in its array form.
 - **[`DialogueNode`](DialogueNode.java)** / **[`DialogueOption`](DialogueOption.java)** - a screen
-  and its rows; a node self-gates with `Conditions`, an option folds its shorthand into
-  `getActions()`.
+  and its rows; a node self-gates with `Conditions` and declares what kind of screen it is with
+  `Tags`, an option folds its shorthand into `getActions()`.
 - **[`DialogueStart`](DialogueStart.java)** - the declared `{First, Quests, Then, Fallback}`
   sections; the ladder order is the engine's, fixed.
 - **[`DialogueTypeTable`](DialogueTypeTable.java)** - the process-wide table of every registered
@@ -22,7 +28,9 @@ internals public. The engine's whole story is the parent [`../CLAUDE.md`](../CLA
 - **[`DialogueChrome`](DialogueChrome.java)** / **[`DialogueHeaders`](DialogueHeaders.java)** -
   the per-character page chrome override and the additive header-note vocabulary.
 - **[`DialogueFragmentConfig`](DialogueFragmentConfig.java)** - the server-wide shared option
-  groups (`Server/ZiggfreedCommon/DialogueFragments/`), looked up after a conversation's own.
+  groups (`Server/ZiggfreedCommon/DialogueFragments/`), looked up after a conversation's own;
+  a file is lines only (pull-only: no `On`, no `Include`), folded to a group so the splice reads
+  one type.
 - The conversation fields resolve their codecs out of the table at first read through the shared
   [`codec/DeferredCodec`](../../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/codec/DeferredCodec.java),
   which forwards the `InheritCodec` merge question to its delegate.

@@ -16,8 +16,8 @@ import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.DeferredCodec;
 import com.ziggfreed.common.dialogue.schema.DialogueChrome;
 import com.ziggfreed.common.dialogue.state.DialogueMemory;
+import com.ziggfreed.common.dialogue.schema.DialogueFragmentGroup;
 import com.ziggfreed.common.dialogue.schema.DialogueNode;
-import com.ziggfreed.common.dialogue.schema.DialogueOption;
 import com.ziggfreed.common.dialogue.schema.DialogueStart;
 import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
 import com.ziggfreed.common.dialogue.schema.NpcDialogue;
@@ -30,10 +30,12 @@ import com.ziggfreed.common.dialogue.schema.NpcDialogue;
  * {
  *   "Memories": { "greeted": { "World": "*Forgotten_Temple*" } },
  *   "Start": { "Fallback": "greet" },
- *   "Fragments": { "footer": [ { "LabelKey": "...", "Close": true } ] },
+ *   "Fragments": { "footer": [ { "LabelKey": "...", "Close": true } ],
+ *                  "pointers": { "On": { "Tags": ["Steady"] }, "Options": [ ... ] } },
  *   "Nodes": {
  *     "greet": { "TextKey": "dialogue.guide.greet.text",
  *                "Options": [ { "LabelKey": "...", "Accept": "getting_started", "Goto": "brief" } ],
+ *                "Tags": [ "Steady" ],
  *                "IncludeOptions": [ "footer" ] } }
  * }
  * }</pre>
@@ -68,7 +70,7 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable private DialogueStart start;
     @Nullable private Map<String, DialogueNode> nodes;
     @Nullable private Map<String, DialogueMemory> memories;
-    @Nullable private Map<String, DialogueOption[]> fragments;
+    @Nullable private Map<String, DialogueFragmentGroup> fragments;
     @Nullable private String[] header;
     @Nullable private DialogueChrome chrome;
 
@@ -87,7 +89,7 @@ public final class ZcDialogueAsset implements JsonAssetWithMap<String, DefaultAs
             new DeferredCodec<>(() -> DialogueTypeTable.get().nodesCodec());
     private static final DeferredCodec<Map<String, DialogueMemory>> MEMORIES =
             new DeferredCodec<>(() -> DialogueTypeTable.get().memoriesCodec());
-    private static final DeferredCodec<Map<String, DialogueOption[]>> FRAGMENTS =
+    private static final DeferredCodec<Map<String, DialogueFragmentGroup>> FRAGMENTS =
             new DeferredCodec<>(() -> DialogueTypeTable.get().fragmentsCodec());
 
     public static final AssetBuilderCodec<String, ZcDialogueAsset> CODEC = AssetBuilderCodec.builder(

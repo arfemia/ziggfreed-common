@@ -163,7 +163,10 @@ public final class InheritMapCodec<V> implements Codec<Map<String, V>>, InheritC
             extraInfo.pushKey(key);
             try {
                 V parentValue = parent != null ? parent.get(key) : null;
-                if (parentValue != null && valueCodec instanceof InheritCodec) {
+                // The BSON merge form takes a document, so a value codec that reads an array as
+                // well as an object (a dialogue's fragment group) merges its object form and
+                // replaces whole with its array form, exactly as its JSON path does.
+                if (parentValue != null && valueCodec instanceof InheritCodec && value.isDocument()) {
                     out.put(key, ((InheritCodec<V>) valueCodec).decodeAndInherit(value.asDocument(), parentValue, extraInfo));
                 } else {
                     out.put(key, valueCodec.decode(value, extraInfo));

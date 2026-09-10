@@ -12,6 +12,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.ziggfreed.common.codec.DeferredCodec;
+import com.ziggfreed.common.dialogue.schema.DialogueFragmentGroup;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
 import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
 
@@ -25,9 +26,14 @@ import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
  *     { "LabelKey": "dialogue.shared.farewell", "Close": true } ] }
  * }</pre>
  *
- * <p>Any screen pulls it in by name with {@code "IncludeOptions": ["<name>"]}, and the group's lines
- * are appended after that screen's own - a footer. Write a farewell, an "open the menu" row or a
- * "where was I again?" line once here instead of in every conversation that ends with it.
+ * <p>Any screen pulls it in by name with {@code "IncludeOptions": ["<name>"]}, and any group inside a
+ * conversation folds it in with {@code "Include": ["<name>"]}; the lines are appended after the
+ * screen's own - a footer. Write a farewell, an "open the menu" row or a "where was I again?" line
+ * once here instead of in every conversation that ends with it.
+ *
+ * <p>A file carries lines and nothing else. It never names the screens it lands on, so no file can
+ * put a line into another conversation's screen uninvited; a group that names its screens by tag is
+ * written inside the conversation those screens belong to, under its {@code Fragments}.
  *
  * <p>The options are the same rows a screen authors, read by the same codec, so every shorthand and
  * every condition works here exactly as it does inside a conversation.
@@ -95,5 +101,14 @@ public final class DialogueFragmentAsset
     @Nullable
     public DialogueOption[] getOptions() {
         return options;
+    }
+
+    /**
+     * The file as the group the engine splices: its lines, landing nowhere on their own. Null when
+     * the file declared no lines, so the fold carries nothing for it.
+     */
+    @Nullable
+    public DialogueFragmentGroup getGroup() {
+        return options == null ? null : DialogueFragmentGroup.ofOptions(options);
     }
 }

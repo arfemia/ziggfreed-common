@@ -3,9 +3,12 @@ package com.ziggfreed.common.dialogue.schema;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,51 +37,74 @@ public class NpcDialogue {
     @Nullable DialogueStart start;
     @Nullable Map<String, DialogueNode> nodes;
     @Nullable Map<String, DialogueMemory> memories;
-    @Nullable Map<String, DialogueOption[]> fragments;
+    @Nullable Map<String, DialogueFragmentGroup> fragments;
     @Nullable List<String> headerSources;
     @Nullable DialogueChrome chrome;
+
+    /**
+     * The include cycles already reported, one line per conversation and re-entered group for the
+     * life of the process: the splice runs on every read of the file, and a cycle the audit also
+     * names is worth one line, not one per boot per reload.
+     */
+    private static final Set<String> WARNED_CYCLES = ConcurrentHashMap.newKeySet();
 
     public NpcDialogue() {
     }
 
     /**
-     * The shared option groups this conversation declares, keyed by name, for screens that name one
-     * with {@code IncludeOptions}. Empty when it declares none.
+     * The shared option groups this conversation declares, keyed by name, in the order written: for
+     * screens that name one with {@code IncludeOptions}, and for the groups that name their screens
+     * themselves through {@code On}. Empty when it declares none.
      */
     @Nonnull
-    public Map<String, DialogueOption[]> getFragments() {
+    public Map<String, DialogueFragmentGroup> getFragments() {
         return fragments == null ? Collections.emptyMap() : fragments;
     }
 
     /** Direct (non-codec) construction: declare the shared option groups from Java. */
-    public void setFragments(@Nullable Map<String, DialogueOption[]> fragments) {
+    public void setFragments(@Nullable Map<String, DialogueFragmentGroup> fragments) {
         this.fragments = fragments;
     }
 
     /**
-     * Append each screen's named shared option groups to its own options, once, right after the
-     * whole conversation has been read (so a screen inherited from a parent picks up the child's
-     * groups too, and an unknown name is reported against the conversation that used it).
+     * Give each screen the shared option groups it gets, once, right after the whole conversation
+     * has been read (so a screen inherited from a parent picks up the child's groups too, and an
+     * unknown name is reported against the conversation that used it).
      *
-     * <p>A group is appended AFTER the screen's own options, which is why it reads as a footer: the
-     * lines that belong to this beat come first, the ones every beat repeats come last. The same
-     * option object is shared by every screen that names the group; nothing about an option depends
-     * on which screen it is shown from, so there is nothing to copy.
+     * <p>A screen gets a group two ways, and the result reads in a fixed order: the screen's own
+     * {@code Options} first, then every group whose {@code On} selects the screen (in the order the
+     * groups are declared), then every group the screen's {@code IncludeOptions} names (in the order
+     * written). A group reaching a screen both ways is spliced once, where the screen named it. That
+     * keeps the screen's own indices exactly where the file put them, and keeps a footer last. The
+     * same option object is shared by every screen that gets the group; nothing about an option
+     * depends on which screen it is shown from, so there is nothing to copy.
+     *
+     * <p>A group's lines are its own {@code Options} followed by the lines of every group its
+     * {@code Include} names, recursively, in the order written. A group met again on the way down
+     * from itself is dropped at that point rather than followed, with one warning; the audit reports
+     * the same cycle as a finding.
      *
      * <p>A name is looked for in this conversation's own {@code Fragments} first and in the shared
      * {@code DialogueFragments} files second, so a conversation that wants its own version of a
      * server-wide footer writes one under its own {@code Fragments} and that is the one its screens
-     * get. Only a name neither answers is reported.
+     * get. Only a name neither answers is reported. A shared file is pull-only: it has no {@code On}
+     * and lands only where a screen or a group names it.
      */
     public void spliceFragments() {
         if (nodes == null || nodes.isEmpty()) {
             return;
         }
-        Map<String, DialogueOption[]> declared = getFragments();
+        Map<String, DialogueFragmentGroup> declared = getFragments();
         Map<String, DialogueNode> spliced = null;
         for (Map.Entry<String, DialogueNode> entry : nodes.entrySet()) {
             DialogueNode node = entry.getValue();
-            if (node == null || node.includeOptions == null || node.includeOptions.length == 0) {
+            if (node == null) {
+                continue;
+            }
+            String nodeId = entry.getKey();
+            List<String> pulled = node.getIncludeOptions();
+            List<String> pushed = pushedGroups(declared, nodeId, node, pulled);
+            if (pulled.isEmpty() && pushed.isEmpty()) {
                 continue;
             }
             // Start from what the screen itself AUTHORED, never from an earlier splice of it: under
@@ -86,36 +112,109 @@ public class NpcDialogue {
             // when the parent was read, and appending to that would show the shared lines twice here
             // and change what the parent conversation says.
             List<DialogueOption> merged = new ArrayList<>(node.getAuthoredOptions());
-            for (String name : node.includeOptions) {
-                DialogueOption[] group = resolveFragment(declared, name);
-                if (group == null) {
-                    unknownFragment(entry.getKey(), name);
-                    continue;
-                }
-                Collections.addAll(merged, group);
+            for (String name : pushed) {
+                appendGroup(declared, name, nodeId, merged);
+            }
+            for (String name : pulled) {
+                appendGroup(declared, name, nodeId, merged);
             }
             // And write the result onto a COPY, into a map of this conversation's own, so a screen
             // (or a whole screen map) shared with the conversation it inherits from is never touched.
             if (spliced == null) {
                 spliced = new LinkedHashMap<>(nodes);
             }
-            spliced.put(entry.getKey(), node.withSplicedOptions(merged.toArray(new DialogueOption[0])));
+            spliced.put(nodeId, node.withSplicedOptions(merged.toArray(new DialogueOption[0])));
         }
         if (spliced != null) {
             nodes = spliced;
         }
     }
 
-    /** This conversation's own group of that name, else the shared file of that name, else null. */
+    /**
+     * The names of this conversation's own groups whose {@code On} selects the screen, in
+     * declaration order, leaving out any the screen already names itself (those are spliced where the
+     * screen put them).
+     */
+    @Nonnull
+    private static List<String> pushedGroups(@Nonnull Map<String, DialogueFragmentGroup> declared,
+                                             @Nonnull String nodeId, @Nonnull DialogueNode node,
+                                             @Nonnull List<String> pulled) {
+        List<String> pushed = new ArrayList<>();
+        for (Map.Entry<String, DialogueFragmentGroup> group : declared.entrySet()) {
+            DialogueFragmentGroup value = group.getValue();
+            if (value == null || value.getOn() == null || !value.getOn().selects(nodeId, node.getTags())) {
+                continue;
+            }
+            if (NodeSelector.containsIgnoreCase(pulled, group.getKey())) {
+                continue;
+            }
+            pushed.add(group.getKey());
+        }
+        return pushed;
+    }
+
+    /** Append the lines of the group {@code name} (own lines, then its includes) onto {@code into}. */
+    private void appendGroup(@Nonnull Map<String, DialogueFragmentGroup> declared, @Nullable String name,
+                             @Nonnull String nodeId, @Nonnull List<DialogueOption> into) {
+        DialogueFragmentGroup group = resolveFragment(declared, name);
+        if (group == null) {
+            unknownFragment(nodeId, name);
+            return;
+        }
+        Set<String> onTheWayDown = new LinkedHashSet<>();
+        onTheWayDown.add(NodeSelector.fold(name));
+        expand(declared, group, nodeId, onTheWayDown, into);
+    }
+
+    /**
+     * The lines of {@code group}, then the lines of each group it includes, in order. A name already
+     * on the way down from itself is a cycle: it is dropped here, once, rather than followed, so a
+     * file that closes the loop still loads with every line before the loop in place.
+     */
+    private void expand(@Nonnull Map<String, DialogueFragmentGroup> declared,
+                        @Nonnull DialogueFragmentGroup group, @Nonnull String nodeId,
+                        @Nonnull Set<String> onTheWayDown, @Nonnull List<DialogueOption> into) {
+        into.addAll(group.getOptions());
+        for (String included : group.getInclude()) {
+            if (included == null) {
+                continue;
+            }
+            String folded = NodeSelector.fold(included);
+            if (onTheWayDown.contains(folded)) {
+                includeCycle(included, onTheWayDown);
+                continue;
+            }
+            DialogueFragmentGroup next = resolveFragment(declared, included);
+            if (next == null) {
+                unknownFragment(nodeId, included);
+                continue;
+            }
+            onTheWayDown.add(folded);
+            expand(declared, next, nodeId, onTheWayDown, into);
+            onTheWayDown.remove(folded);
+        }
+    }
+
+    /**
+     * This conversation's own group of that name, else the shared file of that name, else null. A
+     * local name is matched as written first and then without regard to case, so the two lookups
+     * answer the same spelling rule.
+     */
     @Nullable
-    private static DialogueOption[] resolveFragment(@Nonnull Map<String, DialogueOption[]> declared,
-                                                    @Nullable String name) {
-        if (name == null) {
+    private static DialogueFragmentGroup resolveFragment(@Nonnull Map<String, DialogueFragmentGroup> declared,
+                                                         @Nullable String name) {
+        if (name == null || name.isBlank()) {
             return null;
         }
-        DialogueOption[] local = declared.get(name);
+        DialogueFragmentGroup local = declared.get(name);
         if (local != null) {
             return local;
+        }
+        String folded = NodeSelector.fold(name);
+        for (Map.Entry<String, DialogueFragmentGroup> entry : declared.entrySet()) {
+            if (entry.getValue() != null && NodeSelector.fold(entry.getKey()).equals(folded)) {
+                return entry.getValue();
+            }
         }
         return DialogueFragmentConfig.getInstance().group(name);
     }
@@ -126,6 +225,20 @@ public class NpcDialogue {
                     "[Dialogue] '%s' screen '%s' pulls in shared options '%s', which neither this"
                             + " conversation's Fragments nor any DialogueFragments file provides",
                     id, nodeId, String.valueOf(name));
+        } catch (Throwable ignored) {
+            // a unit JVM with no log manager throws an Error from the fluent logger; swallow it.
+        }
+    }
+
+    private void includeCycle(@Nonnull String reentered, @Nonnull Set<String> onTheWayDown) {
+        if (!WARNED_CYCLES.add(id + ":" + NodeSelector.fold(reentered))) {
+            return;
+        }
+        try {
+            CommonLog.LOGGER.atWarning().log(
+                    "[Dialogue] '%s' shared option group '%s' includes itself by way of %s; the"
+                            + " re-entry is dropped so the file still loads, but remove the loop",
+                    id, reentered, onTheWayDown);
         } catch (Throwable ignored) {
             // a unit JVM with no log manager throws an Error from the fluent logger; swallow it.
         }

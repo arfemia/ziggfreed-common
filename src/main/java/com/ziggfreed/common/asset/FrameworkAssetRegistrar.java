@@ -137,7 +137,7 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, DialogueFragmentAsset.class,
                 (LoadedAssetsEvent<String, DialogueFragmentAsset, DefaultAssetMap<String, DialogueFragmentAsset>> ev) ->
                         DialogueFragmentConfig.getInstance().mergePackLayer(
-                                AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.getOptions())));
+                                AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.getGroup())));
 
         // --- Dialogues (Pattern A) - one authored conversation per file, with native Parent
         //     inheritance and a per-screen merge, so a child conversation restates one screen and

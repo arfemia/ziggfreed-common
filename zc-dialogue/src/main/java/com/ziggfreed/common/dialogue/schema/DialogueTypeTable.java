@@ -26,10 +26,12 @@ import com.hypixel.hytale.codec.schema.SchemaContext;
 import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.state.DialogueMemory;
 import com.ziggfreed.common.dialogue.state.DialogueOnce;
+import com.ziggfreed.common.dialogue.style.DialogueOptionStyle;
 import com.ziggfreed.common.dialogue.type.CombinatorCodecs;
 import com.ziggfreed.common.dialogue.type.DialogueAction;
 import com.ziggfreed.common.dialogue.type.DialogueActionType;
@@ -63,9 +65,13 @@ public final class DialogueTypeTable {
 
     private static final DialogueTypeTable INSTANCE = new DialogueTypeTable();
 
-    /** The option fields the engine itself owns; a shorthand key may not take one of these. */
+    /**
+     * The option fields the engine itself owns, plus the one key a {@code Do} atom owns
+     * ({@link DialogueSugarValues#ACTION_KEY}); a shorthand key may not take any of these.
+     */
     private static final Set<String> RESERVED_OPTION_KEYS = Set.of(
-            "LabelKey", "Label", "Conditions", "Actions", "Presentation", "Style", "Once", "OnceId", "Do");
+            "LabelKey", "Label", "Conditions", "Actions", "Presentation", "Style", "Once", "OnceId", "Do",
+            DialogueSugarValues.ACTION_KEY);
 
     // The in-game editor shows one of these beside each conversation field. They live here rather
     // than at either use site because the same four fields are read in two places - as the top-level
@@ -92,9 +98,11 @@ public final class DialogueTypeTable {
 
     /** What the {@code Fragments} field is for. */
     public static final String FRAGMENTS_DOC =
-            "Shared option groups, keyed by name, that a screen pulls in with IncludeOptions. Use one "
-                    + "for a footer every screen repeats. A group named here is private to this "
-                    + "conversation and wins over a file of the same name under DialogueFragments.";
+            "Shared option groups, keyed by name. A bare array is the group's lines, which a screen pulls "
+                    + "in with IncludeOptions; use one for a footer every screen repeats. An object adds "
+                    + "On (which screens get the group by id or by tag, without naming it) and Include "
+                    + "(other groups whose lines follow this group's own). A group named here is private "
+                    + "to this conversation and wins over a file of the same name under DialogueFragments.";
 
     @Nonnull
     public static DialogueTypeTable get() {
@@ -229,9 +237,12 @@ public final class DialogueTypeTable {
         return assembled().memoriesCodec;
     }
 
-    /** The assembled {@code Fragments} codec: the shared option groups, merged per key on inherit. */
+    /**
+     * The assembled {@code Fragments} codec: the shared option groups, merged per key on inherit,
+     * each read as a bare array of lines or as the group object (see {@link DialogueFragmentGroup}).
+     */
     @Nonnull
-    public Codec<Map<String, DialogueOption[]>> fragmentsCodec() {
+    public Codec<Map<String, DialogueFragmentGroup>> fragmentsCodec() {
         decoded = true;
         return assembled().fragmentsCodec;
     }
@@ -267,7 +278,7 @@ public final class DialogueTypeTable {
         final Codec<DialogueStart> startCodec;
         final Codec<Map<String, DialogueNode>> nodesCodec;
         final Codec<Map<String, DialogueMemory>> memoriesCodec;
-        final Codec<Map<String, DialogueOption[]>> fragmentsCodec;
+        final Codec<Map<String, DialogueFragmentGroup>> fragmentsCodec;
         final BuilderCodec<NpcDialogue> dialogueCodec;
         final DialogueSugar sugar;
 
@@ -275,7 +286,7 @@ public final class DialogueTypeTable {
                   Codec<DialogueOption[]> optionsArray, Codec<DialogueStart> startCodec,
                   Codec<Map<String, DialogueNode>> nodesCodec,
                   Codec<Map<String, DialogueMemory>> memoriesCodec,
-                  Codec<Map<String, DialogueOption[]>> fragmentsCodec,
+                  Codec<Map<String, DialogueFragmentGroup>> fragmentsCodec,
                   BuilderCodec<NpcDialogue> dialogueCodec, DialogueSugar sugar) {
             this.actionsArray = actionsArray;
             this.conditionsArray = conditionsArray;
@@ -307,9 +318,17 @@ public final class DialogueTypeTable {
         DialogueSugar sugar = new DialogueSugar(collectLeaves());
 
         // The Do atom carries the same shorthand keys an option does, so the two are built from one
-        // description of the vocabulary and cannot drift apart.
+        // description of the vocabulary and cannot drift apart. It carries one more key of its own,
+        // Action: a native step written in full, so a step with no shorthand (MarkTalked by design,
+        // any consumer action that registered none) keeps its place in the order the array spells.
         BuilderCodec.Builder<DialogueSugarValues> atomBuilder =
-                BuilderCodec.builder(DialogueSugarValues.class, DialogueSugarValues::new);
+                BuilderCodec.builder(DialogueSugarValues.class, DialogueSugarValues::new)
+                        .append(new KeyedCodec<>(DialogueSugarValues.ACTION_KEY, actionCodec, false),
+                                (values, action) -> values.put(DialogueSugarValues.ACTION_KEY, action),
+                                DialogueSugarValues::action)
+                        .documentation("One native step, written in full with its Type, run in this atom's "
+                                + "place: for a step that has no shorthand of its own, such as MarkTalked. "
+                                + "One step per atom; write the shorthand in an atom of its own.").add();
         appendSugarFields(sugar, atomBuilder, values -> values);
         BuilderCodec<DialogueSugarValues> atomCodec = atomBuilder.build();
 
@@ -326,7 +345,11 @@ public final class DialogueTypeTable {
                         .append(new KeyedCodec<>("Presentation", DialogueOption.Presentation.CODEC, false),
                                 (o, v) -> o.presentation = v, o -> o.presentation).add()
                         .append(new KeyedCodec<>("Style", Codec.STRING, false),
-                                (o, v) -> o.styleKind = v, o -> o.styleKind).add()
+                                (o, v) -> o.styleKind = v, o -> o.styleKind)
+                        .metadata(EditorSchema.oneOf(DialogueOptionStyle.keys()))
+                        .documentation("The look this line wears, by role: accept, turnin, continue, "
+                                + "neutral or farewell. Leave it out and the look follows what the line "
+                                + "does; a value outside those five is ignored.").add()
                         .append(new KeyedCodec<>("Once", DialogueOnce.CODEC, false),
                                 (o, v) -> o.once = v, o -> o.once).add()
                         .append(new KeyedCodec<>("OnceId", Codec.STRING, false),
@@ -368,6 +391,13 @@ public final class DialogueTypeTable {
                 .documentation("Names of shared option groups from this dialogue's Fragments, appended after "
                         + "this screen's own Options. Write a footer such as 'open the menu / goodbye' once "
                         + "and name it from every screen that needs it.").add()
+                .appendInherited(new KeyedCodec<>("Tags", Codec.STRING_ARRAY, false),
+                        (n, v) -> n.tags = v, n -> n.tags,
+                        (child, parent) -> child.tags = parent.tags)
+                .documentation("What kind of screen this is, as words a shared group's On.Tags selects by "
+                        + "(Temple_Landing, Steady). A group placed on a tag lands on every screen "
+                        + "carrying it, between the screen's own Options and its IncludeOptions, so tag "
+                        + "the screen in front of you and the group finds it.").add()
                 .build();
 
         BuilderCodec<DialogueStart.Beat> beatCodec =
@@ -422,8 +452,11 @@ public final class DialogueTypeTable {
         Codec<Map<String, DialogueNode>> nodesCodec = new InheritMapCodec<>(nodeCodec, LinkedHashMap::new);
         Codec<Map<String, DialogueMemory>> memoriesCodec =
                 new InheritMapCodec<>(DialogueMemory.CODEC, LinkedHashMap::new);
-        Codec<Map<String, DialogueOption[]>> fragmentsCodec =
-                new InheritMapCodec<>(optionsArray, LinkedHashMap::new);
+        // A group reads as a bare array of lines or as the group object; the value codec is an
+        // inheriting one, so under Parent a child's object form merges per leaf (restate On alone,
+        // keep the parent's Options) while a child's array form replaces the group whole.
+        Codec<Map<String, DialogueFragmentGroup>> fragmentsCodec =
+                new InheritMapCodec<>(DialogueFragmentGroup.valueCodec(optionsArray), LinkedHashMap::new);
 
         BuilderCodec<NpcDialogue> dialogueCodec = BuilderCodec.builder(NpcDialogue.class, NpcDialogue::new)
                 .appendInherited(new KeyedCodec<>("Start", startCodec, false),

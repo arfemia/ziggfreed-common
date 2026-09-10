@@ -65,6 +65,20 @@ public enum DialogueOptionStyle {
         return null;
     }
 
+    /**
+     * Every {@link #key()} in declaration order: the whole vocabulary an option's {@code Style}
+     * leaf accepts, which is what the editor offers as its dropdown.
+     */
+    @Nonnull
+    public static String[] keys() {
+        DialogueOptionStyle[] all = values();
+        String[] keys = new String[all.length];
+        for (int i = 0; i < all.length; i++) {
+            keys[i] = all[i].key;
+        }
+        return keys;
+    }
+
     @Nonnull public String tintDefault() { return tintDefault; }
 
     @Nonnull public String tintHovered() { return tintHovered; }

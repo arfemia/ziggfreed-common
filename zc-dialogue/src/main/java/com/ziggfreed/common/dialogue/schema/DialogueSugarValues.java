@@ -8,6 +8,8 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.dialogue.type.DialogueAction;
+
 /**
  * The decoded values of the option-level SUGAR keys on one option (or on one {@code Do} atom):
  * {@code "Goto": "next"}, {@code "Accept": "intro"}, {@code "Reward": {...}} and whatever else a
@@ -27,6 +29,14 @@ public final class DialogueSugarValues {
 
     /** The empty set, for an option that authored no sugar at all. */
     public static final DialogueSugarValues EMPTY = new DialogueSugarValues();
+
+    /**
+     * The one key on a {@code Do} atom that is not a shorthand: {@code Action}, one native step
+     * written in full with its {@code Type}, so a step that has no shorthand of its own (a
+     * {@code MarkTalked}) keeps its place in the order the array spells out. It is read only on an
+     * atom, never on the option itself, which already has {@code Actions} for that.
+     */
+    public static final String ACTION_KEY = "Action";
 
     @Nullable private Map<String, Object> values;
 
@@ -92,9 +102,29 @@ public final class DialogueSugarValues {
         return values == null || values.isEmpty();
     }
 
-    /** The authored keys, in the order the codec filled them. */
+    /** The authored keys, in the order the codec filled them, {@link #ACTION_KEY} included. */
     @Nonnull
     public Set<String> keys() {
         return values == null ? Collections.emptySet() : Collections.unmodifiableSet(values.keySet());
+    }
+
+    /** The native step this atom carries under {@link #ACTION_KEY}, or null when it carries none. */
+    @Nullable
+    public DialogueAction action() {
+        Object value = own(ACTION_KEY);
+        return value instanceof DialogueAction action ? action : null;
+    }
+
+    /** True when this atom carries a shorthand key beside its native {@link #ACTION_KEY} step. */
+    public boolean mixesActionWithShorthand() {
+        if (action() == null) {
+            return false;
+        }
+        for (String key : keys()) {
+            if (!ACTION_KEY.equals(key)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

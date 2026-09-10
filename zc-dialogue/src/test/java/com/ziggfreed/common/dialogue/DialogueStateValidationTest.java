@@ -205,9 +205,12 @@ class DialogueStateValidationTest {
     @Test
     void aCleanTreeReportsNothingAboutItsState() {
         DialogueEngine engine = engine();
+        // The per-world Once and the per-world memory both sit behind a World condition on the
+        // beat that opens the screen, which is what keeps either from being reached elsewhere.
         NpcDialogue d = engine.decode("guide",
                 "{\"Memories\":{\"helped\":{\"Where\":{\"Match\":[\"emerald_wilds\"]}}},"
-                        + "\"Start\":{\"First\":[{\"Node\":\"g\",\"Once\":{\"Where\":{\"Match\":[\"emerald_wilds\"]}}}]},"
+                        + "\"Start\":{\"First\":[{\"Node\":\"g\",\"Once\":{\"Where\":{\"Match\":[\"emerald_wilds\"]}},"
+                        + "\"When\":[{\"Type\":\"World\",\"Where\":{\"Match\":[\"emerald_wilds\"]}}]}]},"
                         + "\"Nodes\":{\"g\":{\"Options\":["
                         + "{\"LabelKey\":\"a\",\"Once\":{},"
                         + "\"Conditions\":[{\"Type\":\"NotRemembered\",\"Memory\":\"helped\"}],"
@@ -216,5 +219,68 @@ class DialogueStateValidationTest {
 
         List<String> codes = codes(DialogueStructureValidator.validateAll(List.of(d)));
         assertTrue(codes.isEmpty(), codes.toString());
+    }
+
+    // ==================== a per-world memory written from nowhere in particular ====================
+
+    /**
+     * A memory kept per world is written by a {@code Remember} that does nothing outside those
+     * worlds. With no {@code World} condition on the option, its screen, or a {@code Start} beat that
+     * opens the screen, the write can be reached from anywhere and silently do nothing.
+     */
+    @Test
+    void aPerWorldMemoryWrittenWithNoWorldGateOnTheWayIsInformation() {
+        DialogueEngine engine = engine();
+        NpcDialogue d = engine.decode("guide",
+                "{\"Memories\":{\"helped\":{\"Where\":{\"Match\":[\"emerald_wilds\"]}}},"
+                        + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},"
+                        + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
+                        + "\"Conditions\":[{\"Type\":\"NotRemembered\",\"Memory\":\"helped\"}],"
+                        + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]}]}}}");
+        assertNotNull(d);
+
+        Finding found = issue(DialogueStructureValidator.validate(d), "MEMORY_SCOPE_UNGUARDED");
+        assertEquals(Severity.INFO, found.severity());
+        assertTrue(found.message().contains("'helped'") && found.message().contains("does nothing"),
+                found.message());
+    }
+
+    @Test
+    void aWorldGateOnTheOptionTheScreenOrTheOpeningBeatEachGuardsTheWrite() {
+        DialogueEngine engine = engine();
+        String memory = "{\"Memories\":{\"helped\":{\"Where\":{\"Match\":[\"emerald_wilds\"]}}},";
+        String world = "{\"Type\":\"World\",\"Where\":{\"Match\":[\"emerald_wilds\"]}}";
+        String write = "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]";
+
+        NpcDialogue onOption = engine.decode("guide", memory
+                + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},"
+                + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\",\"Conditions\":[{\"Type\":\"Not\",\"Of\":["
+                + world + "]}]," + write + "}]}}}");
+        NpcDialogue onScreen = engine.decode("guide", memory
+                + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},"
+                + "\"Nodes\":{\"g\":{\"Conditions\":[" + world + "],\"Options\":[{\"LabelKey\":\"a\","
+                + write + "}]}}}");
+        NpcDialogue onBeat = engine.decode("guide", memory
+                + "\"Start\":{\"Then\":[{\"Pick\":[{\"Node\":\"g\"}],\"When\":[" + world + "]}]},"
+                + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\"," + write + "}]}}}");
+        for (NpcDialogue d : List.of(onOption, onScreen, onBeat)) {
+            assertNotNull(d);
+            List<String> codes = codes(DialogueStructureValidator.validate(d));
+            assertFalse(codes.contains("MEMORY_SCOPE_UNGUARDED"), codes.toString());
+        }
+    }
+
+    @Test
+    void aMemoryKeptOncePerCharacterNeedsNoWorldGate() {
+        DialogueEngine engine = engine();
+        NpcDialogue d = engine.decode("guide",
+                "{\"Memories\":{\"helped\":{}},"
+                        + "\"Start\":{\"First\":[{\"Node\":\"g\"}]},"
+                        + "\"Nodes\":{\"g\":{\"Options\":[{\"LabelKey\":\"a\","
+                        + "\"Conditions\":[{\"Type\":\"NotRemembered\",\"Memory\":\"helped\"}],"
+                        + "\"Actions\":[{\"Type\":\"Remember\",\"Memory\":\"helped\"}]}]}}}");
+        assertNotNull(d);
+        List<String> codes = codes(DialogueStructureValidator.validate(d));
+        assertFalse(codes.contains("MEMORY_SCOPE_UNGUARDED"), codes.toString());
     }
 }

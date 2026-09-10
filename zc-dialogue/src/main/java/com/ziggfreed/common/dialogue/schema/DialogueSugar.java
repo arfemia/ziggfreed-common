@@ -33,6 +33,9 @@ import com.ziggfreed.common.dialogue.type.DialogueAction;
  * atoms, in array order, and its bare sugar keys are left alone - the array IS the author saying
  * "run these, in this order". Within one atom the leaves fold in {@link DialogueSugarLeaf#order()},
  * so an atom carrying two shorthands still has a defined order rather than a JSON-key-order one.
+ * An atom may also carry one native step in full under {@code Action}, which folds before any
+ * shorthand on the same atom; one step per atom is the rule, and the audit says so when an atom
+ * mixes the two.
  *
  * <p>Built by {@link DialogueTypeTable} from the registered action types' leaves.
  */
@@ -91,6 +94,10 @@ public final class DialogueSugar {
     }
 
     private void foldOne(@Nonnull DialogueSugarValues values, @Nonnull List<DialogueAction> out) {
+        DialogueAction step = values.action();
+        if (step != null) {
+            out.add(step);
+        }
         for (DialogueSugarLeaf<?> leaf : ordered) {
             Object value = values.own(leaf.key());
             if (value == null) {

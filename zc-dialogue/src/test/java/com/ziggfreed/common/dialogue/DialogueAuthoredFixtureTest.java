@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -21,6 +23,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
+import com.ziggfreed.common.dialogue.schema.DialogueFragmentGroup;
 import com.ziggfreed.common.dialogue.schema.DialogueNode;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
 import com.ziggfreed.common.dialogue.schema.DialogueSugar;
@@ -32,6 +35,7 @@ import com.ziggfreed.common.dialogue.type.DialogueActionType;
 import com.ziggfreed.common.dialogue.type.DialogueCondition;
 import com.ziggfreed.common.dialogue.type.DialogueConditionType;
 import com.ziggfreed.common.npc.NpcDestinations;
+import com.ziggfreed.common.progress.gate.GateSpec;
 
 /**
  * The conversations that are already out there must keep loading, verbatim.
@@ -39,8 +43,9 @@ import com.ziggfreed.common.npc.NpcDestinations;
  * <p>The three fixtures are shipped files - a released minigame's, the MMO jar's hub conversation,
  * and a content pack's guide - and they are read through the real asset codec, not a simplified
  * stand-in. Between them they cover every authoring shape that exists: shorthand written bare and
- * inside {@code Do}, a shorthand a MOD registered rather than the framework, shared option groups,
- * declared memories, {@code Once} as a bare flag, world gates, quest gates and per-option styling.
+ * inside {@code Do}, a shorthand a MOD registered rather than the framework, shared option groups
+ * that a screen pulls in, that place themselves by tag, and that include one another, declared
+ * memories, {@code Once} as a bare flag, world gates, quest gates and per-option styling.
  *
  * <p>They also make the ordering rule concrete. A file naming a mod's own {@code Type} can only be
  * read once that mod has registered it, which is why the stand-in vocabulary below is registered
@@ -55,8 +60,9 @@ class DialogueAuthoredFixtureTest {
 
     /**
      * The vocabulary the shipped files were authored against: the framework's own, plus stand-ins
-     * for the four conditions and three shorthands their mods register. Behaviour is irrelevant
-     * here - this test is about the SHAPE being readable.
+     * for the five conditions and three shorthands their mods register. Behaviour is irrelevant
+     * here - this test is about the SHAPE being readable - so a stand-in reads the REAL shape (the
+     * gate's {@code Requirements} is the library's own {@code GateSpec}) and answers nothing.
      */
     @Nonnull
     private static DialogueEngine engineForShippedContent() {
@@ -72,6 +78,7 @@ class DialogueAuthoredFixtureTest {
                 .condition(paramless("Engaged", Engaged.class, Engaged.CODEC))
                 .condition(paramless("HasActiveBounties", HasActiveBounties.class, HasActiveBounties.CODEC))
                 .condition(paramless("HasOfferableQuests", HasOfferableQuests.class, HasOfferableQuests.CODEC))
+                .condition(paramless("Gate", Gate.class, Gate.CODEC))
                 .action(DialogueActionType.of("OpenPlay", OpenPlay.class, OpenPlay.CODEC,
                                 (OpenPlay a, DialogueExecContext ctx, DialogueActionExecutor.Mut out) -> { })
                         .withSugar(DialogueSugar.string("Play", 15, preset -> {
@@ -129,15 +136,18 @@ class DialogueAuthoredFixtureTest {
         assertNotNull(d.getMemory("temple_greeted"));
         assertEquals("ForgottenTemple", d.getMemory("temple_greeted").getWhere().getGameplayConfig()[0]);
 
-        // The sections: the two world-gated beats outrank everything, the quest rows carry the main
-        // chain, and there is a screen of last resort.
-        assertEquals("temple_greet", d.getStart().first().get(0).getNode());
-        assertTrue(d.getStart().first().get(0).getWhen().get(0) instanceof DialogueCondition.World);
+        // The sections: the welcome outranks everything until the first quest is done, the three
+        // world-gated temple beats sit under it, the quest rows carry the main chain, and there is
+        // a screen of last resort.
+        assertEquals("greet", d.getStart().first().get(0).getNode());
+        assertTrue(d.getStart().first().get(0).getWhen().get(0) instanceof DialogueCondition.Not);
+        assertEquals("temple_greet", d.getStart().first().get(1).getNode());
+        assertTrue(d.getStart().first().get(1).getWhen().get(0) instanceof DialogueCondition.World);
         assertEquals("menu", d.getStart().fallback());
         assertTrue(d.getStart().quests().containsKey("craft_starter_tools"));
         assertEquals("tools_ready", d.getStart().quests().get("craft_starter_tools").getReady().getNode());
-        assertTrue(d.getStart().quests().get("gather_the_basics").getReady().isQuestView(),
-                "Ready written as true sends the player to the quest list rather than handing it in here");
+        assertEquals("gather_ready", d.getStart().quests().get("gather_the_basics").getReady().getNode(),
+                "every Ready row names a bespoke screen, so a hand-in is greeted by a line of its own");
 
         // Shared option groups are declared once and spliced into every screen that names them.
         assertFalse(d.getFragments().isEmpty());
@@ -147,12 +157,52 @@ class DialogueAuthoredFixtureTest {
         assertTrue(menu.getOptions().size() > menu.getIncludeOptions().size(),
                 "the screen keeps its own options and gains the shared ones");
 
-        // A Do atom pair folds to the two actions it names, in array order.
+        // The footer INCLUDES the menu tail rather than restating it, so the temple line is written
+        // once and both groups read the same on every screen.
+        DialogueFragmentGroup footer = d.getFragments().get("hub_footer");
+        assertNotNull(footer);
+        assertEquals(List.of("open_menu"), footer.getInclude());
+        assertEquals(List.of("dialogue.mmo_hub_intro.opt.returned", "dialogue.mmo_hub_intro.opt.quests",
+                        "dialogue.mmo_hub_intro.opt.temple_where", "dialogue.mmo_hub_intro.menu.opt.open"),
+                labels(menu), "the footer's own two lines, then everything open_menu says");
+
+        // The temple pointers place THEMSELVES, by tag, on the three landing screens: between each
+        // screen's own lines and the footer it names, which keeps the footer last.
+        DialogueFragmentGroup pointers = d.getFragments().get("temple_pointers");
+        assertNotNull(pointers);
+        assertNotNull(pointers.getOn());
+        assertEquals(List.of("Temple_Landing"), pointers.getOn().getTags());
+        for (String landing : List.of("temple_talk", "mastery_brief", "sawyer_brief")) {
+            DialogueNode screen = d.getNode(landing);
+            assertNotNull(screen, landing);
+            assertEquals(List.of("Temple_Landing"), screen.getTags(), landing + " is tagged");
+            assertEquals(List.of("hub_footer"), screen.getIncludeOptions(), landing + " names only the footer");
+            assertEquals(List.of("dialogue.mmo_hub_intro.opt.mastery_who", "dialogue.mmo_hub_intro.opt.sawyer_who",
+                            "dialogue.mmo_hub_intro.opt.returned", "dialogue.mmo_hub_intro.opt.quests",
+                            "dialogue.mmo_hub_intro.opt.temple_where", "dialogue.mmo_hub_intro.menu.opt.open"),
+                    labels(screen), landing + ": the two pointers above the footer's four lines");
+        }
+        assertEquals(List.of("dialogue.mmo_hub_intro.sawyer_intro.opt.accept",
+                        "dialogue.mmo_hub_intro.sawyer_intro.opt.back",
+                        "dialogue.mmo_hub_intro.opt.returned", "dialogue.mmo_hub_intro.opt.quests",
+                        "dialogue.mmo_hub_intro.opt.temple_where", "dialogue.mmo_hub_intro.menu.opt.open"),
+                labels(d.getNode("sawyer_intro")), "a screen without the tag gets no pointer");
+
+        // A Do atom triple folds to the three actions it names, in array order.
         DialogueOption skip = optionWithDo(d.getNode("greet"));
         assertNotNull(skip, "the greet screen has the skip option authored with Do");
         assertEquals(3, skip.getActions().size());
         assertTrue(skip.getActions().get(0) instanceof CompleteQuest);
         assertTrue(skip.getActions().get(2) instanceof DialogueAction.Goto);
+    }
+
+    @Nonnull
+    private static List<String> labels(@Nonnull DialogueNode node) {
+        List<String> out = new ArrayList<>();
+        for (DialogueOption option : node.getOptions()) {
+            out.add(option.getLabelKey());
+        }
+        return out;
     }
 
     @Test
@@ -245,6 +295,20 @@ class DialogueAuthoredFixtureTest {
     public static final class HasOfferableQuests extends DialogueCondition {
         public static final BuilderCodec<HasOfferableQuests> CODEC =
                 BuilderCodec.builder(HasOfferableQuests.class, HasOfferableQuests::new).build();
+    }
+
+    /**
+     * The stand-in for the MMO's {@code Gate} condition. Its one field is the library's own
+     * {@code GateSpec}, the same codec the real condition reads {@code Requirements} through, so the
+     * fixture is read by the real shape rather than a narrowed twin of it.
+     */
+    public static final class Gate extends DialogueCondition {
+        public static final BuilderCodec<Gate> CODEC = BuilderCodec.builder(Gate.class, Gate::new)
+                .append(new KeyedCodec<>("Requirements", GateSpec.CODEC, false),
+                        (c, v) -> c.requirements = v, c -> c.requirements).add()
+                .build();
+
+        @Nullable GateSpec requirements;
     }
 
     public static final class OpenPlay extends DialogueAction {

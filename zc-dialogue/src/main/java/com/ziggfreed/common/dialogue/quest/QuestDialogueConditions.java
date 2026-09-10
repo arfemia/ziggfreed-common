@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.dialogue.type.DialogueCondition;
 import com.ziggfreed.common.dialogue.type.DialogueConditionType;
 import com.ziggfreed.common.dialogue.DialogueContext;
@@ -131,6 +132,14 @@ public final class QuestDialogueConditions {
      */
     public static final class QuestState extends QuestRef {
 
+        /**
+         * The whole vocabulary a state leaf accepts, with what each means, as the editor's dropdown:
+         * closed by {@link #parse}, which refuses anything but a {@link QuestStatus} name. The
+         * order and the names are the enum's own, so a status added there reaches the dropdown
+         * with its meaning beside it, and the meanings say what the state reads as HERE.
+         */
+        private static final String[] STATE_VOCABULARY = stateVocabulary();
+
         public static final BuilderCodec<QuestState> CODEC =
                 BuilderCodec.builder(QuestState.class, QuestState::new)
                         .append(new KeyedCodec<>("Quest", Codec.STRING, false),
@@ -138,13 +147,39 @@ public final class QuestDialogueConditions {
                         .documentation("Which quest this line is about.").add()
                         .append(new KeyedCodec<>("State", Codec.STRING, false),
                                 (c, v) -> c.state = v, c -> c.state)
+                        .metadata(EditorSchema.oneOfDocumented(STATE_VOCABULARY))
                         .documentation("The one state the quest must be in: NOT_STARTED, ACTIVE, "
                                 + "COMPLETED, COMPLETED_UNCLAIMED or ON_COOLDOWN.").add()
                         .append(new KeyedCodec<>("States", Codec.STRING_ARRAY, false),
                                 (c, v) -> c.states = v, c -> c.states)
+                        .metadata(EditorSchema.oneOfDocumented(STATE_VOCABULARY))
                         .documentation("Several acceptable states instead of one; the line shows while the "
                                 + "quest is in ANY of them. Takes precedence over State.").add()
                         .build();
+
+        /** One (name, meaning) pair per {@link QuestStatus}, in the enum's order. */
+        @Nonnull
+        private static String[] stateVocabulary() {
+            QuestStatus[] statuses = QuestStatus.values();
+            String[] pairs = new String[statuses.length * 2];
+            for (int i = 0; i < statuses.length; i++) {
+                pairs[i * 2] = statuses[i].name();
+                pairs[i * 2 + 1] = meaningOf(statuses[i]);
+            }
+            return pairs;
+        }
+
+        /** What a status reads as on a line gated on it, in the words the dropdown shows beside it. */
+        @Nonnull
+        private static String meaningOf(@Nonnull QuestStatus status) {
+            return switch (status) {
+                case NOT_STARTED -> "Never accepted, or reset back to offerable.";
+                case ACTIVE -> "Accepted and being worked on.";
+                case COMPLETED -> "Finished and paid out.";
+                case COMPLETED_UNCLAIMED -> "Every step done, the reward still waiting to be collected.";
+                case ON_COOLDOWN -> "Finished, and not yet offerable again.";
+            };
+        }
 
         @Nullable protected String state;
         @Nullable protected String[] states;

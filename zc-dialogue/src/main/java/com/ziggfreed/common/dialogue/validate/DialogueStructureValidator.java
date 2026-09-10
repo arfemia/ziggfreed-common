@@ -3,6 +3,7 @@ package com.ziggfreed.common.dialogue.validate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,8 +22,11 @@ import com.ziggfreed.common.dialogue.type.DialogueCondition;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.state.DialogueFlagScope;
 import com.ziggfreed.common.dialogue.schema.DialogueFragmentConfig;
+import com.ziggfreed.common.dialogue.schema.DialogueFragmentGroup;
 import com.ziggfreed.common.dialogue.state.DialogueMemory;
 import com.ziggfreed.common.dialogue.schema.DialogueNode;
+import com.ziggfreed.common.dialogue.schema.DialogueSugarValues;
+import com.ziggfreed.common.dialogue.schema.NodeSelector;
 import com.ziggfreed.common.dialogue.state.DialogueOnce;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
 import com.ziggfreed.common.dialogue.schema.DialogueStart;
@@ -138,8 +142,6 @@ public final class DialogueStructureValidator {
             checkStart(dialogue, start, id, out, factors, engine, entryNodes);
         }
 
-        Set<String> declaredFragments = dialogue.getFragments().keySet();
-
         // Validate every Goto target regardless of reachability, plus the generic state refs.
         for (var nodeEntry : dialogue.getNodes().entrySet()) {
             String nodeId = nodeEntry.getKey();
@@ -147,15 +149,7 @@ public final class DialogueStructureValidator {
             checkConditions(node.getConditions(), "node '" + nodeId + "'", id, out,
                     factors, engine);
             for (String fragment : node.getIncludeOptions()) {
-                // A name may be answered by this conversation's own Fragments or by a shared
-                // DialogueFragments file; only one that neither answers is a finding.
-                if (fragment == null || !(declaredFragments.contains(fragment)
-                        || DialogueFragmentConfig.getInstance().declares(fragment))) {
-                    out.add(error("UNKNOWN_FRAGMENT",
-                            "Dialogue '" + id + "' node '" + nodeId + "' pulls in shared options '"
-                                    + fragment + "', which is neither declared under its own Fragments"
-                                    + " nor shipped as a DialogueFragments file", id));
-                }
+                checkFragmentKnown(dialogue, fragment, "node '" + nodeId + "' pulls in", id, out);
             }
             // One Once identity per node: two options resolving to the same key share one flag,
             // so spending either retires both.
@@ -187,6 +181,7 @@ public final class DialogueStructureValidator {
             }
         }
 
+        checkFragments(dialogue, out);
         checkMemories(dialogue, out);
 
         // Reachability BFS over Goto edges from the entry set.
@@ -338,16 +333,195 @@ public final class DialogueStructureValidator {
         entryNodes.add(node);
     }
 
+    // ==================== shared option groups ====================
+
+    /**
+     * A shared group name a screen or a group refers to must be answered by this conversation's own
+     * {@code Fragments} or by a shared {@code DialogueFragments} file; only one neither answers is a
+     * finding, and the screen or group silently loses those lines at runtime.
+     */
+    private static void checkFragmentKnown(@Nonnull NpcDialogue dialogue, @Nullable String fragment,
+                                           @Nonnull String who, @Nonnull String id,
+                                           @Nonnull List<Finding> out) {
+        if (fragment == null || !(NodeSelector.containsIgnoreCase(dialogue.getFragments().keySet(), fragment)
+                || DialogueFragmentConfig.getInstance().declares(fragment))) {
+            out.add(error("UNKNOWN_FRAGMENT",
+                    "Dialogue '" + id + "' " + who + " shared options '" + fragment
+                            + "', which is neither declared under its own Fragments nor shipped as a"
+                            + " DialogueFragments file", id));
+        }
+    }
+
+    /**
+     * Audit the groups that place themselves and the groups that fold in other groups: everything
+     * a group can say about where it goes that the screen it lands on cannot show.
+     *
+     * <p>A group is given to a screen by tag or by exact id, and neither is checked anywhere at
+     * runtime: a tag misspelt on one side matches nothing and the line is simply absent from every
+     * screen it was meant for, an id nobody declares selects nothing, and a selector with no positive
+     * axis selects nothing at all. Each is a finding here. A screen's tag no group names is
+     * information, since a tag may be written ahead of the group that will use it. And a group that
+     * includes itself, however many steps round, would recurse forever if the splice followed it,
+     * so the splice drops the re-entry and this names the loop.
+     */
+    private static void checkFragments(@Nonnull NpcDialogue dialogue, @Nonnull List<Finding> out) {
+        String id = dialogue.getId();
+        Map<String, DialogueFragmentGroup> groups = dialogue.getFragments();
+        if (groups.isEmpty()) {
+            return;
+        }
+        Set<String> nodeIds = new HashSet<>();
+        Set<String> nodeTags = new HashSet<>();
+        for (Map.Entry<String, DialogueNode> node : dialogue.getNodes().entrySet()) {
+            nodeIds.add(normalize(node.getKey()));
+            for (String tag : node.getValue().getTags()) {
+                nodeTags.add(normalize(tag));
+            }
+        }
+        Set<String> selectedTags = new HashSet<>();
+        Set<String> inALoop = new HashSet<>();
+        for (Map.Entry<String, DialogueFragmentGroup> entry : groups.entrySet()) {
+            String name = entry.getKey();
+            DialogueFragmentGroup group = entry.getValue();
+            if (group == null) {
+                continue;
+            }
+            for (String included : group.getInclude()) {
+                checkFragmentKnown(dialogue, included, "shared option group '" + name + "' includes",
+                        id, out);
+            }
+            checkIncludeCycle(groups, name, inALoop, out, id);
+            NodeSelector on = group.getOn();
+            if (on == null) {
+                continue;
+            }
+            if (on.hasNoPositiveAxis()) {
+                out.add(error("FRAGMENT_ON_NO_AXIS",
+                        "Dialogue '" + id + "' shared option group '" + name + "' has an On with no Nodes"
+                                + " or Tags, so it lands on no screen at all - name the screens or the"
+                                + " tag it belongs on, or drop the On", id));
+            }
+            checkSelectorNodes(on.getNodes(), "Nodes", nodeIds, name, id, out);
+            checkSelectorNodes(on.getExclude(), "Exclude", nodeIds, name, id, out);
+            for (String tag : on.getTags()) {
+                String folded = normalize(tag);
+                selectedTags.add(folded);
+                if (!nodeTags.contains(folded)) {
+                    out.add(warning("FRAGMENT_TAG_UNKNOWN",
+                            "Dialogue '" + id + "' shared option group '" + name + "' is placed on tag '"
+                                    + tag + "', which no screen carries, so its lines reach nobody - tag"
+                                    + " the screens it belongs on, or fix the spelling on one side", id));
+                }
+            }
+        }
+        for (Map.Entry<String, DialogueNode> node : dialogue.getNodes().entrySet()) {
+            for (String tag : node.getValue().getTags()) {
+                if (!selectedTags.contains(normalize(tag))) {
+                    out.add(info("NODE_TAG_UNUSED",
+                            "Dialogue '" + id + "' node '" + node.getKey() + "' carries tag '" + tag
+                                    + "', which no shared option group is placed on", id));
+                }
+            }
+        }
+    }
+
+    /** Every exact id a selector leaf names must be a screen of this conversation. */
+    private static void checkSelectorNodes(@Nonnull List<String> named, @Nonnull String leaf,
+                                           @Nonnull Set<String> nodeIds, @Nonnull String group,
+                                           @Nonnull String id, @Nonnull List<Finding> out) {
+        for (String nodeId : named) {
+            if (nodeId == null || !nodeIds.contains(normalize(nodeId))) {
+                out.add(error("FRAGMENT_ON_MISSING_NODE",
+                        "Dialogue '" + id + "' shared option group '" + group + "' names screen '" + nodeId
+                                + "' under On." + leaf + ", which this conversation does not have", id));
+            }
+        }
+    }
+
+    /**
+     * Walk one group's {@code Include} chain and report a name that leads back to {@code root}.
+     * Only this conversation's own groups can include anything, so the walk stays inside them; a
+     * shared file is lines only and ends every chain. A loop is one finding, reported from the
+     * first of its members the map lists: every member is remembered in {@code inALoop}, and a root
+     * already known to sit on a reported loop is not walked again.
+     */
+    private static void checkIncludeCycle(@Nonnull Map<String, DialogueFragmentGroup> groups,
+                                          @Nonnull String root, @Nonnull Set<String> inALoop,
+                                          @Nonnull List<Finding> out, @Nonnull String id) {
+        if (inALoop.contains(normalize(root))) {
+            return;
+        }
+        Deque<String> path = new ArrayDeque<>();
+        path.push(normalize(root));
+        walkIncludes(groups, root, root, path, inALoop, out, id);
+    }
+
+    private static void walkIncludes(@Nonnull Map<String, DialogueFragmentGroup> groups,
+                                     @Nonnull String root, @Nonnull String current,
+                                     @Nonnull Deque<String> path, @Nonnull Set<String> inALoop,
+                                     @Nonnull List<Finding> out, @Nonnull String id) {
+        DialogueFragmentGroup group = localGroup(groups, current);
+        if (group == null) {
+            return;
+        }
+        for (String included : group.getInclude()) {
+            if (included == null) {
+                continue;
+            }
+            String folded = normalize(included);
+            if (path.contains(folded)) {
+                if (folded.equals(normalize(root)) && inALoop.add(folded)) {
+                    inALoop.addAll(path);
+                    out.add(error("FRAGMENT_CYCLE",
+                            "Dialogue '" + id + "' shared option group '" + root + "' includes itself by way of "
+                                    + describePath(path) + "; the splice drops the re-entry rather than"
+                                    + " following it, so remove the loop", id));
+                }
+                continue;
+            }
+            path.push(folded);
+            walkIncludes(groups, root, included, path, inALoop, out, id);
+            path.pop();
+        }
+    }
+
+    /** The local group under {@code name}, matched without regard to case; null for a file or a typo. */
+    @Nullable
+    private static DialogueFragmentGroup localGroup(@Nonnull Map<String, DialogueFragmentGroup> groups,
+                                                    @Nonnull String name) {
+        String folded = normalize(name);
+        for (Map.Entry<String, DialogueFragmentGroup> entry : groups.entrySet()) {
+            if (normalize(entry.getKey()).equals(folded)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    /** The include path, root first, as {@code a -> b -> c}. */
+    @Nonnull
+    private static String describePath(@Nonnull Deque<String> path) {
+        List<String> names = new ArrayList<>(path);
+        Collections.reverse(names);
+        return String.join(" -> ", names);
+    }
+
     // ==================== shorthand ====================
 
     /**
-     * Two ways a shorthand quietly does nothing, both of which read as correct on the page.
+     * Four ways an option's actions quietly run in an order other than the one the file reads as,
+     * every one of which looks correct on the page.
      *
      * <p>An option that spells its order out with {@code Do} runs ONLY those atoms, so a bare
      * shorthand sitting beside it never happens - which looks exactly like an option that forgot to
-     * do half its job. And two actions of the same kind on one option (a {@code Goto} shorthand
-     * beside a hand-written {@code Goto}, say) means one of them decides and the other is dead
-     * weight; which one wins is not something an author should have to know.
+     * do half its job. Two actions of the same kind on one option (a {@code Goto} shorthand beside a
+     * hand-written {@code Goto}, say) means one of them decides and the other is dead weight; which
+     * one wins is not something an author should have to know. An option that writes both
+     * {@code Actions} and {@code Do} runs every {@code Actions} entry FIRST whatever the file's
+     * order, so a native step meant to follow a shorthand runs ahead of it; the fix is one
+     * {@code Action} atom inside {@code Do}. And an atom carrying an {@code Action} beside a shorthand
+     * folds the native step first and the shorthand after it, whichever was written first, so one
+     * step per atom is the rule.
      */
     private static void checkSugar(@Nonnull DialogueOption option, @Nonnull String where,
                                    @Nonnull String id, @Nonnull List<Finding> out) {
@@ -357,6 +531,22 @@ public final class DialogueStructureValidator {
                     "Dialogue '" + id + "' " + where + " authors Do AND " + bare
                             + " beside it; Do decides the whole order, so those never run - move them"
                             + " into the Do array", id));
+        }
+        if (option.hasDoAtoms() && option.authoredActionCount() > 0) {
+            out.add(warning("ACTIONS_BESIDE_DO",
+                    "Dialogue '" + id + "' " + where + " authors both Actions and Do; every Actions entry"
+                            + " runs before the Do array whatever order the file reads in - write each"
+                            + " native step as an {\"Action\": {...}} atom inside Do instead", id));
+        }
+        int atomIndex = 0;
+        for (DialogueSugarValues atom : option.getDoAtoms()) {
+            if (atom != null && atom.mixesActionWithShorthand()) {
+                out.add(warning("DO_ATOM_MIXED",
+                        "Dialogue '" + id + "' " + where + " Do atom " + atomIndex + " carries Action beside"
+                                + " a shorthand key; inside one atom the native step runs first whichever"
+                                + " was written first - one step per atom, so split them", id));
+            }
+            atomIndex++;
         }
         Set<Class<?>> seen = new HashSet<>();
         for (DialogueAction action : option.getActions()) {
@@ -646,13 +836,18 @@ public final class DialogueStructureValidator {
         for (DialogueStart.Beat beat : startBeats(dialogue)) {
             blankUse |= collectReads(beat.getWhen(), read);
         }
-        for (DialogueNode node : dialogue.getNodes().values()) {
+        for (Map.Entry<String, DialogueNode> entry : dialogue.getNodes().entrySet()) {
+            String nodeId = entry.getKey();
+            DialogueNode node = entry.getValue();
             blankUse |= collectReads(node.getConditions(), read);
-            for (DialogueOption option : node.getOptions()) {
+            for (int i = 0; i < node.getOptions().size(); i++) {
+                DialogueOption option = node.getOptions().get(i);
                 blankUse |= collectReads(option.getConditions(), read);
                 for (DialogueAction action : option.getActions()) {
                     if (action instanceof DialogueAction.MemoryAction memory) {
                         blankUse |= !collect(memory.getMemory(), written);
+                        checkMemoryScopeGuarded(dialogue, declared.get(normalize(memory.getMemory())),
+                                memory, nodeId, node, option, i, id, out);
                     }
                 }
             }
@@ -684,6 +879,68 @@ public final class DialogueStructureValidator {
                                 + " with Remembered/NotRemembered", id));
             }
         }
+    }
+
+    /**
+     * A memory kept per world (a declaration with a {@code Where}) is written by a {@code Remember}
+     * or {@code Forget} that does NOTHING outside those worlds, and a read there answers forgotten.
+     * When nothing on the way to that write says which world the player is standing in - no
+     * {@code World} condition on the option, on its screen, or on any {@code Start} beat that opens
+     * that screen - the write may be reached from anywhere and silently do nothing where it was
+     * not meant to. Information rather than a warning, because this does not walk {@code Goto}
+     * reachability: a screen reached only by a jump from a world-gated one is guarded in practice
+     * and is still named here.
+     */
+    private static void checkMemoryScopeGuarded(@Nonnull NpcDialogue dialogue,
+                                                @Nullable DialogueMemory declaration,
+                                                @Nonnull DialogueAction.MemoryAction write,
+                                                @Nonnull String nodeId, @Nonnull DialogueNode node,
+                                                @Nonnull DialogueOption option, int optionIndex,
+                                                @Nonnull String id, @Nonnull List<Finding> out) {
+        if (declaration == null || declaration.getWhere() == null) {
+            return;
+        }
+        if (hasWorldCondition(option.getConditions()) || hasWorldCondition(node.getConditions())) {
+            return;
+        }
+        for (DialogueStart.Beat beat : startBeats(dialogue)) {
+            if (beatOpens(beat, nodeId) && hasWorldCondition(beat.getWhen())) {
+                return;
+            }
+        }
+        out.add(info("MEMORY_SCOPE_UNGUARDED",
+                "Dialogue '" + id + "' node '" + nodeId + "' option " + optionIndex + " writes memory '"
+                        + write.getMemory() + "', which is kept per world, with no World condition on the"
+                        + " option, its screen, or a Start beat opening that screen. Outside the worlds"
+                        + " that declaration's Where names, this write does nothing and the read answers"
+                        + " forgotten", id));
+    }
+
+    /** True when the beat can open {@code nodeId}, by name or as one of its Pick variants. */
+    private static boolean beatOpens(@Nonnull DialogueStart.Beat beat, @Nonnull String nodeId) {
+        if (beat.hasNode() && nodeId.equalsIgnoreCase(beat.getNode())) {
+            return true;
+        }
+        for (DialogueStart.Variant variant : beat.getPick()) {
+            if (variant != null && nodeId.equalsIgnoreCase(variant.getNode())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True when a {@code World} condition sits anywhere in the list, combinators included. */
+    private static boolean hasWorldCondition(@Nonnull List<DialogueCondition> conditions) {
+        for (DialogueCondition condition : conditions) {
+            if (condition instanceof DialogueCondition.World) {
+                return true;
+            }
+            if (condition instanceof DialogueCondition.Combinator combinator
+                    && hasWorldCondition(combinator.getChildren())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Every ordered beat of the opening ladder, both sections, as one list to walk. */

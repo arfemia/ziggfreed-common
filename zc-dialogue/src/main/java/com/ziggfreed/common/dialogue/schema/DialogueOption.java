@@ -159,6 +159,12 @@ public class DialogueOption {
         return doAtoms != null && doAtoms.length > 0;
     }
 
+    /** The {@code Do} atoms as authored, in array order; empty when the option wrote none. */
+    @Nonnull
+    public List<DialogueSugarValues> getDoAtoms() {
+        return doAtoms == null ? Collections.emptyList() : List.of(doAtoms);
+    }
+
     /** How many canonical {@code Actions} the option authored by hand, before any shorthand. */
     public int authoredActionCount() {
         return actions == null ? 0 : actions.length;

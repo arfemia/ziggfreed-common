@@ -41,6 +41,12 @@ public abstract class DialogueCondition {
      * and lifetime of that name live.
      */
     public abstract static class MemoryCondition extends DialogueCondition {
+
+        /** What the {@code Memory} leaf of both memory conditions means, said once. */
+        static final String MEMORY_DOC =
+                "A name declared under Memories. Outside the worlds that declaration's Where names, the "
+                        + "write does nothing and this read answers forgotten.";
+
         @Nullable protected String memory;
 
         /** The declared memory name this condition reads, or null when unauthored. */
@@ -58,7 +64,8 @@ public abstract class DialogueCondition {
         public static final BuilderCodec<Remembered> CODEC =
                 BuilderCodec.builder(Remembered.class, Remembered::new)
                         .append(new KeyedCodec<>("Memory", Codec.STRING, false),
-                                (c, v) -> c.memory = v, c -> c.memory).add()
+                                (c, v) -> c.memory = v, c -> c.memory)
+                        .documentation(MEMORY_DOC).add()
                         .build();
     }
 
@@ -75,7 +82,8 @@ public abstract class DialogueCondition {
         public static final BuilderCodec<NotRemembered> CODEC =
                 BuilderCodec.builder(NotRemembered.class, NotRemembered::new)
                         .append(new KeyedCodec<>("Memory", Codec.STRING, false),
-                                (c, v) -> c.memory = v, c -> c.memory).add()
+                                (c, v) -> c.memory = v, c -> c.memory)
+                        .documentation(MEMORY_DOC).add()
                         .build();
     }
 
