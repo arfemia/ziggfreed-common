@@ -208,7 +208,8 @@ CONTENT a consumer overrides by id, every file carrying a public-facing `$Commen
 arguments the moment carries and how to override it. `Server/Languages/<locale>/ziggfreedcommon.ui.lang`
 (nine locales) carries the words the shared widgets put on screen: the search row's Search and
 Clear, and the progress-bar panel's gain (`hud.bar.gain`, `+{0, number}`, which an item row's running
-count rides too). `Common/UI/Custom/Hud/ZigHudBars.ui`
+count rides too, and its twin `hud.bar.gain.compact`, `+{0}`, for a gain of ten thousand or more the
+server writes compact through the shared `NumberFormatter`). `Common/UI/Custom/Hud/ZigHudBars.ui`
 is the progress-bar panel's document, and `Server/ZiggfreedCommon/HudBarPanels/Default.json` the
 panel every row is drawn on (on, TopLeft (16, 216), four rows), a consumer or an owner overriding
 it by id; the library ships no `HudBars` file, since a row needs none.
@@ -240,7 +241,10 @@ Thin relative to the package count: `HudPositionTest` (corner-preset parsing + a
 fill rows sorting above item rows and the reading's fraction clamp, `HudBarLookTest` for the
 override-over-display fold, an unauthored item's own row and the two row shapes the paint draws,
 `HudBarDressingTest` for the dressing following the card's opacity and the Java mirrors matching
-both documents), the card suites (`HudCardLookTest` for the hex in every spelling, the identity
+both documents, `HudBarHeightTest` for the pushed height and every column's leading push incl. the
+shipped bottom-left picture at 18 and 20 rows, `HudBarSpreadTest` for which row each column draws
+with a cut column's surplus spilled above the block, `HudBarGainTest` for the typed-below and
+compact-from-ten-thousand gain), the card suites (`HudCardLookTest` for the hex in every spelling, the identity
 pushing nothing, the own-over-shared fold and the dimming rule; `HudCardAssetTest` for the leaf, a
 child under `Parent`, and the fold reading shipped until a record lands),
 `SettingsFormTest` (field-spec render/refresh/collect round trip), `ZigSearchRowTest` (the scoped

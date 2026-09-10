@@ -7,3 +7,7 @@ search.clear = Effacer
 # The shared progress-bar panel (Common/UI/Custom/Hud/ZigHudBars.ui): the gain beside a bar. A
 # bare signed number, grouped by the player's own client, so the value reads the same everywhere.
 hud.bar.gain = +{0, number}
+
+# The same gain from ten thousand up, arriving already written compact ("12.3k") because the wide
+# panel's gain column has no room for the grouped form; the entry only signs it.
+hud.bar.gain.compact = +{0}

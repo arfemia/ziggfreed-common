@@ -45,8 +45,9 @@ import com.ziggfreed.common.ui.hud.card.HudCardLook;
  * stack straddles the player's own bars rather than climbing into them; {@code Cutout}
  * ({@link HudBarCutout}) leaves the cells at the pinned end of ONE column empty, so the panel steps
  * around something a client draws under that column alone, that column's rows starting past the
- * cut and standing taller than the rest; {@code MinHeight} is a floor on the panel's height, for a
- * spot that sits over something a short panel would otherwise leave partly showing.
+ * cut and stopping where the uncut columns stop, the surplus going into a row above the block;
+ * {@code MinHeight} is a floor on the panel's height, for a spot that sits over something a short
+ * panel would otherwise leave partly showing.
  *
  * <p>{@code Color} is the look a panel wears at this spot, as the one hex every HUD card
  * understands ({@link com.ziggfreed.common.ui.hud.card.HudCardLook}: a multiply over the shipped
@@ -128,11 +129,12 @@ public final class HudBarPlacementAsset
                     + "utility slot and the hotbar's end under the far column. Column counts from the "
                     + "panel's own first column, the one at the spot's origin (at a Right spot that is "
                     + "the rightmost), and Rows is how many of its cells nearest the pinned edge stay "
-                    + "clear. That column's rows start past the cut, so it stands taller than the "
-                    + "others and the frame grows to hold it, with empty frame above the shorter "
-                    + "columns; a column asked to hold more rows than its remaining cells draws the "
-                    + "ones that fit. Left out, with either number at zero, or naming a column the rows "
-                    + "never open, every cell is used.")
+                    + "clear. That column's rows start past the cut and stop where the columns "
+                    + "without a cut stop, so it never stands taller than them: the rows it has no "
+                    + "room for go into a row of their own above the block, filled from the panel's "
+                    + "first column outward, and a row past the document's depth is left undrawn. "
+                    + "Left out, with either number at zero, or naming a column the rows never open, "
+                    + "every cell is used.")
             .add()
             .appendInherited(new KeyedCodec<>("MinHeight", Codec.INTEGER, false),
                     (a, v) -> a.minHeight = v, a -> a.minHeight, (a, p) -> a.minHeight = p.minHeight)

@@ -21,9 +21,10 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * panel fills, exactly as {@link HudBarGap}'s {@code AfterRow} follows the pinned edge, so it keeps
  * its meaning if the spot is later pinned to the other side. {@code Rows} is how many of that
  * column's cells nearest the pinned edge stay empty; its rows start above (or, at a Top spot,
- * below) the cut, so the column stands that much taller than the others and the frame grows to
- * hold it. A column has as many usable cells as the document declares less its cut, and one asked
- * to hold more rows than that draws the ones it has room for.
+ * below) the cut, and they stop where the columns without a cut stop, so the cut column never
+ * stands taller than the rest: the rows it no longer has room for go into a row of their own above
+ * the block, filled from the panel's first column outward, and into another above that when one is
+ * not enough ({@link HudBarSpread}). A row past the document's depth is undrawn.
  *
  * <p>One group, shared by {@link HudBarPlacementAsset} (where a spot leaves its cut) and
  * {@link HudBarPanelAsset} (an inline restatement over the spot a panel names), so the two files
@@ -49,10 +50,11 @@ public final class HudBarCutout {
             .appendInherited(new KeyedCodec<>("Rows", Codec.INTEGER, false),
                     (o, v) -> o.rows = v, o -> o.rows, (o, p) -> o.rows = p.rows)
             .documentation("How many of that column's cells nearest the pinned edge stay empty. Its rows "
-                    + "start past the cut, so the column stands that much taller than the rest and the "
-                    + "frame grows to hold it. The column has that many fewer cells to draw in: asked "
-                    + "to hold more rows than are left, it draws the ones that fit and leaves the rest "
-                    + "undrawn. Zero cuts nothing. Left out, the layer below decides.")
+                    + "start past the cut and stop where the columns without a cut stop, so it never "
+                    + "stands taller than the rest: the rows it has no room for go into a row of their "
+                    + "own above the block, filled from the panel's first column outward, and a row "
+                    + "past the document's depth is left undrawn. Zero cuts nothing. Left out, the "
+                    + "layer below decides.")
             .add()
             .build();
 

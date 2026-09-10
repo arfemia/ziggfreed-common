@@ -27,6 +27,7 @@ import com.ziggfreed.common.ui.hud.RepaintCoalescer;
 import com.ziggfreed.common.ui.hud.card.HudCardConfig;
 import com.ziggfreed.common.ui.hud.card.HudCardLook;
 import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.util.NumberFormatter;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -91,8 +92,14 @@ import com.ziggfreed.common.util.SafeLog;
  * then its own rows; the tallest of those extents is the panel's inner height. A bottom-pinned
  * column is pushed down by whatever it falls short of that height, so it bottom-aligns against the
  * pinned edge; a top-pinned column is pushed down by its cut alone, so its rows start past the cut.
- * A cut column therefore stands taller than the rest, with empty frame beside it above the shorter
- * columns, which is the shape a cut asks for.
+ *
+ * <p><b>No column stands taller than the columns that have no cut.</b> Which rows a column draws is
+ * the {@link HudBarSpread}: the even split, column by column, except that a cut column keeps only
+ * the rows that fit under the tallest uncut column's top, and the rows that no longer fit move into
+ * a row of their own above the block, filled from the panel's first column outward, and into
+ * another above that when one is not enough. A spilled row is drawn by the column it lands in, so
+ * the frame is never taller than the block plus those rows, and the cut column is pushed to stand on
+ * the edge beneath them like any column shorter than the panel.
  *
  * <p><b>The card's colour is one hex, folded like everything else and pushed only when it says
  * something.</b> The panel's frame is a shipped 9-slice, and its colour is a multiply over it
@@ -115,7 +122,19 @@ public abstract class HudBarHud extends KeyedCustomHud {
     private static final int PULSE_WIDTH_PX = 18;
 
     /** The shared word for a gain, {@code +{0, number}}, grouped by each player's own client. */
-    private static final String GAIN_KEY = "ziggfreedcommon.ui.hud.bar.gain";
+    static final String GAIN_KEY = "ziggfreedcommon.ui.hud.bar.gain";
+
+    /**
+     * The same word for a gain written compact ({@code +{0}}, the figure arriving as "12.3k"), for a
+     * gain the grouped form would not fit beside the name.
+     */
+    static final String GAIN_COMPACT_KEY = "ziggfreedcommon.ui.hud.bar.gain.compact";
+
+    /**
+     * The gain at or past which the panel's own wording writes it compact: the wide panel's gain
+     * column shows five characters, and a grouped ten thousand is six.
+     */
+    static final long COMPACT_GAIN_FROM = 10_000L;
 
     /**
      * How the stack reads: rows that draw a fill first, then the settled order (lower higher), then
@@ -202,8 +221,9 @@ public abstract class HudBarHud extends KeyedCustomHud {
      * column drawing nothing has no shape at all ({@link #NONE}): it neither pushes the frame nor
      * needs a push itself.
      *
-     * @param drawn      how many rows the column draws: the rows it was given, held to the cells
-     *                   left past its cut
+     * @param drawn      how many rows the column draws: its share of the split held under the
+     *                   tallest uncut column's top and past its own cut, plus whatever spilled into
+     *                   it from above the block ({@link HudBarSpread})
      * @param reservedPx the space before its first row, from the pinned edge
      * @param bandSlot   the slot whose margin carries the band, or -1 for none
      * @param bandPx     the band's height where the column carries one, else 0
@@ -545,10 +565,12 @@ public abstract class HudBarHud extends KeyedCustomHud {
     }
 
     /**
-     * How many columns actually END UP with a row in them once {@code rows} are split
-     * {@code perColumn} deep. This is not always what {@link #columnsFor} allowed: four rows across
-     * a three-column allowance split two deep, which fills two columns and leaves the third empty,
-     * and an empty column must neither be drawn nor counted in the panel's width.
+     * How many columns the SPLIT deals a row to once {@code rows} are split {@code perColumn}
+     * deep, which {@link HudBarSpread} deals from. This is not always what {@link #columnsFor}
+     * allowed: four rows across a three-column allowance split two deep, which fills two columns
+     * and leaves the third empty, and an empty column must neither be drawn nor counted in the
+     * panel's width. Nor is it always what ends up drawn: a cut column whose every row spilled
+     * forward is not in use either ({@link HudBarSpread#used}).
      */
     static int usedColumnsFor(int rows, int perColumn) {
         if (rows <= 0 || perColumn <= 0) {
@@ -558,14 +580,16 @@ public abstract class HudBarHud extends KeyedCustomHud {
     }
 
     /**
-     * Which of a column's {@code perColumn} rows the slot at {@code slotRow} draws. Top-down, the
-     * slot draws its own ordinal. Bottom-up, for a panel pinned to the screen's bottom edge, the
-     * FIRST row goes in the LAST used slot: hidden slots collapse out of the column, so the lowest
-     * visible slot sits against the pinned edge, and a row already on screen stays put when the next
-     * one opens above it instead of being pushed up by a row appearing underneath.
+     * Which of a column's rows the slot at {@code slotRow} draws, with every column's slots mapped
+     * {@code depth} deep (the tallest column's count, {@link HudBarSpread#depth}; a shorter column
+     * hides the slots whose ordinal it has no row for). Top-down, the slot draws its own ordinal.
+     * Bottom-up, for a panel pinned to the screen's bottom edge, the FIRST row goes in the LAST
+     * mapped slot: hidden slots collapse out of the column, so the lowest visible slot sits against
+     * the pinned edge, and a row already on screen stays put when the next one opens above it
+     * instead of being pushed up by a row appearing underneath.
      */
-    static int ordinalInColumn(int slotRow, int perColumn, boolean bottomUp) {
-        return bottomUp ? perColumn - 1 - slotRow : slotRow;
+    static int ordinalInColumn(int slotRow, int depth, boolean bottomUp) {
+        return bottomUp ? depth - 1 - slotRow : slotRow;
     }
 
     /**
@@ -579,53 +603,72 @@ public abstract class HudBarHud extends KeyedCustomHud {
      * band above a column's topmost row would be dead space in the frame). Top-down the row just
      * past the split is ordinal {@code AfterRow - cut}, in the slot of the same index; bottom-up,
      * where a column's higher ordinals sit higher on screen, the row just below the split is
-     * ordinal {@code AfterRow - cut - 1}, and {@link #ordinalInColumn} puts that in slot
-     * {@code perColumn - AfterRow + cut}. No band at all when the gap is absent or either of its
-     * numbers is not positive.
+     * ordinal {@code AfterRow - cut - 1}, and {@link #ordinalInColumn} with the slots mapped
+     * {@code depth} deep puts that in slot {@code depth - AfterRow + cut}. No band at all when the
+     * gap is absent or either of its numbers is not positive.
      */
-    static int gapSlotFor(@Nullable HudBarGap gap, int cut, int rowsDrawn, int perColumn, boolean bottomUp) {
-        if (gap == null || !gap.applies() || perColumn <= 0) {
+    static int gapSlotFor(@Nullable HudBarGap gap, int cut, int rowsDrawn, int depth, boolean bottomUp) {
+        if (gap == null || !gap.applies() || depth <= 0) {
             return -1;
         }
         int afterRow = gap.afterRow();
         if (afterRow <= cut || afterRow >= cut + rowsDrawn) {
             return -1;
         }
-        return bottomUp ? perColumn - afterRow + cut : afterRow - cut;
+        return bottomUp ? depth - afterRow + cut : afterRow - cut;
+    }
+
+    /**
+     * Which row each column draws once {@code rows} are split {@code perColumn} deep at
+     * {@code placement} on {@code layout}'s document: the even split, column by column, with a cut
+     * column's surplus spilled into the rows above the block ({@link HudBarSpread}). Pure.
+     */
+    @Nonnull
+    static HudBarSpread spreadOf(@Nonnull List<Row> rows, int perColumn, @Nonnull HudBarLayout layout,
+            @Nonnull HudBarPlacement placement) {
+        return HudBarSpread.of(rows.size(), perColumn, layout.slotsPerColumn(), placement.cutout());
     }
 
     /**
      * The shape of the column at {@code ordinal} once {@code rows} are split {@code perColumn} deep,
-     * measured from the pinned edge. Its cut is what the spot's {@code Cutout} leaves at this
-     * ordinal (counted from the panel's own first column, the same index the paint maps onto a
-     * slot column for a right-pinned spot), and it draws as many of its rows as the cells past the
-     * cut can hold: a column asked to hold more than that draws the ones that fit, exactly as rows
-     * past the document's slot ceiling are not drawn. Its reserved space is the cut cells, each as
-     * tall as a row with a fill, plus the band when the split falls at or below its first row (the
-     * cut swallows the split, so the column's rows all sit above the band); its band is the band
-     * where the split falls between two of its own rows ({@link #gapSlotFor}). Pure, so a column's
-     * geometry can be checked without a client.
+     * measured from the pinned edge: {@link #shapeOf(List, HudBarSpread, int, HudBarLayout, HudBarPlacement)}
+     * over the spread of those rows.
      */
     @Nonnull
     static ColumnShape shapeOf(@Nonnull List<Row> rows, int ordinal, int perColumn, @Nonnull HudBarLayout layout,
             @Nonnull HudBarPlacement placement) {
-        int first = ordinal * perColumn;
-        int inColumn = Math.max(0, Math.min(perColumn, rows.size() - first));
-        HudBarCutout cutout = placement.cutout();
-        int cut = cutout == null ? 0 : cutout.rowsAt(ordinal);
-        int drawn = Math.max(0, Math.min(inColumn, layout.slotsPerColumn() - cut));
-        if (drawn == 0) {
+        return shapeOf(rows, spreadOf(rows, perColumn, layout, placement), ordinal, layout, placement);
+    }
+
+    /**
+     * The shape of the column at {@code ordinal} of {@code spread}, measured from the pinned edge.
+     * Its cut is what the spot's {@code Cutout} leaves at this ordinal (counted from the panel's own
+     * first column, the same index the paint maps onto a slot column for a right-pinned spot), and
+     * it draws the rows the spread dealt it, which already stop under the tallest uncut column's
+     * top and at the document's ceiling. Its reserved space is the cut cells, each as tall as a row
+     * with a fill, plus the band when the split falls at or below its first row (the cut swallows
+     * the split, so the column's rows all sit above the band); its band is the band where the split
+     * falls between two of its own rows ({@link #gapSlotFor}, the slots mapped at the spread's
+     * depth). Pure, so a column's geometry can be checked without a client.
+     */
+    @Nonnull
+    static ColumnShape shapeOf(@Nonnull List<Row> rows, @Nonnull HudBarSpread spread, int ordinal,
+            @Nonnull HudBarLayout layout, @Nonnull HudBarPlacement placement) {
+        int[] mine = spread.rowsOf(ordinal);
+        if (mine.length == 0) {
             return ColumnShape.NONE;
         }
+        HudBarCutout cutout = placement.cutout();
+        int cut = cutout == null ? 0 : cutout.rowsAt(ordinal);
         HudBarGap gap = placement.gap();
         int bandPx = gap != null && gap.applies() ? gap.pixels() : 0;
         int reserved = cut * layout.rowHeightPx(true) + (bandPx > 0 && gap.afterRow() <= cut ? bandPx : 0);
-        int bandSlot = gapSlotFor(gap, cut, drawn, perColumn, placement.bottomUp());
+        int bandSlot = gapSlotFor(gap, cut, mine.length, spread.depth(), placement.bottomUp());
         int rowsPx = 0;
-        for (int i = 0; i < drawn; i++) {
-            rowsPx += layout.rowHeightPx(rows.get(first + i).drawsFill());
+        for (int index : mine) {
+            rowsPx += layout.rowHeightPx(rows.get(index).drawsFill());
         }
-        return new ColumnShape(drawn, reserved, bandSlot, bandSlot >= 0 ? bandPx : 0, rowsPx);
+        return new ColumnShape(mine.length, reserved, bandSlot, bandSlot >= 0 ? bandPx : 0, rowsPx);
     }
 
     /**
@@ -635,9 +678,15 @@ public abstract class HudBarHud extends KeyedCustomHud {
      */
     static int innerHeightFor(@Nonnull List<Row> rows, int used, int perColumn, @Nonnull HudBarLayout layout,
             @Nonnull HudBarPlacement placement) {
+        return innerHeightFor(rows, spreadOf(rows, perColumn, layout, placement), used, layout, placement);
+    }
+
+    /** {@link #innerHeightFor(List, int, int, HudBarLayout, HudBarPlacement)} over a spread already worked out. */
+    private static int innerHeightFor(@Nonnull List<Row> rows, @Nonnull HudBarSpread spread, int used,
+            @Nonnull HudBarLayout layout, @Nonnull HudBarPlacement placement) {
         int tallest = 0;
         for (int column = 0; column < used; column++) {
-            tallest = Math.max(tallest, shapeOf(rows, column, perColumn, layout, placement).extentPx());
+            tallest = Math.max(tallest, shapeOf(rows, spread, column, layout, placement).extentPx());
         }
         return tallest;
     }
@@ -682,13 +731,15 @@ public abstract class HudBarHud extends KeyedCustomHud {
      * column's first row is its LOWEST: either way, what is already on screen stays where the eye
      * left it when the next thing opens beside or above it.
      *
-     * <p>Every column is placed by the margin of its FIRST VISIBLE slot ({@link ColumnShape#leadingPx}:
-     * bottom-up the column's shortfall against the panel's inner height, top-down its cut), and the
-     * band by the margin of the ONE slot below the split ({@link #gapSlotFor}); what each slot is
-     * pushed by is {@link ColumnShape#pushAt}, and a slot that is both carries the two pushes ADDED,
-     * never one over the other. A column that draws fewer rows than it was given (its cut left it
-     * fewer cells than the split) hides the surplus slots exactly as a column past the document's
-     * depth would.
+     * <p>Which row a slot draws is the {@link HudBarSpread}: the even split, column by column, with
+     * a cut column's surplus spilled into the rows above the block so no column stands taller than
+     * the uncut ones. Every column's slots are mapped at the spread's depth (the tallest column's
+     * count), and a column with fewer rows hides its surplus slots exactly as a column past the
+     * document's depth would. Every column is placed by the margin of its FIRST VISIBLE slot
+     * ({@link ColumnShape#leadingPx}: bottom-up the column's shortfall against the panel's inner
+     * height, top-down its cut), and the band by the margin of the ONE slot below the split
+     * ({@link #gapSlotFor}); what each slot is pushed by is {@link ColumnShape#pushAt}, and a slot
+     * that is both carries the two pushes ADDED, never one over the other.
      *
      * <p>{@code look} is the card's colour, resolved by the caller ({@link #cardLook}): the frame is
      * retinted only when it says something, and the dressing in every painted bar follows its
@@ -702,8 +753,10 @@ public abstract class HudBarHud extends KeyedCustomHud {
         cmd.set(layout.root() + ".Visible", panel.enabled() && !rows.isEmpty());
         int allowed = columnsFor(rows.size(), layout, placement);
         int perColumn = rowsPerColumnFor(rows.size(), allowed, layout);
-        int used = Math.min(allowed, usedColumnsFor(rows.size(), perColumn));
-        int innerHeight = innerHeightFor(rows, used, perColumn, layout, placement);
+        HudBarSpread spread = spreadOf(rows, perColumn, layout, placement);
+        int used = Math.min(allowed, spread.used());
+        int depth = spread.depth();
+        int innerHeight = innerHeightFor(rows, spread, used, layout, placement);
         // The panel is only as wide as the columns actually in use, so a single-column stack never
         // draws its background across the gutter a second column would have filled, and only as
         // tall as the rows in them, because an absolutely anchored box has no content to size to.
@@ -722,17 +775,17 @@ public abstract class HudBarHud extends KeyedCustomHud {
             cmd.set(layout.columnSelector(slotColumn) + ".Visible", columnUsed);
             int ordinal = rightToLeft ? used - 1 - slotColumn : slotColumn;
             ColumnShape shape = columnUsed
-                    ? shapeOf(rows, ordinal, perColumn, layout, placement)
+                    ? shapeOf(rows, spread, ordinal, layout, placement)
                     : ColumnShape.NONE;
-            int firstInColumn = ordinal * perColumn;
+            int[] mine = spread.rowsOf(ordinal);
             for (int row = 0; row < layout.slotsPerColumn(); row++) {
                 String slot = layout.slotSelector(slotColumn, row);
-                int inColumn = columnUsed && row < perColumn ? ordinalInColumn(row, perColumn, bottomUp) : -1;
+                int inColumn = columnUsed && row < depth ? ordinalInColumn(row, depth, bottomUp) : -1;
                 if (inColumn < 0 || inColumn >= shape.drawn()) {
                     cmd.set(slot + ".Visible", false);
                     continue;
                 }
-                paintRow(cmd, layout, slot, rows.get(firstInColumn + inColumn),
+                paintRow(cmd, layout, slot, rows.get(mine[inColumn]),
                         shape.pushAt(row, inColumn, innerHeight, bottomUp), dressing, animate, now);
             }
         }
@@ -808,14 +861,34 @@ public abstract class HudBarHud extends KeyedCustomHud {
      * The row's number as a typed numeric param, so each client groups the digits itself, on the row's
      * own key when it named one and the panel's plain "+N" otherwise. A whole number binds as a long,
      * so a value that is only ever integral never grows a decimal point.
+     *
+     * <p>The panel's own gain is written compact from {@link #COMPACT_GAIN_FROM} up ("+12.3k",
+     * through the one formatter the whole family compresses a figure with), because the wide
+     * panel's gain column has no room for a grouped ten thousand and a clipped number reads as
+     * nothing. That figure is server-written text, so it rides the compact twin of the key as a
+     * nested raw message and the sign stays in the lang file. A row wording its own number is bound
+     * the whole figure at every magnitude: its key is the reporting mod's, and only that mod knows
+     * what its wording has room for.
      */
     @Nonnull
     static Message gain(double gain, @Nullable String countKey) {
-        String key = countKey != null && !countKey.isBlank() ? countKey : GAIN_KEY;
-        if (gain == Math.rint(gain) && Math.abs(gain) < Long.MAX_VALUE) {
-            return Msg.key(key, (long) gain);
+        if (countKey != null && !countKey.isBlank()) {
+            return figure(countKey, gain);
         }
-        return Msg.key(key, gain);
+        if (gain >= COMPACT_GAIN_FROM) {
+            // NUMBER-OK: a compact magnitude ("12.3k") that no client-side number format produces, in a gain column too narrow for the grouped form
+            return Msg.key(GAIN_COMPACT_KEY, Msg.raw(NumberFormatter.compact(Math.round(gain), COMPACT_GAIN_FROM)));
+        }
+        return figure(GAIN_KEY, gain);
+    }
+
+    /** {@code value} bound whole on {@code key} as a typed numeric param, a long where it is integral. */
+    @Nonnull
+    private static Message figure(@Nonnull String key, double value) {
+        if (value == Math.rint(value) && Math.abs(value) < Long.MAX_VALUE) {
+            return Msg.key(key, (long) value);
+        }
+        return Msg.key(key, value);
     }
 
     /**

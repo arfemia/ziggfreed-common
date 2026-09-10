@@ -62,7 +62,10 @@ public record HudBarDisplay(@Nullable Message label, @Nullable IconSpec icon, @N
      * These parts, with the row's number worded by {@code key} instead of the panel's own plain
      * "+N". The key takes the number as its one parameter, so each client still writes the digits
      * itself; what the key SAYS around them is the reporting mod's business, and the panel neither
-     * reads it nor knows what is being counted.
+     * reads it nor knows what is being counted. The panel's own "+N" is written compact from ten
+     * thousand up ("+12.3k"), its gain column having no room for the grouped form; a row wording
+     * its own number is bound the whole figure at every magnitude, so a key that may be asked to
+     * word a large one leaves the room for it.
      */
     @Nonnull
     public HudBarDisplay counting(@Nullable String key) {

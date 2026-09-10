@@ -1,5 +1,6 @@
 package com.ziggfreed.common.ui.hud.bar;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -7,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
@@ -20,11 +23,14 @@ import com.ziggfreed.common.ui.hud.bar.HudBarHud.Row;
  * EXACTLY from the document's numbers: a row with a fill carries the bar block and a row about an
  * item does not, the tallest used column decides, the band adds to a column that carries one, the
  * spot's floor holds a short panel up, and a column whose spot cuts cells out of its pinned end
- * reserves them below its first row and stands taller than the rest. The band is one slot's taller
- * margin, so which slot carries it is worked out here in both directions a column can fill, with
- * and without a cut; and every column is placed by a push on its first visible slot, so a
- * bottom-pinned column shorter than the tallest bottom-aligns and a top-pinned one keeps its cut at
- * the top. Every number below is the test's own, so the arithmetic is checkable by hand.
+ * reserves them below its first row and never stands taller than the columns without a cut: what
+ * it has no room for spills into a row above the block, filled from the first column outward
+ * ({@link HudBarSpread}, whose dealing is pinned in {@code HudBarSpreadTest}; here its consequences
+ * in pixels). The band is one slot's taller margin, so which slot carries it is worked out here in
+ * both directions a column can fill, with and without a cut; and every column is placed by a push
+ * on its first visible slot, so a bottom-pinned column shorter than the tallest bottom-aligns and a
+ * top-pinned one keeps its cut at the top. Every number below is the test's own, so the arithmetic
+ * is checkable by hand.
  */
 class HudBarHeightTest {
 
@@ -217,17 +223,26 @@ class HudBarHeightTest {
     // ==================== the cut ====================
 
     @Test
-    void aCutColumnIsTheTallestAndTheFrameGrowsToHoldIt() {
-        // Nine fill rows three deep across three columns, the third cut two cells: it draws its
-        // three rows above two empty cells, so it reaches five rows from the edge while the others
-        // reach three, and the frame is sized to it.
+    void aCutColumnNeverStandsTallerAndItsSurplusSpillsAbove() {
+        // Nine fill rows three deep across three columns, the third cut two cells: drawing its
+        // three rows above two empty cells it would reach five rows from the edge while the others
+        // reach three. It keeps the one row that fits under their top; the other two go into a
+        // fourth row above the block, one to the first column and one to the second, so the frame
+        // is four rows tall (one for the spilled row) rather than five (two for a cut column
+        // standing alone).
         HudBarPlacement cut = at(BOTTOM_LEFT, null, new HudBarCutout(3, 2), 0);
 
-        assertEquals(PADDING * 2 + 5 * FILL_ROW, HudBarHud.panelHeightFor(rows(9, 0), 3, 3, LAYOUT, cut));
-        assertEquals(5 * FILL_ROW, HudBarHud.innerHeightFor(rows(9, 0), 3, 3, LAYOUT, cut));
+        assertEquals(PADDING * 2 + 4 * FILL_ROW, HudBarHud.panelHeightFor(rows(9, 0), 3, 3, LAYOUT, cut));
+        assertEquals(4 * FILL_ROW, HudBarHud.innerHeightFor(rows(9, 0), 3, 3, LAYOUT, cut));
+        assertEquals(4, HudBarHud.shapeOf(rows(9, 0), 0, 3, LAYOUT, cut).drawn(), "the first column took a spilled row");
+        assertEquals(4, HudBarHud.shapeOf(rows(9, 0), 1, 3, LAYOUT, cut).drawn(), "and the second the other");
+        ColumnShape squeezed = HudBarHud.shapeOf(rows(9, 0), 2, 3, LAYOUT, cut);
+        assertEquals(1, squeezed.drawn(), "the cut column keeps the one row that fits under the others' top");
+        assertEquals(2 * FILL_ROW, squeezed.reservedPx());
+        assertEquals(3 * FILL_ROW, squeezed.extentPx(), "two empty cells and a row: never past the block");
         assertEquals(PADDING * 2 + 3 * FILL_ROW, HudBarHud.panelHeightFor(rows(9, 0), 3, 3, LAYOUT,
                 at(BOTTOM_LEFT, null, 0)), "the same rows with no cut");
-        assertEquals(PADDING * 2 + 5 * FILL_ROW, HudBarHud.panelHeightFor(rows(9, 0), 3, 3, LAYOUT,
+        assertEquals(PADDING * 2 + 4 * FILL_ROW, HudBarHud.panelHeightFor(rows(9, 0), 3, 3, LAYOUT,
                 at(TOP_LEFT, null, new HudBarCutout(3, 2), 0)), "the cut reserves the same space top-down");
     }
 
@@ -235,36 +250,44 @@ class HudBarHeightTest {
     void theCutReservesTheBandTooWhenTheSplitFallsInsideIt() {
         // Two columns of three, a band after the first row, the second column cut two cells: the
         // split falls inside its cut, so that column's rows all sit above the band and its reserved
-        // space is the two cells plus the band. The first column carries the band between its own
-        // rows. Both reach the same height, and the frame holds either.
+        // space is the two cells plus the band. Under the first column's top it has room for one of
+        // its three rows; the other two spill into a fourth row above the block, one to each
+        // column. The first column carries the band between its own rows. Both reach the same
+        // height, four rows and the band, and the frame holds either.
         HudBarPlacement cut = at(BOTTOM_LEFT, new HudBarGap(1, 30), new HudBarCutout(2, 2), 0);
         ColumnShape plain = HudBarHud.shapeOf(rows(6, 0), 0, 3, LAYOUT, cut);
         ColumnShape swallowed = HudBarHud.shapeOf(rows(6, 0), 1, 3, LAYOUT, cut);
 
+        assertEquals(4, plain.drawn(), "three of its own and one spilled");
         assertEquals(0, plain.reservedPx());
         assertEquals(30, plain.bandPx(), "the first column carries the band");
-        assertEquals(3 * FILL_ROW + 30, plain.extentPx());
+        assertEquals(4 * FILL_ROW + 30, plain.extentPx());
+        assertEquals(2, swallowed.drawn(), "the one that fits under the block's top, and one spilled above it");
         assertEquals(2 * FILL_ROW + 30, swallowed.reservedPx(), "two empty cells and the band under them");
         assertEquals(-1, swallowed.bandSlot(), "no band between its own rows");
         assertEquals(0, swallowed.bandPx());
-        assertEquals(5 * FILL_ROW + 30, swallowed.extentPx());
-        assertEquals(PADDING * 2 + 5 * FILL_ROW + 30, HudBarHud.panelHeightFor(rows(6, 0), 2, 3, LAYOUT, cut));
+        assertEquals(4 * FILL_ROW + 30, swallowed.extentPx());
+        assertEquals(PADDING * 2 + 4 * FILL_ROW + 30, HudBarHud.panelHeightFor(rows(6, 0), 2, 3, LAYOUT, cut));
     }
 
     @Test
     void aCutColumnMayStillCarryTheBandWhenTheSplitFallsBetweenItsRows() {
         // The second column cut one cell with a band after the third row: its rows are 2..4 and the
         // split falls between rows 3 and 4, so it carries the band as the first column does, one
-        // slot further up bottom-up.
+        // slot further up bottom-up. Its fourth row has no room under the first column's top and
+        // spills into a fifth row there, so every column's slots are mapped five deep.
         HudBarPlacement cut = at(BOTTOM_LEFT, new HudBarGap(3, 30), new HudBarCutout(2, 1), 0);
         ColumnShape plain = HudBarHud.shapeOf(rows(8, 0), 0, 4, LAYOUT, cut);
         ColumnShape shifted = HudBarHud.shapeOf(rows(8, 0), 1, 4, LAYOUT, cut);
 
-        assertEquals(1, plain.bandSlot(), "four deep, the band above the slot drawing row 3: slot 4 - 3");
-        assertEquals(2, shifted.bandSlot(), "cut one, the same row sits one slot higher: 4 - 3 + 1");
+        assertEquals(5, plain.drawn(), "its four and the cut column's spilled fourth");
+        assertEquals(3, shifted.drawn());
+        assertEquals(2, plain.bandSlot(), "five deep, the band above the slot drawing row 3: slot 5 - 3");
+        assertEquals(3, shifted.bandSlot(), "cut one, the same row sits one slot higher: 5 - 3 + 1");
         assertEquals(30, shifted.bandPx());
         assertEquals(FILL_ROW, shifted.reservedPx(), "the cut cell alone: the band is between its rows, not under them");
-        assertEquals(FILL_ROW + 30 + 4 * FILL_ROW, shifted.extentPx());
+        assertEquals(FILL_ROW + 30 + 3 * FILL_ROW, shifted.extentPx());
+        assertEquals(5 * FILL_ROW + 30, plain.extentPx());
     }
 
     @Test
@@ -280,21 +303,23 @@ class HudBarHeightTest {
     }
 
     @Test
-    void aCutDeeperThanTheDocumentLeavesThatColumnNothingToDraw() {
-        // The document is six deep. A cut of six or more leaves the second column no cell at all:
-        // it draws nothing, has no extent, and the frame is sized to the first column alone. A cut
-        // of five leaves it one cell, so of its two rows it draws one, above five empty cells.
+    void aCutDeeperThanTheBlockLeavesThatColumnNothingToDrawAndItsRowsSpillBeside() {
+        // Four rows two deep on a six-deep document, the second column cut nine cells: it has no
+        // cell at all, so it draws nothing and has no extent. Its two rows are not lost: they spill
+        // into the first column as rows three and four above the block, and the frame is sized to
+        // that. A cut of five leaves it one cell, but a cell five rows up beside a two-row column is
+        // past the block, so it draws nothing there either and its rows spill the same way.
         HudBarPlacement gone = at(BOTTOM_LEFT, null, new HudBarCutout(2, 9), 0);
         assertSame(ColumnShape.NONE, HudBarHud.shapeOf(rows(4, 0), 1, 2, LAYOUT, gone));
-        assertEquals(PADDING * 2 + 2 * FILL_ROW, HudBarHud.panelHeightFor(rows(4, 0), 2, 2, LAYOUT, gone));
+        assertEquals(4, HudBarHud.shapeOf(rows(4, 0), 0, 2, LAYOUT, gone).drawn(), "the first column holds all four");
+        assertEquals(PADDING * 2 + 4 * FILL_ROW, HudBarHud.panelHeightFor(rows(4, 0), 2, 2, LAYOUT, gone));
         assertEquals(0, ColumnShape.NONE.leadingPx(2 * FILL_ROW, true), "nothing to push");
 
         HudBarPlacement oneCell = at(BOTTOM_LEFT, null, new HudBarCutout(2, 5), 0);
-        ColumnShape squeezed = HudBarHud.shapeOf(rows(4, 0), 1, 2, LAYOUT, oneCell);
-        assertEquals(1, squeezed.drawn(), "two rows given, one cell left: the other is not drawn");
-        assertEquals(5 * FILL_ROW, squeezed.reservedPx());
-        assertEquals(6 * FILL_ROW, squeezed.extentPx());
-        assertEquals(PADDING * 2 + 6 * FILL_ROW, HudBarHud.panelHeightFor(rows(4, 0), 2, 2, LAYOUT, oneCell));
+        assertSame(ColumnShape.NONE, HudBarHud.shapeOf(rows(4, 0), 1, 2, LAYOUT, oneCell),
+                "its one cell sits five rows up, past a two-row block");
+        assertEquals(4, HudBarHud.shapeOf(rows(4, 0), 0, 2, LAYOUT, oneCell).drawn());
+        assertEquals(PADDING * 2 + 4 * FILL_ROW, HudBarHud.panelHeightFor(rows(4, 0), 2, 2, LAYOUT, oneCell));
     }
 
     @Test
@@ -360,31 +385,33 @@ class HudBarHeightTest {
     }
 
     @Test
-    void aCutColumnBottomPinnedRidesUpAndTheOthersArePushedDownToMeetIt() {
-        // Six rows two deep across three columns, the third cut two cells: its rows start two
-        // cells up and it reaches four rows from the edge, so the panel is four rows tall and the
-        // two plain columns are pushed down by two rows to bottom-align inside it.
+    void aCutColumnBottomPinnedStandsOnTheEdgeUnderTheSpilledRow() {
+        // Nine rows three deep across three columns, the third cut two cells: the two plain
+        // columns each take one of the cut column's surplus rows as a fourth and reach the panel's
+        // top on their own; the cut column, its one row above two empty cells, is one row short of
+        // the panel and is pushed down by that row, so it stands on the pinned edge beneath the
+        // spilled row rather than hanging from the panel's top.
         HudBarPlacement spot = at(BOTTOM_LEFT, null, new HudBarCutout(3, 2), 0);
-        int inner = HudBarHud.innerHeightFor(rows(6, 0), 3, 2, LAYOUT, spot);
+        int inner = HudBarHud.innerHeightFor(rows(9, 0), 3, 3, LAYOUT, spot);
 
         assertEquals(4 * FILL_ROW, inner);
-        assertEquals(2 * FILL_ROW, HudBarHud.shapeOf(rows(6, 0), 0, 2, LAYOUT, spot).leadingPx(inner, true));
-        assertEquals(2 * FILL_ROW, HudBarHud.shapeOf(rows(6, 0), 1, 2, LAYOUT, spot).leadingPx(inner, true));
-        assertEquals(0, HudBarHud.shapeOf(rows(6, 0), 2, 2, LAYOUT, spot).leadingPx(inner, true),
-                "the cut column already starts above its cut: no push");
+        assertEquals(0, HudBarHud.shapeOf(rows(9, 0), 0, 3, LAYOUT, spot).leadingPx(inner, true));
+        assertEquals(0, HudBarHud.shapeOf(rows(9, 0), 1, 3, LAYOUT, spot).leadingPx(inner, true));
+        assertEquals(FILL_ROW, HudBarHud.shapeOf(rows(9, 0), 2, 3, LAYOUT, spot).leadingPx(inner, true),
+                "the cut column is pushed down by the one row it falls short");
     }
 
     @Test
     void aTopPinnedColumnKeepsItsCutAtTheTop() {
-        // The same six rows at a top spot: the plain columns start at the top untouched, and the
-        // cut column is pushed down by exactly its two empty cells so its rows start past them.
+        // The same nine rows at a top spot: the plain columns start at the top untouched, and the
+        // cut column is pushed down by exactly its two empty cells so its row starts past them.
         HudBarPlacement spot = at(TOP_LEFT, null, new HudBarCutout(3, 2), 0);
-        int inner = HudBarHud.innerHeightFor(rows(6, 0), 3, 2, LAYOUT, spot);
+        int inner = HudBarHud.innerHeightFor(rows(9, 0), 3, 3, LAYOUT, spot);
 
         assertEquals(4 * FILL_ROW, inner);
-        assertEquals(0, HudBarHud.shapeOf(rows(6, 0), 0, 2, LAYOUT, spot).leadingPx(inner, false));
-        assertEquals(0, HudBarHud.shapeOf(rows(6, 0), 1, 2, LAYOUT, spot).leadingPx(inner, false));
-        assertEquals(2 * FILL_ROW, HudBarHud.shapeOf(rows(6, 0), 2, 2, LAYOUT, spot).leadingPx(inner, false));
+        assertEquals(0, HudBarHud.shapeOf(rows(9, 0), 0, 3, LAYOUT, spot).leadingPx(inner, false));
+        assertEquals(0, HudBarHud.shapeOf(rows(9, 0), 1, 3, LAYOUT, spot).leadingPx(inner, false));
+        assertEquals(2 * FILL_ROW, HudBarHud.shapeOf(rows(9, 0), 2, 3, LAYOUT, spot).leadingPx(inner, false));
 
         HudBarPlacement banded = at(TOP_LEFT, new HudBarGap(2, 30), new HudBarCutout(1, 3), 0);
         assertEquals(3 * FILL_ROW + 30, HudBarHud.shapeOf(rows(4, 0), 0, 4, LAYOUT, banded).leadingPx(
@@ -392,73 +419,181 @@ class HudBarHeightTest {
                 "a split inside the cut is pushed past with it");
     }
 
+    /** The shipped bottom-left shape on a nine-deep, three-column document: the picture the two tests below draw. */
+    private static final HudBarLayout DEEP = new HudBarLayout("test", "test:hud", "Hud/Test.ui", "#Test",
+            3, 9, 12, 200, 8, 130, PADDING, MARGIN, LINE, BAR, TOP_LEFT);
+
+    private static final HudBarPlacement SHIPPED_SPOT = new HudBarPlacement(BOTTOM_LEFT, 3, 1, new HudBarGap(3, 66),
+            new HudBarCutout(3, 3), 0, null, "BottomLeft");
+
+    /** Which lattice row (1 against the pinned edge) each row index lands on, read off the spread and the cut. */
+    private static Map<Integer, Integer> latticeRows(HudBarSpread spread, HudBarCutout cutout) {
+        Map<Integer, Integer> at = new TreeMap<>();
+        for (int column = 0; column < spread.used(); column++) {
+            int[] mine = spread.rowsOf(column);
+            for (int i = 0; i < mine.length; i++) {
+                at.put(mine[i], cutout.rowsAt(column) + 1 + i);
+            }
+        }
+        return at;
+    }
+
     @Test
-    void eighteenRowsThreeAcrossSixDeepWithTheThirdColumnCutThree() {
+    void eighteenRowsThreeAcrossNineDeepWithTheThirdColumnCutThreeSpillExactlyOneRow() {
         // A bottom-pinned three-column spot, one row per column before spreading, a band after
         // the third row and the third column cut three cells, with eighteen rows moving:
         //
-        //   row9              [C3]
-        //   row8              [C3]
-        //   row7              [C3]
-        //   row6  [C1] [C2]   [C3]
-        //   row5  [C1] [C2]   [C3]
-        //   row4  [C1] [C2]   [C3]
+        //   row7  [C1] [C2] [C3]   <- the cut column's surplus, one to each column
+        //   row6  [C1] [C2] [C3]
+        //   row5  [C1] [C2] [C3]
+        //   row4  [C1] [C2] [C3]
         //   ------ band ----------
-        //   row3  [C1] [C2]    --
-        //   row2  [C1] [C2]    --   cut
-        //   row1  [C1] [C2]    --
+        //   row3  [C1] [C2]  --
+        //   row2  [C1] [C2]  --   cut
+        //   row1  [C1] [C2]  --
         //   ====== hotbar ========
         //
-        // The even split gives every column six rows; the cut column's six sit above its three
-        // empty cells, so it reaches nine rows from the edge (and carries no band, the split being
-        // inside its cut), the two plain columns reach six rows plus the band, and they are pushed
-        // down by the difference so all three stand on the pinned edge.
-        HudBarLayout deep = new HudBarLayout("test", "test:hud", "Hud/Test.ui", "#Test",
-                3, 9, 12, 200, 8, 130, PADDING, MARGIN, LINE, BAR, TOP_LEFT);
-        HudBarPlacement spot = new HudBarPlacement(BOTTOM_LEFT, 3, 1, new HudBarGap(3, 66), new HudBarCutout(3, 3),
-                0, null, "BottomLeft");
+        // The even split gives every column six rows. The cut column has room for three under the
+        // others' top (rows 4 to 6); its other three go into row 7, one per column from the first
+        // outward, which is exactly one spilled row. Every column then reaches seven rows from the
+        // edge, the plain ones with the band between their third and fourth rows and the cut one
+        // with the band inside its cut, so nothing is pushed.
         List<Row> rows = rows(18, 0);
 
-        int allowed = HudBarHud.columnsFor(rows.size(), deep, spot);
-        int perColumn = HudBarHud.rowsPerColumnFor(rows.size(), allowed, deep);
-        int used = HudBarHud.usedColumnsFor(rows.size(), perColumn);
+        int allowed = HudBarHud.columnsFor(rows.size(), DEEP, SHIPPED_SPOT);
+        int perColumn = HudBarHud.rowsPerColumnFor(rows.size(), allowed, DEEP);
         assertEquals(3, allowed);
         assertEquals(6, perColumn, "eighteen rows split six deep");
-        assertEquals(3, used);
+        HudBarSpread spread = HudBarHud.spreadOf(rows, perColumn, DEEP, SHIPPED_SPOT);
+        assertEquals(3, spread.used());
+        assertEquals(7, spread.depth(), "six and the spilled row");
+        assertArrayEquals(new int[] {0, 1, 2, 3, 4, 5, 15}, spread.rowsOf(0));
+        assertArrayEquals(new int[] {6, 7, 8, 9, 10, 11, 16}, spread.rowsOf(1));
+        assertArrayEquals(new int[] {12, 13, 14, 17}, spread.rowsOf(2));
 
-        ColumnShape c1 = HudBarHud.shapeOf(rows, 0, perColumn, deep, spot);
-        ColumnShape c2 = HudBarHud.shapeOf(rows, 1, perColumn, deep, spot);
-        ColumnShape c3 = HudBarHud.shapeOf(rows, 2, perColumn, deep, spot);
-        assertEquals(6 * FILL_ROW + 66, c1.extentPx());
+        ColumnShape c1 = HudBarHud.shapeOf(rows, 0, perColumn, DEEP, SHIPPED_SPOT);
+        ColumnShape c2 = HudBarHud.shapeOf(rows, 1, perColumn, DEEP, SHIPPED_SPOT);
+        ColumnShape c3 = HudBarHud.shapeOf(rows, 2, perColumn, DEEP, SHIPPED_SPOT);
+        assertEquals(7 * FILL_ROW + 66, c1.extentPx());
         assertEquals(c1, c2);
-        assertEquals(3, c1.bandSlot(), "the band above the slot drawing row 3");
+        assertEquals(4, c1.bandSlot(), "seven deep, the band above the slot drawing row 3: slot 7 - 3");
         assertEquals(66, c1.bandPx());
-        assertEquals(6, c3.drawn(), "the cut column holds exactly its six: nine cells less three");
+        assertEquals(4, c3.drawn(), "three under the others' top and one spilled");
         assertEquals(3 * FILL_ROW + 66, c3.reservedPx(), "three empty cells and the band under them");
         assertEquals(-1, c3.bandSlot(), "all its rows are above the split");
-        assertEquals(9 * FILL_ROW + 66, c3.extentPx());
+        assertEquals(7 * FILL_ROW + 66, c3.extentPx(), "as tall as the plain columns, never taller");
 
-        int inner = HudBarHud.innerHeightFor(rows, used, perColumn, deep, spot);
-        assertEquals(9 * FILL_ROW + 66, inner);
-        assertEquals(PADDING * 2 + 9 * FILL_ROW + 66, HudBarHud.panelHeightFor(rows, used, perColumn, deep, spot));
-        assertEquals(3 * FILL_ROW, c1.leadingPx(inner, true), "the plain columns are pushed down by three rows");
-        assertEquals(3 * FILL_ROW, c2.leadingPx(inner, true));
-        assertEquals(0, c3.leadingPx(inner, true), "the cut column stands at the panel's top");
+        int inner = HudBarHud.innerHeightFor(rows, spread.used(), perColumn, DEEP, SHIPPED_SPOT);
+        assertEquals(7 * FILL_ROW + 66, inner);
+        assertEquals(PADDING * 2 + 7 * FILL_ROW + 66, HudBarHud.panelHeightFor(rows, spread.used(), perColumn, DEEP, SHIPPED_SPOT));
+        assertEquals(0, c1.leadingPx(inner, true), "every column reaches the panel's top");
+        assertEquals(0, c2.leadingPx(inner, true));
+        assertEquals(0, c3.leadingPx(inner, true));
 
-        // Slot by slot, top to bottom, what each margin is pushed by over the document's own. The
-        // plain columns: three rows on the topmost slot (drawing row 6), the band on the slot
-        // drawing row 3, nothing elsewhere; the cut column: nothing anywhere, its empty cells being
-        // the space left below its lowest slot. Slots 6 to 8 draw nothing in any column.
-        int[] plain = {3 * FILL_ROW, 0, 0, 66, 0, 0};
-        int[] cut = {0, 0, 0, 0, 0, 0};
-        for (int slot = 0; slot < perColumn; slot++) {
-            int ordinal = HudBarHud.ordinalInColumn(slot, perColumn, true);
+        // Slot by slot, top to bottom, what each margin is pushed by over the document's own, the
+        // slots mapped seven deep: the plain columns carry the band on the slot drawing row 3 and
+        // nothing elsewhere; the cut column draws in slots 3 to 6 alone (its ordinals 3 down to 0),
+        // hides slots 0 to 2, and pushes nothing, its empty cells being the space below its lowest
+        // slot. Slots 7 and 8 draw nothing in any column.
+        int depth = spread.depth();
+        int[] plain = {0, 0, 0, 0, 66, 0, 0};
+        for (int slot = 0; slot < depth; slot++) {
+            int ordinal = HudBarHud.ordinalInColumn(slot, depth, true);
             assertEquals(plain[slot], c1.pushAt(slot, ordinal, inner, true), "column 1, slot " + slot);
             assertEquals(plain[slot], c2.pushAt(slot, ordinal, inner, true), "column 2, slot " + slot);
-            assertEquals(cut[slot], c3.pushAt(slot, ordinal, inner, true), "column 3, slot " + slot);
-            assertTrue(ordinal < c3.drawn(), "every one of the six slots draws in the cut column");
+            assertEquals(slot >= 3, ordinal < c3.drawn(), "the cut column draws in slots 3 to 6: slot " + slot);
+            if (ordinal < c3.drawn()) {
+                assertEquals(0, c3.pushAt(slot, ordinal, inner, true), "column 3, slot " + slot);
+            }
         }
-        assertEquals(2, HudBarHud.ordinalInColumn(3, perColumn, true), "slot 3 draws row 3, the top of the lower group");
-        assertEquals(5, HudBarHud.ordinalInColumn(0, perColumn, true), "slot 0 draws row 6, the column's topmost");
+        assertEquals(2, HudBarHud.ordinalInColumn(4, depth, true), "slot 4 draws row 3, the top of the lower group");
+        assertEquals(6, HudBarHud.ordinalInColumn(0, depth, true), "slot 0 draws row 7, the spilled one");
+    }
+
+    @Test
+    void twentyRowsThreeAcrossNineDeepWithTheThirdColumnCutThreeSpillTwoIntoARowAbove() {
+        // The same spot with twenty rows moving, which the even split deals 7 / 7 / 6:
+        //
+        //   row8  [C1] [C2]         <- the two rows the cut column had no room for, first column outward
+        //   row7  [C1] [C2] [C3]
+        //   row6  [C1] [C2] [C3]
+        //   row5  [C1] [C2] [C3]
+        //   row4  [C1] [C2] [C3]
+        //   ------ band ----------
+        //   row3  [C1] [C2]  --
+        //   row2  [C1] [C2]  --   cut
+        //   row1  [C1] [C2]  --
+        //   ====== hotbar ========
+        //
+        // Rows 0 to 6 climb the first column and 7 to 13 the second, to row 7. The cut column's
+        // six (14 to 19) would reach row 9 above its three empty cells; it keeps the four that fit
+        // under row 7 (14 to 17, in rows 4 to 7), and 18 and 19 go into row 8, in the first and
+        // the second column. The panel is eight rows and the band tall, one row less than the cut
+        // column standing alone would have made it, with no empty frame over the plain columns,
+        // and the cut column is pushed down by the one row it falls short.
+        List<Row> rows = rows(20, 0);
+
+        int allowed = HudBarHud.columnsFor(rows.size(), DEEP, SHIPPED_SPOT);
+        int perColumn = HudBarHud.rowsPerColumnFor(rows.size(), allowed, DEEP);
+        assertEquals(3, allowed);
+        assertEquals(7, perColumn, "twenty rows split seven deep");
+        HudBarSpread spread = HudBarHud.spreadOf(rows, perColumn, DEEP, SHIPPED_SPOT);
+        assertEquals(3, spread.used());
+        assertEquals(8, spread.depth(), "seven and the spilled row");
+        assertArrayEquals(new int[] {0, 1, 2, 3, 4, 5, 6, 18}, spread.rowsOf(0));
+        assertArrayEquals(new int[] {7, 8, 9, 10, 11, 12, 13, 19}, spread.rowsOf(1));
+        assertArrayEquals(new int[] {14, 15, 16, 17}, spread.rowsOf(2));
+
+        Map<Integer, Integer> expected = new TreeMap<>();
+        for (int i = 0; i <= 6; i++) {
+            expected.put(i, i + 1);
+        }
+        for (int i = 7; i <= 13; i++) {
+            expected.put(i, i - 6);
+        }
+        for (int i = 14; i <= 17; i++) {
+            expected.put(i, i - 10);
+        }
+        expected.put(18, 8);
+        expected.put(19, 8);
+        assertEquals(expected, latticeRows(spread, SHIPPED_SPOT.cutout()),
+                "which lattice row each index lands on, 1 being the row against the hotbar");
+
+        ColumnShape c1 = HudBarHud.shapeOf(rows, 0, perColumn, DEEP, SHIPPED_SPOT);
+        ColumnShape c2 = HudBarHud.shapeOf(rows, 1, perColumn, DEEP, SHIPPED_SPOT);
+        ColumnShape c3 = HudBarHud.shapeOf(rows, 2, perColumn, DEEP, SHIPPED_SPOT);
+        assertEquals(8 * FILL_ROW + 66, c1.extentPx());
+        assertEquals(c1, c2);
+        assertEquals(5, c1.bandSlot(), "eight deep, the band above the slot drawing row 3: slot 8 - 3");
+        assertEquals(4, c3.drawn(), "the four that fit under row 7");
+        assertEquals(3 * FILL_ROW + 66, c3.reservedPx());
+        assertEquals(-1, c3.bandSlot());
+        assertEquals(7 * FILL_ROW + 66, c3.extentPx(), "one row short of the spilled row");
+
+        int inner = HudBarHud.innerHeightFor(rows, spread.used(), perColumn, DEEP, SHIPPED_SPOT);
+        assertEquals(8 * FILL_ROW + 66, inner);
+        assertEquals(PADDING * 2 + 8 * FILL_ROW + 66, HudBarHud.panelHeightFor(rows, spread.used(), perColumn, DEEP, SHIPPED_SPOT),
+                "eight rows and the band: the cut column's six above its cut would have made it nine");
+        assertEquals(0, c1.leadingPx(inner, true));
+        assertEquals(0, c2.leadingPx(inner, true));
+        assertEquals(FILL_ROW, c3.leadingPx(inner, true), "the cut column stands on the edge under row 8");
+
+        // Slot by slot, the slots mapped eight deep: the plain columns carry the band on the slot
+        // drawing row 3; the cut column hides slots 0 to 3, its first visible slot (4, drawing its
+        // topmost row, row 7) carries its leading push, and the rest carry nothing.
+        int depth = spread.depth();
+        int[] plain = {0, 0, 0, 0, 0, 66, 0, 0};
+        int[] cut = {-1, -1, -1, -1, FILL_ROW, 0, 0, 0};
+        for (int slot = 0; slot < depth; slot++) {
+            int ordinal = HudBarHud.ordinalInColumn(slot, depth, true);
+            assertEquals(plain[slot], c1.pushAt(slot, ordinal, inner, true), "column 1, slot " + slot);
+            assertEquals(plain[slot], c2.pushAt(slot, ordinal, inner, true), "column 2, slot " + slot);
+            assertEquals(cut[slot] >= 0, ordinal < c3.drawn(), "the cut column draws in slots 4 to 7: slot " + slot);
+            if (cut[slot] >= 0) {
+                assertEquals(cut[slot], c3.pushAt(slot, ordinal, inner, true), "column 3, slot " + slot);
+            }
+        }
+        assertEquals(2, HudBarHud.ordinalInColumn(5, depth, true), "slot 5 draws row 3, the top of the lower group");
+        assertEquals(7, HudBarHud.ordinalInColumn(0, depth, true), "slot 0 draws row 8, the spilled one");
     }
 }
