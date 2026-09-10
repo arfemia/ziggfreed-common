@@ -29,12 +29,11 @@ import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.hud.HudPreferenceComponent;
 import com.ziggfreed.common.ui.hud.HudPreferences;
-import com.ziggfreed.common.ui.hud.bar.HudBarLayout;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelOwnerWriter;
-import com.ziggfreed.common.ui.hud.bar.HudBarPlacementAsset;
-import com.ziggfreed.common.ui.hud.bar.HudBarPlacementConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBars;
+import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
+import com.ziggfreed.common.ui.hud.panel.HudPanelOwnerWriter;
+import com.ziggfreed.common.ui.hud.panel.HudPanels;
+import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
+import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.command.HudMessages;
 import com.ziggfreed.common.ui.hud.settings.HudSettingsRows.Row;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -54,8 +53,8 @@ import com.ziggfreed.common.util.SafeLog;
  * is on for everyone, the spot it sits at, and every inline leaf an owner may restate over that
  * spot ({@link HudServerLeaf}: the offsets, the spread, the band, the cut, the least height and the
  * colour), each a field. The on/off switch is kept at once; the rest is a draft written by Save,
- * in exactly the shape an owner would type into {@code mods/ziggfreedcommon/hud-bar-panels.json},
- * through {@link HudBarPanelOwnerWriter}, so the file stays readable and editable by hand
+ * in exactly the shape an owner would type into {@code mods/ziggfreedcommon/hud-panels.json},
+ * through {@link HudPanelOwnerWriter}, so the file stays readable and editable by hand
  * afterwards. A blank field REMOVES that leaf, so the spot's own value applies again; a field that
  * will not read is named in a toast and NOTHING is written, for any panel, until it is fixed.
  *
@@ -130,7 +129,7 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
         SettingsUiUtil.bindButton(events, "#TabServer", "tab", "Tab", TAB_SERVER);
 
         if (TAB_SERVER.equals(tab)) {
-            render(cmd, events, HudSettingsRows.server(panelIds(), HudBarPanelConfig.getInstance()));
+            render(cmd, events, HudSettingsRows.server(panelIds(), HudPanelConfig.getInstance()));
         } else {
             render(cmd, events, HudSettingsRows.mine(HudPreferences.component(playerRef), panelIds()));
         }
@@ -154,14 +153,10 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
         cmd.append(PAGE_TEMPLATE);
     }
 
-    /** The panels the page lists, in the order the library attaches them. */
+    /** The panels the page lists, by each panel's authored {@code Order}: the ONE list both tabs read. */
     @Nonnull
     private static List<String> panelIds() {
-        List<String> ids = new ArrayList<>();
-        for (HudBarLayout layout : HudBars.panels()) {
-            ids.add(layout.panelId());
-        }
-        return ids;
+        return HudPanels.listing();
     }
 
     /** Append the plan row by row, each kind through its own template, worded from the family's lang file. */
@@ -190,7 +185,7 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
         List<DropdownEntryInfo> entries = new ArrayList<>();
         entries.add(new DropdownEntryInfo(
                 LocalizableString.fromMessageId(HudMessages.key("settings." + noneKey)), HudSettingsRows.NONE));
-        for (HudBarPlacementAsset spot : HudBarPlacementConfig.getInstance().offeredFor(panelId)) {
+        for (HudSpotAsset spot : HudSpotConfig.getInstance().offeredFor(panelId)) {
             String key = spot.labelKey();
             LocalizableString label = key != null
                     ? LocalizableString.fromMessageId(ContentKeys.resolved(key))
@@ -345,8 +340,8 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
             }
         } else if (field.startsWith(HudSettingsRows.ENABLED) && admin) {
             String panelId = field.substring(HudSettingsRows.ENABLED.length());
-            boolean on = !HudBarPanelConfig.getInstance().panel(panelId).enabled();
-            if (HudBarPanelOwnerWriter.setEnabled(panelId, on)) {
+            boolean on = !HudPanelConfig.getInstance().panel(panelId).enabled();
+            if (HudPanelOwnerWriter.setEnabled(panelId, on)) {
                 paintToggle(cmd, sel, on);
                 showToast(ToastKind.SUCCESS, msg(on ? "panel_on" : "panel_off", panelLabel(panelId)));
             } else {
@@ -383,7 +378,7 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
             perPanel.put(id, leaves);
         }
         for (Map.Entry<String, Map<String, Object>> panel : perPanel.entrySet()) {
-            if (!HudBarPanelOwnerWriter.setLeaves(panel.getKey(), panel.getValue())) {
+            if (!HudPanelOwnerWriter.setLeaves(panel.getKey(), panel.getValue())) {
                 showToast(ToastKind.ERROR, msg("save_failed"));
                 this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
                 return;
@@ -395,12 +390,12 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
 
     @Nonnull
     private static Message panelLabel(@Nonnull String panelId) {
-        return HudBarPanelConfig.getInstance().panel(panelId).label();
+        return HudPanelConfig.getInstance().panel(panelId).label();
     }
 
     @Nonnull
     private static Message spotLabel(@Nonnull String placementId) {
-        HudBarPlacementAsset spot = HudBarPlacementConfig.getInstance().placement(placementId);
+        HudSpotAsset spot = HudSpotConfig.getInstance().spot(placementId);
         return spot != null ? spot.label() : Msg.raw(placementId);
     }
 }

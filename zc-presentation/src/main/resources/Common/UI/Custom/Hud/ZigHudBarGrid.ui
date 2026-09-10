@@ -1,27 +1,27 @@
-// The wide bar panel (ziggfreed-common, zc-presentation: ui/hud/bar/HudBarGridHud over the shared
-// ui/hud/bar/HudBarHud). For values that move while a player is out in the world, where there is
-// no ledger for them to sit beside: it opens a column per row rather than stacking, so one moving
-// value is a single bar rather than a lone entry in an empty tower. Where it sits is the spot
-// Server/ZiggfreedCommon/HudBarPanels/Grid.json names, one of
-// Server/ZiggfreedCommon/HudBarPlacements/: the shipped default is BottomLeft, three columns wide,
-// pinned to the BOTTOM edge so it grows UPWARD and each column fills from the bottom, with a band
-// left clear after the third row (the spot's Gap) so the rows straddle the player's own health and
-// mana bars rather than climbing into them, and the lowest cells of its third column left empty
-// (the spot's Cutout) so the panel steps around the utility slot and the hotbar's end under them;
-// the other spot measured for it is TopRight, six columns wide above the quest tracker, pinned to
-// the RIGHT edge so it grows LEFTWARD and its first column is the rightmost one. A player may pick
+// The World bars, the wide panel (ziggfreed-common, zc-presentation: ui/hud/panel/WorldPanelHud
+// over the shared ui/hud/panel/HudPanelHud). For values that move while a player is out in the
+// world, where there is no ledger for them to sit beside: it opens a column per row rather than
+// stacking, so one moving value is a single bar rather than a lone entry in an empty tower. Where
+// it sits is the spot Server/ZiggfreedCommon/HudPanels/World_Bars.json names, one of
+// Server/ZiggfreedCommon/HudSpots/: as shipped that is Top_Right, six columns wide above the quest
+// tracker, pinned to the RIGHT edge so it grows LEFTWARD and its first column is the rightmost one.
+// The other spot measured for it is Bottom_Left, three columns wide above the hotbar, pinned to the
+// BOTTOM edge so it grows UPWARD and each column fills from the bottom, with a band left clear after
+// the third row (the spot's Gap) so the rows straddle the player's own health and mana bars rather
+// than climbing into them, and the lowest cells of its third column left empty (the spot's Cutout)
+// so the panel steps around the utility slot and the hotbar's end under them. A player may pick
 // either for themselves in the HUD settings.
 //
 // Everything else - the row shape, the dressing, the retint, the pulse, the per-slot selectors - is
 // exactly the stacked panel's, because one class paints both. See ZigHudBars.ui's header for the
-// rules that apply to each; the counts here MUST match HudBarGridHud.LAYOUT.
+// rules that apply to each; the counts here MUST match WorldPanelHud.LAYOUT.
 //
 // GEOMETRY: six columns of nine; 12 of horizontal padding, a 200-wide column and 8 between
 // columns, so the panel runs 224 wide with one column open, 432 with two, 640 with three, to 1264
 // with all six; a 132-wide track between two 30-wide captions, padded a pixel each side, so a fill
 // spans 130. Vertically, 12 of padding at each end, a 5 margin above every row (@RowAnchor's Top),
 // an 18 line (@LineAnchor) and a 12 bar block (@BarAnchor's Top plus Height), which
-// HudBarGridHud.LAYOUT mirrors as verticalPaddingPx / rowMarginPx / lineHeightPx / barBlockPx: the
+// WorldPanelHud.LAYOUT mirrors as verticalPaddingPx / rowMarginPx / lineHeightPx / barBlockPx: the
 // panel's height is pushed with every paint from those numbers, and so is each slot's row margin
 // (taller on the first visible slot of a column that sits short of the panel's top or starts past
 // its spot's Cutout, and on the one slot that carries the spot's Gap band). The gain column is 56

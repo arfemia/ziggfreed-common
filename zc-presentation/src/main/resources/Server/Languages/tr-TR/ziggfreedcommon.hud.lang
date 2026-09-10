@@ -3,14 +3,14 @@
 # ziggfreedcommon.hud.<anahtar> şeklinde çözülür. desc.* anahtarları, motorun kendi yardımının
 # bir komutu veya bir argümanı çözdüğü yerdir.
 
-# Server/ZiggfreedCommon/HudBarPlacements/ altında gönderilen yerler, seçicilerin listeledikleri şekilde.
-placement.top_left = Sol üstte
-placement.top_right = Sağ üstte
-placement.bottom_left = Sol altta
+# Server/ZiggfreedCommon/HudSpots/ altında gönderilen yerler, seçicilerin listeledikleri şekilde.
+spot.top_left = Sol üstte
+spot.top_right = Sağ üstte
+spot.bottom_left = Sol altta
 
 # İki panel, seçicilerin ve yanıtların adlandırdıkları şekilde.
-panel.default = Aktivite defteri
-panel.grid = Dünya çubukları
+panel.activity_ledger = Aktivite defteri
+panel.world_bars = Dünya çubukları
 
 # HUD ayarları sayfası.
 settings.title = HUD çubukları
@@ -41,7 +41,7 @@ settings.cutout_rows = Kesilen hücreler
 settings.min_height = En az yükseklik
 settings.color = Renk
 settings.color_hint = Altı onaltılık basamak ya da sonunda saydamlıkla sekiz. #ffffff çerçevenin geldiği hâlidir.
-settings.server_note = Boş alan konumun değerini korur. Kaydet herkese uygulanır ve mods/ziggfreedcommon/hud-bar-panels.json dosyasına yazar.
+settings.server_note = Boş alan konumun değerini korur. Kaydet herkese uygulanır ve mods/ziggfreedcommon/hud-panels.json dosyasına yazar.
 settings.saved = Kaydedildi. Tüm oyuncuların panelleri taşındı.
 settings.save_failed = Sahip dosyası yazılamadı. Hiçbir şey değişmedi.
 settings.invalid_number = {0} tam bir sayı ya da hiçbir şey gerektirir.
@@ -63,7 +63,7 @@ desc.place = Paneli adlandırılmış bir konuma kendine ait olarak yerleştir.
 desc.hide = Bir paneli kendine ait olarak veya tüm panelleri gizle.
 desc.show = Gizlediğin bir paneli veya tüm panelleri göster.
 desc.default = Bir panelin herkes için oturduğu konumu ayarla.
-desc.arg.panel = Panel: default (aktivite defteri) veya grid (dünya çubukları).
+desc.arg.panel = Panel: Activity_Ledger (aktivite defteri) veya World_Bars (dünya çubukları).
 desc.arg.placement = Yer, kimliğine göre veya sunucunun seçimini izlemek için "server".
 desc.arg.player = Kimin HUD'u değiştirecek. Varsayılan olarak sensin.
 desc.arg.panel_or_all = Panel veya tüm paneller için "all". Varsayılan tümü.
@@ -72,9 +72,9 @@ open.needsPlayer = Bunu oyunda çalıştır: ayarlar senindir ve konsolun HUD'u 
 open.failed = Ayarlar açılamadı.
 player.needed = Bir oyuncuyu --player=<name> ile adlandır veya bunu oyunda çalıştır.
 player.offline = Bu oyuncu çevrimiçi değil.
-panel.unknown = "{0}" adında bir panel yok. default ya da grid kullan.
-placement.unknown = "{0}" adında bir yer yok.
-placement.unfit = {0}, {1} için ölçülmedi, bu yüzden orada sunulmamaktadır.
+panel.unknown = "{0}" adında bir panel yok. Activity_Ledger ya da World_Bars kullan.
+spot.unknown = "{0}" adında bir yer yok.
+spot.unfit = {0}, {1} için ölçülmedi, bu yüzden orada sunulmamaktadır.
 place.done = {0} artık {1} konumunda oturuyor.
 place.cleared = {0} sunucunun seçimini tekrar izliyor.
 place.unchanged = Zaten öyle.

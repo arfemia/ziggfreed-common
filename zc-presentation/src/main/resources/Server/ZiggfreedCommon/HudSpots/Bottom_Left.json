@@ -1,0 +1,60 @@
+{
+  "$Comment": [
+    "A spot a panel can sit at: the bottom-left, above the hotbar, where your own health and mana",
+    "bars are. Measured for the World bars (World_Bars) and offered to them beside Top_Right, so a",
+    "player who prefers their bars low picks it in the HUD settings and a server that does can name",
+    "it in the panel's Placement. Three columns wide, which leaves a skill name room to be read;",
+    "pinned to the bottom edge, it grows UPWARD as rows come up and fills each column from the",
+    "bottom, so the bar already on screen stays put when the next one opens above it. Columns 3",
+    "with RowsPerColumn 1 spreads the rows sideways before any column goes deep.",
+    "",
+    "Gap leaves a band clear across every column at the same height, so the rows straddle your own",
+    "bars rather than climbing into them: AfterRow counts rows from the bottom edge (row 1 is the",
+    "row nearest it), the rows up to it sit below the band, and the rest carry on above it. Pixels",
+    "is the band's height; the mana bar sits in the band and rides its top edge, so a taller band",
+    "lifts the rows above it clear of the bar and puts the bar nearer the band's middle. The pair",
+    "shipped here is a starting point: which row the band follows and how tall it is depend on a",
+    "screen's own scale and on where that server draws its bars, so change both freely until the",
+    "band clears them on your own screen. Either number at zero draws no band, and a column with no",
+    "row past AfterRow draws none.",
+    "",
+    "Cutout leaves the cells nearest the bottom edge of ONE column empty, so the panel steps around",
+    "what a client draws there: under the third column's lowest rows sit the utility slot and the",
+    "left end of the hotbar. Column counts from the panel's own first column, the one at this",
+    "spot's left edge, so 3 is the far right here; Rows is how many cells up from the bottom stay",
+    "clear. That column's rows start above its cut and stop where the other two columns stop, so it",
+    "never stands taller than them: the rows it has no room for go into a row of their own above",
+    "the whole block, filled from the left column outward, and another above that if one is not",
+    "enough; a row past the panel's nine is left undrawn. Either number at zero, or a Column the",
+    "rows never open, cuts nothing.",
+    "",
+    "Position is a corner preset plus pixel offsets from the edges that preset pins (OffsetY here",
+    "is measured UP from the bottom); the preset names a corner of the screen and is not the",
+    "spot's id. Columns and RowsPerColumn say how the rows spread out here. Panels lists which",
+    "panels offer this spot. LabelKey names it in the HUD settings, and Order is where it is listed",
+    "among the spots, lower first.",
+    "",
+    "To change a leaf without copying this file, add an entry keyed 'Bottom_Left' to",
+    "mods/ziggfreedcommon/hud-spots.json with only the leaves you want different; a Gap or Cutout",
+    "block there restates only the leaf it carries, so {\"Gap\": {\"Pixels\": 0}} is enough to",
+    "switch the band off and {\"Cutout\": {\"Rows\": 0}} to use every cell."
+  ],
+  "LabelKey": "ziggfreedcommon.hud.spot.bottom_left",
+  "Position": {
+    "Preset": "BottomLeft",
+    "OffsetX": 16,
+    "OffsetY": 16
+  },
+  "Columns": 3,
+  "RowsPerColumn": 1,
+  "Gap": {
+    "AfterRow": 3,
+    "Pixels": 66
+  },
+  "Cutout": {
+    "Column": 3,
+    "Rows": 3
+  },
+  "Panels": ["World_Bars"],
+  "Order": 30
+}

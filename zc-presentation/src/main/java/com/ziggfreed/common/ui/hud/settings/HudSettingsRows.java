@@ -8,8 +8,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.ui.hud.HudPreferenceComponent;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelAsset;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelConfig;
+import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
+import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
 
 /**
  * What the HUD settings page lists on each tab, worked out with nothing but the player's own
@@ -133,10 +133,10 @@ final class HudSettingsRows {
      * then the note.
      */
     @Nonnull
-    static List<Row> server(@Nonnull List<String> panelIds, @Nonnull HudBarPanelConfig panels) {
+    static List<Row> server(@Nonnull List<String> panelIds, @Nonnull HudPanelConfig panels) {
         List<Row> rows = new ArrayList<>();
         for (String id : panelIds) {
-            HudBarPanelAsset panel = panels.panel(id);
+            HudPanelAsset panel = panels.panel(id);
             rows.add(Row.header(id));
             rows.add(Row.toggle(ENABLED + id, "enabled", null, panel.enabled()));
             String named = panel.placement();

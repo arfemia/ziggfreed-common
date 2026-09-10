@@ -18,10 +18,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.ziggfreed.common.ui.hud.bar.HudBarOwnerLayers;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelAsset;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelOwnerWriter;
+import com.ziggfreed.common.ui.hud.panel.HudOwnerLayers;
+import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
+import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
+import com.ziggfreed.common.ui.hud.panel.HudPanelOwnerWriter;
 
 /**
  * A Save round trip, the way the page makes it: the drafted leaves go through the one writer into
@@ -31,25 +31,25 @@ import com.ziggfreed.common.ui.hud.bar.HudBarPanelOwnerWriter;
  */
 class HudSettingsSaveTest {
 
-    private static final String PANEL = "grid";
+    private static final String PANEL = "World_Bars";
 
     @TempDir
     Path dir;
 
     @BeforeEach
     void pointTheOwnerFileHere() {
-        HudBarOwnerLayers.setDirectory(dir);
+        HudOwnerLayers.setDirectory(dir);
     }
 
     @AfterEach
     void restore() {
-        HudBarOwnerLayers.setDirectory(HudBarOwnerLayers.DEFAULT_DIRECTORY);
-        HudBarPanelConfig.getInstance().mergePackLayer(Map.of());
-        HudBarPanelConfig.getInstance().mergeOwnerLayer(Map.of());
+        HudOwnerLayers.setDirectory(HudOwnerLayers.DEFAULT_DIRECTORY);
+        HudPanelConfig.getInstance().mergePackLayer(Map.of());
+        HudPanelConfig.getInstance().mergeOwnerLayer(Map.of());
     }
 
     private JsonObject entry(String key) throws Exception {
-        String json = Files.readString(HudBarOwnerLayers.panelsFile(), StandardCharsets.UTF_8);
+        String json = Files.readString(HudOwnerLayers.panelsFile(), StandardCharsets.UTF_8);
         return JsonParser.parseString(json).getAsJsonObject().getAsJsonObject(key);
     }
 
@@ -59,7 +59,7 @@ class HudSettingsSaveTest {
         HudServerLeaf.Draft drafted = HudServerLeaf.draft(PANEL, typed);
         assertTrue(drafted.accepted());
 
-        assertTrue(HudBarPanelOwnerWriter.setLeaves(PANEL, drafted.leaves()));
+        assertTrue(HudPanelOwnerWriter.setLeaves(PANEL, drafted.leaves()));
 
         JsonObject grid = entry(PANEL);
         assertEquals(16, grid.getAsJsonObject("Position").get("OffsetX").getAsInt());
@@ -75,7 +75,7 @@ class HudSettingsSaveTest {
         assertFalse(grid.has("Gap.AfterRow"), "never a dotted key");
         assertFalse(grid.has("Placement"), "a leaf the draft did not carry is not invented");
 
-        HudBarPanelAsset panel = HudBarPanelConfig.getInstance().panel(PANEL);
+        HudPanelAsset panel = HudPanelConfig.getInstance().panel(PANEL);
         assertEquals(3, panel.authoredGap().afterRow());
         assertEquals(66, panel.authoredGap().pixels());
         assertEquals(3, panel.authoredCutout().column());
@@ -89,7 +89,7 @@ class HudSettingsSaveTest {
         }
 
         Map<String, String> blank = new LinkedHashMap<>();
-        assertTrue(HudBarPanelOwnerWriter.setLeaves(PANEL, HudServerLeaf.draft(PANEL, blank).leaves()));
+        assertTrue(HudPanelOwnerWriter.setLeaves(PANEL, HudServerLeaf.draft(PANEL, blank).leaves()));
 
         grid = entry(PANEL);
         for (String gone : new String[] {"Columns", "RowsPerColumn", "MinHeight", "Color"}) {
@@ -99,7 +99,7 @@ class HudSettingsSaveTest {
         assertFalse(grid.getAsJsonObject("Gap").has("Pixels"));
         assertFalse(grid.getAsJsonObject("Cutout").has("Column"));
         assertFalse(grid.getAsJsonObject("Cutout").has("Rows"));
-        panel = HudBarPanelConfig.getInstance().panel(PANEL);
+        panel = HudPanelConfig.getInstance().panel(PANEL);
         assertNull(panel.authoredGap(), "an emptied band group states nothing");
         assertNull(panel.authoredCutout());
         assertNull(panel.authoredMinHeight());
@@ -109,24 +109,24 @@ class HudSettingsSaveTest {
 
     @Test
     void aSaveOverAHandWrittenEntryKeepsItsOtherLeavesItsCommentAndItsSpelling() throws Exception {
-        Files.writeString(HudBarOwnerLayers.panelsFile(), "{ \"$Comment\": \"mine\", \"Grid\": { \"MaxVisible\": 4,"
+        Files.writeString(HudOwnerLayers.panelsFile(), "{ \"$Comment\": \"mine\", \"world_bars\": { \"MaxVisible\": 4,"
                 + " \"Gap\": { \"AfterRow\": 2, \"Pixels\": 30 } } }", StandardCharsets.UTF_8);
         Map<String, String> draft = new LinkedHashMap<>();
         draft.put("gappx:" + PANEL, "0");
 
-        assertTrue(HudBarPanelOwnerWriter.setLeaves(PANEL, HudServerLeaf.draft(PANEL, draft).leaves()));
+        assertTrue(HudPanelOwnerWriter.setLeaves(PANEL, HudServerLeaf.draft(PANEL, draft).leaves()));
 
         JsonObject root = JsonParser.parseString(
-                Files.readString(HudBarOwnerLayers.panelsFile(), StandardCharsets.UTF_8)).getAsJsonObject();
+                Files.readString(HudOwnerLayers.panelsFile(), StandardCharsets.UTF_8)).getAsJsonObject();
         assertEquals("mine", root.get("$Comment").getAsString(), "the file-level comment survives");
-        assertTrue(root.has("Grid"), "the owner's own spelling of the key is kept");
-        assertFalse(root.has("grid"), "and no second entry folds onto the same id");
-        JsonObject grid = root.getAsJsonObject("Grid");
+        assertTrue(root.has("world_bars"), "the owner's own spelling of the key is kept");
+        assertFalse(root.has("World_Bars"), "and no second entry folds onto the same id");
+        JsonObject grid = root.getAsJsonObject("world_bars");
         assertEquals(4, grid.get("MaxVisible").getAsInt(), "a leaf the page never offers is untouched");
         assertEquals(0, grid.getAsJsonObject("Gap").get("Pixels").getAsInt(), "the band switched off, as typed");
         assertFalse(grid.getAsJsonObject("Gap").has("AfterRow"), "the blank field took its leaf out");
 
-        HudBarPanelAsset panel = HudBarPanelConfig.getInstance().panel(PANEL);
+        HudPanelAsset panel = HudPanelConfig.getInstance().panel(PANEL);
         assertEquals(0, panel.authoredGap().pixels());
         assertFalse(panel.authoredGap().applies());
         assertEquals("0", HudServerLeaf.GAP_PIXELS.shown(panel), "and the field shows the zero it wrote");

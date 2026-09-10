@@ -1,0 +1,42 @@
+{
+  "$Comment": [
+    "A spot a panel can sit at: the top-left, at the same origin as the zone card another mod",
+    "draws there, deliberately OVER it: the panel is transparent behind its frame, it attaches after",
+    "the card so it draws on top, and the two read fine stacked, whereas sitting below the card and",
+    "the mob inspector would push the ledger halfway down the screen. Measured for the Activity",
+    "ledger (Activity_Ledger, which sits here as shipped) and offered to the World bars too: one",
+    "narrow column until the column is full (thirteen rows), then a second one beside it rather",
+    "than running off the bottom of the screen.",
+    "",
+    "MinHeight is the least height a panel draws at here, whatever its rows add up to. It matches",
+    "that zone card, so a ledger of one or two rows still covers the card rather than leaving its",
+    "lower half showing beneath a shorter frame; a busier ledger grows past it as usual. Leave it",
+    "out on a spot with nothing beneath it.",
+    "",
+    "Position is a corner preset (TopLeft, TopCenter, TopRight, CenterLeft, Center, CenterRight,",
+    "BottomLeft, BottomCenter, BottomRight) plus pixel offsets from the edges that preset pins; the",
+    "preset names a corner of the screen and is not the spot's id, so a spot of your own may pin",
+    "any corner whatever it is called. Columns and RowsPerColumn say how the rows spread out here;",
+    "a panel never opens more columns than its own document declares, nor fills a column deeper",
+    "than its document allows. Gap leaves a band clear across the rows after so many of them,",
+    "counted from the pinned edge, and Cutout leaves the cells at one column's pinned end empty",
+    "(see Bottom_Left.json, which uses both). Panels lists which panels offer this spot; leave it",
+    "out to offer it to every panel. LabelKey names the spot in the HUD settings, in each player's",
+    "own language, and Order is where it is listed among the spots, lower first.",
+    "",
+    "To change a leaf without copying this file, add an entry keyed 'Top_Left' to",
+    "mods/ziggfreedcommon/hud-spots.json with only the leaves you want different. To add a spot",
+    "of your own, drop another file in this folder: every picker offers it at once."
+  ],
+  "LabelKey": "ziggfreedcommon.hud.spot.top_left",
+  "Position": {
+    "Preset": "TopLeft",
+    "OffsetX": 16,
+    "OffsetY": 90
+  },
+  "Columns": 2,
+  "RowsPerColumn": 13,
+  "MinHeight": 124,
+  "Panels": ["Activity_Ledger", "World_Bars"],
+  "Order": 10
+}

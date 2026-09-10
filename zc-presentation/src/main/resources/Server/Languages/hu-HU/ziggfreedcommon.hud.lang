@@ -2,14 +2,14 @@
 # /zighud parancscsalád. A fájl neve a kulcs ELŐTAG: egy bejegyzés itt ziggfreedcommon.hud.<kulcs> lesz.
 # A desc.* kulcsok azok, amelyeket a motor saját súgója egy parancs vagy egy argumentum segítségével felold.
 
-# Az elhelyezések, amelyeket a Server/ZiggfreedCommon/HudBarPlacements/ alatt szállítanak, ahogyan a választók listázzák.
-placement.top_left = Bal fent
-placement.top_right = Jobb fent
-placement.bottom_left = Bal lent
+# Az elhelyezések, amelyeket a Server/ZiggfreedCommon/HudSpots/ alatt szállítanak, ahogyan a választók listázzák.
+spot.top_left = Bal fent
+spot.top_right = Jobb fent
+spot.bottom_left = Bal lent
 
 # A két panel, ahogyan a választók és a válaszok nevezik őket.
-panel.default = Tevékenység napló
-panel.grid = Világ sávok
+panel.activity_ledger = Tevékenység napló
+panel.world_bars = Világ sávok
 
 # A HUD beállítások oldal.
 settings.title = HUD sávok
@@ -40,7 +40,7 @@ settings.cutout_rows = Kivágott cellák
 settings.min_height = Legkisebb magasság
 settings.color = Szín
 settings.color_hint = Hat hex számjegy, vagy nyolc az átlátszósággal a végén. A #ffffff a keret, ahogy érkezett.
-settings.server_note = Az üres mező megtartja a hely saját értékét. A mentés mindenkit egyszerre érint és a mods/ziggfreedcommon/hud-bar-panels.json fájlba ír.
+settings.server_note = Az üres mező megtartja a hely saját értékét. A mentés mindenkit egyszerre érint és a mods/ziggfreedcommon/hud-panels.json fájlba ír.
 settings.saved = Mentve. Minden játékos panelja mozgatva.
 settings.save_failed = Nem sikerült írni a tulajdonos fájlba. Semmi sem változott.
 settings.invalid_number = {0}-nak egész szám kell, vagy semmi.
@@ -62,7 +62,7 @@ desc.place = Helyezz el egy panelt egy elnevezett helyen, magadnak.
 desc.hide = Rejtsd el egy panelt magadnak, vagy minden panelt.
 desc.show = Mutasd meg a panelt, amit elrejtetted, vagy minden panelt.
 desc.default = Állítsd be a helyet, ahol egy panel mindenki számára helyezkedik el.
-desc.arg.panel = A panel: default (a tevékenység napló) vagy grid (a világ sávok).
+desc.arg.panel = A panel: Activity_Ledger (a tevékenység napló) vagy World_Bars (a világ sávok).
 desc.arg.placement = A hely az azonosítója szerint, vagy "server" a szerver választása követéséhez.
 desc.arg.player = Kinek a HUD-ját módosítsd. Alapértelmezés szerint a tiéd.
 desc.arg.panel_or_all = A panel, vagy "all" minden panelhez. Alapértelmezés szerint mind.
@@ -71,9 +71,9 @@ open.needsPlayer = Futtasd ezt a játékban: a beállítások a tieid, és a kon
 open.failed = A beállítások nem nyithatók meg.
 player.needed = Nevezz meg egy játékost a --player=<name> segítségével, vagy futtasd ezt a játékban.
 player.offline = Ez a játékos nem online.
-panel.unknown = Nincs "{0}" nevű panel. Használd a default-ot vagy a grid-et.
-placement.unknown = Nincs "{0}" nevű hely.
-placement.unfit = {0} nem lett mérve a {1} számára, ezért nincs ott felkínálva.
+panel.unknown = Nincs "{0}" nevű panel. Használd az Activity_Ledger-t vagy a World_Bars-t.
+spot.unknown = Nincs "{0}" nevű hely.
+spot.unfit = {0} nem lett mérve a {1} számára, ezért nincs ott felkínálva.
 place.done = {0} most a {1} helyen ül.
 place.cleared = {0} ismét követi a szerver választását.
 place.unchanged = Ez már így van.

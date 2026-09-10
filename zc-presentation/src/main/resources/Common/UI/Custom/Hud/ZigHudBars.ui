@@ -1,9 +1,9 @@
-// The stacked bar panel in the left column (ziggfreed-common, zc-presentation:
-// ui/hud/bar/HudBarStackHud over the shared ui/hud/bar/HudBarHud). The running ledger of whatever a
-// player is in the middle of: a row appears the moment a mod reports a value moved, dressed by what
+// The Activity ledger, the tall panel (ziggfreed-common, zc-presentation: ui/hud/panel/LedgerPanelHud
+// over the shared ui/hud/panel/HudPanelHud). The running ledger of whatever a player is in the
+// middle of: a row appears the moment a mod reports a value moved, dressed by what
 // that mod says about it, and goes away when it stops moving. Nothing is authored for a row to
-// appear; Server/ZiggfreedCommon/HudBars/*.json is an optional per-row override and
-// Server/ZiggfreedCommon/HudBarPanels/Default.json names the spot this panel sits at.
+// appear; Server/ZiggfreedCommon/HudRows/*.json is an optional per-row override and
+// Server/ZiggfreedCommon/HudPanels/Activity_Ledger.json names the spot this panel sits at.
 //
 // A row that draws a fill is two lines: its name with the gain beside it, and the bar underneath
 // between its two end captions. A row about an item is the first line alone, with #Bar hidden.
@@ -17,15 +17,15 @@
 // The document path and every root id are prefixed Zig*: the client's UI namespace is flat across
 // mods, so a generic name could be clobbered by another mod's HUD document. Slots are positional
 // (#ZigBarCol<c> holding #ZigBarC<c>R<r>) and addressed by index from Java; the counts MUST match
-// HudBarStackHud.LAYOUT. Text is pushed on .TextSpans, the fill and the pulse are Anchor width
+// LedgerPanelHud.LAYOUT. Text is pushed on .TextSpans, the fill and the pulse are Anchor width
 // pushes and their colour a .Background.Color retint, so no texture ships for a bar itself.
 //
 // GEOMETRY is stated once below and referenced by every slot, so a re-tune is a single edit. Two
 // columns of thirteen; 12 of horizontal padding and a 296-wide column, so the panel is 320 wide
 // with one column open and 628 with both; a 228-wide track between two 30-wide captions, padded a
-// pixel each side, so a fill spans 226 (HudBarStackHud.LAYOUT's trackInnerWidthPx). Vertically, 12
+// pixel each side, so a fill spans 226 (LedgerPanelHud.LAYOUT's trackInnerWidthPx). Vertically, 12
 // of padding at each end, a 5 margin above every row (@RowAnchor's Top), an 18 line (@LineAnchor)
-// and a 12 bar block (@BarAnchor's Top plus Height), which HudBarStackHud.LAYOUT mirrors as
+// and a 12 bar block (@BarAnchor's Top plus Height), which LedgerPanelHud.LAYOUT mirrors as
 // verticalPaddingPx / rowMarginPx / lineHeightPx / barBlockPx: the panel's height is pushed with
 // every paint from those numbers, because an absolutely anchored panel has no content to size to,
 // and so is each slot's row margin (taller on the first visible slot of a column that sits short of
@@ -33,7 +33,7 @@
 // band). Keep
 // every one of them in step: a fill width pushed past its track simply overflows it, and a height
 // that adds up wrong leaves the frame short of its rows or hanging past them. The least height the
-// panel draws at is its spot's MinHeight (Server/ZiggfreedCommon/HudBarPlacements/), so a spot
+// panel draws at is its spot's MinHeight (Server/ZiggfreedCommon/HudSpots/), so a spot
 // sitting over something else on screen can keep a short ledger covering it.
 $Z = "../Common/ZigButtons.ui";
 

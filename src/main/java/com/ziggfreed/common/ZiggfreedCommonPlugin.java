@@ -61,9 +61,9 @@ import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.ui.hud.HudPreferences;
-import com.ziggfreed.common.ui.hud.bar.HudBarPlacementAsset;
-import com.ziggfreed.common.ui.hud.bar.HudBarPlacementConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBars;
+import com.ziggfreed.common.ui.hud.panel.HudPanels;
+import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
+import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
@@ -190,7 +190,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // a value moved and dressed by what it said, and this only attaches the panels and takes
         // them down again. What a player said about their own HUD, and the page and command that
         // say it, are registered right after, beside the panels they move.
-        HudBars.install(this);
+        HudPanels.install(this);
         registerHudSettings();
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
@@ -259,8 +259,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
                 SelectionStrategies::types);
         // A panel's Placement is picked from the spots any layer authored, so an author never
         // retypes a spot id; a pack loaded later simply widens the next answer.
-        EditorDataSets.live(getEventRegistry(), HudBarPlacementAsset.EDITOR_DATA_SET,
-                HudBarPlacementConfig.getInstance()::ids);
+        EditorDataSets.live(getEventRegistry(), HudSpotAsset.EDITOR_DATA_SET,
+                HudSpotConfig.getInstance()::ids);
     }
 
     /** Every factor id an author can name here: registered placement providers plus derived assets. */

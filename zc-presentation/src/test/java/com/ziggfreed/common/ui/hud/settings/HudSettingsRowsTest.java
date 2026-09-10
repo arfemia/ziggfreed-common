@@ -13,7 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.ui.hud.HudPreferenceComponent;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelConfig;
+import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
 import com.ziggfreed.common.ui.hud.settings.HudSettingsRows.Kind;
 import com.ziggfreed.common.ui.hud.settings.HudSettingsRows.Row;
 
@@ -26,12 +26,12 @@ import com.ziggfreed.common.ui.hud.settings.HudSettingsRows.Row;
  */
 class HudSettingsRowsTest {
 
-    private static final List<String> PANELS = List.of("default", "grid");
+    private static final List<String> PANELS = List.of("Activity_Ledger", "World_Bars");
 
     @AfterEach
     void clearFold() {
-        HudBarPanelConfig.getInstance().mergePackLayer(Map.of());
-        HudBarPanelConfig.getInstance().mergeOwnerLayer(Map.of());
+        HudPanelConfig.getInstance().mergePackLayer(Map.of());
+        HudPanelConfig.getInstance().mergeOwnerLayer(Map.of());
     }
 
     private static List<String> shape(List<Row> rows) {
@@ -45,15 +45,15 @@ class HudSettingsRowsTest {
     @Test
     void theMineTabIsAHideAllSwitchThenAPickerAndAShowSwitchPerPanelAndNoField() {
         HudPreferenceComponent prefs = new HudPreferenceComponent();
-        prefs.setPlacement("grid", "TopRight");
-        prefs.setHidden("default", true);
+        prefs.setPlacement("World_Bars", "Top_Right");
+        prefs.setHidden("Activity_Ledger", true);
 
         List<Row> rows = HudSettingsRows.mine(prefs, PANELS);
 
         assertEquals(List.of(
                 "TOGGLE hideAll",
-                "HEADER default", "DROPDOWN pick:default", "TOGGLE show:default",
-                "HEADER grid", "DROPDOWN pick:grid", "TOGGLE show:grid"), shape(rows));
+                "HEADER Activity_Ledger", "DROPDOWN pick:Activity_Ledger", "TOGGLE show:Activity_Ledger",
+                "HEADER World_Bars", "DROPDOWN pick:World_Bars", "TOGGLE show:World_Bars"), shape(rows));
         for (Row row : rows) {
             assertFalse(row.kind() == Kind.FIELD, "no field on Mine: a player picks a spot and nothing more");
         }
@@ -64,13 +64,13 @@ class HudSettingsRowsTest {
         assertEquals("hide_all_hint", hideAll.hintKey());
 
         Row pickDefault = rows.get(2);
-        assertEquals("default", pickDefault.panelId(), "the picker lists that panel's spots");
+        assertEquals("Activity_Ledger", pickDefault.panelId(), "the picker lists that panel's spots");
         assertEquals("server_spot", pickDefault.noneKey(), "the first entry is the server's choice");
         assertEquals("spot_hint", pickDefault.hintKey());
         assertEquals(HudSettingsRows.NONE, pickDefault.value(), "no pick of their own");
         assertFalse(rows.get(3).on(), "hidden by the player, so the show switch is off");
 
-        assertEquals("topright", rows.get(5).value(), "their pick, as the preference keeps it");
+        assertEquals("top_right", rows.get(5).value(), "their pick, as the preference keeps it");
         assertTrue(rows.get(6).on());
     }
 
@@ -92,11 +92,11 @@ class HudSettingsRowsTest {
 
     @Test
     void theServerTabIsPerPanelTheSwitchTheSpotAndEveryLeafThenTheNote() throws Exception {
-        HudBarPanelConfig.getInstance().mergePackLayer(Map.of("Grid", HudServerLeafTest.panel(
-                "{ \"Enabled\": false, \"Placement\": \"BottomLeft\", \"Gap\": { \"AfterRow\": 3, \"Pixels\": 66 },"
+        HudPanelConfig.getInstance().mergePackLayer(Map.of("World_Bars", HudServerLeafTest.panel(
+                "{ \"Enabled\": false, \"Placement\": \"Bottom_Left\", \"Gap\": { \"AfterRow\": 3, \"Pixels\": 66 },"
                         + " \"Color\": \"#ffffffb8\" }")));
 
-        List<Row> rows = HudSettingsRows.server(PANELS, HudBarPanelConfig.getInstance());
+        List<Row> rows = HudSettingsRows.server(PANELS, HudPanelConfig.getInstance());
 
         List<String> expected = new ArrayList<>();
         for (String panel : PANELS) {
@@ -115,8 +115,8 @@ class HudSettingsRowsTest {
         assertEquals(HudSettingsRows.NONE, rows.get(2).value(), "and names no spot: as the shipped file says");
         assertEquals("shipped_spot", rows.get(2).noneKey());
         assertEquals("server_spot_hint", rows.get(2).hintKey());
-        assertFalse(rows.get(grid + 1).on(), "the grid's file switched it off");
-        assertEquals("bottomleft", rows.get(grid + 2).value(), "the spot it names, folded lower-case as the entries are");
+        assertFalse(rows.get(grid + 1).on(), "the World bars' file switched it off");
+        assertEquals("bottom_left", rows.get(grid + 2).value(), "the spot it names, folded lower-case as the entries are");
 
         for (int i = 0; i < HudServerLeaf.values().length; i++) {
             HudServerLeaf leaf = HudServerLeaf.values()[i];

@@ -145,12 +145,14 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     `HudCardOwnerLayers`, one `Color` hex with an alpha multiplied over the card's frame, the
     identity pushing nothing) and `HudCardLook`, the pure arithmetic every card and the bar
     dressing share.
-  - [`ui/hud/bar/`](src/main/java/com/ziggfreed/common/ui/hud/bar/CLAUDE.md) - the shared
-    progress-bar HUD: rows created on demand by `HudBars.moved` (a value, with the `HudBarReading`
-    and the `HudBarDisplay` the consumer hands over with the move; no source seam and no
-    registry) and `HudBars.itemMoved` (an item, dressed by itself), `HudBarLook` the settled look, the
-    `HudBars` store as an OPTIONAL per-row override and the `HudBarPanels` store for placement,
-    and `HudBarHud` the panel that draws it (fill rows above item rows).
+  - [`ui/hud/panel/`](src/main/java/com/ziggfreed/common/ui/hud/panel/CLAUDE.md) - the shared
+    HUD panels (a panel holds rows, sits at a spot, wears a card's look): rows created on demand by `HudPanels.moved` (a value, with the `HudBarReading`
+    and the `HudRowDisplay` the consumer hands over with the move; no source seam and no
+    registry) and `HudPanels.itemMoved` (an item, dressed by itself), `HudRowLook` the settled look, the
+    `HudRows` store as an OPTIONAL per-row override, the `HudPanels` store for each panel (ids
+    `Activity_Ledger` / `World_Bars`, an `Order` the settings page lists them by) and the
+    `HudSpots` store for the spots they sit at (`Top_Left` / `Top_Right` / `Bottom_Left`), and
+    `HudPanelHud` the panel that draws it (fill rows above item rows).
   - `ui/icon/` - `IconRenderer`, the ONE seam that paints an `icon.IconSpec` into a row or a chip:
     a row ships a one-slot `ItemGrid #IcoItem` (styled from the `ZigButtons.ui` ladder; the item
     lands on its `.Slots` as an `ItemGridSlot`, since the client has no `ItemIcon` widget type) and
@@ -210,9 +212,10 @@ arguments the moment carries and how to override it. `Server/Languages/<locale>/
 Clear, and the progress-bar panel's gain (`hud.bar.gain`, `+{0, number}`, which an item row's running
 count rides too, and its twin `hud.bar.gain.compact`, `+{0}`, for a gain of ten thousand or more the
 server writes compact through the shared `NumberFormatter`). `Common/UI/Custom/Hud/ZigHudBars.ui`
-is the progress-bar panel's document, and `Server/ZiggfreedCommon/HudBarPanels/Default.json` the
-panel every row is drawn on (on, TopLeft (16, 216), four rows), a consumer or an owner overriding
-it by id; the library ships no `HudBars` file, since a row needs none.
+and `ZigHudBarGrid.ui` are the two panels' documents, `Server/ZiggfreedCommon/HudPanels/Activity_Ledger.json`
+and `World_Bars.json` the panels every row is drawn on, each naming its shipped spot under
+`Server/ZiggfreedCommon/HudSpots/` (`Top_Left` and `Top_Right`), a consumer or an owner overriding
+either by id; the library ships no `HudRows` file, since a row needs none.
 `Server/ZiggfreedCommon/HudCards/Default.json` is the one look every HUD card wears, shipped at the
 identity `#ffffffff` (owner layer `mods/ziggfreedcommon/hud-cards.json`).
 
@@ -236,14 +239,14 @@ per keystroke; it is the shared `ZigSearchRow`.
 ## Tests
 
 Thin relative to the package count: `HudPositionTest` (corner-preset parsing + anchor math),
-`RepaintCoalescerTest` (a burst is one paint), the four progress-bar suites (`HudBarAssetCodecTest`,
-`HudBarPanelAssetTest` incl. the default position, `HudBarSlotsTest` for which live rows get a slot,
-fill rows sorting above item rows and the reading's fraction clamp, `HudBarLookTest` for the
+`RepaintCoalescerTest` (a burst is one paint), the panel suites (`HudPanelsListingTest` for the settings listing following `Order` and not the attach order, `HudRowAssetCodecTest`,
+`HudPanelAssetTest` incl. the default position, `HudPanelSlotsTest` for which live rows get a slot,
+fill rows sorting above item rows and the reading's fraction clamp, `HudRowLookTest` for the
 override-over-display fold, an unauthored item's own row and the two row shapes the paint draws,
 `HudBarDressingTest` for the dressing following the card's opacity and the Java mirrors matching
-both documents, `HudBarHeightTest` for the pushed height and every column's leading push incl. the
-shipped bottom-left picture at 18 and 20 rows, `HudBarSpreadTest` for which row each column draws
-with a cut column's surplus spilled above the block, `HudBarGainTest` for the typed-below and
+both documents, `HudPanelHeightTest` for the pushed height and every column's leading push incl. the
+shipped bottom-left picture at 18 and 20 rows, `HudRowSpreadTest` for which row each column draws
+with a cut column's surplus spilled above the block, `HudRowGainTest` for the typed-below and
 compact-from-ten-thousand gain), the card suites (`HudCardLookTest` for the hex in every spelling, the identity
 pushing nothing, the own-over-shared fold and the dimming rule; `HudCardAssetTest` for the leaf, a
 child under `Parent`, and the fold reading shipped until a record lands),

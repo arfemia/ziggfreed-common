@@ -6,15 +6,15 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.ui.hud.bar.HudBarCutout;
-import com.ziggfreed.common.ui.hud.bar.HudBarGap;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelAsset;
-import com.ziggfreed.common.ui.hud.bar.HudBarPosition;
+import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
+import com.ziggfreed.common.ui.hud.panel.HudSpotCutout;
+import com.ziggfreed.common.ui.hud.panel.HudSpotGap;
+import com.ziggfreed.common.ui.hud.panel.HudSpotPosition;
 import com.ziggfreed.common.ui.hud.card.HudCardLook;
 
 /**
  * One inline leaf of a bar panel the Server tab offers as a field, per panel: the row it is typed
- * in, the leaf of {@code mods/ziggfreedcommon/hud-bar-panels.json} it writes, what it is called and
+ * in, the leaf of {@code mods/ziggfreedcommon/hud-panels.json} it writes, what it is called and
  * how its text is read. The order here is the order the tab lists them, after the panel's switch
  * and its spot: the offsets, the spread, the band, the cut, the least height, the colour.
  *
@@ -129,10 +129,10 @@ enum HudServerLeaf {
      * owner switches the band or the cut off, and a blank would remove it on the next Save.
      */
     @Nonnull
-    String shown(@Nonnull HudBarPanelAsset panel) {
-        HudBarPosition position = panel.authoredPosition();
-        HudBarGap gap = panel.authoredGap();
-        HudBarCutout cutout = panel.authoredCutout();
+    String shown(@Nonnull HudPanelAsset panel) {
+        HudSpotPosition position = panel.authoredPosition();
+        HudSpotGap gap = panel.authoredGap();
+        HudSpotCutout cutout = panel.authoredCutout();
         Object value = switch (this) {
             case OFFSET_X -> position == null ? null : position.offsetX();
             case OFFSET_Y -> position == null ? null : position.offsetY();

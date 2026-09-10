@@ -16,9 +16,9 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import com.ziggfreed.common.ui.hud.bar.HudBarGridHud;
-import com.ziggfreed.common.ui.hud.bar.HudBarLayout;
-import com.ziggfreed.common.ui.hud.bar.HudBarStackHud;
+import com.ziggfreed.common.ui.hud.panel.HudPanelLayout;
+import com.ziggfreed.common.ui.hud.panel.LedgerPanelHud;
+import com.ziggfreed.common.ui.hud.panel.WorldPanelHud;
 
 /**
  * Holds every shipped {@code .ui} document to what the client's parser will actually accept.
@@ -89,7 +89,7 @@ class UiDocumentSyntaxTest {
 
     @Test
     void everySlotTheBarPanelsAddressActuallyExistsInTheirDocuments() throws IOException {
-        for (HudBarLayout layout : List.of(HudBarStackHud.LAYOUT, HudBarGridHud.LAYOUT)) {
+        for (HudPanelLayout layout : List.of(LedgerPanelHud.LAYOUT, WorldPanelHud.LAYOUT)) {
             Path doc = document(layout.template());
             String text = Files.readString(doc, StandardCharsets.UTF_8);
             assertTrue(text.contains(layout.root()),

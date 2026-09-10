@@ -9,13 +9,13 @@ import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredAr
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncCommand;
 import com.hypixel.hytale.server.core.permissions.provider.HytalePermissionsProvider;
-import com.ziggfreed.common.ui.hud.bar.HudBarLayout;
-import com.ziggfreed.common.ui.hud.bar.HudBarOwnerLayers;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelOwnerWriter;
-import com.ziggfreed.common.ui.hud.bar.HudBarPlacementAsset;
-import com.ziggfreed.common.ui.hud.bar.HudBarPlacementConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBars;
+import com.ziggfreed.common.ui.hud.panel.HudOwnerLayers;
+import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
+import com.ziggfreed.common.ui.hud.panel.HudPanelLayout;
+import com.ziggfreed.common.ui.hud.panel.HudPanelOwnerWriter;
+import com.ziggfreed.common.ui.hud.panel.HudPanels;
+import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
+import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 
 /**
  * Set the spot a panel sits at for everyone: what the settings page's Server tab does, from a
@@ -40,25 +40,25 @@ final class HudDefaultCommand extends AbstractAsyncCommand {
     @Nonnull
     protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx) {
         String panelId = panelArg.get(ctx);
-        HudBarLayout layout = HudBars.panel(panelId);
+        HudPanelLayout layout = HudPanels.panel(panelId);
         if (layout == null) {
             HudMessages.refused(ctx, "panel.unknown", panelId == null ? "" : panelId);
             return CompletableFuture.completedFuture(null);
         }
-        var panelLabel = HudBarPanelConfig.getInstance().panel(layout.panelId()).label();
-        String file = HudBarOwnerLayers.panelsFile().toString();
+        var panelLabel = HudPanelConfig.getInstance().panel(layout.panelId()).label();
+        String file = HudOwnerLayers.panelsFile().toString();
         String wanted = placementArg.get(ctx);
         boolean clear = wanted == null || wanted.isBlank()
                 || HudCommandLine.SERVER_CHOICE.equalsIgnoreCase(wanted.trim());
         if (clear) {
-            if (HudBarPanelOwnerWriter.setPlacement(layout.panelId(), null)) {
+            if (HudPanelOwnerWriter.setPlacement(layout.panelId(), null)) {
                 HudMessages.done(ctx, "default.cleared", panelLabel, file);
             } else {
                 HudMessages.refused(ctx, "default.failed", file);
             }
             return CompletableFuture.completedFuture(null);
         }
-        HudBarPlacementAsset spot = HudBarPlacementConfig.getInstance().placement(wanted);
+        HudSpotAsset spot = HudSpotConfig.getInstance().spot(wanted);
         if (spot == null || !spot.enabled()) {
             HudMessages.refused(ctx, "placement.unknown", wanted.trim());
             return CompletableFuture.completedFuture(null);
@@ -67,7 +67,7 @@ final class HudDefaultCommand extends AbstractAsyncCommand {
             HudMessages.refused(ctx, "placement.unfit", spot.label(), panelLabel);
             return CompletableFuture.completedFuture(null);
         }
-        if (HudBarPanelOwnerWriter.setPlacement(layout.panelId(), spot.getId())) {
+        if (HudPanelOwnerWriter.setPlacement(layout.panelId(), spot.getId())) {
             HudMessages.done(ctx, "default.done", panelLabel, spot.label(), file);
         } else {
             HudMessages.refused(ctx, "default.failed", file);

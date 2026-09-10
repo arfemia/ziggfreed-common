@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelAsset;
+import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
 
 /**
  * The Server tab's fields, each a leaf of the owner file: the ten are listed in the tab's order on
@@ -29,11 +29,11 @@ import com.ziggfreed.common.ui.hud.bar.HudBarPanelAsset;
  */
 class HudServerLeafTest {
 
-    private static final String PANEL = "grid";
+    private static final String PANEL = "World_Bars";
 
-    static HudBarPanelAsset panel(String json) throws IOException {
-        AssetExtraInfo.Data data = new AssetExtraInfo.Data(HudBarPanelAsset.class, PANEL, null);
-        return HudBarPanelAsset.CODEC.decodeAndInheritJsonAsset(
+    static HudPanelAsset panel(String json) throws IOException {
+        AssetExtraInfo.Data data = new AssetExtraInfo.Data(HudPanelAsset.class, PANEL, null);
+        return HudPanelAsset.CODEC.decodeAndInheritJsonAsset(
                 RawJsonReader.fromJsonString(json), null, new AssetExtraInfo<>(data));
     }
 
@@ -61,8 +61,8 @@ class HudServerLeafTest {
             rows.add(leaf.rowId(PANEL));
             paths.add(leaf.path());
         }
-        assertEquals(List.of("offsetx:grid", "offsety:grid", "columns:grid", "rows:grid", "gaprow:grid",
-                "gappx:grid", "cutcol:grid", "cutrows:grid", "minheight:grid", "color:grid"), rows,
+        assertEquals(List.of("offsetx:World_Bars", "offsety:World_Bars", "columns:World_Bars", "rows:World_Bars", "gaprow:World_Bars",
+                "gappx:World_Bars", "cutcol:World_Bars", "cutrows:World_Bars", "minheight:World_Bars", "color:World_Bars"), rows,
                 "the offsets, the spread, the band, the cut, the least height, the colour");
         assertEquals(List.of("Position.OffsetX", "Position.OffsetY", "Columns", "RowsPerColumn", "Gap.AfterRow",
                 "Gap.Pixels", "Cutout.Column", "Cutout.Rows", "MinHeight", "Color"), paths);
@@ -158,12 +158,12 @@ class HudServerLeafTest {
 
     @Test
     void whatAFieldShowsIsThePanelsOwnLeafAStatedZeroIncludedAndBlankForNone() throws Exception {
-        HudBarPanelAsset bare = HudBarPanelAsset.defaults();
+        HudPanelAsset bare = HudPanelAsset.defaults();
         for (HudServerLeaf leaf : HudServerLeaf.values()) {
             assertEquals("", leaf.shown(bare), leaf.name() + " on a panel stating nothing");
         }
 
-        HudBarPanelAsset full = panel("{ \"Position\": { \"OffsetX\": 16, \"OffsetY\": -4 }, \"Columns\": 3,"
+        HudPanelAsset full = panel("{ \"Position\": { \"OffsetX\": 16, \"OffsetY\": -4 }, \"Columns\": 3,"
                 + " \"RowsPerColumn\": 1, \"Gap\": { \"AfterRow\": 3, \"Pixels\": 66 },"
                 + " \"Cutout\": { \"Column\": 3, \"Rows\": 2 }, \"MinHeight\": 124, \"Color\": \"#AABBCCDD\" }");
         assertEquals("16", HudServerLeaf.OFFSET_X.shown(full));
@@ -177,14 +177,14 @@ class HudServerLeafTest {
         assertEquals("124", HudServerLeaf.MIN_HEIGHT.shown(full));
         assertEquals("#aabbccdd", HudServerLeaf.COLOR.shown(full), "normalised, as the file reads it");
 
-        HudBarPanelAsset off = panel("{ \"Gap\": { \"Pixels\": 0 }, \"Cutout\": { \"Rows\": 0 } }");
+        HudPanelAsset off = panel("{ \"Gap\": { \"Pixels\": 0 }, \"Cutout\": { \"Rows\": 0 } }");
         assertEquals("0", HudServerLeaf.GAP_PIXELS.shown(off),
                 "a band switched off with a zero shows its zero: a blank would remove it on the next Save");
         assertEquals("", HudServerLeaf.GAP_AFTER_ROW.shown(off), "the leaf the file does not state");
         assertEquals("0", HudServerLeaf.CUTOUT_ROWS.shown(off));
         assertEquals("", HudServerLeaf.CUTOUT_COLUMN.shown(off));
 
-        HudBarPanelAsset malformed = panel("{ \"Color\": \"#not-a-colour\" }");
+        HudPanelAsset malformed = panel("{ \"Color\": \"#not-a-colour\" }");
         assertEquals("", HudServerLeaf.COLOR.shown(malformed),
                 "a value the paint ignores is shown as nothing, so Save clears it rather than keeping it");
     }

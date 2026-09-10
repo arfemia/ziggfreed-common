@@ -12,9 +12,9 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.command.AbstractTargetPlayerCommand;
 import com.ziggfreed.common.ui.hud.HudPreferences;
-import com.ziggfreed.common.ui.hud.bar.HudBarLayout;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBars;
+import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
+import com.ziggfreed.common.ui.hud.panel.HudPanelLayout;
+import com.ziggfreed.common.ui.hud.panel.HudPanels;
 
 /**
  * Hide a panel, or every panel, for the caller (or the named player), and the verb that shows it
@@ -52,13 +52,13 @@ final class HudHideCommand extends AbstractTargetPlayerCommand<PlayerRef> {
             HudMessages.done(ctx, hide ? "hide.all" : "show.all");
             return;
         }
-        HudBarLayout layout = HudBars.panel(panelId);
+        HudPanelLayout layout = HudPanels.panel(panelId);
         if (layout == null) {
             HudMessages.refused(ctx, "panel.unknown", panelId);
             return;
         }
         HudPreferences.setHidden(target, layout.panelId(), hide);
         HudMessages.done(ctx, hide ? "hide.done" : "show.done",
-                HudBarPanelConfig.getInstance().panel(layout.panelId()).label());
+                HudPanelConfig.getInstance().panel(layout.panelId()).label());
     }
 }

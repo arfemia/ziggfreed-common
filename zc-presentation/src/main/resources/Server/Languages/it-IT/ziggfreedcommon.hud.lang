@@ -3,14 +3,14 @@
 # ziggfreedcommon.hud.<key>. The desc.* keys are what the engine's own help resolves a command or
 # an argument through.
 
-# The spots shipped under Server/ZiggfreedCommon/HudBarPlacements/, as the pickers list them.
-placement.top_left = In alto a sinistra
-placement.top_right = In alto a destra
-placement.bottom_left = In basso a sinistra
+# The spots shipped under Server/ZiggfreedCommon/HudSpots/, as the pickers list them.
+spot.top_left = In alto a sinistra
+spot.top_right = In alto a destra
+spot.bottom_left = In basso a sinistra
 
 # The two panels, as the pickers and the answers name them.
-panel.default = Registro attività
-panel.grid = Barre del mondo
+panel.activity_ledger = Registro attività
+panel.world_bars = Barre del mondo
 
 # The HUD settings page.
 settings.title = Barre HUD
@@ -41,7 +41,7 @@ settings.cutout_rows = Celle ritagliate
 settings.min_height = Altezza minima
 settings.color = Colore
 settings.color_hint = Sei cifre esadecimali, o otto con la trasparenza in fondo. #ffffff è la cornice come fornita.
-settings.server_note = Un campo vuoto mantiene il valore della posizione. Salva si applica a tutti contemporaneamente e scrive mods/ziggfreedcommon/hud-bar-panels.json.
+settings.server_note = Un campo vuoto mantiene il valore della posizione. Salva si applica a tutti contemporaneamente e scrive mods/ziggfreedcommon/hud-panels.json.
 settings.saved = Salvato. I pannelli di ogni giocatore si sono spostati.
 settings.save_failed = Impossibile scrivere il file di proprietà. Nulla è cambiato.
 settings.invalid_number = {0} richiede un numero intero, o nulla.
@@ -63,7 +63,7 @@ desc.place = Posiziona un pannello in un luogo, per te.
 desc.hide = Nascondi un pannello per te, o tutti i pannelli.
 desc.show = Mostra un pannello che hai nascosto, o tutti i pannelli.
 desc.default = Imposta la posizione in cui un pannello si trova per tutti.
-desc.arg.panel = Il pannello: default (il registro attività) o grid (le barre del mondo).
+desc.arg.panel = Il pannello: Activity_Ledger (il registro attività) o World_Bars (le barre del mondo).
 desc.arg.placement = La posizione, per il suo id, o "server" per seguire la scelta del server.
 desc.arg.player = Di chi modificare l'HUD. Default: te.
 desc.arg.panel_or_all = Il pannello, o "all" per tutti i pannelli. Default: all.
@@ -72,9 +72,9 @@ open.needsPlayer = Esegui questo nel gioco: le impostazioni sono tue, e la conso
 open.failed = Le impostazioni non hanno potuto essere aperte.
 player.needed = Specifica un giocatore con --player=<name>, oppure esegui questo nel gioco.
 player.offline = Quel giocatore non è online.
-panel.unknown = Nessun pannello si chiama "{0}". Usa default o grid.
-placement.unknown = Nessun luogo si chiama "{0}".
-placement.unfit = {0} non è stato misurato per {1}, quindi non è offerto lì.
+panel.unknown = Nessun pannello si chiama "{0}". Usa Activity_Ledger o World_Bars.
+spot.unknown = Nessun luogo si chiama "{0}".
+spot.unfit = {0} non è stato misurato per {1}, quindi non è offerto lì.
 place.done = {0} ora si trova in {1}.
 place.cleared = {0} segue di nuovo la scelta del server.
 place.unchanged = È già così.

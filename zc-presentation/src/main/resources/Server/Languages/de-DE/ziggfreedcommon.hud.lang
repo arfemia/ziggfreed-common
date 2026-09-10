@@ -3,14 +3,14 @@
 # ziggfreedcommon.hud.<key> aufgelöst. Die desc.*-Schlüssel sind das, durch das die Engine-eigene Hilfe einen Befehl oder
 # ein Argument auflöst.
 
-# Die Positionen unter Server/ZiggfreedCommon/HudBarPlacements/, wie die Picker sie auflisten.
-placement.top_left = Oben links
-placement.top_right = Oben rechts
-placement.bottom_left = Unten links
+# Die Positionen unter Server/ZiggfreedCommon/HudSpots/, wie die Picker sie auflisten.
+spot.top_left = Oben links
+spot.top_right = Oben rechts
+spot.bottom_left = Unten links
 
 # Die beiden Panels, wie die Picker und die Antworten sie nennen.
-panel.default = Aktivitätsprotokoll
-panel.grid = Welt-Leisten
+panel.activity_ledger = Aktivitätsprotokoll
+panel.world_bars = Welt-Leisten
 
 # Die HUD-Einstellungsseite.
 settings.title = HUD-Leisten
@@ -41,7 +41,7 @@ settings.cutout_rows = Ausgesparte Zellen
 settings.min_height = Mindesthöhe
 settings.color = Farbe
 settings.color_hint = Sechs Hex-Ziffern, oder acht mit der Durchsichtigkeit am Ende. #ffffff ist der Rahmen wie ausgeliefert.
-settings.server_note = Ein leeres Feld behält den Wert dieser Position. Speichern gilt für alle auf einmal und schreibt mods/ziggfreedcommon/hud-bar-panels.json.
+settings.server_note = Ein leeres Feld behält den Wert dieser Position. Speichern gilt für alle auf einmal und schreibt mods/ziggfreedcommon/hud-panels.json.
 settings.saved = Gespeichert. Alle Panels der Spieler sind verschoben.
 settings.save_failed = Konnte die Owner-Datei nicht schreiben. Keine Änderung.
 settings.invalid_number = {0} benötigt eine ganze Zahl oder gar nichts.
@@ -63,7 +63,7 @@ desc.place = Platzieren Sie ein Panel an einer benannten Position für sich selb
 desc.hide = Verstecken Sie ein Panel für sich selbst oder alle Panels.
 desc.show = Zeigen Sie ein Panel an, das Sie versteckt haben, oder alle Panels.
 desc.default = Legen Sie die Position fest, an der ein Panel für alle sitzt.
-desc.arg.panel = Das Panel: default (das Aktivitätsprotokoll) oder grid (die Welt-Leisten).
+desc.arg.panel = Das Panel: Activity_Ledger (das Aktivitätsprotokoll) oder World_Bars (die Welt-Leisten).
 desc.arg.placement = Die Position nach ihrer ID, oder "server" um der Wahl des Servers zu folgen.
 desc.arg.player = Wessen HUD soll geändert werden. Standard sind Sie.
 desc.arg.panel_or_all = Das Panel oder "all" für alle Panels. Standard ist all.
@@ -72,9 +72,9 @@ open.needsPlayer = Führen Sie dies im Spiel aus: Die Einstellungen sind Ihre, u
 open.failed = Die Einstellungen konnten nicht geöffnet werden.
 player.needed = Nennen Sie einen Spieler mit --player=<name> oder führen Sie dies im Spiel aus.
 player.offline = Dieser Spieler ist nicht online.
-panel.unknown = Kein Panel heißt "{0}". Verwenden Sie default oder grid.
-placement.unknown = Keine Position heißt "{0}".
-placement.unfit = {0} wurde nicht für {1} gemessen, daher wird es dort nicht angeboten.
+panel.unknown = Kein Panel heißt "{0}". Verwenden Sie Activity_Ledger oder World_Bars.
+spot.unknown = Keine Position heißt "{0}".
+spot.unfit = {0} wurde nicht für {1} gemessen, daher wird es dort nicht angeboten.
 place.done = {0} sitzt jetzt bei {1}.
 place.cleared = {0} folgt jetzt wieder der Wahl des Servers.
 place.unchanged = Das ist bereits der Fall.

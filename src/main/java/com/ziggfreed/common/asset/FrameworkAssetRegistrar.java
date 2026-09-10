@@ -76,14 +76,14 @@ import com.ziggfreed.common.progress.asset.ObjectiveKindFold;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
-import com.ziggfreed.common.ui.hud.bar.HudBarAsset;
-import com.ziggfreed.common.ui.hud.bar.HudBarConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBarOwnerLayers;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelAsset;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBarPlacementAsset;
-import com.ziggfreed.common.ui.hud.bar.HudBarPlacementConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBars;
+import com.ziggfreed.common.ui.hud.panel.HudOwnerLayers;
+import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
+import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
+import com.ziggfreed.common.ui.hud.panel.HudPanels;
+import com.ziggfreed.common.ui.hud.panel.HudRowAsset;
+import com.ziggfreed.common.ui.hud.panel.HudRowConfig;
+import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
+import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.card.HudCardAsset;
 import com.ziggfreed.common.ui.hud.card.HudCardConfig;
 import com.ziggfreed.common.ui.hud.card.HudCardOwnerLayers;
@@ -339,51 +339,51 @@ public final class FrameworkAssetRegistrar {
                         FeedbackMomentConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap())));
 
-        // --- HUD bars (Pattern A) - an OPTIONAL override for one row on the shared progress-bar
+        // --- HUD rows (Pattern A) - an OPTIONAL override for one row on a shared HUD
         //     panel: the Source names the row as the owning mod moves it, and every other leaf (name
         //     key, picture, colour, order, linger, Enabled) is authored only to differ from what that
         //     mod said. Rows exist without files; the library ships none. Owner layer
-        //     mods/ziggfreedcommon/hud-bars.json, re-read on the same event the encounter owner files
+        //     mods/ziggfreedcommon/hud-rows.json, re-read on the same event the encounter owner files
         //     are; every online panel repaints so a reload lands live. ---
-        AssetStoreRegistrar.registerStore(HudBarAsset.class,
-                new DefaultAssetMap<String, HudBarAsset>(), HudBarAsset.TYPE_ROOT,
-                HudBarAsset::getId, HudBarAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HudBarAsset.class,
-                (LoadedAssetsEvent<String, HudBarAsset, DefaultAssetMap<String, HudBarAsset>> ev) -> {
-                    HudBarConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
-                    HudBarOwnerLayers.reloadBars();
-                    HudBars.repaintAllOnline();
+        AssetStoreRegistrar.registerStore(HudRowAsset.class,
+                new DefaultAssetMap<String, HudRowAsset>(), HudRowAsset.TYPE_ROOT,
+                HudRowAsset::getId, HudRowAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HudRowAsset.class,
+                (LoadedAssetsEvent<String, HudRowAsset, DefaultAssetMap<String, HudRowAsset>> ev) -> {
+                    HudRowConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    HudOwnerLayers.reloadRows();
+                    HudPanels.repaintAllOnline();
                 });
 
-        // --- HUD bar placements (Pattern A) - a named spot a bar panel can sit at: corner, offsets,
+        // --- HUD spots (Pattern A) - a named spot a panel can sit at: corner, offsets,
         //     how the rows spread there, and which panels offer it. The library ships three
         //     (zc-presentation's resources); a pack adds a spot by dropping one more file and every
-        //     picker offers it. Owner layer mods/ziggfreedcommon/hud-bar-placements.json; a reload
+        //     picker offers it. Owner layer mods/ziggfreedcommon/hud-spots.json; a reload
         //     repaints every online panel, which re-anchors it as it draws. ---
-        AssetStoreRegistrar.registerStore(HudBarPlacementAsset.class,
-                new DefaultAssetMap<String, HudBarPlacementAsset>(), HudBarPlacementAsset.TYPE_ROOT,
-                HudBarPlacementAsset::getId, HudBarPlacementAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HudBarPlacementAsset.class,
-                (LoadedAssetsEvent<String, HudBarPlacementAsset, DefaultAssetMap<String, HudBarPlacementAsset>> ev) -> {
-                    HudBarPlacementConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
-                    HudBarOwnerLayers.reloadPlacements();
-                    HudBars.repaintAllOnline();
+        AssetStoreRegistrar.registerStore(HudSpotAsset.class,
+                new DefaultAssetMap<String, HudSpotAsset>(), HudSpotAsset.TYPE_ROOT,
+                HudSpotAsset::getId, HudSpotAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HudSpotAsset.class,
+                (LoadedAssetsEvent<String, HudSpotAsset, DefaultAssetMap<String, HudSpotAsset>> ev) -> {
+                    HudSpotConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    HudOwnerLayers.reloadSpots();
+                    HudPanels.repaintAllOnline();
                 });
 
-        // --- HUD bar panels (Pattern A) - the panel the bars are drawn on: on/off, the spot it names
-        //     (with inline nudges over it), how many at once. The library ships Default.json and
-        //     Grid.json (zc-presentation's resources) so a bare server has working panels; a
+        // --- HUD panels (Pattern A) - the panel the rows are drawn on: on/off, the spot it names
+        //     (with inline nudges over it), how many at once. The library ships Activity_Ledger.json and
+        //     World_Bars.json (zc-presentation's resources) so a bare server has working panels; a
         //     consumer's same-id file replaces one by pack order. Owner layer
-        //     mods/ziggfreedcommon/hud-bar-panels.json, which the HUD settings page writes too; a
+        //     mods/ziggfreedcommon/hud-panels.json, which the HUD settings page writes too; a
         //     reload repaints every online panel, which re-anchors it as it draws. ---
-        AssetStoreRegistrar.registerStore(HudBarPanelAsset.class,
-                new DefaultAssetMap<String, HudBarPanelAsset>(), HudBarPanelAsset.TYPE_ROOT,
-                HudBarPanelAsset::getId, HudBarPanelAsset.CODEC, null);
-        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HudBarPanelAsset.class,
-                (LoadedAssetsEvent<String, HudBarPanelAsset, DefaultAssetMap<String, HudBarPanelAsset>> ev) -> {
-                    HudBarPanelConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
-                    HudBarOwnerLayers.reloadPanels();
-                    HudBars.repaintAllOnline();
+        AssetStoreRegistrar.registerStore(HudPanelAsset.class,
+                new DefaultAssetMap<String, HudPanelAsset>(), HudPanelAsset.TYPE_ROOT,
+                HudPanelAsset::getId, HudPanelAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, HudPanelAsset.class,
+                (LoadedAssetsEvent<String, HudPanelAsset, DefaultAssetMap<String, HudPanelAsset>> ev) -> {
+                    HudPanelConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    HudOwnerLayers.reloadPanels();
+                    HudPanels.repaintAllOnline();
                 });
 
         // --- HUD cards (Pattern A) - the ONE shared look every HUD card this family draws reads:
@@ -400,7 +400,7 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, HudCardAsset, DefaultAssetMap<String, HudCardAsset>> ev) -> {
                     HudCardConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     HudCardOwnerLayers.reload();
-                    HudBars.repaintAllOnline();
+                    HudPanels.repaintAllOnline();
                     TrackedQuestHuds.repaintAllOnline();
                 });
 
@@ -580,7 +580,7 @@ public final class FrameworkAssetRegistrar {
             CommonLog.LOGGER.atInfo().log(
                     "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
                             + "Lootables, RollPools, StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
-                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudBars, HudBarPlacements, HudBarPanels, HudCards, "
+                            + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                             + "Quests, QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "
                             + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation).");

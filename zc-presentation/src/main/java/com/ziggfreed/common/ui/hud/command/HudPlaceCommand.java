@@ -12,11 +12,11 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.command.AbstractTargetPlayerCommand;
 import com.ziggfreed.common.ui.hud.HudPreferences;
-import com.ziggfreed.common.ui.hud.bar.HudBarLayout;
-import com.ziggfreed.common.ui.hud.bar.HudBarPanelConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBarPlacementAsset;
-import com.ziggfreed.common.ui.hud.bar.HudBarPlacementConfig;
-import com.ziggfreed.common.ui.hud.bar.HudBars;
+import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
+import com.ziggfreed.common.ui.hud.panel.HudPanelLayout;
+import com.ziggfreed.common.ui.hud.panel.HudPanels;
+import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
+import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 
 /**
  * Put a panel at a named spot for the caller (or the named player): what the settings page's
@@ -45,12 +45,12 @@ final class HudPlaceCommand extends AbstractTargetPlayerCommand<PlayerRef> {
     @Override
     protected void execute(@Nonnull CommandContext ctx, @Nonnull PlayerRef target) {
         String panelId = panelArg.get(ctx);
-        HudBarLayout layout = HudBars.panel(panelId);
+        HudPanelLayout layout = HudPanels.panel(panelId);
         if (layout == null) {
             HudMessages.refused(ctx, "panel.unknown", panelId == null ? "" : panelId);
             return;
         }
-        var panelLabel = HudBarPanelConfig.getInstance().panel(layout.panelId()).label();
+        var panelLabel = HudPanelConfig.getInstance().panel(layout.panelId()).label();
         String wanted = placementArg.get(ctx);
         boolean clear = wanted == null || wanted.isBlank()
                 || HudCommandLine.SERVER_CHOICE.equalsIgnoreCase(wanted.trim());
@@ -62,7 +62,7 @@ final class HudPlaceCommand extends AbstractTargetPlayerCommand<PlayerRef> {
             }
             return;
         }
-        HudBarPlacementAsset spot = HudBarPlacementConfig.getInstance().placement(wanted);
+        HudSpotAsset spot = HudSpotConfig.getInstance().spot(wanted);
         if (spot == null || !spot.enabled()) {
             HudMessages.refused(ctx, "placement.unknown", wanted.trim());
             return;

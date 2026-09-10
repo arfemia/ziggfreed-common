@@ -26,7 +26,7 @@ import com.ziggfreed.common.CommonLog;
  *
  * <p><b>That makes a tag the wrong tool for anything that repeats often.</b> A value that moves every
  * few seconds does not belong on this feed at all, tagged or not - draw it on a progress bar
- * ({@code ui.hud.bar}) and leave the feed for things that happen once. Tags are for a notice that
+ * ({@code ui.hud.panel}) and leave the feed for things that happen once. Tags are for a notice that
  * speaks occasionally about ONE standing thing, where the newest wording is the only one worth a
  * line. Two notices that must BOTH be read never share a tag: the second replaces the first outright.
  *

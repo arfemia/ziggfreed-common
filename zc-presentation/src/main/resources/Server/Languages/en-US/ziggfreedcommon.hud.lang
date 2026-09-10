@@ -3,14 +3,14 @@
 # ziggfreedcommon.hud.<key>. The desc.* keys are what the engine's own help resolves a command or
 # an argument through.
 
-# The spots shipped under Server/ZiggfreedCommon/HudBarPlacements/, as the pickers list them.
-placement.top_left = Top left
-placement.top_right = Top right
-placement.bottom_left = Bottom left
+# The spots shipped under Server/ZiggfreedCommon/HudSpots/, as the pickers list them.
+spot.top_left = Top left
+spot.top_right = Top right
+spot.bottom_left = Bottom left
 
 # The two panels, as the pickers and the answers name them.
-panel.default = Activity ledger
-panel.grid = World bars
+panel.activity_ledger = Activity ledger
+panel.world_bars = World bars
 
 # The HUD settings page.
 settings.title = HUD bars
@@ -41,7 +41,7 @@ settings.cutout_rows = Cells cut from it
 settings.min_height = Least height
 settings.color = Color
 settings.color_hint = Six hex digits, or eight with how see-through it is last. #ffffff is the frame as shipped.
-settings.server_note = A blank field keeps the spot's own value. Save applies to everyone at once, and writes mods/ziggfreedcommon/hud-bar-panels.json.
+settings.server_note = A blank field keeps the spot's own value. Save applies to everyone at once, and writes mods/ziggfreedcommon/hud-panels.json.
 settings.saved = Saved. Every player's panels moved.
 settings.save_failed = Could not write the owner file. Nothing changed.
 settings.invalid_number = {0} needs a whole number, or nothing at all.
@@ -63,7 +63,7 @@ desc.place = Put a panel at a named spot, for yourself.
 desc.hide = Hide a panel for yourself, or every panel.
 desc.show = Show a panel you hid, or every panel.
 desc.default = Set the spot a panel sits at for everyone.
-desc.arg.panel = The panel: default (the activity ledger) or grid (the world bars).
+desc.arg.panel = The panel: Activity_Ledger (the activity ledger) or World_Bars (the world bars).
 desc.arg.placement = The spot, by its id, or "server" to follow the server's choice.
 desc.arg.player = Whose HUD to change. Defaults to you.
 desc.arg.panel_or_all = The panel, or "all" for every panel. Defaults to all.
@@ -72,9 +72,9 @@ open.needsPlayer = Run this in game: the settings are yours, and the console has
 open.failed = The settings could not be opened.
 player.needed = Name a player with --player=<name>, or run this in game.
 player.offline = That player is not online.
-panel.unknown = No panel is called "{0}". Use default or grid.
-placement.unknown = No spot is called "{0}".
-placement.unfit = {0} was not measured for {1}, so it is not offered there.
+panel.unknown = No panel is called "{0}". Use Activity_Ledger or World_Bars.
+spot.unknown = No spot is called "{0}".
+spot.unfit = {0} was not measured for {1}, so it is not offered there.
 place.done = {0} now sits at {1}.
 place.cleared = {0} follows the server's choice again.
 place.unchanged = That is already how it is.
