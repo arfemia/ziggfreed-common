@@ -39,7 +39,6 @@ import com.ziggfreed.common.progress.runtime.ProgressionIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.quest.LockReasons;
-import com.ziggfreed.common.quest.NpcOffer;
 import com.ziggfreed.common.quest.NpcOfferProviders;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
@@ -211,7 +210,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
 
         List<Quest> quests = TAB_MINE.equals(activeTab)
                 ? engine.activeAndUnclaimed(subject)
-                : questsHere(subject, engine);
+                : listing(subject, engine).questsHere();
         // A routed quest that is not on this character's list still has to be reachable, so the page
         // opens on the list that does hold it rather than on an empty panel.
         if (highlightQuestId != null && !containsQuest(quests, highlightQuestId)
@@ -227,7 +226,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         List<Entry> entries = new ArrayList<>();
         for (Quest quest : quests) {
             byId.put(quest.id(), quest);
-            entries.add(Entry.of(quest.id(), sectionOf(subject, engine, quest),
+            entries.add(Entry.of(quest.id(), listing(subject, engine).sectionOf(quest),
                     quest.id().equals(highlightQuestId)));
         }
         List<Entry> ordered = NpcQuestSections.sort(entries);
@@ -311,154 +310,15 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     /**
-     * What belongs on this character's list, from FOUR questions asked of two authorities.
-     *
-     * <p>Which quests a character HANDS OUT is an authoring-layer association the runtime cannot
-     * read, which is exactly what the offer table exists to answer. The other three are pure quest
-     * state, so the engine answers them itself over the whole answer set: which quests point BACK
-     * here, which were TAKEN here - the accept site the engine records on every accept, which is
-     * what makes "given here" engine data rather than something a consumer has to register - and
-     * which are FINISHED and may be COLLECTED here, so a quest credited by a beat at a character
-     * that neither gave it nor is named as its hand-in still reaches the list it is collected from.
-     * How the four combine is {@link NpcQuestSections#belongsHere}, pure and asserted.
+     * What this character is to this player's quests, read the one way every surface reads it:
+     * which quests belong on the list, which section each sits in, and the place-aware facts
+     * behind both ({@link CharacterQuestListing}). The indicator floating over the character's
+     * head reads the same class, so the two cannot disagree. Built per question; it holds nothing
+     * but the engine, the subject and the answer set resolved at build.
      */
     @Nonnull
-    private List<Quest> questsHere(@Nonnull Subject subject, @Nonnull QuestEngine engine) {
-        Map<String, Quest> out = new LinkedHashMap<>();
-        if (!answersTo.isEmpty()) {
-            for (NpcOffer offer : NpcOfferProviders.offersAt(subject, answersTo)) {
-                Quest quest = engine.quest(offer.id());
-                if (quest != null) {
-                    out.putIfAbsent(quest.id(), quest);
-                }
-            }
-        }
-        // Carried and finished-but-uncollected alike: a quest parked for collection at the character
-        // it was taken from has to be reachable here, or nobody could ever collect it.
-        for (Quest quest : engine.activeAndUnclaimed(subject)) {
-            if (out.containsKey(quest.id())) {
-                continue;
-            }
-            if (NpcQuestSections.belongsHere(engine.status(subject, quest),
-                    readyHere(subject, engine, quest), takenHere(subject, engine, quest),
-                    collectionSite(subject, engine, quest) != null)) {
-                out.put(quest.id(), quest);
-            }
-        }
-        return new ArrayList<>(out.values());
-    }
-
-    /** Is this character where the quest's outstanding step resolves, under any id it answers to? */
-    private boolean readyHere(@Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull Quest quest) {
-        for (String id : answersTo) {
-            if (engine.readyToTurnInAt(subject, quest, id)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Would handing over what the player is carrying, to THIS character, finish the quest? Asked of
-     * every id the character answers to, because a quest bound to one of them is this character's
-     * errand however they were addressed.
-     */
-    private boolean settlesHere(@Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull Quest quest) {
-        for (String id : answersTo) {
-            if (engine.settlesTurnInAt(subject, quest, id)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Did the player TAKE this quest here? Read straight off the accept site the engine recorded, so
-     * a quest a character handed out is still that character's business while it is being carried,
-     * whatever the offer table currently offers.
-     *
-     * <p>Compared case-insensitively, matching how the engine compares the same id everywhere else.
-     */
-    private boolean takenHere(@Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull Quest quest) {
-        String site = engine.acceptSiteOf(subject, quest.id());
-        if (site == null || site.isBlank()) {
-            return false;
-        }
-        for (String id : answersTo) {
-            if (site.equalsIgnoreCase(id)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * The first outstanding hand-in step that can be handed in AT this character, WITH the id it
-     * answered under - the id the hand-in itself must then be performed at, since a quest collected
-     * at its own site pays out there and then while the same hand-in from nowhere parks it.
-     *
-     * <p>Where the page was opened with nobody in front of the player, the search is the "somewhere
-     * unlocked" form and the id is null, which is the same thing the objective book asks.
-     */
-    @Nullable
-    private TurnIn turnInHere(@Nonnull Subject subject, @Nonnull QuestEngine engine,
-            @Nonnull Quest quest) {
-        if (answersTo.isEmpty()) {
-            ObjectiveDef anywhere = engine.firstActiveTurnIn(subject, quest, null);
-            return anywhere == null ? null : new TurnIn(anywhere, null);
-        }
-        for (String id : answersTo) {
-            ObjectiveDef step = engine.firstActiveTurnIn(subject, quest, id);
-            if (step != null) {
-                return new TurnIn(step, id);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Whether a FINISHED quest may be collected at this character, asked once per id it answers to.
-     *
-     * <p>The engine compares ONE id, deliberately, so a character answering to several is the
-     * caller's loop - which is what keeps an identity registry out of the progression module. A quest
-     * naming no collection site passes on the first ask, which is the great majority of content.
-     */
-    private boolean canCollectHere(@Nonnull Subject subject, @Nonnull QuestEngine engine,
-            @Nonnull Quest quest) {
-        if (answersTo.isEmpty()) {
-            return engine.canCompleteAt(subject, quest, null);
-        }
-        return collectionSite(subject, engine, quest) != null;
-    }
-
-    /**
-     * The id, out of this character's answer set, this quest may be collected under - the one the
-     * claim itself must be made at. Null when none of them answers, and null when there is nobody in
-     * front of the player at all, which is exactly what a claim from nowhere passes.
-     */
-    @Nullable
-    private String collectionSite(@Nonnull Subject subject, @Nonnull QuestEngine engine,
-            @Nonnull Quest quest) {
-        for (String id : answersTo) {
-            if (engine.canCompleteAt(subject, quest, id)) {
-                return id;
-            }
-        }
-        return null;
-    }
-
-    @Nonnull
-    private Section sectionOf(@Nonnull Subject subject, @Nonnull QuestEngine engine,
-            @Nonnull Quest quest) {
-        QuestStatus status = engine.status(subject, quest);
-        boolean acceptable = status == QuestStatus.NOT_STARTED
-                && engine.canAccept(subject, quest).allowed();
-        return NpcQuestSections.classify(status, acceptable, settlesHere(subject, engine, quest),
-                canCollectHere(subject, engine, quest));
-    }
-
-    /** One outstanding hand-in, and the id this character answered under when it was found. */
-    private record TurnIn(@Nonnull ObjectiveDef step, @Nullable String atId) {
+    private CharacterQuestListing listing(@Nonnull Subject subject, @Nonnull QuestEngine engine) {
+        return new CharacterQuestListing(engine, subject, answersTo);
     }
 
     // ==================== the list ====================
@@ -606,7 +466,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         cmd.set("#Flavor.Visible", false);
 
         QuestStatus status = engine.status(subject, quest);
-        Section section = sectionOf(subject, engine, quest);
+        Section section = listing(subject, engine).sectionOf(quest);
 
         cmd.set("#DetailTitle.TextSpans", questName(quest.id()));
         cmd.set("#DetailStatus.TextSpans", sectionText(section));
@@ -643,7 +503,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
                 // has already said so; offering a button that would refuse says it worse.
             }
             case TURN_IN, ACTIVE -> {
-                TurnIn turnIn = turnInHere(subject, engine, quest);
+                CharacterQuestListing.TurnIn turnIn = listing(subject, engine).turnInHere(quest);
                 if (turnIn != null) {
                     // A report-back hand-in delivers nothing, so it reads as finishing the step
                     // rather than as handing something over.
@@ -897,7 +757,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     private void claim(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull Player player, @Nonnull Subject subject, @Nonnull QuestEngine engine,
             @Nonnull Quest quest) {
-        String site = collectionSite(subject, engine, quest);
+        String site = listing(subject, engine).collectionSite(quest);
         RewardGrants.GrantOutcome paid = ProgressionRuntime.questScope()
                 .around(subject, s -> engine.tryClaim(s, quest, site));
         if (paid == null) {
@@ -949,7 +809,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     private void turnIn(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull Player player, @Nonnull Subject subject, @Nonnull QuestEngine engine,
             @Nonnull Quest quest) {
-        TurnIn turnIn = turnInHere(subject, engine, quest);
+        CharacterQuestListing.TurnIn turnIn = listing(subject, engine).turnInHere(quest);
         if (turnIn == null) {
             refreshOrReopen(ref, store, player, subject, engine, quest);
             return;
@@ -1061,7 +921,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         }
         UICommandBuilder cmd = new UICommandBuilder();
         cmd.set("#QuestList[" + row + "] #StatusDot.Background",
-                dotColor(sectionOf(subject, engine, quest)));
+                dotColor(listing(subject, engine).sectionOf(quest)));
         renderDetail(cmd, subject, engine, quest);
         this.sendUpdate(cmd, new UIEventBuilder(), false);
         return true;

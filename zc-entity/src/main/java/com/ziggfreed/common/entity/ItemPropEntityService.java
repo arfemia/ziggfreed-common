@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entity.component.EntityScaleComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
+import com.hypixel.hytale.server.core.modules.entity.component.Intangible;
 import com.hypixel.hytale.server.core.modules.entity.component.PropComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.item.ItemComponent;
@@ -77,6 +78,36 @@ import com.ziggfreed.common.CommonLog;
  */
 public final class ItemPropEntityService {
 
+    /**
+     * How a prop is built beyond its item, position and size: two INDEPENDENT switches, each off
+     * by default so every existing caller keeps the static, touchable prop it always had.
+     *
+     * @param intangible           carry the engine's {@link Intangible} presence marker, which takes
+     *                             the prop out of the melee and projectile candidate indexes so a
+     *                             swing or an arrow passes straight through it (a floating cue over
+     *                             somebody's head, never a thing to hit)
+     * @param droppedItemAnimation let the client play its own dropped-item idle motion (the slow
+     *                             turn and bob) instead of freezing the prop; the motion costs the
+     *                             server nothing, since the client animates it alone
+     */
+    public record Options(boolean intangible, boolean droppedItemAnimation) {
+
+        /** A static, touchable prop: what every caller before the switches existed was given. */
+        public static final Options DEFAULT = new Options(false, false);
+
+        /** This with the prop taken out of the hit indexes. */
+        @Nonnull
+        public Options withIntangible() {
+            return new Options(true, droppedItemAnimation);
+        }
+
+        /** This with the client's dropped-item idle motion playing. */
+        @Nonnull
+        public Options withDroppedItemAnimation() {
+            return new Options(intangible, true);
+        }
+    }
+
     private ItemPropEntityService() {
     }
 
@@ -89,14 +120,25 @@ public final class ItemPropEntityService {
     @Nullable
     public static Holder<EntityStore> buildHolder(@Nonnull ComponentAccessor<EntityStore> accessor,
             @Nonnull String itemId, @Nonnull Vector3d position, @Nonnull Rotation3f rotation, float scale) {
+        return buildHolder(accessor, itemId, position, rotation, scale, Options.DEFAULT);
+    }
+
+    /**
+     * {@link #buildHolder(ComponentAccessor, String, Vector3d, Rotation3f, float)} with the two
+     * {@link Options} switches: intangible, and animated the way a dropped item is.
+     */
+    @Nullable
+    public static Holder<EntityStore> buildHolder(@Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull String itemId, @Nonnull Vector3d position, @Nonnull Rotation3f rotation, float scale,
+            @Nonnull Options options) {
         if (itemId.isBlank()) {
             return null;
         }
         try {
             Item item = Item.getAssetMap().getAsset(itemId);
             return (item != null && item.hasBlockType())
-                    ? buildBlockEntityHolder(itemId, position, rotation, scale)
-                    : buildItemEntityHolder(accessor, itemId, position, rotation, scale);
+                    ? buildBlockEntityHolder(itemId, position, rotation, scale, options)
+                    : buildItemEntityHolder(accessor, itemId, position, rotation, scale, options);
         } catch (Throwable t) {
             warn("buildHolder failed for '" + itemId + "': " + t.getMessage(), t);
             return null;
@@ -105,31 +147,29 @@ public final class ItemPropEntityService {
 
     @Nonnull
     private static Holder<EntityStore> buildBlockEntityHolder(@Nonnull String itemId, @Nonnull Vector3d position,
-            @Nonnull Rotation3f rotation, float scale) {
+            @Nonnull Rotation3f rotation, float scale, @Nonnull Options options) {
         Holder<EntityStore> holder = EntityStore.REGISTRY.newHolder();
         holder.addComponent(BlockEntity.getComponentType(), new BlockEntity(itemId));
         holder.addComponent(TransformComponent.getComponentType(), new TransformComponent(position, rotation));
         holder.addComponent(EntityScaleComponent.getComponentType(), new EntityScaleComponent(scale));
-        ItemStack tooltip = new ItemStack(itemId, 1);
-        tooltip.setOverrideDroppedItemAnimation(true);
-        holder.addComponent(ItemComponent.getComponentType(), new ItemComponent(tooltip));
+        holder.addComponent(ItemComponent.getComponentType(), new ItemComponent(tooltipStack(itemId, options)));
         holder.addComponent(PreventPickup.getComponentType(), PreventPickup.INSTANCE);
         holder.addComponent(PreventItemMerging.getComponentType(), PreventItemMerging.INSTANCE);
         holder.addComponent(PropComponent.getComponentType(), PropComponent.get());
         holder.ensureComponent(UUIDComponent.getComponentType());
         holder.ensureComponent(EntityStore.REGISTRY.getNonSerializedComponentType());
+        applyPresence(holder, options);
         return holder;
     }
 
     @Nonnull
     private static Holder<EntityStore> buildItemEntityHolder(@Nonnull ComponentAccessor<EntityStore> accessor,
-            @Nonnull String itemId, @Nonnull Vector3d position, @Nonnull Rotation3f rotation, float scale) {
+            @Nonnull String itemId, @Nonnull Vector3d position, @Nonnull Rotation3f rotation, float scale,
+            @Nonnull Options options) {
         Holder<EntityStore> holder = EntityStore.REGISTRY.newHolder();
         holder.addComponent(NetworkId.getComponentType(), new NetworkId(accessor.getExternalData().takeNextNetworkId()));
         holder.addComponent(TransformComponent.getComponentType(), new TransformComponent(position, rotation));
-        ItemStack tooltip = new ItemStack(itemId, 1);
-        tooltip.setOverrideDroppedItemAnimation(true);
-        holder.addComponent(ItemComponent.getComponentType(), new ItemComponent(tooltip));
+        holder.addComponent(ItemComponent.getComponentType(), new ItemComponent(tooltipStack(itemId, options)));
         holder.addComponent(EntityScaleComponent.getComponentType(), new EntityScaleComponent(scale));
         holder.addComponent(PreventPickup.getComponentType(), PreventPickup.INSTANCE);
         holder.addComponent(PreventItemMerging.getComponentType(), PreventItemMerging.INSTANCE);
@@ -137,7 +177,26 @@ public final class ItemPropEntityService {
         holder.addComponent(PropComponent.getComponentType(), PropComponent.get());
         holder.ensureComponent(UUIDComponent.getComponentType());
         holder.ensureComponent(EntityStore.REGISTRY.getNonSerializedComponentType());
+        applyPresence(holder, options);
         return holder;
+    }
+
+    /**
+     * The one-item stack the prop renders from. Overriding the dropped-item animation is what
+     * FREEZES the prop; leaving it alone lets the client's own idle motion play.
+     */
+    @Nonnull
+    private static ItemStack tooltipStack(@Nonnull String itemId, @Nonnull Options options) {
+        ItemStack tooltip = new ItemStack(itemId, 1);
+        tooltip.setOverrideDroppedItemAnimation(!options.droppedItemAnimation());
+        return tooltip;
+    }
+
+    /** The intangible marker, when asked for; both routes carry it the same way. */
+    private static void applyPresence(@Nonnull Holder<EntityStore> holder, @Nonnull Options options) {
+        if (options.intangible()) {
+            holder.addComponent(Intangible.getComponentType(), Intangible.INSTANCE);
+        }
     }
 
     /** Commits an already-built {@code holder} (see {@link #buildHolder}). Never throws; {@code null} on failure. */

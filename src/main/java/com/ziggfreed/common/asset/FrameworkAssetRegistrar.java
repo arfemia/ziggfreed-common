@@ -70,6 +70,11 @@ import com.ziggfreed.common.achievement.asset.AchievementMilestoneConfig;
 import com.ziggfreed.common.feedback.moment.FeedbackMomentAsset;
 import com.ziggfreed.common.feedback.moment.FeedbackMomentConfig;
 import com.ziggfreed.common.quest.asset.QuestAsset;
+import com.ziggfreed.common.entity.overhead.OverheadIndicatorAsset;
+import com.ziggfreed.common.entity.overhead.OverheadIndicatorConfig;
+import com.ziggfreed.common.objectives.indicator.QuestIndicatorAsset;
+import com.ziggfreed.common.objectives.indicator.QuestIndicatorConfig;
+import com.ziggfreed.common.objectives.indicator.QuestIndicatorOwnerLayers;
 import com.ziggfreed.common.progress.asset.ObjectiveKindAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveKindConfig;
 import com.ziggfreed.common.progress.asset.ObjectiveKindFold;
@@ -205,6 +210,32 @@ public final class FrameworkAssetRegistrar {
                 (LoadedAssetsEvent<String, ObjectiveKindAsset, DefaultAssetMap<String, ObjectiveKindAsset>> ev) -> {
                     ObjectiveKindConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     ObjectiveKindFold.foldInto(ProgressionRuntime.objectiveKinds());
+                });
+
+        // --- Overhead indicators (Pattern A) - what ONE overhead state looks like: the picture that
+        //     floats over an entity's head when a consumer shows that state to a viewer. The state id
+        //     is the filename; a consumer names the state, a pack or an owner decides the look. No
+        //     owner file: a look is overridden by id, the way a feedback moment is. ---
+        AssetStoreRegistrar.registerStore(OverheadIndicatorAsset.class,
+                new DefaultAssetMap<String, OverheadIndicatorAsset>(), OverheadIndicatorAsset.TYPE_ROOT,
+                OverheadIndicatorAsset::getId, OverheadIndicatorAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, OverheadIndicatorAsset.class,
+                (LoadedAssetsEvent<String, OverheadIndicatorAsset, DefaultAssetMap<String, OverheadIndicatorAsset>> ev) ->
+                        OverheadIndicatorConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Quest indicators (Pattern A) - the GLOBAL word on whether a quest situation at a
+        //     character shows an overhead cue or a map marker, and which state it shows: one file,
+        //     Default.json, a pack overrides by id and the owner file merges over per leaf. A quest
+        //     and a step narrow it further from inside their own files. The owner layer is read from
+        //     the same load event, since an owner entry has nothing to inherit from until the packs
+        //     have landed. ---
+        AssetStoreRegistrar.registerStore(QuestIndicatorAsset.class,
+                new DefaultAssetMap<String, QuestIndicatorAsset>(), QuestIndicatorAsset.TYPE_ROOT,
+                QuestIndicatorAsset::getId, QuestIndicatorAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, QuestIndicatorAsset.class,
+                (LoadedAssetsEvent<String, QuestIndicatorAsset, DefaultAssetMap<String, QuestIndicatorAsset>> ev) -> {
+                    QuestIndicatorConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    QuestIndicatorOwnerLayers.reload();
                 });
 
         // --- Reward kinds (Pattern A) - a reward KIND written as a file: a declared parameter

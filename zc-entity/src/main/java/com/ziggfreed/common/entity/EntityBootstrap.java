@@ -4,16 +4,22 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
+import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystems.EntityViewer;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.entity.flair.ZigFlairComponent;
+import com.ziggfreed.common.entity.overhead.OverheadFollowSystem;
+import com.ziggfreed.common.entity.overhead.OverheadIndicators;
+import com.ziggfreed.common.entity.overhead.OverheadVisibilityFilter;
 import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
 import com.ziggfreed.common.stats.EquipStatBridge;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers this module's own per-player state and plumbing at plugin {@code setup()}: the
- * station-performer identity component, the unlocked-flair set with its connect hook, and the
- * {@link PlayerIdentityCache} lifecycle listeners. Three ordered phases, each called once from
+ * station-performer identity component, the unlocked-flair set with its connect hook, the
+ * {@link PlayerIdentityCache} lifecycle listeners, the equip-stat bridge and the two systems behind
+ * the overhead indicators. Ordered phases, each called once from
  * {@code ZiggfreedCommonPlugin.setup()}, which stays the one authority on call ORDER.
  *
  * <p>Every component type here is registered unconditionally and early: a component type
@@ -96,6 +102,28 @@ public final class EntityBootstrap {
             ZigFlairComponent.install(plugin);
         } catch (Throwable t) {
             SafeLog.warn("[flair] could not register ZigFlairComponent", t);
+        }
+    }
+
+    /**
+     * Register the two systems behind {@link OverheadIndicators}, the per-viewer picture over an
+     * entity's head: the visibility filter, inside the engine's own find-visible group so a marker
+     * is taken out of every other viewer's set before anything is sent, and the follow pass, one
+     * query-less tick per world that repositions, expires and takes down markers on its cadence.
+     * Plus the per-world eviction, so an unloading instance world drops its whole table.
+     *
+     * <p>The library's rather than a consumer's for the usual reason: the ECS system registry is
+     * class-keyed, several consumers may show indicators on one server, and two filters would each
+     * hide the other's markers from everybody.
+     */
+    public static void registerOverheadIndicators(@Nonnull PluginBase plugin) {
+        try {
+            plugin.getEntityStoreRegistry().registerSystem(
+                    new OverheadVisibilityFilter(EntityViewer.getComponentType()));
+            plugin.getEntityStoreRegistry().registerSystem(new OverheadFollowSystem());
+            WorldEvictors.registerEvictor(OverheadIndicators::onWorldRemoved);
+        } catch (Throwable t) {
+            SafeLog.warn("[overhead] could not register the overhead indicator systems", t);
         }
     }
 

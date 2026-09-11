@@ -103,11 +103,27 @@ compiles as `:zc-objectives`). See the root [`CLAUDE.md`](../CLAUDE.md) for the 
     `FlairBootstrap`, the `setup()` phase registering all three. It lives here rather than beside
     the component because it is the one module that sees the record (entity), the reward
     vocabulary and chip ladder (loot), the toast engine (presentation) and the command walk (core).
-  None of the nine router-less subpackages above has its own router; the parent `objectives/`
+  - `objectives/indicator/` - the ONE availability answer behind a character's overhead cue and
+    its map marker: `QuestIndicators` (which quest situations a character is in for a player, in
+    precedence order Collect > TurnIn > Available > InProgress, each with its knob merged global <
+    quest < step; `overheadAt` the first that shows overhead, `mapMarksFor` every character a
+    map-enabled situation marks), `QuestIndicatorAsset` + `QuestIndicatorConfig` (the global word,
+    `Server/ZiggfreedCommon/QuestIndicators/Default.json`, the same leaves as a quest's own
+    `Indicator` block appended onto an asset codec), `QuestIndicatorOwnerLayers`
+    (`mods/ziggfreedcommon/quest-indicators.json`) and `QuestIndicatorValidator` (a situation pointed
+    at a state with no look file, a `quest`-domain WARNING a consumer folds into its late audit). It
+    reads `questlist/CharacterQuestListing`, the page's own classification lifted out of the page
+    so the cue over a head and the list behind a press-F can never disagree. The primitive that
+    draws the cue is zc-entity's `entity/overhead/`; this module only decides WHAT to show.
+  None of the ten router-less subpackages above has its own router; the parent `objectives/`
   router covers them all (`command/` carries its own).
 
 ## Shipped resources
 
+`Server/ZiggfreedCommon/QuestIndicators/Default.json` (the global word on which quest situations
+show over a character's head and on the map: overhead for all four, the map for `Available`
+alone under `Coordinate.png`; a pack overrides it by id, an owner narrows it from
+`mods/ziggfreedcommon/quest-indicators.json` under the key `Default`).
 `Common/UI/Custom/Pages/{ZigObjectiveBookPage.ui, ZigQuestLogRow.ui, ZigBookTagChip.ui,
 ZigBookCatTab.ui, ZigBookWideTab.ui, ZigAchListRow.ui, ZigAchChipRow.ui, ZigAchCriterionRow.ui,
 ZigAchCategoryCard.ui, ZigMilestoneCard.ui, ZigNpcQuestPage.ui, ZigTrackedQuestRow.ui,
@@ -156,8 +172,15 @@ to take the screen wins.
 
 ## Tests
 
-37 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
-this module's own suite covers the parts it contributes - `DefaultPartsHandInTest`,
+40 files: `ProgressionRuntimeTest`-adjacent registration coverage lives in `zc-progression`, while
+this module's own suite covers the parts it contributes - `CharacterQuestListingTest` (the lifted
+classification over a real engine: available at the giver and nowhere else, taken-here while
+carried, a report-back errand settling where it is locked, a parked quest ready where it is
+collected, an alias counting as the character), `QuestIndicatorsTest` (the four situations in
+precedence order, a switched-off overhead yielding to the next, the three knob scopes merged per
+leaf with the step that raises a turn-in and the step the player is on each read, the map marking
+every giver once) and `QuestIndicatorValidatorTest` (a state with no look named per block, the
+global word audited too, silence otherwise), `DefaultPartsHandInTest`,
 `DefaultPartsRewardGrantTest` (the registered store + producer parts pulling their weight inside a
 real runtime), `ZigProgressComponentTest`, `ProgressBlobTest` (the persisted per-player codec),
 `ZigProgressBlobCompatTest` + `ZigProgressBlobFixture`/`ZigProgressBlobFixtureGenerator` (the GOLDEN

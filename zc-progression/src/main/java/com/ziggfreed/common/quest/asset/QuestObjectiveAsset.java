@@ -41,6 +41,7 @@ public final class QuestObjectiveAsset extends ObjectiveLeafAsset {
 
     @Nullable protected Integer order;
     @Nullable protected String turnInNpcId;
+    @Nullable protected QuestIndicatorSpec indicator;
 
     public static final BuilderCodec<QuestObjectiveAsset> CODEC =
             appendLeaves(BuilderCodec.builder(QuestObjectiveAsset.class, QuestObjectiveAsset::new))
@@ -54,6 +55,12 @@ public final class QuestObjectiveAsset extends ObjectiveLeafAsset {
                     .documentation("For a TURN_IN step: the one place it may be handed in at. The literal 'giver' "
                             + "means the quest's own Npc.ViewId, so a moved quest giver needs no objective edit. "
                             + "Unauthored means any hand-in surface will do.").add()
+                    .appendInherited(new KeyedCodec<>("Indicator", QuestIndicatorSpec.CODEC, false),
+                            (o, v) -> o.indicator = v, o -> o.indicator, (o, p) -> o.indicator = p.indicator)
+                    .documentation("How the situation THIS step raises at a character shows, narrowing the quest's "
+                            + "own Indicator block per leaf: a hand-in step's TurnIn group, a carried step's "
+                            + "InProgress group. The quest-level Collect and Available groups are never read "
+                            + "from a step. Leave it out to take the quest's word.").add()
                     .build();
 
     public QuestObjectiveAsset() {
@@ -82,6 +89,12 @@ public final class QuestObjectiveAsset extends ObjectiveLeafAsset {
     @Nullable
     public String getTurnInNpcId() {
         return turnInNpcId;
+    }
+
+    /** This step's own indicator block for the situation it raises, or null when it takes the quest's word. */
+    @Nullable
+    public QuestIndicatorSpec getIndicator() {
+        return indicator;
     }
 
     /** Is {@code turnInNpcId} the "wherever this quest came from" sentinel? */

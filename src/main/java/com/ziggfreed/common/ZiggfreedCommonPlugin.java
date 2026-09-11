@@ -32,6 +32,7 @@ import com.ziggfreed.common.encounter.EncounterBootstrap;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.encounter.validate.EncounterAudit;
 import com.ziggfreed.common.entity.EntityBootstrap;
+import com.ziggfreed.common.entity.overhead.OverheadIndicators;
 import com.ziggfreed.common.instance.InstanceBootstrap;
 import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
@@ -170,6 +171,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         NpcBootstrap.setupTalkCredit(this);
         NpcBootstrap.registerWorldLifecycle(this);
         EntityBootstrap.registerPlayerIdentity(this);
+        EntityBootstrap.registerOverheadIndicators(this);
         // What makes a stamped stat real: the equip bridge turns a held / worn / offhand stack's
         // stored entries into modifiers on the entity, and takes them off again with the item. It is
         // installed here so a server running this library and nothing else still gets working
@@ -429,6 +431,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Nothing to write for placements: each one rides its own chunk's save, so a restart finds
         // them exactly where it left them without this plugin persisting anything of its own.
         AssetStoreWriter.shutdown();
+        // Overhead markers are never persisted either; what goes here is only the per-world tables.
+        OverheadIndicators.shutdown();
         LOGGER.atInfo().log("ZiggfreedCommon shutdown complete.");
     }
 }

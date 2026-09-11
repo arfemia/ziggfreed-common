@@ -1,0 +1,10 @@
+{
+  "$Comment": "The server-wide word on what a character shows a player about their quests. Each group is one situation: Collect (a finished quest whose reward is collected here), TurnIn (handing over what the player carries would finish it), Available (not started, could be taken now), InProgress (being carried, this character is part of it). When several apply to one player at one character the earlier group wins. Every leaf is optional: Enabled switches a situation off outright, State names the look file under Server/ZiggfreedCommon/OverheadIndicators/ (unauthored takes Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress), Overhead.Enabled says whether a marker floats over the character, Map.Enabled whether the world map and compass mark them, Map.Icon which marker texture. Overhead is on for every situation unless a group says otherwise; the map marks only what is on offer, since a tracked quest already marks the rest. A quest narrows this from its own Indicator block, a step from its own, and a server owner from mods/ziggfreedcommon/quest-indicators.json under the key Default, each leaf by leaf.",
+  "Enabled": true,
+  "Available": {
+    "Map": {
+      "Enabled": true,
+      "Icon": "Coordinate.png"
+    }
+  }
+}

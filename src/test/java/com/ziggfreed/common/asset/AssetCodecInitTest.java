@@ -32,6 +32,9 @@ import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationAsset;
+import com.ziggfreed.common.entity.overhead.OverheadIndicatorAsset;
+import com.ziggfreed.common.objectives.indicator.QuestIndicatorAsset;
+import com.ziggfreed.common.quest.asset.QuestIndicatorSpec;
 import com.ziggfreed.common.factor.DerivedFactorAsset;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
@@ -136,6 +139,16 @@ class AssetCodecInitTest {
         assertNotNull(HudSpotGap.CODEC, "the shared Gap group codec must static-init");
         assertNotNull(HudSpotCutout.CODEC, "the shared Cutout group codec must static-init");
         assertNotNull(HudCardAsset.CODEC, "HudCardAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void overheadAndQuestIndicatorCodecsInitialize() {
+        assertNotNull(OverheadIndicatorAsset.CODEC, "OverheadIndicatorAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(QuestIndicatorAsset.CODEC, "QuestIndicatorAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(QuestIndicatorSpec.CODEC, "the Indicator block codec must static-init");
+        assertNotNull(QuestIndicatorSpec.Situation.CODEC, "the per-situation group codec must static-init");
+        assertNotNull(QuestIndicatorSpec.Overhead.CODEC, "the Overhead group codec must static-init");
+        assertNotNull(QuestIndicatorSpec.MapMark.CODEC, "the Map group codec must static-init");
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.ziggfreed.common.quest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.progress.ObjectiveDef;
+import com.ziggfreed.common.quest.asset.QuestIndicatorSpec;
 
 /**
  * The two copies a {@link Quest} makes of itself carry every flow flag across.
@@ -19,6 +21,10 @@ import com.ziggfreed.common.progress.ObjectiveDef;
  */
 class QuestCopyTest {
 
+    private static final QuestIndicatorSpec QUEST_BLOCK = QuestIndicatorSpec.of(false, null, null, null, null);
+    private static final QuestIndicatorSpec STEP_BLOCK = QuestIndicatorSpec.of(null, null,
+            QuestIndicatorSpec.Situation.of(null, "Hand_Me_That", null, null), null, null);
+
     private static Quest flagged() {
         return Quest.builder("q_copy")
                 .objective(ObjectiveDef.builder("step", "BREAK_BLOCK").target("Oak_Log").amount(1).build())
@@ -27,6 +33,8 @@ class QuestCopyTest {
                 .autoAccept(true)
                 .autoTrack(true)
                 .tags(List.of("tutorial"))
+                .indicator(QUEST_BLOCK)
+                .stepIndicator("step", STEP_BLOCK)
                 .build();
     }
 
@@ -37,6 +45,8 @@ class QuestCopyTest {
         assertTrue(copy.autoTrack(), "autoTrack");
         assertEquals(List.of("tutorial"), copy.tags());
         assertEquals(1, copy.objectives().size());
+        assertSame(QUEST_BLOCK, copy.indicator(), "the quest's Indicator block");
+        assertSame(STEP_BLOCK, copy.stepIndicator("step"), "a step's Indicator block");
     }
 
     @Test

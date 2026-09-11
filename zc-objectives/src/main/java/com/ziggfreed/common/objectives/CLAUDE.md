@@ -123,6 +123,7 @@ unqualified, byte-identical to a bare server. `KillQualifierProducerTest` pins t
 | `hud/` | the tracked-quest HUD (`TrackedQuestHud` + `TrackedQuestHuds` + `TrackedQuestHudDeps` + `TrackedQuestSnapshot`, folding its bursts through zc-presentation's `ui/hud/RepaintCoalescer`) and the tracked-quests side-panel renderer a page embeds (`TrackedQuestPanelRenderer`) |
 | `dialogue/` | `DialogueBootstrap`: this module's fill of the seams `zc-dialogue` declares and structurally cannot fill - the `hytale:` factor vocabulary its `Factor` conditions resolve against, the persistent memory store (this module's own progress component) plus the disconnect that ends a `Session` memory, and the `QuestResets` hook that forgets a `ResetWithQuest` memory - and `ActiveObjectiveHeader`, the header note a conversation shows under the speaker's name |
 | `flair/` | the flair GRANT surface over zc-entity's `ZigFlairComponent`: `FlairUnlocks` (the ONE write path, firing `ZigFlairChangedEvent` and the authored `Flair_Unlocked` moment on a real change only), the unprefixed `Flair` reward kind, `FlairText`/`FlairChipReading` (the `flair.<id>.name` ladder every surface shares), `/zigflair grant|revoke|list`, and `FlairBootstrap`, the one `setup()` phase registering the kind, the chip reading and the command |
+| `indicator/` | the ONE availability answer behind a character's overhead cue and its map marker: `QuestIndicators` (situations in precedence order over the page's lifted `questlist/CharacterQuestListing`, the knob merged global < quest < step), `QuestIndicatorAsset` + `QuestIndicatorConfig` (the global `Server/ZiggfreedCommon/QuestIndicators/Default.json`), `QuestIndicatorOwnerLayers` (`mods/ziggfreedcommon/quest-indicators.json`) and `QuestIndicatorValidator` (`UNKNOWN_INDICATOR_STATE`) - see below |
 
 ## What these defaults MUST wire, because nothing works without them
 
@@ -674,6 +675,43 @@ after the maintenance pass has hopped to the world thread, so the first paint sh
   surplus) so a `sendUpdate` repaints by index; the host page's header label, if any, stays with the
   page.
 
+## The quest indicators
+
+[`indicator/QuestIndicators`](indicator/QuestIndicators.java) is the ONE availability answer behind
+two surfaces a player never opens: the picture over a placed character's head (a scroll for a quest
+they could take, a gold bar for one they can hand in, a trophy for a reward waiting, a map for an
+errand still on) and the world-map marker on every character with a quest on offer. A consumer
+drives both from its own sweep; this module only decides WHAT a character shows a player.
+
+- **The situations are the NPC quest page's own sections**, read through the same
+  [`questlist/CharacterQuestListing`](questlist/CharacterQuestListing.java) the page builds its list
+  from (lifted out of the page for exactly this; the page delegates to it, behaviour unchanged): a
+  finished quest collected here is `Collect`, an errand settled here `TurnIn`, a quest on offer
+  `Available`, a carried quest whose business is here `InProgress`. Parked elsewhere, on cooldown,
+  locked and done announce nothing. `situationsAt(engine, subject, answersTo)` lists them in
+  precedence order, Collect > TurnIn > Available > InProgress; `overheadAt` picks the first whose
+  knob shows overhead; `mapMarksFor` evaluates every character any quest names (giver, hand-in
+  place, collection site) and keeps the first map-enabled situation per character.
+- **The knob is three scopes merged per leaf, narrowest winning**: the server's global word
+  (`indicator/QuestIndicatorAsset`, `Server/ZiggfreedCommon/QuestIndicators/Default.json`, plus
+  the owner file `mods/ziggfreedcommon/quest-indicators.json` through
+  `indicator/QuestIndicatorOwnerLayers`), the quest's own `Indicator` block, and, for the two
+  situations a STEP raises, that step's block: the hand-in step the character would credit for a
+  turn-in, the step the player is on for in-progress. The block itself is zc-progression's
+  `quest/asset/QuestIndicatorSpec` (four `{Enabled, State, Overhead: {Enabled}, Map: {Enabled,
+  Icon}}` groups plus one switch), whose `merge` and `resolve` are the whole of the arithmetic.
+  Defaults, applied last: every situation shows overhead under its own state
+  (`Quest_Reward_Ready` / `Quest_Ready_To_Turn_In` / `Quest_Available` / `Quest_In_Progress`), none
+  marks the map; the shipped `Default.json` is what turns the map on for `Available`.
+- **The look is not this module's.** A state names a file at
+  `Server/ZiggfreedCommon/OverheadIndicators/<State>.json` (zc-entity's `entity/overhead/`); the
+  library ships none, since a bare server has no host sweep, and a consumer ships the four its
+  situations default to. [`indicator/QuestIndicatorValidator`](indicator/QuestIndicatorValidator.java)
+  reports a block pointing at a state no look file describes (`UNKNOWN_INDICATOR_STATE`, a
+  `quest`-domain WARNING) and is folded into a consumer's LATE audit, after every store has
+  loaded; it is deliberately not run from `publishAssetContent`, where the look store may not have
+  landed yet.
+
 ## The admin page
 
 [`admin/ProgressionAdminPage`](admin/ProgressionAdminPage.java) is the third surface, and the one
@@ -748,6 +786,19 @@ easiest to lose in a refactor: a quest pin, an unpin, a stale-pin sweep and an a
 reach the fan-out, and a sweep that dropped nothing reports nothing. The one covered write no test
 can reach is a dialogue memory, since that view needs a live component type and a world; it is in-game
 smoke like the rest of this module's engine-touching half.
+
+The quest indicators are pinned over a real engine with an in-memory store and a test-owned
+offer table. `CharacterQuestListingTest` (in `questlist/`) walks the lifted classification through
+one giver's lifecycle: on offer at the giver and nowhere else, taken-here while carried, a
+report-back errand settling where it is locked (and the id the hand-in must be made at), a parked
+quest ready where it is collected, an alias counting as the character. `QuestIndicatorsTest` pins
+the four situations in precedence order, a switched-off overhead yielding to the next situation,
+nobody-in-front being no situation, the three knob scopes merged per leaf (a step's leaf unread
+at quest scope, the global map leaf surviving a quest that never mentioned Map), the step that
+raises a turn-in and the step the player is on each being the one read, and the map marking every
+giver once. `QuestIndicatorValidatorTest` pins a state with no look named per block and per
+situation, the global word audited too, and silence for states with looks. The host sweep, the
+marker entity and the map source are a consumer's, and in-game smoke there.
 
 The NPC quest page is split the same way. `NpcQuestSectionsTest` pins the ordering rules a player
 notices immediately and a refactor breaks silently - which bucket a status lands in, a finished quest

@@ -42,6 +42,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Requires` | [Requires](#type-requires) | `null` | What a player must already have or have done. An unauthored block asks for nothing; a requirement nothing can answer keeps the quest locked. |
 | `Objectives` | map of [QuestObjective](#type-questobjective) | `null` | The steps, keyed by objective id. The key is also what progress is stored under, so renaming one starts that step over. A child quest may retune one step by id and keeps every step it did not mention. |
 | `Rewards` | [ContentRewardsAsset](#field-questasset-rewards) | `null` | What the player gets, split by the two moments a payout can land in. Anything in Claim waits to be collected, and having any is what makes the finished quest wait; a quest paying only Auto settles on the spot, its reward landing the instant the steps are done. |
+| `Indicator` | [QuestIndicatorSpec](#field-questasset-indicator) | `null` | Whether this quest's situations at a character show over that character's head or on the map, and which state each shows, narrowing the server's global default per leaf. Leave it out to take the default whole. A step may narrow it further for the situation it raises. |
 | `Meta` | map of `json` | `null` | Extra facts about this content, filed under the namespace of whichever mod they belong to. Nothing here is interpreted by this library: a mod reads its own namespace and every other one rides along untouched, so content authored for two mods still loads with one of them installed. Under Parent a namespace this file names replaces the inherited block for that namespace whole, and every namespace it does not name is inherited as it was. |
 
 <a id="field-questasset-listing"></a>
@@ -94,6 +95,17 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Auto` | array of [RewardEntry](#type-rewardentry) | `null` | Paid the instant the content settles, wherever the player is. Keep it to things that need no bag room. This is ONE leaf: author it and an inherited list is replaced whole. |
 | `Claim` | array of [RewardEntry](#type-rewardentry) | `null` | Waits on a surface for the player to collect; the bucket a reward belongs in unless it must land on the spot. Where anything needing backpack room goes, so a full bag costs nobody a reward. This is ONE leaf: author it and an inherited list is replaced whole. |
 
+<a id="field-questasset-indicator"></a>
+### QuestAsset.Indicator
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | One switch over the whole block: false shows nothing for any situation, whatever the groups below say. Unauthored means yes. |
+| `Collect` | [Situation](#field-questasset-indicator-collect) | `null` | A finished quest whose reward is collected at this character. |
+| `TurnIn` | [Situation](#field-questasset-indicator-turnin) | `null` | Handing over what the player carries, here, would finish the quest. |
+| `Available` | [Situation](#field-questasset-indicator-available) | `null` | Not started, and the player could take it here right now. |
+| `InProgress` | [Situation](#field-questasset-indicator-inprogress) | `null` | Being carried, with this character part of the errand. |
+
 <a id="field-questasset-listing-chains-item"></a>
 #### QuestAsset.Listing.Chains[]
 
@@ -113,6 +125,106 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Weekday` | `string` | `null` | Which day the window starts on (Monday, Tuesday, ...), for a window that is a whole number of weeks: Weekly, or Every {"Weeks": 2}. Unauthored means Monday. It does nothing on any other length. |
 | `Times` | `integer` | `null` | How many FINISHES fit inside one window. Unauthored means 1. A run whose reward is still waiting to be collected has already spent its slot here. |
 
+<a id="field-questasset-indicator-collect"></a>
+#### QuestAsset.Indicator.Collect
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether this situation shows anything at all, overhead or map. Unauthored means yes. |
+| `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
+| `Overhead` | [Overhead](#field-questasset-indicator-collect-overhead) | `null` | The marker over the character's head. |
+| `Map` | [MapMark](#field-questasset-indicator-collect-map) | `null` | The marker on the world map and compass. |
+
+<a id="field-questasset-indicator-turnin"></a>
+#### QuestAsset.Indicator.TurnIn
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether this situation shows anything at all, overhead or map. Unauthored means yes. |
+| `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
+| `Overhead` | [Overhead](#field-questasset-indicator-turnin-overhead) | `null` | The marker over the character's head. |
+| `Map` | [MapMark](#field-questasset-indicator-turnin-map) | `null` | The marker on the world map and compass. |
+
+<a id="field-questasset-indicator-available"></a>
+#### QuestAsset.Indicator.Available
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether this situation shows anything at all, overhead or map. Unauthored means yes. |
+| `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
+| `Overhead` | [Overhead](#field-questasset-indicator-available-overhead) | `null` | The marker over the character's head. |
+| `Map` | [MapMark](#field-questasset-indicator-available-map) | `null` | The marker on the world map and compass. |
+
+<a id="field-questasset-indicator-inprogress"></a>
+#### QuestAsset.Indicator.InProgress
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether this situation shows anything at all, overhead or map. Unauthored means yes. |
+| `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
+| `Overhead` | [Overhead](#field-questasset-indicator-inprogress-overhead) | `null` | The marker over the character's head. |
+| `Map` | [MapMark](#field-questasset-indicator-inprogress-map) | `null` | The marker on the world map and compass. |
+
+<a id="field-questasset-indicator-collect-overhead"></a>
+##### QuestAsset.Indicator.Collect.Overhead
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether a marker floats over the character for this situation. Unauthored means yes. |
+
+<a id="field-questasset-indicator-collect-map"></a>
+##### QuestAsset.Indicator.Collect.Map
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
+| `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
+
+<a id="field-questasset-indicator-turnin-overhead"></a>
+##### QuestAsset.Indicator.TurnIn.Overhead
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether a marker floats over the character for this situation. Unauthored means yes. |
+
+<a id="field-questasset-indicator-turnin-map"></a>
+##### QuestAsset.Indicator.TurnIn.Map
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
+| `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
+
+<a id="field-questasset-indicator-available-overhead"></a>
+##### QuestAsset.Indicator.Available.Overhead
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether a marker floats over the character for this situation. Unauthored means yes. |
+
+<a id="field-questasset-indicator-available-map"></a>
+##### QuestAsset.Indicator.Available.Map
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
+| `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
+
+<a id="field-questasset-indicator-inprogress-overhead"></a>
+##### QuestAsset.Indicator.InProgress.Overhead
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether a marker floats over the character for this situation. Unauthored means yes. |
+
+<a id="field-questasset-indicator-inprogress-map"></a>
+##### QuestAsset.Indicator.InProgress.Map
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
+| `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
+
 <a id="type-questobjective"></a>
 ## QuestObjective
 
@@ -127,6 +239,118 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `TextKey` | `string` | `null` | Localization key for the line a player reads for this step. Unauthored leaves the wording to whatever renders it. |
 | `Order` | `integer` | `null` | Sequencing group. An objective unlocks once every objective with a strictly lower non-zero Order is done; equal numbers run side by side. 0 or unauthored means no constraint, and a quest that authors none of them can still use Flow.Sequential. |
 | `TurnInNpcId` | `string` | `null` | For a TURN_IN step: the one place it may be handed in at. The literal 'giver' means the quest's own Npc.ViewId, so a moved quest giver needs no objective edit. Unauthored means any hand-in surface will do. |
+| `Indicator` | [QuestIndicatorSpec](#field-questobjective-indicator) | `null` | How the situation THIS step raises at a character shows, narrowing the quest's own Indicator block per leaf: a hand-in step's TurnIn group, a carried step's InProgress group. The quest-level Collect and Available groups are never read from a step. Leave it out to take the quest's word. |
+
+<a id="field-questobjective-indicator"></a>
+### QuestObjective.Indicator
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | One switch over the whole block: false shows nothing for any situation, whatever the groups below say. Unauthored means yes. |
+| `Collect` | [Situation](#field-questobjective-indicator-collect) | `null` | A finished quest whose reward is collected at this character. |
+| `TurnIn` | [Situation](#field-questobjective-indicator-turnin) | `null` | Handing over what the player carries, here, would finish the quest. |
+| `Available` | [Situation](#field-questobjective-indicator-available) | `null` | Not started, and the player could take it here right now. |
+| `InProgress` | [Situation](#field-questobjective-indicator-inprogress) | `null` | Being carried, with this character part of the errand. |
+
+<a id="field-questobjective-indicator-collect"></a>
+#### QuestObjective.Indicator.Collect
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether this situation shows anything at all, overhead or map. Unauthored means yes. |
+| `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
+| `Overhead` | [Overhead](#field-questobjective-indicator-collect-overhead) | `null` | The marker over the character's head. |
+| `Map` | [MapMark](#field-questobjective-indicator-collect-map) | `null` | The marker on the world map and compass. |
+
+<a id="field-questobjective-indicator-turnin"></a>
+#### QuestObjective.Indicator.TurnIn
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether this situation shows anything at all, overhead or map. Unauthored means yes. |
+| `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
+| `Overhead` | [Overhead](#field-questobjective-indicator-turnin-overhead) | `null` | The marker over the character's head. |
+| `Map` | [MapMark](#field-questobjective-indicator-turnin-map) | `null` | The marker on the world map and compass. |
+
+<a id="field-questobjective-indicator-available"></a>
+#### QuestObjective.Indicator.Available
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether this situation shows anything at all, overhead or map. Unauthored means yes. |
+| `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
+| `Overhead` | [Overhead](#field-questobjective-indicator-available-overhead) | `null` | The marker over the character's head. |
+| `Map` | [MapMark](#field-questobjective-indicator-available-map) | `null` | The marker on the world map and compass. |
+
+<a id="field-questobjective-indicator-inprogress"></a>
+#### QuestObjective.Indicator.InProgress
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether this situation shows anything at all, overhead or map. Unauthored means yes. |
+| `State` | `string` | `null` | The overhead state to show, matching a look file at Server/ZiggfreedCommon/OverheadIndicators/<State>.json. Unauthored means the situation's own state (Quest_Reward_Ready, Quest_Ready_To_Turn_In, Quest_Available, Quest_In_Progress). |
+| `Overhead` | [Overhead](#field-questobjective-indicator-inprogress-overhead) | `null` | The marker over the character's head. |
+| `Map` | [MapMark](#field-questobjective-indicator-inprogress-map) | `null` | The marker on the world map and compass. |
+
+<a id="field-questobjective-indicator-collect-overhead"></a>
+##### QuestObjective.Indicator.Collect.Overhead
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether a marker floats over the character for this situation. Unauthored means yes. |
+
+<a id="field-questobjective-indicator-collect-map"></a>
+##### QuestObjective.Indicator.Collect.Map
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
+| `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
+
+<a id="field-questobjective-indicator-turnin-overhead"></a>
+##### QuestObjective.Indicator.TurnIn.Overhead
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether a marker floats over the character for this situation. Unauthored means yes. |
+
+<a id="field-questobjective-indicator-turnin-map"></a>
+##### QuestObjective.Indicator.TurnIn.Map
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
+| `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
+
+<a id="field-questobjective-indicator-available-overhead"></a>
+##### QuestObjective.Indicator.Available.Overhead
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether a marker floats over the character for this situation. Unauthored means yes. |
+
+<a id="field-questobjective-indicator-available-map"></a>
+##### QuestObjective.Indicator.Available.Map
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
+| `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
+
+<a id="field-questobjective-indicator-inprogress-overhead"></a>
+##### QuestObjective.Indicator.InProgress.Overhead
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether a marker floats over the character for this situation. Unauthored means yes. |
+
+<a id="field-questobjective-indicator-inprogress-map"></a>
+##### QuestObjective.Indicator.InProgress.Map
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
+| `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
 
 <a id="type-achievementasset"></a>
 ## AchievementAsset

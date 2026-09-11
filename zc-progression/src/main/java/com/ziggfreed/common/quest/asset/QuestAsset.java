@@ -102,6 +102,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable private GateSpec requires;
     @Nullable private Map<String, QuestObjectiveAsset> objectives;
     @Nullable private ContentRewardsAsset rewards;
+    @Nullable private QuestIndicatorSpec indicator;
     @Nullable private Map<String, JsonElement> meta;
 
     public static final AssetBuilderCodec<String, QuestAsset> CODEC = AssetBuilderCodec.builder(
@@ -198,6 +199,13 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     + "Claim waits to be collected, and having any is what makes the finished quest wait; a "
                     + "quest paying only Auto settles on the spot, its reward landing the instant the steps "
                     + "are done.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Indicator", QuestIndicatorSpec.CODEC, false),
+                    (a, v) -> a.indicator = v, a -> a.indicator, (a, p) -> a.indicator = p.indicator)
+            .documentation("Whether this quest's situations at a character show over that character's head "
+                    + "or on the map, and which state each shows, narrowing the server's global default per "
+                    + "leaf. Leave it out to take the default whole. A step may narrow it further for the "
+                    + "situation it raises.")
             .add()
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
@@ -340,6 +348,12 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return rewards;
     }
 
+    /** The quest's own indicator block, or null when it takes the global default whole. */
+    @Nullable
+    public QuestIndicatorSpec getIndicator() {
+        return indicator;
+    }
+
     /** The per-namespace extra facts, exactly as authored; empty when the file carried none. */
     @Nonnull
     public Map<String, JsonElement> metaOrEmpty() {
@@ -368,7 +382,8 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .visibility(listing == null ? Quest.Visibility.OPEN
                         : new Quest.Visibility(listing.isHidden(), listing.isRequirePrerequisites()))
                 .turnInAt(turnInSite(giverId))
-                .tags(listing == null ? List.of() : listing.tagList());
+                .tags(listing == null ? List.of() : listing.tagList())
+                .indicator(indicator);
 
         Map<String, String> objectiveText = new LinkedHashMap<>();
         for (Map.Entry<String, QuestObjectiveAsset> entry : objectivesOrEmpty().entrySet()) {
@@ -380,6 +395,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             if (authored.getTextKey() != null && !authored.getTextKey().isBlank()) {
                 objectiveText.put(entry.getKey(), authored.getTextKey());
             }
+            quest.stepIndicator(entry.getKey(), authored.getIndicator());
         }
 
         ContentRewardsAsset pay = rewards;

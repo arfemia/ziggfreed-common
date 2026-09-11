@@ -2,7 +2,9 @@ package com.ziggfreed.common.quest;
 
 import java.time.DayOfWeek;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nonnull;
@@ -12,6 +14,7 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.ContentText;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.quest.asset.QuestIndicatorSpec;
 import com.ziggfreed.common.util.PeriodMath;
 
 /**
@@ -197,6 +200,8 @@ public final class Quest {
     private final int listOrder;
     @Nullable private final String category;
     @Nullable private final String icon;
+    @Nullable private final QuestIndicatorSpec indicator;
+    private final Map<String, QuestIndicatorSpec> stepIndicators;
 
     private Quest(@Nonnull Builder b) {
         this.id = b.id;
@@ -219,6 +224,8 @@ public final class Quest {
         this.listOrder = b.listOrder;
         this.category = b.category;
         this.icon = b.icon;
+        this.indicator = b.indicator;
+        this.stepIndicators = Map.copyOf(b.stepIndicators);
     }
 
     /**
@@ -249,6 +256,8 @@ public final class Quest {
                 .listOrder(listOrder)
                 .category(category)
                 .icon(icon)
+                .indicator(indicator)
+                .stepIndicators(stepIndicators)
                 .build();
     }
 
@@ -285,6 +294,8 @@ public final class Quest {
                 .listOrder(listOrder)
                 .category(category)
                 .icon(icon)
+                .indicator(indicator)
+                .stepIndicators(stepIndicators)
                 .build();
     }
 
@@ -483,6 +494,32 @@ public final class Quest {
         return icon;
     }
 
+    /**
+     * The quest's own word on whether, and how, each situation it puts a character in shows over
+     * that character's head or on the map ({@link QuestIndicatorSpec}); null when the file said
+     * nothing and the global default alone decides. Stamped by whichever layer folded the
+     * catalogue; the engine never reads it.
+     */
+    @Nullable
+    public QuestIndicatorSpec indicator() {
+        return indicator;
+    }
+
+    /**
+     * One step's own word on the situation IT raises at a character (a hand-in step's turn-in, a
+     * carried step's in-progress), narrowing the quest's; null when that step said nothing.
+     */
+    @Nullable
+    public QuestIndicatorSpec stepIndicator(@Nullable String objectiveId) {
+        return objectiveId == null ? null : stepIndicators.get(objectiveId);
+    }
+
+    /** Every step that wrote its own {@code Indicator} block, by objective id. */
+    @Nonnull
+    public Map<String, QuestIndicatorSpec> stepIndicators() {
+        return stepIndicators;
+    }
+
     /** Free classification carried onto the outbound events; the engine never reads their meaning. */
     @Nonnull
     public List<String> tags() {
@@ -565,6 +602,8 @@ public final class Quest {
         private int listOrder;
         @Nullable private String category;
         @Nullable private String icon;
+        @Nullable private QuestIndicatorSpec indicator;
+        private final Map<String, QuestIndicatorSpec> stepIndicators = new LinkedHashMap<>();
 
         private Builder(@Nonnull String id) {
             this.id = id;
@@ -581,6 +620,32 @@ public final class Quest {
         @Nonnull
         public Builder icon(@Nullable String icon) {
             this.icon = icon == null || icon.isBlank() ? null : icon.trim();
+            return this;
+        }
+
+        /** The quest's own indicator block ({@link Quest#indicator()}); null (the default) means none. */
+        @Nonnull
+        public Builder indicator(@Nullable QuestIndicatorSpec indicator) {
+            this.indicator = indicator;
+            return this;
+        }
+
+        /** One step's own indicator block ({@link Quest#stepIndicator}); a null spec forgets the step's. */
+        @Nonnull
+        public Builder stepIndicator(@Nonnull String objectiveId, @Nullable QuestIndicatorSpec indicator) {
+            if (indicator == null) {
+                stepIndicators.remove(objectiveId);
+            } else {
+                stepIndicators.put(objectiveId, indicator);
+            }
+            return this;
+        }
+
+        /** Every step's indicator block at once, replacing whatever was set. */
+        @Nonnull
+        public Builder stepIndicators(@Nonnull Map<String, QuestIndicatorSpec> indicators) {
+            stepIndicators.clear();
+            stepIndicators.putAll(indicators);
             return this;
         }
 
