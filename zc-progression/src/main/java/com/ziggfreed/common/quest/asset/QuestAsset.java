@@ -305,22 +305,42 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
      */
     @Nullable
     public QuestTurnInSite turnInSite(@Nullable String giverId) {
-        if (turnInAt == null) {
+        return resolveTurnInAt(turnInAt, giverId);
+    }
+
+    /**
+     * The ONE reading of an authored {@code TurnInAt} value, for this asset and for any other
+     * authoring format that carries the same leaf in the same spelling ({@code true} has already
+     * become the {@code giver} word by the time it gets here, which is what
+     * {@link BooleanOrStringCodec} is for).
+     *
+     * <ul>
+     *   <li>null, blank or whitespace: no site, the quest may be collected anywhere;</li>
+     *   <li>{@value #ACCEPT_SITE_SENTINEL}: wherever this player took it from;</li>
+     *   <li>{@code giver}: the character {@code giverId} names. A quest nobody gives out cannot be
+     *   returned to its giver, so the site stays unsatisfiable rather than falling back to
+     *   anywhere, and the audit is what tells the author;</li>
+     *   <li>anything else: that character, by id, whoever gave the quest out.</li>
+     * </ul>
+     *
+     * <p>Both sentinel words match without regard to case.
+     */
+    @Nullable
+    public static QuestTurnInSite resolveTurnInAt(@Nullable String authored, @Nullable String giverId) {
+        if (authored == null) {
             return null;
         }
-        String authored = turnInAt.trim();
-        if (authored.isEmpty()) {
+        String value = authored.trim();
+        if (value.isEmpty()) {
             return null;
         }
-        if (ACCEPT_SITE_SENTINEL.equalsIgnoreCase(authored)) {
+        if (ACCEPT_SITE_SENTINEL.equalsIgnoreCase(value)) {
             return QuestTurnInSite.ACCEPT_SITE;
         }
-        if (QuestObjectiveAsset.GIVER_SENTINEL.equalsIgnoreCase(authored)) {
-            // A quest nobody gives out cannot be returned to its giver: the site stays unsatisfiable
-            // rather than falling back to anywhere, so the audit is what tells the author.
+        if (QuestObjectiveAsset.GIVER_SENTINEL.equalsIgnoreCase(value)) {
             return QuestTurnInSite.character(giverId);
         }
-        return QuestTurnInSite.character(authored);
+        return QuestTurnInSite.character(value);
     }
 
     /** The conversation that follows this quest settling, lower-cased, or null when it names none. */
@@ -880,10 +900,16 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
      * <p>It always ENCODES as the string, so a file round-trips to one canonical spelling; the
      * exported schema still declares both authored forms so the in-game asset editor can mount
      * either.
+     *
+     * <p>Public so another authoring format carrying a {@code TurnInAt} leaf decodes the same four
+     * spellings the same way and hands the word to {@link #resolveTurnInAt}; the rule exists once.
      */
-    private static final class BooleanOrStringCodec implements Codec<String> {
+    public static final class BooleanOrStringCodec implements Codec<String> {
 
-        static final BooleanOrStringCodec INSTANCE = new BooleanOrStringCodec();
+        public static final BooleanOrStringCodec INSTANCE = new BooleanOrStringCodec();
+
+        private BooleanOrStringCodec() {
+        }
 
         @Override
         @Nullable

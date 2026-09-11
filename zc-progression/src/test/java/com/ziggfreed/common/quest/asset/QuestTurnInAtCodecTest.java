@@ -17,8 +17,51 @@ import com.ziggfreed.common.quest.QuestTurnInSite;
  * <p>The leaf is deliberately a dual-form scalar rather than a group, so the commonest answer is one
  * word. Both spellings of the giver form have to land on the same site, or a file would behave
  * differently depending on which one its author reached for.
+ *
+ * <p>The second half pins {@link QuestAsset#resolveTurnInAt} on its own: it is the one reading of
+ * the word, shared with any other authoring format that carries the leaf, so its edge cases (case,
+ * whitespace, a giver form with nobody to resolve against) are proved here rather than once per
+ * caller.
  */
 class QuestTurnInAtCodecTest {
+
+    // ==================== the shared parser, on its own ====================
+
+    @Test
+    void theParserReadsEverySpellingTheLeafAccepts() {
+        assertEquals(QuestTurnInSite.character("guide"), QuestAsset.resolveTurnInAt("giver", "guide"));
+        assertEquals(QuestTurnInSite.character("guide"), QuestAsset.resolveTurnInAt("GIVER", "guide"),
+                "the sentinel word is matched without regard to case");
+        assertEquals(QuestTurnInSite.character("quartermaster"),
+                QuestAsset.resolveTurnInAt("quartermaster", "guide"),
+                "a bare id is that character, whoever gave the quest out");
+        assertEquals(QuestTurnInSite.ACCEPT_SITE, QuestAsset.resolveTurnInAt("@accept", "guide"));
+        assertEquals(QuestTurnInSite.ACCEPT_SITE, QuestAsset.resolveTurnInAt("@ACCEPT", "guide"));
+    }
+
+    @Test
+    void theParserTrimsWhatItIsHanded() {
+        assertEquals(QuestTurnInSite.character("quartermaster"),
+                QuestAsset.resolveTurnInAt("  quartermaster ", "guide"));
+        assertEquals(QuestTurnInSite.character("guide"), QuestAsset.resolveTurnInAt(" giver ", "guide"));
+    }
+
+    @Test
+    void nothingAuthoredIsNoSite() {
+        assertNull(QuestAsset.resolveTurnInAt(null, "guide"));
+        assertNull(QuestAsset.resolveTurnInAt("", "guide"));
+        assertNull(QuestAsset.resolveTurnInAt("   ", "guide"));
+    }
+
+    @Test
+    void theGiverFormWithNoGiverIsASiteNobodyCanBe() {
+        QuestTurnInSite site = QuestAsset.resolveTurnInAt("giver", null);
+        assertNotNull(site, "falling back to anywhere would hide the mistake behind working behaviour");
+        assertEquals(QuestTurnInSite.Kind.CHARACTER, site.kind());
+        assertNull(site.id());
+    }
+
+    // ==================== the leaf, through the codec ====================
 
     @Test
     void trueAndTheWordGiverBothMeanWhoeverOffersTheQuest() throws Exception {

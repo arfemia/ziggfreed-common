@@ -53,7 +53,12 @@ consumer: store.resolveAll(enumerators)           -> expand generators -> decode
   empty string or `false` clears one inherited from a `Parent`. Both sentinels are resolved AT THE
   FOLD, so the engine only ever sees a resolved site; a `giver` form on a quest with no `Npc.ViewId`
   folds to a site nobody can be rather than to "anywhere", which is what makes the audit finding
-  possible instead of a quest that silently behaves differently from what it says.
+  possible instead of a quest that silently behaves differently from what it says. The reading is
+  ONE public static, `QuestAsset.resolveTurnInAt(authored, giverId)` (the instance `turnInSite`
+  delegates to it), and the dual-form leaf codec is the public `QuestAsset.BooleanOrStringCodec`:
+  a consumer whose own quest format carries the same leaf decodes it through that codec and hands
+  the word to that static, so the four spellings can never drift between formats. Pinned by
+  `QuestTurnInAtCodecTest`, the parser's own cases included.
 - **Display text is keys.** `Text.TitleKey`/`FlavorKey` and an objective's `TextKey` are localization keys the player's own client resolves. `Text.DisplayName` exists only as a fallback while a key is being written; never route shipped content through it.
 - **`QuestDefinition` carries what the engine deliberately does not model** (text keys, category, sort order, the NPC ids, the gate block). Do not push presentation into `Quest`; hand the engine `pool.quests()` and read the rest here. The collection site is the exception that proves it: the engine ENFORCES that one, so it lives on `Quest` and this record only reads it back. `withTurnInAt` is the one-line stamp for a consumer whose content declares a site by POLICY rather than per file, so no author writes the leaf on every one of those quests.
 - **A quest's id can carry its folder.** The engine keys an asset by its FILENAME alone, so two
