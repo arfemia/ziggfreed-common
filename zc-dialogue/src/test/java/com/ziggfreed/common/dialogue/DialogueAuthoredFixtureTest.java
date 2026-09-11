@@ -158,21 +158,33 @@ class DialogueAuthoredFixtureTest {
                 "the screen keeps its own options and gains the shared ones");
 
         // The footer INCLUDES the menu tail rather than restating it, so the temple line is written
-        // once and both groups read the same on every screen.
+        // once and both groups read the same on every screen. temple_brief is the witness because it
+        // carries no Tags of its own: a plain "IncludeOptions": ["hub_footer"] screen with nothing
+        // else pushed onto it, so its spliced list is exactly hub_footer's own effective shape.
         DialogueFragmentGroup footer = d.getFragments().get("hub_footer");
         assertNotNull(footer);
         assertEquals(List.of("open_menu"), footer.getInclude());
+        DialogueNode templeBrief = d.getNode("temple_brief");
+        assertNotNull(templeBrief);
         assertEquals(List.of("dialogue.mmo_hub_intro.opt.returned", "dialogue.mmo_hub_intro.opt.quests",
                         "dialogue.mmo_hub_intro.opt.temple_where", "dialogue.mmo_hub_intro.menu.opt.open"),
-                labels(menu), "the footer's own two lines, then everything open_menu says");
+                labels(templeBrief), "the footer's own two lines, then everything open_menu says");
 
-        // The temple pointers place THEMSELVES, by tag, on the three landing screens: between each
-        // screen's own lines and the footer it names, which keeps the footer last.
+        // The temple pointers place THEMSELVES, by tag, on every screen carrying Temple_Landing: the
+        // temple's own landing and both trainers' reply screens, but also the ordinary onboarding
+        // screens this shared conversation can show while the player happens to be in the temple
+        // (briefing, menu, and their siblings) - each one between its own lines and the footer it
+        // names, which keeps the footer last. Both pointer options also carry their own World
+        // condition, so the tag alone never shows them away from the temple.
         DialogueFragmentGroup pointers = d.getFragments().get("temple_pointers");
         assertNotNull(pointers);
         assertNotNull(pointers.getOn());
         assertEquals(List.of("Temple_Landing"), pointers.getOn().getTags());
-        for (String landing : List.of("temple_talk", "mastery_brief", "sawyer_brief")) {
+        for (DialogueOption option : pointers.getOptions()) {
+            assertTrue(option.getConditions().get(0) instanceof DialogueCondition.World,
+                    option.getLabelKey() + " checks World before anything else");
+        }
+        for (String landing : List.of("temple_talk", "mastery_brief", "sawyer_brief", "briefing", "menu")) {
             DialogueNode screen = d.getNode(landing);
             assertNotNull(screen, landing);
             assertEquals(List.of("Temple_Landing"), screen.getTags(), landing + " is tagged");
@@ -182,6 +194,10 @@ class DialogueAuthoredFixtureTest {
                             "dialogue.mmo_hub_intro.opt.temple_where", "dialogue.mmo_hub_intro.menu.opt.open"),
                     labels(screen), landing + ": the two pointers above the footer's four lines");
         }
+        // temple_greet, temple_meet and temple_brief are ALSO only ever shown while meet_at_the_temple
+        // cannot be COMPLETED yet, so tagging them would splice options whose own Gate can never pass;
+        // they are deliberately left untagged rather than carrying dead weight.
+        assertTrue(templeBrief.getTags().isEmpty(), "temple_brief carries no dead tag");
         assertEquals(List.of("dialogue.mmo_hub_intro.sawyer_intro.opt.accept",
                         "dialogue.mmo_hub_intro.sawyer_intro.opt.back",
                         "dialogue.mmo_hub_intro.opt.returned", "dialogue.mmo_hub_intro.opt.quests",
