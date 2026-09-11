@@ -24,8 +24,8 @@ import com.ziggfreed.common.icon.IconSpec;
  * {
  *   "$Comment": "A scroll over a character who has a quest the player could take.",
  *   "Icon": { "ItemId": "Deco_Scroll" },
- *   "Scale": 0.5,
- *   "Offset": { "Y": 0.45 },
+ *   "Scale": 0.75,
+ *   "Offset": { "Y": 1.1 },
  *   "Spin": true
  * }
  * }</pre>
@@ -43,11 +43,17 @@ public final class OverheadIndicatorAsset
     /** Where these files live. */
     public static final String TYPE_ROOT = "ZiggfreedCommon/OverheadIndicators";
 
-    /** The size an unauthored look is drawn at: half an item, a cue rather than a prop. */
-    public static final float DEFAULT_SCALE = 0.5f;
+    /**
+     * The size an unauthored look is drawn at: three quarters of an item, big enough to read from
+     * across a square and still a cue rather than a prop.
+     */
+    public static final float DEFAULT_SCALE = 0.75f;
 
-    /** How far above the host's anchor an unauthored look floats, in blocks. */
-    public static final double DEFAULT_LIFT = 0.45;
+    /**
+     * How far above the host's anchor an unauthored look floats, in blocks: clear of a tall
+     * headdress, a hat or a crest that rises above the eye line and the box alike.
+     */
+    public static final double DEFAULT_LIFT = 1.1;
 
     private String id;
     private AssetExtraInfo.Data data;
@@ -69,17 +75,19 @@ public final class OverheadIndicatorAsset
                     (a, v) -> a.icon = v, a -> a.icon, (a, p) -> a.icon = p.icon)
             .documentation("The picture: an item id floats as that item, a Common-rooted texture path is "
                     + "drawn on a flat card. ItemId wins when both are set. A square 64 by 64 picture "
-                    + "fills the card exactly.").add()
+                    + "fills the card exactly. An item's own dropped-item halo (its ItemEntity "
+                    + "ParticleSystemId) shows around the picture, so a coloured glow is authored on "
+                    + "the item, not here.").add()
             .appendInherited(new KeyedCodec<>("Scale", Codec.FLOAT, false),
                     (a, v) -> a.scale = v, a -> a.scale, (a, p) -> a.scale = p.scale)
             .metadata(EditorSchema.defaultValue(DEFAULT_SCALE))
             .documentation("How big it is drawn: 1 is a full-size item or a one-block card. Unauthored "
-                    + "means 0.5.").add()
+                    + "means 0.75.").add()
             .appendInherited(new KeyedCodec<>("Offset", Vec3.CODEC, false),
                     (a, v) -> a.offset = v, a -> a.offset, (a, p) -> a.offset = p.offset)
             .documentation("Where it floats, in blocks, measured from the top of the host's head: Y lifts "
-                    + "it higher, X and Z shift it sideways. An unauthored Y means 0.45; unauthored X "
-                    + "and Z mean straight above.").add()
+                    + "it higher, X and Z shift it sideways. An unauthored Y means 1.1, clear of a tall "
+                    + "headdress; unauthored X and Z mean straight above.").add()
             .appendInherited(new KeyedCodec<>("Spin", Codec.BOOLEAN, false),
                     (a, v) -> a.spin = v, a -> a.spin, (a, p) -> a.spin = p.spin)
             .metadata(EditorSchema.defaultValue(true))

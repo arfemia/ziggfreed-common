@@ -41,7 +41,11 @@ import com.ziggfreed.common.CommonLog;
  * <p>Two routes, picked by whether the representative item has a native {@code BlockType}:
  * <ul>
  * <li><b>Block-shaped item</b> ({@link Item#hasBlockType()}) - a {@link BlockEntity} renders the
- * REAL block model (not a flat icon). {@code scale} is written to {@link EntityScaleComponent}
+ * REAL block model (not a flat icon), keyed by the item's own {@link Item#getBlockId() block id}
+ * rather than the item id: for a block item the two are the same string, and for a {@code Parent}
+ * child that authors no block section of its own (a marker item that only re-tints the parent's
+ * dropped-item halo) the block id is the parent's, so the child draws the parent's block instead
+ * of an unknown key the client would skip. {@code scale} is written to {@link EntityScaleComponent}
  * VERBATIM, exactly as the exemplar branch and every other first-party {@code BlockEntity} spawn
  * writes it, so {@code 1.0} is one block wide and a caller's number means the same thing on both
  * routes (the builder-tools prefab anchor pins that reading: it scales its own {@code BlockEntity}
@@ -137,7 +141,7 @@ public final class ItemPropEntityService {
         try {
             Item item = Item.getAssetMap().getAsset(itemId);
             return (item != null && item.hasBlockType())
-                    ? buildBlockEntityHolder(itemId, position, rotation, scale, options)
+                    ? buildBlockEntityHolder(itemId, item.getBlockId(), position, rotation, scale, options)
                     : buildItemEntityHolder(accessor, itemId, position, rotation, scale, options);
         } catch (Throwable t) {
             warn("buildHolder failed for '" + itemId + "': " + t.getMessage(), t);
@@ -145,11 +149,16 @@ public final class ItemPropEntityService {
         }
     }
 
+    /**
+     * The block route: the entity the client draws is the block behind {@code blockId}, the stack
+     * it carries (tooltip, pickup rules, the dropped-item halo the item's own config names) is
+     * {@code itemId}'s.
+     */
     @Nonnull
-    private static Holder<EntityStore> buildBlockEntityHolder(@Nonnull String itemId, @Nonnull Vector3d position,
-            @Nonnull Rotation3f rotation, float scale, @Nonnull Options options) {
+    private static Holder<EntityStore> buildBlockEntityHolder(@Nonnull String itemId, @Nonnull String blockId,
+            @Nonnull Vector3d position, @Nonnull Rotation3f rotation, float scale, @Nonnull Options options) {
         Holder<EntityStore> holder = EntityStore.REGISTRY.newHolder();
-        holder.addComponent(BlockEntity.getComponentType(), new BlockEntity(itemId));
+        holder.addComponent(BlockEntity.getComponentType(), new BlockEntity(blockId));
         holder.addComponent(TransformComponent.getComponentType(), new TransformComponent(position, rotation));
         holder.addComponent(EntityScaleComponent.getComponentType(), new EntityScaleComponent(scale));
         holder.addComponent(ItemComponent.getComponentType(), new ItemComponent(tooltipStack(itemId, options)));

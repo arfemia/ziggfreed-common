@@ -47,7 +47,8 @@ OverheadIndicators.forgetViewer(playerId);                          // a disconn
   `Is_Like_This`, matched without regard to case; a later pack's same-id file replaces it; no owner
   file). Four nested-or-leaf knobs: `Icon` (zc-core's `IconSpec`: an `ItemId` floats as that item
   through `ItemPropEntityService`, a Common-rooted `TexturePath` is drawn on the shipped flat
-  CARD), `Scale` (0.5), `Offset {X,Y,Z}` above the top of the host's head (Y 0.45), `Spin` (the
+  CARD), `Scale` (0.75), `Offset {X,Y,Z}` above the top of the host's head (Y 1.1, clear of a tall
+  headdress), `Spin` (the
   client's own dropped-item idle motion, true). Registered by `FrameworkAssetRegistrar`, folded by
   [`OverheadIndicatorConfig`](OverheadIndicatorConfig.java).
 - **[`OverheadVisibilityFilter`](OverheadVisibilityFilter.java)** - the per-viewer half, inside

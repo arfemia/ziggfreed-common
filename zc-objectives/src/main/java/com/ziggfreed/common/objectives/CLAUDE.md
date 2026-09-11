@@ -702,7 +702,9 @@ drives both from its own sweep; this module only decides WHAT a character shows 
   Icon}}` groups plus one switch), whose `merge` and `resolve` are the whole of the arithmetic.
   Defaults, applied last: every situation shows overhead under its own state
   (`Quest_Reward_Ready` / `Quest_Ready_To_Turn_In` / `Quest_Available` / `Quest_In_Progress`), none
-  marks the map; the shipped `Default.json` is what turns the map on for `Available`.
+  marks the map; the shipped `Default.json` is what turns the map on for `Available` and overhead
+  OFF for `InProgress` (a character where only a carried quest applies shows nothing; a higher
+  situation still shows; one leaf turns it back on).
 - **The look is not this module's.** A state names a file at
   `Server/ZiggfreedCommon/OverheadIndicators/<State>.json` (zc-entity's `entity/overhead/`); the
   library ships none, since a bare server has no host sweep, and a consumer ships the four its

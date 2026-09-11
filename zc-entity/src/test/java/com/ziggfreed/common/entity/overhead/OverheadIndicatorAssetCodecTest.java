@@ -29,17 +29,17 @@ class OverheadIndicatorAssetCodecTest {
     @Test
     void everyAuthoredLeafLands() throws Exception {
         OverheadIndicatorAsset look = decode("""
-                { "Icon": { "ItemId": "Deco_Scroll" }, "Scale": 0.75,
-                  "Offset": { "X": 0.1, "Y": 0.9, "Z": -0.2 }, "Spin": false }
+                { "Icon": { "ItemId": "Deco_Scroll" }, "Scale": 0.9,
+                  "Offset": { "X": 0.1, "Y": 0.6, "Z": -0.2 }, "Spin": false }
                 """, "Quest_Available");
 
         assertEquals("Quest_Available", look.getId());
         assertTrue(look.hasLook());
         assertNotNull(look.getIcon());
         assertEquals("Deco_Scroll", look.getIcon().itemId());
-        assertEquals(0.75f, look.effectiveScale());
+        assertEquals(0.9f, look.effectiveScale());
         assertEquals(0.1, look.offsetX());
-        assertEquals(0.9, look.offsetY());
+        assertEquals(0.6, look.offsetY());
         assertEquals(-0.2, look.offsetZ());
         assertFalse(look.spins());
     }

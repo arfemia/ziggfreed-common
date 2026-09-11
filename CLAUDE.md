@@ -136,7 +136,7 @@ SHIPPED ASSETS live in the modules that own the code reading them, never at the 
   zc-objectives    the objective book page + its row family, the NPC quest page + its rows, the tracked-quest HUD
                     (Hud/ZigQuestTracker.ui + three native textures) + the tracked side-panel row,
                     Server/ZiggfreedCommon/QuestIndicators/Default.json (the global word on which quest situations
-                    show over a character's head and on the map: overhead for all four, the map for Available alone)
+                    show over a character's head and on the map: overhead for Collect, TurnIn and Available, off for InProgress, the map for Available alone)
   zc-entity        Common/Items/ZiggfreedCommon/Zc_Overhead_Card.blockymodel + .png and Server/Models/Zc_Overhead_Card.json
                     (the flat card an overhead indicator draws a TexturePath look on; no look files of its own,
                     a consumer ships those under Server/ZiggfreedCommon/OverheadIndicators/)
