@@ -47,6 +47,7 @@ import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.ui.StatusTones;
 import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.ui.rows.BuiltRows;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -86,8 +87,14 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code sendUpdate} runs against the DOM the last full {@code build} produced, so a row index must
  * be one that build RECORDED, never one recomputed from a list whose ordering is state-dependent. A
  * recomputed index can land on a section heading, whose {@code #StatusDot} does not exist, and an
- * unresolved selector disconnects the player. When the recorded index is gone, every path falls back
- * to a full reopen instead.
+ * unresolved selector disconnects the player. {@link BuiltRows} holds that record, and when the
+ * recorded index is gone, every path falls back to a full reopen instead.
+ *
+ * <p>It holds each row's SECTION too, which is what decides whether a partial update can tell the
+ * truth after an action. Accepting, dropping or collecting a quest moves it between sections, and a
+ * section is on screen as a heading with rows ranked under it, so a quest repainted in place would
+ * sit under a heading that now lies about it. Any such move reopens; a change that leaves the row
+ * where it was drawn - a step of progress, a pin - keeps its scroll.
  *
  * <p>EVERY exit path sends a response - a reopen, a partial update, or a close - or the client spins
  * forever.
@@ -118,9 +125,6 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
 
     /** A ceiling on the lines inside one detail section (steps, rewards, refusals). */
     private static final int MAX_LINES = 24;
-
-    /** The marker {@link #builtRowOrder} carries where a section heading was drawn. */
-    private static final String HEADER_ROW = "";
 
     // The selected row's accent, and the shared row style's own per-state colours to revert to.
     private static final String ROW_SELECTED_TINT = "#1a2d44";
@@ -156,10 +160,11 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     @Nonnull private String activeTab = TAB_HERE;
 
     /**
-     * The exact row order the last full build rendered, section headings included as
-     * {@link #HEADER_ROW} markers so a quest's index is the one the client DOM actually holds.
+     * The exact rows the last full build rendered - each quest's index and the section it was drawn
+     * under, section headings occupying an index of their own - so a partial update addresses the
+     * row the client DOM actually holds and knows when a quest has moved out from under its heading.
      */
-    private final List<String> builtRowOrder = new ArrayList<>();
+    private final BuiltRows builtRows = new BuiltRows();
 
     /** The character's answer set, resolved once per build and read by every question after it. */
     private Set<String> answersTo = Set.of();
@@ -241,7 +246,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         }
         this.selectedQuestId = NpcQuestSections.select(orderedIds, highlightQuestId, selectedQuestId);
 
-        builtRowOrder.clear();
+        builtRows.clear();
         if (ordered.isEmpty()) {
             showEmptyList(cmd);
             renderToastInto(cmd);
@@ -353,7 +358,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     /** A heading, drawn as a row whose button is hidden and whose label carries the group's name. */
     private int appendHeader(@Nonnull UICommandBuilder cmd, int index, @Nonnull Message label) {
         String sel = appendRow(cmd, index);
-        builtRowOrder.add(HEADER_ROW);
+        builtRows.addHeader();
         cmd.set(sel + " #RowBtn.Visible", false);
         cmd.set(sel + " #StatusDot.Visible", false);
         cmd.set(sel + " #SectionLabel.TextSpans", label);
@@ -365,7 +370,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     private int appendQuestRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, int index,
             @Nonnull Entry entry, @Nonnull Quest quest) {
         String sel = appendRow(cmd, index);
-        builtRowOrder.add(quest.id());
+        builtRows.add(quest.id(), entry.section().name());
         ZigRichButton.text(cmd, sel + " #RowBtn", questName(quest.id()));
         cmd.set(sel + " #StatusDot.Background", dotColor(entry.section()));
         // How often it comes round, from the quest's own repeat rule: a daily that is being waited
@@ -711,7 +716,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             @Nonnull Player player, @Nullable String questId) {
         QuestEngine engine = ProgressionRuntime.quests();
         Quest quest = questId == null ? null : engine.quest(questId);
-        int row = questId == null ? -1 : builtRowOrder.indexOf(questId);
+        int row = builtRows.indexOf(questId);
         Subject subject = ProgressionRuntime.subjects().questSubject(store, playerEntityRef(ref));
         if (quest == null || row < 0 || subject == null) {
             this.selectedQuestId = questId;
@@ -721,7 +726,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         String previous = this.selectedQuestId;
         this.selectedQuestId = questId;
         UICommandBuilder cmd = new UICommandBuilder();
-        int oldRow = previous == null ? -1 : builtRowOrder.indexOf(previous);
+        int oldRow = builtRows.indexOf(previous);
         if (oldRow >= 0 && oldRow != row) {
             paintRowSelected(cmd, "#QuestList[" + oldRow + "]", false);
         }
@@ -889,15 +894,28 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
 
     /**
      * Refresh the acted-on quest's row and detail in place, scroll preserved; reopen when the quest
-     * has left this list or its row is not one the last build recorded.
+     * has left this list, has moved out from under the heading it was drawn beneath, or its row is
+     * not one the last build recorded.
      */
     private void refreshOrReopen(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull Player player, @Nonnull Subject subject, @Nonnull QuestEngine engine,
             @Nonnull Quest quest) {
-        if (staysInList(subject, engine, quest) && sendSelectedUpdate(subject, engine, quest)) {
+        if (staysInSection(subject, engine, quest) && staysInList(subject, engine, quest)
+                && sendSelectedUpdate(subject, engine, quest)) {
             return;
         }
         player.getPageManager().openCustomPage(ref, store, this);
+    }
+
+    /**
+     * Is the quest still in the section its row was drawn under? Taking a quest on, dropping it,
+     * handing it in and collecting it all move it between sections, and a section is on screen as a
+     * heading with its rows ranked beneath: recolouring the dot of a row sitting under the wrong
+     * heading tells the player half the truth and leaves the order wrong, so a move rebuilds.
+     */
+    private boolean staysInSection(@Nonnull Subject subject, @Nonnull QuestEngine engine,
+            @Nonnull Quest quest) {
+        return !builtRows.moved(quest.id(), listing(subject, engine).sectionOf(quest).name());
     }
 
     /**
@@ -916,7 +934,7 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
 
     private boolean sendSelectedUpdate(@Nonnull Subject subject, @Nonnull QuestEngine engine,
             @Nonnull Quest quest) {
-        int row = builtRowOrder.indexOf(quest.id());
+        int row = builtRows.indexOf(quest.id());
         if (row < 0) {
             return false;
         }

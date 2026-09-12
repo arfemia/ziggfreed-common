@@ -41,6 +41,7 @@ import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.ZigSearchRow;
+import com.ziggfreed.common.ui.rows.BuiltRows;
 import com.ziggfreed.common.i18n.NativeNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -164,6 +165,15 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     /** Which browse rows are open; per-instance UI memory, exactly what a partial toggle needs. */
     private final Set<String> expandedQuestIds = new HashSet<>();
 
+    /**
+     * Which list each quest row was drawn into by the last full build - the pinned carried block, or
+     * the browse list under it. A press that moves a quest between the two cannot be answered by
+     * repainting the row where it sits: the row would keep the wrong block's heading and both counts
+     * beside it would lie, so the page rebuilds instead and only a row that stayed put is repainted
+     * in place. See {@link BookQuestsTab#listOf}.
+     */
+    private final BuiltRows builtQuestRows = new BuiltRows();
+
     /** Whether the consumer's rail / side column painted THIS open; they narrow the strips. */
     private boolean railPainted;
     private boolean sidePanelPainted;
@@ -254,6 +264,12 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     @Nonnull
     Set<String> expandedQuestIds() {
         return expandedQuestIds;
+    }
+
+    /** The record of which list each quest row was drawn into, written by the quests tab's build. */
+    @Nonnull
+    BuiltRows builtQuestRows() {
+        return builtQuestRows;
     }
 
     @Nonnull
@@ -587,7 +603,7 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             case "primary" -> handlePrimary(ref, store, player, data, liveSearch);
             case "abandon" -> handleAbandon(ref, store, player, data, liveSearch);
             case "toggletrack" -> handleToggleTrack(ref, store, data);
-            case "turn_in" -> handleTurnIn(ref, store, data);
+            case "turn_in" -> handleTurnIn(ref, store, player, data, liveSearch);
             case "select" -> handleSelect(ref, store, data);
             case "togglepin" -> handleTogglePin(ref, store, data);
             case "claim" -> handleAchievementClaim(ref, store);
@@ -664,28 +680,26 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 return;
             }
             RewardGrants.GrantOutcome paid = scope.around(subject, s -> engine.tryClaim(s, quest));
-            UICommandBuilder cmd = new UICommandBuilder();
             if (paid != null) {
                 // The rows are what THIS press actually handed over - the claim rewards' receipt,
                 // so a rolled table lists the items it produced - never the auto ones the quest
                 // settled with earlier: a toast that lists a payout twice reads as a double reward.
                 showRewardToast(text("book.toast.quest_complete", BookQuestsTab.nameOf(quest)),
                         paid.receipt());
-                // The claimed quest leaves the pinned Active list. Hide its row in place - hide,
-                // NOT remove, so the sibling #ActiveQuestList[i] selectors do not drift - and
-                // refresh the counts + the tracked panel.
-                if (data.selector != null) {
-                    cmd.set(data.selector + ".Visible", false);
-                }
-                BookQuestsTab.updateHeaderCounts(this, cmd, subject, engine);
-                TrackedQuestPanelRenderer.render(cmd, null, subject, false, null);
-            } else {
-                // The engine refuses a placeless payout for a site-bound quest: say where instead
-                // of failing silently. Either way the client gets a definite response.
-                showToast(ToastKind.ERROR, text(quest.turnInAt() != null
-                        ? "book.quests.claim_at_site" : "book.toast.claim_failed"));
-                BookQuestsTab.updateHeaderCounts(this, cmd, subject, engine);
+                // The collected quest leaves the pinned carried block for the browse list below,
+                // correctly ranked among everything else finished, so the page rebuilds: a row
+                // hidden in place would leave the block's own heading and count claiming it is
+                // still there. The toast survives the reopen.
+                reopenSame(player, ref, store, liveSearch);
+                return;
             }
+            // The engine refuses a placeless payout for a site-bound quest: say where instead of
+            // failing silently. Nothing moved, so the list keeps its scroll and the client still
+            // gets a definite response.
+            UICommandBuilder cmd = new UICommandBuilder();
+            showToast(ToastKind.ERROR, text(quest.turnInAt() != null
+                    ? "book.quests.claim_at_site" : "book.toast.claim_failed"));
+            BookQuestsTab.updateHeaderCounts(this, cmd, subject, engine);
             this.sendUpdate(cmd, new UIEventBuilder(), false);
             return;
         }
@@ -730,14 +744,10 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
             // would double-report the same moment.
             showToast(ToastKind.SUCCESS, text("book.toast.accepted"));
         }
-        QuestStatus newState = engine.status(subject, quest);
-        boolean atMax = engine.maxActive() > 0 && engine.logSlotsUsed(subject) >= engine.maxActive();
-        if (newState == QuestStatus.COMPLETED || newState == QuestStatus.COMPLETED_UNCLAIMED || atMax) {
-            // Completed immediately, or the cap state changed for every other row - reopen.
-            reopenSame(player, ref, store, liveSearch);
-        } else {
-            BookQuestsTab.sendQuestAcceptedUpdate(this, data.selector, quest, subject, engine);
-        }
+        // A quest taken on leaves the browse list for the pinned carried block above it, and taking
+        // it may have been the press that filled the log, which changes what every other row may
+        // offer. Both are a rebuild.
+        reopenSame(player, ref, store, liveSearch);
     }
 
     private void handleAbandon(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
@@ -769,14 +779,10 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         } else {
             showToast(ToastKind.WARNING, text("book.toast.abandon_failed"));
         }
-        // A board-managed or giver-bound quest drops back to not-started, which the log must NOT
-        // render with an Accept button (it is accepted at the board / the giver); a full repaint
-        // renders it through the corrected branch instead of the pre-bound partial flashing Accept.
-        if (deps.managedGuarded(quest) || BookQuestsTab.giverBound(quest)) {
-            reopenSame(player, ref, store, liveSearch);
-        } else {
-            BookQuestsTab.sendQuestAbandonedUpdate(this, data.selector, subject, engine);
-        }
+        // A dropped quest leaves the pinned carried block for the browse list, re-ranked among
+        // everything on offer, and a board-managed or giver-bound one leaves the log altogether
+        // (it is taken on at the board or the giver, never here). Both are a rebuild.
+        reopenSame(player, ref, store, liveSearch);
     }
 
     private void handleToggleTrack(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
@@ -815,7 +821,8 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     }
 
     private void handleTurnIn(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
-                              @Nonnull ObjectiveBookEventData data) {
+                              @Nonnull Player player, @Nonnull ObjectiveBookEventData data,
+                              @Nonnull String liveSearch) {
         QuestEngine engine = ProgressionRuntime.quests();
         Quest quest = engine.quest(data.id);
         Subject subject = ProgressionRuntime.subjects().questSubject(store, ref);
@@ -832,9 +839,16 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 int amount = objective == null ? 0 : objective.amountAsInt();
                 // Counts are data; the item name is a NESTED client-resolved Message.
                 showToast(ToastKind.SUCCESS, text("book.toast.turn_in", handed, amount, itemName));
-                // Scroll-preserving in-place refresh for the new state (morph Hand in into a gold
-                // Claim on completion, hide the row when it leaves the active bucket, else repaint
-                // objective progress).
+                if (builtQuestRows.moved(quest.id(),
+                        BookQuestsTab.listOf(engine.status(subject, quest)))) {
+                    // The hand-in settled the quest out of the carried block, so the list is
+                    // rebuilt rather than left holding a row for something that is no longer
+                    // there. The toast survives the reopen.
+                    reopenSame(player, ref, store, liveSearch);
+                    return;
+                }
+                // It is still carried: refresh the row in place, scroll preserved (morph Hand in
+                // into a gold Claim on completion, else repaint objective progress).
                 if (data.selector != null) {
                     BookQuestsTab.refreshTurnedInRow(this, cmd, data.selector, quest, subject, engine);
                 }
@@ -951,7 +965,12 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                     showToast(ToastKind.WARNING, text("book.toast.claim_failed"));
                 }
                 // Repaint the detail column so the reward tags and the claim button tell the new
-                // truth; the list row's status has not changed (claiming never locks anything).
+                // truth. The row keeps its place (claiming moves nothing between filters), but it
+                // carried the same gold call-to-action, so that goes with the button it routed to
+                // rather than sitting there offering a reward already in the player's hands.
+                if (paid != null && selectedRowSel != null) {
+                    cmd.set(selectedRowSel + " #ClaimRow.Visible", false);
+                }
                 BookAchievementsTab.repaintDetailPartial(this, cmd, events, store, ref, subject,
                         engine, achievement);
             }

@@ -23,7 +23,6 @@ import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.npc.NpcNames;
-import com.ziggfreed.common.objectives.hud.TrackedQuestPanelRenderer;
 import com.ziggfreed.common.objectives.render.QuestCadenceBadge;
 import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.progress.runtime.ProgressionIcons;
@@ -89,6 +88,12 @@ final class BookQuestsTab {
 
     private static final String[] STATUS_FILTERS = {"all", "active", "available", "completed"};
 
+    /** The pinned block at the top: what the player is carrying or has yet to collect. */
+    private static final String LIST_ACTIVE = "active";
+
+    /** The browse list under it: everything else the filters kept. */
+    private static final String LIST_BROWSE = "browse";
+
     private BookQuestsTab() {
     }
 
@@ -112,7 +117,7 @@ final class BookQuestsTab {
         List<Quest> browseQuests = new ArrayList<>();
         for (Quest quest : displayQuests) {
             QuestStatus status = rankState.getOrDefault(quest.id(), QuestStatus.NOT_STARTED);
-            if (status == QuestStatus.ACTIVE || status == QuestStatus.COMPLETED_UNCLAIMED) {
+            if (LIST_ACTIVE.equals(listOf(status))) {
                 activeQuests.add(quest);
             } else {
                 browseQuests.add(quest);
@@ -124,6 +129,10 @@ final class BookQuestsTab {
         cmd.set("#Stat0Label.TextSpans", page.text("book.quests.count", browseQuests.size()));
         updateHeaderCounts(page, cmd, subject, engine);
 
+        // What this build actually drew, and into which of the two lists, so a later press knows
+        // whether the row it is about is still where the player is looking at it.
+        page.builtQuestRows().clear();
+
         if (!activeQuests.isEmpty()) {
             cmd.set("#ActiveSection.Visible", true);
             cmd.set("#ActiveHeader.TextSpans",
@@ -133,6 +142,7 @@ final class BookQuestsTab {
                 cmd.append("#ActiveQuestList", QUEST_ROW_TEMPLATE);
                 paintQuestRow(page, cmd, events, "#ActiveQuestList[" + i + "]", activeQuests.get(i),
                         subject, engine, true);
+                page.builtQuestRows().add(activeQuests.get(i).id(), LIST_ACTIVE);
             }
         }
 
@@ -146,6 +156,7 @@ final class BookQuestsTab {
                 cmd.append("#QuestList", QUEST_ROW_TEMPLATE);
                 paintQuestRow(page, cmd, events, "#QuestList[" + i + "]", browseQuests.get(i),
                         subject, engine, false);
+                page.builtQuestRows().add(browseQuests.get(i).id(), LIST_BROWSE);
             }
         }
     }
@@ -875,54 +886,22 @@ final class BookQuestsTab {
     }
 
     /**
-     * Partial update after an accept: the row reads carried, Accept swaps for the pre-bound
-     * Abandon, and the objective rows restart at zero. Scroll preserved.
+     * Which of the page's two quest lists a status belongs in: the pinned block of what the player
+     * is carrying or has yet to collect, or the browse list under it. ONE rule, read both by the
+     * build that draws the rows and by a press asking whether the row it is about has moved between
+     * the two - the move a partial update cannot honestly answer.
      */
-    static void sendQuestAcceptedUpdate(@Nonnull ObjectiveBookPage page, @Nullable String sel,
-            @Nonnull Quest quest, @Nonnull Subject subject, @Nonnull QuestEngine engine) {
-        UICommandBuilder cmd = new UICommandBuilder();
-        if (sel != null) {
-            cmd.set(sel + " #QuestStatus.TextSpans", page.text("book.quests.status.active"));
-            cmd.set(sel + " #QuestStatus.Style.TextColor", StatusTones.IN_PROGRESS.hex());
-            cmd.set(sel + " #ActionBtn.Visible", false);
-            cmd.set(sel + " #AbandonBtn.Visible", true);
-            cmd.set(sel + " #RequirementsLabel.Visible", false);
-            paintRowBar(cmd, sel, subject, engine, quest);
-            repaintRowObjectives(page, cmd, sel, quest, subject, engine);
-        }
-        updateHeaderCounts(page, cmd, subject, engine);
-        TrackedQuestPanelRenderer.render(cmd, null, subject, false, null);
-        page.pushUpdate(cmd, new UIEventBuilder());
+    @Nonnull
+    static String listOf(@Nullable QuestStatus status) {
+        return status == QuestStatus.ACTIVE || status == QuestStatus.COMPLETED_UNCLAIMED
+                ? LIST_ACTIVE : LIST_BROWSE;
     }
 
     /**
-     * Partial update after an abandon: the row reads offerable again, Abandon swaps for the
-     * pre-bound Accept, the progress decorations drop. Scroll preserved.
-     */
-    static void sendQuestAbandonedUpdate(@Nonnull ObjectiveBookPage page, @Nullable String sel,
-            @Nonnull Subject subject, @Nonnull QuestEngine engine) {
-        UICommandBuilder cmd = new UICommandBuilder();
-        if (sel != null) {
-            cmd.set(sel + " #QuestStatus.TextSpans", page.text("book.quests.status.available"));
-            cmd.set(sel + " #QuestStatus.Style.TextColor", StatusTones.AVAILABLE.hex());
-            cmd.set(sel + " #ActionBtn.Visible", true);
-            cmd.set(sel + " #AbandonBtn.Visible", false);
-            cmd.set(sel + " #ObjectivesContainer.Visible", false);
-            cmd.set(sel + " #TurnInBtn.Visible", false);
-            cmd.set(sel + " #TurnInSpacer.Visible", false);
-            cmd.set(sel + " #TrackBtn.Visible", false);
-            cmd.set(sel + " #TrackBtnSpacer.Visible", false);
-            cmd.set(sel + " #RowBarRow.Visible", false);
-        }
-        updateHeaderCounts(page, cmd, subject, engine);
-        TrackedQuestPanelRenderer.render(cmd, null, subject, false, null);
-        page.pushUpdate(cmd, new UIEventBuilder());
-    }
-
-    /**
-     * Scroll-preserving in-place refresh of a row after a hand-in, keyed on the resulting state:
-     * morph to the gold Claim when the quest completed, hide the row when it left the
-     * active bucket (it reappears correctly ranked on the next open), else repaint the progress.
+     * Scroll-preserving in-place refresh of a row after a hand-in that left the quest where it was
+     * drawn: morph to the gold Claim when the hand-in completed it, else repaint the progress. A
+     * hand-in that moved the row out of the carried block rebuilds the page instead, so this is
+     * never asked about one.
      */
     static void refreshTurnedInRow(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
             @Nonnull String sel, @Nonnull Quest quest, @Nonnull Subject subject,
@@ -945,20 +924,15 @@ final class BookQuestsTab {
                 paintRowBar(cmd, sel, subject, engine, quest);
                 repaintRowObjectives(page, cmd, sel, quest, subject, engine);
             }
-            case ACTIVE -> {
-                // A partial multi-item hand-in: repaint the progress; drop the button once the
-                // hand-in step is satisfied.
+            default -> {
+                // Still carried: a partial multi-item hand-in. Repaint the progress, and drop the
+                // button once the hand-in step is satisfied.
                 paintRowBar(cmd, sel, subject, engine, quest);
                 repaintRowObjectives(page, cmd, sel, quest, subject, engine);
                 if (engine.firstActiveTurnIn(subject, quest, null) == null) {
                     cmd.set(sel + " #TurnInBtn.Visible", false);
                     cmd.set(sel + " #TurnInSpacer.Visible", false);
                 }
-            }
-            default -> {
-                // The row left the active bucket. Hide it - hide, NOT remove, so sibling
-                // #ActiveQuestList[i] selectors do not drift.
-                cmd.set(sel + ".Visible", false);
             }
         }
     }

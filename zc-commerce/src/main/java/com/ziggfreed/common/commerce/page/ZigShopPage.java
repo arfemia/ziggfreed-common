@@ -47,6 +47,7 @@ import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.ui.SettingsUiUtil;
+import com.ziggfreed.common.ui.rows.BuiltRows;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
@@ -113,9 +114,6 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     /** A ceiling on the chips in one strip, so a wide price cannot push a row off the panel. */
     private static final int MAX_CHIPS = 6;
 
-    /** The marker {@link #builtRowOrder} carries where a section heading was drawn. */
-    private static final String HEADER_ROW = "";
-
     /** The height a heading row grows to when it shows the countdown under its label. */
     private static final int HEADER_WITH_META_HEIGHT = 54;
 
@@ -180,10 +178,12 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     private final ConfirmArm rerollArm = new ConfirmArm();
 
     /**
-     * The exact row order the last full build rendered, section headings included as
-     * {@link #HEADER_ROW} markers so an offer's index is the one the client DOM actually holds.
+     * The exact rows the last full build rendered - each offer's index and the run it was drawn
+     * under, section headings occupying an index of their own - so a partial update addresses the
+     * row the client DOM actually holds. Every press that changes what a row says reopens this
+     * page, so the run it records is read only as the record of what is on screen.
      */
-    private final List<String> builtRowOrder = new ArrayList<>();
+    private final BuiltRows builtRows = new BuiltRows();
 
     /** Which shelf and position each drawn offer came from, for a reroll press. */
     private final Map<String, ShelfPosition> shelfOf = new LinkedHashMap<>();
@@ -208,7 +208,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton",
                 EventData.of("Action", "close"));
 
-        builtRowOrder.clear();
+        builtRows.clear();
         shelfOf.clear();
 
         StorefrontAsset asset = shopAsset();
@@ -472,11 +472,12 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
                 break;
             }
             index = appendHeader(cmd, index, run.heading(), run.meta());
+            String runKey = ShopSections.runKey(run.kind(), run.runId());
             for (ShopOffer offer : run.offers()) {
                 if (index >= MAX_ROWS) {
                     break;
                 }
-                index = appendOfferRow(cmd, events, engine, subject, index, offer, now);
+                index = appendOfferRow(cmd, events, engine, subject, index, offer, runKey, now);
             }
         }
     }
@@ -485,7 +486,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
     private int appendHeader(@Nonnull UICommandBuilder cmd, int index, @Nonnull Message label,
             @Nullable Message meta) {
         String sel = appendRow(cmd, index);
-        builtRowOrder.add(HEADER_ROW);
+        builtRows.addHeader();
         cmd.set(sel + " #RowBtn.Visible", false);
         cmd.set(sel + " #StatusDot.Visible", false);
         cmd.set(sel + " #SectionLabel.TextSpans", label);
@@ -503,9 +504,9 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
     private int appendOfferRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull ShopEngine engine, @Nonnull Subject subject, int index, @Nonnull ShopOffer offer,
-            long now) {
+            @Nonnull String runKey, long now) {
         String sel = appendRow(cmd, index);
-        builtRowOrder.add(offer.offerId());
+        builtRows.add(offer.offerId(), runKey);
         ZigRichButton.text(cmd, sel + " #RowBtn", offerName(offer));
         cmd.set(sel + " #StatusDot.Background", dotFor(engine, subject, offer, now));
         Message badge = limitBadge(engine, subject, offer, now);
@@ -782,7 +783,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         rerollArm.reset();
         ShopEngine engine = CommerceEngines.shops();
         ShopOffer offer = offerId == null ? null : engine.catalog().offer(offerId);
-        int row = offerId == null ? -1 : indexOfRow(offerId);
+        int row = builtRows.indexOf(offerId);
         Subject subject = subjectOf(store, ref);
         if (offer == null || row < 0 || subject == null) {
             this.selectedOfferId = offerId;
@@ -792,7 +793,7 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
         String previous = this.selectedOfferId;
         this.selectedOfferId = offer.offerId();
         UICommandBuilder cmd = new UICommandBuilder();
-        int oldRow = previous == null ? -1 : indexOfRow(previous);
+        int oldRow = builtRows.indexOf(previous);
         if (oldRow >= 0 && oldRow != row) {
             paintRowSelected(cmd, "#OfferList[" + oldRow + "]", false);
         }
@@ -1007,15 +1008,6 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
             }
         }
         return null;
-    }
-
-    private int indexOfRow(@Nonnull String offerId) {
-        for (int i = 0; i < builtRowOrder.size(); i++) {
-            if (CommerceText.sameId(builtRowOrder.get(i), offerId)) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     @Nonnull

@@ -58,6 +58,7 @@ import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.rotation.RerollSpec;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.ui.rows.BuiltRows;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -121,9 +122,6 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     private static final int MAX_LINES = 24;
     private static final int MAX_CHIPS = 6;
 
-    /** The marker {@link #builtRowOrder} carries where a section heading was drawn. */
-    private static final String HEADER_ROW = "";
-
     private static final String ROW_SELECTED_TINT = "#1a2d44";
     private static final String ROW_SELECTED_TEXT = "#ffffff";
     private static final String ROW_TINT = "#41506a";
@@ -153,10 +151,12 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     private final ConfirmArm rerollArm = new ConfirmArm();
 
     /**
-     * The exact row order the last full build rendered, section headings included as
-     * {@link #HEADER_ROW} markers so a contract's index is the one the client DOM actually holds.
+     * The exact rows the last full build rendered - each contract's index and the section it was
+     * drawn under, section headings occupying an index of their own - so a partial update addresses
+     * the row the client DOM actually holds. Every press that changes a contract's standing reopens
+     * this page, so the section it records is read only as the record of what is on screen.
      */
-    private final List<String> builtRowOrder = new ArrayList<>();
+    private final BuiltRows builtRows = new BuiltRows();
 
     /** Which position on the board each drawn contract came from, for a reroll press. */
     private final Map<String, Integer> positionOf = new LinkedHashMap<>();
@@ -179,7 +179,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton",
                 EventData.of("Action", "close"));
 
-        builtRowOrder.clear();
+        builtRows.clear();
         positionOf.clear();
 
         BoardAssetSpec board = CommerceCatalogs.boards().board(boardId);
@@ -399,7 +399,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
 
     private int appendHeader(@Nonnull UICommandBuilder cmd, int index, @Nonnull Message label) {
         String sel = appendRow(cmd, index);
-        builtRowOrder.add(HEADER_ROW);
+        builtRows.addHeader();
         cmd.set(sel + " #RowBtn.Visible", false);
         cmd.set(sel + " #StatusDot.Visible", false);
         cmd.set(sel + " #SectionLabel.TextSpans", label);
@@ -412,7 +412,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             int index, @Nonnull BoardSections.Entry entry, @Nonnull BountyRef ref,
             @Nonnull BoardAssetSpec board) {
         String sel = appendRow(cmd, index);
-        builtRowOrder.add(ref.bountyId());
+        builtRows.add(ref.bountyId(), entry.section().name());
         ZigRichButton.text(cmd, sel + " #RowBtn", bountyName(ref));
         cmd.set(sel + " #StatusDot.Background", dotColor(entry.section()));
         Message grade = gradeLabel(ref, board);
@@ -777,7 +777,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         BountyAssetRef bounty = bountyId == null ? null
                 : CommerceCatalogs.boards().bounty(bountyId);
         Quest quest = quests == null || bounty == null ? null : quests.quest(bounty.bountyId());
-        int row = bountyId == null ? -1 : indexOfRow(bountyId);
+        int row = builtRows.indexOf(bountyId);
         if (subject == null || quests == null || board == null || bounty == null || quest == null
                 || row < 0) {
             this.selectedBountyId = bountyId;
@@ -787,7 +787,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         String previous = this.selectedBountyId;
         this.selectedBountyId = bounty.bountyId();
         UICommandBuilder cmd = new UICommandBuilder();
-        int oldRow = previous == null ? -1 : indexOfRow(previous);
+        int oldRow = builtRows.indexOf(previous);
         if (oldRow >= 0 && oldRow != row) {
             paintRowSelected(cmd, "#BountyList[" + oldRow + "]", false);
         }
@@ -795,15 +795,6 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
         renderDetail(cmd, CommerceEngines.boards(), quests, subject, board, bounty, quest,
                 System.currentTimeMillis());
         this.sendUpdate(cmd, new UIEventBuilder(), false);
-    }
-
-    private int indexOfRow(@Nonnull String bountyId) {
-        for (int i = 0; i < builtRowOrder.size(); i++) {
-            if (CommerceText.sameId(builtRowOrder.get(i), bountyId)) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     /**
