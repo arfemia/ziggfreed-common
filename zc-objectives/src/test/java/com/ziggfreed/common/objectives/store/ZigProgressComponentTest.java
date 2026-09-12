@@ -9,8 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Map;
 import java.util.Set;
 
+import org.bson.BsonDocument;
+import org.bson.BsonString;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.codec.ExtraInfo;
 import com.ziggfreed.common.achievement.AchievementProgressStore;
 import com.ziggfreed.common.achievement.AchievementStatus;
 import com.ziggfreed.common.quest.QuestProgressStore.CompletionRecord;
@@ -81,6 +84,90 @@ class ZigProgressComponentTest {
 
         assertTrue(component.knownQuestIds().isEmpty(),
                 "a quest that comes back around must start pristine, not half-remembered");
+    }
+
+    /**
+     * The {@code CounterMap} rule applied to the five quest maps: a record saved under one casing
+     * answers under any other, a write under the new spelling replaces the saved entry rather than
+     * sitting beside it, and a removal under either spelling finds it. Pinned over a record built
+     * the way a pre-1.6 owner quest's states reached this component - authored {@code My_Quest},
+     * keyed {@code my_quest} by the catalogue that reads it back.
+     */
+    @Test
+    void aQuestIdReadsUnderAnyCasingAndTakesTheWritersSpellingOnItsNextWrite() {
+        ZigProgressComponent component = new ZigProgressComponent();
+        component.setQuestStatus("My_Quest", QuestStatus.ACTIVE);
+        component.putQuestPayload("My_Quest", "step:1/3");
+        component.setQuestCooldown("My_Quest", 1_700L);
+        component.setTrackedPin("My_Quest", 42L);
+        component.setQuestCompletions("My_Quest", new CompletionRecord(5L, 1, 2, 2));
+
+        assertEquals(QuestStatus.ACTIVE, component.questStatus("my_quest"),
+                "a status saved under the authored casing answers under the catalogue's");
+        assertEquals("step:1/3", component.questPayload("my_quest"));
+        assertEquals(1_700L, component.questCooldown("MY_QUEST"));
+        assertEquals(2, component.questCompletions("my_quest").totalCount());
+        assertTrue(component.trackedPins().containsKey("my_quest"),
+                "the pin map answers containsKey under any spelling");
+        assertEquals(Set.of("My_Quest"), component.knownQuestIds(),
+                "one quest, listed under the spelling it is held");
+
+        component.setQuestStatus("my_quest", QuestStatus.COMPLETED);
+        component.putQuestPayload("my_quest", "step:3/3");
+        component.setQuestCooldown("my_quest", 1_800L);
+        component.setTrackedPin("my_quest", 43L);
+        component.setQuestCompletions("my_quest", new CompletionRecord(6L, 1, 3, 3));
+
+        assertEquals(Set.of("my_quest"), component.knownQuestIds(),
+                "the writer's spelling replaced the saved one on every leaf, and nothing sits beside it");
+        assertEquals(QuestStatus.COMPLETED, component.questStatus("My_Quest"),
+                "the old spelling still reads, now finding the re-spelled entry");
+        assertEquals("step:3/3", component.questPayload("MY_QUEST"));
+        assertEquals(1_800L, component.questCooldown("My_Quest"));
+        assertEquals(3, component.questCompletions("My_Quest").claimedCount());
+        assertEquals(Map.of("my_quest", Long.valueOf(43L)), component.trackedPins());
+
+        assertTrue(component.clearTrackedPin("MY_QUEST"), "a removal finds it under any casing");
+        component.clearQuest("My_Quest");
+        assertEquals(QuestStatus.NOT_STARTED, component.questStatus("my_quest"));
+        assertNull(component.questPayload("my_quest"));
+        assertEquals(0L, component.questCooldown("my_quest"));
+        assertEquals(3, component.questCompletions("my_quest").totalCount(),
+                "the completion record survives the re-arm, exactly as under one spelling");
+    }
+
+    /**
+     * A saved record that already holds two spellings of one quest in one leaf (a build before
+     * the rule existed wrote the second beside the first) reads as one quest, and a reset under
+     * either spelling clears both - otherwise the other spelling would resurrect the state the
+     * reset just removed.
+     */
+    @Test
+    void twoSavedSpellingsOfOneQuestAreOneQuestAndAResetClearsBoth() {
+        BsonDocument saved = new BsonDocument();
+        saved.put("QuestStates", new BsonString("My_Quest=ACTIVE|my_quest=COMPLETED"));
+        ZigProgressComponent older = ZigProgressComponent.CODEC.decode(saved, new ExtraInfo());
+
+        assertEquals(1, older.knownQuestIds().size(), "two spellings list once");
+        assertTrue(older.knownQuestIds().iterator().next().equalsIgnoreCase("my_quest"),
+                "under one of its spellings");
+        assertEquals(QuestStatus.ACTIVE, older.questStatus("My_Quest"), "an exact hit is read first");
+        assertEquals(QuestStatus.COMPLETED, older.questStatus("my_quest"), "and so is the other");
+
+        older.clearQuest("my_quest");
+        assertEquals(QuestStatus.NOT_STARTED, older.questStatus("My_Quest"),
+                "a reset under one spelling leaves nothing under the other to come back");
+        assertTrue(older.knownQuestIds().isEmpty());
+    }
+
+    @Test
+    void aTallyIsDroppedOutrightAndReportsWhetherItWasThere() {
+        ZigProgressComponent component = new ZigProgressComponent();
+        component.putAchievementProgress("a_first#0", 4L);
+
+        assertTrue(component.clearAchievementProgress("a_first#0"));
+        assertEquals(0L, component.achievementProgress("a_first#0"));
+        assertFalse(component.clearAchievementProgress("a_first#0"), "gone means gone");
     }
 
     @Test

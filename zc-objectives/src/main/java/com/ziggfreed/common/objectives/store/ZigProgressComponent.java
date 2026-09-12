@@ -1,9 +1,14 @@
 package com.ziggfreed.common.objectives.store;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -40,6 +45,16 @@ import com.ziggfreed.common.util.SafeLog;
  * string through {@link ProgressBlob}, which is the shape a codec-persisted ECS component reliably
  * supports; the component is the thing that is saved into every world, so the wire format is a
  * contract and a plain string is the least surprising one to keep.
+ *
+ * <p><b>A quest id is matched without regard to case, and a write spells it the writer's way.</b>
+ * The five quest maps follow the same rule {@code CounterMap} keeps for a tally: a read under any
+ * casing finds the entry (an exact hit first, a scan of the keys otherwise), a write replaces
+ * whatever casing held it and files the entry as the writer spelled it, a removal drops every
+ * spelling, and {@link #knownQuestIds()} lists each quest once under the spelling it is held. That
+ * is what lets a quest's authored id change case with no migration: a record saved under
+ * {@code My_Quest} still answers once the catalogue keys the quest {@code my_quest}, the entry takes
+ * that spelling the next time the engine writes it, and an entry nobody writes again keeps the
+ * spelling it was saved under. The achievement maps are untouched by this; their ids never moved.
  *
  * <p><b>The maps live here; the two store adapters are thin.</b>
  * {@link com.ziggfreed.common.quest.QuestProgressStore} and {@link AchievementProgressStore}
@@ -200,68 +215,77 @@ public final class ZigProgressComponent implements Component<EntityStore> {
     /** The recorded status, or {@link QuestStatus#NOT_STARTED} when there is none. */
     @Nonnull
     public QuestStatus questStatus(@Nonnull String questId) {
-        return QuestStatus.fromString(questStates.get(questId));
+        return QuestStatus.fromString(questRead(questStates, questId));
     }
 
     /** Record a status. The default status is stored as absence, so a reset leaves nothing behind. */
     public void setQuestStatus(@Nonnull String questId, @Nonnull QuestStatus status) {
         if (status == QuestStatus.NOT_STARTED) {
-            questStates.remove(questId);
+            questRemove(questStates, questId);
             return;
         }
-        questStates.put(questId, status.name());
+        questWrite(questStates, questId, status.name());
     }
 
     /** The packed progress payload, or null when there is none. */
     @Nullable
     public String questPayload(@Nonnull String questId) {
-        return questProgress.get(questId);
+        return questRead(questProgress, questId);
     }
 
     /** Store a packed progress payload verbatim. */
     public void putQuestPayload(@Nonnull String questId, @Nonnull String payload) {
-        questProgress.put(questId, payload);
+        questWrite(questProgress, questId, payload);
     }
 
     /** The cooldown stamp in epoch milliseconds, or {@code 0}. */
     public long questCooldown(@Nonnull String questId) {
-        Long stamp = questCooldowns.get(questId);
+        Long stamp = questRead(questCooldowns, questId);
         return stamp == null ? 0L : stamp;
     }
 
     /** Record a cooldown stamp. A non-positive stamp is stored as absence. */
     public void setQuestCooldown(@Nonnull String questId, long epochMs) {
         if (epochMs <= 0L) {
-            questCooldowns.remove(questId);
+            questRemove(questCooldowns, questId);
             return;
         }
-        questCooldowns.put(questId, Long.valueOf(epochMs));
+        questWrite(questCooldowns, questId, Long.valueOf(epochMs));
     }
 
     /** This player's completions of a quest, or {@link CompletionRecord#NONE}. */
     @Nonnull
     public CompletionRecord questCompletions(@Nonnull String questId) {
-        CompletionRecord record = questCompletions.get(questId);
+        CompletionRecord record = questRead(questCompletions, questId);
         return record == null ? CompletionRecord.NONE : record;
     }
 
     /** Record them. An empty record is stored as absence, so a wipe leaves nothing behind. */
     public void setQuestCompletions(@Nonnull String questId, @Nonnull CompletionRecord record) {
         if (record.isEmpty()) {
-            questCompletions.remove(questId);
+            questRemove(questCompletions, questId);
             return;
         }
-        questCompletions.put(questId, record);
+        questWrite(questCompletions, questId, record);
     }
 
-    /** Every quest id with ANY recorded state. */
+    /**
+     * Every quest id with ANY recorded state, each listed ONCE under the spelling it is held - a
+     * quest whose leaves were saved under two casings (a status written before its id changed
+     * case, a payload written after) is one quest, and the first spelling met is the one listed.
+     */
     @Nonnull
     public Set<String> knownQuestIds() {
-        Set<String> ids = new HashSet<>(questStates.keySet());
-        ids.addAll(questProgress.keySet());
-        ids.addAll(questCooldowns.keySet());
-        ids.addAll(trackedQuests.keySet());
-        ids.addAll(questCompletions.keySet());
+        Set<String> ids = new LinkedHashSet<>();
+        Set<String> seen = new HashSet<>();
+        for (Map<String, ?> leaf : List.of(questStates, questProgress, questCooldowns,
+                trackedQuests, questCompletions)) {
+            for (String id : leaf.keySet()) {
+                if (seen.add(id.toLowerCase(Locale.ROOT))) {
+                    ids.add(id);
+                }
+            }
+        }
         return ids;
     }
 
@@ -273,26 +297,69 @@ public final class ZigProgressComponent implements Component<EntityStore> {
      * nobody could ever reach. {@link #setQuestCompletions} with an empty record is the wipe.
      */
     public void clearQuest(@Nonnull String questId) {
-        questStates.remove(questId);
-        questProgress.remove(questId);
-        questCooldowns.remove(questId);
-        trackedQuests.remove(questId);
+        questRemove(questStates, questId);
+        questRemove(questProgress, questId);
+        questRemove(questCooldowns, questId);
+        questRemove(trackedQuests, questId);
     }
 
-    /** The pins as {@code questId -> the instant it was pinned}. */
+    /**
+     * The pins as {@code questId -> the instant it was pinned}, keyed without regard to case so a
+     * caller's {@code containsKey} answers under any spelling; each key is spelled as it is held.
+     */
     @Nonnull
     public Map<String, Long> trackedPins() {
-        return Map.copyOf(trackedQuests);
+        Map<String, Long> pins = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        pins.putAll(trackedQuests);
+        return Collections.unmodifiableMap(pins);
     }
 
     /** Pin a quest at {@code pinnedAtMs}. */
     public void setTrackedPin(@Nonnull String questId, long pinnedAtMs) {
-        trackedQuests.put(questId, Long.valueOf(pinnedAtMs));
+        questWrite(trackedQuests, questId, Long.valueOf(pinnedAtMs));
     }
 
     /** Drop a pin. Returns true when one was actually there. */
     public boolean clearTrackedPin(@Nonnull String questId) {
-        return trackedQuests.remove(questId) != null;
+        return questRemove(trackedQuests, questId);
+    }
+
+    // ==================== the quest-id casing rule ====================
+
+    /**
+     * The value held under {@code questId} in any casing, or null. An exact hit is the common case
+     * and costs one lookup; a hit under another casing is found by a scan of the keys, the price of
+     * keeping the backing map the plain concurrent one the codec and the clone both build.
+     */
+    @Nullable
+    private static <V> V questRead(@Nonnull Map<String, V> leaf, @Nonnull String questId) {
+        V exact = leaf.get(questId);
+        if (exact != null) {
+            return exact;
+        }
+        for (Map.Entry<String, V> entry : leaf.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(questId)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    /** File {@code value} under {@code questId} as spelled, dropping the entry every other casing held. */
+    private static <V> void questWrite(@Nonnull Map<String, V> leaf, @Nonnull String questId,
+            @Nonnull V value) {
+        questRemove(leaf, questId);
+        leaf.put(questId, value);
+    }
+
+    /**
+     * Drop the entry under {@code questId} in EVERY casing it is held under, so a record that once
+     * held two spellings of one quest cannot resurrect the other after a reset. True when any was.
+     */
+    private static boolean questRemove(@Nonnull Map<String, ?> leaf, @Nonnull String questId) {
+        boolean exact = leaf.remove(questId) != null;
+        boolean others = leaf.keySet().removeIf(candidate -> candidate.equalsIgnoreCase(questId));
+        return exact || others;
     }
 
     // ==================== achievement state ====================
@@ -310,6 +377,14 @@ public final class ZigProgressComponent implements Component<EntityStore> {
             return;
         }
         achievementProgress.put(key, Long.valueOf(value));
+    }
+
+    /**
+     * Drop one raw tally outright, whatever it holds - what retiring a legacy positional key means
+     * once its tally has moved onto the criterion's own key. Returns true when it was actually there.
+     */
+    public boolean clearAchievementProgress(@Nonnull String key) {
+        return achievementProgress.remove(key) != null;
     }
 
     /** Every raw progress key held. */

@@ -38,6 +38,11 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>Every OTHER default on the interface is inherited on purpose, {@code usesReservedDelimiter}
  * included: {@link ProgressBlob} reserves exactly the characters that default already rejects.
+ *
+ * <p>A quest id is matched without regard to case on every read and write here, because the
+ * component is: a status saved under {@code My_Quest} answers {@link #status} asked for
+ * {@code my_quest}, and the next {@link #setStatus} under the new spelling replaces it. See
+ * {@link ZigProgressComponent}; nothing about it is decided in this adapter.
  */
 public final class ZigQuestStore implements QuestProgressStore {
 
