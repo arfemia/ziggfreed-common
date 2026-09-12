@@ -45,6 +45,26 @@ class FeatureFlagsTest {
     }
 
     @Test
+    void aDeclaredNamespaceIsEnumerableAndItsFactorIdReadsBackToIt() {
+        FeatureFlags.register("yourmod_flags_enum", "trading", "yourmod", () -> true);
+
+        assertTrue(FeatureFlags.namespaces().contains("yourmod_flags_enum"),
+                "a content fold lifts for every namespace that has declared features");
+        assertEquals("yourmod_flags_enum:feature", FeatureFlags.factorId("yourmod_flags_enum"));
+        assertEquals("yourmod_flags_enum", FeatureFlags.namespaceOf("yourmod_flags_enum:feature"));
+        assertEquals("yourmod_flags_enum", FeatureFlags.namespaceOf("YourMod_Flags_Enum:FEATURE"),
+                "matched without regard to case, the way the factor registry matches an id");
+        assertTrue(FeatureFlags.isFeatureFactor("yourmod_flags_enum:feature"));
+
+        assertNull(FeatureFlags.namespaceOf("nobody_declared_flags:feature"),
+                "a feature factor of a namespace nothing declared is not a known one");
+        assertFalse(FeatureFlags.isFeatureFactor("nobody_declared_flags:feature"));
+        assertNull(FeatureFlags.namespaceOf("hytale:stat"), "another factor id altogether");
+        assertNull(FeatureFlags.namespaceOf(":feature"));
+        assertNull(FeatureFlags.namespaceOf(null));
+    }
+
+    @Test
     void anUndeclaredFeatureIsADefiniteOffAndAMissingParamIsUnanswerable() {
         FeatureFlags.register("yourmod_flags_off", "trading", "yourmod", () -> true);
         FactorProvider provider = FactorContributions.provider("yourmod_flags_off:feature");

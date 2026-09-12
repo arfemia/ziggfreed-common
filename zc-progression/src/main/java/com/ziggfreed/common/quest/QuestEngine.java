@@ -1790,10 +1790,13 @@ public final class QuestEngine implements QuestStateReader {
     // ==================== Visibility ====================
 
     /**
-     * Should this quest be listed for this player before they take it? A quest they have ALREADY
-     * started is always visible - somebody must be able to see what they are in the middle of.
-     * Otherwise it must be switched on, not hidden, and past whatever prerequisite the consumer
-     * gates it behind.
+     * Should this quest be listed for this player before they take it? THE shared visibility
+     * question, the one every browsable surface asks and the one a consumer's own listing rule
+     * collapses onto. A quest they have ALREADY started is always visible - somebody must be able
+     * to see what they are in the middle of. Otherwise it must be switched on, not hidden, past
+     * its own {@link Quest.Visibility#showWhen()} block when it carries one, and past whatever
+     * prerequisite the consumer gates it behind when {@link Quest.Visibility#requirePrerequisites()}
+     * asks for that.
      */
     public boolean isVisible(@Nonnull Subject subject, @Nonnull Quest quest) {
         QuestStatus stored = store.status(subject, quest.id());
@@ -1801,6 +1804,9 @@ public final class QuestEngine implements QuestStateReader {
             return true;
         }
         if (!quest.available() || quest.visibility().hidden()) {
+            return false;
+        }
+        if (quest.visibility().hasShowWhen() && !gates.showWhenMet(subject, quest)) {
             return false;
         }
         return !quest.visibility().requirePrerequisites() || gates.prerequisitesMet(subject, quest);
@@ -1819,7 +1825,10 @@ public final class QuestEngine implements QuestStateReader {
      * "keep this out of sight until it is relevant".
      *
      * <p>A quest the player has already started is listed either way, for the same reason it is
-     * visible: somebody must be able to see what they are in the middle of.
+     * visible: somebody must be able to see what they are in the middle of. A {@code ShowWhen}
+     * block holds the quest back here exactly as it does on an open listing: unlike
+     * {@code Hidden}, it says "not yet" rather than "not here", and the giver has nothing to hand
+     * out until it passes.
      */
     public boolean isOfferable(@Nonnull Subject subject, @Nonnull Quest quest) {
         QuestStatus stored = store.status(subject, quest.id());
@@ -1827,6 +1836,9 @@ public final class QuestEngine implements QuestStateReader {
             return true;
         }
         if (!quest.available()) {
+            return false;
+        }
+        if (quest.visibility().hasShowWhen() && !gates.showWhenMet(subject, quest)) {
             return false;
         }
         return !quest.visibility().requirePrerequisites() || gates.prerequisitesMet(subject, quest);

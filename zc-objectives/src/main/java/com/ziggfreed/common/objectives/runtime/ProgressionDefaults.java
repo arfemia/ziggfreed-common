@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -36,6 +37,7 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.inventory.InventoryUtil;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
+import com.ziggfreed.common.objectives.producer.EncounterQuestAxes;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
 import com.ziggfreed.common.objectives.producer.ZigEncounterProducer;
@@ -163,6 +165,16 @@ public final class ProgressionDefaults {
                     .maxActiveQuests(0)
                     .maxPinnedAchievements(MAX_PINNED)
                     .warn(SafeLog::warn);
+
+            // The one axis this library can answer itself - every bound encounter on the server -
+            // goes into the ONE axis vocabulary the publish resolves with, so a family generated
+            // over the bosses needs no consumer to carry the list across.
+            EncounterQuestAxes.install(ProgressionRuntime.questAxes(), OWNER);
+
+            // The boot publish rides the BUILD, not the first player ready: an engine read from
+            // anywhere (a ticking system, a command) builds the runtime, and the catalogue has to
+            // be in it the instant it exists, whoever asked. See publishOnBuild.
+            ProgressionRuntime.onBuilt(ProgressionDefaults::publishOnBuild);
 
             NpcOfferProviders.register(OWNER, OWNER, RuntimeOffers.INSTANCE);
         } catch (Throwable t) {
@@ -348,13 +360,33 @@ public final class ProgressionDefaults {
      * this one, while an id only this layer folded still reaches the engines. A server with no
      * consumer running progression therefore gets the whole shared store on the generic engines,
      * and a server with one gets that consumer's reading of it.
+     *
+     * <p><b>The quest store is resolved with the ONE axis vocabulary</b>
+     * ({@link ProgressionRuntime#questAxes()}), so a family generated over a consumer's own list
+     * reaches the engine from this publish alone once that consumer has registered its axes; the
+     * layer a consumer CONTRIBUTED into the store ({@code QuestAssetStore.mergeContributed}) is
+     * folded here over the loaded files, and the server owner's own folder
+     * ({@code mods/ziggfreedcommon/quests/<Id>.json}, {@code QuestOwnerLayers}) is re-read by the
+     * same fold and laid over both. What the fold reported stays readable afterwards
+     * ({@link #questLoadFindings()}), with the pool ({@link #questPool()}), for a consumer's own
+     * audit.
+     *
+     * <p><b>When it runs.</b> Once at boot, the moment the shared runtime is BUILT - whoever built
+     * it, a ticking system's first engine read as readily as the first player becoming ready
+     * ({@link #publishOnBuild}); then on every {@code /zigprogress reload}; and on every hot
+     * re-import of a quest, generator, achievement or milestone file ({@link #republishAssetContent}).
      */
     public static void publishAssetContent() {
         try {
-            QuestPool quests = QuestAssetStore.getInstance().resolveAll(null);
+            QuestAssetStore.Resolution resolved =
+                    QuestAssetStore.getInstance().resolve(ProgressionRuntime.questAxes());
+            QuestAssetStore.logIssues(resolved.issues());
+            QuestPool quests = resolved.pool();
             AchievementPool achievements = AchievementAssetStore.getInstance().resolveAll();
             QUEST_POOL = quests;
+            QUEST_LOAD_FINDINGS = resolved.issues();
             ACHIEVEMENT_POOL = achievements;
+            PUBLISHED.set(true);
 
             ProgressionRuntime.publishQuests(OWNER, engineQuests(quests));
             ProgressionRuntime.publishAchievements(OWNER, engineAchievements(achievements));
@@ -371,6 +403,58 @@ public final class ProgressionDefaults {
         } catch (Throwable t) {
             SafeLog.warn("[progression] the asset content could not be published", t);
         }
+    }
+
+    /**
+     * Fold and publish AGAIN, for a caller that has just changed what the store holds - a layer
+     * contributed into it, a pack hot-imported, an owner file reloaded. Safe to ask at any time:
+     * before this boot's first publish it does nothing, because that publish (the build, or an
+     * explicit reload) folds whatever is in the store by then; after it, the whole catalogue is
+     * re-resolved and republished, exactly as the reload command does.
+     *
+     * <p>Keyed on the first publish having happened rather than on the runtime being built: the
+     * two are one moment on a normal boot ({@link #publishOnBuild}), and keying on the flag keeps
+     * them one moment when they are not - a reload before any build publishes and builds, and a
+     * re-import after that is a republish.
+     */
+    public static void republishAssetContent() {
+        if (PUBLISHED.get()) {
+            publishAssetContent();
+        }
+    }
+
+    /**
+     * The BOOT publish: the first fold of this boot, run inside the runtime's build
+     * ({@link ProgressionRuntime#onBuilt}) so the catalogue is in the engines the instant they
+     * exist, whoever built them. A build that follows an explicit publish (a reload from a startup
+     * script, say, whose own audit read the engines and built them) finds the flag already set and
+     * publishes nothing twice; every later change is a {@link #republishAssetContent}.
+     */
+    private static void publishOnBuild() {
+        if (!PUBLISHED.get()) {
+            publishAssetContent();
+        }
+    }
+
+    /**
+     * The quest pool the last publish resolved: every loaded and contributed file plus every
+     * generated quest, as folded. A consumer's own audit runs its validators over this pool at
+     * audit time, when every vocabulary it has to be judged against has registered; the pool
+     * itself is fixed the moment it is folded. {@link QuestPool#EMPTY} before the first publish.
+     */
+    @Nonnull
+    public static QuestPool questPool() {
+        return QUEST_POOL;
+    }
+
+    /**
+     * What the last publish's fold itself reported: a layer clash, a generator that expanded to
+     * nothing, an unparseable {@code Repeat} value. Already logged once at the fold; kept so a
+     * consumer's audit can show them beside its own findings. Empty before the first publish.
+     */
+    @Nonnull
+    public static List<Finding> questLoadFindings() {
+        return QUEST_LOAD_FINDINGS;
     }
 
     /** The engine half of every folded quest - the presentation half stays here, for the text source. */
@@ -433,9 +517,16 @@ public final class ProgressionDefaults {
                 SafeLog::warn, SafeLog::info);
     }
 
-    /** The folded quest catalogue this module loaded, for the text source. */
+    /** The folded quest catalogue this module loaded, for the text source and a consumer's audit. */
     @Nonnull
     private static volatile QuestPool QUEST_POOL = QuestPool.EMPTY;
+
+    /** What the last quest fold reported, kept for a consumer's audit. */
+    @Nonnull
+    private static volatile List<Finding> QUEST_LOAD_FINDINGS = List.of();
+
+    /** Has this boot published the asset content at least once? What a republish request keys on. */
+    private static final AtomicBoolean PUBLISHED = new AtomicBoolean();
 
     /** The folded achievement catalogue this module loaded, for the text source. */
     @Nullable
@@ -691,8 +782,10 @@ public final class ProgressionDefaults {
     }
 
     /**
-     * Build the shared runtime on the first player ready, then run this player's maintenance:
-     * self-heal both engines, then accept whatever is waiting to be auto-accepted.
+     * Make sure the shared runtime is built (on a quiet server this is the first build, and the
+     * build publishes the content; on one where an engine read got there first it is nothing),
+     * then run this player's maintenance: self-heal both engines, then accept whatever is waiting
+     * to be auto-accepted.
      *
      * <p>Self-heal runs FIRST so a repeatable that has come back around reads offerable by the time
      * the auto-accept pass looks at it. Both are skipped when a consumer owns the stores: that
@@ -715,7 +808,7 @@ public final class ProgressionDefaults {
 
     private static void onReadyOnWorldThread(@Nonnull Ref<EntityStore> ref) {
         try {
-            bootstrapOnce();
+            ProgressionRuntime.ensureBuilt();
             if (!ProgressionRuntime.usesDefaultStores() || !ref.isValid()) {
                 return;
             }
@@ -754,15 +847,6 @@ public final class ProgressionDefaults {
         }
     }
 
-    /** Build the runtime and publish this library's own content, once per boot. */
-    private static void bootstrapOnce() {
-        if (ProgressionRuntime.isBuilt()) {
-            return;
-        }
-        ProgressionRuntime.ensureBuilt();
-        publishAssetContent();
-    }
-
     /**
      * THE requirement evaluator, which lives one module down beside the runtime it reads.
      *
@@ -779,6 +863,8 @@ public final class ProgressionDefaults {
     /** Forget this module's own folded catalogues and registrations (test reset, and shutdown). */
     public static synchronized void reset() {
         QUEST_POOL = QuestPool.EMPTY;
+        QUEST_LOAD_FINDINGS = List.of();
+        PUBLISHED.set(false);
         ACHIEVEMENT_POOL = null;
         registered = false;
         DIRTY_LISTENERS.clear();

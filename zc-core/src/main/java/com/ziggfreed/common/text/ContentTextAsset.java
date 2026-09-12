@@ -1,7 +1,9 @@
 package com.ziggfreed.common.text;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,6 +36,18 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * content itself. Write {@code @amount} and the amount this content asks for fills that slot;
  * anything else is used exactly as typed.
  *
+ * <h2>A paragraph per lifecycle state</h2>
+ *
+ * <p>{@code Lore} is the longer narrative some surfaces show under the title, one paragraph per
+ * state the content is in for the player ({@code Incomplete}, {@code Active}, {@code Complete}).
+ * It is on the {@code DisplayName} contract: a raw paragraph typed in one language, kept only as
+ * the fallback while the localized key is being written. The convention key
+ * {@code quest.<id>.md.<state>} wins whenever it ships, so author that key for anything shipped
+ * and leave this group to a server owner's own quick edit. Today the quest fold carries it (the
+ * shared NPC quest page reads it under the title of the quest it is showing); an achievement's
+ * {@code Text} decodes the group too, since the group is shared, but no achievement surface reads
+ * it yet.
+ *
  * <p>Every leaf is {@code appendInherited}, so a file with a {@code Parent} can retitle without
  * losing the description it did not mention.
  */
@@ -53,6 +67,7 @@ public final class ContentTextAsset {
     @Nullable protected String flavorKey;
     @Nullable protected String displayName;
     @Nullable protected TextArgs textArgs;
+    @Nullable protected Lore lore;
 
     public static final BuilderCodec<ContentTextAsset> CODEC =
             BuilderCodec.builder(ContentTextAsset.class, ContentTextAsset::new)
@@ -72,6 +87,12 @@ public final class ContentTextAsset {
                             (o, v) -> o.textArgs = v, o -> o.textArgs, (o, p) -> o.textArgs = p.textArgs)
                     .documentation("What fills the numbered slots of the keys above, so one written line can "
                             + "serve a whole ladder of content instead of one line per rung.").add()
+                    .appendInherited(new KeyedCodec<>("Lore", Lore.CODEC, false),
+                            (o, v) -> o.lore = v, o -> o.lore, (o, p) -> o.lore = p.lore)
+                    .documentation("A plain paragraph per lifecycle state, shown under the title where a surface has "
+                            + "room for one. Like DisplayName it reaches every player in the one language it is "
+                            + "typed in, so ship the localized key instead: quest.<id>.md.incomplete, .active and "
+                            + ".complete win over this group whenever they resolve.").add()
                     .build();
 
     public ContentTextAsset() {
@@ -106,6 +127,22 @@ public final class ContentTextAsset {
     @Nullable
     public TextArgs getTextArgs() {
         return textArgs;
+    }
+
+    /** The authored per-state paragraphs, or null when the file wrote none. */
+    @Nullable
+    public Lore getLore() {
+        return lore;
+    }
+
+    /**
+     * The authored paragraphs keyed by state ({@link Lore#STATE_INCOMPLETE} and its two siblings),
+     * blanks dropped; empty when the file wrote none. The shape a fold hands its runtime text.
+     */
+    @Nonnull
+    public Map<String, String> loreMap() {
+        Lore authored = lore;
+        return authored == null ? Map.of() : authored.toMap();
     }
 
     /** What fills the title key's numbered slots, in order; empty when none was authored. */
@@ -181,6 +218,90 @@ public final class ContentTextAsset {
                 }
             }
             return out;
+        }
+    }
+
+    // ==================== Lore ====================
+
+    /**
+     * One plain paragraph per lifecycle state, on the {@code DisplayName} contract: a fallback typed
+     * in one language, outranked by the {@code quest.<id>.md.<state>} convention key whenever that
+     * key ships. The three state words are the ones every surface asks the runtime text by.
+     */
+    public static final class Lore {
+
+        /** The state of content the player has not taken or earned yet. */
+        public static final String STATE_INCOMPLETE = "incomplete";
+
+        /** The state of content the player is in the middle of. */
+        public static final String STATE_ACTIVE = "active";
+
+        /** The state of content the player has finished. */
+        public static final String STATE_COMPLETE = "complete";
+
+        @Nullable protected String incomplete;
+        @Nullable protected String active;
+        @Nullable protected String complete;
+
+        public static final BuilderCodec<Lore> CODEC = BuilderCodec.builder(Lore.class, Lore::new)
+                .appendInherited(new KeyedCodec<>("Incomplete", Codec.STRING, false),
+                        (o, v) -> o.incomplete = v, o -> o.incomplete, (o, p) -> o.incomplete = p.incomplete)
+                .documentation("The paragraph shown before the player has taken or earned it. A fallback for "
+                        + "the quest.<id>.md.incomplete key.").add()
+                .appendInherited(new KeyedCodec<>("Active", Codec.STRING, false),
+                        (o, v) -> o.active = v, o -> o.active, (o, p) -> o.active = p.active)
+                .documentation("The paragraph shown while the player is in the middle of it. A fallback for "
+                        + "the quest.<id>.md.active key.").add()
+                .appendInherited(new KeyedCodec<>("Complete", Codec.STRING, false),
+                        (o, v) -> o.complete = v, o -> o.complete, (o, p) -> o.complete = p.complete)
+                .documentation("The paragraph shown once the player has finished it. A fallback for the "
+                        + "quest.<id>.md.complete key.").add()
+                .build();
+
+        public Lore() {
+        }
+
+        /** Java-side factory; sets the same fields the codec fills. */
+        @Nonnull
+        public static Lore of(@Nullable String incomplete, @Nullable String active,
+                @Nullable String complete) {
+            Lore l = new Lore();
+            l.incomplete = incomplete;
+            l.active = active;
+            l.complete = complete;
+            return l;
+        }
+
+        @Nullable
+        public String getIncomplete() {
+            return incomplete;
+        }
+
+        @Nullable
+        public String getActive() {
+            return active;
+        }
+
+        @Nullable
+        public String getComplete() {
+            return complete;
+        }
+
+        /** The three paragraphs keyed by state word, in state order, blanks dropped. */
+        @Nonnull
+        public Map<String, String> toMap() {
+            Map<String, String> out = new LinkedHashMap<>();
+            put(out, STATE_INCOMPLETE, incomplete);
+            put(out, STATE_ACTIVE, active);
+            put(out, STATE_COMPLETE, complete);
+            return out;
+        }
+
+        private static void put(@Nonnull Map<String, String> into, @Nonnull String state,
+                @Nullable String text) {
+            if (text != null && !text.isBlank()) {
+                into.put(state, text);
+            }
         }
     }
 

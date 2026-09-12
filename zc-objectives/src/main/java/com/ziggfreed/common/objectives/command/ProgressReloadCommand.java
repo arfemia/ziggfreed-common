@@ -15,11 +15,13 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
  *
  * <p><b>What it can reload, and what it cannot.</b> It re-reads whatever the engine's asset stores
  * hold right now for the SHARED schema ({@code Server/ZiggfreedCommon/Quests}, {@code Achievements},
- * {@code AchievementMilestones}) and republishes that layer at library-default rank. Content a
- * consumer mod folds from its own format, and a consumer's owner overrides, are that consumer's
- * layer, published under its own name; only it can re-read them, and its own reload command is where
- * that lives. The counts reported afterwards are the MERGED catalogue's, so they include what every
- * consumer has published, not only what this call refreshed.
+ * {@code AchievementMilestones}), re-reads the server owner's own quest folder from disk
+ * ({@code mods/ziggfreedcommon/quests/<Id>.json}, which the fold reads afresh every time), and
+ * republishes that layer at library-default rank. The layer a consumer mod converted from its own
+ * format and handed into the quest store is folded again as it stands; only that consumer can
+ * re-convert it, and its own reload command is where that lives. The counts reported afterwards are
+ * the MERGED catalogue's, so they include what every consumer has published, not only what this
+ * call refreshed.
  */
 final class ProgressReloadCommand extends AbstractAsyncCommand {
 

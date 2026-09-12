@@ -10,6 +10,8 @@ import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
+import com.ziggfreed.common.progress.ObjectiveKindRegistry;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 
 /**
  * The leaves EVERY authored objective carries, whatever kind of content owns it: what counts, which
@@ -138,12 +140,34 @@ public class ObjectiveLeafAsset {
 
     /**
      * A builder for the engine's objective under {@code objectiveId}, with the shared leaves already
-     * applied. An engine's own codec finishes it off with whatever leaves it added.
+     * applied and any kind alias the ONE shared vocabulary ({@link ProgressionRuntime#objectiveKinds()})
+     * registers for the authored kind already applied. An engine's own codec finishes it off with
+     * whatever leaves it added.
      */
     @Nonnull
     public ObjectiveDef.Builder toDefBuilder(@Nonnull String objectiveId) {
-        return ObjectiveDef.builder(objectiveId, kind == null ? "" : kind.trim())
-                .target(target)
+        return toDefBuilder(objectiveId, ProgressionRuntime.objectiveKinds());
+    }
+
+    /**
+     * As {@link #toDefBuilder(String)}, reading the alias table of {@code kinds} instead - for a
+     * caller folding against a private vocabulary (a test, a round that dies with the match). A
+     * null registry applies no alias.
+     *
+     * <p>This is the ONE place an alias is applied: the authored kind and target go onto the
+     * objective as {@link ObjectiveDef#authoredKind()} / {@link ObjectiveDef#authoredTarget()} and
+     * the alias's run kind and rewritten target become the pair the engine reads.
+     */
+    @Nonnull
+    public ObjectiveDef.Builder toDefBuilder(@Nonnull String objectiveId,
+            @Nullable ObjectiveKindRegistry kinds) {
+        String authoredKind = kind == null ? "" : kind.trim();
+        ObjectiveKindRegistry.Alias alias = kinds == null ? null : kinds.alias(authoredKind);
+        String runKind = alias == null ? authoredKind : alias.runsAs();
+        String runTarget = alias == null ? target : alias.rewriteTarget(target);
+        return ObjectiveDef.builder(objectiveId, runKind)
+                .authored(authoredKind, target)
+                .target(runTarget)
                 .matchMode(effectiveMatchMode())
                 .qualifier(qualifier)
                 .amount(amount == null ? 1L : amount)

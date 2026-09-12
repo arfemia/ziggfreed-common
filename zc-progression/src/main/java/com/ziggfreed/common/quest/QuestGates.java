@@ -74,6 +74,17 @@ public interface QuestGates {
     }
 
     /**
+     * Does the quest's own {@link Quest.Visibility#showWhen()} block pass for this player? Asked
+     * only when the quest carries one, only by the two visibility reads, and NEVER on accept: it
+     * decides whether the quest is shown at all, and the accept gate stays {@code Requires} alone.
+     * A gate with no reading of the block answers true, which is what leaves the decision to the
+     * gate that evaluates requirement blocks.
+     */
+    default boolean showWhenMet(@Nonnull Subject subject, @Nonnull Quest quest) {
+        return true;
+    }
+
+    /**
      * Both accept-time questions at once: is the player past what the quest asks for first, and does
      * the gate let them take it? The engine asks this ONE method when somebody is trying to accept,
      * and the default answers it exactly as asking the two separately would.

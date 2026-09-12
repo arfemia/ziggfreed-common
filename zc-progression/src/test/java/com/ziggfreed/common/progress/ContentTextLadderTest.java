@@ -182,8 +182,8 @@ class ContentTextLadderTest {
                         .target("Trork").amount(3).build())
                 .build();
         QuestDefinition folded = new QuestDefinition("contract_with_no_words", quest, null, null,
-                null, List.of(), List.of(), null, 0, List.of(), null, null, null, null,
-                GateSpec.OPEN, Map.of(), List.of(), null, Map.of());
+                null, List.of(), List.of(), Map.of(), null, 0, List.of(), null, null, null, null,
+                GateSpec.OPEN, List.of(), Map.of(), List.of(), null, Map.of());
 
         Message title = folded.quest().text().title();
         assertNotNull(title, "a contract with no Text block is still called something");

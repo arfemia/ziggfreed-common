@@ -77,11 +77,17 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
         this.kindLookup = kindLookup;
     }
 
+    /**
+     * Composed from the AUTHORED pair throughout: the kind and the target the file named, which
+     * differ from the pair the engine runs on only when a kind alias fired at the fold. A sentence
+     * built from the run pair would name the channel a threshold is measured on rather than the
+     * thing the author wrote about.
+     */
     @Override
     @Nullable
     public Message compose(@Nonnull ObjectiveDef objective, @Nullable String authoredKey) {
         String amount = NumberFormatter.grouped(objective.amount());
-        boolean emptyTarget = objective.target().isEmpty();
+        boolean emptyTarget = objective.authoredTarget().isEmpty();
         Message target = emptyTarget ? Msg.raw("") : targetName(objective);
 
         Message sentence = null;
@@ -92,7 +98,7 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
             sentence = fromKindTextKey(objective, emptyTarget, amount, target);
         }
         if (sentence == null) {
-            String kindKey = "objective." + objective.kind().toLowerCase(Locale.ROOT);
+            String kindKey = "objective." + objective.authoredKind().toLowerCase(Locale.ROOT);
             if (emptyTarget && exists(kindKey + ".any")) {
                 sentence = text(kindKey + ".any", amount);
             } else if (exists(kindKey)) {
@@ -128,7 +134,7 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
     @Nullable
     private Message fromKindTextKey(@Nonnull ObjectiveDef objective, boolean emptyTarget,
                                     @Nonnull String amount, @Nonnull Message target) {
-        ObjectiveKind kind = kindLookup.apply(objective.kind());
+        ObjectiveKind kind = kindLookup.apply(objective.authoredKind());
         String textKey = kind == null ? null : kind.presentation().textKey();
         if (textKey == null || textKey.isBlank()) {
             return null;
@@ -150,13 +156,13 @@ final class NeutralObjectiveComposer implements ObjectiveComposer {
      */
     @Nonnull
     private Message targetName(@Nonnull ObjectiveDef objective) {
-        if (ObjectiveKindRegistry.STAT_THRESHOLD.equalsIgnoreCase(objective.kind())) {
-            Message channel = FactorNames.name(STAT_FACTOR, objective.target());
+        if (ObjectiveKindRegistry.STAT_THRESHOLD.equalsIgnoreCase(objective.authoredKind())) {
+            Message channel = FactorNames.name(STAT_FACTOR, objective.authoredTarget());
             if (channel != null) {
                 return channel;
             }
         }
-        return NativeNames.targetNameMsg(objective.target(), keyExists);
+        return NativeNames.targetNameMsg(objective.authoredTarget(), keyExists);
     }
 
     private boolean exists(@Nonnull String key) {

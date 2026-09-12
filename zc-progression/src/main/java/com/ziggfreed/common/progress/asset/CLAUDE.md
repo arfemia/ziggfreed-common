@@ -16,7 +16,7 @@ Imported the same way any other zc-core leaf is.
 | Class | The group it declares |
 |---|---|
 | `ContentMeta` | `Meta`: the namespace -> verbatim-block map both engines carry, plus the `decode` seam a consumer reads its own namespace through |
-| `ObjectiveLeafAsset` (+ `appendLeaves`) | the seven leaves every authored objective carries: `Kind` / `Target` / `MatchMode` / `Qualifier` / `Amount` / `Zone` / `TextKey` |
+| `ObjectiveLeafAsset` (+ `appendLeaves`) | the seven leaves every authored objective carries: `Kind` / `Target` / `MatchMode` / `Qualifier` / `Amount` / `Zone` / `TextKey`. `toDefBuilder(objectiveId)` is the ONE place a kind alias is applied (reading `ProgressionRuntime.objectiveKinds()`; the two-arg form takes a private registry): the authored pair goes on the objective as `authoredKind`/`authoredTarget`, the alias's run kind and rewritten target become the engine's pair |
 | `ContentListingAsset` (+ `appendLeaves` / `appendPresentationLeaves` / `appendVisibilityLeaves`) | `Listing`: the five presentation leaves (`Category` / `SortOrder` / `Tags` / `Chains` / `Icon`) plus the two visibility ones (`Hidden` / `RequirePrerequisites`); a type whose visibility is its own policy (a bounty contract) appends only the presentation five, so no visibility leaf exists there to decode and do nothing |
 | `ContentRewardsAsset` | `Rewards`: the `{Auto, Claim}` two-bucket group every paying content type carries (quests, achievements, milestones, bounty contracts) - `Auto` lands when the content settles, `Claim` waits to be collected |
 | `RewardEntryAsset` | one reward entry (`Kind` plus an open `Params` map), the element type of both `Rewards` buckets |

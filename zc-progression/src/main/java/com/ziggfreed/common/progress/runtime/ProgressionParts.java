@@ -508,6 +508,16 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
             }
 
             @Override
+            public boolean showWhenMet(@Nonnull Subject subject, @Nonnull Quest quest) {
+                for (QuestGates gate : frozen) {
+                    if (!gate.showWhenMet(subject, quest)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            @Override
             public boolean opensFor(@Nonnull Subject subject, @Nonnull Quest quest,
                                     @Nonnull List<String> reasons) {
                 // Each contributor answers its OWN pair, so a gate that reads both from one pass

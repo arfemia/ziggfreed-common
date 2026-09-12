@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -34,6 +35,7 @@ import com.ziggfreed.common.quest.QuestI18n;
 import com.ziggfreed.common.quest.QuestInventoryConsumer;
 import com.ziggfreed.common.quest.QuestPossessionProbe;
 import com.ziggfreed.common.quest.QuestProgressStore;
+import com.ziggfreed.common.quest.asset.QuestEnumeratorRegistry;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -52,8 +54,10 @@ import com.ziggfreed.common.util.SafeLog;
  * {@link #defaults(String) library-default rank}; each consumer registers its own parts at
  * {@link #registrar(String) consumer rank} from its plugin setup; the first read or the first player
  * ready calls {@link #ensureBuilt()}, which seals the sealed parts, composes the contributions,
- * builds both engines and logs one diagnostic naming who answered for what. Nothing decides whether
- * to run: there is one runtime, always, and the only question is which parts it was built over.
+ * builds both engines, runs every {@link #onBuilt build hook} (the library's own content publish
+ * hangs there, so the catalogue is in the engines the instant they exist, whoever asked for them)
+ * and logs one diagnostic naming who answered for what. Nothing decides whether to run: there is
+ * one runtime, always, and the only question is which parts it was built over.
  *
  * <p><b>The engines are built once and never rebuilt.</b> Everything the engines reach the outside
  * world through is a forwarder over {@link ProgressionParts}, so a registration arriving late is
@@ -149,10 +153,15 @@ public final class ProgressionRuntime {
     private static volatile ObjectiveKindRegistry objectiveKinds =
             new ObjectiveKindRegistry("progression-objective");
     private static volatile GateKindRegistry gateKinds = new GateKindRegistry("progression-gate");
+    private static volatile QuestEnumeratorRegistry questAxes =
+            new QuestEnumeratorRegistry("progression-axis");
 
     // ==================== the built runtime ====================
 
     private static final AtomicBoolean BUILT = new AtomicBoolean();
+
+    /** What runs once inside the build, after both engines exist. See {@link #onBuilt}. */
+    private static final List<Runnable> BUILD_HOOKS = new ArrayList<>();
 
     private static volatile ProgressionParts parts = ProgressionParts.EMPTY;
 
@@ -376,6 +385,19 @@ public final class ProgressionRuntime {
     @Nonnull
     public static GateKindRegistry gateKinds() {
         return gateKinds;
+    }
+
+    /**
+     * The ONE value-source vocabulary a generator's axis may name ({@code "Source": "yourmod:ores"}),
+     * the registry the shared quest publish resolves the store with. A consumer contributes its
+     * lists through {@link ProgressionRegistrar#questAxis} at setup, so a family generated over
+     * its own vocabulary reaches the engine from the library's publish alone; any other store that
+     * walks axes (a generated shelf of offers) is handed this same instance, so one source id means
+     * one list wherever a generator names it. Read live at every fold, never a captured snapshot.
+     */
+    @Nonnull
+    public static QuestEnumeratorRegistry questAxes() {
+        return questAxes;
     }
 
     /**
@@ -706,6 +728,36 @@ public final class ProgressionRuntime {
         buildOnce();
     }
 
+    /**
+     * Run {@code hook} the moment the runtime is built, whoever builds it: right away when it
+     * already is, else inside the build after both engines exist and before the diagnostic is
+     * logged, in registration order, each in its own guard.
+     *
+     * <p>This is the seam a content publish hangs on. The build can be forced by ANY engine read -
+     * a ticking system's first tick, a command, a page - and not only by the first player becoming
+     * ready, so a publish that waited for a particular caller would leave every earlier reader
+     * looking at an empty catalogue. Hanging it here means the catalogue is in the engines the
+     * instant they exist, and nothing has to know who asked first.
+     *
+     * @throws NullPointerException when {@code hook} is null, at the caller's own setup
+     */
+    public static synchronized void onBuilt(@Nonnull Runnable hook) {
+        Objects.requireNonNull(hook, "hook");
+        if (BUILT.get()) {
+            runGuarded(hook);
+            return;
+        }
+        BUILD_HOOKS.add(hook);
+    }
+
+    private static void runGuarded(@Nonnull Runnable hook) {
+        try {
+            hook.run();
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] a build hook (" + hook.getClass().getName() + ") failed", t);
+        }
+    }
+
     private static synchronized void buildOnce() {
         if (!BUILT.compareAndSet(false, true)) {
             return;
@@ -761,6 +813,11 @@ public final class ProgressionRuntime {
             questEngine = quests;
             achievementEngine = achievements;
             applyContent();
+            // The content publish hangs here (onBuilt), so the diagnostic below counts what it
+            // published rather than an empty catalogue that fills in a moment later.
+            for (Runnable hook : List.copyOf(BUILD_HOOKS)) {
+                runGuarded(hook);
+            }
             logDiagnostic();
         } catch (Throwable t) {
             SafeLog.warn("[progression] the shared runtime could not be built", t);
@@ -787,9 +844,11 @@ public final class ProgressionRuntime {
         MILESTONE_LAYERS.clear();
         objectiveKinds = new ObjectiveKindRegistry("progression-objective");
         gateKinds = new GateKindRegistry("progression-gate");
+        questAxes = new QuestEnumeratorRegistry("progression-axis");
         questEngine = null;
         achievementEngine = null;
         parts = ProgressionParts.EMPTY;
+        BUILD_HOOKS.clear();
         BUILT.set(false);
     }
 
@@ -880,6 +939,7 @@ public final class ProgressionRuntime {
         SafeLog.info("[progression]   vocabulary  objective kinds=" + objectiveKinds.ids().size()
                 + ", reward kinds=" + RewardKinds.shared().ids().size()
                 + ", gate kinds=" + gateKinds.ids().size()
+                + ", axes=" + questAxes.ids().size()
                 + ", factors=" + ownerOf(Slots.FACTORS)
                 + ", text sources=" + owners(TEXT_SOURCES)
                 + ", feedback hooks=" + owners(FEEDBACK_HOOKS)

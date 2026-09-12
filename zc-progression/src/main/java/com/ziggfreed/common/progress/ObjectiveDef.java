@@ -17,12 +17,22 @@ import javax.annotation.Nullable;
  * {@code order > 0} unlocks only once every objective with a strictly LOWER non-zero order is done;
  * objectives sharing an order run in parallel. What happens when an owner authors no orders at all
  * is the owning engine's call, not this record's.
+ *
+ * <p><b>Two pairs, one objective.</b> {@link #kind()} and {@link #target()} are what the engine
+ * dispatches, indexes and settles on. {@link #authoredKind()} and {@link #authoredTarget()} are
+ * what the file said, and they differ only when a registered
+ * {@linkplain ObjectiveKindRegistry.Alias kind alias} fired at the fold: an authored kind that
+ * RUNS as another kind with its target rewritten. Every text and icon surface reads the authored
+ * pair, so "reach rank 30 in Mining" never renders as the channel id it is measured on; every
+ * engine site reads the run pair and never learns an alias exists.
  */
 public final class ObjectiveDef {
 
     private final String id;
     private final String kind;
     private final String target;
+    private final String authoredKind;
+    private final String authoredTarget;
     private final MatchMode matchMode;
     @Nullable private final String qualifier;
     private final long amount;
@@ -34,6 +44,8 @@ public final class ObjectiveDef {
         this.id = b.id;
         this.kind = b.kind;
         this.target = b.target != null ? b.target : "";
+        this.authoredKind = b.authoredKind != null ? b.authoredKind : this.kind;
+        this.authoredTarget = b.authoredTarget != null ? b.authoredTarget : this.target;
         this.matchMode = b.matchMode;
         this.qualifier = b.qualifier;
         this.amount = b.amount;
@@ -58,6 +70,24 @@ public final class ObjectiveDef {
     @Nonnull
     public String target() {
         return target;
+    }
+
+    /**
+     * The kind the FILE named, for every surface that puts words or a picture beside the step. The
+     * same as {@link #kind()} unless a kind alias fired at the fold.
+     */
+    @Nonnull
+    public String authoredKind() {
+        return authoredKind;
+    }
+
+    /**
+     * The target the FILE named, for the same surfaces. The same as {@link #target()} unless a kind
+     * alias rewrote it; never null, empty when nothing was named.
+     */
+    @Nonnull
+    public String authoredTarget() {
+        return authoredTarget;
     }
 
     @Nonnull
@@ -129,6 +159,8 @@ public final class ObjectiveDef {
         private final String id;
         private final String kind;
         @Nullable private String target;
+        @Nullable private String authoredKind;
+        @Nullable private String authoredTarget;
         private MatchMode matchMode = MatchMode.CONTAINS;
         @Nullable private String qualifier;
         private long amount = 1L;
@@ -144,6 +176,17 @@ public final class ObjectiveDef {
         @Nonnull
         public Builder target(@Nullable String target) {
             this.target = target;
+            return this;
+        }
+
+        /**
+         * What the file named, when the run pair differs from it because a kind alias fired. Left
+         * unset, the authored pair IS the run pair, which is every ordinary objective.
+         */
+        @Nonnull
+        public Builder authored(@Nullable String authoredKind, @Nullable String authoredTarget) {
+            this.authoredKind = authoredKind == null || authoredKind.isBlank() ? null : authoredKind.trim();
+            this.authoredTarget = authoredTarget == null ? "" : authoredTarget;
             return this;
         }
 

@@ -118,6 +118,17 @@ public final class RequiresGates implements QuestGates, AchievementGates {
     }
 
     /**
+     * The quest's {@code ShowWhen} block, read through the very same evaluator over the same factor
+     * context as its {@code Requires}: a rank, a permission, a finished quest - whatever the
+     * consumer's vocabulary answers for the accept gate answers here too, so the two blocks can
+     * never disagree about one player.
+     */
+    @Override
+    public boolean showWhenMet(@Nonnull Subject subject, @Nonnull Quest quest) {
+        return firstFailure(subject, quest.visibility().showWhen()) == null;
+    }
+
+    /**
      * Both accept-time questions off ONE reading of the block. The two questions this gate is asked
      * on accept - is the player past what the quest asks for first, and does the gate let them take
      * it - are the same requirement block read the same way, so reading it twice would cost a second

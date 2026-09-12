@@ -99,6 +99,48 @@ public final class FeatureFlags {
     }
 
     /**
+     * Every namespace that has declared at least one feature, sorted - the set whose factor ids a
+     * content fold treats as hide conditions rather than lock conditions. A namespace nothing has
+     * declared is not here, and a condition on its factor stays an ordinary (fail-closed) gate.
+     */
+    @Nonnull
+    public static List<String> namespaces() {
+        return List.copyOf(new TreeSet<>(FEATURES.keySet()));
+    }
+
+    /** The factor id {@code namespace}'s features are read through: {@code <namespace>:feature}. */
+    @Nonnull
+    public static String factorId(@Nonnull String namespace) {
+        String ns = normalizeNamespace(namespace);
+        return (ns == null ? namespace.trim() : ns) + FACTOR_SUFFIX;
+    }
+
+    /**
+     * The namespace whose feature factor {@code factorId} is, or null when it is not the feature
+     * factor of a namespace that has declared features: another factor id altogether, a feature
+     * factor nothing has declared yet, or nothing at all. Matched without regard to case, the way
+     * the factor registry matches an id.
+     */
+    @Nullable
+    public static String namespaceOf(@Nullable String factorId) {
+        if (factorId == null) {
+            return null;
+        }
+        String id = factorId.trim();
+        int suffix = id.length() - FACTOR_SUFFIX.length();
+        if (suffix <= 0 || !id.regionMatches(true, suffix, FACTOR_SUFFIX, 0, FACTOR_SUFFIX.length())) {
+            return null;
+        }
+        String ns = normalizeNamespace(id.substring(0, suffix));
+        return ns != null && FEATURES.containsKey(ns) ? ns : null;
+    }
+
+    /** Is {@code factorId} the feature factor of a namespace that has declared features? */
+    public static boolean isFeatureFactor(@Nullable String factorId) {
+        return namespaceOf(factorId) != null;
+    }
+
+    /**
      * The factor reading for one namespace: {@code 1}/{@code 0} for a declared feature, a definite
      * {@code 0} for an undeclared one, {@code null} for a blank param. Public so a declaring mod's
      * own availability checks can share the exact reading its gates get.

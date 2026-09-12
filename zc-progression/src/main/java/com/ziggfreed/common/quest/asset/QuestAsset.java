@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -30,9 +31,12 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.NestedAssetId;
 import com.ziggfreed.common.codec.InheritMapCodec;
+import com.ziggfreed.common.progress.MatchMode;
+import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
+import com.ziggfreed.common.progress.gate.FeatureLift;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestTurnInSite;
@@ -84,6 +88,20 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
      * turned out to be. It starts with {@code @} so it can never collide with a character id.
      */
     public static final String ACCEPT_SITE_SENTINEL = "@accept";
+
+    /**
+     * The id of the report-back step a quest-level {@code Npc.TurnInId} adds when no authored step
+     * is a hand-in (see {@link #toDefinition}). A player's saved progress files that step under
+     * this id, so it never changes.
+     */
+    public static final String REPORT_BACK_ID = "turn_in";
+
+    /**
+     * The text key the report-back step carries when the hand-in place is NOT the giver, so its
+     * line reads "go to" rather than "return to". A hand-in at the giver carries no key: the
+     * convention sentence for a targetless hand-in is the "return to" wording already.
+     */
+    public static final String REPORT_BACK_FIND_KEY = "objective.text.turn_in.find";
 
     private String id;
     private AssetExtraInfo.Data data;
@@ -143,9 +161,9 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .appendInherited(new KeyedCodec<>("Listing", Listing.CODEC, false),
                     (a, v) -> a.listing = v, a -> a.listing, (a, p) -> a.listing = p.listing)
             .documentation("How the quest is grouped, ordered and illustrated wherever quests are listed, "
-                    + "and who may SEE it before taking it (Hidden, RequirePrerequisites). A quest already in "
-                    + "progress ignores both visibility knobs, because a player must always see what they are "
-                    + "in the middle of.")
+                    + "and who may SEE it before taking it (Hidden, RequirePrerequisites, ShowWhen). A quest "
+                    + "already in progress ignores all three visibility knobs, because a player must always "
+                    + "see what they are in the middle of.")
             .add()
             .appendInherited(new KeyedCodec<>("Flow", Flow.CODEC, false),
                     (a, v) -> a.flow = v, a -> a.flow, (a, p) -> a.flow = p.flow)
@@ -184,7 +202,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
             .documentation("What a player must already have or have done. An unauthored block asks for nothing; "
-                    + "a requirement nothing can answer keeps the quest locked.")
+                    + "a requirement nothing can answer keeps the quest locked. A plain top-level condition on "
+                    + "a mod's feature switch (<namespace>:feature) or on hytale:mod_installed is read as "
+                    + "whether the quest EXISTS on this server rather than as a lock: where it reads off the "
+                    + "quest vanishes from every listing instead of showing locked.")
             .add()
             .appendInherited(new KeyedCodec<>("Objectives",
                             new InheritMapCodec<>(QuestObjectiveAsset.CODEC), false),
@@ -251,6 +272,16 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable
     public String getSourcePath() {
         return sourcePath;
+    }
+
+    /**
+     * Remember where a file the engine did NOT load was read from - an owner folder entry - so a
+     * finding names it exactly as it names a loaded file. The store's own path arrives through the
+     * codec's extra info instead, and carries the marked-folder fold with it; an owner file has no
+     * marked folders, so it takes the path alone.
+     */
+    void readFrom(@Nonnull Path path) {
+        this.sourcePath = path.toString();
     }
 
     /** In circulation? Unauthored means true. */
@@ -384,6 +415,25 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
      * Fold this asset into the runtime {@link QuestDefinition}: the engine's {@link Quest} plus the
      * presentation and gate data the engine deliberately does not model.
      *
+     * <p><b>The hide axis is folded here.</b> A plain top-level feature or mod-presence condition
+     * in {@code Requires} is lifted out by {@link FeatureLift#liftKnown} (for every namespace that
+     * has declared features, plus {@code hytale:mod_installed}), the rest of the block is what
+     * {@link QuestDefinition#requires()} carries, and {@link Quest#available()} answers
+     * {@code Enabled} AND every lifted condition LIVE on each read, so a feature toggled while the
+     * server is up moves the quest on the next look with no republish. Fold after every mod has
+     * declared its features; a namespace declared later is not lifted until the next publish.
+     *
+     * <p>A step whose kind is a registered alias is built on the pair the alias runs as; see
+     * {@code ObjectiveLeafAsset#toDefBuilder}.
+     *
+     * <p><b>The report-back step is added here.</b> A quest naming {@code Npc.TurnInId} and
+     * authoring no {@code TURN_IN} step of its own gets one appended after everything else, under
+     * {@link #REPORT_BACK_ID}: an empty target, an order one past the highest authored, locked to
+     * the resolved hand-in place, so "and then tell them you are done" never has to be written out.
+     * {@link #REPORT_BACK_FIND_KEY} rides it when that place is not the giver. An authored hand-in
+     * leaves the quest exactly as written. A generated quest and a {@code Parent} child get the step
+     * by construction, since both fold through here.
+     *
      * @param generatedBy the generator that produced this quest, or null when it was authored by hand
      */
     @Nonnull
@@ -392,30 +442,52 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         String giverId = npc == null ? null : npc.getViewId();
         String questTurnIn = npc == null ? null : npc.effectiveTurnInId(giverId);
 
+        FeatureLift.Result lift = FeatureLift.liftKnown(requires);
+        List<FeatureLift.Lifted> lifted = lift.lifted();
+        GateSpec remaining = lifted.isEmpty() ? requires : lift.requires();
+        boolean enabled = isEnabled();
+
         Quest.Builder quest = Quest.builder(questId)
-                .available(isEnabled())
                 .sequential(flow != null && flow.isSequential())
                 .hideLockedSteps(flow != null && flow.isHideLockedSteps())
                 .autoAccept(flow != null && flow.isAutoAccept())
                 .autoTrack(flow != null && flow.isAutoTrack())
                 .repeat(repeat == null ? null : repeat.toRepeat())
                 .visibility(listing == null ? Quest.Visibility.OPEN
-                        : new Quest.Visibility(listing.isHidden(), listing.isRequirePrerequisites()))
+                        : new Quest.Visibility(listing.isHidden(), listing.isRequirePrerequisites(),
+                                listing.getShowWhen()))
                 .turnInAt(turnInSite(giverId))
                 .tags(listing == null ? List.of() : listing.tagList())
                 .indicator(indicator);
+        if (lifted.isEmpty()) {
+            quest.available(enabled);
+        } else {
+            BooleanSupplier live = () -> enabled && FeatureLift.allOn(lifted);
+            quest.available(live);
+        }
 
         Map<String, String> objectiveText = new LinkedHashMap<>();
+        boolean handInAuthored = false;
+        int lastOrder = 0;
         for (Map.Entry<String, QuestObjectiveAsset> entry : objectivesOrEmpty().entrySet()) {
             QuestObjectiveAsset authored = entry.getValue();
             if (authored == null) {
                 continue;
             }
-            quest.objective(authored.toDef(entry.getKey(), giverId, questTurnIn));
+            ObjectiveDef step = authored.toDef(entry.getKey(), giverId, questTurnIn);
+            quest.objective(step);
+            handInAuthored |= QuestObjectiveAsset.HAND_IN_KIND.equalsIgnoreCase(step.kind());
+            lastOrder = Math.max(lastOrder, step.order());
             if (authored.getTextKey() != null && !authored.getTextKey().isBlank()) {
                 objectiveText.put(entry.getKey(), authored.getTextKey());
             }
             quest.stepIndicator(entry.getKey(), authored.getIndicator());
+        }
+        if (questTurnIn != null && !handInAuthored) {
+            quest.objective(reportBackStep(questTurnIn, lastOrder + 1));
+            if (!questTurnIn.equalsIgnoreCase(giverId)) {
+                objectiveText.put(REPORT_BACK_ID, REPORT_BACK_FIND_KEY);
+            }
         }
 
         ContentRewardsAsset pay = rewards;
@@ -430,24 +502,58 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 text == null ? null : text.getDisplayName(),
                 text == null ? List.of() : text.titleArgs(),
                 text == null ? List.of() : text.flavorArgs(),
+                text == null ? Map.of() : text.loreMap(),
                 listing == null ? null : listing.getCategory(),
                 listing == null ? 0 : listing.sortOrderOrZero(),
                 listing == null ? List.of() : listing.chainList(),
                 listing == null ? null : listing.getIcon(),
                 giverId, questTurnIn, getCompletionDialogue(),
-                requires == null ? GateSpec.OPEN : requires,
+                remaining == null ? GateSpec.OPEN : remaining,
+                lifted,
                 objectiveText,
                 repeat == null ? List.of() : repeat.resetsOnCompleteList(),
                 generatedBy, metaOrEmpty());
     }
 
+    /**
+     * The report-back step {@link #toDefinition} appends: a hand-in of nothing (the target is
+     * empty, so it completes on the interaction itself), locked to {@code handInId}, running once
+     * every authored step is done.
+     */
+    @Nonnull
+    private static ObjectiveDef reportBackStep(@Nonnull String handInId, int order) {
+        return ObjectiveDef.builder(REPORT_BACK_ID, QuestObjectiveAsset.HAND_IN_KIND)
+                .target("")
+                .matchMode(MatchMode.EXACT)
+                .order(order)
+                .turnInLockId(handInId)
+                .build();
+    }
+
     // ==================== Listing ====================
 
-    /** How the quest is grouped and ordered wherever quests are listed. */
+    /**
+     * How the quest is grouped and ordered wherever quests are listed, and the three independent
+     * visibility knobs: the shared {@code Hidden} and {@code RequirePrerequisites} booleans, plus a
+     * quest's own {@code ShowWhen} block.
+     */
     public static final class Listing extends ContentListingAsset {
 
+        @Nullable protected GateSpec showWhen;
+
         public static final BuilderCodec<Listing> CODEC =
-                appendLeaves(BuilderCodec.builder(Listing.class, Listing::new)).build();
+                appendLeaves(BuilderCodec.builder(Listing.class, Listing::new))
+                        .appendInherited(new KeyedCodec<>("ShowWhen", GateSpec.CODEC, false),
+                                (o, v) -> o.showWhen = v, o -> o.showWhen, (o, p) -> o.showWhen = p.showWhen)
+                        .documentation("Keep the quest out of sight until this block passes, in the same shape as "
+                                + "Requires and read through the same vocabulary, independently of Requires: "
+                                + "a quest can hide until a rank is reached and still list locked behind what "
+                                + "Requires asks, or hide behind a permission Requires never mentions. A player "
+                                + "already holding the quest always sees it. Taking the quest is decided by "
+                                + "Requires alone; this block is never consulted on accept. Unauthored means "
+                                + "nothing holds it back beyond Hidden and RequirePrerequisites.")
+                        .add()
+                        .build();
 
         public Listing() {
         }
@@ -459,6 +565,12 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             l.sortOrder = sortOrder;
             l.tags = tags == null ? null : tags.clone();
             return l;
+        }
+
+        /** The block the quest is shown only after, or null when nothing holds it back. */
+        @Nullable
+        public GateSpec getShowWhen() {
+            return showWhen;
         }
     }
 
@@ -965,8 +1077,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .appendInherited(new KeyedCodec<>("TurnInId", Codec.STRING, false),
                         (o, v) -> o.turnInId = v, o -> o.turnInId, (o, p) -> o.turnInId = p.turnInId)
                 .documentation("Where the quest is handed in. The literal 'giver' means ViewId, so moving a quest "
-                        + "giver needs one edit rather than two. Unauthored means any hand-in surface will do, and "
-                        + "an objective may still name its own.").add()
+                        + "giver needs one edit rather than two. When no objective is a TURN_IN step, naming a "
+                        + "place here adds the report-back step for you: a hand-in of nothing under the id "
+                        + "'turn_in', listed after every authored step and locked to this place. Unauthored means "
+                        + "any hand-in surface will do, and an objective may still name its own.").add()
                 .build();
 
         public Npc() {

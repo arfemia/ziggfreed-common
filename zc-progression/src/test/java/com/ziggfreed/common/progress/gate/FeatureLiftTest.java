@@ -13,14 +13,16 @@ import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.factor.FeatureFlags;
 import com.ziggfreed.common.factor.ModFactors;
 
 /**
- * {@link FeatureLift} lifts exactly two factor ids off the top level of a {@code Requires} block:
- * the caller's own feature factor ({@code <namespace>:feature}) and
- * {@link ModFactors#MOD_INSTALLED} (a companion mod's mere presence). Both land in
- * {@link FeatureLift.Result#features} for the caller's hide axis, so this suite pins the lift
- * itself: which conditions move, which stay, and how the {@code Param} case is handled on the way.
+ * {@link FeatureLift} lifts the plain top-level feature and mod-presence conditions off a
+ * {@code Requires} block: the caller's own feature factor ({@code <namespace>:feature}) through
+ * {@code lift}, every declared namespace's through {@code liftKnown}, and
+ * {@link ModFactors#MOD_INSTALLED} (a companion mod's mere presence) either way. Both land in
+ * {@link FeatureLift.Result#lifted} for the hide axis, so this suite pins the lift itself: which
+ * conditions move, which stay, and how the {@code Param} case is handled on the way.
  */
 class FeatureLiftTest {
 
@@ -168,6 +170,68 @@ class FeatureLiftTest {
         assertTrue(result.features().isEmpty(),
                 "a route inside AnyOf is a genuine either-or, not a hide condition");
         assertNotNull(result.requires());
+    }
+
+    // ==================== the lifted entry ====================
+
+    @Test
+    void theLiftedEntryKeepsTheParamAsAuthoredAndSpellsTheFlatIdTheWayTheTableIsRead() {
+        GateSpec requires = requiresOf(
+                FactorCondition.of(FEATURE_FACTOR, " Mastery ", null, null),
+                FactorCondition.of(ModFactors.MOD_INSTALLED, "Ziggfreed:RpgStations", null, null));
+
+        FeatureLift.Result result = FeatureLift.lift(requires, FEATURE_FACTOR, "test_quest", NO_WARN);
+
+        assertEquals(2, result.lifted().size());
+        FeatureLift.Lifted feature = result.lifted().get(0);
+        assertEquals(FEATURE_FACTOR, feature.factorId());
+        assertEquals("Mastery", feature.param(), "trimmed, case kept on the entry");
+        assertEquals("mastery", feature.featureId(), "lower-cased on the flat list");
+        assertTrue(!feature.isModPresence());
+        FeatureLift.Lifted mod = result.lifted().get(1);
+        assertTrue(mod.isModPresence());
+        assertEquals("Ziggfreed:RpgStations", mod.featureId());
+        assertEquals(List.of("mastery", "Ziggfreed:RpgStations"), result.features());
+        assertTrue(FeatureLift.allOn(List.of()), "nothing lifted holds trivially");
+    }
+
+    // ==================== liftKnown: every declared namespace ====================
+
+    @Test
+    void liftKnownLiftsEveryDeclaredNamespacesFeatureFactorAndLeavesAnUndeclaredOneInTheGate() {
+        FeatureFlags.register("liftknown_a", "trading", "yourmod", () -> true);
+        FeatureFlags.register("liftknown_b", "fishing", "othermod", () -> false);
+        try {
+            GateSpec requires = requiresOf(
+                    FactorCondition.of("liftknown_a:feature", "trading", 1.0, null),
+                    FactorCondition.of("liftknown_b:feature", "fishing", null, null),
+                    FactorCondition.of("nobody_declared_lift:feature", "x", 1.0, null),
+                    FactorCondition.of(ModFactors.MOD_INSTALLED, "Some:Mod", 1.0, null),
+                    FactorCondition.of("hytale:stat", "channel", 30.0, null));
+
+            FeatureLift.Result result = FeatureLift.liftKnown(requires);
+
+            assertEquals(List.of("trading", "fishing", "Some:Mod"), result.features(),
+                    "both declared namespaces and the mod presence lift, in authored order");
+            GateSpec remaining = result.requires();
+            assertNotNull(remaining);
+            assertEquals(2, remaining.factorsOrEmpty().length);
+            assertEquals("nobody_declared_lift:feature", remaining.factorsOrEmpty()[0].getFactor(),
+                    "an undeclared namespace may not be installed yet, so it stays a fail-closed lock");
+            assertEquals("hytale:stat", remaining.factorsOrEmpty()[1].getFactor());
+
+            assertTrue(result.lifted().get(0).isOn(), "read live through the declaring mod's supplier");
+            assertTrue(!result.lifted().get(1).isOn());
+            assertTrue(!FeatureLift.allOn(result.lifted()), "one off is off");
+        } finally {
+            FeatureFlags.reset();
+        }
+    }
+
+    @Test
+    void liftKnownOnAnEmptyOrAbsentBlockIsTheOpenResult() {
+        assertEquals(FeatureLift.Result.OPEN, FeatureLift.liftKnown(null));
+        assertEquals(FeatureLift.Result.OPEN, FeatureLift.liftKnown(new GateSpec()));
     }
 
     // ==================== fixtures ====================

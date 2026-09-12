@@ -17,6 +17,7 @@ import com.ziggfreed.common.quest.QuestI18n;
 import com.ziggfreed.common.quest.QuestInventoryConsumer;
 import com.ziggfreed.common.quest.QuestPossessionProbe;
 import com.ziggfreed.common.quest.QuestProgressStore;
+import com.ziggfreed.common.quest.asset.QuestValueEnumerator;
 import com.ziggfreed.common.subject.Subject;
 
 /**
@@ -49,7 +50,8 @@ import com.ziggfreed.common.subject.Subject;
  * gate kinds are already open registries with their own owner attribution and overwrite policy, and
  * the runtime hands the live ones out ({@link ProgressionRuntime#objectiveKinds()} and friends). A
  * consumer registers into those directly; there is no slot to conflict over, which is the whole
- * point of a registry.
+ * point of a registry. The one vocabulary that IS here, {@link #questAxis}, is here only because an
+ * axis carries its owner's name into the ledger, which is what this registrar exists to attribute.
  */
 public final class ProgressionRegistrar {
 
@@ -308,6 +310,20 @@ public final class ProgressionRegistrar {
     @Nonnull
     public ProgressionRegistrar textSource(@Nonnull ProgressionTextSource source) {
         ProgressionRuntime.addTextSource(this, source);
+        return this;
+    }
+
+    /**
+     * Add one of this mod's LISTS a generated family may fan out over, under {@code sourceId}
+     * ({@code "yourmod:ores"}), into the ONE axis vocabulary the shared quest publish resolves with
+     * ({@link ProgressionRuntime#questAxes()}). Idempotent per id, last write wins, attributed to
+     * this registrar's owner. Usable at setup, before the runtime is built: the vocabulary is read
+     * at every fold rather than sealed at build, so a list registered late reaches the next
+     * publish.
+     */
+    @Nonnull
+    public ProgressionRegistrar questAxis(@Nonnull String sourceId, @Nonnull QuestValueEnumerator enumerator) {
+        ProgressionRuntime.questAxes().register(sourceId, owner, enumerator);
         return this;
     }
 

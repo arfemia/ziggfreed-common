@@ -169,15 +169,36 @@ public final class Quest {
     }
 
     /**
-     * Who gets to SEE a quest before accepting it. {@code hidden} keeps it off open listings
-     * entirely (it is offered some other way); {@code requirePrerequisites} asks the consumer's
-     * {@link QuestGates} whether the player has earned the sight of it. An already-started quest
-     * ignores both - a player must always be able to see what they are in the middle of.
+     * Who gets to SEE a quest before accepting it, as three INDEPENDENT knobs. {@code hidden} keeps
+     * it off open listings entirely (it is offered some other way); {@code requirePrerequisites}
+     * asks the consumer's {@link QuestGates} whether the player is past the ACCEPT gate before
+     * showing it; {@code showWhen} is a requirement block of its own that has to pass before the
+     * quest is shown anywhere, evaluated through the same gate but never consulted on accept - so a
+     * quest can hide until a rank is reached and still list locked, or hide behind a permission
+     * that the accept gate never mentions. An already-started quest ignores all three - a player
+     * must always be able to see what they are in the middle of.
+     *
+     * @param showWhen the block the quest is shown only after, or null when nothing holds it back;
+     *                 an empty block reads as null
      */
-    public record Visibility(boolean hidden, boolean requirePrerequisites) {
+    public record Visibility(boolean hidden, boolean requirePrerequisites, @Nullable GateSpec showWhen) {
 
         /** Listed to everybody. */
-        public static final Visibility OPEN = new Visibility(false, false);
+        public static final Visibility OPEN = new Visibility(false, false, null);
+
+        public Visibility {
+            showWhen = showWhen == null || showWhen.isEmpty() ? null : showWhen;
+        }
+
+        /** The two-knob form: nothing holds the quest back beyond the accept gate. */
+        public Visibility(boolean hidden, boolean requirePrerequisites) {
+            this(hidden, requirePrerequisites, null);
+        }
+
+        /** Does a block of its own have to pass before this quest is shown? */
+        public boolean hasShowWhen() {
+            return showWhen != null;
+        }
     }
 
     private final String id;

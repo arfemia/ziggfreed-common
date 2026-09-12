@@ -99,7 +99,7 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
   [`zc-cast`'s `cast/`](../zc-cast/src/main/java/com/ziggfreed/common/cast/CLAUDE.md); this is the
   other half of that split package, kept here because three modules need only this one class and
   not the other 37 in the runtime. No router of its own (one file).
-- `text/` - `ContentTextAsset` only, the `TitleKey`/`FlavorKey`/`DisplayName` authoring group named
+- `text/` - `ContentTextAsset` only, the `TitleKey`/`FlavorKey`/`DisplayName`/`TextArgs`/`Lore` authoring group (`Lore` is `{Incomplete, Active, Complete}`, one plain fallback paragraph per lifecycle state on the `DisplayName` contract, outranked by the `quest.<id>.md.<state>` key; the quest fold carries it, achievements decode it and no achievement surface reads it yet) named
   by this module's own `factor/DerivedFactorAsset` plus zc-commerce and zc-progression's content
   codecs. Not a split package: the whole class lives here, reached by every consumer above through
   the ordinary module edge. No router of its own (one file).

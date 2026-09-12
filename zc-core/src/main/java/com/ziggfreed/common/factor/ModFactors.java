@@ -125,7 +125,19 @@ public final class ModFactors {
      */
     @Nullable
     static Double resolveModInstalled(@Nonnull FactorContext ctx) {
-        ModRef mod = parseModRef(ctx.param());
+        return installed(ctx.param());
+    }
+
+    /**
+     * The {@link #MOD_INSTALLED} reading for one authored {@code Param}, with no factor context in
+     * hand: exactly the truth table in the class javadoc, for a caller (a content fold's own
+     * availability check, say) that answers the same question a gate would without building a
+     * condition to ask it through. Both answer identically by construction, since the factor
+     * provider is this method.
+     */
+    @Nullable
+    public static Double installed(@Nullable String param) {
+        ModRef mod = parseModRef(param);
         if (mod == null) {
             return null;
         }

@@ -75,6 +75,7 @@ import com.ziggfreed.common.entity.overhead.OverheadIndicatorConfig;
 import com.ziggfreed.common.objectives.indicator.QuestIndicatorAsset;
 import com.ziggfreed.common.objectives.indicator.QuestIndicatorConfig;
 import com.ziggfreed.common.objectives.indicator.QuestIndicatorOwnerLayers;
+import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.progress.asset.ObjectiveKindAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveKindConfig;
 import com.ziggfreed.common.progress.asset.ObjectiveKindFold;
@@ -437,35 +438,50 @@ public final class FrameworkAssetRegistrar {
 
         // --- Quests (Pattern A) - one authored quest per file, with native Parent inheritance and a
         //     per-objective-id merge, so a child quest retunes one step and keeps its siblings.
-        //     Common ships no quest CONTENT; every entry is consumer pack JSON, and each consumer
-        //     folds the whole store into its own engine via QuestAssetStore.resolveAll(...). ---
+        //     Common ships no quest CONTENT; every entry is consumer pack JSON. The shared publish
+        //     (ProgressionDefaults.publishAssetContent) folds the whole store into the one runtime,
+        //     and a hot re-import asks it to run again once this boot has published, so a pack
+        //     dropped in while the server is up reaches the engine with no consumer listener. Owner
+        //     layer mods/ziggfreedcommon/quests/<Id>.json, ONE quest per file in this same shape
+        //     (QuestOwnerLayers): a same-id file merges over the shipped quest leaf by leaf, a new
+        //     id stands alone; the fold itself re-reads the folder, so this same republish, the
+        //     boot publish and /zigprogress reload all pick it up with no listener of its own. ---
         AssetStoreRegistrar.registerStore(QuestAsset.class,
                 new DefaultAssetMap<String, QuestAsset>(), "ZiggfreedCommon/Quests",
                 QuestAsset::getId, QuestAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, QuestAsset.class,
-                (LoadedAssetsEvent<String, QuestAsset, DefaultAssetMap<String, QuestAsset>> ev) ->
-                        QuestAssetStore.getInstance().mergeQuests(AssetMergeAdapter.layer(ev.getAssetMap())));
+                (LoadedAssetsEvent<String, QuestAsset, DefaultAssetMap<String, QuestAsset>> ev) -> {
+                    QuestAssetStore.getInstance().mergeQuests(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    ProgressionDefaults.republishAssetContent();
+                });
 
         // --- Quest generators (Pattern A) - "the same quest, once per ore" as one file. They are
         //     loaded AFTER the quests they inherit from, because expansion resolves each generated
-        //     child against its Base out of the quest store. ---
+        //     child against its Base out of the quest store. The republish after them is the one
+        //     that sees everything on a re-import; the one after the quests costs an idempotent
+        //     fold. ---
         AssetStoreRegistrar.registerStore(QuestGeneratorAsset.class,
                 new DefaultAssetMap<String, QuestGeneratorAsset>(), "ZiggfreedCommon/QuestGenerators",
                 QuestGeneratorAsset::getId, QuestGeneratorAsset.CODEC, new Class<?>[]{QuestAsset.class});
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, QuestGeneratorAsset.class,
-                (LoadedAssetsEvent<String, QuestGeneratorAsset, DefaultAssetMap<String, QuestGeneratorAsset>> ev) ->
-                        QuestAssetStore.getInstance().mergeGenerators(AssetMergeAdapter.layer(ev.getAssetMap())));
+                (LoadedAssetsEvent<String, QuestGeneratorAsset, DefaultAssetMap<String, QuestGeneratorAsset>> ev) -> {
+                    QuestAssetStore.getInstance().mergeGenerators(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    ProgressionDefaults.republishAssetContent();
+                });
 
         // --- Achievements (Pattern A) - one authored achievement per file, with native Parent
-        //     inheritance. Common ships no achievement CONTENT; every entry is consumer pack JSON,
-        //     and every consumer folds the whole store into its own engine via
-        //     AchievementAssetStore.resolveAll(). ---
+        //     inheritance. Common ships no achievement CONTENT; every entry is consumer pack JSON.
+        //     The same shared publish folds this store beside the quests, and a hot re-import asks
+        //     it to run again on the same terms, so an achievement file dropped in while the
+        //     server is up reaches the engine too. ---
         AssetStoreRegistrar.registerStore(AchievementAsset.class,
                 new DefaultAssetMap<String, AchievementAsset>(), "ZiggfreedCommon/Achievements",
                 AchievementAsset::getId, AchievementAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, AchievementAsset.class,
-                (LoadedAssetsEvent<String, AchievementAsset, DefaultAssetMap<String, AchievementAsset>> ev) ->
-                        AchievementAssetStore.getInstance().merge(AssetMergeAdapter.layer(ev.getAssetMap())));
+                (LoadedAssetsEvent<String, AchievementAsset, DefaultAssetMap<String, AchievementAsset>> ev) -> {
+                    AchievementAssetStore.getInstance().merge(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    ProgressionDefaults.republishAssetContent();
+                });
 
         // --- Achievement categories (Pattern A) - the presentation half of the shared
         //     Listing.Category leaf: where a grouping label sits, what illustrates it, what it is
@@ -481,14 +497,17 @@ public final class FrameworkAssetRegistrar {
 
         // --- Achievement milestones (Pattern A) - the points ladder: a reward for reaching a
         //     running TOTAL rather than for any one achievement. The Threshold inside a file is its
-        //     identity, so two files naming one number are one rung whatever they are called. ---
+        //     identity, so two files naming one number are one rung whatever they are called. The
+        //     ladder is published by the same shared publish, so a re-import republishes it too. ---
         AssetStoreRegistrar.registerStore(AchievementMilestoneAsset.class,
                 new DefaultAssetMap<String, AchievementMilestoneAsset>(), AchievementMilestoneAsset.TYPE_ROOT,
                 AchievementMilestoneAsset::getId, AchievementMilestoneAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, AchievementMilestoneAsset.class,
-                (LoadedAssetsEvent<String, AchievementMilestoneAsset, DefaultAssetMap<String, AchievementMilestoneAsset>> ev) ->
-                        AchievementMilestoneConfig.getInstance().mergePackLayer(
-                                AssetMergeAdapter.layer(ev.getAssetMap())));
+                (LoadedAssetsEvent<String, AchievementMilestoneAsset, DefaultAssetMap<String, AchievementMilestoneAsset>> ev) -> {
+                    AchievementMilestoneConfig.getInstance().mergePackLayer(
+                            AssetMergeAdapter.layer(ev.getAssetMap()));
+                    ProgressionDefaults.republishAssetContent();
+                });
 
         // --- Currencies (Pattern A) - one wallet per file: what backs it, what it is worth at most,
         //     and how it wears away. The merge also re-reads the server owner's own
@@ -612,7 +631,7 @@ public final class FrameworkAssetRegistrar {
                     "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
                             + "Lootables, RollPools, StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
-                            + "Quests, QuestGenerators, Achievements, AchievementCategories, "
+                            + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "
                             + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation).");
         } catch (Throwable ignored) {

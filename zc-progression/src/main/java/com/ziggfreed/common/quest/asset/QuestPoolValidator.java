@@ -11,6 +11,7 @@ import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
+import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.GateValidator;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
@@ -117,6 +118,7 @@ public final class QuestPoolValidator {
             validateObjectives(definition, objectiveKinds, store, out);
             validateRewards(definition, rewardKinds, out);
             validateRequires(definition, pool, gateKinds, out);
+            validateShowWhen(definition, pool, gateKinds, out);
             validateTurnInAt(definition, npcIds, out);
 
             out.addAll(ContentListingAsset.chainFindings(definition.chains(), DOMAIN, id));
@@ -344,5 +346,24 @@ public final class QuestPoolValidator {
             @Nullable GateKindRegistry gateKinds, @Nonnull List<Finding> out) {
         out.addAll(GateValidator.validate(definition.requires(), DOMAIN, definition.id(), NOUN,
                 gateKinds, null, prerequisite -> pool.definition(prerequisite) != null));
+    }
+
+    /**
+     * The {@code Listing.ShowWhen} block, through the SAME gate audit as {@code Requires} - it is
+     * the same shape read by the same evaluator - with each finding's code prefixed
+     * {@code SHOW_WHEN_} and its message saying which block, so an author told about an unknown
+     * prerequisite looks in the block that names it.
+     */
+    private static void validateShowWhen(@Nonnull QuestDefinition definition, @Nonnull QuestPool pool,
+            @Nullable GateKindRegistry gateKinds, @Nonnull List<Finding> out) {
+        GateSpec showWhen = definition.quest().visibility().showWhen();
+        if (showWhen == null) {
+            return;
+        }
+        for (Finding finding : GateValidator.validate(showWhen, DOMAIN, definition.id(), NOUN,
+                gateKinds, null, prerequisite -> pool.definition(prerequisite) != null)) {
+            out.add(new Finding(finding.severity(), "SHOW_WHEN_" + finding.code(),
+                    "in Listing.ShowWhen: " + finding.message(), finding.sourceId(), finding.domain()));
+        }
     }
 }

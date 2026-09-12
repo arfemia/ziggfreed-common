@@ -43,6 +43,11 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>A step nothing can picture answers null and renders as its text alone, which is always better
  * than borrowing an unrelated thing's picture.
+ *
+ * <p><b>Read off the AUTHORED pair</b> ({@link ObjectiveDef#authoredKind()} /
+ * {@link ObjectiveDef#authoredTarget()}), the same pair the sentence is composed from: a step whose
+ * kind is an alias for another is pictured as what the file wrote about, never as the channel it
+ * is measured on.
  */
 public final class ProgressionIcons {
 
@@ -62,11 +67,11 @@ public final class ProgressionIcons {
             return fromSource;
         }
 
-        ObjectiveKind kind = ProgressionRuntime.objectiveKinds().kind(objective.kind());
+        ObjectiveKind kind = ProgressionRuntime.objectiveKinds().kind(objective.authoredKind());
         if (kind == null) {
             return null;
         }
-        String target = objective.target();
+        String target = objective.authoredTarget();
 
         if (target != null && !target.isBlank()) {
             IconSpec authored = kind.presentation().iconForTarget(target.trim());

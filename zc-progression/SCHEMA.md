@@ -33,13 +33,13 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Enabled` | `boolean` | `null` | Whether the quest is in circulation; unauthored means true. Setting false stops it being offered while leaving a player who already holds it able to finish. |
 | `Abstract` | `boolean` | `null` | Mark a file that exists only to be inherited from. It stays available as a Parent target and is never offered to anybody, so a shared skeleton needs no objectives of its own. It never carries down to a child: inheriting from a skeleton makes a real quest. |
 | `Text` | [ContentText](#type-contenttext) | `null` | What the player reads, as localization keys. |
-| `Listing` | [Listing](#field-questasset-listing) | `null` | How the quest is grouped, ordered and illustrated wherever quests are listed, and who may SEE it before taking it (Hidden, RequirePrerequisites). A quest already in progress ignores both visibility knobs, because a player must always see what they are in the middle of. |
+| `Listing` | [Listing](#field-questasset-listing) | `null` | How the quest is grouped, ordered and illustrated wherever quests are listed, and who may SEE it before taking it (Hidden, RequirePrerequisites, ShowWhen). A quest already in progress ignores all three visibility knobs, because a player must always see what they are in the middle of. |
 | `Flow` | [Flow](#field-questasset-flow) | `null` | How much the player has to do by hand: take it, track it, and whether the steps run in order. Whether the reward is collected by hand is not a switch here; it follows from which Rewards bucket the payout is authored in. |
 | `Repeat` | [Repeat](#field-questasset-repeat) | `null` | Whether the quest comes back around, how long the wait is, and what else it resets. |
 | `Npc` | [Npc](#field-questasset-npc) | `null` | Who offers the quest and where it is handed in. |
 | `TurnInAt` | `booleanOrString` | `null` | Where the finished quest may be collected. Leave it out and it may be collected anywhere the game offers - a quest log, a book, a menu - which is what most quests want. Write true (or the word 'giver') to send the player back to whoever offers it, an npc id to send them to that character instead (who may be somebody they have never met, and need not be the giver), or '@accept' to send them back to whatever place they took it from, which is the one to reach for when the same quest is handed out at many identical fixtures. Author an empty string or false to collect anywhere again after a Parent set one. This is about collecting the REWARD; a single delivery step names its own place with Objectives.TurnInNpcId. |
 | `CompletionDialogue` | `string` | `null` | The conversation that follows this quest settling at a character, by dialogue id. Leave it out and finishing simply pays out. It only ever plays where there is somebody to play it: a quest log or a book has nobody in front of the player, so the beat is skipped there. Author an empty string to drop a conversation inherited from a Parent. |
-| `Requires` | [Requires](#type-requires) | `null` | What a player must already have or have done. An unauthored block asks for nothing; a requirement nothing can answer keeps the quest locked. |
+| `Requires` | [Requires](#type-requires) | `null` | What a player must already have or have done. An unauthored block asks for nothing; a requirement nothing can answer keeps the quest locked. A plain top-level condition on a mod's feature switch (<namespace>:feature) or on hytale:mod_installed is read as whether the quest EXISTS on this server rather than as a lock: where it reads off the quest vanishes from every listing instead of showing locked. |
 | `Objectives` | map of [QuestObjective](#type-questobjective) | `null` | The steps, keyed by objective id. The key is also what progress is stored under, so renaming one starts that step over. A child quest may retune one step by id and keeps every step it did not mention. |
 | `Rewards` | [ContentRewardsAsset](#field-questasset-rewards) | `null` | What the player gets, split by the two moments a payout can land in. Anything in Claim waits to be collected, and having any is what makes the finished quest wait; a quest paying only Auto settles on the spot, its reward landing the instant the steps are done. |
 | `Indicator` | [QuestIndicatorSpec](#field-questasset-indicator) | `null` | Whether this quest's situations at a character show over that character's head or on the map, and which state each shows, narrowing the server's global default per leaf. Leave it out to take the default whole. A step may narrow it further for the situation it raises. |
@@ -57,6 +57,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Icon` | `string` | `null` | An item id to illustrate it with. Unauthored leaves the choice to whatever renders it. |
 | `Hidden` | `boolean` | `null` | Keep it off open listings, for content reached some other way (a chain step, an event, a surprise). It still progresses; only the listing is affected, and anything a player already holds or has earned always shows. |
 | `RequirePrerequisites` | `boolean` | `null` | Hide it until its Requires block passes, instead of showing it locked. Unauthored means shown locked, which is usually kinder: a player can see what to work towards. |
+| `ShowWhen` | [Requires](#type-requires) | `null` | Keep the quest out of sight until this block passes, in the same shape as Requires and read through the same vocabulary, independently of Requires: a quest can hide until a rank is reached and still list locked behind what Requires asks, or hide behind a permission Requires never mentions. A player already holding the quest always sees it. Taking the quest is decided by Requires alone; this block is never consulted on accept. Unauthored means nothing holds it back beyond Hidden and RequirePrerequisites. |
 
 <a id="field-questasset-flow"></a>
 ### QuestAsset.Flow
@@ -85,7 +86,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `ViewId` | `string` | `null` | The id of whoever offers this quest, so a listing can show the right quests at the right character. |
-| `TurnInId` | `string` | `null` | Where the quest is handed in. The literal 'giver' means ViewId, so moving a quest giver needs one edit rather than two. Unauthored means any hand-in surface will do, and an objective may still name its own. |
+| `TurnInId` | `string` | `null` | Where the quest is handed in. The literal 'giver' means ViewId, so moving a quest giver needs one edit rather than two. When no objective is a TURN_IN step, naming a place here adds the report-back step for you: a hand-in of nothing under the id 'turn_in', listed after every authored step and locked to this place. Unauthored means any hand-in surface will do, and an objective may still name its own. |
 
 <a id="field-questasset-rewards"></a>
 ### QuestAsset.Rewards
@@ -470,6 +471,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `FlavorKey` | `string` | `null` | Localization key for the longer description. |
 | `DisplayName` | `string` | `null` | A plain fallback name for content whose key is not written yet. It reaches every player in the one language it is typed in, so author TitleKey for anything you ship. |
 | `TextArgs` | [TextArgs](#field-contenttext-textargs) | `null` | What fills the numbered slots of the keys above, so one written line can serve a whole ladder of content instead of one line per rung. |
+| `Lore` | [Lore](#field-contenttext-lore) | `null` | A plain paragraph per lifecycle state, shown under the title where a surface has room for one. Like DisplayName it reaches every player in the one language it is typed in, so ship the localized key instead: quest.<id>.md.incomplete, .active and .complete win over this group whenever they resolve. |
 
 <a id="field-contenttext-textargs"></a>
 ### ContentText.TextArgs
@@ -478,6 +480,15 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Title` | array of `string` | `null` | Fills {0}, {1}, ... of TitleKey, in order. Write @amount for the amount this content asks for, or any other text to use it exactly as typed. |
 | `Flavor` | array of `string` | `null` | The same, for FlavorKey. This is how one written line serves a whole ladder: the key reads 'Mine {0} ore' and each rung supplies its own number. |
+
+<a id="field-contenttext-lore"></a>
+### ContentText.Lore
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Incomplete` | `string` | `null` | The paragraph shown before the player has taken or earned it. A fallback for the quest.<id>.md.incomplete key. |
+| `Active` | `string` | `null` | The paragraph shown while the player is in the middle of it. A fallback for the quest.<id>.md.active key. |
+| `Complete` | `string` | `null` | The paragraph shown once the player has finished it. A fallback for the quest.<id>.md.complete key. |
 
 <a id="type-objectiveleaf"></a>
 ## ObjectiveLeaf

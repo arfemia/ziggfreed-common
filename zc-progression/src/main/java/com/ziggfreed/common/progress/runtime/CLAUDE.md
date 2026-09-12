@@ -20,7 +20,7 @@ match). They are the wrong tool for a mod that wants the server's progression.
 
 | file | what it is |
 |---|---|
-| `ProgressionRuntime` | the holder: registration entry points, the engine pair, content publishing, `ensureBuilt`, the boot diagnostic |
+| `ProgressionRuntime` | the holder: registration entry points, the engine pair, content publishing, `ensureBuilt`, the build hooks (`onBuilt(Runnable)`: run once inside the build after both engines exist and before the diagnostic, right away when already built, each guarded, cleared by `resetForTests`; the library's own content publish hangs there, so the catalogue is in the engines the instant they exist whoever asked for them), the boot diagnostic |
 | `ProgressionRegistrar` | what a consumer calls; fluent, idempotent, conflict-policed |
 | `ProgressionParts` | the resolved snapshot + the FORWARDERS the engines are built over + gate/tap composition |
 | `ContentLayers` | per-owner content layers and the merge, so a reload replaces one owner's layer |
@@ -35,7 +35,7 @@ match). They are the wrong tool for a mod that wants the server's progression.
 | `ProgressionTextSource` | how a surface with no catalogue NAMES a piece of content. Its `lore` DEFAULT is the shared `quest.<id>.md.<state>` convention, so the narrative rule is one rule rather than one per source |
 | `ProgressionTexts` | the ONE static walk over every registered text source, first non-null winning, each source guarded on its own - what a title, flavor line, step line or lore read is asked through on ANY shared surface (the book, the board page, the offer page, the tracked panel, a consumer's commands). `titleOrUntitled` / `objectiveOrUntitled` fall back to this module's own placeholder lines (`ziggfreedcommon.progress.untitled` / `.step.untitled`) for a slot that must show something. The naming ladder itself is `ContentText.title()`'s (keys, authored name, the first step's line, the explicit key as written), so no consumer keeps a ladder of its own beside this walk |
 | `ProgressionIconSource` | how a consumer PICTURES one of its own steps when it knows something the generic reading cannot recover (a hand-in with no target delivered to a character with a face, an id in a registry only that mod can draw). Several may register; walked in order, first non-null wins, each guarded, and answering null is how a source declines |
-| `ProgressionIcons` | what one step LOOKS like, asked the way `ProgressionTexts` asks what it is CALLED, so a step cannot be pictured one way on a giver's screen and another in the book. Four rungs: a registered source, then the picture the kind's own file gives that exact target, then the target drawn as itself (an item as its own picture, a creature as its portrait, another quest or achievement as its icon), then the kind's fallback. A step with no target goes straight to the fallback, and a step nothing can picture answers null and renders as text alone |
+| `ProgressionIcons` | what one step LOOKS like, asked the way `ProgressionTexts` asks what it is CALLED, so a step cannot be pictured one way on a giver's screen and another in the book. Read off the AUTHORED pair (`ObjectiveDef.authoredKind()` / `authoredTarget()`), like every sentence, so an aliased step is pictured as what the file wrote about. Four rungs: a registered source, then the picture the kind's own file gives that exact target, then the target drawn as itself (an item as its own picture, a creature as its portrait, another quest or achievement as its icon), then the kind's fallback. A step with no target goes straight to the fallback, and a step nothing can picture answers null and renders as text alone |
 | `ProgressionGates` | THE `GateEvaluator` and the ONE `RequiresGates` over it, built on first ask and holding no registration - the vocabulary, the context and the requirement kinds are read live off the runtime, so a surface asking during another mod's setup and one asking in play are on the same instance |
 | `ProgressionFactors` | the five `ziggfreedcommon:` READINGS of this runtime (`quest_known` among them: catalogue presence, a definite 0 for an unknown id, no player needed), claimed process-wide so any content can gate on finished progression with no Java |
 
@@ -74,7 +74,13 @@ match). They are the wrong tool for a mod that wants the server's progression.
 
 The three shared VOCABULARIES are not registrar methods - `objectiveKinds()`, `rewardKinds()` and
 `gateKinds()` hand out the live registries and a consumer registers into them. There is no slot to
-conflict over, which is what a registry is for.
+conflict over, which is what a registry is for. The fourth, `questAxes()` (the ONE
+`QuestEnumeratorRegistry` a generator's `Source` may name, the instance the shared quest publish
+resolves the store with and the one every other axis-walking store should be handed), IS reached
+through the registrar - `questAxis(sourceId, enumerator)` - because an axis carries its owner's
+name into the ledger; usable at setup, read live at every fold, never sealed. The library seeds its
+own `ziggfreedcommon:encounters` axis into it at `ProgressionDefaults.register()`. `objectiveKinds()`
+also holds the kind ALIASES (`ObjectiveKindRegistry.alias`), applied by every shared fold.
 
 ## Rules that bite
 
@@ -148,6 +154,13 @@ conflict over, which is what a registry is for.
   carry whatever its fold attached under `Achievement.momentArgs`, beneath the engine's own names.
 - **The engines are never rebuilt.** Everything they reach the world through is a forwarder over the
   parts snapshot, so late registration is live AND every cached engine reference stays valid.
+- **The build is where the boot publish happens, whoever builds.** ANY engine read builds the
+  runtime - a ticking system's first tick, a command, a page, the first player-ready pass - so a
+  publish that waited for one particular caller would leave every earlier reader on an empty
+  catalogue (on an MMO server the ready pass was never the builder). `onBuilt(Runnable)` runs the
+  hooks inside the build after both engines exist, and zc-objectives' `ProgressionDefaults.register()`
+  hangs its publish there. A hook must be idempotent against a later explicit publish: the library's
+  keys on its own PUBLISHED flag.
 - **A factor READ never builds the runtime.** `ProgressionFactors` answers nothing until
   `isBuilt()`, because a gate evaluated early - a placement sweep, a content audit - would otherwise
   seal every sealed part before the consumers that own them had registered. A moment of shut gates

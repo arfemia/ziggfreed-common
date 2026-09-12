@@ -4,11 +4,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.UnaryOperator;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.registry.RegistryLedger;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The open objective VOCABULARY: which objective kinds exist, and what the engine must know about
@@ -53,11 +57,55 @@ import com.ziggfreed.common.registry.RegistryLedger;
  * times" are two objectives; {@code ENCOUNTER_PHASE} fires once per member on every phase beat,
  * {@code Qualifier} the phase's own state name. {@code Amount} is 1 per fire.
  *
+ * <p><b>An ALIAS is an authored kind that runs as another.</b> Some kinds are sugar: what the
+ * file says ("reach rank 30 in Mining") is a value-threshold on a stat channel the moment it is
+ * folded, and the engine should only ever see the threshold. A consumer registers the sugar with
+ * {@link #alias}, naming the kind it runs as and how the authored target becomes that kind's
+ * target, and every shared fold applies it as the objective is built
+ * ({@code ObjectiveLeafAsset#toDefBuilder}): the engine dispatches, indexes and settles on the
+ * desugared pair while {@link ObjectiveDef#authoredKind()} / {@link ObjectiveDef#authoredTarget()}
+ * keep what the file said for every text and icon surface. An alias is not a kind: it is never
+ * listed by {@link #ids()}, never producible, and the validator judges the kind it runs as. A
+ * consumer that wants the authored kind to carry a picture or a sentence of its own registers it
+ * beside the alias, unproducible, the way any vocabulary entry is.
+ *
  * <p>Registration bookkeeping (who owns an id, how often it has misbehaved) lives in the shared
  * {@link RegistryLedger}; ids are matched case-insensitively and registration is idempotent per id
  * with last-write-wins.
  */
 public final class ObjectiveKindRegistry {
+
+    /**
+     * How one authored kind RUNS: as {@link #runsAs()}, with its target rewritten into that kind's
+     * vocabulary by {@link #rewriteTarget}.
+     *
+     * @param authoredKind  the kind a file writes, upper-cased
+     * @param runsAs        the registered kind the engine dispatches on, upper-cased
+     * @param owner         who registered the alias, for a diagnostic
+     * @param targetRewrite the authored target to the run target; asked with the authored target
+     *                      trimmed, an empty string standing for "none named"
+     */
+    public record Alias(@Nonnull String authoredKind, @Nonnull String runsAs, @Nonnull String owner,
+                        @Nonnull UnaryOperator<String> targetRewrite) {
+
+        /**
+         * The engine target for {@code authoredTarget}. A rewrite that throws or answers null
+         * keeps the authored target, so a step never loses what it named over a consumer bug; the
+         * validator then reports the unrewritten target if the run kind cannot read it.
+         */
+        @Nonnull
+        public String rewriteTarget(@Nullable String authoredTarget) {
+            String authored = authoredTarget == null ? "" : authoredTarget.trim();
+            try {
+                String rewritten = targetRewrite.apply(authored);
+                return rewritten == null ? authored : rewritten;
+            } catch (Throwable t) {
+                SafeLog.warn("[objective-kind] the target rewrite for the alias '" + authoredKind
+                        + "' failed on '" + authored + "', so the authored target stands: " + t.getMessage());
+                return authored;
+            }
+        }
+    }
 
     /**
      * {@code STAT_THRESHOLD} - the one pre-seeded VALUE-BASED kind: reach some standing value rather
@@ -152,6 +200,13 @@ public final class ObjectiveKindRegistry {
     @Nonnull
     private final RegistryLedger<ObjectiveKind> ledger;
 
+    /** The label the ledger logs under, reused by the alias diagnostics. */
+    @Nonnull
+    private final String label;
+
+    /** Every registered alias, keyed by the authored kind's normalized id. */
+    private final Map<String, Alias> aliases = new ConcurrentHashMap<>();
+
     /** A registry pre-seeded with the built-in vocabulary, logging under a generic prefix. */
     public ObjectiveKindRegistry() {
         this(null);
@@ -162,7 +217,8 @@ public final class ObjectiveKindRegistry {
      * {@code [label]}, so an owner reading an overwrite warning can tell which vocabulary it was.
      */
     public ObjectiveKindRegistry(@Nullable String label) {
-        this.ledger = new RegistryLedger<>(label == null || label.isBlank() ? "objective-kind" : label);
+        this.label = label == null || label.isBlank() ? "objective-kind" : label;
+        this.ledger = new RegistryLedger<>(this.label);
         seedBuiltIns();
     }
 
@@ -242,6 +298,69 @@ public final class ObjectiveKindRegistry {
         ledger.putQuietly(kind.id(), owner, kind);
     }
 
+    // ==================== aliases ====================
+
+    /**
+     * Register (or replace) {@code authoredKind} as sugar for {@code runsAs}: every objective a
+     * shared fold builds from a file naming {@code authoredKind} dispatches on {@code runsAs} with
+     * its target rewritten by {@code targetRewrite}, and keeps the authored pair for its words and
+     * its picture. Idempotent per authored kind, last write wins; a blank id on either side is
+     * ignored. Register it at setup, before the content is folded: an alias registered after a
+     * fold reaches nothing until the next publish.
+     *
+     * <p>Aliasing a kind that is itself registered PRODUCIBLE is reported, not refused: the fold
+     * will run every such objective as the alias, so whatever fires the authored kind advances
+     * nothing, and that is worth one line at boot.
+     *
+     * @param targetRewrite null means the authored target is used unchanged
+     */
+    public void alias(@Nullable String authoredKind, @Nullable String runsAs, @Nullable String owner,
+                      @Nullable UnaryOperator<String> targetRewrite) {
+        if (authoredKind == null || authoredKind.isBlank() || runsAs == null || runsAs.isBlank()) {
+            return;
+        }
+        String authored = authoredKind.trim().toUpperCase(Locale.ROOT);
+        String runKind = runsAs.trim().toUpperCase(Locale.ROOT);
+        if (isProducible(authored)) {
+            SafeLog.warn("[" + label + "] '" + authored + "' is registered as a producible kind and is now"
+                    + " also an alias of '" + runKind + "' (by " + ownerName(owner) + "); authored content"
+                    + " runs as the alias, so whatever fires '" + authored + "' itself advances nothing");
+        }
+        aliases.put(RegistryLedger.normalize(authored), new Alias(authored, runKind, ownerName(owner),
+                targetRewrite == null ? UnaryOperator.identity() : targetRewrite));
+    }
+
+    /** The alias registered for {@code kindId} (case-insensitive), or null when it is not one. */
+    @Nullable
+    public Alias alias(@Nullable String kindId) {
+        if (kindId == null || kindId.isBlank()) {
+            return null;
+        }
+        return aliases.get(RegistryLedger.normalize(kindId.trim()));
+    }
+
+    /** Is {@code kindId} registered as sugar for another kind? */
+    public boolean isAlias(@Nullable String kindId) {
+        return alias(kindId) != null;
+    }
+
+    /** Every aliased authored kind, sorted (diagnostics, an authoring hint). */
+    @Nonnull
+    public List<String> aliasIds() {
+        Set<String> out = new TreeSet<>();
+        for (Alias entry : aliases.values()) {
+            out.add(entry.authoredKind());
+        }
+        return List.copyOf(out);
+    }
+
+    @Nonnull
+    private static String ownerName(@Nullable String owner) {
+        return owner == null || owner.isBlank() ? RegistryLedger.UNATTRIBUTED : owner.trim();
+    }
+
+    // ==================== lookups ====================
+
     /** The kind registered under {@code kindId} (case-insensitive), or null when nothing is. */
     @Nullable
     public ObjectiveKind kind(@Nullable String kindId) {
@@ -301,9 +420,10 @@ public final class ObjectiveKindRegistry {
         return ledger.info();
     }
 
-    /** Drop every registration INCLUDING the built-ins, then re-seed the built-ins. */
+    /** Drop every registration INCLUDING the built-ins and every alias, then re-seed the built-ins. */
     public void clear() {
         ledger.clear();
+        aliases.clear();
         seedBuiltIns();
     }
 }

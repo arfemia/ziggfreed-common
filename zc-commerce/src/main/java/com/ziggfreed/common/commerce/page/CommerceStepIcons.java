@@ -40,13 +40,14 @@ public final class CommerceStepIcons {
         return CommerceStepIcons::iconFor;
     }
 
+    /** Read off the authored pair, as every picture and sentence beside a step is. */
     @Nullable
     private static IconSpec iconFor(@Nonnull String contentId, @Nonnull ObjectiveDef objective) {
-        String target = objective.target();
+        String target = objective.authoredTarget();
         if (target == null || target.isBlank()) {
             return null;
         }
-        ObjectiveKind kind = ProgressionRuntime.objectiveKinds().kind(objective.kind());
+        ObjectiveKind kind = ProgressionRuntime.objectiveKinds().kind(objective.authoredKind());
         if (kind == null) {
             return null;
         }

@@ -38,9 +38,12 @@ a server running two content mods work.
   browsable listing, while at the one character authored to hand it out there is no browsing going
   on. Filtering a giver's list on the open-listing read leaves that character standing silently
   beside the thing they exist to hand out, and a whole authored chain becomes unreachable with
-  nothing anywhere reporting it. The giver read asks only whether the quest is switched on and
-  whether the player is past what it asks for first, which is what an author means by "keep this out
-  of sight until it is relevant".
+  nothing anywhere reporting it. The giver read asks only whether the quest is switched on, past
+  its own `Visibility.showWhen` block when it carries one, and whether the player is past what it
+  asks for first, which is what an author means by "keep this out of sight until it is relevant".
+  `isVisible` is THE shared visibility question for a browsable surface (switched on, not hidden,
+  `ShowWhen` passed, prerequisites met when asked for), the one a consumer's own listing rule
+  collapses onto rather than re-deriving.
 
 ## The hygiene rule that governs this whole package
 
@@ -51,15 +54,15 @@ a server running two content mods work.
 | Class | What it is |
 |---|---|
 | `QuestEngine` (+ `.Builder`) | the runtime; every operation and every seam hangs off it. THE instance comes from [`../progress/runtime/`](../progress/runtime/CLAUDE.md); `builder()` is for tests and for a consumer that genuinely wants a private engine |
-| `Quest` (+ `.Repeat`, `.Visibility`) | the RESOLVED quest definition an authoring layer produces; its objectives are `progress.ObjectiveDef`, and it CARRIES what the shared parts need to answer for it - the authored `Requires` block, the `progress.ContentText` words, the giver id, the listing order, `available` as a LIVE predicate, and `occupiesLog` |
-| `RequiresGates` | ONE gate for BOTH engines, reading `requires()` off the runtime object. Registered by `zc-objectives`' defaults for the quest side AND the achievement side, so a consumer answering a `Requires` block a second way is answering it twice |
+| `Quest` (+ `.Repeat`, `.Visibility`) | the RESOLVED quest definition an authoring layer produces; its objectives are `progress.ObjectiveDef`, and it CARRIES what the shared parts need to answer for it - the authored `Requires` block, the `progress.ContentText` words, the giver id, the listing order, `available` as a LIVE predicate, and `occupiesLog`. `Visibility` is three independent knobs: `hidden`, `requirePrerequisites`, and a nullable `showWhen` `GateSpec` of its own (the two-arg factory carries none; an empty block reads as none) |
+| `RequiresGates` | ONE gate for BOTH engines, reading `requires()` off the runtime object, and `visibility().showWhen()` through the same evaluator (`showWhenMet`). Registered by `zc-objectives`' defaults for the quest side AND the achievement side, so a consumer answering a `Requires` block a second way is answering it twice |
 | `QuestTurnInSite` | WHERE a quest may be collected: a named character, or wherever this player took it from. Nullable on `Quest`, and its presence is the restriction |
 | `QuestProgressPayload` | packs one quest's whole `progress.ObjectiveProgressState` map into the opaque string a store persists |
 | `QuestStatus`, `QuestLifecycle` | the state machine, the effective-status rule, and `repeatCheck` - the ONE evaluator for whether a repeatable may be taken again |
 | `RepeatPeriod` | the pure calendar arithmetic behind a `Repeat.Reset` window of ANY length - a day, a week, eight hours, a fortnight (UTC, `floorDiv`-indexed, saturating; the weekday start takes part only for a window that is a whole number of weeks) |
 | `QuestCadence` | the ONE classification of how often a quest comes round (`NONE` / `REPEATABLE` / `DAILY` / `WEEKLY`) from the LONGER of the rolling cooldown and the calendar window, thresholds twenty hours and six days spelled once on the enum; `Repeat.cadence()` delegates to it, and every listing badge, achievement qualifier or rotation label reads it rather than bucketing on its own |
 | `QuestProgressStore` (+ `.CompletionRecord`), `InMemoryQuestProgressStore` | THE persistence seam and a ready-made in-memory one |
-| `QuestGates`, `QuestPossessionProbe`, `QuestInventoryConsumer`, `QuestI18n`, `progress.runtime.ProgressionFeedbackHook` | the consumer seams (the dispatch tap is shared: `progress.ProgressDispatchTap`; the feedback hook is a CONTRIBUTION, see [`../progress/runtime/`](../progress/runtime/CLAUDE.md)). `QuestGates` is FILLED by `RequiresGates` above: a consumer implementing it again is registering a second decision over one model. Accepting asks it ONE question, `opensFor`, which the default answers by asking `prerequisitesMet` and `accepts` in turn; a gate reading both off one requirement block overrides it and reads once |
+| `QuestGates`, `QuestPossessionProbe`, `QuestInventoryConsumer`, `QuestI18n`, `progress.runtime.ProgressionFeedbackHook` | the consumer seams (the dispatch tap is shared: `progress.ProgressDispatchTap`; the feedback hook is a CONTRIBUTION, see [`../progress/runtime/`](../progress/runtime/CLAUDE.md)). `QuestGates` is FILLED by `RequiresGates` above: a consumer implementing it again is registering a second decision over one model. Accepting asks it ONE question, `opensFor`, which the default answers by asking `prerequisitesMet` and `accepts` in turn; a gate reading both off one requirement block overrides it and reads once. `showWhenMet` is asked only by the two visibility reads and only for a quest carrying a `ShowWhen` block, never on accept; the composed gate ANDs it |
 | `QuestEngine.Builder#factors` / `#factorContext` | the OPTIONAL factor pair, wired the way a gate evaluator's is; unwired, `STAT_THRESHOLD` is purely consumer-fired |
 | `QuestStateReader` | the narrow READ seam: what a conversation may ask, and the whole of what it may reach |
 | `NpcOffer`, `NpcOfferProvider`, `NpcOfferProviders` | the open table answering "what is this character holding out to this player". `zc-objectives` ships the DEFAULT provider over the runtime catalogue - the giver id rides `Quest.npcViewId()`, so nothing else has to be registered for a character to have something to say |

@@ -170,8 +170,8 @@ class ContentTextArgsTest {
                         .amount(64).build())
                 .build();
         return new QuestDefinition("ladder_rung", quest, "quest.ladder_rung.title",
-                "quest.ladder_rung.flavor", null, titleArgs, flavorArgs, null, 0, List.of(), null,
-                null, null, null, GateSpec.OPEN, Map.of(), List.of(), null, Map.of());
+                "quest.ladder_rung.flavor", null, titleArgs, flavorArgs, Map.of(), null, 0, List.of(),
+                null, null, null, null, GateSpec.OPEN, List.of(), Map.of(), List.of(), null, Map.of());
     }
 
     private static AchievementDefinition achievementDefinition(List<String> titleArgs,

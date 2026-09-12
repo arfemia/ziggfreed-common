@@ -44,6 +44,7 @@ import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.ui.StatusTones;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.UiRetint;
@@ -973,9 +974,9 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     @Nonnull
     private static String loreState(@Nonnull QuestStatus status) {
         return switch (status) {
-            case ACTIVE -> "active";
-            case COMPLETED, COMPLETED_UNCLAIMED -> "complete";
-            case NOT_STARTED, ON_COOLDOWN -> "incomplete";
+            case ACTIVE -> ContentTextAsset.Lore.STATE_ACTIVE;
+            case COMPLETED, COMPLETED_UNCLAIMED -> ContentTextAsset.Lore.STATE_COMPLETE;
+            case NOT_STARTED, ON_COOLDOWN -> ContentTextAsset.Lore.STATE_INCOMPLETE;
         };
     }
 
