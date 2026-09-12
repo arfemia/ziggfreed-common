@@ -2,7 +2,7 @@
 
 The dev changelog for the shared, mod-agnostic Hytale primitive library. Newest first. No em-dashes.
 
-## 2.1.0 - unreleased
+## 2.1.0 - 2026-09-12
 
 > Collects everything since 2.0.0: there was no 2.0.1 release, and what was drafted under that number ships here. Four changes are BREAKING for a mod built on 2.0.0 (`PlacedBlockLedger.Policy`, `AchievementGates#canUnlock`, `Quest.Repeat.Reset`, and the removal of `RewardChips.itemChip`; each is marked below), so a consumer pinned at `2.0.0` fails by name at boot rather than hitting a linkage error mid-placement, and the fourteenth module is a whole new surface.
 
