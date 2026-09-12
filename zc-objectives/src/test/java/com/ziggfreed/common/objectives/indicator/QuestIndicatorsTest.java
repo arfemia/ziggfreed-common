@@ -235,7 +235,8 @@ class QuestIndicatorsTest {
 
         List<QuestIndicators.MapMark> marks = QuestIndicators.mapMarksFor(engine, player);
         assertEquals(2, marks.size(), "one mark per character, whatever they offer");
-        assertEquals(List.of(GUIDE, "Smith"), marks.stream().map(QuestIndicators.MapMark::npcId).toList());
+        assertEquals(Set.of(GUIDE, "Smith"), Set.copyOf(marks.stream().map(QuestIndicators.MapMark::npcId).toList()),
+                "one mark per character, in no particular order");
         for (QuestIndicators.MapMark mark : marks) {
             assertEquals(QuestSituation.AVAILABLE, mark.reading().situation());
             assertEquals("Coordinate.png", mark.reading().knob().mapIcon());
