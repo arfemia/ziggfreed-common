@@ -41,7 +41,7 @@ import com.ziggfreed.common.ui.UiRetint;
 public final class ToastRenderer {
 
     /** Body row capacity. MUST match the {@code #ZigToastRow<i>} count in {@code ZigToast.ui}. */
-    public static final int MAX_LINES = 6;
+    public static final int MAX_LINES = 21;
 
     // WIDTH/HEIGHT/ROW_* mirror the static #ZigToast geometry in ZigToast.ui. Top is no longer a
     // constant: the toast is centered in the top third of the screen (see topFor), so apply()
