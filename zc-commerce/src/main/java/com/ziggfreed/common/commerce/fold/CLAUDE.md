@@ -86,9 +86,12 @@ author may write; each of those already has an owner one package over.
   the limit, so the undelivered half is exactly what a queue exists to catch. A consumer with a
   spool of its own installs it with `installRetryQueue` and a half-failed purchase spools instead.
 - **A bounty is a quest only once somebody says so.** `publishBounties()` hands the folded contracts
-  to the shared quest runtime as this library's layer; until it runs, a board can draw its contracts
-  and name them and still not accept one, because the lifecycle a board drives belongs to the quest
-  engine. The wiring root calls it off the contract store's load event, beside the shop refresh.
+  to the shared quest runtime as this library's layer, under its own `CommerceCatalogs.CONTRACTS_SLICE`
+  (the shared quest store's own fold publishes the same owner's DEFAULT slice, so without a slice of
+  its own either fold's reload would wipe the other's entries; the 2.1.1 fix for empty boards); until
+  it runs, a board can draw its contracts and name them and still not accept one, because the
+  lifecycle a board drives belongs to the quest engine. The wiring root calls it off the contract
+  store's load event, beside the shop refresh.
 - **An unanswerable vocabulary is SKIPPED, never guessed.** `CommerceAudit` passes null for a probe
   nothing here can enumerate, which is the validators' own documented contract. Factor ids are the
   live case: which ones exist is a per-consumer vocabulary assembled in a module commerce has no edge

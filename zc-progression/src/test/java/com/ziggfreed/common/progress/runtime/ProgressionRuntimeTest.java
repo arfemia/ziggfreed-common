@@ -3,6 +3,7 @@ package com.ziggfreed.common.progress.runtime;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -382,6 +383,92 @@ class ProgressionRuntimeTest {
         assertEquals(1, ProgressionRuntime.quests().quests().size(),
                 "a content reload replaces one owner's layer; anything else grows forever");
         assertNotNull(ProgressionRuntime.quests().quest("second"));
+    }
+
+    // ==================== content layers: slices ====================
+
+    /**
+     * The 2.1.1 bug: one owner name publishing from two folds (the shared quest store and the
+     * bounty-contract store both attributed to {@code "ziggfreedcommon"}) had the second publish
+     * silently wipe the first's entries, because {@code ContentLayers} kept one layer per owner with
+     * no slice underneath it. Every board on every server was empty because of exactly this.
+     */
+    @Test
+    void twoSlicesOfOneOwnerBothReachTheEngine() {
+        ProgressionRuntime.publishQuests(LIBRARY, "quests", List.of(Quest.builder("shared_fold").build()));
+        ProgressionRuntime.publishQuests(LIBRARY, "contracts", List.of(Quest.builder("contract_one").build()));
+
+        QuestEngine engine = ProgressionRuntime.quests();
+        assertEquals(2, engine.quests().size(),
+                "one owner publishing from two folds must not have the later slice wipe the earlier one");
+        assertNotNull(engine.quest("shared_fold"));
+        assertNotNull(engine.quest("contract_one"));
+    }
+
+    @Test
+    void republishingOneSliceReplacesOnlyThatSliceAndTheOtherSurvives() {
+        ProgressionRuntime.publishQuests(LIBRARY, "quests", List.of(Quest.builder("fold_one").build()));
+        ProgressionRuntime.publishQuests(LIBRARY, "contracts", List.of(Quest.builder("contract_one").build()));
+        assertEquals(2, ProgressionRuntime.quests().quests().size());
+
+        ProgressionRuntime.publishQuests(LIBRARY, "contracts", List.of(Quest.builder("contract_two").build()));
+
+        QuestEngine engine = ProgressionRuntime.quests();
+        assertEquals(2, engine.quests().size(),
+                "a reload of the contracts slice must not disturb the quest slice's own entry");
+        assertNotNull(engine.quest("fold_one"), "the untouched slice must survive the other's reload");
+        assertNotNull(engine.quest("contract_two"));
+        assertNull(engine.quest("contract_one"), "the reloaded slice's stale entry must be gone");
+    }
+
+    @Test
+    void theDefaultSliceCallAndANamedSliceCoexistForOneOwner() {
+        ProgressionRuntime.publishQuests(LIBRARY, List.of(Quest.builder("default_slice").build()));
+        ProgressionRuntime.publishQuests(LIBRARY, "contracts", List.of(Quest.builder("named_slice").build()));
+
+        QuestEngine engine = ProgressionRuntime.quests();
+        assertEquals(2, engine.quests().size());
+        assertNotNull(engine.quest("default_slice"));
+        assertNotNull(engine.quest("named_slice"));
+    }
+
+    @Test
+    void theSameIdInTwoSlicesOfOneOwnerWarnsAndKeepsTheFirst() {
+        List<String> warnings = new ArrayList<>();
+        ProgressionRuntime.registrar(LIBRARY).warn(warnings::add);
+        ProgressionRuntime.publishQuests(LIBRARY, "quests", List.of(Quest.builder("dup").build()));
+        ProgressionRuntime.publishQuests(LIBRARY, "contracts", List.of(Quest.builder("dup").build()));
+
+        QuestEngine engine = ProgressionRuntime.quests();
+        assertEquals(1, engine.quests().size());
+        assertNotNull(engine.quest("dup"));
+        assertEquals(1, warnings.size());
+        assertTrue(warnings.get(0).contains("dup"));
+        assertTrue(warnings.get(0).contains("quests"));
+        assertTrue(warnings.get(0).contains("contracts"));
+    }
+
+    // ==================== registrar rank ====================
+
+    /**
+     * The other half of the 2.1.1 bug: a library module registering its OWN owner name at consumer
+     * rank locked that name into consumer rank for good, so every content layer published under it
+     * afterwards clashed with a real consumer instead of being silently outranked by it.
+     */
+    @Test
+    void anOwnerRegisteredAtConsumerRankThenAskedForDefaultRankKeepsConsumerRankAndWarns() {
+        List<String> warnings = new ArrayList<>();
+        ProgressionRuntime.registrar(LIBRARY).warn(warnings::add);
+
+        ProgressionRuntime.registrar(CONSUMER);
+        ProgressionRuntime.defaults(CONSUMER);
+
+        assertFalse(ProgressionRuntime.isLibraryDefault(CONSUMER),
+                "load order must not decide this: the first rank an owner registered at stands");
+        assertEquals(1, warnings.size(), "the mismatch is named once");
+        assertTrue(warnings.get(0).contains(CONSUMER), warnings.get(0));
+        assertTrue(warnings.get(0).contains("consumer"), warnings.get(0));
+        assertTrue(warnings.get(0).contains("default"), warnings.get(0));
     }
 
     // ==================== what the engines were built over ====================

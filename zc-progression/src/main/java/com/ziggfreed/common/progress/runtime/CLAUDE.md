@@ -23,7 +23,7 @@ match). They are the wrong tool for a mod that wants the server's progression.
 | `ProgressionRuntime` | the holder: registration entry points, the engine pair, content publishing, `ensureBuilt`, the build hooks (`onBuilt(Runnable)`: run once inside the build after both engines exist and before the diagnostic, right away when already built, each guarded, cleared by `resetForTests`; the library's own content publish hangs there, so the catalogue is in the engines the instant they exist whoever asked for them), the boot diagnostic |
 | `ProgressionRegistrar` | what a consumer calls; fluent, idempotent, conflict-policed |
 | `ProgressionParts` | the resolved snapshot + the FORWARDERS the engines are built over + gate/tap composition |
-| `ContentLayers` | per-owner content layers and the merge, so a reload replaces one owner's layer |
+| `ContentLayers` | per-owner content layers, each further keyed by SLICE, and the merge - so a reload replaces one owner's one slice without disturbing that owner's other slices or anybody else's layer. An owner that folds from only one source never names a slice |
 | `ProgressionSubjectSource` | how a player becomes the subject the ACTIVE stores understand, and nothing else. Whether a SYSTEM is on for that player is a separate contribution, because a subject is also what a storefront, a board and a conversation are built over, so refusing to build one would take a wallet away with the quest log |
 | `ProgressionSystemGate` + `ProgressionSystem` | the owner's own "quests off on this server" / "achievements off until launch" switches, per player and per system (`QUEST` / `ACHIEVEMENT`). A CONTRIBUTION: every gate is asked, they AND, none registered means open, and one that THROWS is read as OPEN with one warn. The COMPOSED gate reaches three places: every produced moment (`ProgressDispatch.fire`, through `systemEnabled`), and BOTH engines through their `systemGate` builder knob (`ProgressionParts.SYSTEM_GATE`, read live), so `QuestEngine.canAccept` refuses a switched-off player with `QuestGates.REASON_SYSTEM_DISABLED` standing alone, `autoAcceptAvailable` accepts nothing for them, and `AchievementEngine.selfHeal` earns nothing for them - the maintenance pass re-reads live standing values and would otherwise hand out every met achievement at login |
 | `ProgressionCallScope` | what a consumer publishes around a mutating call, so a shared surface fires what its own menu would |
@@ -165,6 +165,16 @@ also holds the kind ALIASES (`ObjectiveKindRegistry.alias`), applied by every sh
   `isBuilt()`, because a gate evaluated early - a placement sweep, a content audit - would otherwise
   seal every sealed part before the consumers that own them had registered. A moment of shut gates
   is recoverable; a boot that moved where player data lives is not.
+- **A library module registering ITS OWN name calls `defaults(owner)`, never `registrar(owner)`.**
+  The first registration for an owner name decides that owner's rank for good (`putIfAbsent`); a
+  module inside this library that calls `registrar` for a name another part of the library later
+  registers at `defaults` rank has already locked that name into CONSUMER rank, and every content
+  layer published under it (a shared fold AND, say, a bounty-contract fold both attributed to
+  `"ziggfreedcommon"`) then clashes with an actual consumer at the same rank instead of being
+  silently outranked by it (the 2.1.1 bug: `registerCommerce()` registered `CommercePages.OWNER` as a
+  consumer before `ProgressionDefaults` asked for the same name at default rank). A second call
+  asking for the other rank is kept at the first rank and named once with a `SafeLog.warn`, but the
+  warn is a symptom to fix, not a policy to rely on.
 
 ## The readings, and why they are contributed rather than registered
 

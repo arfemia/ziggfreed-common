@@ -48,6 +48,14 @@ public final class CommerceCatalogs {
     /** Who this module's published content layer is attributed to. */
     public static final String OWNER = "ziggfreedcommon";
 
+    /**
+     * The quest-layer SLICE the authored contracts publish under. {@code OWNER} also publishes the
+     * shared quest store's own fold ({@code ProgressionDefaults.publishAssetContent}) under the
+     * default slice, so contracts need their own slice or one fold's reload would wipe the other's
+     * entries out. See {@link com.ziggfreed.common.progress.runtime.ProgressionRuntime#publishQuests(String, String, java.util.Collection)}.
+     */
+    public static final String CONTRACTS_SLICE = "contracts";
+
     private static final AtomicReference<Supplier<GeneratorCore.AxisValueSource>> AXIS_VALUES =
             new AtomicReference<>();
 
@@ -167,7 +175,10 @@ public final class CommerceCatalogs {
      *
      * <p>Published as a LAYER rather than merged into anybody's catalogue, so a consumer that
      * publishes its own contracts outranks these the same way it outranks every other library
-     * default, and a reload replaces this layer wholesale rather than accumulating.
+     * default, and a reload replaces this layer wholesale rather than accumulating. Published under
+     * {@link #CONTRACTS_SLICE} of {@code OWNER}'s quest layer, a slice of its own because {@code
+     * OWNER} also publishes the shared quest store's fold under the default slice - without a slice
+     * each one's reload would replace the other's contribution instead of only its own.
      */
     public static void publishBounties() {
         try {
@@ -178,7 +189,7 @@ public final class CommerceCatalogs {
                     quests.add(definition.quest());
                 }
             }
-            ProgressionRuntime.publishQuests(OWNER, quests);
+            ProgressionRuntime.publishQuests(OWNER, CONTRACTS_SLICE, quests);
         } catch (Throwable t) {
             SafeLog.warn("[commerce] the authored contracts could not be published to the quest "
                     + "runtime, so boards have nothing to accept", t);

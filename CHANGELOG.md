@@ -2,6 +2,13 @@
 
 The dev changelog for the shared, mod-agnostic Hytale primitive library. Newest first. No em-dashes.
 
+## 2.1.1 - unreleased
+
+> A hotfix on 2.1.0: two publish/registrar bugs and nothing else. No new module, no breaking change.
+
+- **Fixed: every bounty board drew empty.** `CommerceCatalogs.publishBounties()` and `ProgressionDefaults.publishAssetContent()` both publish quest content under the same owner name (`"ziggfreedcommon"`), and `ContentLayers.publish` replaced that owner's WHOLE layer on every call, so whichever fold ran second silently wiped the other's entries out from under it: a board could draw its contracts and still resolve none of them, because the quest engine had never heard of them. `ContentLayers` now keys a layer by owner AND SLICE, so a fold's own reload replaces only its own slice: `ProgressionRuntime.publishQuests(owner, slice, layer)` (mirrored on `publishAchievements` and `publishMilestones`) is additive beside the existing two-arg methods, which are unchanged and still mean the default slice. The shared quest store keeps that default slice; `CommerceCatalogs.CONTRACTS_SLICE` is the contracts' own.
+- **Fixed: a mod built on this library could see hundreds of clash warnings at boot, with its own content silently losing to the library's defaults instead of winning.** `ZiggfreedCommonPlugin.registerCommerce()` registered this library's own commerce icon source through `ProgressionRuntime.registrar(CommercePages.OWNER)`, a CONSUMER-rank call; the first registration for an owner name decides that owner's rank for good, so every later content fold attributed to the same owner (the shared quest store, the bounty contracts) was locked into consumer rank too, and clashed with a real consumer at the same rank instead of being silently outranked by it. It now registers through `ProgressionRuntime.defaults(...)`. `ProgressionRuntime` also logs one `SafeLog.warn` naming the owner and both ranks the next time anything registers one owner at two different ranks, so this class of mistake shows up in a boot log instead of a warning storm three modules downstream.
+
 ## 2.1.0 - 2026-09-12
 
 > Collects everything since 2.0.0: there was no 2.0.1 release, and what was drafted under that number ships here. Four changes are BREAKING for a mod built on 2.0.0 (`PlacedBlockLedger.Policy`, `AchievementGates#canUnlock`, `Quest.Repeat.Reset`, and the removal of `RewardChips.itemChip`; each is marked below), so a consumer pinned at `2.0.0` fails by name at boot rather than hitting a linkage error mid-placement, and the fourteenth module is a whole new surface.

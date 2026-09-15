@@ -390,7 +390,12 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             RewardChips.contribute(CurrencyChipReading.source());
             // A step about a wallet or a board is drawn with that wallet's or board's own icon. The
             // kind's file says which a step is about; only this module knows what either looks like.
-            ProgressionRuntime.registrar(CommercePages.OWNER).iconSource(CommerceStepIcons.source());
+            // Registered at LIBRARY-DEFAULT rank: CommercePages.OWNER is this library's own name, and
+            // registering it as a consumer here would lock that name into consumer rank for every
+            // other module publishing under it too (the shared quest fold and the bounty contracts
+            // both publish as this same owner), turning what should be a silently-outranked default
+            // into a same-rank clash with an actual consumer mod.
+            ProgressionRuntime.defaults(CommercePages.OWNER).iconSource(CommerceStepIcons.source());
             CommerceEngines.installGates(ProgressionDefaults::gateEvaluator);
             getCommandRegistry().registerCommand(new ZigCommerceCommand());
             getEventRegistry().registerGlobal(PlayerReadyEvent.class,

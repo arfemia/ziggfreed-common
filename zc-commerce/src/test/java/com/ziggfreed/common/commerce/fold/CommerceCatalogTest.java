@@ -32,6 +32,8 @@ import com.ziggfreed.common.currency.CurrencyDef;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.progress.asset.GeneratorCore;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.shop.ShopOffer;
 import com.ziggfreed.common.shop.asset.ShopAssetStore;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
@@ -290,6 +292,50 @@ class CommerceCatalogTest {
             }
 
             assertTrue(onDaily.contains("bounty_hunt_trork"));
+        }
+    }
+
+    /**
+     * {@link CommerceCatalogs#publishBounties()} is where a bounty becomes a quest the shared runtime
+     * has heard of. It publishes under its own SLICE of the {@code "ziggfreedcommon"} owner
+     * ({@link CommerceCatalogs#CONTRACTS_SLICE}) precisely so the shared quest store's own fold,
+     * publishing the SAME owner under the DEFAULT slice, cannot wipe the contracts out on its own
+     * reload (the 2.1.1 fix for every board drawing empty).
+     */
+    @Nested
+    class PublishedContracts {
+
+        @BeforeEach
+        @AfterEach
+        void resetTheSharedRuntime() {
+            ProgressionRuntime.resetForTests();
+        }
+
+        @Test
+        @DisplayName("a board's contracts reach the shared quest engine")
+        void contractsReachTheQuestEngine() throws Exception {
+            seedContracts();
+            CommerceCatalogs.publishBounties();
+
+            assertNotNull(ProgressionRuntime.quests().quest("bounty_hunt_trork"),
+                    "a board can draw a contract only once the quest engine has heard of it");
+        }
+
+        @Test
+        @DisplayName("the contracts slice survives the shared quest store's own reload of the same owner")
+        void contractsSurviveTheSharedFoldsOwnPublish() throws Exception {
+            seedContracts();
+            CommerceCatalogs.publishBounties();
+            assertNotNull(ProgressionRuntime.quests().quest("bounty_hunt_trork"));
+
+            // The shared quest store publishes the SAME owner, under the DEFAULT slice - the exact
+            // call that used to replace the contracts' whole layer before slices existed.
+            ProgressionRuntime.publishQuests(CommerceCatalogs.OWNER,
+                    List.of(Quest.builder("unrelated_shared_quest").build()));
+
+            assertNotNull(ProgressionRuntime.quests().quest("bounty_hunt_trork"),
+                    "a reload of the shared quest store's own slice must not disturb the contracts");
+            assertNotNull(ProgressionRuntime.quests().quest("unrelated_shared_quest"));
         }
     }
 

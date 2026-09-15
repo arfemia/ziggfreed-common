@@ -212,8 +212,25 @@ public final class ProgressionRuntime {
     private static synchronized ProgressionRegistrar newRegistrar(@Nonnull String owner,
                                                                   boolean libraryDefault) {
         String name = normalizeOwner(owner);
-        REGISTRARS.putIfAbsent(name, Boolean.valueOf(libraryDefault));
-        return new ProgressionRegistrar(name, libraryDefault);
+        Boolean existing = REGISTRARS.putIfAbsent(name, Boolean.valueOf(libraryDefault));
+        boolean effectiveRank = existing != null ? existing.booleanValue() : libraryDefault;
+        if (existing != null && existing.booleanValue() != libraryDefault) {
+            // Load order must not decide this: the first rank an owner registered at stands, but a
+            // second call asking for the other rank is exactly the shape of the bug where a
+            // library's own module registered itself at consumer rank by mistake, so it is named
+            // once rather than silently honoured or silently ignored. Through the registered warn
+            // sink, like every other runtime warning, so a test (and a server owner who installed
+            // one) sees it the same way.
+            parts.warn().accept("'" + name + "' is already registered at " + rankName(existing)
+                    + " rank; the " + rankName(Boolean.valueOf(libraryDefault)) + " rank just asked for"
+                    + " is ignored, " + rankName(Boolean.valueOf(effectiveRank)) + " stands");
+        }
+        return new ProgressionRegistrar(name, effectiveRank);
+    }
+
+    @Nonnull
+    private static String rankName(@Nonnull Boolean libraryDefault) {
+        return libraryDefault.booleanValue() ? "default" : "consumer";
     }
 
     /**
@@ -654,28 +671,60 @@ public final class ProgressionRuntime {
 
     // ==================== content ====================
 
-    /** Replace {@code owner}'s whole quest layer and recompose the catalogue. */
+    /** Replace {@code owner}'s DEFAULT quest slice and recompose the catalogue. */
     public static void publishQuests(@Nonnull String owner, @Nonnull Collection<Quest> layer) {
-        publish(QUEST_LAYERS, owner, layer);
+        publish(QUEST_LAYERS, owner, null, layer);
     }
 
-    /** Replace {@code owner}'s whole achievement layer and recompose the catalogue. */
+    /**
+     * Replace only {@code owner}'s {@code slice} of the quest layer and recompose the catalogue,
+     * leaving any other slice that owner published untouched.
+     *
+     * <p>A slice is for the rare owner that publishes quest content from MORE THAN ONE fold - two
+     * separate stores in the same process, each with its own reload, that happen to publish under
+     * the same owner name - so each fold's own reload replaces only what it folded rather than
+     * wiping the other fold's entries out from under it. An owner with a single fold never needs
+     * one; see {@link #publishQuests(String, Collection)}.
+     */
+    public static void publishQuests(@Nonnull String owner, @Nonnull String slice,
+                                     @Nonnull Collection<Quest> layer) {
+        publish(QUEST_LAYERS, owner, slice, layer);
+    }
+
+    /** Replace {@code owner}'s DEFAULT achievement layer and recompose the catalogue. */
     public static void publishAchievements(@Nonnull String owner,
                                            @Nonnull Collection<Achievement> layer) {
-        publish(ACHIEVEMENT_LAYERS, owner, layer);
+        publish(ACHIEVEMENT_LAYERS, owner, null, layer);
     }
 
-    /** Replace {@code owner}'s whole points-milestone layer. */
+    /** Replace only {@code owner}'s {@code slice} of the achievement layer. See {@link #publishQuests(String, String, Collection)}. */
+    public static void publishAchievements(@Nonnull String owner, @Nonnull String slice,
+                                           @Nonnull Collection<Achievement> layer) {
+        publish(ACHIEVEMENT_LAYERS, owner, slice, layer);
+    }
+
+    /** Replace {@code owner}'s DEFAULT points-milestone layer. */
     public static void publishMilestones(@Nonnull String owner,
                                          @Nonnull List<AchievementMilestone> layer) {
-        publish(MILESTONE_LAYERS, owner, layer);
+        publish(MILESTONE_LAYERS, owner, null, layer);
+    }
+
+    /** Replace only {@code owner}'s {@code slice} of the points-milestone layer. See {@link #publishQuests(String, String, Collection)}. */
+    public static void publishMilestones(@Nonnull String owner, @Nonnull String slice,
+                                         @Nonnull List<AchievementMilestone> layer) {
+        publish(MILESTONE_LAYERS, owner, slice, layer);
     }
 
     private static synchronized <T> void publish(@Nonnull ContentLayers<T> layers,
-                                                 @Nonnull String owner,
+                                                 @Nonnull String owner, @Nullable String slice,
                                                  @Nonnull Collection<T> layer) {
         String name = normalizeOwner(owner);
-        layers.publish(name, Boolean.TRUE.equals(REGISTRARS.get(name)), layer);
+        boolean libraryDefault = Boolean.TRUE.equals(REGISTRARS.get(name));
+        if (slice == null) {
+            layers.publish(name, libraryDefault, layer);
+        } else {
+            layers.publish(name, libraryDefault, normalizeSlice(slice), layer);
+        }
         if (BUILT.get()) {
             applyContent();
         }
@@ -914,6 +963,12 @@ public final class ProgressionRuntime {
     @Nonnull
     private static String normalizeOwner(@Nonnull String owner) {
         return owner.isBlank() ? "unattributed" : owner.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /** A slice name, lower-cased the same way an owner name is; blank reads as the default slice. */
+    @Nonnull
+    private static String normalizeSlice(@Nonnull String slice) {
+        return slice.trim().toLowerCase(Locale.ROOT);
     }
 
     /**

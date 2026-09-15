@@ -590,7 +590,10 @@ public final class FrameworkAssetRegistrar {
         //     plus the boards it may be posted on. Publishing to the shared quest runtime is part of
         //     the SAME listener for the reason the shop fold is: a bounty IS a quest only once the
         //     runtime has heard of it, and a board can draw a contract it cannot accept until then.
-        //     Published as this library's own layer, so a consumer's outranks it. ---
+        //     Published as this library's own layer under its own SLICE (CommerceCatalogs.
+        //     CONTRACTS_SLICE), so a consumer's outranks it exactly as every other library default
+        //     does, and its own reload replaces only the contracts rather than the shared quest
+        //     store's own fold, which publishes the same owner's default slice. ---
         AssetStoreRegistrar.registerStore(BountyAsset.class,
                 new DefaultAssetMap<String, BountyAsset>(), BountyAsset.TYPE_ROOT,
                 BountyAsset::getId, BountyAsset.CODEC, null);
