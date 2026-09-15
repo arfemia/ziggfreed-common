@@ -111,9 +111,14 @@ final class ContentLayers<T> {
                     }
                     String heldSlice = sliceOfId.get(id);
                     if (heldSlice != null) {
-                        warn.accept("'" + owner + "' publishes the " + label + " '" + id
-                                + "' twice, in slices '" + heldSlice + "' and '" + slice
-                                + "'; the one from '" + heldSlice + "' stands");
+                        warn.accept(heldSlice.equals(slice)
+                                ? "'" + owner + "' publishes the " + label + " '" + id
+                                        + "' twice in its " + sliceName(slice)
+                                        + " slice; the first stands"
+                                : "'" + owner + "' publishes the " + label + " '" + id
+                                        + "' twice, in its " + sliceName(heldSlice) + " and "
+                                        + sliceName(slice) + " slices; the one from its "
+                                        + sliceName(heldSlice) + " slice stands");
                         continue;
                     }
                     sliceOfId.put(id, slice);
@@ -140,6 +145,12 @@ final class ContentLayers<T> {
             }
         }
         return List.copyOf(new ArrayList<>(byId.values()));
+    }
+
+    /** A slice as a warning names it: the default slice has no name of its own. */
+    @Nonnull
+    private static String sliceName(@Nonnull String slice) {
+        return slice.isEmpty() ? "default" : "'" + slice + "'";
     }
 
     /** How many entries each owner contributed AFTER the merge, across every slice, for the boot diagnostic. */

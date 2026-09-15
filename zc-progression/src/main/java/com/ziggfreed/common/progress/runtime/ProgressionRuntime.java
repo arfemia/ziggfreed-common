@@ -684,7 +684,9 @@ public final class ProgressionRuntime {
      * separate stores in the same process, each with its own reload, that happen to publish under
      * the same owner name - so each fold's own reload replaces only what it folded rather than
      * wiping the other fold's entries out from under it. An owner with a single fold never needs
-     * one; see {@link #publishQuests(String, Collection)}.
+     * one; see {@link #publishQuests(String, Collection)}. Slice names fold case like owner names,
+     * and a BLANK slice is the default slice: a computed name that comes back empty replaces the
+     * owner's default-slice publish, so a caller that means a slice of its own makes sure it is named.
      */
     public static void publishQuests(@Nonnull String owner, @Nonnull String slice,
                                      @Nonnull Collection<Quest> layer) {

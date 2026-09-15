@@ -309,6 +309,8 @@ class CommerceCatalogTest {
         @AfterEach
         void resetTheSharedRuntime() {
             ProgressionRuntime.resetForTests();
+            // The library's own rank, as production registers it: a consumer outranks both slices.
+            ProgressionRuntime.defaults(CommerceCatalogs.OWNER);
         }
 
         @Test
