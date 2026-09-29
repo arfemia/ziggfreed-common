@@ -49,7 +49,10 @@ compiles as `:zc-loot`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggreg
   - [`loot/stamp/`](src/main/java/com/ziggfreed/common/loot/stamp/CLAUDE.md) - rolling stats onto
     an item: `StatRollEntry`/`RollPoolAsset`/`StampSpec` authored, `StampCapEngine` the pure
     decision (lowest budget binds, a fully-capped attempt denied so nothing is charged), the
-    pluggable `Stamper` contract with `StackStatsStamper` the wiring root installs by default.
+    pluggable `Stamper` contract with `StackStatsStamper` the wiring root installs by default, and
+    `StampFactors`, the `ziggfreedcommon:item_stamp_points` reading of the stamped points the factor
+    context's item carries, contributed process-wide from the root's setup (the entity module that
+    owns the `hytale:` item readings has no edge to this one).
 - [`instance/reward/`](src/main/java/com/ziggfreed/common/instance/reward/CLAUDE.md) - the
   mod-agnostic reward MODEL + the deferred-payout layer: `InstanceReward`, `InstanceRewardGranter`
   (block-first full-inventory guard), `PendingRewardStore` (durable per-player queue),
@@ -73,7 +76,9 @@ side ships a second nine-locale family, `Server/Languages/<bcp47>/ziggfreedcommo
 "Enhancements" tooltip heading and the one built-in stat label, durability), and two more registered
 TYPES of that same defaults-optional shape: `RollPoolAsset` (`Server/ZiggfreedCommon/RollPools/`) and
 `StatDisplayAsset` (`Server/ZiggfreedCommon/StatDisplays/`, `{Key, Color}` keyed by stat id). Both are
-detailed in the `loot/stamp/` router.
+detailed in the `loot/stamp/` router. `Server/ZiggfreedCommon/Factors/Stamp_Item_Points.json` is the
+naming overlay for `ziggfreedcommon:item_stamp_points` (its name lives with the other factor names in
+zc-progression's `ziggfreedcommon.progress.lang`).
 
 ## Conventions
 
@@ -101,7 +106,10 @@ and why a reward missing what its kind requires is refused at LOAD rather than a
 the kind was registered into, and that its earned cues reach whatever presenter the server
 registered, and `ShippedRewardKindFilesTest` - the three presentation-only kind files this module
 ships (`Lootable`, `Droplist`, `Effect`) decoding command-less and reading as the generic localized
-line under a stand-in icon), the stamp math (`StampCapEngineTest`, `StamperDescribeTest`,
+line under a stand-in icon), the stamp math (`StampCapEngineTest`, `StamperDescribeTest`, `StampFactorsTest` - the stamp
+factor over a stub stamper: total, per stat without regard to case, null with no item, bare with no
+stamper, the process-wide claim, and its shipped overlay; every case but the overlay builds a real
+`ItemStack`, so those are tagged `engine-items` and run in the `engineItemTest` task),
 `StampTooltipGateTest` - whether an item's own description key is safe to nest above the enhancement
 lines, refusing a key the catalogue does not carry and one carrying markup this surface cannot
 parse), and the
@@ -110,5 +118,11 @@ deferred-payout layer (`DeferredRewardsTest`, `InstanceRewardParseTest`, `Instan
 through queue/drain/has across a re-read: a file written before the marker existed reads as version
 1, every write carries the version, and a file declaring a newer one is left unread).
 `NativeLootServiceTest`'s unknown-id/disabled-module/throwing-engine
-cases run against the real unbooted engine (a bare unit-test JVM cannot construct an `ItemStack` at
-all here) - see that package's router for why.
+cases run against the real unbooted engine (no item or drop-list store is registered in a unit
+JVM) - see that package's router for why.
+
+Two test tasks (`gradle/zc-module.gradle`, since 2.2.0): the default `test` runs every untagged test
+with no log manager, exactly as a consumer mod's test JVM does, so the logging guards are exercised
+there; `engineItemTest` runs only the tests tagged `engine-items` (a real `ItemStack` or `Item` can
+only be built under the engine's own `HytaleLogManager`, which that task starts with). `check`, so
+`gradlew build`, runs both.

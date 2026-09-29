@@ -24,7 +24,9 @@ import org.junit.jupiter.api.Test;
  * {@code HytaleLogger} and throws in a unit JVM with no log manager - the same trap
  * {@link ToolPowerSelectionTest} documents. A map is exactly what
  * {@link HeldItemUtil#toolTiersOf} produces anyway, so the selection contract is pinned in full;
- * the spec-array fold above it is unchanged engine-facing code covered by in-game smoke.
+ * the spec-array fold above it is unchanged engine-facing code covered by in-game smoke. The map
+ * keeps this test in the default log-manager-less task; a spec-array fixture would need the
+ * {@code engine-items} tag and the {@code engineItemTest} task.
  */
 class ToolTierSelectionTest {
 

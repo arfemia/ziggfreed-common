@@ -69,10 +69,54 @@ javadoc {
     options.addStringOption('Xdoclint:-missing', '-quiet')
 }
 
+// Two test JVMs, split by a JUnit 5 tag on the test class or method.
+//
+// `test` is the log-manager-less unit JVM every consumer mod's own tests run in (RPG Stations, the
+// MMO), with no java.util.logging.manager set, exactly as in 2.1.x. It is the only place the
+// library's logging guards (SafeLog, GuardedLogger, every "log-manager-less unit JVM" catch) are
+// actually exercised, so every untagged test runs here and nowhere else.
+//
+// `engineItemTest` runs ONLY the tests tagged `engine-items`: the ones that build a real engine
+// Item, ItemStack, ItemQuality or a seeded engine asset store. It starts the JVM under the engine's
+// own log manager, installed before anything touches java.util.logging. HytaleLogger's static init
+// refuses to run under any other manager, and the engine's item classes reach it through their
+// codecs' validators, so without it a test cannot build a real ItemStack or Item at all: whichever
+// code touches JUL first (the JUnit launcher does) installs the JDK default and every later engine
+// class init fails. A live server installs this same manager at boot.
+//
+// An engine-item test left untagged dies in `test` on the engine's class-init error. The reverse is
+// not automatic: a guard test tagged into `engineItemTest` would pass without proving its guard, so
+// never tag one. SafeLogTest carries an explicit check (it asserts it runs with no engine log manager
+// installed); other guard tests rely on staying untagged. `check`
+// (so `gradlew build`) runs both. A module with no tagged test runs an empty engineItemTest, so that
+// task alone does not fail on discovering nothing.
+def engineItemsTag = 'engine-items'
+def exportProperties = System.properties.findAll { it.key.toString().startsWith('export') }
+
 test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags engineItemsTag
+    }
     // Forward gradlew-level -Dexport* system properties into the test JVM, so a one-shot gated
     // generator (a golden-fixture capture, say) can be triggered from the command line without
     // anybody editing a build file to do it.
-    systemProperties System.properties.findAll { it.key.toString().startsWith('export') }
+    systemProperties exportProperties
+}
+
+def engineItemTest = tasks.register('engineItemTest', Test) {
+    description = 'Runs the tests tagged engine-items, which build real engine items, under HytaleLogManager.'
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags engineItemsTag
+    }
+    failOnNoDiscoveredTests = false
+    systemProperties exportProperties
+    systemProperty 'java.util.logging.manager', 'com.hypixel.hytale.logger.backend.HytaleLogManager'
+    shouldRunAfter test
+}
+
+tasks.named('check') {
+    dependsOn engineItemTest
 }

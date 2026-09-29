@@ -8,14 +8,18 @@ consumer (the MMO), this package only supplies the toolkit they're built from.
 
 ## The clinit trap (read this before touching any of these files)
 
-Forcing `Interaction`'s class-init outside a live server throws: `Interaction`'s own static
-initializer transitively reaches a `RangeValidator` whose `<clinit>` touches `HytaleLogger`,
-which throws `IllegalStateException("Log manager wasn't set!")` unless the Hytale server has
-already installed `HytaleLogManager` as the JVM's log manager (documented at
+Forcing `Interaction`'s class-init in a JVM whose log manager is not the engine's own throws:
+`Interaction`'s own static initializer transitively reaches a `RangeValidator` whose `<clinit>`
+touches `HytaleLogger`, which throws `IllegalStateException("Log manager wasn't set!")` unless
+`HytaleLogManager` is the JVM's log manager (documented at
 `additional-mods/command-interactions/src/main/java/com/ziggfreed/interactioncommands/
-interaction/RunCommandInteraction.java:127-137`). Every class here is built around not
-touching `Interaction.CODEC` / `Interaction.ABSTRACT_CODEC` / `Interaction.CONTEXT_META_REGISTRY`
-until a live server is present:
+interaction/RunCommandInteraction.java:127-137`). A live server installs it at boot. A unit JVM
+does not: a consumer mod's test JVM has no log manager, and neither does zc's own default `test`
+task, which is where every test of this package runs. (Since 2.2.0 `gradle/zc-module.gradle` adds a
+second task, `engineItemTest`, that starts under `HytaleLogManager`, but it runs only the tests
+tagged `engine-items`, the ones that build real engine items; nothing here is tagged.) So every
+class here is built around not touching `Interaction.CODEC` / `Interaction.ABSTRACT_CODEC` /
+`Interaction.CONTEXT_META_REGISTRY` until a live server is present:
 
 - **[`InteractionTypeSpec`](InteractionTypeSpec.java)** holds a `Supplier<? extends
   BuilderCodec<? extends Interaction>>`, never the codec itself, and never invokes it - not in

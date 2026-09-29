@@ -78,6 +78,16 @@ separate from where the numbers end up.
   replace it** - a consumer wanting richer behaviour fills `StatNamer` instead of registering a
   second format.
 
+- **[`StampFactors`](StampFactors.java)** - `ziggfreedcommon:item_stamp_points`, the stamped points
+  the factor context's ITEM carries as an ordinary factor reading: Param absent reads the total, a
+  stat id reads that stat alone (matched without regard to case, `0` when the stamp never touched
+  it). It reads through `StamperRegistry.inspect`, never off the item, so the stamper stays the one
+  authority on the format and a server with no stamper reads every item as bare. Null where the
+  context carries no item. `contribute()` claims the id process-wide through `FactorContributions`
+  (one call from the wiring root, beside the stamper registration); `registerInto` is the
+  one-vocabulary form. The namespace is the library's own, because a stamp is this library's format,
+  not the engine's.
+
 ## Rules to keep
 
 - **A stat id is opaque to the ROLL MATH.** `StampCapEngine` rolls numbers and enforces budgets and
@@ -94,6 +104,8 @@ separate from where the numbers end up.
   the denial, and a re-stamp against a fake stamper). `StamperDescribeTest` pins the one thing a
   default method can silently break: a stamper that overrides nothing still ANSWERS `describe`, and
   answers null, so a caller's fallback is the documented path rather than an exception.
+  `StampFactorsTest` - the stamp factor over a stub stamper (total, per stat, no item, no stamper,
+  the process-wide claim) and its shipped naming overlay.
   `StampTooltipGateTest` - the base-description gate, pure: an item's own key that is missing and one
   whose value carries markup both yield no base prose, while a key that exists and is markup-free
   nests as the base line, plus the three `hasMarkup` cases.

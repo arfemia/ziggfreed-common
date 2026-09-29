@@ -12,7 +12,6 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
-import com.hypixel.hytale.server.core.asset.type.item.config.ItemQuality;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemTool;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemToolSpec;
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
@@ -29,6 +28,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  * tell", never to a broken frame. <b>{@code null} means "cannot answer", never "zero"</b> - a
  * caller deciding a gate needs those apart, which is why nothing here substitutes a default for an
  * absent item.
+ *
+ * <p><b>What an item is WORTH is {@link ItemReadings}'s</b>, the one item reader: the three value
+ * reads below ({@link #qualityValueOf}, {@link #itemLevelOf}, {@link #durabilityPercentOf}) answer
+ * through it, so there is one definition of each value.
  *
  * <p><b>World thread only</b>: the held-stack reads touch a live {@link Store}. The asset-side
  * reads ({@link #rawTagsOf}, {@link #toolPowersOf}, {@link #qualityValueOf}, {@link #itemLevelOf})
@@ -77,9 +80,14 @@ public final class HeldItemUtil {
     /** The item ASSET behind the ACTIVE hotbar stack, or null when nothing usable is held. */
     @Nullable
     public static Item heldItem(@Nullable Store<EntityStore> store, @Nullable Ref<EntityStore> ref) {
-        ItemStack held = heldStack(store, ref);
+        return itemOf(heldStack(store, ref));
+    }
+
+    /** The item ASSET behind {@code stack}, or null when there is no stack or its item cannot be read. */
+    @Nullable
+    public static Item itemOf(@Nullable ItemStack stack) {
         try {
-            return held == null ? null : held.getItem();
+            return stack == null ? null : stack.getItem();
         } catch (Throwable ignored) {
             return null;
         }
@@ -270,62 +278,28 @@ public final class HeldItemUtil {
     }
 
     /**
-     * An item's RARITY as the native {@code ItemQuality.QualityValue} its referenced quality asset
-     * authors - the number that ORDERS quality tiers (0 = lowest), so a pack shipping its own tier
-     * participates with no code change. Null when {@code item} is null.
-     *
-     * <p>Two indirections, both deliberate: {@code Item#getQualityIndex()} returns an ASSET-MAP
-     * INDEX rather than the ordering value, so it is resolved back through the quality asset map to
-     * read the authored value. The engine's own default quality authors {@code -1}, floored to 0
-     * here so an unqualified item can never drag a weighted formula below an authored lowest tier.
+     * An item's RARITY as the native {@code ItemQuality.QualityValue} its quality asset authors,
+     * floored at 0. Null when {@code item} is null. The same reading as {@link ItemReadings#quality(Item)},
+     * the one item reader: the item's CURRENT quality. {@link ItemReadings#quality(ItemStack)} is
+     * the other reading, the quality index a stack carries (copied from its item when made).
      */
     @Nullable
     public static Double qualityValueOf(@Nullable Item item) {
-        if (item == null) {
-            return null;
-        }
-        try {
-            ItemQuality quality = ItemQuality.getAssetMap().getAsset(item.getQualityIndex());
-            return quality == null ? 0.0 : Math.max(0.0, quality.getQualityValue());
-        } catch (Throwable ignored) {
-            return null;
-        }
+        return ItemReadings.quality(item);
     }
 
-    /** An item's native {@code ItemLevel}, floored at 0. Null when {@code item} is null. */
+    /** An item's native {@code ItemLevel}, floored at 0; {@link ItemReadings#itemLevel(Item)}. */
     @Nullable
     public static Double itemLevelOf(@Nullable Item item) {
-        if (item == null) {
-            return null;
-        }
-        try {
-            return Math.max(0.0, item.getItemLevel());
-        } catch (Throwable ignored) {
-            return null;
-        }
+        return ItemReadings.itemLevel(item);
     }
 
     /**
-     * A stack's remaining durability as a percent in {@code [0, 100]}. A stack that tracks no
-     * durability at all reads {@code 100} (an item that cannot wear is never worn), so a wear gate
-     * never rejects one; null only when there is no stack to ask about.
+     * A stack's remaining durability as a percent in {@code [0, 100]}, 100 for a stack that tracks
+     * none; {@link ItemReadings#durabilityPercent(ItemStack)}.
      */
     @Nullable
     public static Double durabilityPercentOf(@Nullable ItemStack stack) {
-        if (stack == null) {
-            return null;
-        }
-        try {
-            if (stack.isEmpty()) {
-                return null;
-            }
-            if (stack.getMaxDurability() <= 0) {
-                return 100.0;
-            }
-            double percent = (stack.getDurability() / stack.getMaxDurability()) * 100.0;
-            return Math.max(0.0, Math.min(100.0, percent));
-        } catch (Throwable ignored) {
-            return null;
-        }
+        return ItemReadings.durabilityPercent(stack);
     }
 }

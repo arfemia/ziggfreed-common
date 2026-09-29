@@ -126,7 +126,7 @@ root [`CLAUDE.md`](../CLAUDE.md) for the aggregate build + install commands.
 
 `Server/Languages/<locale>/ziggfreedcommon.fmt.lang`, 9 locales (de-DE, en-US, es-ES, fr-FR,
 hu-HU, it-IT, pt-BR, ru-RU, tr-TR): the glue/format keys (`ziggfreedcommon.fmt.cat` and friends)
-`Msg.cat` depends on, plus `Server/ZiggfreedCommon/Factors/*.json`: the nine `Hytale_*` standard-library
+`Msg.cat` depends on, plus `Server/ZiggfreedCommon/Factors/*.json`: the thirteen `Hytale_*` standard-library
 derived factors read by this module's own authorable type, `factor/DerivedFactorAsset` (registered by the
 wiring root's `FrameworkAssetRegistrar`). No `.ui`.
 
@@ -149,3 +149,10 @@ core (`FactorFormulaTest`, `FactorVocabularyTest`, `FactorContextTest`, `FactorC
 the i18n overlay primitive. The two cross-cutting guard tests that touch every module
 (`AssetCodecInitTest`, `RootRegistrationOnlyTest`) live in the wiring root's own test set, not
 here, because they need every module's classes on the classpath at once.
+
+Two test tasks (`gradle/zc-module.gradle`, since 2.2.0): the default `test` runs every untagged test
+with no log manager, exactly as a consumer mod's test JVM does, which is where this module's logging
+guards are exercised; `SafeLogTest` asserts it runs there and nowhere else. `engineItemTest` runs
+only the tests tagged `engine-items`, under the engine's own `HytaleLogManager`: here, the
+`FactorContextTest` cases that carry a real `ItemStack` in the item leaf. `check`, so
+`gradlew build`, runs both.

@@ -134,7 +134,10 @@ unreplayable kind is dropped and reported rather than promised), `NativeLootServ
 disabled-module / throwing-engine never-throws, plus the empty-spawn contract: every spawn form
 answers landed for an empty list before touching any accessor). A bare unit-test JVM never boots a real `ItemModule`
 (its static `get()` is only assigned by the live plugin bootstrap) or registers the `Item`/
-`ItemDropList` asset stores, and cannot construct an `ItemStack` at all here (its codec chain forces a
-validator class needing the Hytale log manager installed before anything touches `java.util.logging` -
-already lost to the Gradle test worker's own bootstrap), so those cases run against the real unbooted
-engine to prove the guards directly and leave what a live drop list produces to the in-game pass.
+`ItemDropList` asset stores, so those cases run against the real unbooted engine to prove the guards
+directly and leave what a live drop list produces to the in-game pass. They run in the default `test`
+task, which has no log manager, so an `ItemStack` cannot be built there at all (its codec chain forces
+a validator class needing the Hytale log manager installed before anything touches
+`java.util.logging`). Since 2.2.0 a test that needs a real stack is tagged `engine-items` and runs in
+the separate `engineItemTest` task, which `gradle/zc-module.gradle` starts under the engine's own log
+manager; `NativeLootServiceTest` is not one of them.

@@ -3,7 +3,10 @@ package com.ziggfreed.common.asset;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
+import com.hypixel.hytale.assetstore.event.RemovedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
+import com.hypixel.hytale.server.core.asset.type.item.config.CraftingRecipe;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
@@ -82,6 +85,7 @@ import com.ziggfreed.common.progress.asset.ObjectiveKindFold;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
+import com.ziggfreed.common.recipe.RecipeIndex;
 import com.ziggfreed.common.ui.hud.panel.HudOwnerLayers;
 import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
 import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
@@ -628,6 +632,24 @@ public final class FrameworkAssetRegistrar {
                     EncounterParticipationConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     EncounterOwnerLayers.reloadParticipation();
                 });
+
+        // --- The native recipe index (zc-entity) - not a store of ours: a read-side index over the
+        //     ENGINE's CraftingRecipe store, built on first read. It is dropped on every recipe and
+        //     item load and removal (an item reload reloads the recipes authored inside it), so the
+        //     next read sees the engine's complete asset map and every consumer's derived cache sees
+        //     the generation move. ---
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, CraftingRecipe.class,
+                (LoadedAssetsEvent<String, CraftingRecipe, DefaultAssetMap<String, CraftingRecipe>> ev) ->
+                        RecipeIndex.live().invalidate());
+        plugin.getEventRegistry().register(RemovedAssetsEvent.class, CraftingRecipe.class,
+                (RemovedAssetsEvent<String, CraftingRecipe, DefaultAssetMap<String, CraftingRecipe>> ev) ->
+                        RecipeIndex.live().invalidate());
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, Item.class,
+                (LoadedAssetsEvent<String, Item, DefaultAssetMap<String, Item>> ev) ->
+                        RecipeIndex.live().invalidate());
+        plugin.getEventRegistry().register(RemovedAssetsEvent.class, Item.class,
+                (RemovedAssetsEvent<String, Item, DefaultAssetMap<String, Item>> ev) ->
+                        RecipeIndex.live().invalidate());
 
         try {
             CommonLog.LOGGER.atInfo().log(

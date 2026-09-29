@@ -848,6 +848,9 @@ The text a row is NAMED by is pinned one module down, in `zc-progression`'s `Con
 next to the shared schema that carries it: the args an author bound, the step line a fold composed,
 and the resolution through the authored-key seam are all properties of the runtime object now, so
 they can be asserted on real values rather than by reading source. That matters here because a page
-CANNOT be reached from a test at all - initializing one builds a logger in a static initializer that
-refuses to load in a JVM whose log manager is already up, which is why `zc-dialogue`'s page render
-guard is written the way it is too.
+is not reached from a test: initializing one builds a logger in a static initializer that refuses to
+load unless the JVM's log manager is the engine's own `HytaleLogManager`. zc's default `test` task
+runs without one, as a consumer mod's test JVM does, which is why `zc-dialogue`'s page render guard is
+written the way it is too. Only the `engineItemTest` task (`gradle/zc-module.gradle`, since 2.2.0)
+starts under it, for the tests tagged `engine-items` that build real engine items; building a page
+there is untried.

@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
@@ -17,6 +18,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.codec.TagMatch;
 import com.ziggfreed.common.entity.HeldItemUtil;
+import com.ziggfreed.common.entity.ItemReadings;
 import com.ziggfreed.common.stats.StatIndexCache;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -47,14 +49,34 @@ import com.ziggfreed.common.util.SafeLog;
  *       of any type)</td><td>the held tool's per-type harvest-TIER GATE ({@code ItemToolSpec
  *       .Quality}) - a different number from {@code tool_quality} below</td></tr>
  *   <tr><td>{@code hytale:tool_durability_percent}</td><td>ignored</td><td>0..100 of the held stack</td></tr>
- *   <tr><td>{@code hytale:tool_quality}</td><td>ignored</td><td>the held item's quality tier value</td></tr>
+ *   <tr><td>{@code hytale:tool_quality}</td><td>ignored</td><td>the held ITEM's current quality tier
+ *       value (the item asset's, not the stack's copy)</td></tr>
  *   <tr><td>{@code hytale:tool_item_level}</td><td>ignored</td><td>the held item's native item level</td></tr>
  *   <tr><td>{@code hytale:held_tag}</td><td>{@code family:value}, or a bare value</td>
  *       <td>1 when the held item carries it, else 0</td></tr>
  *   <tr><td>{@code hytale:held_item}</td><td>an item id</td><td>1 on a match, else 0</td></tr>
  *   <tr><td>{@code hytale:permission}</td><td>a permission node</td>
  *       <td>1 when the subject's connection holds it, else 0</td></tr>
+ *   <tr><td>{@code hytale:item_quality}</td><td>ignored</td>
+ *       <td>the context STACK's own quality tier value (the index the stack carries)</td></tr>
+ *   <tr><td>{@code hytale:item_level}</td><td>ignored</td><td>the context item's native item level</td></tr>
+ *   <tr><td>{@code hytale:item_durability_percent}</td><td>ignored</td>
+ *       <td>0..100 of the context stack; 100 for an item that tracks no durability</td></tr>
+ *   <tr><td>{@code hytale:item_stat}</td><td>a registered {@code EntityStatType} id</td>
+ *       <td>the ADDITIVE amount the context item's own armor, weapon and utility
+ *       {@code StatModifiers} author toward that channel</td></tr>
  * </table>
+ *
+ * <p><b>Two families read items, and they read DIFFERENT items.</b> The {@code tool_*} ids read
+ * what is in the SUBJECT'S HAND. The {@code item_*} ids read the stack the moment itself carries in
+ * {@link FactorContext#item()} - the piece on a work surface, the input a recipe consumed - and
+ * answer null wherever a moment carries none, so a gate on an item that is not there stays shut.
+ * Both families read through the one item reader ({@link ItemReadings}), so level and wear read the
+ * same held or placed. <b>Quality differs on purpose</b>: {@code tool_quality} reads the held
+ * ITEM's current quality, as it always has, while {@code item_quality} reads the quality index the
+ * STACK carries, which the engine copies from its item when the stack is made and saves with it.
+ * The two agree until an item's quality is reloaded, or the quality index order moves between
+ * boots, after the stack was made.
  *
  * <p><b>{@code hytale:permission} belongs to this portable set for the same reason the rest do:
  * permissions are the ENGINE's own paradigm</b> (a node on the player's connection, declared in a
@@ -98,7 +120,10 @@ public final class HytaleFactors {
     public static final String TOOL_TIER = "hytale:tool_tier";
     /** {@code hytale:tool_durability_percent} - the held stack's remaining durability, 0..100. */
     public static final String TOOL_DURABILITY_PERCENT = "hytale:tool_durability_percent";
-    /** {@code hytale:tool_quality} - the held item's native quality-tier ordering value. */
+    /**
+     * {@code hytale:tool_quality} - the held ITEM's current native quality-tier ordering value (the
+     * item asset's quality, not the index the held stack carries).
+     */
     public static final String TOOL_QUALITY = "hytale:tool_quality";
     /** {@code hytale:tool_item_level} - the held item's native item level. */
     public static final String TOOL_ITEM_LEVEL = "hytale:tool_item_level";
@@ -108,6 +133,17 @@ public final class HytaleFactors {
     public static final String HELD_ITEM = "hytale:held_item";
     /** {@code hytale:permission} - 1 when the subject holds the permission node named by Param, else 0. */
     public static final String PERMISSION = "hytale:permission";
+    /** {@code hytale:item_quality} - the context STACK's own quality-tier ordering value (the index it carries). */
+    public static final String ITEM_QUALITY = "hytale:item_quality";
+    /** {@code hytale:item_level} - the context item's native item level. */
+    public static final String ITEM_LEVEL = "hytale:item_level";
+    /** {@code hytale:item_durability_percent} - the context stack's remaining durability, 0..100. */
+    public static final String ITEM_DURABILITY_PERCENT = "hytale:item_durability_percent";
+    /**
+     * {@code hytale:item_stat} - the ADDITIVE amount the context item's own {@code StatModifiers}
+     * author toward the {@code EntityStatType} named by Param.
+     */
+    public static final String ITEM_STAT = "hytale:item_stat";
 
     private static final Double YES = 1.0;
     private static final Double NO = 0.0;
@@ -137,6 +173,10 @@ public final class HytaleFactors {
         registry.register(HELD_TAG, owner, HytaleFactors::resolveHeldTag);
         registry.register(HELD_ITEM, owner, HytaleFactors::resolveHeldItem);
         registry.register(PERMISSION, owner, HytaleFactors::resolvePermission);
+        registry.register(ITEM_QUALITY, owner, HytaleFactors::resolveItemQuality);
+        registry.register(ITEM_LEVEL, owner, HytaleFactors::resolveItemLevel);
+        registry.register(ITEM_DURABILITY_PERCENT, owner, HytaleFactors::resolveItemDurabilityPercent);
+        registry.register(ITEM_STAT, owner, HytaleFactors::resolveItemStat);
     }
 
     // ==================== providers ====================
@@ -157,11 +197,7 @@ public final class HytaleFactors {
         }
         int index = StatIndexCache.resolve(statId);
         if (index == StatIndexCache.UNRESOLVED) {
-            if (WARNED_UNKNOWN_STAT.add(statId)) {
-                SafeLog.warn("[factor] " + STAT + " - no stat channel registered under '" + statId
-                        + "', conditions and weights on it fail closed"
-                        + " (register the channel before any content referencing it decodes)");
-            }
+            warnUnknownStat(STAT, statId);
             return null;
         }
         Store<EntityStore> store = ctx.store();
@@ -237,11 +273,16 @@ public final class HytaleFactors {
      */
     @Nullable
     static Double resolveToolDurabilityPercent(@Nonnull FactorContext ctx) {
-        return HeldItemUtil.durabilityPercentOf(HeldItemUtil.heldStack(ctx.store(), ctx.subject()));
+        return ItemReadings.durabilityPercent(HeldItemUtil.heldStack(ctx.store(), ctx.subject()));
     }
 
     /**
-     * The held item's native quality-tier ordering value. Null when nothing is held.
+     * The held ITEM's native quality-tier ordering value: the quality its item asset names now,
+     * read through {@link ItemReadings#quality(Item)}. Deliberately NOT the index the held stack
+     * carries (that is {@link #ITEM_QUALITY}'s reading of a context stack): the engine copies an
+     * item's index into each stack it makes, so a stack read would drift from this reading whenever
+     * the item's quality is reloaded or the index order moves between boots. Null when nothing is
+     * held.
      *
      * <p><b>{@code Param} is ignored.</b> This is the item's own RARITY - its {@code Quality} field
      * names one {@code ItemQuality} asset for the whole item - so it is a single value with nothing
@@ -249,7 +290,17 @@ public final class HytaleFactors {
      */
     @Nullable
     static Double resolveToolQuality(@Nonnull FactorContext ctx) {
-        return HeldItemUtil.qualityValueOf(HeldItemUtil.heldItem(ctx.store(), ctx.subject()));
+        return toolQualityOfHeld(HeldItemUtil.heldStack(ctx.store(), ctx.subject()));
+    }
+
+    /**
+     * {@link #TOOL_QUALITY}'s reading of a held stack: the quality the stack's ITEM names now, never
+     * the index the stack carries. Kept apart from the hand read so a test can pin that choice on a
+     * stack whose carried index differs from its item's.
+     */
+    @Nullable
+    static Double toolQualityOfHeld(@Nullable ItemStack held) {
+        return ItemReadings.quality(HeldItemUtil.itemOf(held));
     }
 
     /**
@@ -260,7 +311,7 @@ public final class HytaleFactors {
      */
     @Nullable
     static Double resolveToolItemLevel(@Nonnull FactorContext ctx) {
-        return HeldItemUtil.itemLevelOf(HeldItemUtil.heldItem(ctx.store(), ctx.subject()));
+        return ItemReadings.itemLevel(HeldItemUtil.heldStack(ctx.store(), ctx.subject()));
     }
 
     /**
@@ -336,7 +387,63 @@ public final class HytaleFactors {
         return playerRef == null ? null : (playerRef.hasPermission(node) ? YES : NO);
     }
 
+    /**
+     * The context STACK's own quality-tier ordering value ({@link FactorContext#item()}): the index
+     * the stack carries, copied from its item when the stack was made or set by a re-qualify,
+     * through {@link ItemReadings#quality(ItemStack)}. Null when the context carries no item.
+     * {@code Param} is ignored.
+     */
+    @Nullable
+    static Double resolveItemQuality(@Nonnull FactorContext ctx) {
+        return ItemReadings.quality(ctx.item());
+    }
+
+    /** The context item's native item level. Null when the context carries no item. {@code Param} is ignored. */
+    @Nullable
+    static Double resolveItemLevel(@Nonnull FactorContext ctx) {
+        return ItemReadings.itemLevel(ctx.item());
+    }
+
+    /**
+     * The context stack's remaining durability, 0..100; a stack whose item tracks no durability
+     * reads 100. Null when the context carries no item. {@code Param} is ignored.
+     */
+    @Nullable
+    static Double resolveItemDurabilityPercent(@Nonnull FactorContext ctx) {
+        return ItemReadings.durabilityPercent(ctx.item());
+    }
+
+    /**
+     * What the context item's own asset authors toward the stat channel named by {@code Param}: the
+     * ADDITIVE {@code StatModifiers} amounts across its armor, weapon and utility blocks (a
+     * multiplicative modifier adds nothing; see {@link ItemReadings#statTotal(ItemStack, String)}).
+     * {@code 0} for an item that authors nothing toward that channel. Null when the context carries
+     * no item, no {@code Param} was authored, or no channel is registered under it; the last is
+     * named in the log once per channel id, as for {@link #STAT}.
+     */
+    @Nullable
+    static Double resolveItemStat(@Nonnull FactorContext ctx) {
+        String statId = trimmed(ctx.param());
+        if (statId == null || !ctx.hasItem()) {
+            return null;
+        }
+        if (StatIndexCache.resolve(statId) == StatIndexCache.UNRESOLVED) {
+            warnUnknownStat(ITEM_STAT, statId);
+            return null;
+        }
+        return ItemReadings.statTotal(ctx.item(), statId);
+    }
+
     // ==================== helpers ====================
+
+    /** Name an unregistered stat channel once per id, whichever stat-addressed factor asked first. */
+    private static void warnUnknownStat(@Nonnull String factorId, @Nonnull String statId) {
+        if (WARNED_UNKNOWN_STAT.add(statId)) {
+            SafeLog.warn("[factor] " + factorId + " - no stat channel registered under '" + statId
+                    + "', conditions and weights on it fail closed"
+                    + " (register the channel before any content referencing it decodes)");
+        }
+    }
 
     /**
      * One family/value probe through the shared {@code TagMatch} matcher, so the tag semantics a

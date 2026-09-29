@@ -41,7 +41,9 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
 - **[`FactorContext`](FactorContext.java)** - the immutable question, builder-built, every leaf
   independently nullable and ORTHOGONAL: `param` (the authored argument beside the id), `world`,
   `store` + `subject` (the entity the question is ABOUT - live world-thread handles, valid only
-  inside the `resolve` call), `target` (the OTHER entity in the moment, the one it happened TO), and
+  inside the `resolve` call), `target` (the OTHER entity in the moment, the one it happened TO),
+  `item` (the ITEM the moment is about, an engine `ItemStack`: a piece placed on a work surface, a
+  stack a recipe consumed; `hasItem()` is its guard, and the engine's empty stack is no item), and
   `payload` (the consumer's own opaque extension, e.g. a placement id). **Field-additive by design**:
   a new leaf is a new nullable field plus a builder method, so a provider written against an older
   shape keeps working - which is what lets one vocabulary serve sites as different as a pre-spawn
@@ -53,6 +55,13 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
     target-reading provider answers null there and every gate on it stays shut - the standing rule,
     not a special case. `hasLiveTarget()` is the guard to ask before reading it, exactly like
     `hasLiveSubject()`.
+  - **`item` is its own leaf, never a reading of the subject's hand.** A player working a bench
+    holds a tool while the piece on the bench is something else, and a formula may weigh both: the
+    `hytale:tool_*` readings keep reading the HAND, the `hytale:item_*` readings (and
+    `ziggfreedcommon:item_stamp_points`) read THIS leaf and answer null where a moment carries none.
+    Unlike the entity leaves it is a plain value, so it stays readable after the moment that
+    supplied it; a consumer that rebuilds its context on resume captures the stack and supplies it
+    again.
   - **`withParam` carries every leaf.** The array evaluators rebuild the context per entry so each
     carries its own `Param`; a leaf dropped there would silently blank a factor for every entry after
     the first, which is why `FactorContextTest` pins the carry-over rather than trusting it.
@@ -107,12 +116,13 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
     SKIPPED and the walk continues - which is what lets several mods each name their own params of
     one shared factor (`hytale:stat` being the worked case). A factor no file names answers null
     and the surface falls to its generic requirements line - the visible cue to author an overlay.
-  - **The library ships overlays for its own nine `hytale:` factors** (zc-core resources,
+  - **The library ships overlays for its own thirteen `hytale:` factors** (zc-core resources,
     `Factors/Hytale_*.json`): `hytale:stat` in the pattern form
     (`ziggfreedcommon.progress.factor.stat.{param}`, the engine's own channels named in the nine
     `ziggfreedcommon.progress.lang` files), `hytale:held_item` patterned straight onto
     `server.items.{param}.name`, the rest with a bare `Text`. zc-progression ships three more for
-    its own `ziggfreedcommon:quest_known` / `quest_completed` / `achievement_earned` ids (bare `Text`; a condition
+    its own `ziggfreedcommon:quest_known` / `quest_completed` / `achievement_earned` ids, and
+    zc-loot one (`Stamp_Item_Points.json`) for `ziggfreedcommon:item_stamp_points` (bare `Text`; a condition
     naming a specific quest or achievement already reads with that content's own title through
     `quest.LockReasons`).
 - **[`DerivedFactorValidator`](DerivedFactorValidator.java)** - the load-time audit for the silent
@@ -157,8 +167,11 @@ Any factor whose VALUE is expressible as a `FactorFormula` over existing factors
 library registers in code stays Java, each for the same structural reason - it READS something no
 formula can reach - and gets a naming overlay instead:
 
-- the nine `HytaleFactors` ids read live engine data off the context's subject (a stat fold, the
-  held stack's tool spec/tags/durability, a permission check on the connection);
+- the thirteen `HytaleFactors` ids read live engine data off the context's subject (a stat fold, the
+  held stack's tool spec/tags/durability, a permission check on the connection) or off its item
+  leaf (quality, level, wear, the item's own stat modifiers);
+- `StampFactors`' `ziggfreedcommon:item_stamp_points` (zc-loot) reads the context item's stamps
+  through the active stamper;
 - `ModFactors`' `hytale:mod_installed` reads the engine's plugin table and its asset-pack registry;
 - `ProgressionFactors`' five `ziggfreedcommon:` ids read a player's stored quest/achievement
   records through the runtime's registered stores (and, for `quest_known`, its catalogue);
@@ -250,15 +263,30 @@ over these belongs in a Factors file.
 ## The portable standard library (zc-entity)
 
 - **[`HytaleFactors`](../../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/factor/HytaleFactors.java)** -
-  `registerInto(registry, owner)` claims nine `hytale:` ids, all straight reads of NATIVE engine
-  data about the context's own subject: `stat` (Param = a registered `EntityStatType` id, answering
+  `registerInto(registry, owner)` claims thirteen `hytale:` ids, all straight reads of NATIVE engine
+  data about the context's own subject or its item: `stat` (Param = a registered `EntityStatType` id, answering
   its EFFECTIVE folded max), `tool_power` (Param = a native `GatherType`; omit for the best of any
   type), `tool_tier` (same Param contract as `tool_power`, a DIFFERENT native field - see below),
   `tool_durability_percent`, `tool_quality`, `tool_item_level`, `held_tag` (Param =
   `family:value` or a bare value), `held_item` (Param = an item id), `permission` (Param = a
-  permission node, answered by `PlayerRef#hasPermission`). **The namespace names the
+  permission node, answered by `PlayerRef#hasPermission`), and the ITEM family over the context's
+  `item` leaf: `item_quality` (the quality index the STACK carries, which the engine copies from
+  its item when it makes the stack), `item_level`, `item_durability_percent` (100 for a stack that tracks no durability)
+  and `item_stat` (Param = a registered `EntityStatType` id; the ADDITIVE amounts the item's own
+  armor, weapon and utility `StatModifiers` author toward it, a multiplicative modifier adding
+  nothing, and `0` for an item that authors nothing toward that channel). **The namespace names the
   vocabulary's OWNER, not the registrant** - two mods converging on `hytale:tool_quality` is
   agreement rather than a collision, and an author can tell portability from the id alone.
+- **Both item-reading families read through ONE reader,
+  [`entity/ItemReadings`](../../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/entity/ItemReadings.java)**
+  (`quality` / `itemLevel` / `durabilityPercent` / `statTotal`, each over a stack or an item asset,
+  null never zero when it cannot tell). The `tool_*` readings are exactly their 2.1.x values:
+  `tool_quality` asks it about the held ITEM (its current quality), and `tool_item_level` /
+  `tool_durability_percent` about the held stack. **Quality is the one place the two families
+  differ, on purpose**: `item_quality` reads the index the STACK carries, `tool_quality` the
+  item's current one, and those agree until an item's quality is reloaded or the quality index
+  order moves between boots after the stack was made. A consumer that answers a `hytale:` item id
+  in its own registry (a work session over a captured stack) answers it through the same reader.
 - **`permission` is portable because permissions are the ENGINE's paradigm** - a node on the
   player's connection, declared in a manifest - not one mod's invention. It is the factor spelling
   of the same requirement a shared `Requires` block writes as its `Permission` leaf, and both
@@ -302,9 +330,13 @@ over these belongs in a Factors file.
 - **A consumer may re-register the SAME ids with its own resolution** in its OWN registry (a work
   session holding a tool snapshot rather than reading the live hand). Same vocabulary,
   context-appropriate answer - that is the point of the registry being per consumer.
-- **[`../entity/HeldItemUtil`](../../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/entity/HeldItemUtil.java)**
-  is the guarded read layer underneath (active hotbar stack, item asset, raw tags, tool powers,
-  quality value, item level, durability percent). Same rule: null means "cannot tell", never zero.
+- **[`../entity/ItemReadings`](../../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/entity/ItemReadings.java)**
+  is the guarded read layer for what an item is worth (quality, item level, durability percent,
+  authored stat totals), and
+  [`../entity/HeldItemUtil`](../../../../../../../../zc-entity/src/main/java/com/ziggfreed/common/entity/HeldItemUtil.java)
+  the one for what is held (active hotbar stack, item asset, raw tags, tool powers and tiers); its
+  worth methods (`qualityValueOf` / `itemLevelOf` / `durabilityPercentOf`) delegate to
+  `ItemReadings`. Same rule: null means "cannot tell", never zero.
 
 ## The progression readings (zc-progression)
 
@@ -402,7 +434,10 @@ still resolves, and the validators stay the real check.
 `zc-core`'s `FactorVocabularyTest` pins the whole fail-closed matrix, the accepts table, and the
 array evaluator; `FactorFormulaTest` pins the value side's mirror-image degrade-to-zero table plus
 the codec and `Parent` inheritance; `FactorContextTest` pins every leaf's absent-until-supplied
-default, the two entity leaves' independence, and the `withParam` carry-over;
+default, the two entity leaves' independence, the item leaf, and the `withParam` carry-over
+(zc-entity's `HytaleFactorsTest` and `ItemReadingsTest` pin the item family and the reader over real
+engine stacks built without a server, and zc-loot's `StampFactorsTest` the stamp reading over a stub
+stamper);
 `FactorContributionsTest` pins the whole absent-mod story (uncontributed id resolves to nothing, the
 bounds-less gate stays shut, the term adds zero while the rest of the formula survives) beside the
 installed one, plus local-beats-contributed precedence and per-contributor attribution;

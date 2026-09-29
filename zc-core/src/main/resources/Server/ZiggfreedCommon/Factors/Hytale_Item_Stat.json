@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the hytale:item_stat reading (what the item a moment is about adds to the stat channel its Param names, through its own armor, weapon and utility StatModifiers) for requirement lines. The name covers the factor whatever channel a requirement's Param picks.",
+  "Factor": "hytale:item_stat",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.item_stat" }
+}

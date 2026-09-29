@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the hytale:item_quality reading (the rarity of the item a moment is about, such as a piece placed on a bench, rather than the one in hand) for requirement lines.",
+  "Factor": "hytale:item_quality",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.item_quality" }
+}

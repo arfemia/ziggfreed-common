@@ -47,6 +47,7 @@ import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.stamp.StackStatsStamper;
+import com.ziggfreed.common.loot.stamp.StampFactors;
 import com.ziggfreed.common.loot.stamp.StamperRegistry;
 import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
@@ -302,6 +303,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         LootRewardKinds.factors(lootFactorVocabulary());
         LootRewardKinds.overflow(new FeetDropOverflow());
         StamperRegistry.register(new StackStatsStamper());
+        // The stamped points an item carries, as a factor every vocabulary on the server resolves:
+        // read through whichever stamper is active, and answered only where a moment carries an item.
+        StampFactors.contribute();
         // What an authored Cue MEANS, for every consumer at once: the cue id IS the FeedbackMoment
         // id. This wiring lives here rather than in either module because loot and presentation are
         // sibling modules that cannot see each other, and this root is the one place that sees both.
