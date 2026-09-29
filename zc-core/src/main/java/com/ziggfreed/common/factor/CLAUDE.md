@@ -103,7 +103,7 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
     `MMO_Level_MINING` to a key family registered as `...skill.mining`; and an optional `WrapKey`,
     a phrase key the pattern's RESOLVED name is folded into as `{0}` ("{0} level" reads Mining as
     "Mining level"). No transform and no wrap ever touches a `Keys` entry, which matches the
-    `Param` as authored and writes the whole name by hand). **Keys are written IN FULL and never namespaced for the author** (rules R0), so an
+    `Param` as authored and writes the whole name by hand). **Keys are written IN FULL and never namespaced for the author**, so an
     overlay may point at any mod's shipped key - a station mod naming something with an MMO key, a
     pack reusing a library key. `Factor` and `Formula` are mutually exclusive (validator error); a
     naming-only file registers NO value, so it can never shadow the real provider of the id it
@@ -160,7 +160,7 @@ without some factor, that is a GATE and it belongs in the surrounding `Condition
   condition actually asks. A key nobody has ever counted reads `0`, so every authored condition on
   this id needs a `Min`.
 
-### The R6 audit: which factors are assets, which stay Java, and why
+### The factor audit: which factors are assets, which stay Java, and why
 
 Any factor whose VALUE is expressible as a `FactorFormula` over existing factors belongs in a
 `Server/ZiggfreedCommon/Factors/` asset, not in code. Audited against that rule, every factor this

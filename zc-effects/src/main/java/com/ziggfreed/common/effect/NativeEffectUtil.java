@@ -1,10 +1,11 @@
 package com.ziggfreed.common.effect;
 
+import java.util.Collections;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.assetstore.map.CaseInsensitiveHashStrategy;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -13,6 +14,8 @@ import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBeha
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.CommonLog;
+
+import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet;
 
 /**
  * Apply / remove a Hytale {@code EntityEffect} asset on an entity by id, over the two
@@ -51,7 +54,9 @@ import com.ziggfreed.common.CommonLog;
  * engine throw; {@code has} logs every miss at FINE, since the apply it precedes is the call that
  * names the id) so a caller only needs the boolean. An UNRESOLVED id is named at WARN once per id
  * per process, whichever call meets it first, and at FINE after that: a caller reconciling on
- * every change (the gear-set engine) would otherwise repeat the same line on each one.
+ * every change (the gear-set engine) would otherwise repeat the same line on each one. That latch is
+ * keyed exactly as the engine's {@code EntityEffect} asset map resolves an id (its own
+ * {@code CaseInsensitiveHashStrategy}), so two spellings the map treats as one id warn once.
  *
  * <p><b>World-thread only</b> (reads/mutates an {@link EffectControllerComponent}); the caller
  * guarantees the thread. See {@link AppliedEffectTracker} for the companion "track what this
@@ -238,8 +243,12 @@ public final class NativeEffectUtil {
         return EntityEffect.getAssetMap().getAsset(idx);
     }
 
-    /** The ids already named out loud as unresolved; see {@link #warnUnresolvedOnce}. */
-    private static final Set<String> WARNED_UNRESOLVED = ConcurrentHashMap.newKeySet();
+    /**
+     * The ids already named out loud as unresolved; see {@link #warnUnresolvedOnce}. Keyed by the
+     * asset map's own case-insensitive strategy, so the latch and the lookup agree on what one id is.
+     */
+    private static final Set<String> WARNED_UNRESOLVED = Collections.synchronizedSet(
+            new ObjectOpenCustomHashSet<>(CaseInsensitiveHashStrategy.<String>getInstance()));
 
     /**
      * Name an unresolved {@code effectId} at WARN the first time any call meets it, at FINE after.

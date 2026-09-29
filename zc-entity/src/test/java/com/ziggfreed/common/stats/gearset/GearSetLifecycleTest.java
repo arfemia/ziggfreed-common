@@ -24,9 +24,11 @@ import com.ziggfreed.common.stats.gearset.GearSets.EffectChanges;
  * respawn (the engine clears every effect, the row still lists the look), a death itself (no look
  * on a corpse), the entity leaving its store (a disconnect and a world change both leave with
  * {@code UNLOAD}, and every removal forgets the row, so a recompute queued before the disconnect
- * cannot leave one behind), and the hydrate after it (a look the player's saved record names comes
- * off even when no current set names it). Pure: the effect rule, the table, the removal rule and
- * the hydrate's answer; the only engine type is the {@code RemoveReason} enum.
+ * cannot leave one behind), the hydrate after it (a look the player's saved record names comes
+ * off even when no current set names it), and the record after a remove that did not go through
+ * (kept and tried again, unless its effect asset is gone). Pure: the effect rule, the table, the
+ * removal rule, the hydrate's answer and the record's; the only engine type is the
+ * {@code RemoveReason} enum.
  */
 class GearSetLifecycleTest {
 
@@ -152,6 +154,30 @@ class GearSetLifecycleTest {
                 "a look no current set names still comes off, because the record says the engine put it on");
         assertTrue(changes.applies().isEmpty());
         assertTrue(GearSets.announcements(null, List.of()).isEmpty(), "a hydrate announces nothing");
+    }
+
+    @Test
+    void aLookWhoseRemoveFailedStaysRecordedAndIsTriedAgainUntilItComesOff() {
+        // The saved record names the deleted set's look; the hydrate's remove of it does not go through.
+        Set<String> answered = GearSets.answeredAfter(Set.of(LOOK), List.of(DELETED_LOOK), effect -> true);
+        assertEquals(List.of(LOOK, DELETED_LOOK), List.copyOf(answered),
+                "what is shown, then the look that is still on, so the record never loses it");
+
+        EffectChanges retry = GearSets.effectChanges(answered, Set.of(LOOK), effect -> true);
+        assertEquals(List.of(DELETED_LOOK), retry.removes(), "the next recompute takes it off again");
+
+        assertEquals(List.of(LOOK), List.copyOf(GearSets.answeredAfter(Set.of(LOOK), List.of(), effect -> true)),
+                "once a remove goes through, the look leaves the record");
+    }
+
+    @Test
+    void aLookWhoseEffectAssetIsGoneIsDroppedRatherThanRetriedForever() {
+        Set<String> answered = GearSets.answeredAfter(Set.of(LOOK), List.of(DELETED_LOOK, LOOK),
+                effect -> !DELETED_LOOK.equals(effect));
+
+        assertEquals(List.of(LOOK), List.copyOf(answered),
+                "nothing resolves the id, so nothing can be on the player to take off");
+        assertTrue(GearSets.answeredAfter(Set.of(), List.of(DELETED_LOOK), effect -> false).isEmpty());
     }
 
     @Test

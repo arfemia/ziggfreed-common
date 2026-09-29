@@ -14,15 +14,16 @@ import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 
 /**
  * What the engine last wrote on each player while their entity sits in its current store: the
- * tiers whose modifiers went on, the effects it wanted on, and the tiers that were active, so the
- * next recompute sweeps exactly what it wrote, takes off exactly the effects it answers for, and
- * announces only a tier that really flipped. The row never decides whether an effect goes ON: that
- * is asked of the entity itself at every recompute ({@code GearSets.effectChanges}), so an effect
- * something else cleared comes back.
+ * tiers whose modifiers went on, the effects it answers for (the ones it wanted on, plus any whose
+ * remove did not go through), and the tiers that were active, so the next recompute sweeps
+ * exactly what it wrote, takes off exactly the effects it answers for, and announces only a tier
+ * that really flipped. The row never decides whether an effect goes ON: that is asked of the entity
+ * itself at every recompute ({@code GearSets.effectChanges}), so an effect something else cleared
+ * comes back.
  *
  * <p>TRANSIENT and never persisted: a modifier the previous boot left on an entity is not in here,
  * which is why a player with no row is swept from what is actually present on the stat map rather
- * than from memory. The looks the engine asked for ARE saved, but on the player entity itself
+ * than from memory. The looks the engine answers for ARE saved, but on the player entity itself
  * ({@link GearSetLooksComponent}), so a login can take off the look of a set deleted meanwhile.
  *
  * <p><b>Keyed by player UUID, and forgotten whenever the player's entity leaves its store</b>

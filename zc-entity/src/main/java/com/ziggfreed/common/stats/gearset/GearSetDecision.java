@@ -15,7 +15,7 @@ import com.ziggfreed.common.stats.EquippedSnapshot;
  * anywhere, so every rule here is pinned on plain item ids.
  *
  * <p>The four counts are independent readings of the same snapshot, each answering ONE of a tier's
- * minimums (decision D9 of the gear-set design):
+ * minimums, since a tier's condition is a conjunction of independent minimums, never a bare count:
  * <ul>
  *   <li>{@code pieces}: distinct members on anywhere (worn, held, or in the utility slot); a copy
  *       held while the same piece is worn counts once;</li>

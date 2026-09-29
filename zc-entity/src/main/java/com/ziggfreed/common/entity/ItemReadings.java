@@ -254,14 +254,14 @@ public final class ItemReadings {
      * The METADATA keys {@code stack} carries: the top-level keys of its metadata document, in the
      * document's order, as an immutable set. A bare stack (no metadata at all) reads an empty set.
      *
-     * <p><b>Null means "cannot tell", and a caller about to destroy the stack refuses on it.</b> It is
-     * answered for no stack, and for a stack the read cannot encode (the read never throws). The
+     * <p><b>Null means "cannot tell", and a caller about to destroy the stack refuses on it.</b> It
+     * is answered for no stack, and for a stack the read cannot encode (the read never throws). The
      * engine's own metadata accessor is {@code @Deprecated} (not marked for removal, though the
      * engine's comment says it goes once stack metadata moves to components), so the keys are read
-     * the one non-deprecated way the engine offers: the stack's own {@code ItemStack.CODEC} encodes it, and
-     * the {@code Metadata} leaf of that document is the stack's metadata (the engine's own document,
-     * not a copy, so only its key names are copied out and it never leaves this method). No value is
-     * decoded and the stack is not changed.
+     * the one non-deprecated way the engine offers: the stack's own {@code ItemStack.CODEC} encodes
+     * it, and the {@code Metadata} leaf of that document is the stack's metadata (the engine's own
+     * document, not a copy, so only its key names are copied out and it never leaves this method).
+     * No value is decoded and the stack is not changed.
      */
     @Nullable
     public static Set<String> metadataKeys(@Nullable ItemStack stack) {

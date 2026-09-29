@@ -87,6 +87,7 @@ compiles as `:zc-entity`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggr
     `GearSetAsset` (the `Server/ZiggfreedCommon/GearSets/` store, `GearSetConfig`,
     `GearSetOwnerLayers`), `GearSets` (the one post-apply listener, the recompute, the lifecycle,
     with `GearSetLifecycleSystems` for the respawn and the entity leaving its store),
+    `GearSetLooksComponent` (the per-player saved look record, the looks the engine answers for),
     the pure `GearSetDecision` / `GearSetPlan` / `GearSetIndex` cores over `GearSetKeys`, the
     `GearSetEffects` seam, the `GearSetEvents` family with `ZigGearSetTierChangedEvent`, and
     `GearSetValidator`. It reads engine stat, item and effect data, which is why it lives here and
@@ -111,15 +112,16 @@ the rule stated in full. The performer contract's mutating methods each take a F
 `StatMirrorTest`, `StatChannelAuditTest`, `EquippedSnapshotTest`), the gear-set engine, all on plain
 ids with no engine item anywhere (`GearSetAssetCodecTest`: the native block through the own leaf, a
 `$Comment` inside the map, `Bonuses` replacing and `Text` merging under `Parent`, an unknown word
-failing the read; `GearSetDecisionTest`: the D9 cases and ruling R13 (a held copy of a worn piece
+failing the read; `GearSetDecisionTest`: each minimum independent of the others (a held copy of a worn piece
 counts once toward `Pieces` and never satisfies `Held`); `GearSetIndexTest`: the candidates found
 one lookup per item, in id order, and the looks a hydrate answers for, each once in set-id order, a
 disabled set's included; `GearSetAppliedTest`: a world change forgets the row, so the recompute
 after it fires no flip and a return from an instance is a quiet hydrate; `GearSetLifecycleTest`: a
 look cleared by death and respawn comes back with the row intact and no notice, none on a corpse,
 every removal forgets the row (a recompute queued before the disconnect cannot leave one behind,
-driven with `UNLOAD`, the disconnect's real reason), and a look the saved record names comes off at
-the hydrate with no notice though no current set names it; `GearSetLooksComponentTest`: the saved
+driven with `UNLOAD`, the disconnect's real reason), a look the saved record names comes off at
+the hydrate with no notice though no current set names it, and a look whose remove failed stays
+recorded and is tried again until it comes off, unless its effect asset is gone; `GearSetLooksComponentTest`: the saved
 record's codec round trip under `Effects` and its whole-replacement rule; `GearSetPlanTest`: the
 diff and the sweep
 against a lookup that records every key asked, so a `ziggfreedcommon:` key or a consumer's own is

@@ -16,12 +16,12 @@ import com.ziggfreed.common.stats.EquippedSnapshot;
 import com.ziggfreed.common.stats.gearset.GearSetDecision.SlotCounts;
 
 /**
- * Decision D9 pinned on plain ids: a tier's condition is a conjunction of independent minimums,
- * never a bare count. Three armor pieces plus the blade hold the two-piece tier and fail the
- * weapon tier on {@code Armor 3}; four armor pieces and no blade hold the armor tier and not the
- * weapon tier; a held copy of a worn piece counts once toward {@code Pieces} and never satisfies
- * {@code Held} (ruling R13), while a held member that is not worn does; the utility slot counts for
- * {@code Utility} and {@code Pieces} only.
+ * Pinned on plain ids: a tier's condition is a conjunction of independent minimums, never a bare
+ * count. Three armor pieces plus the blade hold the two-piece tier and fail the weapon tier on
+ * {@code Armor 3}; four armor pieces and no blade hold the armor tier and not the weapon tier; a
+ * held copy of a worn piece counts once toward {@code Pieces} and never satisfies {@code Held} (a
+ * spare in hand never stands in for the weapon), while a held member that is not worn does; the
+ * utility slot counts for {@code Utility} and {@code Pieces} only.
  */
 class GearSetDecisionTest {
 

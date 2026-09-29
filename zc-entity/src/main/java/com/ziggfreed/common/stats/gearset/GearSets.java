@@ -51,7 +51,7 @@ import com.ziggfreed.common.util.SafeLog;
  * stat map ({@link GearSetPlan}, keys {@code zigset:<setId>:<tierIndex>:<offset>}), puts and
  * removes through {@code putModifier} / {@code removeModifier} (never {@code setStatValue}), puts
  * on and takes off each tier's {@code Effect} through the {@link GearSetEffects} seam, remembers
- * what it wrote ({@link GearSetApplied}), saves the looks it asked for on the player
+ * what it wrote ({@link GearSetApplied}), saves the looks it answers for on the player
  * ({@link GearSetLooksComponent}) and announces a tier that really flipped
  * ({@link GearSetEvents}).
  *
@@ -283,17 +283,23 @@ public final class GearSets {
                     : previous.effects();
             EffectChanges changes = effectChanges(previousEffects, shown,
                     effect -> GearSetEffects.has(store, ref, effect));
+            List<String> unremoved = new ArrayList<>();
             for (String effect : changes.removes()) {
-                GearSetEffects.remove(store, ref, effect);
+                if (!GearSetEffects.remove(store, ref, effect)) {
+                    unremoved.add(effect);
+                }
             }
             for (String effect : changes.applies()) {
                 GearSetEffects.apply(store, ref, effect);
             }
 
+            // What the engine answers for from here on: what it asked for, plus every look whose
+            // remove did not go through, so the next recompute (and the next login) tries again.
+            Set<String> answered = answeredAfter(shown, unremoved, GearSetValidator::effectKnown);
             GearSetApplied.put(playerId, new GearSetApplied.Applied(GearSetPlan.tiersOf(desired),
-                    shown, active));
+                    answered, active));
             if (looks != null) {
-                looks.record(shown);
+                looks.record(answered);
             }
 
             for (TierFlip flip : announcements(previous, active)) {
@@ -330,6 +336,28 @@ public final class GearSets {
     static Set<String> hydrateAnswersFor(@Nonnull Collection<String> folded, @Nonnull Collection<String> recorded) {
         Set<String> out = new LinkedHashSet<>(folded);
         out.addAll(recorded);
+        return out;
+    }
+
+    /**
+     * The looks the engine answers for after one recompute, which the row and the player's saved
+     * record both hold: every look in {@code shown}, then every look in {@code unremoved} (its
+     * remove this recompute returned false) that still {@code resolves} to a loaded effect, distinct
+     * and in that order. A look whose remove failed stays until a remove goes through, so it is
+     * tried again at the next recompute and at the next login. A look whose effect asset no longer
+     * exists is dropped: the engine's effect controller skips such an effect as it loads the player
+     * and never saves it again, so nothing is left to take off, and no remove of it could ever
+     * succeed. Pure.
+     */
+    @Nonnull
+    static Set<String> answeredAfter(@Nonnull Collection<String> shown, @Nonnull Collection<String> unremoved,
+            @Nonnull Predicate<String> resolves) {
+        Set<String> out = new LinkedHashSet<>(shown);
+        for (String effect : unremoved) {
+            if (resolves.test(effect)) {
+                out.add(effect);
+            }
+        }
         return out;
     }
 

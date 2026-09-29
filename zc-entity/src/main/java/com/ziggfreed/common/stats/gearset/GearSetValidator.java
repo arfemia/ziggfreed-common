@@ -276,7 +276,12 @@ public final class GearSetValidator {
         return out;
     }
 
-    private static boolean effectKnown(@Nonnull String effectId) {
+    /**
+     * Whether {@code effectId} names a loaded {@code EntityEffect}, asked of the engine's asset map
+     * (which matches an id ignoring case); true when it cannot tell, since that is not "missing".
+     * The audit and the recompute's look record both ask this.
+     */
+    static boolean effectKnown(@Nonnull String effectId) {
         try {
             return EntityEffect.getAssetMap().getIndex(effectId) != Integer.MIN_VALUE;
         } catch (Throwable t) {
