@@ -257,7 +257,8 @@ public final class EquipStatBridge {
      * #recomputeAll} apply and respects the same {@link EntryFilter}.
      *
      * <p>Only ADDITIVE util modifiers are summed - a MULTIPLICATIVE modifier has no linear scalar
-     * a DOT subtraction could use, and the MMO's DOT-relevant channels are all additive.
+     * a DOT subtraction could use, so a channel a consumer subtracts this way is meant to be
+     * authored additive.
      */
     public double bridgedSum(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId) {

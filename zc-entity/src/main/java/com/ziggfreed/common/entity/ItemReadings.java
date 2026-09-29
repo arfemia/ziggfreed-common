@@ -256,8 +256,9 @@ public final class ItemReadings {
      *
      * <p><b>Null means "cannot tell", and a caller about to destroy the stack refuses on it.</b> It is
      * answered for no stack, and for a stack the read cannot encode (the read never throws). The
-     * engine's own metadata accessor is deprecated for removal, so the keys are read the one
-     * non-deprecated way the engine offers: the stack's own {@code ItemStack.CODEC} encodes it, and
+     * engine's own metadata accessor is {@code @Deprecated} (not marked for removal, though the
+     * engine's comment says it goes once stack metadata moves to components), so the keys are read
+     * the one non-deprecated way the engine offers: the stack's own {@code ItemStack.CODEC} encodes it, and
      * the {@code Metadata} leaf of that document is the stack's metadata (the engine's own document,
      * not a copy, so only its key names are copied out and it never leaves this method). No value is
      * decoded and the stack is not changed.

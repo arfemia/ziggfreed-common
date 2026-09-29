@@ -37,9 +37,10 @@ compiles as `:zc-entity`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggr
   deprecated-for-removal `Entity.getUuid()`), and `EntityBootstrap` (this module's own `setup()`
   registration phases: `installEquipStatBridge` (the ONE `EquipStatBridge`, its three trigger
   systems and the `equipStatBridge()` accessor a consumer reads it back through) /
-  `installGearSets` (the gear-set engine hung on that bridge as one post-apply listener, its LATE
-  player-ready hydrate, its respawn recompute and its two evictions, disconnect and the entity
-  leaving its store for good) / `registerPerformerIdentity` /
+  `installGearSets` (the gear-set engine's per-player look record, `GearSetLooksComponent`,
+  registered first and unconditionally with its connect hook, then the engine hung on that bridge
+  as one post-apply listener, its LATE player-ready hydrate, its respawn recompute and its one
+  eviction, the entity leaving its store for any reason) / `registerPerformerIdentity` /
   `registerFlairs` / `registerPlayerIdentity` / `registerOverheadIndicators`, called from the wiring
   root's ordered list).
   - [`entity/performer/`](src/main/java/com/ziggfreed/common/entity/performer/CLAUDE.md) - the
@@ -106,21 +107,25 @@ the rule stated in full. The performer contract's mutating methods each take a F
 
 ## Tests
 
-36 files: the stat bridge (`EquipStatBridgeTest`, `EquipStatBridgeAppliedListenerTest`,
+37 files: the stat bridge (`EquipStatBridgeTest`, `EquipStatBridgeAppliedListenerTest`,
 `StatMirrorTest`, `StatChannelAuditTest`, `EquippedSnapshotTest`), the gear-set engine, all on plain
 ids with no engine item anywhere (`GearSetAssetCodecTest`: the native block through the own leaf, a
 `$Comment` inside the map, `Bonuses` replacing and `Text` merging under `Parent`, an unknown word
 failing the read; `GearSetDecisionTest`: the D9 cases and ruling R13 (a held copy of a worn piece
 counts once toward `Pieces` and never satisfies `Held`); `GearSetIndexTest`: the candidates found
-one lookup per item, in id order, and the looks a hydrate answers for, a disabled set's included;
-`GearSetAppliedTest`: a recompute after a world change fires no flip; `GearSetLifecycleTest`: a
+one lookup per item, in id order, and the looks a hydrate answers for, each once in set-id order, a
+disabled set's included; `GearSetAppliedTest`: a world change forgets the row, so the recompute
+after it fires no flip and a return from an instance is a quiet hydrate; `GearSetLifecycleTest`: a
 look cleared by death and respawn comes back with the row intact and no notice, none on a corpse,
-and a recompute queued before the disconnect cannot leave a row behind while a world change keeps
-it; `GearSetPlanTest`: the diff and the sweep
+every removal forgets the row (a recompute queued before the disconnect cannot leave one behind,
+driven with `UNLOAD`, the disconnect's real reason), and a look the saved record names comes off at
+the hydrate with no notice though no current set names it; `GearSetLooksComponentTest`: the saved
+record's codec round trip under `Effects` and its whole-replacement rule; `GearSetPlanTest`: the
+diff and the sweep
 against a lookup that records every key asked, so a `ziggfreedcommon:` key or a consumer's own is
 provably never touched; `GearSetValidatorTest`: one case per code, and a member spelled in
 another case is not unknown; `GearSetEventsTest`: the
-flip arithmetic and the fire through `publishTo`; `GearSetEffectsTest`: the three-member seam reporting once;
+flip arithmetic and the fire through `publishTo`; `GearSetEffectsTest`: the three-member seam reporting once, through `apply` and `remove` as well as `has`;
 `GearSetEditorSchemaTest`: items on arrays, the closed words, `Enabled` default, `$Comment` in the
 map), the factor standard library (`HytaleFactorsTest`, which
 drives the item family over real engine stacks), the one item reader (`ItemReadingsTest`: the held-tool

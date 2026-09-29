@@ -101,7 +101,8 @@ onto a channel through `StatMirror` - not a merged package.
     consumer's DOT branch subtracts so per-stack enhancement (and a held tool's util stats) never
     buff a DOT tick, matching the pre-migration behavior where the DOT path never read held
     metadata at all. Only ADDITIVE util modifiers are summed (a multiplicative modifier has no
-    linear scalar a DOT subtraction could use; the MMO's DOT-relevant channels are all additive).
+    linear scalar a DOT subtraction could use, so a channel a consumer subtracts this way is meant
+    to be authored additive).
   - Unknown stat id (channel not registered): skip + one-time warn, never a throw.
   - **`equippedSnapshot(store, ref)`** - what the entity has on by item id, as an
     [`EquippedSnapshot`](EquippedSnapshot.java) (`heldItemId`, `offhandItemId`, index-aligned
@@ -175,8 +176,8 @@ No set content ships in this jar; a consumer or a pack authors the files.
   its own merge methods, and asked one lookup per item the player has on by `candidates`; its
   `allEffectIds` names the looks of EVERY folded set, a disabled one's included, because an
   `Infinite` effect is saved with the player and a set switched off while its wearer was offline
-  must still come off at their login; a set DELETED from the fold names nothing, so a player offline
-  in it when the file went keeps its look);
+  must still come off at their login; a set DELETED from the fold names nothing here, and its look
+  is swept at login through the player's saved record instead, see `GearSetLooksComponent` below);
   [`GearSetOwnerLayers`](gearset/GearSetOwnerLayers.java) reads
   `mods/ziggfreedcommon/gear-sets.json` through the shared `OwnerLayerReader`. Registered by the
   root's `FrameworkAssetRegistrar` with no `loadsAfter` (ids resolve at recompute, never at load);
@@ -186,10 +187,10 @@ No set content ships in this jar; a consumer or a pack authors the files.
   `effects(apply, remove, has)` (fills the seam below), `recompute(store, ref)` (the listener
   body), `onContentChanged` / `recomputeAllOnline` (each player on their own world thread through
   the bridge's `recomputeAll`), `onPlayerReady` (LATE priority, the bridge's own hydrate),
-  `onRespawned` (the same recompute, deferred to the world thread after a respawn), the two
-  evictions (`onPlayerDisconnect`, `onEntityRemoved`), and the pure `flips(before, now)` /
+  `onRespawned` (the same recompute, deferred to the world thread after a respawn), the one
+  eviction (`onEntityRemoved`), and the pure `flips(before, now)` /
   `announcements(previous, active)` / `shownEffects(desired, dead)` /
-  `effectChanges(previous, shown, has)`. One recompute: read the
+  `effectChanges(previous, shown, has)` / `hydrateAnswersFor(folded, recorded)`. One recompute: read the
   `EquippedSnapshot`; for each candidate set (`GearSetIndex.candidates`) count the slots and pick
   the active tiers ([`GearSetDecision`](gearset/GearSetDecision.java), pure); resolve each active
   tier's block to stat indices (`StatIndexCache`; an unknown channel is named once and skipped);
@@ -201,32 +202,50 @@ No set content ships in this jar; a consumer or a pack authors the files.
   tier wants, and put on every effect an active tier wants that the entity does not have RIGHT NOW
   (`has`, asked of the entity, never of the row), none at all while the player is dead
   (`DeathComponent` present, the engine's own posture for a corpse); remember what was written in
-  the transient `GearSetApplied` table (keyed by PLAYER alone: the stat map and the active effects
-  travel with the player's component holder on a world change and nothing clears them there, so
-  the row stays true and a recompute in the next world announces nothing; evicted on disconnect and
-  again when the entity leaves its store for any reason but `UNLOAD`, since the disconnect event
-  fires before the entity leaves and a recompute already queued could write the row back;
-  `WorldEvictors` serves the engine only as `worldOf`, the thread a recompute runs on); announce
-  each tier that really flipped. **Death and respawn**: the engine clears every effect on both
+  the transient `GearSetApplied` table (keyed by player UUID and FORGOTTEN whenever the player's
+  entity leaves its store, for every `RemoveReason`, the decision C21: a disconnect removes the
+  entity with `UNLOAD` after the disconnect event has fired (`PlayerRef.removeFromStore`), a world
+  change with the same reason, so the eviction spares none; it runs on the world thread after any
+  recompute queued before it, so no row outlives a session, and there is no disconnect listener
+  and no per-world eviction beside it; `WorldEvictors` serves the engine only as `worldOf`, the
+  thread a recompute runs on); save the looks it asked for on the player's
+  `GearSetLooksComponent` (below); announce each tier that really flipped. **Death and respawn**: the engine clears every effect on both
   (`DeathSystems.ClearEntityEffects`, `RespawnSystems.ClearEntityEffectsRespawnSystem`) while the row
   keeps listing the look; [`GearSetLifecycleSystems`](gearset/GearSetLifecycleSystems.java)
   `.Respawned` (a `RespawnSystems.OnRespawnSystem`, the `DeathComponent` coming off) hands the
   player to `onRespawned`, whose deferred recompute finds the look missing and puts it back with no
-  notice, since no tier flipped; `.Left` (a `RefSystem` on `PlayerRef`) is the second eviction.
-  Both registered by `EntityBootstrap.installGearSets`. **The first recompute after login is a
-  hydrate, not a flip**: with no row in the table the sweep reads every `zigset:` key actually
-  present on the stat map (`EntityStatValue.getModifiers()`), so a modifier stranded by a previous
-  boot goes whatever set it belonged to; the effects it answers for are every effect id any folded
-  set names (why an `Effect` id must be dedicated), and nothing is announced. Nothing here can
+  notice, since no tier flipped; `.Left` (a `RefSystem` on `PlayerRef`) is the eviction.
+  Both registered by `EntityBootstrap.installGearSets`. **The first recompute in a store is a
+  hydrate, not a flip** (after a login, and after a world change, since the row is forgotten on
+  both): with no row in the table the sweep reads every `zigset:` key actually present on the stat
+  map (`EntityStatValue.getModifiers()`), so a modifier stranded by a previous boot goes whatever
+  set it belonged to; the effects it answers for (`hydrateAnswersFor`) are every effect id any
+  folded set names plus every id the player's saved record holds (why an `Effect` id must be
+  dedicated), so a set whose file was deleted while its wearer was offline still has its look
+  taken off; and nothing is announced. After a world change that is right: the stat map and the
+  effects came along in the holder, no tier flipped, and the look is reconciled by asking the
+  entity. Nothing here can
   touch another writer's key: every prefix comes from a `TierRef` and
   every stray is filtered on `GearSetKeys.isOurs`, which `GearSetPlanTest` pins by recording every
   key the plan asks about.
+- **[`GearSetLooksComponent`](gearset/GearSetLooksComponent.java)** (registry id
+  `ZiggfreedCommon:GearSetLooks`, one codec key `Effects`, a string array) - the look effect ids
+  the engine last asked to be on the player, saved WITH the player (ruling R18). Registered first
+  in `EntityBootstrap.installGearSets`, unconditionally and before the bridge check (a type
+  registered after a world loads cannot be read off entities saved carrying it), and attached by a
+  `PlayerConnectEvent` hook on the holder before the entity joins a store (the `ZigFlairComponent`
+  shape); a recompute runs inside system ticks, so it only reads the record and REPLACES it in
+  place with what it asked for (`shown`, none while dead), never adds one, and skips a player
+  without it. ECS state, not player data: it travels with the entity beside the
+  `EffectControllerComponent` it describes, so it has NO player-data database domain.
 - **[`GearSetEffects`](gearset/GearSetEffects.java)** - the SEAM for a tier's `Effect`: `Apply` /
   `Remove` / `Has` repeat `NativeEffectUtil`'s signatures byte for byte, and the wiring root fills
   them with the three method references (zc-effects is out of this module's reach). Unfilled (any
   of the three missing) it reports on
-  itself ONCE, the first time it is consulted (the `EncounterSeams.warnOnce` shape), naming the fill
-  and what it costs the player: stats and notices still work, only the look is missing.
+  itself ONCE, the first time it is consulted through `apply`, `remove` or `has` (the
+  `EncounterSeams.warnOnce` shape), naming the fill and what it costs the player: stats and notices
+  still work, only the look is missing. A tier naming an effect id the server lacks is named at WARN
+  once per id by `NativeEffectUtil` itself, however many recomputes meet it.
 - **[`GearSetEvents`](gearset/GearSetEvents.java)** +
   **[`ZigGearSetTierChangedEvent`](gearset/ZigGearSetTierChangedEvent.java)** - the native event
   family (one `NativeEventSeam`, the `FlairEvents` shape, `publishTo` for a harness): fired ONLY on a

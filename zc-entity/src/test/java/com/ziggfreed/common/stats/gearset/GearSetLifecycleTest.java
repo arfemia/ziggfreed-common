@@ -22,13 +22,16 @@ import com.ziggfreed.common.stats.gearset.GearSets.EffectChanges;
 /**
  * The lifecycle paths a player's look and row go through beyond an equip change: a death and
  * respawn (the engine clears every effect, the row still lists the look), a death itself (no look
- * on a corpse), and the end of a session (a recompute queued before the disconnect must not leave a
- * row behind). Pure: the effect rule, the table and the removal rule; the only engine type is the
- * {@code RemoveReason} enum.
+ * on a corpse), the entity leaving its store (a disconnect and a world change both leave with
+ * {@code UNLOAD}, and every removal forgets the row, so a recompute queued before the disconnect
+ * cannot leave one behind), and the hydrate after it (a look the player's saved record names comes
+ * off even when no current set names it). Pure: the effect rule, the table, the removal rule and
+ * the hydrate's answer; the only engine type is the {@code RemoveReason} enum.
  */
 class GearSetLifecycleTest {
 
     private static final String LOOK = "Night_Set_Look";
+    private static final String DELETED_LOOK = "Retired_Set_Look";
     private static final TierRef TWO_PIECES = new TierRef("Night_Set", 0);
     private static final TierRef FULL_ARMOR = new TierRef("Night_Set", 1);
     private static final Set<TierRef> SUITED = Set.of(TWO_PIECES, FULL_ARMOR);
@@ -93,31 +96,68 @@ class GearSetLifecycleTest {
     @Test
     void aRecomputeQueuedBeforeTheDisconnectCannotOutliveTheSession() {
         GearSetApplied.put(player, suitedUp());
-        GearSetApplied.forget(player);            // the disconnect event, fired before the entity leaves
-        GearSetApplied.put(player, suitedUp());   // a recompute already queued on the world thread
+        // The disconnect event fires first and evicts nothing; a recompute already queued on the
+        // world thread writes the row again.
+        GearSetApplied.put(player, suitedUp());
 
-        GearSets.onEntityRemoved(player, RemoveReason.REMOVE);   // the entity leaves its store
+        // Then the engine removes the player: PlayerRef.removeFromStore, with UNLOAD.
+        GearSets.onEntityRemoved(player, RemoveReason.UNLOAD);
 
         assertNull(GearSetApplied.get(player), "so the next login is a hydrate again");
     }
 
     @Test
-    void aWorldChangeKeepsTheRow() {
+    void aWorldChangeForgetsTheRowAndTheNextWorldsFirstRecomputeIsAQuietHydrate() {
         GearSetApplied.put(player, suitedUp());
 
         GearSets.onEntityRemoved(player, RemoveReason.UNLOAD);   // the holder moves to the next world
+        GearSetApplied.Applied previous = GearSetApplied.get(player);
+        assertNull(previous, "an unload forgets the row, a world change and a disconnect alike");
 
-        assertNotNull(GearSetApplied.get(player), "an unload is a world change, never the end of the session");
+        // The next world's first recompute: the look travelled with the entity and the set still holds.
+        Set<String> answered = GearSets.hydrateAnswersFor(Set.of(LOOK), Set.of(LOOK));
+        EffectChanges changes = GearSets.effectChanges(answered, GearSets.shownEffects(Set.of(LOOK), false),
+                effect -> true);
+        assertTrue(changes.removes().isEmpty(), "the look the set still wants stays on");
+        assertTrue(changes.applies().isEmpty(), "and the entity already has it");
+        assertTrue(GearSets.announcements(previous, SUITED).isEmpty(), "no tier flipped, so no notice");
     }
 
     @Test
-    void anyOtherRemovalEndsTheSessionAndANullPlayerIsHarmless() {
-        GearSetApplied.put(player, suitedUp());
+    void everyRemovalForgetsTheRowAndANullPlayerIsHarmless() {
+        GearSets.onEntityRemoved(null, RemoveReason.UNLOAD);
 
-        GearSets.onEntityRemoved(null, RemoveReason.REMOVE);
-        assertNotNull(GearSetApplied.get(player));
+        for (RemoveReason reason : RemoveReason.values()) {
+            GearSetApplied.put(player, suitedUp());
+            GearSets.onEntityRemoved(player, reason);
+            assertNull(GearSetApplied.get(player), "forgotten on " + reason);
+        }
+    }
 
-        GearSets.onEntityRemoved(player, RemoveReason.BUILDER_TOOLS_UNDO);
-        assertNull(GearSetApplied.get(player));
+    @Test
+    void aLookRecordedForASetDeletedSinceComesOffAtTheHydrateWithNoNotice() {
+        // Night_Set is still folded; Retired_Set's file was deleted while its wearer was offline.
+        GearSetIndex index = GearSetIndex.of(List.of(GearSetAsset.of("Night_Set", null, true,
+                new String[] {"Night_Hood", "Night_Blade"},
+                GearSetAsset.Tier.of(null, 1, null, null, null, LOOK, null))));
+        Set<String> recorded = Set.of(DELETED_LOOK);
+
+        Set<String> answered = GearSets.hydrateAnswersFor(index.allEffectIds(), recorded);
+        EffectChanges changes = GearSets.effectChanges(answered, GearSets.shownEffects(Set.of(), false),
+                effect -> true);
+
+        assertEquals(List.of(LOOK, DELETED_LOOK), List.copyOf(answered),
+                "the fold's looks first, then what the saved record adds");
+        assertEquals(List.of(LOOK, DELETED_LOOK), changes.removes(),
+                "a look no current set names still comes off, because the record says the engine put it on");
+        assertTrue(changes.applies().isEmpty());
+        assertTrue(GearSets.announcements(null, List.of()).isEmpty(), "a hydrate announces nothing");
+    }
+
+    @Test
+    void theHydrateAnswersForEachLookOnceWhateverBothHalvesRepeat() {
+        assertEquals(List.of(LOOK, DELETED_LOOK),
+                List.copyOf(GearSets.hydrateAnswersFor(List.of(LOOK), List.of(DELETED_LOOK, LOOK))));
+        assertTrue(GearSets.hydrateAnswersFor(List.of(), List.of()).isEmpty());
     }
 }

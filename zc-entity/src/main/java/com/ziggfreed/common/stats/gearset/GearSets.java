@@ -14,11 +14,11 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
@@ -51,15 +51,21 @@ import com.ziggfreed.common.util.SafeLog;
  * stat map ({@link GearSetPlan}, keys {@code zigset:<setId>:<tierIndex>:<offset>}), puts and
  * removes through {@code putModifier} / {@code removeModifier} (never {@code setStatValue}), puts
  * on and takes off each tier's {@code Effect} through the {@link GearSetEffects} seam, remembers
- * what it wrote ({@link GearSetApplied}) and announces a tier that really flipped
+ * what it wrote ({@link GearSetApplied}), saves the looks it asked for on the player
+ * ({@link GearSetLooksComponent}) and announces a tier that really flipped
  * ({@link GearSetEvents}).
  *
- * <p><b>The first recompute after login is a hydrate, not a flip.</b> A modifier written by a
- * previous boot may still sit on the entity, so with no row in the applied table the engine sweeps
- * from what is ACTUALLY on the stat map (every {@code zigset:} key present, read once) rather than
- * from memory, takes off every effect id any folded set names (a switched-off set included) that no
- * active tier wants (so an {@code Effect} id must be dedicated to its set), and announces nothing.
- * A world change keeps the player's row, so it announces nothing either.
+ * <p><b>The first recompute in a store is a hydrate, not a flip.</b> The row is forgotten whenever
+ * the player's entity leaves its store ({@link #onEntityRemoved}), a disconnect and a world change
+ * alike, since both remove it with {@code UNLOAD}. A modifier written by a previous boot may still
+ * sit on the entity, so with no row the engine sweeps from what is ACTUALLY on the stat map (every
+ * {@code zigset:} key present, read once) rather than from memory, takes off every look it answers
+ * for ({@link #hydrateAnswersFor}: every effect id any folded set names, a switched-off set's
+ * included, plus every id the player's {@link GearSetLooksComponent} recorded, a deleted set's
+ * included) that no active tier wants (so an {@code Effect} id must be dedicated to its set), and
+ * announces nothing. After a world change that is right: the stat map and the effects travel with
+ * the player, no tier flipped, strays are swept from the live stat map, and the look is reconciled
+ * by asking the entity.
  *
  * <p><b>The look follows the entity, not the row</b> ({@link #effectChanges}): every recompute puts
  * on each effect an active tier wants that the entity does not have RIGHT NOW, and takes off each
@@ -191,35 +197,21 @@ public final class GearSets {
     }
 
     /**
-     * Forget the departing player's last write, the first of the row's two evictions: the row is
-     * keyed by player alone and stays true across a world change (see {@link GearSetApplied}), so no
-     * world unload touches it, and {@code WorldEvictors} serves this engine only as
-     * {@code worldOf}, the thread a recompute runs on. The engine fires this event BEFORE the entity
-     * leaves its store, so a recompute already queued on the world thread can write the row back;
-     * {@link #onEntityRemoved} is the second eviction, which closes that gap.
-     */
-    public static void onPlayerDisconnect(@Nonnull PlayerDisconnectEvent event) {
-        try {
-            PlayerRef playerRef = event.getPlayerRef();
-            UUID uuid = playerRef == null ? null : playerRef.getUuid();
-            if (uuid != null) {
-                GearSetApplied.forget(uuid);
-            }
-        } catch (Throwable t) {
-            SafeLog.warn("[gearset] player-disconnect eviction failed: " + t.getMessage());
-        }
-    }
-
-    /**
-     * The player's entity left its store (see {@link GearSetLifecycleSystems.Left}). Anything but an
-     * {@code UNLOAD} ends the entity for good, so its row goes; an {@code UNLOAD} is a world change
-     * (the holder moves to the next world's store) and keeps it. This runs on the world thread as the
-     * entity goes, after any recompute queued before the disconnect, and nothing can recompute an
-     * entity that is no longer in a store, so no row outlives the session. Forgetting is always safe:
-     * the next recompute is then a hydrate, which reads what is really on the entity.
+     * The player's entity left its store (see {@link GearSetLifecycleSystems.Left}): forget their
+     * row, whatever the {@code reason}. This is the row's ONE eviction. A disconnect removes the
+     * player with {@code UNLOAD} ({@code PlayerRef.removeFromStore}, after the disconnect event has
+     * fired) and a world change removes them with the same reason, so no reason is spared. It runs on
+     * the world thread as the entity goes, after any recompute queued before it, and nothing can
+     * recompute an entity that is no longer in a store, so no row outlives the session or the world.
+     * Forgetting is always safe: the next recompute is then a hydrate, which reads what is really on
+     * the entity and announces nothing. Nothing else evicts the table; {@code WorldEvictors} serves
+     * this engine only as {@code worldOf}, the thread a recompute runs on.
+     *
+     * @param reason the engine's reason, passed through so a test drives the real one; every reason
+     *               forgets
      */
     static void onEntityRemoved(@Nullable UUID playerId, @Nonnull RemoveReason reason) {
-        if (playerId != null && reason != RemoveReason.UNLOAD) {
+        if (playerId != null) {
             GearSetApplied.forget(playerId);
         }
     }
@@ -246,6 +238,7 @@ public final class GearSets {
             GearSetApplied.Applied previous = GearSetApplied.get(playerId);
             boolean hydrate = previous == null;
             boolean dead = store.getComponent(ref, DeathComponent.getComponentType()) != null;
+            GearSetLooksComponent looks = looksOf(store, ref);
 
             // Decide.
             List<GearSetPlan.Desired> desired = new ArrayList<>();
@@ -281,11 +274,13 @@ public final class GearSets {
                 statMap.removeModifier(remove.statIndex, remove.key);
             }
 
-            // Effects: see effectChanges. A hydrate cannot know what it put on before, so it answers
-            // for every effect id any folded set names, which is why a set's effect id must be
-            // dedicated to the set.
+            // Effects: see effectChanges. A hydrate cannot trust memory, so it answers for every
+            // effect id any folded set names plus every id the player's saved record holds, which
+            // is why a set's effect id must be dedicated to the set.
             Set<String> shown = shownEffects(desiredEffects, dead);
-            Set<String> previousEffects = hydrate ? index.allEffectIds() : previous.effects();
+            Set<String> previousEffects = hydrate
+                    ? hydrateAnswersFor(index.allEffectIds(), looks == null ? Set.of() : looks.effects())
+                    : previous.effects();
             EffectChanges changes = effectChanges(previousEffects, shown,
                     effect -> GearSetEffects.has(store, ref, effect));
             for (String effect : changes.removes()) {
@@ -297,6 +292,9 @@ public final class GearSets {
 
             GearSetApplied.put(playerId, new GearSetApplied.Applied(GearSetPlan.tiersOf(desired),
                     shown, active));
+            if (looks != null) {
+                looks.record(shown);
+            }
 
             for (TierFlip flip : announcements(previous, active)) {
                 GearSetAsset set = GearSetConfig.getInstance().resolve(flip.tier().setId());
@@ -310,6 +308,29 @@ public final class GearSets {
         } catch (Throwable t) {
             SafeLog.warn("[gearset] recompute failed: " + t.getMessage());
         }
+    }
+
+    /**
+     * The player's saved look record, or null when the type is not registered or the player carries
+     * none. Read and updated in place only: the connect hook attaches it, never a recompute, which
+     * runs inside system ticks where adding a component would change the archetype.
+     */
+    @Nullable
+    private static GearSetLooksComponent looksOf(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        ComponentType<EntityStore, GearSetLooksComponent> type = GearSetLooksComponent.getComponentType();
+        return type == null ? null : store.getComponent(ref, type);
+    }
+
+    /**
+     * The looks a hydrate answers for: every effect id any folded set names ({@code folded}, a
+     * disabled set's included), then every id the player's saved record holds that the fold does not
+     * ({@code recorded}, a look of a set deleted since included), distinct and in that order. Pure.
+     */
+    @Nonnull
+    static Set<String> hydrateAnswersFor(@Nonnull Collection<String> folded, @Nonnull Collection<String> recorded) {
+        Set<String> out = new LinkedHashSet<>(folded);
+        out.addAll(recorded);
+        return out;
     }
 
     /** The looks the entity should carry now: every desired one, or none while it is dead. Pure. */
@@ -344,10 +365,9 @@ public final class GearSets {
     }
 
     /**
-     * What one recompute announces: nothing on the first recompute since login (no row, a hydrate,
-     * not a flip), otherwise every tier that really flipped since the player's last write. The row
-     * is the player's own whatever world they are in, so a recompute after a world change that finds
-     * the same tiers active announces nothing. Pure.
+     * What one recompute announces: nothing on the first recompute since the player's entity joined
+     * its store (no row, a hydrate, not a flip: after a login and after a world change alike),
+     * otherwise every tier that really flipped since the player's last write in that store. Pure.
      */
     @Nonnull
     static List<TierFlip> announcements(@Nullable GearSetApplied.Applied previous, @Nonnull Collection<TierRef> active) {

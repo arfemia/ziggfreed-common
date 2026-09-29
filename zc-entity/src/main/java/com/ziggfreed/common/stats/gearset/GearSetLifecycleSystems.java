@@ -48,8 +48,9 @@ public final class GearSetLifecycleSystems {
     }
 
     /**
-     * A player's entity left its store: hands the player and the engine's reason to
-     * {@link GearSets#onEntityRemoved}, which forgets the row unless the move is a world change.
+     * A player's entity left its store, for any reason (a disconnect and a world change both leave
+     * with {@code UNLOAD}): hands the player and the engine's reason to
+     * {@link GearSets#onEntityRemoved}, which forgets the row whatever the reason.
      */
     public static final class Left extends RefSystem<EntityStore> {
 

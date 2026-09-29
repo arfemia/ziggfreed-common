@@ -74,8 +74,11 @@ public final class GearSetEffects {
     /** Put {@code effectId} on; false, having reported once, when nothing fills the seam. */
     public static boolean apply(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String effectId) {
+        if (!warnIfUnfilled()) {
+            return false;
+        }
         Apply filled = APPLY.get();
-        if (filled == null || !warnIfUnfilled()) {
+        if (filled == null) {
             return false;
         }
         try {
@@ -89,8 +92,11 @@ public final class GearSetEffects {
     /** Take {@code effectId} off; false, having reported once, when nothing fills the seam. */
     public static boolean remove(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String effectId) {
+        if (!warnIfUnfilled()) {
+            return false;
+        }
         Remove filled = REMOVE.get();
-        if (filled == null || !warnIfUnfilled()) {
+        if (filled == null) {
             return false;
         }
         try {

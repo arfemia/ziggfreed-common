@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 import javax.annotation.Nonnull;
 
@@ -76,16 +75,19 @@ class GearSetIndexTest {
     }
 
     @Test
-    void everyEffectAnyFoldedSetNamesIsListedOnceADisabledSetsIncluded() {
+    void everyEffectAnyFoldedSetNamesIsListedOnceInSetIdOrderADisabledSetsIncluded() {
+        // Handed over out of id order, with a look shared by two tiers and ids that sort the other
+        // way round, so neither the input order nor the look ids' own order can pass for set-id order.
         GearSetIndex withLooks = GearSetIndex.of(List.of(
-                GearSetAsset.of("A_Set", null, null, new String[] {"A1", "A2"},
-                        GearSetAsset.Tier.of(null, 2, null, null, null, "A_Look", null),
-                        GearSetAsset.Tier.of(2, null, null, null, null, "A_Look", null)),
                 GearSetAsset.of("B_Set", null, false, new String[] {"B1", "B2"},
-                        GearSetAsset.Tier.of(2, null, null, null, null, "B_Look", null))));
+                        GearSetAsset.Tier.of(2, null, null, null, null, "A_Look", null)),
+                GearSetAsset.of("A_Set", null, null, new String[] {"A1", "A2"},
+                        GearSetAsset.Tier.of(null, 2, null, null, null, "Z_Look", null),
+                        GearSetAsset.Tier.of(2, null, null, null, null, "Z_Look", null))));
 
-        assertEquals(Set.of("A_Look", "B_Look"), withLooks.allEffectIds(),
-                "a set switched off while its wearer was offline still has its saved look swept at login");
+        assertEquals(List.of("Z_Look", "A_Look"), List.copyOf(withLooks.allEffectIds()),
+                "each look once, in set-id order; a set switched off while its wearer was offline still has "
+                        + "its saved look swept at login");
         assertTrue(withLooks.candidates(wearing(null, null, "B1", "B2")).isEmpty(),
                 "while the disabled set itself stays out of every recompute's candidates");
     }

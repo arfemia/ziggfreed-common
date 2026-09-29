@@ -13,7 +13,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The effect seam reports on itself ONCE when consulted unfilled (any of its three members missing),
- * and delegates when filled.
+ * whichever of {@code apply}, {@code remove} or {@code has} consults it first, and delegates when
+ * filled.
  * Untagged on purpose: the report goes through the guarded logger, and this default test JVM
  * (no log manager, as a consumer's) is where that guard is exercised.
  */
@@ -63,6 +64,18 @@ class GearSetEffectsTest {
         assertFalse(GearSetEffects.isFilled());
         assertFalse(GearSetEffects.has(null, null, "Night_Set_Look"), "unfilled, nothing is found");
         assertTrue(GearSetEffects.latchForTests().get(), "and the gap is reported");
+    }
+
+    @Test
+    void aWhollyUnfilledSeamReportsThroughApply() {
+        assertFalse(GearSetEffects.apply(null, null, "Night_Set_Look"), "nothing goes on");
+        assertTrue(GearSetEffects.latchForTests().get(), "and the first consult, an apply, reports the gap");
+    }
+
+    @Test
+    void aWhollyUnfilledSeamReportsThroughRemove() {
+        assertFalse(GearSetEffects.remove(null, null, "Night_Set_Look"), "nothing comes off");
+        assertTrue(GearSetEffects.latchForTests().get(), "and the first consult, a remove, reports the gap");
     }
 
     @Test

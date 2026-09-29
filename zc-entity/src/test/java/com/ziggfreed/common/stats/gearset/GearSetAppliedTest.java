@@ -1,7 +1,6 @@
 package com.ziggfreed.common.stats.gearset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,14 +14,17 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.component.RemoveReason;
 import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 import com.ziggfreed.common.stats.gearset.GearSets.TierFlip;
 
 /**
- * What the engine remembers is the player's own, whatever world they are in: a recompute after a
- * world change that finds the same tiers active announces nothing, and a player coming back from an
- * instance is diffed against what they last had on, never against what they wore when they left.
- * Pure: the table and the announcement rule, with no engine type.
+ * What the engine remembers lasts while the player's entity sits in one store: a world change
+ * forgets it like a disconnect does (both leave with {@code UNLOAD}), so the next world's first
+ * recompute is a hydrate and announces nothing, a player coming back from an instance is not
+ * diffed against what they wore when they left, and a real flip inside a world is still announced.
+ * Pure: the table, the removal rule and the announcement rule; the only engine type is the
+ * {@code RemoveReason} enum.
  */
 class GearSetAppliedTest {
 
@@ -42,33 +44,38 @@ class GearSetAppliedTest {
         return new GearSetApplied.Applied(active, Set.of("Night_Set_Look"), active);
     }
 
+    private void changeWorld() {
+        GearSets.onEntityRemoved(player, RemoveReason.UNLOAD);
+    }
+
     @Test
     void aRecomputeAfterAWorldChangeFiresNoFlip() {
         GearSetApplied.put(player, wrote(Set.of(TWO_PIECES, FULL_ARMOR)));
 
-        // The player moves world: the table is not asked about worlds at all, so the next world's
-        // ready-event recompute finds the row the last one wrote.
+        changeWorld();
         GearSetApplied.Applied previous = GearSetApplied.get(player);
 
-        assertNotNull(previous, "a world change keeps the player's row");
+        assertNull(previous, "a world change forgets the row");
         assertTrue(GearSets.announcements(previous, List.of(TWO_PIECES, FULL_ARMOR)).isEmpty(),
-                "the same tiers still active is not a flip, so nothing is announced");
+                "so the next world's first recompute is a hydrate, which announces nothing");
     }
 
     @Test
-    void comingBackFromAnInstanceIsDiffedAgainstTheLastWriteNotTheWorldLeft() {
+    void comingBackFromAnInstanceIsAQuietHydrateNotADiffAgainstTheWorldLeft() {
         GearSetApplied.put(player, wrote(Set.of(TWO_PIECES)));   // in the overworld
+        changeWorld();
         GearSetApplied.put(player, wrote(Set.of(TWO_PIECES, FULL_ARMOR)));   // in the instance, suited up
+        changeWorld();
 
         List<TierFlip> onReturn = GearSets.announcements(GearSetApplied.get(player), List.of(TWO_PIECES, FULL_ARMOR));
 
         assertTrue(onReturn.isEmpty(), "the armor tier came on in the instance and was announced there; "
                 + "the return is not a second 'set on'");
-        assertEquals(1, GearSetApplied.size(), "one row per player, not one per world visited");
+        assertEquals(0, GearSetApplied.size(), "no row survives a world change, so none piles up per world");
     }
 
     @Test
-    void aRealFlipAfterAWorldChangeIsStillAnnounced() {
+    void aRealFlipInsideAWorldIsStillAnnounced() {
         GearSetApplied.put(player, wrote(Set.of(TWO_PIECES, FULL_ARMOR)));
 
         List<TierFlip> flips = GearSets.announcements(GearSetApplied.get(player), List.of(TWO_PIECES));
@@ -79,7 +86,7 @@ class GearSetAppliedTest {
     @Test
     void theFirstRecomputeSinceLoginIsAHydrateAndAnnouncesNothing() {
         GearSetApplied.put(player, wrote(Set.of(TWO_PIECES)));
-        GearSetApplied.forget(player);   // disconnect
+        GearSets.onEntityRemoved(player, RemoveReason.UNLOAD);   // the disconnect's own removal
 
         assertNull(GearSetApplied.get(player), "a disconnect evicts the row");
         assertTrue(GearSets.announcements(null, List.of(TWO_PIECES, FULL_ARMOR)).isEmpty(),

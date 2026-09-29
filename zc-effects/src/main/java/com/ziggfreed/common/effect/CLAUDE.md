@@ -29,9 +29,11 @@ come off at stop()". Both packages are legitimate - pick by shape needed, do not
     whenever it cannot tell, so a caller reconciling a wanted effect (the gear-set engine, through
     its root-filled seam) applies on false.
   - **Fail-closed throughout, one guarded log per miss** (FINE for a null/invalid ref or a missing
-    `EffectControllerComponent`, WARN for an unresolved id or an engine throw; `has` logs every
-    miss at FINE, the apply it precedes being the call that names the id) - never a throw into the
-    caller, never a silent success.
+    `EffectControllerComponent`, WARN for an engine throw; `has` logs every miss at FINE, the apply
+    it precedes being the call that names the id) - never a throw into the caller, never a silent
+    success. An UNRESOLVED id is named at WARN once per id per process (`warnUnresolvedOnce`,
+    whichever of `apply` / `applyFor` / `remove` meets it first) and at FINE after that, so a
+    caller reconciling on every change (the gear-set engine) never repeats the line.
 - **[`AppliedEffectTracker`](AppliedEffectTracker.java)** - the companion "remove everything a
   session applied" bookkeeping primitive: `track(ref, effectId)` records a `(ref, effectId)` pair
   - call it ONLY after the matching `apply`/`applyFor` returned `true` (the tracker never verifies

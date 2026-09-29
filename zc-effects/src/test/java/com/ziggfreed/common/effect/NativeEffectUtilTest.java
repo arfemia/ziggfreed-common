@@ -1,6 +1,7 @@
 package com.ziggfreed.common.effect;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -65,5 +66,14 @@ class NativeEffectUtilTest {
     @Test
     void has_blankId_answersFalse() {
         assertFalse(NativeEffectUtil.has(NULL_STORE, NULL_REF, ""));
+    }
+
+    @Test
+    void anUnresolvedIdIsNamedAtWarnOnceWhicheverCallMeetsIt() {
+        assertTrue(NativeEffectUtil.warnUnresolvedOnce("apply", "Latch_Only_Effect"), "the first miss warns");
+        assertFalse(NativeEffectUtil.warnUnresolvedOnce("apply", "Latch_Only_Effect"), "a repeat stays quiet");
+        assertFalse(NativeEffectUtil.warnUnresolvedOnce("remove", "Latch_Only_Effect"),
+                "and so does another call meeting the same id");
+        assertTrue(NativeEffectUtil.warnUnresolvedOnce("remove", "Latch_Other_Effect"), "another id warns once too");
     }
 }

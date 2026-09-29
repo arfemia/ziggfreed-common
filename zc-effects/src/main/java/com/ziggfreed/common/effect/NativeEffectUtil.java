@@ -1,5 +1,8 @@
 package com.ziggfreed.common.effect;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.component.ComponentAccessor;
@@ -45,8 +48,10 @@ import com.ziggfreed.common.CommonLog;
  * {@link EffectControllerComponent}, an unregistered effect id, or any engine throw all degrade to
  * {@code false} - never a throw into the caller, and never a silent success. Every miss logs at
  * most once per call (guarded FINE for a missing-component/invalid-ref no-op, guarded WARN for an
- * unresolved id or an engine throw; {@code has} logs every miss at FINE, since the apply it
- * precedes is the call that names the id) so a caller only needs the boolean.
+ * engine throw; {@code has} logs every miss at FINE, since the apply it precedes is the call that
+ * names the id) so a caller only needs the boolean. An UNRESOLVED id is named at WARN once per id
+ * per process, whichever call meets it first, and at FINE after that: a caller reconciling on
+ * every change (the gear-set engine) would otherwise repeat the same line on each one.
  *
  * <p><b>World-thread only</b> (reads/mutates an {@link EffectControllerComponent}); the caller
  * guarantees the thread. See {@link AppliedEffectTracker} for the companion "track what this
@@ -81,7 +86,7 @@ public final class NativeEffectUtil {
         try {
             EntityEffect fx = resolveAsset(effectId);
             if (fx == null) {
-                warn("apply: EntityEffect '" + effectId + "' not found in asset map");
+                warnUnresolvedOnce("apply", effectId);
                 return false;
             }
             EffectControllerComponent ctrl = accessor.getComponent(ref, EffectControllerComponent.getComponentType());
@@ -123,7 +128,7 @@ public final class NativeEffectUtil {
         try {
             EntityEffect fx = resolveAsset(effectId);
             if (fx == null) {
-                warn("applyFor: EntityEffect '" + effectId + "' not found in asset map");
+                warnUnresolvedOnce("applyFor", effectId);
                 return false;
             }
             EffectControllerComponent ctrl = accessor.getComponent(ref, EffectControllerComponent.getComponentType());
@@ -161,7 +166,7 @@ public final class NativeEffectUtil {
         try {
             int idx = EntityEffect.getAssetMap().getIndex(effectId);
             if (idx == Integer.MIN_VALUE) {
-                warn("remove: EntityEffect '" + effectId + "' not found in asset map");
+                warnUnresolvedOnce("remove", effectId);
                 return false;
             }
             EffectControllerComponent ctrl = accessor.getComponent(ref, EffectControllerComponent.getComponentType());
@@ -231,6 +236,24 @@ public final class NativeEffectUtil {
             return null;
         }
         return EntityEffect.getAssetMap().getAsset(idx);
+    }
+
+    /** The ids already named out loud as unresolved; see {@link #warnUnresolvedOnce}. */
+    private static final Set<String> WARNED_UNRESOLVED = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Name an unresolved {@code effectId} at WARN the first time any call meets it, at FINE after.
+     *
+     * @return true when this call is the one that warned
+     */
+    static boolean warnUnresolvedOnce(@Nonnull String op, @Nonnull String effectId) {
+        String message = op + ": EntityEffect '" + effectId + "' not found in asset map";
+        if (WARNED_UNRESOLVED.add(effectId)) {
+            warn(message);
+            return true;
+        }
+        fine(message);
+        return false;
     }
 
     private static void warn(@Nonnull String message) {

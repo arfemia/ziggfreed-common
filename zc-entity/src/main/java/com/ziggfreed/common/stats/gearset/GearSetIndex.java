@@ -26,9 +26,8 @@ import com.ziggfreed.common.stats.EquippedSnapshot;
  * {@link #allEffectIds} names the effects of EVERY folded set, disabled ones included, because an
  * {@code Infinite} look is saved with the player, so a set switched off while its wearer was offline
  * would otherwise keep its look on them for good. A set DELETED outright is gone from the fold and
- * names nothing, so its look cannot be swept at login: a player who was offline in it when the file
- * went keeps that look (one online at the time loses it at the reload's recompute, which answers
- * for what the player's row says it put on).
+ * names nothing here; its look is still swept at login, because the hydrate also answers for every
+ * look the player's saved record ({@link GearSetLooksComponent}) says the engine asked for.
  */
 public final class GearSetIndex {
 
@@ -112,8 +111,9 @@ public final class GearSetIndex {
 
     /**
      * Every effect id any tier of any folded set holds, a DISABLED set's included, distinct and in
-     * set-id order: what a hydrate answers for, since it cannot know what it put on before. A set
-     * deleted from the fold is not here, so its look is never swept.
+     * set-id order: half of what a hydrate answers for, since it cannot trust memory. A set deleted
+     * from the fold is not here; the player's saved record ({@link GearSetLooksComponent}) is the
+     * other half, which names its look.
      */
     @Nonnull
     public Set<String> allEffectIds() {

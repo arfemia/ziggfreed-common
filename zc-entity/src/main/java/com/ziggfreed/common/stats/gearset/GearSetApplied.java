@@ -13,31 +13,28 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.stats.gearset.GearSetKeys.TierRef;
 
 /**
- * What the engine last wrote on each player: the tiers whose modifiers went on, the effects it
- * wanted on, and the tiers that were active, so the next recompute sweeps exactly what it wrote,
- * takes off exactly the effects it answers for, and announces only a tier that really flipped. The
- * row never decides whether an effect goes ON: that is asked of the entity itself at every
- * recompute ({@code GearSets.effectChanges}), so an effect something else cleared comes back.
+ * What the engine last wrote on each player while their entity sits in its current store: the
+ * tiers whose modifiers went on, the effects it wanted on, and the tiers that were active, so the
+ * next recompute sweeps exactly what it wrote, takes off exactly the effects it answers for, and
+ * announces only a tier that really flipped. The row never decides whether an effect goes ON: that
+ * is asked of the entity itself at every recompute ({@code GearSets.effectChanges}), so an effect
+ * something else cleared comes back.
  *
  * <p>TRANSIENT and never persisted: a modifier the previous boot left on an entity is not in here,
- * which is why a player with no row (the first recompute after login) is swept from what is
- * actually present on the stat map rather than from memory.
+ * which is why a player with no row is swept from what is actually present on the stat map rather
+ * than from memory. The looks the engine asked for ARE saved, but on the player entity itself
+ * ({@link GearSetLooksComponent}), so a login can take off the look of a set deleted meanwhile.
  *
- * <p><b>Keyed by player alone, never by world.</b> The stat map and the active effects travel with
- * the player: a world change moves the player's whole component holder into the next world's store
- * ({@code PlayerRef.removeFromStore} then {@code World.addPlayer}), and both the
- * {@code EntityStatMap} and the {@code EffectControllerComponent} are registered, codec-carried
- * components that nothing clears on that move. So the row describing what is on the player stays
- * true across the move, and the recompute the next world's ready event runs finds the same tiers
- * active and announces nothing. A row per world would instead diff a player returning from an
- * instance against what they wore when they left, and re-announce every tier that changed in
- * between. The engine does clear every effect on death and again on respawn; the row keeps listing
- * the look, the entity is asked, and the respawn recompute puts it back without a notice.
- *
- * <p><b>Evicted twice, never by a world unload:</b> on disconnect, and again when the player's
- * entity leaves its store for any reason but a world change ({@code GearSets.onEntityRemoved}),
- * because the disconnect event fires before the entity leaves and a recompute already queued on the
- * world thread could otherwise write the row back for a session that has ended.
+ * <p><b>Keyed by player UUID, and forgotten whenever the player's entity leaves its store</b>
+ * ({@code GearSets.onEntityRemoved}, for every {@code RemoveReason}). A disconnect removes the entity
+ * with {@code UNLOAD} after the disconnect event has fired, and a world change removes it with the
+ * same reason, so the eviction cannot tell the two apart and does not try: it runs on the world
+ * thread after any recompute queued before it, so no row outlives the session, and the next world's
+ * first recompute is a hydrate. That hydrate is right after a world change: the stat map and the
+ * active effects travel with the player's component holder, so the sweep reads the live map, the
+ * look is reconciled by asking the entity, and nothing is announced, since no tier flipped. The
+ * engine does clear every effect on death and again on respawn; the row keeps listing the look, the
+ * entity is asked, and the respawn recompute puts it back without a notice.
  */
 final class GearSetApplied {
 
@@ -66,7 +63,7 @@ final class GearSetApplied {
         TABLE.put(playerId, applied);
     }
 
-    /** Drop the player's row: a disconnect, or the entity leaving its store for good. */
+    /** Drop the player's row: their entity left its store, whatever the reason. */
     static void forget(@Nonnull UUID playerId) {
         TABLE.remove(playerId);
     }
