@@ -3,12 +3,14 @@ package com.ziggfreed.common.loot.stamp;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemQuality;
+import com.hypixel.hytale.server.core.asset.type.item.config.metadata.ItemDisplayMetadata;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.stats.StackStats;
@@ -40,6 +42,8 @@ import com.ziggfreed.common.stats.StackStats;
  * by one so budget math can see the history.
  */
 public final class StackStatsStamper implements Stamper {
+
+    private static final Set<String> METADATA_KEYS = Set.of(StackStats.KEY, ItemDisplayMetadata.KEY);
 
     @Override
     @Nonnull
@@ -140,6 +144,24 @@ public final class StackStatsStamper implements Stamper {
     @Nonnull
     private static Map<String, Double> orEmpty(@Nullable Map<String, Double> entries) {
         return entries != null ? entries : Map.of();
+    }
+
+    /**
+     * The two metadata keys a stamp writes: the {@link StackStats} record itself and the engine's
+     * {@link ItemDisplayMetadata} tooltip {@link StampTooltip} writes beside it (a rename lands in the
+     * same tooltip). Quality and durability are fields of the stack, not metadata, so they are not
+     * listed.
+     *
+     * <p>Registering this stamper declares both keys disposable server-wide, and a declared key is
+     * disposable whoever wrote it: {@code ItemDisplay} is the engine's one shared display key, so a
+     * display override there goes with its item whether this stamper's tooltip or another mod's
+     * custom name wrote it. That is intended, because display text means nothing once the item is
+     * consumed.
+     */
+    @Override
+    @Nonnull
+    public Set<String> metadataKeys() {
+        return METADATA_KEYS;
     }
 
     /**

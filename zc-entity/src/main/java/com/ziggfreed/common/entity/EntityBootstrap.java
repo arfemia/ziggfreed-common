@@ -2,6 +2,7 @@ package com.ziggfreed.common.entity;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.event.EventPriority;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystems.EntityViewer;
@@ -13,14 +14,16 @@ import com.ziggfreed.common.entity.overhead.OverheadIndicators;
 import com.ziggfreed.common.entity.overhead.OverheadVisibilityFilter;
 import com.ziggfreed.common.entity.performer.PerformerIdentityComponent;
 import com.ziggfreed.common.stats.EquipStatBridge;
+import com.ziggfreed.common.stats.gearset.GearSetLifecycleSystems;
+import com.ziggfreed.common.stats.gearset.GearSets;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers this module's own per-player state and plumbing at plugin {@code setup()}: the
  * station-performer identity component, the unlocked-flair set with its connect hook, the
- * {@link PlayerIdentityCache} lifecycle listeners, the equip-stat bridge and the two systems behind
- * the overhead indicators. Ordered phases, each called once from
- * {@code ZiggfreedCommonPlugin.setup()}, which stays the one authority on call ORDER.
+ * {@link PlayerIdentityCache} lifecycle listeners, the equip-stat bridge, the gear-set engine that
+ * hangs on it, and the two systems behind the overhead indicators. Ordered phases, each called once
+ * from {@code ZiggfreedCommonPlugin.setup()}, which stays the one authority on call ORDER.
  *
  * <p>Every component type here is registered unconditionally and early: a component type
  * registered after a world has loaded cannot be read off entities that were saved carrying it, so
@@ -73,6 +76,35 @@ public final class EntityBootstrap {
     @javax.annotation.Nullable
     public static EquipStatBridge equipStatBridge() {
         return equipStatBridge;
+    }
+
+    /**
+     * Hang the gear-set engine on the installed bridge, right after {@link #installEquipStatBridge}:
+     * ONE post-apply listener, never a fourth trigger system, since the bridge already watches every
+     * moment an item can start or stop being worn. Plus its lifecycle: a LATE player-ready recompute
+     * through the bridge (the hydrate authority, after every earlier listener has attached what it
+     * attaches), a recompute after every respawn (the engine clears every effect on death and on
+     * respawn, so the set's look is put back), and the two evictions of the player's last write,
+     * the disconnect and the entity leaving its store for good. No per-world eviction: what the
+     * engine remembers is keyed by player and stays true across a world change.
+     * The effect seam ({@code GearSets.effects}) is filled by the wiring root, which is the one
+     * place that sees the native-effect primitive as well.
+     */
+    public static void installGearSets(@Nonnull PluginBase plugin) {
+        try {
+            EquipStatBridge bridge = equipStatBridge;
+            if (bridge == null) {
+                SafeLog.warn("[gearset] no equip bridge is installed, so gear sets pay nothing this boot");
+                return;
+            }
+            GearSets.install(bridge);
+            plugin.getEventRegistry().registerGlobal(EventPriority.LATE, PlayerReadyEvent.class, GearSets::onPlayerReady);
+            plugin.getEventRegistry().register(PlayerDisconnectEvent.class, GearSets::onPlayerDisconnect);
+            plugin.getEntityStoreRegistry().registerSystem(new GearSetLifecycleSystems.Respawned());
+            plugin.getEntityStoreRegistry().registerSystem(new GearSetLifecycleSystems.Left());
+        } catch (Throwable t) {
+            SafeLog.warn("[gearset] could not install the gear-set engine", t);
+        }
     }
 
     /**

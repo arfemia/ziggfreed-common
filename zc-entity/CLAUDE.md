@@ -1,8 +1,9 @@
 # CLAUDE.md - zc-entity
 
-Puppets, performers, per-player flair, the item-carried stat bridge, the one item reader and the
-native recipe index: the entity-presentation, entity-stat and item primitives that need real engine
-entity/item data, split out from the domain-free `factor/` and `stats/` cores that live in `zc-core`.
+Puppets, performers, per-player flair, the item-carried stat bridge with the gear-set engine on top
+of it, the one item reader and the native recipe index: the entity-presentation, entity-stat and
+item primitives that need real engine entity/item data, split out from the domain-free `factor/` and
+`stats/` cores that live in `zc-core`.
 
 ## Build
 
@@ -29,12 +30,17 @@ compiles as `:zc-entity`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggr
   over `CollisionModule`), `HeldItemUtil` (a held tool's gather-power SPREAD selection, e.g. picking
   the right power out of a dozen authored on one item), `ItemReadings` (the ONE reader of what an
   item is worth - quality (the index a stack carries, or an item's current one), item level, wear,
-  the item's own additive `StatModifiers` - that every item-shaped factor reads through), `PlayerIdentityCache` (resolves a player's
+  the item's own additive `StatModifiers` - that every item-shaped factor reads through, plus the
+  metadata keys a stack carries and which of them no mod declared safe to destroy with it, over
+  zc-core's `inventory/DisposableItemMetadata`), `PlayerIdentityCache` (resolves a player's
   UUID on the world thread, so an off-thread engine callback holding a bare `Player` never needs the
-  deprecated-for-removal `Entity.getUuid()`), and `EntityBootstrap` (this module's own four
-  `setup()` registration phases: `installEquipStatBridge` (the ONE `EquipStatBridge`, its three
-  trigger systems and the `equipStatBridge()` accessor a consumer reads it back through) /
-  `registerPerformerIdentity` / `registerFlairs` / `registerPlayerIdentity`, called from the wiring
+  deprecated-for-removal `Entity.getUuid()`), and `EntityBootstrap` (this module's own `setup()`
+  registration phases: `installEquipStatBridge` (the ONE `EquipStatBridge`, its three trigger
+  systems and the `equipStatBridge()` accessor a consumer reads it back through) /
+  `installGearSets` (the gear-set engine hung on that bridge as one post-apply listener, its LATE
+  player-ready hydrate, its respawn recompute and its two evictions, disconnect and the entity
+  leaving its store for good) / `registerPerformerIdentity` /
+  `registerFlairs` / `registerPlayerIdentity` / `registerOverheadIndicators`, called from the wiring
   root's ordered list).
   - [`entity/performer/`](src/main/java/com/ziggfreed/common/entity/performer/CLAUDE.md) - the
     `StationPerformer` contract (`HolderPerformer`/`NpcRolePerformer` backends,
@@ -71,10 +77,19 @@ compiles as `:zc-entity`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggr
   engine's `MaterialQuantity` keeps only the tag's index. No router of its own; the class javadoc
   carries the detail.
 - [`stats/`](src/main/java/com/ziggfreed/common/stats/CLAUDE.md) - `EquipStatBridge` (held/armor/
-  offhand `StackStats` -> native `EntityStatMap` modifiers), `StatMirror`, `StatChannelAudit`,
-  `StatIndexCache`. This is the ECS-bridging half of the `stats` split package; the pure
-  item-metadata record `StackStats` itself lives in `zc-core`, described in this router's own
-  Conventions section for why the two halves stay apart.
+  offhand `StackStats` -> native `EntityStatMap` modifiers, plus `equippedSnapshot`, what the entity
+  has on by item id), `EquippedSnapshot`, `StatMirror`, `StatChannelAudit`, `StatIndexCache`. This is
+  the ECS-bridging half of the `stats` split package; the pure item-metadata record `StackStats`
+  itself lives in `zc-core`, described in this router's own Conventions section for why the two
+  halves stay apart.
+  - `stats/gearset/` - the GEAR-SET engine over the bridge, described in the same router:
+    `GearSetAsset` (the `Server/ZiggfreedCommon/GearSets/` store, `GearSetConfig`,
+    `GearSetOwnerLayers`), `GearSets` (the one post-apply listener, the recompute, the lifecycle,
+    with `GearSetLifecycleSystems` for the respawn and the entity leaving its store),
+    the pure `GearSetDecision` / `GearSetPlan` / `GearSetIndex` cores over `GearSetKeys`, the
+    `GearSetEffects` seam, the `GearSetEvents` family with `ZigGearSetTierChangedEvent`, and
+    `GearSetValidator`. It reads engine stat, item and effect data, which is why it lives here and
+    not beside `StackStats` in zc-core.
 
 ## Shipped resources
 
@@ -91,11 +106,27 @@ the rule stated in full. The performer contract's mutating methods each take a F
 
 ## Tests
 
-24 files: the stat bridge (`EquipStatBridgeTest`, `EquipStatBridgeAppliedListenerTest`,
-`StatMirrorTest`, `StatChannelAuditTest`), the factor standard library (`HytaleFactorsTest`, which
+36 files: the stat bridge (`EquipStatBridgeTest`, `EquipStatBridgeAppliedListenerTest`,
+`StatMirrorTest`, `StatChannelAuditTest`, `EquippedSnapshotTest`), the gear-set engine, all on plain
+ids with no engine item anywhere (`GearSetAssetCodecTest`: the native block through the own leaf, a
+`$Comment` inside the map, `Bonuses` replacing and `Text` merging under `Parent`, an unknown word
+failing the read; `GearSetDecisionTest`: the D9 cases and ruling R13 (a held copy of a worn piece
+counts once toward `Pieces` and never satisfies `Held`); `GearSetIndexTest`: the candidates found
+one lookup per item, in id order, and the looks a hydrate answers for, a disabled set's included;
+`GearSetAppliedTest`: a recompute after a world change fires no flip; `GearSetLifecycleTest`: a
+look cleared by death and respawn comes back with the row intact and no notice, none on a corpse,
+and a recompute queued before the disconnect cannot leave a row behind while a world change keeps
+it; `GearSetPlanTest`: the diff and the sweep
+against a lookup that records every key asked, so a `ziggfreedcommon:` key or a consumer's own is
+provably never touched; `GearSetValidatorTest`: one case per code, and a member spelled in
+another case is not unknown; `GearSetEventsTest`: the
+flip arithmetic and the fire through `publishTo`; `GearSetEffectsTest`: the three-member seam reporting once;
+`GearSetEditorSchemaTest`: items on arrays, the closed words, `Enabled` default, `$Comment` in the
+map), the factor standard library (`HytaleFactorsTest`, which
 drives the item family over real engine stacks), the one item reader (`ItemReadingsTest`: the held-tool
 paths pinned byte-identical to 2.1.x, and the quality split on a stack made before its item's quality
-moved, over the shared `TestItems` fixture: real `Item` / `ItemQuality` values filled through their
+moved, plus `ItemMetadataKeysTest`: the metadata keys of a bare, a metadata-carrying, a stamped and
+an unreadable stack and the undeclared ones among them, over the shared `TestItems` fixture: real `Item` / `ItemQuality` values filled through their
 protected fields and real `ItemStack`s made through the engine's own constructors, since a unit JVM
 has no item store; `TestAssetStores` seeds the live quality and stat-channel maps the engine's own way
 for `HytaleFactorsTest`'s value tests), the recipe index (`RecipeCatalogTest` over hand-written
@@ -113,7 +144,8 @@ tool-power selection) are fully unit-tested.
 **Two test tasks** (`gradle/zc-module.gradle`, since 2.2.0). A real `Item`, `ItemStack` or
 `ItemQuality`, and a seeded engine asset store, can only be built under the engine's own
 `HytaleLogManager`, so every test that builds one is tagged `engine-items` and runs in the
-`engineItemTest` task, which starts under that manager: `ItemReadingsTest` as a whole, and in
+`engineItemTest` task, which starts under that manager: `ItemReadingsTest` and
+`ItemMetadataKeysTest` as a whole, and in
 `HytaleFactorsTest` the item-family tests plus `aBlankParamIsNotEnoughForItemStatEvenWithAnItem`
 (the blank-Param case that carries a real stack; the no-item blank-Param cases stay untagged). Everything else runs in the default `test` task with no
 log manager, exactly as a consumer mod's test JVM does, which is where the logging guards are

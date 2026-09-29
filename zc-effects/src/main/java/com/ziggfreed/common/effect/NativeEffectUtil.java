@@ -35,13 +35,18 @@ import com.ziggfreed.common.CommonLog;
  *       currently applied (the engine no-ops on an unknown/absent index); this util additionally
  *       degrades to {@code false} rather than throw on a bad ref, a missing controller, an
  *       unresolved id, or an engine throw.</li>
+ *   <li>{@link #has(Store, Ref, String)} / {@link #has(ComponentAccessor, Ref, String)} - whether
+ *       the entity has the effect active right now ({@code EffectControllerComponent.hasEffect} on
+ *       the id's current engine index); false whenever it cannot tell, so a caller reconciling a
+ *       wanted effect asks this and applies on false.</li>
  * </ul>
  *
  * <p><b>Fail-closed throughout.</b> A {@code null}/blank id, an invalid ref, a target with no
  * {@link EffectControllerComponent}, an unregistered effect id, or any engine throw all degrade to
  * {@code false} - never a throw into the caller, and never a silent success. Every miss logs at
  * most once per call (guarded FINE for a missing-component/invalid-ref no-op, guarded WARN for an
- * unresolved id or an engine throw) so a caller only needs the boolean.
+ * unresolved id or an engine throw; {@code has} logs every miss at FINE, since the apply it
+ * precedes is the call that names the id) so a caller only needs the boolean.
  *
  * <p><b>World-thread only</b> (reads/mutates an {@link EffectControllerComponent}); the caller
  * guarantees the thread. See {@link AppliedEffectTracker} for the companion "track what this
@@ -168,6 +173,51 @@ public final class NativeEffectUtil {
             return true;
         } catch (Throwable t) {
             warn("remove: '" + effectId + "' failed: " + t.getMessage());
+            return false;
+        }
+    }
+
+    // --- has by id (resolves the current engine index) ---
+
+    /** {@link Store} form of has-by-id. */
+    public static boolean has(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                              @Nonnull String effectId) {
+        return hasInternal(store, ref, effectId);
+    }
+
+    /** {@link ComponentAccessor} form of has-by-id (also fits a {@code CommandBuffer}). */
+    public static boolean has(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+                              @Nonnull String effectId) {
+        return hasInternal(accessor, ref, effectId);
+    }
+
+    /**
+     * Whether the entity has {@code effectId} active right now, through
+     * {@code EffectControllerComponent.hasEffect(int)} on the id's current engine index. False
+     * whenever it cannot tell (a bad ref, a blank or unregistered id, no controller, an engine
+     * throw), each logged at FINE only: a caller asks this before an {@code apply}, and the apply
+     * is the call that names an unregistered id out loud.
+     */
+    private static boolean hasInternal(@Nonnull ComponentAccessor<EntityStore> accessor,
+                                       @Nonnull Ref<EntityStore> ref, @Nonnull String effectId) {
+        if (ref == null || !ref.isValid() || effectId == null || effectId.isBlank()) {
+            fine("has: invalid ref or blank id (" + effectId + ")");
+            return false;
+        }
+        try {
+            int idx = EntityEffect.getAssetMap().getIndex(effectId);
+            if (idx == Integer.MIN_VALUE) {
+                fine("has: EntityEffect '" + effectId + "' not found in asset map");
+                return false;
+            }
+            EffectControllerComponent ctrl = accessor.getComponent(ref, EffectControllerComponent.getComponentType());
+            if (ctrl == null) {
+                fine("has: entity has no EffectControllerComponent - " + effectId);
+                return false;
+            }
+            return ctrl.hasEffect(idx);
+        } catch (Throwable t) {
+            fine("has: '" + effectId + "' failed: " + t.getMessage());
             return false;
         }
     }

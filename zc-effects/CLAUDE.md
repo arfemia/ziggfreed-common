@@ -27,7 +27,8 @@ compiles as `:zc-effects`). See the root [`CLAUDE.md`](../CLAUDE.md) for the agg
 ## Packages
 
 - [`effect/`](src/main/java/com/ziggfreed/common/effect/CLAUDE.md) - `NativeEffectUtil` (apply an
-  asset-authoritative 3-arg `apply` or a duration-override 5-arg `applyFor`, plus `remove`) +
+  asset-authoritative 3-arg `apply` or a duration-override 5-arg `applyFor`, plus `remove` and
+  `has`) +
   `AppliedEffectTracker` (session-scoped tracked-set, `removeAll` strips everything a session
   applied).
 - [`instance/effect/`](src/main/java/com/ziggfreed/common/instance/effect/CLAUDE.md) - the

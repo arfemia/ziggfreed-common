@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The slice of {@link NativeEffectUtil} testable without a live Hytale server: {@code apply} /
- * {@code applyFor} / {@code remove} all guard {@code ref == null} (and blank ids) BEFORE touching
+ * {@code applyFor} / {@code remove} / {@code has} all guard {@code ref == null} (and blank ids) BEFORE touching
  * the engine {@code EntityEffect} asset map or any {@code EffectControllerComponent}, and every
  * remaining engine touch sits behind {@code catch (Throwable)} - so a {@code null} ref degrades to
  * {@code false} the same way a bad ref / unregistered id / engine throw does live (fail-closed,
@@ -55,5 +55,15 @@ class NativeEffectUtilTest {
     @Test
     void remove_blankId_isANoOp() {
         assertFalse(NativeEffectUtil.remove(NULL_STORE, NULL_REF, ""));
+    }
+
+    @Test
+    void has_nullRef_answersFalse() {
+        assertFalse(NativeEffectUtil.has(NULL_STORE, NULL_REF, "Some_Effect"));
+    }
+
+    @Test
+    void has_blankId_answersFalse() {
+        assertFalse(NativeEffectUtil.has(NULL_STORE, NULL_REF, ""));
     }
 }

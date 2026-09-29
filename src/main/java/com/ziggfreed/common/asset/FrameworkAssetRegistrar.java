@@ -86,6 +86,10 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.recipe.RecipeIndex;
+import com.ziggfreed.common.stats.gearset.GearSetAsset;
+import com.ziggfreed.common.stats.gearset.GearSetConfig;
+import com.ziggfreed.common.stats.gearset.GearSetOwnerLayers;
+import com.ziggfreed.common.stats.gearset.GearSets;
 import com.ziggfreed.common.ui.hud.panel.HudOwnerLayers;
 import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
 import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
@@ -633,6 +637,23 @@ public final class FrameworkAssetRegistrar {
                     EncounterOwnerLayers.reloadParticipation();
                 });
 
+        // --- Gear sets (Pattern A) - one SET per file: its members, and the tiers of stat
+        //     modifiers and the look each conjunction of worn / held / offhand minimums pays. The
+        //     engine hangs on the equip bridge, so nothing here ticks. No loadsAfter: a set names
+        //     items, stat channels and effects by id and resolves them at recompute, never at load.
+        //     Owner layer mods/ziggfreedcommon/gear-sets.json, re-read on this same event for the
+        //     usual reason; the derived item-to-sets index is dropped and every online player is
+        //     run through the bridge again, so a reload lands on whoever is wearing the set now. ---
+        AssetStoreRegistrar.registerStore(GearSetAsset.class,
+                new DefaultAssetMap<String, GearSetAsset>(), GearSetAsset.TYPE_ROOT,
+                GearSetAsset::getId, GearSetAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, GearSetAsset.class,
+                (LoadedAssetsEvent<String, GearSetAsset, DefaultAssetMap<String, GearSetAsset>> ev) -> {
+                    GearSetConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    GearSetOwnerLayers.reload();
+                    GearSets.onContentChanged();
+                });
+
         // --- The native recipe index (zc-entity) - not a store of ours: a read-side index over the
         //     ENGINE's CraftingRecipe store, built on first read. It is dropped on every recipe and
         //     item load and removal (an item reload reloads the recipes authored inside it), so the
@@ -658,7 +679,8 @@ public final class FrameworkAssetRegistrar {
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                             + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "
-                            + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation).");
+                            + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation, "
+                            + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json)).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }

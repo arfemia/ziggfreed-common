@@ -6,6 +6,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.ziggfreed.common.inventory.DisposableItemMetadata;
 
 /**
  * Which {@link Stamper} this server writes stamps with. Exactly ONE, deliberately.
@@ -27,9 +28,21 @@ public final class StamperRegistry {
     private StamperRegistry() {
     }
 
-    /** Install {@code stamper} as the one this server uses, replacing whatever was there. */
+    /**
+     * Install {@code stamper} as the one this server uses, replacing whatever was there, and declare
+     * every metadata key it writes ({@link Stamper#metadataKeys}) safe to destroy with its item. The
+     * declaration outlives a later replacement, since the items it stamped still carry those keys.
+     */
     public static void register(@Nullable Stamper stamper) {
         ACTIVE.set(stamper);
+        if (stamper == null) {
+            return;
+        }
+        try {
+            DisposableItemMetadata.declare(stamper.metadataKeys());
+        } catch (Throwable ignored) {
+            // A stamper that cannot name its keys still stamps; a consumer refuses its items instead.
+        }
     }
 
     /** The active stamper, or null when nothing has registered one. */

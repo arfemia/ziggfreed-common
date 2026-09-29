@@ -1,6 +1,7 @@
 package com.ziggfreed.common.loot.stamp;
 
 import java.util.List;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -74,5 +75,18 @@ public interface Stamper {
     @Nullable
     default Message describe(@Nonnull StatRoll entry) {
         return null;
+    }
+
+    /**
+     * Every stack METADATA key this stamper writes, declared safe to destroy together with the item
+     * ({@code DisposableItemMetadata}) the moment {@link StamperRegistry#register} installs it: a
+     * stamped record means nothing once its item is consumed, and something consuming the item asks
+     * that list first. Name every key {@link #apply} can write, the engine's own ones included (a
+     * tooltip written beside the stats is the engine's {@code ItemDisplay} key). Empty by default,
+     * for a stamper that writes nothing into metadata.
+     */
+    @Nonnull
+    default Set<String> metadataKeys() {
+        return Set.of();
     }
 }

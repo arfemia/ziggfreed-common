@@ -24,9 +24,14 @@ come off at stop()". Both packages are legitimate - pick by shape needed, do not
     index (`EntityEffect.getAssetMap().getIndex`) and calls `removeEffect`; safe to call on an
     effect that is not currently applied (the engine no-ops on an unresolved index, and this util
     additionally fails closed on a bad ref / missing controller / unresolved id / engine throw).
+  - `has(Store|ComponentAccessor, ref, effectId)` - whether the entity has the effect active right
+    now (`EffectControllerComponent.hasEffect(int)` on the id's current engine index); false
+    whenever it cannot tell, so a caller reconciling a wanted effect (the gear-set engine, through
+    its root-filled seam) applies on false.
   - **Fail-closed throughout, one guarded log per miss** (FINE for a null/invalid ref or a missing
-    `EffectControllerComponent`, WARN for an unresolved id or an engine throw) - never a throw
-    into the caller, never a silent success.
+    `EffectControllerComponent`, WARN for an unresolved id or an engine throw; `has` logs every
+    miss at FINE, the apply it precedes being the call that names the id) - never a throw into the
+    caller, never a silent success.
 - **[`AppliedEffectTracker`](AppliedEffectTracker.java)** - the companion "remove everything a
   session applied" bookkeeping primitive: `track(ref, effectId)` records a `(ref, effectId)` pair
   - call it ONLY after the matching `apply`/`applyFor` returned `true` (the tracker never verifies

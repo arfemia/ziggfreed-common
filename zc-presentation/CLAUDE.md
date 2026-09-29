@@ -102,7 +102,7 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     "every tick / milestones / finishes / nothing" setting is answered from them (a handle with no
     opinion gets what was authored), and only the toast is gated that way - a banner, a sound and a
     command are not one player's screen. **This module SHIPS the library's neutral default file
-    for each of the ELEVEN moments the library's own engines announce**: the seven the
+    for each of the TWELVE moments the library's own engines announce**: the seven the
     progression engines fire (`Quest_Completed`, `Quest_Parked`, `Quest_Claimed`,
     `Quest_Objective_Progressed`, `Achievement_Unlocked`, `Achievement_Claimed`,
     `Achievement_Server_First_Lost`), each authoring its `Tone` (payouts Reward, the lost race
@@ -110,7 +110,11 @@ compiles as `:zc-presentation`). See the root [`CLAUDE.md`](../CLAUDE.md) for th
     per-line `Color`, plus the four the boss framework announces (`Encounter_Engaged`,
     `Encounter_Phase_Changed`, `Encounter_Defeated`, `Encounter_Wiped`, the ids
     `EncounterBindingAsset`'s four feedback leaves read as when unauthored), where the engaged
-    notice is a scoped `Broadcast` rather than a toast; the wording for all eleven lives in
+    notice is a scoped `Broadcast` rather than a toast, plus the one the gear-set engine announces
+    (`Gear_Set_Tier`, fired by the root's `gearset/GearSetNoticeBridge` off
+    `ZigGearSetTierChangedEvent` with `source` / `set`, `name`, `pieces`, `total`, `desc` and
+    `active`; Reward tone with the tier's line as `Secondary`, and a quiet Info `Variants` entry for
+    `active: false`); the wording for all twelve lives in
     `ziggfreedcommon.feedback.lang` (nine locales); a consumer's same-id file wins by pack order
     (`FeedbackMomentOverrideOrderTest` pins it through the engine map). No router of its own; see
     the asset's javadoc, which is the authoring reference.
@@ -201,9 +205,9 @@ the NPC quest page, both commerce pages, the objective book's two tabs and a con
 reward and preview rows alike, so a readability step lands everywhere at once; and the section
 label above any such list is `ZigButtons.ui`'s `@ZigSectionHeaderStyle`, the one header
 `LabelStyle` every page references rather than spelling its own, spread with a `TextColor`
-override where a header must keep its own colour). Under `Server/`: the eleven neutral default
+override where a header must keep its own colour). Under `Server/`: the twelve neutral default
 feedback moments (the seven the progression
-engines announce plus the four the boss framework announces)
+engines announce, the four the boss framework announces and the gear-set engine's `Gear_Set_Tier`)
 at `Server/ZiggfreedCommon/FeedbackMoments/<moment id>.json` and their wording at
 `Server/Languages/<locale>/ziggfreedcommon.feedback.lang` (nine locales) - the library's own default
 CONTENT a consumer overrides by id, every file carrying a public-facing `$Comment` naming the

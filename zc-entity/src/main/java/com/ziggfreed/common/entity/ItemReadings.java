@@ -1,10 +1,16 @@
 package com.ziggfreed.common.entity;
 
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.function.IntFunction;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.bson.BsonValue;
+
+import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemArmor;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemQuality;
@@ -12,6 +18,7 @@ import com.hypixel.hytale.server.core.asset.type.item.config.ItemUtility;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemWeapon;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
+import com.ziggfreed.common.inventory.DisposableItemMetadata;
 import com.ziggfreed.common.stats.StatIndexCache;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -36,8 +43,15 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
  * asset authors NOW. The two agree until the item's {@code Quality} is reloaded, or the quality
  * index order moves between boots, after the stack was made. Item level and the authored stat
  * modifiers exist only on the item asset, and durability only on the stack.
+ *
+ * <p>It also reads which METADATA keys a stack carries ({@link #metadataKeys}) and which of them no
+ * mod has declared safe to destroy with it ({@link #undeclaredMetadataKeys}), the question anything
+ * about to consume a stack asks first.
  */
 public final class ItemReadings {
+
+    /** The {@code ItemStack.CODEC} leaf that carries a stack's metadata document. */
+    static final String METADATA_LEAF = "Metadata";
 
     /** A stack whose item tracks no durability reads as fully intact. */
     static final double UNWORN_PERCENT = 100.0;
@@ -232,6 +246,51 @@ public final class ItemReadings {
             }
         }
         return sum;
+    }
+
+    // ==================== metadata keys ====================
+
+    /**
+     * The METADATA keys {@code stack} carries: the top-level keys of its metadata document, in the
+     * document's order, as an immutable set. A bare stack (no metadata at all) reads an empty set.
+     *
+     * <p><b>Null means "cannot tell", and a caller about to destroy the stack refuses on it.</b> It is
+     * answered for no stack, and for a stack the read cannot encode (the read never throws). The
+     * engine's own metadata accessor is deprecated for removal, so the keys are read the one
+     * non-deprecated way the engine offers: the stack's own {@code ItemStack.CODEC} encodes it, and
+     * the {@code Metadata} leaf of that document is the stack's metadata (the engine's own document,
+     * not a copy, so only its key names are copied out and it never leaves this method). No value is
+     * decoded and the stack is not changed.
+     */
+    @Nullable
+    public static Set<String> metadataKeys(@Nullable ItemStack stack) {
+        if (stack == null) {
+            return null;
+        }
+        try {
+            BsonValue metadata = ItemStack.CODEC.encode(stack, new ExtraInfo()).get(METADATA_LEAF);
+            if (metadata == null || metadata.isNull()) {
+                return Set.of();
+            }
+            if (!metadata.isDocument()) {
+                return null;
+            }
+            return Collections.unmodifiableSet(new LinkedHashSet<>(metadata.asDocument().keySet()));
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * The metadata keys {@code stack} carries that NO mod has declared safe to destroy with it
+     * ({@link DisposableItemMetadata}): empty when every key is declared or the stack is bare, and
+     * null when {@link #metadataKeys} cannot tell, which a consumer about to destroy the stack treats
+     * as a refusal. One read of the stack and one set lookup per key.
+     */
+    @Nullable
+    public static Set<String> undeclaredMetadataKeys(@Nullable ItemStack stack) {
+        Set<String> keys = metadataKeys(stack);
+        return keys == null ? null : DisposableItemMetadata.undeclared(keys);
     }
 
     // ==================== helpers ====================

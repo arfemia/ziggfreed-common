@@ -44,11 +44,18 @@ separate from where the numbers end up.
 - **[`Stamper`](Stamper.java)** - the write boundary: `inspect` reads history, `apply` writes and
   returns a NEW stack (items are immutable). Entries arrive already held inside their budgets; a
   stamper never re-derives a cap. `describe(StatRoll)` answers how one written stat READS.
+  `metadataKeys()` (2.2.0, default empty) names every stack METADATA key `apply` can write, the
+  engine's own included; registering the stamper declares them safe to destroy with their item in
+  zc-core's `inventory/DisposableItemMetadata`, the list anything consuming an item asks first.
 - **[`StackStatsStamper`](StackStatsStamper.java)** - THE stamper, not merely a default (maintainer
   ruling 2026-09-01: stamping is ZC-DRIVEN, no consumer registers one). Stats live in the stack's own
   metadata, so a stamped item IS the record; stamps travel through a trade or a chest, and a stamped
   sword is never a new item ASSET. It also draws the tooltip in the SAME call, so a stamped item can
-  never carry stats its description does not show.
+  never carry stats its description does not show. Its `metadataKeys()` are exactly those two:
+  `ZigStackStats` (the `StackStats` record) and the engine's `ItemDisplay` (the tooltip); quality and
+  durability are stack fields, not metadata. A declared key is disposable whoever wrote it, so an
+  `ItemDisplay` override (this tooltip or another mod's custom name) goes with its item: display text
+  means nothing once the item is consumed.
   **[`DefaultStatNames.DURABILITY`](DefaultStatNames.java) is the one id that never reaches the
   record**: it raises the stack's max durability instead, because durability is a property of the
   item rather than a stat channel and there is nothing for an equip bridge to modify. The roll math
@@ -76,7 +83,9 @@ separate from where the numbers end up.
   stampers would mean two item formats, and then every budget check reads half the history and the
   ceilings quietly stop working. The wiring root registers `StackStatsStamper`, and **NOTHING should
   replace it** - a consumer wanting richer behaviour fills `StatNamer` instead of registering a
-  second format.
+  second format. `register` also declares the stamper's `metadataKeys()` in
+  `DisposableItemMetadata` (never retracted, since the items it stamped still carry them), so a
+  third-party stamper's keys are declared with no second call.
 
 - **[`StampFactors`](StampFactors.java)** - `ziggfreedcommon:item_stamp_points`, the stamped points
   the factor context's ITEM carries as an ordinary factor reading: Param absent reads the total, a
@@ -104,6 +113,11 @@ separate from where the numbers end up.
   the denial, and a re-stamp against a fake stamper). `StamperDescribeTest` pins the one thing a
   default method can silently break: a stamper that overrides nothing still ANSWERS `describe`, and
   answers null, so a caller's fallback is the documented path rather than an exception.
+  `StamperMetadataKeysTest` - the library stamper names `ZigStackStats` and `ItemDisplay` (read
+  through `metadataKeys()` alone), and registering a stamper declares every key it names, a replaced
+  stamper's staying declared; each registration case declares a key of its own that it first checks
+  nobody declared, because the list is process-wide and never cleared, so no case leans on another's
+  leftovers or on method order.
   `StampFactorsTest` - the stamp factor over a stub stamper (total, per stat, no item, no stamper,
   the process-wide claim) and its shipped naming overlay.
   `StampTooltipGateTest` - the base-description gate, pure: an item's own key that is missing and one

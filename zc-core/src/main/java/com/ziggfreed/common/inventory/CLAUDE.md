@@ -129,3 +129,21 @@ needs it), so it lives here, not duplicated in a consumer.
   persists BEFORE touching the live inventory (crash-safety invariant); `restoreAndClear` applies then
   drops the snapshot only on success (a throw leaves it for the next-login retry). The consumer wires
   the lifecycle (entry strip, exit + next-login restore) - Kweebec's `RoundInventoryGuard` is the model.
+- **[`DisposableItemMetadata`](DisposableItemMetadata.java)** (2.2.0) - the ONE server-wide list of
+  item-stack METADATA keys some mod has declared safe to destroy together with their item (data that
+  means nothing once the item is consumed). A mod that WRITES a key declares it once at setup
+  (`declare(String...)` / `declare(Collection)`); a stat stamper declares what it writes through
+  zc-loot's `Stamper.metadataKeys()`, which `StamperRegistry.register` hands here, so the library's
+  own `StackStatsStamper` (`ZigStackStats` plus the engine's `ItemDisplay` tooltip) and any
+  third-party stamper are covered with no second call. A declared key is disposable WHOEVER wrote
+  it: the list names keys, not writers, so an `ItemDisplay` override (zc's stamp tooltip or another
+  mod's custom name) goes with its item, display text meaning nothing once the item is consumed; data
+  that must not go lives under a key its owner never declares. `undeclared(keys)` answers the keys NOBODY
+  declared in one pass (`isDeclared` / `declared()` round it out); zc-entity's
+  `entity/ItemReadings.undeclaredMetadataKeys(stack)` reads a stack's keys and asks it in one call,
+  answering null for a stack it cannot read. Keys match EXACTLY (they are BSON document keys, so
+  another case is another key); a declaration is additive and never retracted, since items written
+  earlier still carry the key. It lives HERE, not beside `ItemReadings` in zc-entity, because
+  zc-loot (zc-core only) must reach it from `StamperRegistry`. What to do about an undeclared key
+  (refuse, ask) is the consumer's policy, never this list's. Pure strings, thread-safe, never throws;
+  test **`DisposableItemMetadataTest`**.
