@@ -35,6 +35,12 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet;
  *       overlapBehavior, accessor)}): reuses one effect asset's other fields (tint/particles/
  *       movement-lock/ability-disable) at a CALLER-CHOSEN duration + overlap, so a session/step
  *       can author its own lifetime without a duplicate effect asset per duration.</li>
+ *   <li>{@link #applyInfinite(Store, Ref, String)} / {@link #applyInfinite(ComponentAccessor, Ref, String)}
+ *       - the NO-EXPIRY engine overload ({@code addInfiniteEffect(ref, index, entityEffect,
+ *       accessor)}): the effect stays on until removed, whatever its asset authors. For an entity
+ *       with no {@code EntityStatMap} (a puppet, a prop), where the engine's effect timer never
+ *       runs and a timed apply would never end; pair it with {@code remove} on the caller's own
+ *       clock.</li>
  *   <li>{@link #remove(Store, Ref, String)} / {@link #remove(ComponentAccessor, Ref, String)} -
  *       resolves {@code effectId} to its current engine index and calls
  *       {@code EffectControllerComponent.removeEffect}. Safe to call for an effect that is not
@@ -144,6 +150,57 @@ public final class NativeEffectUtil {
             return ctrl.addEffect(ref, fx, Math.max(0f, durationSeconds), overlap, accessor);
         } catch (Throwable t) {
             warn("applyFor: '" + effectId + "' failed: " + t.getMessage());
+            return false;
+        }
+    }
+
+    // --- infinite apply (the engine's own addInfiniteEffect: held until removed) ---
+
+    /** {@link Store} form of the infinite apply. */
+    public static boolean applyInfinite(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+                                        @Nonnull String effectId) {
+        return applyInfiniteInternal(store, ref, effectId);
+    }
+
+    /** {@link ComponentAccessor} form of the infinite apply (also fits a {@code CommandBuffer}). */
+    public static boolean applyInfinite(@Nonnull ComponentAccessor<EntityStore> accessor, @Nonnull Ref<EntityStore> ref,
+                                        @Nonnull String effectId) {
+        return applyInfiniteInternal(accessor, ref, effectId);
+    }
+
+    /**
+     * Applies {@code effectId} with NO expiry, through the engine's own
+     * {@code EffectControllerComponent.addInfiniteEffect(ref, index, effect, accessor)}: the effect
+     * stays on until a {@link #remove} takes it off, whatever duration its asset authors. The shape
+     * for an entity that carries no {@code EntityStatMap} (a spawned puppet, a prop), on which the
+     * engine's effect timer never runs, so a timed apply would never end there: apply it infinite and
+     * remove it on the caller's own clock. Same guards and return contract as {@link #apply}.
+     */
+    private static boolean applyInfiniteInternal(@Nonnull ComponentAccessor<EntityStore> accessor,
+                                                 @Nonnull Ref<EntityStore> ref, @Nonnull String effectId) {
+        if (ref == null || !ref.isValid() || effectId == null || effectId.isBlank()) {
+            fine("applyInfinite: invalid ref or blank id (" + effectId + ")");
+            return false;
+        }
+        try {
+            int idx = EntityEffect.getAssetMap().getIndex(effectId);
+            if (idx == Integer.MIN_VALUE) {
+                warnUnresolvedOnce("applyInfinite", effectId);
+                return false;
+            }
+            EntityEffect fx = EntityEffect.getAssetMap().getAsset(idx);
+            if (fx == null) {
+                warnUnresolvedOnce("applyInfinite", effectId);
+                return false;
+            }
+            EffectControllerComponent ctrl = accessor.getComponent(ref, EffectControllerComponent.getComponentType());
+            if (ctrl == null) {
+                fine("applyInfinite: entity has no EffectControllerComponent - skipping " + effectId);
+                return false;
+            }
+            return ctrl.addInfiniteEffect(ref, idx, fx, accessor);
+        } catch (Throwable t) {
+            warn("applyInfinite: '" + effectId + "' failed: " + t.getMessage());
             return false;
         }
     }

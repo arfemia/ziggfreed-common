@@ -9,7 +9,10 @@ engine above can reach the loot core without any of them reaching each other.
 
 ## The model
 
-- **[`Roll`](Roll.java)** - one conditional payout: `{Trigger, Conditions, Chance, Ladder, Grants, Cue}`.
+- **[`Roll`](Roll.java)** - one conditional payout: `{Trigger, Conditions, Chance, Ladder, Grants, Cue, Expected}`.
+  `Expected` (Boolean, default false) marks what the roll hands over as the moment's expected
+  payout, a wage or a return, rather than a find: presentation only, the roll pays exactly the
+  same, and a granting site reads it off `LootEngine.Result`'s origin split.
   Read in that order, with two step-skipping rules that are load-bearing: a failed condition means the
   chance is never rolled (a gated roll consumes no sample), and a failed chance means the ladder is
   never evaluated (a rare tier cannot leak out of a roll that did not fire). Top-level and floor grants
@@ -66,12 +69,17 @@ engine above can reach the loot core without any of them reaching each other.
 - **[`LootEngine`](LootEngine.java)** - the half that acts, entirely through SEAMS (`Sinks`: item sink,
   drop-list sink, command dispatcher + placeholders, reward registry + subject, retry queue, warn).
   A caller supplying none gets a full evaluation with no effects, which is what a preview wants.
-  `Result` reports what LANDED, not what was attempted: the merged `getItems()` tally, the earned
+  `Result` reports what LANDED, not what was attempted: the merged `getItems()` tally, its split by
+  ORIGIN (`getExpectedItems()`, what a roll authored `Expected` paid, and `getFoundItems()`, what
+  every other roll or a pool pick paid; the two sum to the merged tally, and a site that tells a
+  wage from a windfall shows the one as ordinary output and the other as a find), the earned
   cues, and `getRewardReceipt()`, what the registered-kind `Rewards` actually handed over (their
   handlers' `GrantOutcome.receipt()`, so a nested table folds in as what it rolled and a queued or
   lost reward is absent). **Deciding and doing are separate CALLS**:
-  `select(rolls, pools, trigger, lookup, sample)` answers the ordered `Selected(grants, cue)` list a
-  pass settled on and touches nothing, and `rollAndGrant` is that answer applied. A site that pays out
+  `select(rolls, pools, trigger, lookup, sample)` answers the ordered `Selected(grants, cue, roll,
+  origin)` list a pass settled on and touches nothing (each entry names the `Roll` that paid it
+  and its `Origin`, ROLL / FLOOR / POOL, so `expected()` reads the roll's own knob; the two-argument
+  shape a site builds by hand carries no roll), and `rollAndGrant` is that answer applied. A site that pays out
   LATER - an end-of-run spoils screen, a claim waiting for the player to walk back - calls `select`
   once while the inputs are known and keeps the answer, so what was shown and what was handed over
   cannot disagree. `resolve(ref, unknownSink)` answers a ref's rolls AND pools together;

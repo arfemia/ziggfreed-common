@@ -20,6 +20,11 @@ come off at stop()". Both packages are legitimate - pick by shape needed, do not
     Root/Slow/Freeze/Stun mine - vanilla ships `Stick_Stun` Duration2 vs `Bomb_Explode_Stun`
     Duration5 as two SEPARATE assets from JSON; this 5-arg Java overload is the wider door that
     avoids that duplication).
+  - `applyInfinite(Store|ComponentAccessor, ref, effectId)` - the NO-EXPIRY engine overload
+    (`addInfiniteEffect(ref, index, entityEffect, accessor)`): the effect stays on until removed,
+    whatever its asset authors. The shape for an entity with no `EntityStatMap` (a spawned puppet,
+    a prop), where the engine's effect timer never runs and a timed apply would never end; pair it
+    with `remove` on the caller's own clock.
   - `remove(Store|ComponentAccessor, ref, effectId)` - resolves `effectId` to its current engine
     index (`EntityEffect.getAssetMap().getIndex`) and calls `removeEffect`; safe to call on an
     effect that is not currently applied (the engine no-ops on an unresolved index, and this util

@@ -22,6 +22,7 @@ import com.hypixel.hytale.server.core.asset.type.model.config.Model;
 import com.hypixel.hytale.server.core.cosmetics.CosmeticsModule;
 import com.hypixel.hytale.server.core.entity.AnimationUtils;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
+import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.entity.movement.MovementStatesComponent;
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
@@ -157,6 +158,13 @@ public final class PlayerPuppetService {
             holder.ensureComponent(UUIDComponent.getComponentType());
             holder.addComponent(NetworkId.getComponentType(), new NetworkId(accessor.getExternalData().takeNextNetworkId()));
             holder.ensureComponent(EntityTrackerSystems.Visible.getComponentType());
+            // The effect controller goes on BEFORE the spawn, the way the engine's own role builder
+            // and player setup add it, so a consumer can put a native EntityEffect (an aura, a
+            // ModelVFX) on the puppet by reference; the tracker networks it to viewers on its own.
+            // An empty controller is inert. The puppet carries no EntityStatMap, so the engine's
+            // effect TIMER never runs on it: a timed effect never expires here, and a consumer
+            // applies an infinite one and removes it itself (NativeEffectUtil.applyInfinite / remove).
+            holder.ensureComponent(EffectControllerComponent.getComponentType());
 
             PlayerSkin puppetSkin = new PlayerSkin(sourceSkin.getPlayerSkin());
             holder.addComponent(PlayerSkinComponent.getComponentType(), new PlayerSkinComponent(puppetSkin));

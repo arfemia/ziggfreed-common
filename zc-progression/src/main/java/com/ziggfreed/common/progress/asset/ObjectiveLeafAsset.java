@@ -15,8 +15,8 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 
 /**
  * The leaves EVERY authored objective carries, whatever kind of content owns it: what counts, which
- * one specifically, how it is compared, a secondary filter, how many, where, and what the player
- * reads.
+ * one specifically, how it is compared, a secondary filter and how that is compared, how many,
+ * where, and what the player reads.
  *
  * <pre>{@code
  * { "Kind": "PICKUP_ITEM", "Target": "Copper_Ore", "MatchMode": "EXACT", "Amount": 10 }
@@ -38,6 +38,7 @@ public class ObjectiveLeafAsset {
     @Nullable protected String target;
     @Nullable protected String matchMode;
     @Nullable protected String qualifier;
+    @Nullable protected String qualifierMatchMode;
     @Nullable protected Long amount;
     @Nullable protected String zone;
     @Nullable protected String textKey;
@@ -46,7 +47,7 @@ public class ObjectiveLeafAsset {
             appendLeaves(BuilderCodec.builder(ObjectiveLeafAsset.class, ObjectiveLeafAsset::new)).build();
 
     /**
-     * Register the seven shared leaves on {@code builder}. Every engine's own objective codec starts
+     * Register the eight shared leaves on {@code builder}. Every engine's own objective codec starts
      * from this call, which is what keeps the field names from drifting apart.
      */
     @Nonnull
@@ -75,6 +76,18 @@ public class ObjectiveLeafAsset {
                         (o, v) -> o.qualifier = v, o -> o.qualifier, (o, p) -> o.qualifier = p.qualifier)
                 .documentation("Optional secondary filter whose meaning belongs to the kind's producer (a tool, "
                         + "a difficulty, a variant). Unauthored means any.").add()
+                .appendInherited(new KeyedCodec<>("QualifierMatchMode", Codec.STRING, false),
+                        (o, v) -> o.qualifierMatchMode = v, o -> o.qualifierMatchMode,
+                        (o, p) -> o.qualifierMatchMode = p.qualifierMatchMode)
+                .metadata(EditorSchema.oneOfDocumented(
+                        "EXACT", "The whole qualifier must equal the authored one",
+                        "CONTAINS", "The qualifier must contain the authored one anywhere inside it",
+                        "PREFIX", "The qualifier must start with the authored one"))
+                .metadata(EditorSchema.defaultValue("EXACT"))
+                .documentation("How Qualifier is compared: EXACT, CONTAINS, or PREFIX, the same words MatchMode "
+                        + "offers the Target. Unauthored means EXACT, so a qualifier counts only the one value it "
+                        + "names; author PREFIX to count a family of values by their shared start, such as one "
+                        + "station and its greater tier.").add()
                 .appendInherited(new KeyedCodec<>("Amount", Codec.LONG, false),
                         (o, v) -> o.amount = v, o -> o.amount, (o, p) -> o.amount = p.amount)
                 .metadata(EditorSchema.defaultValue(1))
@@ -112,6 +125,12 @@ public class ObjectiveLeafAsset {
         return qualifier;
     }
 
+    /** The authored qualifier comparison name, unparsed; {@link #effectiveQualifierMatchMode()} is the read. */
+    @Nullable
+    public String getQualifierMatchMode() {
+        return qualifierMatchMode;
+    }
+
     @Nullable
     public Long getAmount() {
         return amount;
@@ -131,6 +150,16 @@ public class ObjectiveLeafAsset {
     @Nonnull
     public MatchMode effectiveMatchMode() {
         return MatchMode.fromString(matchMode);
+    }
+
+    /**
+     * The authored qualifier comparison, defaulting to {@link MatchMode#EXACT}: a qualifier is
+     * compared whole unless the file asks for a looser shape, so every objective authored before
+     * this leaf existed keeps its meaning.
+     */
+    @Nonnull
+    public MatchMode effectiveQualifierMatchMode() {
+        return MatchMode.fromString(qualifierMatchMode, MatchMode.EXACT);
     }
 
     /** True when no kind is authored, so nothing could ever progress this. */
@@ -170,6 +199,7 @@ public class ObjectiveLeafAsset {
                 .target(runTarget)
                 .matchMode(effectiveMatchMode())
                 .qualifier(qualifier)
+                .qualifierMatchMode(effectiveQualifierMatchMode())
                 .amount(amount == null ? 1L : amount)
                 .zone(zone);
     }

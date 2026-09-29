@@ -74,6 +74,8 @@ public final class LootEngine {
     public static final class Result {
 
         private final Map<String, Integer> items = new LinkedHashMap<>();
+        private final Map<String, Integer> expectedItems = new LinkedHashMap<>();
+        private final Map<String, Integer> foundItems = new LinkedHashMap<>();
         private final List<String> cues = new ArrayList<>();
         private final List<RewardSpec> rewardReceipt = new ArrayList<>();
         private int commandsRun;
@@ -84,6 +86,33 @@ public final class LootEngine {
         @Nonnull
         public Map<String, Integer> getItems() {
             return items;
+        }
+
+        /**
+         * The part of {@link #getItems()} that came from a roll authored {@code Expected}: the
+         * moment's expected payout, a wage or a return, merged by item id. Disjoint from
+         * {@link #getFoundItems()} by origin, though one item id may appear in both when an
+         * expected roll and a find both paid it; the two sum to {@link #getItems()}.
+         */
+        @Nonnull
+        public Map<String, Integer> getExpectedItems() {
+            return expectedItems;
+        }
+
+        /**
+         * The part of {@link #getItems()} that came from a find: a roll not authored
+         * {@code Expected}, or a pool pick, merged by item id. What a granting site shows as a
+         * windfall.
+         */
+        @Nonnull
+        public Map<String, Integer> getFoundItems() {
+            return foundItems;
+        }
+
+        /** Tallies one landed stack under the merged map and under its origin's map. */
+        private void landed(@Nonnull String itemId, int count, boolean expected) {
+            items.merge(itemId, count, Integer::sum);
+            (expected ? expectedItems : foundItems).merge(itemId, count, Integer::sum);
         }
 
         /**
@@ -196,16 +225,42 @@ public final class LootEngine {
 
     // ==================== selection ====================
 
+    /** Where one {@link Selected} payout came from. */
+    public enum Origin {
+        /** A roll's own top-level {@code Grants} and {@code Cue}. */
+        ROLL,
+        /** The ladder floor a roll reached. */
+        FLOOR,
+        /** One pick drawn from a pool. */
+        POOL
+    }
+
     /**
-     * ONE payout a pass decided on: the grants group to hand over and the cue authored beside it.
+     * ONE payout a pass decided on: the grants group to hand over, the cue authored beside it, and
+     * where it came from (the roll that paid it, or a pool pick, which names no roll).
      *
      * <p>It exists so a caller can learn what a pass WOULD hand over without handing it over. A
      * granting site applies each in order and is done; a site that pays out LATER (an end-of-run
      * spoils screen, a claim the player has to walk back for) rolls once at the moment the inputs
      * are known, keeps the answer, and grants it whenever the player turns up. Rolling twice would
      * mean showing one reward and handing over another.
+     *
+     * <p>The origin is what lets a site tell an expected payout from a find without a second pass
+     * over the tables: {@link #expected()} reads the paying roll's own {@code Expected} knob, and a
+     * pool pick is always a find.
      */
-    public record Selected(@Nullable LootGrants grants, @Nullable String cue) {
+    public record Selected(@Nullable LootGrants grants, @Nullable String cue, @Nullable Roll roll,
+            @Nonnull Origin origin) {
+
+        /** A payout with no roll behind it (a pool pick, or a payout built by hand). */
+        public Selected(@Nullable LootGrants grants, @Nullable String cue) {
+            this(grants, cue, null, Origin.POOL);
+        }
+
+        /** True when the roll that paid this authored {@code Expected}; a pool pick never is. */
+        public boolean expected() {
+            return roll != null && roll.isExpected();
+        }
     }
 
     /**
@@ -235,8 +290,8 @@ public final class LootEngine {
             if (!outcome.isHit()) {
                 continue;
             }
-            add(out, outcome.getTopGrants(), outcome.getTopCue(), sample);
-            add(out, outcome.getFloorGrants(), outcome.getFloorCue(), sample);
+            add(out, outcome.getTopGrants(), outcome.getTopCue(), roll, Origin.ROLL, sample);
+            add(out, outcome.getFloorGrants(), outcome.getFloorCue(), roll, Origin.FLOOR, sample);
         }
         if (trigger == null || Roll.DEFAULT_TRIGGER.equalsIgnoreCase(trigger)) {
             for (LootPool pool : pools) {
@@ -262,19 +317,20 @@ public final class LootEngine {
         }
         for (LootPool.Entry entry : WeightedPick.some(eligible, LootPool.Entry::effectiveWeight,
                 picks, false, sample)) {
-            add(out, entry.getGrants(), null, sample);
+            add(out, entry.getGrants(), null, null, Origin.POOL, sample);
         }
     }
 
     private static void add(@Nonnull List<Selected> out, @Nullable LootGrants grants, @Nullable String cue,
-            @Nonnull DoubleSupplier sample) {
+            @Nullable Roll roll, @Nonnull Origin origin, @Nonnull DoubleSupplier sample) {
         boolean hasCue = cue != null && !cue.isBlank();
         if (grants == null && !hasCue) {
             return;
         }
         // Varying quantities are drawn HERE, so what a pass decided on is a concrete payout even when
         // the handing over happens much later.
-        out.add(new Selected(grants == null ? null : grants.drawQuantities(sample), hasCue ? cue : null));
+        out.add(new Selected(grants == null ? null : grants.drawQuantities(sample), hasCue ? cue : null,
+                roll, origin));
     }
 
     // ==================== the pass ====================
@@ -305,19 +361,32 @@ public final class LootEngine {
             @Nonnull Sinks sinks) {
         Result result = new Result();
         for (Selected selected : select(rolls, pools, trigger, lookup, sample)) {
-            boolean produced = applyGrants(selected.grants(), sinks, result);
+            boolean produced = applyGrants(selected, sinks, result);
             collectEarnedCue(result, selected.cue(), selected.grants(), produced);
         }
         return result;
     }
 
     /**
-     * Apply ONE grants group, answering whether it PRODUCED anything - the measurement the smart-cue
-     * rule reads. Produced means an item reached the player, a command ran, or a registered reward
-     * paid out. A group whose every leaf went to an absent sink produces nothing, which is correct:
-     * nothing happened.
+     * Apply ONE grants group with no origin (its items tally as found), answering whether it
+     * PRODUCED anything - the measurement the smart-cue rule reads. Produced means an item reached
+     * the player, a command ran, or a registered reward paid out. A group whose every leaf went to
+     * an absent sink produces nothing, which is correct: nothing happened.
      */
     public static boolean applyGrants(@Nullable LootGrants grants, @Nonnull Sinks sinks,
+            @Nonnull Result result) {
+        return applyGrants(grants, false, sinks, result);
+    }
+
+    /**
+     * Apply ONE selected payout, its items tallied under its origin: {@link Result#getExpectedItems()}
+     * when the roll that paid it authored {@code Expected}, else {@link Result#getFoundItems()}.
+     */
+    public static boolean applyGrants(@Nonnull Selected selected, @Nonnull Sinks sinks, @Nonnull Result result) {
+        return applyGrants(selected.grants(), selected.expected(), sinks, result);
+    }
+
+    private static boolean applyGrants(@Nullable LootGrants grants, boolean expected, @Nonnull Sinks sinks,
             @Nonnull Result result) {
         if (grants == null) {
             return false;
@@ -328,7 +397,7 @@ public final class LootEngine {
             for (LootGrants.Item item : grants.itemsOrEmpty()) {
                 int delivered = deliver(sinks, item.getItem(), item.effectiveCount());
                 if (delivered > 0) {
-                    result.items.merge(item.getItem(), delivered, Integer::sum);
+                    result.landed(item.getItem(), delivered, expected);
                     produced = true;
                 }
             }
@@ -343,7 +412,7 @@ public final class LootEngine {
                 Map<String, Integer> landed = rollDropList(sinks, dropListId);
                 for (Map.Entry<String, Integer> entry : landed.entrySet()) {
                     if (entry.getKey() != null && entry.getValue() != null && entry.getValue() > 0) {
-                        result.items.merge(entry.getKey(), entry.getValue(), Integer::sum);
+                        result.landed(entry.getKey(), entry.getValue(), expected);
                         produced = true;
                     }
                 }

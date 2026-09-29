@@ -51,6 +51,17 @@ class NativeEffectUtilTest {
     }
 
     @Test
+    void applyInfinite_nullRef_isANoOp() {
+        assertFalse(NativeEffectUtil.applyInfinite(NULL_STORE, NULL_REF, "Some_Effect"));
+    }
+
+    @Test
+    void applyInfinite_blankId_isANoOp() {
+        assertFalse(NativeEffectUtil.applyInfinite(NULL_STORE, NULL_REF, ""));
+        assertFalse(NativeEffectUtil.applyInfinite(NULL_STORE, NULL_REF, null));
+    }
+
+    @Test
     void remove_nullRef_isANoOp() {
         assertFalse(NativeEffectUtil.remove(NULL_STORE, NULL_REF, "Some_Effect"));
     }
