@@ -29,7 +29,9 @@ compiles as `:zc-cast`). See the root [`CLAUDE.md`](../CLAUDE.md) for the aggreg
   `HitResolver`, `ObserverRegistry`, `CastParams`, `ArmedStateStore`, `RaycastTargeting`/
   `BlockRaystep`, the per-world tick partition (`WorldKeyedQueues`/`AbstractWorldFrameSystem`,
   which rides the engine's own once-per-world-per-tick dispatch - `WorldEvictors` itself is the
-  zc-core split-package file this module composes with by FQN), `ModelParticleService`.
+  zc-core split-package file this module composes with by FQN), `ModelParticleService` and
+  `ParticleLifetimes` (whether a particle system provably ends on its own, the read that decides
+  whether it may ride an entity).
 - [`interaction/`](src/main/java/com/ziggfreed/common/interaction/CLAUDE.md) - the generic
   interaction-composition framework: `NativeChainFire` (fire a named native `RootInteraction`
   chain by id) + `NativeInputGate` (read whether a root can currently do anything, off its own
@@ -57,7 +59,8 @@ bakes in a particular ability or interaction vocabulary.
 
 ## Tests
 
-26 files, the largest test suite relative to package count in the library: the kernel
+27 files, the largest test suite relative to package count in the library: the particle seam
+(`ModelParticleServiceTest`, `ParticleLifetimesTest`), the kernel
 (`CastKernelTest`, `StepRegistryTest`), hit resolution (`HitResolverTest`, `OnHitRegistryTest`,
 `ArmedStateStoreTest`), targeting (`TargetQueryTest`, `TargetSweepTest`, `TargetHitTest`,
 `LineOfSightTest`), chain composition

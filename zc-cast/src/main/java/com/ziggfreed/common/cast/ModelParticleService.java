@@ -62,7 +62,8 @@ import com.ziggfreed.common.entity.EntityViewers;
  *       node of its model, and is delivered ONLY to the players whose tracker currently shows that
  *       entity ({@link EntityViewers}), never broadcast. The packet carries no playback cap: the
  *       system's lifetime is its own asset's, so an endless system attached this way never stops,
- *       and a caller with one keeps it world-positioned. Answers how many viewers received it, zero
+ *       and a caller with one keeps it world-positioned ({@link ParticleLifetimes} answers which
+ *       systems provably end on their own). Answers how many viewers received it, zero
  *       for an entity the tracker has not shown anyone yet (a fresh spawn), so a caller can fall
  *       back to a positional spawn at the entity's place.</li>
  * </ul>
@@ -213,7 +214,8 @@ public final class ModelParticleService {
      * or invalid ref, an entity with no network id, an empty or null-only list, an entity the
      * tracker has not yet shown anyone (spawned this tick), one nobody is near, or any error. A
      * caller that must not lose the cue falls back on zero to a positional spawn at the entity's
-     * place. No playback cap exists on this route; see the class javadoc.
+     * place. No playback cap exists on this route, so attach only a system that provably ends on its
+     * own ({@link ParticleLifetimes#systemProvablyEnds}); see the class javadoc.
      */
     public static int spawnOn(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> entity,
                               @Nullable List<AttachedParticle> particles) {
