@@ -21,6 +21,7 @@ import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.achievement.Achievement;
+import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 
@@ -155,6 +156,30 @@ class AchievementAssetCodecTest {
         assertEquals("50", achievement.autoRewards().get(0).param("Amount"));
         assertEquals(1, achievement.claimRewards().size());
         assertTrue(achievement.requiresClaim(), "authoring a claim reward is what makes it wait");
+    }
+
+    @Test
+    void aCriterionCarriesTheQualifiersOwnComparisonAndInheritsItUnderParent() throws Exception {
+        AchievementAsset parent = decodeRoot("""
+                { "Criteria": { "unmake": { "Kind": "KILL_ENTITY", "Target": "Wolf", "MatchMode": "PREFIX",
+                                            "Qualifier": "Elite_Pack", "QualifierMatchMode": "PREFIX",
+                                            "Amount": 1 } } }
+                """, "unmaker");
+        AchievementAsset child = decode("""
+                { "Criteria": { "unmake": { "Amount": 9 } } }
+                """, "master_unmaker", "unmaker", parent);
+
+        ObjectiveDef criterion = parent.toDefinition().achievement().criteria().get(0);
+        assertEquals(MatchMode.PREFIX, criterion.qualifierMatchMode());
+        assertTrue(criterion.matches("Wolf_Grey", "Elite_Pack_Alpha"));
+        ObjectiveDef inherited = child.toDefinition().achievement().criteria().get(0);
+        assertEquals(MatchMode.PREFIX, inherited.qualifierMatchMode(),
+                "the leaf carries down a Parent chain like every other shared leaf");
+        assertEquals(9L, inherited.amount());
+        ObjectiveDef plain = decodeRoot("""
+                { "Criteria": { "unmake": { "Kind": "KILL_ENTITY", "Qualifier": "Elite_Pack" } } }
+                """, "plain").toDefinition().achievement().criteria().get(0);
+        assertEquals(MatchMode.EXACT, plain.qualifierMatchMode(), "unauthored compares the qualifier whole");
     }
 
     @Test

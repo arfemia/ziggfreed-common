@@ -7,6 +7,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 
@@ -81,6 +82,7 @@ public final class Roll {
     @Nullable protected Ladder ladder;
     @Nullable protected LootGrants grants;
     @Nullable protected String cue;
+    @Nullable protected Boolean expected;
 
     /** The plain codec: a factor id stays a free text field. */
     public static final BuilderCodec<Roll> CODEC = codec(null);
@@ -121,6 +123,14 @@ public final class Roll {
                 .documentation("An opaque celebration id the granting site plays (a sound, a toast). With no "
                         + "Grants beside it, it always plays on the hit; with Grants beside it, only once they "
                         + "actually produced something.").add()
+                .appendInherited(new KeyedCodec<>("Expected", Codec.BOOLEAN, false),
+                        (o, v) -> o.expected = v, o -> o.expected, (o, p) -> o.expected = p.expected)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True when what this roll hands over is the moment's EXPECTED payout, a wage or a "
+                        + "return the player is owed, rather than a find: a granting site that tells the two apart "
+                        + "shows an expected item as ordinary output and a find as a windfall. It changes nothing "
+                        + "about what the roll pays or when; a Chance or a Ladder still applies. Default false, so "
+                        + "every roll reads as a find unless it says otherwise.").add()
                 .build();
     }
 
@@ -171,6 +181,29 @@ public final class Roll {
     @Nullable
     public String getCue() {
         return cue;
+    }
+
+    /** The raw authored {@code Expected} knob; null = the roll reads as a find. */
+    @Nullable
+    public Boolean getExpected() {
+        return expected;
+    }
+
+    /**
+     * Whether what this roll hands over is the moment's EXPECTED payout (a wage, a return the
+     * player is owed) rather than a find. Presentation only: a granting site that tells the two
+     * apart shows an expected item as ordinary output and a find as a windfall, and the roll pays
+     * exactly the same either way. Reader-defaulted to {@code false}.
+     */
+    public boolean isExpected() {
+        return expected != null && expected;
+    }
+
+    /** Java-side setter for a roll built in code (mirrors the codec's {@code Expected} leaf). */
+    @Nonnull
+    public Roll withExpected(@Nullable Boolean expected) {
+        this.expected = expected;
+        return this;
     }
 
     /** {@link #getTrigger()}, reader-defaulted to {@link #DEFAULT_TRIGGER} when absent or blank. */

@@ -89,6 +89,9 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
  * <p>A consumer keeping DERIVED state in step with these channels registers an {@link
  * AppliedListener} via {@link #addAppliedListener} rather than re-deriving the equip triggers: the
  * seam fires after every recompute, so every equip path the bridge already watches is covered once.
+ * What the entity has on at that moment is read back through {@link #equippedSnapshot}, the same
+ * container reads the stat walkers use, so a listener deciding by WHICH items are worn (the gear-set
+ * engine) never re-derives the slot layout.
  *
  * <p><b>Triggers</b> (E6-proven, non-deprecated ONLY): {@link ActiveSlotTrigger} mirrors {@code
  * InventorySystems.ActiveSlotChangedEntityEventSystem} (fires on {@link
@@ -108,10 +111,14 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
  * (Target MIN/MAX + ADDITIVE/MULTIPLICATIVE pass straight through - {@code putModifier} takes the
  * {@link Modifier} directly) and applies through {@link #planUtility}, mirroring the engine's own
  * {@code StatModifiersManager.addItemStatModifiers} diff-skip + stale-key sweep, keyed {@code
- * "<ns>:util:<offset>"} per stat index (a stat index may carry several modifiers).
+ * "<ns>:util:<offset>"} per stat index (a stat index may carry several modifiers). {@link #plan}
+ * is package-private; {@link #planUtility} and its {@link UtilityPlan} / {@link UtilityPut} /
+ * {@link StatKey} types are PUBLIC, a contract since 2.2.0, because the gear-set engine diffs every
+ * tier through the same core.
  *
- * <p>Unknown stat id (channel not registered): skip + one-time warn, never a throw (mirrors the
- * MMO's {@code FactorRegistry} fail-closed discipline). All world-thread, try-guarded.
+ * <p>Unknown stat id (channel not registered): skip + one-time warn, never a throw (the same
+ * fail-closed discipline as the library's own {@code FactorRegistry}, where an unknown id is named
+ * once and answers nothing rather than failing the caller). All world-thread, try-guarded.
  */
 public final class EquipStatBridge {
 
@@ -250,7 +257,8 @@ public final class EquipStatBridge {
      * #recomputeAll} apply and respects the same {@link EntryFilter}.
      *
      * <p>Only ADDITIVE util modifiers are summed - a MULTIPLICATIVE modifier has no linear scalar
-     * a DOT subtraction could use, and the MMO's DOT-relevant channels are all additive.
+     * a DOT subtraction could use, so a channel a consumer subtracts this way is meant to be
+     * authored additive.
      */
     public double bridgedSum(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull String statId) {
@@ -301,17 +309,94 @@ public final class EquipStatBridge {
         return s;
     }
 
+    // ---- what the entity has on ----
+
+    /**
+     * What the entity has on right now, by item id: the held stack, the utility-slot (offhand)
+     * stack and every armor slot, read through the SAME container reads the stat walkers above use,
+     * so a listener deciding by which items are worn sees exactly the slots the bridge applies. An
+     * empty slot, a missing container or an invalid ref reads as nothing there; never a throw.
+     * World thread, like every read here.
+     */
+    @Nonnull
+    public static EquippedSnapshot equippedSnapshot(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        try {
+            List<String> armor = new ArrayList<>();
+            int armorSlots = armorCapacity(store, ref);
+            for (int i = 0; i < armorSlots; i++) {
+                armor.add(itemIdOf(armorStack(store, ref, i)));
+            }
+            return EquippedSnapshot.of(itemIdOf(heldStack(store, ref)), itemIdOf(offhandStack(store, ref)), armor);
+        } catch (Throwable t) {
+            warn("equippedSnapshot", t);
+            return EquippedSnapshot.EMPTY;
+        }
+    }
+
+    /** A stack's item id, or null for no stack, an empty one, or one with no id. */
+    @Nullable
+    private static String itemIdOf(@Nullable ItemStack stack) {
+        if (stack == null || ItemStack.isEmpty(stack)) {
+            return null;
+        }
+        String id = stack.getItemId();
+        return id == null || id.isBlank() ? null : id;
+    }
+
+    // ---- the container reads every source shares ----
+
+    /** The held stack, the engine's own item-in-hand read; null when nothing is held. */
+    @Nullable
+    private static ItemStack heldStack(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        return InventoryComponent.getItemInHand(store, ref);
+    }
+
+    /** The utility-slot ACTIVE stack (the offhand); null without a utility container or an active item. */
+    @Nullable
+    private static ItemStack offhandStack(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        InventoryComponent.Utility utility = store.getComponent(ref, InventoryComponent.Utility.getComponentType());
+        return utility == null ? null : utility.getActiveItem();
+    }
+
+    /** The stack in armor slot {@code slot}; null without an armor container, past its capacity, or empty. */
+    @Nullable
+    private static ItemStack armorStack(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, int slot) {
+        InventoryComponent.Armor armor = store.getComponent(ref, InventoryComponent.Armor.getComponentType());
+        if (armor == null) {
+            return null;
+        }
+        ItemContainer container = armor.getInventory();
+        if (container == null || slot >= container.getCapacity()) {
+            return null;
+        }
+        return container.getItemStack((short) slot);
+    }
+
+    private static int armorCapacity(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        InventoryComponent.Armor armor = store.getComponent(ref, InventoryComponent.Armor.getComponentType());
+        if (armor == null) {
+            return 0;
+        }
+        ItemContainer container = armor.getInventory();
+        return container != null ? container.getCapacity() : 0;
+    }
+
     // ---- sources ----
 
+    /** A stack's per-stack {@link StackStats} entries; empty for no stack or no record. */
     @Nonnull
-    private static Map<String, Double> heldSourceEntries(@Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref) {
-        ItemStack stack = InventoryComponent.getItemInHand(store, ref);
+    private static Map<String, Double> stackEntries(@Nullable ItemStack stack) {
         if (stack == null) {
             return Collections.emptyMap();
         }
         Map<String, Double> entries = StackStats.entriesOf(stack);
         return entries != null ? entries : Collections.emptyMap();
+    }
+
+    @Nonnull
+    private static Map<String, Double> heldSourceEntries(@Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> ref) {
+        return stackEntries(heldStack(store, ref));
     }
 
     /**
@@ -322,7 +407,7 @@ public final class EquipStatBridge {
     @Nullable
     private static Int2ObjectMap<StaticModifier[]> heldUtilityModifiers(@Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref) {
-        ItemStack stack = InventoryComponent.getItemInHand(store, ref);
+        ItemStack stack = heldStack(store, ref);
         if (stack == null || ItemStack.isEmpty(stack)) {
             return null;
         }
@@ -338,44 +423,13 @@ public final class EquipStatBridge {
     @Nonnull
     private static Map<String, Double> offhandSourceEntries(@Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref) {
-        InventoryComponent.Utility utility = store.getComponent(ref, InventoryComponent.Utility.getComponentType());
-        if (utility == null) {
-            return Collections.emptyMap();
-        }
-        ItemStack stack = utility.getActiveItem();
-        if (stack == null) {
-            return Collections.emptyMap();
-        }
-        Map<String, Double> entries = StackStats.entriesOf(stack);
-        return entries != null ? entries : Collections.emptyMap();
+        return stackEntries(offhandStack(store, ref));
     }
 
     @Nonnull
     private static Map<String, Double> armorSourceEntries(@Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, int slot) {
-        InventoryComponent.Armor armor = store.getComponent(ref, InventoryComponent.Armor.getComponentType());
-        if (armor == null) {
-            return Collections.emptyMap();
-        }
-        ItemContainer container = armor.getInventory();
-        if (container == null || slot >= container.getCapacity()) {
-            return Collections.emptyMap();
-        }
-        ItemStack stack = container.getItemStack((short) slot);
-        if (stack == null) {
-            return Collections.emptyMap();
-        }
-        Map<String, Double> entries = StackStats.entriesOf(stack);
-        return entries != null ? entries : Collections.emptyMap();
-    }
-
-    private static int armorCapacity(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
-        InventoryComponent.Armor armor = store.getComponent(ref, InventoryComponent.Armor.getComponentType());
-        if (armor == null) {
-            return 0;
-        }
-        ItemContainer container = armor.getInventory();
-        return container != null ? container.getCapacity() : 0;
+        return stackEntries(armorStack(store, ref, slot));
     }
 
     // ---- key scheme ----
@@ -511,30 +565,57 @@ public final class EquipStatBridge {
         return new Plan(puts, removes);
     }
 
-    // ---- util (native Utility.StatModifiers) pure apply core ----
+    // ---- the prefixed-source pure apply core (PUBLIC 2.2.0 contract) ----
+    // One diff core serves the held item's native Utility.StatModifiers here and every gear-set
+    // tier's block in stats/gearset, so the two can never disagree about what "stale" means. The
+    // types and planUtility below are public and frozen with 2.2.0; plan(...) above stays
+    // package-private, since its per-slot StackStats keying is this class's own business.
 
-    /** One planned put for the util source: the full {@link StaticModifier} at (statIndex, key). */
-    static final class UtilityPut {
-        final int statIndex;
+    /**
+     * One planned WRITE: put {@link #modifier} on the stat at {@link #statIndex} under {@link #key}
+     * ({@code EntityStatMap.putModifier(statIndex, key, modifier)}). Immutable; the modifier is
+     * carried through untouched, so its {@code Target} and {@code CalculationType} reach the map as
+     * authored.
+     *
+     * @since 2.2.0
+     */
+    public static final class UtilityPut {
+        public final int statIndex;
         @Nonnull
-        final String key;
+        public final String key;
         @Nonnull
-        final StaticModifier modifier;
+        public final StaticModifier modifier;
 
-        UtilityPut(int statIndex, @Nonnull String key, @Nonnull StaticModifier modifier) {
+        /**
+         * @param statIndex the stat's index in the entity's {@code EntityStatMap}
+         * @param key       the full modifier key, the source's prefix plus the array offset
+         * @param modifier  the modifier to put, as authored
+         */
+        public UtilityPut(int statIndex, @Nonnull String key, @Nonnull StaticModifier modifier) {
             this.statIndex = statIndex;
             this.key = key;
             this.modifier = modifier;
         }
     }
 
-    /** One (statIndex, key) removal address for the util source. */
-    static final class StatKey {
-        final int statIndex;
+    /**
+     * One modifier ADDRESS on an entity's stat map: the stat's index and the modifier key under it.
+     * A plan's removals are these ({@code EntityStatMap.removeModifier(statIndex, key)}), and a
+     * caller may hold them as values: two addresses are equal exactly when both the index and the
+     * key are, and the hash agrees. Immutable.
+     *
+     * @since 2.2.0
+     */
+    public static final class StatKey {
+        public final int statIndex;
         @Nonnull
-        final String key;
+        public final String key;
 
-        StatKey(int statIndex, @Nonnull String key) {
+        /**
+         * @param statIndex the stat's index in the entity's {@code EntityStatMap}
+         * @param key       the full modifier key
+         */
+        public StatKey(int statIndex, @Nonnull String key) {
             this.statIndex = statIndex;
             this.key = key;
         }
@@ -556,30 +637,68 @@ public final class EquipStatBridge {
         }
     }
 
-    static final class UtilityPlan {
+    /**
+     * What one {@link #planUtility} call decided: the {@link #puts} to write (a modifier already
+     * equal under its key is left out, the diff-skip) and the {@link #removes} to sweep (every
+     * address under the prefix that the desired block no longer writes). The two never share an
+     * address. A caller applies the puts and then the removes, in any order within each.
+     *
+     * @since 2.2.0
+     */
+    public static final class UtilityPlan {
         @Nonnull
-        final List<UtilityPut> puts;
+        public final List<UtilityPut> puts;
         @Nonnull
-        final Set<StatKey> removes;
+        public final Set<StatKey> removes;
 
-        UtilityPlan(@Nonnull List<UtilityPut> puts, @Nonnull Set<StatKey> removes) {
+        /**
+         * @param puts    the writes
+         * @param removes the addresses to sweep
+         */
+        public UtilityPlan(@Nonnull List<UtilityPut> puts, @Nonnull Set<StatKey> removes) {
             this.puts = puts;
             this.removes = removes;
         }
     }
 
     /**
-     * PURE decision core for the native {@code Utility.StatModifiers} source (package-private,
-     * unit-testable with a fake {@code existingLookup} + a hand-built {@code Int2ObjectMap}, no
-     * live {@link EntityStatMap}). Mirrors {@code StatModifiersManager.addItemStatModifiers}: for
-     * each stat index, walk its modifier array assigning per-array-position keys {@code
-     * keyPrefix + offset}, diff-skipping a modifier whose existing equals the new one; then sweep
-     * (a) higher-offset keys left over from a previously-longer array at that index, and (b) every
-     * key on every stat index the new map does not touch at all. Full {@link StaticModifier}
-     * fidelity - the modifier is carried through untouched (Target + CalculationType + Amount).
+     * The PURE diff for one PREFIXED modifier source: what to put and what to sweep so that, after
+     * the caller applies the plan, the entity carries exactly {@code mods} under {@code keyPrefix}
+     * and nothing else under it. The held item's native {@code Utility.StatModifiers} goes through
+     * here, and so does every gear-set tier's block under its own {@code zigset:} prefix; a consumer
+     * with a prefixed source of its own may use it the same way.
+     *
+     * <p><b>Keys.</b> Mirroring the engine's own {@code StatModifiersManager.addItemStatModifiers},
+     * the modifiers at one stat index are keyed by their position among that index's non-null
+     * entries: {@code keyPrefix + 0}, {@code keyPrefix + 1}, and so on. A null entry takes no
+     * offset.
+     *
+     * <p><b>Puts.</b> One {@link UtilityPut} per non-null modifier, except where
+     * {@code existingLookup} already answers an EQUAL modifier under that address (the diff-skip,
+     * so a repeated call on an unchanged entity writes nothing).
+     *
+     * <p><b>Removes.</b> At a stat index {@code mods} names, every key past its last offset that
+     * {@code existingLookup} still answers (a previously longer array); at every other index below
+     * {@code statMapSize}, every key from offset 0 up. Each sweep probes offsets upward and stops at
+     * the first gap, so keys are expected contiguous from 0, which is how this method writes them.
+     * A null {@code mods} is therefore a pure sweep: every key under the prefix, on every index,
+     * goes.
+     *
+     * <p><b>Nothing outside the prefix.</b> Every address probed and every address returned starts
+     * with {@code keyPrefix}; a caller choosing a prefix no other writer uses owns its keys outright.
+     * No live {@link EntityStatMap} is touched and nothing is thrown: the caller reads, the caller
+     * writes, on the world thread.
+     *
+     * @param mods           the desired block, stat index to its modifiers; null for none
+     * @param keyPrefix      the source's key prefix, every key this call reads or plans starts with it
+     * @param statMapSize    how many stat indices the entity's map has ({@code EntityStatMap.size()})
+     * @param existingLookup the {@link StaticModifier} currently under (statIndex, key), or null when
+     *                       there is none (or what is there is not a {@code StaticModifier})
+     * @return the writes and the sweeps, never null
+     * @since 2.2.0
      */
     @Nonnull
-    static UtilityPlan planUtility(@Nullable Int2ObjectMap<StaticModifier[]> mods,
+    public static UtilityPlan planUtility(@Nullable Int2ObjectMap<StaticModifier[]> mods,
             @Nonnull String keyPrefix,
             int statMapSize,
             @Nonnull BiFunction<Integer, String, StaticModifier> existingLookup) {

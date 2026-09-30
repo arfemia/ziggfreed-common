@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the hytale:item_durability_percent reading (0..100 of the item a moment is about; an item that never wears reads 100) for requirement lines.",
+  "Factor": "hytale:item_durability_percent",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.item_durability_percent" }
+}

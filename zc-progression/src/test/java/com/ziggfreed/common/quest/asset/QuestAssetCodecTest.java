@@ -409,6 +409,26 @@ class QuestAssetCodecTest {
         }
 
         @Test
+        void theQualifierHasItsOwnComparisonAndCompareWholeIsItsDefault() throws Exception {
+            QuestAsset asset = decodeRoot("""
+                    { "Objectives": { "a": { "Kind": "KILL_ENTITY", "Target": "Wolf", "MatchMode": "PREFIX",
+                                             "Qualifier": "Elite_Pack", "QualifierMatchMode": "prefix" },
+                                      "b": { "Kind": "KILL_ENTITY", "Qualifier": "Elite_Pack" },
+                                      "c": { "Kind": "KILL_ENTITY", "Qualifier": "Elite_Pack",
+                                             "QualifierMatchMode": "nonsense" } } }
+                    """, "q");
+            Quest quest = asset.toDefinition(null).quest();
+            assertEquals(MatchMode.PREFIX, quest.objective("a").qualifierMatchMode());
+            assertTrue(quest.objective("a").matches("Wolf_Grey", "Elite_Pack_Alpha"),
+                    "one step counts a whole family of qualifiers by their shared prefix");
+            assertEquals(MatchMode.EXACT, quest.objective("b").qualifierMatchMode(),
+                    "unauthored, a qualifier is compared whole, so every older file keeps its meaning");
+            assertFalse(quest.objective("b").matches("Wolf_Grey", "Elite_Pack_Alpha"));
+            assertEquals(MatchMode.EXACT, quest.objective("c").qualifierMatchMode(),
+                    "an unreadable qualifier mode falls back to compare-whole rather than to the target's default");
+        }
+
+        @Test
         void abstractQuestsAreStillOrdinaryAssetsTheyAreJustNeverOffered() throws Exception {
             assertTrue(decodeRoot("{ \"Abstract\": true }", "base").isAbstract());
             assertFalse(decodeRoot("{ }", "base").isAbstract());

@@ -28,6 +28,7 @@ import com.ziggfreed.common.commerce.page.CurrencyChipReading;
 import com.ziggfreed.common.commerce.page.CommerceStepIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.effect.NativeEffectUtil;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.encounter.validate.EncounterAudit;
@@ -38,6 +39,7 @@ import com.ziggfreed.common.factor.DerivedFactorConfig;
 import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.factor.HytaleFactors;
 import com.ziggfreed.common.feedback.moment.FeedbackEngine;
+import com.ziggfreed.common.gearset.GearSetNoticeBridge;
 import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.LootFactors;
@@ -47,6 +49,7 @@ import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.loot.stamp.StackStatsStamper;
+import com.ziggfreed.common.loot.stamp.StampFactors;
 import com.ziggfreed.common.loot.stamp.StamperRegistry;
 import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
@@ -61,6 +64,8 @@ import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
+import com.ziggfreed.common.stats.gearset.GearSets;
+import com.ziggfreed.common.stats.gearset.ZigGearSetTierChangedEvent;
 import com.ziggfreed.common.ui.hud.HudPreferences;
 import com.ziggfreed.common.ui.hud.panel.HudPanels;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
@@ -110,7 +115,12 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  *       module can see the root;</li>
  *   <li>{@link #registerCommerce()} - pinned by
  *       {@code CommerceEngines.installGates(ProgressionDefaults::gateEvaluator)}: nothing in the
- *       library depends on zc-commerce, so no module sees commerce and objectives together.</li>
+ *       library depends on zc-commerce, so no module sees commerce and objectives together;</li>
+ *   <li>{@link #registerGearSetSeams()} - pinned by {@code GearSets.effects(NativeEffectUtil::apply,
+ *       NativeEffectUtil::remove, NativeEffectUtil::has)} and by {@code gearset/GearSetNoticeBridge}: the gear-set engine
+ *       (zc-entity) may never see the native-effect primitive (zc-effects) nor the feedback engine
+ *       (zc-presentation), so the root fills its effect seam and answers its native event with the
+ *       {@code Gear_Set_Tier} moment; that bridge is a root file and decides nothing.</li>
  * </ul>
  * Both of the last two stay WHOLE rather than being split so an orphan line could move: the one
  * pinned line documents the constraint better than a phase scattered across two files would.
@@ -178,6 +188,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // stamped gear; a consumer hangs its own post-apply work on the installed instance rather
         // than installing a second one, which would double every bonus.
         EntityBootstrap.installEquipStatBridge(this);
+        // Set bonuses hang on that same bridge: one post-apply listener, never a fourth trigger.
+        EntityBootstrap.installGearSets(this);
+        registerGearSetSeams();
         PlacedBlockBootstrap.setupPlacedBlockLedger(this);
         BlockStashBootstrap.registerBlockStash(this);
         ProgressionBootstrap.setupProgressionRuntime(this);
@@ -302,6 +315,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         LootRewardKinds.factors(lootFactorVocabulary());
         LootRewardKinds.overflow(new FeetDropOverflow());
         StamperRegistry.register(new StackStatsStamper());
+        // The stamped points an item carries, as a factor every vocabulary on the server resolves:
+        // read through whichever stamper is active, and answered only where a moment carries an item.
+        StampFactors.contribute();
         // What an authored Cue MEANS, for every consumer at once: the cue id IS the FeedbackMoment
         // id. This wiring lives here rather than in either module because loot and presentation are
         // sibling modules that cannot see each other, and this root is the one place that sees both.
@@ -428,6 +444,23 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             EncounterAudit.addRoleNameSource("placement", NpcPlacementConfig.getInstance()::rolesByPlacement);
         } catch (Throwable t) {
             SafeLog.warn("[encounter] seam wiring failed", t);
+        }
+    }
+
+    /**
+     * What the gear-set engine cannot do alone: put a tier's {@code Effect} on, take it off and look
+     * for it on the entity (the native-effect primitive lives in zc-effects, which zc-entity may
+     * never import), and turn a tier flip into a notice (the feedback engine lives in
+     * zc-presentation, likewise out of reach).
+     * The root fills the effect seam with the primitive's three method references and hangs the
+     * notice bridge on the engine's native event; both sides keep their module boundary.
+     */
+    private void registerGearSetSeams() {
+        try {
+            GearSets.effects(NativeEffectUtil::apply, NativeEffectUtil::remove, NativeEffectUtil::has);
+            getEventRegistry().registerGlobal(ZigGearSetTierChangedEvent.class, GearSetNoticeBridge::onTierChanged);
+        } catch (Throwable t) {
+            SafeLog.warn("[gearset] seam wiring failed", t);
         }
     }
 

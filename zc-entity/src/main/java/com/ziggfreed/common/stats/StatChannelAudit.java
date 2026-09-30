@@ -8,12 +8,12 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.ziggfreed.common.CommonLog;
 
 /**
- * Boot-time channel-presence check: the load-order silent-drop guard (risk R2 in the scope-2
- * design). Native item {@code StatModifiers} resolves ANY registered {@link EntityStatType} id,
- * but an item's {@code afterDecode} resolution runs ONCE at asset decode time and silently drops
- * an unknown channel id with no {@code loadsAfter} edge to force ordering - so a channel that
- * registers AFTER item assets decode (a bug, not by design) leaves any item authoring it
- * permanently missing that stat with no error anywhere else.
+ * Boot-time channel-presence check: the load-order silent-drop guard. Native item
+ * {@code StatModifiers} resolves ANY registered {@link EntityStatType} id, but an item's
+ * {@code afterDecode} resolution runs ONCE at asset decode time and silently drops an unknown
+ * channel id with no {@code loadsAfter} edge to force ordering - so a channel that registers AFTER
+ * item assets decode (a bug, not by design) leaves any item authoring it permanently missing that
+ * stat with no error anywhere else.
  *
  * <p>{@link #audit(Collection)} is the cheap mitigation: at a point AFTER a consumer expects
  * every one of its channels to be registered (first {@code PlayerReadyEvent} is the intended call

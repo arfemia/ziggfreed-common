@@ -14,7 +14,8 @@ The family's shared library of mod-agnostic Hytale primitives and engines. It de
 - Every inter-module edge is `implementation`. Use `api` only when a public signature re-exports another module's type, and name that type in a comment on the edge.
 - Put a new package in the module whose domain owns it, over a one-way edge. When a lower module needs something from a higher one, it declares a seam the wiring root or a consumer fills; a reverse edge is a cycle.
 - A package enters `zc-core` only when two or more modules need it and it carries no domain vocabulary.
-- Five packages are split across modules on purpose, so do not consolidate them: `com.ziggfreed.common` and `asset` (the root plus zc-core), `factor` (zc-core plus zc-entity), `cast` (`WorldEvictors` sits in zc-core so any module can register an evictor without a zc-cast edge) and `stats` (`StackStats` sits in zc-core).
+- Six packages are split across modules on purpose, so do not consolidate them: `com.ziggfreed.common` and `asset` (the root plus zc-core), `factor` (zc-core plus zc-entity), `cast` (`WorldEvictors` sits in zc-core so any module can register an evictor without a zc-cast edge), `stats` (`StackStats` sits in zc-core) and `entity` (`EntityViewers` sits in zc-core so zc-cast's particles and zc-presentation's sound can reach an entity's viewers without a zc-entity edge).
+- `inventory/DisposableItemMetadata` (the declared metadata keys safe to destroy with their item) lives in zc-core because both zc-loot and zc-entity read it and neither may see the other.
 - A module shipping `.ui` files needs zc-presentation at runtime even with no compile edge: its pages import `ZigButtons.ui` and `ZigFrames.ui` by path, which Gradle never sees.
 
 ## Wiring and seams

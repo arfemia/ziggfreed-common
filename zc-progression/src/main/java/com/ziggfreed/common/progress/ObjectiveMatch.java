@@ -14,6 +14,8 @@ import javax.annotation.Nullable;
  * copies an id in the wrong case still matches the thing they named), an EMPTY authored target
  * matches everything under every {@link MatchMode} (the match-all shorthand every broad tally
  * wants), and an EMPTY authored qualifier matches only an event that carries no qualifier at all.
+ * A qualifier has a comparison of its own ({@link #qualifierMatches(String, MatchMode, String)}),
+ * the same three shapes the target has, compared whole unless the objective says otherwise.
  * Quest objectives and achievement criteria - and every other consumer of this engine family -
  * match by the same rule, so a criterion moved between content types never changes what it counts.
  *
@@ -29,15 +31,26 @@ public final class ObjectiveMatch {
     }
 
     /**
-     * The whole predicate for one objective against one event: target AND qualifier. Zone scoping
-     * is checked separately (it needs the event's location, which a caller resolves at most once
-     * per dispatch) - see {@link #zoneMatches}.
+     * The whole predicate for one objective against one event: target AND qualifier, the qualifier
+     * compared whole ({@link MatchMode#EXACT}). Zone scoping is checked separately (it needs the
+     * event's location, which a caller resolves at most once per dispatch) - see
+     * {@link #zoneMatches}.
      */
     public static boolean matches(@Nonnull String authoredTarget, @Nonnull MatchMode mode,
                                   @Nullable String authoredQualifier,
                                   @Nonnull String eventTarget, @Nullable String eventQualifier) {
+        return matches(authoredTarget, mode, authoredQualifier, MatchMode.EXACT, eventTarget, eventQualifier);
+    }
+
+    /**
+     * The whole predicate with the qualifier's own comparison: target under {@code mode} AND
+     * qualifier under {@code qualifierMode}.
+     */
+    public static boolean matches(@Nonnull String authoredTarget, @Nonnull MatchMode mode,
+                                  @Nullable String authoredQualifier, @Nonnull MatchMode qualifierMode,
+                                  @Nonnull String eventTarget, @Nullable String eventQualifier) {
         return targetMatches(authoredTarget, mode, eventTarget)
-                && qualifierMatches(authoredQualifier, eventQualifier);
+                && qualifierMatches(authoredQualifier, qualifierMode, eventQualifier);
     }
 
     /**
@@ -60,11 +73,25 @@ public final class ObjectiveMatch {
 
     /**
      * Qualifier comparison (the secondary filter beside the target, e.g. a tier or a difficulty
-     * band). A null authored qualifier means "any", a non-empty one compares case-insensitively,
-     * and an EMPTY authored one accepts only an event with no qualifier at all - "specifically the
-     * unqualified kind".
+     * band), compared WHOLE ({@link MatchMode#EXACT}). A null authored qualifier means "any", a
+     * non-empty one compares case-insensitively, and an EMPTY authored one accepts only an event
+     * with no qualifier at all - "specifically the unqualified kind".
      */
     public static boolean qualifierMatches(@Nullable String authoredQualifier,
+                                           @Nullable String eventQualifier) {
+        return qualifierMatches(authoredQualifier, MatchMode.EXACT, eventQualifier);
+    }
+
+    /**
+     * Qualifier comparison under the qualifier's OWN {@code mode}, the same three shapes the
+     * target offers: {@link MatchMode#EXACT} compares it whole, {@link MatchMode#CONTAINS} accepts
+     * an event qualifier that carries it anywhere, {@link MatchMode#PREFIX} one that starts with
+     * it, so one objective authored {@code Elite_Pack} with {@code PREFIX} counts an
+     * {@code Elite_Pack} and an {@code Elite_Pack_Alpha} qualifier alike. The
+     * null and empty rules are the mode's independent of the mode: null means "any", and an EMPTY
+     * authored qualifier accepts only an event with no qualifier at all, whatever the mode says.
+     */
+    public static boolean qualifierMatches(@Nullable String authoredQualifier, @Nonnull MatchMode mode,
                                            @Nullable String eventQualifier) {
         if (authoredQualifier == null) {
             return true;
@@ -72,7 +99,16 @@ public final class ObjectiveMatch {
         if (authoredQualifier.isEmpty()) {
             return eventQualifier == null;
         }
-        return authoredQualifier.equalsIgnoreCase(eventQualifier);
+        if (eventQualifier == null) {
+            return false;
+        }
+        String event = eventQualifier.toLowerCase(Locale.ROOT);
+        String authored = authoredQualifier.toLowerCase(Locale.ROOT);
+        return switch (mode) {
+            case EXACT -> authored.equals(event);
+            case CONTAINS -> event.contains(authored);
+            case PREFIX -> event.startsWith(authored);
+        };
     }
 
     /**

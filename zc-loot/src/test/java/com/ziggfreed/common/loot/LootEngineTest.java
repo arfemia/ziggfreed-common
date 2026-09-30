@@ -93,6 +93,75 @@ class LootEngineTest {
         }
     }
 
+    // ==================== origin: expected versus found ====================
+
+    @Nested
+    class Origins {
+
+        @Test
+        void anExpectedRollsItemsTallyAsExpectedAndEveryOtherRollsAsFound() {
+            RecordingItems items = new RecordingItems();
+            Roll wage = alwaysGranting(LootGrants.ofItem("Essence_Life", 3), null).withExpected(true);
+            Roll find = alwaysGranting(LootGrants.ofItem("Essence_Void", 1), null);
+            LootEngine.Result result = LootEngine.rollAndGrant(List.of(wage, find), null, FactorLookup.none(),
+                    () -> 0.0, itemsOnly(items));
+
+            assertEquals(Map.of("Essence_Life", 3), result.getExpectedItems());
+            assertEquals(Map.of("Essence_Void", 1), result.getFoundItems());
+            assertEquals(Map.of("Essence_Life", 3, "Essence_Void", 1), result.getItems(),
+                    "the merged tally is unchanged: the two origin maps are a split of it, never a replacement");
+        }
+
+        @Test
+        void aRollAuthoringNoExpectedReadsAsAFindSoEveryOlderTableKeepsItsMeaning() {
+            RecordingItems items = new RecordingItems();
+            LootEngine.Result result = LootEngine.rollAndGrant(
+                    List.of(alwaysGranting(LootGrants.ofItem("Coin_Gold", 5), null)),
+                    null, FactorLookup.none(), () -> 0.0, itemsOnly(items));
+            assertTrue(result.getExpectedItems().isEmpty());
+            assertEquals(Map.of("Coin_Gold", 5), result.getFoundItems());
+        }
+
+        @Test
+        void aFloorAndADropListFollowTheirRollAndAPoolPickIsAlwaysAFind() {
+            LootEngine.Sinks sinks = LootEngine.Sinks.builder()
+                    .items(new RecordingItems())
+                    .dropLists(id -> Map.of(id + "_Item", 2))
+                    .build();
+            Roll.Ladder ladder = Roll.Ladder.of(null, new Roll.Ladder.Floor[] {
+                    Roll.Ladder.Floor.of(0.0, LootGrants.of(null, new String[] {"Offcuts"}, null, null), null)});
+            Roll wage = Roll.of(null, null, null, ladder, LootGrants.ofItem("Essence_Life", 1), null)
+                    .withExpected(true);
+            LootEngine.Result result = LootEngine.rollAndGrant(List.of(wage), null, FactorLookup.none(),
+                    () -> 0.0, sinks);
+            assertEquals(Map.of("Essence_Life", 1, "Offcuts_Item", 2), result.getExpectedItems(),
+                    "a floor's grants and a drop list's stacks belong to the roll that reached them");
+            assertTrue(result.getFoundItems().isEmpty());
+
+            List<LootEngine.Selected> picks = LootEngine.select(List.of(), List.of(LootPool.of(null,
+                    new LootPool.Entry[] {LootPool.Entry.of(1.0, null, LootGrants.ofItem("Gem", 1))})),
+                    null, FactorLookup.none(), () -> 0.0);
+            assertEquals(1, picks.size());
+            assertEquals(LootEngine.Origin.POOL, picks.get(0).origin());
+            assertFalse(picks.get(0).expected(), "a pool pick names no roll, so it can never be expected");
+        }
+
+        @Test
+        void aSelectedPayoutNamesTheRollAndTheAltitudeItCameFrom() {
+            Roll.Ladder ladder = Roll.Ladder.of(null, new Roll.Ladder.Floor[] {
+                    Roll.Ladder.Floor.of(0.0, LootGrants.ofItem("Floor_Item", 1), null)});
+            Roll roll = Roll.of(null, null, null, ladder, LootGrants.ofItem("Top_Item", 1), null);
+            List<LootEngine.Selected> decided = LootEngine.select(List.of(roll), List.of(), null,
+                    FactorLookup.none(), () -> 0.0);
+            assertEquals(2, decided.size());
+            assertEquals(LootEngine.Origin.ROLL, decided.get(0).origin());
+            assertEquals(LootEngine.Origin.FLOOR, decided.get(1).origin());
+            assertTrue(decided.get(0).roll() == roll && decided.get(1).roll() == roll);
+            assertEquals(LootEngine.Origin.POOL, new LootEngine.Selected(null, "fanfare").origin(),
+                    "the two-argument shape a site builds by hand carries no roll");
+        }
+    }
+
     // ==================== drop lists ====================
 
     @Nested

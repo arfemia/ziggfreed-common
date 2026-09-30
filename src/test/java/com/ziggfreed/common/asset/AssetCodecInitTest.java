@@ -70,6 +70,8 @@ import com.ziggfreed.common.shop.asset.ShopEntryAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryGeneratorAsset;
 import com.ziggfreed.common.shop.asset.ShopPoolAsset;
 import com.ziggfreed.common.shop.asset.StorefrontAsset;
+import com.ziggfreed.common.stats.gearset.GearSetAsset;
+import com.ziggfreed.common.stats.gearset.StatModifierSpec;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
 import com.ziggfreed.common.ui.hud.panel.HudRowAsset;
@@ -149,6 +151,15 @@ class AssetCodecInitTest {
         assertNotNull(QuestIndicatorSpec.Situation.CODEC, "the per-situation group codec must static-init");
         assertNotNull(QuestIndicatorSpec.Overhead.CODEC, "the Overhead group codec must static-init");
         assertNotNull(QuestIndicatorSpec.MapMark.CODEC, "the Map group codec must static-init");
+    }
+
+    @Test
+    void gearSetCodecsInitialize() {
+        assertNotNull(GearSetAsset.CODEC, "GearSetAsset.CODEC must static-init (PascalCase keys)");
+        // The tier and its modifier leaf are embedded rather than stored, so a lower-case key in
+        // either would fail at a pack author's decode instead of at this build.
+        assertNotNull(GearSetAsset.Tier.CODEC, "GearSetAsset.Tier.CODEC must static-init (PascalCase keys)");
+        assertNotNull(StatModifierSpec.CODEC, "StatModifierSpec.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

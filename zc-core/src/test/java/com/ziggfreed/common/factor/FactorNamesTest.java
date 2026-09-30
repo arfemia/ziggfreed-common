@@ -261,7 +261,8 @@ class FactorNamesTest {
     void everyShippedOverlayDecodesAndNamesAPortableFactor() throws Exception {
         String[] files = {"Hytale_Stat", "Hytale_Held_Item", "Hytale_Held_Tag", "Hytale_Permission",
                 "Hytale_Tool_Durability", "Hytale_Tool_Item_Level", "Hytale_Tool_Power",
-                "Hytale_Tool_Quality", "Hytale_Tool_Tier"};
+                "Hytale_Tool_Quality", "Hytale_Tool_Tier", "Hytale_Item_Quality", "Hytale_Item_Level",
+                "Hytale_Item_Durability", "Hytale_Item_Stat"};
         for (String file : files) {
             String path = "/Server/ZiggfreedCommon/Factors/" + file + ".json";
             String json;

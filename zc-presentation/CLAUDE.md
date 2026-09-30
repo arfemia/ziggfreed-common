@@ -3,6 +3,7 @@
 - A `ui/` primitive never imports dialogue, instance or progression content: domain surfaces depend on presentation, never the reverse.
 - A primitive that paints a consumer's words takes pre-built `Message`s; only a widget the library ships whole (the search row) labels itself from `ziggfreedcommon.ui.lang`.
 - A `Notify` tag is the only thing that merges repeated notices: use one tag per wording, and never one tag on two notices a player must both read, since the second replaces the first.
+- The library ships twelve neutral `FeedbackMoments`: the seven its engines announce, the four the boss framework announces and `Gear_Set_Tier`, which the root's `gearset/GearSetNoticeBridge` fires off `ZigGearSetTierChangedEvent` (Reward tone with the tier's line as `Secondary`, and a quiet Info variant for `active: false`).
 - A feedback moment with no file does nothing, and a consumer's same-id file replaces the library default by pack order (`FeedbackMomentOverrideOrderTest`). Author a line's `Key` without a namespace; `FeedbackMomentAsset`'s javadoc is the authoring reference.
 - Every shipped moment line needs its key in the en-US `ziggfreedcommon.feedback.lang` (`ShippedFeedbackMomentsTest`).
 - A page writes a `.Text` property only through `UiText` (`TextSinkGoesThroughUiTextTest`): any `Message` other than a translation in that slot disconnects the client.

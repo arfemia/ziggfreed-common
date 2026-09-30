@@ -235,6 +235,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Target` | `string` | `null` | Which one specifically (a block id, an entity id, a place id). Leave it out for 'any': an empty target matches everything, whatever MatchMode says. |
 | `MatchMode` | `string` | `null` | How Target is compared: EXACT, CONTAINS, or PREFIX. Unauthored means CONTAINS, so 'Copper' also counts Copper_Ore; author EXACT when only one id may count. |
 | `Qualifier` | `string` | `null` | Optional secondary filter whose meaning belongs to the kind's producer (a tool, a difficulty, a variant). Unauthored means any. |
+| `QualifierMatchMode` | `string` | `null` | How Qualifier is compared: EXACT, CONTAINS, or PREFIX, the same words MatchMode offers the Target. Unauthored means EXACT, so a qualifier counts only the one value it names; author PREFIX to count a family of values by their shared start, such as one station and its greater tier. |
 | `Amount` | `long` | `null` | How many are needed. Unauthored means 1. |
 | `Zone` | `string` | `null` | Only count it inside this zone or region. Unauthored means anywhere. |
 | `TextKey` | `string` | `null` | Localization key for the line a player reads for this step. Unauthored leaves the wording to whatever renders it. |
@@ -499,6 +500,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Target` | `string` | `null` | Which one specifically (a block id, an entity id, a place id). Leave it out for 'any': an empty target matches everything, whatever MatchMode says. |
 | `MatchMode` | `string` | `null` | How Target is compared: EXACT, CONTAINS, or PREFIX. Unauthored means CONTAINS, so 'Copper' also counts Copper_Ore; author EXACT when only one id may count. |
 | `Qualifier` | `string` | `null` | Optional secondary filter whose meaning belongs to the kind's producer (a tool, a difficulty, a variant). Unauthored means any. |
+| `QualifierMatchMode` | `string` | `null` | How Qualifier is compared: EXACT, CONTAINS, or PREFIX, the same words MatchMode offers the Target. Unauthored means EXACT, so a qualifier counts only the one value it names; author PREFIX to count a family of values by their shared start, such as one station and its greater tier. |
 | `Amount` | `long` | `null` | How many are needed. Unauthored means 1. |
 | `Zone` | `string` | `null` | Only count it inside this zone or region. Unauthored means anywhere. |
 | `TextKey` | `string` | `null` | Localization key for the line a player reads for this step. Unauthored leaves the wording to whatever renders it. |

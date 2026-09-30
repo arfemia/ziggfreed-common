@@ -12,11 +12,14 @@ import org.joml.Vector3d;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.SoundCategory;
+import com.hypixel.hytale.protocol.packets.world.PlaySoundEventEntity;
 import com.hypixel.hytale.server.core.asset.type.soundevent.config.SoundEvent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.modules.entity.tracker.NetworkId;
 import com.hypixel.hytale.server.core.universe.world.SoundUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.entity.EntityViewers;
 import com.ziggfreed.common.util.AssetIndexCache;
 
 /**
@@ -160,6 +163,58 @@ public final class Sound3D {
         }
         Vector3d pos = tc.getPosition();
         play(soundEventId, category, pos.x(), pos.y(), pos.z(), shouldHear, store, contextLabel, warnOnMissing);
+    }
+
+    // ---------------------------------------------------------------------
+    // play ON an entity (the sound follows it)
+    // ---------------------------------------------------------------------
+
+    /**
+     * Play a sound that FOLLOWS an entity ({@code PlaySoundEventEntity} on the entity's own
+     * {@code NetworkId}), delivered only to the players whose tracker currently shows that entity
+     * ({@link EntityViewers#deliver}), never broadcast: the engine's own entity-sound helper writes
+     * the packet to every player in the world, which is why this does not use it. Answers how many
+     * viewers received it: zero for a null or unresolvable sound id, a null or invalid ref, an entity
+     * with no network id, an entity the tracker has not shown anyone yet (spawned this tick), one
+     * nobody is near, or any error, so a caller can fall back to {@link #playAt} at the entity's
+     * position. {@code volumeModifier} and {@code pitchModifier} are the packet's own two knobs,
+     * applied over the sound event's authored values; pass {@code 1f} for each to play it as
+     * authored. Nothing can stop a sound once sent.
+     */
+    public static int playOn(@Nullable String soundEventId, @Nullable Ref<EntityStore> entityRef,
+                             float volumeModifier, float pitchModifier, @Nonnull Store<EntityStore> store,
+                             @Nonnull String contextLabel, boolean warnOnMissing) {
+        if (soundEventId == null || soundEventId.isEmpty() || entityRef == null || !entityRef.isValid()) {
+            return 0;
+        }
+        try {
+            int idx = resolveIndex(soundEventId);
+            if (idx == AssetIndexCache.UNRESOLVED) {
+                String msg = contextLabel + " sound '" + soundEventId + "' not in SoundEvent registry";
+                if (warnOnMissing) {
+                    CommonLog.LOGGER.atWarning().log(msg);
+                } else {
+                    CommonLog.LOGGER.atFine().log(msg);
+                }
+                return 0;
+            }
+            NetworkId networkId = store.getComponent(entityRef, NetworkId.getComponentType());
+            if (networkId == null) {
+                CommonLog.LOGGER.atFine().log(contextLabel + " sound '" + soundEventId
+                        + "' skipped: the entity has no NetworkId");
+                return 0;
+            }
+            return EntityViewers.deliver(store, entityRef,
+                    new PlaySoundEventEntity(idx, networkId.getId(), volumeModifier, pitchModifier));
+        } catch (Throwable t) {
+            String msg = contextLabel + " sound (" + soundEventId + ") on an entity failed: " + t.getMessage();
+            if (warnOnMissing) {
+                CommonLog.LOGGER.atWarning().log(msg);
+            } else {
+                CommonLog.LOGGER.atFine().log(msg);
+            }
+            return 0;
+        }
     }
 
     // ---------------------------------------------------------------------

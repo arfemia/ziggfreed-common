@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
@@ -29,6 +30,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  *       capture plain values and re-resolve later.</li>
  *   <li>{@link #target()} - the OTHER entity in the moment, the one it happened TO (the mob that
  *       just died, the entity that was hit). Read through the same {@link #store()}.</li>
+ *   <li>{@link #item()} - the ITEM the question is about, when the moment has one that is not
+ *       simply whatever the subject holds: the piece placed on a work surface, the stack a recipe
+ *       consumed, the reward being rolled. A plain value rather than a live handle, so unlike the
+ *       entity leaves it stays readable after the moment that supplied it.</li>
  *   <li>{@link #payload()} - an opaque consumer extension, so a consumer can carry its own
  *       evaluation subject (a placement id, a session handle) without this class learning that
  *       domain.</li>
@@ -41,6 +46,7 @@ public final class FactorContext {
     @Nullable private final Store<EntityStore> store;
     @Nullable private final Ref<EntityStore> subject;
     @Nullable private final Ref<EntityStore> target;
+    @Nullable private final ItemStack item;
     @Nullable private final Object payload;
 
     private FactorContext(@Nonnull Builder b) {
@@ -49,6 +55,7 @@ public final class FactorContext {
         this.store = b.store;
         this.subject = b.subject;
         this.target = b.target;
+        this.item = b.item;
         this.payload = b.payload;
     }
 
@@ -93,6 +100,26 @@ public final class FactorContext {
         return target;
     }
 
+    /**
+     * The item the moment is ABOUT, or null when the call site has none.
+     *
+     * <p>It is its own leaf, never a reading of {@link #subject()}'s hand, because the two are
+     * different questions that one moment can ask at once: a player working a bench holds a tool
+     * while the piece on the bench is something else entirely, and "how good is the tool" and "how
+     * good is the piece" are both fair things for a formula to weigh. The held-hand readings keep
+     * reading the hand; the item readings read this leaf and answer null where it is absent, so a
+     * gate on an item a moment does not have stays shut.
+     */
+    @Nullable
+    public ItemStack item() {
+        return item;
+    }
+
+    /** True when {@link #item()} carries a real, non-empty stack. */
+    public boolean hasItem() {
+        return item != null && !ItemStack.isEmpty(item);
+    }
+
     /** The consumer's own opaque extension value, or null when the call site supplied none. */
     @Nullable
     public Object payload() {
@@ -132,6 +159,7 @@ public final class FactorContext {
                 .store(store)
                 .subject(subject)
                 .target(target)
+                .item(item)
                 .payload(payload)
                 .build();
     }
@@ -185,6 +213,7 @@ public final class FactorContext {
         @Nullable private Store<EntityStore> store;
         @Nullable private Ref<EntityStore> subject;
         @Nullable private Ref<EntityStore> target;
+        @Nullable private ItemStack item;
         @Nullable private Object payload;
 
         private Builder() {
@@ -218,6 +247,13 @@ public final class FactorContext {
         @Nonnull
         public Builder target(@Nullable Ref<EntityStore> target) {
             this.target = target;
+            return this;
+        }
+
+        /** The item the moment is about (a placed piece, a consumed stack), independent of the hand. */
+        @Nonnull
+        public Builder item(@Nullable ItemStack item) {
+            this.item = item;
             return this;
         }
 

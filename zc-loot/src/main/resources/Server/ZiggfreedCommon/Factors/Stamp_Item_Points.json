@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:item_stamp_points reading (the stamped points the item a moment is about carries, in total, or on the one stat its Param names) for requirement lines.",
+  "Factor": "ziggfreedcommon:item_stamp_points",
+  "Text": { "TitleKey": "ziggfreedcommon.progress.factor.item_stamp_points" }
+}

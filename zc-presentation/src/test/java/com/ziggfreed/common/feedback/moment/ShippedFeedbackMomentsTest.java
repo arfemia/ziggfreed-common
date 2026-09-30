@@ -46,13 +46,15 @@ class ShippedFeedbackMomentsTest {
     private static final String PREFIX = "ziggfreedcommon.feedback.";
 
     /**
-     * The moments the two progression engines, the claim table and the encounter framework
-     * announce today (the encounter four are the binding row's own default moment ids).
+     * The moments the two progression engines, the claim table, the encounter framework and the
+     * gear-set engine announce today (the encounter four are the binding row's own default moment
+     * ids; the gear-set one is what the root's notice bridge fires on a tier flip).
      */
     private static final Set<String> ANNOUNCED = Set.of(
             "Quest_Completed", "Quest_Parked", "Quest_Claimed", "Quest_Objective_Progressed",
             "Achievement_Unlocked", "Achievement_Claimed", "Achievement_Server_First_Lost",
-            "Encounter_Engaged", "Encounter_Phase_Changed", "Encounter_Defeated", "Encounter_Wiped");
+            "Encounter_Engaged", "Encounter_Phase_Changed", "Encounter_Defeated", "Encounter_Wiped",
+            "Gear_Set_Tier");
 
     @Test
     void everyAnnouncedMomentShipsADefaultThatDecodes() throws IOException {
@@ -129,6 +131,27 @@ class ShippedFeedbackMomentsTest {
         FeedbackMomentAsset.Line share = shipped.get("Encounter_Defeated").getToast().getSecondary();
         assertNotNull(share, "the defeat says what the reader's own part in it was");
         assertEquals("share", share.getArgs()[0], "bound as the typed number the framework carries");
+    }
+
+    /**
+     * A tier going off reads differently from one coming on, and quietly: the loss of a bonus is
+     * information, not a payout, so the variant restates the toast as plain Info and drops the
+     * jingle, while a tier coming on keeps the gold Reward tone and the sound.
+     */
+    @Test
+    void theGearSetTierDefaultSaysSomethingDifferentWhenATierGoesOff() throws IOException {
+        FeedbackMomentAsset moment = shipped().get("Gear_Set_Tier");
+        assertNotNull(moment);
+
+        FeedbackMomentAsset.Resolved on = moment.resolve(Map.of("active", true));
+        FeedbackMomentAsset.Resolved off = moment.resolve(Map.of("active", false));
+
+        assertFalse(on.toast().getTitle().getKey().equals(off.toast().getTitle().getKey()),
+                "a tier going off reads a different line from one coming on");
+        assertNotNull(on.sound(), "a bonus coming on has its jingle");
+        assertTrue(off.sound() == null || off.sound().getId() == null, "a bonus going off is quiet");
+        assertNotNull(on.toast().getSecondary(), "the tier's own line rides under the headline");
+        assertEquals("desc", on.toast().getSecondary().getArgs()[0]);
     }
 
     // ==================== helpers ====================

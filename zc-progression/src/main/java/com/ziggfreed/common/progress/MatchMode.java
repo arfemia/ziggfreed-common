@@ -27,13 +27,24 @@ public enum MatchMode {
     /** Parse a case-insensitive name, falling back to {@link #CONTAINS} for null/unknown input. */
     @Nonnull
     public static MatchMode fromString(@Nullable String name) {
+        return fromString(name, CONTAINS);
+    }
+
+    /**
+     * Parse a case-insensitive name, falling back to {@code fallback} for null/unknown input. The
+     * target leaf falls back to {@link #CONTAINS}; the qualifier leaf falls back to {@link #EXACT},
+     * because every objective authored before the qualifier had a comparison of its own compared it
+     * whole, and that meaning must not move.
+     */
+    @Nonnull
+    public static MatchMode fromString(@Nullable String name, @Nonnull MatchMode fallback) {
         if (name == null) {
-            return CONTAINS;
+            return fallback;
         }
         try {
             return valueOf(name.trim().toUpperCase(java.util.Locale.ROOT));
         } catch (IllegalArgumentException e) {
-            return CONTAINS;
+            return fallback;
         }
     }
 }

@@ -35,6 +35,7 @@ public final class ObjectiveDef {
     private final String authoredTarget;
     private final MatchMode matchMode;
     @Nullable private final String qualifier;
+    private final MatchMode qualifierMatchMode;
     private final long amount;
     @Nullable private final String zone;
     private final int order;
@@ -48,6 +49,7 @@ public final class ObjectiveDef {
         this.authoredTarget = b.authoredTarget != null ? b.authoredTarget : this.target;
         this.matchMode = b.matchMode;
         this.qualifier = b.qualifier;
+        this.qualifierMatchMode = b.qualifierMatchMode;
         this.amount = b.amount;
         this.zone = (b.zone == null || b.zone.isBlank()) ? null : b.zone;
         this.order = Math.max(0, b.order);
@@ -101,6 +103,16 @@ public final class ObjectiveDef {
         return qualifier;
     }
 
+    /**
+     * How {@link #qualifier()} is compared against the qualifier an event carries: the same three
+     * shapes as {@link #matchMode()}, defaulting to {@link MatchMode#EXACT} (compared whole), so an
+     * objective authored before the qualifier had a comparison of its own keeps its meaning.
+     */
+    @Nonnull
+    public MatchMode qualifierMatchMode() {
+        return qualifierMatchMode;
+    }
+
     /** How many are needed. */
     public long amount() {
         return amount;
@@ -135,7 +147,7 @@ public final class ObjectiveDef {
     /** Does the identifier + qualifier an event carries satisfy this objective? */
     public boolean matches(@Nonnull String eventTarget,
                            @Nullable String eventQualifier) {
-        return ObjectiveMatch.matches(target, matchMode, qualifier, eventTarget, eventQualifier);
+        return ObjectiveMatch.matches(target, matchMode, qualifier, qualifierMatchMode, eventTarget, eventQualifier);
     }
 
     /** Does this objective's zone scope admit an event that happened at {@code eventZone}? */
@@ -163,6 +175,7 @@ public final class ObjectiveDef {
         @Nullable private String authoredTarget;
         private MatchMode matchMode = MatchMode.CONTAINS;
         @Nullable private String qualifier;
+        private MatchMode qualifierMatchMode = MatchMode.EXACT;
         private long amount = 1L;
         @Nullable private String zone;
         private int order;
@@ -199,6 +212,13 @@ public final class ObjectiveDef {
         @Nonnull
         public Builder qualifier(@Nullable String qualifier) {
             this.qualifier = qualifier;
+            return this;
+        }
+
+        /** The qualifier's own comparison; left unset it is {@link MatchMode#EXACT}, compared whole. */
+        @Nonnull
+        public Builder qualifierMatchMode(@Nonnull MatchMode qualifierMatchMode) {
+            this.qualifierMatchMode = qualifierMatchMode;
             return this;
         }
 

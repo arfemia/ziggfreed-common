@@ -62,6 +62,34 @@ class ObjectiveMatchTest {
             assertFalse(ObjectiveMatch.qualifierMatches("Elite", "normal"));
             assertFalse(ObjectiveMatch.qualifierMatches("Elite", null));
         }
+
+        @Test
+        void theTwoArgFormComparesWholeSoAPrefixOfTheEventNeverMatchesIt() {
+            assertFalse(ObjectiveMatch.qualifierMatches("Elite_Pack", "Elite_Pack_Alpha"));
+            assertTrue(ObjectiveMatch.qualifierMatches("Elite_Pack", MatchMode.EXACT, "elite_pack"));
+            assertFalse(ObjectiveMatch.qualifierMatches("Elite_Pack", MatchMode.EXACT,
+                    "Elite_Pack_Alpha"));
+        }
+
+        @Test
+        void prefixAndContainsCountAFamilyOfQualifiersCaseInsensitively() {
+            assertTrue(ObjectiveMatch.qualifierMatches("elite_pack", MatchMode.PREFIX,
+                    "Elite_Pack_Alpha"));
+            assertTrue(ObjectiveMatch.qualifierMatches("Elite_Pack", MatchMode.PREFIX, "Elite_Pack"));
+            assertFalse(ObjectiveMatch.qualifierMatches("Pack", MatchMode.PREFIX, "Elite_Pack"));
+            assertTrue(ObjectiveMatch.qualifierMatches("PACK", MatchMode.CONTAINS, "Elite_Pack_Alpha"));
+            assertFalse(ObjectiveMatch.qualifierMatches("Normal", MatchMode.CONTAINS, "Elite_Pack"));
+        }
+
+        @Test
+        void theNullAndEmptyRulesHoldWhateverTheMode() {
+            for (MatchMode mode : MatchMode.values()) {
+                assertTrue(ObjectiveMatch.qualifierMatches(null, mode, "anything"), mode + ": null means any");
+                assertTrue(ObjectiveMatch.qualifierMatches("", mode, null), mode + ": empty accepts the unqualified");
+                assertFalse(ObjectiveMatch.qualifierMatches("", mode, "elite"), mode + ": empty refuses a qualified one");
+                assertFalse(ObjectiveMatch.qualifierMatches("Elite", mode, null), mode + ": a name needs a qualifier");
+            }
+        }
     }
 
     @Nested
@@ -102,10 +130,34 @@ class ObjectiveMatchTest {
     }
 
     @Test
+    void combinedMatchHonoursTheQualifiersOwnMode() {
+        assertTrue(ObjectiveMatch.matches("Wolf", MatchMode.PREFIX, "Elite_Pack", MatchMode.PREFIX,
+                "Wolf_Grey", "Elite_Pack_Alpha"));
+        assertFalse(ObjectiveMatch.matches("Wolf", MatchMode.PREFIX, "Elite_Pack", MatchMode.EXACT,
+                "Wolf_Grey", "Elite_Pack_Alpha"));
+        ObjectiveDef def = ObjectiveDef.builder("unmake", "KILL_ENTITY")
+                .target("Wolf").matchMode(MatchMode.PREFIX)
+                .qualifier("Elite_Pack").qualifierMatchMode(MatchMode.PREFIX)
+                .build();
+        assertTrue(def.matches("Wolf_Grey", "Elite_Pack_Alpha"));
+        assertTrue(def.matches("Wolf_Grey", "Elite_Pack"));
+        assertFalse(def.matches("Wolf_Grey", "Normal"));
+        assertTrue(ObjectiveDef.builder("x", "K").qualifier("A").build().qualifierMatchMode() == MatchMode.EXACT,
+                "an objective that names no qualifier comparison compares it whole");
+    }
+
+    @Test
     void matchModeParsesForgivinglyAndDefaultsToContains() {
         assertTrue(MatchMode.fromString(null) == MatchMode.CONTAINS);
         assertTrue(MatchMode.fromString("nonsense") == MatchMode.CONTAINS);
         assertTrue(MatchMode.fromString(" exact ") == MatchMode.EXACT);
         assertTrue(MatchMode.fromString("PREFIX") == MatchMode.PREFIX);
+    }
+
+    @Test
+    void matchModeParsesWithACallerChosenFallback() {
+        assertTrue(MatchMode.fromString(null, MatchMode.EXACT) == MatchMode.EXACT);
+        assertTrue(MatchMode.fromString("nonsense", MatchMode.EXACT) == MatchMode.EXACT);
+        assertTrue(MatchMode.fromString(" contains ", MatchMode.EXACT) == MatchMode.CONTAINS);
     }
 }
