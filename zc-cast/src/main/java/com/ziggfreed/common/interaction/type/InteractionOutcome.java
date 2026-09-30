@@ -31,8 +31,7 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>Reminder for Type authors: a Type whose {@code firstRun} can resolve {@code Failed} must
  * return {@code WaitForDataFrom.Server} from {@code getWaitForDataFrom()} (the {@code
  * SimpleInteraction} contract), which costs a round trip at that node. A Type that only ever
- * resolves {@code Finished} may stay {@code None}. Decision 38 binds ability BODIES to
- * Server/None only.
+ * resolves {@code Finished} may stay {@code None}.
  *
  * <p>World-thread (mutates a live {@link InteractionContext}'s sync state).
  */

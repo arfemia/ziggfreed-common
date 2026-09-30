@@ -18,8 +18,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
  * gated - and delegates each leaf push to here.
  *
  * <p><b>Three shipped mechanisms, source-validated against the official Hytale
- * shared source</b> (see {@code .claude/research/hytale-ui-runtime-patchstyle-textures.md}
- * in the hyMMO repo):
+ * shared source</b>:
  * <ul>
  *   <li><b>{@link #retintColor} (CONFIRMED):</b> a {@code .Background.Color}
  *       sub-property set that RETINTS the existing 9-slice texture in place

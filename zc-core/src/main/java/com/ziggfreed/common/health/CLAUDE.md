@@ -1,36 +1,4 @@
-# health/ - native vital-stat restore (heal)
+# health/
 
-Router for `health/`. The mod-root `CLAUDE.md` PARADIGM applies: this is a generic,
-mod-agnostic Hytale primitive (any minigame topping a player off - a win heal, a checkpoint
-restore - needs it), so it lives here, not duplicated in a consumer.
-
-- **[`HealthUtil`](HealthUtil.java)** - static helpers over the NATIVE `EntityStats` module, the
-  SAME API the MMO Skill Tree health-tick path uses (`RegenTickingSystem` / `AbilityHealService`):
-  read the `Health` / `Mana` `EntityStatValue` off the entity's `EntityStatMap`
-  (`EntityStatsModule.get().getEntityStatMapComponentType()`, stat index via
-  `DefaultEntityStatTypes.getHealth()`/`getMana()`) and `addStatValue(index, max - current)` to raise it.
-  - `fullHeal(store, ref)` -> raise `Health` to max (a full heal); false if already full / no stat map.
-  - `heal(store, ref, amount)` -> add `amount` to `Health`, engine-clamped to max (mirrors
-    `AbilityHealService.applyInstant`).
-  - `fullRestore(store, ref)` -> raise BOTH `Health` and `Mana` to max (each independently, so a
-    mana-less entity still gets healed).
-  - `scaleMaxHealth(store, ref, factor, key)` -> raise the `Health` MAX by `factor` (a multiplicative
-    MAX `StaticModifier` keyed by `key`) and heal to the new max. Idempotent per entity (no-op if the
-    `key` modifier is already present, factor is 1.0, or the stat is not yet balanced), so it is safe to
-    call every tick and heals exactly once. The seam for per-encounter HP scaling (boss HP by party
-    size / difficulty); exemplar consumer is zc-encounter's `EncounterScaling.apply`, the FIRST application
-    of a bound boss's party / power scale. Also a
-    ref-less `scaleMaxHealth(holder, factor, key)` for a pre-add `HolderSystem.onEntityAdd` spawn hook.
-  - `reconcileMaxHealth(holder, factor, key)` + `reconcileMaxHealth(store, ref, factor, key)` -> the
-    RECONCILE counterpart (NOT add-only): converge the keyed MAX modifier to `factor` - absent+factor!=1
-    puts+maximizes (first-apply heal), present+factor==1 removes, present+different amount replaces
-    WITHOUT maximize (a shrink auto-clamps current HP via the engine recalculate; a re-maximize would
-    full-heal on every retune). The seam a persist-and-re-derive spawn hook (open-world mob scaling)
-    calls UNCONDITIONALLY so a re-derived scale on chunk reload never strands a stale HP value. Do NOT
-    fold this into `scaleMaxHealth` - `EncounterScaling.apply` relies on the add-only contract for a fight's
-    first application (the heal-once) and calls this one for every later reconcile.
-- **World thread only** (touches the `Store`); every method is try-guarded to a `false` return so a
-  missing stat map / invalid ref / engine throw never escapes into the caller. The raw flogger LOGGER
-  is itself wrapped in a try/catch (it throws in a log-manager-less unit JVM).
-- Exemplar consumer: Kweebec Nightmare's `RoundService.scheduleOverworldResync` calls `fullHeal` when
-  a player returns to the overworld after a round WIN.
+- `HealthUtil.scaleMaxHealth` is add-only: it no-ops while its keyed MAX modifier exists and heals to the new max exactly once, which `EncounterScaling`'s first apply relies on. `reconcileMaxHealth` converges that modifier to the current factor without re-maximizing, for a spawn hook that re-derives the scale on chunk reload. Never fold one into the other.
+- Both have `Holder` overloads for a pre-add `onEntityAdd` spawn hook, where no `Ref` exists yet.

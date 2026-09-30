@@ -1,127 +1,14 @@
-# CLAUDE.md - `achievement/` (module `zc-progression`)
+# achievement/
 
-The ALWAYS-ON lifecycle engine, and the PEER of [`../quest/`](../quest/CLAUDE.md) over the shared
-[`../progress/`](../progress/CLAUDE.md) cores. Nothing is accepted, nothing is abandoned, nothing
-comes back on a cooldown: every criterion of every catalogued achievement listens from the first
-event, and an achievement earns itself the moment its criteria are all met.
-
-Package root `com.ziggfreed.common.achievement`. Module edge: zc-core, plus zc-loot for the reward
-vocabulary. No engine types outside the native events.
-
-## Where THE runtime lives
-
-THE shared instance comes from [`../progress/runtime/`](../progress/runtime/CLAUDE.md), not from a
-field somebody holds. `builder()` is for tests and for a private engine. **Milestones are published
-through `setMilestones`, never by rebuilding the engine** - a rebuild orphans every cached reference,
-which one shared instance cannot afford, and it is exactly why that method exists beside
-`setAchievements`.
-
-## The pieces
-
-| Class | What it is |
-|---|---|
-| `Achievement` (+ `.Builder`) | the resolved definition: ORDERED criteria, meta children, two reward lists, points, four independent switches, and the LISTING facts a browsing surface reads (category / subcategory / sort order / chain memberships / feat-of-strength, beside the icon) - carried, never run |
-| `AchievementStatus` | LOCKED / UNLOCKED / CLAIMED - three states, because "in progress" is a count, not a status |
-| `AchievementEngine` (+ `.Builder`) | the runtime: dispatch, earn, collect, revoke, points, milestones, pins, self-heal, and `resetAll` (the administrator's whole-record wipe over the store's `clearAll`; it does not release a server-first the subject won, since `FirstClaimStore` offers no release) |
-| `AchievementProgressStore` | THE persistence seam. Composite `"<id>#<criterionId>"` keys and the reserved-character check both live here as DEFAULTS; a bare-id record from a very old save is only ever swept clear, never read back as a tally |
-| `InMemoryAchievementProgressStore` | the complete store that dies with the process |
-| `AchievementGates` | the consumer's say: `canProgress` / `canUnlock` / `canReceiveRewards` / `visible`, all default-yes. FILLED by `quest.RequiresGates`, the same gate the quest side reads, so one `Requires` block means one thing |
-| `UnlockOccasion` | why an unlock is being attempted: `JUST_MET` (the criteria completed in this very moment) or `STANDING` (a state being re-tested - the self-heal sweep, a meta off one, a scripted grant). Passed to `canUnlock`; it never changes the DECISION, only whether a refusal is worth ANNOUNCING |
-| `FirstClaimStore`, `FirstClaims` | the server-first claim TABLE, and where a consumer installs a durable one. The RULE (one claim, and a loser keeps their criteria met) is the gate's; only the table and the words a loser reads are the consumer's. The one exception is a SHARED CREDIT: a dispatch run inside `withSharedCredit` co-awards the claim to every subject carrying that run's key, so a party's boss defeat pays all of them while the table still records the first claimant alone |
-| `AchievementEngine.Builder#factors` / `#factorContext` | the OPTIONAL factor pair, the same two knobs the quest engine takes; unwired, `STAT_THRESHOLD` is purely consumer-fired |
-| `AchievementMilestone` | a reward for a points TOTAL rather than for any one achievement |
-| `event/` | `AchievementEvents` + the three native `IEvent<Void>` POJOs (progressed / unlocked / claimed) |
-| `asset/` | the authoring layer - see [`asset/CLAUDE.md`](asset/CLAUDE.md) |
-
-## Rules to keep
-
-- **Every engine path that MUTATES the store calls `store.markDirty(subject)` before it returns.** A consumer's persistence backend is driven entirely off that call (zc-objectives' default stores fan it out to `ProgressionDefaults.onProgressDirty`), so a write that skips it reverts on the player's next hydrate with nothing reporting it. That includes the pin half - `pin` / `unpin` / `prunePins` - because a pin is saved state too. Report it inside the method that made the write, not at each caller.
-- **`store.flush(subject)` is a much narrower thing, and this engine has exactly TWO: `claim` and `claimMilestone`.** Both are a player COLLECTING, both commit unconditionally, and that is the whole list. **`unlock` does NOT flush, and neither does `checkMilestones`** - earning is something this engine DECIDES rather than something the player asked for, and it arrives in bulk: `selfHeal` walks the whole catalogue on login, `cascadeMeta` chains one earn into a run of metas, and every earn re-checks the milestones. A commit at any of those turns one login into a database write per achievement the player already had. Nothing in a self-heal, a cascade or a pin sweep commits; nothing commits twice in one engine call. A third flush point needs that paragraph argued past first.
-- **The criterion ID is the progress key.** Progress is stored per criterion under
-  `"<id>#<critKey>"` (the authored `Criteria` map key), so renaming a key starts that criterion
-  over for everybody while adding, removing, or reordering entries never moves anyone's progress.
-  `AchievementEngineTest` asserts it directly: the tally follows the criterion, not the position.
-- **There is NO per-read legacy fallback.** The store reads composite keys only; a bare-id record
-  a very old save carries is re-keyed ONCE by the consumer's one-time migration (which maps it
-  onto the first criterion's id), so a reset criterion can never resurrect a pre-migration value.
-- **Two reward lists, two moments.** `autoRewards` land on earning; `claimRewards` wait. An
-  achievement with no claim rewards settles in ONE step, which is what makes CLAIMED reachable with
-  no second interaction. Never collapse them into one list plus a flag. The `Achievement_Claimed`
-  feedback moment carries `collected` (true when the subject came back for what waited, false when
-  it settled as it was earned) so a jingle authored for collecting never plays over the unlock;
-  each moment also carries what it is about under `rewards`: `Achievement_Unlocked` fires AFTER the
-  auto rewards are paid (the native `AchievementEvents.fireUnlocked` moves with it, never split)
-  and carries their `GrantOutcome.receipt()` followed by the claim rewards still WAITING
-  (`earnedRows`; the same shape as `Quest_Parked`, because for a catalogue that pays everything
-  through `Claim` the earn notice is the one place a subject is told what they earned),
-  `Achievement_Claimed` the receipt of whichever list that claim paid - so an authored toast at the
-  collect lists exactly what that moment put in the subject's hands, a `Lootable` as the items it
-  rolled and an empty roll as no row at all. `tryClaim` / `tryClaimMilestone` are the
-  receipt-answering twins of the boolean `claim` / `claimMilestone` (null where those answer
-  false; the boolean forms are thin wrappers, so the flush lives in the twin), for a surface
-  raising its own toast after a collect - the book's milestone Collect lists a rung's roll through
-  it.
-- **A fold may attach values a moment about the achievement should carry.** `Achievement.momentArgs`
-  (builder `momentArg(name, value)`) rides into `Achievement_Unlocked` and `Achievement_Claimed`
-  under the fold's own names, beneath the engine's own (`title`, `icon`, `points`, ... win on a
-  clash). That is how a consumer's per-achievement authoring - an announcement's own key, the thing
-  a ladder rung is about - reaches an authored moment file by name without the engine learning what
-  any of it means. The engine never reads them.
-- **Never a mode.** `available` / `hidden` / `countsTowardTotal` are three independent switches; a
-  retired one-off is hidden-or-not, counting-or-not, earnable-or-not in any combination. A new
-  achievement "type" constant is the smell this exists to prevent.
-- **A standing-value criterion is re-read at SELF-HEAL and nowhere else**, which is the one place
-  this engine deliberately does LESS than its peer. `STAT_THRESHOLD` (see
-  [`../progress/`](../progress/CLAUDE.md) for the kind's contract) names a state nothing ever fires
-  for, so `refreshStatThresholds` goes and reads it. The quest engine also piggybacks on a dispatch
-  that moved the same quest, and that is cheap because it is bounded by the handful of quests one
-  player is CARRYING. Nothing is accepted here, so the same piggyback would re-read part of the
-  WHOLE catalogue on every progressing event of every player, forever, to catch a value that is
-  still going to be there at the next self-heal - and self-heal already runs on login and whenever
-  an achievement surface opens, which is every moment the answer is about to be looked at. A
-  consumer wanting it sooner dispatches the kind itself, exactly as it would any other.
-- **A gate that throws is a REFUSAL**, reported once per gate per achievement. A broken gate must
-  never open one. `canProgress` also guards the threshold re-read, so a refusal there writes nothing
-  rather than quietly bypassing the gate through a path no producer fired.
-- **A refusal loses nothing.** `canUnlock` refusing leaves the criteria MET, so `selfHeal` earns it
-  the moment the answer changes. That is what makes a race arbitrable without a rollback.
-- **The decision is re-taken every time; the ANNOUNCEMENT is not.** Because a refusal loses nothing,
-  every sweep asks again - and a sweep runs on login, on every world change and whenever an
-  achievement surface opens. A gate reads `UnlockOccasion` to tell a moment from a re-reading, and
-  says something only on `JUST_MET`. A gate that instead answered the two occasions differently would
-  hand out on a login what it refused on the day, which is the one thing the occasion must not do.
-- **`serverFirst` is a FLAG on the achievement and the arbitration is the gate's.** A consumer
-  supplies the claim table through `FirstClaims` (an in-memory one ships, correct for one boot). The
-  loss is ANNOUNCED rather than handled, as the `Achievement_Server_First_Lost` feedback moment,
-  which a server answers with an authored file and no Java, and only for the occasion the race is
-  really lost on (`JUST_MET`). Nothing in this module can write words a
-  player reads. **There is no second fan-out beside it**: a mod that wants to do something other
-  than tell the player - log a race, hand out a consolation - registers a feedback hook through the
-  progression registrar and reads the same announcement additively, which is strictly more than a
-  listener of its own would have carried (it gets the `Subject` and the argument map, guarded).
-  The moment deliberately carries no `icon`: a loss is a quiet note, not a second unlock.
-- **`icon` is written by the FOLD, never resolved by the engine.** The picture an achievement is
-  shown with comes out of a whole authoring ladder only the layer that folded the catalogue can
-  walk, so it is decided once there and carried on the runtime object; a surface that paints it -
-  the unlock moment above all - is painting a decision already taken.
-- **The engine never names a consumer's world.** No feature flags, no class ids, no progression
-  vocabulary. Everything of that shape is a question asked of `AchievementGates`. The module
-  agnosticism test scans this package.
-- **Milestones are STATE, not moments.** They are recomputed whenever a total changes and a consumer
-  renders their status. The moment worth reacting to is the achievement whose earning crossed the
-  threshold, and that already fires.
-
-## Wiring one up
-
-```java
-AchievementEngine engine = AchievementEngine.builder()
-        .objectiveKinds(myObjectiveKinds)
-        .rewardKinds(myRewardKinds)
-        .store(myStore)
-        .gates(myGates)
-        .milestone(AchievementMilestone.claimable(100, List.of(...)))
-        .build();
-engine.setAchievements(AchievementAssetStore.getInstance().resolveAll().achievements());
-```
-Then feed it: `engine.dispatch(subject, kind, target, qualifier, amount)` from every producer, and
-`engine.selfHeal(subject)` when a player becomes ready.
+- The server's engine is the shared one in `progress/runtime/`; `builder()` is for tests or a genuinely private engine. Publish milestones with `setMilestones`, never by rebuilding the engine, which orphans every cached reference.
+- Every path that mutates the store calls `store.markDirty(subject)` inside the method that wrote, pins included (`pin`, `unpin`, `prunePins`).
+- Only a collect commits: `tryClaim` and `tryClaimMilestone` (the boolean `claim` forms wrap them) call `store.flush`. Earning, milestones, meta cascades and self-heal never commit, or a login's self-heal would write once per achievement already held (`AchievementEnginePersistenceReportTest`).
+- Criterion progress is stored under `<id>#<critKey>` (the authored `Criteria` key), so renaming a key restarts that criterion while reordering moves nobody. Never add a per-read fallback to a bare-id key; an old save's consumer migration re-keys it once.
+- `autoRewards` land on earning and `claimRewards` wait to be collected; never merge them into one list plus a flag.
+- `Achievement_Unlocked` fires after the auto rewards pay and carries their receipt plus the claim rewards still waiting; `Achievement_Claimed` carries `collected` and the receipt of what that claim paid.
+- `available`, `hidden` and `countsTowardTotal` are independent switches; never add an achievement type constant.
+- A `STAT_THRESHOLD` criterion is re-read at self-heal only; never piggyback the re-read on a dispatch, which would scan the whole catalogue on every event.
+- A gate that throws is a refusal. A refusal keeps the criteria met, so self-heal earns the achievement once the answer changes, and a gate announces a refusal only on `UnlockOccasion.JUST_MET`, never on a standing re-read.
+- `serverFirst` is a flag and the gate arbitrates it. A lost race is the `Achievement_Server_First_Lost` moment; a mod wanting more registers a feedback hook, never a listener of its own.
+- The fold decides `icon` and `momentArgs`; the engine only carries them into its moments, and its own argument names win a clash.
+- Milestones are state recomputed whenever a total changes, not moments: the achievement whose earning crossed a threshold already fires.

@@ -1,140 +1,24 @@
-# stats/ - unified per-stack + tag entity-stats bridge (RPG Stations extraction, scope 2 wave 1)
+# stats/ - item-carried stats as native modifiers
 
-Router for `stats/`. The mod-root `CLAUDE.md` PARADIGM applies: item-carried stats (per-stack
-enhancement, native tool `Utility.StatModifiers`) are a generic, mod-agnostic Hytale primitive - a
-consumer converts them into native `EntityStatMap` modifiers so the native map stays the ONE
-aggregation authority, never a per-mod at-use metadata fold. Self-contained: no dependency on another `common/` domain
-beyond the Hytale server jar itself (see [`StatIndexCache`](StatIndexCache.java)'s javadoc for why
-it does NOT route through `util.AssetIndexCache`). All world-thread, try-guarded, static /
-config-free; `StackStats` and every pure decision core are unit-testable without a live server.
+`com.ziggfreed.common.stats` is a split package: `StackStats`, a pure item-metadata record, lives in zc-core so any module can stamp a stack; the ECS bridge (`EquipStatBridge`, `StatMirror`, `StatChannelAudit`, `StatIndexCache`) and `gearset/` live here.
 
-**Where the files live.** `com.ziggfreed.common.stats` is a SPLIT package: `StackStats` (a pure
-item-metadata value record - codecs, an `ItemStack`, nothing else) sits in **zc-core** so any module
-can read or stamp a stack without pulling in the ECS trigger machinery; everything on this page that
-touches the entity store (`EquipStatBridge`, `StatMirror`, `StatChannelAudit`, `StatIndexCache`)
-stays in **zc-entity**. One package, one router, two modules.
+- `stats/` and zc-core's `counter/` never merge: an item-carried stat lives here, a per-subject tally in `counter/`, and a tally that must reach a stat channel is mirrored onto it with `StatMirror`.
+- `StackStats.Entries` stores percent channels in whole percent points (`10.0` is +10%) and flat channels raw; which family a channel belongs to is its owner's business. `merge` is the one summing authority, and `stampReplacingWithCount` writes the count it is given (it never increments).
+- The engine (`StatModifiersManager`) never applies a held item's own `Utility.StatModifiers`, so the bridge does. It does apply the utility-slot (offhand) item's, so the bridge applies only that item's `StackStats`, or the bonus doubles.
+- The library installs the ONE bridge (`EntityBootstrap.installEquipStatBridge`, namespace `ziggfreedcommon`) and its three trigger subclasses. ECS systems are class-keyed, so never install a second bridge or register your own triggers: read it through `EntityBootstrap.equipStatBridge()` and hang derived work on `addAppliedListener`, which runs after every recompute (keep it cheap and idempotent).
+- A consumer calls `recomputeAll(store, ref)` once, at `PlayerReadyEvent`.
+- The triggers ride only non-deprecated inventory events, never the `Legacy*ChangeStatSystem` family.
+- Touch an `EntityStatMap` only through keyed `putModifier`/`removeModifier`, never `setStatValue` or `addStatValue`.
+- Resolve a stat index through `StatIndexCache`, not `util.AssetIndexCache`: a custom channel can legitimately sit at index 0, which `AssetIndexCache` answers as unresolved.
+- Run `StatChannelAudit` once, late (the first `PlayerReadyEvent`), after dynamically registered channels exist.
 
-**`stats/` vs `counter/` - they never merge.** `stats/` is the native `EntityStatMap` bridging of
-ITEM-CARRIED stats: a value lives on a stack or an item asset, and this package turns it into a
-keyed native modifier on an entity. [`counter/`](../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/counter/CLAUDE.md) (zc-core) is arbitrary named TALLIES keyed by a
-`subject.Subject` id, with a persistence seam and no engine types at all. A "how many times has this
-player done X" number is a counter and belongs there even when it later feeds a stat; a "what does
-this sword add to Attack Damage" number is a stat and belongs here even when it happens to be an
-integer someone increments. If a new type wants both, it wants a counter that a consumer mirrors
-onto a channel through `StatMirror` - not a merged package.
+## gearset/
 
-- **[`StackStats`](../../../../../../../../zc-core/src/main/java/com/ziggfreed/common/stats/StackStats.java)** (in zc-core) - the ONE generic per-stack stat/enhancement record.
-  Metadata blob key `"ZigStackStats"`. Codec fields `Entries` (`Map<String, Double>`: percent
-  channels in WHOLE PERCENT POINTS, flat channels raw - the one numeric convention every
-  reader/writer in this domain shares) and `StampCount` (`Integer`, enhancement-stamp counter).
-  API mirrors the MMO's proven `item.ItemStatsMeta` shape: `read`/`entriesOf`/`stampCountOf`
-  (graceful no-throw, `null`/0 default), `merge`/`mergeWith` (same-stat SUMMATION - the ONE
-  summing authority), `stampReplacing` (wholesale replace, `StampCount` untouched),
-  `stampReplacingWithCount` (explicit `StampCount` write - the caller passes
-  `stampCountOf(stack) + 1`, this method does not increment itself). Any writer (an MMO-side
-  stamper, a standalone RPG-Stations stamper, a future enchanting station) writes THIS record, so
-  cross-mod cap/budget accounting stays consistent no matter which system stamped first.
-- **Native tool stats** (decisions 44/45, the `Zig_Entity_Stats`/`HeldItemStatsTag` tag is DELETED):
-  a tool carries stats in its item asset's native `Utility.StatModifiers` block (leaving `Usable`
-  and `Compatible` unset, both default-false, keeps the field side-effect-free - proven at
-  `StatModifiersManager:98-107` and the offhand-utility capability doc). The engine never applies a
-  HELD item's own Utility stats, so `EquipStatBridge` applies them; there is no mod-owned tag
-  vocabulary any more (full fidelity comes free - the field is codec-validated `StaticModifier[]`).
-- **[`EquipStatBridge`](EquipStatBridge.java)** - the equip-watcher engine: converts a player's
-  item-carried stats into keyed native `EntityStatMap` modifiers via `putModifier`/`removeModifier`
-  across FOUR sources (the double-apply partition is the load-bearing invariant, documented on the
-  class):
-  - **HELD item**: its per-stack `StackStats.Entries` (keys `held:0`) PLUS its item asset's native
-    `Utility.StatModifiers` (keys `util:<offset>`) - the util block is applied here because the
-    engine never applies a held item's own Utility stats.
-  - **ARMOR**: per-stack `StackStats` only (keys `armor:<i>`) - armor asset stats are the engine's
-    native `ItemArmor.StatModifiers`.
-  - **UTILITY-SLOT ACTIVE item (offhand)**: per-stack `StackStats` ONLY (keys `offhand:0`) - NEVER
-    its asset `Utility.StatModifiers`, which the engine DOES apply natively (Compatible-gated);
-    applying them again would double-count.
+A set is content (`Server/ZiggfreedCommon/GearSets/<Set_Id>.json`; the library ships none), applied by a single `AppliedListener` on the installed bridge (`EntityBootstrap.installGearSets`), never a fourth trigger system.
 
-  `install(namespace[, entryFilter])` returns a bound instance, and the LIBRARY installs the one
-  bridge: `EntityBootstrap.installEquipStatBridge` binds it under the `ziggfreedcommon` namespace and
-  registers a concrete subclass of each of the THREE ABSTRACT trigger bases (`ActiveSlotTrigger` /
-  `ContentChangeTrigger` / `UtilityContentChangeTrigger`) - **the ECS system registry is CLASS-KEYED
-  (a second `registerSystem` with the same Class collides), so this package ships only the abstract
-  bases, exactly like `cast.AbstractWorldFrameSystem`, and one installer means one set of modifier
-  keys; a consumer never installs a second bridge and never registers its own copies of the three
-  triggers, it reads the installed one back through `EntityBootstrap.equipStatBridge()`** - and the
-  consumer's own contract is to call `recomputeAll(store, ref)` once at `PlayerReadyEvent`
-  (inventory components are ensured/hydrated strictly before that event, E6-proven, so a full
-  recompute there is the safe hydrate authority).
-  - **Post-apply seam** - `addAppliedListener(AppliedListener)` fires `onApplied(store, ref)` after
-    every `recomputeAll` pass, world-thread. A consumer keeping DERIVED state in step with these
-    channels (the MMO's per-school resist effect sync) hangs it HERE instead of registering a
-    fourth trigger subclass on the same three events: one seam covers every equip path the bridge
-    already watches. Listeners must be cheap + idempotent (it fires on every slot switch); a
-    throwing listener is isolated by the generic `forEachIsolated` helper so the rest still run.
-  - **Triggers** (E6-proven, non-deprecated ONLY): `ActiveSlotTrigger` mirrors
-    `InventorySystems.ActiveSlotChangedEntityEventSystem` (fires on `InventorySetActiveSlotEvent`
-    for ANY section - hotbar OR the utility section id `-5` - and recomputes every source, so a
-    utility active-slot switch is already covered); `ContentChangeTrigger` mirrors the
-    per-tick-drained `InventoryChangeEvent` filtered to the Hotbar component with the ACTIVE slot
-    modified (`Transaction.wasSlotModified(activeSlot)`) or the Armor component; the new
-    `UtilityContentChangeTrigger` is the same twin filtered to the `InventoryComponent.Utility`
-    component (offhand content change). NEVER the deprecated
-    `LegacyHotbarChangeStatSystem`/`LegacyUtilityChangeStatSystem` (read only as precedent for the
-    filter shape, never called/extended).
-  - **Key scheme**: `"<namespace>:held:0"` + `"<namespace>:util:<offset>"` (a player has one
-    active hand; util offset per modifier within a stat index) / `"<namespace>:offhand:0"` /
-    `"<namespace>:armor:<i>"` per armor-container slot.
-  - **Apply = diff-skip + stale-key sweep**, adapted from `StatModifiersManager`'s
-    `addItemStatModifiers`/`clearAllStatModifiers` discipline. The `StackStats` sources
-    (`held`/`armor`/`offhand`) each resolve to at most one additive `MAX` modifier per stat, so
-    `EquipStatBridge.plan(...)` uses a per-SLOT key (no numbered-offset walk). The held-item
-    `util` source is a native `Int2ObjectMap<StaticModifier[]>` of PRE-RESOLVED indices with full
-    fidelity (Target MIN/MAX + additive/multiplicative pass straight through - `putModifier` takes
-    the `Modifier` directly), so `EquipStatBridge.planUtility(...)` mirrors the engine's own
-    per-array-position `keyPrefix + offset` keying + higher-offset + absent-index sweeps. Both
-    `plan` and `planUtility` are PURE decision cores (package-private, unit-tested against fake
-    seams - lambdas / a hand-built `Int2ObjectMap`, no live `EntityStatMap` needed).
-  - **`bridgedSum(store, ref, statId)`** (gate decision 35): the bridge's OWN current contribution
-    to `statId`, summed fresh across ALL bridge namespaces - held `StackStats` + the held item's
-    `Utility.StatModifiers` ADDITIVE contributions + offhand `StackStats` + every armor slot (not
-    read back from the `EntityStatMap`, so it is accurate even before the first apply). The seam a
-    consumer's DOT branch subtracts so per-stack enhancement (and a held tool's util stats) never
-    buff a DOT tick, matching the pre-migration behavior where the DOT path never read held
-    metadata at all. Only ADDITIVE util modifiers are summed (a multiplicative modifier has no
-    linear scalar a DOT subtraction could use; the MMO's DOT-relevant channels are all additive).
-  - Unknown stat id (channel not registered): skip + one-time warn, never a throw.
-- **[`StatMirror`](StatMirror.java)** - idempotent keyed put/remove of a SINGLE native additive
-  `MAX` `StaticModifier`: `set(store, ref, statId, key, value)` writes-or-replaces (skips the
-  actual engine write when an equal modifier is already present under `key` - safe to call
-  unconditionally on a hot path), `remove(...)`. The generic primitive for mirroring a derived
-  scalar (a skill level, a purchased multiplier) onto a native channel so a `resolve*`-style
-  reader needs zero at-use lookups. `decideOrSkip` is the pure idempotence core (package-private,
-  directly unit-testable - `StaticModifier` is a plain constructible POJO, no fake seam needed).
-- **[`StatChannelAudit`](StatChannelAudit.java)** - boot-time channel-presence check (the
-  load-order silent-drop guard, risk R2): `audit(expectedChannelIds)` verifies each id resolves in
-  the `EntityStatType` asset map and logs one `SEVERE` line per miss naming the
-  register-before-items explanation. Call it once, late (first `PlayerReadyEvent` is the intended
-  site) after every jar-bundled + dynamically-registered channel has had its chance to register.
-  Does NOT detect an item whose authored modifier already silently dropped (out of scope) - only
-  that the CHANNEL itself is missing.
-- **[`StatIndexCache`](StatIndexCache.java)** - public (the `hytale:stat` factor provider reads it
-  from `factor/`), shared by `EquipStatBridge`, `StatMirror`, `StatChannelAudit` and
-  [`../factor/HytaleFactors`](../factor/HytaleFactors.java): memoizes an `EntityStatType` id ->
-  asset-map index (mirrors `util.DamageCauseCache`'s technique
-  for a different asset type; deliberately NOT `util.AssetIndexCache`, whose "cache only `idx > 0`"
-  rule would wrongly treat a legitimately-index-0 custom stat channel as unresolved forever - see
-  its javadoc).
-
-## Conventions specific to this package
-
-- **Numeric convention**: `StackStats.Entries` follows ONE rule -
-  percent-family channels store WHOLE PERCENT POINTS (`10.0` = +10%), flat channels store their
-  raw number. This package does not know which channel is which family; that classification lives
-  with whoever owns the channel id (a consumer's own docs/constants).
-- **Never write to the `EntityStatMap` outside a keyed `putModifier`/`removeModifier` call** - no
-  class here ever calls `setStatValue`/`addStatValue` (that would mutate the CURRENT value, not a
-  modifier bound, and would not diff/sweep cleanly on the next recompute).
-- **A consumer subclasses NOTHING in this package.** `StackStats`/`StatMirror`/`StatChannelAudit` are
-  plain static/data classes, and `EquipStatBridge`'s three trigger bases are subclassed once by the
-  library itself in `EntityBootstrap.installEquipStatBridge` (the class-keyed-registry reason above is
-  exactly why there is only one set); a consumer with post-apply work of its own registers an
-  `AppliedListener` on the installed bridge instead.
+- A tier's condition is a conjunction of independent minimums (`Pieces`, `Armor`, `Held`, `Utility`), never a bare count. `Held` counts only when the active-hand item is a member that is not also worn; author `Held` or `Utility` as `1` or leave it out (`0` is `BAD_PIECE_COUNT`). Every tier whose condition holds applies, so tiers stack.
+- A tier's `Effect` id must be dedicated to the set: the engine takes it off whenever no active tier wants it, whoever put it on.
+- Every modifier key starts with `zigset:` (`GearSetKeys`, a tier addressed by its position), and the engine never probes or removes any other key.
+- The first recompute in a store is a hydrate, not a flip: it sweeps every `zigset:` key on the stat map, takes off every look a folded set or the player's saved `GearSetLooksComponent` names, and announces nothing. That component is registered unconditionally at setup, and a recompute only replaces it in place, never adds one.
+- `GearSetEffects` is a seam the wiring root fills with `NativeEffectUtil`'s apply, remove and has; unfilled, it reports once and only the set's look is missing.
+- An item names its set in its own `items.<Id>.description`. Never write per-instance `ItemDisplayMetadata` for it: the stack stops stacking, re-enters the bridge's content trigger and misleads the next holder.
