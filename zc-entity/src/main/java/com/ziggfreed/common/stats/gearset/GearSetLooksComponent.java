@@ -22,7 +22,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The look effect ids the gear-set engine answers for on a player, saved WITH the player.
+ * The gear-set engine's look record on a player, saved WITH the player: every effect it answers
+ * for (put on last time, or whose remove has not yet gone through).
  *
  * <p>A set's look is an {@code Infinite} effect, and the engine's {@code EffectControllerComponent}
  * saves it with the player. The first recompute after login cannot know what it put on in an
@@ -37,7 +38,9 @@ import com.ziggfreed.common.util.SafeLog;
  * recompute, with what the engine answers for ({@code GearSets.answeredAfter}): what it asked to be
  * on (none while the player is dead), plus every recorded look whose remove did not go through, so
  * a look is never dropped from the record before it has really come off, and each later recompute
- * and login tries again. A look whose effect asset no longer exists at all is dropped rather than
+ * and login tries again. No remove goes through while nothing fills the effect seam
+ * ({@link GearSetEffects}), so an unfilled effect seam leaves every folded look in the record until
+ * the seam is filled. A look whose effect asset no longer exists at all is dropped rather than
  * retried: the engine's effect controller skips an effect whose asset is gone as it loads the
  * player and never saves it again, so there is nothing left on the player to take off, and a remove
  * of an id nothing resolves could never succeed.
@@ -116,9 +119,14 @@ public final class GearSetLooksComponent implements Component<EntityStore> {
         return Collections.unmodifiableSet(effects);
     }
 
-    /** Replace the record with {@code asked}, what the engine answers for after this recompute. */
-    public void record(@Nonnull Collection<String> asked) {
-        effects = copyOf(asked);
+    /**
+     * Replace the record with what the engine answers for after this recompute.
+     *
+     * @param answered every effect it answers for (put on last time, or whose remove has not yet gone
+     *     through), as the next recompute and the next login read it
+     */
+    public void record(@Nonnull Collection<String> answered) {
+        effects = copyOf(answered);
     }
 
     @Nonnull

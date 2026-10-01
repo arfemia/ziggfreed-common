@@ -68,12 +68,12 @@ import com.ziggfreed.common.util.SafeLog;
  * by asking the entity.
  *
  * <p><b>The look follows the entity, not the row</b> ({@link #effectChanges}): every recompute puts
- * on each effect an active tier wants that the entity does not have RIGHT NOW, and takes off each
- * effect it put on last time that no active tier wants. The engine clears every effect when a player
- * dies and again when they respawn, while the row still lists the look as applied; asking the entity
- * brings the look back at the first recompute after the respawn, which {@link #onRespawned} runs,
- * with no notice, since no tier flipped. While the player is dead no look is shown at all, the
- * engine's own posture for a corpse.
+ * on each effect an active tier wants that the entity does not have RIGHT NOW, and takes off every
+ * effect it answers for (put on last time, or whose remove has not yet gone through) that no active
+ * tier wants. The engine clears every effect when a player dies and again when they respawn, while
+ * the row still lists the look as applied; asking the entity brings the look back at the first
+ * recompute after the respawn, which {@link #onRespawned} runs, with no notice, since no tier
+ * flipped. While the player is dead no look is shown at all, the engine's own posture for a corpse.
  *
  * <p>World-thread throughout, try-guarded, isolated by the bridge's own listener dispatch. An
  * unregistered stat channel is named in the log once and skipped, the bridge's own discipline.
@@ -368,11 +368,12 @@ public final class GearSets {
     }
 
     /**
-     * The effect rule, pure. Off: every effect in {@code previous} (what the engine put on last
-     * time; on a hydrate, every effect id any folded set names) that {@code shown} does not hold.
-     * On: every effect in {@code shown} the entity does not have right now ({@code has}), whatever
-     * the row says, so a look something else cleared comes back at the next recompute and one
-     * already on is never put on twice. Each list keeps the order given.
+     * The effect rule, pure. Off: every effect in {@code previous}, every effect the engine answers
+     * for (put on last time, or whose remove has not yet gone through; on a hydrate, every effect id
+     * any folded set names plus every id the player's saved record holds), that {@code shown} does
+     * not hold. On: every effect in {@code shown} the entity does not have right now ({@code has}),
+     * whatever the row says, so a look something else cleared comes back at the next recompute and
+     * one already on is never put on twice. Each list keeps the order given.
      */
     @Nonnull
     static EffectChanges effectChanges(@Nonnull Collection<String> previous, @Nonnull Collection<String> shown,
