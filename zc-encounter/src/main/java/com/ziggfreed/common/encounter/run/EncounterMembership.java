@@ -11,6 +11,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import it.unimi.dsi.fastutil.objects.Reference2FloatMap;
+
 /**
  * Writes to the engine's own member roster, the one it stamps from the script's Player sensor and
  * applies every per-member effect (the bar, the music) through.
@@ -58,8 +60,20 @@ public final class EncounterMembership {
         if (members == null) {
             return false;
         }
-        boolean wasMember = members.getMemberTtl().containsKey(playerRef);
-        members.getMemberTtl().remove(playerRef);
-        return wasMember;
+        return dropMember(members.getMemberTtl(), playerRef);
+    }
+
+    /**
+     * Drop one key from a member roster; answers whether it was there. Goes through the map's
+     * primitive {@code removeFloat}, never the boxed {@code remove(Object)} fastutil deprecates: the
+     * boxed form only wraps this same call in a {@code containsKey} test, so the roster ends up the
+     * same either way.
+     */
+    static <K> boolean dropMember(@Nonnull Reference2FloatMap<K> memberTtl, @Nonnull K member) {
+        if (!memberTtl.containsKey(member)) {
+            return false;
+        }
+        memberTtl.removeFloat(member);
+        return true;
     }
 }

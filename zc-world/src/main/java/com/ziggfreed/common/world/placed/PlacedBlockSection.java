@@ -59,6 +59,12 @@ public final class PlacedBlockSection implements Component<ChunkStore> {
             BuilderCodec.builder(PlacedBlockSection.class, PlacedBlockSection::new)
                     .versioned()
                     .codecVersion(VERSION)
+                    // Codec.BYTE_ARRAY is @Deprecated with NO replacement: the engine's own note
+                    // reads only "Replace with a fully decodeJson compatible binary codec", which no
+                    // build ships yet, and every engine section codec (BlockPhysics, BlockSection,
+                    // FluidSection, BlockHealthChunk) still keys "Data" on this same constant. It is
+                    // kept because a saved chunk already holds this key as a BSON binary: a swap must
+                    // read those bytes back, so it waits for the engine's successor.
                     .append(
                             new KeyedCodec<>("Data", Codec.BYTE_ARRAY),
                             PlacedBlockSection::deserialize,
