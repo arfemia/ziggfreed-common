@@ -76,19 +76,17 @@ public final class StampCapEngine {
     // ==================== step 1: gather ====================
 
     /**
-     * The candidate entries: the referenced {@link RollPoolAsset}'s entries first, then the spec's
-     * own inline ones. A pool id nothing answers to contributes nothing rather than failing the
-     * stamp - the validator reports it where it is cheap to fix.
+     * The candidate entries: the referenced {@link RollPoolAsset}'s entries first (its authored
+     * ones, then every registered entry source's, through {@link RollPoolConfig#poolOf}), then the
+     * spec's own inline ones. A pool id nothing answers to contributes nothing rather than failing
+     * the stamp - the validator reports it where it is cheap to fix.
      */
     @Nonnull
     public static List<StatRollEntry> candidates(@Nonnull StampSpec spec) {
         List<StatRollEntry> out = new ArrayList<>();
-        String poolId = spec.getPool();
-        if (poolId != null && !poolId.isBlank()) {
-            RollPoolAsset pool = RollPoolConfig.getInstance().resolve(poolId);
-            if (pool != null && pool.getEntries() != null) {
-                out.addAll(Arrays.asList(pool.getEntries()));
-            }
+        RollPoolAsset pool = RollPoolConfig.getInstance().poolOf(spec);
+        if (pool != null && pool.getEntries() != null) {
+            out.addAll(Arrays.asList(pool.getEntries()));
         }
         if (spec.getEntries() != null) {
             out.addAll(Arrays.asList(spec.getEntries()));

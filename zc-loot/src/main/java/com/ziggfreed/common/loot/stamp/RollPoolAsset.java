@@ -99,6 +99,21 @@ public final class RollPoolAsset implements JsonAssetWithMap<String, DefaultAsse
         return p;
     }
 
+    /**
+     * This pool with {@code entries} in place of its own, everything else (id, rename, rarity)
+     * kept: the copy {@link RollPoolConfig#resolve} answers when an entry source adds to a pool.
+     */
+    @Nonnull
+    RollPoolAsset withEntries(@Nullable StatRollEntry[] entries) {
+        RollPoolAsset p = new RollPoolAsset();
+        p.id = id;
+        p.data = data;
+        p.stampName = stampName;
+        p.quality = quality;
+        p.entries = entries;
+        return p;
+    }
+
     @Override
     public String getId() {
         return id;

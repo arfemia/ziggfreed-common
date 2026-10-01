@@ -9,11 +9,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
+import com.ziggfreed.common.asset.OwnedSources;
 
 /**
  * The runtime table of named {@link LootableAsset}s, folded {@code defaults < pack < owner} like
@@ -32,6 +34,23 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
  * reader wants the same answer. {@link #all} and {@link #resolveAuthored} answer the files as they
  * were written, which is what a validator and an editor pick list want: a contributor's own mistakes
  * belong to its own file, and reporting them twice helps nobody.
+ *
+ * <h2>A running mod can add rolls too, through a roll source</h2>
+ *
+ * <p>A file is not the only way to enrich a table. A mod whose own content decides which rolls a
+ * table gains (rolls it composes from assets of its own, say) registers a {@link RollSource} under
+ * its owner id with {@link #registerRollSource}. A source is asked at {@link #resolve} time, so it
+ * always answers from the mod's current state and nothing has to be refolded when that state
+ * changes. Its rolls are appended AFTER every {@code ContributesTo} contributor's, sources in owner
+ * id order, and they never touch the table's pool. Because the one read every site goes through is
+ * {@link #resolve} ({@link LootEngine#resolve}, {@link LootEngine#resolveRolls} and a nested
+ * {@code Lootable} reward included), every site that rolls a table sees the same rolls.
+ *
+ * <p>A source is code, not content: {@link #all} and {@link #resolveAuthored} never include its
+ * rolls, so its owner validates what it adds. A source that throws costs its own rolls only: it is
+ * warned once (until its owner registers again) and the table resolves without them. Those
+ * owner-keyed rules are {@link OwnedSources}'s, the same ones a roll pool's entry sources follow
+ * ({@code stamp.RollPoolConfig}).
  */
 public final class LootableConfig extends AbstractKeyedAssetConfig<LootableAsset> {
 
@@ -44,6 +63,27 @@ public final class LootableConfig extends AbstractKeyedAssetConfig<LootableAsset
     /** Contributor ids by the target id each names, including targets no table answers to. */
     @Nonnull
     private volatile Map<String, List<String>> contributorIds = Map.of();
+
+    /** Programmatic roll sources by owner id, asked in owner id order (the shared owner-keyed rules). */
+    @Nonnull
+    private final OwnedSources<RollSource> rollSources = new OwnedSources<>();
+
+    /**
+     * Rolls a running mod appends to a table whenever it is resolved.
+     *
+     * <p>Asked on every {@link #resolve}, so it should answer from state the owner already holds
+     * (a map lookup, not a scan); an empty answer is the cheap and common one.
+     */
+    @FunctionalInterface
+    public interface RollSource {
+
+        /**
+         * The rolls to append to table {@code tableId} (lower-cased), in the order they should run;
+         * null or empty adds nothing, and a null entry is skipped.
+         */
+        @Nullable
+        List<Roll> rollsFor(@Nonnull String tableId);
+    }
 
     @Nonnull
     public static LootableConfig getInstance() {
@@ -71,12 +111,55 @@ public final class LootableConfig extends AbstractKeyedAssetConfig<LootableAsset
         rebuildContributions();
     }
 
-    /** The table {@code id} actually pays out: the winning file, enriched by every contributor to it. */
+    /**
+     * The table {@code id} actually pays out: the winning file, enriched by every contributor to it,
+     * then by every registered {@link RollSource}'s rolls. Null when no file answers to {@code id};
+     * a source never conjures a table that does not exist.
+     */
     @Override
     @Nullable
     public LootableAsset resolve(@Nonnull String id) {
-        LootableAsset folded = enriched.get(id.toLowerCase(Locale.ROOT));
-        return folded != null ? folded : super.resolve(id);
+        String key = id.toLowerCase(Locale.ROOT);
+        LootableAsset folded = enriched.get(key);
+        LootableAsset table = folded != null ? folded : super.resolve(id);
+        if (table == null || rollSources.isEmpty()) {
+            return table;
+        }
+        List<Roll> sourced = sourcedRolls(key);
+        if (sourced.isEmpty()) {
+            return table;
+        }
+        List<Roll> rolls = new ArrayList<>(table.rollsOrEmpty());
+        rolls.addAll(sourced);
+        return LootableAsset.of(table.getId() == null ? key : table.getId(), rolls.toArray(Roll[]::new),
+                table.getPool(), table.getContributesTo());
+    }
+
+    // ==================== roll sources ====================
+
+    /**
+     * Register {@code source} under {@code owner} (matched without regard to case). Registering an
+     * owner again REPLACES its source, so a mod that re-runs its setup never doubles its rolls.
+     */
+    public void registerRollSource(@Nonnull String owner, @Nonnull RollSource source) {
+        rollSources.register(owner, source);
+    }
+
+    /** Remove {@code owner}'s source, so its rolls vanish from the next resolve. A no-op when none. */
+    public void unregisterRollSource(@Nonnull String owner) {
+        rollSources.unregister(owner);
+    }
+
+    /** Every source's rolls for {@code key}, in owner order; a throwing source adds nothing. */
+    @Nonnull
+    private List<Roll> sourcedRolls(@Nonnull String key) {
+        return rollSources.collect(source -> source.rollsFor(key),
+                owner -> "loot table '" + key + "': the roll source of '" + owner + "'");
+    }
+
+    /** Route failing-source warnings to {@code sink} (null restores the log). Tests only. */
+    void warnInto(@Nullable Consumer<String> sink) {
+        rollSources.warnInto(sink);
     }
 
     /** The winning FILE for {@code id}, with no contributions folded in - what its author wrote. */

@@ -193,7 +193,10 @@ public final class LootEngine {
      * both. Two referenced tables draw twice, once each.
      *
      * <p>Tables resolve through {@link LootableConfig#resolve}, so whatever other packs contributed
-     * to a referenced table is already part of what comes back.
+     * to a referenced table is already part of what comes back, and so is every registered
+     * {@link LootableConfig.RollSource}'s rolls. A table's rolls therefore run in this order: its
+     * own, then each {@code ContributesTo} contributor's, then each source's, before the next
+     * referenced table's and before the ref's inline rolls.
      */
     @Nonnull
     public static Resolved resolve(@Nullable LootRef ref, @Nullable Consumer<String> unknownSink) {
