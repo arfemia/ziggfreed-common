@@ -104,11 +104,10 @@ public abstract class AbstractRawJsonAsset implements JsonAsset<String> {
                         (asset, name) -> { /* no-op - id already comes from the filename */ },
                         asset -> asset.id)
                 .add()
-                // Codec.BSON_DOCUMENT is @Deprecated with NO named replacement (the engine's
-                // own annotation carries only an internal TODO, no consumer-facing API exists
-                // as of Update 6 pre-release 634880ce). Maintainer-ratified 2026-08-25: keep
-                // this call, re-check each server update; if it ever goes forRemoval the
-                // -Xlint:removal -Werror gate fails the build and this gets revisited.
+                // The engine's only note on the constant is an internal TODO to move its usages onto
+                // a buffer, which no build ships. Maintainer-ratified 2026-08-25: re-checked each
+                // server update; if it ever goes forRemoval, -Xlint:removal -Werror fails the build.
+                // DEPRECATION-KEPT: no successor exists in the installed server or the shared source, and every raw-JSON asset's Payload decodes through it
                 .append(new KeyedCodec<>("Payload", Codec.BSON_DOCUMENT, true),
                         (asset, payload) -> asset.payload = payload,
                         asset -> asset.payload)

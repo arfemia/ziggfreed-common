@@ -148,12 +148,13 @@ final class EncounterSpawnCommand extends AbstractAsyncCommand {
             }
         }
         try {
-            // getSpawnPoints() is @Deprecated with no named replacement (its javadoc says only that
-            // the array shape limits providers that generate points dynamically). What this fallback
-            // wants is the world's own first point for a sender with no position (the console), and
-            // nothing else answers that: getSpawnPoint(World, UUID) picks a point FOR an entity and
-            // needs a uuid the console does not have, and the engine's next version replaces it with
-            // an async future while keeping this call. Revisited when the engine exposes a world origin.
+            // The deprecation names no replacement (its javadoc says only that the array shape limits
+            // providers that generate points dynamically). What this fallback wants is the world's own
+            // first point for a sender with no position (the console), and nothing else answers that:
+            // getSpawnPoint(World, UUID) picks a point FOR an entity and needs a uuid the console does
+            // not have, and the engine's next version replaces it with an async future while keeping
+            // this call. Revisited when the engine exposes a world origin.
+            // DEPRECATION-KEPT: no successor exists in both the installed server and the shared source, and the console's spawn falls back on the world's first point
             Transform[] points = world.getWorldConfig().getSpawnProvider().getSpawnPoints();
             if (points != null && points.length > 0 && points[0] != null) {
                 Transform spawn = points[0];

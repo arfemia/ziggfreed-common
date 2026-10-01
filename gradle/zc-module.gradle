@@ -58,10 +58,15 @@ dependencies {
 // .claude/rules/java-conventions.md): -Xlint:removal surfaces every Hytale API annotated @Deprecated(forRemoval = true)
 // still in use, and -Werror promotes that warning to a hard compile failure. A future Hytale
 // server update that deprecates-for-removal an API this mod calls fails the build on sight.
-// compileJava only (not compileTestJava), matching the hyMMO jar's own scoping.
+// compileJava only (not compileTestJava), matching the hyMMO jar's own scoping. A plain
+// @Deprecated call compiles green here: the deprecation gate applied below (see the root
+// build.gradle) fails `check` on any such call, in any source set, not marked
+// "// DEPRECATION-KEPT: <why>".
 compileJava {
     options.compilerArgs << '-Xlint:removal' << '-Werror'
 }
+
+apply from: "$rootDir/gradle/deprecation-gate.gradle"
 
 // Not wired into `build` (see the java block above); configured so an explicit
 // `gradlew :zc-x:javadoc` behaves like the root's run.

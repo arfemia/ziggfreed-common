@@ -1,0 +1,198 @@
+// Deprecation gate: the build fails on any call to a deprecated API that is not marked as kept.
+//
+// A compile task run with -Xlint:removal -Werror fails only a call to an API deprecated FOR
+// REMOVAL; a call to a plain @Deprecated API compiles green. This script closes that gap without
+// touching the compile tasks. For every source set it runs a second javac pass of its own with
+// -Xlint:deprecation, writing into a scratch directory under build/ (never the real classes), and
+// fails unless each deprecation warning's line, or the line directly above it, carries
+//
+//     // DEPRECATION-KEPT: <why>
+//
+// with a non-empty why. The fix for an unmarked call is to move it onto the successor its
+// deprecation names. A call is kept, and marked, only when no successor exists, and the why says
+// what depends on it. A @SuppressWarnings for "deprecation" or "removal" is never the answer: it
+// would hide the call from this pass as well.
+//
+// Apply it once the java (or java-library) plugin is applied:
+//     apply from: "$rootDir/gradle/deprecation-gate.gradle"
+// Each source set gets its own task (deprecationGateMain, deprecationGateTest, ...), UP-TO-DATE
+// while that source set's sources, its compile classpath and this script stay unchanged.
+// `gradlew deprecationGate` runs every one of them, and `check` (so `build`) depends on that.
+//
+// This file is kept byte-identical in every repository that applies it: edit the master copy and
+// copy it over the others, never one copy alone.
+
+import java.nio.charset.StandardCharsets
+import java.util.regex.Pattern
+
+def gateScriptFile = buildscript.sourceFile
+
+pluginManager.withPlugin('java') {
+    def gateAll = tasks.register('deprecationGate') {
+        group = 'verification'
+        description = 'Fails on a deprecated-API call not marked // DEPRECATION-KEPT: <why>, in every source set.'
+    }
+    tasks.named('check') {
+        dependsOn gateAll
+    }
+
+    def projectName = project.name
+
+    sourceSets.configureEach { sourceSet ->
+        def setName = sourceSet.name
+        def label = "${projectName}/${setName}"
+        def suffix = setName.substring(0, 1).toUpperCase(Locale.ROOT) + setName.substring(1)
+        def compileTask = tasks.named(sourceSet.compileJavaTaskName, JavaCompile)
+        def sources = sourceSet.java
+        def classpath = sourceSet.compileClasspath
+        def scratch = layout.buildDirectory.dir("deprecation-gate/${setName}")
+        // The compile task's own arguments, minus whatever would turn a warning into an error or
+        // narrow the lint: this pass sets its own.
+        def passArgs = compileTask.map { jc ->
+            jc.options.compilerArgs.collect { it.toString() }
+                    .findAll { it != '-Werror' && !it.startsWith('-Xlint') }
+        }
+        def encoding = compileTask.map { jc -> jc.options.encoding ?: '' }
+        def release = compileTask.map { jc -> jc.options.release.present ? jc.options.release.get().toString() : '' }
+        def compiler = compileTask.flatMap { jc -> jc.javaCompiler }
+
+        def gate = tasks.register("deprecationGate${suffix}") { t ->
+            t.group = 'verification'
+            t.description = "Fails on a deprecated-API call in the ${setName} source set not marked // DEPRECATION-KEPT: <why>."
+            t.inputs.files(sources).withPropertyName('sources')
+                    .withPathSensitivity(PathSensitivity.RELATIVE).skipWhenEmpty()
+            t.inputs.files(classpath).withPropertyName('classpath').withNormalizer(ClasspathNormalizer)
+            if (gateScriptFile != null) {
+                t.inputs.file(gateScriptFile).withPropertyName('gateScript').withPathSensitivity(PathSensitivity.NONE)
+            }
+            t.inputs.property('compilerArgs', passArgs)
+            t.inputs.property('encoding', encoding)
+            t.inputs.property('release', release)
+            t.inputs.property('javaVersion', compiler.map { it.metadata.languageVersion.toString() })
+            t.outputs.dir(scratch).withPropertyName('scratch')
+
+            t.doLast {
+                File outDir = scratch.get().asFile
+                File classesDir = new File(outDir, 'classes')
+                outDir.deleteDir()
+                classesDir.mkdirs()
+
+                // javac reads an @argfile entry in double quotes; forward slashes keep a Windows
+                // path free of the backslashes that would otherwise read as escapes.
+                def quote = { String s -> '"' + s.replace('\\', '/') + '"' }
+                List<String> args = []
+                args << '-d' << quote(classesDir.absolutePath)
+                def entries = classpath.files.findAll { it.exists() }.collect { it.absolutePath }
+                args << '-classpath' << quote(entries ? entries.join(File.pathSeparator) : classesDir.absolutePath)
+                if (encoding.get()) {
+                    args << '-encoding' << quote(encoding.get())
+                }
+                if (release.get()) {
+                    args << '--release' << release.get()
+                }
+                passArgs.get().each { args << quote(it) }
+                args << '-Xlint:deprecation' << '-proc:none' << '-Xmaxwarns' << '10000'
+                sources.files.findAll { it.name.endsWith('.java') }
+                        .collect { it.absolutePath }.sort()
+                        .each { args << quote(it) }
+                File argFile = new File(outDir, 'javac.args')
+                argFile.setText(args.join('\n') + '\n', 'UTF-8')
+
+                // English diagnostics, so the parse below reads the same text on every machine.
+                def javac = compiler.get().executablePath.asFile.absolutePath
+                def process = new ProcessBuilder(javac,
+                        '-J-Duser.language=en', '-J-Duser.country=US',
+                        '-J-Dstdout.encoding=UTF-8', '-J-Dstderr.encoding=UTF-8',
+                        '@' + argFile.absolutePath)
+                        .redirectErrorStream(true)
+                        .start()
+                String output = new String(process.inputStream.readAllBytes(), StandardCharsets.UTF_8)
+                int exit = process.waitFor()
+                File log = new File(outDir, 'javac.log')
+                log.setText(output, 'UTF-8')
+                if (exit != 0) {
+                    throw new GradleException("Deprecation gate ${label}: javac failed (exit ${exit}), "
+                            + "so no call was checked. javac said:\n${output}")
+                }
+
+                // A Windows path carries a drive-letter colon, so anchor on the .java suffix.
+                def deprecationWarning = Pattern.compile('^(.+\\.java):(\\d+): warning: \\[deprecation\\] (.*)$')
+                def anyWarning = Pattern.compile('^(?:.+:\\d+: )?warning: ')
+                def warningTotal = Pattern.compile('^(\\d+) warnings?$')
+                def keptMarker = Pattern.compile('//\\s*DEPRECATION-KEPT:\\s*\\S')
+                Map<String, List<String>> fileLines = [:]
+                List<String> kept = []
+                List<String> unmarked = []
+                List<String> unplaced = []
+                int warningsSeen = 0
+                Integer warningsReported = null
+                for (String line : output.readLines()) {
+                    if (anyWarning.matcher(line).lookingAt()) {
+                        warningsSeen++
+                    }
+                    def total = warningTotal.matcher(line.trim())
+                    if (total.matches()) {
+                        warningsReported = total.group(1) as int
+                    }
+                    if (line.startsWith('only showing the first')) {
+                        unplaced << line
+                    }
+                    if (!line.contains('warning: [deprecation]')) {
+                        continue
+                    }
+                    def hit = deprecationWarning.matcher(line)
+                    if (!hit.matches()) {
+                        unplaced << line
+                        continue
+                    }
+                    File source = new File(hit.group(1))
+                    int lineNo = hit.group(2) as int
+                    String key = source.absolutePath
+                    if (!fileLines.containsKey(key)) {
+                        fileLines[key] = source.isFile() ? source.readLines('UTF-8') : null
+                    }
+                    List<String> lines = fileLines[key]
+                    if (lines == null || lineNo < 1 || lineNo > lines.size()) {
+                        unplaced << line
+                        continue
+                    }
+                    boolean marked = keptMarker.matcher(lines[lineNo - 1]).find()
+                            || (lineNo > 1 && keptMarker.matcher(lines[lineNo - 2]).find())
+                    String where = "${source.path}:${lineNo}: ${hit.group(3)}"
+                    if (marked) {
+                        kept << where
+                    } else {
+                        unmarked << where
+                    }
+                }
+                if (warningsReported != null && warningsReported != warningsSeen) {
+                    unplaced << "javac reported ${warningsReported} warning(s) and the gate read ${warningsSeen}".toString()
+                }
+
+                List<String> problems = []
+                if (!unmarked.isEmpty()) {
+                    problems << ("${unmarked.size()} call(s) to a deprecated API carry no // DEPRECATION-KEPT: <why> marker:\n  "
+                            + unmarked.join('\n  ') + '\n'
+                            + "Move each call onto the successor its deprecation names. Keep a call only when no "
+                            + "successor exists, and then mark it with // DEPRECATION-KEPT: <why> on its line or "
+                            + "the line directly above, saying why it stays. Never @SuppressWarnings(\"deprecation\") "
+                            + "or (\"removal\"): that hides the call from this check.").toString()
+                }
+                if (!unplaced.isEmpty()) {
+                    problems << ("javac printed deprecation output the gate could not place on a source line, "
+                            + "so it fails rather than pass it unseen:\n  " + unplaced.join('\n  ')).toString()
+                }
+                if (!problems.isEmpty()) {
+                    throw new GradleException("Deprecation gate ${label}: "
+                            + problems.join('\n') + "\njavac's full output: ${log.absolutePath}")
+                }
+
+                new File(outDir, 'kept.txt').setText(kept.collect { it + '\n' }.join(''), 'UTF-8')
+                t.logger.lifecycle("Deprecation gate ${label}: ${kept.size()} kept, 0 unmarked")
+            }
+        }
+        gateAll.configure {
+            dependsOn gate
+        }
+    }
+}

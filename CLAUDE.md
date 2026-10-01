@@ -5,6 +5,7 @@ The family's shared library of mod-agnostic Hytale primitives and engines. It de
 ## Build and consume
 
 - `.\build.ps1` builds and installs the jar to `$env:HYTALE_MODS_DIR` (`-ModsDir <path>` overrides it, `-Install:$false` builds only).
+- `gradle/deprecation-gate.gradle` (run by `check`, in every module) is hyMMO's, copied byte for byte: it changes only by copying hyMMO's.
 - Never bundle this jar into a consumer's jar: a second copy under another classloader breaks class identity. A consumer lists `Ziggfreed:ZiggfreedCommon` in its manifest `Dependencies`, so the server loads this jar first.
 - Do not add a manifest `SubPlugins` block: a sub-plugin shares the jar's classloader, so a "disabled" domain still links and leaves the library half set up.
 
