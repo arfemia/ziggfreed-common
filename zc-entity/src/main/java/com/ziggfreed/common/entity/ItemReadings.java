@@ -40,9 +40,10 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
  * {@code Quality} key, and rewrites it on {@code ItemStack#withQuality}; only a stack carrying no
  * index at all falls back to its item's. So {@link #quality(ItemStack)} reads the quality the
  * stack was MADE with (or re-qualified to), and {@link #quality(Item)} reads the quality the item
- * asset authors NOW. The two agree until the item's {@code Quality} is reloaded, or the quality
- * index order moves between boots, after the stack was made. Item level and the authored stat
- * modifiers exist only on the item asset, and durability only on the stack.
+ * asset authors NOW; {@link #qualityId(ItemStack)} and {@link #qualityId(Item)} name the same two
+ * tiers by id rather than by ordering value. The two agree until the item's {@code Quality} is
+ * reloaded, or the quality index order moves between boots, after the stack was made. Item level
+ * and the authored stat modifiers exist only on the item asset, and durability only on the stack.
  *
  * <p>It also reads which METADATA keys a stack carries ({@link #metadataKeys}) and which of them no
  * mod has declared safe to destroy with it ({@link #undeclaredMetadataKeys}), the question anything
@@ -108,6 +109,60 @@ public final class ItemReadings {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    /**
+     * The id of the native {@code ItemQuality} the stack's OWN quality index resolves to (the index
+     * the stack was made with or re-qualified to, its item's only when the stack carries none; see
+     * the class javadoc), the name a matcher keyed on a quality tier compares. Null when there is no
+     * usable stack, or when the index resolves to no loaded quality.
+     */
+    @Nullable
+    public static String qualityId(@Nullable ItemStack stack) {
+        return qualityId(stack, ItemReadings::liveQuality);
+    }
+
+    /**
+     * The id of the quality the item asset's {@code Quality} field names NOW, for a caller holding
+     * the item alone (a material counted by id, with no stack behind it). It names the same tier as
+     * {@link #qualityId(ItemStack)} only while a stack's copied index still matches its item's.
+     * Null when {@code item} is null, or when its index resolves to no loaded quality.
+     */
+    @Nullable
+    public static String qualityId(@Nullable Item item) {
+        return qualityId(item, ItemReadings::liveQuality);
+    }
+
+    /** {@link #qualityId(ItemStack)} over an injected quality lookup (the pure core). */
+    @Nullable
+    static String qualityId(@Nullable ItemStack stack, @Nonnull IntFunction<ItemQuality> qualities) {
+        if (isAbsent(stack)) {
+            return null;
+        }
+        try {
+            return idOf(qualities.apply(stack.getQualityIndex()));
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    /** {@link #qualityId(Item)} over an injected quality lookup (the pure core). */
+    @Nullable
+    static String qualityId(@Nullable Item item, @Nonnull IntFunction<ItemQuality> qualities) {
+        if (item == null) {
+            return null;
+        }
+        try {
+            return idOf(qualities.apply(item.getQualityIndex()));
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    /** A resolved quality asset's id; an index that resolves to nothing names no quality. */
+    @Nullable
+    private static String idOf(@Nullable ItemQuality quality) {
+        return quality == null ? null : quality.getId();
     }
 
     /**

@@ -129,6 +129,36 @@ class ItemReadingsTest {
     }
 
     @Test
+    void theQualityIdNamesTheTierTheStackCarries_andTheItemsOwn() {
+        Item sword = item("Test_Sword", 5, 2);
+        ItemStack made = stack(sword, 1, 1);
+        ItemStack stack = requalified(sword, 4);
+
+        assertEquals("Test_Quality_20", ItemReadings.qualityId(made, TENS),
+                "a stack made from its item names its item's tier");
+        assertEquals("Test_Quality_40", ItemReadings.qualityId(stack, TENS),
+                "a re-qualified stack names the tier it now carries");
+        assertEquals("Test_Quality_20", ItemReadings.qualityId(stack.getItem(), TENS),
+                "its item still names its own tier");
+        assertEquals("Test_Quality_20", ItemReadings.qualityId(requalified(sword, AssetMapWithIndexes.NOT_FOUND), TENS),
+                "a stack carrying no index at all names its item's tier, the engine's own fallback");
+    }
+
+    @Test
+    void aQualityIdThatCannotBeNamedReadsNothing() {
+        Item sword = item("Test_Sword", 5, 2);
+
+        assertNull(ItemReadings.qualityId((ItemStack) null, TENS));
+        assertNull(ItemReadings.qualityId((Item) null, TENS));
+        assertNull(ItemReadings.qualityId(ItemStack.EMPTY, TENS), "an empty stack is no stack");
+        assertNull(ItemReadings.qualityId(stack(sword, 1, 1), i -> null), "an index naming no loaded quality");
+        assertNull(ItemReadings.qualityId(sword, i -> null));
+        assertNull(ItemReadings.qualityId(sword, i -> {
+            throw new IllegalStateException("no quality store");
+        }), "a lookup that throws reads nothing, never a guess");
+    }
+
+    @Test
     void anUnresolvedOrNegativeQualityReadsZero() {
         Item sword = item("Test_Sword", 5, 2);
 
