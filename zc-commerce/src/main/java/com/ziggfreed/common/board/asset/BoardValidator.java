@@ -15,6 +15,8 @@ import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.commerce.asset.RerollAsset;
 import com.ziggfreed.common.commerce.asset.RotationAsset;
 import com.ziggfreed.common.commerce.asset.SelectionAsset;
+import com.ziggfreed.common.loot.reward.CollectingRewardKind;
+import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
@@ -59,7 +61,10 @@ public final class BoardValidator {
      * @param boards        the boards any layer defines, keyed by id
      * @param bounties      the loaded contracts, keyed by id (skeletons included, and skipped)
      * @param currencies    answers "does this wallet exist?", or null to skip
-     * @param rewardKinds   answers "does anything pay this reward kind out?", or null to skip
+     * @param rewardKinds   answers "does anything pay this reward kind out?", or null to skip; a kind
+     *                      it answers yes for is then asked of the one shared vocabulary
+     *                      ({@link RewardKinds#shared()}) whether it collects onto a pass, which no
+     *                      contract payout carries ({@link CollectingRewardKind#siteWarning})
      * @param objectiveKinds answers "does anything ever fire this kind of moment?", or null to skip
      * @param gateKinds     the registered {@code Requires.Custom} vocabulary, or null to skip
      * @param knownFactors  answers "does anything provide this factor id?", or null to skip
@@ -322,6 +327,13 @@ public final class BoardValidator {
                 out.add(Finding.warning(DOMAIN, "UNKNOWN_REWARD_KIND",
                         where + " names '" + kind + "', which has no handler registered, so finishing "
                                 + "this pays out nothing for it", id));
+            } else if (rewardKinds != null && kind != null) {
+                // Registered, yet it pays only into a pass a contract payout never carries.
+                Finding passOnly = CollectingRewardKind.siteWarning(DOMAIN, RewardKinds.shared(), kind,
+                        where, id);
+                if (passOnly != null) {
+                    out.add(passOnly);
+                }
             }
         }
     }

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
@@ -164,6 +165,20 @@ class LootableValidatorTest {
         assertTrue(!has(LootableValidator.auditRoll(Roll.of(null, null, null, null, grants, null),
                 "fixture", kinds), LootableValidator.UNKNOWN_REWARD_KIND),
                 "kind ids are matched without regard to case");
+    }
+
+    @Test
+    void aKindThatCollectsOntoAPassPassesQuietlyBecauseATableCannotKnowWhereItIsRolled() {
+        RewardKindRegistry kinds = new RewardKindRegistry("t");
+        kinds.register("Test_Tally", "t", CollectingRewardKind.of("Test_Tally", StringBuilder.class,
+                (tally, spec) -> tally.append(spec.kind())));
+        LootGrants grants = LootGrants.of(null, null, null,
+                new LootGrants.Reward[] {LootGrants.Reward.of("Test_Tally", Map.of())});
+
+        List<Finding> findings = LootableValidator.auditRoll(Roll.of(null, null, null, null, grants, null),
+                "fixture", kinds);
+
+        assertTrue(findings.isEmpty(), () -> "a pass-scoped kind in a table is not a finding: " + findings);
     }
 
     @Test

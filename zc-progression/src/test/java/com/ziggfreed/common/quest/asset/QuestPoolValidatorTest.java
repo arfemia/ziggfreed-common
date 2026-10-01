@@ -15,6 +15,7 @@ import com.ziggfreed.common.progress.ObjectiveKindRegistry;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
 import com.ziggfreed.common.quest.InMemoryQuestProgressStore;
 import com.ziggfreed.common.quest.QuestProgressStore;
+import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
@@ -38,6 +39,8 @@ class QuestPoolValidatorTest {
     static {
         KINDS.register("yourmod:unfired", "yourmod", false, false);
         REWARDS.register("yourmod:currency", (spec, subject) -> { });
+        REWARDS.register("yourmod:tally", CollectingRewardKind.of("yourmod:tally", StringBuilder.class,
+                (tally, spec) -> tally.append(spec.kind())));
     }
 
     private static QuestPool poolOf(String... idAndJson) {
@@ -92,6 +95,19 @@ class QuestPoolValidatorTest {
                 { "Objectives": { "a": { "Kind": "BREAK_BLOCK", "Target": "x" } },
                   "Rewards": { "Claim": [ { "Kind": "yourmod:unhandled" } ] } }
                 """))));
+    }
+
+    @Test
+    void aRewardThatPaysOnlyInsideAPassIsAWarningAtAQuest() {
+        List<Finding> issues = validate(poolOf("q", """
+                { "Objectives": { "a": { "Kind": "BREAK_BLOCK", "Target": "x" } },
+                  "Rewards": { "Claim": [ { "Kind": "yourmod:tally" } ] } }
+                """));
+
+        assertEquals(List.of(CollectingRewardKind.SITE_CODE), codes(issues),
+                "registered, yet no quest payout carries the pass it collects onto");
+        assertEquals(Severity.WARNING, issues.get(0).severity());
+        assertEquals(QuestPoolValidator.DOMAIN, issues.get(0).domain());
     }
 
     @Test

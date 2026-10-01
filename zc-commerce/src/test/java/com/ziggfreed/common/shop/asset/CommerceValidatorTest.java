@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +22,8 @@ import com.ziggfreed.common.board.asset.BountyAsset;
 import com.ziggfreed.common.board.asset.BoardValidator;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.currency.asset.CurrencyValidator;
+import com.ziggfreed.common.loot.reward.CollectingRewardKind;
+import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
 
@@ -191,6 +195,77 @@ class CommerceValidatorTest {
                     WALLETS, null, null, id -> false);
 
             assertEquals(Severity.WARNING, find(findings, "UNKNOWN_FACTOR").severity());
+        }
+    }
+
+    // ==================== a reward that pays only inside a pass ====================
+
+    /**
+     * A collecting kind is registered in the one shared vocabulary, so it is not unknown; but no
+     * purchase and no contract payout ever carries the pass it collects onto, so authored here it
+     * would always count lost, and the audit says so.
+     */
+    @Nested
+    class PassOnlyRewards {
+
+        private static final String TALLY = "Test_Tally";
+
+        @BeforeEach
+        void registerTheCollectingKind() {
+            RewardKinds.shared().register(TALLY, "test", CollectingRewardKind.of(TALLY, StringBuilder.class,
+                    (tally, spec) -> tally.append(spec.kind())));
+            RewardKinds.shared().register("Test_Plain", "test", (spec, subject) -> { });
+        }
+
+        @AfterEach
+        void clearTheSharedVocabulary() {
+            RewardKinds.clear();
+        }
+
+        @Test
+        void anOfferPayingOnlyInsideAPassIsAWarning() throws Exception {
+            List<Finding> findings = ShopValidator.validate(one("cache", entry("""
+                    { "Shop": "General", "Cost": { "Currencies": { "bounty_token": 5 } },
+                      "Rewards": [ { "Kind": "Test_Tally" }, { "Kind": "Test_Plain" } ] }
+                    """, "cache")), one("general", shop("{}", "General")), Map.of(),
+                    WALLETS, RewardKinds.shared()::isRegistered, null, null);
+
+            List<Finding> passOnly = findings.stream()
+                    .filter(f -> CollectingRewardKind.SITE_CODE.equals(f.code())).toList();
+            assertEquals(1, passOnly.size(), "only the collecting kind is reported: " + findings);
+            assertEquals(Severity.WARNING, passOnly.get(0).severity());
+            assertEquals(ShopValidator.DOMAIN, passOnly.get(0).domain());
+            assertFalse(has(findings, "UNKNOWN_REWARD_KIND"), "a registered kind is not unknown");
+        }
+
+        @Test
+        void aContractPayingOnlyInsideAPassIsAWarningForEitherRewardList() throws Exception {
+            List<Finding> findings = BoardValidator.validate(Map.of(),
+                    one("bounty_easy", bounty("""
+                            { "Boards": [ { "Board": "Daily", "Difficulty": "Training" } ],
+                              "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
+                              "Rewards": { "Auto": [ { "Kind": "Test_Tally" } ],
+                                           "Claim": [ { "Kind": "Test_Tally" }, { "Kind": "Test_Plain" } ] } }
+                            """, "Bounty_Easy")),
+                    WALLETS, RewardKinds.shared()::isRegistered, null, null, null);
+
+            List<Finding> passOnly = findings.stream()
+                    .filter(f -> CollectingRewardKind.SITE_CODE.equals(f.code())).toList();
+            assertEquals(2, passOnly.size(), "both reward lists are audited: " + findings);
+            assertTrue(passOnly.stream().allMatch(f -> f.severity() == Severity.WARNING
+                    && BoardValidator.DOMAIN.equals(f.domain())));
+            assertFalse(has(findings, "UNKNOWN_REWARD_KIND"), "a registered kind is not unknown");
+        }
+
+        @Test
+        void withNoRewardVocabularyTheCheckIsSkippedLikeTheRest() throws Exception {
+            List<Finding> findings = ShopValidator.validate(one("cache", entry("""
+                    { "Shop": "General", "Cost": { "Currencies": { "bounty_token": 5 } },
+                      "Rewards": [ { "Kind": "Test_Tally" } ] }
+                    """, "cache")), one("general", shop("{}", "General")), Map.of(),
+                    WALLETS, null, null, null);
+
+            assertFalse(has(findings, CollectingRewardKind.SITE_CODE));
         }
     }
 

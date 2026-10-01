@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.common.achievement.AchievementProgressStore;
 import com.ziggfreed.common.achievement.InMemoryAchievementProgressStore;
+import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.progress.ObjectiveKind;
 import com.ziggfreed.common.progress.ObjectiveKindRegistry;
@@ -36,6 +37,8 @@ class AchievementPoolValidatorTest {
         KINDS.register(null, new ObjectiveKind("NEVER_FIRED", false, false));
         REWARDS.register("test:pay", (spec, subject) -> {
         });
+        REWARDS.register("test:tally", CollectingRewardKind.of("test:tally", StringBuilder.class,
+                (tally, spec) -> tally.append(spec.kind())));
     }
 
     private static AchievementPool pool(Map<String, String> filesById) throws Exception {
@@ -142,6 +145,22 @@ class AchievementPoolValidatorTest {
                 .filter(f -> f.code().equals("UNKNOWN_REWARD_KIND")).toList();
         assertEquals(2, unknown.size(), "both reward lists are audited");
         assertTrue(unknown.stream().allMatch(f -> f.severity() == Severity.WARNING));
+    }
+
+    @Test
+    void aRewardThatPaysOnlyInsideAPassWarnsForEitherRewardList() throws Exception {
+        List<Finding> findings = validate(pool(Map.of("prospector", """
+                { "Criteria": { "step": { "Kind": "BREAK_BLOCK", "Amount": 1 } },
+                  "Rewards": { "Auto":  [ { "Kind": "test:tally" } ],
+                               "Claim": [ { "Kind": "test:tally" }, { "Kind": "test:pay" } ] } }
+                """)));
+
+        List<Finding> passOnly = findings.stream()
+                .filter(f -> f.code().equals(CollectingRewardKind.SITE_CODE)).toList();
+        assertEquals(2, passOnly.size(), "both reward lists are audited, and the plain kind is not reported");
+        assertTrue(passOnly.stream().allMatch(f -> f.severity() == Severity.WARNING
+                && AchievementPoolValidator.DOMAIN.equals(f.domain())));
+        assertFalse(hasCode(findings, "UNKNOWN_REWARD_KIND"), "a registered kind is not unknown");
     }
 
     @Test

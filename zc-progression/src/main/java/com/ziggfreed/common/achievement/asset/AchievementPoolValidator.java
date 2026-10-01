@@ -11,6 +11,7 @@ import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.achievement.AchievementProgressStore;
 import com.ziggfreed.common.factor.FactorCondition;
+import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -179,6 +180,12 @@ public final class AchievementPoolValidator {
                 out.add(Finding.warning(DOMAIN, "UNKNOWN_REWARD_KIND",
                         where + " names '" + reward.kind() + "', which has no handler registered, so earning "
                                 + "this pays out nothing for it", id));
+                continue;
+            }
+            // Registered, yet it pays only into a pass an achievement payout never carries.
+            Finding passOnly = CollectingRewardKind.siteWarning(DOMAIN, rewardKinds, reward.kind(), where, id);
+            if (passOnly != null) {
+                out.add(passOnly);
             }
         }
     }

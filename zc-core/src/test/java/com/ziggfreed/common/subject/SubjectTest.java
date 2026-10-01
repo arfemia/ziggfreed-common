@@ -1,5 +1,6 @@
 package com.ziggfreed.common.subject;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -91,6 +92,83 @@ class SubjectTest {
         Subject subject = subjectWith((Subject.HandleFacets) type -> null);
 
         assertNull(subject.handleAs(Avatar.class));
+    }
+
+    // ==================== layered facets ====================
+
+    /** Stands in for a pass-scoped collector a pass layers beside the player. */
+    private record Tally(@Nonnull String label) {
+    }
+
+    @Test
+    void anExtraAnswersByTypeAndTheSubjectKeepsItsIdAndName() {
+        Session session = new Session("tester");
+        Tally tally = new Tally("pass");
+        Subject base = subjectWith(session);
+
+        Subject layered = base.withFacets(tally);
+
+        assertSame(tally, layered.handleAs(Tally.class), "an extra answers for its own type");
+        assertSame(session, layered.handleAs(Session.class), "the original handle still answers");
+        assertEquals(base.id(), layered.id());
+        assertEquals(base.name(), layered.name());
+        assertNull(layered.handleAs(Avatar.class), "nobody offers an avatar, so nothing is guessed");
+    }
+
+    @Test
+    void theBaseHandleWinsOverAnExtraOfTheSameType() {
+        Session session = new Session("base");
+
+        Subject layered = subjectWith(session).withFacets(new Session("extra"));
+
+        assertSame(session, layered.handleAs(Session.class),
+                "an extra can never shadow what the original handle already is");
+    }
+
+    @Test
+    void theBaseHandlesOwnFacetsAnswerBeforeAnExtra() {
+        Avatar carried = new Avatar("carried");
+
+        Subject layered = subjectWith(new RichHandle(new Session("tester"), carried))
+                .withFacets(new Avatar("extra"));
+
+        assertSame(carried, layered.handleAs(Avatar.class),
+                "the original handle is read by exactly the rules handleAs always applied, facets included");
+    }
+
+    @Test
+    void aHandleLessSubjectTakesAnExtra() {
+        Tally tally = new Tally("pass");
+
+        Subject layered = Subject.of(UUID.randomUUID(), "tester").withFacets(tally);
+
+        assertSame(tally, layered.handleAs(Tally.class));
+        assertNull(layered.handleAs(Session.class));
+    }
+
+    @Test
+    void aNullExtraIsIgnored() {
+        Session session = new Session("tester");
+        Tally tally = new Tally("pass");
+        Subject base = subjectWith(session);
+
+        assertSame(base, base.withFacets((Object) null), "nothing to add leaves the subject as it was");
+        Subject layered = base.withFacets(null, tally, null);
+        assertSame(tally, layered.handleAs(Tally.class));
+        assertSame(session, layered.handleAs(Session.class));
+    }
+
+    @Test
+    void layeringALayeredSubjectKeepsEverythingInOrder() {
+        Session session = new Session("tester");
+        Tally older = new Tally("older");
+        Avatar avatar = new Avatar("newer");
+
+        Subject twice = subjectWith(session).withFacets(older).withFacets(avatar, new Tally("newer"));
+
+        assertSame(session, twice.handleAs(Session.class), "the original handle survives a second layer");
+        assertSame(older, twice.handleAs(Tally.class), "the older extra answers before a newer one");
+        assertSame(avatar, twice.handleAs(Avatar.class), "the newer extra is kept");
     }
 
     @Test

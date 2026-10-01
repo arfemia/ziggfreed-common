@@ -19,6 +19,7 @@ import com.ziggfreed.common.quest.QuestProgressStore;
 import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.time.DurationGroup;
 import com.ziggfreed.common.util.PeriodMath;
+import com.ziggfreed.common.loot.reward.CollectingRewardKind;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.validation.Finding;
@@ -334,6 +335,13 @@ public final class QuestPoolValidator {
                 out.add(Finding.warning(DOMAIN, "UNKNOWN_REWARD_KIND",
                         "the reward '" + reward.kind() + "' has no handler registered, so finishing the quest "
                                 + "pays out nothing for it", definition.id()));
+                continue;
+            }
+            // Registered, yet it pays only into a pass a quest payout never carries.
+            Finding passOnly = CollectingRewardKind.siteWarning(DOMAIN, rewardKinds, reward.kind(),
+                    "Rewards", definition.id());
+            if (passOnly != null) {
+                out.add(passOnly);
             }
         }
     }

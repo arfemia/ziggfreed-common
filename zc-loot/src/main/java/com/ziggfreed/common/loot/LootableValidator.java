@@ -357,6 +357,9 @@ public final class LootableValidator {
         reportBlanks(grants.getCommands(), BLANK_COMMAND,
                 "A command entry is empty and runs nothing.", sourceId, findings);
 
+        // A registered kind that collects onto a pass (CollectingRewardKind) passes quietly here on
+        // purpose: a table cannot know which pass will roll it, so only a site validator that knows no
+        // pass ever reaches it reports one.
         if (grants.getRewards() != null) {
             for (LootGrants.Reward reward : grants.getRewards()) {
                 if (reward == null || reward.isBlank()) {

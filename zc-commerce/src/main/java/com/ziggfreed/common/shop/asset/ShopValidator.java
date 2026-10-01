@@ -14,6 +14,8 @@ import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.commerce.asset.RerollAsset;
 import com.ziggfreed.common.commerce.asset.RotationAsset;
 import com.ziggfreed.common.commerce.asset.SelectionAsset;
+import com.ziggfreed.common.loot.reward.CollectingRewardKind;
+import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
 import com.ziggfreed.common.progress.gate.GateValidator;
@@ -69,7 +71,10 @@ public final class ShopValidator {
      * @param shops        the storefronts any layer defines, keyed by id
      * @param pools        the rotating shelves any layer defines, keyed by id
      * @param currencies   answers "does this wallet exist?", or null to skip
-     * @param rewardKinds  answers "does anything pay this reward kind out?", or null to skip
+     * @param rewardKinds  answers "does anything pay this reward kind out?", or null to skip; a kind
+     *                     it answers yes for is then asked of the one shared vocabulary
+     *                     ({@link RewardKinds#shared()}) whether it collects onto a pass, which no
+     *                     purchase carries ({@link CollectingRewardKind#siteWarning})
      * @param gateKinds    the registered {@code Requires.Custom} vocabulary, or null to skip
      * @param knownFactors answers "does anything provide this factor id?", or null to skip
      */
@@ -273,6 +278,13 @@ public final class ShopValidator {
                 out.add(Finding.warning(DOMAIN, "UNKNOWN_REWARD_KIND",
                         "the reward '" + kind + "' has no handler registered, so buying this pays out nothing "
                                 + "for it", id));
+            } else if (rewardKinds != null && kind != null) {
+                // Registered, yet it pays only into a pass a purchase never carries.
+                Finding passOnly = CollectingRewardKind.siteWarning(DOMAIN, RewardKinds.shared(), kind,
+                        "Rewards", id);
+                if (passOnly != null) {
+                    out.add(passOnly);
+                }
             }
         }
 

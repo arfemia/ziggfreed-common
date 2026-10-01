@@ -11,6 +11,7 @@
 - A command-less kind file whose id a Java kind answers is presentation-only decoration; with no Java kind behind it, it is a `NO_COMMAND` error.
 - A kind file's declared `Params` are the whole surface its `Command` line can substitute.
 - One `RewardKindRegistry` carries a kind's handler and its `RewardAuthoring` adapter; never add a second table.
+- A pass-scoped kind is a `CollectingRewardKind` registered once into `RewardKinds.shared()`, collecting through a facet on the Subject (`Subject.withFacets`), never a per-pass registry copy and never a new `LootEngine.Sinks` seam (a sink is a capability a pass wires; this is a kind content authors). Outside a pass it throws (counted lost, on the ledger), it reports nothing on the receipt and has no `retryCommand`. A site validator that no pass reaches (quest, achievement, shop, board) reports it through `CollectingRewardKind.siteWarning` (`PASS_ONLY_REWARD_KIND`); `LootableValidator` stays silent, since a table cannot know where it is rolled.
 - `RewardChip` is the one chip record: a surface whose payout is not a `RewardSpec` still hands back a `RewardChip`.
 - A kind's owner names Java-kind rewards through `RewardChips.contribute`; an authored `NameKey`, a shipped kind-file `Presentation` or an item form still wins.
 - `RewardJson` refuses an under-specified reward at load, naming the file, never at payout.
