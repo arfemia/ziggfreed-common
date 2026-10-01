@@ -19,3 +19,6 @@ encounter.defeated = {0} ha caído
 encounter.defeated.share = Tu parte: {0}%, en {1, number} segundos.
 encounter.wiped = {0} os ha superado
 encounter.wiped.seconds = A los {0, number} segundos. Sigue ahí.
+gearset.active = {0} ({1, number}/{2, number})
+gearset.inactive = {0} ({1, number}/{2, number}): bonificación perdida
+gearset.tier = {0}

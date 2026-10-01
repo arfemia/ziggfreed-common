@@ -19,3 +19,6 @@ encounter.defeated = {0} yere serildi
 encounter.defeated.share = Senin payın: %{0}, {1, number} saniyede.
 encounter.wiped = {0} sizden uzun dayandı
 encounter.wiped.seconds = {0, number} saniye sonra. Hâlâ orada.
+gearset.active = {0} ({1, number}/{2, number})
+gearset.inactive = {0} ({1, number}/{2, number}): bonus kaybedildi
+gearset.tier = {0}

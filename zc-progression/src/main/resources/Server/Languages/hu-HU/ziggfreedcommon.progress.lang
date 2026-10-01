@@ -99,6 +99,12 @@ factor.tool_item_level = Szerszám tárgyszintje
 factor.tool_power = Szerszám ereje
 factor.tool_quality = Szerszám minősége
 factor.tool_tier = Szerszám kitermelési fokozata
+factor.item_quality = Tárgy minősége
+factor.item_level = Tárgyszint
+factor.item_durability_percent = Tárgy tartóssága
+factor.item_stat = Tárgy statbónusza
+factor.item_stamp_points = Fejlesztési pontok
+
 factor.stat.Health = Életerő
 factor.stat.Mana = Mana
 factor.stat.Stamina = Állóképesség

@@ -19,3 +19,6 @@ encounter.defeated = {0} è a terra
 encounter.defeated.share = La tua parte: {0}%, in {1, number} secondi.
 encounter.wiped = {0} vi ha sopraffatti
 encounter.wiped.seconds = Dopo {0, number} secondi. È ancora lì.
+gearset.active = {0} ({1, number}/{2, number})
+gearset.inactive = {0} ({1, number}/{2, number}): bonus perso
+gearset.tier = {0}

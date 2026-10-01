@@ -19,3 +19,6 @@ encounter.defeated = {0} повержен
 encounter.defeated.share = Ваша доля: {0}%, за {1, number} секунд.
 encounter.wiped = {0} вас пережил
 encounter.wiped.seconds = Спустя {0, number} секунд. Он всё ещё там.
+gearset.active = {0} ({1, number}/{2, number})
+gearset.inactive = {0} ({1, number}/{2, number}): бонус потерян
+gearset.tier = {0}

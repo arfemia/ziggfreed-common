@@ -1,6 +1,10 @@
 # The library's own default feedback moments (Server/ZiggfreedCommon/FeedbackMoments/*.json).
 # The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.feedback.<key>.
 
+gearset.active = {0} ({1, number}/{2, number})
+gearset.inactive = {0} ({1, number}/{2, number}) : bonus perdu
+gearset.tier = {0}
+
 quest.completed = Quête terminée : {0}
 quest.parked = Quête terminée : {0}. Revenez récupérer votre récompense.
 quest.parked.no_space = Quête terminée : {0}. Faites de la place pour récupérer votre récompense.
