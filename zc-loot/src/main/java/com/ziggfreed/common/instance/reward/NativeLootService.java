@@ -76,33 +76,50 @@ public final class NativeLootService {
      * Roll the native {@code ItemDropList} named {@code dropListId} for its item stacks: zero side effects,
      * just the resolved stacks (mirrors {@code ItemModule.getRandomItemDrops}). Returns an empty list (never
      * {@code null}, never throws) when the id is blank, {@link ItemModule} is disabled, or no
-     * {@link ItemDropList} asset claims that id (warned once per distinct unknown id).
+     * {@link ItemDropList} asset claims that id (warned once per distinct unknown id). A caller that must
+     * tell those apart from a roll that came up empty asks {@link #tryRollNative}.
      */
     @Nonnull
     public static List<ItemStack> rollNative(@Nonnull String dropListId) {
+        List<ItemStack> rolled = tryRollNative(dropListId);
+        return rolled != null ? rolled : List.of();
+    }
+
+    /**
+     * {@link #rollNative}, for a caller that must tell a roll that came up EMPTY from a roll that was
+     * never made: answers the rolled stacks (possibly none) when the native roll ran, and
+     * {@code null} when it could not run at all, because the id is blank, {@link ItemModule} is absent
+     * or disabled, no {@link ItemDropList} asset claims the id (warned once per distinct id), or the
+     * engine roll threw (warned). Never throws.
+     *
+     * <p>The question a probe asks: a table that keeps rolling empty is a finding, while a roll that
+     * could not be made says nothing about the table.
+     */
+    @Nullable
+    public static List<ItemStack> tryRollNative(@Nonnull String dropListId) {
         if (dropListId.isBlank()) {
-            return List.of();
+            return null;
         }
         try {
-            List<ItemStack> rolled = engineRoll.apply(dropListId);
-            return rolled != null ? rolled : List.of();
+            return engineRoll.apply(dropListId);
         } catch (Throwable t) {
             warn("rollNative('" + dropListId + "') failed: " + t.getMessage());
-            return List.of();
+            return null;
         }
     }
 
-    @Nonnull
+    /** The live roll; null when no roll could be made (see {@link #tryRollNative}). */
+    @Nullable
     private static List<ItemStack> liveRoll(@Nonnull String dropListId) {
         ItemModule itemModule = ItemModule.get();
         if (itemModule == null || !itemModule.isEnabled()) {
-            return List.of();
+            return null;
         }
         if (ItemDropList.getAssetMap().getAsset(dropListId) == null) {
             if (WARNED_IDS.add(dropListId)) {
                 warn("native drop list '" + dropListId + "' has no ItemDropList asset; no items will roll");
             }
-            return List.of();
+            return null;
         }
         return itemModule.getRandomItemDrops(dropListId);
     }

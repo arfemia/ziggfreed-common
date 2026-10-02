@@ -3,6 +3,7 @@ package com.ziggfreed.common.instance.reward;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -60,6 +61,32 @@ class NativeLootServiceTest {
     void aStubbedRollAnswersWhatTheEngineWouldHaveAnswered() {
         NativeLootService.setEngineRollForTesting(id -> List.of());
         assertEquals(List.of(), NativeLootService.rollNative("Chase_Nightmare_Items"));
+    }
+
+    /**
+     * {@code tryRollNative} keeps apart what {@code rollNative} folds together: a roll that ran and
+     * came up empty answers an empty list, and a roll that could not be made answers null.
+     */
+    @Test
+    void tryRollNativeTellsAnEmptyRollFromOneThatWasNeverMade() {
+        NativeLootService.setEngineRollForTesting(id -> List.of());
+        assertEquals(List.of(), NativeLootService.tryRollNative("Rolls_Empty"));
+
+        NativeLootService.setEngineRollForTesting(id -> null);
+        assertNull(NativeLootService.tryRollNative("No_Roll_Made"));
+        assertEquals(List.of(), NativeLootService.rollNative("No_Roll_Made"), "rollNative still answers empty");
+
+        NativeLootService.setEngineRollForTesting(id -> {
+            throw new IllegalStateException("boom");
+        });
+        assertDoesNotThrow(() -> assertNull(NativeLootService.tryRollNative("Throws")));
+
+        assertNull(NativeLootService.tryRollNative("  "), "a blank id is never rolled");
+    }
+
+    @Test
+    void tryRollNativeAgainstTheUnbootedEngineAnswersNoRoll() {
+        assertDoesNotThrow(() -> assertNull(NativeLootService.tryRollNative("totally_unknown_drop_list_xyz")));
     }
 
     /**
