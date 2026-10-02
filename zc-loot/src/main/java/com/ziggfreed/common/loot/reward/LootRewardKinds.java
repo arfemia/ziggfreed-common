@@ -1,7 +1,6 @@
 package com.ziggfreed.common.loot.reward;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -21,10 +20,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorRegistry;
-import com.ziggfreed.common.instance.reward.NativeLootService;
 import com.ziggfreed.common.inventory.InventoryGrant;
 import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.loot.FactorSnapshot;
+import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootRef;
@@ -79,6 +78,13 @@ import com.ziggfreed.common.util.SafeLog;
  * a replayable command and parks it for the player's next connect, so a reward earned with a full
  * bag arrives later instead of vanishing quietly.
  *
+ * <p>A {@code Lootable}'s contents follow the same policy through the ground-spill preset: every
+ * stack the rolled table hands over tries the bag first, and whatever does not fit goes to the
+ * policy as ONE pile per hand-over ({@link Overflow#handleAll}), so a drop list that overflows
+ * lands together. Those contents cannot be parked, though: a rolled table has no replayable form,
+ * since a replay would roll differently. So with no policy, or a pile the policy could not land,
+ * they are LOST and the loss is warned, naming the table and the stacks, never dropped silently.
+ *
  * <h2>A reward that cannot name what it pays FAILS</h2>
  *
  * <p>The same rule covers a reward whose parameters do not describe anything payable - no {@code Item},
@@ -125,6 +131,37 @@ public final class LootRewardKinds {
     public interface Overflow {
         /** Answer true once the stack has genuinely landed somewhere (usually on the ground). */
         boolean handle(@Nonnull Subject subject, @Nonnull ItemStack stack);
+
+        /**
+         * Land several stacks that came out of ONE hand-over (everything a rolled drop list put
+         * past a full bag), answering true only when every one of them landed.
+         *
+         * <p>All or nothing, because the ground-spill preset counts a pile whole: a true answer
+         * reports every stack in it as found, so a pile that landed in part must answer false
+         * rather than claim the part that went nowhere. Every stack is still offered, and a stack
+         * that fails or throws never costs the ones after it. An empty pile answers true.
+         *
+         * <p>This default offers each stack to {@link #handle} in order. A policy that can land a
+         * pile in one go overrides it, so the pile arrives together rather than as one landing per
+         * stack.
+         */
+        default boolean handleAll(@Nonnull Subject subject, @Nonnull List<ItemStack> stacks) {
+            boolean all = true;
+            for (ItemStack stack : stacks) {
+                try {
+                    all &= stack != null && handle(subject, stack);
+                } catch (Throwable t) {
+                    all = false;
+                }
+            }
+            return all;
+        }
+    }
+
+    /** The overflow policy installed right now, or null when there is none. Read at hand-over time. */
+    @Nullable
+    static Overflow installedOverflow() {
+        return OVERFLOW.get();
     }
 
     /**
@@ -462,54 +499,85 @@ public final class LootRewardKinds {
 
     /**
      * Every sink a rolled table can pay through, wired to what the reward path already has: the
-     * inventory delivery the item kinds use (native drop lists roll first, then land the same way),
-     * the console dispatcher with the same placeholder vocabulary a {@code Command} reward reads
-     * ({@code {player}}, {@code {uuid}}, {@code {source}}, and the reward's own parameters), and
-     * the registry the {@code Lootable} kind itself lives in. Package-private so a test can prove
-     * the wiring without a live server behind it.
+     * ground-spill preset for items and drop lists (the bag first, in the order the item kinds use,
+     * then the installed overflow policy as its ground), the console dispatcher with the same
+     * placeholder vocabulary a {@code Command} reward reads ({@code {player}}, {@code {uuid}},
+     * {@code {source}}, and the reward's own parameters), and the registry the {@code Lootable}
+     * kind itself lives in. Package-private so a test can prove the wiring without a live server
+     * behind it.
      */
     @Nonnull
     static LootEngine.Sinks lootableSinks(@Nonnull RewardSpec spec, @Nonnull Subject subject,
             @Nonnull RewardKindRegistry kinds, @Nonnull String sourceId) {
-        Map<String, String> placeholders = CommandRewardKind.placeholders(spec, subject);
-        placeholders.putIfAbsent(P_SOURCE, sourceId);
-        return LootEngine.Sinks.builder()
-                .items((itemId, count) -> deliverQuietly(subject, itemId, count))
-                .dropLists(dropListId -> rollDropListInto(subject, dropListId))
-                .commands(CommandRunner.CONSOLE, placeholders)
-                .rewards(kinds, subject)
-                .sourceId(sourceId)
-                .warn(SafeLog::warn)
-                .build();
+        return lootableSinks(spec, subject, kinds, sourceId, SafeLog::warn);
     }
 
     /**
-     * Roll ONE native drop list and land the result in the player's inventory, answering what
-     * actually arrived. The stacks are delivered as rolled, so whatever the native table put on
-     * them survives; one that will not fit goes through the overflow sink like any other item
-     * grant, and one that went nowhere is simply not part of the answer.
+     * As above, reporting to {@code warn}, so a test can read the line a lost pile leaves.
+     *
+     * <p>The ground is the player's own overflow policy, never an outer pass's ground: a table a
+     * reward rolls pays the player wherever the reward was earned. The policy is read when a pile
+     * actually spills, so a consumer's replacement installed after this pass was built still
+     * decides. A rolled item has no replayable form, so a pile the policy could not land (or a
+     * server that cleared the policy) cannot be parked like a top-level item reward: it is lost,
+     * and the warn says so, naming the table and the stacks.
      */
     @Nonnull
-    private static Map<String, Integer> rollDropListInto(@Nonnull Subject subject,
-            @Nonnull String dropListId) {
-        Map<String, Integer> landed = new LinkedHashMap<>();
-        for (ItemStack stack : NativeLootService.rollNative(dropListId)) {
-            if (stack == null || stack.getItemId() == null) {
+    static LootEngine.Sinks lootableSinks(@Nonnull RewardSpec spec, @Nonnull Subject subject,
+            @Nonnull RewardKindRegistry kinds, @Nonnull String sourceId, @Nonnull Consumer<String> warn) {
+        Map<String, String> placeholders = CommandRewardKind.placeholders(spec, subject);
+        placeholders.putIfAbsent(P_SOURCE, sourceId);
+        return GroundSpillSinks.at(overflowGround(subject, sourceId, warn))
+                .inventoryFirst(playerOf(subject))
+                .warn(warn)
+                .build()
+                .into(LootEngine.Sinks.builder())
+                .commands(CommandRunner.CONSOLE, placeholders)
+                .rewards(kinds, subject)
+                .sourceId(sourceId)
+                .warn(warn)
+                .build();
+    }
+
+    /** The installed overflow policy as a ground-spill ground, warning about a pile it lost. */
+    @Nonnull
+    private static GroundSpillSinks.Ground overflowGround(@Nonnull Subject subject, @Nonnull String sourceId,
+            @Nonnull Consumer<String> warn) {
+        return pile -> {
+            Overflow policy = installedOverflow();
+            String why;
+            if (policy == null) {
+                why = "no overflow policy is installed";
+            } else {
+                try {
+                    if (policy.handleAll(subject, pile)) {
+                        return true;
+                    }
+                    why = "the overflow policy could not land it";
+                } catch (Throwable t) {
+                    why = "the overflow policy failed: " + t;
+                }
+            }
+            warn.accept("'" + sourceId + "' could not hand over " + describe(pile)
+                    + ": it did not fit the bag and " + why + ", so it is lost");
+            return false;
+        };
+    }
+
+    /** {@code "Coin_Gold x3, Bone x1"}: what a warn names when a pile went nowhere. */
+    @Nonnull
+    private static String describe(@Nonnull List<ItemStack> pile) {
+        StringBuilder out = new StringBuilder();
+        for (ItemStack stack : pile) {
+            if (stack == null) {
                 continue;
             }
-            try {
-                deliver(subject, stack);
-                landed.merge(stack.getItemId(), Math.max(1, stack.getQuantity()), Integer::sum);
-            } catch (Exception e) {
-                // A stack that could not land is a short delivery, not a failed pass - but it is
-                // real item loss, so it says so rather than vanishing. The pass wires a warn sink
-                // for exactly this, and LootEngine.rollDropList only guards the sink CALL, so a
-                // per-stack failure inside this loop never reaches it on its own.
-                SafeLog.warn("drop list '" + dropListId + "' rolled '" + stack.getItemId()
-                        + "' but it could not be delivered: " + e);
+            if (!out.isEmpty()) {
+                out.append(", ");
             }
+            out.append(stack.getItemId()).append(" x").append(stack.getQuantity());
         }
-        return landed;
+        return out.toString();
     }
 
     // ==================== Stamped_Item ====================
@@ -789,16 +857,6 @@ public final class LootRewardKinds {
         });
         if (landed == InventoryGrant.Landed.FALLBACK && !overflowed[0]) {
             throw new IllegalStateException("'" + stack.getItemId() + "' did not fit and nowhere to put it");
-        }
-    }
-
-    /** The item-sink form: deliver and report how many landed, without throwing. */
-    private static int deliverQuietly(@Nonnull Subject subject, @Nonnull String itemId, int count) {
-        try {
-            deliver(subject, new ItemStack(itemId, count));
-            return count;
-        } catch (Exception e) {
-            return 0;
         }
     }
 

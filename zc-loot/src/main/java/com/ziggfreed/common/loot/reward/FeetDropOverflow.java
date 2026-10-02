@@ -1,8 +1,10 @@
 package com.ziggfreed.common.loot.reward;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -27,17 +29,37 @@ import com.ziggfreed.common.subject.Subject;
  *
  * <p>True means the stack landed, or was handed to the owning world's thread to land right after the
  * current tick. A subject with no live player behind it answers false - there are no feet to drop
- * at - which sends the reward to the payout layer's park instead.
+ * at - which sends the reward to the payout layer's park instead (a rolled table's pile has no
+ * replayable form, so its loss is warned rather than parked).
  */
 public final class FeetDropOverflow implements LootRewardKinds.Overflow {
 
     @Override
     public boolean handle(@Nonnull Subject subject, @Nonnull ItemStack stack) {
+        Ref<EntityStore> ref = feetOf(subject);
+        return ref != null && NativeLootService.spawnAtFeet(ref, List.of(stack));
+    }
+
+    /**
+     * The whole pile in ONE spawn, so the engine spreads its stacks around the player's feet
+     * together instead of one landing per stack. The spawn answers for the pile as a whole, which is
+     * the all-or-nothing answer the contract asks for. The stacks are copied first, because a spawn the
+     * world defers to after the current tick still holds the list.
+     */
+    @Override
+    public boolean handleAll(@Nonnull Subject subject, @Nonnull List<ItemStack> stacks) {
+        if (stacks.isEmpty()) {
+            return true;
+        }
+        Ref<EntityStore> ref = feetOf(subject);
+        return ref != null && NativeLootService.spawnAtFeet(ref, new ArrayList<>(stacks));
+    }
+
+    /** The live player's ref to drop at, or null when there are no feet to drop at. */
+    @Nullable
+    private static Ref<EntityStore> feetOf(@Nonnull Subject subject) {
         Player player = subject.handleAs(Player.class);
         Ref<EntityStore> ref = player == null ? null : player.getReference();
-        if (ref == null || !ref.isValid()) {
-            return false;
-        }
-        return NativeLootService.spawnAtFeet(ref, List.of(stack));
+        return ref == null || !ref.isValid() ? null : ref;
     }
 }

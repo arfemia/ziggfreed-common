@@ -7,6 +7,7 @@
 - `canAdd` answers about one reward: check a list with `canAddAll`, never `canAdd` in a loop.
 - Prefer the `Item` kind to a `Command` running `/give` (it is fit-checked and queueable); a `Command` whose line is a give still counts as an item in the fit probe.
 - `Droplist` spills on the ground, needs no room and has no `retryCommand`: a replay would roll differently.
+- The overflow policy answers a pile through `Overflow.handleAll`, all or nothing, since the ground-spill preset counts a pile whole (the default loops `handle`; a policy that lands a pile in one go overrides it). A `Lootable`'s contents hand over through `GroundSpillSinks` with the policy as its ground, never a hand-built items or drop-lists sink. A top-level `Item` or `Stamped_Item` that lands nowhere throws and parks; a rolled table's pile has no replayable form, so with the policy cleared or refusing it is lost and warned.
 - `RewardKindFold.foldInto` runs last, so an authored kind file overrides a Java kind with one warning per shadow; never move it earlier to hide the warning.
 - A command-less kind file whose id a Java kind answers is presentation-only decoration; with no Java kind behind it, it is a `NO_COMMAND` error.
 - A kind file's declared `Params` are the whole surface its `Command` line can substitute.
