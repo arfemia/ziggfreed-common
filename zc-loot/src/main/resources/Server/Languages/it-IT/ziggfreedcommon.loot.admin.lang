@@ -1,0 +1,8 @@
+desc.family = Consulta le tabelle del bottino di questo server.
+desc.validate = Controlla ogni tabella del bottino caricata rispetto ai tipi di ricompensa che questo server paga.
+
+more = ... e altri {0}, nel registro del server.
+
+validate.clean = Tabelle del bottino: nulla da segnalare.
+validate.counts = Tabelle del bottino: {0} {0, plural, one{errore} other{errori}}, {1} {1, plural, one{avviso} other{avvisi}}, {2} {2, plural, one{nota} other{note}}.
+finding = {0} {1} [{2}] {3}

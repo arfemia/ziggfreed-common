@@ -1,0 +1,12 @@
+# The /zigloot admin command family: help text and the table audit's answer.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.loot.admin.<key>.
+# The desc.* keys are what the engine's own help resolves a command through.
+
+desc.family = Inspect this server's loot tables.
+desc.validate = Audit every loaded loot table against the reward kinds this server pays.
+
+more = ... and {0} more, in the server log.
+
+validate.clean = Loot tables: nothing to report.
+validate.counts = Loot tables: {0} {0, plural, one{error} other{errors}}, {1} {1, plural, one{warning} other{warnings}}, {2} {2, plural, one{note} other{notes}}.
+finding = {0} {1} [{2}] {3}

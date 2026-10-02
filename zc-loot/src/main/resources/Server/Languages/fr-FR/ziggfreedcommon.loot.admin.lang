@@ -1,0 +1,8 @@
+desc.family = Consulter les tables de butin de ce serveur.
+desc.validate = Vérifier chaque table de butin chargée par rapport aux types de récompense que ce serveur verse.
+
+more = ... et {0} de plus, dans le journal du serveur.
+
+validate.clean = Tables de butin : rien à signaler.
+validate.counts = Tables de butin : {0} {0, plural, one{erreur} other{erreurs}}, {1} {1, plural, one{avertissement} other{avertissements}}, {2} {2, plural, one{note} other{notes}}.
+finding = {0} {1} [{2}] {3}

@@ -10,6 +10,7 @@ The fight is a native `EncounterManager` script under `Server/EncounterManager/`
 - Scripts signal with the reserved `zc:` grammar: `zc:engaged`, `zc:phase:<State>`, `zc:wave[:<label>]`, `zc:defeated`, `zc:reset`.
 - Log one `[encounter]` INFO line per run event, never per tick, so a boot capture reads as the run's story.
 - Shares normalise against the top contributor, who reads 1.0; below `MinShare` is attempt credit only.
+- A phase drop hands everything over through `LootEngine.applyGrants` and applies nothing by hand: its items and drop lists through the `GroundSpillSinks` pair whose ground gathers ONE pile spawned at the subject, its commands through the engine's command leaf as the console with the phase's placeholders (`{encounter}`, `{phase}`, `{run}`). Its sinks carry no rewards leaf, so a reward kind there is refused with a warning and never paid.
 - Reset is always a run's last event; a run that engaged and never settled is settled as a wipe first.
 - The rest between fights is the binding row's `Timing.Rest`, stamped on the encounter entity as the persisted `ZigEncounterRest` and gated in the script by the `ZigRested` sensor, because a manually triggered spawn marker never reads its respawn time (`SpawnMarkerEntity.trigger`).
 - Every registered action answers finished on every path: to the engine a `false` means still running, and a blocking action list waits on it (`ActionsAlwaysFinishTest`).

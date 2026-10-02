@@ -1,0 +1,8 @@
+desc.family = Die Beutetabellen dieses Servers ansehen.
+desc.validate = Jede geladene Beutetabelle gegen die Belohnungsarten prüfen, die dieser Server auszahlt.
+
+more = ... und {0} weitere, im Serverprotokoll.
+
+validate.clean = Beutetabellen: nichts zu melden.
+validate.counts = Beutetabellen: {0} Fehler, {1} {1, plural, one{Warnung} other{Warnungen}}, {2} {2, plural, one{Hinweis} other{Hinweise}}.
+finding = {0} {1} [{2}] {3}

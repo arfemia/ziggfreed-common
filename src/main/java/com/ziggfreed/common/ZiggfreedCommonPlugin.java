@@ -43,6 +43,7 @@ import com.ziggfreed.common.gearset.GearSetNoticeBridge;
 import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEditorDataSets;
 import com.ziggfreed.common.loot.LootFactors;
+import com.ziggfreed.common.loot.command.ZigLootCommand;
 import com.ziggfreed.common.loot.reward.DroplistRewardKind;
 import com.ziggfreed.common.loot.reward.FeetDropOverflow;
 import com.ziggfreed.common.loot.reward.LootRewardKinds;
@@ -172,6 +173,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
         registerEditorDataSets();
         registerLootVocabulary();
+        registerLootCommand();
         registerCommerce();
         NpcBootstrap.setupPlacementEngine(this);
         DialogueBootstrap.registerActiveObjectiveHeader();
@@ -395,6 +397,19 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             getCommandRegistry().registerCommand(new ZigHudCommand());
         } catch (Throwable t) {
             SafeLog.warn("[hud] HUD settings wiring failed", t);
+        }
+    }
+
+    /**
+     * The {@code /zigloot} family, whose {@code validate} verb audits every loaded loot table against
+     * the reward kinds this server pays. On demand only, never a boot pass: a consumer that audits
+     * the tables at its own boot already prints every line, and a second pass would double them.
+     */
+    private void registerLootCommand() {
+        try {
+            getCommandRegistry().registerCommand(new ZigLootCommand());
+        } catch (Throwable t) {
+            SafeLog.warn("[loot] loot command wiring failed", t);
         }
     }
 

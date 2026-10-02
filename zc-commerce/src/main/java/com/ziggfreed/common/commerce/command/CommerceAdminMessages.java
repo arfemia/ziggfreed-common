@@ -6,9 +6,9 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.ziggfreed.common.command.FindingsReply;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.validation.Finding;
-import com.ziggfreed.common.validation.Severity;
 
 /**
  * Every line this command family says, and the two rules it says them by.
@@ -69,46 +69,12 @@ public final class CommerceAdminMessages {
         ctx.sendMessage(Msg.key(PREFIX + key, args).color(BAD));
     }
 
-    // ==================== findings ====================
-
-    /** How many findings are worth showing before the rest are left to the server log. */
-    private static final int MAX_SHOWN = 20;
-
     /**
-     * Report an audit: the counts first, then each finding, then how many were left out.
-     *
-     * <p>A finding's own MESSAGE is written for whoever authored the content, names files and ids,
-     * and is not translated - the same choice every content validator in this library already made.
-     * The sentence around it is.
+     * Report an audit: the counts first, then each finding, then how many were left out. The one
+     * reply every family's validate verb shares ({@link FindingsReply}), under this family's keys.
      */
     public static void findings(@Nonnull CommandContext ctx, @Nonnull List<Finding> findings) {
-        if (findings.isEmpty()) {
-            done(ctx, "validate.clean");
-            return;
-        }
-        heading(ctx, "validate.counts", count(findings, Severity.ERROR),
-                count(findings, Severity.WARNING), count(findings, Severity.INFO));
-        int shown = 0;
-        for (Finding finding : findings) {
-            if (shown++ >= MAX_SHOWN) {
-                detail(ctx, "more", findings.size() - MAX_SHOWN);
-                return;
-            }
-            ctx.sendMessage(Msg.key(PREFIX + "finding", finding.severity().name(), finding.code(),
-                    finding.sourceId(), finding.message()).color(colorOf(finding.severity())));
-        }
-    }
-
-    private static long count(@Nonnull List<Finding> findings, @Nonnull Severity severity) {
-        return findings.stream().filter(f -> f.severity() == severity).count();
-    }
-
-    @Nonnull
-    private static Color colorOf(@Nonnull Severity severity) {
-        if (severity == Severity.ERROR) {
-            return BAD;
-        }
-        return severity == Severity.WARNING ? HEADING : DETAIL;
+        FindingsReply.send(ctx, PREFIX, findings);
     }
 
     // ==================== small shared answers ====================

@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 
 import javax.annotation.Nonnull;
@@ -35,6 +36,7 @@ import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.instance.reward.NativeLootService;
 import com.ziggfreed.common.loot.FactorLookup;
+import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.loot.LootCues;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootGrants;
@@ -63,8 +65,12 @@ import org.joml.Vector3d;
  * payout retries through.
  *
  * <p>A phase drop rolls once and spills on the ground at the subject, the way a mob's own death
- * drops do; it has no player to be about, so a registered reward kind in a phase drop is reported
- * and skipped rather than paid to nobody.
+ * drops do: everything it won goes through the same engine pass, its items and drop lists through
+ * the library's ground-spill sinks gathered into ONE pile, and its commands through the engine's
+ * command leaf as the console, resolved like every other loot command (placeholders
+ * {@code {encounter}}, {@code {phase}} and {@code {run}}, a positional {@code /give} count read as
+ * {@code --quantity=N}, a failed line warned). It has no player to be about, so a registered reward
+ * kind in a phase drop is reported and skipped rather than paid to nobody.
  */
 public final class EncounterLoot {
 
@@ -163,43 +169,82 @@ public final class EncounterLoot {
                     EncounterFactors.contextFor(store, subject,
                             new EncounterFactors.RunReading(run, run.knownMembers().size(), System.currentTimeMillis())));
             List<ItemStack> stacks = new ArrayList<>();
-            int commands = 0;
-            for (LootEngine.Selected selected : LootEngine.select(resolved.rolls(), resolved.pools(), null, lookup,
-                    sampler())) {
-                LootGrants grants = selected.grants();
-                if (grants == null) {
-                    continue;
-                }
-                for (LootGrants.Item item : grants.itemsOrEmpty()) {
-                    stacks.add(new ItemStack(item.getItem(), Math.max(1, item.effectiveCount())));
-                }
-                String[] dropLists = grants.getDropLists();
-                if (dropLists != null) {
-                    for (String dropList : dropLists) {
-                        if (dropList != null && !dropList.isBlank()) {
-                            stacks.addAll(NativeLootService.rollNative(dropList));
-                        }
-                    }
-                }
-                String[] cmds = grants.getCommands();
-                if (cmds != null) {
-                    commands += runPhaseCommands(cmds, run, encounterId, state);
-                }
-                if (!grants.rewardSpecs().isEmpty()) {
-                    SafeLog.warn(Encounters.LOG_PREFIX + " phase '" + state + "' of '" + encounterId
+            LootEngine.Result result = handOverPhase(
+                    LootEngine.select(resolved.rolls(), resolved.pools(), null, lookup, sampler()),
+                    phaseSinks(stacks, message -> SafeLog.warn(Encounters.LOG_PREFIX + " phase '" + state
+                            + "' of '" + encounterId + "': " + message), CommandRunner.CONSOLE,
+                            encounterId, state, EncounterRun.shortId(run.runId())),
+                    () -> SafeLog.warn(Encounters.LOG_PREFIX + " phase '" + state + "' of '" + encounterId
                             + "' authors a registered reward kind, which needs a player; only items, drop lists "
-                            + "and commands can drop in the world");
-                }
-            }
+                            + "and commands can drop in the world"));
             if (!stacks.isEmpty()) {
                 Vector3d at3 = new Vector3d(at.getPosition()).add(0.0, 1.0, 0.0);
                 NativeLootService.spawnInWorld(store, at3, Rotation3f.IDENTITY, stacks);
             }
             SafeLog.info(Encounters.LOG_PREFIX + " phase drop run=" + EncounterRun.shortId(run.runId()) + " encounter="
-                    + encounterId + " phase=" + state + " stacks=" + stacks.size() + " commands=" + commands);
+                    + encounterId + " phase=" + state + " stacks=" + stacks.size() + " commands="
+                    + result.getCommandsRun());
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " phase drop of '" + encounterId + "' failed", t);
         }
+    }
+
+    /**
+     * Hand one phase drop over through the loot engine, answering the engine's tally of it.
+     *
+     * <p>Every payout goes through {@code sinks} by the engine's own {@link LootEngine#applyGrants}:
+     * items, drop lists and commands alike, so nothing in a phase drop is applied by hand. A payout
+     * that authors a registered reward kind is reported once through {@code refuseRewardKinds} and
+     * never paid, since {@code sinks} carries no reward vocabulary and no subject (a dry run for that
+     * leaf). Package-private so a test can drive it with fixture sinks.
+     */
+    @Nonnull
+    static LootEngine.Result handOverPhase(@Nonnull List<LootEngine.Selected> won, @Nonnull LootEngine.Sinks sinks,
+            @Nonnull Runnable refuseRewardKinds) {
+        LootEngine.Result result = new LootEngine.Result();
+        for (LootEngine.Selected selected : won) {
+            LootGrants grants = selected.grants();
+            if (grants == null) {
+                continue;
+            }
+            LootEngine.applyGrants(selected, sinks, result);
+            if (!grants.rewardSpecs().isEmpty()) {
+                refuseRewardKinds.run();
+            }
+        }
+        return result;
+    }
+
+    /**
+     * A phase drop's sinks: the library's ground-spill items and drop-lists pair with no inventory,
+     * whose ground gathers every hand-over into {@code pile}, the ONE pile the phase spawns at the
+     * subject once everything is rolled; the commands leaf through {@code dispatcher} (the console on
+     * a live server) with the phase's own placeholders, {@code {encounter}}, {@code {phase}} and
+     * {@code {run}}; and no rewards leaf (a phase drop pays nobody). Every failure is warned through
+     * {@code warn}.
+     */
+    @Nonnull
+    static LootEngine.Sinks phaseSinks(@Nonnull List<ItemStack> pile, @Nonnull Consumer<String> warn,
+            @Nonnull CommandRunner.Dispatcher dispatcher, @Nonnull String encounterId, @Nonnull String state,
+            @Nonnull String runShortId) {
+        Map<String, String> placeholders = new LinkedHashMap<>();
+        placeholders.put("encounter", encounterId);
+        placeholders.put("phase", state);
+        placeholders.put("run", runShortId);
+        return GroundSpillSinks.at(gatherInto(pile)).warn(warn).build()
+                .into(LootEngine.Sinks.builder())
+                .commands(dispatcher, placeholders)
+                .warn(warn)
+                .build();
+    }
+
+    /** The phase's ground: each hand-over joins {@code pile}, and counts as landed. */
+    @Nonnull
+    static GroundSpillSinks.Ground gatherInto(@Nonnull List<ItemStack> pile) {
+        return stacks -> {
+            pile.addAll(stacks);
+            return true;
+        };
     }
 
     // ==================== one participant ====================
@@ -331,25 +376,6 @@ public final class EncounterLoot {
         }
         out.addAll(grants.rewardSpecs());
         return out;
-    }
-
-    private static int runPhaseCommands(@Nonnull String[] commands, @Nonnull ZigEncounterRun run,
-            @Nonnull String encounterId, @Nonnull String state) {
-        int ran = 0;
-        for (String command : commands) {
-            if (command == null || command.isBlank()) {
-                continue;
-            }
-            String line = command.replace("{encounter}", encounterId).replace("{phase}", state)
-                    .replace("{run}", EncounterRun.shortId(run.runId()));
-            try {
-                CommandRunner.CONSOLE.dispatch(line);
-                ran++;
-            } catch (Throwable t) {
-                SafeLog.warn(Encounters.LOG_PREFIX + " phase command '" + line + "' failed: " + t.getMessage());
-            }
-        }
-        return ran;
     }
 
     @Nonnull
