@@ -9,12 +9,21 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterBindingCodecTest;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationAsset;
+import com.ziggfreed.common.loot.LootGrants;
+import com.ziggfreed.common.loot.LootRef;
+import com.ziggfreed.common.loot.LootableValidator;
+import com.ziggfreed.common.loot.Roll;
+import com.ziggfreed.common.loot.reward.MomentItems;
+import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.Severity;
 
@@ -121,6 +130,105 @@ class EncounterValidatorTest {
                 EncounterValidator.UNKNOWN_LOOTABLE));
         assertFalse(has(EncounterValidator.validate(scripts, List.of(row), List.of(), null),
                 EncounterValidator.UNKNOWN_LOOTABLE));
+    }
+
+    // ==================== the fight's loot, by the loot core's rules ====================
+
+    /** An inline roll paying the pass-only moment kind, as a fight's loot leaf writes it. */
+    private static final String MOMENT_ROLL = "{\"Rolls\": [{\"Grants\": {\"Rewards\": [{\"Kind\": \"Moment_Item\"}]}}]}";
+
+    private static RewardKindRegistry momentKinds() {
+        RewardKindRegistry kinds = new RewardKindRegistry("test");
+        MomentItems.registerInto(kinds);
+        return kinds;
+    }
+
+    private static List<Finding> audited(List<EncounterBindingAsset> rows, Map<String, List<LootRef>> grants,
+            Predicate<String> lootableExists) {
+        Map<String, EncounterScriptScan> scripts = Map.of(
+                "Boss", script("Boss", true, List.of("zc:engaged", "zc:defeated"), Set.of("Boss"), true, 0));
+        return EncounterValidator.validate(scripts, rows, List.of(), lootableExists, List.of(), null, grants,
+                momentKinds());
+    }
+
+    private static long count(List<Finding> findings, String code) {
+        return findings.stream().filter(f -> f.code().equals(code)).count();
+    }
+
+    @Test
+    void aPassOnlyRewardInOnDefeatOrAnOnPhaseStateIsAWarningAtThatLeaf() throws IOException {
+        EncounterBindingAsset row = EncounterBindingCodecTest.binding("{\"EncounterAsset\": \"Boss\", \"Loot\": {"
+                + "\"OnDefeat\": " + MOMENT_ROLL + ", \"OnPhase\": {\"Two\": " + MOMENT_ROLL + "}}}", "row", null);
+
+        List<Finding> findings = audited(List.of(row), Map.of(), null);
+
+        assertEquals(2, count(findings, LootableValidator.PASS_ONLY_REWARD_KIND), () -> findings.toString());
+        assertTrue(findings.stream().anyMatch(f -> f.code().equals(LootableValidator.PASS_ONLY_REWARD_KIND)
+                && f.sourceId().equals("row Loot.OnDefeat roll 0")), () -> findings.toString());
+        assertTrue(findings.stream().anyMatch(f -> f.code().equals(LootableValidator.PASS_ONLY_REWARD_KIND)
+                && f.sourceId().equals("row Loot.OnPhase.Two roll 0")), () -> findings.toString());
+        assertEquals(Severity.WARNING, find(findings, LootableValidator.PASS_ONLY_REWARD_KIND).severity());
+    }
+
+    @Test
+    void aPassOnlyRewardInAZigGrantsLootIsAWarningUnderItsScript() {
+        LootRef loot = LootRef.of(null, new Roll[] {Roll.of(null, null, null, null, LootGrants.of(null, null, null,
+                new LootGrants.Reward[] {LootGrants.Reward.of(MomentItems.KIND, Map.of())}), null)});
+
+        List<Finding> findings = audited(List.of(), Map.of("Boss", List.of(loot)), null);
+
+        Finding finding = find(findings, LootableValidator.PASS_ONLY_REWARD_KIND);
+        assertEquals("Boss ZigGrant Loot roll 0", finding.sourceId());
+        assertEquals(1, count(findings, LootableValidator.PASS_ONLY_REWARD_KIND));
+    }
+
+    @Test
+    void anUnknownTableInABindingLeafIsReportedOnceAndInAZigGrantByTheSharedRule() throws IOException {
+        EncounterBindingAsset row = EncounterBindingCodecTest.binding(
+                "{\"EncounterAsset\": \"Boss\", \"Loot\": {\"OnDefeat\": {\"Lootables\": [\"nowhere\"]}}}", "row", null);
+
+        List<Finding> findings = audited(List.of(row), Map.of(), id -> false);
+
+        assertEquals(1, count(findings, EncounterValidator.UNKNOWN_LOOTABLE));
+        assertEquals(0, count(findings, LootableValidator.UNKNOWN_TABLE), "the shared line is not said twice");
+
+        List<Finding> granted = audited(List.of(), Map.of("Boss", List.of(LootRef.of(new String[] {"nowhere"}, null))),
+                id -> false);
+        assertEquals(1, count(granted, LootableValidator.UNKNOWN_TABLE),
+                "nothing else reports a ZigGrant's table, so the shared line stands");
+    }
+
+    @Test
+    void theReleasedFormsDoNotAuditTheFightsLoot() throws IOException {
+        EncounterBindingAsset row = EncounterBindingCodecTest.binding("{\"EncounterAsset\": \"Boss\", \"Loot\": {"
+                + "\"OnDefeat\": " + MOMENT_ROLL + "}}", "row", null);
+        Map<String, EncounterScriptScan> scripts = Map.of(
+                "Boss", script("Boss", true, List.of("zc:engaged", "zc:defeated"), Set.of("Boss"), true, 0));
+
+        assertTrue(EncounterValidator.validate(scripts, List.of(row), List.of(), null, List.of(), null).isEmpty());
+        assertTrue(EncounterValidator.validate(scripts, List.of(row), List.of(), id -> true).isEmpty());
+    }
+
+    @Test
+    void aZigGrantsLootIsReadOffTheScriptThroughItsReferences() {
+        JsonObject root = JsonParser.parseString("{\"Content\": {\"Instructions\": [{\"Actions\": ["
+                + "{\"Type\": \"ZigGrant\", \"Loot\": " + MOMENT_ROLL + "},"
+                + "{\"Reference\": \"Payout_Macro\"},"
+                + "{\"Type\": \"ZigGrant\"}]}]}}").getAsJsonObject();
+        // The macro's grant pays an inline roll: a Lootables id cannot decode outside an asset store's
+        // context, which this unit JVM has none of.
+        JsonObject macro = JsonParser.parseString("{\"Content\": {\"Actions\": [{\"Type\": \"ZigGrant\", "
+                + "\"Loot\": {\"Rolls\": [{\"Grants\": {\"Items\": [{\"Item\": \"Boss_Coin\"}]}}]}}]}}")
+                .getAsJsonObject();
+
+        List<LootRef> loots = EncounterValidator.zigGrantLoots(root,
+                name -> name.equals("Payout_Macro") ? macro : null);
+
+        assertEquals(2, loots.size(), "the inline grant and the macro's; a grant with no Loot pays nothing");
+        assertEquals(MomentItems.KIND, loots.get(0).getRolls()[0].getGrants().getRewards()[0].getKind(),
+                "authored order: the inline grant first");
+        assertEquals("Boss_Coin", loots.get(1).getRolls()[0].getGrants().getItems()[0].getItem(),
+                "then the grant inside the referenced macro");
     }
 
     @Test

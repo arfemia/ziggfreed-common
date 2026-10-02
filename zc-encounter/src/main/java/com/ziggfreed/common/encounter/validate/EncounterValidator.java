@@ -3,20 +3,29 @@ package com.ziggfreed.common.encounter.validate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationAsset;
 import com.ziggfreed.common.encounter.asset.ParticipationSpec;
 import com.ziggfreed.common.encounter.signal.EncounterSignal;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.LootRef;
+import com.ziggfreed.common.loot.LootableValidator;
+import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.validation.Finding;
 
 /**
@@ -32,6 +41,13 @@ import com.ziggfreed.common.validation.Finding;
  * that does not clear the bar is one, by rule). A WARNING is content that works but almost certainly
  * does not do what was intended, and an unknown id is always a warning rather than an error: the
  * pack that would answer it may simply not be installed here. A note is worth saying once.
+ *
+ * <p>The loot a fight pays (a binding's {@code Loot.OnDefeat} and each {@code Loot.OnPhase} state,
+ * and the {@code Loot} a script's {@code ZigGrant} action carries) is read by the loot core's own
+ * rules ({@link LootableValidator#auditRef(LootRef, String, RewardKindRegistry, Set)}) when the
+ * caller hands over the reward vocabulary: none of those payouts carries a pass collector, so a
+ * reward kind that only pays into one is reported there. A table this validator already reports as
+ * missing is not reported a second time by the shared rule.
  */
 public final class EncounterValidator {
 
@@ -58,6 +74,10 @@ public final class EncounterValidator {
 
     /** The naming convention that keeps a script's id off every role's: a trailing suffix. */
     public static final String SCRIPT_ID_SUFFIX = "_Encounter";
+
+    /** The script action that pays loot from inside the fight, and the key its loot sits under. */
+    private static final String GRANT_TYPE = "ZigGrant";
+    private static final String GRANT_LOOT = "Loot";
 
     /** How close a custom moment word has to be to a reserved one to read as a typo. */
     private static final int TYPO_DISTANCE = 2;
@@ -106,6 +126,43 @@ public final class EncounterValidator {
             @Nullable Predicate<String> lootableExists,
             @Nonnull Collection<RoleReference> roleReferences,
             @Nullable Predicate<String> roleExists) {
+        return validate(scripts, bindings, rules, lootableExists, roleReferences, roleExists, Map.of(), null, false);
+    }
+
+    /**
+     * Audit everything, and read every loot payout a fight makes by the loot core's rules: each
+     * binding's {@code Loot.OnDefeat} and {@code Loot.OnPhase} states, and each script's
+     * {@code ZigGrant} loot. None of those payouts carries a pass collector, so a collecting reward
+     * kind written in their inline rolls is a warning.
+     *
+     * @param lootableExists answers whether a shared loot table id is loaded, or null to skip that check
+     * @param roleReferences every role id something on this server names, with what names it
+     * @param roleExists     answers whether an id resolves to a loaded NPC role, or null when nothing can say
+     * @param grantLoots     each script's {@code ZigGrant} loot, by script id ({@link #zigGrantLoots})
+     * @param kinds          the reward vocabulary the payouts pay through, or null to skip the kind checks
+     */
+    @Nonnull
+    public static List<Finding> validate(@Nonnull Map<String, EncounterScriptScan> scripts,
+            @Nonnull Collection<EncounterBindingAsset> bindings,
+            @Nonnull Collection<EncounterParticipationAsset> rules,
+            @Nullable Predicate<String> lootableExists,
+            @Nonnull Collection<RoleReference> roleReferences,
+            @Nullable Predicate<String> roleExists,
+            @Nonnull Map<String, List<LootRef>> grantLoots,
+            @Nullable RewardKindRegistry kinds) {
+        return validate(scripts, bindings, rules, lootableExists, roleReferences, roleExists, grantLoots, kinds, true);
+    }
+
+    @Nonnull
+    private static List<Finding> validate(@Nonnull Map<String, EncounterScriptScan> scripts,
+            @Nonnull Collection<EncounterBindingAsset> bindings,
+            @Nonnull Collection<EncounterParticipationAsset> rules,
+            @Nullable Predicate<String> lootableExists,
+            @Nonnull Collection<RoleReference> roleReferences,
+            @Nullable Predicate<String> roleExists,
+            @Nonnull Map<String, List<LootRef>> grantLoots,
+            @Nullable RewardKindRegistry kinds,
+            boolean auditLoot) {
         List<Finding> findings = new ArrayList<>();
         Map<String, EncounterScriptScan> byLowerId = new HashMap<>();
         for (EncounterScriptScan scan : scripts.values()) {
@@ -113,8 +170,23 @@ public final class EncounterValidator {
             findings.addAll(auditScript(scan));
         }
         Map<String, EncounterBindingAsset> boundScripts = new HashMap<>();
+        LootAudit loot = auditLoot ? new LootAudit(kinds) : null;
         for (EncounterBindingAsset row : bindings) {
-            findings.addAll(auditBinding(row, byLowerId, boundScripts, rules, lootableExists, roleExists));
+            findings.addAll(auditBinding(row, byLowerId, boundScripts, rules, lootableExists, roleExists, loot));
+        }
+        if (loot != null) {
+            for (Map.Entry<String, List<LootRef>> script : grantLoots.entrySet()) {
+                List<LootRef> refs = script.getValue();
+                if (script.getKey() == null || refs == null) {
+                    continue;
+                }
+                for (int i = 0; i < refs.size(); i++) {
+                    String where = script.getKey() + " " + GRANT_TYPE + (refs.size() > 1 ? " " + (i + 1) : "")
+                            + " " + GRANT_LOOT;
+                    // Nothing else reports a ZigGrant's missing table, so the shared line stands.
+                    findings.addAll(loot.audit(refs.get(i), where, false));
+                }
+            }
         }
         for (RoleReference reference : roleReferences) {
             EncounterScriptScan script = byLowerId.get(reference.roleId().toLowerCase(Locale.ROOT));
@@ -181,7 +253,7 @@ public final class EncounterValidator {
     private static List<Finding> auditBinding(@Nonnull EncounterBindingAsset row,
             @Nonnull Map<String, EncounterScriptScan> scripts, @Nonnull Map<String, EncounterBindingAsset> boundScripts,
             @Nonnull Collection<EncounterParticipationAsset> rules, @Nullable Predicate<String> lootableExists,
-            @Nullable Predicate<String> roleExists) {
+            @Nullable Predicate<String> roleExists, @Nullable LootAudit loot) {
         List<Finding> findings = new ArrayList<>();
         String id = row.getId();
         String script = row.encounterAsset();
@@ -223,12 +295,12 @@ public final class EncounterValidator {
                         + "nobody ever counts as present.", id));
             }
         }
-        if (lootableExists != null && row.getLoot() != null) {
-            checkLoot(findings, id, "Loot.OnDefeat", row.getLoot().getOnDefeat(), lootableExists);
+        if (row.getLoot() != null) {
+            checkLoot(findings, id, "Loot.OnDefeat", row.getLoot().getOnDefeat(), lootableExists, loot);
             Map<String, LootRef> onPhase = row.getLoot().getOnPhase();
             if (onPhase != null) {
                 for (Map.Entry<String, LootRef> entry : onPhase.entrySet()) {
-                    checkLoot(findings, id, "Loot.OnPhase." + entry.getKey(), entry.getValue(), lootableExists);
+                    checkLoot(findings, id, "Loot.OnPhase." + entry.getKey(), entry.getValue(), lootableExists, loot);
                 }
             }
         }
@@ -259,7 +331,22 @@ public final class EncounterValidator {
         return findings;
     }
 
+    /**
+     * One binding loot leaf: its tables against what is loaded (when something can say), then, when
+     * the loot audit runs, the loot core's rules over the whole ref, minus the shared unknown-table
+     * line whenever the check above already judged the tables.
+     */
     private static void checkLoot(@Nonnull List<Finding> findings, @Nonnull String id, @Nonnull String leaf,
+            @Nullable LootRef ref, @Nullable Predicate<String> lootableExists, @Nullable LootAudit loot) {
+        if (lootableExists != null) {
+            checkTables(findings, id, leaf, ref, lootableExists);
+        }
+        if (loot != null) {
+            findings.addAll(loot.audit(ref, id + " " + leaf, lootableExists != null));
+        }
+    }
+
+    private static void checkTables(@Nonnull List<Finding> findings, @Nonnull String id, @Nonnull String leaf,
             @Nullable LootRef ref, @Nonnull Predicate<String> lootableExists) {
         if (ref == null || ref.getLootables() == null) {
             return;
@@ -272,6 +359,101 @@ public final class EncounterValidator {
                 findings.add(Finding.warning(DOMAIN, UNKNOWN_LOOTABLE, leaf + " names the loot table '" + table
                         + "', which nothing on this server defines, so that part pays nothing.", id));
             }
+        }
+    }
+
+    /**
+     * The loot core's audit of one fight payout. No encounter payout layers a pass collector on the
+     * subject it grants through, so every ref is audited against an empty carried set. Fail-soft: an
+     * audit that cannot run says nothing rather than a false line.
+     */
+    private record LootAudit(@Nullable RewardKindRegistry kinds) {
+
+        @Nonnull
+        List<Finding> audit(@Nullable LootRef ref, @Nonnull String where, boolean tablesJudged) {
+            List<Finding> out = new ArrayList<>();
+            if (ref == null) {
+                return out;
+            }
+            try {
+                for (Finding finding : LootableValidator.auditRef(ref, where, kinds, Set.of())) {
+                    if (!(tablesJudged && LootableValidator.UNKNOWN_TABLE.equals(finding.code()))) {
+                        out.add(finding);
+                    }
+                }
+            } catch (Throwable t) {
+                return new ArrayList<>();
+            }
+            return out;
+        }
+    }
+
+    /**
+     * Every {@code ZigGrant} action's {@code Loot} in one script, in authored order, read off its
+     * JSON the way the action reads it, following a {@code Reference} (a Variant's base, a macro's
+     * Content) through {@code referenced}, each referenced builder once. A loot that does not decode
+     * is left out (the action warns about it when it loads), and a loot behind a {@code Compute} is
+     * not seen, so an unusual shape can hide a finding but never invent one.
+     *
+     * @param referenced resolves a referenced builder name to its file's root object, or null
+     */
+    @Nonnull
+    public static List<LootRef> zigGrantLoots(@Nonnull JsonObject root, @Nonnull Function<String, JsonObject> referenced) {
+        List<LootRef> out = new ArrayList<>();
+        collectGrants(root, referenced, new HashSet<>(), out, 0);
+        return out;
+    }
+
+    private static void collectGrants(@Nonnull JsonElement element, @Nonnull Function<String, JsonObject> referenced,
+            @Nonnull Set<String> followed, @Nonnull List<LootRef> out, int depth) {
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                collectGrants(child, referenced, followed, out, depth);
+            }
+            return;
+        }
+        if (!element.isJsonObject()) {
+            return;
+        }
+        JsonObject object = element.getAsJsonObject();
+        JsonElement type = object.get("Type");
+        if (type != null && type.isJsonPrimitive() && GRANT_TYPE.equals(type.getAsString())) {
+            LootRef loot = decodeLoot(object.get(GRANT_LOOT));
+            if (loot != null && !loot.isEmpty()) {
+                out.add(loot);
+            }
+        }
+        JsonElement reference = object.get("Reference");
+        if (reference != null && reference.isJsonPrimitive() && depth < EncounterScriptScan.MAX_REFERENCE_DEPTH
+                && followed.add(reference.getAsString())) {
+            JsonObject target = null;
+            try {
+                target = referenced.apply(reference.getAsString());
+            } catch (RuntimeException e) {
+                // An unresolvable reference hides what it holds; it never invents a finding.
+            }
+            if (target != null) {
+                collectGrants(target, referenced, followed, out, depth + 1);
+            }
+        }
+        for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+            String key = entry.getKey();
+            if (!"Reference".equals(key) && !"Modify".equals(key) && !"Parameters".equals(key)) {
+                collectGrants(entry.getValue(), referenced, followed, out, depth);
+            }
+        }
+    }
+
+    /** A {@code ZigGrant}'s {@code Loot} as the action decodes it, or null when it is absent or unreadable. */
+    @Nullable
+    private static LootRef decodeLoot(@Nullable JsonElement raw) {
+        if (raw == null || !raw.isJsonObject()) {
+            return null;
+        }
+        try {
+            return LootRef.CODEC.decodeJson(RawJsonReader.fromJsonString(raw.toString()), new ExtraInfo());
+        } catch (Throwable t) {
+            return null;
         }
     }
 

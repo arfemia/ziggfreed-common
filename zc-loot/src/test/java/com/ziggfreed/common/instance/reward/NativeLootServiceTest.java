@@ -3,6 +3,7 @@ package com.ziggfreed.common.instance.reward;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -102,6 +103,24 @@ class NativeLootServiceTest {
             assertTrue(NativeLootService.spawnInWorld(null, new Vector3d(), Rotation3f.IDENTITY, List.of()));
             assertTrue(NativeLootService.spawnInWorld(null, null, new Vector3d(), new Rotation3f(), List.of()));
             assertTrue(NativeLootService.spawnAtFeet(null, List.of()));
+            assertTrue(NativeLootService.spawnAtEntity(null, null, null, List.of()));
         });
+    }
+
+    /**
+     * The drop point every entity-relative spawn shares: the engine's death-drop lift (one block up,
+     * as {@code DeathSystems} and {@code NPCDamageSystems} drop a dying entity's items), on a NEW
+     * vector, since the position handed in is an entity's live one.
+     */
+    @Test
+    void theLiftedPointAddsTheEnginesLiftAndNeverMovesThePositionHandedIn() {
+        Vector3d position = new Vector3d(10.5, 64.0, -3.25);
+
+        Vector3d lifted = NativeLootService.lifted(position);
+
+        assertEquals(new Vector3d(10.5, 64.0 + NativeLootService.FEET_DROP_LIFT, -3.25), lifted);
+        assertEquals(1.0, NativeLootService.FEET_DROP_LIFT, "the engine's own death-drop lift");
+        assertEquals(new Vector3d(10.5, 64.0, -3.25), position, "the live position is untouched");
+        assertNotSame(position, lifted);
     }
 }

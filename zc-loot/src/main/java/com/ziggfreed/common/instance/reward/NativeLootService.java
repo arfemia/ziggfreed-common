@@ -18,6 +18,7 @@ import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.math.vector.Rotation3fc;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemDropList;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.item.ItemComponent;
 import com.hypixel.hytale.server.core.modules.item.ItemModule;
@@ -53,10 +54,11 @@ public final class NativeLootService {
     private static final Set<String> WARNED_IDS = ConcurrentHashMap.newKeySet();
 
     /**
-     * The lift {@link #spawnAtFeet} applies above the entity's own position: the same small lift the
-     * engine gives a mob's death drops, so items bounce on the floor instead of inside it.
+     * The lift {@link #spawnAtFeet} and {@link #spawnAtEntity} apply above the entity's own position:
+     * the same small lift the engine gives a dying entity's drops ({@code DeathSystems},
+     * {@code NPCDamageSystems}), so items bounce on the floor instead of inside it.
      */
-    private static final double FEET_DROP_LIFT = 1.0;
+    static final double FEET_DROP_LIFT = 1.0;
 
     /** How many stacks a lost-items warn names outright before it just counts the rest. */
     private static final int WARN_STACKS_NAMED = 8;
@@ -214,14 +216,58 @@ public final class NativeLootService {
                 warnLost(items, new IllegalStateException("the receiving entity has no readable position"));
                 return false;
             }
-            // A defensive copy: the engine hands back its live vector, and adding to it in place
-            // would teleport whoever is standing on it.
-            Vector3d at = new Vector3d(transform.getPosition()).add(0.0, FEET_DROP_LIFT, 0.0);
-            return spawnInWorld(store, at, Rotation3f.IDENTITY, items);
+            return spawnInWorld(store, lifted(transform.getPosition()), Rotation3f.IDENTITY, items);
         } catch (Throwable t) {
             warnLost(items, t);
             return false;
         }
+    }
+
+    /**
+     * Spawn {@code items} on the ground where {@code ref} stands right now, the way the engine drops a
+     * dying entity's items: its position lifted {@value #FEET_DROP_LIFT} block, facing its head's
+     * rotation. The corpse ground, for a site inside a system tick: the position and facing are read
+     * through {@code store} at drop time, and the drop is queued on the tick's {@code commandBuffer}
+     * through the tick-safe {@link #spawnInWorld(Store, CommandBuffer, Vector3d, Rotation3f, List)}.
+     *
+     * <p>An entity with no head rotation drops facing nowhere in particular ({@code Rotation3f.IDENTITY}),
+     * as every engine drop with nothing to aim by does; the engine's own death drop assumes one is there.
+     *
+     * @return true when the drop entities were queued (or there was nothing to drop); false when the
+     *         ref is dead, its position is unreadable, or the spawn failed (warned, naming the stacks
+     *         that were lost)
+     */
+    public static boolean spawnAtEntity(@Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer,
+                                        @Nonnull Ref<EntityStore> ref, @Nonnull List<ItemStack> items) {
+        if (items.isEmpty()) {
+            return true;
+        }
+        try {
+            if (!ref.isValid()) {
+                warnLost(items, new IllegalStateException("the dropping entity's ref is no longer valid"));
+                return false;
+            }
+            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+            if (transform == null) {
+                warnLost(items, new IllegalStateException("the dropping entity has no readable position"));
+                return false;
+            }
+            HeadRotation head = store.getComponent(ref, HeadRotation.getComponentType());
+            Rotation3f facing = new Rotation3f(head == null ? Rotation3f.IDENTITY : head.getRotation());
+            return spawnInWorld(store, commandBuffer, lifted(transform.getPosition()), facing, items);
+        } catch (Throwable t) {
+            warnLost(items, t);
+            return false;
+        }
+    }
+
+    /**
+     * {@code position} lifted {@value #FEET_DROP_LIFT} block, as a NEW vector: the engine hands back
+     * an entity's live position, and adding to it in place would teleport whoever stands on it.
+     */
+    @Nonnull
+    static Vector3d lifted(@Nonnull Vector3d position) {
+        return new Vector3d(position).add(0.0, FEET_DROP_LIFT, 0.0);
     }
 
     /** The guarded spawn: true when the entities were added, false (warned) when anything threw. */

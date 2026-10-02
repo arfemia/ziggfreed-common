@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
@@ -47,9 +48,35 @@ public final class EncounterScripts {
     @Nonnull
     public static Map<String, EncounterScriptScan> scanLoaded() {
         Map<String, EncounterScriptScan> out = new LinkedHashMap<>();
+        forEachLoaded((id, spawnable, root, referenced) ->
+                out.put(id, EncounterScriptScan.scan(id, spawnable, root, referenced)));
+        return out;
+    }
+
+    /** One loaded encounter script as {@link #forEachLoaded} hands it over. */
+    @FunctionalInterface
+    interface LoadedScriptVisitor {
+
+        /**
+         * @param id         the script's builder name
+         * @param spawnable  whether the engine lets the script be spawned directly
+         * @param root       the script file's root object, as authored
+         * @param referenced resolves a referenced builder name to its file's root object, or null
+         */
+        void visit(@Nonnull String id, boolean spawnable, @Nonnull JsonObject root,
+                @Nonnull Function<String, JsonObject> referenced);
+    }
+
+    /**
+     * The one read of the loaded encounter scripts every whole-server pass shares: each builder the
+     * engine's manager holds under the encounter category, its file read back, handed to
+     * {@code visitor} with a resolver for the builders it references (each file read once per call).
+     * A script whose file cannot be read is skipped; nothing runs when the engine is not up.
+     */
+    static void forEachLoaded(@Nonnull LoadedScriptVisitor visitor) {
         NPCPlugin npc = NPCPlugin.get();
         if (npc == null) {
-            return out;
+            return;
         }
         BuilderManager manager = npc.getBuilderManager();
         Map<String, JsonObject> files = new HashMap<>();
@@ -61,10 +88,9 @@ public final class EncounterScripts {
             if (root == null) {
                 continue;
             }
-            out.put(info.getKeyName(), EncounterScriptScan.scan(info.getKeyName(), info.getBuilder().isSpawnable(),
-                    root, name -> referenced(npc, manager, name, files)));
+            visitor.visit(info.getKeyName(), info.getBuilder().isSpawnable(), root,
+                    name -> referenced(npc, manager, name, files));
         }
-        return out;
     }
 
     /** The scan of ONE script by id, or null when it is not loaded or cannot be read. */

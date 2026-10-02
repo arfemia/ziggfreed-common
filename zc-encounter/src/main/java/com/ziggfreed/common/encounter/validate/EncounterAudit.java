@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,7 +31,10 @@ import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationConfig;
 import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.validate.EncounterValidator.RoleReference;
+import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.LootableConfig;
+import com.ziggfreed.common.loot.reward.RewardKindRegistry;
+import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.validation.ValidationReport;
@@ -53,6 +57,10 @@ import com.ziggfreed.common.validation.ValidationReport;
  * <p>The prefabs are read here too: every loaded pack's {@code Server/Prefabs/**.prefab.json},
  * each spawner block entry checked for the per-block state a builder-page paste needs
  * ({@link EncounterPrefabAudit}). The game's own pack is left out; its prefabs are the engine's.
+ *
+ * <p>Every loot payout a fight makes (a binding's {@code Loot.OnDefeat} and {@code Loot.OnPhase}
+ * states, each script's {@code ZigGrant} loot) is read by the loot core's rules against the shared
+ * reward vocabulary ({@link RewardKinds#shared()}).
  */
 public final class EncounterAudit {
 
@@ -80,15 +88,27 @@ public final class EncounterAudit {
         ROLE_NAME_SOURCES.put(kind, rolesByOwner);
     }
 
-    /** Audit every encounter domain and answer the findings together. */
+    /**
+     * Audit every encounter domain and answer the findings together, the fights' loot read against
+     * the shared reward vocabulary.
+     */
     @Nonnull
     public static List<Finding> auditAll() {
+        return auditAll(RewardKinds.shared());
+    }
+
+    /**
+     * Audit every encounter domain, the fights' loot read against {@code kinds} (null skips the
+     * reward-kind checks, never the rest of the loot rules).
+     */
+    @Nonnull
+    public static List<Finding> auditAll(@Nullable RewardKindRegistry kinds) {
         List<Finding> out = new ArrayList<>();
         try {
             out.addAll(EncounterValidator.validate(EncounterScripts.scanLoaded(),
                     EncounterBindingConfig.getInstance().all().values(),
                     EncounterParticipationConfig.getInstance().all().values(), lootables(),
-                    roleReferences(), EncounterScripts.roleExists()));
+                    roleReferences(), EncounterScripts.roleExists(), grantLoots(), kinds));
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " the encounter content could not be audited", t);
         }
@@ -168,6 +188,29 @@ public final class EncounterAudit {
             SafeLog.fine(Encounters.LOG_PREFIX + " could not read the prefab at " + file + ": " + e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Each loaded encounter script's {@code ZigGrant} loot, by script id
+     * ({@link EncounterValidator#zigGrantLoots}), read through the same pass over the loaded scripts
+     * as the script scan ({@link EncounterScripts#forEachLoaded}). Empty when the engine is not up; a
+     * script that cannot be read costs only its own loot.
+     */
+    @Nonnull
+    static Map<String, List<LootRef>> grantLoots() {
+        Map<String, List<LootRef>> out = new LinkedHashMap<>();
+        EncounterScripts.forEachLoaded((id, spawnable, root, referenced) -> {
+            try {
+                List<LootRef> loots = EncounterValidator.zigGrantLoots(root, referenced);
+                if (!loots.isEmpty()) {
+                    out.put(id, loots);
+                }
+            } catch (Throwable t) {
+                SafeLog.fine(Encounters.LOG_PREFIX + " the ZigGrant loot of " + id + " could not be read: "
+                        + t.getMessage());
+            }
+        });
+        return out;
     }
 
     /** Every role id named on this server: the spawn markers, then each registered source. */
