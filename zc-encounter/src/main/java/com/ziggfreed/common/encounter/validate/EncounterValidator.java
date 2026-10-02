@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -17,11 +18,11 @@ import javax.annotation.Nullable;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.hypixel.hytale.codec.ExtraInfo;
-import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterParticipationAsset;
 import com.ziggfreed.common.encounter.asset.ParticipationSpec;
 import com.ziggfreed.common.encounter.signal.EncounterSignal;
+import com.ziggfreed.common.encounter.types.BuilderActionZigGrant;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.LootableValidator;
@@ -47,7 +48,10 @@ import com.ziggfreed.common.validation.Finding;
  * rules ({@link LootableValidator#auditRef(LootRef, String, RewardKindRegistry, Set)}) when the
  * caller hands over the reward vocabulary: none of those payouts carries a pass collector, so a
  * reward kind that only pays into one is reported there. A table this validator already reports as
- * missing is not reported a second time by the shared rule.
+ * missing is not reported a second time by the shared rule. A {@code ZigGrant} whose {@code Loot}
+ * cannot be read at all pays nothing, and is reported against its script ({@link #GRANT_LOOT_UNREADABLE}),
+ * and one that writes a whole table inline is steered to a shared table id or to {@code Rolls}
+ * ({@link #GRANT_INLINE_TABLE}).
  */
 public final class EncounterValidator {
 
@@ -69,6 +73,15 @@ public final class EncounterValidator {
     public static final String RULE_BAD_MATCH = "ENCOUNTER_RULE_BAD_MATCH";
     public static final String ONCE_BLOCKS_LIST = "ENCOUNTER_ONCE_BLOCKS_LIST";
     public static final String SCRIPT_ID_IS_ROLE_ID = "ENCOUNTER_SCRIPT_ID_IS_ROLE_ID";
+    /** A script's {@code ZigGrant} carries a {@code Loot} that cannot be read, so that grant pays nothing. */
+    public static final String GRANT_LOOT_UNREADABLE = "ENCOUNTER_GRANT_LOOT_UNREADABLE";
+    /**
+     * A script's {@code ZigGrant} writes a whole table inline under {@code Loot.Lootables}. The engine
+     * names an inline table from the script's id and the keys above it ({@code AssetExtraInfo.generateKey}),
+     * and a script's builders push no list position, so two such grants in one script can be given
+     * the same name and one table silently replaces the other when the script loads.
+     */
+    public static final String GRANT_INLINE_TABLE = "ENCOUNTER_GRANT_INLINE_TABLE";
     /** A pack prefab's spawner block with no per-block state; the check itself is {@link EncounterPrefabAudit}. */
     public static final String PREFAB_SPAWNER_WITHOUT_STATE = "ENCOUNTER_PREFAB_SPAWNER_WITHOUT_STATE";
 
@@ -78,6 +91,7 @@ public final class EncounterValidator {
     /** The script action that pays loot from inside the fight, and the key its loot sits under. */
     private static final String GRANT_TYPE = "ZigGrant";
     private static final String GRANT_LOOT = "Loot";
+    private static final String GRANT_TABLES = "Lootables";
 
     /** How close a custom moment word has to be to a reserved one to read as a typo. */
     private static final int TYPO_DISTANCE = 2;
@@ -392,23 +406,48 @@ public final class EncounterValidator {
      * Every {@code ZigGrant} action's {@code Loot} in one script, in authored order, read off its
      * JSON the way the action reads it, following a {@code Reference} (a Variant's base, a macro's
      * Content) through {@code referenced}, each referenced builder once. A loot that does not decode
-     * is left out (the action warns about it when it loads), and a loot behind a {@code Compute} is
-     * not seen, so an unusual shape can hide a finding but never invent one.
+     * is left out here; {@link #zigGrantLoots(JsonObject, Function, String, Consumer)} reports it. A
+     * loot behind a {@code Compute} is not seen, so an unusual shape can hide a finding but never
+     * invent one.
      *
      * @param referenced resolves a referenced builder name to its file's root object, or null
      */
     @Nonnull
     public static List<LootRef> zigGrantLoots(@Nonnull JsonObject root, @Nonnull Function<String, JsonObject> referenced) {
+        return zigGrantLoots(root, referenced, GRANT_TYPE, finding -> { });
+    }
+
+    /**
+     * Every {@code ZigGrant} action's {@code Loot} in one script, as {@link #zigGrantLoots(JsonObject,
+     * Function)} reads them, with each loot that cannot be read handed to {@code grantFindings} as a
+     * {@link #GRANT_LOOT_UNREADABLE} warning against {@code scriptId}, since that grant pays nothing,
+     * and each one that writes a whole table inline as a {@link #GRANT_INLINE_TABLE} warning.
+     *
+     * <p>Each loot decodes through the action's own decode ({@link BuilderActionZigGrant#decodeLoot}),
+     * in a detached asset context, so a table named by id reads exactly as the action reads it. A
+     * whole table written inline loads with the script, where every loaded table is audited, so its
+     * generated id, which nothing loads in a detached read, is left out here rather than reported as
+     * a missing table. The inline-table warning reads the authored JSON, not the decode, so it is
+     * said whether or not the loot decodes.
+     *
+     * @param referenced    resolves a referenced builder name to its file's root object, or null
+     * @param scriptId      the script read, the source of any finding
+     * @param grantFindings takes one finding per loot that cannot be read or writes a table inline
+     */
+    @Nonnull
+    public static List<LootRef> zigGrantLoots(@Nonnull JsonObject root, @Nonnull Function<String, JsonObject> referenced,
+            @Nonnull String scriptId, @Nonnull Consumer<Finding> grantFindings) {
         List<LootRef> out = new ArrayList<>();
-        collectGrants(root, referenced, new HashSet<>(), out, 0);
+        collectGrants(root, referenced, new HashSet<>(), out, scriptId, grantFindings, 0);
         return out;
     }
 
     private static void collectGrants(@Nonnull JsonElement element, @Nonnull Function<String, JsonObject> referenced,
-            @Nonnull Set<String> followed, @Nonnull List<LootRef> out, int depth) {
+            @Nonnull Set<String> followed, @Nonnull List<LootRef> out, @Nonnull String scriptId,
+            @Nonnull Consumer<Finding> grantFindings, int depth) {
         if (element.isJsonArray()) {
             for (JsonElement child : element.getAsJsonArray()) {
-                collectGrants(child, referenced, followed, out, depth);
+                collectGrants(child, referenced, followed, out, scriptId, grantFindings, depth);
             }
             return;
         }
@@ -418,9 +457,24 @@ public final class EncounterValidator {
         JsonObject object = element.getAsJsonObject();
         JsonElement type = object.get("Type");
         if (type != null && type.isJsonPrimitive() && GRANT_TYPE.equals(type.getAsString())) {
-            LootRef loot = decodeLoot(object.get(GRANT_LOOT));
-            if (loot != null && !loot.isEmpty()) {
-                out.add(loot);
+            JsonElement raw = object.get(GRANT_LOOT);
+            try {
+                LootRef loot = withoutGeneratedTables(BuilderActionZigGrant.decodeLoot(raw, null, scriptId));
+                if (loot != null && !loot.isEmpty()) {
+                    out.add(loot);
+                }
+            } catch (IllegalArgumentException e) {
+                grantFindings.accept(Finding.warning(DOMAIN, GRANT_LOOT_UNREADABLE, "A " + GRANT_TYPE + " in this "
+                        + "script carries a " + GRANT_LOOT + " that cannot be read, so that grant pays nothing: "
+                        + e.getMessage(), scriptId));
+            }
+            if (writesInlineTable(raw)) {
+                grantFindings.accept(Finding.warning(DOMAIN, GRANT_INLINE_TABLE, "A " + GRANT_TYPE + " in this "
+                        + "script writes a whole loot table inline under " + GRANT_LOOT + "." + GRANT_TABLES
+                        + ". The engine names an inline table by the keys above it, never by its place in a "
+                        + "list, so two such grants in one script can be given the same name and one table "
+                        + "replaces the other. Name a shared table by its id, or write the payout as Rolls.",
+                        scriptId));
             }
         }
         JsonElement reference = object.get("Reference");
@@ -433,28 +487,49 @@ public final class EncounterValidator {
                 // An unresolvable reference hides what it holds; it never invents a finding.
             }
             if (target != null) {
-                collectGrants(target, referenced, followed, out, depth + 1);
+                collectGrants(target, referenced, followed, out, scriptId, grantFindings, depth + 1);
             }
         }
         for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
             String key = entry.getKey();
             if (!"Reference".equals(key) && !"Modify".equals(key) && !"Parameters".equals(key)) {
-                collectGrants(entry.getValue(), referenced, followed, out, depth);
+                collectGrants(entry.getValue(), referenced, followed, out, scriptId, grantFindings, depth);
             }
         }
     }
 
-    /** A {@code ZigGrant}'s {@code Loot} as the action decodes it, or null when it is absent or unreadable. */
+    /** Whether an authored {@code ZigGrant} Loot writes a whole table (an object, not an id) under {@code Lootables}. */
+    private static boolean writesInlineTable(@Nullable JsonElement raw) {
+        JsonElement tables = raw != null && raw.isJsonObject() ? raw.getAsJsonObject().get(GRANT_TABLES) : null;
+        if (tables == null || !tables.isJsonArray()) {
+            return false;
+        }
+        for (JsonElement table : tables.getAsJsonArray()) {
+            if (table.isJsonObject()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The loot without the generated ids of whole tables written inline, which a detached read
+     * names but never loads; the same loot when it names none. Package-private so the filter is
+     * pinned directly: a unit JVM has no loot-table store, so it cannot mint an inline table's id.
+     */
     @Nullable
-    private static LootRef decodeLoot(@Nullable JsonElement raw) {
-        if (raw == null || !raw.isJsonObject()) {
-            return null;
+    static LootRef withoutGeneratedTables(@Nullable LootRef loot) {
+        String[] tables = loot == null ? null : loot.getLootables();
+        if (tables == null) {
+            return loot;
         }
-        try {
-            return LootRef.CODEC.decodeJson(RawJsonReader.fromJsonString(raw.toString()), new ExtraInfo());
-        } catch (Throwable t) {
-            return null;
+        List<String> named = new ArrayList<>();
+        for (String table : tables) {
+            if (table == null || !table.startsWith(ExtraInfo.GENERATED_ID_PREFIX)) {
+                named.add(table);
+            }
         }
+        return named.size() == tables.length ? loot : LootRef.of(named.toArray(String[]::new), loot.getRolls());
     }
 
     /** Whether presence earns anything for this row: its own override, else the catch-all rule. */

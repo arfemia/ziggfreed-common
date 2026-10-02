@@ -105,10 +105,12 @@ public final class EncounterAudit {
     public static List<Finding> auditAll(@Nullable RewardKindRegistry kinds) {
         List<Finding> out = new ArrayList<>();
         try {
+            List<Finding> grantFindings = new ArrayList<>();
             out.addAll(EncounterValidator.validate(EncounterScripts.scanLoaded(),
                     EncounterBindingConfig.getInstance().all().values(),
                     EncounterParticipationConfig.getInstance().all().values(), lootables(),
-                    roleReferences(), EncounterScripts.roleExists(), grantLoots(), kinds));
+                    roleReferences(), EncounterScripts.roleExists(), grantLoots(grantFindings), kinds));
+            out.addAll(grantFindings);
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " the encounter content could not be audited", t);
         }
@@ -194,14 +196,16 @@ public final class EncounterAudit {
      * Each loaded encounter script's {@code ZigGrant} loot, by script id
      * ({@link EncounterValidator#zigGrantLoots}), read through the same pass over the loaded scripts
      * as the script scan ({@link EncounterScripts#forEachLoaded}). Empty when the engine is not up; a
-     * script that cannot be read costs only its own loot.
+     * script that cannot be read costs only its own loot. A loot that cannot be read (that grant pays
+     * nothing) or that writes a whole table inline is a finding against its script, added to
+     * {@code grantFindings}.
      */
     @Nonnull
-    static Map<String, List<LootRef>> grantLoots() {
+    static Map<String, List<LootRef>> grantLoots(@Nonnull List<Finding> grantFindings) {
         Map<String, List<LootRef>> out = new LinkedHashMap<>();
         EncounterScripts.forEachLoaded((id, spawnable, root, referenced) -> {
             try {
-                List<LootRef> loots = EncounterValidator.zigGrantLoots(root, referenced);
+                List<LootRef> loots = EncounterValidator.zigGrantLoots(root, referenced, id, grantFindings::add);
                 if (!loots.isEmpty()) {
                     out.put(id, loots);
                 }

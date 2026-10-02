@@ -215,8 +215,8 @@ class EncounterValidatorTest {
                 + "{\"Type\": \"ZigGrant\", \"Loot\": " + MOMENT_ROLL + "},"
                 + "{\"Reference\": \"Payout_Macro\"},"
                 + "{\"Type\": \"ZigGrant\"}]}]}}").getAsJsonObject();
-        // The macro's grant pays an inline roll: a Lootables id cannot decode outside an asset store's
-        // context, which this unit JVM has none of.
+        // The macro's grant pays an inline roll; a Lootables id would read here too, through the
+        // walker's detached asset context (ZigGrantLootReadTest pins that).
         JsonObject macro = JsonParser.parseString("{\"Content\": {\"Actions\": [{\"Type\": \"ZigGrant\", "
                 + "\"Loot\": {\"Rolls\": [{\"Grants\": {\"Items\": [{\"Item\": \"Boss_Coin\"}]}}]}}]}}")
                 .getAsJsonObject();

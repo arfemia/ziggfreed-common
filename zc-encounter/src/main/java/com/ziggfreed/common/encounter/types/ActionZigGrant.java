@@ -3,9 +3,6 @@ package com.ziggfreed.common.encounter.types;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.google.gson.JsonElement;
-import com.hypixel.hytale.codec.ExtraInfo;
-import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -42,13 +39,16 @@ public class ActionZigGrant extends ActionBase {
     private final boolean toKiller;
     private final boolean queueIfOffline;
     @Nullable private final LootRef loot;
+    private final boolean lootUnreadable;
 
     public ActionZigGrant(@Nonnull BuilderActionZigGrant builder, @Nonnull BuilderSupport support) {
         super(builder);
         this.toMembers = builder.getToMembers(support);
         this.toKiller = builder.getToKiller(support);
         this.queueIfOffline = builder.getQueueIfOffline(support);
-        this.loot = decode(builder.getLoot());
+        // Decoded once when the script loaded, in the script's own asset context (see the builder).
+        this.loot = builder.getLootRef();
+        this.lootUnreadable = builder.isLootUnreadable();
     }
 
     @Override
@@ -64,7 +64,9 @@ public class ActionZigGrant extends ActionBase {
             }
             if (loot == null || loot.isEmpty()) {
                 EncounterTypes.executed(EncounterTypes.GRANT, "run=" + EncounterRun.shortId(run.runId())
-                        + " encounter=" + encounterId + ": no Loot authored, nothing to pay");
+                        + " encounter=" + encounterId + (lootUnreadable
+                                ? ": its Loot could not be read when the script loaded, nothing to pay"
+                                : ": no Loot authored, nothing to pay"));
                 return true;
             }
             EncounterBindingAsset row = EncounterBindingConfig.getInstance().forEncounter(encounterId);
@@ -80,19 +82,5 @@ public class ActionZigGrant extends ActionBase {
             SafeLog.warn(Encounters.LOG_PREFIX + " " + EncounterTypes.GRANT + " failed", t);
         }
         return true;
-    }
-
-    @Nullable
-    private static LootRef decode(@Nullable JsonElement raw) {
-        if (raw == null || raw.isJsonNull()) {
-            return null;
-        }
-        try {
-            return LootRef.CODEC.decodeJson(RawJsonReader.fromJsonString(raw.toString()), new ExtraInfo());
-        } catch (Throwable t) {
-            SafeLog.warn(Encounters.LOG_PREFIX + " a " + EncounterTypes.GRANT + " action's Loot could not be read, "
-                    + "so it pays nothing: " + t.getMessage());
-            return null;
-        }
     }
 }
