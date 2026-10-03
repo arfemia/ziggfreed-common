@@ -1,0 +1,160 @@
+{
+  "$Comment": "The quest-giver role template this library ships for any mod or content pack built on it. Abstract, so it never spawns on its own: build a giver with a role file of the form {\"Type\":\"Variant\",\"Reference\":\"Template_Zig_QuestGiver\",\"Modify\":{...}}, then name that role from an NPC placement's Identity.Role. Modify may name EXACTLY the five parameters declared below, each bound into the body with Compute: Appearance (a Model asset id), NameTranslationKey (the nameplate), Weapons (hotbar items, the first one in hand), OffHand, and DefaultOffHandSlot. Naming anything else makes the engine refuse the whole role, and the only sign in game is a giver who is never anywhere. A template of your own built on this one is itself a Variant, and a Variant's Modify can name only what its own Reference declares: re-declare each parameter yours passes on and forward it as {\"Compute\": \"<the same name>\"}, or a role built on yours cannot set it. The press-F hint and the worn armour are fixed in this file and shared by every giver built on it, because the engine reads both literally and no variant can change either: a giver needing its own prompt or armour needs a full role body. Press F runs ZigPlacementInteract, which opens whatever the NPC placement that stood this giver up authored under Interact: its conversation, any screen a mod on this server has registered, or, with no Interact at all, the quest list for that character. The Open value on that action is the answer for a giver NOTHING placed: one spawned by a command, an egg or a prefab carries no placement to read, and without it pressing F shows a prompt and then opens nothing. It is set to Quests here so an unplaced giver still offers what it has; a placement always wins where there is one. Stationary and invulnerable; modeled on the builtin Kweebec_Merchant, which only ever issues BodyMotion:Nothing so it stays put.",
+  "Type": "Abstract",
+  "Parameters": {
+    "Appearance": {
+      "Value": "Kweebec_Rootling",
+      "Description": "Model to be used."
+    },
+    "NameTranslationKey": {
+      "Value": "npcs.Zig_QuestGiver.name",
+      "Description": "Translation key for NPC name display."
+    },
+    "Weapons": {
+      "Value": [],
+      "TypeHint": "String",
+      "Description": "NPC weapons (and other main hand items)."
+    },
+    "OffHand": {
+      "Value": [],
+      "TypeHint": "String",
+      "Description": "Off-hand items."
+    },
+    "DefaultOffHandSlot": {
+      "Value": -1,
+      "Description": "Default off-hand item slot. -1 for nothing."
+    }
+  },
+  "StartState": "Idle",
+  "DefaultNPCAttitude": "Ignore",
+  "DefaultPlayerAttitude": "Neutral",
+  "Appearance": { "Compute": "Appearance" },
+  "NameTranslationKey": { "Compute": "NameTranslationKey" },
+  "HotbarItems": { "Compute": "Weapons" },
+  "HotbarSize": 3,
+  "OffHandItems": { "Compute": "OffHand" },
+  "OffHandSlots": 2,
+  "DefaultOffHandSlot": { "Compute": "DefaultOffHandSlot" },
+  "Armor": [ ],
+  "MaxHealth": 100,
+  "IsMemory": false,
+  "DisableDamageGroups": [ "Self" ],
+  "CombatConfig": {
+    "EntityEffects": ["Immunity_Environmental"]
+  },
+  "BusyStates": [ "$Interaction" ],
+  "Invulnerable": true,
+  "KnockbackScale": 0.0,
+  "MotionControllerList": [
+    {
+      "Type": "Walk",
+      "MaxWalkSpeed": 5,
+      "Gravity": 10,
+      "RunThreshold": 0.3,
+      "MaxFallSpeed": 15,
+      "MaxRotationSpeed": 360,
+      "Acceleration": 10
+    }
+  ],
+  "Instructions": [
+    {
+      "Instructions": [
+        {
+          "$Comment": "Idle - no player nearby; stand still.",
+          "Sensor": { "Type": "State", "State": "Idle" },
+          "Instructions": [
+            {
+              "$Comment": "Wave at an approaching player, then watch.",
+              "ActionsBlocking": true,
+              "Sensor": { "Type": "Player", "Range": 8 },
+              "Actions": [
+                { "Type": "PlayAnimation", "Slot": "Status", "Animation": "Wave" },
+                { "Type": "State", "State": "Watching" }
+              ]
+            },
+            { "Sensor": { "Type": "Any" }, "BodyMotion": { "Type": "Nothing" } }
+          ]
+        },
+        {
+          "$Comment": "Watching - player nearby; track with head, return to Idle when they leave.",
+          "Sensor": { "Type": "State", "State": "Watching" },
+          "Instructions": [
+            {
+              "Continue": true,
+              "Sensor": { "Type": "Player", "Range": 12 },
+              "HeadMotion": { "Type": "Watch" }
+            },
+            {
+              "Continue": true,
+              "Sensor": { "Type": "Any" },
+              "Actions": [
+                { "Type": "Timeout", "Delay": [ 2, 2 ], "Action": { "Type": "PlayAnimation", "Slot": "Status" } }
+              ]
+            },
+            {
+              "Sensor": { "Type": "Not", "Sensor": { "Type": "Player", "Range": 12 } },
+              "Actions": [
+                { "Type": "PlayAnimation", "Slot": "Status" },
+                { "Type": "State", "State": "Idle" }
+              ]
+            },
+            { "Sensor": { "Type": "Any" }, "BodyMotion": { "Type": "Nothing" } }
+          ]
+        },
+        {
+          "$Comment": "Interaction - the page is open; look at the player, then return to Watching.",
+          "Sensor": { "Type": "State", "State": "$Interaction" },
+          "Instructions": [
+            {
+              "Continue": true,
+              "Sensor": { "Type": "Target", "Range": 10 },
+              "HeadMotion": { "Type": "Watch" }
+            },
+            {
+              "Sensor": { "Type": "Any" },
+              "Actions": [
+                {
+                  "Type": "Timeout",
+                  "Delay": [ 1, 1 ],
+                  "Action": {
+                    "Type": "Sequence",
+                    "Actions": [
+                      { "Type": "ReleaseTarget" },
+                      { "Type": "State", "State": "Watching" }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "InteractionInstruction": {
+    "Instructions": [
+      {
+        "Sensor": { "Type": "Not", "Sensor": { "Type": "CanInteract", "ViewSector": 180 } },
+        "Actions": [ { "Type": "SetInteractable", "Interactable": false } ]
+      },
+      {
+        "Continue": true,
+        "Sensor": { "Type": "Any" },
+        "Actions": [ { "Type": "SetInteractable", "Interactable": true, "Hint": "npcs.Zig_QuestGiver.hint" } ]
+      },
+      {
+        "Sensor": { "Type": "HasInteracted" },
+        "Instructions": [
+          {
+            "Sensor": { "Type": "Not", "Sensor": { "Type": "State", "State": "$Interaction" } },
+            "Actions": [
+              { "Type": "LockOnInteractionTarget" },
+              { "Type": "ZigPlacementInteract", "Open": "Quests" },
+              { "Type": "State", "State": "$Interaction" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

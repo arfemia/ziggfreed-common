@@ -4,12 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.lang.reflect.Field;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -19,18 +16,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-import com.hypixel.hytale.assetstore.AssetStore;
-import com.hypixel.hytale.assetstore.AssetUpdateQuery;
-import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
-import com.hypixel.hytale.event.EventBus;
-import com.hypixel.hytale.event.IEventBus;
-import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootGrants;
 import com.ziggfreed.common.loot.Roll;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.testing.EngineAssetStores;
 
 /**
  * The overflow policy answers for a whole pile, and a rolled table's items reach it through the
@@ -152,9 +144,9 @@ class LootableOverflowPileTest {
 
     // ==================== a rolled table's items ====================
 
-    private LootEngine.Result rollItem(List<String> warned) throws ReflectiveOperationException {
+    private LootEngine.Result rollItem(List<String> warned) {
         RewardSpec spec = RewardSpec.of(LootRewardKinds.KIND_LOOTABLE, Map.of("Lootable", "demo"));
-        try (EmptyItemStore ignored = EmptyItemStore.install()) {
+        try (EngineAssetStores.Swap ignored = EngineAssetStores.emptyItems()) {
             return LootEngine.rollAndGrant(
                     List.of(Roll.of(null, null, null, null, LootGrants.ofItem("Coin_Gold", 3), null)),
                     null, FactorLookup.none(), () -> 0.0,
@@ -164,8 +156,7 @@ class LootableOverflowPileTest {
     }
 
     @Test
-    void anItemPastTheBagReachesThePolicyAsOnePileAndCountsWhenItLands()
-            throws ReflectiveOperationException {
+    void anItemPastTheBagReachesThePolicyAsOnePileAndCountsWhenItLands() {
         RecordingPolicy policy = new RecordingPolicy(true);
         LootRewardKinds.overflow(policy);
         List<String> warned = new ArrayList<>();
@@ -179,8 +170,7 @@ class LootableOverflowPileTest {
     }
 
     @Test
-    void aPileThePolicyCouldNotLandCountsNothingAndIsWarnedWithItsTable()
-            throws ReflectiveOperationException {
+    void aPileThePolicyCouldNotLandCountsNothingAndIsWarnedWithItsTable() {
         RecordingPolicy policy = new RecordingPolicy(false);
         LootRewardKinds.overflow(policy);
         List<String> warned = new ArrayList<>();
@@ -195,7 +185,7 @@ class LootableOverflowPileTest {
     }
 
     @Test
-    void withThePolicyClearedARolledItemIsLostAndWarnedNotParked() throws ReflectiveOperationException {
+    void withThePolicyClearedARolledItemIsLostAndWarnedNotParked() {
         LootRewardKinds.overflow(null);
         List<String> warned = new ArrayList<>();
 
@@ -205,75 +195,5 @@ class LootableOverflowPileTest {
         assertEquals(1, warned.size(), () -> "one line for the lost pile: " + warned);
         assertTrue(warned.get(0).contains(SOURCE) && warned.get(0).contains("Coin_Gold x3"),
                 () -> "the line names the table and the stack: " + warned);
-    }
-
-    /**
-     * An item asset store with nothing in it, swapped into {@code Item}'s private static slot and put
-     * back on {@link #close()}: no event listeners, no file monitoring, nothing registered process-wide.
-     */
-    private static final class EmptyItemStore extends AssetStore<String, Item, DefaultAssetMap<String, Item>>
-            implements AutoCloseable {
-
-        private final IEventBus eventBus = new EventBus(false);
-        private Field slot;
-        private Object original;
-
-        private EmptyItemStore(@Nonnull Builder builder) {
-            super(builder);
-        }
-
-        static EmptyItemStore install() throws ReflectiveOperationException {
-            EmptyItemStore store = new Builder().build();
-            store.slot = Item.class.getDeclaredField("ASSET_STORE");
-            store.slot.setAccessible(true);
-            store.original = store.slot.get(null);
-            store.slot.set(null, store);
-            return store;
-        }
-
-        @Override
-        public void close() {
-            try {
-                slot.set(null, original);
-            } catch (IllegalAccessException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-
-        @Nonnull
-        @Override
-        protected IEventBus getEventBus() {
-            return eventBus;
-        }
-
-        @Override
-        public void addFileMonitor(@Nonnull String packKey, Path path) {
-        }
-
-        @Override
-        public void removeFileMonitor(Path path) {
-        }
-
-        @Override
-        protected void handleRemoveOrUpdate(Set<String> toBeRemoved, Map<String, Item> toBeUpdated,
-                @Nonnull AssetUpdateQuery query) {
-        }
-
-        /** The engine's builder is a protected member of the store, so it is reached from inside one. */
-        private static final class Builder
-                extends AssetStore.Builder<String, Item, DefaultAssetMap<String, Item>, Builder> {
-
-            Builder() {
-                super(String.class, Item.class, new DefaultAssetMap<>());
-                setPath("TestEmptyItems");
-                setReplaceOnRemove(id -> null);
-            }
-
-            @Nonnull
-            @Override
-            public EmptyItemStore build() {
-                return new EmptyItemStore(this);
-            }
-        }
     }
 }

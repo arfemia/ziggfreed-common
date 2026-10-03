@@ -54,6 +54,14 @@ dependencies {
     testImplementation(files(hytaleServerJar))
 }
 
+// A module that ships test fixtures compiles them against the same server jar its tests run on.
+pluginManager.withPlugin('java-test-fixtures') {
+    dependencies {
+        testFixturesApi 'com.google.code.findbugs:jsr305:3.0.2'
+        testFixturesCompileOnly(files(hytaleServerJar))
+    }
+}
+
 // Never call a deprecated engine API (family-wide rule, hyMMO's
 // .claude/rules/java-conventions.md): -Xlint:removal surfaces every Hytale API annotated @Deprecated(forRemoval = true)
 // still in use, and -Werror promotes that warning to a hard compile failure. A future Hytale

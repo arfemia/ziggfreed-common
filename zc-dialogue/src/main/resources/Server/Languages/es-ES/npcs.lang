@@ -1,0 +1,7 @@
+# ziggfreed-common - the quest-giver NPC template's display name and press-F hint.
+# Hytale's I18nModule prepends the filename, so each key loads as npcs.<key>
+# (npcs.Zig_QuestGiver.name). Template_Zig_QuestGiver names both: the name as its
+# NameTranslationKey default, the hint as its literal SetInteractable Hint.
+
+Zig_QuestGiver.name = Dador de Misiones
+Zig_QuestGiver.hint = Presiona [{key}] para hablar

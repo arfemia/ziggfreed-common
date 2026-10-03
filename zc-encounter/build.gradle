@@ -27,4 +27,6 @@ dependencies {
     implementation project(':zc-presentation')
     // The pure power fold a party's aggregated power is folded with.
     implementation project(':zc-scaling')
+    // The engine asset-store swap a test building a real ItemStack from an id runs under.
+    testImplementation(testFixtures(project(':zc-core')))
 }

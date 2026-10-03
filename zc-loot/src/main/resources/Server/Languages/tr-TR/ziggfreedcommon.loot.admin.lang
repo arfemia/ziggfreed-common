@@ -1,8 +1,8 @@
 desc.family = Bu sunucunun ganimet tablolarını incele.
-desc.validate = Yüklü her ganimet tablosunu bu sunucunun ödediği ödül türlerine göre denetle.
+desc.validate = Yüklü her ganimet tablosunu ve her ödül türü dosyasını bu sunucunun ödediklerine göre denetle.
 
 more = ... ve {0} tane daha, sunucu günlüğünde.
 
-validate.clean = Ganimet tabloları: bildirilecek bir şey yok.
-validate.counts = Ganimet tabloları: {0} hata, {1} uyarı, {2} not.
+validate.clean = Ganimet tabloları ve ödül türleri: bildirilecek bir şey yok.
+validate.counts = Ganimet tabloları ve ödül türleri: {0} hata, {1} uyarı, {2} not.
 finding = {0} {1} [{2}] {3}

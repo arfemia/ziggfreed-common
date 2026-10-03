@@ -1,8 +1,8 @@
 desc.family = Consulta las tablas de botín de este servidor.
-desc.validate = Revisa cada tabla de botín cargada frente a los tipos de recompensa que paga este servidor.
+desc.validate = Revisa cada tabla de botín y cada archivo de tipo de recompensa cargados frente a lo que paga este servidor.
 
 more = ... y {0} más, en el registro del servidor.
 
-validate.clean = Tablas de botín: nada que informar.
-validate.counts = Tablas de botín: {0} {0, plural, one{error} other{errores}}, {1} {1, plural, one{aviso} other{avisos}}, {2} {2, plural, one{nota} other{notas}}.
+validate.clean = Tablas de botín y tipos de recompensa: nada que informar.
+validate.counts = Tablas de botín y tipos de recompensa: {0} {0, plural, one{error} other{errores}}, {1} {1, plural, one{aviso} other{avisos}}, {2} {2, plural, one{nota} other{notas}}.
 finding = {0} {1} [{2}] {3}

@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.ziggfreed.common.entity.ItemReadings;
-import com.ziggfreed.common.entity.TestAssetStores;
 import com.ziggfreed.common.entity.TestItems;
+import com.ziggfreed.common.testing.EngineAssetStores;
 
 /**
  * The portable {@code hytale:} vocabulary's contract in the one situation a unit JVM can honestly
@@ -28,7 +28,7 @@ import com.ziggfreed.common.entity.TestItems;
  * exception: it reads a plain stack off the context rather than a live entity, so a real engine
  * stack built without a server exercises it here. {@code item_quality} and {@code item_stat} read
  * the LIVE quality and stat-channel asset maps, so their value tests seed those maps for the length
- * of the test ({@link TestAssetStores}, the engine's own test technique).
+ * of the test ({@link EngineAssetStores}, the engine's own test technique).
  *
  * <p>The tests that build a real engine stack are tagged {@code engine-items}: an {@code ItemStack}
  * or {@code Item} can only be built under the engine's own log manager, so they run in the
@@ -157,7 +157,7 @@ class HytaleFactorsTest {
         HytaleFactors.registerInto(registry, "yourmod");
         ItemStack piece = TestItems.stack(TestItems.item("Test_Piece", 3, 2), 1, 1);
 
-        try (TestAssetStores.Seeded ignored = TestAssetStores.qualities(
+        try (EngineAssetStores.Swap ignored = EngineAssetStores.qualities(
                 TestItems.quality(-1), TestItems.quality(10), TestItems.quality(25))) {
             assertEquals(25.0, registry.resolve(HytaleFactors.ITEM_QUALITY, about(piece, null)));
             assertEquals(0.0, registry.resolve(HytaleFactors.ITEM_QUALITY,
@@ -181,7 +181,7 @@ class HytaleFactorsTest {
         ItemStack piece = TestItems.madeFrom(TestItems.item("Test_Hatchet", 3, 1),
                 TestItems.item("Test_Hatchet", 3, 2), 1, 1);
 
-        try (TestAssetStores.Seeded ignored = TestAssetStores.qualities(
+        try (EngineAssetStores.Swap ignored = EngineAssetStores.qualities(
                 TestItems.quality(0), TestItems.quality(10), TestItems.quality(25))) {
             assertEquals(10.0, registry.resolve(HytaleFactors.ITEM_QUALITY, about(piece, null)),
                     "item_quality reads the index the stack was made with");
@@ -193,7 +193,7 @@ class HytaleFactorsTest {
 
     /**
      * {@code StatIndexCache} keeps every id it resolves for the life of the JVM, so the channel id
-     * seeded here is unique to this test (see {@link TestAssetStores}).
+     * seeded here is unique to this test (see {@link EngineAssetStores}).
      */
     @Tag("engine-items")
     @Test
@@ -207,7 +207,7 @@ class HytaleFactorsTest {
                 TestItems.stats(index, TestItems.additive(4f)),
                 null), 1, 1);
 
-        try (TestAssetStores.Seeded ignored = TestAssetStores.statChannels(
+        try (EngineAssetStores.Swap ignored = EngineAssetStores.statChannels(
                 "Test_Channel_A", "Test_Channel_B", "Test_Channel_C", channel)) {
             assertEquals(7.0, registry.resolve(HytaleFactors.ITEM_STAT, about(piece, channel)), 1e-9,
                     "armor 3 + weapon 4; the multiplier adds nothing");

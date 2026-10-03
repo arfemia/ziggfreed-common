@@ -12,4 +12,6 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 
 dependencies {
     implementation project(':zc-core')
+    // The engine asset-store swap a test building a real ItemStack from an id runs under.
+    testImplementation(testFixtures(project(':zc-core')))
 }

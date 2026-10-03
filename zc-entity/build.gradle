@@ -6,4 +6,6 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 
 dependencies {
     implementation project(':zc-core')
+    // The engine asset-store swap the item-reading tests seed qualities and stat channels with.
+    testImplementation(testFixtures(project(':zc-core')))
 }

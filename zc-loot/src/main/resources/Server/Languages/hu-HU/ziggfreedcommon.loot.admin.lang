@@ -1,8 +1,8 @@
 desc.family = A szerver zsákmánytábláinak megtekintése.
-desc.validate = Minden betöltött zsákmánytábla ellenőrzése azokkal a jutalomfajtákkal szemben, amelyeket ez a szerver kifizet.
+desc.validate = Minden betöltött zsákmánytábla és jutalomfajta-fájl ellenőrzése azzal szemben, amit ez a szerver kifizet.
 
 more = ... és még {0}, a szerver naplójában.
 
-validate.clean = Zsákmánytáblák: nincs jelentenivaló.
-validate.counts = Zsákmánytáblák: {0} hiba, {1} figyelmeztetés, {2} megjegyzés.
+validate.clean = Zsákmánytáblák és jutalomfajták: nincs jelentenivaló.
+validate.counts = Zsákmánytáblák és jutalomfajták: {0} hiba, {1} figyelmeztetés, {2} megjegyzés.
 finding = {0} {1} [{2}] {3}

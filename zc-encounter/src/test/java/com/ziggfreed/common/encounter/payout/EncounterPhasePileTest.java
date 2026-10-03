@@ -2,28 +2,18 @@ package com.ziggfreed.common.encounter.payout;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.lang.reflect.Field;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
-import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-import com.hypixel.hytale.assetstore.AssetStore;
-import com.hypixel.hytale.assetstore.AssetUpdateQuery;
-import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
-import com.hypixel.hytale.event.EventBus;
-import com.hypixel.hytale.event.IEventBus;
-import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootGrants;
+import com.ziggfreed.common.testing.EngineAssetStores;
 
 /**
  * A phase drop's ground gathers every hand-over into the ONE pile the phase spawns at the subject
@@ -52,7 +42,7 @@ class EncounterPhasePileTest {
     }
 
     @Test
-    void anItemGrantThroughThePhaseSinksLandsInThePile() throws ReflectiveOperationException {
+    void anItemGrantThroughThePhaseSinksLandsInThePile() {
         List<ItemStack> pile = new ArrayList<>();
         List<String> warned = new ArrayList<>();
         LootGrants first = LootGrants.of(
@@ -61,7 +51,7 @@ class EncounterPhasePileTest {
         LootGrants second = LootGrants.ofItem("Coin_Gold", 2);
 
         LootEngine.Result result;
-        try (EmptyItemStore ignored = EmptyItemStore.install()) {
+        try (EngineAssetStores.Swap ignored = EngineAssetStores.emptyItems()) {
             result = EncounterLoot.handOverPhase(
                     List.of(new LootEngine.Selected(first, null), new LootEngine.Selected(second, null)),
                     EncounterLoot.phaseSinks(pile, warned::add, line -> true, "Zc_Encounter_Test", "Enraged",
@@ -95,75 +85,5 @@ class EncounterPhasePileTest {
             out.add(s.getItemId() + " x" + s.getQuantity());
         }
         return out;
-    }
-
-    /**
-     * An item asset store with nothing in it, swapped into {@code Item}'s private static slot and put
-     * back on {@link #close()}: no event listeners, no file monitoring, nothing registered process-wide.
-     */
-    private static final class EmptyItemStore extends AssetStore<String, Item, DefaultAssetMap<String, Item>>
-            implements AutoCloseable {
-
-        private final IEventBus eventBus = new EventBus(false);
-        private Field slot;
-        private Object original;
-
-        private EmptyItemStore(@Nonnull Builder builder) {
-            super(builder);
-        }
-
-        static EmptyItemStore install() throws ReflectiveOperationException {
-            EmptyItemStore store = new Builder().build();
-            store.slot = Item.class.getDeclaredField("ASSET_STORE");
-            store.slot.setAccessible(true);
-            store.original = store.slot.get(null);
-            store.slot.set(null, store);
-            return store;
-        }
-
-        @Override
-        public void close() {
-            try {
-                slot.set(null, original);
-            } catch (IllegalAccessException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-
-        @Nonnull
-        @Override
-        protected IEventBus getEventBus() {
-            return eventBus;
-        }
-
-        @Override
-        public void addFileMonitor(@Nonnull String packKey, Path path) {
-        }
-
-        @Override
-        public void removeFileMonitor(Path path) {
-        }
-
-        @Override
-        protected void handleRemoveOrUpdate(Set<String> toBeRemoved, Map<String, Item> toBeUpdated,
-                @Nonnull AssetUpdateQuery query) {
-        }
-
-        /** The engine's builder is a protected member of the store, so it is reached from inside one. */
-        private static final class Builder
-                extends AssetStore.Builder<String, Item, DefaultAssetMap<String, Item>, Builder> {
-
-            Builder() {
-                super(String.class, Item.class, new DefaultAssetMap<>());
-                setPath("TestEmptyItems");
-                setReplaceOnRemove(id -> null);
-            }
-
-            @Nonnull
-            @Override
-            public EmptyItemStore build() {
-                return new EmptyItemStore(this);
-            }
-        }
     }
 }

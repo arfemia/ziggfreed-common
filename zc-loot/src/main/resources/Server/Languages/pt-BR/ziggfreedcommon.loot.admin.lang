@@ -1,8 +1,8 @@
 desc.family = Consulte as tabelas de espólio deste servidor.
-desc.validate = Audite cada tabela de espólio carregada em relação aos tipos de recompensa que este servidor paga.
+desc.validate = Audite cada tabela de espólio e cada arquivo de tipo de recompensa carregados em relação ao que este servidor paga.
 
 more = ... e mais {0}, no registro do servidor.
 
-validate.clean = Tabelas de espólio: nada a relatar.
-validate.counts = Tabelas de espólio: {0} {0, plural, one{erro} other{erros}}, {1} {1, plural, one{aviso} other{avisos}}, {2} {2, plural, one{nota} other{notas}}.
+validate.clean = Tabelas de espólio e tipos de recompensa: nada a relatar.
+validate.counts = Tabelas de espólio e tipos de recompensa: {0} {0, plural, one{erro} other{erros}}, {1} {1, plural, one{aviso} other{avisos}}, {2} {2, plural, one{nota} other{notas}}.
 finding = {0} {1} [{2}] {3}
