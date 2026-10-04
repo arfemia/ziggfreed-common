@@ -20,6 +20,7 @@ The placement engine (put an NPC somewhere and keep exactly one standing) is `pl
 - A consumer calls `NpcActions.register()` (`ZigOpenDialogue`) in its `setup()`, before its NPC role assets load, or a role naming that action fails to parse. The library registers `ZigTalkCredit` itself.
 - The conversation page reads only process-wide state (`DialogueEngine.shared()`, `DialoguePayloads`, `NpcNames`, `ContentKeys`). Never add a per-consumer page registration: it lets one talking mod's namespace hide another mod's lines.
 - `NpcSpawnService` runs on the world thread, inside `world.execute`. Standing an NPC somewhere and keeping only one belongs to `placement/`, which owns idempotency.
+- A world spawn point is a future on Update 7 (`ISpawnProvider.getSpawnPointAsync`; a fitted provider loads the spawn column first): ask and read it through `SpawnPoints` (`ask`, `now`, `failureOf`), continue with `SpawnPoints.whenLanded` on the world executor, and never `join()` it on the world thread. `NpcSpawnService.resolveSpawnPosition` answers only a point already at hand, else the player's position; `NpcAutoSpawn` places once the point lands, checking its marker again first.
 - `NpcEncounter.canCompleteHere` is the site question, separate from readiness: a finished, fully carried quest can still belong to another character. The completion hand-off routes on the character's primary id, never on the alias that took the hand-in.
 
 ## A press-F dialogue role
