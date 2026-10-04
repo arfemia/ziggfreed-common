@@ -17,11 +17,11 @@ import com.hypixel.hytale.server.core.universe.world.World;
  * position's Y is resolved through {@link SurfaceProbe#standableY(World, int, int, int)}
  * so a runtime-placed entity/prop lands on the genuine surface instead of a hardcoded Y.
  *
- * <p><b>World-thread only</b>: {@link SurfaceProbe} reads loaded blocks via
- * {@link World#getBlock(int, int, int)}, so the caller MUST already be on the world
- * thread (inside a {@code world.execute(...)} hop). Each Y read is try-guarded inside
- * {@code SurfaceProbe}; an unloaded chunk or out-of-range coordinate degrades to the
- * caller-supplied {@code fallbackY}, never a throw into the caller.
+ * <p><b>World-thread only</b>: {@link SurfaceProbe} reads the world's loaded chunk
+ * sections, so the caller MUST already be on the world thread (inside a
+ * {@code world.execute(...)} hop). It never loads a chunk: a column not in memory, an
+ * out-of-range coordinate or a failed read degrades to the caller-supplied
+ * {@code fallbackY}, never a throw into the caller.
  *
  * <p>Generic and config-free: the caller supplies all geometry (center, radius, count,
  * fallback Y) and, for the deterministic variants, the random {@code seed}. This class
