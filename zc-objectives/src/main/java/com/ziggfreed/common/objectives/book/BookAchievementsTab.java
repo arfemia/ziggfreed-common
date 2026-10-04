@@ -146,11 +146,12 @@ final class BookAchievementsTab {
             @Nonnull AchievementEngine engine,
             @Nonnull List<ObjectiveBookDeps.MilestoneView> milestones) {
         // Feats stay out of the unlocked count: they live in their own earned-only section and
-        // count no points, so counting them would make the two header numbers disagree.
+        // count no points, so counting them would make the two header numbers disagree. An earned
+        // one out of circulation still counts.
         int unlockedCount = 0;
         for (Achievement achievement : engine.achievements()) {
-            if (!achievement.featOfStrength() && achievement.available()
-                    && isUnlocked(engine.status(subject, achievement.id()))) {
+            if (AchievementShelves.countsAsEarned(achievement.featOfStrength(),
+                    isUnlocked(engine.status(subject, achievement.id())))) {
                 unlockedCount++;
             }
         }
@@ -239,7 +240,7 @@ final class BookAchievementsTab {
 
         // Subcategory chips - only when one category is chosen and it has a second level.
         if (!allActive) {
-            List<String> subcategories = subcategoriesOf(engine, page.filterCategory());
+            List<String> subcategories = subcategoriesOf(subject, engine, page.filterCategory());
             if (!subcategories.isEmpty()) {
                 cmd.set("#ASubcatRow.Visible", true);
                 int index = appendSubChip(page, cmd, events, 0,
@@ -339,13 +340,15 @@ final class BookAchievementsTab {
             @Nonnull AchievementEngine engine) {
         Map<String, int[]> out = new LinkedHashMap<>();
         for (Achievement achievement : engine.achievements()) {
-            if (!achievement.available() || achievement.featOfStrength()) {
+            boolean unlocked = isUnlocked(engine.status(subject, achievement.id()));
+            if (!AchievementShelves.countsInCategory(achievement.available(),
+                    achievement.featOfStrength(), unlocked)) {
                 continue;
             }
             String bucket = bucketOf(achievement);
             int[] pair = out.computeIfAbsent(bucket, k -> new int[]{0, 0});
             pair[1]++;
-            if (isUnlocked(engine.status(subject, achievement.id()))) {
+            if (unlocked) {
                 pair[0]++;
             }
         }
@@ -369,11 +372,13 @@ final class BookAchievementsTab {
     }
 
     @Nonnull
-    private static List<String> subcategoriesOf(@Nonnull AchievementEngine engine,
-            @Nonnull String category) {
+    private static List<String> subcategoriesOf(@Nonnull Subject subject,
+            @Nonnull AchievementEngine engine, @Nonnull String category) {
         List<String> out = new ArrayList<>();
         for (Achievement achievement : engine.achievements()) {
-            if (!achievement.available() || achievement.featOfStrength()) {
+            if (!AchievementShelves.countsInCategory(achievement.available(),
+                    achievement.featOfStrength(),
+                    isUnlocked(engine.status(subject, achievement.id())))) {
                 continue;
             }
             if (!category.equalsIgnoreCase(bucketOf(achievement))) {
@@ -398,28 +403,22 @@ final class BookAchievementsTab {
     }
 
     /**
-     * The browse list: enabled, visible for this player (a feat only once earned, a hidden one
-     * only once earned), through the category / subcategory / search / status filters, ladders
-     * collapsed to the rung being climbed, then sorted per the picked mode with pinned rows first.
+     * The browse list: what {@link AchievementShelves} shelves there for this player (anything
+     * earned whatever its circulation, anything else only in circulation and visible), through
+     * the category / subcategory / search / status filters, ladders collapsed to the rung being
+     * climbed, then sorted per the picked mode with pinned rows first.
      */
     @Nonnull
     private static List<Achievement> filteredAchievements(@Nonnull ObjectiveBookPage page,
             @Nonnull Subject subject, @Nonnull AchievementEngine engine, boolean feats) {
         List<Achievement> result = new ArrayList<>();
         String needle = page.searchText().toLowerCase(Locale.ROOT).trim();
+        AchievementShelves.Shelf wanted = feats
+                ? AchievementShelves.Shelf.FEATS : AchievementShelves.Shelf.BROWSE;
         for (Achievement achievement : engine.achievements()) {
-            if (!achievement.available()) {
-                continue;
-            }
             boolean unlocked = isUnlocked(engine.status(subject, achievement.id()));
-            if (achievement.featOfStrength() != feats) {
-                continue;
-            }
-            if (achievement.featOfStrength() && !unlocked) {
-                continue;
-            }
-            if (!achievement.featOfStrength() && !unlocked
-                    && !engine.isVisible(subject, achievement)) {
+            if (AchievementShelves.shelfOf(achievement.available(), achievement.featOfStrength(),
+                    unlocked, () -> engine.isVisible(subject, achievement)) != wanted) {
                 continue;
             }
             if (!ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory())
@@ -527,10 +526,9 @@ final class BookAchievementsTab {
             @Nonnull Subject subject, @Nonnull AchievementEngine engine) {
         List<Achievement> result = new ArrayList<>();
         for (Achievement achievement : engine.achievements()) {
-            if (!achievement.available() || !achievement.featOfStrength()) {
-                continue;
-            }
-            if (!isUnlocked(engine.status(subject, achievement.id()))) {
+            boolean unlocked = isUnlocked(engine.status(subject, achievement.id()));
+            if (AchievementShelves.shelfOf(achievement.available(), achievement.featOfStrength(),
+                    unlocked, () -> false) != AchievementShelves.Shelf.FEATS) {
                 continue;
             }
             if (!ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory())
@@ -797,11 +795,12 @@ final class BookAchievementsTab {
             int chipIndex = 0;
             for (String childId : achievement.metaChildren()) {
                 Achievement child = engine.achievement(childId);
-                if (child == null || !child.available()) {
+                if (child == null) {
                     continue;
                 }
                 boolean childUnlocked = isUnlocked(engine.status(subject, childId));
-                if (child.hidden() && !childUnlocked) {
+                if (!AchievementShelves.listsAsCapstoneChild(child.available(), child.hidden(),
+                        childUnlocked)) {
                     continue;
                 }
                 if (chipIndex == 0) {
@@ -818,7 +817,11 @@ final class BookAchievementsTab {
         // The capstones this one is part of.
         int parentIndex = 0;
         for (Achievement parent : engine.achievements()) {
-            if (!parent.isMeta() || !parent.available()) {
+            if (!parent.isMeta()) {
+                continue;
+            }
+            boolean parentUnlocked = isUnlocked(engine.status(subject, parent.id()));
+            if (!AchievementShelves.listsAsCapstone(parent.available(), parentUnlocked)) {
                 continue;
             }
             boolean names = false;
@@ -835,7 +838,6 @@ final class BookAchievementsTab {
                 cmd.set("#DPartOfHeader.Visible", true);
                 cmd.set("#DPartOfHeader.TextSpans", page.text("book.achievements.part_of"));
             }
-            boolean parentUnlocked = isUnlocked(engine.status(subject, parent.id()));
             appendChip(page, cmd, events, "#DPartOfList", parentIndex++,
                     Msg.cat(Msg.raw(parentUnlocked ? "+ " : "> "), nameOf(parent)),
                     parentUnlocked ? StatusTones.READY.hex() : null, parent.id());
@@ -963,9 +965,7 @@ final class BookAchievementsTab {
         List<Achievement> recent = new ArrayList<>();
         Map<String, Long> stamps = new HashMap<>();
         for (Achievement achievement : engine.achievements()) {
-            if (!achievement.available()) {
-                continue;
-            }
+            // Earned is earned: a retired one, or a yearly copy whose year is over, stays in Recent.
             long at = engine.unlockedAt(subject, achievement.id());
             if (at > 0L) {
                 recent.add(achievement);
@@ -1235,11 +1235,12 @@ final class BookAchievementsTab {
             int met = 0;
             for (String childId : achievement.metaChildren()) {
                 Achievement child = engine.achievement(childId);
-                if (child == null || !child.available()) {
+                if (child == null) {
                     continue;
                 }
                 boolean childUnlocked = isUnlocked(engine.status(subject, childId));
-                if (child.hidden() && !childUnlocked) {
+                if (!AchievementShelves.listsAsCapstoneChild(child.available(), child.hidden(),
+                        childUnlocked)) {
                     continue;
                 }
                 total++;
