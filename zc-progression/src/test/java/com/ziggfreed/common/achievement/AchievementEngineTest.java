@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -448,6 +449,46 @@ class AchievementEngineTest {
         assertTrue(engine.pin(ALICE, "three"));
 
         assertFalse(engine.pin(ALICE, "one"), "something already earned is nothing to work toward");
+    }
+
+    @Test
+    void pinnableIsFalseExactlyWherePinRefusesForAReasonOtherThanTheCap() {
+        AtomicBoolean open = new AtomicBoolean(true);
+        AchievementEngine engine = engine().build();
+        Achievement retiring = Achievement.builder("retiring").available(open::get)
+                .criterion(criterion(0, "BREAK_BLOCK", "A", 5)).build();
+        Achievement earned = Achievement.builder("earned").criterion(criterion(0, "BREAK_BLOCK", "B", 1)).build();
+        Achievement working = Achievement.builder("working").criterion(criterion(0, "BREAK_BLOCK", "C", 5)).build();
+        engine.setAchievements(List.of(retiring, earned, working));
+
+        assertFalse(engine.pinnable(ALICE, "nothing_like_it"), "an unknown id");
+        assertFalse(engine.pin(ALICE, "nothing_like_it"));
+
+        assertTrue(engine.pin(ALICE, "retiring"));
+        open.set(false);
+        assertFalse(engine.pinnable(ALICE, "retiring"), "out of circulation");
+        assertTrue(engine.store().pins(ALICE).containsKey("retiring"),
+                "asking reclaims nothing: the read writes no pin state");
+        assertFalse(engine.pin(ALICE, "retiring"));
+
+        engine.dispatch(ALICE, "BREAK_BLOCK", "B", null, 1L);
+        assertFalse(engine.pinnable(ALICE, "earned"), "already earned");
+        assertFalse(engine.pin(ALICE, "earned"));
+
+        assertTrue(engine.pinnable(ALICE, "working"), "known, in circulation and not earned");
+        assertTrue(engine.pin(ALICE, "working"));
+    }
+
+    @Test
+    void pinnableIgnoresTheCapWhichPinStillHolds() {
+        AchievementEngine engine = engine().maxPinned(1).build();
+        Achievement one = Achievement.builder("one").criterion(criterion(0, "BREAK_BLOCK", "A", 1)).build();
+        Achievement two = Achievement.builder("two").criterion(criterion(0, "BREAK_BLOCK", "B", 1)).build();
+        engine.setAchievements(List.of(one, two));
+        assertTrue(engine.pin(ALICE, "one"));
+
+        assertTrue(engine.pinnable(ALICE, "two"), "the cap is not its question");
+        assertFalse(engine.pin(ALICE, "two"), "the cap holds");
     }
 
     // ==================== Keyed criteria ====================

@@ -125,7 +125,7 @@ final class BookAchievementsTab {
         ObjectiveBookPage.applyGoldClaim(cmd, "#DClaimBtn");
 
         // The detail header's pin toggle, bound the same way: once, id-less, acting on the live
-        // selection. paintDetail repaints its glyph and hides it for a feat.
+        // selection. paintDetail repaints its glyph and hides it where no Pin is offered.
         events.addEventBinding(CustomUIEventBindingType.Activating, "#DPinBtn",
                 page.fullState("togglepin"));
 
@@ -576,9 +576,10 @@ final class BookAchievementsTab {
     // ==================== one list row ====================
 
     /**
-     * One compact row. {@code allowPin} is false for feat rows (an earned trophy tracks nothing)
-     * and {@code showDate} swaps the status column for the unlock date (the overview's recent
-     * block reads better dated).
+     * One compact row. {@code allowPin} is false where a row never offers Pin (the feats section and
+     * the overview's recent and nearest blocks); elsewhere {@link AchievementPinOffer} decides.
+     * {@code showDate} swaps the status column for the unlock date (the overview's recent block
+     * reads better dated).
      */
     private static void paintListRow(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull String sel, @Nonnull Achievement achievement,
@@ -602,10 +603,11 @@ final class BookAchievementsTab {
 
         cmd.set(sel + " #Points.TextSpans", pointsTag(page, achievement));
 
-        if (achievement.featOfStrength() || !allowPin) {
+        boolean pinned = engine.pinned(subject).contains(achievement.id());
+        if (!allowPin || !AchievementPinOffer.offersPin(achievement.featOfStrength(), pinned,
+                engine.pinnable(subject, achievement.id()))) {
             cmd.set(sel + " #PinBtn.Visible", false);
         } else {
-            boolean pinned = engine.pinned(subject).contains(achievement.id());
             ObjectiveBookPage.paintPinIcon(cmd, sel + " #PinBtn", pinned);
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #PinBtn",
                     page.fullState("togglepin").append("Id", achievement.id())
@@ -689,14 +691,15 @@ final class BookAchievementsTab {
         paintIcon(cmd, "#DIconSlot", "#DIcon", achievement, title);
         cmd.set("#DPoints.TextSpans", pointsTag(page, achievement));
 
-        // The header's pin toggle mirrors the list rows': hidden for a feat (an earned trophy
-        // tracks nothing), else painted to the live pin state. The binding is build-time and
-        // id-less, so this repaint never re-binds.
-        boolean pinnable = !achievement.featOfStrength();
-        cmd.set("#DPinBtn.Visible", pinnable);
-        if (pinnable) {
-            ObjectiveBookPage.paintPinIcon(cmd, "#DPinBtn",
-                    engine.pinned(subject).contains(achievement.id()));
+        // The header's pin toggle mirrors the list rows' (AchievementPinOffer): shown where a pin is
+        // held or the engine's pin would take it, never for a feat, and painted to the live pin
+        // state. The binding is build-time and id-less, so this repaint never re-binds.
+        boolean pinned = engine.pinned(subject).contains(achievement.id());
+        boolean offersPin = AchievementPinOffer.offersPin(achievement.featOfStrength(), pinned,
+                engine.pinnable(subject, achievement.id()));
+        cmd.set("#DPinBtn.Visible", offersPin);
+        if (offersPin) {
+            ObjectiveBookPage.paintPinIcon(cmd, "#DPinBtn", pinned);
         }
 
         ObjectiveBookDeps.FirstClaim claim = achievement.serverFirst()
