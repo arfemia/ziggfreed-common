@@ -135,4 +135,30 @@ public class EncounterBindingCodecTest {
         assertEquals(1.0, bare.weightsFor((f, p) -> null).damageDealt(), 1e-9);
         assertEquals(0.0, bare.weightsFor((f, p) -> null).presence(), 1e-9);
     }
+
+    @Test
+    void theAddsGroupDecodesItsOwnLeavesAndReadsItsDefaults() throws IOException {
+        EncounterBindingAsset row = binding("{\"Scale\": {\"HealthPerMember\": 0.35, \"Adds\": {\"HealthPerMember\": 0.2}}}",
+                "row", null);
+        EncounterBindingAsset.AddScale adds = row.getScale().getAdds();
+        assertNotNull(adds);
+        assertEquals(0.2, adds.healthPerMember(), 1e-9);
+        assertEquals(EncounterBindingAsset.AddScale.DEFAULT_HEALTH_MULTIPLIER, adds.healthMultiplier(), 1e-9);
+        assertEquals(EncounterBindingAsset.AddScale.DEFAULT_HEALTH_PER_POWER_POINT, adds.healthPerPowerPoint(), 1e-9);
+        assertEquals(EncounterBindingAsset.AddScale.DEFAULT_MAX_HEALTH_MULTIPLIER, adds.maxHealthMultiplier(), 1e-9);
+        assertEquals(0.35, row.getScale().healthPerMember(), 1e-9, "the subject's own leaf is untouched");
+    }
+
+    @Test
+    void aRowWithoutAddsScalesNoAddAndAnOverlayKeepsTheAddsLeavesItDidNotMention() throws IOException {
+        assertNull(binding("{\"Scale\": {\"HealthPerMember\": 0.35}}", "bare", null).getScale().getAdds());
+        EncounterBindingAsset pack = binding("{\"Scale\": {\"Adds\": {\"HealthPerMember\": 0.2, \"MaxHealthMultiplier\": 3.0}}}",
+                "row", null);
+        EncounterBindingAsset owner = binding("{\"Scale\": {\"Adds\": {\"HealthPerMember\": 0.5}}}", "row", pack);
+        assertEquals(0.5, owner.getScale().getAdds().healthPerMember(), 1e-9, "the mentioned leaf changed");
+        assertEquals(3.0, owner.getScale().getAdds().maxHealthMultiplier(), 1e-9, "the unmentioned sibling survived");
+        EncounterBindingAsset quiet = binding("{\"Scale\": {\"HealthPerMember\": 0.4}}", "row", pack);
+        assertEquals(0.2, quiet.getScale().getAdds().healthPerMember(), 1e-9,
+                "an overlay that says nothing of the adds keeps them");
+    }
 }

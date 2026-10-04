@@ -35,7 +35,7 @@ import com.ziggfreed.common.loot.LootRef;
  *   "EncounterAsset": "Zc_Encounter_Example",
  *   "NameKey": "ziggfreedcommon.encounter.example.name",
  *   "Subject":       { "TargetSlot": "Boss" },
- *   "Scale":         { "HealthPerMember": 0.35, "MaxHealthMultiplier": 5.0 },
+ *   "Scale":         { "HealthPerMember": 0.35, "MaxHealthMultiplier": 5.0, "Adds": { "HealthPerMember": 0.2 } },
  *   "Timing":        { "WipeGraceSeconds": 15, "Rest": "P1D" },
  *   "Loot":          { "OnDefeat": { "Rolls": [ ... ] }, "QueueIfOffline": true },
  *   "Feedback":      { "Defeated": "Encounter_Defeated" },
@@ -123,7 +123,8 @@ public final class EncounterBindingAsset
             .add()
             .appendInherited(new KeyedCodec<>("Scale", Scale.CODEC, false),
                     (a, v) -> a.scale = v, a -> a.scale, (a, p) -> a.scale = p.scale)
-            .documentation("How the subject's maximum health grows with the party and the region.")
+            .documentation("How the subject's maximum health grows with the party and the region, and under "
+                    + "Adds how every add the fight's own spawners raise grows.")
             .add()
             .appendInherited(new KeyedCodec<>("Timing", Timing.CODEC, false),
                     (a, v) -> a.timing = v, a -> a.timing, (a, p) -> a.timing = p.timing)
@@ -350,7 +351,7 @@ public final class EncounterBindingAsset
 
     // ==================== Scale ====================
 
-    /** How the subject's maximum health grows: one multiplicative modifier, keyed, applied once. */
+    /** How the subject's maximum health grows: one multiplicative modifier, keyed, applied once; {@code Adds} grows each add the same way. */
     public static final class Scale {
 
         public static final double DEFAULT_HEALTH_PER_MEMBER = 0.0;
@@ -363,6 +364,7 @@ public final class EncounterBindingAsset
         @Nullable protected Double healthPerPowerPoint;
         @Nullable protected Double maxHealthMultiplier;
         @Nullable protected Boolean reconcileOnPhase;
+        @Nullable protected AddScale adds;
 
         public static final BuilderCodec<Scale> CODEC = BuilderCodec.builder(Scale.class, Scale::new)
                 .appendInherited(new KeyedCodec<>("HealthPerMember", Codec.DOUBLE, false),
@@ -399,6 +401,12 @@ public final class EncounterBindingAsset
                 .documentation("Re-apply the multiplier after each phase signal, because an in-place "
                         + "role change rolls the new role's own maximum health. Unauthored means yes.")
                 .add()
+                .appendInherited(new KeyedCodec<>("Adds", AddScale.CODEC, false),
+                        (o, v) -> o.adds = v, o -> o.adds, (o, p) -> o.adds = p.adds)
+                .documentation("How much maximum health every add gets: anything the fight's own spawners "
+                        + "raise, and anything those spawn in turn, never the boss. Leave it out and every add "
+                        + "keeps the health its role gives it.")
+                .add()
                 .build();
 
         public Scale() {
@@ -422,6 +430,81 @@ public final class EncounterBindingAsset
 
         public boolean reconcileOnPhase() {
             return reconcileOnPhase == null || reconcileOnPhase;
+        }
+
+        /** How every add grows, or null when this row scales no add. */
+        @Nullable
+        public AddScale getAdds() {
+            return adds;
+        }
+    }
+
+    // ==================== AddScale ====================
+
+    /**
+     * How each add's maximum health grows: the subject's formula without the spawn call's run
+     * multiplier (that one is the subject's), as one keyed modifier per add, applied once the tick after
+     * it rises. An add is anything carrying the encounter's spawn lineage, never the subject.
+     */
+    public static final class AddScale {
+
+        public static final double DEFAULT_HEALTH_PER_MEMBER = 0.0;
+        public static final double DEFAULT_HEALTH_MULTIPLIER = 1.0;
+        public static final double DEFAULT_HEALTH_PER_POWER_POINT = 0.0;
+        public static final double DEFAULT_MAX_HEALTH_MULTIPLIER = 5.0;
+
+        @Nullable protected Double healthPerMember;
+        @Nullable protected Double healthMultiplier;
+        @Nullable protected Double healthPerPowerPoint;
+        @Nullable protected Double maxHealthMultiplier;
+
+        public static final BuilderCodec<AddScale> CODEC = BuilderCodec.builder(AddScale.class, AddScale::new)
+                .appendInherited(new KeyedCodec<>("HealthPerMember", Codec.DOUBLE, false),
+                        (o, v) -> o.healthPerMember = v, o -> o.healthPerMember,
+                        (o, p) -> o.healthPerMember = p.healthPerMember)
+                .metadata(EditorSchema.defaultValue(DEFAULT_HEALTH_PER_MEMBER))
+                .documentation("Extra maximum health per member beyond the first, as a fraction of the add's "
+                        + "own: 0.25 makes every add in a four-member fight 1.75 times as tough.")
+                .add()
+                .appendInherited(new KeyedCodec<>("HealthMultiplier", Codec.DOUBLE, false),
+                        (o, v) -> o.healthMultiplier = v, o -> o.healthMultiplier,
+                        (o, p) -> o.healthMultiplier = p.healthMultiplier)
+                .metadata(EditorSchema.defaultValue(DEFAULT_HEALTH_MULTIPLIER))
+                .documentation("A flat multiplier on every add's whole result. The spawn call's own multiplier "
+                        + "is the boss's and never reaches an add.")
+                .add()
+                .appendInherited(new KeyedCodec<>("HealthPerPowerPoint", Codec.DOUBLE, false),
+                        (o, v) -> o.healthPerPowerPoint = v, o -> o.healthPerPowerPoint,
+                        (o, p) -> o.healthPerPowerPoint = p.healthPerPowerPoint)
+                .metadata(EditorSchema.defaultValue(DEFAULT_HEALTH_PER_POWER_POINT))
+                .documentation("Extra health per point of the party's aggregated power, read the way the boss's "
+                        + "is. Zero ignores power.")
+                .add()
+                .appendInherited(new KeyedCodec<>("MaxHealthMultiplier", Codec.DOUBLE, false),
+                        (o, v) -> o.maxHealthMultiplier = v, o -> o.maxHealthMultiplier,
+                        (o, p) -> o.maxHealthMultiplier = p.maxHealthMultiplier)
+                .metadata(EditorSchema.defaultValue(DEFAULT_MAX_HEALTH_MULTIPLIER))
+                .documentation("The ceiling on every add's multiplier; the floor is always 1.")
+                .add()
+                .build();
+
+        public AddScale() {
+        }
+
+        public double healthPerMember() {
+            return healthPerMember == null ? DEFAULT_HEALTH_PER_MEMBER : healthPerMember;
+        }
+
+        public double healthMultiplier() {
+            return healthMultiplier == null ? DEFAULT_HEALTH_MULTIPLIER : healthMultiplier;
+        }
+
+        public double healthPerPowerPoint() {
+            return healthPerPowerPoint == null ? DEFAULT_HEALTH_PER_POWER_POINT : healthPerPowerPoint;
+        }
+
+        public double maxHealthMultiplier() {
+            return maxHealthMultiplier == null ? DEFAULT_MAX_HEALTH_MULTIPLIER : maxHealthMultiplier;
         }
     }
 

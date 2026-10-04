@@ -62,7 +62,7 @@ class BindingRestatesNothingTest {
     @Test
     void theKnobsTheScriptCannotSayAreAllThere() throws IOException {
         List<String> keys = keys();
-        for (String expected : List.of("EncounterAsset", "Enabled", "Subject", "Participation", "Scale", "Timing",
+        for (String expected : List.of("EncounterAsset", "Enabled", "Subject", "Participation", "Scale", "Adds", "Timing",
                 "Loot", "Leaderboard", "Progression", "Feedback", "Discovery", "TargetSlot", "MinShare",
                 "HealthPerMember", "WipeGraceSeconds", "Rest", "OnDefeat", "OnPhase", "QueueIfOffline", "Match", "Where",
                 "DamageDealt", "DamageTaken", "Presence", "CreditDead", "CreditDisconnected")) {
