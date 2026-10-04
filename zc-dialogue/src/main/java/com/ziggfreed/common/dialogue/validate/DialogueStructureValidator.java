@@ -772,6 +772,12 @@ public final class DialogueStructureValidator {
             return;
         }
         checkWorldScope(once.getWhere(), "Once", where, id, out);
+        if (once.hasUnknownPeriod()) {
+            out.add(error("ONCE_UNKNOWN_PERIOD",
+                    "Dialogue '" + id + "' " + where + " has a Once Period '" + once.getPeriodWord()
+                            + "', which is neither Daily nor Weekly, so it turns over daily - write Daily"
+                            + " or Weekly", id));
+        }
         if (option != null && option.onceDiscriminator().isBlank()) {
             out.add(warning("ONCE_NO_IDENTITY",
                     "Dialogue '" + id + "' " + where + " has a Once but no LabelKey or OnceId to"

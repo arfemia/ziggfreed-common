@@ -20,6 +20,7 @@ import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
 import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
+import com.ziggfreed.common.dialogue.state.DialogueOnce;
 import com.ziggfreed.common.dialogue.style.DialogueOptionStyle;
 import com.ziggfreed.common.dialogue.type.DialogueAction;
 import com.ziggfreed.common.dialogue.type.DialogueCondition;
@@ -88,6 +89,18 @@ class DialogueEditorSchemaTest {
                 "the reader ignores anything but these five, so the editor may offer them as a list");
         assertArrayEquals(new String[] {"accept", "turnin", "continue", "neutral", "farewell"},
                 DialogueOptionStyle.keys());
+    }
+
+    @Test
+    void aOncePeriodIsADropdownOfTheTwoWindows() {
+        Schema once = DialogueOnce.CODEC.toSchema(new SchemaContext());
+        assertNotNull(once.getAnyOf(), "Once reads as a boolean or as the group, so the schema is a union");
+        ObjectSchema group = (ObjectSchema) once.getAnyOf()[1];
+        StringSchema period = (StringSchema) group.getProperties().get("Period");
+        assertNotNull(period, "the group carries the Period leaf");
+        assertArrayEquals(new String[] {"Daily", "Weekly"}, period.getEnum(),
+                "the reader understands exactly these two words, so the editor may offer them as a list");
+        assertNotNull(period.getMarkdownDescription());
     }
 
     @Test
