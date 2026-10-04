@@ -10,3 +10,4 @@
 - `NativeLootServiceTest` is untagged: in the default `test` task no `ItemStack` can be built (its codec chain needs the engine's log manager), so it proves only the guards.
 - A unit JVM never boots `ItemModule`, so `NativeLootService` tests prove its guards against the unbooted engine; what a live drop list produces is checked in game.
 - `LootEntry`'s compact grammar has no live caller: author a `Lootable` `Pool` unless a codec field can only hold a `String[]`.
+- `PendingRewardStore` writes through the engine's `FileUtil.writeStringAtomic`, which on Update 7 loads only under the engine's log manager: a test that reads back a written file is tagged `engine-items` (that method alone, as `PendingRewardStoreTest.everyWriteCarriesTheVersion` is). In a plain unit JVM the write fails, the store swallows it and the queue still answers from memory, which the untagged tests prove.
