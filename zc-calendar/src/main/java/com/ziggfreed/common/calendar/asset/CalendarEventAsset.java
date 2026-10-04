@@ -17,7 +17,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.calendar.AnnualWindow;
 
@@ -311,7 +311,7 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
                 .documentation("Localization key for a line about the event.").add()
                 .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
                         (o, v) -> o.icon = v, o -> o.icon, (o, p) -> o.icon = p.icon)
-                .metadata(new UIEditor(new UIEditor.Dropdown("hytale:item")))
+                .metadata(EditorSchema.assetRef(Item.class))
                 .documentation("The item whose picture stands for the event wherever events are listed.").add()
                 .build();
 

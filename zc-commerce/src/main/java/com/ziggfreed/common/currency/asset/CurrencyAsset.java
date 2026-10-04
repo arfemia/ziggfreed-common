@@ -14,7 +14,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.commerce.asset.HideAxis;
 import com.ziggfreed.common.progress.asset.ContentMeta;
@@ -111,7 +111,7 @@ public final class CurrencyAsset
             .add()
             .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
                     (a, v) -> a.icon = v, a -> a.icon, (a, p) -> a.icon = p.icon)
-            .metadata(new UIEditor(new UIEditor.Dropdown("hytale:item")))
+            .metadata(EditorSchema.assetRef(Item.class))
             .documentation("The item whose picture stands for this wallet wherever a balance or a price is shown. "
                     + "Unauthored falls back to the backing item, so an item-backed wallet needs no icon at all.")
             .add()
@@ -268,7 +268,7 @@ public final class CurrencyAsset
         public static final BuilderCodec<Backing> CODEC = BuilderCodec.builder(Backing.class, Backing::new)
                 .appendInherited(new KeyedCodec<>("Item", Codec.STRING, false),
                         (o, v) -> o.item = v, o -> o.item, (o, p) -> o.item = p.item)
-                .metadata(new UIEditor(new UIEditor.Dropdown("hytale:item")))
+                .metadata(EditorSchema.assetRef(Item.class))
                 .documentation("The item id the balance is counted in. The player's balance is however many of it "
                         + "they are carrying, so it can be dropped, traded and stored like anything else, and no "
                         + "separate number is kept anywhere.").add()

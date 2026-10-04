@@ -16,6 +16,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.asset.CostAsset;
@@ -121,7 +122,7 @@ public final class ShopEntryAsset
             .add()
             .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
                     (a, v) -> a.icon = v, a -> a.icon, (a, p) -> a.icon = p.icon)
-            .metadata(new UIEditor(new UIEditor.Dropdown("hytale:item")))
+            .metadata(EditorSchema.assetRef(Item.class))
             .documentation("The item whose picture stands for this offer in the list. Unauthored falls back to "
                     + "whatever the first reward can supply, so an offer handing over an item needs no icon.")
             .add()

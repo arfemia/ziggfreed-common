@@ -14,3 +14,4 @@ Events that come round every year: the asset and its owner switches, the occurre
 - Never remove a world-spawn rule: the engine's removal looks a rule up in a table that answers 0 for a rule it never set up and removes spawn configuration 0 instead. A rule no running event owns is retired (`MoonPhaseWeightModifiers [0]`). One rule per (role, environment) pair: the engine refuses a second with a SEVERE line.
 - Attendance is once per player per run (`CalendarAttendanceComponent`, persisted); the start banner rides that first credit, the end banner goes to everyone online at a real end, never a switch-off. Banners go only through zc-presentation `EventTitles`.
 - A force lives in memory only and a restart clears it.
+- A start or an end also re-sweeps every world's NPC placements (zc-objectives `objectives/calendar/CalendarPlacementSweep`, listening on the two native events), so a placement gated on `<Id>_Live` follows the event; this module knows nothing of it.

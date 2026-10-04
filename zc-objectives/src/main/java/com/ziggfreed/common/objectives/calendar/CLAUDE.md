@@ -1,0 +1,6 @@
+# objectives/calendar/ - what a calendar event's start and end do to the rest of the library
+
+- A start or an end forces a placement sweep of every live world (`CalendarPlacementSweep`), because a placement's `Requires` is read only when a sweep runs and the reconciler latches a world after its first. Every path that changes whether an event runs (its dates, `/zigcalendar force`, an owner switch read by `/zigcalendar reload` or a pack reload, the boot's resumed start) reaches `CalendarEventStartedEvent` or `CalendarEventEndedEvent`, so listen there, never to a command.
+- A placement that exists only while an event runs gates on `ziggfreedcommon:feature` Param `<Id>_Live`. A switch on an event that is not running changes `<Id>` and fires no event, so a placement gated on `<Id>` alone changes only at the world's next ordinary sweep.
+- A forced sweep despawns only what is resident: give such a placement `Lifecycle.KeepAlive`, or one whose chunk sleeps through the end stands in its saved chunk until that world is swept again.
+- The events arrive on the calendar's tick thread or the boot thread, never a world thread: `NpcPlacementReconciler.forceSweep` only queues onto each world's own thread, so never call `sweep` from here.

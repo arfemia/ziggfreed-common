@@ -18,8 +18,8 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Fills the dialogue engine's declared seams at plugin {@code setup()}: the factor vocabulary its
- * {@code Factor} conditions resolve against, the persistent memory store, and the active-objective
- * header note. Three ordered phases, each called once from
+ * {@code Factor} conditions resolve against, the {@code Grant} action that pays a line's rewards, the
+ * persistent memory store, and the active-objective header note. Three ordered phases, each called once from
  * {@code ZiggfreedCommonPlugin.setup()}, which stays the one authority on call ORDER.
  *
  * <p>The dialogue module declares each of these seams and structurally cannot fill them itself:
@@ -47,23 +47,31 @@ public final class DialogueBootstrap {
     }
 
     /**
-     * The factor vocabulary a conversation's {@code Factor} conditions resolve against: the
-     * portable {@code hytale:} standard library, installed into the dialogue engine's ONE factor
-     * slot so a pack gates an option on native engine data - a stat channel, what the player is
-     * holding - with no Java at all, on a server running nothing but this jar. It is wired from
-     * this module because the dialogue module cannot see the entity module that owns the standard
-     * library, and this module sees both.
+     * The vocabulary a conversation reads and acts through.
      *
-     * <p>The slot is first-install-wins and this library loads before every consumer, so a
-     * consumer offering its own registry is refused and loses nothing: an id a mod's own
-     * conversations gate on belongs in the process-wide {@code FactorContributions} table, which
-     * every registry consults whoever holds the slot.
+     * <p>The factor half: the portable {@code hytale:} standard library, installed into the dialogue
+     * engine's ONE factor slot so a pack gates an option on native engine data - a stat channel, what
+     * the player is holding - with no Java at all, on a server running nothing but this jar. It is wired
+     * from this module because the dialogue module cannot see the entity module that owns the standard
+     * library, and this module sees both. The slot is first-install-wins and this library loads before
+     * every consumer, so a consumer offering its own registry is refused and loses nothing: an id a
+     * mod's own conversations gate on belongs in the process-wide {@code FactorContributions} table,
+     * which every registry consults whoever holds the slot.
+     *
+     * <p>The action half: {@code Grant} ({@link GrantDialogueAction}) pays a line's rewards in the
+     * entry shape a quest pays in, through the one payout core outside a quest. The dialogue module
+     * cannot see that core or the reward vocabulary, and this module sees both.
      */
     public static void registerDialogueVocabulary() {
         try {
             DialogueEngine.installFactors(LibraryOwner.NAME, dialogueFactorVocabulary());
         } catch (Throwable t) {
             SafeLog.warn("[dialogue] could not install the dialogue factor vocabulary", t);
+        }
+        try {
+            DialogueEngine.registerShared(LibraryOwner.NAME, GrantDialogueAction.type());
+        } catch (Throwable t) {
+            SafeLog.warn("[dialogue] could not register the Grant dialogue action", t);
         }
     }
 
