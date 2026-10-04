@@ -20,11 +20,11 @@ import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.util.NumberFormatter;
 
 /**
@@ -295,11 +295,11 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                                @Nonnull UUID uuid, @Nonnull LeaderboardEntry e, boolean isSelf) {
         cmd.append("#LeaderboardList", ROW_TEMPLATE);
         String sel = "#LeaderboardList[" + index + "]";
-        // Plain data (rank / name / numbers) is a plain String, NOT a raw Message: a Label's .Text
-        // accepts a string (and resolves a translation key) but cannot wrap a raw-Message object,
-        // which would abort the whole CustomUI update. Numbers + a proper-noun username are data.
+        // Rank and numbers are plain data on .Text. The name is the library's display name (a title
+        // the player shows, when one is), a parameterized Message, so it goes on the Label's
+        // TextSpans: a .Text sink would print its {0} instead of the name.
         UiText.setText(cmd, sel + " #Rank.Text", "#" + rank);
-        UiText.setText(cmd, sel + " #Player.Text", resolveName(uuid, e));
+        cmd.set(sel + " #Player.TextSpans", PlayerDisplayNames.displayName(uuid, e.name));
         UiText.setText(cmd, sel + " #Total.Text", NumberFormatter.grouped(e.totalPoints()));
         UiText.setText(cmd, sel + " #Score.Text", NumberFormatter.grouped(e.bestScore));
         UiText.setText(cmd, sel + " #Time.Text", e.bestTimeSeconds > 0 ? formatTime(e.bestTimeSeconds) : "-");
@@ -363,7 +363,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         cmd.append("#LeaderboardList", STATS_ROW_TEMPLATE);
         String sel = "#LeaderboardList[" + index + "]";
         UiText.setText(cmd, sel + " #Rank.Text", "#" + rank);
-        UiText.setText(cmd, sel + " #Player.Text", resolveName(uuid, e));
+        cmd.set(sel + " #Player.TextSpans", PlayerDisplayNames.displayName(uuid, e.name));
         UiText.setText(cmd, sel + " #Plays.Text", Integer.toString(e.plays));
         for (int c = 0; c < StatColumnDef.MAX_STAT_COLUMNS; c++) {
             String cell = sel + " #Col" + c;
@@ -495,24 +495,6 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
             }
         }
         return sort;
-    }
-
-    @Nonnull
-    private static String resolveName(@Nonnull UUID uuid, @Nonnull LeaderboardEntry e) {
-        try {
-            PlayerRef pr = Universe.get().getPlayer(uuid);
-            if (pr != null) {
-                String live = pr.getUsername();
-                if (live != null && !live.isBlank()) {
-                    return live;
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        if (e.name != null && !e.name.isBlank()) {
-            return e.name;
-        }
-        return uuid.toString().substring(0, 8);
     }
 
     @Nonnull

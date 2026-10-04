@@ -20,7 +20,6 @@ import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
@@ -34,6 +33,7 @@ import com.ziggfreed.common.lobby.QueueListener;
 import com.ziggfreed.common.lobby.QueueSnapshot;
 import com.ziggfreed.common.lobby.QueueState;
 import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -178,8 +178,8 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
         for (int i = 0; i < members.size() && i < MAX_ROWS; i++) {
             cmd.append("#RosterList", ROW_TEMPLATE);
             String sel = "#RosterList[" + i + "]";
-            // Plain String (a proper-noun username): .Text cannot construct from a raw-Message object.
-            UiText.setText(cmd, sel + " #RowName.Text", name(members.get(i)));
+            // The library's display name (a Message, perhaps a title around the name), on TextSpans.
+            cmd.set(sel + " #RowName.TextSpans", PlayerDisplayNames.displayName(members.get(i), null));
             if (i == 0) {
                 cmd.set(sel + " #RowName.Style.TextColor", INITIATOR_COLOR); // initiator
             }
@@ -388,20 +388,5 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
     public void onDismiss(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
         super.onDismiss(ref, store); // sets the dismissed guard
         detachListener();
-    }
-
-    @Nonnull
-    private static String name(@Nonnull UUID uuid) {
-        try {
-            PlayerRef p = Universe.get().getPlayer(uuid);
-            if (p != null) {
-                String live = p.getUsername();
-                if (live != null && !live.isBlank()) {
-                    return live;
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        return uuid.toString().substring(0, 8);
     }
 }
