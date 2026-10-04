@@ -21,7 +21,7 @@ import com.ziggfreed.common.util.SafeLog;
  * <pre>{@code
  * // mods/ziggfreedcommon/almanac.json
  * { "$Enabled": true,
- *   "Hallows_Eve": { "Stats": { "Bombs_Thrown": { "Order": 5 } } } }
+ *   "Spring_Fair": { "Stats": { "Kites_Flown": { "Order": 5 } } } }
  * }</pre>
  *
  * <p>The switch is a {@code $}-key because every top-level key without one is a season id. It is read

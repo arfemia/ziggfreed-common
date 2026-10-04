@@ -22,9 +22,9 @@ import com.ziggfreed.common.text.ContentTextAsset;
  * grouping and never part of the id.
  *
  * <pre>{@code
- * { "Text": { "TitleKey": "almanac.hallows_eve.title", "FlavorKey": "almanac.hallows_eve.flavor" },
- *   "Icon": "Jack_Lantern", "Order": 10, "Keepsake": "Hallows_Eve_Keepsake",
- *   "Stats": { "Bombs_Thrown": { "Kind": "USE_ITEM", "Target": "Lantern_Bomb_", "MatchMode": "PREFIX" } } }
+ * { "Text": { "TitleKey": "almanac.spring_fair.title", "FlavorKey": "almanac.spring_fair.flavor" },
+ *   "Icon": "Spring_Fair_Ribbon", "Order": 10, "Keepsake": "Spring_Fair_Keepsake",
+ *   "Stats": { "Kites_Flown": { "Kind": "USE_ITEM", "Target": "Kite_", "MatchMode": "PREFIX" } } }
  * }</pre>
  *
  * <p>The calendar decides whether the season is on; this page only says what the Almanac shows about

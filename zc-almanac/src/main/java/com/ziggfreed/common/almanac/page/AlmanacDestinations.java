@@ -16,7 +16,7 @@ import com.ziggfreed.common.ui.route.Destinations;
  *
  * <pre>{@code
  * "Open": "Almanac"                                      the season on now, else the first
- * "Open": { "Type": "Almanac", "Event": "Hallows_Eve" }   that season
+ * "Open": { "Type": "Almanac", "Event": "Spring_Fair" }   that season
  * }</pre>
  *
  * <p>A conversation line, a placement's press-F and a consumer's menu tile all open it through this one
