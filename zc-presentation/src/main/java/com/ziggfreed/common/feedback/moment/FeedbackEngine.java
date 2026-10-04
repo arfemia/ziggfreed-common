@@ -287,7 +287,7 @@ public final class FeedbackEngine {
                 boolean participant = spec.toParticipants() && participants.contains(viewer.getUuid());
                 if (!spec.isScoped()
                         || BroadcastScope.admits(spec, participant, anchor.sameWorld(viewer), anchor.distanceTo(viewer))) {
-                    EventTitles.show(viewer, title, body, spec.isMajor());
+                    EventTitles.show(viewer, title, body, spec.style(), spec.soundEventId());
                 }
             }
         } catch (Throwable t) {

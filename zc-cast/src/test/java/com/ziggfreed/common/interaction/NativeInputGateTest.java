@@ -4,7 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
+
+import com.hypixel.hytale.protocol.ComparisonOperator;
 
 /**
  * The slice of {@link NativeInputGate} testable without a live Hytale server: the {@link
@@ -59,5 +64,25 @@ class NativeInputGateTest {
     @Test
     void probe_nullRootId_answersNone() {
         assertEquals(NativeInputGate.Verdict.NONE, NativeInputGate.probe(null, null, null, null, null));
+    }
+
+    @Test
+    void compare_readsEachOperatorTheWayTheEngineDoes() {
+        // Below, at and above one threshold, for each operator Update 7's ComparisonOperator carries.
+        Map<ComparisonOperator, List<Boolean>> expected = Map.of(
+                ComparisonOperator.LessThan, List.of(true, false, false),
+                ComparisonOperator.LessOrEqual, List.of(true, true, false),
+                ComparisonOperator.GreaterThan, List.of(false, false, true),
+                ComparisonOperator.GreaterOrEqual, List.of(false, true, true),
+                ComparisonOperator.Equal, List.of(false, true, false),
+                ComparisonOperator.NotEqual, List.of(true, false, true));
+        assertEquals(ComparisonOperator.values().length, expected.size(),
+                "every operator the engine has is read; a new one needs its row here and its arm in compare");
+        for (ComparisonOperator operator : ComparisonOperator.values()) {
+            List<Boolean> want = expected.get(operator);
+            assertEquals(want.get(0), NativeInputGate.compare(operator, 49.0, 50.0), operator + " below");
+            assertEquals(want.get(1), NativeInputGate.compare(operator, 50.0, 50.0), operator + " at");
+            assertEquals(want.get(2), NativeInputGate.compare(operator, 51.0, 50.0), operator + " above");
+        }
     }
 }

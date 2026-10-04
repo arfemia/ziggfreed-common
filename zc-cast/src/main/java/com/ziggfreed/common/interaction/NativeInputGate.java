@@ -6,7 +6,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.protocol.DurabilityOperator;
+import com.hypixel.hytale.protocol.ComparisonOperator;
 import com.hypixel.hytale.protocol.ValueType;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
@@ -251,14 +251,22 @@ public final class NativeInputGate {
         double max = heldStack.getMaxDurability();
         double raw = heldStack.getDurability();
         double value = wear.valueType == ValueType.Absolute ? raw : (max > 0 ? (raw / max) * 100.0 : 0.0);
-        DurabilityOperator operator = wear.operator;
+        return compare(wear.operator, value, wear.threshold);
+    }
+
+    /**
+     * The engine's comparison of a reading against a condition's threshold: {@code value < threshold} for
+     * {@code LessThan}, and so on for the other five, the arms of the engine's own
+     * {@code ComparisonOperators.compare}.
+     */
+    static boolean compare(@Nonnull ComparisonOperator operator, double value, double threshold) {
         return switch (operator) {
-            case LessThan -> value < wear.threshold;
-            case LessOrEqual -> value <= wear.threshold;
-            case GreaterThan -> value > wear.threshold;
-            case GreaterOrEqual -> value >= wear.threshold;
-            case Equal -> value == wear.threshold;
-            case NotEqual -> value != wear.threshold;
+            case LessThan -> value < threshold;
+            case LessOrEqual -> value <= threshold;
+            case GreaterThan -> value > threshold;
+            case GreaterOrEqual -> value >= threshold;
+            case Equal -> value == threshold;
+            case NotEqual -> value != threshold;
         };
     }
 }
