@@ -124,6 +124,12 @@ public final class TitleText {
         return Msg.key(CHIP_KEY, nameOf(titleId));
     }
 
+    /** A line of the title picker, from the shipped player-facing file: {@code picker.<key>}. */
+    @Nonnull
+    public static Message picker(@Nonnull String key, @Nonnull Object... args) {
+        return Msg.key(PREFIX + "picker." + key, args);
+    }
+
     /** Tell {@code who} the title is theirs now. Guarded whole: a notice must never undo the unlock. */
     static void announceUnlocked(@Nonnull Subject who, @Nonnull String titleId) {
         try {

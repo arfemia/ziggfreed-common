@@ -22,6 +22,9 @@ public final class TitleCommandLine {
     /** List the titles a player has unlocked. */
     public static final String LIST = "list";
 
+    /** Open the title picker (a player verb). */
+    public static final String OPEN = "open";
+
     /** The {@code --player} argument name. */
     public static final String ARG_PLAYER = "player";
 

@@ -79,6 +79,7 @@ class TitleCommandKeysTest {
         List<String> missing = new ArrayList<>();
         for (String key : List.of("desc.family", "desc." + TitleCommandLine.GRANT,
                 "desc." + TitleCommandLine.REVOKE, "desc." + TitleCommandLine.LIST,
+                "desc." + TitleCommandLine.OPEN,
                 "desc.arg." + TitleCommandLine.ARG_PLAYER, "desc.arg." + TitleCommandLine.ARG_TITLE,
                 // The shared target-player walk refuses with these two under the family's own prefix.
                 "player.needed", "player.offline")) {

@@ -9,3 +9,16 @@ display = {0}, {1}
 chip = Title: {0}
 unlocked = Title unlocked: {0}
 unlocked_hint = Choose the title you show with /zigtitle open
+
+# The title picker (/zigtitle open). In preview, {0} is the player's name as menus show it, title
+# included; in shown, {0} is the title's name.
+picker.title = Titles
+picker.subtitle = Choose the title shown beside your name in menus and leaderboards.
+picker.preview = You appear as: {0}
+picker.none = You have not earned a title yet.
+picker.on = Shown
+picker.off = Show
+picker.back = Back
+picker.shown = Now showing {0}.
+picker.cleared = No title is shown now.
+picker.not_kept = Your choice could not be kept. Rejoin and try again.

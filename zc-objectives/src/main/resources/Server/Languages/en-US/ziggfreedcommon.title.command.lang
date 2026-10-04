@@ -2,10 +2,11 @@
 # The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.title.command.<key>.
 # The desc.* keys are what the engine's own help resolves a command or an argument through.
 
-desc.family = Grant, revoke and list a player's titles.
+desc.family = Grant, revoke and list a player's titles, and open the title picker.
 desc.grant = Unlock a title for a player.
 desc.revoke = Take a title away from a player.
 desc.list = List the titles a player has unlocked.
+desc.open = Open the title picker, where you choose the title shown beside your name.
 desc.arg.player = The player to act on. Defaults to you.
 desc.arg.title = The title id.
 
@@ -24,3 +25,5 @@ list.header = Titles {0} has unlocked ({1}):
 list.row = - {0}
 list.row_shown = - {0} (shown)
 list.none = {0} has no titles unlocked.
+open.needs_player = Only a player can open the title picker.
+open.failed = The title picker could not be opened.
