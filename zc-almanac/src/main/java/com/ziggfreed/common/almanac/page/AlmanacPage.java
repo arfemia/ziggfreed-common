@@ -50,6 +50,9 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     private static final String ROW_TEMPLATE = "Pages/ZigSelectRow.ui";
     private static final String LINE_TEMPLATE = "Pages/ZigDetailLine.ui";
 
+    /** The slot beside the season's name that holds its picture: the two widgets {@link IconRenderer} drives. */
+    static final String SEASON_ICON = "#DetailIconSlot";
+
     private static final String LIVE_DOT = "#7ad17a";
     private static final String IDLE_DOT = "#96a9be";
     private static final String HEADING = "#ffd97a";
@@ -146,6 +149,7 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     private static void paintDetail(@Nonnull UICommandBuilder cmd, @Nonnull AlmanacView.Detail detail) {
         AlmanacView.Season season = detail.season();
         cmd.set("#DetailTitle.TextSpans", AlmanacText.authored(season.titleKey(), season.eventId()));
+        cmd.set(SEASON_ICON + ".Visible", IconRenderer.applyIcon(cmd, SEASON_ICON, season.icon(), null));
         cmd.set("#DetailStatus.TextSpans", AlmanacText.line(season.live() ? "status.live" : "status.between"));
         if (season.flavorKey() != null) {
             cmd.set("#Flavor.TextSpans", AlmanacText.authored(season.flavorKey(), season.eventId()));

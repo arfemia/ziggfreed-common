@@ -1,5 +1,6 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
+$Z = "../Common/ZigButtons.ui";
 
 // The Almanac (com.ziggfreed.common.almanac.page.AlmanacPage): every season this server runs on the
 // left, the one being read on the right.
@@ -8,9 +9,14 @@ $F = "../Common/ZigFrames.ui";
 // in circulation), and the scrolling #SeasonList the page appends Pages/ZigSelectRow.ui into.
 // #EmptyListLabel carries the one line a server with no seasons shows.
 //
-// RIGHT: the season's name, whether it is on, its flavor line, and #DetailList, which takes one
-// Pages/ZigDetailLine.ui per line: section headings, the tallies, the keepsakes and the achievements.
-// Picking a season reopens the page, so every build is a full one.
+// RIGHT: the season's picture and name, whether it is on, its flavor line, and #DetailList, which
+// takes one Pages/ZigDetailLine.ui per line: section headings, the tallies, the keepsakes and the
+// achievements. Picking a season reopens the page, so every build is a full one.
+//
+// #DetailIconSlot holds the picture the season's page names (its Icon), drawn by ui/icon/IconRenderer
+// into #IcoItem (an item id) or #IcoTex (a texture path). It ships hidden and the page shows it only
+// when there is a picture to draw, so a season without one reads as its name alone. Its size matches
+// a ZigDetailLine.ui icon, so the picture lines up with the pictures in the list below it.
 //
 // Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
 
@@ -67,10 +73,36 @@ $F.@ZigDecoratedFrame {
       LayoutMode: Top;
       Padding: (Full: 20);
 
-      Label #DetailTitle {
-        Text: "";
+      Group #DetailHeader {
+        LayoutMode: Left;
         Anchor: (Height: 30, Bottom: 4);
-        Style: (FontSize: 22, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+
+        Group #DetailIconSlot {
+          Anchor: (Width: 28, Height: 28, Right: 8);
+          Visible: false;
+
+          ItemGrid #IcoItem {
+            Anchor: (Width: 28, Height: 28);
+            Visible: false;
+            SlotsPerRow: 1;
+            AreItemsDraggable: false;
+            DisplayItemQuantity: false;
+            Style: $Z.@ZigIconGrid28;
+          }
+
+          AssetImage #IcoTex {
+            Anchor: (Width: 28, Height: 28);
+            Visible: false;
+            FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+          }
+        }
+
+        Label #DetailTitle {
+          FlexWeight: 1;
+          Text: "";
+          Anchor: (Height: 30);
+          Style: (FontSize: 22, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+        }
       }
 
       Label #DetailStatus {

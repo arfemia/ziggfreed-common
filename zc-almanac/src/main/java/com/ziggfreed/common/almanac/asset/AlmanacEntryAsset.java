@@ -63,7 +63,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
             .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
                     (a, v) -> a.icon = v, a -> a.icon, (a, p) -> a.icon = p.icon)
             .metadata(new UIEditor(new UIEditor.Dropdown("hytale:item")))
-            .documentation("The item whose picture stands for the season in the Almanac's list.")
+            .documentation("The item whose picture stands beside the season's name at the top of its Almanac page.")
             .add()
             .appendInherited(new KeyedCodec<>("Order", Codec.INTEGER, false),
                     (a, v) -> a.order = v, a -> a.order, (a, p) -> a.order = p.order)

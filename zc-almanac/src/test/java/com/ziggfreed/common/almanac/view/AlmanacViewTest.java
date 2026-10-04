@@ -76,6 +76,14 @@ class AlmanacViewTest {
     }
 
     @Test
+    void aListedSeasonCarriesThePictureItsPageNames() throws Exception {
+        List<Season> seasons = AlmanacView.seasons(Map.of("test_season", seasonPage()), id -> SeasonState.BETWEEN);
+
+        assertEquals("Test_Icon", seasons.get(0).icon(),
+                "the page's Icon is the picture the Almanac paints beside the season's name");
+    }
+
+    @Test
     void aSeasonIsLiveOnlyWhileTheCalendarHasOneOnAndAnAbsentEventNeverIs() throws Exception {
         Map<String, AlmanacEntryAsset> pages = Map.of(
                 "first", AlmanacFixtures.page("{ \"Order\": 10 }", "First"),
