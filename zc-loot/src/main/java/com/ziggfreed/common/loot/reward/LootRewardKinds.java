@@ -368,14 +368,17 @@ public final class LootRewardKinds {
 
     // ==================== Item ====================
 
-    /** {@code {"Item": "<id>", "Count": "<n>"}} - the plain, exact payout. */
+    /**
+     * {@code {"Item": "<id>", "Count": "<n>"}} - the plain, exact payout. {@code StackNameKey} and
+     * {@code StackNameArg} name the stack ({@link StackNames}).
+     */
     private static final class ItemHandler implements RewardHandler {
 
         @Override
         public void grant(@Nonnull RewardSpec spec, @Nonnull Subject subject) throws Exception {
             int count = countOf(spec);
             String itemId = requirePayable(KIND_ITEM, itemIdOf(spec), count);
-            deliver(subject, new ItemStack(itemId, count));
+            deliver(subject, StackNames.stamp(new ItemStack(itemId, count), spec));
         }
 
         @Override
@@ -897,7 +900,7 @@ public final class LootRewardKinds {
     @Nonnull
     public static Map<String, List<String>> parameterKeys() {
         return Map.of(
-                KIND_ITEM, List.of("item", "count"),
+                KIND_ITEM, List.of("item", "count", "stacknamekey", "stacknamearg"),
                 KIND_LOOTABLE, List.of("lootable", "trigger"),
                 KIND_STAMPED_ITEM, List.of("item", "count", "pool", "stats", "picks"),
                 KIND_COMMAND, List.of(P_COMMAND, P_RUN_AS, P_DELAY_TICKS));
