@@ -1,0 +1,41 @@
+# The library's own screen for a boss fight's records (the rows a defeat writes on the encounter
+# leaderboard), so they read on a server running nothing else.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.leaderboard.<key>.
+# Every screen line but your_rank is painted where a parameter is never substituted, so only
+# your_rank takes one. A fight names its own screen through its binding row's NameKey; title is the
+# fallback.
+
+title = Boss Records
+axis.difficulty = Difficulty
+axis.players = Players
+axis.sort = Sort
+axis.view = View
+col.rank = Rank
+col.player = Player
+col.score = Best Share
+col.total = Total
+col.time = Fastest
+col.plays = Fights
+empty = Nobody has a record for this fight here yet.
+sort.score = Best Share
+sort.total = Total Points
+sort.time = Fastest
+view.rankings = Rankings
+view.stats = Stats
+filter.all = All
+your_rank = Your best: #{0, number} ({1, number})
+your_rank.none = You have no record for this fight here yet.
+stat.damage_dealt = Damage Dealt
+stat.damage_taken = Damage Taken
+
+# /zigleaderboard, the command that opens the screen above. The command.desc.* keys are what the
+# engine's own help resolves a command or an argument through.
+command.desc.family = See the records of this server's boss fights.
+command.desc.encounter = Open a boss fight's records.
+command.desc.arg.encounter = The fight's encounter script id. Leave it out when only one fight has records.
+command.open.needs_player = Only a player can open the records screen.
+command.open.failed = The records screen could not open. Try again in a moment.
+command.encounter.unranked = '{0}' keeps no records on this server.
+command.encounter.none = No boss fight has a record yet.
+command.encounter.choose = More than one boss fight has records. Pick one:
+command.encounter.choice = {0}: /zigleaderboard encounter --encounter={1}

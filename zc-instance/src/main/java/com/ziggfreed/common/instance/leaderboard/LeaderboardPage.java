@@ -175,8 +175,9 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     /**
      * The concrete {@link Leaderboard} bucket keys the current tab selection resolves to. A concrete
      * tab is a 1-element set; the synthesized "All" selection on an axis expands to every concrete tab
-     * key on that axis. With both axes present the result is their cross product
-     * ({@code "<primary>_<secondary>"}); with only one axis it is that axis's keys directly.
+     * key on that axis. With both axes present the result is their cross product, each pair named by
+     * the deps' {@link LeaderboardPageDeps#bucketKey} ({@code "<primary>_<secondary>"} unless the board
+     * composes its own); with only one axis it is that axis's keys directly.
      * {@link Leaderboard#forBuckets} merges the set, so a single concrete bucket, an "All" axis
      * roll-up, and the All+All lifetime view all read the same way and stay consistent between the
      * Rankings and Stats views.
@@ -194,7 +195,7 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         List<String> out = new ArrayList<>(primaries.size() * secondaries.size());
         for (String p : primaries) {
             for (String s : secondaries) {
-                out.add(p + "_" + s);
+                out.add(deps.bucketKey(p, s));
             }
         }
         return out;
@@ -459,11 +460,13 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
                 long metric = statsView
                         ? SortMode.statMetric(sorted.get(i).getValue(), statSort)
                         : sort.metric(sorted.get(i).getValue());
-                UiText.setText(cmd, "#YourRank.Text", t.yourRank(i + 1, metric));
+                // The footer carries the rank and a figure as parameters, which a Label substitutes on
+                // its TextSpans; its .Text would print the {0} instead.
+                cmd.set("#YourRank.TextSpans", t.yourRank(i + 1, metric));
                 return;
             }
         }
-        UiText.setText(cmd, "#YourRank.Text", t.yourRankNone());
+        cmd.set("#YourRank.TextSpans", t.yourRankNone());
     }
 
     @Override
