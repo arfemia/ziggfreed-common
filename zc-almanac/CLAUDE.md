@@ -1,0 +1,9 @@
+# zc-almanac
+
+- No library module may depend on this one: it sits beside zc-objectives, and a consumer reaches it through `page/AlmanacPages` and the `Almanac` destination.
+- The calendar is read only through the two factors it contributes (`ziggfreedcommon:calendar_live`, `ziggfreedcommon:calendar_year`, Param = the event id), through `FactorAlmanacCalendar`; never import zc-calendar. A season the calendar does not answer for is absent: not listed, not counted.
+- A season's page is `Server/ZiggfreedCommon/Almanac/<Owner>/<EventId>.json`, keyed by the calendar event id. Its achievements are the ones filed under category `Seasons` with the event id as subcategory; its keepsakes are the catalogue's `<Keepsake>_<yyyy>` ids; an achievement filed under `Seasons` with no subcategory is cross-season and shows as the banner.
+- Tallies live in `AlmanacComponent` (save key `ZiggfreedCommon:Almanac`): `<event>/<stat>` for every season and `<event>@<year>/<stat>` for one, built only through `AlmanacKeys`. The format only grows: append, never rename a key, since a renamed stat starts over.
+- A stat line ADDS each moment's amount, counted from the registered `MomentListener`; never add an ECS system for a moment the shared producers already fire, and never write progression from here.
+- The kill switch is `$Enabled` in `mods/ziggfreedcommon/almanac.json`, mirrored as the feature `ziggfreedcommon:feature` Param `Almanac`. Off means absent: no page, no command answer, no hub tile, no counting.
+- The page paints and delegates: what a season shows is decided in `view/AlmanacView`, which a test can reach; the page itself has no test.
