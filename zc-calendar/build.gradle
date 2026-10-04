@@ -1,8 +1,19 @@
 apply from: "$rootDir/gradle/zc-module.gradle"
 
-// Dated events on a yearly calendar: their occurrences, switches, factors and native events.
+// The yearly CALENDAR: events that recur on the same dates every year (Start and End month-days),
+// the owner's switches over them, the occurrence answers every other module reads through zc-core's
+// occurrence seam, a once-a-minute tick that announces a start and an end as native events, the
+// attendance record, the herald, and the native world-spawn rules an event writes while it runs.
+//
+// It depends on the primitive floor and on zc-presentation for the one event-title seam the herald
+// speaks through, and on nothing that holds progression: zc-progression reads occurrences through
+// zc-core's occurrence/Occurrences seam, filled by CalendarBootstrap, and zc-objectives turns the
+// attendance event into progress from above (ZigCalendarProducer). Neither may be imported here.
 
 dependencies {
-    // SafeLog, the factor model, the asset bases, i18n, the owner-file reader.
+    // SafeLog, the keyed asset bases and the owner-file reader, the factor and feature vocabularies,
+    // the native-event seam, the occurrence seam this module fills, i18n, the asset writer.
     implementation project(':zc-core')
+    // EventTitles: the herald's banner goes through the library's one event-title seam.
+    implementation project(':zc-presentation')
 }
