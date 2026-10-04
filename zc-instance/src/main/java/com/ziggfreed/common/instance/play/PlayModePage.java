@@ -8,7 +8,6 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.protocol.packets.interface_.CustomPage;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
@@ -316,10 +315,7 @@ public class PlayModePage extends ToastablePage<PlayEventData> {
                 if (p == null) {
                     return;
                 }
-                p.getPageManager().updateCustomPage(new CustomPage(
-                        getClass().getName(), false, false,
-                        CustomPageLifetime.CanDismissOrCloseThroughInteraction,
-                        cmd.getCommands(), UIEventBuilder.EMPTY_EVENT_BINDING_ARRAY));
+                writeInPlace(p, CustomPageLifetime.CanDismissOrCloseThroughInteraction, cmd);
             } catch (Throwable ignored) {
             }
         });
