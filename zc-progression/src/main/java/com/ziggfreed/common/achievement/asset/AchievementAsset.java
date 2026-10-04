@@ -84,6 +84,7 @@ public final class AchievementAsset
     @Nullable private Occurrence occurrence;
     @Nullable private Map<String, ObjectiveLeafAsset> criteria;
     @Nullable private String[] metaChildren;
+    @Nullable private MetaSelector metaSelector;
     @Nullable private ContentRewardsAsset rewards;
     @Nullable private Map<String, JsonElement> meta;
 
@@ -154,7 +155,15 @@ public final class AchievementAsset
                     (a, v) -> a.metaChildren = v, a -> a.metaChildren,
                     (a, p) -> a.metaChildren = p.metaChildren)
             .documentation("Achievement ids that must all be earned for this one to earn itself, for a capstone "
-                    + "over a set. An achievement with these needs no Criteria of its own.")
+                    + "over a set. An achievement with these needs no Criteria of its own. MetaSelector picks "
+                    + "more by category, subcategory or tags.")
+            .add()
+            .appendInherited(new KeyedCodec<>("MetaSelector", MetaSelector.CODEC, false),
+                    (a, v) -> a.metaSelector = v, a -> a.metaSelector, (a, p) -> a.metaSelector = p.metaSelector)
+            .documentation("A capstone over every achievement these leaves pick, beside any MetaChildren listed "
+                    + "by id: an achievement is picked when it matches every leaf written here. It never picks "
+                    + "this achievement itself or any other capstone, and a yearly copy (see Occurrence) picks "
+                    + "only that year's copies of the same event. A selector writing no leaf picks nothing.")
             .add()
             .appendInherited(new KeyedCodec<>("Rewards", ContentRewardsAsset.CODEC, false),
                     (a, v) -> a.rewards = v, a -> a.rewards, (a, p) -> a.rewards = p.rewards)
@@ -267,6 +276,12 @@ public final class AchievementAsset
     @Nonnull
     public String[] metaChildrenOrEmpty() {
         return metaChildren == null ? new String[0] : metaChildren;
+    }
+
+    /** The authored selector, or null when this capstone lists its children by id alone. */
+    @Nullable
+    public MetaSelector getMetaSelector() {
+        return metaSelector;
     }
 
     /** The authored rewards group, or null when it pays nothing. */
@@ -494,6 +509,75 @@ public final class AchievementAsset
         @Nullable
         public String eventIdOrNull() {
             return event == null || event.isBlank() ? null : event.trim().toLowerCase(Locale.ROOT);
+        }
+    }
+
+    // ==================== MetaSelector ====================
+
+    /**
+     * Which achievements a capstone stands on, picked by what they are filed under rather than by id:
+     * {@code "MetaSelector": { "Category": "festival", "Tags": [ "lanterns" ] }}.
+     */
+    public static final class MetaSelector {
+
+        @Nullable protected String category;
+        @Nullable protected String subcategory;
+        @Nullable protected String[] tags;
+
+        public static final BuilderCodec<MetaSelector> CODEC = BuilderCodec.builder(MetaSelector.class, MetaSelector::new)
+                .appendInherited(new KeyedCodec<>("Category", Codec.STRING, false),
+                        (o, v) -> o.category = v, o -> o.category, (o, p) -> o.category = p.category)
+                .documentation("Pick what is filed under this Listing.Category.").add()
+                .appendInherited(new KeyedCodec<>("Subcategory", Codec.STRING, false),
+                        (o, v) -> o.subcategory = v, o -> o.subcategory, (o, p) -> o.subcategory = p.subcategory)
+                .documentation("Pick what is filed under this Listing.Subcategory.").add()
+                .appendInherited(new KeyedCodec<>("Tags", Codec.STRING_ARRAY, false),
+                        (o, v) -> o.tags = v, o -> o.tags, (o, p) -> o.tags = p.tags)
+                .documentation("Pick what carries every one of these Listing.Tags.").add()
+                .build();
+
+        public MetaSelector() {
+        }
+
+        /** True when no leaf was written, which picks nothing. */
+        public boolean isEmpty() {
+            return blankToNull(category) == null && blankToNull(subcategory) == null && tagList().isEmpty();
+        }
+
+        /** Does {@code candidate} match every leaf written here, without regard to case? */
+        public boolean matches(@Nonnull Achievement candidate) {
+            String wantedCategory = blankToNull(category);
+            if (wantedCategory != null && !wantedCategory.equalsIgnoreCase(candidate.category())) {
+                return false;
+            }
+            String wantedSubcategory = blankToNull(subcategory);
+            if (wantedSubcategory != null && !wantedSubcategory.equalsIgnoreCase(candidate.subcategory())) {
+                return false;
+            }
+            for (String tag : tagList()) {
+                if (!candidate.hasTag(tag)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        @Nonnull
+        private List<String> tagList() {
+            List<String> out = new ArrayList<>();
+            if (tags != null) {
+                for (String tag : tags) {
+                    if (tag != null && !tag.isBlank()) {
+                        out.add(tag.trim());
+                    }
+                }
+            }
+            return out;
+        }
+
+        @Nullable
+        private static String blankToNull(@Nullable String value) {
+            return value == null || value.isBlank() ? null : value.trim();
         }
     }
 }

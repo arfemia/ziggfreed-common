@@ -369,7 +369,8 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Requires` | [Requires](#type-requires) | `null` | What a player must already have or have done before this can progress at all. An unauthored block asks for nothing. |
 | `Occurrence` | [Occurrence](#field-achievementasset-occurrence) | `null` | The calendar event this achievement comes back with every year. One copy is kept per yearly occurrence, named '<this id>_<year>' and earned separately; a copy counts progress only while its own year runs, and afterwards it is a feat its earners keep and nobody else can earn. Unauthored means an ordinary achievement. |
 | `Criteria` | map of [ObjectiveLeaf](#type-objectiveleaf) | `null` | Everything that has to be done, ALL of it, keyed by criterion id. The key is also what progress is stored under, so renaming one starts that criterion over. A child achievement may retune one criterion by id and keeps every criterion it did not mention. |
-| `MetaChildren` | array of `string` | `null` | Achievement ids that must all be earned for this one to earn itself, for a capstone over a set. An achievement with these needs no Criteria of its own. |
+| `MetaChildren` | array of `string` | `null` | Achievement ids that must all be earned for this one to earn itself, for a capstone over a set. An achievement with these needs no Criteria of its own. MetaSelector picks more by category, subcategory or tags. |
+| `MetaSelector` | [MetaSelector](#field-achievementasset-metaselector) | `null` | A capstone over every achievement these leaves pick, beside any MetaChildren listed by id: an achievement is picked when it matches every leaf written here. It never picks this achievement itself or any other capstone, and a yearly copy (see Occurrence) picks only that year's copies of the same event. A selector writing no leaf picks nothing. |
 | `Rewards` | [ContentRewardsAsset](#field-achievementasset-rewards) | `null` | What earning it pays, split by the two moments a payout can land in: Auto lands the instant it is earned, Claim waits on the achievements surface to be collected. |
 | `Meta` | map of `json` | `null` | Extra facts about this content, filed under the namespace of whichever mod they belong to. Nothing here is interpreted by this library: a mod reads its own namespace and every other one rides along untouched, so content authored for two mods still loads with one of them installed. Under Parent a namespace this file names replaces the inherited block for that namespace whole, and every namespace it does not name is inherited as it was. |
 
@@ -403,6 +404,15 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | Key | Type | Default | Documentation |
 |---|---|---|---|
 | `Event` | `string` | `null` | The calendar event's id (its file name). Write @year in Text.TextArgs, or as a reward parameter's whole value, for the copy's own year. |
+
+<a id="field-achievementasset-metaselector"></a>
+### AchievementAsset.MetaSelector
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Category` | `string` | `null` | Pick what is filed under this Listing.Category. |
+| `Subcategory` | `string` | `null` | Pick what is filed under this Listing.Subcategory. |
+| `Tags` | array of `string` | `null` | Pick what carries every one of these Listing.Tags. |
 
 <a id="field-achievementasset-rewards"></a>
 ### AchievementAsset.Rewards

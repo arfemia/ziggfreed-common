@@ -135,6 +135,7 @@ public final class AchievementAssetStore {
         List<Finding> issues = new ArrayList<>(layerFindings);
         Map<String, AchievementDefinition> out = new LinkedHashMap<>();
 
+        Map<String, AchievementAsset.MetaSelector> selectors = new LinkedHashMap<>();
         List<String> ids = new ArrayList<>(assets.keySet());
         Collections.sort(ids);
         for (String id : ids) {
@@ -146,16 +147,24 @@ public final class AchievementAssetStore {
             if (asset.isAbstract()) {
                 continue;
             }
+            AchievementAsset.MetaSelector selector = asset.getMetaSelector();
             AchievementAsset.Occurrence occurrence = asset.getOccurrence();
             if (occurrence == null) {
                 out.put(id, asset.toDefinition());
+                if (selector != null) {
+                    selectors.put(id, selector);
+                }
                 continue;
             }
             for (AchievementDefinition copy
                     : OccurrenceMinting.mintAll(asset, id, occurrence, assets, calendar, issues)) {
                 out.put(copy.id(), copy);
+                if (selector != null) {
+                    selectors.put(copy.id(), selector);
+                }
             }
         }
+        MetaSelection.apply(out, selectors, issues);
         return new Resolution(new AchievementPool(out), issues);
     }
 
