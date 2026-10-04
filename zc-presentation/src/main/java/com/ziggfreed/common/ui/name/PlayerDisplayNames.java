@@ -16,7 +16,7 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * The ONE way a menu or a leaderboard row names a player: the live username, else the name the
  * caller stored, else the first eight characters of the id, then DECORATED by whatever a higher
- * module filled (titles fill it: "Ziggfreed the Hallowed").
+ * module filled (titles fill it: "Ziggfreed the Bold").
  *
  * <p><b>Where it goes.</b> Paint the answer on a Label's {@code .TextSpans}: a decorated name is a
  * parameterized {@link Message}, which a {@code .Text} sink prints with its {@code {0}} showing.
