@@ -20,7 +20,7 @@ import com.ziggfreed.common.text.ContentTextAsset;
  *
  * <pre>{@code
  * { "Order": 10,
- *   "Text": { "TitleKey": "title.hallows_eve_hallowed.name", "FlavorKey": "title.hallows_eve_hallowed.flavor" } }
+ *   "Text": { "TitleKey": "title.example_title.name", "FlavorKey": "title.example_title.flavor" } }
  * }</pre>
  *
  * <p>{@code Enabled: false} hides a title everywhere (the picker, menus and leaderboards) without

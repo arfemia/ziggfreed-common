@@ -13,7 +13,7 @@ import com.ziggfreed.common.asset.OwnerLayerReader;
  * the same codec, like every owner file this library reads.
  *
  * <pre>{@code
- * { "Hallows_Eve_Hallowed": { "Enabled": false } }
+ * { "Example_Title": { "Enabled": false } }
  * }</pre>
  *
  * <p>Read from the store's own load event, since an owner entry has nothing to inherit from until

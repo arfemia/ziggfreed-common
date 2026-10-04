@@ -21,8 +21,8 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>The name ladder.</b> The title's {@code Text.TitleKey}, else {@code title.<id>.name} from
  * whichever loaded lang file ships it ({@link ContentKeys}, namespace-agnostic), else its typed
- * {@code Text.DisplayName}, else the id spelled out ({@code hallows_eve_hallowed} as "Hallows Eve
- * Hallowed"), a traceable fallback rather than a raw key at a player.
+ * {@code Text.DisplayName}, else the id spelled out ({@code example_title} as "Example Title"), a
+ * traceable fallback rather than a raw key at a player.
  *
  * <p><b>The display line.</b> {@code title.<id>.display} places the title around a player's name,
  * its {@code {0}} being the name, so a translator chooses the word order per title. A title that

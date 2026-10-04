@@ -16,7 +16,7 @@ import com.ziggfreed.common.objectives.title.command.TitleCommandLine;
 import com.ziggfreed.common.subject.Subject;
 
 /**
- * The reward kind that unlocks a title: {@code {"Kind": "Title", "Params": {"Title": "Hallows_Eve_Hallowed"}}}.
+ * The reward kind that unlocks a title: {@code {"Kind": "Title", "Params": {"Title": "Example_Title"}}}.
  *
  * <p>UNPREFIXED because the library owns the record behind it. A title the player already has is a
  * successful no-op (a repeatable or a retried payout must not fail). With no live player, the one way
