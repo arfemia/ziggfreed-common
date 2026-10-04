@@ -284,7 +284,9 @@ public final class AchievementAsset
                 .requirePrerequisites(listing != null && listing.isRequirePrerequisites())
                 .points(scoring == null ? Scoring.DEFAULT_POINTS : scoring.pointsOrDefault())
                 .countsTowardTotal(scoring == null || scoring.isCountsTowardTotal())
-                .tags(listing == null ? List.of() : listing.tagList());
+                .tags(listing == null ? List.of() : listing.tagList())
+                .featOfStrength(listing != null && listing.isFeat())
+                .legacySince(listing == null ? null : listing.getLegacySince());
 
         Map<String, String> criterionText = new LinkedHashMap<>();
         for (Map.Entry<String, ObjectiveLeafAsset> entry : criteriaOrEmpty().entrySet()) {
@@ -334,6 +336,8 @@ public final class AchievementAsset
     public static final class Listing extends ContentListingAsset {
 
         @Nullable protected String subcategory;
+        @Nullable protected Boolean feat;
+        @Nullable protected String legacySince;
 
         public static final BuilderCodec<Listing> CODEC =
                 appendLeaves(BuilderCodec.builder(Listing.class, Listing::new))
@@ -342,6 +346,18 @@ public final class AchievementAsset
                                 (o, p) -> o.subcategory = p.subcategory)
                         .documentation("A second level of grouping inside a Category, for a category big "
                                 + "enough to need one.").add()
+                        .appendInherited(new KeyedCodec<>("Feat", Codec.BOOLEAN, false),
+                                (o, v) -> o.feat = v, o -> o.feat, (o, p) -> o.feat = p.feat)
+                        .metadata(EditorSchema.defaultValue(false))
+                        .documentation("A feat of strength: listed in its own earned-only section instead "
+                                + "of the browse list, for something exceptional or retired. It changes only "
+                                + "where it is listed; whether its points count stays Scoring.CountsTowardTotal's "
+                                + "call. Unauthored means false.").add()
+                        .appendInherited(new KeyedCodec<>("LegacySince", Codec.STRING, false),
+                                (o, v) -> o.legacySince = v, o -> o.legacySince,
+                                (o, p) -> o.legacySince = p.legacySince)
+                        .documentation("The version this stopped being earnable in, shown beside a feat so a "
+                                + "player can tell a retired achievement from one they have not reached yet.").add()
                         .build();
 
         public Listing() {
@@ -350,6 +366,17 @@ public final class AchievementAsset
         @Nullable
         public String getSubcategory() {
             return subcategory;
+        }
+
+        /** A feat of strength? Unauthored means false. */
+        public boolean isFeat() {
+            return feat != null && feat;
+        }
+
+        /** The version it was retired in, trimmed, or null while it is still earnable. */
+        @Nullable
+        public String getLegacySince() {
+            return legacySince == null || legacySince.isBlank() ? null : legacySince.trim();
         }
     }
 

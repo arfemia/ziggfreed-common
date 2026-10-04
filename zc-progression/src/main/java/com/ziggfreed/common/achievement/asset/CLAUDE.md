@@ -5,3 +5,4 @@
 - A milestone's identity is its `Threshold`: two files naming one number are one rung, and a file with no threshold is dropped. Category and milestone ids key off the file name, with `NestedAssetId` deliberately not wired.
 - A field both engines share goes in `progress/asset` or `progress/gate`; a field only achievements have goes in this package's own codec.
 - A registered objective kind that is not producible is an error (`UNPRODUCIBLE_KIND`); an unknown one stays a warning (`UNKNOWN_KIND`).
+- `Listing.Feat` and `Listing.LegacySince` are listing leaves: a feat changes only where it is listed, never whether its points count (`Scoring.CountsTowardTotal` alone decides).

@@ -385,6 +385,8 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Hidden` | `boolean` | `null` | Keep it off open listings, for content reached some other way (a chain step, an event, a surprise). It still progresses; only the listing is affected, and anything a player already holds or has earned always shows. |
 | `RequirePrerequisites` | `boolean` | `null` | Hide it until its Requires block passes, instead of showing it locked. Unauthored means shown locked, which is usually kinder: a player can see what to work towards. |
 | `Subcategory` | `string` | `null` | A second level of grouping inside a Category, for a category big enough to need one. |
+| `Feat` | `boolean` | `null` | A feat of strength: listed in its own earned-only section instead of the browse list, for something exceptional or retired. It changes only where it is listed; whether its points count stays Scoring.CountsTowardTotal's call. Unauthored means false. |
+| `LegacySince` | `string` | `null` | The version this stopped being earnable in, shown beside a feat so a player can tell a retired achievement from one they have not reached yet. |
 
 <a id="field-achievementasset-scoring"></a>
 ### AchievementAsset.Scoring
