@@ -1,0 +1,9 @@
+# The player-facing title lines: how a title sits around a player's name, and how a title reward reads.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.title.<key>.
+# A title is named by title.<id>.name in whichever lang file ships it (else its id spelled out),
+# described by title.<id>.flavor, and placed around a player's name by title.<id>.display, whose {0}
+# is the name. The display line below is the fallback for a title that ships no display line of its
+# own: {0} is the player's name and {1} the title's.
+
+display = {0}, {1}
+chip = Title: {0}
