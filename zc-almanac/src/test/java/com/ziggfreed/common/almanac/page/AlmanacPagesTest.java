@@ -1,0 +1,44 @@
+package com.ziggfreed.common.almanac.page;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Map;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+
+import com.ziggfreed.common.almanac.AlmanacCalendar.SeasonState;
+import com.ziggfreed.common.almanac.AlmanacFixtures;
+import com.ziggfreed.common.almanac.AlmanacSwitch;
+import com.ziggfreed.common.almanac.asset.AlmanacEntryConfig;
+
+/** Whether there is an Almanac to offer, which is what a consumer's menu tile asks. */
+class AlmanacPagesTest {
+
+    @AfterEach
+    void clear() {
+        AlmanacSwitch.resetForTests();
+        AlmanacEntryConfig.getInstance().mergePackLayer(Map.of());
+    }
+
+    @Test
+    void theAlmanacIsAvailableOnlyWhileSwitchedOnWithASeasonToShow() throws Exception {
+        AlmanacEntryConfig.getInstance().mergePackLayer(Map.of("test_season",
+                AlmanacFixtures.page(AlmanacFixtures.SEASON_PAGE, "Test_Season")));
+
+        assertTrue(AlmanacPages.available(id -> SeasonState.BETWEEN));
+        assertFalse(AlmanacPages.available(id -> null),
+                "a season the calendar does not answer for is absent, and so is an Almanac with no other");
+
+        AlmanacSwitch.set(false);
+        assertFalse(AlmanacPages.available(id -> SeasonState.BETWEEN), "switched off means absent");
+    }
+
+    @Test
+    void openingWithNoPlayerOrSwitchedOffDeclinesWithoutThrowing() {
+        assertFalse(AlmanacPages.open(null, null, null, null));
+        AlmanacSwitch.set(false);
+        assertFalse(AlmanacPages.open("test_season", null, null, null));
+    }
+}
