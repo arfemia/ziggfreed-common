@@ -13,14 +13,13 @@ import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.function.consumer.TriConsumer;
 import com.hypixel.hytale.math.vector.Rotation3f;
-import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The generic "spawn an NPC role at a position" primitive, lifted config-free from
@@ -116,9 +115,14 @@ public final class NpcSpawnService {
     }
 
     /**
-     * The world spawn point (the caller applies any offset), falling back to
-     * {@code playerRef}'s current position if no spawn provider resolves. Fully
-     * generic. World-thread only.
+     * The world spawn point (the caller applies any offset) when the world's spawn provider has it at
+     * hand, else {@code playerRef}'s current position. Fully generic. World-thread only.
+     *
+     * <p>It never waits: on Update 7 a spawn point can be a column load away (a provider fitting its
+     * point to the ground loads the spawn column first), and this answers now, on the world thread, so
+     * a point still loading reads as none and the player's position answers. A caller that must have
+     * the spawn point itself asks {@link SpawnPoints#ask} and continues with
+     * {@link SpawnPoints#whenLanded}.
      */
     @Nullable
     public static Vector3dc resolveSpawnPosition(@Nonnull World world, @Nonnull Store<EntityStore> store,
@@ -128,13 +132,13 @@ public final class NpcSpawnService {
             if (provider != null) {
                 UUIDComponent uc = store.getComponent(playerRef, UUIDComponent.getComponentType());
                 UUID uuid = uc != null ? uc.getUuid() : UUID.randomUUID();
-                Transform sp = provider.getSpawnPoint(world, uuid);
-                if (sp != null && sp.getPosition() != null) {
-                    return sp.getPosition();
+                Vector3dc point = SpawnPoints.now(SpawnPoints.ask(provider, world, uuid));
+                if (point != null) {
+                    return point;
                 }
             }
-        } catch (Exception e) {
-            fine("[NpcSpawn] spawn provider failed, falling back to player position: " + e.getMessage());
+        } catch (Throwable t) {
+            fine("[NpcSpawn] spawn provider failed, falling back to player position: " + t.getMessage());
         }
         try {
             TransformComponent tc = store.getComponent(playerRef, TransformComponent.getComponentType());
@@ -163,18 +167,10 @@ public final class NpcSpawnService {
     }
 
     private static void warn(@Nonnull String msg) {
-        try {
-            CommonLog.LOGGER.atWarning().log("%s", msg);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM; swallow.
-        }
+        SafeLog.warn(msg);
     }
 
     private static void fine(@Nonnull String msg) {
-        try {
-            CommonLog.LOGGER.atFine().log("%s", msg);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM; swallow.
-        }
+        SafeLog.fine(msg);
     }
 }

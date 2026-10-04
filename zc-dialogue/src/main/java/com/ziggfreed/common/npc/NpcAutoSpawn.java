@@ -3,17 +3,19 @@ package com.ziggfreed.common.npc;
 import java.nio.file.Path;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 import javax.annotation.Nonnull;
 
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
 
-import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
-import com.ziggfreed.common.CommonLog;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Generic, role-keyed, once-per-world NPC auto-spawn primitive, the config-free lift of
@@ -38,18 +40,26 @@ import com.ziggfreed.common.CommonLog;
  *       one store can back several distinct auto-spawned NPCs in the same world.</li>
  * </ul>
  *
- * <p><b>World-thread only.</b> {@link #ensureSpawned} reads the world spawn point / player
- * archetype and calls {@code NPCPlugin.spawnEntity}, which are valid only inside a
+ * <p><b>World-thread only.</b> {@link #ensureSpawned} reads the world's spawn provider and
+ * calls {@code NPCPlugin.spawnEntity}, which are valid only inside a
  * {@code world.execute(...)} task; the CALLER guarantees the world thread (e.g. by wrapping
  * the call in {@code world.execute} on a {@code PlayerReadyEvent}, the way kweebec does).
  * Every path is try-guarded so a missing asset / bad ref / IO error degrades to a no-op
  * (logged), never a throw into the caller.
  *
+ * <p><b>The spawn point may still be on its way.</b> On Update 7 the world's spawn provider
+ * answers a future, and a provider that fits its point to the ground loads the spawn column
+ * first ({@link SpawnPoints}). A point at hand places the NPC during the call, as before; a
+ * point still loading places it in a later world-thread task once it lands, never by waiting
+ * for it here.
+ *
  * <p>Idempotency is the persisted {@link NpcPlacementStore}: a spawned NPC persists in the
  * world's entity store, so the marker MUST persist too or a fresh boot stacks another NPC
  * beside the saved one. The {@code (world, roleKey)} pair is marked AFTER a successful
- * place, so a failed spawn simply retries on the next call. {@code world.execute} tasks run
- * serialized on the world thread, so the check-then-mark needs no separate atomic claim.
+ * place, so a failed spawn simply retries on the next call, and a placement that waited for
+ * its spawn point checks the marker again before it goes in, so two calls made while one
+ * point loads place one NPC. {@code world.execute} tasks run serialized on the world thread,
+ * so the check-then-mark needs no separate atomic claim.
  */
 public final class NpcAutoSpawn {
 
@@ -104,7 +114,7 @@ public final class NpcAutoSpawn {
         try {
             NpcPlacementStore.forDir(placementStoreDir);
         } catch (Throwable t) {
-            warn("[NpcAutoSpawn] init failed for " + placementStoreDir + ": " + t.getMessage());
+            SafeLog.warn("[NpcAutoSpawn] init failed for " + placementStoreDir + ": " + t.getMessage());
         }
     }
 
@@ -117,7 +127,8 @@ public final class NpcAutoSpawn {
      * {@code KweebecGuideSpawn.spawnIfAbsent} + {@code place}.
      *
      * <p><b>World-thread only</b> (the caller guarantees it; see the class doc). Fully
-     * try-guarded - any failure logs and returns without throwing.
+     * try-guarded - any failure logs and returns without throwing. When the spawn point is
+     * still loading, the NPC goes in from a later world-thread task once it lands.
      */
     public static void ensureSpawned(@Nonnull World world, @Nonnull AutoSpawnSpec spec,
             @Nonnull Path placementStoreDir) {
@@ -137,21 +148,74 @@ public final class NpcAutoSpawn {
                 return;
             }
 
-            Vector3dc base = resolveWorldSpawnPosition(world);
-            if (base == null) {
-                fine("[NpcAutoSpawn] no world spawn point for '" + worldName + "', skipping role '"
+            // The world spawn point: the auto-spawn is world-anchored, not tied to any one
+            // player, hence a synthetic uuid. Null when the world has no spawn provider yet.
+            CompletableFuture<Vector3dc> spawnPoint =
+                    SpawnPoints.ask(world.getWorldConfig().getSpawnProvider(), world, UUID.randomUUID());
+            if (spawnPoint == null) {
+                SafeLog.fine("[NpcAutoSpawn] no world spawn point for '" + worldName + "', skipping role '"
                         + spec.roleAsset() + "'");
                 return;
             }
-            Vector3d pos = new Vector3d(
-                    base.x() + spec.offsetX(), base.y() + spec.offsetY(), base.z() + spec.offsetZ());
+            placeWhenLanded(spawnPoint, world,
+                    () -> placements.hasSpawned(worldName, spec.roleKey()),
+                    base -> placeAt(world, spec, worldName, base, placements),
+                    failure -> SafeLog.fine("[NpcAutoSpawn] spawn provider failed for '" + worldName
+                            + "', skipping role '" + spec.roleAsset() + "': " + failure));
+        } catch (Throwable t) {
+            SafeLog.warn("[NpcAutoSpawn] ensureSpawned failed: " + t.getMessage());
+        }
+    }
 
-            if (place(world, spec, worldName, pos, placements)) {
-                placements.markSpawned(worldName, spec.roleKey());
-                info("[NpcAutoSpawn] spawned role '" + spec.roleAsset() + "' in world '" + worldName + "'.");
+    /**
+     * Place once the spawn point lands: at once, on this thread, when it already has (the world
+     * thread, per the class javadoc); else on {@code worldThread} when it does. The placement asks
+     * {@code alreadySpawned} at the moment it would go in, so two calls made while one point is still
+     * loading place one NPC, not two. A query that fails reaches {@code failed}; one that lands with no
+     * point places nothing; a {@code place} that throws is logged, never thrown. Package-private for the
+     * test; {@link #ensureSpawned} is the live path through it.
+     */
+    static void placeWhenLanded(@Nonnull CompletableFuture<Vector3dc> spawnPoint, @Nonnull Executor worldThread,
+            @Nonnull BooleanSupplier alreadySpawned, @Nonnull Consumer<Vector3dc> place,
+            @Nonnull Consumer<Throwable> failed) {
+        if (spawnPoint.isDone()) {
+            placeLanded(spawnPoint, alreadySpawned, place, failed);
+            return;
+        }
+        SpawnPoints.whenLanded(spawnPoint, worldThread, () -> placeLanded(spawnPoint, alreadySpawned, place, failed));
+    }
+
+    /** The landed half of {@link #placeWhenLanded}: never throws. */
+    private static void placeLanded(@Nonnull CompletableFuture<Vector3dc> spawnPoint,
+            @Nonnull BooleanSupplier alreadySpawned, @Nonnull Consumer<Vector3dc> place,
+            @Nonnull Consumer<Throwable> failed) {
+        try {
+            Throwable failure = SpawnPoints.failureOf(spawnPoint);
+            if (failure != null) {
+                failed.accept(failure);
+                return;
+            }
+            Vector3dc base = SpawnPoints.now(spawnPoint);
+            if (base == null) {
+                SafeLog.fine("[NpcAutoSpawn] the spawn provider answered no point; nothing placed");
+                return;
+            }
+            if (!alreadySpawned.getAsBoolean()) {
+                place.accept(base);
             }
         } catch (Throwable t) {
-            warn("[NpcAutoSpawn] ensureSpawned failed: " + t.getMessage());
+            SafeLog.warn("[NpcAutoSpawn] placing at the world spawn point failed: " + t.getMessage());
+        }
+    }
+
+    /** Place the role at {@code base} plus the spec's offset, then mark it. World thread. */
+    private static void placeAt(@Nonnull World world, @Nonnull AutoSpawnSpec spec, @Nonnull String worldName,
+            @Nonnull Vector3dc base, @Nonnull NpcPlacementStore placements) {
+        Vector3d pos = new Vector3d(
+                base.x() + spec.offsetX(), base.y() + spec.offsetY(), base.z() + spec.offsetZ());
+        if (place(world, spec, worldName, pos, placements)) {
+            placements.markSpawned(worldName, spec.roleKey());
+            SafeLog.info("[NpcAutoSpawn] spawned role '" + spec.roleAsset() + "' in world '" + worldName + "'.");
         }
     }
 
@@ -176,52 +240,5 @@ public final class NpcAutoSpawn {
                 // best-effort UUID record (only used by a consumer's debug reposition)
             }
         });
-    }
-
-    /**
-     * The world spawn point (the caller applies any offset), resolved from the world's own
-     * spawn provider with a synthetic UUID (the auto-spawn is world-anchored, not tied to
-     * any one player). Returns null when no spawn provider resolves a point. The
-     * player-less counterpart of {@link NpcSpawnService#resolveSpawnPosition} - we cannot
-     * fall back to a player position here because no player ref is supplied. World-thread
-     * only.
-     */
-    private static Vector3dc resolveWorldSpawnPosition(@Nonnull World world) {
-        try {
-            ISpawnProvider provider = world.getWorldConfig().getSpawnProvider();
-            if (provider != null) {
-                Transform sp = provider.getSpawnPoint(world, UUID.randomUUID());
-                if (sp != null && sp.getPosition() != null) {
-                    return sp.getPosition();
-                }
-            }
-        } catch (Throwable t) {
-            fine("[NpcAutoSpawn] spawn provider failed for '" + world.getName() + "': " + t.getMessage());
-        }
-        return null;
-    }
-
-    private static void info(@Nonnull String msg) {
-        try {
-            CommonLog.LOGGER.atInfo().log("%s", msg);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM; swallow.
-        }
-    }
-
-    private static void warn(@Nonnull String msg) {
-        try {
-            CommonLog.LOGGER.atWarning().log("%s", msg);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM; swallow.
-        }
-    }
-
-    private static void fine(@Nonnull String msg) {
-        try {
-            CommonLog.LOGGER.atFine().log("%s", msg);
-        } catch (Throwable ignored) {
-            // log-manager-less unit JVM; swallow.
-        }
     }
 }
