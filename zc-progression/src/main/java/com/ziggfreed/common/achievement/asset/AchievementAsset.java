@@ -81,6 +81,7 @@ public final class AchievementAsset
     @Nullable private Listing listing;
     @Nullable private Scoring scoring;
     @Nullable private GateSpec requires;
+    @Nullable private Occurrence occurrence;
     @Nullable private Map<String, ObjectiveLeafAsset> criteria;
     @Nullable private String[] metaChildren;
     @Nullable private ContentRewardsAsset rewards;
@@ -134,6 +135,13 @@ public final class AchievementAsset
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
             .documentation("What a player must already have or have done before this can progress at all. An "
                     + "unauthored block asks for nothing.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Occurrence", Occurrence.CODEC, false),
+                    (a, v) -> a.occurrence = v, a -> a.occurrence, (a, p) -> a.occurrence = p.occurrence)
+            .documentation("The calendar event this achievement comes back with every year. One copy is kept "
+                    + "per yearly occurrence, named '<this id>_<year>' and earned separately; a copy counts "
+                    + "progress only while its own year runs, and afterwards it is a feat its earners keep and "
+                    + "nobody else can earn. Unauthored means an ordinary achievement.")
             .add()
             .appendInherited(new KeyedCodec<>("Criteria",
                             new InheritMapCodec<>(ObjectiveLeafAsset.CODEC), false),
@@ -243,6 +251,12 @@ public final class AchievementAsset
         return requires;
     }
 
+    /** The calendar event this comes back with every year, or null for an ordinary achievement. */
+    @Nullable
+    public Occurrence getOccurrence() {
+        return occurrence;
+    }
+
     /** The authored criteria in authored order, keyed by criterion id (the progress key). */
     @Nonnull
     public Map<String, ObjectiveLeafAsset> criteriaOrEmpty() {
@@ -276,17 +290,35 @@ public final class AchievementAsset
      */
     @Nonnull
     public AchievementDefinition toDefinition() {
-        String achievementId = id == null ? "" : id;
+        return toDefinition(null);
+    }
+
+    /**
+     * Fold this asset as itself ({@code mint} null), or as one yearly copy. A copy carries its minted
+     * id, so its criterion progress is filed under that year's own keys; it is in circulation only
+     * while its year's occurrence is live and reads as a feat once it is not, both asked on every
+     * look; the year sentinel in its text arguments and reward parameters reads as its year; and each
+     * explicit child id is read through the mint's rewrite.
+     */
+    @Nonnull
+    AchievementDefinition toDefinition(@Nullable OccurrenceMinting.Mint mint) {
+        String achievementId = mint != null ? mint.id() : (id == null ? "" : id);
+        boolean feat = listing != null && listing.isFeat();
 
         Achievement.Builder achievement = Achievement.builder(achievementId)
-                .available(isEnabled())
                 .hidden(listing != null && listing.isHidden())
                 .requirePrerequisites(listing != null && listing.isRequirePrerequisites())
                 .points(scoring == null ? Scoring.DEFAULT_POINTS : scoring.pointsOrDefault())
                 .countsTowardTotal(scoring == null || scoring.isCountsTowardTotal())
                 .tags(listing == null ? List.of() : listing.tagList())
-                .featOfStrength(listing != null && listing.isFeat())
                 .legacySince(listing == null ? null : listing.getLegacySince());
+        if (mint == null) {
+            achievement.available(isEnabled()).featOfStrength(feat);
+        } else {
+            achievement.available(mint.availability(isEnabled()))
+                    .featOfStrength(mint.featOfStrength(feat))
+                    .occurrence(mint.occurrence());
+        }
 
         Map<String, String> criterionText = new LinkedHashMap<>();
         for (Map.Entry<String, ObjectiveLeafAsset> entry : criteriaOrEmpty().entrySet()) {
@@ -304,23 +336,30 @@ public final class AchievementAsset
         List<String> children = new ArrayList<>();
         for (String child : metaChildrenOrEmpty()) {
             if (child != null && !child.isBlank()) {
-                children.add(child.trim().toLowerCase(Locale.ROOT));
+                String childId = child.trim().toLowerCase(Locale.ROOT);
+                children.add(mint == null ? childId : mint.child(childId));
             }
         }
         achievement.metaChildren(children);
 
         ContentRewardsAsset pay = rewards;
         if (pay != null) {
-            achievement.autoRewards(pay.auto());
-            achievement.claimRewards(pay.claim());
+            achievement.autoRewards(mint == null ? pay.auto() : mint.rewards(pay.auto()));
+            achievement.claimRewards(mint == null ? pay.claim() : mint.rewards(pay.claim()));
+        }
+
+        List<String> titleArgs = text == null ? List.of() : text.titleArgs();
+        List<String> flavorArgs = text == null ? List.of() : text.flavorArgs();
+        if (mint != null) {
+            titleArgs = mint.args(titleArgs);
+            flavorArgs = mint.args(flavorArgs);
         }
 
         return new AchievementDefinition(achievementId, achievement.build(),
                 text == null ? null : text.getTitleKey(),
                 text == null ? null : text.getFlavorKey(),
                 text == null ? null : text.getDisplayName(),
-                text == null ? List.of() : text.titleArgs(),
-                text == null ? List.of() : text.flavorArgs(),
+                titleArgs, flavorArgs,
                 listing == null ? null : listing.getCategory(),
                 listing == null ? null : listing.getSubcategory(),
                 listing == null ? 0 : listing.sortOrderOrZero(),
@@ -421,6 +460,40 @@ public final class AchievementAsset
 
         public boolean isCountsTowardTotal() {
             return countsTowardTotal == null || countsTowardTotal;
+        }
+    }
+
+    // ==================== Occurrence ====================
+
+    /**
+     * The calendar event an achievement comes back with every year. {@code "Occurrence": { "Event":
+     * "yourmod_festival" }} keeps one copy per year that event runs (see {@code OccurrenceMinting}).
+     */
+    public static final class Occurrence {
+
+        /**
+         * The sentinel a copy answers with its own year: a {@code Text.TextArgs} entry, or a reward
+         * parameter whose WHOLE value it is. Anywhere else, and in an ordinary achievement, it stays as
+         * written, like every unanswered sentinel.
+         */
+        public static final String ARG_YEAR = "@year";
+
+        @Nullable protected String event;
+
+        public static final BuilderCodec<Occurrence> CODEC = BuilderCodec.builder(Occurrence.class, Occurrence::new)
+                .appendInherited(new KeyedCodec<>("Event", Codec.STRING, false),
+                        (o, v) -> o.event = v, o -> o.event, (o, p) -> o.event = p.event)
+                .documentation("The calendar event's id (its file name). Write @year in Text.TextArgs, or as a "
+                        + "reward parameter's whole value, for the copy's own year.").add()
+                .build();
+
+        public Occurrence() {
+        }
+
+        /** The event's id, trimmed and lower-cased, or null when none was written. */
+        @Nullable
+        public String eventIdOrNull() {
+            return event == null || event.isBlank() ? null : event.trim().toLowerCase(Locale.ROOT);
         }
     }
 }

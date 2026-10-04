@@ -367,6 +367,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Listing` | [Listing](#field-achievementasset-listing) | `null` | How it is grouped, ordered, illustrated, and whether it is listed before it is earned. |
 | `Scoring` | [Scoring](#field-achievementasset-scoring) | `null` | What it is worth, and whether that worth counts toward a player's total. |
 | `Requires` | [Requires](#type-requires) | `null` | What a player must already have or have done before this can progress at all. An unauthored block asks for nothing. |
+| `Occurrence` | [Occurrence](#field-achievementasset-occurrence) | `null` | The calendar event this achievement comes back with every year. One copy is kept per yearly occurrence, named '<this id>_<year>' and earned separately; a copy counts progress only while its own year runs, and afterwards it is a feat its earners keep and nobody else can earn. Unauthored means an ordinary achievement. |
 | `Criteria` | map of [ObjectiveLeaf](#type-objectiveleaf) | `null` | Everything that has to be done, ALL of it, keyed by criterion id. The key is also what progress is stored under, so renaming one starts that criterion over. A child achievement may retune one criterion by id and keeps every criterion it did not mention. |
 | `MetaChildren` | array of `string` | `null` | Achievement ids that must all be earned for this one to earn itself, for a capstone over a set. An achievement with these needs no Criteria of its own. |
 | `Rewards` | [ContentRewardsAsset](#field-achievementasset-rewards) | `null` | What earning it pays, split by the two moments a payout can land in: Auto lands the instant it is earned, Claim waits on the achievements surface to be collected. |
@@ -395,6 +396,13 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Points` | `integer` | `null` | What earning this is worth; unauthored means 10. Keep the scale consistent across a pack, since a player's total is the sum and a milestone reward is measured against it. |
 | `CountsTowardTotal` | `boolean` | `null` | Whether the points count toward a player's total; unauthored means true. Set false for something nobody can earn any more, so a total stays comparable between a long-standing player and a new one. |
+
+<a id="field-achievementasset-occurrence"></a>
+### AchievementAsset.Occurrence
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Event` | `string` | `null` | The calendar event's id (its file name). Write @year in Text.TextArgs, or as a reward parameter's whole value, for the copy's own year. |
 
 <a id="field-achievementasset-rewards"></a>
 ### AchievementAsset.Rewards

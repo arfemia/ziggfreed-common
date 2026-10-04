@@ -71,6 +71,12 @@ final class FakeCalendar implements OccurrenceSource {
         return this;
     }
 
+    /** This calendar behind the reader a fold asks, on a clock the fixture ignores. */
+    @Nonnull
+    OccurrenceReader reader() {
+        return new OccurrenceReader(() -> this, () -> 0L);
+    }
+
     @Override
     public boolean isEnabled(@Nonnull String eventId) {
         String key = key(eventId);
