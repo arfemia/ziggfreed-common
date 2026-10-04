@@ -16,9 +16,10 @@ import com.ziggfreed.common.validation.ValidationReport;
 
 /**
  * Every loaded loot table, audited on demand against the reward kinds this server actually pays,
- * then every loaded reward-kind file ({@link RewardKindValidator#auditAll()}), then every loaded
- * bonus row ({@link BonusRowAudit#auditAll}), against the same reward kinds and the factor
- * vocabulary the rolling kinds read, in one list.
+ * then every loaded reward-kind file ({@link RewardKindValidator#auditAll()}), then the library's
+ * own bonus rows as they fold, a switched-off row left out ({@link BonusRowAudit#auditAll}, domain
+ * {@link BonusRowAudit#DOMAIN bonus_rows}), against the same reward kinds and the factor vocabulary
+ * the rolling kinds read, in one list.
  *
  * <p>A reward-kind file that only decorates a Java-registered kind (no {@code Command}, so it gives
  * that kind its {@code Presentation} and the payout stays with the mod) is the legitimate
@@ -28,8 +29,8 @@ import com.ziggfreed.common.validation.ValidationReport;
  *
  * <p>It runs when an owner asks ({@code /zigloot validate}), never at boot: a consumer that audits
  * the tables in its own boot pass already reports those lines, and a second pass would print each
- * of them twice. On a server with no such consumer, this is how an author finds out what a table or
- * a reward-kind file does wrong.
+ * of them twice. On a server with no such consumer, this is how an author finds out what a table, a
+ * reward-kind file or a bonus row does wrong.
  */
 public final class LootAudit {
 
@@ -41,7 +42,8 @@ public final class LootAudit {
 
     /**
      * Every loaded loot table, audited as authored against the kinds this server pays, then every
-     * loaded reward-kind file, a decoration's note left out, then every loaded bonus row.
+     * loaded reward-kind file, a decoration's note left out, then the library's own bonus rows as
+     * they fold (domain {@code bonus_rows}).
      */
     @Nonnull
     public static List<Finding> auditAll() {
