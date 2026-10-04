@@ -17,9 +17,9 @@ import com.ziggfreed.common.world.SectionBlockCursor;
  *
  * <p>Both methods step the look ray in fixed increments, reading each step's block off the
  * world's loaded chunk sections through zc-core's {@link SectionBlockCursor} (the read both the
- * live server and Update 7 keep; Update 7 deletes {@code World.getBlock}). Empty, non-Solid and
- * unloaded blocks are treated as clear, and a chunk that is not loaded is never loaded; the first
- * {@link BlockMaterial#Solid} hit is the stop point.
+ * live server and Update 7 keep, where Update 7 deletes the {@code World} block reads). Empty,
+ * non-Solid and unloaded blocks are treated as clear, and a chunk that is not loaded is never
+ * loaded; the first {@link BlockMaterial#Solid} hit is the stop point.
  *
  * <p>{@link #clearDistance} returns a distance scalar, optionally pulled back by
  * {@code wallPullback} so the caster lands shy of the wall. {@link #hitPosition}

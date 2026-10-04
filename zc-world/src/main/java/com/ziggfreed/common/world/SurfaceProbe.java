@@ -19,8 +19,8 @@ import com.hypixel.hytale.server.core.universe.world.World;
  * any {@link Opacity#Transparent} block - leaves, glass, foliage - and stop at the
  * first opaque block), but reads a live world's loaded chunk sections through
  * zc-core's {@link SectionBlockCursor} (the read both the live server and Update 7
- * keep; Update 7 deletes {@code World.getBlock}), so it works on already-generated
- * chunks at runtime.
+ * keep, where Update 7 deletes the {@code World} block reads), so it works on
+ * already-generated chunks at runtime.
  *
  * <p><b>World-thread only</b> (it reads loaded blocks): call it inside a
  * {@code world.execute(...)} hop. It never loads a chunk: a column whose sections
