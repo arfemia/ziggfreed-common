@@ -15,8 +15,8 @@ import javax.annotation.Nonnull;
  * items" variant without touching the snapshot/restore plumbing:
  * <ul>
  *   <li><b>Sections</b> - which inventory sections are subject to stripping at all (Armor / Hotbar /
- *       Storage / Utility / Tool / Backpack). A section NOT covered is left fully intact on entry.
- *       Default: all six.</li>
+ *       Storage / Utility / Tool / Backpack, and Update 7's rune Abilities and Rune Bag). A section NOT
+ *       covered is left fully intact on entry. Default: every managed section.</li>
  *   <li><b>Item rule</b> - within a covered section, an optional id filter: {@link ItemRule#ALL}
  *       strips everything, {@link ItemRule#WHITELIST} strips ONLY the listed ids, {@link
  *       ItemRule#BLACKLIST} strips everything EXCEPT the listed ids (a keep list). Default
@@ -37,7 +37,7 @@ public final class InventoryStripPolicy {
         BLACKLIST
     }
 
-    /** Strip the entire inventory (all six sections, every item). The minigame default. */
+    /** Strip the entire inventory (every managed section, every item). The minigame default. */
     public static final InventoryStripPolicy STRIP_ALL = builder().build();
 
     private final Set<Integer> sections;
@@ -78,7 +78,7 @@ public final class InventoryStripPolicy {
         return new Builder();
     }
 
-    /** Fluent builder; defaults to all six sections + {@link ItemRule#ALL} (= {@link #STRIP_ALL}). */
+    /** Fluent builder; defaults to every managed section + {@link ItemRule#ALL} (= {@link #STRIP_ALL}). */
     public static final class Builder {
         private final Set<Integer> sections = new HashSet<>();
         private ItemRule itemRule = ItemRule.ALL;
@@ -90,7 +90,7 @@ public final class InventoryStripPolicy {
             }
         }
 
-        /** Restrict stripping to EXACTLY these section ids (replaces the default all-six set). */
+        /** Restrict stripping to EXACTLY these section ids (replaces the default set of every managed section). */
         @Nonnull
         public Builder sections(@Nonnull int... sectionIds) {
             sections.clear();
