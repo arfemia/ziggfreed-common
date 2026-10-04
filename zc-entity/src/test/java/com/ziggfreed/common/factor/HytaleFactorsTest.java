@@ -167,15 +167,38 @@ class HytaleFactorsTest {
     }
 
     /**
-     * The quality split at the registry, on a stack made while its item's quality sat at index 1 and
-     * read after the item's quality moved to index 2. {@code item_quality} reads the index the
-     * stack carries. {@code tool_quality}'s hand lookup needs a live hotbar, so the resolver's own
-     * reading of the held stack ({@code toolQualityOfHeld}, which the resolver hands the held stack
-     * to) is driven directly, against the same live quality map: the item's current quality.
+     * The quality split at the registry, on a stack stamped with quality index 1 (the
+     * {@code ItemStack#withQuality} constructor, through {@code TestItems.requalified}) whose item
+     * authors index 2. {@code item_quality} reads the stamp the stack carries. {@code tool_quality}'s
+     * hand lookup needs a live hotbar, so the resolver's own reading of the held stack
+     * ({@code toolQualityOfHeld}, which the resolver hands the held stack to) is driven directly,
+     * against the same live quality map: the item's current quality.
      */
     @Tag("engine-items")
     @Test
     void itemQualityFollowsTheStackWhereTheToolReadingFollowsTheItem() {
+        FactorRegistry registry = new FactorRegistry();
+        HytaleFactors.registerInto(registry, "yourmod");
+        ItemStack piece = TestItems.requalified(TestItems.item("Test_Hatchet", 3, 2), 1);
+
+        try (EngineAssetStores.Swap ignored = EngineAssetStores.qualities(
+                TestItems.quality(0), TestItems.quality(10), TestItems.quality(25))) {
+            assertEquals(10.0, registry.resolve(HytaleFactors.ITEM_QUALITY, about(piece, null)),
+                    "item_quality reads the quality stamped on the stack");
+            assertEquals(25.0, HytaleFactors.toolQualityOfHeld(piece),
+                    "tool_quality's reading of the held stack answers its item's current quality");
+            assertNull(HytaleFactors.toolQualityOfHeld(null), "nothing held reads null");
+        }
+    }
+
+    /**
+     * Update 7's unstamped stack at the registry: made while its item's quality sat at index 1, read
+     * after the item's quality moved to index 2. It carries no quality of its own, so both readings
+     * answer the item's current quality.
+     */
+    @Tag("engine-items")
+    @Test
+    void anUnstampedStackReadsItsItemsCurrentQualityThroughBothReadings() {
         FactorRegistry registry = new FactorRegistry();
         HytaleFactors.registerInto(registry, "yourmod");
         ItemStack piece = TestItems.madeFrom(TestItems.item("Test_Hatchet", 3, 1),
@@ -183,11 +206,9 @@ class HytaleFactorsTest {
 
         try (EngineAssetStores.Swap ignored = EngineAssetStores.qualities(
                 TestItems.quality(0), TestItems.quality(10), TestItems.quality(25))) {
-            assertEquals(10.0, registry.resolve(HytaleFactors.ITEM_QUALITY, about(piece, null)),
-                    "item_quality reads the index the stack was made with");
-            assertEquals(25.0, HytaleFactors.toolQualityOfHeld(piece),
-                    "tool_quality's reading of the held stack answers its item's current quality");
-            assertNull(HytaleFactors.toolQualityOfHeld(null), "nothing held reads null");
+            assertEquals(25.0, registry.resolve(HytaleFactors.ITEM_QUALITY, about(piece, null)),
+                    "item_quality follows the item's reload");
+            assertEquals(25.0, HytaleFactors.toolQualityOfHeld(piece), "and agrees with tool_quality");
         }
     }
 

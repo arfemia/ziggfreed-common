@@ -26,8 +26,8 @@ import com.ziggfreed.common.stats.StackStats;
 /**
  * Which metadata keys a stack carries, read without the engine's deprecated accessor, and which of
  * them no mod has declared safe to destroy with it: a bare stack reads none, a stack carrying
- * metadata reads its keys in order, and a stack the read cannot encode reads null, which a consumer
- * about to destroy the stack refuses on.
+ * metadata reads its keys in order, and a stack whose metadata the read cannot take apart reads
+ * null, which a consumer about to destroy the stack refuses on.
  *
  * <p>Tagged {@code engine-items}: every case builds a real engine stack, which only the
  * {@code engineItemTest} task's log manager allows. The declared list is global and never retracted,
@@ -90,21 +90,20 @@ class ItemMetadataKeysTest {
     }
 
     @Test
-    void aStackTheReadCannotEncodeReadsNullAndSoDoesNoStack() {
-        ItemStack unreadable = new ItemStack(ITEM.getId(), 1, 1, 1, 0, new BsonDocument("Test_Key", new BsonInt32(1))) {
+    void aStackWhoseMetadataCannotBeReadReadsNullAndSoDoesNoStack() {
+        // Update 7's encoder reads every field directly and hands the metadata document over as it is,
+        // so no stack can make the encode itself throw; the read fails where a damaged document makes it
+        // fail, taking the keys apart.
+        BsonDocument damaged = new BsonDocument("Test_Key", new BsonInt32(1)) {
             @Override
-            public Item getItem() {
-                return ITEM;
-            }
-
-            @Override
-            public int getQualityIndex() {
-                throw new IllegalStateException("a stack the codec cannot encode");
+            public Set<String> keySet() {
+                throw new IllegalStateException("a metadata document whose keys cannot be read");
             }
         };
 
-        assertNull(ItemReadings.metadataKeys(unreadable), "cannot tell, never 'no keys'");
-        assertNull(ItemReadings.undeclaredMetadataKeys(unreadable), "so a consumer about to destroy it refuses");
+        assertNull(ItemReadings.metadataKeys(carrying(damaged)), "cannot tell, never 'no keys'");
+        assertNull(ItemReadings.undeclaredMetadataKeys(carrying(damaged)),
+                "so a consumer about to destroy it refuses");
         assertNull(ItemReadings.metadataKeys(null));
         assertNull(ItemReadings.undeclaredMetadataKeys(null));
     }

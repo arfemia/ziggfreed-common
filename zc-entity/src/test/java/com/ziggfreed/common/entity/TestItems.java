@@ -21,8 +21,10 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
  * Real engine item values built without a running server. A unit JVM has no item asset store, so an
  * {@link Item} is filled through its protected fields (the same fields the engine's codec fills)
  * with a level, a quality index and stat blocks. A stack goes through the engine's own public
- * {@code ItemStack} constructors, which copy the item's quality index into the stack exactly as they
- * do on a live server; only {@code getItem()} is answered locally instead of by an item-map lookup.
+ * {@code ItemStack} constructors, exactly as on a live server: on Update 7 they give a stack no quality
+ * of its own unless one is passed (the 6-argument constructor, the one {@code ItemStack#withQuality}
+ * uses), so an unstamped stack reads its item's quality; only {@code getItem()} is answered locally
+ * instead of by an item-map lookup.
  *
  * <p><b>A test using this class is tagged {@code engine-items}.</b> The engine's item classes can
  * only be initialized under its own log manager, which only the {@code engineItemTest} task starts
@@ -71,9 +73,8 @@ public final class TestItems {
     }
 
     /**
-     * A one-item stack of {@code asset} at the given wear, made the way the engine makes one: the
-     * constructor copies the item's quality index into the stack, so the stack carries its own copy
-     * of that index from the start.
+     * A one-item stack of {@code asset} at the given wear, made the way the engine makes one: nothing
+     * is stamped on it, so it reads its item's quality.
      */
     @Nonnull
     public static ItemStack stack(@Nonnull Item asset, double wear, double wearMax) {
@@ -83,8 +84,8 @@ public final class TestItems {
     /**
      * A stack made while its item was {@code made}, whose item now answers as {@code current}: the
      * shape a live stack takes when its item's {@code Quality} is reloaded, or the quality index
-     * order moves between boots, after the stack was made. The stack keeps the index its
-     * constructor copied from {@code made}; {@code getItem()} reports {@code current}.
+     * order moves between boots, after the stack was made. Nothing was stamped on it, so on Update 7
+     * it reads {@code current}'s quality; {@code getItem()} reports {@code current}.
      */
     @Nonnull
     public static ItemStack madeFrom(@Nonnull Item made, @Nonnull Item current, double wear, double wearMax) {
@@ -102,6 +103,8 @@ public final class TestItems {
     /**
      * A one-item stack of {@code asset} re-qualified to {@code stackQuality}, through the engine's
      * constructor that takes an explicit quality index (the one {@code ItemStack#withQuality} uses).
+     * The stamp is the stack's own: it reads {@code stackQuality} whatever its item authors, and
+     * Update 7 saves it with the stack under {@code QualityOverride}.
      */
     @Nonnull
     public static ItemStack requalified(@Nonnull Item asset, int stackQuality) {

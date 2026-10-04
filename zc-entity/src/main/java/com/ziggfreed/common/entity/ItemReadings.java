@@ -35,15 +35,20 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
  * stack, an empty stack, or an engine read that threw. Every engine read is try-guarded, because
  * every caller is a gate or a formula where a failed lookup must degrade to "cannot tell".
  *
- * <p><b>A stack's quality and its item's quality are two readings.</b> The engine copies the
- * item's quality index into every stack it builds, saves that index with the stack under its
- * {@code Quality} key, and rewrites it on {@code ItemStack#withQuality}; only a stack carrying no
- * index at all falls back to its item's. So {@link #quality(ItemStack)} reads the quality the
- * stack was MADE with (or re-qualified to), and {@link #quality(Item)} reads the quality the item
- * asset authors NOW; {@link #qualityId(ItemStack)} and {@link #qualityId(Item)} name the same two
- * tiers by id rather than by ordering value. The two agree until the item's {@code Quality} is
- * reloaded, or the quality index order moves between boots, after the stack was made. Item level
- * and the authored stat modifiers exist only on the item asset, and durability only on the stack.
+ * <p><b>A stack's quality and its item's quality are two readings.</b> On Update 7 a stack carries a
+ * quality of its own only when one is stamped on it ({@code ItemStack#withQuality}, saved with the stack
+ * under its {@code QualityOverride} key); a stack with none reads its item's quality as the item authors
+ * it NOW. So {@link #quality(ItemStack)} reads the quality a stack was stamped with, else its item's
+ * current one, and {@link #quality(Item)} reads the quality the item asset authors now;
+ * {@link #qualityId(ItemStack)} and {@link #qualityId(Item)} name the same two tiers by id rather than by
+ * ordering value. The two differ only for a stamped stack, so a "made with" quality must be stamped with
+ * {@code withQuality}, or the stack follows its item when the item's {@code Quality} reloads or the
+ * quality index order moves between boots. A quality stamped on 0.6.8 (saved under the old
+ * {@code Quality} key) is dropped at its first Update 7 load, the one key the two lines' item codec
+ * differs in: the rest of the stack (its metadata, so stamped stats, a rename and a tooltip, and its
+ * durability) loads as saved, and the stack reads its item's quality from then on; nothing in this
+ * library brings the quality back. Item level and the authored stat modifiers exist only on the item
+ * asset, and durability only on the stack.
  *
  * <p>It also reads which METADATA keys a stack carries ({@link #metadataKeys}) and which of them no
  * mod has declared safe to destroy with it ({@link #undeclaredMetadataKeys}), the question anything
@@ -63,11 +68,10 @@ public final class ItemReadings {
     // ==================== quality ====================
 
     /**
-     * The stack's RARITY as the native {@code ItemQuality.QualityValue} its OWN quality index
-     * resolves to, floored at 0 - the number that ORDERS quality tiers, so a pack shipping its own
-     * tier takes part with no code change. The index is the one the stack carries (copied from its
-     * item when the stack was made, or set by a re-qualify), not its item's current one; see the
-     * class javadoc. Null when there is no usable stack.
+     * The stack's RARITY as the native {@code ItemQuality.QualityValue} its quality index resolves
+     * to, floored at 0 - the number that ORDERS quality tiers, so a pack shipping its own tier takes
+     * part with no code change. The index is the one stamped on the stack ({@code withQuality}), else
+     * its item's current one; see the class javadoc. Null when there is no usable stack.
      */
     @Nullable
     public static Double quality(@Nullable ItemStack stack) {
@@ -76,9 +80,8 @@ public final class ItemReadings {
 
     /**
      * The item asset's CURRENT rarity value, the quality its {@code Quality} field names now. Same
-     * floor as {@link #quality(ItemStack)}; it reads the same number for a stack only while that
-     * stack's copied index still matches its item's (see the class javadoc). Null when
-     * {@code item} is null.
+     * floor as {@link #quality(ItemStack)}, and the same number for any stack carrying no stamped
+     * quality (see the class javadoc). Null when {@code item} is null.
      */
     @Nullable
     public static Double quality(@Nullable Item item) {
@@ -112,10 +115,10 @@ public final class ItemReadings {
     }
 
     /**
-     * The id of the native {@code ItemQuality} the stack's OWN quality index resolves to (the index
-     * the stack was made with or re-qualified to, its item's only when the stack carries none; see
-     * the class javadoc), the name a matcher keyed on a quality tier compares. Null when there is no
-     * usable stack, or when the index resolves to no loaded quality.
+     * The id of the native {@code ItemQuality} the stack's quality index resolves to (the index
+     * stamped on the stack, else its item's current one; see the class javadoc), the name a matcher
+     * keyed on a quality tier compares. Null when there is no usable stack, or when the index
+     * resolves to no loaded quality.
      */
     @Nullable
     public static String qualityId(@Nullable ItemStack stack) {
@@ -125,8 +128,8 @@ public final class ItemReadings {
     /**
      * The id of the quality the item asset's {@code Quality} field names NOW, for a caller holding
      * the item alone (a material counted by id, with no stack behind it). It names the same tier as
-     * {@link #qualityId(ItemStack)} only while a stack's copied index still matches its item's.
-     * Null when {@code item} is null, or when its index resolves to no loaded quality.
+     * {@link #qualityId(ItemStack)} for any stack carrying no stamped quality. Null when
+     * {@code item} is null, or when its index resolves to no loaded quality.
      */
     @Nullable
     public static String qualityId(@Nullable Item item) {
@@ -310,7 +313,8 @@ public final class ItemReadings {
      * document's order, as an immutable set. A bare stack (no metadata at all) reads an empty set.
      *
      * <p><b>Null means "cannot tell", and a caller about to destroy the stack refuses on it.</b> It
-     * is answered for no stack, and for a stack the read cannot encode (the read never throws). The
+     * is answered for no stack, and for a stack the read cannot encode or whose metadata document it
+     * cannot take apart (the read never throws). The
      * engine's own metadata accessor is {@code @Deprecated} (not marked for removal, though the
      * engine's comment says it goes once stack metadata moves to components), so the keys are read
      * the one non-deprecated way the engine offers: the stack's own {@code ItemStack.CODEC} encodes
