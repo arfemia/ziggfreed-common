@@ -7,3 +7,5 @@
 
 display = {0}, {1}
 chip = Title: {0}
+unlocked = Title unlocked: {0}
+unlocked_hint = Choose the title you show with /zigtitle open

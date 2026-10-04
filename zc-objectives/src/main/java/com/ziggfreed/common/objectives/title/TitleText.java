@@ -1,15 +1,19 @@
 package com.ziggfreed.common.objectives.title;
 
 import java.util.Locale;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.feedback.moment.FeedbackEngine;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.i18n.NativeNames;
+import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.util.SafeLog;
 
 /**
  * What a title is CALLED and where it sits around a player's name: the readings every title
@@ -34,6 +38,15 @@ public final class TitleText {
 
     /** How a Title reward reads on a chip: {0} the title's name. */
     static final String CHIP_KEY = PREFIX + "chip";
+
+    /** The feedback moment fired for a NEW unlock; the shipped default toasts the title's name. */
+    public static final String UNLOCKED_MOMENT = "Title_Unlocked";
+
+    /** The moment value carrying the title's localized name, which the shipped toast line reads. */
+    static final String NAME_ARG = "name";
+
+    /** The moment value carrying the title's id, for an override that wants it. */
+    static final String TITLE_ARG = "title";
 
     private TitleText() {
     }
@@ -109,6 +122,18 @@ public final class TitleText {
     @Nonnull
     public static Message chip(@Nonnull String titleId) {
         return Msg.key(CHIP_KEY, nameOf(titleId));
+    }
+
+    /** Tell {@code who} the title is theirs now. Guarded whole: a notice must never undo the unlock. */
+    static void announceUnlocked(@Nonnull Subject who, @Nonnull String titleId) {
+        try {
+            if (!FeedbackEngine.answers(UNLOCKED_MOMENT)) {
+                return;
+            }
+            FeedbackEngine.fire(UNLOCKED_MOMENT, who, Map.of(TITLE_ARG, titleId, NAME_ARG, nameOf(titleId)));
+        } catch (Throwable t) {
+            SafeLog.fine("[title] the unlock notice for '" + titleId + "' could not be drawn: " + t.getMessage());
+        }
     }
 
     @Nonnull

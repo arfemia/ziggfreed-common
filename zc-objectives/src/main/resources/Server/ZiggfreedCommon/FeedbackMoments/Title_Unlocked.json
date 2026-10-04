@@ -1,0 +1,33 @@
+{
+  "$Comment": [
+    "What a player sees and hears the instant a title is unlocked for them, whether a quest or an",
+    "achievement paid it as a Title reward or an administrator ran /zigtitle grant. It fires only for a",
+    "title the player did not already have; granting one again is silent.",
+    "",
+    "This is the library's own neutral default, so a bare server gets a notice out of the box. A mod",
+    "that ships a file with this same name in its own pack replaces it, and a server owner can do the",
+    "same from the owner layer. Override the whole file rather than editing this one; a mod with a",
+    "titles button of its own points the second line at that button instead of the command.",
+    "",
+    "The moment carries 'title' (its id) and 'name' (what the title is called, already in the reader's",
+    "language: its TitleKey, else title.<id>.name from whichever lang file ships it, else the id",
+    "spelled out). 'player' is always the name of who unlocked it.",
+    "",
+    "Key is a line from a .lang file; Args names which of those values fill its blanks, in order.",
+    "Sound is any SoundEvent id, played at the player's own position. Tone colours the whole",
+    "notification: gold Reward here, because an unlock is a payout."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.title.unlocked",
+      "Args": ["name"]
+    },
+    "Secondary": {
+      "Key": "ziggfreedcommon.title.unlocked_hint"
+    },
+    "Tone": "Reward"
+  },
+  "Sound": {
+    "Id": "SFX_Discovery_Z2_Short"
+  }
+}
