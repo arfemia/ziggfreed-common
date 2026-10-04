@@ -104,7 +104,8 @@ public final class TestItems {
      * A one-item stack of {@code asset} re-qualified to {@code stackQuality}, through the engine's
      * constructor that takes an explicit quality index (the one {@code ItemStack#withQuality} uses).
      * The stamp is the stack's own: it reads {@code stackQuality} whatever its item authors, and
-     * Update 7 saves it with the stack under {@code QualityOverride}.
+     * Update 7 saves it with the stack under {@code QualityOverride}. Passing
+     * {@code AssetMapWithIndexes.NOT_FOUND} stamps nothing, so that stack reads its item's quality.
      */
     @Nonnull
     public static ItemStack requalified(@Nonnull Item asset, int stackQuality) {
