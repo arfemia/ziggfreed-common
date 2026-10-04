@@ -41,4 +41,4 @@ The family's shared library of mod-agnostic Hytale primitives and engines. It de
 
 ## Release notes
 
-- `CHANGELOG.md` and `patch-notes/` stay mod-agnostic: describe a primitive in "a consumer" terms and never name a consumer's internals or unreleased features. Kweebec Nightmare, the declared exemplar, may be named.
+- `patch-notes/` stays mod-agnostic, the developer files in `patch-notes/dev/` included: describe a primitive in "a consumer" terms and never name a consumer's internals or unreleased features. Kweebec Nightmare, the declared exemplar, may be named.
