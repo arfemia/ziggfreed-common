@@ -41,7 +41,11 @@ public final class CalendarService implements OccurrenceSource {
         this.forces = forces;
     }
 
-    /** The monitor a content reload and the tick's look share, so a tick never sees half a reload. */
+    /**
+     * The monitor a content reload and the tick's look share, so a tick never sees half a reload. A world
+     * thread waits for it while holding the engine's asset read lock (a player's attendance read), so
+     * nothing done while holding it may wait for the asset lock or for a world thread.
+     */
     @Nonnull
     public Object lock() {
         return lock;

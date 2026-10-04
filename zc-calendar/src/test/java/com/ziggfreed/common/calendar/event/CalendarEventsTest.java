@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
@@ -65,5 +66,17 @@ class CalendarEventsTest {
         assertEquals(1_800L, switchedOff.firedAtMs());
         assertFalse(assertInstanceOf(CalendarEventEndedEvent.class, fired.get(1)).switchedOff(),
                 "its dates ran out");
+    }
+
+    @Test
+    void anAttendanceNamesThePlayerAndTheRunTheyWereHereFor() {
+        UUID player = UUID.randomUUID();
+        CalendarEvents.fireAttended(player, EVE_2026, 1_200L);
+        assertEquals(1, fired.size());
+        CalendarAttendedEvent attended = assertInstanceOf(CalendarAttendedEvent.class, fired.get(0));
+        assertEquals(player, attended.playerId());
+        assertEquals("hallows_eve", attended.eventId());
+        assertEquals(2026, attended.year(), "the year the run began in");
+        assertEquals(1_200L, attended.firedAtMs());
     }
 }

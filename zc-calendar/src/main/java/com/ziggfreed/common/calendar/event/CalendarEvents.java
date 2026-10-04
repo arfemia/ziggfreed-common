@@ -1,5 +1,7 @@
 package com.ziggfreed.common.calendar.event;
 
+import java.util.UUID;
+
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.event.NativeEventSeam;
@@ -25,5 +27,10 @@ public final class CalendarEvents {
     public static void fireEnded(@Nonnull Occurrence run, boolean switchedOff, long nowMs) {
         SEAM.fire("CalendarEventEnded", CalendarEventEndedEvent.class,
                 () -> new CalendarEventEndedEvent(run.eventId(), run.year(), switchedOff, nowMs));
+    }
+
+    public static void fireAttended(@Nonnull UUID playerId, @Nonnull Occurrence run, long nowMs) {
+        SEAM.fire("CalendarAttended", CalendarAttendedEvent.class,
+                () -> new CalendarAttendedEvent(playerId, run.eventId(), run.year(), nowMs));
     }
 }

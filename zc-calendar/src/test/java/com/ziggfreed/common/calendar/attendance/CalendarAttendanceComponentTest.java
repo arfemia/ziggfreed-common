@@ -1,0 +1,90 @@
+package com.ziggfreed.common.calendar.attendance;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
+
+/** The per-player attendance record: case-blind, ordered on read, stable on save, and strict about its delimiters. */
+class CalendarAttendanceComponentTest {
+
+    @Test
+    void aRunAndALookupMeetWhateverTheCasing() {
+        CalendarAttendanceComponent record = new CalendarAttendanceComponent();
+        assertTrue(record.markAttended("Hallows_Eve", 2026));
+        assertTrue(record.hasAttended("hallows_eve", 2026));
+        assertFalse(record.markAttended("HALLOWS_EVE", 2026), "the same run twice is one attendance");
+        assertFalse(record.hasAttended("hallows_eve", 2027));
+    }
+
+    @Test
+    void yearsAndEventsReadBackInOrder() {
+        CalendarAttendanceComponent record = new CalendarAttendanceComponent();
+        record.markAttended("Hallows_Eve", 2027);
+        record.markAttended("Hallows_Eve", 2026);
+        record.markAttended("Harvest_Moon", 2026);
+        assertEquals(List.of(2026, 2027), record.yearsAttended("hallows_eve"));
+        assertEquals(List.of("hallows_eve", "harvest_moon"), record.eventsAttended());
+    }
+
+    @Test
+    void theSaveFormatRoundTripsAndIsStable() {
+        CalendarAttendanceComponent record = new CalendarAttendanceComponent();
+        record.markAttended("Harvest_Moon", 2026);
+        record.markAttended("Hallows_Eve", 2026);
+        assertEquals("hallows_eve@2026|harvest_moon@2026", record.save());
+        CalendarAttendanceComponent reloaded = new CalendarAttendanceComponent();
+        reloaded.load(record.save());
+        assertTrue(reloaded.hasAttended("harvest_moon", 2026));
+        assertEquals(record.save(), reloaded.save());
+    }
+
+    @Test
+    void aRestartReadsTheRecordBackThroughTheEngineCodec() throws IOException {
+        CalendarAttendanceComponent record = new CalendarAttendanceComponent();
+        record.markAttended("Hallows_Eve", 2026);
+        ExtraInfo info = new ExtraInfo();
+        CalendarAttendanceComponent restarted =
+                CalendarAttendanceComponent.CODEC.decode(CalendarAttendanceComponent.CODEC.encode(record, info), info);
+        assertTrue(restarted.hasAttended("hallows_eve", 2026), "the record the player was saved with");
+        CalendarAttendanceComponent saved = CalendarAttendanceComponent.CODEC.decodeJson(
+                RawJsonReader.fromJsonString("{\"Attended\":\"hallows_eve@2026\"}"), new ExtraInfo());
+        assertTrue(saved.hasAttended("hallows_eve", 2026), "the saved key is Attended");
+        CalendarAttendanceComponent before = CalendarAttendanceComponent.CODEC.decodeJson(
+                RawJsonReader.fromJsonString("{}"), new ExtraInfo());
+        assertTrue(before.eventsAttended().isEmpty(), "a player saved before the calendar has attended nothing");
+    }
+
+    @Test
+    void aSaveInAnotherCasingReadsAsTheSameRuns() {
+        CalendarAttendanceComponent record = new CalendarAttendanceComponent();
+        record.load("Hallows_Eve@2026");
+        assertTrue(record.hasAttended("hallows_eve", 2026));
+        assertFalse(record.markAttended("HALLOWS_EVE", 2026), "a hand-edited entry is the same run, credited once");
+        assertEquals(List.of("hallows_eve"), record.eventsAttended());
+    }
+
+    @Test
+    void anIdCarryingAReservedCharacterIsRefused() {
+        CalendarAttendanceComponent record = new CalendarAttendanceComponent();
+        assertFalse(record.markAttended("bad|event", 2026));
+        assertFalse(record.markAttended("bad@event", 2026));
+        assertTrue(record.eventsAttended().isEmpty());
+    }
+
+    @Test
+    void aCloneIsADeepCopy() {
+        CalendarAttendanceComponent record = new CalendarAttendanceComponent();
+        record.markAttended("Hallows_Eve", 2026);
+        CalendarAttendanceComponent copy = record.clone();
+        copy.markAttended("Harvest_Moon", 2026);
+        assertFalse(record.hasAttended("harvest_moon", 2026));
+    }
+}

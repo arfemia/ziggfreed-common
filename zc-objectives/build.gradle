@@ -45,4 +45,8 @@ dependencies {
     // out over every bound encounter (EncounterQuestAxes). One-way by the same position argument:
     // zc-encounter never imports this module, and EncounterEdgeTest fails its build if it tries.
     implementation project(':zc-encounter')
+    // The calendar's attendance event, so being on the server while a calendar event runs feeds the
+    // same engines every other moment feeds (ZigCalendarProducer). One-way by the same position
+    // argument: zc-calendar never imports this module.
+    implementation project(':zc-calendar')
 }
