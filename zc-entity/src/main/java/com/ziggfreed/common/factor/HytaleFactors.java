@@ -50,7 +50,7 @@ import com.ziggfreed.common.util.SafeLog;
  *       .Quality}) - a different number from {@code tool_quality} below</td></tr>
  *   <tr><td>{@code hytale:tool_durability_percent}</td><td>ignored</td><td>0..100 of the held stack</td></tr>
  *   <tr><td>{@code hytale:tool_quality}</td><td>ignored</td><td>the held ITEM's current quality tier
- *       value (the item asset's, not the stack's copy)</td></tr>
+ *       value (the item asset's, never a quality stamped on the stack)</td></tr>
  *   <tr><td>{@code hytale:tool_item_level}</td><td>ignored</td><td>the held item's native item level</td></tr>
  *   <tr><td>{@code hytale:held_tag}</td><td>{@code family:value}, or a bare value</td>
  *       <td>1 when the held item carries it, else 0</td></tr>
@@ -58,7 +58,7 @@ import com.ziggfreed.common.util.SafeLog;
  *   <tr><td>{@code hytale:permission}</td><td>a permission node</td>
  *       <td>1 when the subject's connection holds it, else 0</td></tr>
  *   <tr><td>{@code hytale:item_quality}</td><td>ignored</td>
- *       <td>the context STACK's own quality tier value (the index the stack carries)</td></tr>
+ *       <td>the context STACK's quality tier value (a quality stamped on it, else its item's)</td></tr>
  *   <tr><td>{@code hytale:item_level}</td><td>ignored</td><td>the context item's native item level</td></tr>
  *   <tr><td>{@code hytale:item_durability_percent}</td><td>ignored</td>
  *       <td>0..100 of the context stack; 100 for an item that tracks no durability</td></tr>
@@ -73,10 +73,9 @@ import com.ziggfreed.common.util.SafeLog;
  * answer null wherever a moment carries none, so a gate on an item that is not there stays shut.
  * Both families read through the one item reader ({@link ItemReadings}), so level and wear read the
  * same held or placed. <b>Quality differs on purpose</b>: {@code tool_quality} reads the held
- * ITEM's current quality, as it always has, while {@code item_quality} reads the quality index the
- * STACK carries, which the engine copies from its item when the stack is made and saves with it.
- * The two agree until an item's quality is reloaded, or the quality index order moves between
- * boots, after the stack was made.
+ * ITEM's current quality, as it always has, while {@code item_quality} reads the STACK's: a quality
+ * stamped on it ({@code ItemStack#withQuality}, saved with the stack), else its item's current one.
+ * On Update 7 an unstamped stack follows its item, so the two differ only for a stamped stack.
  *
  * <p><b>{@code hytale:permission} belongs to this portable set for the same reason the rest do:
  * permissions are the ENGINE's own paradigm</b> (a node on the player's connection, declared in a
@@ -122,7 +121,7 @@ public final class HytaleFactors {
     public static final String TOOL_DURABILITY_PERCENT = "hytale:tool_durability_percent";
     /**
      * {@code hytale:tool_quality} - the held ITEM's current native quality-tier ordering value (the
-     * item asset's quality, not the index the held stack carries).
+     * item asset's quality, never one stamped on the held stack).
      */
     public static final String TOOL_QUALITY = "hytale:tool_quality";
     /** {@code hytale:tool_item_level} - the held item's native item level. */
@@ -133,7 +132,7 @@ public final class HytaleFactors {
     public static final String HELD_ITEM = "hytale:held_item";
     /** {@code hytale:permission} - 1 when the subject holds the permission node named by Param, else 0. */
     public static final String PERMISSION = "hytale:permission";
-    /** {@code hytale:item_quality} - the context STACK's own quality-tier ordering value (the index it carries). */
+    /** {@code hytale:item_quality} - the context STACK's quality-tier ordering value (its stamped quality, else its item's). */
     public static final String ITEM_QUALITY = "hytale:item_quality";
     /** {@code hytale:item_level} - the context item's native item level. */
     public static final String ITEM_LEVEL = "hytale:item_level";
@@ -278,11 +277,10 @@ public final class HytaleFactors {
 
     /**
      * The held ITEM's native quality-tier ordering value: the quality its item asset names now,
-     * read through {@link ItemReadings#quality(Item)}. Deliberately NOT the index the held stack
-     * carries (that is {@link #ITEM_QUALITY}'s reading of a context stack): the engine copies an
-     * item's index into each stack it makes, so a stack read would drift from this reading whenever
-     * the item's quality is reloaded or the index order moves between boots. Null when nothing is
-     * held.
+     * read through {@link ItemReadings#quality(Item)}. Deliberately NOT a quality stamped on the held
+     * stack (that is {@link #ITEM_QUALITY}'s reading of a context stack): a stamp stays with its stack
+     * when the item's quality is reloaded or the index order moves between boots, so a stack read
+     * would drift from this reading. Null when nothing is held.
      *
      * <p><b>{@code Param} is ignored.</b> This is the item's own RARITY - its {@code Quality} field
      * names one {@code ItemQuality} asset for the whole item - so it is a single value with nothing
@@ -295,8 +293,8 @@ public final class HytaleFactors {
 
     /**
      * {@link #TOOL_QUALITY}'s reading of a held stack: the quality the stack's ITEM names now, never
-     * the index the stack carries. Kept apart from the hand read so a test can pin that choice on a
-     * stack whose carried index differs from its item's.
+     * a quality stamped on the stack. Kept apart from the hand read so a test can pin that choice on a
+     * stamped stack whose quality differs from its item's.
      */
     @Nullable
     static Double toolQualityOfHeld(@Nullable ItemStack held) {
@@ -388,9 +386,9 @@ public final class HytaleFactors {
     }
 
     /**
-     * The context STACK's own quality-tier ordering value ({@link FactorContext#item()}): the index
-     * the stack carries, copied from its item when the stack was made or set by a re-qualify,
-     * through {@link ItemReadings#quality(ItemStack)}. Null when the context carries no item.
+     * The context STACK's quality-tier ordering value ({@link FactorContext#item()}): a quality
+     * stamped on the stack ({@code ItemStack#withQuality}), else its item's current one, through
+     * {@link ItemReadings#quality(ItemStack)}. Null when the context carries no item.
      * {@code Param} is ignored.
      */
     @Nullable

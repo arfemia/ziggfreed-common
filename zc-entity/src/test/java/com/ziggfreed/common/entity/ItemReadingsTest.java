@@ -9,6 +9,7 @@ import static com.ziggfreed.common.entity.TestItems.requalified;
 import static com.ziggfreed.common.entity.TestItems.stack;
 import static com.ziggfreed.common.entity.TestItems.stats;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.function.IntFunction;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
+import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemQuality;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
@@ -26,6 +28,11 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
  * protected fields, a stack made through the engine's own constructors, since a unit JVM has no item
  * store). Quality is read through an injected quality lookup, the pure core the live reader wraps
  * around the engine's quality asset map; every value asserted here is authored by the test itself.
+ *
+ * <p><b>Update 7's quality storage.</b> A stack carries a quality of its own only when one is stamped
+ * on it ({@code ItemStack#withQuality}, the constructor {@code TestItems.requalified} uses), saved under
+ * its {@code QualityOverride} key; a stack with none reads its item's CURRENT quality. So the stack and
+ * item readings split only on a stamped stack, and an unstamped stack follows its item through a reload.
  *
  * <p>Tagged {@code engine-items} as a whole: every test here builds a real engine item or stack,
  * which can only be done under the engine's own log manager, so the class runs in the
@@ -90,42 +97,63 @@ class ItemReadingsTest {
         ItemStack stack = requalified(sword, AssetMapWithIndexes.NOT_FOUND);
 
         assertEquals(20.0, ItemReadings.quality(stack, TENS),
-                "the engine's own fallback, for a stack decoded with no Quality key");
+                "the engine's own fallback, for a stack saved with no quality of its own");
     }
 
     @Test
-    void aStackMadeFromAnItemCarriesACopyOfItsItemsQuality() {
+    void aStackMadeFromAnItemReadsItsItemsQualityAndSavesNoneOfItsOwn() {
         Item sword = item("Test_Sword", 5, 2);
         ItemStack stack = stack(sword, 1, 1);
 
-        assertEquals(2, stack.getQualityIndex(), "the engine's constructor copies the item's index into the stack");
+        assertEquals(2, stack.getQualityIndex(), "an unstamped stack reads its item's index");
         assertEquals(20.0, ItemReadings.quality(stack, TENS));
         assertEquals(20.0, ItemReadings.quality(sword, TENS));
+        assertFalse(ItemStack.CODEC.encode(stack, new ExtraInfo()).containsKey("QualityOverride"),
+                "Update 7 saves a quality with a stack only when one was stamped on it");
     }
 
     /**
-     * The split between the two quality readings, on the one shape where they differ: a stack made
-     * while its item's quality sat at index 2, read after the item's quality moved to index 4 (a
-     * reload of the item's {@code Quality}, or the quality index order moving between boots). The
-     * stack keeps the index it copied, so {@code hytale:item_quality}, which reads the STACK, answers
-     * 20. {@code hytale:tool_quality} reads the held ITEM ({@code HeldItemUtil.heldItem} is the held
-     * stack's {@code getItem()}), so it answers the item's current 40, exactly as it did in 2.1.x.
+     * The split between the two quality readings, on the one shape where they differ on Update 7: a
+     * stack stamped with quality index 2 ({@code ItemStack#withQuality}, which {@code requalified}
+     * builds through the same constructor) whose item authors index 4. The stamp is the stack's own,
+     * so {@code hytale:item_quality}, which reads the STACK, answers 20. {@code hytale:tool_quality}
+     * reads the held ITEM ({@code HeldItemUtil.heldItem} is the held stack's {@code getItem()}), so it
+     * answers the item's current 40, exactly as it did in 2.1.x.
      */
     @Test
     void theToolReadingFollowsTheItemAndTheItemReadingFollowsTheStack() {
-        Item whenMade = item("Test_Hatchet", 7, 2);
-        Item reloaded = item("Test_Hatchet", 7, 4);
-        ItemStack held = madeFrom(whenMade, reloaded, 10, 20);
+        Item hatchet = item("Test_Hatchet", 7, 4);
+        ItemStack held = requalified(hatchet, 2);
 
-        assertEquals(2, held.getQualityIndex(), "the stack keeps the index it was made with");
-        assertEquals(4, held.getItem().getQualityIndex(), "its item reports the reloaded index");
+        assertEquals(2, held.getQualityIndex(), "the stack keeps the quality stamped on it");
+        assertEquals(4, held.getItem().getQualityIndex(), "its item reports its own index");
+        assertEquals(2, ItemStack.CODEC.encode(held, new ExtraInfo()).getInt32("QualityOverride").getValue(),
+                "and the stamp is saved with the stack");
 
         Double toolQuality = ItemReadings.quality(held.getItem(), TENS);
         Double itemQuality = ItemReadings.quality(held, TENS);
         assertEquals(40.0, toolQuality, "tool_quality reads the held item's CURRENT quality");
-        assertEquals(20.0, itemQuality, "item_quality reads the quality index the stack carries");
+        assertEquals(20.0, itemQuality, "item_quality reads the quality stamped on the stack");
         assertEquals(ItemReadings.itemLevel(held.getItem()), ItemReadings.itemLevel(held),
                 "item level lives on the item alone, so the two paths cannot split on it");
+    }
+
+    /**
+     * Update 7's other half: a stack made while its item's quality sat at index 2, read after the
+     * item's quality moved to index 4 (a reload of the item's {@code Quality}, or the index order moving
+     * between boots). Nothing was stamped on it, so it carries no quality of its own and follows its
+     * item: both readings answer the item's current 40. A "made with" quality has to be stamped to stay.
+     */
+    @Test
+    void anUnstampedStackFollowsItsItemsQualityThroughAReload() {
+        Item whenMade = item("Test_Hatchet", 7, 2);
+        Item reloaded = item("Test_Hatchet", 7, 4);
+        ItemStack held = madeFrom(whenMade, reloaded, 10, 20);
+
+        assertEquals(4, held.getQualityIndex(), "an unstamped stack reads its item's current index");
+        assertEquals(40.0, ItemReadings.quality(held, TENS), "item_quality follows the reload");
+        assertEquals(40.0, ItemReadings.quality(held.getItem(), TENS), "and agrees with tool_quality");
+        assertEquals("Test_Quality_40", ItemReadings.qualityId(held, TENS));
     }
 
     @Test
@@ -171,8 +199,9 @@ class ItemReadingsTest {
      * The held-tool readings are exactly their 2.1.x values. This recomputes the 2.1.x formulas
      * inline (quality and item level off the held ITEM, durability off the held stack) and holds the
      * paths the 2.2.0 resolvers take to them across a spread of qualities and levels, on stacks made
-     * the way the engine makes them (each carrying a copy of its item's quality index). The tool
-     * quality path is the item read; the item level and durability paths take the held stack.
+     * the way the engine makes them (on Update 7 each reads its item's quality index, carrying none
+     * of its own). The tool quality path is the item read; the item level and durability paths take
+     * the held stack.
      */
     @Test
     void theHeldToolPathsAreByteIdenticalTo21x() {
@@ -189,7 +218,7 @@ class ItemReadingsTest {
 
                 assertEquals(oldQuality, ItemReadings.quality(held.getItem(), TENS), "quality at index " + index);
                 assertEquals(oldQuality, ItemReadings.quality(held, TENS),
-                        "a stack whose item has not moved carries the same index, so item_quality agrees");
+                        "an unstamped stack reads its item's index, so item_quality agrees");
                 assertEquals(oldLevel, ItemReadings.itemLevel(held), "item level " + level);
                 assertEquals(oldDurability, ItemReadings.durabilityPercent(held));
                 assertEquals(50.0, ItemReadings.durabilityPercent(held));
