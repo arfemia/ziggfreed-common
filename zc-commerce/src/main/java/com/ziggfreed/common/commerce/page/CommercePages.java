@@ -1,6 +1,5 @@
 package com.ziggfreed.common.commerce.page;
 
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -13,10 +12,8 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
-import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.inventory.PlayerAccess;
-import com.ziggfreed.common.shop.asset.StorefrontAsset;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -148,35 +145,28 @@ public final class CommercePages {
 
     // ==================== defaults ====================
 
-    /** The first storefront this server declares, in the order the content asked for. */
+    /**
+     * The first storefront this server declares, in the order the content asked for, skipping one
+     * switched off or hidden by a feature ({@link ShopConfig#firstListedId()}).
+     */
     @Nullable
     public static String firstShopId() {
         try {
-            List<StorefrontAsset> listed = ShopConfig.getInstance().listed();
-            for (StorefrontAsset asset : listed) {
-                if (asset != null && asset.isEnabled() && asset.getId() != null) {
-                    return asset.getId();
-                }
-            }
+            return ShopConfig.getInstance().firstListedId();
         } catch (Throwable ignored) {
             // Nothing loaded yet reads as nothing declared, which is the same decline.
+            return null;
         }
-        return null;
     }
 
-    /** The first board this server declares, in the order the content asked for. */
+    /** The first board this server declares, on the same terms ({@link BoardConfig#firstListedId()}). */
     @Nullable
     public static String firstBoardId() {
         try {
-            List<BoardAsset> listed = BoardConfig.getInstance().listed();
-            for (BoardAsset asset : listed) {
-                if (asset != null && asset.isEnabled() && asset.getId() != null) {
-                    return asset.getId();
-                }
-            }
+            return BoardConfig.getInstance().firstListedId();
         } catch (Throwable ignored) {
             // Nothing loaded yet reads as nothing declared, which is the same decline.
+            return null;
         }
-        return null;
     }
 }

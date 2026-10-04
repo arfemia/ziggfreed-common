@@ -64,7 +64,8 @@ public final class BountyAssetRef implements BountyRef {
 
     @Override
     public boolean enabled() {
-        return asset.isEnabled();
+        // Live: switched off, or hidden by a feature that reads off, and every draw leaves it out.
+        return asset.isAvailable();
     }
 
     @Override

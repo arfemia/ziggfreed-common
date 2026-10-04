@@ -3,6 +3,7 @@ package com.ziggfreed.common.asset;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.assetstore.JsonAsset;
 import com.hypixel.hytale.codec.schema.config.ArraySchema;
 import com.hypixel.hytale.codec.schema.config.BooleanSchema;
 import com.hypixel.hytale.codec.schema.config.IntegerSchema;
@@ -13,8 +14,8 @@ import com.hypixel.hytale.codec.schema.metadata.Metadata;
 
 /**
  * Schema-only hints for the in-game Asset Editor, attached to a codec field with
- * {@code .metadata(...)}: the field's effective default, and the closed value set behind a
- * string leaf.
+ * {@code .metadata(...)}: the field's effective default, the closed value set behind a string
+ * leaf, and the engine asset type an id leaf names.
  *
  * <p><b>Why this exists.</b> Most of this family's codec leaves are nullable on purpose - null
  * means "inherit under Parent, then fall back to the documented default at the read site" - so
@@ -29,8 +30,10 @@ import com.hypixel.hytale.codec.schema.metadata.Metadata;
  * <p><b>Schema export only, and dropdowns are never validation.</b> Nothing here changes what a
  * codec accepts. {@link #oneOf} belongs ONLY on a field whose vocabulary is closed by code (the
  * reader refuses or ignores anything else); a pack-extensible vocabulary stays a plain string,
- * because a dropdown that rejects a legal pack value is worse than a text box. Hand-written JSON
- * never passes through the editor, so the content validators stay the real backstop.
+ * because a dropdown that rejects a legal pack value is worse than a text box. An id naming an
+ * engine asset takes {@link #assetRef}, the editor's own picker over every loaded asset of that
+ * type, a pack's included. Hand-written JSON never passes through the editor, so the content
+ * validators stay the real backstop.
  *
  * <p>Each hint is a no-op on a schema of a different shape than it targets, mirroring the
  * engine's own {@code NoDefaultValue} metadata: attaching a default to a field whose codec
@@ -128,8 +131,32 @@ public final class EditorSchema {
     }
 
     /**
-     * The string schema an enum hint applies to: the schema itself, or a string-array leaf's
-     * single item schema (the entries are what carry the closed set there).
+     * Point a string leaf, or each entry of a string-array leaf, at an engine asset type, so the
+     * Asset Editor offers its own picker over the loaded assets of that type. It writes the one
+     * schema fact the engine's {@code AssetKeyValidator} writes, {@code hytaleAssetRef} set to the
+     * asset class's simple name (the editor's own id for the type), and nothing else.
+     *
+     * <p>Never attach the engine's validator in its place ({@code ItemQuality.VALIDATOR_CACHE} and
+     * its kin): its check FAILS an id no loaded asset answers to, a failed check drops the whole
+     * file (at boot, the mod with it), and packs load one at a time, so a tier a later pack ships
+     * is absent while an earlier pack's file decodes. Here nothing is refused or warned at decode;
+     * the consumer's content validator, run once every pack has loaded, stays the check. On a leaf
+     * of any other shape this is a no-op.
+     */
+    @Nonnull
+    public static Metadata assetRef(@Nonnull Class<? extends JsonAsset<?>> assetClass) {
+        String assetType = assetClass.getSimpleName();
+        return schema -> {
+            StringSchema s = stringLeaf(schema);
+            if (s != null) {
+                s.setHytaleAssetRef(assetType);
+            }
+        };
+    }
+
+    /**
+     * The string schema a value hint applies to: the schema itself, or a string-array leaf's
+     * single item schema (the entries are what carry the closed set or the reference there).
      */
     @Nullable
     private static StringSchema stringLeaf(@Nonnull Schema schema) {

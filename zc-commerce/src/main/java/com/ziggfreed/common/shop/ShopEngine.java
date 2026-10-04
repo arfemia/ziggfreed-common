@@ -39,8 +39,9 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <ol>
  *   <li><b>gate</b> - the offer is enabled, and the shared {@link GateEvaluator} passes its
- *       {@code Requires} block. Requirements are factors everywhere, evaluated by the same
- *       machinery a quest accept uses, so a shop lock and a quest lock mean the same thing.</li>
+ *       storefront's lock ({@link ShopOffer#storefrontRequires()}) and then its own {@code Requires}
+ *       block. Requirements are factors everywhere, evaluated by the same machinery a quest accept
+ *       uses, so a shop lock and a quest lock mean the same thing.</li>
  *   <li><b>limits</b> - the commerce store's counts against the offer's own
  *       {@link PurchaseLimits}, using ONE day number threaded through the whole purchase.</li>
  *   <li><b>afford</b> - {@link CostEngine#check}, naming the first shortfall.</li>
@@ -199,6 +200,10 @@ public final class ShopEngine {
     public PurchaseCheck canPurchase(@Nonnull Subject subject, @Nonnull ShopOffer offer, long nowMs) {
         if (!offer.enabled()) {
             return PurchaseCheck.refused(REASON_DISABLED);
+        }
+        String storefrontFailure = gates.firstFailure(subject, offer.storefrontRequires());
+        if (storefrontFailure != null) {
+            return PurchaseCheck.refused(storefrontFailure);
         }
         String gateFailure = gates.firstFailure(subject, offer.requires());
         if (gateFailure != null) {

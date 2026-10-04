@@ -1,6 +1,8 @@
 package com.ziggfreed.common.world;
 
 import java.util.Set;
+import java.util.function.IntPredicate;
+import java.util.function.IntUnaryOperator;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -15,14 +17,17 @@ import com.hypixel.hytale.server.core.universe.world.World;
  * uneven terrain instead of a hardcoded Y. Mirrors the engine's own
  * {@code GeneratedBlockChunk.getHeight} logic (skip air {@code blockId == 0} and
  * any {@link Opacity#Transparent} block - leaves, glass, foliage - and stop at the
- * first opaque block), but reads from a live {@link World} via
- * {@link World#getBlock(int, int, int)} so it works on already-generated chunks at
- * runtime.
+ * first opaque block), but reads a live world's loaded chunk sections through
+ * zc-core's {@link SectionBlockCursor} (the read both the live server and Update 7
+ * keep; Update 7 deletes {@code World.getBlock}), so it works on already-generated
+ * chunks at runtime.
  *
  * <p><b>World-thread only</b> (it reads loaded blocks): call it inside a
- * {@code world.execute(...)} hop. Every read is try-guarded, so an unloaded chunk
- * or a bad coordinate degrades to the caller's {@code fallbackY} rather than
- * throwing into the caller.
+ * {@code world.execute(...)} hop. It never loads a chunk: a column whose sections
+ * are not in memory reads as empty, so the probe answers the caller's
+ * {@code fallbackY}, as it does for an out-of-range coordinate or any failed read,
+ * and nothing throws into the caller. A caller probing ground no player is near
+ * loads those chunks first.
  */
 public final class SurfaceProbe {
 
@@ -64,25 +69,12 @@ public final class SurfaceProbe {
     public static int topSolidY(@Nonnull World world, int x, int z, int scanTop, int fallbackY,
                                 @Nullable Set<String> skipBlockKeys) {
         try {
-            boolean hasSkips = skipBlockKeys != null && !skipBlockKeys.isEmpty();
-            for (int y = scanTop; y > 0; y--) {
-                int blockId = world.getBlock(x, y, z);
-                if (blockId == 0) {
-                    continue;
-                }
-                BlockType type = BlockType.getAssetMap().getAsset(blockId);
-                if (type == null || type.getOpacity() == Opacity.Transparent) {
-                    continue;
-                }
-                if (hasSkips && skipBlockKeys.contains(type.getId())) {
-                    continue;
-                }
-                return y;
-            }
+            IntUnaryOperator column = columnOf(world, x, z);
+            return topSurfaceY(y -> isSurfaceBlock(column.applyAsInt(y), skipBlockKeys), scanTop, fallbackY);
         } catch (Throwable ignored) {
-            // unloaded chunk / out-of-range coordinate -> the caller's fallback
+            // a failed engine read -> the caller's fallback
+            return fallbackY;
         }
-        return fallbackY;
     }
 
     /** {@link #topSolidY(World, int, int, int, int)} starting from {@link #DEFAULT_SCAN_TOP}. */
@@ -114,7 +106,60 @@ public final class SurfaceProbe {
      */
     public static int standableY(@Nonnull World world, int x, int z, int fallbackStandY,
                                  @Nullable Set<String> skipBlockKeys) {
-        int top = topSolidY(world, x, z, DEFAULT_SCAN_TOP, Integer.MIN_VALUE, skipBlockKeys);
-        return top == Integer.MIN_VALUE ? fallbackStandY : top + 1;
+        return standableOver(topSolidY(world, x, z, DEFAULT_SCAN_TOP, Integer.MIN_VALUE, skipBlockKeys),
+                fallbackStandY);
+    }
+
+    /**
+     * The scan itself, over one column's verdicts: the first Y from {@code scanTop} down to 1 whose cell
+     * is a surface, else {@code fallbackY}. Row 0 is never read. Package-private for the test.
+     */
+    static int topSurfaceY(@Nonnull IntPredicate surfaceAt, int scanTop, int fallbackY) {
+        for (int y = scanTop; y > 0; y--) {
+            if (surfaceAt.test(y)) {
+                return y;
+            }
+        }
+        return fallbackY;
+    }
+
+    /**
+     * One cell's verdict from its block id: an empty cell (air, or a section not in memory) is never the
+     * surface and is answered before any block type is looked up; an id no block answers is passed too.
+     * Package-private for the test.
+     */
+    static boolean isSurfaceBlock(int blockId, @Nullable Set<String> skipBlockKeys) {
+        if (blockId == BlockType.EMPTY_ID) {
+            return false;
+        }
+        BlockType type = BlockType.getAssetMap().getAsset(blockId);
+        return type != null && isSurface(type.getOpacity(), type.getId(), skipBlockKeys);
+    }
+
+    /**
+     * A loaded block's verdict: a {@link Opacity#Transparent} block, or one whose key is skipped, is
+     * passed; any other block is the surface. Package-private for the test.
+     */
+    static boolean isSurface(@Nullable Opacity opacity, @Nullable String blockKey,
+                             @Nullable Set<String> skipBlockKeys) {
+        if (opacity == Opacity.Transparent) {
+            return false;
+        }
+        return skipBlockKeys == null || skipBlockKeys.isEmpty() || !skipBlockKeys.contains(blockKey);
+    }
+
+    /**
+     * One above the top surface, or the caller's fallback as given when the scan found none
+     * ({@code Integer.MIN_VALUE}). Package-private for the test.
+     */
+    static int standableOver(int topY, int fallbackStandY) {
+        return topY == Integer.MIN_VALUE ? fallbackStandY : topY + 1;
+    }
+
+    /** The block ids of one column, read off the world's loaded chunk sections. */
+    @Nonnull
+    private static IntUnaryOperator columnOf(@Nonnull World world, int x, int z) {
+        SectionBlockCursor blocks = SectionBlockCursor.of(world);
+        return y -> blocks.blockId(x, y, z);
     }
 }

@@ -21,6 +21,7 @@ import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
+import com.ziggfreed.common.commerce.asset.HideAxis;
 import com.ziggfreed.common.commerce.asset.RerollAsset;
 import com.ziggfreed.common.commerce.asset.RotationAsset;
 import com.ziggfreed.common.commerce.asset.SelectionAsset;
@@ -186,9 +187,12 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .add()
             .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
-            .documentation("What a player must already have or have done before this board opens for them at "
-                    + "all. An unauthored block asks for nothing. Gate a whole BAND with AcceptRequires instead "
-                    + "whenever the board itself should still be readable.")
+            .documentation("What a player must already have or have done before they may take anything off this "
+                    + "board. An unauthored block asks for nothing. The board stays readable, every contract on "
+                    + "show and locked with the reason; gate one BAND with AcceptRequires instead. A plain feature "
+                    + "or mod condition at the top level decides whether the board exists at all: while it reads "
+                    + "off, the board is left out of every list and opens closed, and it comes back with the "
+                    + "feature.")
             .add()
             .appendInherited(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
                     (a, v) -> a.where = v, a -> a.where, (a, p) -> a.where = p.where)
@@ -210,9 +214,30 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return id;
     }
 
-    /** Can the board be opened? Unauthored means true. */
+    /**
+     * Is the board switched on? Unauthored means true. This is the owner's switch alone; whether it is
+     * on this server right now is {@link #isAvailable()}.
+     */
     public boolean isEnabled() {
         return enabled == null || enabled;
+    }
+
+    /**
+     * Is the board on this server RIGHT NOW: switched on, and every plain top-level feature or mod
+     * condition in {@code Requires} reading on at this moment ({@link HideAxis#present})? What every
+     * listing, the unnamed default and the engine view ask, read live.
+     */
+    public boolean isAvailable() {
+        return HideAxis.present(isEnabled(), requires);
+    }
+
+    /**
+     * What a player must meet before taking anything here: {@code Requires} with the hide axis taken
+     * out ({@link HideAxis#lock}), or null when nothing is left. The board's accept gate.
+     */
+    @Nullable
+    public GateSpec lockRequires() {
+        return HideAxis.lock(requires);
     }
 
     @Nullable
@@ -323,7 +348,7 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return acceptRequires().get(difficulty.trim().toLowerCase(Locale.ROOT));
     }
 
-    /** What must be true before the board opens at all, or null when it is open to everybody. */
+    /** The authored block, hide axis included: presence is {@link #isAvailable()}, the lock {@link #lockRequires()}. */
     @Nullable
     public GateSpec getRequires() {
         return requires;

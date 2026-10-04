@@ -50,6 +50,16 @@ public interface ShopOffer {
         return null;
     }
 
+    /**
+     * What the STOREFRONT this offer stands in asks of every buyer, as the same shared requirement
+     * block, asked before {@link #requires()} so the storefront's reason is the one a buyer reads
+     * first. Null asks for nothing, which is the answer for an offer built with no storefront.
+     */
+    @Nullable
+    default GateSpec storefrontRequires() {
+        return null;
+    }
+
     /** How often one buyer may take it. Null limits nothing. */
     @Nullable
     default PurchaseLimits limits() {

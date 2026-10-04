@@ -231,7 +231,8 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
                         asset == null ? List.of() : asset.currencyIds(), deps.currencyNames()),
                 MAX_CHIPS);
 
-        if (asset != null && !asset.isEnabled()) {
+        // Switched off, or hidden by a feature that reads off: either way it is not open.
+        if (asset != null && !asset.isAvailable()) {
             showEmpty(cmd, text("shop.empty.closed"));
             renderToastInto(cmd);
             return;
@@ -381,7 +382,9 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
 
         List<ShopSections.Entry> standing = new ArrayList<>();
         Map<String, ShopOffer> byId = new LinkedHashMap<>();
-        for (ShopEntryOffer offer : CommerceCatalogs.shopContent().offersOf(shopId)) {
+        // Only what is on sale right now: an offer switched off, hidden by a feature that reads off,
+        // or standing in a storefront that is gone is absent from the page, never shown locked.
+        for (ShopEntryOffer offer : CommerceCatalogs.shopContent().availableOffersOf(shopId)) {
             String id = CommerceText.normalize(offer.offerId());
             if (offer.poolId() != null || shelved.contains(id)) {
                 // A shelf offer stands on its shelf or nowhere: showing it twice would let one

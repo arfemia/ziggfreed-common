@@ -29,6 +29,7 @@ import com.ziggfreed.common.commerce.page.CommerceStepIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
 import com.ziggfreed.common.effect.NativeEffectUtil;
+import com.ziggfreed.common.effect.costume.CostumeBootstrap;
 import com.ziggfreed.common.encounter.EncounterBootstrap;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.encounter.validate.EncounterAudit;
@@ -59,6 +60,7 @@ import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
 import com.ziggfreed.common.objectives.dialogue.DialogueBootstrap;
 import com.ziggfreed.common.objectives.flair.FlairBootstrap;
+import com.ziggfreed.common.objectives.interaction.ProgressInteractionsBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
@@ -194,9 +196,11 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // Set bonuses hang on that same bridge: one post-apply listener, never a fourth trigger.
         EntityBootstrap.installGearSets(this);
         registerGearSetSeams();
+        CostumeBootstrap.registerCostumes(this);
         PlacedBlockBootstrap.setupPlacedBlockLedger(this);
         BlockStashBootstrap.registerBlockStash(this);
         ProgressionBootstrap.setupProgressionRuntime(this);
+        ProgressInteractionsBootstrap.registerProgressInteractions(this);
         ProgressionBootstrap.registerFeedbackMoments();
         DialogueBootstrap.registerDialogueVocabulary();
         DialogueBootstrap.registerDialogueMemories(this);

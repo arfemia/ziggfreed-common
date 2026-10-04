@@ -16,6 +16,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.commerce.asset.HideAxis;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.text.ContentTextAsset;
@@ -137,7 +138,9 @@ public final class CurrencyAsset
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
             .documentation("What a player must already have or have done before this wallet is SHOWN to them at "
                     + "all. Unauthored shows it to everybody. Use it to keep a late-game wallet out of a new "
-                    + "player's way, not to stop them earning it.")
+                    + "player's way, not to stop them earning it. A plain feature or mod condition at the top level "
+                    + "takes the wallet out of every listing while it reads off; its balances are kept and still "
+                    + "earned, so they are all there when it comes back.")
             .add()
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
@@ -156,6 +159,16 @@ public final class CurrencyAsset
     /** In circulation? Unauthored means true. */
     public boolean isEnabled() {
         return enabled == null || enabled;
+    }
+
+    /**
+     * Is the wallet LISTED right now: switched on, and every plain top-level feature or mod
+     * condition in {@code Requires} reading on? Only listings ask. A wallet that is not listed still
+     * resolves for a credit or a charge, so its balances are kept, still earned, and all there when
+     * it comes back.
+     */
+    public boolean isListed() {
+        return HideAxis.present(isEnabled(), requires);
     }
 
     @Nullable

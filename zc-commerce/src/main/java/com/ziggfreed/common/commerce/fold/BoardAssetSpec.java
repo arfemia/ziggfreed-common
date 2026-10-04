@@ -94,12 +94,14 @@ public final class BoardAssetSpec implements BoardSpec {
     @Override
     @Nullable
     public GateSpec requires() {
-        return asset.getRequires();
+        // The lock only: a feature that decides whether the board exists is never an accept reason.
+        return asset.lockRequires();
     }
 
     @Override
     public boolean enabled() {
-        return asset.isEnabled();
+        // Live: switched off, or hidden by a feature that reads off, and the engine refuses every accept.
+        return asset.isAvailable();
     }
 
     @Override

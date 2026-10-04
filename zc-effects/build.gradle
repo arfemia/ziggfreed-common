@@ -11,4 +11,7 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 
 dependencies {
     implementation project(':zc-core')
+    // The custom interaction-Type toolkit, for the ZigCostume Type (effect/costume). One-way: zc-cast
+    // depends on zc-core alone and never reaches back.
+    implementation project(':zc-cast')
 }

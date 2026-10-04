@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -22,9 +23,11 @@ import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
+import com.ziggfreed.common.commerce.asset.HideAxis;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
+import com.ziggfreed.common.progress.gate.FeatureLift;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestTurnInSite;
@@ -139,7 +142,10 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
             .documentation("What a player must already have or have done before they may take THIS contract "
                     + "specifically. An unauthored block asks for nothing. A whole difficulty band is gated on "
-                    + "the board instead, so reach for this only when one contract is special.")
+                    + "the board instead, so reach for this only when one contract is special. A plain feature or "
+                    + "mod condition at the top level decides instead whether the contract exists at all: while "
+                    + "it reads off, it is never posted and cannot be taken, and a player already carrying it can "
+                    + "still finish it at its board.")
             .add()
             .appendInherited(new KeyedCodec<>("Objectives",
                             new InheritMapCodec<>(QuestObjectiveAsset.CODEC), false),
@@ -175,6 +181,15 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
     /** In circulation? Unauthored means true. */
     public boolean isEnabled() {
         return enabled == null || enabled;
+    }
+
+    /**
+     * In circulation RIGHT NOW: switched on, and every plain top-level feature or mod condition in
+     * {@code Requires} reading on at this moment. What the draw asks; a contract answering false is
+     * never posted, and one already carried is still finished at its board.
+     */
+    public boolean isAvailable() {
+        return HideAxis.present(isEnabled(), requires);
     }
 
     /** A skeleton that exists only to be inherited from, never posted. */
@@ -260,14 +275,24 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
      * board (where a contract's pay belongs, so it cannot be lost to the board turning over),
      * {@code Auto} lands in the field the instant the work is done.
      *
+     * <p><b>The hide axis is folded here, exactly as the shared quest fold folds it.</b> A plain
+     * top-level feature or mod-presence condition in {@code Requires} leaves the gate
+     * ({@link FeatureLift#liftKnown}) and {@link Quest#available()} answers {@code Enabled} AND every
+     * lifted condition live, so a contract whose feature is off is never offered rather than offered
+     * locked. The draw reads the same axis through {@link #isAvailable()}.
+     *
      * @param generatedBy the generator that produced this contract, or null when authored by hand
      */
     @Nonnull
     public QuestDefinition toDefinition(@Nullable String generatedBy) {
         String contractId = id == null ? "" : id;
 
+        FeatureLift.Result lift = FeatureLift.liftKnown(requires);
+        List<FeatureLift.Lifted> lifted = lift.lifted();
+        GateSpec remaining = lifted.isEmpty() ? requires : lift.requires();
+        boolean enabled = isEnabled();
+
         Quest.Builder quest = Quest.builder(contractId)
-                .available(isEnabled())
                 // Steps run in whatever order the player meets them unless a step authors its own.
                 .sequential(false)
                 // Never handed out on its own: a contract exists because a board posted it.
@@ -286,6 +311,12 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                 // Collected at whatever posted it, so any board of that id answers.
                 .turnInAt(QuestTurnInSite.ACCEPT_SITE)
                 .tags(listing == null ? List.of() : listing.tagList());
+        if (lifted.isEmpty()) {
+            quest.available(enabled);
+        } else {
+            BooleanSupplier live = () -> enabled && FeatureLift.allOn(lifted);
+            quest.available(live);
+        }
 
         Map<String, String> objectiveText = new LinkedHashMap<>();
         for (Map.Entry<String, QuestObjectiveAsset> entry : objectivesOrEmpty().entrySet()) {
@@ -319,8 +350,8 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                 listing == null ? List.of() : listing.chainList(),
                 listing == null ? null : listing.getIcon(),
                 null, null, null,
-                requires == null ? GateSpec.OPEN : requires,
-                List.of(),
+                remaining == null ? GateSpec.OPEN : remaining,
+                lifted,
                 objectiveText,
                 List.of(),
                 generatedBy, metaOrEmpty());
