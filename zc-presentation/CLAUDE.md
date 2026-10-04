@@ -9,6 +9,6 @@
 - A page writes a `.Text` property only through `UiText` (`TextSinkGoesThroughUiTextTest`): any `Message` other than a translation in that slot disconnects the client.
 - A binding carrying a live element value uses an `@`-prefixed key (`"@SearchInput"`), declared the same way on the receiving codec; `SettingsUiUtil.directive` refuses a bare one.
 - Never bind a search field per keystroke (a rebuild steals focus); use `ZigSearchRow`, whose `carry` puts the live text on your other bindings.
-- `Pages/ZigSelectRow.ui` and `Pages/ZigDetailLine.ui` are the one list row and the one detail line for every page in the family; their sizes live only in those files.
+- `Pages/ZigSelectRow.ui` and `Pages/ZigDetailLine.ui` are the one list row and the one detail line for every page in the family; their sizes live only in those files. Each ships a hidden picture slot (`#RowIconSlot`, `#LineIconSlot`) that a page fills through `ui/icon/IconRenderer`, setting the slot's `.Visible` from its return; a page that paints none leaves it hidden, and so does a section heading.
 - Register a `ui/route/Destination` type in `setup()`, before assets load: an unknown `Type` fails the read, naming the file.
 - `UiDocumentSyntaxTest` checks ids and brace balance for this module's documents only (the id rule is in the zc root).

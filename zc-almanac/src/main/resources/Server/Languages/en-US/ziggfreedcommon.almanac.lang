@@ -1,0 +1,33 @@
+# The Almanac: its page and the /zigalmanac command. The file name is the key PREFIX: an entry here
+# resolves as ziggfreedcommon.almanac.<key>. The desc.* keys are what the engine's own help resolves
+# a command or an argument through.
+
+title = Almanac
+seasons.empty = No seasonal events run on this server yet.
+badge.live = On now
+status.live = On now
+status.between = Between seasons
+section.season = This season ({0})
+section.last = Last season ({0})
+section.lifetime = Every season
+section.keepsakes = Keepsakes
+section.achievements = Achievements
+attended.yes = You took part.
+attended.count = Seasons you took part in: {0, number}
+stat.line = {0}: {1, number}
+stat.none = Nothing counted yet.
+keepsake.line = {0}: {1}
+keepsake.none = No keepsakes yet.
+achievements.count = {0, number} of {1, number} earned
+banner.line = {0}: {1, number} of {2, number}
+banner.earned = {0}: earned
+
+desc.family = The Almanac: every seasonal event on this server and what you did in each.
+desc.open = Open the Almanac.
+desc.arg.event = The season to open on, by its event id.
+open.needsPlayer = Only a player can open the Almanac.
+open.failed = The Almanac could not be opened.
+open.off = The Almanac is switched off on this server.
+
+# The achievement book labels the Seasons category with this key (see AchievementCategories/Seasons.json).
+achievement.category.seasons = Seasons

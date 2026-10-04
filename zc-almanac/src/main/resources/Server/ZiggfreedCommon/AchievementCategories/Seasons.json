@@ -1,0 +1,3 @@
+{
+  "$Comment": "The category every seasonal event's achievements file under, with the event id as the subcategory (Listing: Category Seasons, Subcategory the event id). The Almanac reads a season's achievements from here, and shows an achievement filed here with no subcategory as a cross-season one above its list. The label is the achievement.category.seasons key; a pack may add Order, Icon or Subcategories in its own Seasons.json."
+}

@@ -1,8 +1,20 @@
 apply from: "$rootDir/gradle/zc-module.gradle"
 
-// The almanac: a player's record of the calendar's seasons and events, and the page that shows it.
+// The Almanac: one page per seasonal event, with what a player did in each season. It reads the
+// calendar only through the two factors the calendar contributes, so it carries no zc-calendar edge;
+// it reads achievements through the shared runtime and counts its own tallies off the shared moment
+// stream. Nothing in the library depends on this module.
+//
+// Ships .ui (the Almanac page), so it needs zc-presentation at runtime as well as at compile time.
 
 dependencies {
-    // SafeLog, the factor model, the asset bases, i18n, the owner-file reader.
+    // SafeLog, the counter bag, the factor and feature vocabulary, owner files, the keyed store base,
+    // the lang key resolver and the player-ref accessor.
     implementation project(':zc-core')
+    // The reward types the achievement runtime's public signatures carry.
+    implementation project(':zc-loot')
+    // The shared rows and frames, the destination vocabulary, the icon seam and the text sinks.
+    implementation project(':zc-presentation')
+    // The achievement engine and its subjects, the moment listener seam, the objective leaf codec.
+    implementation project(':zc-progression')
 }

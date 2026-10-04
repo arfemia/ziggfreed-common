@@ -1,0 +1,131 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// The Almanac (com.ziggfreed.common.almanac.page.AlmanacPage): every season this server runs on the
+// left, the one being read on the right.
+//
+// LEFT: the title, the cross-season banner (#BannerLabel, hidden until a cross-season achievement is
+// in circulation), and the scrolling #SeasonList the page appends Pages/ZigSelectRow.ui into.
+// #EmptyListLabel carries the one line a server with no seasons shows.
+//
+// RIGHT: the season's picture and name, whether it is on, its flavor line, and #DetailList, which
+// takes one Pages/ZigDetailLine.ui per line: section headings, the tallies, the keepsakes and the
+// achievements. Picking a season reopens the page, so every build is a full one.
+//
+// #DetailIconSlot holds the picture the season's page names (its Icon), drawn by ui/icon/IconRenderer
+// into #IcoItem (an item id) or #IcoTex (a texture path). It ships hidden and the page shows it only
+// when there is a picture to draw, so a season without one reads as its name alone. Its size matches
+// a ZigDetailLine.ui icon, so the picture lines up with the pictures in the list below it.
+//
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  @Ornaments = true;
+  Anchor: (Width: 980, Height: 760);
+
+  #Content {
+    Anchor: (Top: 0);
+    LayoutMode: Left;
+    Padding: (Full: 0);
+
+    Group #LeftPanel {
+      Anchor: (Width: 320);
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+      LayoutMode: Top;
+      Padding: (Full: 14);
+
+      Label #AlmanacTitle {
+        Text: "";
+        Anchor: (Height: 32, Bottom: 4);
+        Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+      }
+
+      Label #BannerLabel {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 20, Bottom: 8);
+        Style: (FontSize: 12, TextColor: #c8a86a, VerticalAlignment: Center);
+      }
+
+      Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
+
+      Group #SeasonList {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 4);
+      }
+
+      Label #EmptyListLabel {
+        Text: "";
+        Visible: false;
+        Anchor: (Height: 40, Top: 8);
+        Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+      }
+    }
+
+    Group #RightPanel {
+      FlexWeight: 1;
+      LayoutMode: Top;
+      Padding: (Full: 20);
+
+      Group #DetailHeader {
+        LayoutMode: Left;
+        Anchor: (Height: 30, Bottom: 4);
+
+        Group #DetailIconSlot {
+          Anchor: (Width: 28, Height: 28, Right: 8);
+          Visible: false;
+
+          ItemGrid #IcoItem {
+            Anchor: (Width: 28, Height: 28);
+            Visible: false;
+            SlotsPerRow: 1;
+            AreItemsDraggable: false;
+            DisplayItemQuantity: false;
+            Style: $Z.@ZigIconGrid28;
+          }
+
+          AssetImage #IcoTex {
+            Anchor: (Width: 28, Height: 28);
+            Visible: false;
+            FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+          }
+        }
+
+        Label #DetailTitle {
+          FlexWeight: 1;
+          Text: "";
+          Anchor: (Height: 30);
+          Style: (FontSize: 22, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+        }
+      }
+
+      Label #DetailStatus {
+        Text: "";
+        Anchor: (Height: 20, Bottom: 8);
+        Style: (FontSize: 13, TextColor: #96a9be, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+      }
+
+      Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
+
+      Label #Flavor {
+        Text: "";
+        Visible: false;
+        Anchor: (Bottom: 12);
+        Style: (FontSize: 14, TextColor: #b6c9de, Wrap: true);
+      }
+
+      Group #DetailList {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 4);
+      }
+    }
+  }
+}
