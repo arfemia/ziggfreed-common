@@ -38,9 +38,26 @@ class CostumeRulesTest {
     }
 
     @Test
-    void theSameCostumeAgainOnlyRefreshes() {
-        assertEquals(Verdict.DRESS,
-                CostumeRules.dress(GHOST, List.of(new Look("yourpack_costume_ghost", "Ghost", false))));
+    void theSameCostumeAgainIsRefusedAsAlreadyWorn() {
+        assertEquals(Verdict.ALREADY_WORN, CostumeRules.dress(GHOST, List.of(GHOST)),
+                "a re-dress changes nothing, so whatever pays for a costume landing never pays twice");
+        assertEquals(Verdict.ALREADY_WORN,
+                CostumeRules.dress(GHOST, List.of(new Look("yourpack_costume_ghost", "Ghost", false))),
+                "the worn costume matches whatever case either side wrote its id in");
+    }
+
+    @Test
+    void aLockedWearerReadsLockedEvenInTheSameCostume() {
+        assertEquals(Verdict.LOCKED, CostumeRules.dress(GHOST, List.of(GHOST, CURSE)),
+                "a transformation the wearer cannot take off answers first, whatever else they wear");
+        assertEquals(Verdict.LOCKED, CostumeRules.dress(GHOST, List.of(CURSE, GHOST)));
+    }
+
+    @Test
+    void aWearerInThisCostumeAndAnotherStillReadsWearingAnother() {
+        assertEquals(Verdict.WEARING_ANOTHER, CostumeRules.dress(GHOST, List.of(GHOST, FROG)),
+                "another costume beside this one answers as it always has, in either order");
+        assertEquals(Verdict.WEARING_ANOTHER, CostumeRules.dress(GHOST, List.of(FROG, GHOST)));
     }
 
     @Test

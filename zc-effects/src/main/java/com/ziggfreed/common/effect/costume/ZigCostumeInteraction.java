@@ -32,10 +32,11 @@ import com.ziggfreed.common.interaction.type.InteractionOutcome;
  * put it on.
  *
  * <p><b>Resolves Failed whenever nobody was dressed</b>: no player hit, the dresser themselves, an
- * effect that is no costume, a wearer already in another costume or under a transformation they cannot
- * take off. That is this Type's gate, chosen on purpose over the toolkit's skip, so the chain's
- * {@code Next} (a credit for the costume, say) runs only for a costume that landed and its {@code Failed}
- * branch can answer a miss. Deciding that needs the server's answer, hence {@link WaitForDataFrom#Server}.
+ * effect that is no costume, a wearer already in this very costume, a wearer already in another costume
+ * or under a transformation they cannot take off. That is this Type's gate, chosen on purpose over the
+ * toolkit's skip, so the chain's {@code Next} (a credit for the costume, say) runs only for a costume
+ * that landed, never for a re-dress, and its {@code Failed} branch can answer a miss. Deciding that needs
+ * the server's answer, hence {@link WaitForDataFrom#Server}.
  */
 public final class ZigCostumeInteraction extends SimpleInstantInteraction {
 

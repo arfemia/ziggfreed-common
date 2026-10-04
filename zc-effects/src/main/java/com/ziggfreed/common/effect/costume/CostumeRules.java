@@ -18,7 +18,8 @@ import javax.annotation.Nullable;
  * <p><b>One costume at a time.</b> The engine shows the first model change an entity receives and
  * keeps the model from before it to restore later. Taking one costume off and putting another on in
  * the same tick would record the first costume's model as the one to restore, so a different costume
- * is refused while one is worn, and the same costume again only refreshes it.
+ * is refused while one is worn. The same costume again is refused as already worn: the costume runs
+ * on as its asset says, and a re-dress pays nothing.
  */
 public final class CostumeRules {
 
@@ -43,20 +44,25 @@ public final class CostumeRules {
 
     /** What putting a costume on somebody comes to. */
     public enum Verdict {
-        /** Put it on, or refresh it when it is the one already worn. */
+        /** Put it on. */
         DRESS,
         /** The effect is no costume: it changes no model, or it is a debuff. */
         NOT_A_COSTUME,
         /** The wearer is under a transformation they cannot take off. */
         LOCKED,
         /** The wearer already wears a different costume. */
-        WEARING_ANOTHER
+        WEARING_ANOTHER,
+        /** The wearer already wears this very costume, which is refused so that a re-dress pays nothing. */
+        ALREADY_WORN
     }
 
     private CostumeRules() {
     }
 
-    /** Whether {@code wanted} may be put on somebody wearing {@code wearing}. */
+    /**
+     * Whether {@code wanted} may be put on somebody wearing {@code wearing}. When several refusals hold,
+     * the one {@link Verdict} lists first wins, whatever order the effects went on in.
+     */
     @Nonnull
     public static Verdict dress(@Nonnull Look wanted, @Nonnull List<Look> wearing) {
         if (!wanted.isCostume()) {
@@ -70,6 +76,11 @@ public final class CostumeRules {
         for (Look look : wearing) {
             if (look.isCostume() && !look.effectId().equalsIgnoreCase(wanted.effectId())) {
                 return Verdict.WEARING_ANOTHER;
+            }
+        }
+        for (Look look : wearing) {
+            if (look.isCostume() && look.effectId().equalsIgnoreCase(wanted.effectId())) {
+                return Verdict.ALREADY_WORN;
             }
         }
         return Verdict.DRESS;

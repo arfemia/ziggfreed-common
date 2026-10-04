@@ -34,7 +34,7 @@ public final class Costumes {
 
     /** What one attempt to put a costume on came to. Nothing changed unless it is {@link #DRESSED}. */
     public enum DressOutcome {
-        DRESSED, UNKNOWN_EFFECT, NOT_A_COSTUME, LOCKED, WEARING_ANOTHER, CANNOT_WEAR
+        DRESSED, UNKNOWN_EFFECT, NOT_A_COSTUME, LOCKED, WEARING_ANOTHER, ALREADY_WEARING, CANNOT_WEAR
     }
 
     /** Authoring mistakes already reported, each once per process. */
@@ -68,6 +68,7 @@ public final class Costumes {
             }
             case LOCKED -> DressOutcome.LOCKED;
             case WEARING_ANOTHER -> DressOutcome.WEARING_ANOTHER;
+            case ALREADY_WORN -> DressOutcome.ALREADY_WEARING;
             case DRESS -> controller.addEffect(wearer, wanted, accessor)
                     ? DressOutcome.DRESSED : DressOutcome.CANNOT_WEAR;
         };
