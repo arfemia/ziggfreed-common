@@ -1,0 +1,8 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// Dated events on a yearly calendar: their occurrences, switches, factors and native events.
+
+dependencies {
+    // SafeLog, the factor model, the asset bases, i18n, the owner-file reader.
+    implementation project(':zc-core')
+}

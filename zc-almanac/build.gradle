@@ -1,0 +1,8 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// The almanac: a player's record of the calendar's seasons and events, and the page that shows it.
+
+dependencies {
+    // SafeLog, the factor model, the asset bases, i18n, the owner-file reader.
+    implementation project(':zc-core')
+}
