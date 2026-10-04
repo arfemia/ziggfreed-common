@@ -11,6 +11,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.codecs.map.MapCodec;
+import com.hypixel.hytale.server.core.asset.type.item.config.ItemQuality;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.factor.FactorFormula;
@@ -96,7 +97,8 @@ public final class StampSpec {
                         (o, v) -> o.quality = v, o -> o.quality, (o, p) -> o.quality = p.quality)
                 .documentation("An ItemQuality asset id giving the stamped item that rarity - the engine's own "
                         + "per-instance channel, so the client colours the name, frame and slot for free. Omit "
-                        + "to leave the item's rarity alone.").add()
+                        + "to leave the item's rarity alone.")
+                .metadata(EditorSchema.assetRef(ItemQuality.class)).add()
                 .appendInherited(new KeyedCodec<>("Caps", Caps.codec(editorDropdownDataSetId), false),
                         (o, v) -> o.caps = v, o -> o.caps, (o, p) -> o.caps = p.caps)
                 .documentation("What holds the result down, measured against what the item already carries.").add()
