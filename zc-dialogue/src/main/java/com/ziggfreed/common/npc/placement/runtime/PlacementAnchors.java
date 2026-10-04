@@ -10,11 +10,13 @@ import javax.annotation.Nullable;
 import org.joml.Vector3dc;
 
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.factor.FactorContext;
+import com.ziggfreed.common.npc.SpawnPoints;
 import com.ziggfreed.common.npc.placement.anchor.AnchorPosition;
 import com.ziggfreed.common.npc.placement.anchor.StructureAnchorIndex;
 import com.ziggfreed.common.npc.placement.anchor.ZoneAnchorIndex;
@@ -48,6 +50,10 @@ import com.ziggfreed.common.util.SplitMix64;
  *
  * <p>The pure helpers here take plain values and are unit-testable; only {@link #resolve} needs a
  * live world.
+ *
+ * <p>A {@code WorldSpawn} anchor's point is a future on Update 7: it reads through
+ * {@code WorldSpawnPoints}, which keeps one query per world on its way across passes and forces a
+ * sweep when it lands, so the anchor places even after the reconciler's retry budget is spent.
  */
 public final class PlacementAnchors {
 
@@ -56,6 +62,16 @@ public final class PlacementAnchors {
      * anchor that moved with whoever triggered the sweep would not be an anchor at all.
      */
     private static final UUID ANCHOR_QUERY_UUID = new UUID(0L, 0L);
+
+    /**
+     * The world spawn point each world's {@code WorldSpawn} anchor stands on, kept across passes while
+     * a provider loads it; a removed world's query goes with it.
+     */
+    private static final WorldSpawnPoints<World> WORLD_SPAWN_POINTS = new WorldSpawnPoints<>();
+
+    static {
+        WorldEvictors.registerEvictor(WORLD_SPAWN_POINTS::forget);
+    }
 
     private PlacementAnchors() {
     }
@@ -139,7 +155,7 @@ public final class PlacementAnchors {
             return;
         }
         try {
-            var provider = world.getWorldConfig().getSpawnProvider();
+            ISpawnProvider provider = world.getWorldConfig().getSpawnProvider();
             if (provider == null) {
                 PlacementDiag.once(world, "worldspawn-provider-null",
                         "[placement] WorldSpawn anchor in '" + NpcPlacementService.worldName(world)
@@ -148,15 +164,22 @@ public final class PlacementAnchors {
                                 + " appears");
                 return;
             }
-            Transform spawn = provider.getSpawnPoint(world, ANCHOR_QUERY_UUID);
-            if (spawn == null || spawn.getPosition() == null) {
+            String worldName = NpcPlacementService.worldName(world);
+            Vector3dc base = WORLD_SPAWN_POINTS.read(world,
+                    () -> SpawnPoints.ask(provider, world, ANCHOR_QUERY_UUID),
+                    world,
+                    () -> NpcPlacementReconciler.forceSweep(world, world.getEntityStore().getStore()),
+                    failure -> SafeLog.warn("[placement] WorldSpawn anchor in '" + worldName + "': provider "
+                            + provider.getClass().getSimpleName() + " failed to answer a spawn point - the"
+                            + " anchor resolves nothing until it does: " + failure));
+            if (base == null) {
                 PlacementDiag.once(world, "worldspawn-spawn-null",
-                        "[placement] WorldSpawn anchor in '" + NpcPlacementService.worldName(world)
-                                + "': provider " + provider.getClass().getSimpleName()
-                                + " answered no spawn point - the anchor resolves nothing");
+                        "[placement] WorldSpawn anchor in '" + worldName + "': provider "
+                                + provider.getClass().getSimpleName() + " has no spawn point at hand yet (a"
+                                + " provider fitting it to the ground loads the spawn column first) - the"
+                                + " anchor places once it lands");
                 return;
             }
-            Vector3dc base = spawn.getPosition();
             Vec3 offset = anchor.getOffset();
             out.add(AnchorPosition.single(AnchorPosition.AnchorKind.WORLD_SPAWN,
                     base.x() + offsetX(offset), base.y() + offsetY(offset), base.z() + offsetZ(offset),

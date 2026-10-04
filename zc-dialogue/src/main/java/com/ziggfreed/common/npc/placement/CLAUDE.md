@@ -8,6 +8,7 @@
 - The component id `ZiggfreedCommon:PlacedNpc` and `AnchorPosition.anchorKey()` are persisted formats: never rename or reshape them. A custom anchor resolver's `instanceId` must be stable across restarts, or each restart mints a duplicate.
 - The despawn pass asks whether the ledger row names THIS entity, not whether a row exists. A surplus duplicate despawns without `releaseInstance`, which would drop the survivor's row, pin and cached position.
 - Every sweep defers through `world.execute`: spawning inside a system throws, and the throw becomes a silently missing NPC.
+- A `WorldSpawn` anchor reads its point through `runtime/WorldSpawnPoints`: one query per world stays on its way across passes, a pass that finds it still loading resolves nothing (the retry signal), and its landing with a point forces a sweep, so the anchor places even after the retry budget is spent. A failed query logs one WARNING per world until a point lands, and wakes nothing.
 - `PlacementKeepAlivePins` is reference counted: pin on the first insert, unpin on the last removal, never re-pin per sweep.
 - `NpcPlacementPositionCache` is keyed `(world, placementId, anchorKey)`, never by placement id alone (two instances of one dungeon share it), and is never an authority.
 - `fortify` raises max health because a direct stat-map health write ignores a role's `Invulnerable` flag.
