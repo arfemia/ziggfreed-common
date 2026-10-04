@@ -18,7 +18,8 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
  *
  * <p>A file is PULL-ONLY: it carries lines and nothing else, so it lands only where a screen or a
  * group names it, never on a screen of somebody else's conversation by tag. A group that names its
- * own screens is declared inside the conversation those screens belong to.
+ * own screens is declared inside the conversation those screens belong to. Pushing a line into other
+ * conversations is {@link DialogueExtensionConfig}'s job, and only its.
  *
  * <p>Names are matched without regard to case, so the file's capitalisation and the
  * {@code IncludeOptions} spelling never have to agree. The fold mechanics live in

@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
  * <pre>{@code
  * once:e:<dialogueId>:<nodeId>                        an entry-level Once (a first-visit beat)
  * once:o:<dialogueId>:<nodeId>:<labelKey|OnceId>      an option-level Once
+ * once:x:<extensionId>:<labelKey|OnceId>              a Once on a line a dialogue extension adds
  * mem:d:<dialogueId>:<name>                           a memory declared by one dialogue
  * mem:s:<name>                                        a memory declared Shared across dialogues
  * }</pre>
@@ -58,6 +59,9 @@ public final class DialogueStateKeys {
 
     /** The option-level {@code Once} namespace. */
     public static final String ONCE_OPTION_PREFIX = "once:o";
+
+    /** The namespace of a {@code Once} on a line a dialogue extension adds to other conversations. */
+    public static final String ONCE_EXTENSION_PREFIX = "once:x";
 
     /** The namespace of a memory declared by (and private to) one dialogue. */
     public static final String MEMORY_DIALOGUE_PREFIX = "mem:d";
@@ -115,6 +119,16 @@ public final class DialogueStateKeys {
                                     @Nonnull String discriminator) {
         return ONCE_OPTION_PREFIX + SEP + segment(dialogueId) + SEP + segment(nodeId)
                 + SEP + segment(discriminator);
+    }
+
+    /**
+     * The unscoped key for a {@code Once} on a line an extension adds: filed under the EXTENSION and
+     * the line's {@code OnceId} or {@code LabelKey}, never the conversation or screen it was shown on,
+     * so spending it with one character spends it with every character it reaches.
+     */
+    @Nonnull
+    public static String extensionOnce(@Nonnull String extensionId, @Nonnull String discriminator) {
+        return ONCE_EXTENSION_PREFIX + SEP + segment(extensionId) + SEP + segment(discriminator);
     }
 
     /** The unscoped, un-prefixed key for memory {@code name} (shared or dialogue-private). */

@@ -31,9 +31,11 @@ import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
  * screen's own - a footer. Write a farewell, an "open the menu" row or a "where was I again?" line
  * once here instead of in every conversation that ends with it.
  *
- * <p>A file carries lines and nothing else. It never names the screens it lands on, so no file can
- * put a line into another conversation's screen uninvited; a group that names its screens by tag is
- * written inside the conversation those screens belong to, under its {@code Fragments}.
+ * <p>A file carries lines and nothing else. It never names the screens it lands on, so a fragment
+ * file cannot put a line into another conversation's screen uninvited; a group that names its screens
+ * by tag is written inside the conversation those screens belong to, under its {@code Fragments}. The
+ * one store that does push lines into other conversations is {@link DialogueExtensionAsset}, a
+ * deliberate, audited exception with selectors of its own.
  *
  * <p>The options are the same rows a screen authors, read by the same codec, so every shorthand and
  * every condition works here exactly as it does inside a conversation.

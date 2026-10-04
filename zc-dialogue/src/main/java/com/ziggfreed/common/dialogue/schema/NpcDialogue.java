@@ -67,17 +67,18 @@ public class NpcDialogue {
     }
 
     /**
-     * Give each screen the shared option groups it gets, once, right after the whole conversation
-     * has been read (so a screen inherited from a parent picks up the child's groups too, and an
-     * unknown name is reported against the conversation that used it).
+     * Give each screen the shared option groups and extension lines it gets, right after the whole
+     * conversation has been read (so a screen inherited from a parent picks up the child's groups
+     * too, and an unknown name is reported against the conversation that used it).
      *
-     * <p>A screen gets a group two ways, and the result reads in a fixed order: the screen's own
-     * {@code Options} first, then every group whose {@code On} selects the screen (in the order the
-     * groups are declared), then every group the screen's {@code IncludeOptions} names (in the order
-     * written). A group reaching a screen both ways is spliced once, where the screen named it. That
-     * keeps the screen's own indices exactly where the file put them, and keeps a footer last. The
-     * same option object is shared by every screen that gets the group; nothing about an option
-     * depends on which screen it is shown from, so there is nothing to copy.
+     * <p>A screen's lines read in a fixed order: its own {@code Options} first, then every group whose
+     * {@code On} selects the screen (in the order the groups are declared), then every line a
+     * {@code DialogueExtensions} file lands on it (in extension id order, see
+     * {@link DialogueExtensionConfig}), then every group the screen's {@code IncludeOptions} names
+     * (in the order written). A group reaching a screen both ways is spliced once, where the screen
+     * named it. That keeps the screen's own indices where the file put them, and keeps a footer last.
+     * The same option object is shared by every screen that gets the group or the line; nothing about
+     * an option depends on which screen it is shown from, so there is nothing to copy.
      *
      * <p>A group's lines are its own {@code Options} followed by the lines of every group its
      * {@code Include} names, recursively, in the order written. A group met again on the way down
@@ -87,14 +88,21 @@ public class NpcDialogue {
      * <p>A name is looked for in this conversation's own {@code Fragments} first and in the shared
      * {@code DialogueFragments} files second, so a conversation that wants its own version of a
      * server-wide footer writes one under its own {@code Fragments} and that is the one its screens
-     * get. Only a name neither answers is reported. A shared file is pull-only: it has no {@code On}
-     * and lands only where a screen or a group names it.
+     * get. Only a name neither answers is reported. A shared fragment file is pull-only: it has no
+     * {@code On} and lands only where a screen or a group names it. An extension is the one push.
+     *
+     * <p>Safe to run again: it starts from what each screen authored, so a second run never stacks a
+     * line, and a screen that no longer gets anything (an extension removed, a group moved off it)
+     * goes back to its own lines. A reload runs it again for that reason
+     * ({@code asset.DialogueAssetStore#respliceAll}).
      */
     public void spliceFragments() {
         if (nodes == null || nodes.isEmpty()) {
             return;
         }
         Map<String, DialogueFragmentGroup> declared = getFragments();
+        DialogueExtensionConfig extensions = DialogueExtensionConfig.getInstance();
+        Set<String> opening = extensions.isEmpty() ? Set.of() : openingScreens();
         Map<String, DialogueNode> spliced = null;
         for (Map.Entry<String, DialogueNode> entry : nodes.entrySet()) {
             DialogueNode node = entry.getValue();
@@ -104,29 +112,94 @@ public class NpcDialogue {
             String nodeId = entry.getKey();
             List<String> pulled = node.getIncludeOptions();
             List<String> pushed = pushedGroups(declared, nodeId, node, pulled);
-            if (pulled.isEmpty() && pushed.isEmpty()) {
+            List<DialogueOption> injected = extensions.linesFor(id, nodeId, node.getTags(),
+                    NodeSelector.containsIgnoreCase(opening, nodeId));
+            boolean adds = !pulled.isEmpty() || !pushed.isEmpty() || !injected.isEmpty();
+            if (!adds && !node.hasSplicedOptions()) {
                 continue;
             }
-            // Start from what the screen itself AUTHORED, never from an earlier splice of it: under
-            // Parent a screen the child did not restate is the parent's own object, already spliced
-            // when the parent was read, and appending to that would show the shared lines twice here
-            // and change what the parent conversation says.
-            List<DialogueOption> merged = new ArrayList<>(node.getAuthoredOptions());
-            for (String name : pushed) {
-                appendGroup(declared, name, nodeId, merged);
-            }
-            for (String name : pulled) {
-                appendGroup(declared, name, nodeId, merged);
+            DialogueOption[] lines = null;
+            if (adds) {
+                // Start from what the screen itself AUTHORED, never from an earlier splice of it: under
+                // Parent a screen the child did not restate is the parent's own object, already spliced
+                // when the parent was read, and appending to that would show the shared lines twice here
+                // and change what the parent conversation says.
+                List<DialogueOption> merged = new ArrayList<>(node.getAuthoredOptions());
+                for (String name : pushed) {
+                    appendGroup(declared, name, nodeId, merged);
+                }
+                merged.addAll(injected);
+                for (String name : pulled) {
+                    appendGroup(declared, name, nodeId, merged);
+                }
+                lines = merged.toArray(new DialogueOption[0]);
             }
             // And write the result onto a COPY, into a map of this conversation's own, so a screen
             // (or a whole screen map) shared with the conversation it inherits from is never touched.
             if (spliced == null) {
                 spliced = new LinkedHashMap<>(nodes);
             }
-            spliced.put(nodeId, node.withSplicedOptions(merged.toArray(new DialogueOption[0])));
+            spliced.put(nodeId, node.withSplicedOptions(lines));
         }
         if (spliced != null) {
             nodes = spliced;
+        }
+    }
+
+    /**
+     * The screens this conversation can open on, read off its {@code Start}: every screen a
+     * {@code First} or {@code Then} beat names (its {@code Pick} variants included), every screen a
+     * quest row opens, and {@code Fallback}. With no {@code Fallback} the engine falls through to the
+     * first screen whose own conditions pass, so the first screen counts too. Names come back as
+     * authored, in the order met; one no screen answers is simply never matched.
+     */
+    @Nonnull
+    public Set<String> openingScreens() {
+        Set<String> out = new LinkedHashSet<>();
+        DialogueStart opening = getStart();
+        for (DialogueStart.Beat beat : opening.first()) {
+            addBeatScreens(beat, out);
+        }
+        for (DialogueStart.QuestRow row : opening.quests().values()) {
+            if (row == null) {
+                continue;
+            }
+            for (DialogueStart.Band band : DialogueStart.Band.values()) {
+                DialogueStart.QuestBeat beat = row.forBand(band);
+                if (beat != null && !beat.routes()) {
+                    addScreen(beat.getNode(), out);
+                }
+            }
+        }
+        for (DialogueStart.Beat beat : opening.then()) {
+            addBeatScreens(beat, out);
+        }
+        String fallback = opening.fallback();
+        if (fallback != null && !fallback.isBlank()) {
+            addScreen(fallback, out);
+        } else if (nodes != null && !nodes.isEmpty()) {
+            addScreen(nodes.keySet().iterator().next(), out);
+        }
+        return out;
+    }
+
+    private static void addBeatScreens(@Nullable DialogueStart.Beat beat, @Nonnull Set<String> out) {
+        if (beat == null) {
+            return;
+        }
+        if (beat.hasNode()) {
+            addScreen(beat.getNode(), out);
+        }
+        for (DialogueStart.Variant variant : beat.getPick()) {
+            if (variant != null) {
+                addScreen(variant.getNode(), out);
+            }
+        }
+    }
+
+    private static void addScreen(@Nullable String node, @Nonnull Set<String> out) {
+        if (node != null && !node.isBlank()) {
+            out.add(node);
         }
     }
 

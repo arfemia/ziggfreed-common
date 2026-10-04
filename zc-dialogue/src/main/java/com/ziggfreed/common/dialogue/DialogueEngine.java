@@ -27,6 +27,7 @@ import com.ziggfreed.common.LibraryOwner;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
+import com.ziggfreed.common.dialogue.schema.DialogueExtensionConfig;
 import com.ziggfreed.common.dialogue.schema.DialogueNode;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
 import com.ziggfreed.common.dialogue.schema.DialogueStart;
@@ -412,6 +413,12 @@ public final class DialogueEngine {
                 return null;
             }
             d.setId(id);
+            if (!DialogueExtensionConfig.getInstance().isEmpty()) {
+                // The codec spliced this conversation before it had an id, and an extension may
+                // choose its conversations by id: splice again now that it has one. The splice starts
+                // from what each screen authored, so this never stacks a line.
+                d.spliceFragments();
+            }
             return d;
         } catch (Exception e) {
             // The codec's own message is always "Failed to decode"; what an author can act on is at
@@ -888,7 +895,9 @@ public final class DialogueEngine {
 
     /**
      * Where an option's {@code Once} is filed right now, or null when the option has none (or its
-     * scope names a world family this world is not part of, so the guard does not apply here).
+     * scope names a world family this world is not part of, so the guard does not apply here). A line
+     * an extension added is one line wherever it lands, so its Once is keyed by the extension:
+     * spent with one character, it is spent with every character it reaches.
      */
     @Nullable
     private DialogueOnce.Slot optionOnceSlot(@Nonnull NpcDialogue dialogue, @Nonnull String nodeId,
@@ -898,15 +907,19 @@ public final class DialogueEngine {
             return null;
         }
         String discriminator = option.onceDiscriminator();
+        String extension = option.getInjectedBy();
         if (discriminator.isBlank()) {
-            warnOnce("once:" + dialogue.getId() + ":" + nodeId,
-                    "Dialogue '" + dialogue.getId() + "' node '" + nodeId + "' has an option with"
-                            + " Once but no LabelKey or OnceId to identify it - author an OnceId;"
-                            + " the option stays repeatable until then");
+            String who = extension != null
+                    ? "Dialogue extension '" + extension + "'"
+                    : "Dialogue '" + dialogue.getId() + "' node '" + nodeId + "'";
+            warnOnce("once:" + who, who + " has an option with Once but no LabelKey or OnceId to"
+                    + " identify it - author an OnceId; the option stays repeatable until then");
             return null;
         }
-        return once.slotFor(DialogueStateKeys.optionOnce(dialogue.getId(), nodeId, discriminator),
-                ctx, clock.getAsLong());
+        String rawKey = extension != null
+                ? DialogueStateKeys.extensionOnce(extension, discriminator)
+                : DialogueStateKeys.optionOnce(dialogue.getId(), nodeId, discriminator);
+        return once.slotFor(rawKey, ctx, clock.getAsLong());
     }
 
     /**

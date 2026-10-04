@@ -10,6 +10,8 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.dialogue.schema.DialogueExtension;
+import com.ziggfreed.common.dialogue.schema.DialogueExtensionConfig;
 import com.ziggfreed.common.dialogue.schema.DialogueFragmentConfig;
 import com.ziggfreed.common.dialogue.schema.DialogueFragmentGroup;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
@@ -53,6 +55,9 @@ public final class DialogueTestSupport {
         DialogueEngine.resetSharedForTests();
         DialoguePayloads.resetForTests();
         DialogueFragmentConfig.getInstance().mergePackLayer(Map.of());
+        // Extension lines splice into every conversation a test decodes, so a test that left one
+        // installed would add a line to the next test's screens.
+        DialogueExtensionConfig.getInstance().mergePackLayer(Map.of());
         // The routing vocabulary is process-wide for the same reason the decode one is, and an
         // option's Open is read through it - so a test that authors one starts from a clean table
         // and registers what its own files name.
@@ -90,6 +95,34 @@ public final class DialogueTestSupport {
         DialogueFragmentConfig.getInstance().mergePackLayer(folded);
     }
 
+    /** Install dialogue extensions, standing in for the files under {@code DialogueExtensions/}. */
+    static void shareExtensions(@Nonnull DialogueExtension... extensions) {
+        Map<String, DialogueExtension> layer = new LinkedHashMap<>();
+        for (DialogueExtension extension : extensions) {
+            layer.put(extension.getId(), extension);
+        }
+        DialogueExtensionConfig.getInstance().mergePackLayer(layer);
+    }
+
+    /**
+     * Option rows written as a JSON array, read by the same codec a screen's {@code Options} is read
+     * by, with no conversation around them (so nothing is spliced into them). Build an engine first:
+     * the codec is assembled from the registered vocabulary.
+     */
+    @Nonnull
+    public static DialogueOption[] optionRows(@Nonnull String jsonArray) {
+        try {
+            DialogueOption[] rows = DialogueTypeTable.get().optionsArray()
+                    .decodeJson(RawJsonReader.fromJsonString(jsonArray), new ExtraInfo());
+            if (rows == null) {
+                throw new AssertionError("no option rows in " + jsonArray);
+            }
+            return rows;
+        } catch (Exception e) {
+            throw new AssertionError("option rows did not decode: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * Read a body against an already-read parent through the SAME path the asset store takes for a
      * file carrying {@code "Parent"} - the codec's own inherit-decode, not a hand-rolled merge.
@@ -102,6 +135,10 @@ public final class DialogueTestSupport {
                 .decodeAndInheritJson(RawJsonReader.fromJsonString(json), parent, new ExtraInfo());
         if (child != null) {
             child.setId(id);
+            // The codec spliced the child before it had an id, and an extension may choose its
+            // conversations by id: splice again, as DialogueEngine.decode does. The splice starts
+            // from the authored lines, so it never stacks one.
+            child.spliceFragments();
         }
         return child;
     }

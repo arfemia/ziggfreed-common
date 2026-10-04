@@ -55,6 +55,9 @@ import com.ziggfreed.common.dialogue.schema.NpcDialogue;
  * {@link DialogueFragmentAsset} under {@code DialogueFragments/}; a screen names either kind the same
  * way with {@code IncludeOptions}, and a group declared here wins over a file of the same name.
  *
+ * <p>A {@link DialogueExtensionAsset} can add a line to this conversation without it naming anything;
+ * it lands after the screen's own and placed lines and before the groups the screen pulls in.
+ *
  * <p><b>To retune a conversation somebody else shipped</b>, override the file by id (a same-named
  * file in a later pack), or ship your own with {@code Parent} set to theirs. To take one out of
  * circulation, set {@code Enabled} to false.
