@@ -39,6 +39,7 @@ import com.ziggfreed.common.inventory.InventoryUtil;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.objectives.producer.EncounterQuestAxes;
 import com.ziggfreed.common.objectives.producer.ZigBlockBreakProducer;
+import com.ziggfreed.common.objectives.producer.ZigCalendarProducer;
 import com.ziggfreed.common.objectives.producer.ZigCraftProducer;
 import com.ziggfreed.common.objectives.producer.ZigEncounterProducer;
 import com.ziggfreed.common.objectives.producer.ZigInstanceRoundProducer;
@@ -184,10 +185,11 @@ public final class ProgressionDefaults {
 
     /**
      * Register everything that has to exist whoever ends up owning the runtime: the player lifecycle
-     * listeners, the five producer systems plus the one producer that is an event-bus listener
-     * (a finished instance round is announced about a group of players rather than happening to an
-     * entity, so it arrives on the shared bus), and the tracked-quest HUD with its six event
-     * subscriptions. All of it is unconditional, and so is every dispatch those producers make.
+     * listeners, the five producer systems plus the three producers that are event-bus listeners
+     * (a finished instance round, a boss fight's beat and a calendar attendance are announced about
+     * players rather than happening to an entity, so each arrives on the shared bus), and the
+     * tracked-quest HUD with its six event subscriptions. All of it is unconditional, and so is every
+     * dispatch those producers make.
      *
      * <p>The HUD installs itself LAST and guards itself, so a failure there costs the tracker and
      * nothing registered before it. Its attach rides the ready event at a LATER priority than the
@@ -204,6 +206,7 @@ public final class ProgressionDefaults {
         plugin.getEntityStoreRegistry().registerSystem(new ZigPlaceBlockProducer());
         ZigInstanceRoundProducer.install(plugin);
         ZigEncounterProducer.install(plugin);
+        ZigCalendarProducer.install(plugin);
         SafeLog.info("[progression] producers always-on: " + producedKinds()
                 + " (a mod firing a new moment calls ProgressDispatch.fire directly, no registration"
                 + " needed)");
@@ -223,7 +226,7 @@ public final class ProgressionDefaults {
                 ZigCraftProducer.KIND, ZigPickupProducer.KIND, ZigPlaceBlockProducer.KIND,
                 ZigInstanceRoundProducer.KIND_ENDED, ZigInstanceRoundProducer.KIND_WON,
                 ZigEncounterProducer.KIND_ATTEMPT, ZigEncounterProducer.KIND_DEFEATED,
-                ZigEncounterProducer.KIND_PHASE);
+                ZigEncounterProducer.KIND_PHASE, ZigCalendarProducer.KIND);
     }
 
     // ==================== persistence notifications ====================

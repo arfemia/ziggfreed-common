@@ -13,9 +13,16 @@ import org.junit.jupiter.api.Test;
 import com.ziggfreed.common.achievement.asset.AchievementAsset;
 import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
 import com.ziggfreed.common.achievement.asset.AchievementMilestoneAsset;
+import com.ziggfreed.common.almanac.AlmanacComponent;
+import com.ziggfreed.common.almanac.asset.AlmanacEntryAsset;
+import com.ziggfreed.common.almanac.asset.AlmanacStatAsset;
+import com.ziggfreed.common.almanac.page.AlmanacDestinations;
 import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardSlotAsset;
 import com.ziggfreed.common.board.asset.BountyAsset;
+import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
+import com.ziggfreed.common.calendar.asset.CalendarSpawnAsset;
+import com.ziggfreed.common.calendar.attendance.CalendarAttendanceComponent;
 import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.commerce.asset.RerollAsset;
 import com.ziggfreed.common.commerce.asset.RotationAsset;
@@ -160,6 +167,18 @@ class AssetCodecInitTest {
         // either would fail at a pack author's decode instead of at this build.
         assertNotNull(GearSetAsset.Tier.CODEC, "GearSetAsset.Tier.CODEC must static-init (PascalCase keys)");
         assertNotNull(StatModifierSpec.CODEC, "StatModifierSpec.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void calendarCodecsInitialize() {
+        assertNotNull(CalendarEventAsset.CODEC, "CalendarEventAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(CalendarEventAsset.Window.CODEC, "the Window group codec must static-init");
+        assertNotNull(CalendarEventAsset.Presentation.CODEC, "the Presentation group codec must static-init");
+        assertNotNull(CalendarEventAsset.Herald.CODEC, "the Herald group codec must static-init");
+        assertNotNull(CalendarEventAsset.HeraldLine.CODEC, "the herald line codec must static-init");
+        assertNotNull(CalendarSpawnAsset.CODEC, "CalendarSpawnAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(CalendarAttendanceComponent.CODEC,
+                "CalendarAttendanceComponent.CODEC must static-init (PascalCase keys)");
     }
 
     @Test
@@ -324,6 +343,16 @@ class AssetCodecInitTest {
                 "the seeded Shop destination's codec must static-init (PascalCase keys)");
         assertNotNull(CommerceDestinations.Board.CODEC,
                 "the seeded Board destination's codec must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void almanacCodecsInitialize() {
+        // The Almanac's page store, its stat line, its per-player record and its destination: a
+        // lower-case key at any of them would fail at a pack author's decode instead of at this build.
+        assertNotNull(AlmanacEntryAsset.CODEC, "AlmanacEntryAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(AlmanacStatAsset.CODEC, "AlmanacStatAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(AlmanacComponent.CODEC, "AlmanacComponent.CODEC must static-init (PascalCase keys)");
+        assertNotNull(AlmanacDestinations.Almanac.CODEC, "the Almanac destination codec must static-init");
     }
 
     @Test

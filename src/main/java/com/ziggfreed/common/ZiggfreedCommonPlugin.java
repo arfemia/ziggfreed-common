@@ -11,10 +11,12 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.ziggfreed.common.almanac.AlmanacBootstrap;
 import com.ziggfreed.common.asset.AssetStoreWriter;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.FrameworkAssetRegistrar;
 import com.ziggfreed.common.board.asset.BoardConfig;
+import com.ziggfreed.common.calendar.CalendarBootstrap;
 import com.ziggfreed.common.commerce.CommerceComponent;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.command.ZigCommerceCommand;
@@ -94,8 +96,9 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  * <p>The static primitives register nothing (a consumer calls them directly), and the library's own
  * registrations live in per-module bootstraps this class calls in one authoritative order:
  * {@code EntityBootstrap} (zc-entity), {@code NpcBootstrap} (zc-dialogue),
- * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} (zc-world), and
- * {@code ProgressionBootstrap} + {@code DialogueBootstrap} (zc-objectives). Each bootstrap lives in
+ * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} (zc-world), {@code CalendarBootstrap}
+ * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} (zc-objectives), and
+ * {@code AlmanacBootstrap} (zc-almanac). Each bootstrap lives in
  * the module that already sees
  * everything its phase wires, so the phase can be read and reasoned about without standing up the
  * whole plugin. What remains a ROOT-OWNED body is only what no single module can host, each phase
@@ -199,6 +202,9 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         CostumeBootstrap.registerCostumes(this);
         PlacedBlockBootstrap.setupPlacedBlockLedger(this);
         BlockStashBootstrap.registerBlockStash(this);
+        // The yearly calendar declares its feature switches, its two readings and the occurrence slot
+        // here, before the progression runtime is set up over content that gates on them.
+        CalendarBootstrap.install(this);
         ProgressionBootstrap.setupProgressionRuntime(this);
         ProgressInteractionsBootstrap.registerProgressInteractions(this);
         ProgressionBootstrap.registerFeedbackMoments();
@@ -214,6 +220,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // say it, are registered right after, beside the panels they move.
         HudPanels.install(this);
         registerHudSettings();
+        // The Almanac: its per-player record and connect hook, the owner's switch and its feature, its
+        // destination, its moment counter and the /zigalmanac family. Its page store is registered with
+        // the other framework stores.
+        AlmanacBootstrap.install(this);
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
     }
@@ -488,6 +498,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
 
     @Override
     protected void shutdown() {
+        CalendarBootstrap.shutdown();
         // Nothing to write for placements: each one rides its own chunk's save, so a restart finds
         // them exactly where it left them without this plugin persisting anything of its own.
         AssetStoreWriter.shutdown();

@@ -53,6 +53,9 @@ import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardAssetStore;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.board.asset.BountyAsset;
+import com.ziggfreed.common.calendar.CalendarContent;
+import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
+import com.ziggfreed.common.calendar.asset.CalendarSpawnAsset;
 import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
 import com.ziggfreed.common.commerce.fold.CommerceOwnerLayers;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
@@ -70,6 +73,9 @@ import com.ziggfreed.common.achievement.asset.AchievementCategoryAsset;
 import com.ziggfreed.common.achievement.asset.AchievementCategoryConfig;
 import com.ziggfreed.common.achievement.asset.AchievementMilestoneAsset;
 import com.ziggfreed.common.achievement.asset.AchievementMilestoneConfig;
+import com.ziggfreed.common.almanac.asset.AlmanacEntryAsset;
+import com.ziggfreed.common.almanac.asset.AlmanacEntryConfig;
+import com.ziggfreed.common.almanac.asset.AlmanacOwnerLayers;
 import com.ziggfreed.common.feedback.moment.FeedbackMomentAsset;
 import com.ziggfreed.common.feedback.moment.FeedbackMomentConfig;
 import com.ziggfreed.common.quest.asset.QuestAsset;
@@ -517,6 +523,20 @@ public final class FrameworkAssetRegistrar {
                     ProgressionDefaults.republishAssetContent();
                 });
 
+        // --- Almanac pages (Pattern A) - what the Almanac shows for one seasonal event beyond what the
+        //     calendar already says: its name and picture, its yearly keepsake, and the tallies it
+        //     keeps. The FILE name is the calendar event id. Common ships none; every page is pack
+        //     JSON. Owner layer mods/ziggfreedcommon/almanac.json, whose $Enabled key is the
+        //     Almanac's kill switch (also read once at setup by AlmanacBootstrap). ---
+        AssetStoreRegistrar.registerStore(AlmanacEntryAsset.class,
+                new DefaultAssetMap<String, AlmanacEntryAsset>(), AlmanacEntryAsset.TYPE_ROOT,
+                AlmanacEntryAsset::getId, AlmanacEntryAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, AlmanacEntryAsset.class,
+                (LoadedAssetsEvent<String, AlmanacEntryAsset, DefaultAssetMap<String, AlmanacEntryAsset>> ev) -> {
+                    AlmanacEntryConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    AlmanacOwnerLayers.reload();
+                });
+
         // --- Currencies (Pattern A) - one wallet per file: what backs it, what it is worth at most,
         //     and how it wears away. The merge also re-reads the server owner's own
         //     mods/ziggfreedcommon/currencies.json, which is why it runs HERE rather than at setup:
@@ -654,6 +674,28 @@ public final class FrameworkAssetRegistrar {
                     GearSets.onContentChanged();
                 });
 
+        // --- Calendar events (Pattern A) - one event that comes round every year per file: its
+        //     window (Start and End month-days, both in), the year it first ran, the zone its days are
+        //     counted in, what it is called and what the herald says. Owner file
+        //     mods/ziggfreedcommon/calendar.json ($Enabled switches every event off; an entry retunes or
+        //     switches off one), re-read on this same event: CalendarContent folds both layers under the
+        //     calendar's lock and asks the calendar to look again. ---
+        AssetStoreRegistrar.registerStore(CalendarEventAsset.class,
+                new DefaultAssetMap<String, CalendarEventAsset>(), CalendarEventAsset.TYPE_ROOT,
+                CalendarEventAsset::getId, CalendarEventAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, CalendarEventAsset.class,
+                (LoadedAssetsEvent<String, CalendarEventAsset, DefaultAssetMap<String, CalendarEventAsset>> ev) ->
+                        CalendarContent.reloadEvents(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Calendar spawns (Pattern A) - a native world-spawn rule an event writes while it runs and
+        //     retires to zero weight when no running event owns it. No owner file. ---
+        AssetStoreRegistrar.registerStore(CalendarSpawnAsset.class,
+                new DefaultAssetMap<String, CalendarSpawnAsset>(), CalendarSpawnAsset.TYPE_ROOT,
+                CalendarSpawnAsset::getId, CalendarSpawnAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, CalendarSpawnAsset.class,
+                (LoadedAssetsEvent<String, CalendarSpawnAsset, DefaultAssetMap<String, CalendarSpawnAsset>> ev) ->
+                        CalendarContent.reloadSpawns(AssetMergeAdapter.layer(ev.getAssetMap())));
+
         // --- The native recipe index (zc-entity) - not a store of ours: a read-side index over the
         //     ENGINE's CraftingRecipe store, built on first read. It is dropped on every recipe and
         //     item load and removal (an item reload reloads the recipes authored inside it), so the
@@ -678,8 +720,10 @@ public final class FrameworkAssetRegistrar {
                             + "Lootables, RollPools, StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                             + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, Achievements, AchievementCategories, "
-                            + "AchievementMilestones, Currencies, Shops, ShopPools, ShopEntries, "
+                            + "AchievementMilestones, Almanac (owner file mods/ziggfreedcommon/almanac.json), "
+                            + "Currencies, Shops, ShopPools, ShopEntries, "
                             + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation, "
+                            + "CalendarEvents (owner file mods/ziggfreedcommon/calendar.json), CalendarSpawns, "
                             + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json)).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
