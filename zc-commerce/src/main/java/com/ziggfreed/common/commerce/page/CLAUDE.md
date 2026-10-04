@@ -12,3 +12,6 @@
 - Every exit path sends a response (a reopen, a partial update or a close), or the client hangs.
 - A consumer seam that throws costs only its own contribution, never the screen.
 - A toast raised after a payout lists the grant receipt, never the authored rewards. The board hand-in toast is the gold line with rows when the contract paid here, and the plain success line with none when it parked.
+- The storefront page opens closed on `!StorefrontAsset.isAvailable()`, and the board page on `!BoardAssetSpec.enabled()`, which reads the board's hide axis; the unnamed default is the configs' `firstListedId()`.
+- The storefront page lists its standing offers through `AssetShopCatalog.availableOffersOf`, never `offersOf`.
+- The board's Mine tab lists through `BoardEngine.namingBoard`, never `membersOf`.

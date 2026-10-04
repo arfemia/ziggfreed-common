@@ -1,0 +1,13 @@
+{
+  "$Comment": "Using an item: throwing it, cracking it open, aiming it at somebody. A ZigCreditProgress interaction step fires it, with a Qualifier saying how the item was used, so a step can count only throws.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Item": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Weapon_Bomb"
+    }
+  }
+}

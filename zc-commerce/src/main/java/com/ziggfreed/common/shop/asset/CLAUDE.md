@@ -6,3 +6,5 @@
 - A generator's `Source` reads the same registered value lists the quest generators read (`CommerceCatalogs.installAxisValues`); never register a list a second time per content type.
 - A ladder of near-identical offers is `Listing.Chains`, not a storefront grouping mode.
 - `Categories` (what a shelf is called) and `CategoryOrder` (where it sits) are separate storefront leaves, and a shelf's name lives on the storefront, never on each offer.
+- A storefront's `isAvailable()` (Enabled plus the hide axis) is what `listed()`, `firstListedId()` and the page read, so a storefront hidden by a feature is in no list and opens closed; `lockRequires()` is the rest of its block, which locks every offer it sells (asked first at purchase through `ShopOffer.storefrontRequires()`) while the page stays readable.
+- An offer's `isAvailable()` decides whether it is on the page at all and `lockRequires()` is its purchase lock. The page lists `AssetShopCatalog.availableOffersOf`; `offersOf` is the admin view and still names a switched-off offer.

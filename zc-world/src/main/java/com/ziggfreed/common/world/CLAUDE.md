@@ -11,7 +11,8 @@
 ## Blocks
 
 - The native place-block event fires before the engine refuses a placement, so anything paying per placement asks `BuildPermission` first; cannot tell reads as allowed.
-- `BlockOps` is the one block read and write: it never loads a chunk, null means cannot tell, air reads as `"Empty"`, and identity reads (tags, resource types) go through the block's item.
+- `BlockOps` is the block read and write a consumer reaches for: it never loads a chunk, null means cannot tell, air reads as `"Empty"`, and identity reads (tags, resource types) go through the block's item. Under it sits zc-core's `world/SectionBlockCursor`, the raw block-id read for a walk over many cells (`SurfaceProbe`) and for a module with no zc-world edge (zc-cast's `BlockRaystep`, zc-presentation's `BlockStateSound`): it never loads a chunk either, keeps the last section it resolved, and reads `BlockType.EMPTY_ID` for air and for a cell it cannot see.
+- Never read a block through a `World` or `WorldChunk` accessor (`getBlock(x, y, z)`, `getBlockType(x, y, z)`): Update 7 deletes them, and the root `BlockAccessorHygieneTest` fails on one. `BuildPermission`'s `BlockChunk.getEnvironment` is the one engine accessor left, until the Update 7 port moves it onto the environment section.
 - `record/BlockRecordSection` registers before any world loads. Its mutators flag the section for saving; a caller mutating a fetched record in place calls `markDirty`; `clone` deep-copies so an IO-thread save never tears.
 - `pattern/BlockPattern` has exactly one anchor cell, and one positive quarter-turn maps `(x, y, z)` to `(z, y, -x)`, the engine's `Rotation.Ninety`, so a matched orientation carries straight into a block write.
 - `stash/BlockStashes` is pure storage on world game time (an outage advances nothing); item insertion order, oldest first, is load-bearing.
@@ -19,4 +20,4 @@
 
 ## Terrain
 
-- `SurfaceProbe` stops on trees decorated after worldgen unless handed the foliage keys from `BlockTypeLists.keys("TreeWoodAndLeaves", "AllScatter")`; `SpawnPlacement` takes a seed and never calls `Math.random`.
+- `SurfaceProbe` stops on trees decorated after worldgen unless handed the foliage keys from `BlockTypeLists.keys("TreeWoodAndLeaves", "AllScatter")`; `SpawnPlacement` takes a seed and never calls `Math.random`. Neither loads a chunk: a column not in memory answers the caller's fallback, so a caller probing ground no player is near loads it first.

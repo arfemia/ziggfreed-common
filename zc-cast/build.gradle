@@ -3,9 +3,10 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // The cast/interaction runtime: the step-dispatch kernel, hit resolution, armed state, ray and
 // block targeting, the per-world tick partition, and the native interaction-composition framework.
 //
-// A LEAF: no other library module depends on it, which is correct - this is a consumer-facing
-// runtime layer, not framework plumbing. The one piece of it every domain does need, the
-// per-world eviction fan-out (cast.WorldEvictors), lives in zc-core as a split-package file.
+// It depends on zc-core alone. Two library modules depend on it, each over a one-way edge, for
+// custom interaction Types: zc-objectives (the objective book, ZigCreditProgress, ZigGrantReward)
+// and zc-effects (ZigCostume). The one piece of it every domain does need, the per-world eviction
+// fan-out (cast.WorldEvictors), lives in zc-core as a split-package file.
 
 dependencies {
     implementation project(':zc-core')

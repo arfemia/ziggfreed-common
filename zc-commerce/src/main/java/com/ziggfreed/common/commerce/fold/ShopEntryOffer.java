@@ -10,7 +10,9 @@ import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.shop.PurchaseLimits;
 import com.ziggfreed.common.shop.ShopOffer;
+import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
+import com.ziggfreed.common.shop.asset.StorefrontAsset;
 
 /**
  * One authored offer, as the purchase engine sees it.
@@ -76,15 +78,37 @@ public final class ShopEntryOffer implements ShopOffer {
         return rewards;
     }
 
+    /**
+     * On sale right now: the offer is available, and so is the storefront it names. Read live, so a
+     * press on a page drawn before the storefront was hidden refuses rather than sells. An offer
+     * naming a storefront nothing defines answers by its own file; the audit names that storefront.
+     */
     @Override
     public boolean enabled() {
-        return asset.isEnabled();
+        StorefrontAsset storefront = storefront();
+        return asset.isAvailable() && (storefront == null || storefront.isAvailable());
     }
 
+    /** The offer's own lock: its {@code Requires} with the hide axis taken out. */
     @Override
     @Nullable
     public GateSpec requires() {
-        return asset.getRequires();
+        return asset.lockRequires();
+    }
+
+    /** The lock of the storefront this offer stands in, read live; null when there is none to ask. */
+    @Override
+    @Nullable
+    public GateSpec storefrontRequires() {
+        StorefrontAsset storefront = storefront();
+        return storefront == null ? null : storefront.lockRequires();
+    }
+
+    /** The storefront this offer names, read live, or null when it names none or none is defined. */
+    @Nullable
+    private StorefrontAsset storefront() {
+        String shopId = asset.getShop();
+        return shopId == null ? null : ShopConfig.getInstance().resolve(shopId);
     }
 
     @Override

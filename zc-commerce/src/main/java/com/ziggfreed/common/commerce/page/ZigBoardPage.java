@@ -337,7 +337,8 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     /**
      * What the player is carrying that came off THIS board: read off the accept site the quest engine
      * recorded, so a contract stays this board's business while it is being carried even after the
-     * rotation that offered it has turned over.
+     * rotation that offered it has turned over, and even after the board stopped posting it at all
+     * (switched off, or hidden by a feature): it is still the player's to finish here.
      */
     @Nonnull
     private List<BountyRef> carriedFrom(@Nonnull BoardEngine engine, @Nonnull QuestEngine quests,
@@ -350,7 +351,7 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             }
         }
         List<BountyRef> out = new ArrayList<>();
-        for (BountyRef ref : engine.membersOf(board, CommerceCatalogs.boards().pool())) {
+        for (BountyRef ref : engine.namingBoard(board, CommerceCatalogs.boards().pool())) {
             if (carried.contains(CommerceText.normalize(ref.bountyId()))) {
                 out.add(ref);
             }

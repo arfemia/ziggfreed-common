@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 
@@ -30,20 +31,32 @@ public final class BoardConfig extends AbstractKeyedAssetConfig<BoardAsset> {
     }
 
     /**
-     * Every board that can be opened, in the order they should be listed: by {@code Order}, then by
-     * id so two boards sharing a number never swap places between restarts.
+     * Every board on this server right now ({@link BoardAsset#isAvailable()}: switched on, and not
+     * hidden by a feature that reads off), in the order they should be listed: by {@code Order},
+     * then by id so two boards sharing a number never swap places between restarts.
      */
     @Nonnull
     public List<BoardAsset> listed() {
         List<BoardAsset> out = new ArrayList<>();
         for (String id : ids()) {
             BoardAsset board = resolve(id);
-            if (board != null && board.isEnabled()) {
+            if (board != null && board.isAvailable()) {
                 out.add(board);
             }
         }
         out.sort(Comparator.comparingInt(BoardAsset::order)
                 .thenComparing(board -> board.getId() == null ? "" : board.getId()));
         return out;
+    }
+
+    /** The first board {@link #listed()} names: what an unnamed destination opens. Null for none. */
+    @Nullable
+    public String firstListedId() {
+        for (BoardAsset board : listed()) {
+            if (board.getId() != null) {
+                return board.getId();
+            }
+        }
+        return null;
     }
 }

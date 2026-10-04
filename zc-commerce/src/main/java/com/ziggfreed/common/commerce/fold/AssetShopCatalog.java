@@ -111,4 +111,20 @@ public final class AssetShopCatalog implements ShopCatalog {
         }
         return out;
     }
+
+    /**
+     * The offers a storefront's PAGE lists: {@link #offersOf} less every offer that is not on sale
+     * right now (switched off, hidden by a feature that reads off, or standing in a storefront that
+     * is gone). {@link #offersOf} stays the admin view, which names a switched-off offer as such.
+     */
+    @Nonnull
+    public List<ShopEntryOffer> availableOffersOf(@Nonnull String shopId) {
+        List<ShopEntryOffer> out = new ArrayList<>();
+        for (ShopEntryOffer offer : offersOf(shopId)) {
+            if (offer.enabled()) {
+                out.add(offer);
+            }
+        }
+        return out;
+    }
 }
