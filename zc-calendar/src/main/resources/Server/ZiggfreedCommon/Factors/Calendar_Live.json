@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:calendar_live reading for requirement lines. Param is a calendar event id; the reading is 1 while that event runs, 0 while it is stopped or between its dates, and nothing for an event this server does not have or has switched off. To name your own event in a requirement line, ship a Factors file of your own with a Keys entry for its id.",
+  "Factor": "ziggfreedcommon:calendar_live",
+  "Text": { "TitleKey": "ziggfreedcommon.calendar.factor.calendar_live" }
+}

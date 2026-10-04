@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:calendar_year reading for requirement lines. Param is a calendar event id; the reading is the year its running run began in, and nothing between its dates.",
+  "Factor": "ziggfreedcommon:calendar_year",
+  "Text": { "TitleKey": "ziggfreedcommon.calendar.factor.calendar_year" }
+}

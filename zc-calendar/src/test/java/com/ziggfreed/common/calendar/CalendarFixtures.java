@@ -2,8 +2,13 @@ package com.ziggfreed.common.calendar;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -73,5 +78,24 @@ public final class CalendarFixtures {
         CalendarEventConfig.getInstance().mergeOwnerLayer(Map.of());
         CalendarEventConfig.getInstance().setGlobalEnabled(true);
         CalendarForces.getInstance().clearAll();
+    }
+
+    /** The keys an en-US lang file of this module ships ({@code ziggfreedcommon.calendar.lang}, for one). */
+    @Nonnull
+    public static Set<String> englishKeys(@Nonnull String langFileName) {
+        Path file = Path.of("src", "main", "resources", "Server", "Languages", "en-US", langFileName);
+        Set<String> keys = new TreeSet<>();
+        try {
+            for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+                String trimmed = line.trim();
+                int eq = trimmed.indexOf('=');
+                if (!trimmed.isEmpty() && !trimmed.startsWith("#") && eq > 0) {
+                    keys.add(trimmed.substring(0, eq).trim());
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return keys;
     }
 }
