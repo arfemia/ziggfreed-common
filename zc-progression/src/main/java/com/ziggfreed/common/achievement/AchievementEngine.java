@@ -713,10 +713,11 @@ public final class AchievementEngine {
      * Pin an achievement to the subject's tracker. Dead pins are reclaimed first, so the cap is
      * measured against live ones and a subject looking at two pins is never told they are full.
      *
-     * @return false when the id is unknown, it is already earned, or they are at the cap
+     * @return false when the id is unknown, out of circulation, already earned, or they are at the cap
      */
     public boolean pin(@Nonnull Subject subject, @Nonnull String achievementId) {
-        if (!achievements.containsKey(achievementId)
+        Achievement achievement = achievements.get(achievementId);
+        if (achievement == null || !achievement.available()
                 || store.status(subject, achievementId).isUnlocked()) {
             return false;
         }
@@ -761,16 +762,17 @@ public final class AchievementEngine {
     }
 
     /**
-     * Drop pins for achievements that are earned or no longer catalogued. A pin marks something being
-     * worked toward, so one that no longer can be is dead weight - and enough of them fill every slot
-     * while the tracker looks empty.
+     * Drop pins for achievements that are earned, out of circulation, or no longer catalogued. A pin
+     * marks something being worked toward, so one that no longer can be is dead weight - and enough
+     * of them fill every slot while the tracker looks empty.
      *
      * @return how many were dropped
      */
     public int prunePins(@Nonnull Subject subject) {
         int dropped = 0;
         for (String achievementId : store.pins(subject).keySet()) {
-            boolean dead = !achievements.containsKey(achievementId)
+            Achievement achievement = achievements.get(achievementId);
+            boolean dead = achievement == null || !achievement.available()
                     || store.status(subject, achievementId).isUnlocked();
             if (dead && store.clearPin(subject, achievementId)) {
                 dropped++;

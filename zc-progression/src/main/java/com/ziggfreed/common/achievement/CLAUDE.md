@@ -12,3 +12,5 @@
 - `serverFirst` is a flag and the gate arbitrates it. A lost race is the `Achievement_Server_First_Lost` moment; a mod wanting more registers a feedback hook, never a listener of its own.
 - The fold decides `icon` and `momentArgs`; the engine only carries them into its moments, and its own argument names win a clash.
 - Milestones are state recomputed whenever a total changes, not moments: the achievement whose earning crossed a threshold already fires.
+- `available` and `featOfStrength` may be live readings (a yearly copy reads its year's occurrence on every look): copy them as suppliers through `toBuilder`, never snapshot either into a boolean.
+- `pin` refuses and `prunePins` reclaims an achievement out of circulation: a pin marks something being worked toward.
