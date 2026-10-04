@@ -2,6 +2,7 @@ package com.ziggfreed.common.progress;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,7 +18,7 @@ class ObjectiveKindRegistryTest {
     void theBuiltInVocabularyIsPresentAndEveryKindIsProducible() {
         ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
 
-        assertEquals(26, registry.ids().size(), "the engine-generic vocabulary");
+        assertEquals(27, registry.ids().size(), "the engine-generic vocabulary");
         for (String id : registry.ids()) {
             ObjectiveKind kind = registry.kind(id);
             assertTrue(kind.producible(), id + " should be authorable");
@@ -71,6 +72,26 @@ class ObjectiveKindRegistryTest {
         }
         assertFalse(registry.isEncounterTargeted("NOT_A_KIND"),
                 "a kind nobody registered names no fight rather than every fight");
+    }
+
+    /**
+     * Using an item - throwing it, cracking it open, aiming it at somebody - is something any game
+     * has, so it is seeded: an accumulating, producible kind whose target is the item used. It is a
+     * kind of its own, never a spelling of eating or drinking one.
+     */
+    @Test
+    void usingAnItemIsTheSeededKindWhoseTargetIsTheItemUsed() {
+        ObjectiveKindRegistry registry = new ObjectiveKindRegistry();
+
+        assertTrue(ObjectiveKindRegistry.isBuiltIn("USE_ITEM"));
+        assertTrue(registry.isProducible("use_item"), "content may author a step of it");
+        assertFalse(registry.isValueBased("USE_ITEM"), "each use adds to the tally");
+        ObjectiveKind kind = registry.kind("Use_Item");
+        assertEquals("USE_ITEM", kind.id());
+        assertTrue(kind.targetsItem(), "its target is the item used, so a surface can draw it");
+        assertFalse(kind.targetsPlace());
+        assertFalse(kind.targetsEntity());
+        assertNotEquals(registry.kind("CONSUME_ITEM"), kind, "eating or drinking stays a kind of its own");
     }
 
     @Test
