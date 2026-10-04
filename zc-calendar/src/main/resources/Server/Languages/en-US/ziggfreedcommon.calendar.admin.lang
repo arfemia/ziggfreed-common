@@ -1,0 +1,40 @@
+# The /zigcalendar admin command family: help text and answers.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.calendar.admin.<key>.
+# The desc.* keys are what the engine's own help resolves a command or an argument through.
+
+desc.family = See and test this server's calendar events.
+desc.list = List every calendar event and whether it is running.
+desc.status = Show one calendar event: its dates, its first year and its runs so far.
+desc.force = Run or stop a calendar event now, whatever its dates say.
+desc.force.on = Run a calendar event now. It stays forced until you clear it or the server restarts.
+desc.force.off = Stop a calendar event now. It stays stopped until you clear it or the server restarts.
+desc.force.clear = Let a calendar event follow its dates again.
+desc.reload = Read the calendar owner file again.
+desc.arg.event = The calendar event, by its file name.
+
+list.none = No calendar events are loaded.
+list.header = Calendar events ({0}):
+
+row.unknown = There is no calendar event named {0}.
+row.off = {0}: switched off.
+row.broken = {0}: cannot run ({1}); the server log says why.
+row.live = {0}: running, the {1} run, through {2}.
+row.live.forced = {0}: running because it was forced on, the {1} run, through {2}.
+row.stopped = {0}: stopped by a command.
+row.waiting = {0}: next starts {1}.
+
+status.window = Runs {0} every year, counted in {1}.
+status.first = First year: {0}.
+status.first.none = No first year, so it never runs.
+status.history = Runs so far: {0}.
+status.history.none = No runs yet.
+status.problem = Problem: {0}.
+
+force.unknown = There is no calendar event named {0}.
+force.absent = {0} is switched off or cannot run, so forcing it changes nothing.
+force.on.done = {0} is running now. It stays forced until you clear it or the server restarts.
+force.off.done = {0} is stopped now. It stays stopped until you clear it or the server restarts.
+force.clear.done = {0} follows its dates again.
+
+reload.done = Read the calendar owner file again.
+reload.done.off = Read the calendar owner file again: every calendar event is switched off.

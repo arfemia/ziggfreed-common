@@ -7,4 +7,4 @@
 - The break and pickup producers skip what the player placed (`world/placed/PlacedBlockLedger`). The place producer counts through `PlacedBlockRecorder.placementCounts`, because `PlaceBlockEvent` fires before the engine refuses a placement.
 - `STAT_THRESHOLD` has no producer and never will: it names a state the engines read themselves.
 - The craft producer's query stays unfiltered (`Archetype.empty()`) and targets the crafted output item's id. A workstation craft does not count, because `CraftRecipeEvent.Post` names no crafter: fix it the day the engine exposes one, never by reflection.
-- The two bus producers (`ZigInstanceRoundProducer`, `ZigEncounterProducer`) resolve each player's own world and hop there through `PlayerMomentDispatch`.
+- The three bus producers (`ZigInstanceRoundProducer`, `ZigEncounterProducer`, `ZigCalendarProducer`) resolve each player's own world and hop there through `PlayerMomentDispatch`.

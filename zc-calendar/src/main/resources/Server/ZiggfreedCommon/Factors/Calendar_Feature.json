@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:feature reading for requirement lines. Param is a feature id: Calendar, a calendar event id, or an event id followed by _Live. A plain condition on it at the top of a Requires block hides content while the feature is off, so this name shows only where a condition sits deeper.",
+  "Factor": "ziggfreedcommon:feature",
+  "Text": { "TitleKey": "ziggfreedcommon.calendar.factor.feature" }
+}

@@ -1,0 +1,11 @@
+# The calendar's player-facing words: how a requirement on a calendar reading is named, and how an
+# attendance step reads when its own file names no sentence.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.calendar.<key>.
+
+factor.calendar_live = a calendar event running
+factor.calendar_year = the year of a running calendar event
+factor.feature = a feature this server has switched on
+
+# The attendance step: {1} is the event it names. The .any twin reads when a step names no event.
+objective.calendar_attended = Attend {1}
+objective.calendar_attended.any = Attend a calendar event
