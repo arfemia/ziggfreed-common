@@ -11,5 +11,12 @@ public enum ResetReason {
     /** The run outlived the binding's {@code MaxRunSeconds}. */
     TIMEOUT,
     /** The encounter's chunk or world unloaded under it. */
-    WORLD_UNLOAD
+    WORLD_UNLOAD,
+    /**
+     * The script's {@code zc:defeated} beat came while the bound subject still lived (it ran past the
+     * script's reach) or after it left the world without a death this library saw: a leash, not a
+     * kill, so the run was settled as a wipe, paid nothing, and reset. Last on purpose: a reason is
+     * only ever appended, so every earlier one keeps its place.
+     */
+    LEASHED
 }

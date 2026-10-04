@@ -2,6 +2,7 @@ package com.ziggfreed.common.encounter.run;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.UUID;
@@ -14,6 +15,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
@@ -165,6 +167,60 @@ public final class EncounterLifecycle {
         args.put(EncounterFeedback.SECONDS_ARG, Math.round(elapsedSeconds));
         EncounterFeedback.fireWithShares(store, feedbackId(row, EncounterBindingAsset.Feedback::defeated,
                 EncounterBindingAsset.DEFAULT_DEFEATED_MOMENT), shares.participants(), args, receipts);
+    }
+
+    // ==================== a defeat beat ====================
+
+    /**
+     * A script's {@code zc:defeated} beat. A run that has already settled ignores it: the death
+     * system settles a real kill the instant the subject's death lands, and a wipe settles a lost
+     * fight. Otherwise {@link SignalledDefeat} weighs the beat against the world: with no subject
+     * bound the beat is the defeat (a fight with no boss); with one, it is the defeat only while the
+     * subject reads dead, and a subject still alive, or gone without a death this library saw, was
+     * LEASHED: the run settles as a wipe, pays nothing, stamps no rest, and resets with
+     * {@link ResetReason#LEASHED} at once, so a consumer waiting on the run's end hears it now.
+     */
+    public static void defeatSignalled(@Nonnull Store<EntityStore> store,
+            @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Ref<EntityStore> encounterRef,
+            @Nonnull ZigEncounterRun run, @Nonnull String encounterId) {
+        if (run.isConcluded()) {
+            return;
+        }
+        SignalledDefeat.SubjectState state = subjectState(store, run);
+        if (SignalledDefeat.verdict(run.hasSubject(), state) == SignalledDefeat.Verdict.DEFEAT) {
+            defeat(store, commandBuffer, encounterRef, run, encounterId, null, "signal");
+            return;
+        }
+        SafeLog.info(Encounters.LOG_PREFIX + " leashed run=" + EncounterRun.shortId(run.runId()) + " encounter="
+                + encounterId + " subject=" + (run.subjectMobId() == null ? "?" : run.subjectMobId()) + " "
+                + state.name().toLowerCase(Locale.ROOT) + " at the defeat beat: no payout, the run resets");
+        reset(store, encounterRef, run, encounterId, ResetReason.LEASHED, true);
+    }
+
+    /**
+     * What this library sees of the run's subject at a defeat beat. Found by its uuid, never by the
+     * script's slot: the beat releases the slot before it signals. A failed read pays nothing.
+     */
+    @Nonnull
+    static SignalledDefeat.SubjectState subjectState(@Nonnull Store<EntityStore> store, @Nonnull ZigEncounterRun run) {
+        UUID uuid = run.subjectUuid();
+        if (uuid == null) {
+            return SignalledDefeat.SubjectState.GONE;
+        }
+        try {
+            Ref<EntityStore> subject = store.getExternalData().getRefFromUUID(uuid);
+            if (subject == null || !subject.isValid()) {
+                return SignalledDefeat.stateOf(false, false, Float.NaN);
+            }
+            boolean dead = store.getComponent(subject, DeathComponent.getComponentType()) != null;
+            EntityStatMap stats = store.getComponent(subject, EntityStatsModule.get().getEntityStatMapComponentType());
+            EntityStatValue health = stats == null ? null : stats.get(DefaultEntityStatTypes.getHealth());
+            return SignalledDefeat.stateOf(true, dead, health == null ? Float.NaN : health.get());
+        } catch (Throwable t) {
+            SafeLog.warn(Encounters.LOG_PREFIX + " reading the subject at a defeat beat failed, so the beat pays nothing",
+                    t);
+            return SignalledDefeat.SubjectState.GONE;
+        }
     }
 
     // ==================== wiped ====================
