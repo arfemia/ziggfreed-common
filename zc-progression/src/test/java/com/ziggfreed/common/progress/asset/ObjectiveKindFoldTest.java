@@ -220,6 +220,18 @@ class ObjectiveKindFoldTest {
     }
 
     @Test
+    void theShippedUseKindNamesTheItemUsedAndCarriesAPicture() throws IOException {
+        ObjectiveKindAsset asset =
+                read("/Server/ZiggfreedCommon/ObjectiveKinds/Use_Item.json", "Use_Item");
+        assertNotNull(asset.getTargetNames(), "the kind says what its target names");
+        assertEquals(Boolean.TRUE, asset.getTargetNames().getItem(), "a use names the item used");
+        assertEquals(Boolean.FALSE, asset.getValueBased(), "uses accumulate, one per use");
+        assertEquals(Boolean.TRUE, asset.getProducible(), "content may author a step of it");
+        assertNotNull(asset.getPresentation(), "it carries a presentation");
+        assertNotNull(asset.getPresentation().getIcon(), "a listed step is never blank");
+    }
+
+    @Test
     void everyShippedKindFileDecodes() throws IOException {
         // The files this module ships describe the built-in vocabulary. A file that stopped decoding
         // would leave its kind silently undescribed, so each one is read here as the server reads it.

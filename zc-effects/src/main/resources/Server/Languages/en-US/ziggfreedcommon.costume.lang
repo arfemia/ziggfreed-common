@@ -1,0 +1,8 @@
+# What a costume tells the player wearing it, and the command that takes it off.
+desc.family = Costumes other players put on you
+desc.off = Take off any costume you are wearing
+notice.dressed = You are wearing a costume. Type /zigcostume off to take it off.
+notice.dressed_by = {0} put a costume on you. Type /zigcostume off to take it off.
+off.done = Your costume is off.
+off.none = You are not wearing a costume.
+off.needs_player = Only a player can take off a costume.

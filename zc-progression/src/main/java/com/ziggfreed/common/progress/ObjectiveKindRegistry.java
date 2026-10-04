@@ -24,16 +24,16 @@ import com.ziggfreed.common.util.SafeLog;
  * that reads it, so there is no registration race and one consumer's vocabulary never leaks into
  * another's.
  *
- * <p><b>Twenty-six engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
+ * <p><b>Twenty-seven engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
  * whose meaning does not depend on any particular game's systems: breaking a block, killing an
- * entity, talking to somebody, handing something in, standing at some measured value, fighting a
- * boss. All twenty-six seed as producible, all but {@link #STAT_THRESHOLD} accumulate, none reads a
- * ceiling, two of them ({@code TALK_TO_NPC}, {@code REACH_LOCATION}) seed as place-targeted and
- * three ({@code ENCOUNTER_DEFEATED}, {@code ENCOUNTER_PHASE}, {@code ENCOUNTER_ATTEMPT}) as
- * encounter-targeted; a consumer that has no producer for one can re-register it unproducible so
- * its validator says so. Domain kinds (anything tied to a consumer's own progression, economy, or
- * classes) are the consumer's to add - registering one is a single call and overrides a built-in
- * of the same id.
+ * entity, talking to somebody, handing something in, using an item, standing at some measured
+ * value, fighting a boss. All twenty-seven seed as producible, all but {@link #STAT_THRESHOLD}
+ * accumulate, none reads a ceiling, two of them ({@code TALK_TO_NPC}, {@code REACH_LOCATION}) seed
+ * as place-targeted and three ({@code ENCOUNTER_DEFEATED}, {@code ENCOUNTER_PHASE},
+ * {@code ENCOUNTER_ATTEMPT}) as encounter-targeted; a consumer that has no producer for one can
+ * re-register it unproducible so its validator says so. Domain kinds (anything tied to a consumer's
+ * own progression, economy, or classes) are the consumer's to add - registering one is a single
+ * call and overrides a built-in of the same id.
  *
  * <p><b>A consumer registers only what it ADDS.</b> {@link #isBuiltIn} is there so a consumer
  * walking its own vocabulary can skip the ids this class already states: re-registering one restates
@@ -56,6 +56,11 @@ import com.ziggfreed.common.util.SafeLog;
  * settles either way, won or wiped, same qualifier, so "fight it ten times" and "beat it ten
  * times" are two objectives; {@code ENCOUNTER_PHASE} fires once per member on every phase beat,
  * {@code Qualifier} the phase's own state name. {@code Amount} is 1 per fire.
+ *
+ * <p><b>One describes USING an item</b> ({@code USE_ITEM}): {@code Target} is the item used,
+ * {@code Qualifier} how it was used (thrown, cracked open, aimed at somebody), {@code Amount} 1 per
+ * use. An interaction step fires it ({@code ZigCreditProgress}), since no native event says an item
+ * was used, and it never stands in for eating or drinking, which is {@code CONSUME_ITEM}.
  *
  * <p><b>An ALIAS is an authored kind that runs as another.</b> Some kinds are sugar: what the
  * file says ("reach rank 30 in Mining") is a value-threshold on a stat channel the moment it is
@@ -137,7 +142,7 @@ public final class ObjectiveKindRegistry {
             "PICKUP_ITEM", "TALK_TO_NPC", "CATCH_FISH", "TURN_IN", "COMPLETE_QUEST",
             "TAKE_FALL_DAMAGE", "PLAYER_DEATH", "SPRINT_DISTANCE", "SWIM_DISTANCE",
             "BREED_ANIMAL", "FEED_ANIMAL", "HARVEST_ANIMAL", "COMPANION_COMBAT",
-            "REACH_LOCATION", "CONSUME_ITEM",
+            "REACH_LOCATION", "CONSUME_ITEM", "USE_ITEM",
             "INSTANCE_ROUND_WON", "INSTANCE_ROUND_ENDED",
             "ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT");
 
@@ -168,7 +173,7 @@ public final class ObjectiveKindRegistry {
      */
     private static final Set<String> BUILT_IN_ITEM_TARGETED = Set.of(
             "BREAK_BLOCK", "PLACE_BLOCK", "CRAFT_ITEM", "PICKUP_ITEM", "CATCH_FISH",
-            "TURN_IN", "CONSUME_ITEM");
+            "TURN_IN", "CONSUME_ITEM", "USE_ITEM");
 
     /**
      * The pre-seeded kinds whose TARGET names a creature, drawn from that creature's own generated
@@ -222,7 +227,7 @@ public final class ObjectiveKindRegistry {
         seedBuiltIns();
     }
 
-    /** Register the twenty-six engine-generic kinds, all producible, each with its own arithmetic. */
+    /** Register the twenty-seven engine-generic kinds, all producible, each with its own arithmetic. */
     private void seedBuiltIns() {
         for (String id : BUILT_IN_ACCUMULATING) {
             ledger.put(id, BUILT_IN_OWNER, new ObjectiveKind(id, false, true,
@@ -242,7 +247,7 @@ public final class ObjectiveKindRegistry {
     }
 
     /**
-     * Is {@code kindId} one of the twenty-six this class seeds? A consumer registering its own
+     * Is {@code kindId} one of the twenty-seven this class seeds? A consumer registering its own
      * vocabulary asks this to add only what it ADDS, leaving the built-ins stated once, here, with
      * every flag they carry - including any this class learns to seed later.
      */
