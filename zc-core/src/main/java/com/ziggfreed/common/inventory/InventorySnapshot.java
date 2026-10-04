@@ -18,10 +18,11 @@ import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 /**
- * A faithful, slot-exact capture of an entity's full inventory across all six sections
- * (Armor / Hotbar / Storage / Utility / Tool / Backpack), preserving each {@link ItemStack}'s
- * durability + metadata and each active-slot section's selected slot. The reusable engine
- * primitive behind a minigame's "preserve your overworld gear, then restore it on exit" lifecycle.
+ * A faithful, slot-exact capture of an entity's full inventory across every managed section
+ * (Armor / Hotbar / Storage / Utility / Tool / Backpack, and Update 7's rune Abilities and Rune Bag),
+ * preserving each {@link ItemStack}'s durability + metadata and each active-slot section's selected
+ * slot. The reusable engine primitive behind a minigame's "preserve your overworld gear, then restore
+ * it on exit" lifecycle.
  *
  * <p>The three operations are deliberately asymmetric:
  * <ul>
@@ -29,9 +30,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  *       authoritative entry state.</li>
  *   <li>{@link #strip} removes items per an {@link InventoryStripPolicy} - the only configurable
  *       step (strip everything, keep a section like armor, or whitelist/blacklist item ids).</li>
- *   <li>{@link #apply} restores to the EXACT entry state: it clears every managed section first
+ *   <li>{@link #apply} restores to the EXACT entry state: it clears every section it captured first
  *       (dropping any loot gained in-round AND any kept-on-entry item), then reapplies the captured
- *       slots. Idempotent, so a retry after a partial failure converges.</li>
+ *       slots, and leaves a section it never captured alone. Idempotent, so a retry after a partial
+ *       failure converges.</li>
  * </ul>
  *
  * <p><b>World thread only</b> (touches the {@link Store}). Each section is independently guarded so
@@ -39,7 +41,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
  */
 public final class InventorySnapshot {
 
-    /** The six managed sections, captured + restored in a fixed order (active-slot sections last is irrelevant). */
+    /** The managed sections, captured and stripped in a fixed order. */
     static final int[] SECTION_IDS = InventorySections.ALL;
 
     /** One section's captured slots plus, for an active-slot section, its selected slot ({@code -1} otherwise). */
@@ -160,13 +162,14 @@ public final class InventorySnapshot {
     // ==================== apply (restore to entry) ====================
 
     /**
-     * Restore this snapshot onto the live inventory: clear every managed section (dropping any loot
-     * gained in-round and any item kept on entry), then reapply the captured slots + active slots.
-     * Idempotent (clear-then-reapply), so it is safe to run twice or to retry after a partial failure.
+     * Restore this snapshot onto the live inventory: clear every section it captured (dropping any
+     * loot gained in-round and any item kept on entry), then reapply the captured slots + active
+     * slots. Idempotent (clear-then-reapply), so it is safe to run twice or to retry after a partial
+     * failure. A section the snapshot holds nothing for is left as it is (see {@code sectionsToClear}).
      */
     public void apply(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
-        // 1) Clear every managed section so the result is EXACTLY the captured entry state.
-        for (int sectionId : SECTION_IDS) {
+        // 1) Clear every captured section so the result is EXACTLY the captured entry state.
+        for (int sectionId : sectionsToClear()) {
             try {
                 InventoryComponent comp = section(store, ref, sectionId);
                 if (comp != null) {
@@ -205,6 +208,23 @@ public final class InventorySnapshot {
                 // best-effort per section: a bad slot never aborts the rest of the restore
             }
         }
+    }
+
+    /**
+     * The sections {@link #apply} clears before it reapplies: the ones this snapshot captured, in
+     * capture order. A managed section it holds nothing for is left as it is: a snapshot taken before
+     * that section was managed (a server that moved to a build managing the rune sections while a
+     * player was mid-round) never stripped it, so the player carried it through the round untouched,
+     * and clearing it now would destroy it. A capture records every section the entity has, empty or
+     * not, so a current snapshot clears them all. Package-private for the test.
+     */
+    @Nonnull
+    int[] sectionsToClear() {
+        int[] ids = new int[sections.size()];
+        for (int i = 0; i < ids.length; i++) {
+            ids[i] = sections.get(i).sectionId;
+        }
+        return ids;
     }
 
     @Nullable
