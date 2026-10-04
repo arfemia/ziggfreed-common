@@ -13,7 +13,9 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.server.core.asset.type.item.config.ItemQuality;
 import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.asset.EditorSchema;
 
 /**
  * A named, reusable set of stat-roll outcomes: {@code Server/ZiggfreedCommon/RollPools/<Name>.json},
@@ -71,7 +73,8 @@ public final class RollPoolAsset implements JsonAssetWithMap<String, DefaultAsse
             .appendInherited(new KeyedCodec<>("Quality", Codec.STRING, false),
                     (a, v) -> a.quality = v, a -> a.quality, (a, parent) -> a.quality = parent.quality)
             .documentation("An ItemQuality asset id giving anything stamped from this pool that rarity. Omit to "
-                    + "leave the item's rarity alone. A stamp may override this with its own Quality.").add()
+                    + "leave the item's rarity alone. A stamp may override this with its own Quality.")
+            .metadata(EditorSchema.assetRef(ItemQuality.class)).add()
             .appendInherited(new KeyedCodec<>("Entries",
                             new ArrayCodec<>(StatRollEntry.codec(EditorDataSets.FACTORS), StatRollEntry[]::new), false),
                     (a, v) -> a.entries = v, a -> a.entries, (a, parent) -> a.entries = parent.entries)
