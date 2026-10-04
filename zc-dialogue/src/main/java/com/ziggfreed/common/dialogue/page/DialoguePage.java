@@ -101,6 +101,12 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
     @Nullable private String pendingEntryOnceKey;
 
     /**
+     * The earlier windows of {@link #pendingEntryOnceKey} when its beat turns over daily or weekly,
+     * cleared as the key is spent so a player keeps one key per beat. Null for a beat spent for good.
+     */
+    @Nullable private String pendingEntryOnceFamily;
+
+    /**
      * The beat {@link DialogueOpener} already worked out, used for the FIRST render and dropped after
      * it. It is carried rather than re-derived so the ladder is walked once per open, which is what
      * keeps a {@code Pick} beat from drawing a different variant than the one the open decided on.
@@ -225,6 +231,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             }
             currentNodeId = entry.nodeId();
             pendingEntryOnceKey = entry.onceKey();
+            pendingEntryOnceFamily = entry.onceFamily();
         }
         String nodeId = currentNodeId;
         DialogueNode node = dialogue.getNode(nodeId);
@@ -479,8 +486,10 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
         DialogueActionExecutor.Outcome outcome =
                 DialogueEngine.shared().executor().execute(option.getActions(), ctx);
         // The beat is done: spend the entry's first-visit Once and the option's own.
-        DialogueEngine.shared().consumeOnce(pendingEntryOnceKey, dialogue, data.node, option, ctx);
+        DialogueEngine.shared().consumeOnce(pendingEntryOnceKey, pendingEntryOnceFamily, dialogue,
+                data.node, option, ctx);
         pendingEntryOnceKey = null;
+        pendingEntryOnceFamily = null;
 
         // A quest the actions just parked for collection is the bigger moment, and it takes the
         // screen over whatever the option itself opened, jumped to or closed: the player lands on
@@ -542,14 +551,17 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
                                  @Nonnull Player player, @Nullable String nodeId) {
         if (pendingEntryOnceKey == null || nodeId == null) {
             pendingEntryOnceKey = null;
+            pendingEntryOnceFamily = null;
             return;
         }
         NpcDialogue dialogue = DialogueAssetStore.getInstance().dialogue(dialogueId);
         if (dialogue != null) {
             DialogueExecContext ctx = context(dialogue, nodeId, -1, ref, store, player);
-            DialogueEngine.shared().consumeOnce(pendingEntryOnceKey, dialogue, nodeId, null, ctx);
+            DialogueEngine.shared().consumeOnce(pendingEntryOnceKey, pendingEntryOnceFamily, dialogue,
+                    nodeId, null, ctx);
         }
         pendingEntryOnceKey = null;
+        pendingEntryOnceFamily = null;
     }
 
     private static int parseIndex(@Nullable String raw) {
