@@ -1,6 +1,7 @@
 package com.ziggfreed.common.loot;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -10,10 +11,17 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.loot.reward.LootRewardKinds;
 import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.reward.RewardKindConfig;
 import com.ziggfreed.common.loot.reward.RewardKindValidator;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.loot.trigger.BonusMoment;
+import com.ziggfreed.common.loot.trigger.BonusRowAsset;
+import com.ziggfreed.common.loot.trigger.BonusRowAudit;
+import com.ziggfreed.common.loot.trigger.BonusRowConfig;
 import com.ziggfreed.common.validation.Finding;
 
 /**
@@ -26,9 +34,12 @@ class LootAuditTest {
     private static final String KNOWN = "Loot_Audit_Known_Kind";
     private static final String UNKNOWN = "Loot_Audit_Unknown_Kind";
 
+    private FactorRegistry installedBefore;
+
     @BeforeEach
     void registerOneKind() {
         RewardKinds.shared().register(KNOWN, (spec, subject) -> { });
+        installedBefore = LootRewardKinds.installedFactors();
     }
 
     @AfterEach
@@ -36,6 +47,8 @@ class LootAuditTest {
         RewardKinds.clear();
         LootableConfig.getInstance().mergePackLayer(Map.of());
         RewardKindConfig.getInstance().mergePackLayer(Map.of());
+        BonusRowConfig.getInstance().mergePackLayer(Map.of());
+        LootRewardKinds.factors(installedBefore);
     }
 
     private static Roll paying(String kind) {
@@ -94,5 +107,42 @@ class LootAuditTest {
                 .filter(f -> RewardKindValidator.DOMAIN.equals(f.domain())).toList();
 
         assertEquals(List.of(), kindFindings, "a decoration is not a finding");
+    }
+
+    private static LootRef saying() {
+        return LootRef.of(null, new Roll[] {Roll.of(null, null, null, null,
+                LootGrants.of(null, null, new String[] {"say found"}, null), null)});
+    }
+
+    private static FactorFormula reading(String factorId) {
+        return FactorFormula.of(1.0, new FactorFormula.Term[] {FactorFormula.Term.of(factorId, null, 1.0)}, null);
+    }
+
+    @Test
+    void aBonusRowFindingJoinsTheSameAudit() {
+        BonusRowConfig.getInstance().mergePackLayer(Map.of(
+                "fixture_nomoment", BonusRowAsset.of(null, "*", null, saying(), null)));
+
+        List<Finding> findings = LootAudit.auditAll();
+
+        assertTrue(findings.stream().anyMatch(f -> BonusRowAudit.NO_MOMENT.equals(f.code())
+                && "fixture_nomoment".equals(f.sourceId())), findings::toString);
+    }
+
+    @Test
+    void aBonusRowIsAuditedAgainstTheVocabularyTheRollingKindsRead() {
+        FactorRegistry loot = new FactorRegistry("loot-audit-test");
+        loot.register("fixture:known", "fixture", ctx -> 1.0);
+        LootRewardKinds.factors(loot);
+        BonusRowConfig.getInstance().mergePackLayer(Map.of(
+                "fixture_known", BonusRowAsset.of(BonusMoment.BREAK_BLOCK, "Rock_*", reading("fixture:known"), saying(), null),
+                "fixture_unknown", BonusRowAsset.of(BonusMoment.KILL_MOB, "*", reading("fixture:unknown"), saying(), null)));
+
+        List<Finding> findings = LootAudit.auditAll();
+
+        assertFalse(findings.stream().anyMatch(f -> BonusRowAudit.UNKNOWN_FACTOR.equals(f.code())
+                && "fixture_known".equals(f.sourceId())), findings::toString);
+        assertTrue(findings.stream().anyMatch(f -> BonusRowAudit.UNKNOWN_FACTOR.equals(f.code())
+                && "fixture_unknown".equals(f.sourceId())), findings::toString);
     }
 }
