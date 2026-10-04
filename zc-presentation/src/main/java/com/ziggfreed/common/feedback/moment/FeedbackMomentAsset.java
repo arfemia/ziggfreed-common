@@ -13,6 +13,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.protocol.packets.interface_.EventTitleStyle;
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
@@ -481,12 +482,18 @@ public final class FeedbackMomentAsset
      * WHO with {@code SameWorldOnly} and {@code RadiusBlocks}, keeps its own participants in with
      * {@code ToParticipants}, and stops repeating itself with {@code MinSecondsBetween}. The four
      * are independent and compose; none of them is a mode.
+     *
+     * <p>{@code Major} picks the larger of the two ordinary sizes; {@code Style} names any of the game's
+     * banner looks ({@code Default}, {@code Major}, {@code GoblinBreach}, {@code VoidEviction}) and wins
+     * when authored; {@code SoundEventId} plays a sound to each player shown the banner as it appears.
      */
     public static final class Broadcast {
 
         @Nullable protected Line title;
         @Nullable protected Line secondary;
         @Nullable protected Boolean major;
+        @Nullable protected String style;
+        @Nullable protected String soundEventId;
         @Nullable protected Boolean toParticipants;
         @Nullable protected Boolean sameWorldOnly;
         @Nullable protected Double radiusBlocks;
@@ -507,7 +514,25 @@ public final class FeedbackMomentAsset
                                 (o, v) -> o.major = v, o -> o.major, (o, p) -> o.major = p.major)
                         .metadata(EditorSchema.defaultValue(false))
                         .documentation("Render it in the larger style reserved for the big moments. "
-                                + "Unauthored means the ordinary size.")
+                                + "Unauthored means the ordinary size. A Style, when authored, decides instead.")
+                        .add()
+                        .appendInherited(new KeyedCodec<>("Style", Codec.STRING, false),
+                                (o, v) -> o.style = v, o -> o.style, (o, p) -> o.style = p.style)
+                        .metadata(EditorSchema.oneOfDocumented(
+                                "Default", "The ordinary banner",
+                                "Major", "The larger banner kept for the big moments",
+                                "GoblinBreach", "The game's goblin breach banner",
+                                "VoidEviction", "The game's void eviction banner"))
+                        .documentation("Which of the game's banner looks to draw it in. Wins over Major when "
+                                + "authored; unauthored (or a name the game does not have) follows Major. A "
+                                + "name is read whatever its case.")
+                        .add()
+                        .appendInherited(new KeyedCodec<>("SoundEventId", Codec.STRING, false),
+                                (o, v) -> o.soundEventId = v, o -> o.soundEventId,
+                                (o, p) -> o.soundEventId = p.soundEventId)
+                        .documentation("A SoundEvent asset id each player shown the banner hears as it "
+                                + "appears, a flat sound rather than one from a place. An id no pack ships "
+                                + "plays nothing. Unauthored plays no sound with the banner.")
                         .add()
                         .appendInherited(new KeyedCodec<>("ToParticipants", Codec.BOOLEAN, false),
                                 (o, v) -> o.toParticipants = v, o -> o.toParticipants,
@@ -560,6 +585,30 @@ public final class FeedbackMomentAsset
 
         public boolean isMajor() {
             return major != null && major;
+        }
+
+        /**
+         * The engine style the banner is drawn in: the authored {@code Style} when it names one of the
+         * game's styles (whatever its case), otherwise {@code Major} or {@code Default} as {@link #isMajor()}
+         * says.
+         */
+        @Nonnull
+        public EventTitleStyle style() {
+            if (style != null && !style.isBlank()) {
+                String wanted = style.trim();
+                for (EventTitleStyle candidate : EventTitleStyle.values()) {
+                    if (candidate.name().equalsIgnoreCase(wanted)) {
+                        return candidate;
+                    }
+                }
+            }
+            return isMajor() ? EventTitleStyle.Major : EventTitleStyle.Default;
+        }
+
+        /** The sound event each viewer hears as the banner appears, or null for none. */
+        @Nullable
+        public String soundEventId() {
+            return soundEventId == null || soundEventId.isBlank() ? null : soundEventId.trim();
         }
 
         /** Whether the moment's own participants are always shown the banner; unauthored means no. */

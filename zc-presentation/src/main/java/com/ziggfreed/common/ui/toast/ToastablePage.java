@@ -140,12 +140,27 @@ public abstract class ToastablePage<T> extends InteractiveCustomUIPage<T> {
                 if (p == null) {
                     return;
                 }
-                p.getPageManager().updateCustomPage(new CustomPage(
-                        getClass().getName(), false, false, lifetime,
-                        cmd.getCommands(), UIEventBuilder.EMPTY_EVENT_BINDING_ARRAY));
+                writeInPlace(p, lifetime, cmd);
             } catch (Throwable ignored) {
             }
         });
+    }
+
+    /**
+     * Write {@code cmd} into the page {@code player} has open, in place: no rebuild, so the scroll
+     * position and every element the commands do not touch stay as they are. The library's one caller of
+     * the engine's in-place page update ({@code PageManager.updateLegacyCustomPage}), which also counts
+     * the client acknowledgement the next page event waits for. World thread only, and only after the
+     * caller has rechecked that this page is still the one open: the engine does not, and an update
+     * landing on whatever page replaced this one crashes the client.
+     *
+     * @param pageLifetime the lifetime the page was opened with
+     */
+    protected final void writeInPlace(@Nonnull Player player, @Nonnull CustomPageLifetime pageLifetime,
+                                      @Nonnull UICommandBuilder cmd) {
+        player.getPageManager().updateLegacyCustomPage(new CustomPage(
+                getClass().getName(), false, false, pageLifetime,
+                cmd.getCommands(), UIEventBuilder.EMPTY_EVENT_BINDING_ARRAY));
     }
 
     protected ToastablePage(@Nonnull PlayerRef playerRef, @Nonnull CustomPageLifetime lifetime,

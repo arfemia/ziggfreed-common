@@ -9,7 +9,7 @@
     }
   ],
   "Website": "https://mmo-skill-tree-docs.ziggfreed.com",
-  "ServerVersion": ">=0.6.0-pre.13 <0.7.0",
+  "ServerVersion": ">=0.7.0-pre.0 <0.8.0",
   "DisabledByDefault": false,
   "Main": "com.ziggfreed.common.ZiggfreedCommonPlugin",
   "Dependencies": {
