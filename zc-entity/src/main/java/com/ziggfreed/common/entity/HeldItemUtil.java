@@ -281,7 +281,8 @@ public final class HeldItemUtil {
      * An item's RARITY as the native {@code ItemQuality.QualityValue} its quality asset authors,
      * floored at 0. Null when {@code item} is null. The same reading as {@link ItemReadings#quality(Item)},
      * the one item reader: the item's CURRENT quality. {@link ItemReadings#quality(ItemStack)} is
-     * the other reading, the quality index a stack carries (copied from its item when made).
+     * the other reading: a quality stamped on the stack ({@code withQuality}), else its item's
+     * current one.
      */
     @Nullable
     public static Double qualityValueOf(@Nullable Item item) {

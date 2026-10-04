@@ -99,7 +99,7 @@ public final class InventorySnapshotStore {
         if (snap == null) {
             return false;
         }
-        snap.apply(store, ref); // idempotent (clear-all then reapply)
+        snap.apply(store, ref); // idempotent (clear what it captured, then reapply)
         snapshots.remove(uuid);
         flush();
         return true;
