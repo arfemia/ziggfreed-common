@@ -1,0 +1,13 @@
+{
+  "$Comment": "Receiving an item from a reward payout: a quest, an achievement, a milestone, a shop, a boss payout, or a loot table's own Rewards. Target is the item id; Qualifier is the payout's source, written '<what paid>:<its id>' such as 'quest:Some_Quest' (with QualifierMatchMode PREFIX, 'quest:' accepts any quest); Amount is how many were handed over. A step reads {\"Kind\": \"LOOT_RECEIVED\", \"Target\": \"Some_Item\", \"Amount\": 1}; leave Target empty to count any item. A paid stack the player's bag could not hold, dropped at their feet, still counts here when it is paid. An item a loot pass drops on the ground itself (a Droplist spill) counts under PICKUP_ITEM once picked up, not here, and a reward held for the player's next visit counts nothing when it is handed over later.",
+  "ValueBased": false,
+  "Producible": true,
+  "TargetNames": {
+    "Item": true
+  },
+  "Presentation": {
+    "Icon": {
+      "ItemId": "Furniture_Dungeon_Chest_Epic"
+    }
+  }
+}

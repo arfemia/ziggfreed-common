@@ -12,10 +12,12 @@ import com.ziggfreed.common.event.NativeEventSeam;
 import com.ziggfreed.common.subject.Subject;
 
 /**
- * What a reward payout handed over, announced once. {@link RewardGrants#grantAll} is the library's
- * one issuance path (a quest, an achievement, a milestone, a shop, an encounter and a loot table's
- * own {@code Rewards} all pay through it), and its receipt is what actually reached the player, so
- * this is where "a player received an item" is decided for every payout at once.
+ * What a reward payout handed over, announced once. {@link RewardGrants#grantAll} is the path quest,
+ * achievement, milestone, shop, encounter and loot-table {@code Rewards} payouts take, and its receipt
+ * is what actually reached the player, so this is where "a player received an item" is decided for
+ * all of them at once. Two payouts never announce: instance spoils, which pay through
+ * {@code InstanceRewardGranter} instead, and a replay from the retry queue of a reward that could not
+ * be handed over at the time.
  *
  * <p>Payouts nest: a reward that rolls a table pays the table's own {@code Rewards} through a payout
  * of its own, and reports what that payout handed over on its receipt. So only the OUTERMOST payout
@@ -40,8 +42,9 @@ public final class RewardDeliveries {
     }
 
     /**
-     * The items a receipt says were handed over: every row naming an {@code Item} with a positive
-     * count ({@code Count}, else {@code Quantity}, else one), merged per item in first-landed order.
+     * The items a receipt says were handed over: every row naming an item with a positive count,
+     * read the way the item kinds pay them ({@code LootRewardKinds.itemIdOf} and {@code countOf}),
+     * merged per item in first-landed order.
      */
     @Nonnull
     public static List<LootReceivedEvent.Received> receivedItems(@Nonnull List<RewardSpec> receipt) {
@@ -50,12 +53,12 @@ public final class RewardDeliveries {
             if (spec == null) {
                 continue;
             }
-            String itemId = spec.param("item");
-            long count = spec.longParam("count", spec.longParam("quantity", 1L));
-            if (itemId == null || itemId.isBlank() || count <= 0) {
+            String itemId = LootRewardKinds.itemIdOf(spec);
+            int count = LootRewardKinds.countOf(spec);
+            if (itemId == null || count <= 0) {
                 continue;
             }
-            counts.merge(itemId.trim(), count, Long::sum);
+            counts.merge(itemId, (long) count, Long::sum);
         }
         List<LootReceivedEvent.Received> out = new ArrayList<>(counts.size());
         counts.forEach((itemId, count) -> out.add(new LootReceivedEvent.Received(itemId, count)));

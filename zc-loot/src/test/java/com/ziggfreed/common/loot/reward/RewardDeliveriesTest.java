@@ -124,6 +124,34 @@ class RewardDeliveriesTest {
                 "an unstated count is one; a blank item or a count of none is nothing received");
     }
 
+    /**
+     * The item kinds pay a reward authored with {@code Id} exactly as one authored with {@code Item},
+     * and report the spec itself on the receipt, so the announcement must read that row the way the
+     * handler paid it. The two kinds are stood in by handlers that pay nothing, since what is under
+     * test is how the receipt row is read, and the real kinds need a player.
+     */
+    @Test
+    void anItemRewardAuthoredWithIdIsAnnouncedAsTheItemItPaid() {
+        kinds.register(LootRewardKinds.KIND_ITEM, (spec, subject) -> { });
+        kinds.register(LootRewardKinds.KIND_STAMPED_ITEM, (spec, subject) -> { });
+
+        grant(List.of(
+                RewardSpec.of(LootRewardKinds.KIND_ITEM, Map.of("Id", "Fixture_Lantern", "Count", "2")),
+                RewardSpec.of(LootRewardKinds.KIND_STAMPED_ITEM, Map.of("Id", "Fixture_Gem", "Quantity", "3"))));
+
+        assertEquals(1, announced.size(), "both rewards were paid, so the payout announces them");
+        assertEquals(List.of(new LootReceivedEvent.Received("Fixture_Lantern", 2),
+                new LootReceivedEvent.Received("Fixture_Gem", 3)), announced.get(0).items(),
+                "Id names the item, and Quantity the count, as each handler reads them");
+    }
+
+    @Test
+    void anIdOnAnyOtherKindNamesNoItem() {
+        assertEquals(List.of(), RewardDeliveries.receivedItems(List.of(
+                        RewardSpec.of("FIXTURE_EFFECT", Map.of("Id", "Fixture_Haste")))),
+                "only the item kinds read Id as an item; another kind names its own thing by it");
+    }
+
     @Test
     void eachPayoutAfterAnotherIsAnnouncedOnItsOwn() {
         grant(List.of(item("Fixture_Lantern", 1)));

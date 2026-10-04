@@ -287,8 +287,7 @@ public final class LootRewardKinds {
     /** What an item-shaped reward would hand over, or null when it needs no inventory room. */
     @Nullable
     private static Handover roomFor(@Nonnull RewardSpec spec) {
-        String kind = spec.kind();
-        if (!KIND_ITEM.equalsIgnoreCase(kind) && !KIND_STAMPED_ITEM.equalsIgnoreCase(kind)) {
+        if (!isItemKind(spec.kind())) {
             return null;
         }
         String itemId = itemIdOf(spec);
@@ -814,15 +813,33 @@ public final class LootRewardKinds {
         return itemId;
     }
 
+    /**
+     * The item a reward row names: its {@code Item}, or for the two item kinds ({@code Item},
+     * {@code Stamped_Item}) its {@code Id} too; null when it names none. The one reading the item
+     * kinds pay by and {@link RewardDeliveries} announces by, so an item is announced exactly as it
+     * was paid. Only the item kinds read {@code Id} as an item: another kind names its own thing by
+     * it (an effect, a drop list, a table).
+     */
     @Nullable
-    private static String itemIdOf(@Nonnull RewardSpec spec) {
-        String itemId = spec.paramOr("item", spec.paramOr("id", "")).trim();
+    static String itemIdOf(@Nonnull RewardSpec spec) {
+        String id = isItemKind(spec.kind()) ? spec.paramOr("id", "") : "";
+        String itemId = spec.paramOr("item", id).trim();
         return itemId.isEmpty() ? null : itemId;
     }
 
-    private static int countOf(@Nonnull RewardSpec spec) {
+    /**
+     * How many of its item a reward row hands over: {@code Count}, else {@code Quantity}, else one;
+     * 0 for none. Read by the item kinds and by {@link RewardDeliveries} alike, beside
+     * {@link #itemIdOf}.
+     */
+    static int countOf(@Nonnull RewardSpec spec) {
         long count = spec.longParam("count", spec.longParam("quantity", 1L));
         return count <= 0 ? 0 : (int) Math.min(count, Integer.MAX_VALUE);
+    }
+
+    /** Is {@code kind} one of the two kinds that hand over the item they name? */
+    private static boolean isItemKind(@Nonnull String kind) {
+        return KIND_ITEM.equalsIgnoreCase(kind) || KIND_STAMPED_ITEM.equalsIgnoreCase(kind);
     }
 
     @Nullable

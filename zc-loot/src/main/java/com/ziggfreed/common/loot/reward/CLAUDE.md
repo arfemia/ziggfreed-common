@@ -17,4 +17,4 @@
 - `RewardChip` is the one chip record: a surface whose payout is not a `RewardSpec` still hands back a `RewardChip`.
 - A kind's owner names Java-kind rewards through `RewardChips.contribute`; an authored `NameKey`, a shipped kind-file `Presentation` or an item form still wins.
 - `RewardJson` refuses an under-specified reward at load, naming the file, never at payout.
-- `RewardGrants.grantAll` announces `LootReceivedEvent` once per OUTERMOST payout with every item its receipt handed over (`RewardDeliveries`, merged per item); a nested payout (a table's own `Rewards`) announces nothing of its own, and a queued or lost reward is not received.
+- `RewardGrants.grantAll` announces `LootReceivedEvent` once per OUTERMOST payout with every item its receipt handed over (`RewardDeliveries`, merged per item); a nested payout (a table's own `Rewards`) announces nothing of its own, and a queued or lost reward is not received. It reads a row's item and count only through `LootRewardKinds.itemIdOf` / `countOf`, the reader the item kinds pay by (only `Item` and `Stamped_Item` read `Id` as an item), never a copy of either rule.
