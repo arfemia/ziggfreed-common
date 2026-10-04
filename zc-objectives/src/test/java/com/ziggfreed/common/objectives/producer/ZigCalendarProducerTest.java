@@ -25,8 +25,11 @@ class ZigCalendarProducerTest {
         UUID player = UUID.randomUUID();
         List<String> seen = new ArrayList<>();
         ZigCalendarProducer.fanOut(new CalendarAttendedEvent(player, "hallows_eve", 2026, 123L),
-                (playerId, kind, target, qualifier) -> seen.add(playerId + "|" + kind + "|" + target + "|" + qualifier));
-        assertEquals(List.of(player + "|CALENDAR_ATTENDED|hallows_eve|2026"), seen);
+                (playerId, kind, target, qualifier, amount) ->
+                        seen.add(playerId + "|" + kind + "|" + target + "|" + qualifier + "|" + amount));
+        assertEquals(List.of(player + "|CALENDAR_ATTENDED|hallows_eve|2026|1"), seen,
+                "one moment of amount 1 per attendance, which is once per player per run: what a count of runs"
+                        + " attended adds up");
     }
 
     @Test

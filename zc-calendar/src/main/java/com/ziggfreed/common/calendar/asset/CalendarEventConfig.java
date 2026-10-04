@@ -49,6 +49,9 @@ public final class CalendarEventConfig extends AbstractKeyedAssetConfig<Calendar
             case CalendarEventAsset.PROBLEM_ID_RESERVED ->
                     "has an id a calendar switch already uses (Calendar, Almanac, or one ending in _Live), so it"
                             + " never runs; rename its file";
+            case CalendarEventAsset.PROBLEM_ID_UNSAVABLE ->
+                    "has an id carrying '|' or '@', which a player's attendance record cannot save, so it never"
+                            + " runs; rename its file";
             case CalendarEventAsset.PROBLEM_WINDOW_MISSING -> "has no Window, so it never runs";
             case CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE ->
                     "has a Window whose Start or End is not an MM-DD day, so it never runs";

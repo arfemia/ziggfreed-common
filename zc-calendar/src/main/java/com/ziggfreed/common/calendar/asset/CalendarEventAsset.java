@@ -47,7 +47,8 @@ import com.ziggfreed.common.calendar.AnnualWindow;
  * <p><b>Three ids are not an event's to take</b>, because an event's switches are features in the same
  * namespace as two others: {@code Calendar} (the owner's switch over every event), {@code Almanac} (the
  * Almanac's switch) and any id ending in {@code _Live} (an event's running switch is its id plus
- * {@code _Live}). A file under one of them never runs, and the server log says why.
+ * {@code _Live}). A file under one of them never runs, and the server log says why. Nor does a file whose
+ * name carries {@code |} or {@code @}, which a player's attendance record cannot save.
  */
 public final class CalendarEventAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, CalendarEventAsset>> {
 
@@ -56,6 +57,8 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
 
     /** The id is one a feature switch in the calendar's namespace already uses; the event never runs. */
     public static final String PROBLEM_ID_RESERVED = "ID_RESERVED";
+    /** The id carries {@code |} or {@code @}, which a player's attendance record cannot save; the event never runs. */
+    public static final String PROBLEM_ID_UNSAVABLE = "ID_UNSAVABLE";
     /** The file states no Window at all. */
     public static final String PROBLEM_WINDOW_MISSING = "WINDOW_MISSING";
     /** A Start or End that is not a real MM-DD day. */
@@ -216,10 +219,25 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
 
     /**
      * Is {@code id} one no event may take? {@code Calendar} and {@code Almanac} name other switches in the
-     * feature namespace an event's switches share, and an id ending in {@code _Live} would collide with
-     * another event's running switch. Matched without regard to case.
+     * feature namespace an event's switches share, an id ending in {@code _Live} would collide with
+     * another event's running switch, and an id carrying {@code |} or {@code @} could never be saved in a
+     * player's attendance record ({@link #carriesAttendanceSeparator}). Matched without regard to case.
      */
     public static boolean isReservedId(@Nullable String id) {
+        return namesAnotherSwitch(id) || carriesAttendanceSeparator(id);
+    }
+
+    /**
+     * Does {@code id} carry {@code |} or {@code @}? A player's attendance record saves one
+     * {@code <eventid>@<year>} entry per run, joined with {@code |}, so it reserves both: such an event could
+     * never be credited, fire its attendance or show its start banner.
+     */
+    public static boolean carriesAttendanceSeparator(@Nullable String id) {
+        return id != null && (id.indexOf('|') >= 0 || id.indexOf('@') >= 0);
+    }
+
+    /** Is {@code id} {@code Calendar}, {@code Almanac} or one ending in {@code _Live}, without regard to case? */
+    private static boolean namesAnotherSwitch(@Nullable String id) {
         if (id == null) {
             return false;
         }
@@ -231,8 +249,11 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     @Nonnull
     public List<String> problems() {
         List<String> out = new ArrayList<>();
-        if (isReservedId(id)) {
+        if (namesAnotherSwitch(id)) {
             out.add(PROBLEM_ID_RESERVED);
+        }
+        if (carriesAttendanceSeparator(id)) {
+            out.add(PROBLEM_ID_UNSAVABLE);
         }
         if (window == null || (window.start == null && window.end == null)) {
             out.add(PROBLEM_WINDOW_MISSING);

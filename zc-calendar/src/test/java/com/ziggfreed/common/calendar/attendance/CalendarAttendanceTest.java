@@ -1,19 +1,14 @@
 package com.ziggfreed.common.calendar.attendance;
 
+import static com.ziggfreed.common.calendar.CalendarFixtures.waitsFor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadInfo;
-import java.lang.management.ThreadMXBean;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -101,24 +96,5 @@ class CalendarAttendanceTest {
         assertEquals(List.of(List.of()), read,
                 "nothing runs: the owner switched Hallows_Eve off, and Harvest_Moon is between its dates");
         assertTrue(waited, "the read waited for the lock the reload folds under");
-    }
-
-    /**
-     * Does {@code thread} come to wait for {@code lock}, which this thread holds? True once it is blocked
-     * on that very monitor; false when it ends without ever needing it, or after five seconds. The same
-     * probe {@code CalendarTickerTest} pins the tick's and the spawn rules' lock with.
-     */
-    private static boolean waitsFor(@Nonnull Thread thread, @Nonnull Object lock) throws InterruptedException {
-        ThreadMXBean threads = ManagementFactory.getThreadMXBean();
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (thread.isAlive() && System.nanoTime() - deadline < 0) {
-            ThreadInfo info = threads.getThreadInfo(thread.threadId());
-            if (info != null && info.getThreadState() == Thread.State.BLOCKED && info.getLockInfo() != null
-                    && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(lock)) {
-                return true;
-            }
-            Thread.sleep(1);
-        }
-        return false;
     }
 }

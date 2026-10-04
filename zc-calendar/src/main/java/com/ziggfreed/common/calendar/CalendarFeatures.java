@@ -20,7 +20,8 @@ import com.ziggfreed.common.factor.FeatureFlags;
  * namespace is declared at library setup ({@link #declare}), before anything folds content; each event's
  * features are declared as its file arrives ({@link #declareEvents}), and until then they read 0. The
  * namespace is shared ({@code Almanac} is the Almanac's own switch), so an event under a reserved id
- * ({@link CalendarEventAsset#isReservedId}) declares nothing: it would replace another switch.
+ * ({@link CalendarEventAsset#isReservedId}) declares nothing: it would replace another switch, or (an id
+ * carrying {@code |} or {@code @}) it never runs because no player's attendance record could hold it.
  */
 public final class CalendarFeatures {
 

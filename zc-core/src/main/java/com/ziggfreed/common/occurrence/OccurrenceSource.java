@@ -57,7 +57,8 @@ public interface OccurrenceSource {
     /**
      * The first year {@code eventId} runs (its file's {@code FirstYear}), for any event LOADED on this
      * server whatever its switches say. Null when no event of that id is loaded, or its file states no
-     * first year. The default answers null, as a source that knows no years does.
+     * first year or one outside 1970 to 9999 (such an event never runs, so there is no year to count
+     * from). The default answers null, as a source that knows no years does.
      */
     @Nullable
     default Integer firstYear(@Nonnull String eventId) {

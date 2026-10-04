@@ -98,6 +98,18 @@ class CalendarEventAssetTest {
     }
 
     @Test
+    void anIdThePlayersAttendanceRecordCannotHoldNeverRuns() {
+        for (String id : List.of("Fair|Night", "Fair@Home")) {
+            CalendarEventAsset event = CalendarFixtures.event(id, CalendarFixtures.HARVEST_MOON);
+            assertEquals(List.of(CalendarEventAsset.PROBLEM_ID_UNSAVABLE), event.problems(), id);
+            assertFalse(event.canRun(), id + " could never be credited, so it never runs");
+            assertTrue(CalendarEventAsset.isReservedId(id), id + " declares no feature either");
+        }
+        assertFalse(CalendarEventConfig.sentence(CalendarEventAsset.PROBLEM_ID_UNSAVABLE).startsWith("has a problem"),
+                "the log says why in a sentence of its own");
+    }
+
+    @Test
     void aFirstYearBefore1970OrAfter9999NeverRuns() {
         for (int year : List.of(1969, 10000)) {
             CalendarEventAsset event = firstRunIn(year);

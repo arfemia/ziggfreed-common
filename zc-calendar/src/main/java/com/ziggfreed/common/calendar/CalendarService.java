@@ -21,10 +21,10 @@ import com.ziggfreed.common.occurrence.OccurrenceSource;
  *
  * <p><b>Absent beats everything.</b> An event switched off (by the owner's global switch or its own
  * {@code Enabled}) or unable to run ({@linkplain CalendarEventAsset#isReservedId an id another switch
- * uses}, no readable Window, or no FirstYear from 1970 to 9999) is not enabled, never live and has no
- * history, whatever a force says. A force then beats the dates: forced off is never live; forced on
- * runs the run of the current year (never before FirstYear) even outside its dates, so what a forced run
- * earns is filed under that year.
+ * uses or an attendance record cannot save}, no readable Window, or no FirstYear from 1970 to 9999) is
+ * not enabled, never live and has no history, whatever a force says. A force then beats the dates:
+ * forced off is never live; forced on runs the run of the current year (never before FirstYear) even
+ * outside its dates, so what a forced run earns is filed under that year.
  *
  * <p><b>The years outlive the switches.</b> {@link #firstYear} and {@link #currentYear} answer for any
  * loaded event, switched on or not, so what a player earned in a past run keeps its years after the

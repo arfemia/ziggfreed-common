@@ -2,6 +2,9 @@ package com.ziggfreed.common.calendar;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,6 +12,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -113,5 +117,24 @@ public final class CalendarFixtures {
             throw new UncheckedIOException(e);
         }
         return keys;
+    }
+
+    /**
+     * Does {@code thread} come to wait for {@code lock}, which the calling thread holds? True once it is
+     * blocked on that very monitor; false when it ends without ever needing it, or after five seconds. The
+     * probe the calendar's lock tests pin a reader to the lock a reload folds under with.
+     */
+    public static boolean waitsFor(@Nonnull Thread thread, @Nonnull Object lock) throws InterruptedException {
+        ThreadMXBean threads = ManagementFactory.getThreadMXBean();
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (thread.isAlive() && System.nanoTime() - deadline < 0) {
+            ThreadInfo info = threads.getThreadInfo(thread.threadId());
+            if (info != null && info.getThreadState() == Thread.State.BLOCKED && info.getLockInfo() != null
+                    && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(lock)) {
+                return true;
+            }
+            Thread.sleep(1);
+        }
+        return false;
     }
 }

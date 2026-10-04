@@ -39,7 +39,8 @@ public final class ZigCalendarProducer {
     @FunctionalInterface
     interface AttendanceSink {
 
-        void accept(@Nonnull UUID playerId, @Nonnull String kindId, @Nonnull String target, @Nullable String qualifier);
+        void accept(@Nonnull UUID playerId, @Nonnull String kindId, @Nonnull String target, @Nullable String qualifier,
+                long amount);
     }
 
     static void onAttended(@Nonnull CalendarAttendedEvent event) {
@@ -51,11 +52,11 @@ public final class ZigCalendarProducer {
     }
 
     static void fanOut(@Nonnull CalendarAttendedEvent event, @Nonnull AttendanceSink sink) {
-        sink.accept(event.playerId(), KIND, event.eventId(), Integer.toString(event.year()));
+        sink.accept(event.playerId(), KIND, event.eventId(), Integer.toString(event.year()), AMOUNT);
     }
 
     private static void dispatch(@Nonnull UUID playerId, @Nonnull String kindId, @Nonnull String target,
-            @Nullable String qualifier) {
-        PlayerMomentDispatch.fire(LABEL, playerId, kindId, target, qualifier, AMOUNT, null);
+            @Nullable String qualifier, long amount) {
+        PlayerMomentDispatch.fire(LABEL, playerId, kindId, target, qualifier, amount, null);
     }
 }

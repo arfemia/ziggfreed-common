@@ -19,6 +19,7 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -55,9 +56,13 @@ public class CalendarAttendanceComponent implements Component<EntityStore> {
     public CalendarAttendanceComponent() {
     }
 
-    /** True when {@code eventId} cannot be saved: blank, or carrying {@code |} or {@code @}. */
+    /**
+     * True when {@code eventId} cannot be saved: blank, or carrying {@code |} or {@code @}. The event asset
+     * refuses the second kind at load ({@link CalendarEventAsset#carriesAttendanceSeparator}), so no such
+     * event runs.
+     */
     public static boolean usesReservedCharacter(@Nullable String eventId) {
-        return eventId == null || eventId.isBlank() || eventId.indexOf('|') >= 0 || eventId.indexOf('@') >= 0;
+        return eventId == null || eventId.isBlank() || CalendarEventAsset.carriesAttendanceSeparator(eventId);
     }
 
     public boolean hasAttended(@Nullable String eventId, int year) {

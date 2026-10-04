@@ -1,14 +1,12 @@
 package com.ziggfreed.common.calendar.tick;
 
 import static com.ziggfreed.common.calendar.CalendarFixtures.at;
+import static com.ziggfreed.common.calendar.CalendarFixtures.waitsFor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadInfo;
-import java.lang.management.ThreadMXBean;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -356,23 +354,5 @@ class CalendarTickerTest {
         heard.clear();
         scheduler.drain();
         assertEquals(1, heard.size(), "and the look it asked for came");
-    }
-
-    /**
-     * Does {@code thread} come to wait for {@code lock}, which this thread holds? True once it is blocked
-     * on that very monitor; false when it ends without ever needing it, or after five seconds.
-     */
-    private static boolean waitsFor(@Nonnull Thread thread, @Nonnull Object lock) throws InterruptedException {
-        ThreadMXBean threads = ManagementFactory.getThreadMXBean();
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (thread.isAlive() && System.nanoTime() - deadline < 0) {
-            ThreadInfo info = threads.getThreadInfo(thread.threadId());
-            if (info != null && info.getThreadState() == Thread.State.BLOCKED && info.getLockInfo() != null
-                    && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(lock)) {
-                return true;
-            }
-            Thread.sleep(1);
-        }
-        return false;
     }
 }
