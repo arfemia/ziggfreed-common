@@ -20,14 +20,15 @@ import com.ziggfreed.common.occurrence.OccurrenceSource;
  * folded files, the owner's switches and an administrator's forces, with the clock reading passed in.
  *
  * <p><b>Absent beats everything.</b> An event switched off (by the owner's global switch or its own
- * {@code Enabled}) or unable to run (no readable Window, no FirstYear) is not enabled, never live and has
- * no history, whatever a force says. A force then beats the dates: forced off is never live; forced on
+ * {@code Enabled}) or unable to run ({@linkplain CalendarEventAsset#isReservedId an id another switch
+ * uses}, no readable Window, or no FirstYear from 1970 to 9999) is not enabled, never live and has no
+ * history, whatever a force says. A force then beats the dates: forced off is never live; forced on
  * runs the run of the current year (never before FirstYear) even outside its dates, so what a forced run
  * earns is filed under that year.
  *
  * <p><b>The years outlive the switches.</b> {@link #firstYear} and {@link #currentYear} answer for any
  * loaded event, switched on or not, so what a player earned in a past run keeps its years after the
- * owner switches the event off.
+ * owner switches the event off. A FirstYear outside 1970 to 9999 is no first year at all.
  */
 public final class CalendarService implements OccurrenceSource {
 
@@ -110,12 +111,17 @@ public final class CalendarService implements OccurrenceSource {
         return List.copyOf(out);
     }
 
-    /** The loaded file's FirstYear, whatever the switches say; null when none is loaded or it states none. */
+    /**
+     * The loaded file's FirstYear, whatever the switches say; null when none is loaded, it states none, or it
+     * states one outside 1970 to 9999 (its {@code FIRST_YEAR_OUT_OF_RANGE} problem): such an event never runs,
+     * so a reader keeping a copy per year has no year to count from.
+     */
     @Override
     @Nullable
     public Integer firstYear(@Nonnull String eventId) {
         CalendarEventAsset event = event(eventId);
-        return event == null ? null : event.firstYear();
+        return event == null || event.problems().contains(CalendarEventAsset.PROBLEM_FIRST_YEAR_OUT_OF_RANGE)
+                ? null : event.firstYear();
     }
 
     /**

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
 import com.ziggfreed.common.calendar.asset.CalendarEventConfig;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.occurrence.OccurrenceSource;
@@ -37,6 +38,12 @@ class CalendarServiceTest {
 
     private static List<Integer> years(List<Occurrence> runs) {
         return runs.stream().map(Occurrence::year).toList();
+    }
+
+    /** An October fair whose file names {@code firstYear}, switched on or off in itself. */
+    private static CalendarEventAsset fairFirstRunIn(String id, int firstYear, boolean enabled) {
+        return CalendarFixtures.event(id, "{ \"Enabled\": " + enabled
+                + ", \"Window\": { \"Start\": \"10-01\", \"End\": \"11-03\" }, \"FirstYear\": " + firstYear + " }");
     }
 
     @Test
@@ -207,5 +214,27 @@ class CalendarServiceTest {
                 "loaded, so it is in a year even though it never runs");
         assertNull(service.firstYear("no_such_event"));
         assertNull(service.currentYear("no_such_event", october));
+    }
+
+    @Test
+    void aFirstYearBefore1970OrAfter9999IsNoFirstYearSwitchedOnOrOff() {
+        for (boolean ownSwitch : List.of(true, false)) {
+            CalendarFixtures.loadEvents(Map.of(
+                    "too_early", fairFirstRunIn("Too_Early", 1969, ownSwitch),
+                    "earliest", fairFirstRunIn("Earliest", 1970, ownSwitch),
+                    "latest", fairFirstRunIn("Latest", 9999, ownSwitch),
+                    "too_late", fairFirstRunIn("Too_Late", 10000, ownSwitch)));
+            assertTrue(service.isLoaded("too_early") && service.isLoaded("too_late"),
+                    "both files are loaded; only their FirstYear is out of bounds");
+            for (boolean ownersSwitch : List.of(true, false)) {
+                CalendarEventConfig.getInstance().setGlobalEnabled(ownersSwitch);
+                String switches = " (its own switch " + ownSwitch + ", the owner's " + ownersSwitch + ")";
+                assertNull(service.firstYear("Too_Early"),
+                        "1969 is before the bound, so a copy per year from it has no year to start at" + switches);
+                assertNull(service.firstYear("too_late"), "10000 is after the bound" + switches);
+                assertEquals(Integer.valueOf(1970), service.firstYear("earliest"), "the bound's first year" + switches);
+                assertEquals(Integer.valueOf(9999), service.firstYear("latest"), "the bound's last year" + switches);
+            }
+        }
     }
 }
