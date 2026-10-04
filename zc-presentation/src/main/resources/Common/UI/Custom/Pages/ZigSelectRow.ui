@@ -16,6 +16,14 @@ $Z = "../Common/ZigButtons.ui";
 // that shows #SectionMeta must also GROW the row from Java - set the row root's Anchor to
 // (Height: 54, Bottom: 2) - or the meta line paints over the row below it.
 //
+// #RowIconSlot is a picture beside the row's title, in the two widgets ui/icon/IconRenderer drives
+// (#IcoItem for an item id, #IcoTex for a texture path). Like the heading parts it ships in the
+// template, since an update can never add an element, and it is hidden, so out of the layout,
+// unless a page paints a picture into it and shows it: a list that paints none reads exactly as it
+// did before the slot existed, and a section heading keeps it hidden. It sits beside #RowBtn rather
+// than inside it, as an achievement row's picture sits beside its name button. 24px is the icon
+// rung that sits centered in the 36px line (Top: 6) beside the 14px title.
+//
 // #RowBtn is a Button + inner Label #Label, never a TextButton: a row title is a parameterized
 // Message and only substitutes on .TextSpans. The selected-row accent is set from Java on the
 // button's per-state tints plus the inner label, never by replacing the background wholesale.
@@ -40,6 +48,26 @@ Group #ZigSelectRow {
     Group #StatusDot {
       Anchor: (Width: 6, Height: 6, Top: 15, Left: 4);
       Background: #96a9be;
+    }
+
+    Group #RowIconSlot {
+      Anchor: (Width: 24, Height: 24, Top: 6, Left: 4, Right: 4);
+      Visible: false;
+
+      ItemGrid #IcoItem {
+        Anchor: (Width: 24, Height: 24);
+        Visible: false;
+        SlotsPerRow: 1;
+        AreItemsDraggable: false;
+        DisplayItemQuantity: false;
+        Style: $Z.@ZigIconGrid24;
+      }
+
+      AssetImage #IcoTex {
+        Anchor: (Width: 24, Height: 24);
+        Visible: false;
+        FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+      }
     }
 
     Button #RowBtn {

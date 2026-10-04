@@ -47,11 +47,17 @@ import com.ziggfreed.common.util.SafeLog;
 public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData> {
 
     static final String PAGE_TEMPLATE = "Pages/ZigAlmanacPage.ui";
-    private static final String ROW_TEMPLATE = "Pages/ZigSelectRow.ui";
+    static final String ROW_TEMPLATE = "Pages/ZigSelectRow.ui";
     private static final String LINE_TEMPLATE = "Pages/ZigDetailLine.ui";
 
     /** The slot beside the season's name that holds its picture: the two widgets {@link IconRenderer} drives. */
     static final String SEASON_ICON = "#DetailIconSlot";
+
+    /**
+     * The same picture's slot in each season's list row: the shared row's own hidden slot, addressed
+     * under the row's indexed parent.
+     */
+    static final String ROW_ICON = "#RowIconSlot";
 
     private static final String LIVE_DOT = "#7ad17a";
     private static final String IDLE_DOT = "#96a9be";
@@ -114,6 +120,8 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
         cmd.append("#SeasonList", ROW_TEMPLATE);
         String sel = "#SeasonList[" + index + "]";
         ZigRichButton.text(cmd, sel + " #RowBtn", AlmanacText.authored(season.titleKey(), season.eventId()));
+        String icon = sel + " " + ROW_ICON;
+        cmd.set(icon + ".Visible", IconRenderer.applyIcon(cmd, icon, season.icon(), null));
         cmd.set(sel + " #StatusDot.Background", season.live() ? LIVE_DOT : IDLE_DOT);
         if (season.live()) {
             cmd.set(sel + " #RowBadge.Visible", true);
