@@ -26,8 +26,8 @@ import com.ziggfreed.common.util.SafeLog;
  * {@code ChunkStore.getChunkSectionReferenceAtBlock} to find the section, {@code BlockSection} to
  * read, {@code BlockOperations.setBlock} / {@code setBlockInteractionState} to write. This is the
  * one place the library touches raw block IO, so a consumer probing a neighbour cell or swapping a
- * block never reaches for the engine's older {@code World.getBlock} / {@code WorldChunk} accessor
- * family, which is deprecated wholesale. Beside the IO sit the block IDENTITY reads - what a block
+ * block never reaches for a {@code World} or {@code WorldChunk} block accessor, which Update 7
+ * deletes. Beside the IO sit the block IDENTITY reads - what a block
  * item id IS (its base block behind a state variant, its containing item, that item's tags and
  * resource types) - so every consumer comparing or classifying blocks resolves identity the same
  * way.
