@@ -96,4 +96,25 @@ class CalendarEventAssetTest {
         assertTrue(CalendarEventAsset.isReservedId(" almanac "));
         assertFalse(CalendarEventAsset.isReservedId(null));
     }
+
+    @Test
+    void aFirstYearBefore1970OrAfter9999NeverRuns() {
+        for (int year : List.of(1969, 10000)) {
+            CalendarEventAsset event = firstRunIn(year);
+            assertEquals(List.of(CalendarEventAsset.PROBLEM_FIRST_YEAR_OUT_OF_RANGE), event.problems(),
+                    "FirstYear " + year);
+            assertFalse(event.canRun(), "FirstYear " + year + " is outside 1970 to 9999, so the event never runs");
+        }
+        for (int year : List.of(1970, 9999)) {
+            CalendarEventAsset event = firstRunIn(year);
+            assertTrue(event.problems().isEmpty(), "FirstYear " + year + " is inside 1970 to 9999");
+            assertTrue(event.canRun(), "FirstYear " + year + " runs");
+        }
+    }
+
+    /** A fair whose first run is in {@code year}, with nothing else wrong with it. */
+    private static CalendarEventAsset firstRunIn(int year) {
+        return CalendarFixtures.event("Year_Fair",
+                "{ \"Window\": { \"Start\": \"10-01\", \"End\": \"11-03\" }, \"FirstYear\": " + year + " }");
+    }
 }

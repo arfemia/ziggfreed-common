@@ -41,8 +41,8 @@ import com.ziggfreed.common.calendar.AnnualWindow;
  *
  * <p><b>{@code Enabled: false} makes the event ABSENT, not locked</b>: content gated on it vanishes,
  * as it does when the server owner switches every event off ({@code mods/ziggfreedcommon/calendar.json},
- * {@code "$Enabled": false}). An event with no readable {@code Window} or no {@code FirstYear} never
- * runs, and the server log says why.
+ * {@code "$Enabled": false}). An event with no readable {@code Window}, or no {@code FirstYear} from 1970
+ * to 9999, never runs, and the server log says why.
  *
  * <p><b>Three ids are not an event's to take</b>, because an event's switches are features in the same
  * namespace as two others: {@code Calendar} (the owner's switch over every event), {@code Almanac} (the
@@ -62,8 +62,16 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
     public static final String PROBLEM_WINDOW_UNREADABLE = "WINDOW_UNREADABLE";
     /** The file states no FirstYear. */
     public static final String PROBLEM_FIRST_YEAR_MISSING = "FIRST_YEAR_MISSING";
+    /** A FirstYear before 1970 or after 9999; the event never runs. */
+    public static final String PROBLEM_FIRST_YEAR_OUT_OF_RANGE = "FIRST_YEAR_OUT_OF_RANGE";
     /** A Clock java.time does not know; the event runs on UTC. */
     public static final String PROBLEM_CLOCK_UNKNOWN = "CLOCK_UNKNOWN";
+
+    /** The earliest FirstYear an event may name: the year the epoch every instant here counts from begins. */
+    static final int MIN_FIRST_YEAR = 1970;
+
+    /** The latest FirstYear an event may name: the last four-digit year. */
+    static final int MAX_FIRST_YEAR = 9999;
 
     /**
      * The ids no event may take, lower-cased: the owner's switch over every event ({@code Calendar}) and
@@ -110,8 +118,9 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
             .add()
             .appendInherited(new KeyedCodec<>("FirstYear", Codec.INTEGER, false),
                     (a, v) -> a.firstYear = v, a -> a.firstYear, (a, p) -> a.firstYear = p.firstYear)
-            .documentation("The first year the event runs. Runs before it never happen, and a list of past runs "
-                    + "starts here. Required: an event without one never runs.")
+            .documentation("The first year the event runs, from " + MIN_FIRST_YEAR + " to " + MAX_FIRST_YEAR
+                    + ". Runs before it never happen, and a list of past runs starts here. Required: an event "
+                    + "without one, or with one outside those years, never runs.")
             .add()
             .appendInherited(new KeyedCodec<>("Clock", Codec.STRING, false),
                     (a, v) -> a.clock = v, a -> a.clock, (a, p) -> a.clock = p.clock)
@@ -192,9 +201,17 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
         return herald == null ? null : herald.end;
     }
 
-    /** Can the event run at all: an id of its own, a readable Window and a FirstYear? */
+    /** Can the event run at all: an id of its own, a readable Window and a FirstYear from 1970 to 9999? */
     public boolean canRun() {
-        return !isReservedId(id) && annualWindow() != null && firstYear != null;
+        return !isReservedId(id) && annualWindow() != null && firstYear != null && isFirstYearInRange(firstYear);
+    }
+
+    /**
+     * Is {@code year} one a FirstYear may name, 1970 to 9999? A year far enough outside them throws from the
+     * window maths, and a far-past one would have the list of past runs count every year since.
+     */
+    private static boolean isFirstYearInRange(int year) {
+        return year >= MIN_FIRST_YEAR && year <= MAX_FIRST_YEAR;
     }
 
     /**
@@ -224,6 +241,8 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
         }
         if (firstYear == null) {
             out.add(PROBLEM_FIRST_YEAR_MISSING);
+        } else if (!isFirstYearInRange(firstYear)) {
+            out.add(PROBLEM_FIRST_YEAR_OUT_OF_RANGE);
         }
         if (AnnualWindow.zone(clock) == null) {
             out.add(PROBLEM_CLOCK_UNKNOWN);

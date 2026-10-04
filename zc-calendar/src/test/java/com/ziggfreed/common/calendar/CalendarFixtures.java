@@ -72,5 +72,6 @@ public final class CalendarFixtures {
         CalendarEventConfig.getInstance().mergePackLayer(Map.of());
         CalendarEventConfig.getInstance().mergeOwnerLayer(Map.of());
         CalendarEventConfig.getInstance().setGlobalEnabled(true);
+        CalendarForces.getInstance().clearAll();
     }
 }

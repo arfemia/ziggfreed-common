@@ -53,6 +53,9 @@ public final class CalendarEventConfig extends AbstractKeyedAssetConfig<Calendar
             case CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE ->
                     "has a Window whose Start or End is not an MM-DD day, so it never runs";
             case CalendarEventAsset.PROBLEM_FIRST_YEAR_MISSING -> "has no FirstYear, so it never runs";
+            case CalendarEventAsset.PROBLEM_FIRST_YEAR_OUT_OF_RANGE ->
+                    "has a FirstYear before " + CalendarEventAsset.MIN_FIRST_YEAR + " or after "
+                            + CalendarEventAsset.MAX_FIRST_YEAR + ", so it never runs";
             case CalendarEventAsset.PROBLEM_CLOCK_UNKNOWN ->
                     "names a Clock this server does not know, so its days are counted in UTC";
             default -> "has a problem: " + problem;
