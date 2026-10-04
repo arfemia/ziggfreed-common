@@ -3,6 +3,7 @@ package com.ziggfreed.common.currency.asset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 
@@ -53,13 +54,32 @@ public final class CurrencyConfig extends AbstractKeyedAssetConfig<CurrencyAsset
         logFindings();
     }
 
-    /** Every wallet a player may actually be shown or charged in, in id order. */
+    /**
+     * Every wallet a player may be SHOWN right now, in id order: switched on, and not taken out of
+     * listings by a plain feature condition that reads off ({@link CurrencyAsset#isListed()}). A
+     * wallet left out here still resolves for a credit or a charge ({@link #isSpendable}), so its
+     * balances are kept.
+     */
     @Nonnull
     public List<CurrencyAsset> enabled() {
+        return where(CurrencyAsset::isListed);
+    }
+
+    /**
+     * Every switched-on wallet, listed or not, in id order: what the economy passes (death loss,
+     * decay) and an admin listing walk, so a wallet out of sight is still the one a credit lands in.
+     */
+    @Nonnull
+    public List<CurrencyAsset> inCirculation() {
+        return where(CurrencyAsset::isEnabled);
+    }
+
+    @Nonnull
+    private List<CurrencyAsset> where(@Nonnull Predicate<CurrencyAsset> keep) {
         List<CurrencyAsset> out = new ArrayList<>();
         for (String id : ids()) {
             CurrencyAsset currency = resolve(id);
-            if (currency != null && currency.isEnabled()) {
+            if (currency != null && keep.test(currency)) {
                 out.add(currency);
             }
         }

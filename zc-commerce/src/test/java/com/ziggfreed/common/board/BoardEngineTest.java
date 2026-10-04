@@ -66,6 +66,32 @@ class BoardEngineTest {
         }
     }
 
+    /** A contract switched off (or hidden by a feature) after a player took it. */
+    private record SwitchedOffBounty(String id, String board) implements BountyRef {
+
+        @Override
+        @Nonnull
+        public String bountyId() {
+            return id;
+        }
+
+        @Override
+        public boolean isOn(@Nonnull String boardId) {
+            return board.equalsIgnoreCase(boardId);
+        }
+
+        @Override
+        @Nullable
+        public String difficultyOn(@Nonnull String boardId) {
+            return null;
+        }
+
+        @Override
+        public boolean enabled() {
+            return false;
+        }
+    }
+
     /** A board assembled in the test, standing in for whatever the authoring layer produces. */
     private record TestBoard(String id, List<PoolSlot> positions, @Nullable RerollSpec rerollSpec,
             Map<String, GateSpec> acceptGates) implements BoardSpec {
@@ -218,6 +244,20 @@ class BoardEngineTest {
         assertTrue(shown.get(0).bountyId().startsWith("hunt_easy_"));
         assertTrue(shown.get(1).bountyId().startsWith("hunt_easy_"));
         assertTrue(shown.get(2).bountyId().startsWith("hunt_hard_"));
+    }
+
+    @Test
+    @DisplayName("a contract the board stopped posting is out of the draw but still on the list of what was taken there")
+    void aSwitchedOffContractStaysReachableForWhoeverCarriesIt() {
+        List<BountyRef> pool = new ArrayList<>(pool());
+        pool.add(new SwitchedOffBounty("haunt_1", "Daily"));
+
+        assertTrue(engine.membersOf(daily(), pool).stream().noneMatch(ref -> "haunt_1".equals(ref.bountyId())),
+                "never drawn while it is off");
+        assertTrue(engine.namingBoard(daily(), pool).stream().anyMatch(ref -> "haunt_1".equals(ref.bountyId())),
+                "but a player carrying it can still hand it in and collect it here");
+        assertTrue(engine.namingBoard(daily(), pool).stream().noneMatch(ref -> "weekly_only".equals(ref.bountyId())),
+                "and a contract that never named this board is not on its list");
     }
 
     // ==================== Accept ====================

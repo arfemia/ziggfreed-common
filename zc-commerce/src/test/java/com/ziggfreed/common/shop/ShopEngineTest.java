@@ -92,6 +92,41 @@ class ShopEngineTest {
         }
     }
 
+    /** An offer standing in a storefront that asks something of its own. */
+    private record StorefrontGatedOffer(String id, @Nullable GateSpec shopGate, @Nullable GateSpec gate)
+            implements ShopOffer {
+
+        @Override
+        @Nonnull
+        public String offerId() {
+            return id;
+        }
+
+        @Override
+        @Nonnull
+        public Cost cost() {
+            return Cost.single("Bounty_Token", 10);
+        }
+
+        @Override
+        @Nonnull
+        public List<RewardSpec> rewards() {
+            return List.of(RewardSpec.of(KIND, "what", "candy"));
+        }
+
+        @Override
+        @Nullable
+        public GateSpec requires() {
+            return gate;
+        }
+
+        @Override
+        @Nullable
+        public GateSpec storefrontRequires() {
+            return shopGate;
+        }
+    }
+
     private InMemoryCommerceStore store;
     private CurrencyEngine currencies;
     private CostEngine costs;
@@ -364,5 +399,37 @@ class ShopEngineTest {
         assertEquals(2, outcome.grants().granted());
         assertEquals(List.of(plain, rolled), outcome.grants().receipt(),
                 "an ordinary reward reports itself, a rolled one reports what it produced");
+    }
+
+    @Test
+    @DisplayName("a storefront's own requirement locks every offer in it, charging nothing")
+    void aStorefrontsLockRefusesItsOffers() throws IOException {
+        currencies.credit(SUBJECT, "Bounty_Token", 500);
+        StorefrontGatedOffer candy = new StorefrontGatedOffer("candy",
+                gate("{ \"Permission\": \"shop.vip\" }"), null);
+
+        ShopEngine.PurchaseOutcome outcome = shop.purchase(SUBJECT, candy, DAY_ONE);
+
+        assertFalse(outcome.ok());
+        assertEquals(GateEvaluator.REASON_PERMISSION, outcome.reason());
+        assertEquals(500L, currencies.balance(SUBJECT, "Bounty_Token"), "nothing was charged");
+        assertTrue(granted.isEmpty());
+    }
+
+    @Test
+    @DisplayName("the storefront is asked before the offer, so its reason is the one a buyer reads first")
+    void theStorefrontIsAskedFirst() throws IOException {
+        StorefrontGatedOffer candy = new StorefrontGatedOffer("candy",
+                gate("{ \"Permission\": \"shop.vip\" }"), gate("{ \"Quests\": [ \"intro_candy\" ] }"));
+
+        assertEquals(GateEvaluator.REASON_PERMISSION, shop.canPurchase(SUBJECT, candy, DAY_ONE).reason());
+    }
+
+    @Test
+    @DisplayName("an offer whose storefront asks nothing buys as before")
+    void noStorefrontRequirementAsksNothing() {
+        currencies.credit(SUBJECT, "Bounty_Token", 500);
+
+        assertTrue(shop.canPurchase(SUBJECT, new StorefrontGatedOffer("candy", null, null), DAY_ONE).ok());
     }
 }

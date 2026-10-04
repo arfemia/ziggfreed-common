@@ -19,6 +19,7 @@ import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
+import com.ziggfreed.common.commerce.asset.HideAxis;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.text.ContentTextAsset;
@@ -143,8 +144,12 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
             .add()
             .appendInherited(new KeyedCodec<>("Requires", GateSpec.CODEC, false),
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
-            .documentation("What a player must already have or have done before this storefront opens for them. "
-                    + "An unauthored block asks for nothing; a requirement nothing can answer keeps it shut.")
+            .documentation("What a player must already have or have done before they may buy anything here. An "
+                    + "unauthored block asks for nothing. Every offer stays on show, locked with the reason, until "
+                    + "they meet it, the way a board's Requires locks its contracts. A plain feature or mod "
+                    + "condition at the top level decides instead whether the storefront exists at all: while it "
+                    + "reads off, the storefront is left out of every list and opens closed, and it comes back "
+                    + "with the feature.")
             .add()
             .appendInherited(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
                     (a, v) -> a.where = v, a -> a.where, (a, p) -> a.where = p.where)
@@ -166,9 +171,31 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
         return id;
     }
 
-    /** Can the storefront be opened? Unauthored means true. */
+    /**
+     * Is the storefront switched on? Unauthored means true. This is the owner's switch alone; whether
+     * it is on this server right now is {@link #isAvailable()}.
+     */
     public boolean isEnabled() {
         return enabled == null || enabled;
+    }
+
+    /**
+     * Is the storefront on this server RIGHT NOW: switched on, and every plain top-level feature or
+     * mod condition in {@code Requires} reading on at this moment ({@link HideAxis#present})? What
+     * every listing, the unnamed default and the page ask. Read live, so a feature toggled while the
+     * server is up moves the storefront on the next look.
+     */
+    public boolean isAvailable() {
+        return HideAxis.present(isEnabled(), requires);
+    }
+
+    /**
+     * What a player must meet before buying here: {@code Requires} with the hide axis taken out
+     * ({@link HideAxis#lock}), or null when nothing is left to ask.
+     */
+    @Nullable
+    public GateSpec lockRequires() {
+        return HideAxis.lock(requires);
     }
 
     @Nullable
@@ -217,7 +244,7 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
         return null;
     }
 
-    /** What must be true before the storefront opens, or null when it is open to everybody. */
+    /** The authored block, hide axis included: presence is {@link #isAvailable()}, the lock {@link #lockRequires()}. */
     @Nullable
     public GateSpec getRequires() {
         return requires;

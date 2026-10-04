@@ -19,6 +19,7 @@ import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.asset.CostAsset;
+import com.ziggfreed.common.commerce.asset.HideAxis;
 import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
@@ -148,7 +149,9 @@ public final class ShopEntryAsset
                     (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
             .documentation("What a player must already have or have done before they may buy it. An unauthored "
                     + "block asks for nothing; a requirement nothing can answer keeps the offer locked, and a "
-                    + "locked offer is still SHOWN, so a player can see what to work towards.")
+                    + "locked offer is still SHOWN, so a player can see what to work towards. A plain feature or "
+                    + "mod condition at the top level decides instead whether the offer exists at all: while it "
+                    + "reads off, the offer is off the page and cannot be bought.")
             .add()
             .appendInherited(new KeyedCodec<>("Rewards",
                             new ArrayCodec<>(RewardEntryAsset.CODEC, RewardEntryAsset[]::new), false),
@@ -174,6 +177,21 @@ public final class ShopEntryAsset
     /** For sale? Unauthored means true. */
     public boolean isEnabled() {
         return enabled == null || enabled;
+    }
+
+    /**
+     * Is the offer on this server RIGHT NOW: for sale, and every plain top-level feature or mod
+     * condition in {@code Requires} reading on at this moment? An offer that answers false is off the
+     * page and cannot be bought.
+     */
+    public boolean isAvailable() {
+        return HideAxis.present(isEnabled(), requires);
+    }
+
+    /** The purchase lock: {@code Requires} with the hide axis taken out, or null when nothing is left. */
+    @Nullable
+    public GateSpec lockRequires() {
+        return HideAxis.lock(requires);
     }
 
     /** A skeleton that exists only to be inherited from, never for sale. */

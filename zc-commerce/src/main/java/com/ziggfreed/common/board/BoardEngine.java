@@ -194,6 +194,23 @@ public final class BoardEngine {
         return members;
     }
 
+    /**
+     * Every bounty in {@code pool} that names this board, switched off or hidden included: what a
+     * player may still be CARRYING from it. The draw reads {@link #membersOf}; a list of what was
+     * taken here reads this, so a contract the board stopped posting while it was being worked on can
+     * still be handed in and collected where it was taken.
+     */
+    @Nonnull
+    public List<BountyRef> namingBoard(@Nonnull BoardSpec board, @Nonnull Collection<BountyRef> pool) {
+        List<BountyRef> out = new ArrayList<>();
+        for (BountyRef ref : pool) {
+            if (ref != null && ref.isOn(board.boardId())) {
+                out.add(ref);
+            }
+        }
+        return out;
+    }
+
     // ==================== The period lock ====================
 
     /**

@@ -59,9 +59,11 @@ public final class AssetCurrencyCatalog implements CurrencyCatalog {
     @Override
     @Nonnull
     public Collection<CurrencyDef> all() {
-        List<CurrencyAsset> enabled = CurrencyConfig.getInstance().enabled();
-        List<CurrencyDef> out = new ArrayList<>(enabled.size());
-        for (CurrencyAsset asset : enabled) {
+        // Every switched-on wallet, listed or not: the economy passes and an admin listing walk the
+        // wallets a credit can land in, which a feature that only hides a wallet does not change.
+        List<CurrencyAsset> circulating = CurrencyConfig.getInstance().inCirculation();
+        List<CurrencyDef> out = new ArrayList<>(circulating.size());
+        for (CurrencyAsset asset : circulating) {
             out.add(folded(asset));
         }
         return out;
