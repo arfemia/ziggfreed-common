@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 
@@ -30,20 +31,33 @@ public final class ShopConfig extends AbstractKeyedAssetConfig<StorefrontAsset> 
     }
 
     /**
-     * Every storefront that can be opened, in the order they should be listed: by {@code Order},
-     * then by id so two storefronts sharing a number never swap places between restarts.
+     * Every storefront on this server right now ({@link StorefrontAsset#isAvailable()}: switched on,
+     * and not hidden by a feature that reads off), in the order they should be listed: by
+     * {@code Order}, then by id so two storefronts sharing a number never swap places between
+     * restarts.
      */
     @Nonnull
     public List<StorefrontAsset> listed() {
         List<StorefrontAsset> out = new ArrayList<>();
         for (String id : ids()) {
             StorefrontAsset shop = resolve(id);
-            if (shop != null && shop.isEnabled()) {
+            if (shop != null && shop.isAvailable()) {
                 out.add(shop);
             }
         }
         out.sort(Comparator.comparingInt(StorefrontAsset::order)
                 .thenComparing(shop -> shop.getId() == null ? "" : shop.getId()));
         return out;
+    }
+
+    /** The first storefront {@link #listed()} names: what an unnamed destination opens. Null for none. */
+    @Nullable
+    public String firstListedId() {
+        for (StorefrontAsset shop : listed()) {
+            if (shop.getId() != null) {
+                return shop.getId();
+            }
+        }
+        return null;
     }
 }

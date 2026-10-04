@@ -8,3 +8,4 @@
 - `CommerceCatalogs.publishBounties()` publishes contracts under their own `CONTRACTS_SLICE`; until it runs, a board can draw contracts but cannot accept them.
 - A generator row value keeps its token type: quote a reward parameter, and write a price or a requirement bound bare.
 - Registration belongs to the wiring root: nothing in this package registers itself.
+- `ShopEntryOffer.enabled()` reads its own hide axis and its storefront's live, so a press on a page drawn before either was hidden refuses as `disabled` rather than sells; `requires()` is the offer's lock only.
