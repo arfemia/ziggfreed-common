@@ -37,9 +37,12 @@ import com.ziggfreed.common.calendar.CalendarForces;
 import com.ziggfreed.common.calendar.CalendarRuntime;
 import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
 import com.ziggfreed.common.calendar.asset.CalendarOwnerLayers;
+import com.ziggfreed.common.calendar.asset.CalendarSpawnAsset;
+import com.ziggfreed.common.calendar.asset.CalendarSpawnConfig;
 import com.ziggfreed.common.calendar.event.CalendarEventEndedEvent;
 import com.ziggfreed.common.calendar.event.CalendarEventStartedEvent;
 import com.ziggfreed.common.calendar.event.CalendarEvents;
+import com.ziggfreed.common.calendar.spawn.CalendarSpawns;
 import com.ziggfreed.common.event.NativeEventSeam;
 import com.ziggfreed.common.factor.FeatureFlags;
 
@@ -49,6 +52,12 @@ import com.ziggfreed.common.factor.FeatureFlags;
  * never overlapping: each waits for the calendar's lock while the other holds it.
  */
 class CalendarTickerTest {
+
+    /** One spawn file riding Hallows_Eve, for the two cases that pin the spawn layer's lock. */
+    private static final String HALLOWS_EVE_GHOULS = """
+            { "Event": "Hallows_Eve", "Spawn": { "Environments": ["Env_Test_Forest"],
+              "NPCs": [ { "Id": "Test_Ghoul", "Weight": 10 } ] } }
+            """;
 
     @TempDir
     Path ownerDir;
@@ -203,6 +212,23 @@ class CalendarTickerTest {
         assertFalse(lockHeldAtEachRead.contains(false), "and only while holding the lock a look reads under");
     }
 
+    /** A spawn reload reads the layer it folds in only while holding the lock a look reads under. */
+    @Test
+    void aSpawnReloadFoldsItsLayerOnlyUnderTheLockALookReadsUnder() {
+        Map<String, CalendarSpawnAsset> spawns =
+                Map.of("hallows_eve_ghouls", CalendarFixtures.spawn("Hallows_Eve_Ghouls", HALLOWS_EVE_GHOULS));
+        List<Boolean> lockHeldAtEachRead = new ArrayList<>();
+        CalendarContent.reloadSpawns(new AbstractMap<String, CalendarSpawnAsset>() {
+            @Override
+            public Set<Map.Entry<String, CalendarSpawnAsset>> entrySet() {
+                lockHeldAtEachRead.add(Thread.holdsLock(CalendarRuntime.service().lock()));
+                return spawns.entrySet();
+            }
+        });
+        assertFalse(lockHeldAtEachRead.isEmpty(), "the reload folded its spawn layer in");
+        assertFalse(lockHeldAtEachRead.contains(false), "and only while holding the lock a look reads under");
+    }
+
     /**
      * The owner file's fold clears the owner layer before it fills it again, so a look landing in between
      * would read an event the owner switched off as on. This thread plays a look in progress, holding the
@@ -226,6 +252,37 @@ class CalendarTickerTest {
         assertTrue(waited, "the owner file waited for the lock a look reads under");
         assertTrue(onWhileItWaited, "none of it landed while the look held the lock");
         assertFalse(CalendarRuntime.service().isEnabled("hallows_eve"), "then all of it landed");
+    }
+
+    /**
+     * A spawn reload clears the spawn layer before it fills it again, so the spawn rules reading it in
+     * between would find every file gone: each rule retired, then written back at the next look. This
+     * thread plays the reload, holding the calendar's lock with the spawn layer cleared, while a look's
+     * spawn listener brings the rules in line; it waits for the lock and reads the reload whole.
+     */
+    @Test
+    void theSpawnRulesLandingHalfwayThroughASpawnReloadWaitForItAndRetireNothing() throws InterruptedException {
+        Map<String, CalendarSpawnAsset> spawns =
+                Map.of("hallows_eve_ghouls", CalendarFixtures.spawn("Hallows_Eve_Ghouls", HALLOWS_EVE_GHOULS));
+        List<String> sent = new ArrayList<>();
+        CalendarSpawns.useSinkForTests((rule, json) -> {
+            sent.add(rule + "=" + json);
+            return true;
+        });
+        CalendarSpawnConfig.getInstance().mergePackLayer(spawns);
+        CalendarSpawns.reconcile(Set.of("hallows_eve"));
+        Object lock = CalendarRuntime.service().lock();
+        Thread rules = new Thread(() -> CalendarSpawns.reconcile(Set.of("hallows_eve")), "calendar-test-spawns");
+        boolean waited;
+        synchronized (lock) {
+            CalendarSpawnConfig.getInstance().mergePackLayer(Map.of());
+            rules.start();
+            waited = waitsFor(rules, lock);
+            CalendarSpawnConfig.getInstance().mergePackLayer(spawns);
+        }
+        assertTrue(rules.join(Duration.ofSeconds(5)), "the rules were brought in line once the reload let go");
+        assertEquals(1, sent.size(), "nothing was retired: the rules read the reload whole");
+        assertTrue(waited, "they waited for the lock the reload folds under");
     }
 
     @Test

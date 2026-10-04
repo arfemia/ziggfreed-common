@@ -17,6 +17,9 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
 import com.ziggfreed.common.calendar.asset.CalendarEventConfig;
+import com.ziggfreed.common.calendar.asset.CalendarSpawnAsset;
+import com.ziggfreed.common.calendar.asset.CalendarSpawnConfig;
+import com.ziggfreed.common.calendar.spawn.CalendarSpawns;
 
 /**
  * Reads calendar files back the way the engine's asset loading does, and puts every calendar store
@@ -72,12 +75,25 @@ public final class CalendarFixtures {
                 "harvest_moon", event("Harvest_Moon", HARVEST_MOON)));
     }
 
+    /** One calendar spawn file, decoded as the engine's loader would. */
+    @Nonnull
+    public static CalendarSpawnAsset spawn(@Nonnull String id, @Nonnull String json) {
+        try {
+            return CalendarSpawnAsset.CODEC.decodeJsonAsset(RawJsonReader.fromJsonString(json),
+                    new AssetExtraInfo<>(new AssetExtraInfo.Data(CalendarSpawnAsset.class, id, null)));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /** Every calendar store and switch back to a bare server's. */
     public static void reset() {
         CalendarEventConfig.getInstance().mergePackLayer(Map.of());
         CalendarEventConfig.getInstance().mergeOwnerLayer(Map.of());
         CalendarEventConfig.getInstance().setGlobalEnabled(true);
         CalendarForces.getInstance().clearAll();
+        CalendarSpawnConfig.getInstance().mergePackLayer(Map.of());
+        CalendarSpawns.resetForTests();
     }
 
     /** The keys an en-US lang file of this module ships ({@code ziggfreedcommon.calendar.lang}, for one). */
