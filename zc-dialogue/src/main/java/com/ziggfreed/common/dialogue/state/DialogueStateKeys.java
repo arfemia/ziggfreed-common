@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
  * <pre>{@code
  * once:e:<dialogueId>:<nodeId>                        an entry-level Once (a first-visit beat)
  * once:o:<dialogueId>:<nodeId>:<labelKey|OnceId>      an option-level Once
+ * once:x:<extensionId>:<labelKey|OnceId>              a Once on a line a dialogue extension adds
  * mem:d:<dialogueId>:<name>                           a memory declared by one dialogue
  * mem:s:<name>                                        a memory declared Shared across dialogues
  * }</pre>
@@ -34,6 +35,12 @@ import javax.annotation.Nullable;
  *       escape either clear.</li>
  * </ul>
  *
+ * <p>A {@code Once} with a {@code Period} appends one more segment AFTER everything else, the
+ * window it was spent in: {@code <key>:PD<epoch day>} or {@code <key>:PW<Monday week>}
+ * ({@link #withPeriod}). It is the only upper-case segment any key carries, which is what lets a
+ * spend clear the line's earlier windows by one leading prefix ({@link #periodFamily}) without
+ * reaching anything else.
+ *
  * <p>A {@code Once} key carries no lifetime prefix at all, which is the same statement as
  * "unauthored means persistent": there is no {@code Memories} declaration behind a {@code Once} to
  * read a lifetime from, and a first-visit beat that came back after a restart is exactly the thing
@@ -52,6 +59,9 @@ public final class DialogueStateKeys {
 
     /** The option-level {@code Once} namespace. */
     public static final String ONCE_OPTION_PREFIX = "once:o";
+
+    /** The namespace of a {@code Once} on a line a dialogue extension adds to other conversations. */
+    public static final String ONCE_EXTENSION_PREFIX = "once:x";
 
     /** The namespace of a memory declared by (and private to) one dialogue. */
     public static final String MEMORY_DIALOGUE_PREFIX = "mem:d";
@@ -83,6 +93,13 @@ public final class DialogueStateKeys {
      */
     public static final String SESSION_PREFIX = "ses";
 
+    /**
+     * What a window segment starts with: {@code P}, then the window's letter, then its index. It is
+     * upper-case on purpose. Every other segment of a key passes through {@link #segment} or a world
+     * scope's normalize, both lower-casing, so nothing but a window ever follows {@code <key>:P}.
+     */
+    public static final String PERIOD_SEGMENT_PREFIX = "P";
+
     private DialogueStateKeys() {
     }
 
@@ -102,6 +119,16 @@ public final class DialogueStateKeys {
                                     @Nonnull String discriminator) {
         return ONCE_OPTION_PREFIX + SEP + segment(dialogueId) + SEP + segment(nodeId)
                 + SEP + segment(discriminator);
+    }
+
+    /**
+     * The unscoped key for a {@code Once} on a line an extension adds: filed under the EXTENSION and
+     * the line's {@code OnceId} or {@code LabelKey}, never the conversation or screen it was shown on,
+     * so spending it with one character spends it with every character it reaches.
+     */
+    @Nonnull
+    public static String extensionOnce(@Nonnull String extensionId, @Nonnull String discriminator) {
+        return ONCE_EXTENSION_PREFIX + SEP + segment(extensionId) + SEP + segment(discriminator);
     }
 
     /** The unscoped, un-prefixed key for memory {@code name} (shared or dialogue-private). */
@@ -150,6 +177,22 @@ public final class DialogueStateKeys {
     /** True when {@code key} belongs to the session backend rather than the persistent one. */
     public static boolean isSession(@Nonnull String key) {
         return key.startsWith(SESSION_PREFIX + SEP);
+    }
+
+    /** {@code key} filed under one window: {@code <key>:P<code><index>}, after every other segment. */
+    @Nonnull
+    public static String withPeriod(@Nonnull String key, char code, long index) {
+        return key + SEP + PERIOD_SEGMENT_PREFIX + code + index;
+    }
+
+    /**
+     * The leading prefix every window of {@code key} is filed under. A spend clears it before writing
+     * the current window, so a player keeps one key per periodic line rather than one per day. It ends
+     * in the upper-case window marker, so it reaches no other key (see {@link #PERIOD_SEGMENT_PREFIX}).
+     */
+    @Nonnull
+    public static String periodFamily(@Nonnull String key) {
+        return key + SEP + PERIOD_SEGMENT_PREFIX;
     }
 
     /** Trim + lower-case a key piece, folding any separator inside it so it cannot add a segment. */

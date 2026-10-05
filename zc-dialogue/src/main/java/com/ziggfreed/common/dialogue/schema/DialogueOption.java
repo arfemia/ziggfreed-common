@@ -45,6 +45,12 @@ public class DialogueOption {
     @Nullable DialogueSugarValues[] doAtoms;
     /** The folded {@code Actions} + shorthand list, computed once. */
     @Nullable private volatile List<DialogueAction> folded;
+    /**
+     * The dialogue extension that put this line into the conversation, or null for a line the
+     * conversation (or a shared group it pulls in) wrote itself. Set only on the copy an extension
+     * hands out ({@link DialogueExtension#of}), never on a decoded row.
+     */
+    @Nullable private String injectedBy;
 
     public DialogueOption() {
     }
@@ -93,6 +99,33 @@ public class DialogueOption {
      * share a label and each should be spendable on its own.
      */
     @Nullable public String getOnceId() { return onceId; }
+
+    /** The extension that added this line, or null for the conversation's own line. */
+    @Nullable public String getInjectedBy() { return injectedBy; }
+
+    /** True when a dialogue extension added this line rather than the conversation writing it. */
+    public boolean isInjected() { return injectedBy != null; }
+
+    /**
+     * A copy of this line marked as added by {@code extensionId}. An extension splices the copy, so
+     * the row it decoded (which a {@code Parent} chain may share) is never marked in place.
+     */
+    @Nonnull
+    DialogueOption injectedCopy(@Nonnull String extensionId) {
+        DialogueOption copy = new DialogueOption();
+        copy.labelKey = labelKey;
+        copy.label = label;
+        copy.conditions = conditions;
+        copy.actions = actions;
+        copy.presentation = presentation;
+        copy.styleKind = styleKind;
+        copy.once = once;
+        copy.onceId = onceId;
+        copy.sugar = sugar;
+        copy.doAtoms = doAtoms;
+        copy.injectedBy = extensionId;
+        return copy;
+    }
 
     /**
      * What this option's {@code Once} is remembered under: the {@code OnceId} when authored, else

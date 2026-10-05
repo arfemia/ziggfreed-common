@@ -57,9 +57,10 @@ public class DialogueNode {
     }
 
     /**
-     * A COPY of this screen carrying {@code spliced} as its option list, everything else unchanged.
-     * Used once, right after decode, so the conversation that pulled the shared lines in gets its own
-     * screen and the one it inherited from keeps hers.
+     * A COPY of this screen carrying {@code spliced} as its option list (null: back to the authored
+     * list), everything else unchanged. Used by every splice, at decode and again on a reload, so the
+     * conversation that pulled the shared lines in gets its own screen and the one it inherited from
+     * keeps hers.
      */
     @Nonnull
     DialogueNode withSplicedOptions(@Nullable DialogueOption[] spliced) {
@@ -81,6 +82,11 @@ public class DialogueNode {
     @Nonnull
     List<DialogueOption> getAuthoredOptions() {
         return options == null ? Collections.emptyList() : List.of(options);
+    }
+
+    /** True when this screen currently carries lines spliced in from outside its own file. */
+    boolean hasSplicedOptions() {
+        return splicedOptions != null;
     }
 
     /** Explicit i18n key for the NPC text, or null (by-convention key, then raw fallback). */

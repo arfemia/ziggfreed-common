@@ -13,6 +13,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
@@ -26,6 +27,7 @@ import com.ziggfreed.common.LibraryOwner;
 import com.ziggfreed.common.dialogue.quest.DialogueQuests;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
+import com.ziggfreed.common.dialogue.schema.DialogueExtensionConfig;
 import com.ziggfreed.common.dialogue.schema.DialogueNode;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
 import com.ziggfreed.common.dialogue.schema.DialogueStart;
@@ -99,6 +101,7 @@ public final class DialogueEngine {
     private final Supplier<FactorRegistry> factors;
     private final Supplier<DialogueQuests> quests;
     private final DoubleSupplier random;
+    private final LongSupplier clock;
 
     /**
      * Which mod owns each action / condition CLASS in this engine's vocabulary, keyed by the class's
@@ -115,7 +118,8 @@ public final class DialogueEngine {
                            @Nonnull Map<Class<? extends DialogueAction>, DialogueOptionStyle> styles,
                            @Nonnull DialogueActionExecutor executor,
                            @Nonnull Consumer<String> warn, @Nonnull Supplier<FactorRegistry> factors,
-                           @Nonnull Supplier<DialogueQuests> quests, @Nonnull DoubleSupplier random) {
+                           @Nonnull Supplier<DialogueQuests> quests, @Nonnull DoubleSupplier random,
+                           @Nonnull LongSupplier clock) {
         this.evaluators = evaluators;
         this.styles = styles;
         this.executor = executor;
@@ -123,6 +127,7 @@ public final class DialogueEngine {
         this.factors = factors;
         this.quests = quests;
         this.random = random;
+        this.clock = clock;
         // Reports through this engine's own warn, so a sandbox engine's report is capturable the
         // same way its authoring warnings are.
         this.vocabulary = new RegistryLedger<>("dialogue-vocabulary", warn);
@@ -221,7 +226,7 @@ public final class DialogueEngine {
                 new DialogueActionExecutor(handlers, warn), warn,
                 () -> SHARED_FACTORS.get(FACTORS_SLOT),
                 () -> SHARED_QUESTS.get(QUESTS_SLOT),
-                DEFAULT_RANDOM);
+                DEFAULT_RANDOM, DEFAULT_CLOCK);
         // The seeded handlers and evaluators reach the engine through this holder, and none of them
         // is INVOKED during seeding, so the instance is only published (below, by the caller) once
         // its vocabulary is complete: a reader on the fast path sees either nothing or all of it.
@@ -408,6 +413,12 @@ public final class DialogueEngine {
                 return null;
             }
             d.setId(id);
+            if (!DialogueExtensionConfig.getInstance().isEmpty()) {
+                // The codec spliced this conversation before it had an id, and an extension may
+                // choose its conversations by id: splice again now that it has one. The splice starts
+                // from what each screen authored, so this never stacks a line.
+                d.spliceFragments();
+            }
             return d;
         } catch (Exception e) {
             // The codec's own message is always "Failed to decode"; what an author can act on is at
@@ -466,23 +477,39 @@ public final class DialogueEngine {
      * {@code First}/{@code Then} beat can carry one. Null means there is nothing to spend: the beat
      * has no {@code Once}, its scope names a world family this world is not part of (so the write is a
      * deliberate no-op), or the conversation routed away instead of opening a screen.
+     *
+     * <p>{@code onceFamily} is the prefix the beat's EARLIER windows were filed under when its
+     * {@code Once} has a {@code Period}: the spend clears it before writing {@code onceKey}, so a daily
+     * beat keeps one key rather than one per day. Null for a beat spent for good.
      */
     public record EntryResolution(@Nullable String nodeId, @Nullable String onceKey,
-                                  @Nullable Destination destination) {
+                                  @Nullable Destination destination, @Nullable String onceFamily) {
 
         /** Nothing to show at all (a conversation with no screens). */
-        public static final EntryResolution NONE = new EntryResolution(null, null, null);
+        public static final EntryResolution NONE = new EntryResolution(null, null, null, null);
+
+        /** The form without a window family, for a beat whose {@code Once} is spent for good. */
+        public EntryResolution(@Nullable String nodeId, @Nullable String onceKey,
+                               @Nullable Destination destination) {
+            this(nodeId, onceKey, destination, null);
+        }
 
         /** A screen of this conversation, with the {@code Once} it will spend on completion. */
         @Nonnull
         public static EntryResolution ofNode(@Nullable String nodeId, @Nullable String onceKey) {
-            return new EntryResolution(nodeId, onceKey, null);
+            return new EntryResolution(nodeId, onceKey, null, null);
+        }
+
+        /** A screen whose beat carries a {@code Once}: the key it spends and the windows that spend clears. */
+        @Nonnull
+        public static EntryResolution ofSlot(@Nullable String nodeId, @Nonnull DialogueOnce.Slot slot) {
+            return new EntryResolution(nodeId, slot.key(), null, slot.staleFamily());
         }
 
         /** Somewhere else entirely; the conversation does not open. */
         @Nonnull
         public static EntryResolution ofDestination(@Nonnull Destination destination) {
-            return new EntryResolution(null, null, destination);
+            return new EntryResolution(null, null, destination, null);
         }
 
         /** True when this opens something other than a screen of the conversation. */
@@ -568,11 +595,15 @@ public final class DialogueEngine {
             }
             // Read the Once only after the beat applied, so a scope warning cannot fire for a beat
             // the player was never eligible for anyway.
-            String key = once.keyFor(DialogueStateKeys.entryOnce(dialogue.getId(), nodeId), ctx);
-            if (key != null && ctx.flags().has(key)) {
+            DialogueOnce.Slot slot = once.slotFor(DialogueStateKeys.entryOnce(dialogue.getId(), nodeId),
+                    ctx, clock.getAsLong());
+            if (slot == null) {
+                return EntryResolution.ofNode(nodeId, null);
+            }
+            if (ctx.flags().has(slot.key())) {
                 continue;
             }
-            return EntryResolution.ofNode(nodeId, key);
+            return EntryResolution.ofSlot(nodeId, slot);
         }
         return null;
     }
@@ -805,16 +836,27 @@ public final class DialogueEngine {
 
     /**
      * Whether {@code option} should be offered right now: its conditions pass AND its own
-     * {@code Once} (if any) has not been spent. The ONE predicate a page uses both when rendering
-     * a node and when re-checking a click, so a stale click can never run a spent option.
+     * {@code Once} (if any) has not been spent in the current window. The ONE predicate a page uses
+     * both when rendering a node and when re-checking a click, so a stale click can never run a spent
+     * option, and a click landing after a window turned over is judged by the window it lands in.
      */
     public boolean optionAvailable(@Nonnull NpcDialogue dialogue, @Nonnull String nodeId,
                                    @Nonnull DialogueOption option, @Nonnull DialogueContext ctx) {
         if (option.hasConditions() && !conditionsPass(option.getConditions(), ctx)) {
             return false;
         }
-        String key = optionOnceKey(dialogue, nodeId, option, ctx);
-        return key == null || !ctx.flags().has(key);
+        DialogueOnce.Slot slot = optionOnceSlot(dialogue, nodeId, option, ctx);
+        return slot == null || !ctx.flags().has(slot.key());
+    }
+
+    /**
+     * Spend the {@code Once}es a completed beat consumes, for a caller whose beat carries no window
+     * family. See {@link #consumeOnce(String, String, NpcDialogue, String, DialogueOption, DialogueContext)}.
+     */
+    public void consumeOnce(@Nullable String pendingEntryOnceKey, @Nonnull NpcDialogue dialogue,
+                            @Nonnull String nodeId, @Nullable DialogueOption chosen,
+                            @Nonnull DialogueContext ctx) {
+        consumeOnce(pendingEntryOnceKey, null, dialogue, nodeId, chosen, ctx);
     }
 
     /**
@@ -823,43 +865,61 @@ public final class DialogueEngine {
      * actions have run, and only on the path that actually ran them - an option filtered out on
      * the click re-check, or a page dismissed with Escape, must leave both unspent.
      *
+     * <p>A periodic {@code Once} first clears its earlier windows ({@code pendingEntryOnceFamily}
+     * for the entry, the option's own family for the option), so a player keeps one key per line.
+     *
      * <p>{@code chosen} is null for the implicit Farewell row, which still completes the beat.
      */
-    public void consumeOnce(@Nullable String pendingEntryOnceKey, @Nonnull NpcDialogue dialogue,
-                            @Nonnull String nodeId, @Nullable DialogueOption chosen,
-                            @Nonnull DialogueContext ctx) {
+    public void consumeOnce(@Nullable String pendingEntryOnceKey, @Nullable String pendingEntryOnceFamily,
+                            @Nonnull NpcDialogue dialogue, @Nonnull String nodeId,
+                            @Nullable DialogueOption chosen, @Nonnull DialogueContext ctx) {
         if (pendingEntryOnceKey != null) {
-            ctx.flags().set(pendingEntryOnceKey);
+            spend(ctx, pendingEntryOnceKey, pendingEntryOnceFamily);
         }
         if (chosen == null) {
             return;
         }
-        String key = optionOnceKey(dialogue, nodeId, chosen, ctx);
-        if (key != null) {
-            ctx.flags().set(key);
+        DialogueOnce.Slot slot = optionOnceSlot(dialogue, nodeId, chosen, ctx);
+        if (slot != null) {
+            spend(ctx, slot.key(), slot.staleFamily());
         }
     }
 
+    /** Write one Once key, first dropping the earlier windows it replaces. */
+    private static void spend(@Nonnull DialogueContext ctx, @Nonnull String key, @Nullable String staleFamily) {
+        if (staleFamily != null) {
+            ctx.flags().clearWithPrefix(staleFamily);
+        }
+        ctx.flags().set(key);
+    }
+
     /**
-     * The storage key an option's {@code Once} occupies, or null when the option has none (or its
-     * scope names a world family this world is not part of, so the guard does not apply here).
+     * Where an option's {@code Once} is filed right now, or null when the option has none (or its
+     * scope names a world family this world is not part of, so the guard does not apply here). A line
+     * an extension added is one line wherever it lands, so its Once is keyed by the extension:
+     * spent with one character, it is spent with every character it reaches.
      */
     @Nullable
-    private String optionOnceKey(@Nonnull NpcDialogue dialogue, @Nonnull String nodeId,
-                                 @Nonnull DialogueOption option, @Nonnull DialogueContext ctx) {
+    private DialogueOnce.Slot optionOnceSlot(@Nonnull NpcDialogue dialogue, @Nonnull String nodeId,
+                                             @Nonnull DialogueOption option, @Nonnull DialogueContext ctx) {
         DialogueOnce once = option.getOnce();
         if (once == null) {
             return null;
         }
         String discriminator = option.onceDiscriminator();
+        String extension = option.getInjectedBy();
         if (discriminator.isBlank()) {
-            warnOnce("once:" + dialogue.getId() + ":" + nodeId,
-                    "Dialogue '" + dialogue.getId() + "' node '" + nodeId + "' has an option with"
-                            + " Once but no LabelKey or OnceId to identify it - author an OnceId;"
-                            + " the option stays repeatable until then");
+            String who = extension != null
+                    ? "Dialogue extension '" + extension + "'"
+                    : "Dialogue '" + dialogue.getId() + "' node '" + nodeId + "'";
+            warnOnce("once:" + who, who + " has an option with Once but no LabelKey or OnceId to"
+                    + " identify it - author an OnceId; the option stays repeatable until then");
             return null;
         }
-        return once.keyFor(DialogueStateKeys.optionOnce(dialogue.getId(), nodeId, discriminator), ctx);
+        String rawKey = extension != null
+                ? DialogueStateKeys.extensionOnce(extension, discriminator)
+                : DialogueStateKeys.optionOnce(dialogue.getId(), nodeId, discriminator);
+        return once.slotFor(rawKey, ctx, clock.getAsLong());
     }
 
     /**
@@ -984,6 +1044,7 @@ public final class DialogueEngine {
         @Nullable private FactorRegistry factors;
         private DialogueQuests quests = DialogueQuests.NONE;
         private DoubleSupplier random = DEFAULT_RANDOM;
+        private LongSupplier clock = DEFAULT_CLOCK;
 
         /**
          * The one-slot holder the seeded handlers/evaluators reach the FINISHED engine through
@@ -1020,6 +1081,16 @@ public final class DialogueEngine {
         @Nonnull
         public Builder random(@Nonnull DoubleSupplier random) {
             this.random = random;
+            return this;
+        }
+
+        /**
+         * Where a periodic {@code Once} reads the time, in epoch milliseconds (UTC). Default is the
+         * system clock; a test supplies its own to step across a day or a week boundary.
+         */
+        @Nonnull
+        public Builder clock(@Nonnull LongSupplier clock) {
+            this.clock = clock;
             return this;
         }
 
@@ -1079,7 +1150,7 @@ public final class DialogueEngine {
             FactorRegistry wiredFactors = factors;
             DialogueQuests wiredQuests = quests;
             DialogueEngine engine = new DialogueEngine(evaluators, styles, executor, warn,
-                    () -> wiredFactors, () -> wiredQuests, random);
+                    () -> wiredFactors, () -> wiredQuests, random, clock);
             self[0] = engine;
             return engine;
         }
@@ -1168,6 +1239,9 @@ public final class DialogueEngine {
 
     /** Default draw source for a {@code Pick} beat: this thread's own random, never {@code Math.random}. */
     private static final DoubleSupplier DEFAULT_RANDOM = () -> ThreadLocalRandom.current().nextDouble();
+
+    /** Default time source for a periodic {@code Once}: the system clock, epoch milliseconds. */
+    private static final LongSupplier DEFAULT_CLOCK = System::currentTimeMillis;
 
     /** Default warn: logs through the common plugin logger, guarded for log-manager-less unit JVMs. */
     private static final Consumer<String> DEFAULT_WARN = msg -> {

@@ -44,6 +44,12 @@ public final class TestDialogueContext implements DialogueExecContext {
         public void clearPrefix(@Nonnull String prefix) {
             keys.removeIf(key -> key.startsWith(prefix));
         }
+
+        /** The interface's prefix clear is the same clear, so a spend that clears old windows works here. */
+        @Override
+        public void clearWithPrefix(@Nonnull String prefix) {
+            clearPrefix(prefix);
+        }
     }
 
     private final NpcDialogue dialogue;

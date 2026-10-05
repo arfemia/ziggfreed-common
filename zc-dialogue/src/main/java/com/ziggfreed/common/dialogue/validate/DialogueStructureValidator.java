@@ -21,6 +21,8 @@ import com.ziggfreed.common.dialogue.type.DialogueAction;
 import com.ziggfreed.common.dialogue.type.DialogueCondition;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.state.DialogueFlagScope;
+import com.ziggfreed.common.dialogue.schema.DialogueExtension;
+import com.ziggfreed.common.dialogue.schema.DialogueExtensionConfig;
 import com.ziggfreed.common.dialogue.schema.DialogueFragmentConfig;
 import com.ziggfreed.common.dialogue.schema.DialogueFragmentGroup;
 import com.ziggfreed.common.dialogue.state.DialogueMemory;
@@ -29,6 +31,7 @@ import com.ziggfreed.common.dialogue.schema.DialogueSugarValues;
 import com.ziggfreed.common.dialogue.schema.NodeSelector;
 import com.ziggfreed.common.dialogue.state.DialogueOnce;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
+import com.ziggfreed.common.dialogue.schema.DialogueSelector;
 import com.ziggfreed.common.dialogue.schema.DialogueStart;
 import com.ziggfreed.common.dialogue.state.DialogueStateKeys;
 import com.ziggfreed.common.dialogue.schema.NpcDialogue;
@@ -96,6 +99,7 @@ public final class DialogueStructureValidator {
             validate(dialogue, out, factors, engine);
         }
         checkSharedMemoriesAgree(dialogues, out);
+        checkExtensions(dialogues, factors, engine, out);
         return out;
     }
 
@@ -156,6 +160,9 @@ public final class DialogueStructureValidator {
             Map<String, Integer> onceIdentities = new HashMap<>();
             for (int i = 0; i < node.getOptions().size(); i++) {
                 DialogueOption option = node.getOptions().get(i);
+                if (option.isInjected()) {
+                    continue; // audited once, against its extension, by checkExtensions
+                }
                 String where = "node '" + nodeId + "' option " + i;
                 checkConditions(option.getConditions(), where, id, out,
                         factors, engine);
@@ -193,6 +200,9 @@ public final class DialogueStructureValidator {
                 continue;
             }
             for (DialogueOption option : node.getOptions()) {
+                if (option.isInjected()) {
+                    continue;
+                }
                 for (DialogueAction action : option.getActions()) {
                     if (action instanceof DialogueAction.Goto go && go.getNode() != null
                             && dialogue.getNode(go.getNode()) != null
@@ -412,6 +422,16 @@ public final class DialogueStructureValidator {
                                     + tag + "', which no screen carries, so its lines reach nobody - tag"
                                     + " the screens it belongs on, or fix the spelling on one side", id));
                 }
+            }
+        }
+        // A tag an extension places its lines on is in use too, though no local group names it.
+        for (DialogueExtension extension : DialogueExtensionConfig.getInstance().ordered()) {
+            NodeSelector extensionOn = extension.getOn();
+            if (extensionOn == null) {
+                continue;
+            }
+            for (String tag : extensionOn.getTags()) {
+                selectedTags.add(normalize(tag));
             }
         }
         for (Map.Entry<String, DialogueNode> node : dialogue.getNodes().entrySet()) {
@@ -772,6 +792,12 @@ public final class DialogueStructureValidator {
             return;
         }
         checkWorldScope(once.getWhere(), "Once", where, id, out);
+        if (once.hasUnknownPeriod()) {
+            out.add(error("ONCE_UNKNOWN_PERIOD",
+                    "Dialogue '" + id + "' " + where + " has a Once Period '" + once.getPeriodWord()
+                            + "', which is neither Daily nor Weekly, so it turns over daily - write Daily"
+                            + " or Weekly", id));
+        }
         if (option != null && option.onceDiscriminator().isBlank()) {
             out.add(warning("ONCE_NO_IDENTITY",
                     "Dialogue '" + id + "' " + where + " has a Once but no LabelKey or OnceId to"
@@ -842,6 +868,9 @@ public final class DialogueStructureValidator {
             blankUse |= collectReads(node.getConditions(), read);
             for (int i = 0; i < node.getOptions().size(); i++) {
                 DialogueOption option = node.getOptions().get(i);
+                if (option.isInjected()) {
+                    continue;
+                }
                 blankUse |= collectReads(option.getConditions(), read);
                 for (DialogueAction action : option.getActions()) {
                     if (action instanceof DialogueAction.MemoryAction memory) {
@@ -1006,6 +1035,160 @@ public final class DialogueStructureValidator {
                 }
             }
         }
+    }
+
+    // ==================== dialogue extensions ====================
+
+    /**
+     * Audit every enabled dialogue extension ONCE, against the whole set of conversations it can
+     * reach. Its lines are skipped wherever they were spliced, so a mistake in one line is one finding
+     * naming the extension rather than one per conversation it landed in. Checked here as well is
+     * what only an extension can get wrong: a line with no {@code LabelKey}, a {@code Goto}, a memory,
+     * an id no loaded conversation answers, an {@code On} that names no screen, and an extension that
+     * reached no screen at all.
+     */
+    private static void checkExtensions(@Nonnull Collection<NpcDialogue> dialogues,
+                                        @Nullable FactorRegistry factors,
+                                        @Nullable DialogueEngine engine,
+                                        @Nonnull List<Finding> out) {
+        Set<String> conversations = new HashSet<>();
+        for (NpcDialogue dialogue : dialogues) {
+            conversations.add(normalize(dialogue.getId()));
+        }
+        for (DialogueExtension extension : DialogueExtensionConfig.getInstance().ordered()) {
+            if (!extension.isEnabled()) {
+                continue;
+            }
+            String id = extension.getId();
+            if (extension.getOptions().isEmpty()) {
+                out.add(warning("EXTENSION_NO_OPTIONS",
+                        "Dialogue extension '" + id + "' has no Options, so it adds nothing anywhere", id));
+                continue;
+            }
+            DialogueSelector selector = extension.getDialogues();
+            if (selector != null) {
+                checkConversationIds(selector.getIds(), "Ids", conversations, id, out);
+                checkConversationIds(selector.getExclude(), "Exclude", conversations, id, out);
+            }
+            NodeSelector on = extension.getOn();
+            if (on != null && on.hasNoPositiveAxis()) {
+                out.add(error("EXTENSION_ON_NO_AXIS",
+                        "Dialogue extension '" + id + "' has an On with no Nodes or Tags, so its lines land"
+                                + " on no screen at all - name the screens or the tag, or drop the On for the"
+                                + " screens each conversation opens on", id));
+            }
+            checkExtensionLines(extension, factors, engine, out);
+            if (!landsAnywhere(extension, dialogues)) {
+                out.add(info("EXTENSION_LANDS_NOWHERE",
+                        "Dialogue extension '" + id + "' reached no screen of any conversation this server"
+                                + " has loaded", id));
+            }
+        }
+    }
+
+    private static void checkExtensionLines(@Nonnull DialogueExtension extension,
+                                            @Nullable FactorRegistry factors,
+                                            @Nullable DialogueEngine engine,
+                                            @Nonnull List<Finding> out) {
+        String id = extension.getId();
+        Map<String, Integer> identities = new HashMap<>();
+        List<DialogueOption> lines = extension.getOptions();
+        for (int i = 0; i < lines.size(); i++) {
+            DialogueOption line = lines.get(i);
+            String where = "extension line " + i;
+            if (line.getLabelKey() == null || line.getLabelKey().isBlank()) {
+                out.add(error("EXTENSION_NO_LABEL",
+                        "Dialogue extension '" + id + "' line " + i + " has no LabelKey, so every"
+                                + " conversation it lands in would show a key made up from that"
+                                + " conversation's name - author a LabelKey", id));
+            }
+            checkConditions(line.getConditions(), where, id, out, factors, engine);
+            checkOnce(line.getOnce(), line, where, id, out);
+            checkExtensionOnceIdentity(line, i, id, identities, out);
+            checkSugar(line, where, id, out);
+            boolean usesMemory = hasMemoryRead(line.getConditions());
+            for (DialogueAction action : line.getActions()) {
+                checkActionKnown(action, where, id, out, engine);
+                checkQuestAction(action, where, id, out);
+                checkOpen(action, id, out);
+                if (action instanceof DialogueAction.Goto) {
+                    out.add(error("EXTENSION_GOTO",
+                            "Dialogue extension '" + id + "' line " + i + " jumps with Goto, but it lands in"
+                                    + " conversations whose screens it cannot know - close, open a page or"
+                                    + " stay on the screen instead", id));
+                }
+                usesMemory |= action instanceof DialogueAction.MemoryAction;
+            }
+            if (usesMemory) {
+                out.add(warning("EXTENSION_USES_MEMORY",
+                        "Dialogue extension '" + id + "' line " + i + " remembers or reads a memory, which"
+                                + " is filed under whichever conversation the line was shown in - use a Once"
+                                + " on the line instead", id));
+            }
+        }
+    }
+
+    /** Two lines of one extension sharing a Once identity share one key: spending either retires both. */
+    private static void checkExtensionOnceIdentity(@Nonnull DialogueOption line, int index,
+                                                   @Nonnull String id,
+                                                   @Nonnull Map<String, Integer> identities,
+                                                   @Nonnull List<Finding> out) {
+        if (line.getOnce() == null || line.onceDiscriminator().isBlank()) {
+            return;
+        }
+        Integer first = identities.putIfAbsent(
+                DialogueStateKeys.extensionOnce(id, line.onceDiscriminator()), index);
+        if (first != null) {
+            out.add(error("ONCE_DUPLICATE_IDENTITY",
+                    "Dialogue extension '" + id + "' lines " + first + " and " + index + " both carry a"
+                            + " Once but resolve to the same identity '" + line.onceDiscriminator()
+                            + "', so spending either retires both - author a distinct OnceId on one", id));
+        }
+    }
+
+    private static void checkConversationIds(@Nonnull List<String> named, @Nonnull String leaf,
+                                             @Nonnull Set<String> conversations, @Nonnull String id,
+                                             @Nonnull List<Finding> out) {
+        for (String conversation : named) {
+            if (!conversations.contains(normalize(conversation))) {
+                out.add(warning("EXTENSION_UNKNOWN_DIALOGUE",
+                        "Dialogue extension '" + id + "' names conversation '" + conversation + "' under"
+                                + " Dialogues." + leaf + ", which no loaded conversation answers - its mod may"
+                                + " not be installed here, or the id is misspelt", id));
+            }
+        }
+    }
+
+    /** True when a memory read sits anywhere in the list, combinators included. */
+    private static boolean hasMemoryRead(@Nonnull List<DialogueCondition> conditions) {
+        for (DialogueCondition condition : conditions) {
+            if (condition instanceof DialogueCondition.MemoryCondition) {
+                return true;
+            }
+            if (condition instanceof DialogueCondition.Combinator combinator
+                    && hasMemoryRead(combinator.getChildren())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True when any screen of any conversation carries one of this extension's lines. */
+    private static boolean landsAnywhere(@Nonnull DialogueExtension extension,
+                                         @Nonnull Collection<NpcDialogue> dialogues) {
+        for (NpcDialogue dialogue : dialogues) {
+            for (DialogueNode node : dialogue.getNodes().values()) {
+                if (node == null) {
+                    continue;
+                }
+                for (DialogueOption option : node.getOptions()) {
+                    if (extension.getId().equals(option.getInjectedBy())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     // ==================== shared helpers ====================
