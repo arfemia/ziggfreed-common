@@ -370,6 +370,61 @@ class CommerceValidatorTest {
         }
 
         @Test
+        void aContractWithNoBandOnABoardWhoseSlotsAllNameOneIsCalledOut() throws Exception {
+            List<Finding> findings = BoardValidator.validate(
+                    one("daily", board("""
+                            { "Slots": [ { "Difficulty": "Training" }, { "Difficulty": "Hard" } ] }
+                            """, "Daily")),
+                    one("bounty_plain", bounty("""
+                            { "Boards": [ { "Board": "Daily" } ],
+                              "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
+                            """, "Bounty_Plain")),
+                    WALLETS, null, null, null, null);
+
+            assertEquals(Severity.WARNING, find(findings, "MEMBERSHIP_WITHOUT_DIFFICULTY").severity());
+        }
+
+        @Test
+        void aSlotNamingNoBandTakesAContractWithNoBand() throws Exception {
+            List<Finding> findings = BoardValidator.validate(
+                    one("nightly", board("""
+                            { "Slots": [ { "Count": 1 } ] }
+                            """, "Nightly")),
+                    one("bounty_plain", bounty("""
+                            { "Boards": [ { "Board": "Nightly", "Weight": 1 } ],
+                              "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
+                            """, "Bounty_Plain")),
+                    WALLETS, null, null, null, null);
+
+            assertFalse(has(findings, "MEMBERSHIP_WITHOUT_DIFFICULTY"),
+                    "a slot with no Difficulty posts anything the board holds, a contract with no band included");
+        }
+
+        @Test
+        void oneSlotNamingNoBandIsEnoughForAContractWithNoBand() throws Exception {
+            List<Finding> findings = BoardValidator.validate(
+                    one("daily", board("""
+                            { "Slots": [ { "Difficulty": "Training" }, { "Count": 1, "Optional": true } ] }
+                            """, "Daily")),
+                    Map.of("bounty_easy", bounty("""
+                            { "Boards": [ { "Board": "Daily", "Difficulty": "Training" } ],
+                              "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
+                            """, "Bounty_Easy"),
+                            "bounty_plain", bounty("""
+                            { "Boards": [ { "Board": "Daily" } ],
+                              "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
+                            """, "Bounty_Plain")),
+                    WALLETS, null, null, null, null);
+
+            assertFalse(has(findings, "MEMBERSHIP_WITHOUT_DIFFICULTY"),
+                    "the slot naming no band can draw the contract naming none");
+        }
+
+        @Test
         void aRerollPricedInAWalletNobodyDefinesMeansNobodyCanEverReroll() throws Exception {
             List<Finding> findings = BoardValidator.validate(
                     one("daily", board("""

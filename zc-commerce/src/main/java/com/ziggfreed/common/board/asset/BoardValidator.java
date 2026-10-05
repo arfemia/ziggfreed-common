@@ -258,7 +258,7 @@ public final class BoardValidator {
                 continue;
             }
             String band = membership.getDifficulty();
-            if (band == null && board.slotsOrEmpty().length > 0) {
+            if (band == null && everySlotNamesABand(board)) {
                 out.add(Finding.warning(DOMAIN, "MEMBERSHIP_WITHOUT_DIFFICULTY",
                         "the entry for board '" + boardId + "' names no Difficulty, but every one of that "
                                 + "board's slots posts a named band, so this contract can never be drawn onto "
@@ -390,6 +390,26 @@ public final class BoardValidator {
                             + "ever until they get the contract they want, which makes the posting itself "
                             + "pointless; author a price, a limit, or both", id));
         }
+    }
+
+    /**
+     * True when the board has slots and each one posts a named band, so a contract whose entry names
+     * no band fits none of them. A slot with no Difficulty posts anything the board holds, a contract
+     * with no band included: its label is the draw's tier ({@code CommerceFold.slot}), and a null tier
+     * accepts every candidate.
+     */
+    private static boolean everySlotNamesABand(@Nonnull BoardAsset board) {
+        boolean anySlot = false;
+        for (BoardSlotAsset slot : board.slotsOrEmpty()) {
+            if (slot == null) {
+                continue;
+            }
+            if (slot.label() == null) {
+                return false;
+            }
+            anySlot = true;
+        }
+        return anySlot;
     }
 
     /** Is {@code type} one of the strategies this library seeds? */
