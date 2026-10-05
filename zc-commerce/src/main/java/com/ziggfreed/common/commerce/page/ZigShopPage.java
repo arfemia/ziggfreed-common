@@ -27,6 +27,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.commerce.CommerceStores;
+import com.ziggfreed.common.commerce.asset.WhereAxis;
 import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
 import com.ziggfreed.common.commerce.fold.CommerceDefaults;
 import com.ziggfreed.common.commerce.fold.CommerceEngines;
@@ -231,8 +232,9 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
                         asset == null ? List.of() : asset.currencyIds(), deps.currencyNames()),
                 MAX_CHIPS);
 
-        // Switched off, or hidden by a feature that reads off: either way it is not open.
-        if (asset != null && !asset.isAvailable()) {
+        // Switched off, hidden by a feature that reads off, or not in the world this player stands
+        // in: any of them and it is not open here.
+        if (asset != null && !asset.isAvailableIn(WhereAxis.viewer(store))) {
             showEmpty(cmd, text("shop.empty.closed"));
             renderToastInto(cmd);
             return;
@@ -756,6 +758,14 @@ public final class ZigShopPage extends ToastablePage<ShopEventData> {
             return;
         }
 
+        StorefrontAsset asset = shopAsset();
+        if (asset != null && !asset.existsIn(WhereAxis.viewer(store))) {
+            // A page left open across a move into a world this storefront is not in: it sells and
+            // rerolls nothing there, refuses as a switched-off one does, and reopens closed.
+            showToast(ToastKind.ERROR, refusalLine(ShopEngine.REASON_DISABLED));
+            player.getPageManager().openCustomPage(ref, store, this);
+            return;
+        }
         Subject subject = subjectOf(store, ref);
         ShopEngine engine = CommerceEngines.shops();
         ShopOffer offer = selectedOfferId == null ? null : engine.catalog().offer(selectedOfferId);

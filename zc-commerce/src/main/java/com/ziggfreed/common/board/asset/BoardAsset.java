@@ -25,9 +25,11 @@ import com.ziggfreed.common.commerce.asset.HideAxis;
 import com.ziggfreed.common.commerce.asset.RerollAsset;
 import com.ziggfreed.common.commerce.asset.RotationAsset;
 import com.ziggfreed.common.commerce.asset.SelectionAsset;
+import com.ziggfreed.common.commerce.asset.WhereAxis;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**
@@ -80,6 +82,9 @@ import com.ziggfreed.common.world.WorldSelector;
  *
  * <p><b>{@code Where} decides which worlds this board exists in at all</b>, in the one
  * world-targeting grammar every file on this server uses. Leave it out and it exists everywhere.
+ * It is judged against the world the player looking at it stands in ({@link #isAvailableIn}):
+ * anywhere else the board is in none of that player's lists, is never their unnamed default, and
+ * opens closed.
  */
 public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, BoardAsset>> {
 
@@ -198,7 +203,8 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
                     (a, v) -> a.where = v, a -> a.where, (a, p) -> a.where = p.where)
             .documentation("Which worlds this board exists in. Unauthored means every world. A world is named by "
                     + "what it is CALLED or by the gameplay config it runs, the same grammar every world-targeted "
-                    + "file here uses.")
+                    + "file here uses. A player standing anywhere else is not shown it, never lands on it as the "
+                    + "unnamed default, and finds it closed if something opens it by name.")
             .add()
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
@@ -229,6 +235,25 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
      */
     public boolean isAvailable() {
         return HideAxis.present(isEnabled(), requires);
+    }
+
+    /**
+     * Does this board exist where {@code viewer} is standing ({@link WhereAxis#present})? True
+     * everywhere when no {@code Where} is authored. The world axis alone; open is
+     * {@link #isAvailableIn}.
+     */
+    public boolean existsIn(@Nonnull LoadedWorld viewer) {
+        return WhereAxis.present(where, viewer);
+    }
+
+    /**
+     * Is the board open to a player standing in {@code viewer}'s world right now: on this server
+     * ({@link #isAvailable()}) and in that world ({@link #existsIn})? What a player's lists, their
+     * unnamed default and the page ask. The engine view's {@code enabled()} has no viewer and stays
+     * {@link #isAvailable()}.
+     */
+    public boolean isAvailableIn(@Nonnull LoadedWorld viewer) {
+        return isAvailable() && existsIn(viewer);
     }
 
     /**
@@ -354,7 +379,7 @@ public final class BoardAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return requires;
     }
 
-    /** Which worlds this board exists in, or null for every world. */
+    /** Which worlds this board exists in, or null for every world; read through {@link #existsIn}. */
     @Nullable
     public WorldSelector getWhere() {
         return where;

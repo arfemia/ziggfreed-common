@@ -13,9 +13,11 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.board.asset.BoardConfig;
+import com.ziggfreed.common.commerce.asset.WhereAxis;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
 
 /**
  * The way in to both commerce screens: two calls that open one, and one place a consumer says what
@@ -34,6 +36,11 @@ import com.ziggfreed.common.util.SafeLog;
  * out, and the honest answer is the first storefront or board the content declares in its own order
  * rather than a hardcoded id this library invented. A server with none declines, which is what a
  * caller already has to cope with.
+ *
+ * <p><b>Both opens are judged where the player stands.</b> The unnamed default is the first one the
+ * player's own world lists ({@link #firstShopId(LoadedWorld)}), so it never lands on a storefront or
+ * a board whose {@code Where} names another world; one opened by id there opens closed, as a
+ * switched-off one does, because the page asks the same question of the world it is built in.
  *
  * <p>World thread.
  */
@@ -83,7 +90,7 @@ public final class CommercePages {
      */
     public static boolean openShop(@Nullable String shopId, @Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
-        String id = shopId != null && !shopId.isBlank() ? shopId : firstShopId();
+        String id = shopId != null && !shopId.isBlank() ? shopId : firstShopId(WhereAxis.viewer(store));
         if (id == null) {
             SafeLog.fine("[commerce] a storefront was asked for but this server declares none");
             return false;
@@ -121,7 +128,7 @@ public final class CommercePages {
      */
     public static boolean openBoard(@Nullable String boardId, @Nullable String openAtBountyId,
             @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
-        String id = boardId != null && !boardId.isBlank() ? boardId : firstBoardId();
+        String id = boardId != null && !boardId.isBlank() ? boardId : firstBoardId(WhereAxis.viewer(store));
         if (id == null) {
             SafeLog.fine("[commerce] a board was asked for but this server declares none");
             return false;
@@ -147,7 +154,9 @@ public final class CommercePages {
 
     /**
      * The first storefront this server declares, in the order the content asked for, skipping one
-     * switched off or hidden by a feature ({@link ShopConfig#firstListedId()}).
+     * switched off or hidden by a feature ({@link ShopConfig#firstListedId()}). Nobody is looking,
+     * so a {@code Where} is not asked: a caller with a player in hand uses
+     * {@link #firstShopId(LoadedWorld)}.
      */
     @Nullable
     public static String firstShopId() {
@@ -159,11 +168,40 @@ public final class CommercePages {
         }
     }
 
+    /**
+     * The first storefront a player standing in {@code viewer}'s world is shown
+     * ({@link ShopConfig#firstListedIdIn}): what an unnamed storefront destination opens for them.
+     * Read the viewer with {@link WhereAxis#viewer}.
+     */
+    @Nullable
+    public static String firstShopId(@Nonnull LoadedWorld viewer) {
+        try {
+            return ShopConfig.getInstance().firstListedIdIn(viewer);
+        } catch (Throwable ignored) {
+            // Nothing loaded yet reads as nothing declared, which is the same decline.
+            return null;
+        }
+    }
+
     /** The first board this server declares, on the same terms ({@link BoardConfig#firstListedId()}). */
     @Nullable
     public static String firstBoardId() {
         try {
             return BoardConfig.getInstance().firstListedId();
+        } catch (Throwable ignored) {
+            // Nothing loaded yet reads as nothing declared, which is the same decline.
+            return null;
+        }
+    }
+
+    /**
+     * The first board a player standing in {@code viewer}'s world is shown
+     * ({@link BoardConfig#firstListedIdIn}), on the same terms as {@link #firstShopId(LoadedWorld)}.
+     */
+    @Nullable
+    public static String firstBoardId(@Nonnull LoadedWorld viewer) {
+        try {
+            return BoardConfig.getInstance().firstListedIdIn(viewer);
         } catch (Throwable ignored) {
             // Nothing loaded yet reads as nothing declared, which is the same decline.
             return null;

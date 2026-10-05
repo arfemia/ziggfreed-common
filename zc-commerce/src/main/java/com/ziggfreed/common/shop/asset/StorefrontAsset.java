@@ -20,9 +20,11 @@ import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.asset.HideAxis;
+import com.ziggfreed.common.commerce.asset.WhereAxis;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.text.ContentTextAsset;
+import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**
@@ -60,7 +62,9 @@ import com.ziggfreed.common.world.WorldSelector;
  *
  * <p><b>{@code Where} decides which worlds this storefront exists in at all</b>, in the one
  * world-targeting grammar every file on this server uses. Leave it out and it exists everywhere,
- * which is what a hub shop wants; author it when a storefront belongs to one place.
+ * which is what a hub shop wants; author it when a storefront belongs to one place. It is judged
+ * against the world the player looking at it stands in ({@link #isAvailableIn}): anywhere else the
+ * storefront is in none of that player's lists, is never their unnamed default, and opens closed.
  *
  * <p>To retune a storefront somebody else shipped, override the file by id (a same-named file in a
  * later pack or in the owner layer {@code mods/ziggfreedcommon/shops.json}), or ship your own with
@@ -155,7 +159,8 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
                     (a, v) -> a.where = v, a -> a.where, (a, p) -> a.where = p.where)
             .documentation("Which worlds this storefront exists in. Unauthored means every world. A world is "
                     + "named by what it is CALLED or by the gameplay config it runs, the same grammar every "
-                    + "world-targeted file here uses.")
+                    + "world-targeted file here uses. A player standing anywhere else is not shown it, never "
+                    + "lands on it as the unnamed default, and finds it closed if something opens it by name.")
             .add()
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
@@ -187,6 +192,24 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
      */
     public boolean isAvailable() {
         return HideAxis.present(isEnabled(), requires);
+    }
+
+    /**
+     * Does this storefront exist where {@code viewer} is standing ({@link WhereAxis#present})? True
+     * everywhere when no {@code Where} is authored. The world axis alone; open is
+     * {@link #isAvailableIn}.
+     */
+    public boolean existsIn(@Nonnull LoadedWorld viewer) {
+        return WhereAxis.present(where, viewer);
+    }
+
+    /**
+     * Is the storefront open to a player standing in {@code viewer}'s world right now: on this
+     * server ({@link #isAvailable()}) and in that world ({@link #existsIn})? What a player's lists,
+     * their unnamed default and the page ask.
+     */
+    public boolean isAvailableIn(@Nonnull LoadedWorld viewer) {
+        return isAvailable() && existsIn(viewer);
     }
 
     /**
@@ -250,7 +273,7 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
         return requires;
     }
 
-    /** Which worlds this storefront exists in, or null for every world. */
+    /** Which worlds this storefront exists in, or null for every world; read through {@link #existsIn}. */
     @Nullable
     public WorldSelector getWhere() {
         return where;
