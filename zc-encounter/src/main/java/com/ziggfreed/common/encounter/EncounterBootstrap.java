@@ -13,6 +13,7 @@ import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.run.ZigEncounterRest;
 import com.ziggfreed.common.encounter.run.ZigEncounterRun;
 import com.ziggfreed.common.encounter.signal.EncounterSignalSystem;
+import com.ziggfreed.common.encounter.system.EncounterAddSystem;
 import com.ziggfreed.common.encounter.system.EncounterDamageSystem;
 import com.ziggfreed.common.encounter.system.EncounterDeathSystem;
 import com.ziggfreed.common.encounter.system.EncounterLifecycleSystems;
@@ -59,8 +60,8 @@ public final class EncounterBootstrap {
 
     /**
      * The signal bridge, the attach and remove lifecycle pair, the death latch, the observing
-     * damage system and the tick. Each registration guarded on its own, so one engine refusal costs
-     * that system and not the module.
+     * damage system, the add notice and the tick. Each registration guarded on its own, so one engine
+     * refusal costs that system and not the module.
      */
     private static void registerSystems(@Nonnull JavaPlugin plugin) {
         register(plugin, "signal", new EncounterSignalSystem());
@@ -68,6 +69,7 @@ public final class EncounterBootstrap {
         register(plugin, "remove", new EncounterLifecycleSystems.Remove());
         register(plugin, "death", new EncounterDeathSystem());
         register(plugin, "damage", new EncounterDamageSystem());
+        register(plugin, "adds", new EncounterAddSystem());
         register(plugin, "tick", new EncounterTickSystem());
     }
 

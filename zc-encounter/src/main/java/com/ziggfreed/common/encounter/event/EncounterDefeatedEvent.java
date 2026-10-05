@@ -12,9 +12,10 @@ import com.ziggfreed.common.encounter.ledger.ParticipantShare;
 
 /**
  * The subject is down: its death component landed (the precise instant), or the script signalled
- * {@code zc:defeated} for a fight with no bound subject. Latched once per run, fired on the world
- * thread with everybody's credit already settled, so loot, leaderboards and progression all read the
- * same numbers.
+ * {@code zc:defeated} for a fight with no bound subject, or for one whose subject this library found
+ * dead. A beat while the subject still lived is a leash and fires none of this
+ * ({@link ResetReason#LEASHED}). Latched once per run, fired on the world thread with everybody's
+ * credit already settled, so loot, leaderboards and progression all read the same numbers.
  *
  * <p>Synchronous {@code IEvent<Void>} POJO on the shared engine event bus; every collection is a
  * copy and unmodifiable. See {@link Encounters} for the fire contract.

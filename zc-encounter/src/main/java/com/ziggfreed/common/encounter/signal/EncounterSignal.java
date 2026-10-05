@@ -14,7 +14,8 @@ import javax.annotation.Nullable;
  *   <li>{@code zc:phase:<State>} - the fight entered the named phase (beside a ChangeTargetRole or
  *       State step);</li>
  *   <li>{@code zc:wave[:<label>]} - adds were summoned (beside a TriggerSpawners);</li>
- *   <li>{@code zc:defeated} - the subject is down (beside ClearEncounterBossBar);</li>
+ *   <li>{@code zc:defeated} - the subject is down (beside ClearEncounterBossBar); with a subject
+ *       bound that still lives, the library reads it as a leash and pays nothing;</li>
  *   <li>{@code zc:reset} - the script re-armed for the next run.</li>
  * </ul>
  *

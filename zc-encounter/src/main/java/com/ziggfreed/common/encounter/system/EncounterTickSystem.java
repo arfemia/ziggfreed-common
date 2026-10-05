@@ -1,6 +1,7 @@
 package com.ziggfreed.common.encounter.system;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -24,11 +25,13 @@ import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.spawning.SpawnLineage;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.event.ResetReason;
 import com.ziggfreed.common.encounter.payout.EncounterDiscovery;
+import com.ziggfreed.common.encounter.run.AddScaling;
 import com.ziggfreed.common.encounter.run.EncounterChunkHold;
 import com.ziggfreed.common.encounter.run.EncounterLifecycle;
 import com.ziggfreed.common.encounter.run.EncounterMembership;
@@ -37,16 +40,16 @@ import com.ziggfreed.common.encounter.run.EncounterRuns;
 import com.ziggfreed.common.encounter.run.EncounterScaling;
 import com.ziggfreed.common.encounter.run.EncounterSubjects;
 import com.ziggfreed.common.encounter.run.ZigEncounterRun;
-import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.encounter.validate.EncounterScripts;
 import com.ziggfreed.common.util.EntityIdentifierUtil;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Once per tick per encounter entity, AFTER the engine's own tick has run the script: re-resolve
- * the subject and the members and refresh the hot indexes, seed the party, credit presence, apply
- * or reconcile the health scale, hold the chunk ticking while the fight is open (or owned and still
- * waiting for its party), watch for a wipe or a timeout, and move the map marker. Nothing here
+ * the subject and the members and refresh the hot indexes (the encounter's spawn lineage among
+ * them), seed the party, credit presence, apply or reconcile the health scale, scale the adds its
+ * spawners raised since the last tick, hold the chunk ticking while the fight is open (or owned and
+ * still waiting for its party), watch for a wipe or a timeout, and move the map marker. Nothing here
  * decides the fight; it reads what the engine decided.
  *
  * <p>Not parallel: members are player entities that may stand in two overlapping fights at once,
@@ -94,7 +97,8 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
             }
             Ref<EntityStore> ref = archetypeChunk.getReferenceTo(index);
             long now = System.currentTimeMillis();
-            tickOne(store, ref, run, encounterId, row, dt, now);
+            SpawnLineage lineage = archetypeChunk.getComponent(index, SpawnLineage.getComponentType());
+            tickOne(store, ref, run, encounterId, row, dt, now, lineage == null ? null : lineage.getLineageId());
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " tick failed", t);
         }
@@ -102,7 +106,7 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
 
     private static void tickOne(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull ZigEncounterRun run, @Nonnull String encounterId, @Nullable EncounterBindingAsset row,
-            float dt, long now) {
+            float dt, long now, @Nullable String lineageId) {
         UUID worldUuid = EncounterLifecycle.worldUuid(store);
         run.bindWorld(worldUuid);
         if (!EncounterRuns.isTracked(run.runId()) && worldUuid != null) {
@@ -142,6 +146,8 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
             }
         }
         EncounterRuns.indexMembers(run.runId(), memberRefs);
+        // The encounter's own lineage, which the engine copies onto everything its spawners raise.
+        EncounterRuns.indexLineage(run.runId(), lineageId);
 
         // An engage the script never announces: the subject bound and the grace ran out.
         if (!run.isEngaged() && !run.isConcluded() && run.hasSubject()
@@ -157,6 +163,9 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
         if (subject != null && !run.isConcluded()) {
             scale(store, subject, run, row, memberRefs);
         }
+
+        // The adds the encounter's spawners raised since the last tick, each scaled once.
+        scaleAdds(store, run, row, subject, memberRefs);
 
         // The chunk hold. An OPEN fight holds its chunk ticking so the two guards below are measured by
         // this tick and never cut short by a cold chunk; a fight someone OWNS (a round's, spawned at its
@@ -202,8 +211,8 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
         }
         double perPower = spec == null ? EncounterBindingAsset.Scale.DEFAULT_HEALTH_PER_POWER_POINT
                 : spec.healthPerPowerPoint();
-        double power = perPower != 0.0 ? EncounterSeams.aggregatedPower(store, subject, memberRefs) : 0.0;
-        int members = Math.max(memberRefs.size(), run.seedMembers().size());
+        double power = EncounterScaling.powerFor(store, subject, memberRefs, perPower);
+        int members = EncounterScaling.memberCount(memberRefs, run);
         double factor = EncounterScaling.factor(spec, members, power, run.healthMultiplier());
         boolean changed = EncounterScaling.apply(store, subject, factor, first);
         run.noteScale(factor);
@@ -214,9 +223,48 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
         }
     }
 
-    private static boolean statsReady(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> subject) {
+    /**
+     * Scale what the encounter's spawners raised since the last tick (every NPC that took this
+     * encounter's lineage, noted by {@code EncounterAddSystem}): once each, by the row's
+     * {@code Scale.Adds}, never the subject (checked by reference and by uuid, since an in-place role
+     * change reissues the boss's reference). An add whose health is not built yet waits for a later tick.
+     */
+    private static void scaleAdds(@Nonnull Store<EntityStore> store, @Nonnull ZigEncounterRun run,
+            @Nullable EncounterBindingAsset row, @Nullable Ref<EntityStore> subject,
+            @Nonnull List<Ref<EntityStore>> memberRefs) {
+        Map<Ref<EntityStore>, Integer> pending = EncounterRuns.takePendingAdds(run.runId());
+        if (pending.isEmpty()) {
+            return;
+        }
+        EncounterBindingAsset.AddScale spec = row == null || row.getScale() == null ? null : row.getScale().getAdds();
+        int members = EncounterScaling.memberCount(memberRefs, run);
+        double perPower = spec == null ? 0.0 : spec.healthPerPowerPoint();
+        double factor = run.isConcluded() ? 1.0
+                : EncounterScaling.addFactor(spec, members, EncounterScaling.powerFor(store, subject, memberRefs, perPower));
+        boolean scales = factor != 1.0;
+        int scaled = 0;
+        for (Map.Entry<Ref<EntityStore>, Integer> waiting : pending.entrySet()) {
+            Ref<EntityStore> add = waiting.getKey();
+            boolean present = add.isValid();
+            boolean isSubject = present && (add.equals(subject)
+                    || (run.subjectUuid() != null && run.subjectUuid().equals(EncounterSubjects.uuidOf(store, add))));
+            AddScaling.Step step = AddScaling.step(scales, present, isSubject, present && statsReady(store, add),
+                    waiting.getValue());
+            if (step == AddScaling.Step.APPLY && EncounterScaling.applyToAdd(store, add, factor)) {
+                scaled++;
+            } else if (step == AddScaling.Step.WAIT) {
+                EncounterRuns.requeuePendingAdd(run.runId(), add, waiting.getValue() + 1);
+            }
+        }
+        if (scaled > 0) {
+            SafeLog.info(Encounters.LOG_PREFIX + " adds run=" + EncounterRun.shortId(run.runId()) + " scaled="
+                    + scaled + " factor=" + Math.round(factor * 100.0) / 100.0 + " members=" + members);
+        }
+    }
+
+    private static boolean statsReady(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> entity) {
         try {
-            EntityStatMap stats = store.getComponent(subject, EntityStatsModule.get().getEntityStatMapComponentType());
+            EntityStatMap stats = store.getComponent(entity, EntityStatsModule.get().getEntityStatMapComponentType());
             return stats != null && stats.get(DefaultEntityStatTypes.getHealth()) != null;
         } catch (Throwable t) {
             return false;

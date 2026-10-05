@@ -9,8 +9,10 @@ import com.hypixel.hytale.event.IEvent;
 
 /**
  * A run ended and its ledger is gone. ALWAYS the last event of a run: after a defeat or a wipe, or in
- * place of either when the encounter was removed, reloaded, timed out or its world unloaded. When the
- * same encounter entity carries on, {@code nextRunId} names the run that replaces this one.
+ * place of either when the encounter was removed, reloaded, timed out or its world unloaded. A leash
+ * (a defeat beat while the subject still lived) ends its run here at once, after the wipe it settles
+ * as, with {@link ResetReason#LEASHED}. When the same encounter entity carries on, {@code nextRunId}
+ * names the run that replaces this one.
  *
  * <p>Synchronous {@code IEvent<Void>} POJO on the shared engine event bus. See {@link Encounters}
  * for the fire contract.

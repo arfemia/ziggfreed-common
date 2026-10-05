@@ -22,7 +22,6 @@ import com.ziggfreed.common.encounter.run.EncounterRuns;
 import com.ziggfreed.common.encounter.run.EncounterScaling;
 import com.ziggfreed.common.encounter.run.EncounterSubjects;
 import com.ziggfreed.common.encounter.run.ZigEncounterRun;
-import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -65,8 +64,8 @@ public class ActionZigScaleTarget extends ActionBase {
             List<Ref<EntityStore>> members = EncounterRuns.memberRefs(store, ref);
             double perPower = spec == null ? EncounterBindingAsset.Scale.DEFAULT_HEALTH_PER_POWER_POINT
                     : spec.healthPerPowerPoint();
-            double power = perPower != 0.0 ? EncounterSeams.aggregatedPower(store, subject, members) : 0.0;
-            int memberCount = Math.max(members.size(), run.seedMembers().size());
+            double power = EncounterScaling.powerFor(store, subject, members, perPower);
+            int memberCount = EncounterScaling.memberCount(members, run);
             double factor = EncounterScaling.factor(spec, memberCount, power, run.healthMultiplier());
             boolean changed = EncounterScaling.apply(store, subject, factor, !run.isScaleApplied());
             run.noteScale(factor);

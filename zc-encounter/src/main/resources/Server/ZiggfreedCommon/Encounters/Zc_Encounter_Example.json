@@ -7,11 +7,14 @@
     "Every group is optional and every leaf can be left out, so write only what you want to differ",
     "from the defaults. Subject names the script's own target slot the boss is bound into. Scale grows",
     "the boss's maximum health with the party (HealthPerMember 0.35 makes a four-member fight 2.05",
-    "times the health) and with a companion's power reading. Timing guards the run from outside:",
-    "how long an empty arena counts as a wipe, how long a run may last at most. Loot.OnDefeat is",
-    "rolled per credited participant and scaled by their share; Loot.OnPhase, keyed by the script's",
-    "state name, drops on the ground at the boss. Feedback names the FeedbackMoment fired at each",
-    "beat. Discovery puts a world-map marker over the boss while the fight is on.",
+    "times the health) and with a companion's power reading. Scale.Adds grows every add the script's",
+    "own spawners raise, each by its own leaves (HealthPerMember 0.2 makes every add in a four-member",
+    "fight 1.6 times as tough); leave it out and adds keep the health their role gives them. Timing",
+    "guards the run from outside: how long an empty arena counts as a wipe, how long a run may last",
+    "at most. Loot.OnDefeat is rolled per credited participant and scaled by their share;",
+    "Loot.OnPhase, keyed by the script's state name, drops on the ground at the boss. Feedback names",
+    "the FeedbackMoment fired at each beat. Discovery puts a world-map marker over the boss while the",
+    "fight is on.",
     "",
     "Switch the whole binding off with Enabled false, or from mods/ziggfreedcommon/encounters.json",
     "under the key zc_encounter_example, and the library neither binds, scales nor pays this script."
@@ -23,7 +26,10 @@
   },
   "Scale": {
     "HealthPerMember": 0.35,
-    "MaxHealthMultiplier": 5.0
+    "MaxHealthMultiplier": 5.0,
+    "Adds": {
+      "HealthPerMember": 0.2
+    }
   },
   "Timing": {
     "WipeGraceSeconds": 60,

@@ -7,9 +7,11 @@
     "  { \"Reference\": \"Zc_Defeat_Beat\", \"Modify\": { \"_ExportStates\": [ \"Complete\" ] } }",
     "",
     "The library settles credit the instant the boss's death lands, so the beat here is the fallback",
-    "for a fight with no bound boss and the authoritative place the bar comes down. A zc:defeated",
-    "beat without a ClearEncounterBossBar beside it fails the content audit, because a dead boss's",
-    "bar otherwise stays on every screen until the corpse is removed."
+    "for a fight with no bound boss and the authoritative place the bar comes down. The sensor also",
+    "lets go of a boss that has run past Range: the library checks the boss at the beat, and one still",
+    "alive was leashed, so the run counts as lost, pays nothing and starts over. A zc:defeated beat",
+    "without a ClearEncounterBossBar beside it fails the content audit, because a dead boss's bar",
+    "otherwise stays on every screen until the corpse is removed."
   ],
   "Class": "Instruction",
   "Type": "Component",
