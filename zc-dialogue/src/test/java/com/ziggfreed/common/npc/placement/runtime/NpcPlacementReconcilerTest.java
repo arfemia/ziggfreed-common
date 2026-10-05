@@ -4,10 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -247,5 +249,56 @@ class NpcPlacementReconcilerTest {
         // The section went out of memory again before the completion ran, so its ref is invalid: a sweep
         // now would read the section absent and ask for it again at once.
         assertFalse(NpcPlacementReconciler.sweepAfterLanding(new Ref<>((Store<ChunkStore>) null), null));
+    }
+
+    // ==================== Update 7: idempotent placement and upkeep (X29, M123) ====================
+
+    private static final String HUB_INSTANCE = "hub|worldspawn:0";
+
+    @Test
+    void idempotentPlacement_aCopyStandingLiveIsNeverPlacedAgain() {
+        // The despawn pass kept or adopted a copy of this instance this round.
+        assertFalse(NpcPlacementReconciler.spawnsThisRound(PlaceDecision.PLACE, HUB_INSTANCE, Set.of(HUB_INSTANCE),
+                () -> fail("a copy standing live answers without reading the section")));
+    }
+
+    @Test
+    void idempotentPlacement_aCopyHeldAsleepInTheAnchorsSectionIsNeverPlacedAgain() {
+        // A parked or saved copy comes back as a load once its section wakes: placing beside it would
+        // stand a second one, on this boot and on every boot after.
+        assertFalse(NpcPlacementReconciler.spawnsThisRound(PlaceDecision.PLACE, HUB_INSTANCE, Set.of(),
+                () -> Set.of(HUB_INSTANCE)));
+        assertFalse(NpcPlacementReconciler.spawnsThisRound(PlaceDecision.REPLACE, HUB_INSTANCE, Set.of(),
+                () -> Set.of(HUB_INSTANCE)), "a Respawn placement whose NPC is held asleep is not gone");
+    }
+
+    @Test
+    void anotherInstancesCopyHoldsNothingBack() {
+        assertTrue(NpcPlacementReconciler.spawnsThisRound(PlaceDecision.PLACE, HUB_INSTANCE, Set.of("hub|coords:1"),
+                () -> Set.of("guide|worldspawn:0")));
+    }
+
+    @Test
+    void aSkippedInstanceNeverReadsItsSection() {
+        int[] reads = {0};
+
+        assertFalse(NpcPlacementReconciler.spawnsThisRound(PlaceDecision.SKIP, HUB_INSTANCE, Set.of(), () -> {
+            reads[0]++;
+            return Set.of();
+        }));
+        assertEquals(0, reads[0]);
+    }
+
+    @Test
+    void upkeepCoversEveryKeptCopyAndNeverASurplusOne() {
+        AdoptedRow guide = new AdoptedRow("guide", "worldspawn:0", UUID.fromString("00000000-0000-0000-0000-000000000003"));
+        AdoptedRow hub = new AdoptedRow("hub", "worldspawn:0", UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        AdoptedRow hubAgain = new AdoptedRow("hub", "worldspawn:0", UUID.fromString("00000000-0000-0000-0000-000000000002"));
+
+        List<AdoptedRow> rows = NpcPlacementReconciler.upkeepRows(List.of(guide),
+                NpcPlacementReconciler.planAdoptions(List.of(hub, hubAgain)));
+
+        assertEquals(List.of(guide, hub), rows,
+                "a surplus copy is removed, so it never takes the pin or overwrites the cached position");
     }
 }
