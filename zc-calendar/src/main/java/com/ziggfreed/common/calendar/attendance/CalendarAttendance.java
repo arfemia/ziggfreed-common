@@ -12,11 +12,11 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
-import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.calendar.CalendarHerald;
 import com.ziggfreed.common.calendar.CalendarRuntime;
 import com.ziggfreed.common.calendar.CalendarService;
+import com.ziggfreed.common.calendar.PlayerWorldThread;
 import com.ziggfreed.common.calendar.event.CalendarEvents;
 import com.ziggfreed.common.calendar.tick.CalendarTick;
 import com.ziggfreed.common.occurrence.Occurrence;
@@ -25,8 +25,9 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * A player is present for a run when they enter a world while it runs ({@code PlayerReadyEvent}) or are
  * online when it really begins (a tick's non-resumed start). Each is credited once per run on the player's
- * own world thread: the record is written, {@code CalendarAttendedEvent} fires, and the run's start banner
- * shows. A boot catch-up credits nobody, since nobody was here.
+ * own world thread: the record is written, {@code CalendarAttendedEvent} fires for each run at once, and the
+ * runs' start banners show, queued a gap apart ({@link CalendarHerald#showStarts}). A boot catch-up credits
+ * nobody, since nobody was here.
  */
 public final class CalendarAttendance {
 
@@ -103,14 +104,7 @@ public final class CalendarAttendance {
     }
 
     private static void hop(@Nonnull Ref<EntityStore> ref, @Nonnull List<Occurrence> runs, long nowMs) {
-        if (!ref.isValid()) {
-            return;
-        }
-        World world = ref.getStore().getExternalData().getWorld();
-        if (world == null || !world.isAlive()) {
-            return;
-        }
-        world.execute(() -> creditOnWorldThread(ref, runs, nowMs));
+        PlayerWorldThread.queue(ref, () -> creditOnWorldThread(ref, runs, nowMs));
     }
 
     private static void creditOnWorldThread(@Nonnull Ref<EntityStore> ref, @Nonnull List<Occurrence> runs, long nowMs) {
@@ -125,10 +119,12 @@ public final class CalendarAttendance {
             if (record == null || player == null) {
                 return;
             }
+            List<String> started = new ArrayList<>();
             for (Occurrence run : credit(record, runs)) {
                 CalendarEvents.fireAttended(player.getUuid(), run, nowMs);
-                CalendarHerald.showStart(player, run.eventId());
+                started.add(run.eventId());
             }
+            CalendarHerald.showStarts(player, started);
         } catch (Throwable t) {
             SafeLog.warn("[calendar] could not credit attendance", t);
         }
