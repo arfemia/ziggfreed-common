@@ -12,7 +12,8 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
-import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.text.ContentTextAsset;
 
@@ -62,7 +63,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
             .add()
             .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
                     (a, v) -> a.icon = v, a -> a.icon, (a, p) -> a.icon = p.icon)
-            .metadata(new UIEditor(new UIEditor.Dropdown("hytale:item")))
+            .metadata(EditorSchema.assetRef(Item.class))
             .documentation("The item whose picture stands beside the season's name in the Almanac's list and at "
                     + "the top of its page.")
             .add()

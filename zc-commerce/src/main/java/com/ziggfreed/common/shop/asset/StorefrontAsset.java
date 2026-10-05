@@ -16,6 +16,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
@@ -109,7 +110,7 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
             .add()
             .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
                     (a, v) -> a.icon = v, a -> a.icon, (a, p) -> a.icon = p.icon)
-            .metadata(new UIEditor(new UIEditor.Dropdown("hytale:item")))
+            .metadata(EditorSchema.assetRef(Item.class))
             .documentation("The item whose picture stands for this storefront wherever shops are listed side by "
                     + "side.")
             .add()

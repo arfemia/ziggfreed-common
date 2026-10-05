@@ -82,10 +82,11 @@ public final class InteractionRewards {
     /**
      * Who a payout to the player at {@code ref} is for: the runtime's own subject, so a consumer's
      * store and notices see it the way they see a quest payout; the library's reference-backed one
-     * when the runtime cannot say. World thread.
+     * when the runtime cannot say. World thread. Public for the other payout site over this core, the
+     * dialogue {@code Grant} action ({@code objectives/dialogue/GrantDialogueAction}).
      */
     @Nonnull
-    static Subject subjectFor(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+    public static Subject subjectFor(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef) {
         try {
             Subject subject = ProgressionRuntime.subjects().questSubject(store, ref);

@@ -13,7 +13,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
-import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.asset.EditorSchema;
 
@@ -180,7 +180,7 @@ public final class CostAsset {
                 BuilderCodec.builder(ItemCostAsset.class, ItemCostAsset::new)
                         .appendInherited(new KeyedCodec<>("Item", Codec.STRING, false),
                                 (o, v) -> o.item = v, o -> o.item, (o, p) -> o.item = p.item)
-                        .metadata(new UIEditor(new UIEditor.Dropdown("hytale:item")))
+                        .metadata(EditorSchema.assetRef(Item.class))
                         .documentation("The item id taken as payment.").add()
                         .appendInherited(new KeyedCodec<>("Count", Codec.INTEGER, false),
                                 (o, v) -> o.count = v, o -> o.count, (o, p) -> o.count = p.count)

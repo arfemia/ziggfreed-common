@@ -5,7 +5,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.progress.asset.ObjectiveLeafAsset;
 
@@ -36,7 +36,7 @@ public final class AlmanacStatAsset extends ObjectiveLeafAsset {
             appendLeaves(BuilderCodec.builder(AlmanacStatAsset.class, AlmanacStatAsset::new))
                     .appendInherited(new KeyedCodec<>("Icon", Codec.STRING, false),
                             (o, v) -> o.icon = v, o -> o.icon, (o, p) -> o.icon = p.icon)
-                    .metadata(new UIEditor(new UIEditor.Dropdown("hytale:item")))
+                    .metadata(EditorSchema.assetRef(Item.class))
                     .documentation("The item whose picture stands beside this line on the page.").add()
                     .appendInherited(new KeyedCodec<>("Order", Codec.INTEGER, false),
                             (o, v) -> o.order = v, o -> o.order, (o, p) -> o.order = p.order)
