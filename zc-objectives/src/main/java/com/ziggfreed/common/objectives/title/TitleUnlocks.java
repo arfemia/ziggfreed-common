@@ -21,7 +21,7 @@ import com.ziggfreed.common.subject.Subject;
  * The ONE write path onto a player's titles ({@link ZigTitleComponent}): unlock, revoke, show one
  * (activate), show none (deactivate), and read back. The {@code Title} reward kind, every
  * {@code /zigtitle} verb and the picker come through here, so a change is announced the same way
- * whoever made it: one native event, the off-thread mirror ({@link ActiveTitles}) refreshed, and
+ * whoever made it: one native event, the process-wide record ({@link ActiveTitles}) refreshed, and
  * for a new unlock one notice. A write that changed nothing announces nothing.
  *
  * <p><b>World thread</b>, like every component write: the live forms take the player's own
@@ -191,7 +191,7 @@ public final class TitleUnlocks {
         return ids;
     }
 
-    /** A real change: refresh the mirror first (a listener may read it), then announce. */
+    /** A real change: refresh the record first (a listener may read it), then announce. */
     private static void changed(@Nonnull ZigTitleComponent titles, @Nonnull Subject who,
                                 @Nonnull String titleId, @Nonnull Outcome change) {
         String shown = titles.activeTitle();

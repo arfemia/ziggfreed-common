@@ -6,25 +6,28 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 /**
  * The per-player title record: case-blind ids, the reserved save delimiters, a shown title that
- * is always an earned one, the codec round trip the engine save makes, and the connect seed that
- * puts the shown title where off-thread readers find it.
+ * is always an earned one, the codec round trip the engine save makes, the connect seed that
+ * puts the shown title where off-thread readers find it, and a leaving player who keeps it there.
  */
 class ZigTitleComponentTest {
 
     @AfterEach
     void forgetTheMirror() {
+        ActiveTitles.persistTo(null, null);
         ActiveTitles.clear();
     }
 
@@ -154,5 +157,36 @@ class ZigTitleComponentTest {
         ZigTitleComponent.seed(null, titles); // no identity to key: a quiet no-op
         ZigTitleComponent.seed(player, null);
         assertNull(ActiveTitles.of(player));
+    }
+
+    @Test
+    void leavingKeepsTheShownTitleForOfflineRows() {
+        UUID player = UUID.randomUUID();
+        ZigTitleComponent titles = new ZigTitleComponent();
+        titles.unlock("pumpkin_king");
+        titles.activate("pumpkin_king");
+        ZigTitleComponent.seed(player, titles);
+
+        ZigTitleComponent.left();
+
+        assertEquals("pumpkin_king", ActiveTitles.of(player),
+                "a row names an offline player with the title they chose, so a title says nothing about presence");
+    }
+
+    @Test
+    void leavingWritesTheShownTitleDownForARestart(@TempDir Path dir) {
+        Path file = dir.resolve("shown-titles.json");
+        ActiveTitles.persistTo(file, null);
+        UUID player = UUID.randomUUID();
+        ZigTitleComponent titles = new ZigTitleComponent();
+        titles.unlock("pumpkin_king");
+        titles.activate("pumpkin_king");
+        ZigTitleComponent.seed(player, titles);
+
+        ZigTitleComponent.left();
+        ActiveTitles.clear();
+        ActiveTitles.persistTo(file, null);
+
+        assertEquals("pumpkin_king", ActiveTitles.of(player), "a restart still names them with it");
     }
 }

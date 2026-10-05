@@ -11,9 +11,11 @@ import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 
 /**
  * What titles put into the display-name seam: the name with the title a player shows placed around
- * it, when that title is on offer. It reads the off-thread mirror and the fold only, never an entity
- * store, so a page on any world thread can name any online player; a player showing nothing, one
- * whose title is switched off or unknown, and a player who left all read plain.
+ * it, when that title is on offer. It reads the process-wide record ({@link ActiveTitles}) and the
+ * fold only, never an entity store, so a page on any world thread can name any player. It answers
+ * the same whether that player is online or not (the record keeps a player who left, across a
+ * restart too), so a title never tells a viewer who is online; a player showing nothing and one
+ * whose title is switched off or unknown read plain either way.
  */
 public final class TitleDisplay {
 
