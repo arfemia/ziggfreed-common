@@ -28,6 +28,12 @@ import com.ziggfreed.common.util.SafeLog;
  * chunk, unpin on the LAST to release it. Two placements in one chunk therefore cost one pin, and
  * removing one of them does not unpin the chunk out from under the other.
  *
+ * <p><b>Residency, not ticking.</b> A pin keeps a column resident; it never kept the column, or on
+ * Update 7 any of its sections, ticking: the engine stops a held column ticking once its active timer
+ * runs out, and a section sleeps on its own timer. So the pin and the unpin read the column's residency
+ * ({@code NpcPlacementService.residentChunk}), never its ticking flag, or a pin taken after a section
+ * wake is refused and an unpin after the column stopped ticking leaks the count.
+ *
  * <p>A whole world's entry is dropped by a {@link WorldEvictors} evictor on world removal. That is
  * not tidiness: an instance world torn down with pins outstanding would otherwise leak both the
  * bookkeeping and (if it ever came back) the count.
@@ -199,7 +205,7 @@ public final class PlacementKeepAlivePins {
 
     private static boolean addKeepLoaded(@Nonnull World world, long index) {
         try {
-            WorldChunk chunk = NpcPlacementService.chunkIfLoaded(world, index);
+            WorldChunk chunk = NpcPlacementService.residentChunk(world, index);
             if (chunk == null) {
                 return false;
             }
@@ -213,7 +219,7 @@ public final class PlacementKeepAlivePins {
 
     private static void removeKeepLoaded(@Nonnull World world, long index) {
         try {
-            WorldChunk chunk = NpcPlacementService.chunkIfLoaded(world, index);
+            WorldChunk chunk = NpcPlacementService.residentChunk(world, index);
             if (chunk != null) {
                 chunk.removeKeepLoaded();
             }
