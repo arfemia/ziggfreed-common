@@ -1,5 +1,7 @@
 package com.ziggfreed.common.npc.placement.runtime;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -8,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -16,9 +19,9 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.npc.placement.anchor.AnchorPosition;
@@ -27,6 +30,8 @@ import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.PlacementGate.GateVerdict;
 import com.ziggfreed.common.npc.placement.registry.PlacementGates;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.TickingSections;
+import com.ziggfreed.common.world.TickingSections.SectionPos;
 import com.ziggfreed.common.world.WorldSelector;
 
 /**
@@ -37,7 +42,8 @@ import com.ziggfreed.common.world.WorldSelector;
  * over resident entities cannot tell "never placed" from "placed, chunk asleep". Placing on
  * absence spawns a second NPC every single time a player walks back into range, which duplicates
  * every placement in the world over an afternoon and is the exact bug this whole design exists to
- * prevent. A placement therefore requires BOTH a ledger miss AND a loaded anchor chunk.
+ * prevent. A placement therefore requires BOTH a ledger miss AND a ticking anchor chunk section (on
+ * Update 7 a section sleeps whatever its column does; see the place pass).
  * {@code Lifecycle.KeepAlive} hides the problem for one placement and for nothing else, so it is
  * not a fix.
  *
@@ -128,7 +134,9 @@ public final class NpcPlacementReconciler {
      * @param gateAllowed       does the gate chain allow this placement here?
      * @param whereMatches      does the placement's {@code Where} match this world?
      * @param ledgerHit         is there already a row for this instance?
-     * @param anchorChunkLoaded is the anchor's chunk loaded and ticking?
+     * @param anchorChunkLoaded is the anchor's chunk SECTION ticking, and not woken by this round? (On
+     *                          Update 7 a section ticks on its own, whatever its column does; the
+     *                          component keeps its 2.2.0 name for linkage.)
      * @param entityResident    is the row's entity actually present? (only meaningful with the
      *                          chunk loaded, which is why the rule below checks that first)
      * @param respawn           does the placement opt into being placed again after loss?
@@ -171,40 +179,57 @@ public final class NpcPlacementReconciler {
     }
 
     /**
-     * Ask the engine for the chunk under {@code position}, once, and sweep again when it arrives.
+     * Ask the engine for the chunk section under {@code position}, ticking, once, and sweep again when it
+     * lands.
      *
-     * <p>An anchor that resolves into a sleeping chunk is not a race to wait out - it is the
-     * ordinary shape of a placement standing somewhere nobody has walked: a world spawn point the
-     * player did not spawn at, a structure sighted from a distance. Nothing will ever load that
-     * chunk on its own, so the placement would simply never appear no matter how long the retry
-     * budget ran. Requesting it turns the position itself into the reason to load it.
+     * <p>An anchor whose section is not in memory is not a race to wait out: it is the ordinary shape of
+     * a placement standing somewhere nobody has walked (a structure sighted from a distance, a spawn point
+     * whose column nothing loaded). Nothing will load that section on its own, so the placement would
+     * never appear however long the retry budget ran; requesting it makes the position itself the reason
+     * to load it. The request carries {@code SET_TICKING}, the only request that wakes a section on
+     * Update 7 (a column request wakes only its column; see {@code TickingSections}).
      *
-     * <p>No pin is taken (see {@link NpcPlacementService#requestChunk}): once the NPC is placed and
-     * nobody is nearby, the chunk goes cold and unloads again on the engine's own schedule, taking
-     * the NPC with it and leaving the ledger row - the steady state the whole sweep is built
-     * around. Only {@code Lifecycle.KeepAlive} holds a chunk awake.
+     * <p>No pin is taken: once the NPC is placed and nobody is near, the section goes back to sleep and
+     * the column unloads on the engine's own schedule, taking the NPC with them and leaving the ledger
+     * row - the steady state the whole sweep is built around. Only {@code Lifecycle.KeepAlive} pins a
+     * column.
      *
-     * <p>Requested once per chunk per world: the same anchor is walked on every pass, and a repeat
-     * request would re-enter the loader each time for a chunk already on its way in. The claim is
-     * released when the load completes, so a chunk that later sleeps again can be asked for again.
+     * <p>Requested once per section per world: the same anchor is walked on every pass. The claim is
+     * released when the request completes, landed or not, but only a landed section sweeps again
+     * ({@link #sweepAfterLanding}): a section the chunk store failed to bring up is asked for again by the
+     * next sweep the retry chain or a trigger runs, never by a loop of its own.
      *
      * @return true when a request was made on this call
      */
-    private static boolean requestAnchorChunk(@Nonnull World world, @Nonnull String worldName,
-            @Nonnull AnchorPosition position) {
-        String key = worldName + '|' + ChunkUtil.indexChunkFromBlock(position.x(), position.z());
-        if (!CHUNK_REQUESTS.add(key)) {
+    private static boolean requestAnchorSection(@Nonnull World world, @Nonnull String worldName,
+            @Nonnull SectionPos section, @Nonnull AnchorPosition position) {
+        String key = worldName + '|' + section.x() + ',' + section.y() + ',' + section.z();
+        if (!SECTION_REQUESTS.add(key)) {
             return false;
         }
-        boolean requested = NpcPlacementService.requestChunk(world, position.x(), position.z(), () -> {
-            CHUNK_REQUESTS.remove(key);
-            // The chunk is in and ticking now, so the place decision that skipped can go through.
-            defer(world);
-        });
-        if (!requested) {
-            CHUNK_REQUESTS.remove(key);
-        }
-        return requested;
+        TickingSections.wake(world, position.x(), position.y(), position.z())
+                .whenCompleteAsync((sectionRef, error) -> {
+                    SECTION_REQUESTS.remove(key);
+                    if (sweepAfterLanding(sectionRef, error)) {
+                        // The section is in and ticking now, so the place decision that skipped can go through.
+                        defer(world);
+                    } else {
+                        SafeLog.fine("[placement] the chunk section " + section + " in '" + worldName
+                                + "' could not be brought up" + (error == null ? "" : ": " + error));
+                    }
+                }, world);
+        return true;
+    }
+
+    /**
+     * Whether a section request's completion sweeps the world again: only when it landed with a section
+     * whose ref is still valid (as {@code EncounterSpawner.spawnInLoadedSection} checks). A failed or
+     * empty load, or a section gone out of memory again before this ran, does not, or the next sweep
+     * would ask again, a chunk store on its failure backoff would answer at once, and the world thread
+     * would spin. Package-private for the test.
+     */
+    static boolean sweepAfterLanding(@Nullable Ref<ChunkStore> sectionRef, @Nullable Throwable error) {
+        return error == null && sectionRef != null && sectionRef.isValid();
     }
 
     // ==================== sweep state ====================
@@ -241,10 +266,10 @@ public final class NpcPlacementReconciler {
     private static final Set<World> RETRY_EXHAUSTED = ConcurrentHashMap.newKeySet();
 
     /**
-     * Anchor chunks already asked for, keyed {@code worldName|chunkIndex}, so a chunk is requested
+     * Anchor chunk sections already asked for, keyed {@code worldName|x,y,z}, so a section is requested
      * once rather than on every pass over the same unplaced anchor.
      */
-    private static final Set<String> CHUNK_REQUESTS = ConcurrentHashMap.newKeySet();
+    private static final Set<String> SECTION_REQUESTS = ConcurrentHashMap.newKeySet();
 
     static {
         WorldEvictors.registerEvictor(NpcPlacementReconciler::onWorldRemoved);
@@ -287,7 +312,7 @@ public final class NpcPlacementReconciler {
         String name = NpcPlacementService.worldName(world);
         if (!name.isEmpty()) {
             IN_FLIGHT.removeIf(k -> k.startsWith(name + '|'));
-            CHUNK_REQUESTS.removeIf(k -> k.startsWith(name + '|'));
+            SECTION_REQUESTS.removeIf(k -> k.startsWith(name + '|'));
             NpcPlacementLedger.getInstance().dropWorld(name);
             NpcPlacementPositionCache.forgetWorld(name);
         }
@@ -441,25 +466,79 @@ public final class NpcPlacementReconciler {
      * Bring {@code world} into agreement with the placement content. WORLD-THREAD ONLY, and never
      * from inside a system's processing window (use {@link #requestSweep} / {@link #forceSweep},
      * which defer for you). Never throws.
+     *
+     * <p>One round, or two when the first woke an anchor's chunk section ({@link #settleRounds}).
      */
     @Nonnull
     public static SweepSummary sweep(@Nonnull World world, @Nonnull Store<EntityStore> store) {
         String worldName = NpcPlacementService.worldName(world);
         NpcPlacementLedger ledger = NpcPlacementLedger.getInstance();
+        return settleRounds(() -> sweepRound(world, store, worldName, ledger));
+    }
 
+    /** One round of a sweep: what it did, and whether its place pass woke an anchor's chunk section. */
+    record Round(@Nonnull SweepSummary summary, boolean wokeASection) {
+    }
+
+    /**
+     * Run {@code round}, and once more when it woke an anchor's chunk section. The wake brings that
+     * section's parked entities back into the world after the round's despawn pass has run, so only the
+     * next round's despawn pass can adopt one before its place pass would stand another beside it; a round
+     * never places into a section it woke ({@code AnchorSections}). Never more than two rounds: the counts
+     * add up, and the unresolved anchors are the last round's, the retry signal for what is still open.
+     * Package-private for the test.
+     */
+    @Nonnull
+    static SweepSummary settleRounds(@Nonnull Supplier<Round> round) {
+        Round first = round.get();
+        if (!first.wokeASection()) {
+            return first.summary();
+        }
+        SweepSummary a = first.summary();
+        SweepSummary b = round.get().summary();
+        return new SweepSummary(b.scanned(), a.despawned() + b.despawned(), a.rebound() + b.rebound(),
+                a.placed() + b.placed(), b.unresolvedAnchors());
+    }
+
+    /** One round: despawn, then heal, then place. */
+    @Nonnull
+    private static Round sweepRound(@Nonnull World world, @Nonnull Store<EntityStore> store,
+            @Nonnull String worldName, @Nonnull NpcPlacementLedger ledger) {
         DespawnPass despawnPass = runDespawnPass(world, store, worldName);
         int rebound = runHealPass(world, store, worldName, ledger);
         PlacePass placePass = runPlacePass(world, store, worldName, ledger);
-
-        return new SweepSummary(despawnPass.scanned, despawnPass.despawned, rebound,
-                placePass.placed(), placePass.unresolvedAnchors());
+        return new Round(new SweepSummary(despawnPass.scanned, despawnPass.despawned, rebound,
+                placePass.placed(), placePass.unresolvedAnchors()), placePass.wokeASection());
     }
 
     private record DespawnPass(int scanned, int despawned) {
     }
 
-    /** One resident entity to mint a fresh ledger row for (the REBIND/adopt outcome). */
-    private record AdoptedRow(@Nonnull String placementId, @Nonnull String anchorKey, @Nonnull UUID uuid) {
+    /** One resident entity to mint a fresh ledger row for (the REBIND/adopt outcome). Package-private for the test. */
+    record AdoptedRow(@Nonnull String placementId, @Nonnull String anchorKey, @Nonnull UUID uuid) {
+    }
+
+    /** The adoptions to record, and the copies beyond the first of one instance, to remove. */
+    record AdoptionPlan(@Nonnull List<AdoptedRow> keep, @Nonnull List<AdoptedRow> surplus) {
+    }
+
+    /**
+     * One adoption per placement instance. A wake can bring several parked copies of one instance back at
+     * once (a build that spawned into sleeping sections parked one on every pass, and the section saved
+     * them all): each reads "no row" in the same walk, and recording them all would leave every copy
+     * standing until a later sweep found the row naming only the last. The first in walk order is
+     * adopted; the rest are surplus. Package-private for the test.
+     */
+    @Nonnull
+    static AdoptionPlan planAdoptions(@Nonnull List<AdoptedRow> adopted) {
+        Map<String, AdoptedRow> firstPerInstance = new LinkedHashMap<>();
+        List<AdoptedRow> surplus = new ArrayList<>();
+        for (AdoptedRow row : adopted) {
+            if (firstPerInstance.putIfAbsent(row.placementId() + '|' + row.anchorKey(), row) != null) {
+                surplus.add(row);
+            }
+        }
+        return new AdoptionPlan(List.copyOf(firstPerInstance.values()), List.copyOf(surplus));
     }
 
     /**
@@ -557,8 +636,15 @@ public final class NpcPlacementReconciler {
         // ledger write is file I/O, which does not belong inside a parallel entity walk. Adopting
         // BEFORE the place pass runs (later in this same sweep) is load-bearing: it is what stops
         // the place pass reading a ledger miss for an instance that is, in fact, already standing.
-        for (AdoptedRow row : adopted) {
+        // One adoption per instance (planAdoptions): the extra copies a wake brought back go now.
+        AdoptionPlan plan = planAdoptions(new ArrayList<>(adopted));
+        for (AdoptedRow row : plan.keep()) {
             ledger.record(worldName, row.placementId(), row.anchorKey(), row.uuid());
+        }
+        for (AdoptedRow row : plan.surplus()) {
+            if (NpcPlacementService.removeByUuid(store, row.uuid())) {
+                despawned.incrementAndGet();
+            }
         }
 
         // Bookkeeping happens OUTSIDE the iteration: dropping a ledger row writes a file, and the
@@ -606,9 +692,12 @@ public final class NpcPlacementReconciler {
         return healed;
     }
 
-    /** What one place pass did: how many it placed, and how many wanted a position it could not
-     * yet resolve (the retry signal - see {@link #deferSweep}). */
-    private record PlacePass(int placed, int unresolvedAnchors) {
+    /**
+     * What one place pass did: how many it placed, how many wanted a position or a ticking section it
+     * could not have yet (the retry signal - see {@link #deferSweep}), and whether it woke an anchor's
+     * section (the signal for {@link #settleRounds}' second round).
+     */
+    private record PlacePass(int placed, int unresolvedAnchors, boolean wokeASection) {
     }
 
     /** Pass 3, ledger-authoritative: place what is missing, and only what is provably missing. */
@@ -617,6 +706,7 @@ public final class NpcPlacementReconciler {
             @Nonnull String worldName, @Nonnull NpcPlacementLedger ledger) {
         int placed = 0;
         int unresolvedAnchors = 0;
+        AnchorSections sections = new AnchorSections();
         for (NpcPlacementAsset placement : NpcPlacementConfig.getInstance().all().values()) {
             if (placement == null || placement.getId() == null || placement.getId().isBlank()) {
                 continue;
@@ -664,39 +754,53 @@ public final class NpcPlacementReconciler {
                     String flightKey = worldName + '|' + placementId + '|' + anchorKey;
                     boolean ledgerHit = ledger.hasRow(worldName, placementId, anchorKey);
                     boolean atCapacity = max > 0 && !ledgerHit && already >= max;
-                    boolean chunkLoaded = NpcPlacementService.isChunkLoaded(world, position.x(), position.z());
+                    // Update 7: an NPC stays in the world only in a TICKING chunk section, and a section
+                    // ticks on its own, whatever its column does (TickingSections). A section this round
+                    // woke is not ready either: AnchorSections holds it to the next round.
+                    SectionPos section = SectionPos.ofBlock(position.x(), position.y(), position.z());
+                    AnchorSections.Step step = sections.stepFor(section,
+                            TickingSections.stateAt(world, position.x(), position.y(), position.z()));
+                    boolean sectionReady = step == AnchorSections.Step.READY;
 
                     PlaceDecision decision = decidePlace(new PlaceInputs(
-                            true, true, ledgerHit, chunkLoaded,
+                            true, true, ledgerHit, sectionReady,
                             ledgerHit && isResident(store, ledger.uuidOf(worldName, placementId, anchorKey)),
                             respawn, atCapacity, IN_FLIGHT.contains(flightKey)));
                     if (decision == PlaceDecision.SKIP) {
-                        // atCapacity is deliberately excluded: this placement would skip even with
-                        // the chunk in hand, so neither a retry nor a chunk load could change the
-                        // answer. Counting it would keep the world retrying over a decision that
-                        // is already final.
-                        if (!ledgerHit && !chunkLoaded && !atCapacity) {
-                            // The anchor group resolved a position just fine (unlike the
-                            // positions.isEmpty() case above) - what is missing is the CHUNK at
-                            // that position, which the very first (AddWorldEvent-triggered) sweep
-                            // of a freshly-created world hits every time: nothing has forced that
-                            // chunk to load yet, because no player has even entered the world at
-                            // that instant. Nor need one ever: an anchor can name a spot no route
-                            // through the world passes, and waiting on that chunk is waiting on
-                            // nothing. So the chunk is asked for outright (requestAnchorChunk),
-                            // and the retry below only covers the wait until it arrives. A row
-                            // that exists but is asleep (an already-placed NPC whose chunk went
-                            // back to sleep) is NOT this case: that is steady-state behavior the
-                            // design deliberately never retries against.
+                        // atCapacity is deliberately excluded: this placement would skip even with the
+                        // section ticking, so neither a retry nor a wake could change the answer. Counting
+                        // it would keep the world retrying over a decision that is already final.
+                        if (!ledgerHit && !sectionReady && !atCapacity) {
+                            // The anchor resolved a position just fine (unlike the positions.isEmpty()
+                            // case above); what is missing is a TICKING section there. Nothing has woken
+                            // it: no player stands at a world spawn point while a server boots, and an
+                            // anchor can name a spot no route passes. A section in memory is woken on the
+                            // spot and placed into on the sweep's next round (settleRounds), whose despawn
+                            // pass first adopts any NPC the wake brought back; one not in memory is asked
+                            // for ticking (requestAnchorSection), and its landing sweeps again. A row that
+                            // exists over a sleeping section (a placed NPC asleep) is NOT this case: that
+                            // is the steady state the design deliberately never retries against.
                             unresolvedAnchors++;
-                            boolean asked = requestAnchorChunk(world, worldName, position);
+                            String next = switch (step) {
+                                case WAKE -> {
+                                    if (TickingSections.ensureTicking(world, position.x(), position.y(),
+                                            position.z())) {
+                                        sections.woke(section);
+                                        yield "woke it, placing on the sweep's next round";
+                                    }
+                                    yield "retrying";
+                                }
+                                case LOAD -> requestAnchorSection(world, worldName, section, position)
+                                        ? "loading it" : "retrying";
+                                case WAIT, READY -> "placing on the sweep's next round";
+                            };
                             PlacementDiag.once(world, "unresolved-asleep|" + placementId + '|' + anchorKey,
                                     "[placement] '" + placementId + "' in '" + worldName
                                             + "': anchor " + anchorKey + " resolved ("
                                             + Math.round(position.x()) + ","
                                             + Math.round(position.y()) + ","
-                                            + Math.round(position.z()) + ") but that chunk is not"
-                                            + " loaded - " + (asked ? "loading it" : "retrying"));
+                                            + Math.round(position.z()) + ") but its chunk section is not"
+                                            + " ticking - " + next);
                         }
                         continue;
                     }
@@ -723,7 +827,7 @@ public final class NpcPlacementReconciler {
                 SafeLog.warn("[placement] place pass failed for '" + placementId + "': " + t.getMessage());
             }
         }
-        return new PlacePass(placed, unresolvedAnchors);
+        return new PlacePass(placed, unresolvedAnchors, sections.wokeAny());
     }
 
     // ==================== helpers ====================
@@ -772,6 +876,6 @@ public final class NpcPlacementReconciler {
         PUMPING.clear();
         RESWEEP.clear();
         RETRY_EXHAUSTED.clear();
-        CHUNK_REQUESTS.clear();
+        SECTION_REQUESTS.clear();
     }
 }

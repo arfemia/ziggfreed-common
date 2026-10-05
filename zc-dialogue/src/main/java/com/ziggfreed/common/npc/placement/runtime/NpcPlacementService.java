@@ -117,9 +117,17 @@ public final class NpcPlacementService {
 
         NpcPlacementPositionCache.record(worldName, placementId, anchorKey,
                 position.x(), position.y(), position.z());
+        boolean keptLoaded = false;
         if (keepAlive) {
             pinChunk(world, placementId, anchorKey, position.x(), position.z());
+            keptLoaded = PlacementKeepAlivePins.holdsClaim(world, instanceKey(placementId, anchorKey));
         }
+        // One line per NPC placed: placing is rare (once per instance per world, then the ledger row
+        // holds it), and a boot capture reads which placements went in where.
+        SafeLog.info("[placement] placed '" + placementId + "' in '" + worldName + "' at " + anchorKey + " ("
+                + Math.round(position.x()) + "," + Math.round(position.y()) + "," + Math.round(position.z())
+                + ")" + (keepAlive ? (keptLoaded ? ", its chunk kept loaded" : ", its chunk could not be kept loaded")
+                        : ""));
         return true;
     }
 
@@ -240,14 +248,17 @@ public final class NpcPlacementService {
     // ==================== chunk state ====================
 
     /**
-     * Is the chunk containing {@code (x, z)} loaded and ticking?
+     * Is the chunk COLUMN containing {@code (x, z)} resident and ticking?
      *
-     * <p>The reconciler's place rule hangs on this: an entity is REMOVED from the store while its
-     * chunk sleeps, so "no entity here" only means something when the chunk is awake.
+     * <p>Kept for a consumer linking 2.2.0; the library no longer asks it. On Update 7 a column's ticking
+     * flag does not say whether an entity added in it stays: a chunk section loads asleep whatever its
+     * column does, and an entity added into a sleeping section is parked on the spot. The reconciler reads
+     * the anchor's own section through zc-world's {@code world/TickingSections.stateAt}.
      */
     public static boolean isChunkLoaded(@Nonnull World world, double x, double z) {
         try {
-            return chunkIfLoaded(world, ChunkUtil.indexChunkFromBlock(x, z)) != null;
+            WorldChunk chunk = residentChunk(world, ChunkUtil.indexChunkFromBlock(x, z));
+            return chunk != null && chunk.is(ChunkFlag.TICKING);
         } catch (Throwable t) {
             SafeLog.fine("[placement] chunk-loaded check failed: " + t.getMessage());
             return false;
@@ -257,6 +268,12 @@ public final class NpcPlacementService {
     /**
      * Ask the engine to bring the chunk containing {@code (x, z)} in and start it ticking, running
      * {@code onLoaded} on the world thread once it is there.
+     *
+     * <p><b>A column, not a section.</b> Kept for a consumer linking 2.2.0; the library no longer calls
+     * it. On Update 7 this starts the column ticking but none of its sections (a section loads asleep,
+     * and only a section request carrying {@code SET_TICKING} or a player's hot sphere wakes one), so an
+     * entity added there is still parked. The reconciler requests the anchor's own section through
+     * zc-world's {@code world/TickingSections.wake}.
      *
      * <p>An anchor can resolve a perfectly good position in a chunk NOTHING has any reason to load:
      * a world spawn point no player has walked to, a structure sighted from a distance. Waiting for
@@ -288,18 +305,19 @@ public final class NpcPlacementService {
     }
 
     /**
-     * The {@code WorldChunk} at {@code index}, or {@code null} when it is not resident or is
-     * resident but not ticking. Package-visible so {@link PlacementKeepAlivePins} shares the same
-     * read instead of re-deriving it.
+     * The {@code WorldChunk} at {@code index} when it is resident, ticking or not; null when it is not.
+     * Package-visible so {@link PlacementKeepAlivePins} pins and unpins through the same read. A pin keeps
+     * a column resident, and the engine stops a held column ticking once its active timer runs out, so a
+     * read that also asked for ticking would refuse a pin taken after a section wake (which ticks the
+     * section, not its column) and skip an unpin, leaking the keep-loaded count.
      */
     @Nullable
-    static WorldChunk chunkIfLoaded(@Nonnull World world, long index) {
+    static WorldChunk residentChunk(@Nonnull World world, long index) {
         Ref<ChunkStore> chunkRef = world.getChunkStore().getChunkReference(index);
         if (chunkRef == null || !chunkRef.isValid()) {
             return null;
         }
-        WorldChunk chunk = world.getChunkStore().getStore().getComponent(chunkRef, WorldChunk.getComponentType());
-        return chunk != null && chunk.is(ChunkFlag.TICKING) ? chunk : null;
+        return world.getChunkStore().getStore().getComponent(chunkRef, WorldChunk.getComponentType());
     }
 
     // ==================== helpers ====================

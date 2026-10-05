@@ -1,6 +1,6 @@
 # npc/placement/
 
-**Never place from absence alone.** A chunk unload removes an entity from the store, so a sweep cannot tell "never placed" from "placed, chunk asleep": placing needs a ledger miss AND a loaded anchor chunk. `Lifecycle.KeepAlive` is not a fix.
+**Never place from absence alone.** A chunk unload removes an entity from the store, so a sweep cannot tell "never placed" from "placed, chunk asleep": placing needs a ledger miss AND a ticking anchor chunk section (on Update 7 a section sleeps whatever its column does). `Lifecycle.KeepAlive` is not a fix.
 
 ## Runtime
 
@@ -8,8 +8,9 @@
 - The component id `ZiggfreedCommon:PlacedNpc` and `AnchorPosition.anchorKey()` are persisted formats: never rename or reshape them. A custom anchor resolver's `instanceId` must be stable across restarts, or each restart mints a duplicate.
 - The despawn pass asks whether the ledger row names THIS entity, not whether a row exists. A surplus duplicate despawns without `releaseInstance`, which would drop the survivor's row, pin and cached position.
 - Every sweep defers through `world.execute`: spawning inside a system throws, and the throw becomes a silently missing NPC.
+- The place pass reads the anchor's chunk SECTION (zc-world's `world/TickingSections.stateAt`), never the column's `ChunkFlag.TICKING`: an NPC spawned into a sleeping section is parked with no ledger row and no `Fortify`, and every later pass would park another. A sleeping section in memory is woken on the spot and placed into on the sweep's second round (`settleRounds`), never in the round that woke it (`AnchorSections`), so the despawn pass first adopts what the wake brought back, one copy per instance (`planAdoptions`; the rest are removed). A section not in memory is requested ticking (`requestAnchorSection`), and only a landed request sweeps again. `NpcPlacementService.place` logs one INFO line per NPC placed.
 - A `WorldSpawn` anchor reads its point through `runtime/WorldSpawnPoints`: one query per world stays on its way across passes, a pass that finds it still loading resolves nothing (the retry signal), and its landing with a point forces a sweep, so the anchor places even after the retry budget is spent. A failed query logs one WARNING per world until a point lands, and wakes nothing.
-- `PlacementKeepAlivePins` is reference counted: pin on the first insert, unpin on the last removal, never re-pin per sweep.
+- `PlacementKeepAlivePins` is reference counted: pin on the first insert, unpin on the last removal, never re-pin per sweep. Both read the column's residency (`NpcPlacementService.residentChunk`), never its ticking flag: a held column stops ticking once its timer runs out, and an unpin skipped then leaks the count.
 - `NpcPlacementPositionCache` is keyed `(world, placementId, anchorKey)`, never by placement id alone (two instances of one dungeon share it), and is never an authority.
 - `fortify` raises max health because a direct stat-map health write ignores a role's `Invulnerable` flag.
 - Query structure markers as `SpawnMarkerEntity` alone, keyed by floored world position: an open-world marker is re-created by its block with no `From*` tag, and an instance's saved marker has no `SpawnMarkerBlockReference` (`hytale-shared-source/HytaleServer/NPC/src/main/java/com/hypixel/hytale/server/spawning/blockstates/SpawnMarkerBlockStateSystems.java`).
