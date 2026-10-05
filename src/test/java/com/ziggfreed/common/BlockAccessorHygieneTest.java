@@ -67,7 +67,7 @@ class BlockAccessorHygieneTest {
 
     /** Every code line of the library's main sources that {@code rule} matches, as {@code path:line  code}. */
     @Nonnull
-    private static List<String> mainSourceHits(@Nonnull Pattern rule) throws IOException {
+    static List<String> mainSourceHits(@Nonnull Pattern rule) throws IOException {
         List<Path> sources = mainSources();
         assertFalse(sources.isEmpty(), "no main sources found under " + Path.of(".").toAbsolutePath());
         List<String> hits = new ArrayList<>();

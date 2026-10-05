@@ -13,7 +13,6 @@ import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.asset.type.model.config.Model;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.entity.nameplate.Nameplate;
@@ -24,7 +23,6 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.core.universe.world.storage.GetChunkFlags;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.hypixel.hytale.server.npc.asset.builder.BuilderInfo;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
@@ -32,6 +30,7 @@ import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.event.Encounters;
 import com.ziggfreed.common.encounter.event.ResetReason;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.TickingSections;
 
 /**
  * Spawning and removing an encounter from Java, over the engine's own holder recipe: the manager
@@ -42,11 +41,12 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>World thread only. A binding row switched off refuses the spawn, because the library would
  * neither bind, scale nor pay what it stood up.
  *
- * <p>The engine keeps an entity only in a chunk that is TICKING: one added into a chunk that is
- * not is unloaded into that chunk's own entity section on the spot. A caller standing in the world
- * already has its chunk (the plain {@link #spawn} is enough); the console, or a call placing a boss
- * somewhere nobody is, goes through {@link #spawnWhenLoaded}, which asks the chunk store to bring
- * the chunk up ticking first.
+ * <p>The engine keeps an entity only in a chunk SECTION that is ticking: one added into a section that
+ * is not is unloaded into that section's own entity list on the spot, and on Update 7 a section sleeps
+ * whatever its column does (zc-world's {@code TickingSections}). {@link #spawn} wakes a section that is
+ * in memory and refuses one that is not, so it never leaves an encounter parked; the console, or a call
+ * placing a boss somewhere nobody is, goes through {@link #spawnWhenLoaded}, which asks the chunk store
+ * for the section, ticking, first.
  */
 public final class EncounterSpawner {
 
@@ -73,7 +73,8 @@ public final class EncounterSpawner {
      * Spawn {@code encounterAssetId} at {@code at}, stamping the run with {@code options}.
      *
      * @return the encounter entity, or null when the id names no spawnable encounter script, its
-     *         binding is switched off, or the engine refused the add (each reported)
+     *         binding is switched off, the chunk section under {@code at} cannot tick, or the engine refused
+     *         the add (each reported)
      */
     @Nullable
     public static Ref<EntityStore> spawn(@Nonnull Store<EntityStore> store, @Nonnull String encounterAssetId,
@@ -101,6 +102,17 @@ public final class EncounterSpawner {
             return new Outcome(null, Refusal.DISABLED);
         }
         try {
+            World world = store.getExternalData().getWorld();
+            double x = at.getPosition().x;
+            double y = at.getPosition().y;
+            double z = at.getPosition().z;
+            if (!TickingSections.ensureTicking(world, x, y, z)) {
+                SafeLog.warn(Encounters.LOG_PREFIX + " not spawning '" + encounterId + "' at " + Math.round(x)
+                        + "," + Math.round(y) + "," + Math.round(z) + ": its chunk section is not loaded, and an"
+                        + " entity added into a section that is not ticking is unloaded on the spot"
+                        + " (spawnWhenLoaded brings the section up first)");
+                return new Outcome(null, Refusal.ENGINE_FAILED);
+            }
             Holder<EntityStore> holder = EntityStore.REGISTRY.newHolder();
             holder.addComponent(EncounterManager.getComponentType(), new EncounterManager(encounterId, info.getIndex()));
             holder.addComponent(TransformComponent.getComponentType(), at.clone());
@@ -132,8 +144,8 @@ public final class EncounterSpawner {
     }
 
     /**
-     * {@link #trySpawn} once the chunk under {@code at} is loaded and ticking. Completes on the
-     * world thread, always: a chunk the store cannot bring up, or a store that is shutting down,
+     * {@link #trySpawn} once the chunk section under {@code at} is loaded and ticking. Completes on the
+     * world thread, always: a section the store cannot bring up, or a store that is shutting down,
      * answers {@link Refusal#ENGINE_FAILED} rather than throwing.
      */
     @Nonnull
@@ -141,31 +153,30 @@ public final class EncounterSpawner {
             @Nonnull TransformComponent at, @Nonnull SpawnOptions options) {
         CompletableFuture<Outcome> outcome = new CompletableFuture<>();
         try {
-            long index = ChunkUtil.indexChunkFromBlock(at.getPosition().x, at.getPosition().z);
-            world.getChunkStore()
-                    .getChunkReferenceAsync(index, GetChunkFlags.SET_TICKING | GetChunkFlags.HIGH_PRIORITY)
-                    .whenCompleteAsync((chunkRef, error) -> outcome.complete(
-                            spawnInLoadedChunk(world, encounterAssetId, at, options, chunkRef, error)), world);
+            TickingSections.wake(world, at.getPosition().x, at.getPosition().y, at.getPosition().z)
+                    .whenCompleteAsync((sectionRef, error) -> outcome.complete(
+                            spawnInLoadedSection(world, encounterAssetId, at, options, sectionRef, error)), world);
         } catch (Throwable t) {
-            SafeLog.warn(Encounters.LOG_PREFIX + " could not ask for the chunk under '" + encounterAssetId + "'", t);
+            SafeLog.warn(Encounters.LOG_PREFIX + " could not ask for the chunk section under '" + encounterAssetId
+                    + "'", t);
             outcome.complete(new Outcome(null, Refusal.ENGINE_FAILED));
         }
         return outcome;
     }
 
     @Nonnull
-    private static Outcome spawnInLoadedChunk(@Nonnull World world, @Nonnull String encounterAssetId,
-            @Nonnull TransformComponent at, @Nonnull SpawnOptions options, @Nullable Ref<ChunkStore> chunkRef,
+    private static Outcome spawnInLoadedSection(@Nonnull World world, @Nonnull String encounterAssetId,
+            @Nonnull TransformComponent at, @Nonnull SpawnOptions options, @Nullable Ref<ChunkStore> sectionRef,
             @Nullable Throwable error) {
-        if (error != null || chunkRef == null || !chunkRef.isValid()) {
-            SafeLog.warn(Encounters.LOG_PREFIX + " the chunk under '" + encounterAssetId + "' could not be brought up"
-                    + (error == null ? "" : ": " + error.getMessage()));
+        if (error != null || sectionRef == null || !sectionRef.isValid()) {
+            SafeLog.warn(Encounters.LOG_PREFIX + " the chunk section under '" + encounterAssetId
+                    + "' could not be brought up" + (error == null ? "" : ": " + error.getMessage()));
             return new Outcome(null, Refusal.ENGINE_FAILED);
         }
         try {
             return trySpawn(world.getEntityStore().getStore(), encounterAssetId, at, options);
         } catch (Throwable t) {
-            SafeLog.warn(Encounters.LOG_PREFIX + " spawning '" + encounterAssetId + "' in its loaded chunk failed", t);
+            SafeLog.warn(Encounters.LOG_PREFIX + " spawning '" + encounterAssetId + "' in its loaded section failed", t);
             return new Outcome(null, Refusal.ENGINE_FAILED);
         }
     }

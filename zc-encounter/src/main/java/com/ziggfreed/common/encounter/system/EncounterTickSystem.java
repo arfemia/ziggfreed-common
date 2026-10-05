@@ -167,13 +167,18 @@ public final class EncounterTickSystem extends EntityTickingSystem<EntityStore> 
         // The adds the encounter's spawners raised since the last tick, each scaled once.
         scaleAdds(store, run, row, subject, memberRefs);
 
-        // The chunk hold. An OPEN fight holds its chunk ticking so the two guards below are measured by
-        // this tick and never cut short by a cold chunk; a fight someone OWNS (a round's, spawned at its
-        // arena while the party is still elsewhere) holds it from the spawn, so the encounter waits at its
-        // anchor for them instead of being unloaded, and its run (owner, difficulty, party, multiplier,
-        // none of it saved with the chunk) lost, seconds after it rose.
+        // The section hold. An OPEN fight holds its chunk section ticking so the two guards below are
+        // measured by this tick and never cut short by a sleeping section; a fight someone OWNS (a round's,
+        // spawned at its arena while the party is still elsewhere) holds it from the spawn, so the encounter
+        // waits at its anchor for them instead of being unloaded, and its run (owner, difficulty, party,
+        // multiplier, none of it saved with the chunk) lost, seconds after it rose. The subject can stand in
+        // another section than the encounter entity, and on Update 7 each section sleeps on its own timer,
+        // so its section is held too. Neither call wakes anything, so this system may make them.
         if (!run.isConcluded() && (run.isEngaged() || run.ownerKey() != null)) {
             EncounterChunkHold.holdTicking(store, ref);
+            if (subject != null) {
+                EncounterChunkHold.holdTicking(store, subject);
+            }
         }
 
         // A wipe, or a run that outlived its budget.
