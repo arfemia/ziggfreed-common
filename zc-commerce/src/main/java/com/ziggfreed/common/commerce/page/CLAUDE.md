@@ -12,6 +12,6 @@
 - Every exit path sends a response (a reopen, a partial update or a close), or the client hangs.
 - A consumer seam that throws costs only its own contribution, never the screen.
 - A toast raised after a payout lists the grant receipt, never the authored rewards. The board hand-in toast is the gold line with rows when the contract paid here, and the plain success line with none when it parked.
-- The storefront page opens closed on `!StorefrontAsset.isAvailable()`, and the board page on `!BoardAssetSpec.enabled()`, which reads the board's hide axis; the unnamed default is the configs' `firstListedId()`.
+- Both pages open closed on `!isAvailableIn(WhereAxis.viewer(store))` (the storefront's or the board's asset: switched off, hidden by a feature, or outside its `Where` for the world the page is built in), and `CommercePages.openShop`/`openBoard` take the unnamed default from `firstShopId(viewer)`/`firstBoardId(viewer)`; the no-argument forms are the viewer-less view. A press that would act on a page whose storefront or board is not in the presser's world (`!existsIn`) acts on nothing: it refuses as `disabled` and reopens closed.
 - The storefront page lists its standing offers through `AssetShopCatalog.availableOffersOf`, never `offersOf`.
 - The board's Mine tab lists through `BoardEngine.namingBoard`, never `membersOf`.

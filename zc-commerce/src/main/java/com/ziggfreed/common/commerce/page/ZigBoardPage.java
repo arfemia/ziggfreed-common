@@ -29,6 +29,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.board.BoardEngine;
 import com.ziggfreed.common.board.BountyRef;
 import com.ziggfreed.common.board.event.BoardEvents;
+import com.ziggfreed.common.commerce.asset.WhereAxis;
 import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
 import com.ziggfreed.common.commerce.fold.BountyAssetRef;
 import com.ziggfreed.common.commerce.fold.CommerceCatalogs;
@@ -200,7 +201,9 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             renderToastInto(cmd);
             return;
         }
-        if (!board.enabled()) {
+        // Switched off, hidden by a feature that reads off, or not in the world this player stands
+        // in: any of them and it is not open here.
+        if (!board.asset().isAvailableIn(WhereAxis.viewer(store))) {
             showEmpty(cmd, text("board.empty.closed"));
             renderToastInto(cmd);
             return;
@@ -739,6 +742,13 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
                 : CommerceCatalogs.boards().bounty(selectedBountyId);
         Quest quest = quests == null || bounty == null ? null : quests.quest(bounty.bountyId());
         if (subject == null || quests == null || board == null || bounty == null || quest == null) {
+            player.getPageManager().openCustomPage(ref, store, this);
+            return;
+        }
+        if (!board.asset().existsIn(WhereAxis.viewer(store))) {
+            // A page left open across a move into a world this board is not in: nothing is taken,
+            // handed in or rerolled there; it refuses as a switched-off board does and reopens closed.
+            showToast(ToastKind.ERROR, refusalLine(BoardEngine.REASON_DISABLED));
             player.getPageManager().openCustomPage(ref, store, this);
             return;
         }

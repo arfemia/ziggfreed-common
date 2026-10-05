@@ -27,7 +27,8 @@ dependencies {
     // board as the accept site, and gates through the ONE progress.gate evaluator every domain uses.
     implementation project(':zc-progression')
     // The ONE world-targeting spelling: a storefront or a board that exists only in some worlds
-    // carries the shared `Where` selector group, validated by the shared WhereValidator.
+    // carries the shared `Where` selector group, validated by the shared WhereValidator and judged
+    // against the viewing player's world by the shared WorldSelector matcher (commerce/asset/WhereAxis).
     implementation project(':zc-world')
     // The pages, the shared frames/buttons, the retint engine, the toast engine.
     implementation project(':zc-presentation')

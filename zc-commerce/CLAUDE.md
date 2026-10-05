@@ -8,5 +8,6 @@
 - A refusal is a token (`limit:daily`, `cost:currency:<id>`), never player text; the consumer maps it to words.
 - Probe before draining (the reroll and fit probes), refund the receipt rather than the price (an `Any` price charges one component), and a purchase that delivered nothing refunds and does not count.
 - Commerce never imports zc-dialogue: a conversation opens a shop or a board through the `ui/route/Destinations` registry.
+- A storefront's or a board's `Where` is enforced against the viewing player's current world, never validator-only: every player-facing list, unnamed default and open asks `isAvailableIn(WhereAxis.viewer(...))` (`listedIn`, `firstListedIdIn`, `boardsIn`, `firstShopId(viewer)`, both pages). The viewer-less forms (`listed()`, `firstListedId()`, `boards()`, `firstShopId()`) ignore `Where` and serve only the admin verbs and server-wide questions; a surface with a player in hand never reads them.
 - Writes into the commerce state store are absolute, so an import that runs twice leaves the same state, and a one-time migration is claimed (`claimMigration`), never checked and then run.
 - `ziggfreedcommon.commerce.lang` holds page chrome only; shop, category, grade, offer and contract names are content keys in the authoring mod's namespace. The `/zigcommerce` wording lives in `ziggfreedcommon.commerce.admin.lang`.

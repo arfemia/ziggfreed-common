@@ -15,6 +15,7 @@ import com.ziggfreed.common.board.asset.BoardAsset;
 import com.ziggfreed.common.board.asset.BoardAssetStore;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.board.asset.BountyAsset;
+import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
 
 /**
  * Which boards exist and which contracts may be posted on them.
@@ -58,15 +59,23 @@ public final class AssetBoardCatalog {
         return asset == null ? null : foldedBoard(asset);
     }
 
-    /** Every board a player may open, in the order they should be listed. */
+    /**
+     * Every board on this server, in the order they should be listed, with nobody looking: a
+     * {@code Where} is not asked ({@link BoardConfig#listed()}). The admin verbs and a server-wide
+     * question read this; a player's list is {@link #boardsIn}.
+     */
     @Nonnull
     public List<BoardAssetSpec> boards() {
-        List<BoardAsset> listed = BoardConfig.getInstance().listed();
-        List<BoardAssetSpec> out = new ArrayList<>(listed.size());
-        for (BoardAsset asset : listed) {
-            out.add(foldedBoard(asset));
-        }
-        return out;
+        return folded(BoardConfig.getInstance().listed());
+    }
+
+    /**
+     * Every board a player standing in {@code viewer}'s world may open, in the same order: without
+     * any board whose {@code Where} leaves that world out ({@link BoardConfig#listedIn}).
+     */
+    @Nonnull
+    public List<BoardAssetSpec> boardsIn(@Nonnull LoadedWorld viewer) {
+        return folded(BoardConfig.getInstance().listedIn(viewer));
     }
 
     // ==================== Contracts ====================
@@ -96,6 +105,15 @@ public final class AssetBoardCatalog {
     }
 
     // ==================== Internals ====================
+
+    @Nonnull
+    private List<BoardAssetSpec> folded(@Nonnull List<BoardAsset> listed) {
+        List<BoardAssetSpec> out = new ArrayList<>(listed.size());
+        for (BoardAsset asset : listed) {
+            out.add(foldedBoard(asset));
+        }
+        return out;
+    }
 
     @Nonnull
     private BoardAssetSpec foldedBoard(@Nonnull BoardAsset asset) {
