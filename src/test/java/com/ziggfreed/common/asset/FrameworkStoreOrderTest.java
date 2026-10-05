@@ -39,7 +39,10 @@ class FrameworkStoreOrderTest {
                             + "reads them in one pass instead of waiting for a re-splice"},
             new String[]{"ShopEntryGeneratorAsset", "ShopEntryAsset",
                     "a generated offer is decoded against its Base out of the offer store, so a "
-                            + "generator that folds first writes a whole family inheriting nothing"});
+                            + "generator that folds first writes a whole family inheriting nothing"},
+            new String[]{"AchievementAsset", "CalendarEventAsset",
+                    "a yearly achievement's Occurrence names a calendar event, so an achievement fold "
+                            + "that runs first finds no event and makes no yearly copy until the next fold"});
 
     @Test
     void everyDeclaredStoreOrderingEdgeIsRegistered() throws IOException {

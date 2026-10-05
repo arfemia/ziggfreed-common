@@ -527,10 +527,12 @@ public final class FrameworkAssetRegistrar {
         //     inheritance. Common ships no achievement CONTENT; every entry is consumer pack JSON.
         //     The same shared publish folds this store beside the quests, and a hot re-import asks
         //     it to run again on the same terms, so an achievement file dropped in while the
-        //     server is up reaches the engine too. ---
+        //     server is up reaches the engine too. It loads after the calendar events, so a
+        //     yearly achievement's Occurrence finds its event on the first fold. ---
         AssetStoreRegistrar.registerStore(AchievementAsset.class,
                 new DefaultAssetMap<String, AchievementAsset>(), "ZiggfreedCommon/Achievements",
-                AchievementAsset::getId, AchievementAsset.CODEC, null);
+                AchievementAsset::getId, AchievementAsset.CODEC,
+                new Class<?>[]{CalendarEventAsset.class});
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, AchievementAsset.class,
                 (LoadedAssetsEvent<String, AchievementAsset, DefaultAssetMap<String, AchievementAsset>> ev) -> {
                     AchievementAssetStore.getInstance().merge(AssetMergeAdapter.layer(ev.getAssetMap()));
