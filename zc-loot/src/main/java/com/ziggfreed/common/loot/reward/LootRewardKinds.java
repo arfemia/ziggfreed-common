@@ -187,6 +187,16 @@ public final class LootRewardKinds {
         FACTORS.set(registry);
     }
 
+    /**
+     * The factor vocabulary the rolling kinds read, or null before the wiring root installs one.
+     * Anything else that rolls loot on the same terms (the library's bonus rows) reads it too, so a
+     * gate means one thing on every roll.
+     */
+    @Nullable
+    public static FactorRegistry installedFactors() {
+        return FACTORS.get();
+    }
+
     /** Register all four kinds into {@code kinds}. */
     public static void registerInto(@Nonnull RewardKindRegistry kinds) {
         kinds.register(KIND_ITEM, OWNER, new ItemHandler());

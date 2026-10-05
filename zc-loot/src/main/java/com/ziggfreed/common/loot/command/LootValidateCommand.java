@@ -12,8 +12,10 @@ import com.ziggfreed.common.loot.LootAudit;
 import com.ziggfreed.common.validation.Finding;
 
 /**
- * Audit every loaded loot table and every loaded reward-kind file, and say what is wrong with them.
- * The findings go to whoever asked AND to the server log; chat stops after the first twenty.
+ * Audit every loaded loot table, every loaded reward-kind file and the library's own bonus rows
+ * (domain {@code bonus_rows}), and say what is wrong with them: one list, from
+ * {@link LootAudit#auditAll()}. The findings go to whoever asked AND to the server log; chat stops
+ * after the first twenty.
  */
 final class LootValidateCommand extends AbstractAsyncCommand {
 
