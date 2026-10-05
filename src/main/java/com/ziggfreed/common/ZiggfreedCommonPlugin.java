@@ -60,12 +60,16 @@ import com.ziggfreed.common.npc.NpcBootstrap;
 import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
+import com.ziggfreed.common.objectives.bonus.BonusRowBootstrap;
+import com.ziggfreed.common.objectives.calendar.CalendarSweepBootstrap;
 import com.ziggfreed.common.objectives.dialogue.DialogueBootstrap;
 import com.ziggfreed.common.objectives.flair.FlairBootstrap;
 import com.ziggfreed.common.objectives.interaction.ProgressInteractionsBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
+import com.ziggfreed.common.objectives.title.TitleBootstrap;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
+import com.ziggfreed.common.reward.CostumeRewardKind;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.shop.asset.ShopConfig;
@@ -97,7 +101,8 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  * registrations live in per-module bootstraps this class calls in one authoritative order:
  * {@code EntityBootstrap} (zc-entity), {@code NpcBootstrap} (zc-dialogue),
  * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} (zc-world), {@code CalendarBootstrap}
- * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} (zc-objectives), and
+ * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
+ * + {@code CalendarSweepBootstrap} (zc-objectives), and
  * {@code AlmanacBootstrap} (zc-almanac). Each bootstrap lives in
  * the module that already sees
  * everything its phase wires, so the phase can be read and reasoned about without standing up the
@@ -117,9 +122,9 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  *       types), which sit beside loot, progression and factor datasets no module could reach
  *       together with them;</li>
  *   <li>{@link #registerLootVocabulary()} - pinned by
- *       {@code EffectRewardKind.registerInto(RewardKinds.shared())}: {@link EffectRewardKind}
- *       lives in this root module because the loot layer may never see the effect module, and no
- *       module can see the root;</li>
+ *       {@code EffectRewardKind.registerInto(RewardKinds.shared())}: {@link EffectRewardKind} and
+ *       {@link CostumeRewardKind} live in this root module because the loot layer may never see the
+ *       effect module, and no module can see the root;</li>
  *   <li>{@link #registerCommerce()} - pinned by
  *       {@code CommerceEngines.installGates(ProgressionDefaults::gateEvaluator)}: nothing in the
  *       library depends on zc-commerce, so no module sees commerce and objectives together;</li>
@@ -186,6 +191,8 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         EntityBootstrap.registerPerformerIdentity(this);
         EntityBootstrap.registerFlairs(this);
         FlairBootstrap.registerFlairRewards(this);
+        EntityBootstrap.registerTitles(this);
+        TitleBootstrap.registerTitles(this);
         NpcBootstrap.setupTalkCredit(this);
         NpcBootstrap.registerWorldLifecycle(this);
         EntityBootstrap.registerPlayerIdentity(this);
@@ -205,9 +212,11 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // The yearly calendar declares its feature switches, its two readings and the occurrence slot
         // here, before the progression runtime is set up over content that gates on them.
         CalendarBootstrap.install(this);
+        CalendarSweepBootstrap.registerPlacementSweeps(this);
         ProgressionBootstrap.setupProgressionRuntime(this);
         ProgressInteractionsBootstrap.registerProgressInteractions(this);
         ProgressionBootstrap.registerFeedbackMoments();
+        BonusRowBootstrap.registerReactions();
         DialogueBootstrap.registerDialogueVocabulary();
         DialogueBootstrap.registerDialogueMemories(this);
         ProgressionBootstrap.registerQuestListHost();
@@ -306,7 +315,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     /**
      * The loot vocabulary a bare server starts with: the three framework reward kinds, the droplist
      * kind (a native drop table rolled onto the ground), the moment-item kind (another of the stack a
-     * pass is about, collected by that pass), the effect kind (registered from up here
+     * pass is about, collected by that pass), the effect and costume kinds (registered from up here
      * because the loot layer must never see the effect module), the stack-metadata stamper every
      * stamp writes through until a richer mod replaces it, and the default overflow policy - an item
      * reward that does not fit the bag drops on the ground at the player's feet through the one
@@ -331,6 +340,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         DroplistRewardKind.registerInto(RewardKinds.shared());
         MomentItems.registerInto(RewardKinds.shared());
         EffectRewardKind.registerInto(RewardKinds.shared());
+        CostumeRewardKind.registerInto(RewardKinds.shared());
         LootRewardKinds.factors(lootFactorVocabulary());
         LootRewardKinds.overflow(new FeetDropOverflow());
         StamperRegistry.register(new StackStatsStamper());

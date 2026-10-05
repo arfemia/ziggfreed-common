@@ -18,6 +18,7 @@ import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.dialogue.DialogueContext;
+import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.util.PeriodMath;
 import com.ziggfreed.common.world.WorldSelector;
 
@@ -228,8 +229,7 @@ public final class DialogueOnce {
     /**
      * Where this Once is filed for the player right now: {@link #keyFor} plus the window the instant
      * {@code nowMs} falls in, or null when the scope does not match this world. Public for
-     * {@link com.ziggfreed.common.dialogue.DialogueEngine}, which resolves every entry and option
-     * Once through it.
+     * {@link DialogueEngine}, which resolves every entry and option Once through it.
      */
     @Nullable
     public Slot slotFor(@Nonnull String rawKey, @Nonnull DialogueContext ctx, long nowMs) {

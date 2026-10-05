@@ -10,9 +10,9 @@ import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.CommonLog;
 import com.ziggfreed.common.ZiggfreedCommonPlugin;
-import com.ziggfreed.common.dialogue.schema.DialogueFragmentConfig;
 import com.ziggfreed.common.dialogue.style.DialogueOptionThemeConfig;
 import com.ziggfreed.common.dialogue.asset.DialogueAssetStore;
+import com.ziggfreed.common.dialogue.asset.DialogueExtensionAsset;
 import com.ziggfreed.common.dialogue.asset.DialogueFragmentAsset;
 import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
@@ -41,6 +41,9 @@ import com.ziggfreed.common.loot.stamp.RollPoolAsset;
 import com.ziggfreed.common.loot.stamp.RollPoolConfig;
 import com.ziggfreed.common.loot.stamp.StatDisplayAsset;
 import com.ziggfreed.common.loot.stamp.StatDisplayConfig;
+import com.ziggfreed.common.loot.trigger.BonusRowAsset;
+import com.ziggfreed.common.loot.trigger.BonusRowConfig;
+import com.ziggfreed.common.loot.trigger.BonusRowOwnerLayers;
 import com.ziggfreed.common.npc.NpcIdentityAsset;
 import com.ziggfreed.common.npc.NpcIdentityConfig;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
@@ -85,6 +88,9 @@ import com.ziggfreed.common.objectives.indicator.QuestIndicatorAsset;
 import com.ziggfreed.common.objectives.indicator.QuestIndicatorConfig;
 import com.ziggfreed.common.objectives.indicator.QuestIndicatorOwnerLayers;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
+import com.ziggfreed.common.objectives.title.TitleAsset;
+import com.ziggfreed.common.objectives.title.TitleConfig;
+import com.ziggfreed.common.objectives.title.TitleOwnerLayers;
 import com.ziggfreed.common.progress.asset.ObjectiveKindAsset;
 import com.ziggfreed.common.progress.asset.ObjectiveKindConfig;
 import com.ziggfreed.common.progress.asset.ObjectiveKindFold;
@@ -156,8 +162,28 @@ public final class FrameworkAssetRegistrar {
                 DialogueFragmentAsset::getId, DialogueFragmentAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, DialogueFragmentAsset.class,
                 (LoadedAssetsEvent<String, DialogueFragmentAsset, DefaultAssetMap<String, DialogueFragmentAsset>> ev) ->
-                        DialogueFragmentConfig.getInstance().mergePackLayer(
+                        DialogueAssetStore.getInstance().mergeFragments(
                                 AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.getGroup())));
+        plugin.getEventRegistry().register(RemovedAssetsEvent.class, DialogueFragmentAsset.class,
+                (RemovedAssetsEvent<String, DialogueFragmentAsset, DefaultAssetMap<String, DialogueFragmentAsset>> ev) ->
+                        DialogueAssetStore.getInstance().mergeFragments(
+                                AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.getGroup())));
+
+        // --- Dialogue extensions (Pattern A) - the ONE store that puts lines into other
+        //     conversations: each file names the conversations (or every one) and the screens its
+        //     lines land on. They load BEFORE Dialogues for the same reason fragments do, and a
+        //     reload re-splices every conversation already in circulation. ---
+        AssetStoreRegistrar.registerStore(DialogueExtensionAsset.class,
+                new DefaultAssetMap<String, DialogueExtensionAsset>(), DialogueExtensionAsset.TYPE_ROOT,
+                DialogueExtensionAsset::getId, DialogueExtensionAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DialogueExtensionAsset.class,
+                (LoadedAssetsEvent<String, DialogueExtensionAsset, DefaultAssetMap<String, DialogueExtensionAsset>> ev) ->
+                        DialogueAssetStore.getInstance().mergeExtensions(
+                                AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toExtension(id))));
+        plugin.getEventRegistry().register(RemovedAssetsEvent.class, DialogueExtensionAsset.class,
+                (RemovedAssetsEvent<String, DialogueExtensionAsset, DefaultAssetMap<String, DialogueExtensionAsset>> ev) ->
+                        DialogueAssetStore.getInstance().mergeExtensions(
+                                AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toExtension(id))));
 
         // --- Dialogues (Pattern A) - one authored conversation per file, with native Parent
         //     inheritance and a per-screen merge, so a child conversation restates one screen and
@@ -166,7 +192,7 @@ public final class FrameworkAssetRegistrar {
         AssetStoreRegistrar.registerStore(ZcDialogueAsset.class,
                 new DefaultAssetMap<String, ZcDialogueAsset>(), "ZiggfreedCommon/Dialogues",
                 ZcDialogueAsset::getId, ZcDialogueAsset.CODEC,
-                new Class<?>[]{DialogueFragmentAsset.class});
+                new Class<?>[]{DialogueFragmentAsset.class, DialogueExtensionAsset.class});
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, ZcDialogueAsset.class,
                 (LoadedAssetsEvent<String, ZcDialogueAsset, DefaultAssetMap<String, ZcDialogueAsset>> ev) ->
                         DialogueAssetStore.getInstance().merge(
@@ -198,6 +224,20 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, RollPoolAsset.class,
                 (LoadedAssetsEvent<String, RollPoolAsset, DefaultAssetMap<String, RollPoolAsset>> ev) ->
                         RollPoolConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Bonus rows (Pattern A) - the library's moment-keyed bonus table: one row per file, a
+        //     BreakBlock, KillMob or PickupItem moment plus a name pattern, a percent Chance and a
+        //     Loot block, rolled on every block a player breaks, every hand harvest and every kill
+        //     credited to a player. The library ships none. Owner layer
+        //     mods/ziggfreedcommon/bonus-rows.json, re-read whenever this store loads. ---
+        AssetStoreRegistrar.registerStore(BonusRowAsset.class,
+                new DefaultAssetMap<String, BonusRowAsset>(), BonusRowAsset.TYPE_ROOT,
+                BonusRowAsset::getId, BonusRowAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, BonusRowAsset.class,
+                (LoadedAssetsEvent<String, BonusRowAsset, DefaultAssetMap<String, BonusRowAsset>> ev) -> {
+                    BonusRowConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    BonusRowOwnerLayers.reload();
+                });
 
         // --- Stat displays (Pattern A) - what ONE stat is CALLED on a stamped item. Most stats need
         //     no file: the default naming reads the client's own itemTooltip label first, so a stat
@@ -684,8 +724,12 @@ public final class FrameworkAssetRegistrar {
                 new DefaultAssetMap<String, CalendarEventAsset>(), CalendarEventAsset.TYPE_ROOT,
                 CalendarEventAsset::getId, CalendarEventAsset.CODEC, null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, CalendarEventAsset.class,
-                (LoadedAssetsEvent<String, CalendarEventAsset, DefaultAssetMap<String, CalendarEventAsset>> ev) ->
-                        CalendarContent.reloadEvents(AssetMergeAdapter.layer(ev.getAssetMap())));
+                (LoadedAssetsEvent<String, CalendarEventAsset, DefaultAssetMap<String, CalendarEventAsset>> ev) -> {
+                    CalendarContent.reloadEvents(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    // A calendar load or reload moves which yearly achievement copies exist (and a
+                    // publish that ran before the calendar loaded minted none), so re-mint them.
+                    ProgressionDefaults.republishAssetContent();
+                });
 
         // --- Calendar spawns (Pattern A) - a native world-spawn rule an event writes while it runs and
         //     retires to zero weight when no running event owns it. No owner file. ---
@@ -695,6 +739,19 @@ public final class FrameworkAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, CalendarSpawnAsset.class,
                 (LoadedAssetsEvent<String, CalendarSpawnAsset, DefaultAssetMap<String, CalendarSpawnAsset>> ev) ->
                         CalendarContent.reloadSpawns(AssetMergeAdapter.layer(ev.getAssetMap())));
+
+        // --- Titles (Pattern A) - one TITLE per file: whether it is on offer, what it is called and
+        //     where it sorts in the picker. A player earns one through the Title reward kind or
+        //     /zigtitle grant and chooses which one shows. Owner layer mods/ziggfreedcommon/titles.json,
+        //     re-read on this same event for the usual reason. ---
+        AssetStoreRegistrar.registerStore(TitleAsset.class,
+                new DefaultAssetMap<String, TitleAsset>(), TitleAsset.TYPE_ROOT,
+                TitleAsset::getId, TitleAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, TitleAsset.class,
+                (LoadedAssetsEvent<String, TitleAsset, DefaultAssetMap<String, TitleAsset>> ev) -> {
+                    TitleConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    TitleOwnerLayers.reload();
+                });
 
         // --- The native recipe index (zc-entity) - not a store of ours: a read-side index over the
         //     ENGINE's CraftingRecipe store, built on first read. It is dropped on every recipe and
@@ -716,15 +773,16 @@ public final class FrameworkAssetRegistrar {
 
         try {
             CommonLog.LOGGER.atInfo().log(
-                    "ZiggfreedCommon framework stores registered (DialogueFragments, Dialogues, Instances, "
-                            + "Lootables, RollPools, StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
+                    "ZiggfreedCommon framework stores registered (DialogueFragments, DialogueExtensions, Dialogues, Instances, "
+                            + "Lootables, RollPools, BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
+                            + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                             + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Almanac (owner file mods/ziggfreedcommon/almanac.json), "
                             + "Currencies, Shops, ShopPools, ShopEntries, "
                             + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation, "
                             + "CalendarEvents (owner file mods/ziggfreedcommon/calendar.json), CalendarSpawns, "
-                            + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json)).");
+                            + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), Titles (owner file mods/ziggfreedcommon/titles.json)).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }

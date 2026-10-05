@@ -33,7 +33,9 @@ import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.dialogue.state.DialogueFlagScope;
 import com.ziggfreed.common.dialogue.state.DialogueMemory;
 import com.ziggfreed.common.dialogue.state.DialogueOnce;
+import com.ziggfreed.common.dialogue.schema.DialogueSelector;
 import com.ziggfreed.common.dialogue.schema.DialogueStart;
+import com.ziggfreed.common.dialogue.asset.DialogueExtensionAsset;
 import com.ziggfreed.common.dialogue.asset.DialogueFragmentAsset;
 import com.ziggfreed.common.dialogue.asset.DialogueOptionThemeAsset;
 import com.ziggfreed.common.dialogue.asset.ZcDialogueAsset;
@@ -57,11 +59,13 @@ import com.ziggfreed.common.loot.reward.RewardKindAsset;
 import com.ziggfreed.common.loot.stamp.RollPoolAsset;
 import com.ziggfreed.common.loot.stamp.StampSpec;
 import com.ziggfreed.common.loot.stamp.StatRollEntry;
+import com.ziggfreed.common.loot.trigger.BonusRowAsset;
 import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.NpcIdentityAsset;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
+import com.ziggfreed.common.objectives.title.TitleAsset;
 import com.ziggfreed.common.party.PartySettingsAsset;
 import com.ziggfreed.common.progress.asset.ContentRewardsAsset;
 import com.ziggfreed.common.progress.asset.GeneratorAxisAsset;
@@ -110,6 +114,9 @@ class AssetCodecInitTest {
         assertNotNull(ZcDialogueAsset.CODEC, "ZcDialogueAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(DialogueFragmentAsset.CODEC,
                 "DialogueFragmentAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(DialogueExtensionAsset.CODEC,
+                "DialogueExtensionAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(DialogueSelector.CODEC, "the Dialogues selector codec must static-init (PascalCase keys)");
         // The conversation's own leaf codecs are not stores, but a lower-case key in one would fail
         // at a conversation's decode rather than here, which is far later and much harder to place.
         assertNotNull(DialogueStart.Variant.CODEC,
@@ -179,6 +186,11 @@ class AssetCodecInitTest {
         assertNotNull(CalendarSpawnAsset.CODEC, "CalendarSpawnAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(CalendarAttendanceComponent.CODEC,
                 "CalendarAttendanceComponent.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void titleAssetCodecInitializes() {
+        assertNotNull(TitleAsset.CODEC, "TitleAsset.CODEC must static-init (PascalCase keys)");
     }
 
     @Test
@@ -406,6 +418,11 @@ class AssetCodecInitTest {
                 "the dropdown-bearing Roll codec factory must static-init too");
         assertNotNull(StampSpec.codec(EditorDataSets.FACTORS),
                 "the dropdown-bearing StampSpec codec factory must static-init too");
+    }
+
+    @Test
+    void bonusRowAssetCodecInitializes() {
+        assertNotNull(BonusRowAsset.CODEC, "BonusRowAsset.CODEC must static-init (PascalCase keys)");
     }
 
     @Test

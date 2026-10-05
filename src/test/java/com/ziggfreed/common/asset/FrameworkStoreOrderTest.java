@@ -6,8 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -28,32 +27,32 @@ class FrameworkStoreOrderTest {
     private static final Path REGISTRAR = Path.of("src", "main", "java", "com", "ziggfreed",
             "common", "asset", "FrameworkAssetRegistrar.java");
 
-    /** dependent store -> the store it must load after, and why. */
-    private static final Map<String, String[]> REQUIRED_EDGES = new LinkedHashMap<>();
-
-    static {
-        REQUIRED_EDGES.put("QuestGeneratorAsset", new String[]{"QuestAsset",
-                "a generated child is resolved against its Base out of the quest store"});
-        REQUIRED_EDGES.put("ZcDialogueAsset", new String[]{"DialogueFragmentAsset",
-                "a conversation splices the shared option groups it names as it is read, so a group "
-                        + "that has not loaded yet drops its lines out of the screen silently"});
-        REQUIRED_EDGES.put("ShopEntryGeneratorAsset", new String[]{"ShopEntryAsset",
-                "a generated offer is decoded against its Base out of the offer store, so a "
-                        + "generator that folds first writes a whole family inheriting nothing"});
-    }
+    /** {dependent store, the store it must load after, why}; one dependent may need several. */
+    private static final List<String[]> REQUIRED_EDGES = List.of(
+            new String[]{"QuestGeneratorAsset", "QuestAsset",
+                    "a generated child is resolved against its Base out of the quest store"},
+            new String[]{"ZcDialogueAsset", "DialogueFragmentAsset",
+                    "a conversation splices the shared option groups it names as it is read, so a group "
+                            + "that has not loaded yet drops its lines out of the screen silently"},
+            new String[]{"ZcDialogueAsset", "DialogueExtensionAsset",
+                    "a conversation splices the extension lines that land on it as it is read, so it "
+                            + "reads them in one pass instead of waiting for a re-splice"},
+            new String[]{"ShopEntryGeneratorAsset", "ShopEntryAsset",
+                    "a generated offer is decoded against its Base out of the offer store, so a "
+                            + "generator that folds first writes a whole family inheriting nothing"});
 
     @Test
     void everyDeclaredStoreOrderingEdgeIsRegistered() throws IOException {
         assertTrue(Files.isRegularFile(REGISTRAR), "missing " + REGISTRAR.toAbsolutePath());
         String source = strip(Files.readString(REGISTRAR, StandardCharsets.UTF_8));
 
-        for (Map.Entry<String, String[]> edge : REQUIRED_EDGES.entrySet()) {
-            String dependent = edge.getKey();
-            String prerequisite = edge.getValue()[0];
+        for (String[] edge : REQUIRED_EDGES) {
+            String dependent = edge[0];
+            String prerequisite = edge[1];
             String call = registerStoreCall(source, dependent);
             assertTrue(call.contains(prerequisite + ".class"),
                     () -> dependent + " must be registered loadsAfter " + prerequisite + ": "
-                            + edge.getValue()[1] + ". Its registerStore call reads: " + call);
+                            + edge[2] + ". Its registerStore call reads: " + call);
         }
     }
 

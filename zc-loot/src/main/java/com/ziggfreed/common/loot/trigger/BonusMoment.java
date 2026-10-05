@@ -12,8 +12,9 @@ import com.ziggfreed.common.loot.reward.MomentItems;
  * item a player harvested by hand.
  *
  * <p>Each constant says how it is spelled in a row and which pass-scoped collectors its pass layers
- * on the subject it grants through, so the firing site and the audit read one declaration and can
- * never drift. A new moment appends after the last constant, with its landing in
+ * on the subject it grants through. The audit reads that declaration; the pass itself layers a
+ * {@link MomentItems} only when its site hands it the harvested stack, so a new carried collector
+ * changes {@link BonusPasses} too. A new moment appends after the last constant, with its landing in
  * {@link BonusPasses}, so fold and listing order never move.
  */
 public enum BonusMoment {
@@ -47,8 +48,8 @@ public enum BonusMoment {
 
     /**
      * The collector types this moment's pass layers on its subject; empty for a pass that carries
-     * none. The audit judges a row's inline rolls against it and the firing site builds its pass
-     * from it.
+     * none. The audit judges a row's inline rolls against it ({@link BonusRowAudit}); the pass
+     * builds its collector from the stack its site hands it, never from this set.
      */
     @Nonnull
     public Set<Class<?>> carries() {

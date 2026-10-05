@@ -26,7 +26,8 @@ import com.ziggfreed.common.util.SafeLog;
  * that throws costs the row its decoration, never its name, and warns once until filled again.
  *
  * <p><b>Scope.</b> Menus and leaderboards only: a chat line or a notice names a player plainly and
- * never calls this. The seam ships filled: unfilled, every name is its plain text.
+ * never through {@link #displayName}; {@link #plainName} is that plain name, never decorated. The
+ * seam ships filled: unfilled, every name is its plain text.
  */
 public final class PlayerDisplayNames {
 
