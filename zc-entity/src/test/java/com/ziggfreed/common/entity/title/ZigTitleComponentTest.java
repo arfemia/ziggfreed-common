@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -173,6 +174,13 @@ class ZigTitleComponentTest {
                 "a row names an offline player with the title they chose, so a title says nothing about presence");
     }
 
+    /**
+     * Tagged {@code engine-items}: leaving writes through the engine's own atomic writer, which on
+     * Update 7 loads only under the engine's log manager ({@code engineItemTest}); in the plain
+     * {@code test} JVM the write cannot happen, and {@code ActiveTitlesTest} pins that it never
+     * reaches the caller.
+     */
+    @Tag("engine-items")
     @Test
     void leavingWritesTheShownTitleDownForARestart(@TempDir Path dir) {
         Path file = dir.resolve("shown-titles.json");
