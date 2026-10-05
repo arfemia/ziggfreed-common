@@ -1,0 +1,29 @@
+# The /zigtitle command family: help text and answers.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.title.command.<key>.
+# The desc.* keys are what the engine's own help resolves a command or an argument through.
+
+desc.family = Grant, revoke and list a player's titles, and open the title picker.
+desc.grant = Unlock a title for a player.
+desc.revoke = Take a title away from a player.
+desc.list = List the titles a player has unlocked.
+desc.open = Open the title picker, where you choose the title shown beside your name.
+desc.arg.player = The player to act on. Defaults to you.
+desc.arg.title = The title id.
+
+player.needed = Name a player with --player=<name>.
+player.offline = That player is not online, and their titles live on their own entity.
+player.no_record = {0} has no title record to write to.
+title.needed = Name a title with --title=<id>.
+title.refused = '{0}' is not a usable title id: it carries '|' or ':', which the save format reserves.
+
+grant.done = Unlocked the title '{1}' for {0}.
+grant.already = {0} already has the title '{1}'.
+grant.unknown = Nothing loaded defines a title '{0}'; it is unlocked anyway, in case the pack that ships it loads later.
+revoke.done = Took the title '{1}' away from {0}.
+revoke.absent = {0} did not have the title '{1}'.
+list.header = Titles {0} has unlocked ({1}):
+list.row = - {0}
+list.row_shown = - {0} (shown)
+list.none = {0} has no titles unlocked.
+open.needs_player = Only a player can open the title picker.
+open.failed = The title picker could not be opened.

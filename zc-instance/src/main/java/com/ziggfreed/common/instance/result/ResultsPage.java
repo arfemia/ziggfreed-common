@@ -1,7 +1,6 @@
 package com.ziggfreed.common.instance.result;
 
 import java.util.List;
-import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -19,11 +18,11 @@ import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -96,9 +95,11 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
                 if (pr.isViewer()) {
                     viewerRow = pr;
                 }
-                // Name (a proper noun) + score are plain locale-neutral data -> plain String.
+                // The name is the library's display name (a Message, so setCell puts it on TextSpans);
+                // the score is plain locale-neutral data.
                 String color = pr.isMvp() ? "#ffd700" : (pr.isViewer() ? "#5ab0ff" : "#d7e4f0");
-                String sel = appendRow(cmd, row++, name(pr.uuid()), NumberFormatter.grouped(pr.primaryScore()), color);
+                String sel = appendRow(cmd, row++, PlayerDisplayNames.displayName(pr.uuid(), null),
+                        NumberFormatter.grouped(pr.primaryScore()), color);
                 if (pr.isViewer()) {
                     cmd.set(sel + ".Background", "#1a3d4a");
                 }
@@ -244,20 +245,5 @@ public class ResultsPage extends ToastablePage<ResultsEventData> {
             case DRAW -> "#b6c9de";
             case ABORT -> "#8696a8";
         };
-    }
-
-    @Nonnull
-    private static String name(@Nonnull UUID uuid) {
-        try {
-            PlayerRef p = Universe.get().getPlayer(uuid);
-            if (p != null) {
-                String live = p.getUsername();
-                if (live != null && !live.isBlank()) {
-                    return live;
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        return uuid.toString().substring(0, 8);
     }
 }

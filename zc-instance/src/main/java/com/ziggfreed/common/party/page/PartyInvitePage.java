@@ -30,6 +30,7 @@ import com.ziggfreed.common.party.PartySnapshot;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigSearchRow;
+import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 
@@ -49,7 +50,7 @@ import com.ziggfreed.common.ui.toast.ToastablePage;
  *
  * <p>All consumer policy (the {@link PartyService}, the chrome {@link PartyScreenMessages},
  * the Queue handoff) is supplied through {@link PartyPageDeps}; the page is mod-agnostic.
- * Usernames resolve live from {@code Universe.getPlayer} at render time. Every
+ * Names come from the library's display-name seam at render time. Every
  * {@code handleDataEvent} exit path sends a response (re-open or {@code Page.None}) or the
  * client spins forever. The {@code .ui} ships once in ziggfreed-common and resolves
  * client-side across the merged asset tree.
@@ -145,7 +146,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
             if (row >= MAX_ROWS) {
                 break;
             }
-            String sel = appendRow(cmd, row, name(inv.inviter()), null);
+            String sel = appendRow(cmd, row, PlayerDisplayNames.displayName(inv.inviter(), null), null);
             bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.acceptButton(),
                     EventData.of("Action", "accept").append("PartyId", inv.partyId()));
             bindRowButton(cmd, events, sel, "#RowBtnSecondary", t.declineButton(),
@@ -165,7 +166,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                     break;
                 }
                 boolean ownerRow = snap.isOwner(m);
-                String sel = appendRow(cmd, row, name(m), ownerRow ? t.ownerBadge() : null);
+                String sel = appendRow(cmd, row, PlayerDisplayNames.displayName(m, null), ownerRow ? t.ownerBadge() : null);
                 if (viewerOwns && !ownerRow) {
                     bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.kickButton(),
                             EventData.of("Action", "kick").append("Target", m.toString()));
@@ -220,7 +221,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
             String username;
             try {
                 uid = p.getUuid();
-                username = p.getUsername();
+                username = p.getUsername(); // NAME-DATA-OK: the invite search matches the bare username, never a decorated one
             } catch (Throwable e) {
                 continue;
             }
@@ -233,7 +234,7 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
             if (!q.isEmpty() && !username.toLowerCase(Locale.ROOT).contains(q)) {
                 continue;
             }
-            String sel = appendRow(cmd, row, username, null);
+            String sel = appendRow(cmd, row, PlayerDisplayNames.displayName(uid, username), null);
             // The live search text rides the click, so the repaint keeps what was typed.
             bindRowButton(cmd, events, sel, "#RowBtnPrimary", t.inviteButton(),
                     ZigSearchRow.carry(EventData.of("Action", "invite").append("Target", uid.toString()),
@@ -249,13 +250,12 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
     // ==================== row helpers ====================
 
     @Nonnull
-    private String appendRow(@Nonnull UICommandBuilder cmd, int row, @Nonnull String name, @Nullable Message badge) {
+    private String appendRow(@Nonnull UICommandBuilder cmd, int row, @Nonnull Message name, @Nullable Message badge) {
         cmd.append("#PartyList", ROW_TEMPLATE);
         String sel = "#PartyList[" + row + "]";
-        // Name is a plain String (a proper-noun username): .Text is a client String property that
-        // cannot construct from a raw-Message object. The badge (a localized ownerBadge) stays a
-        // translation Message, which .Text DOES resolve.
-        UiText.setText(cmd, sel + " #RowName.Text", name);
+        // The name is the library's display name, a Message (a title rides with it), so it goes on
+        // the Label's TextSpans. The badge (a localized ownerBadge) stays a translation, which .Text resolves.
+        cmd.set(sel + " #RowName.TextSpans", name);
         if (badge != null) {
             cmd.set(sel + " #RowBadge.Visible", true);
             UiText.setText(cmd, sel + " #RowBadge.Text", badge);
@@ -278,21 +278,6 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
         } catch (Throwable t) {
             return List.of();
         }
-    }
-
-    @Nonnull
-    private static String name(@Nonnull UUID uuid) {
-        try {
-            PlayerRef p = Universe.get().getPlayer(uuid);
-            if (p != null) {
-                String live = p.getUsername();
-                if (live != null && !live.isBlank()) {
-                    return live;
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        return uuid.toString().substring(0, 8);
     }
 
     // ==================== event handling ====================
@@ -324,10 +309,12 @@ public class PartyInvitePage extends ToastablePage<PartyEventData> {
                 UUID target = parseUuid(data.target);
                 if (target != null) {
                     // Toast the outcome in-page: the PartyService Notify feed is hidden behind
-                    // the open menu, and a failed invite is otherwise silent.
+                    // the open menu, and a failed invite is otherwise silent. A toast names the
+                    // invitee plainly: a title shows in menus and leaderboards only.
                     InviteResult result = svc.invite(viewer, target);
                     if (result == InviteResult.SENT) {
-                        showToast(ToastKind.SUCCESS, deps.text().toastInviteSent(name(target)));
+                        showToast(ToastKind.SUCCESS,
+                                deps.text().toastInviteSent(PlayerDisplayNames.plainName(target, null)));
                     } else {
                         showToast(ToastKind.WARNING, deps.text().toastInviteFailed());
                     }

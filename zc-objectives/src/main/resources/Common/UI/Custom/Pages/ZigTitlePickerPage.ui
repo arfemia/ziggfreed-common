@@ -1,0 +1,72 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// The title picker (com.ziggfreed.common.objectives.title.page.TitlePickerPage): which earned title
+// shows beside the player's name in menus and leaderboards. A preview line, then one row per title
+// painted from Java into ONE row container.
+//
+// #Rows is the appendable list container and MUST stay childless here: rows are the shared
+// Pages/ZigFormToggleRow.ui and Pages/ZigFormNoteRow.ui templates, addressed by indexed parent
+// ("#Rows[2] #Toggle"), so a pre-authored child would shift every index. All text is set from Java
+// on .TextSpans, and every labeled button is a Button + inner #Label.
+//
+// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in game.
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  @Ornaments = true;
+  Anchor: (Width: 640, Height: 560);
+
+  #Content {
+    Anchor: (Top: 0);
+    LayoutMode: Top;
+    Padding: (Full: 18);
+
+    Label #Title {
+      Text: "";
+      Anchor: (Height: 32, Bottom: 2);
+      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+    }
+
+    Label #Subtitle {
+      Text: "";
+      Anchor: (Height: 20, Bottom: 6);
+      Style: (FontSize: 12, TextColor: #93a4b8, VerticalAlignment: Center);
+    }
+
+    Label #Preview {
+      Text: "";
+      Anchor: (Height: 24, Bottom: 10);
+      Style: (FontSize: 14, TextColor: #e6eef7, VerticalAlignment: Center);
+    }
+
+    Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
+
+    Group #Rows {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Right: 4);
+    }
+
+    Group #Footer {
+      Anchor: (Height: 36, Top: 12);
+      LayoutMode: Left;
+
+      Button #BackButton {
+        Style: $Z.@ZigRichRowBtnStyle;
+        Anchor: (Width: 140, Height: 32);
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+        }
+      }
+
+      Group { FlexWeight: 1; }
+    }
+  }
+}
