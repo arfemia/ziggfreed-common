@@ -20,6 +20,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.TickingSections;
 
 /**
  * The generic "spawn an NPC role at a position" primitive, lifted config-free from
@@ -33,6 +34,12 @@ import com.ziggfreed.common.util.SafeLog;
  * callback to record the spawned entity (the MMO records placements; a per-round
  * minigame NPC is fire-and-forget). The NPC's appearance, stationary behavior, and
  * its press-F interaction all live in the role asset; this service only places it.
+ *
+ * <p><b>Only into a ticking section.</b> On Update 7 an NPC added into a chunk section that is not
+ * ticking is parked on the spot: the engine answers null, the post-spawn never runs, and the NPC comes
+ * back on its own once a player walks near, beside any retry (zc-world's {@code TickingSections}). So
+ * {@link #spawnRole} wakes a section in memory first and refuses one that is not, never parking an NPC;
+ * a caller placing somewhere no player is goes through {@code TickingSections.whenTicking} first.
  *
  * <p><b>World-thread only</b> (inside {@code world.execute(...)}):
  * {@code spawnEntity}/{@code removeEntity} are valid only outside the ECS processing
@@ -97,6 +104,14 @@ public final class NpcSpawnService {
         }
         int idx = npc.getIndex(role);
         if (idx < 0) {
+            return false;
+        }
+
+        if (!TickingSections.ensureTicking(world, position.x(), position.y(), position.z())) {
+            warn("[NpcSpawn] not spawning role '" + role + "' at (" + Math.round(position.x()) + ","
+                    + Math.round(position.y()) + "," + Math.round(position.z()) + "): its chunk section is not"
+                    + " loaded, and an NPC added into a section that is not ticking is parked (place it through"
+                    + " TickingSections.whenTicking)");
             return false;
         }
 

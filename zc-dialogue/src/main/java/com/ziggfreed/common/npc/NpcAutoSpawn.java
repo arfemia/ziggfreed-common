@@ -16,6 +16,7 @@ import org.joml.Vector3dc;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.TickingSections;
 
 /**
  * Generic, role-keyed, once-per-world NPC auto-spawn primitive, the config-free lift of
@@ -52,6 +53,11 @@ import com.ziggfreed.common.util.SafeLog;
  * first ({@link SpawnPoints}). A point at hand places the NPC during the call, as before; a
  * point still loading places it in a later world-thread task once it lands, never by waiting
  * for it here.
+ *
+ * <p><b>The section must tick.</b> On Update 7 an NPC added into a chunk section that is not ticking
+ * is parked, not placed ({@code TickingSections}). The placement goes in through
+ * {@code TickingSections.whenTicking}: at once when the section ticks or wakes here on the world thread,
+ * else once a section request lands, checking the marker again first.
  *
  * <p>Idempotency is the persisted {@link NpcPlacementStore}: a spawned NPC persists in the
  * world's entity store, so the marker MUST persist too or a fresh boot stacks another NPC
@@ -208,15 +214,25 @@ public final class NpcAutoSpawn {
         }
     }
 
-    /** Place the role at {@code base} plus the spec's offset, then mark it. World thread. */
+    /**
+     * Place the role at {@code base} plus the spec's offset once its chunk section ticks, then mark it.
+     * World thread. The marker is read again when the section ticks, so two calls made while one section
+     * loads still place one NPC.
+     */
     private static void placeAt(@Nonnull World world, @Nonnull AutoSpawnSpec spec, @Nonnull String worldName,
             @Nonnull Vector3dc base, @Nonnull NpcPlacementStore placements) {
         Vector3d pos = new Vector3d(
                 base.x() + spec.offsetX(), base.y() + spec.offsetY(), base.z() + spec.offsetZ());
-        if (place(world, spec, worldName, pos, placements)) {
-            placements.markSpawned(worldName, spec.roleKey());
-            SafeLog.info("[NpcAutoSpawn] spawned role '" + spec.roleAsset() + "' in world '" + worldName + "'.");
-        }
+        TickingSections.whenTicking(world, pos.x, pos.y, pos.z, () -> {
+            if (placements.hasSpawned(worldName, spec.roleKey())) {
+                return;
+            }
+            if (place(world, spec, worldName, pos, placements)) {
+                placements.markSpawned(worldName, spec.roleKey());
+                SafeLog.info("[NpcAutoSpawn] spawned role '" + spec.roleAsset() + "' in world '" + worldName + "'.");
+            }
+        }, why -> SafeLog.warn("[NpcAutoSpawn] role '" + spec.roleAsset() + "' not placed in '" + worldName
+                + "': " + why));
     }
 
     /**
