@@ -12,6 +12,10 @@ import javax.annotation.Nullable;
 import com.google.gson.JsonObject;
 
 import com.ziggfreed.common.dialogue.DialogueEngine;
+import com.ziggfreed.common.dialogue.schema.DialogueExtension;
+import com.ziggfreed.common.dialogue.schema.DialogueExtensionConfig;
+import com.ziggfreed.common.dialogue.schema.DialogueFragmentConfig;
+import com.ziggfreed.common.dialogue.schema.DialogueFragmentGroup;
 import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 import com.ziggfreed.common.util.SafeLog;
 
@@ -21,7 +25,9 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>The reading happens in the asset store itself, so what lands here is already a decoded
  * conversation with its {@code Parent} merged in and its shared option groups spliced - there is no
  * second parse and no per-mod decode step. The layer is rebuilt WHOLESALE from each load event, so a
- * hot re-import is idempotent.
+ * hot re-import is idempotent. A reload of the shared option groups or of the dialogue extensions
+ * re-splices every conversation in circulation ({@link #mergeFragments}, {@link #mergeExtensions}),
+ * because each is read into a conversation as that conversation is decoded.
  *
  * <p>{@link #dialogues()} hands back everything in circulation, whoever wrote it, which is what lets
  * several mods author into one folder and any of them open a conversation another shipped. Skeletons
@@ -92,6 +98,40 @@ public final class DialogueAssetStore {
                 continue;
             }
             owner.put(entry.getKey(), decoded);
+        }
+    }
+
+    /**
+     * Take a new set of dialogue extensions and put their lines into every conversation already in
+     * circulation. A conversation reads its extensions as it is decoded, and the engine reloads an
+     * extension file without decoding the conversations again, so without this a changed or removed
+     * extension would reach only conversations read after it.
+     */
+    public synchronized void mergeExtensions(@Nonnull Map<String, DialogueExtension> layer) {
+        DialogueExtensionConfig.getInstance().mergePackLayer(layer);
+        respliceAll();
+    }
+
+    /** The same for the shared option groups, which a conversation also splices as it is decoded. */
+    public synchronized void mergeFragments(@Nonnull Map<String, DialogueFragmentGroup> layer) {
+        DialogueFragmentConfig.getInstance().mergePackLayer(layer);
+        respliceAll();
+    }
+
+    /**
+     * Splice every conversation in circulation again, the owner's own included. Safe to repeat: the
+     * splice starts from what each screen authored. A reload calls this from the engine's load event,
+     * which runs under the asset write lock, so no world thread is drawing a conversation meanwhile.
+     */
+    public synchronized void respliceAll() {
+        for (ZcDialogueAsset asset : loaded.values()) {
+            NpcDialogue dialogue = asset.getDialogue();
+            if (dialogue != null) {
+                dialogue.spliceFragments();
+            }
+        }
+        for (NpcDialogue dialogue : owner.values()) {
+            dialogue.spliceFragments();
         }
     }
 
