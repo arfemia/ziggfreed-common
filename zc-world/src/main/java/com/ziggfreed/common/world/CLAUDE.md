@@ -18,6 +18,10 @@
 - `stash/BlockStashes` is pure storage on world game time (an outage advances nothing); item insertion order, oldest first, is load-bearing.
 - Placed-block ledger rules live in `placed/CLAUDE.md`.
 
+## Sections and entities
+
+- An entity stays in the world only in a TICKING chunk section. On Update 7 a section loads asleep whatever its column does, and the column's ticking flag no longer reaches it: an entity added into a sleeping section is parked into that section on the spot (the add answers null and the caller's post-spawn never runs) and comes back as a load once a player's hot sphere or a `SET_TICKING` section request wakes it. Read and wake a section through `TickingSections`: `stateAt` reads (`TICKING`, `PARKING`, `ABSENT`), `ensureTicking` wakes a section in memory on the world thread and never loads, `whenTicking` runs a step once the section ticks, `holdTicking` keeps a ticking one awake and never wakes. Never decide from a column's `ChunkFlag.TICKING` or a column request's `SET_TICKING`. A wake brings the section's parked entities back first, so a caller that may have parked its own copy there adopts it before adding another; never wake inside a system's processing window.
+
 ## Terrain
 
 - `SurfaceProbe` stops on trees decorated after worldgen unless handed the foliage keys from `BlockTypeLists.keys("TreeWoodAndLeaves", "AllScatter")`; `SpawnPlacement` takes a seed and never calls `Math.random`. Neither loads a chunk: a column not in memory answers the caller's fallback, so a caller probing ground no player is near loads it first.
