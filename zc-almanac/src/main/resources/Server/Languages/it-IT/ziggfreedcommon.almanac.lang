@@ -1,0 +1,31 @@
+# L'Almanacco: la sua pagina e il comando /zigalmanac. Il nome del file è il PREFISSO della chiave:
+# una voce qui si risolve come ziggfreedcommon.almanac.<key>. Le chiavi desc.* sono quelle che
+# l'aiuto del motore usa per un comando o un argomento.
+
+title = Almanacco
+seasons.empty = Su questo server non è ancora in corso nessun evento stagionale.
+badge.live = In corso
+status.live = In corso
+status.between = Tra una stagione e l'altra
+section.season = Questa stagione ({0})
+section.last = Ultima stagione ({0})
+section.lifetime = Ogni stagione
+section.keepsakes = Ricordi
+section.achievements = Obiettivi
+attended.yes = Hai partecipato.
+attended.count = Stagioni a cui hai partecipato: {0, number}
+stat.line = {0}: {1, number}
+stat.none = Ancora nulla di conteggiato.
+keepsake.line = {0}: {1}
+keepsake.none = Ancora nessun ricordo.
+achievements.count = {0, number} su {1, number} ottenuti
+banner.line = {0}: {1, number} su {2, number}
+banner.earned = {0}: ottenuto
+desc.family = L'Almanacco: ogni evento stagionale di questo server e ciò che hai fatto in ciascuno.
+desc.open = Apri l'Almanacco.
+desc.arg.event = La stagione su cui aprire, tramite l'id dell'evento.
+open.needsPlayer = Solo un giocatore può aprire l'Almanacco.
+open.failed = Non è stato possibile aprire l'Almanacco.
+open.off = L'Almanacco è disattivato su questo server.
+achievement.category.seasons = Stagioni
+

@@ -1,0 +1,36 @@
+# La famiglia di comandi admin /zigcalendar: testi di aiuto e risposte.
+# Il nome del file è il PREFISSO della chiave: una voce qui si risolve come ziggfreedcommon.calendar.admin.<key>.
+# Le chiavi desc.* sono quelle che l'aiuto del motore usa per un comando o un argomento.
+
+desc.family = Vedi e prova gli eventi del calendario di questo server.
+desc.list = Elenca ogni evento del calendario e se è in corso.
+desc.status = Mostra un evento del calendario: le sue date, il primo anno e le edizioni finora.
+desc.force = Avvia o ferma subito un evento del calendario, qualunque cosa dicano le sue date.
+desc.force.on = Avvia subito un evento del calendario. Resta forzato finché non lo annulli o il server si riavvia.
+desc.force.off = Ferma subito un evento del calendario. Resta fermo finché non lo annulli o il server si riavvia.
+desc.force.clear = Fa seguire di nuovo le sue date a un evento del calendario.
+desc.reload = Rilegge il file del proprietario del calendario.
+desc.arg.event = L'evento del calendario, tramite il nome del suo file.
+list.none = Nessun evento del calendario caricato.
+list.header = Eventi del calendario ({0}):
+row.unknown = Non esiste nessun evento del calendario chiamato {0}.
+row.off = {0}: disattivato.
+row.broken = {0}: non può partire ({1}); il log del server ne spiega il motivo.
+row.live = {0}: in corso, edizione {1}, fino al {2}.
+row.live.forced = {0}: in corso perché forzato, edizione {1}, fino al {2}.
+row.stopped = {0}: fermato da un comando.
+row.waiting = {0}: prossimo inizio {1}.
+status.window = Si svolge {0} ogni anno, contato in {1}.
+status.first = Primo anno: {0}.
+status.first.none = Nessun primo anno, quindi non parte mai.
+status.history = Edizioni finora: {0}.
+status.history.none = Ancora nessuna edizione.
+status.problem = Problema: {0}.
+force.unknown = Non esiste nessun evento del calendario chiamato {0}.
+force.absent = {0} è disattivato o non può partire, quindi forzarlo non cambia nulla.
+force.on.done = {0} è in corso adesso. Resta forzato finché non lo annulli o il server si riavvia.
+force.off.done = {0} è fermo adesso. Resta fermo finché non lo annulli o il server si riavvia.
+force.clear.done = {0} segue di nuovo le sue date.
+reload.done = File del proprietario del calendario riletto.
+reload.done.off = File del proprietario del calendario riletto: ogni evento del calendario è disattivato.
+

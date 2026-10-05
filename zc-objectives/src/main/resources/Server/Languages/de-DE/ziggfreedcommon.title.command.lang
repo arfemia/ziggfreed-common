@@ -1,0 +1,28 @@
+# Die Befehlsfamilie /zigtitle: Hilfetexte und Antworten.
+# Der Dateiname ist das Schlüssel-PRÄFIX: ein Eintrag hier wird als ziggfreedcommon.title.command.<key> aufgelöst.
+# Die desc.*-Schlüssel nutzt die Hilfe der Engine für einen Befehl oder ein Argument.
+
+desc.family = Vergib, entziehe und liste die Titel eines Spielers auf und öffne die Titelauswahl.
+desc.grant = Schalte einen Titel für einen Spieler frei.
+desc.revoke = Nimm einem Spieler einen Titel weg.
+desc.list = Liste die Titel auf, die ein Spieler freigeschaltet hat.
+desc.open = Öffne die Titelauswahl, in der du den Titel neben deinem Namen wählst.
+desc.arg.player = Der Spieler, auf den der Befehl wirkt. Standard bist du.
+desc.arg.title = Die Titel-ID.
+player.needed = Nenne einen Spieler mit --player=<name>.
+player.offline = Dieser Spieler ist nicht online, und seine Titel liegen auf seiner eigenen Entität.
+player.no_record = {0} hat keinen Titeleintrag, in den geschrieben werden kann.
+title.needed = Nenne einen Titel mit --title=<id>.
+title.refused = '{0}' ist keine verwendbare Titel-ID: sie enthält '|' oder ':', die das Speicherformat reserviert.
+grant.done = Titel '{1}' für {0} freigeschaltet.
+grant.already = {0} hat den Titel '{1}' bereits.
+grant.unknown = Nichts Geladenes definiert einen Titel '{0}'; er wird trotzdem freigeschaltet, falls das Pack, das ihn liefert, später lädt.
+revoke.done = {0} wurde der Titel '{1}' weggenommen.
+revoke.absent = {0} hatte den Titel '{1}' nicht.
+list.header = Titel, die {0} freigeschaltet hat ({1}):
+list.row = - {0}
+list.row_shown = - {0} (angezeigt)
+list.none = {0} hat keine Titel freigeschaltet.
+open.needs_player = Nur ein Spieler kann die Titelauswahl öffnen.
+open.failed = Die Titelauswahl konnte nicht geöffnet werden.
+

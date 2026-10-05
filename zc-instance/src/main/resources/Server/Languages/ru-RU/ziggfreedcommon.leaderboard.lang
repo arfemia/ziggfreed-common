@@ -1,0 +1,42 @@
+# Собственный экран библиотеки для рекордов боя с боссом (строки, которые победа записывает в
+# таблицу лидеров боя), чтобы они читались на сервере без других модов.
+# Имя файла служит ПРЕФИКСОМ ключа: запись здесь читается как ziggfreedcommon.leaderboard.<key>.
+# Каждая строка экрана, кроме your_rank, выводится там, где параметры не подставляются, поэтому
+# параметры принимает только your_rank. Бой называет свой экран через NameKey строки привязки;
+# title - запасной вариант.
+
+title = Рекорды боссов
+axis.difficulty = Сложность
+axis.players = Игроки
+axis.sort = Порядок
+axis.view = Вид
+col.rank = Место
+col.player = Игрок
+col.score = Лучшая доля
+col.total = Итого
+col.time = Быстрее всех
+col.plays = Бои
+empty = Рекордов в этом бою здесь пока ни у кого нет.
+sort.score = Лучшая доля
+sort.total = Всего очков
+sort.time = Быстрее всех
+view.rankings = Рейтинг
+view.stats = Статистика
+filter.all = Все
+your_rank = Ваш лучший: №{0, number} ({1, number})
+your_rank.none = У вас пока нет рекорда в этом бою здесь.
+stat.damage_dealt = Нанесённый урон
+stat.damage_taken = Полученный урон
+
+# /zigleaderboard, команда, открывающая экран выше. Ключи command.desc.* использует собственная
+# справка движка для команды и её аргументов.
+command.desc.family = Рекорды боёв с боссами этого сервера.
+command.desc.encounter = Открыть рекорды боя с боссом.
+command.desc.arg.encounter = Id скрипта боя. Не указывайте, если рекорды есть только у одного боя.
+command.open.needs_player = Открыть экран рекордов может только игрок.
+command.open.failed = Не удалось открыть экран рекордов. Повторите через минуту.
+command.encounter.unranked = '{0}' не ведёт рекордов на этом сервере.
+command.encounter.none = Ни у одного боя с боссом пока нет рекорда.
+command.encounter.choose = Рекорды есть у нескольких боёв с боссами. Выберите один:
+command.encounter.choice = {0}: /zigleaderboard encounter --encounter={1}
+

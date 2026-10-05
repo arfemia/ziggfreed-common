@@ -1,0 +1,10 @@
+# Cosa dice un costume al giocatore che lo indossa, e il comando che lo toglie.
+
+desc.family = Costumi che altri giocatori ti fanno indossare
+desc.off = Togli il costume che stai indossando
+notice.dressed = Stai indossando un costume. Scrivi /zigcostume off per toglierlo.
+notice.dressed_by = {0} ti ha fatto indossare un costume. Scrivi /zigcostume off per toglierlo.
+off.done = Il tuo costume è stato tolto.
+off.none = Non stai indossando un costume.
+off.needs_player = Solo un giocatore può togliere un costume.
+

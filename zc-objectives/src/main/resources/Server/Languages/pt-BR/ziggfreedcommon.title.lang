@@ -1,0 +1,25 @@
+# As linhas de título voltadas ao jogador: como um título fica em torno do nome e como uma recompensa de título se lê.
+# O nome do arquivo é o PREFIXO da chave: uma entrada aqui resolve como ziggfreedcommon.title.<chave>.
+# Um título é nomeado por title.<id>.name no arquivo de idioma que o traz (senão, seu id por extenso),
+# descrito por title.<id>.flavor e posto em torno do nome do jogador por title.<id>.display, cujo {0}
+# é o nome. A linha display abaixo é o reserva para um título sem linha display própria:
+# {0} é o nome do jogador e {1} o do título.
+
+display = {0}, {1}
+chip = Título: {0}
+unlocked = Título desbloqueado: {0}
+unlocked_hint = Escolha o título que você mostra com /zigtitle open
+
+# O seletor de títulos (/zigtitle open). Em preview, {0} é o nome do jogador como os menus o mostram,
+# título incluído; em shown, {0} é o nome do título.
+picker.title = Títulos
+picker.subtitle = Escolha o título mostrado ao lado do seu nome nos menus e rankings.
+picker.preview = Você aparece como: {0}
+picker.none = Você ainda não ganhou nenhum título.
+picker.on = Mostrado
+picker.off = Mostrar
+picker.back = Voltar
+picker.shown = Agora mostrando {0}.
+picker.cleared = Nenhum título é mostrado agora.
+picker.not_kept = Sua escolha não pôde ser guardada. Entre de novo e tente outra vez.
+

@@ -1,0 +1,25 @@
+# A játékosoknak szóló cím-sorok: hogyan áll a cím a játékos neve körül, és hogyan szól egy címjutalom.
+# A fájlnév a kulcs ELŐTAGJA: az itteni bejegyzés ziggfreedcommon.title.<key> néven oldódik fel.
+# A cím nevét a title.<id>.name adja abban a lang fájlban, amelyik szállítja (különben az azonosítója),
+# leírását a title.<id>.flavor, a játékos neve körüli elhelyezését a title.<id>.display, amelynek {0}
+# értéke a név. Az alábbi display sor tartalék azoknak a címeknek, amelyek nem hoznak saját display
+# sort: {0} a játékos neve, {1} a cím neve.
+
+display = {0}, {1}
+chip = Cím: {0}
+unlocked = Cím feloldva: {0}
+unlocked_hint = A megjelenített címet itt választhatod ki: /zigtitle open
+
+# A címválasztó (/zigtitle open). A preview-ban {0} a játékos neve, ahogy a menük mutatják, a címmel
+# együtt; a shown-ban {0} a cím neve.
+picker.title = Címek
+picker.subtitle = Válaszd ki a neved mellett megjelenő címet a menükben és a ranglistákon.
+picker.preview = Így jelensz meg: {0}
+picker.none = Még nem szereztél címet.
+picker.on = Látható
+picker.off = Mutat
+picker.back = Vissza
+picker.shown = Mostantól ez látszik: {0}.
+picker.cleared = Most nem látszik cím.
+picker.not_kept = A választásodat nem sikerült megőrizni. Lépj be újra, és próbáld meg még egyszer.
+

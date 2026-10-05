@@ -1,0 +1,39 @@
+# Kütüphanenin bir patron dövüşünün rekorları için kendi ekranı (bir yenilginin karşılaşma
+# liderlik tablosuna yazdığı satırlar); başka hiçbir şey çalışmayan sunucuda da okunsun diye.
+# Dosya adı anahtar ÖNEKİDİR: buradaki bir girdi ziggfreedcommon.leaderboard.<anahtar> olarak çözülür.
+# your_rank dışındaki her ekran satırı parametrenin hiç yerine konmadığı yerde çizilir, bu yüzden
+# yalnızca your_rank parametre alır. Bir dövüş kendi ekranını bağlama satırının NameKey'iyle adlandırır;
+# title yedektir.
+
+title = Patron Rekorları
+axis.difficulty = Zorluk
+axis.players = Oyuncular
+axis.sort = Sıralama
+axis.view = Görünüm
+col.rank = Sıra
+col.player = Oyuncu
+col.score = En İyi Pay
+col.total = Toplam
+col.time = En Hızlı
+col.plays = Dövüşler
+empty = Burada bu dövüş için henüz kimsenin rekoru yok.
+sort.score = En İyi Pay
+sort.total = Toplam Puan
+sort.time = En Hızlı
+view.rankings = Sıralama
+view.stats = İstatistikler
+filter.all = Hepsi
+your_rank = En iyin: #{0, number} ({1, number})
+your_rank.none = Burada bu dövüş için henüz rekorun yok.
+stat.damage_dealt = Verilen Hasar
+stat.damage_taken = Alınan Hasar
+command.desc.family = Bu sunucudaki patron dövüşlerinin rekorlarını gör.
+command.desc.encounter = Bir patron dövüşünün rekorlarını aç.
+command.desc.arg.encounter = Dövüşün karşılaşma betiği kimliği. Yalnızca tek dövüşün rekoru varsa boş bırakılabilir.
+command.open.needs_player = Rekor ekranını yalnızca bir oyuncu açabilir.
+command.open.failed = Rekor ekranı açılamadı. Birazdan yine dene.
+command.encounter.unranked = '{0}' bu sunucuda rekor tutmuyor.
+command.encounter.none = Henüz rekoru olan bir patron dövüşü yok.
+command.encounter.choose = Birden fazla patron dövüşünün rekoru var. Birini seç:
+command.encounter.choice = {0}: /zigleaderboard encounter --encounter={1}
+

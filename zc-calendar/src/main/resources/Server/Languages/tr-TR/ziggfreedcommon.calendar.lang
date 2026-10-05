@@ -1,0 +1,10 @@
+# Takvimin oyuncuya dönük sözleri: takvim okumasına bağlı bir gereksinimin adı ve kendi dosyası
+# cümle vermeyen bir katılım adımının okunuşu.
+# Dosya adı anahtar ÖNEKİDİR: buradaki bir girdi ziggfreedcommon.calendar.<anahtar> olarak çözülür.
+
+factor.calendar_live = çalışan bir takvim etkinliği
+factor.calendar_year = çalışan bir takvim etkinliğinin yılı
+factor.feature = bu sunucunun açtığı bir özellik
+objective.calendar_attended = {1} etkinliğine katıl
+objective.calendar_attended.any = Bir takvim etkinliğine katıl
+

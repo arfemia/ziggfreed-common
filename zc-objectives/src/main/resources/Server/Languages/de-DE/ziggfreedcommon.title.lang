@@ -1,0 +1,22 @@
+# Die spielerseitigen Titelzeilen: wie ein Titel um den Namen eines Spielers steht und wie eine Titelbelohnung lautet.
+# Der Dateiname ist das Schlüssel-PRÄFIX: ein Eintrag hier wird als ziggfreedcommon.title.<key> aufgelöst.
+# Ein Titel wird durch title.<id>.name in der Lang-Datei benannt, die ihn liefert (sonst seine ausgeschriebene ID),
+# durch title.<id>.flavor beschrieben und durch title.<id>.display um den Namen eines Spielers gesetzt, dessen {0}
+# der Name ist. Die display-Zeile unten ist der Ersatz für einen Titel ohne eigene display-Zeile:
+# {0} ist der Name des Spielers und {1} der des Titels.
+
+display = {0}, {1}
+chip = Titel: {0}
+unlocked = Titel freigeschaltet: {0}
+unlocked_hint = Wähle den Titel, den du zeigst, mit /zigtitle open
+picker.title = Titel
+picker.subtitle = Wähle den Titel, der neben deinem Namen in Menüs und Bestenlisten steht.
+picker.preview = Du erscheinst als: {0}
+picker.none = Du hast noch keinen Titel verdient.
+picker.on = Angezeigt
+picker.off = Anzeigen
+picker.back = Zurück
+picker.shown = Angezeigt wird jetzt {0}.
+picker.cleared = Es wird kein Titel angezeigt.
+picker.not_kept = Deine Wahl konnte nicht gespeichert werden. Verbinde dich neu und versuche es erneut.
+

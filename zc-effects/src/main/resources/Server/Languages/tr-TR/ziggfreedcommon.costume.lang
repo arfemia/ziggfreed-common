@@ -1,0 +1,10 @@
+# Bir kostümün onu giyen oyuncuya söyledikleri ve kostümü çıkaran komut.
+
+desc.family = Diğer oyuncuların sana giydirdiği kostümler
+desc.off = Üzerindeki kostümü çıkar
+notice.dressed = Bir kostüm giyiyorsun. Çıkarmak için /zigcostume off yaz.
+notice.dressed_by = {0} sana bir kostüm giydirdi. Çıkarmak için /zigcostume off yaz.
+off.done = Kostümün çıktı.
+off.none = Üzerinde kostüm yok.
+off.needs_player = Kostümü yalnızca bir oyuncu çıkarabilir.
+

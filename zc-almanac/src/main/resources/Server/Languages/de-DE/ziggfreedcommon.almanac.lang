@@ -1,0 +1,31 @@
+# Der Almanach: seine Seite und der Befehl /zigalmanac. Der Dateiname ist das Schlüssel-PRÄFIX: ein
+# Eintrag hier wird als ziggfreedcommon.almanac.<key> aufgelöst. Die desc.*-Schlüssel nutzt die Hilfe
+# der Engine für einen Befehl oder ein Argument.
+
+title = Almanach
+seasons.empty = Auf diesem Server laufen noch keine Saisonereignisse.
+badge.live = Läuft jetzt
+status.live = Läuft jetzt
+status.between = Zwischen den Saisons
+section.season = Diese Saison ({0})
+section.last = Letzte Saison ({0})
+section.lifetime = Alle Saisons
+section.keepsakes = Andenken
+section.achievements = Erfolge
+attended.yes = Du hast teilgenommen.
+attended.count = Saisons, an denen du teilgenommen hast: {0, number}
+stat.line = {0}: {1, number}
+stat.none = Noch nichts gezählt.
+keepsake.line = {0}: {1}
+keepsake.none = Noch keine Andenken.
+achievements.count = {0, number} von {1, number} erhalten
+banner.line = {0}: {1, number} von {2, number}
+banner.earned = {0}: erhalten
+desc.family = Der Almanach: jedes Saisonereignis auf diesem Server und was du in jedem getan hast.
+desc.open = Öffne den Almanach.
+desc.arg.event = Die Saison, auf der geöffnet wird, über ihre Ereignis-ID.
+open.needsPlayer = Nur ein Spieler kann den Almanach öffnen.
+open.failed = Der Almanach konnte nicht geöffnet werden.
+open.off = Der Almanach ist auf diesem Server abgeschaltet.
+achievement.category.seasons = Saisons
+

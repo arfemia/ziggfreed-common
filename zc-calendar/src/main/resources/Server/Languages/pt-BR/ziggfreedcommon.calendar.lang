@@ -1,0 +1,12 @@
+# As palavras do calendário voltadas ao jogador: como se nomeia um requisito sobre uma leitura do
+# calendário e como um passo de presença se lê quando seu próprio arquivo não dá frase.
+# O nome do arquivo é o PREFIXO da chave: uma entrada aqui resolve como ziggfreedcommon.calendar.<chave>.
+
+factor.calendar_live = um evento do calendário em andamento
+factor.calendar_year = o ano de um evento do calendário em andamento
+factor.feature = um recurso que este servidor ligou
+
+# O passo de presença: {1} é o evento que ele nomeia. A versão .any vale quando o passo não nomeia evento.
+objective.calendar_attended = Participe de {1}
+objective.calendar_attended.any = Participe de um evento do calendário
+

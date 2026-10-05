@@ -1,0 +1,41 @@
+# A /zigcalendar admin parancscsalád: súgószövegek és válaszok.
+# A fájlnév a kulcs ELŐTAGJA: az itteni bejegyzés ziggfreedcommon.calendar.admin.<key> néven oldódik fel.
+# A desc.* kulcsokon keresztül oldja fel a játék saját súgója a parancsokat és argumentumokat.
+
+desc.family = A szerver naptári eseményeinek megtekintése és tesztelése.
+desc.list = Felsorolja az összes naptári eseményt, és hogy fut-e.
+desc.status = Egy naptári esemény adatai: dátumai, első éve és eddigi futásai.
+desc.force = Naptári esemény azonnali indítása vagy leállítása, a dátumaitól függetlenül.
+desc.force.on = Naptári esemény azonnali indítása. Kényszerítve marad, amíg fel nem oldod, vagy a szerver újra nem indul.
+desc.force.off = Naptári esemény azonnali leállítása. Leállítva marad, amíg fel nem oldod, vagy a szerver újra nem indul.
+desc.force.clear = A naptári esemény újra követi a dátumait.
+desc.reload = A naptár tulajdonosi fájljának újraolvasása.
+desc.arg.event = A naptári esemény a fájlneve szerint.
+
+list.none = Nincs betöltött naptári esemény.
+list.header = Naptári események ({0}):
+
+row.unknown = Nincs {0} nevű naptári esemény.
+row.off = {0}: kikapcsolva.
+row.broken = {0}: nem futhat ({1}); a szerver naplója megmondja, miért.
+row.live = {0}: fut, a(z) {1} futás, eddig: {2}.
+row.live.forced = {0}: fut, mert kényszerítve van, a(z) {1} futás, eddig: {2}.
+row.stopped = {0}: parancsra leállítva.
+row.waiting = {0}: következő indulás: {1}.
+
+status.window = {0} fut évente, ebben számolva: {1}.
+status.first = Első év: {0}.
+status.first.none = Nincs első év, ezért soha nem fut.
+status.history = Eddigi futások: {0}.
+status.history.none = Még nem futott.
+status.problem = Hiba: {0}.
+
+force.unknown = Nincs {0} nevű naptári esemény.
+force.absent = {0} ki van kapcsolva vagy nem futhat, ezért a kényszerítés nem változtat semmin.
+force.on.done = {0} most fut. Kényszerítve marad, amíg fel nem oldod, vagy a szerver újra nem indul.
+force.off.done = {0} most le van állítva. Leállítva marad, amíg fel nem oldod, vagy a szerver újra nem indul.
+force.clear.done = {0} újra követi a dátumait.
+
+reload.done = A naptár tulajdonosi fájlja újraolvasva.
+reload.done.off = A naptár tulajdonosi fájlja újraolvasva: minden naptári esemény ki van kapcsolva.
+

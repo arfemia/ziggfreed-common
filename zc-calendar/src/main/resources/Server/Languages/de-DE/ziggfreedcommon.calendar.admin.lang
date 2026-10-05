@@ -1,0 +1,36 @@
+# Die Admin-Befehlsfamilie /zigcalendar: Hilfetexte und Antworten.
+# Der Dateiname ist das Schlüssel-PRÄFIX: ein Eintrag hier wird als ziggfreedcommon.calendar.admin.<key> aufgelöst.
+# Die desc.*-Schlüssel nutzt die Hilfe der Engine für einen Befehl oder ein Argument.
+
+desc.family = Sieh dir die Kalenderereignisse dieses Servers an und teste sie.
+desc.list = Liste alle Kalenderereignisse auf und zeige, ob sie laufen.
+desc.status = Zeige ein Kalenderereignis: seine Daten, sein erstes Jahr und seine bisherigen Läufe.
+desc.force = Starte oder stoppe ein Kalenderereignis sofort, unabhängig von seinen Daten.
+desc.force.on = Starte ein Kalenderereignis sofort. Es bleibt erzwungen, bis du es zurücksetzt oder der Server neu startet.
+desc.force.off = Stoppe ein Kalenderereignis sofort. Es bleibt gestoppt, bis du es zurücksetzt oder der Server neu startet.
+desc.force.clear = Lass ein Kalenderereignis wieder seinen Daten folgen.
+desc.reload = Lies die Kalender-Besitzerdatei erneut ein.
+desc.arg.event = Das Kalenderereignis, über seinen Dateinamen.
+list.none = Es sind keine Kalenderereignisse geladen.
+list.header = Kalenderereignisse ({0}):
+row.unknown = Es gibt kein Kalenderereignis namens {0}.
+row.off = {0}: abgeschaltet.
+row.broken = {0}: kann nicht laufen ({1}); das Serverlog nennt den Grund.
+row.live = {0}: läuft, der {1}. Lauf, bis {2}.
+row.live.forced = {0}: läuft, weil es erzwungen wurde, der {1}. Lauf, bis {2}.
+row.stopped = {0}: durch einen Befehl gestoppt.
+row.waiting = {0}: startet als Nächstes {1}.
+status.window = Läuft {0} jedes Jahr, gezählt in {1}.
+status.first = Erstes Jahr: {0}.
+status.first.none = Kein erstes Jahr, also läuft es nie.
+status.history = Bisherige Läufe: {0}.
+status.history.none = Noch keine Läufe.
+status.problem = Problem: {0}.
+force.unknown = Es gibt kein Kalenderereignis namens {0}.
+force.absent = {0} ist abgeschaltet oder kann nicht laufen, daher ändert Erzwingen nichts.
+force.on.done = {0} läuft jetzt. Es bleibt erzwungen, bis du es zurücksetzt oder der Server neu startet.
+force.off.done = {0} ist jetzt gestoppt. Es bleibt gestoppt, bis du es zurücksetzt oder der Server neu startet.
+force.clear.done = {0} folgt wieder seinen Daten.
+reload.done = Die Kalender-Besitzerdatei wurde erneut eingelesen.
+reload.done.off = Die Kalender-Besitzerdatei wurde erneut eingelesen: Alle Kalenderereignisse sind abgeschaltet.
+

@@ -1,0 +1,39 @@
+# Der eigene Bildschirm der Bibliothek für die Rekorde eines Bosskampfs (die Zeilen, die ein Sieg in
+# die Begegnungs-Bestenliste schreibt), damit sie auch auf einem Server ohne weitere Mods lesbar sind.
+# Der Dateiname ist das Schlüssel-PRÄFIX: ein Eintrag hier wird als ziggfreedcommon.leaderboard.<key> aufgelöst.
+# Jede Bildschirmzeile außer your_rank wird dort gemalt, wo nie ein Parameter eingesetzt wird, daher
+# nimmt nur your_rank einen. Ein Kampf benennt seinen Bildschirm über den NameKey seiner Bindungszeile;
+# title ist der Ersatz.
+
+title = Boss-Rekorde
+axis.difficulty = Schwierigkeit
+axis.players = Spieler
+axis.sort = Sortierung
+axis.view = Ansicht
+col.rank = Rang
+col.player = Spieler
+col.score = Bester Anteil
+col.total = Gesamt
+col.time = Schnellste
+col.plays = Kämpfe
+empty = Hier hat noch niemand einen Rekord für diesen Kampf.
+sort.score = Bester Anteil
+sort.total = Gesamtpunkte
+sort.time = Schnellste
+view.rankings = Rangliste
+view.stats = Statistik
+filter.all = Alle
+your_rank = Dein Bestwert: #{0, number} ({1, number})
+your_rank.none = Du hast hier noch keinen Rekord für diesen Kampf.
+stat.damage_dealt = Zugefügter Schaden
+stat.damage_taken = Erlittener Schaden
+command.desc.family = Sieh dir die Rekorde der Bosskämpfe dieses Servers an.
+command.desc.encounter = Öffne die Rekorde eines Bosskampfs.
+command.desc.arg.encounter = Die Begegnungsskript-ID des Kampfs. Lass sie weg, wenn nur ein Kampf Rekorde hat.
+command.open.needs_player = Nur ein Spieler kann den Rekordbildschirm öffnen.
+command.open.failed = Der Rekordbildschirm konnte nicht geöffnet werden. Versuche es gleich noch einmal.
+command.encounter.unranked = '{0}' führt auf diesem Server keine Rekorde.
+command.encounter.none = Noch kein Bosskampf hat einen Rekord.
+command.encounter.choose = Mehr als ein Bosskampf hat Rekorde. Wähle einen:
+command.encounter.choice = {0}: /zigleaderboard encounter --encounter={1}
+

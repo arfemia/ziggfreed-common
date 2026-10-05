@@ -1,0 +1,9 @@
+# Amit a jelmez közöl a viselőjével, és a parancs, amely leveszi.
+desc.family = Jelmezek, amelyeket más játékosok adnak rád
+desc.off = Leveszi a rajtad lévő jelmezt
+notice.dressed = Jelmez van rajtad. A levételhez írd be: /zigcostume off
+notice.dressed_by = {0} jelmezt adott rád. A levételhez írd be: /zigcostume off
+off.done = A jelmezed lekerült.
+off.none = Nincs rajtad jelmez.
+off.needs_player = Jelmezt csak játékos vehet le.
+

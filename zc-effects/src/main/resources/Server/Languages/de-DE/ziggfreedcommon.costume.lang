@@ -1,0 +1,10 @@
+# Was ein Kostüm dem Spieler sagt, der es trägt, und der Befehl, der es auszieht.
+
+desc.family = Kostüme, die andere Spieler dir anziehen
+desc.off = Zieh ein Kostüm aus, das du trägst
+notice.dressed = Du trägst ein Kostüm. Gib /zigcostume off ein, um es auszuziehen.
+notice.dressed_by = {0} hat dir ein Kostüm angezogen. Gib /zigcostume off ein, um es auszuziehen.
+off.done = Dein Kostüm ist ausgezogen.
+off.none = Du trägst kein Kostüm.
+off.needs_player = Nur ein Spieler kann ein Kostüm ausziehen.
+

@@ -1,0 +1,30 @@
+# A família de comandos /zigtitle: textos de ajuda e respostas.
+# O nome do arquivo é o PREFIXO da chave: uma entrada aqui resolve como ziggfreedcommon.title.command.<chave>.
+# As chaves desc.* são o que a própria ajuda do motor usa para resolver um comando ou um argumento.
+
+desc.family = Concede, revoga e lista os títulos de um jogador, e abre o seletor de títulos.
+desc.grant = Desbloqueia um título para um jogador.
+desc.revoke = Tira um título de um jogador.
+desc.list = Lista os títulos que um jogador desbloqueou.
+desc.open = Abre o seletor de títulos, onde você escolhe o título mostrado ao lado do seu nome.
+desc.arg.player = O jogador alvo. O padrão é você.
+desc.arg.title = O id do título.
+
+player.needed = Indique um jogador com --player=<name>.
+player.offline = Esse jogador não está online, e os títulos dele ficam na própria entidade.
+player.no_record = {0} não tem registro de títulos onde escrever.
+title.needed = Indique um título com --title=<id>.
+title.refused = '{0}' não é um id de título utilizável: ele contém '|' ou ':', que o formato de gravação reserva.
+
+grant.done = Título '{1}' desbloqueado para {0}.
+grant.already = {0} já tem o título '{1}'.
+grant.unknown = Nada carregado define um título '{0}'; ele foi desbloqueado mesmo assim, caso o pacote que o traz carregue depois.
+revoke.done = Título '{1}' retirado de {0}.
+revoke.absent = {0} não tinha o título '{1}'.
+list.header = Títulos que {0} desbloqueou ({1}):
+list.row = - {0}
+list.row_shown = - {0} (mostrado)
+list.none = {0} não tem títulos desbloqueados.
+open.needs_player = Só um jogador pode abrir o seletor de títulos.
+open.failed = Não foi possível abrir o seletor de títulos.
+

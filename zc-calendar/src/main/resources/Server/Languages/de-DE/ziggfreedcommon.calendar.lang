@@ -1,0 +1,10 @@
+# Die spielerseitigen Wörter des Kalenders: wie eine Anforderung an einen Kalenderwert heißt und wie
+# ein Teilnahmeschritt lautet, wenn seine eigene Datei keinen Satz nennt.
+# Der Dateiname ist das Schlüssel-PRÄFIX: ein Eintrag hier wird als ziggfreedcommon.calendar.<key> aufgelöst.
+
+factor.calendar_live = ein laufendes Kalenderereignis
+factor.calendar_year = das Jahr eines laufenden Kalenderereignisses
+factor.feature = eine Funktion, die dieser Server eingeschaltet hat
+objective.calendar_attended = Nimm teil an {1}
+objective.calendar_attended.any = Nimm an einem Kalenderereignis teil
+

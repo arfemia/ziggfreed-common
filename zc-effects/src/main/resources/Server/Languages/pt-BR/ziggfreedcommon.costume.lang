@@ -1,0 +1,9 @@
+# O que uma fantasia diz ao jogador que a veste, e o comando que a tira.
+desc.family = Fantasias que outros jogadores colocam em você
+desc.off = Tira qualquer fantasia que você esteja usando
+notice.dressed = Você está usando uma fantasia. Digite /zigcostume off para tirá-la.
+notice.dressed_by = {0} colocou uma fantasia em você. Digite /zigcostume off para tirá-la.
+off.done = Sua fantasia foi tirada.
+off.none = Você não está usando uma fantasia.
+off.needs_player = Só um jogador pode tirar uma fantasia.
+

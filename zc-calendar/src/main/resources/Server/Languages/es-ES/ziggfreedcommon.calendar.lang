@@ -1,0 +1,12 @@
+# Las palabras del calendario de cara al jugador: cómo se nombra un requisito sobre una lectura del calendario
+# y cómo se lee un paso de asistencia cuando su propio archivo no da ninguna frase.
+# El nombre del archivo es el PREFIJO de la clave: una entrada de aquí se resuelve como ziggfreedcommon.calendar.<clave>.
+
+factor.calendar_live = un evento del calendario en curso
+factor.calendar_year = el año de un evento del calendario en curso
+factor.feature = una función que este servidor ha activado
+
+# El paso de asistencia: {1} es el evento que nombra. La variante .any se lee cuando un paso no nombra ningún evento.
+objective.calendar_attended = Asiste a {1}
+objective.calendar_attended.any = Asiste a un evento del calendario
+

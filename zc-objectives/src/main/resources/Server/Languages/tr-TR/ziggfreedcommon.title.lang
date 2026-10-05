@@ -1,0 +1,22 @@
+# Oyuncuya dönük unvan satırları: bir unvanın oyuncu adının çevresinde nasıl durduğu ve unvan ödülünün okunuşu.
+# Dosya adı anahtar ÖNEKİDİR: buradaki bir girdi ziggfreedcommon.title.<anahtar> olarak çözülür.
+# Bir unvanı onu getiren lang dosyasındaki title.<id>.name adlandırır (yoksa kimliği yazılır),
+# title.<id>.flavor tanımlar ve title.<id>.display oyuncu adının çevresine yerleştirir; oradaki {0}
+# addır. Aşağıdaki display satırı kendi display satırı olmayan unvanın yedeğidir:
+# {0} oyuncunun adı, {1} unvanın adıdır.
+
+display = {0}, {1}
+chip = Unvan: {0}
+unlocked = Unvan açıldı: {0}
+unlocked_hint = Gösterdiğin unvanı /zigtitle open ile seç
+picker.title = Unvanlar
+picker.subtitle = Menülerde ve liderlik tablolarında adının yanında görünen unvanı seç.
+picker.preview = Şöyle görünürsün: {0}
+picker.none = Henüz bir unvan kazanmadın.
+picker.on = Gösteriliyor
+picker.off = Göster
+picker.back = Geri
+picker.shown = Şimdi {0} gösteriliyor.
+picker.cleared = Şu an gösterilen unvan yok.
+picker.not_kept = Seçimin kaydedilemedi. Yeniden katıl ve tekrar dene.
+

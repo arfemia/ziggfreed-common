@@ -1,0 +1,42 @@
+# L'écran propre à la bibliothèque pour les records d'un combat de boss (les lignes qu'une défaite
+# écrit dans le classement de la rencontre), afin qu'ils se lisent sur un serveur qui ne lance rien d'autre.
+# Le nom du fichier est le PRÉFIXE de clé : une entrée ici se résout en ziggfreedcommon.leaderboard.<clé>.
+# Toute ligne de l'écran sauf your_rank est affichée là où un paramètre n'est jamais substitué, donc
+# seule your_rank en prend un. Un combat nomme son propre écran par le NameKey de sa ligne de liaison ;
+# title sert de repli.
+
+title = Records des boss
+axis.difficulty = Difficulté
+axis.players = Joueurs
+axis.sort = Tri
+axis.view = Vue
+col.rank = Rang
+col.player = Joueur
+col.score = Meilleure part
+col.total = Total
+col.time = Plus rapide
+col.plays = Combats
+empty = Personne n'a encore de record pour ce combat ici.
+sort.score = Meilleure part
+sort.total = Total de points
+sort.time = Plus rapide
+view.rankings = Classements
+view.stats = Statistiques
+filter.all = Tous
+your_rank = Votre meilleur : n° {0, number} ({1, number})
+your_rank.none = Vous n'avez pas encore de record pour ce combat ici.
+stat.damage_dealt = Dégâts infligés
+stat.damage_taken = Dégâts subis
+
+# /zigleaderboard, la commande qui ouvre l'écran ci-dessus. Les clés command.desc.* sont celles par lesquelles
+# l'aide du moteur résout une commande ou un argument.
+command.desc.family = Consultez les records des combats de boss de ce serveur.
+command.desc.encounter = Ouvre les records d'un combat de boss.
+command.desc.arg.encounter = L'id du script de rencontre du combat. Omettez-le quand un seul combat a des records.
+command.open.needs_player = Seul un joueur peut ouvrir l'écran des records.
+command.open.failed = L'écran des records n'a pas pu s'ouvrir. Réessayez dans un instant.
+command.encounter.unranked = '{0}' ne garde aucun record sur ce serveur.
+command.encounter.none = Aucun combat de boss n'a encore de record.
+command.encounter.choose = Plusieurs combats de boss ont des records. Choisissez-en un :
+command.encounter.choice = {0} : /zigleaderboard encounter --encounter={1}
+

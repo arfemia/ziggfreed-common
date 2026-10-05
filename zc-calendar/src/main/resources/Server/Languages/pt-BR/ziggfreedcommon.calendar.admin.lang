@@ -1,0 +1,41 @@
+# A família de comandos de admin /zigcalendar: textos de ajuda e respostas.
+# O nome do arquivo é o PREFIXO da chave: uma entrada aqui resolve como ziggfreedcommon.calendar.admin.<chave>.
+# As chaves desc.* são o que a própria ajuda do motor usa para resolver um comando ou um argumento.
+
+desc.family = Veja e teste os eventos do calendário deste servidor.
+desc.list = Lista todos os eventos do calendário e se estão em andamento.
+desc.status = Mostra um evento do calendário: suas datas, seu primeiro ano e suas edições até agora.
+desc.force = Inicia ou para um evento do calendário agora, sem olhar as datas.
+desc.force.on = Inicia um evento do calendário agora. Ele fica forçado até você limpar ou o servidor reiniciar.
+desc.force.off = Para um evento do calendário agora. Ele fica parado até você limpar ou o servidor reiniciar.
+desc.force.clear = Faz um evento do calendário voltar a seguir suas datas.
+desc.reload = Lê o arquivo de dono do calendário de novo.
+desc.arg.event = O evento do calendário, pelo nome do arquivo.
+
+list.none = Nenhum evento do calendário carregado.
+list.header = Eventos do calendário ({0}):
+
+row.unknown = Não existe evento do calendário chamado {0}.
+row.off = {0}: desligado.
+row.broken = {0}: não pode rodar ({1}); o registro do servidor diz por quê.
+row.live = {0}: em andamento, a {1} edição, até {2}.
+row.live.forced = {0}: em andamento porque foi forçado, a {1} edição, até {2}.
+row.stopped = {0}: parado por um comando.
+row.waiting = {0}: o próximo começa {1}.
+
+status.window = Acontece {0} todo ano, contado em {1}.
+status.first = Primeiro ano: {0}.
+status.first.none = Sem primeiro ano, então nunca acontece.
+status.history = Edições até agora: {0}.
+status.history.none = Nenhuma edição ainda.
+status.problem = Problema: {0}.
+
+force.unknown = Não existe evento do calendário chamado {0}.
+force.absent = {0} está desligado ou não pode rodar, então forçá-lo não muda nada.
+force.on.done = {0} está em andamento agora. Ele fica forçado até você limpar ou o servidor reiniciar.
+force.off.done = {0} está parado agora. Ele fica parado até você limpar ou o servidor reiniciar.
+force.clear.done = {0} volta a seguir suas datas.
+
+reload.done = Arquivo de dono do calendário lido de novo.
+reload.done.off = Arquivo de dono do calendário lido de novo: todos os eventos do calendário estão desligados.
+

@@ -1,0 +1,9 @@
+# Lo que un disfraz le dice al jugador que lo lleva, y el comando que se lo quita.
+desc.family = Disfraces que otros jugadores te ponen
+desc.off = Quítate cualquier disfraz que lleves
+notice.dressed = Llevas un disfraz. Escribe /zigcostume off para quitártelo.
+notice.dressed_by = {0} te puso un disfraz. Escribe /zigcostume off para quitártelo.
+off.done = Ya no llevas el disfraz.
+off.none = No llevas ningún disfraz.
+off.needs_player = Solo un jugador puede quitarse un disfraz.
+

@@ -1,0 +1,31 @@
+# Almanak: sayfası ve /zigalmanac komutu. Dosya adı anahtar ÖNEKİDİR: buradaki bir girdi
+# ziggfreedcommon.almanac.<anahtar> olarak çözülür. desc.* anahtarlarını motorun kendi yardımı
+# bir komut veya argüman için çözer.
+
+title = Almanak
+seasons.empty = Bu sunucuda henüz sezonluk etkinlik yok.
+badge.live = Şimdi açık
+status.live = Şimdi açık
+status.between = Sezonlar arası
+section.season = Bu sezon ({0})
+section.last = Geçen sezon ({0})
+section.lifetime = Tüm sezonlar
+section.keepsakes = Hatıralar
+section.achievements = Başarımlar
+attended.yes = Katıldın.
+attended.count = Katıldığın sezonlar: {0, number}
+stat.line = {0}: {1, number}
+stat.none = Henüz sayılan bir şey yok.
+keepsake.line = {0}: {1}
+keepsake.none = Henüz hatıra yok.
+achievements.count = {0, number} / {1, number} kazanıldı
+banner.line = {0}: {1, number} / {2, number}
+banner.earned = {0}: kazanıldı
+desc.family = Almanak: bu sunucudaki her sezonluk etkinlik ve her birinde yaptıkların.
+desc.open = Almanak'ı aç.
+desc.arg.event = Açılacak sezon, etkinlik kimliğiyle.
+open.needsPlayer = Almanak'ı yalnızca bir oyuncu açabilir.
+open.failed = Almanak açılamadı.
+open.off = Almanak bu sunucuda kapalı.
+achievement.category.seasons = Sezonlar
+

@@ -1,0 +1,28 @@
+# /zigtitle komut ailesi: yardım metni ve yanıtlar.
+# Dosya adı anahtar ÖNEKİDİR: buradaki bir girdi ziggfreedcommon.title.command.<anahtar> olarak çözülür.
+# desc.* anahtarlarını motorun kendi yardımı bir komut veya argüman için çözer.
+
+desc.family = Bir oyuncunun unvanlarını ver, geri al, listele ve unvan seçiciyi aç.
+desc.grant = Bir oyuncu için unvanın kilidini aç.
+desc.revoke = Bir oyuncudan unvanı geri al.
+desc.list = Bir oyuncunun kilidini açtığı unvanları listele.
+desc.open = Adının yanında görünen unvanı seçtiğin unvan seçiciyi aç.
+desc.arg.player = İşlem yapılacak oyuncu. Varsayılan sensin.
+desc.arg.title = Unvan kimliği.
+player.needed = --player=<name> ile bir oyuncu belirt.
+player.offline = Bu oyuncu çevrimiçi değil, unvanları kendi varlığında duruyor.
+player.no_record = {0} oyuncusunun yazılacak bir unvan kaydı yok.
+title.needed = --title=<id> ile bir unvan belirt.
+title.refused = '{0}' kullanılabilir bir unvan kimliği değil: kayıt biçiminin ayırdığı '|' veya ':' içeriyor.
+grant.done = {0} için '{1}' unvanının kilidi açıldı.
+grant.already = {0} oyuncusunda '{1}' unvanı zaten var.
+grant.unknown = Yüklü hiçbir şey '{0}' unvanını tanımlamıyor; onu getiren paket sonra yüklenebilir diye yine de kilidi açıldı.
+revoke.done = '{1}' unvanı {0} oyuncusundan geri alındı.
+revoke.absent = {0} oyuncusunda '{1}' unvanı yoktu.
+list.header = {0} oyuncusunun kilidini açtığı unvanlar ({1}):
+list.row = - {0}
+list.row_shown = - {0} (gösteriliyor)
+list.none = {0} oyuncusunun kilidi açık unvanı yok.
+open.needs_player = Unvan seçiciyi yalnızca bir oyuncu açabilir.
+open.failed = Unvan seçici açılamadı.
+

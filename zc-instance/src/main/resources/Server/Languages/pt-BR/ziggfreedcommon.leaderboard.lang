@@ -1,0 +1,42 @@
+# A tela própria da biblioteca para os recordes de uma luta de chefe (as linhas que uma derrota
+# escreve no ranking do encontro), para que apareçam em um servidor sem mais nada.
+# O nome do arquivo é o PREFIXO da chave: uma entrada aqui resolve como ziggfreedcommon.leaderboard.<chave>.
+# Toda linha da tela, menos your_rank, é pintada onde um parâmetro nunca é substituído, então só
+# your_rank recebe um. Uma luta nomeia sua própria tela pela NameKey da linha de ligação; title é o
+# reserva.
+
+title = Recordes de Chefes
+axis.difficulty = Dificuldade
+axis.players = Jogadores
+axis.sort = Ordem
+axis.view = Visão
+col.rank = Posição
+col.player = Jogador
+col.score = Melhor Parte
+col.total = Total
+col.time = Mais Rápido
+col.plays = Lutas
+empty = Ninguém tem um recorde desta luta aqui ainda.
+sort.score = Melhor Parte
+sort.total = Total de Pontos
+sort.time = Mais Rápido
+view.rankings = Classificação
+view.stats = Estatísticas
+filter.all = Todos
+your_rank = Seu melhor: #{0, number} ({1, number})
+your_rank.none = Você não tem recorde desta luta aqui ainda.
+stat.damage_dealt = Dano Causado
+stat.damage_taken = Dano Sofrido
+
+# /zigleaderboard, o comando que abre a tela acima. As chaves command.desc.* são o que a própria
+# ajuda do motor usa para resolver um comando ou um argumento.
+command.desc.family = Veja os recordes das lutas de chefe deste servidor.
+command.desc.encounter = Abre os recordes de uma luta de chefe.
+command.desc.arg.encounter = O id do script de encontro da luta. Deixe de fora quando só uma luta tiver recordes.
+command.open.needs_player = Só um jogador pode abrir a tela de recordes.
+command.open.failed = A tela de recordes não abriu. Tente de novo daqui a pouco.
+command.encounter.unranked = '{0}' não guarda recordes neste servidor.
+command.encounter.none = Nenhuma luta de chefe tem recorde ainda.
+command.encounter.choose = Mais de uma luta de chefe tem recordes. Escolha uma:
+command.encounter.choice = {0}: /zigleaderboard encounter --encounter={1}
+

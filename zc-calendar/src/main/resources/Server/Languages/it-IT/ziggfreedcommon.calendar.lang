@@ -1,0 +1,10 @@
+# Le parole del calendario rivolte al giocatore: come si chiama un requisito su una lettura del calendario e
+# come si legge un passaggio di partecipazione quando il suo file non indica nessuna frase.
+# Il nome del file è il PREFISSO della chiave: una voce qui si risolve come ziggfreedcommon.calendar.<key>.
+
+factor.calendar_live = un evento del calendario in corso
+factor.calendar_year = l'anno di un evento del calendario in corso
+factor.feature = una funzione attivata su questo server
+objective.calendar_attended = Partecipa a {1}
+objective.calendar_attended.any = Partecipa a un evento del calendario
+

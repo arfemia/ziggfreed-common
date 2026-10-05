@@ -1,0 +1,30 @@
+# A /zigtitle parancscsalád: súgószövegek és válaszok.
+# A fájlnév a kulcs ELŐTAGJA: az itteni bejegyzés ziggfreedcommon.title.command.<key> néven oldódik fel.
+# A desc.* kulcsokon keresztül oldja fel a játék saját súgója a parancsokat és argumentumokat.
+
+desc.family = Egy játékos címeinek kiadása, visszavonása és felsorolása, valamint a címválasztó megnyitása.
+desc.grant = Cím feloldása egy játékosnak.
+desc.revoke = Cím elvétele egy játékostól.
+desc.list = Felsorolja a játékos által feloldott címeket.
+desc.open = Megnyitja a címválasztót, ahol kiválaszthatod a neved mellett megjelenő címet.
+desc.arg.player = A játékos, akin a parancs hat. Alapértelmezés: te.
+desc.arg.title = A cím azonosítója.
+
+player.needed = Add meg a játékost így: --player=<name>
+player.offline = Ez a játékos nincs fenn, és a címei a saját entitásán élnek.
+player.no_record = {0}-nak nincs címnyilvántartása, amelybe írni lehetne.
+title.needed = Add meg a címet így: --title=<id>
+title.refused = A(z) '{0}' nem használható címazonosító: '|' vagy ':' van benne, amelyet a mentési formátum fenntart.
+
+grant.done = A(z) '{1}' cím feloldva neki: {0}.
+grant.already = {0} már rendelkezik a(z) '{1}' címmel.
+grant.unknown = Semmi betöltött nem definiál '{0}' címet; mégis fel van oldva, arra az esetre, ha a csomag, amely hozza, később töltődik be.
+revoke.done = A(z) '{1}' cím elvéve tőle: {0}.
+revoke.absent = {0}-nak nem volt meg a(z) '{1}' cím.
+list.header = {0} feloldott címei ({1}):
+list.row = - {0}
+list.row_shown = - {0} (látható)
+list.none = {0}-nak nincs feloldott címe.
+open.needs_player = A címválasztót csak játékos nyithatja meg.
+open.failed = A címválasztót nem sikerült megnyitni.
+

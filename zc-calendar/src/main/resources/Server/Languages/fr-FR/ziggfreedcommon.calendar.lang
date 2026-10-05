@@ -1,0 +1,12 @@
+# Les mots du calendrier destinés aux joueurs : comment se nomme une condition portant sur une lecture
+# du calendrier, et comment se lit une étape de participation quand son fichier ne donne aucune phrase.
+# Le nom du fichier est le PRÉFIXE de clé : une entrée ici se résout en ziggfreedcommon.calendar.<clé>.
+
+factor.calendar_live = un événement du calendrier en cours
+factor.calendar_year = l'année d'un événement du calendrier en cours
+factor.feature = une fonctionnalité activée sur ce serveur
+
+# L'étape de participation : {1} est l'événement nommé. La variante .any se lit quand l'étape ne nomme aucun événement.
+objective.calendar_attended = Participez à {1}
+objective.calendar_attended.any = Participez à un événement du calendrier
+

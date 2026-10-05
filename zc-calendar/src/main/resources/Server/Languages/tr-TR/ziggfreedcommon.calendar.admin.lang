@@ -1,0 +1,36 @@
+# /zigcalendar yönetici komut ailesi: yardım metni ve yanıtlar.
+# Dosya adı anahtar ÖNEKİDİR: buradaki bir girdi ziggfreedcommon.calendar.admin.<anahtar> olarak çözülür.
+# desc.* anahtarlarını motorun kendi yardımı bir komut veya argüman için çözer.
+
+desc.family = Bu sunucunun takvim etkinliklerini gör ve dene.
+desc.list = Her takvim etkinliğini ve çalışıp çalışmadığını listele.
+desc.status = Bir takvim etkinliğini göster: tarihleri, ilk yılı ve şimdiye kadarki çalışmaları.
+desc.force = Bir takvim etkinliğini tarihlerine bakmadan şimdi başlat veya durdur.
+desc.force.on = Bir takvim etkinliğini şimdi başlat. Sen kaldırana veya sunucu yeniden başlayana kadar zorla açık kalır.
+desc.force.off = Bir takvim etkinliğini şimdi durdur. Sen kaldırana veya sunucu yeniden başlayana kadar durmuş kalır.
+desc.force.clear = Bir takvim etkinliği yine tarihlerini izlesin.
+desc.reload = Takvim sahibi dosyasını yeniden oku.
+desc.arg.event = Takvim etkinliği, dosya adıyla.
+list.none = Yüklü takvim etkinliği yok.
+list.header = Takvim etkinlikleri ({0}):
+row.unknown = {0} adında bir takvim etkinliği yok.
+row.off = {0}: kapalı.
+row.broken = {0}: çalışamıyor ({1}); nedeni sunucu günlüğünde.
+row.live = {0}: çalışıyor, {1}. çalışma, {2} tarihine kadar.
+row.live.forced = {0}: zorla açıldığı için çalışıyor, {1}. çalışma, {2} tarihine kadar.
+row.stopped = {0}: bir komutla durduruldu.
+row.waiting = {0}: sonraki başlangıç {1}.
+status.window = Her yıl {0} çalışır, {1} içinde sayılır.
+status.first = İlk yıl: {0}.
+status.first.none = İlk yıl yok, bu yüzden hiç çalışmaz.
+status.history = Şimdiye kadarki çalışmalar: {0}.
+status.history.none = Henüz çalışma yok.
+status.problem = Sorun: {0}.
+force.unknown = {0} adında bir takvim etkinliği yok.
+force.absent = {0} kapalı veya çalışamıyor, bu yüzden zorlamak bir şeyi değiştirmez.
+force.on.done = {0} şimdi çalışıyor. Sen kaldırana veya sunucu yeniden başlayana kadar zorla açık kalır.
+force.off.done = {0} şimdi durdu. Sen kaldırana veya sunucu yeniden başlayana kadar durmuş kalır.
+force.clear.done = {0} yine tarihlerini izliyor.
+reload.done = Takvim sahibi dosyası yeniden okundu.
+reload.done.off = Takvim sahibi dosyası yeniden okundu: her takvim etkinliği kapalı.
+

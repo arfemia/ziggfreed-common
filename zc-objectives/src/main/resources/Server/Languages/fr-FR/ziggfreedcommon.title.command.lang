@@ -1,0 +1,30 @@
+# La famille de commandes /zigtitle : textes d'aide et réponses.
+# Le nom du fichier est le PRÉFIXE de clé : une entrée ici se résout en ziggfreedcommon.title.command.<clé>.
+# Les clés desc.* sont celles par lesquelles l'aide du moteur résout une commande ou un argument.
+
+desc.family = Accordez, retirez et listez les titres d'un joueur, et ouvrez le sélecteur de titre.
+desc.grant = Débloque un titre pour un joueur.
+desc.revoke = Retire un titre à un joueur.
+desc.list = Liste les titres qu'un joueur a débloqués.
+desc.open = Ouvre le sélecteur de titre, où vous choisissez le titre affiché à côté de votre nom.
+desc.arg.player = Le joueur visé. Vous par défaut.
+desc.arg.title = L'id du titre.
+
+player.needed = Nommez un joueur avec --player=<name>.
+player.offline = Ce joueur n'est pas en ligne, et ses titres sont portés par sa propre entité.
+player.no_record = {0} n'a aucun enregistrement de titres où écrire.
+title.needed = Nommez un titre avec --title=<id>.
+title.refused = '{0}' n'est pas un id de titre utilisable : il contient '|' ou ':', que le format de sauvegarde réserve.
+
+grant.done = Titre '{1}' débloqué pour {0}.
+grant.already = {0} a déjà le titre '{1}'.
+grant.unknown = Rien de chargé ne définit un titre '{0}' ; il est débloqué quand même, au cas où le pack qui l'apporte se chargerait plus tard.
+revoke.done = Titre '{1}' retiré à {0}.
+revoke.absent = {0} n'avait pas le titre '{1}'.
+list.header = Titres débloqués par {0} ({1}) :
+list.row = - {0}
+list.row_shown = - {0} (affiché)
+list.none = {0} n'a débloqué aucun titre.
+open.needs_player = Seul un joueur peut ouvrir le sélecteur de titre.
+open.failed = Le sélecteur de titre n'a pas pu être ouvert.
+

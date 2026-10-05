@@ -1,0 +1,34 @@
+# El Almanaque: su página y el comando /zigalmanac. El nombre del archivo es el PREFIJO de la clave:
+# una entrada de aquí se resuelve como ziggfreedcommon.almanac.<clave>. Las claves desc.* son las que
+# la ayuda del motor usa para un comando o un argumento.
+
+title = Almanaque
+seasons.empty = Aún no hay eventos de temporada en este servidor.
+badge.live = En curso
+status.live = En curso
+status.between = Entre temporadas
+section.season = Esta temporada ({0})
+section.last = Temporada pasada ({0})
+section.lifetime = Todas las temporadas
+section.keepsakes = Recuerdos
+section.achievements = Logros
+attended.yes = Participaste.
+attended.count = Temporadas en las que participaste: {0, number}
+stat.line = {0}: {1, number}
+stat.none = Aún no se ha contado nada.
+keepsake.line = {0}: {1}
+keepsake.none = Aún no tienes recuerdos.
+achievements.count = {0, number} de {1, number} conseguidos
+banner.line = {0}: {1, number} de {2, number}
+banner.earned = {0}: conseguido
+
+desc.family = El Almanaque: todos los eventos de temporada de este servidor y lo que hiciste en cada uno.
+desc.open = Abre el Almanaque.
+desc.arg.event = La temporada que se abre, según el id de su evento.
+open.needsPlayer = Solo un jugador puede abrir el Almanaque.
+open.failed = No se pudo abrir el Almanaque.
+open.off = El Almanaque está desactivado en este servidor.
+
+# El libro de logros rotula la categoría Temporadas con esta clave (ver AchievementCategories/Seasons.json).
+achievement.category.seasons = Temporadas
+

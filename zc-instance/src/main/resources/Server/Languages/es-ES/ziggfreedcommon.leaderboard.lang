@@ -1,0 +1,42 @@
+# La pantalla propia de la biblioteca para los récords de un combate contra un jefe (las filas que una derrota
+# escribe en la clasificación del encuentro), para que se lean en un servidor que no ejecute nada más.
+# El nombre del archivo es el PREFIJO de la clave: una entrada de aquí se resuelve como ziggfreedcommon.leaderboard.<clave>.
+# Todas las líneas de la pantalla salvo your_rank se pintan donde nunca se sustituye un parámetro, así que solo
+# your_rank admite uno. Un combate nombra su propia pantalla mediante el NameKey de su fila de enlace; title es el
+# valor de reserva.
+
+title = Récords de jefes
+axis.difficulty = Dificultad
+axis.players = Jugadores
+axis.sort = Orden
+axis.view = Vista
+col.rank = Puesto
+col.player = Jugador
+col.score = Mejor parte
+col.total = Total
+col.time = Más rápido
+col.plays = Combates
+empty = Nadie tiene aún un récord de este combate aquí.
+sort.score = Mejor parte
+sort.total = Puntos totales
+sort.time = Más rápido
+view.rankings = Clasificación
+view.stats = Estadísticas
+filter.all = Todos
+your_rank = Tu mejor: n.º {0, number} ({1, number})
+your_rank.none = Aún no tienes ningún récord de este combate aquí.
+stat.damage_dealt = Daño infligido
+stat.damage_taken = Daño recibido
+
+# /zigleaderboard, el comando que abre la pantalla de arriba. Las claves command.desc.* son las que la
+# ayuda del motor usa para un comando o un argumento.
+command.desc.family = Consulta los récords de los combates contra jefes de este servidor.
+command.desc.encounter = Abre los récords de un combate contra un jefe.
+command.desc.arg.encounter = El id del guion de encuentro del combate. Omítelo cuando solo un combate tenga récords.
+command.open.needs_player = Solo un jugador puede abrir la pantalla de récords.
+command.open.failed = No se pudo abrir la pantalla de récords. Inténtalo de nuevo en un momento.
+command.encounter.unranked = '{0}' no guarda récords en este servidor.
+command.encounter.none = Ningún combate contra un jefe tiene aún un récord.
+command.encounter.choose = Más de un combate contra un jefe tiene récords. Elige uno:
+command.encounter.choice = {0}: /zigleaderboard encounter --encounter={1}
+

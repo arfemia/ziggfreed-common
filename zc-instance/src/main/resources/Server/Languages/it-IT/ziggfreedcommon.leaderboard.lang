@@ -1,0 +1,39 @@
+# La schermata della libreria per i record di uno scontro con un boss (le righe che una sconfitta scrive
+# nella classifica dello scontro), così si leggono anche su un server che non esegue altro.
+# Il nome del file è il PREFISSO della chiave: una voce qui si risolve come ziggfreedcommon.leaderboard.<key>.
+# Ogni riga della schermata tranne your_rank è disegnata dove un parametro non viene mai sostituito, quindi solo
+# your_rank ne accetta uno. Uno scontro dà il nome alla propria schermata tramite il NameKey della sua riga di
+# collegamento; title è il ripiego.
+
+title = Record dei boss
+axis.difficulty = Difficoltà
+axis.players = Giocatori
+axis.sort = Ordine
+axis.view = Vista
+col.rank = Posizione
+col.player = Giocatore
+col.score = Miglior quota
+col.total = Totale
+col.time = Più veloce
+col.plays = Scontri
+empty = Qui nessuno ha ancora un record per questo scontro.
+sort.score = Miglior quota
+sort.total = Punti totali
+sort.time = Più veloce
+view.rankings = Classifiche
+view.stats = Statistiche
+filter.all = Tutti
+your_rank = Il tuo migliore: #{0, number} ({1, number})
+your_rank.none = Qui non hai ancora un record per questo scontro.
+stat.damage_dealt = Danni inflitti
+stat.damage_taken = Danni subiti
+command.desc.family = Vedi i record degli scontri con i boss di questo server.
+command.desc.encounter = Apri i record di uno scontro con un boss.
+command.desc.arg.encounter = L'id dello script dello scontro. Omettilo quando solo uno scontro ha record.
+command.open.needs_player = Solo un giocatore può aprire la schermata dei record.
+command.open.failed = Non è stato possibile aprire la schermata dei record. Riprova tra un attimo.
+command.encounter.unranked = '{0}' non tiene record su questo server.
+command.encounter.none = Nessuno scontro con un boss ha ancora un record.
+command.encounter.choose = Più di uno scontro con un boss ha record. Scegline uno:
+command.encounter.choice = {0}: /zigleaderboard encounter --encounter={1}
+

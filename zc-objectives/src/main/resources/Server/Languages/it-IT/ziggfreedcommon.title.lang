@@ -1,0 +1,22 @@
+# Le righe dei titoli rivolte al giocatore: come un titolo sta attorno al nome di un giocatore e come si legge la ricompensa di un titolo.
+# Il nome del file è il PREFISSO della chiave: una voce qui si risolve come ziggfreedcommon.title.<key>.
+# Un titolo prende il nome da title.<id>.name nel file lang che lo include (altrimenti il suo id scritto per esteso),
+# è descritto da title.<id>.flavor e collocato attorno al nome di un giocatore da title.<id>.display, il cui {0}
+# è il nome. La riga display qui sotto è il ripiego per un titolo che non include una propria riga display:
+# {0} è il nome del giocatore e {1} quello del titolo.
+
+display = {0}, {1}
+chip = Titolo: {0}
+unlocked = Titolo sbloccato: {0}
+unlocked_hint = Scegli il titolo da mostrare con /zigtitle open
+picker.title = Titoli
+picker.subtitle = Scegli il titolo mostrato accanto al tuo nome nei menu e nelle classifiche.
+picker.preview = Appari come: {0}
+picker.none = Non hai ancora ottenuto nessun titolo.
+picker.on = Mostrato
+picker.off = Mostra
+picker.back = Indietro
+picker.shown = Ora mostri {0}.
+picker.cleared = Ora non è mostrato nessun titolo.
+picker.not_kept = Non è stato possibile conservare la tua scelta. Rientra e riprova.
+
