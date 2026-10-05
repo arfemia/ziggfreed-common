@@ -1,5 +1,6 @@
 package com.ziggfreed.common.entity.title;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -14,12 +15,18 @@ import java.util.Locale;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The process-wide record of who shows what: lower-cased, per player, forgetting only a player who
  * shows nothing, and written to its file so a restart keeps every choice, online or not.
+ *
+ * <p>The tests that read back a file the record wrote go through the engine's own atomic writer,
+ * which on Update 7 loads only under the engine's log manager, so they alone are tagged
+ * {@code engine-items}. The read tests, and the guard that keeps a write the engine cannot make from
+ * reaching a caller, run in the plain {@code test} JVM, where a consumer mod's own tests run.
  */
 class ActiveTitlesTest {
 
@@ -60,6 +67,13 @@ class ActiveTitlesTest {
         assertNull(ActiveTitles.of(null));
     }
 
+    /**
+     * Tagged {@code engine-items}: the write goes through the engine's own atomic writer
+     * ({@code FileUtil.writeStringAtomic}), and on Update 7 that class logs at class init, which only
+     * the engine's log manager allows ({@code engineItemTest}). In the plain {@code test} JVM the write
+     * cannot happen at all; the guard is pinned untagged below.
+     */
+    @Tag("engine-items")
     @Test
     void theRecordSurvivesASaveAndARestart() {
         Path file = dir.resolve("shown-titles.json");
@@ -77,6 +91,8 @@ class ActiveTitlesTest {
         assertNull(ActiveTitles.of(clearer), "a cleared choice is not written back");
     }
 
+    /** Tagged {@code engine-items}: it reads back what the flusher wrote, as the test above does. */
+    @Tag("engine-items")
     @Test
     void aChangeIsHandedToTheFlusherOnceAndWrittenWhenItRuns() {
         Path file = dir.resolve("shown-titles.json");
@@ -119,6 +135,8 @@ class ActiveTitlesTest {
         assertNull(ActiveTitles.of(blank), "a blank row reads as showing nothing");
     }
 
+    /** Tagged {@code engine-items}: the copy it falls back to is the one the engine's atomic write kept. */
+    @Tag("engine-items")
     @Test
     void anUnreadableFileFallsBackToTheCopyBeforeIt() throws IOException {
         Path file = dir.resolve("shown-titles.json");
@@ -133,6 +151,27 @@ class ActiveTitlesTest {
         restart(file);
 
         assertEquals("pumpkin_king", ActiveTitles.of(player), "a torn file reads the copy written before it");
+    }
+
+    /**
+     * The record in a JVM whose engine writer cannot run (a consumer mod's unit tests, or this module's
+     * plain {@code test} task on Update 7): a change, a flush on the caller's thread and one handed to
+     * the flusher never throw, and the record answers from memory, whatever the write does. Untagged
+     * on purpose: it is the guard, and only the plain JVM proves it.
+     */
+    @Test
+    void aWriteThatCannotHappenNeverReachesTheCaller() {
+        Path file = dir.resolve("shown-titles.json");
+        List<Runnable> queued = new ArrayList<>();
+        ActiveTitles.persistTo(file, queued::add);
+        UUID player = UUID.randomUUID();
+
+        assertDoesNotThrow(() -> ActiveTitles.put(player, "pumpkin_king"));
+        assertEquals(1, queued.size(), "the change is handed to the flusher");
+        assertDoesNotThrow(() -> queued.remove(0).run());
+        assertDoesNotThrow(ActiveTitles::flush);
+
+        assertEquals("pumpkin_king", ActiveTitles.of(player), "the record answers from memory");
     }
 
     /** What a server restart leaves: nothing in memory, then whatever the file holds. */

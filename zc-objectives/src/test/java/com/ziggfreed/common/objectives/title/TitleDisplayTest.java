@@ -12,6 +12,7 @@ import javax.annotation.Nonnull;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -30,6 +31,11 @@ import com.ziggfreed.common.ui.name.PlayerDisplayNames;
  * the same title on a row naming a player who is offline, after a restart too, so a title never
  * tells a viewer who is online. No entity store anywhere: the decorator reads the process-wide
  * record and the fold only, which is what lets a page on any world thread name any player.
+ *
+ * <p>The tests that restart ({@code leaveAndRestart}) read back a file the record wrote through the
+ * engine's own atomic writer, which on Update 7 loads only under the engine's log manager, so they
+ * alone are tagged {@code engine-items}; {@code ActiveTitlesTest} pins that a write the engine cannot
+ * make never reaches the caller.
  */
 class TitleDisplayTest {
 
@@ -117,6 +123,7 @@ class TitleDisplayTest {
         assertEquals("Ziggfreed", row(), "and gone the moment it is taken off");
     }
 
+    @Tag("engine-items")
     @Test
     void anOfflineRowAfterARestartShowsTheTitleChosenBeforeIt() {
         ZigTitleComponent titles = new ZigTitleComponent();
@@ -128,6 +135,7 @@ class TitleDisplayTest {
         assertEquals("Ziggfreed the Hallowed", row());
     }
 
+    @Tag("engine-items")
     @Test
     void pickingClearingAndRevokingChangeWhatAnOfflineRowShows() throws Exception {
         TitleConfig.getInstance().mergePackLayer(Map.of(
@@ -159,6 +167,7 @@ class TitleDisplayTest {
         assertEquals("Ziggfreed", row(), "revoked, so no longer theirs to show");
     }
 
+    @Tag("engine-items")
     @Test
     void anOfflineRowWithASwitchedOffOrUnknownTitleShowsNoneButKeepsTheChoice() {
         UUID other = UUID.randomUUID();
