@@ -96,6 +96,10 @@ public final class RewardGrants {
     /**
      * Grant every reward in {@code rewards} to {@code subject}.
      *
+     * <p>Once the OUTERMOST payout on this thread settles, it announces every item its receipt
+     * handed over as a {@link LootReceivedEvent} ({@link RewardDeliveries}); a payout nested inside a
+     * reward announces nothing of its own.
+     *
      * @param sourceId   labels the payout in logs and in any retry command, conventionally
      *                   {@code "<what paid out>:<its id>"}
      * @param kinds      the vocabulary each spec's kind is looked up in
@@ -111,6 +115,24 @@ public final class RewardGrants {
         if (rewards.isEmpty()) {
             return GrantOutcome.EMPTY;
         }
+        RewardDeliveries.enter();
+        GrantOutcome outcome = GrantOutcome.EMPTY;
+        try {
+            outcome = grantEach(rewards, subject, sourceId, kinds, retryQueue, warn);
+            return outcome;
+        } finally {
+            if (RewardDeliveries.leave()) {
+                RewardDeliveries.announce(subject, sourceId, outcome.receipt());
+            }
+        }
+    }
+
+    /** The per-reward pass {@link #grantAll} wraps: isolation, the retry fallback, the receipt. */
+    @Nonnull
+    private static GrantOutcome grantEach(@Nonnull List<RewardSpec> rewards, @Nonnull Subject subject,
+                                          @Nonnull String sourceId, @Nonnull RewardKindRegistry kinds,
+                                          @Nullable BiConsumer<Subject, String> retryQueue,
+                                          @Nonnull Consumer<String> warn) {
         int granted = 0;
         int queued = 0;
         int failed = 0;

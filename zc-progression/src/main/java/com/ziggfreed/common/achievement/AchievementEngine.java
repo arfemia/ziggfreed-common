@@ -713,11 +713,10 @@ public final class AchievementEngine {
      * Pin an achievement to the subject's tracker. Dead pins are reclaimed first, so the cap is
      * measured against live ones and a subject looking at two pins is never told they are full.
      *
-     * @return false when the id is unknown, it is already earned, or they are at the cap
+     * @return false when the id is unknown, out of circulation, already earned, or they are at the cap
      */
     public boolean pin(@Nonnull Subject subject, @Nonnull String achievementId) {
-        if (!achievements.containsKey(achievementId)
-                || store.status(subject, achievementId).isUnlocked()) {
+        if (!pinnable(subject, achievementId)) {
             return false;
         }
         prunePins(subject);
@@ -728,6 +727,23 @@ public final class AchievementEngine {
         store.setPin(subject, achievementId, now());
         store.markDirty(subject);
         return true;
+    }
+
+    /**
+     * Could this subject pin this achievement, short of the cap? True when it is catalogued, in
+     * circulation and not yet earned. {@link #pin} asks it before it counts slots and
+     * {@link #prunePins} reclaims every pin it says no to, so the three never drift. A surface that
+     * offers Pin only where this answers true (or where a pin is already held, to take off) never
+     * offers one {@code pin} refuses for any reason but the cap.
+     *
+     * <p>It ignores the cap on purpose. A surface at the cap keeps its offer, so the refusal it then
+     * shows (the cap) is the true one; and counting slots truly means reclaiming dead pins first,
+     * which writes, while this is a read a surface may ask on every paint.
+     */
+    public boolean pinnable(@Nonnull Subject subject, @Nonnull String achievementId) {
+        Achievement achievement = achievements.get(achievementId);
+        return achievement != null && achievement.available()
+                && !store.status(subject, achievementId).isUnlocked();
     }
 
     /**
@@ -761,18 +777,16 @@ public final class AchievementEngine {
     }
 
     /**
-     * Drop pins for achievements that are earned or no longer catalogued. A pin marks something being
-     * worked toward, so one that no longer can be is dead weight - and enough of them fill every slot
-     * while the tracker looks empty.
+     * Drop pins for achievements that are earned, out of circulation, or no longer catalogued. A pin
+     * marks something being worked toward, so one that no longer can be is dead weight - and enough
+     * of them fill every slot while the tracker looks empty.
      *
      * @return how many were dropped
      */
     public int prunePins(@Nonnull Subject subject) {
         int dropped = 0;
         for (String achievementId : store.pins(subject).keySet()) {
-            boolean dead = !achievements.containsKey(achievementId)
-                    || store.status(subject, achievementId).isUnlocked();
-            if (dead && store.clearPin(subject, achievementId)) {
+            if (!pinnable(subject, achievementId) && store.clearPin(subject, achievementId)) {
                 dropped++;
             }
         }

@@ -111,7 +111,8 @@ public final class AchievementAssetStore {
 
     /**
      * Fold every loaded achievement into one pool, skipping the skeletons that exist only to be
-     * inherited from.
+     * inherited from. A file naming an {@code Occurrence} folds as its yearly copies, read through
+     * zc-core's occurrence slot ({@code OccurrenceReader}).
      *
      * <p>A skeleton is skipped because it is not a thing anybody can earn: a shared base, or a
      * STENCIL whose id is a pattern a consumer stamps out against its own runtime roster. A
@@ -120,34 +121,62 @@ public final class AchievementAssetStore {
      */
     @Nonnull
     public Resolution resolve() {
+        return resolve(achievements, layerFindings, OccurrenceReader.LIVE);
+    }
+
+    /**
+     * Fold {@code assets} into one pool: every ordinary file as itself, every file naming an
+     * {@code Occurrence} as one copy per year ({@link OccurrenceMinting}), and no skeleton at all.
+     * Pure over its arguments, so the whole fold is pinned with no store and no calendar behind it.
+     */
+    @Nonnull
+    static Resolution resolve(@Nonnull Map<String, AchievementAsset> assets,
+            @Nonnull List<Finding> layerFindings, @Nonnull OccurrenceReader calendar) {
         List<Finding> issues = new ArrayList<>(layerFindings);
         Map<String, AchievementDefinition> out = new LinkedHashMap<>();
 
-        List<String> ids = new ArrayList<>(achievements.keySet());
+        Map<String, AchievementAsset.MetaSelector> selectors = new LinkedHashMap<>();
+        List<String> ids = new ArrayList<>(assets.keySet());
         Collections.sort(ids);
         for (String id : ids) {
-            AchievementAsset asset = achievements.get(id);
+            AchievementAsset asset = assets.get(id);
             if (asset == null) {
                 continue;
             }
-            reportUnknownParent(asset, id, issues);
+            reportUnknownParent(asset, id, assets, issues);
             if (asset.isAbstract()) {
                 continue;
             }
-            out.put(id, asset.toDefinition());
+            AchievementAsset.MetaSelector selector = asset.getMetaSelector();
+            AchievementAsset.Occurrence occurrence = asset.getOccurrence();
+            if (occurrence == null) {
+                out.put(id, asset.toDefinition());
+                if (selector != null) {
+                    selectors.put(id, selector);
+                }
+                continue;
+            }
+            for (AchievementDefinition copy
+                    : OccurrenceMinting.mintAll(asset, id, occurrence, assets, calendar, issues)) {
+                out.put(copy.id(), copy);
+                if (selector != null) {
+                    selectors.put(copy.id(), selector);
+                }
+            }
         }
+        MetaSelection.apply(out, selectors, issues);
         return new Resolution(new AchievementPool(out), issues);
     }
 
     /**
-     * Report a file naming a {@code Parent} nothing in this store carries. It is a WARNING rather
+     * Report a file naming a {@code Parent} nothing in the folded layer carries. It is a WARNING rather
      * than an error because the parent may be shipped by a pack a given server does not install; the
      * effect is that the file inherited nothing, which is worth saying out loud either way.
      */
-    private void reportUnknownParent(@Nonnull AchievementAsset asset, @Nonnull String id,
-            @Nonnull List<Finding> issues) {
+    private static void reportUnknownParent(@Nonnull AchievementAsset asset, @Nonnull String id,
+            @Nonnull Map<String, AchievementAsset> assets, @Nonnull List<Finding> issues) {
         String parentId = asset.getParentId();
-        if (parentId != null && !achievements.containsKey(parentId)) {
+        if (parentId != null && !assets.containsKey(parentId)) {
             issues.add(Finding.warning(AchievementPoolValidator.DOMAIN, "UNKNOWN_PARENT",
                     "Parent names '" + parentId + "', which no loaded file provides, so this inherited "
                             + "nothing and carries only what it authored itself", id));

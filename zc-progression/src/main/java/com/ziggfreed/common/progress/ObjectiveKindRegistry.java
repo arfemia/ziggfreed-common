@@ -24,10 +24,10 @@ import com.ziggfreed.common.util.SafeLog;
  * that reads it, so there is no registration race and one consumer's vocabulary never leaks into
  * another's.
  *
- * <p><b>Twenty-seven engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
+ * <p><b>Twenty-eight engine-generic kinds are PRE-SEEDED</b> (see {@link #seedBuiltIns}) - the ones
  * whose meaning does not depend on any particular game's systems: breaking a block, killing an
  * entity, talking to somebody, handing something in, using an item, standing at some measured
- * value, fighting a boss. All twenty-seven seed as producible, all but {@link #STAT_THRESHOLD}
+ * value, fighting a boss. All twenty-eight seed as producible, all but {@link #STAT_THRESHOLD}
  * accumulate, none reads a ceiling, two of them ({@code TALK_TO_NPC}, {@code REACH_LOCATION}) seed
  * as place-targeted and three ({@code ENCOUNTER_DEFEATED}, {@code ENCOUNTER_PHASE},
  * {@code ENCOUNTER_ATTEMPT}) as encounter-targeted; a consumer that has no producer for one can
@@ -142,7 +142,7 @@ public final class ObjectiveKindRegistry {
             "PICKUP_ITEM", "TALK_TO_NPC", "CATCH_FISH", "TURN_IN", "COMPLETE_QUEST",
             "TAKE_FALL_DAMAGE", "PLAYER_DEATH", "SPRINT_DISTANCE", "SWIM_DISTANCE",
             "BREED_ANIMAL", "FEED_ANIMAL", "HARVEST_ANIMAL", "COMPANION_COMBAT",
-            "REACH_LOCATION", "CONSUME_ITEM", "USE_ITEM",
+            "REACH_LOCATION", "CONSUME_ITEM", "USE_ITEM", "LOOT_RECEIVED",
             "INSTANCE_ROUND_WON", "INSTANCE_ROUND_ENDED",
             "ENCOUNTER_DEFEATED", "ENCOUNTER_PHASE", "ENCOUNTER_ATTEMPT");
 
@@ -173,7 +173,7 @@ public final class ObjectiveKindRegistry {
      */
     private static final Set<String> BUILT_IN_ITEM_TARGETED = Set.of(
             "BREAK_BLOCK", "PLACE_BLOCK", "CRAFT_ITEM", "PICKUP_ITEM", "CATCH_FISH",
-            "TURN_IN", "CONSUME_ITEM", "USE_ITEM");
+            "TURN_IN", "CONSUME_ITEM", "USE_ITEM", "LOOT_RECEIVED");
 
     /**
      * The pre-seeded kinds whose TARGET names a creature, drawn from that creature's own generated
@@ -227,7 +227,7 @@ public final class ObjectiveKindRegistry {
         seedBuiltIns();
     }
 
-    /** Register the twenty-seven engine-generic kinds, all producible, each with its own arithmetic. */
+    /** Register the twenty-eight engine-generic kinds, all producible, each with its own arithmetic. */
     private void seedBuiltIns() {
         for (String id : BUILT_IN_ACCUMULATING) {
             ledger.put(id, BUILT_IN_OWNER, new ObjectiveKind(id, false, true,
@@ -247,7 +247,7 @@ public final class ObjectiveKindRegistry {
     }
 
     /**
-     * Is {@code kindId} one of the twenty-seven this class seeds? A consumer registering its own
+     * Is {@code kindId} one of the twenty-eight this class seeds? A consumer registering its own
      * vocabulary asks this to add only what it ADDS, leaving the built-ins stated once, here, with
      * every flag they carry - including any this class learns to seed later.
      */

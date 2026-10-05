@@ -59,8 +59,9 @@ public final class Achievement {
     @Nullable private final String subcategory;
     private final int sortOrder;
     private final List<ChainMembership> chains;
-    private final boolean featOfStrength;
+    private final BooleanSupplier featOfStrength;
     @Nullable private final String legacySince;
+    @Nullable private final Occurrence occurrence;
     private final Map<String, Object> momentArgs;
 
     private Achievement(@Nonnull Builder b) {
@@ -85,6 +86,7 @@ public final class Achievement {
         this.chains = List.copyOf(b.chains);
         this.featOfStrength = b.featOfStrength;
         this.legacySince = b.legacySince;
+        this.occurrence = b.occurrence;
         this.momentArgs = Map.copyOf(b.momentArgs);
     }
 
@@ -100,29 +102,7 @@ public final class Achievement {
     @Nonnull
     public Achievement withAuthoring(@Nullable GateSpec requires, @Nullable ContentText text,
             boolean serverFirst, @Nullable String icon) {
-        return builder(id)
-                .criteria(criteria)
-                .metaChildren(metaChildren)
-                .autoRewards(autoRewards)
-                .claimRewards(claimRewards)
-                .tags(tags)
-                .points(points)
-                .available(available)
-                .hidden(hidden)
-                .requirePrerequisites(requirePrerequisites)
-                .countsTowardTotal(countsTowardTotal)
-                .serverFirst(serverFirst)
-                .requires(requires)
-                .text(text)
-                .icon(icon)
-                .category(category)
-                .subcategory(subcategory)
-                .sortOrder(sortOrder)
-                .chains(chains)
-                .featOfStrength(featOfStrength)
-                .legacySince(legacySince)
-                .momentArgs(momentArgs)
-                .build();
+        return toBuilder().serverFirst(serverFirst).requires(requires).text(text).icon(icon).build();
     }
 
     /**
@@ -135,6 +115,33 @@ public final class Achievement {
     @Nonnull
     public Achievement withListing(@Nullable String category, @Nullable String subcategory,
             int sortOrder, @Nonnull List<ChainMembership> chains) {
+        Builder copy = toBuilder().category(category).subcategory(subcategory).sortOrder(sortOrder);
+        copy.chains.clear();
+        copy.chains.addAll(chains);
+        return copy.build();
+    }
+
+    /**
+     * This achievement standing on {@code children} instead of its own meta children, everything
+     * else carried over. For a fold that works out a capstone's children only once the whole
+     * catalogue is folded (a selector over it). A copy beside {@link #withAuthoring}, for the same
+     * reason that one lives here.
+     */
+    @Nonnull
+    public Achievement withMetaChildren(@Nonnull List<String> children) {
+        Builder copy = toBuilder();
+        copy.metaChildren.clear();
+        copy.metaChildren.addAll(children);
+        return copy.build();
+    }
+
+    /**
+     * A builder already holding every leaf of this one, live readings as the suppliers they are.
+     * Every copy above starts here, so a leaf added later is named in ONE place and no copy can keep
+     * it while another drops it, or freeze a live reading into a snapshot.
+     */
+    @Nonnull
+    private Builder toBuilder() {
         return builder(id)
                 .criteria(criteria)
                 .metaChildren(metaChildren)
@@ -156,8 +163,8 @@ public final class Achievement {
                 .chains(chains)
                 .featOfStrength(featOfStrength)
                 .legacySince(legacySince)
-                .momentArgs(momentArgs)
-                .build();
+                .occurrence(occurrence)
+                .momentArgs(momentArgs);
     }
 
     @Nonnull
@@ -313,10 +320,11 @@ public final class Achievement {
      * A feat of strength: a trophy listed in its own earned-only section rather than browsed, worth
      * bragging rather than points. A LISTING fact like {@link #category()} - the engine never reads
      * it, and authors pair it with {@code hidden} / {@code countsTowardTotal} as they see fit (the
-     * knobs stay independent rather than bundled into a type).
+     * knobs stay independent rather than bundled into a type). Read on every call: a fold may supply
+     * a live reading (a yearly copy becomes a feat once its year is over).
      */
     public boolean featOfStrength() {
-        return featOfStrength;
+        return featOfStrength.getAsBoolean();
     }
 
     /**
@@ -327,6 +335,28 @@ public final class Achievement {
     @Nullable
     public String legacySince() {
         return legacySince;
+    }
+
+    /**
+     * The yearly occurrence this achievement was minted for, or null for an ordinary one. Written by
+     * the fold that minted it; the engine never reads it, because availability and the feat flag
+     * already carry what the occurrence means for earning and listing.
+     */
+    @Nullable
+    public Occurrence occurrence() {
+        return occurrence;
+    }
+
+    /**
+     * Which yearly occurrence of a calendar event an achievement was minted for, and the id of the
+     * file it was minted from. Both ids are lower-cased.
+     */
+    public record Occurrence(@Nonnull String eventId, int year, @Nonnull String baseId) {
+
+        public Occurrence {
+            eventId = eventId.trim().toLowerCase(Locale.ROOT);
+            baseId = baseId.trim().toLowerCase(Locale.ROOT);
+        }
     }
 
     /**
@@ -424,8 +454,9 @@ public final class Achievement {
         @Nullable private String subcategory;
         private int sortOrder;
         private final List<ChainMembership> chains = new ArrayList<>();
-        private boolean featOfStrength;
+        private BooleanSupplier featOfStrength = NEVER;
         @Nullable private String legacySince;
+        @Nullable private Occurrence occurrence;
         private final Map<String, Object> momentArgs = new LinkedHashMap<>();
 
         private Builder(@Nonnull String id) {
@@ -557,7 +588,21 @@ public final class Achievement {
         /** Mark it a feat of strength ({@link Achievement#featOfStrength()}). */
         @Nonnull
         public Builder featOfStrength(boolean featOfStrength) {
-            this.featOfStrength = featOfStrength;
+            this.featOfStrength = featOfStrength ? ALWAYS : NEVER;
+            return this;
+        }
+
+        /** The feat flag as a LIVE reading, re-asked on every look; null means never a feat. */
+        @Nonnull
+        public Builder featOfStrength(@Nullable BooleanSupplier featOfStrength) {
+            this.featOfStrength = featOfStrength == null ? NEVER : featOfStrength;
+            return this;
+        }
+
+        /** The yearly occurrence it was minted for ({@link Achievement#occurrence()}); null means none. */
+        @Nonnull
+        public Builder occurrence(@Nullable Occurrence occurrence) {
+            this.occurrence = occurrence;
             return this;
         }
 

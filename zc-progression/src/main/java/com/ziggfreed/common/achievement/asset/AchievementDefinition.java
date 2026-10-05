@@ -114,4 +114,16 @@ public record AchievementDefinition(@Nonnull String id, @Nonnull Achievement ach
     public String criterionTextKey(@Nonnull String criterionId) {
         return criterionTextKeys.get(criterionId);
     }
+
+    /**
+     * This definition standing on {@code children} instead, everything else unchanged: for a fold
+     * that works out a capstone's children once the whole pool is folded. The compact constructor
+     * re-stamps the runtime object's authoring and listing facts exactly as it did the first time.
+     */
+    @Nonnull
+    public AchievementDefinition withMetaChildren(@Nonnull List<String> children) {
+        return new AchievementDefinition(id, achievement.withMetaChildren(children), titleKey, flavorKey,
+                displayName, titleArgs, flavorArgs, category, subcategory, sortOrder, chains, icon,
+                requires, criterionTextKeys, meta);
+    }
 }

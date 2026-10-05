@@ -367,8 +367,10 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Listing` | [Listing](#field-achievementasset-listing) | `null` | How it is grouped, ordered, illustrated, and whether it is listed before it is earned. |
 | `Scoring` | [Scoring](#field-achievementasset-scoring) | `null` | What it is worth, and whether that worth counts toward a player's total. |
 | `Requires` | [Requires](#type-requires) | `null` | What a player must already have or have done before this can progress at all. An unauthored block asks for nothing. |
+| `Occurrence` | [Occurrence](#field-achievementasset-occurrence) | `null` | The calendar event this achievement comes back with every year. One copy is kept per yearly occurrence, named '<this id>_<year>' and earned separately; a copy counts progress only while its own year runs, and afterwards it is a feat its earners keep and nobody else can earn. Unauthored means an ordinary achievement. |
 | `Criteria` | map of [ObjectiveLeaf](#type-objectiveleaf) | `null` | Everything that has to be done, ALL of it, keyed by criterion id. The key is also what progress is stored under, so renaming one starts that criterion over. A child achievement may retune one criterion by id and keeps every criterion it did not mention. |
-| `MetaChildren` | array of `string` | `null` | Achievement ids that must all be earned for this one to earn itself, for a capstone over a set. An achievement with these needs no Criteria of its own. |
+| `MetaChildren` | array of `string` | `null` | Achievement ids that must all be earned for this one to earn itself, for a capstone over a set. An achievement with these needs no Criteria of its own. MetaSelector picks more by category, subcategory or tags. |
+| `MetaSelector` | [MetaSelector](#field-achievementasset-metaselector) | `null` | A capstone over every achievement these leaves pick, beside any MetaChildren listed by id: an achievement is picked when it matches every leaf written here. It never picks this achievement itself or any other capstone, and a yearly copy (see Occurrence) picks only that year's copies of the same event. A selector writing no leaf picks nothing. |
 | `Rewards` | [ContentRewardsAsset](#field-achievementasset-rewards) | `null` | What earning it pays, split by the two moments a payout can land in: Auto lands the instant it is earned, Claim waits on the achievements surface to be collected. |
 | `Meta` | map of `json` | `null` | Extra facts about this content, filed under the namespace of whichever mod they belong to. Nothing here is interpreted by this library: a mod reads its own namespace and every other one rides along untouched, so content authored for two mods still loads with one of them installed. Under Parent a namespace this file names replaces the inherited block for that namespace whole, and every namespace it does not name is inherited as it was. |
 
@@ -385,6 +387,8 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Hidden` | `boolean` | `null` | Keep it off open listings, for content reached some other way (a chain step, an event, a surprise). It still progresses; only the listing is affected, and anything a player already holds or has earned always shows. |
 | `RequirePrerequisites` | `boolean` | `null` | Hide it until its Requires block passes, instead of showing it locked. Unauthored means shown locked, which is usually kinder: a player can see what to work towards. |
 | `Subcategory` | `string` | `null` | A second level of grouping inside a Category, for a category big enough to need one. |
+| `Feat` | `boolean` | `null` | A feat of strength: listed in its own earned-only section instead of the browse list, for something exceptional or retired. It changes only where it is listed; whether its points count stays Scoring.CountsTowardTotal's call. Unauthored means false. |
+| `LegacySince` | `string` | `null` | The version this stopped being earnable in, shown beside a feat so a player can tell a retired achievement from one they have not reached yet. |
 
 <a id="field-achievementasset-scoring"></a>
 ### AchievementAsset.Scoring
@@ -393,6 +397,22 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Points` | `integer` | `null` | What earning this is worth; unauthored means 10. Keep the scale consistent across a pack, since a player's total is the sum and a milestone reward is measured against it. |
 | `CountsTowardTotal` | `boolean` | `null` | Whether the points count toward a player's total; unauthored means true. Set false for something nobody can earn any more, so a total stays comparable between a long-standing player and a new one. |
+
+<a id="field-achievementasset-occurrence"></a>
+### AchievementAsset.Occurrence
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Event` | `string` | `null` | The calendar event's id (its file name). Write @year in Text.TextArgs, or as a reward parameter's whole value, for the copy's own year. |
+
+<a id="field-achievementasset-metaselector"></a>
+### AchievementAsset.MetaSelector
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Category` | `string` | `null` | Pick what is filed under this Listing.Category. |
+| `Subcategory` | `string` | `null` | Pick what is filed under this Listing.Subcategory. |
+| `Tags` | array of `string` | `null` | Pick what carries every one of these Listing.Tags. |
 
 <a id="field-achievementasset-rewards"></a>
 ### AchievementAsset.Rewards

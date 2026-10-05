@@ -47,10 +47,8 @@ final class PlayerMomentDispatch {
      */
     static void fire(@Nonnull String label, @Nonnull UUID playerId, @Nonnull String kindId,
             @Nonnull String target, @Nullable String qualifier, long amount, @Nullable MomentPayload payload) {
-        World world = worldOf(playerId);
+        World world = liveWorldOf(label, playerId, kindId);
         if (world == null) {
-            SafeLog.fine("[progression] " + label + " " + kindId + " skipped for " + playerId
-                    + " - no live world for that player");
             return;
         }
         if (world.isInThread()) {
@@ -58,6 +56,32 @@ final class PlayerMomentDispatch {
             return;
         }
         world.execute(() -> fireFor(label, playerId, kindId, target, qualifier, amount, payload));
+    }
+
+    /**
+     * Feed one moment for {@code playerId} on their world thread AFTER the task running now, even
+     * when that is already their world. For a moment announced from INSIDE an engine payout (a
+     * reward handing an item over): an inline dispatch would re-enter the engine mid-payout, so this
+     * one waits for the payout to settle. Same skips as {@link #fire}.
+     */
+    static void fireDeferred(@Nonnull String label, @Nonnull UUID playerId, @Nonnull String kindId,
+            @Nonnull String target, @Nullable String qualifier, long amount, @Nullable MomentPayload payload) {
+        World world = liveWorldOf(label, playerId, kindId);
+        if (world == null) {
+            return;
+        }
+        world.execute(() -> fireFor(label, playerId, kindId, target, qualifier, amount, payload));
+    }
+
+    /** {@link #worldOf}, with the skip said once at fine level when there is none. */
+    @Nullable
+    private static World liveWorldOf(@Nonnull String label, @Nonnull UUID playerId, @Nonnull String kindId) {
+        World world = worldOf(playerId);
+        if (world == null) {
+            SafeLog.fine("[progression] " + label + " " + kindId + " skipped for " + playerId
+                    + " - no live world for that player");
+        }
+        return world;
     }
 
     /** The world the player is on right now, or null when they are offline or their world has gone. */
