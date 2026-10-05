@@ -506,15 +506,22 @@ public final class NpcPlacementReconciler {
             @Nonnull String worldName, @Nonnull NpcPlacementLedger ledger) {
         DespawnPass despawnPass = runDespawnPass(world, store, worldName);
         int rebound = runHealPass(world, store, worldName, ledger);
-        PlacePass placePass = runPlacePass(world, store, worldName, ledger);
+        PlacePass placePass = runPlacePass(world, store, worldName, ledger, despawnPass.standing());
         return new Round(new SweepSummary(despawnPass.scanned, despawnPass.despawned, rebound,
                 placePass.placed(), placePass.unresolvedAnchors()), placePass.wokeASection());
     }
 
-    private record DespawnPass(int scanned, int despawned) {
+    /**
+     * What one despawn pass did, and the instance keys ({@code placementId|anchorKey}) with a copy it kept
+     * or adopted: the live half of the place pass's copy check ({@link #spawnsThisRound}).
+     */
+    private record DespawnPass(int scanned, int despawned, @Nonnull Set<String> standing) {
     }
 
-    /** One resident entity to mint a fresh ledger row for (the REBIND/adopt outcome). Package-private for the test. */
+    /**
+     * One resident placed NPC by its instance and uuid: an adoption to record (the REBIND outcome), or a
+     * kept copy (KEEP) for its upkeep. Package-private for the test.
+     */
     record AdoptedRow(@Nonnull String placementId, @Nonnull String anchorKey, @Nonnull UUID uuid) {
     }
 
@@ -542,6 +549,34 @@ public final class NpcPlacementReconciler {
     }
 
     /**
+     * The copies the despawn pass keeps, for their upkeep: every KEEP, then the one adoption per instance;
+     * never a surplus copy, which is removed. Package-private for the test.
+     */
+    @Nonnull
+    static List<AdoptedRow> upkeepRows(@Nonnull List<AdoptedRow> kept, @Nonnull AdoptionPlan plan) {
+        List<AdoptedRow> rows = new ArrayList<>(kept);
+        rows.addAll(plan.keep());
+        return List.copyOf(rows);
+    }
+
+    /**
+     * Whether a place decision spawns this round (M123: wake, then spawn, idempotently): only a PLACE or a
+     * REPLACE, and only when no copy of the instance stands live ({@code standing}: the instance keys this
+     * round's despawn pass kept or adopted) or is held in the anchor's chunk section ({@code heldInSection},
+     * read only when needed: the parked or saved copies a wake brings back as loads). A ticking section
+     * normally holds none, since a wake re-adds them. The check guards beside the round rule, not instead
+     * of it: a copy a wake brings back inside this same place pass is in neither set, and the anchor
+     * section's WAIT step holds it back. Package-private for the test.
+     */
+    static boolean spawnsThisRound(@Nonnull PlaceDecision decision, @Nonnull String instanceKey,
+            @Nonnull Set<String> standing, @Nonnull Supplier<Set<String>> heldInSection) {
+        if (decision == PlaceDecision.SKIP || standing.contains(instanceKey)) {
+            return false;
+        }
+        return !heldInSection.get().contains(instanceKey);
+    }
+
+    /**
      * Pass 1, component-authoritative: remove every standing placed NPC that should not be here,
      * and adopt (mint a ledger row for) one that is standing correctly but has none yet. Runs over
      * the store's own parallel iteration and removes through its command buffer, the first-party
@@ -552,7 +587,7 @@ public final class NpcPlacementReconciler {
             @Nonnull String worldName) {
         ComponentType<EntityStore, PlacedNpcComponent> type = PlacedNpcComponent.getComponentType();
         if (type == null) {
-            return new DespawnPass(0, 0);
+            return new DespawnPass(0, 0, Set.of());
         }
         ComponentType<EntityStore, UUIDComponent> uuidType = UUIDComponent.getComponentType();
         NpcPlacementConfig config = NpcPlacementConfig.getInstance();
@@ -561,6 +596,8 @@ public final class NpcPlacementReconciler {
         AtomicInteger despawned = new AtomicInteger();
         ConcurrentLinkedQueue<PlacedNpcIdentity> removedInstances = new ConcurrentLinkedQueue<>();
         ConcurrentLinkedQueue<AdoptedRow> adopted = new ConcurrentLinkedQueue<>();
+        ConcurrentLinkedQueue<AdoptedRow> kept = new ConcurrentLinkedQueue<>();
+        Set<String> standing = ConcurrentHashMap.newKeySet();
 
         // Resolve every placement's verdict ONCE, before the walk. A gate may consult a consumer's
         // factor provider, and running that per entity inside a parallel iteration would be both
@@ -621,8 +658,18 @@ public final class NpcPlacementReconciler {
                         // surviving entity - releasing it here would erase the correct row (and
                         // the pin/cached position it and the surviving entity share), and the
                         // place pass would read a ledger miss and spawn a THIRD one right after.
-                    } else if (decision == ResidentDecision.REBIND && entityUuid != null) {
-                        adopted.add(new AdoptedRow(identity.placementId(), identity.anchorKey(), entityUuid));
+                    } else {
+                        // KEEP or REBIND: a copy of this instance stands, so the place pass adds none
+                        // (spawnsThisRound), and it gets its upkeep after the walk.
+                        standing.add(NpcPlacementService.instanceKey(identity.placementId(), identity.anchorKey()));
+                        if (entityUuid != null) {
+                            AdoptedRow row = new AdoptedRow(identity.placementId(), identity.anchorKey(), entityUuid);
+                            if (decision == ResidentDecision.REBIND) {
+                                adopted.add(row);
+                            } else {
+                                kept.add(row);
+                            }
+                        }
                     }
                 } catch (Throwable perEntity) {
                     SafeLog.fine("[placement] despawn pass, per-entity failure: " + perEntity.getMessage());
@@ -647,12 +694,21 @@ public final class NpcPlacementReconciler {
             }
         }
 
+        // Upkeep for every copy this pass keeps (each KEEP, and the one adoption per instance; never a
+        // surplus copy): a copy back from a park, or met after a restart, never ran place's bookkeeping,
+        // so it gets its cached position, its keep-alive pin and its Fortify here. World thread, in the
+        // sweep's world task, outside the walk; each step is idempotent.
+        for (AdoptedRow row : upkeepRows(new ArrayList<>(kept), plan)) {
+            NpcPlacementService.upkeep(world, store, worldName, config.resolve(row.placementId()),
+                    row.placementId(), row.anchorKey(), row.uuid());
+        }
+
         // Bookkeeping happens OUTSIDE the iteration: dropping a ledger row writes a file, and the
         // pin release reads a chunk, neither of which belongs inside a parallel entity walk.
         for (PlacedNpcIdentity identity : removedInstances) {
             NpcPlacementService.releaseInstance(world, identity.placementId(), identity.anchorKey());
         }
-        return new DespawnPass(scanned.get(), despawned.get());
+        return new DespawnPass(scanned.get(), despawned.get(), Set.copyOf(standing));
     }
 
     /**
@@ -700,10 +756,14 @@ public final class NpcPlacementReconciler {
     private record PlacePass(int placed, int unresolvedAnchors, boolean wokeASection) {
     }
 
-    /** Pass 3, ledger-authoritative: place what is missing, and only what is provably missing. */
+    /**
+     * Pass 3, ledger-authoritative: place what is missing, and only what is provably missing. A placement
+     * goes in only where no copy of its instance stands live ({@code standing}, the despawn pass's) or is
+     * held in the anchor's chunk section ({@link #spawnsThisRound}).
+     */
     @Nonnull
     private static PlacePass runPlacePass(@Nonnull World world, @Nonnull Store<EntityStore> store,
-            @Nonnull String worldName, @Nonnull NpcPlacementLedger ledger) {
+            @Nonnull String worldName, @Nonnull NpcPlacementLedger ledger, @Nonnull Set<String> standing) {
         int placed = 0;
         int unresolvedAnchors = 0;
         AnchorSections sections = new AnchorSections();
@@ -802,6 +862,18 @@ public final class NpcPlacementReconciler {
                                             + Math.round(position.z()) + ") but its chunk section is not"
                                             + " ticking - " + next);
                         }
+                        continue;
+                    }
+
+                    // Idempotent beside the round rule (M123): a copy of this instance standing live (this
+                    // round's despawn pass kept or adopted it) or held asleep in the anchor's section (it
+                    // comes back as a load when the section wakes) means no spawn this round.
+                    if (!spawnsThisRound(decision, NpcPlacementService.instanceKey(placementId, anchorKey),
+                            standing, () -> NpcPlacementService.heldInstances(world, section))) {
+                        PlacementDiag.once(world, "copy-stands|" + placementId + '|' + anchorKey,
+                                "[placement] '" + placementId + "' in '" + worldName + "': a copy for anchor "
+                                        + anchorKey + " already stands or is held in its chunk section"
+                                        + " - not placing another");
                         continue;
                     }
 

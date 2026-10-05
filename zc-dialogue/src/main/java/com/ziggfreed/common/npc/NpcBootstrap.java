@@ -19,6 +19,7 @@ import com.ziggfreed.common.npc.placement.runtime.NpcPlacementLedger;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementOverrides;
 import com.ziggfreed.common.npc.placement.runtime.NpcPlacementReconciler;
 import com.ziggfreed.common.npc.placement.runtime.PlacedNpcComponent;
+import com.ziggfreed.common.npc.placement.runtime.PlacementFortifySystem;
 import com.ziggfreed.common.npc.placement.anchor.PlacementMarkerSystem;
 import com.ziggfreed.common.npc.placement.interact.PlacementNpcActions;
 import com.ziggfreed.common.npc.placement.command.ZigNpcCommand;
@@ -54,7 +55,17 @@ public final class NpcBootstrap {
      */
     public static void setupPlacementEngine(@Nonnull PluginBase plugin) {
         try {
-            PlacedNpcComponent.register(plugin.getEntityStoreRegistry());
+            var placedType = PlacedNpcComponent.register(plugin.getEntityStoreRegistry());
+            if (placedType != null) {
+                // Fortify at the add, on a spawn and a load alike: the engine skips the post-spawn of an
+                // NPC it parks, and a copy back from a park carries no bonus of its own.
+                try {
+                    plugin.getEntityStoreRegistry().registerSystem(new PlacementFortifySystem(placedType));
+                } catch (Throwable t) {
+                    SafeLog.warn("[placement] could not register the Fortify system: placed NPCs get their"
+                            + " Fortify bonus only from the sweep's upkeep", t);
+                }
+            }
             PlacementNpcActions.register();
             // Who answers what a role WEARS, for every portrait the library paints. The creature
             // stills are keyed by model, and a mod's own character is a role wearing somebody

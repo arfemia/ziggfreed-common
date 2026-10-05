@@ -1,6 +1,8 @@
 package com.ziggfreed.common.npc.placement.runtime;
 
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -8,11 +10,14 @@ import javax.annotation.Nullable;
 
 import org.joml.Vector3d;
 
+import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
@@ -21,6 +26,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifie
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.ChunkFlag;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.EntitySection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.GetChunkFlags;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -29,6 +35,7 @@ import com.ziggfreed.common.npc.placement.anchor.AnchorPosition;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.registry.PlacementGates;
 import com.ziggfreed.common.util.SafeLog;
+import com.ziggfreed.common.world.TickingSections.SectionPos;
 
 /**
  * The thin policy layer over {@link NpcSpawnService} that actually puts a placement's NPC in the
@@ -61,6 +68,10 @@ public final class NpcPlacementService {
      * without knowing what it is; the ledger row is written from the post-spawn hook, where the
      * entity's uuid is readable.
      *
+     * <p>{@code Fortify} is not applied here: {@link PlacementFortifySystem} applies it as the NPC enters
+     * the store, so a copy the engine parks (its post-spawn never runs) or one that comes back as a load
+     * carries it too.
+     *
      * @return true when the spawn succeeded
      */
     public static boolean place(@Nonnull World world, @Nonnull Store<EntityStore> store,
@@ -79,10 +90,6 @@ public final class NpcPlacementService {
         String anchorKey = position.anchorKey();
         NpcPlacementAsset.Lifecycle lifecycle = placement.getLifecycle();
         boolean keepAlive = lifecycle != null && lifecycle.effectiveKeepAlive();
-        boolean fortify = lifecycle != null && lifecycle.effectiveFortify();
-        double fortifyHealth = lifecycle == null
-                ? NpcPlacementAsset.Lifecycle.DEFAULT_FORTIFY_HEALTH
-                : lifecycle.effectiveFortifyHealth();
 
         PlacedNpcIdentity identity = PlacedNpcIdentity.of(placementId, namespaceOf(placementId),
                 matchedWorldFor(world), anchorKey, keepAlive, System.currentTimeMillis());
@@ -106,9 +113,8 @@ public final class NpcPlacementService {
                         SafeLog.warn("[placement] could not record the ledger row for '" + placementId
                                 + "': " + t.getMessage());
                     }
-                    if (fortify) {
-                        fortify(st, ref, fortifyHealth);
-                    }
+                    // Fortify is not applied here: PlacementFortifySystem applies it at the add, before
+                    // anything could park the NPC, and a parked add never reaches this callback.
                 });
 
         if (!spawned) {
@@ -208,6 +214,10 @@ public final class NpcPlacementService {
      * {@code StaticModifier} mechanism the engine's own NPC balancing uses, so it folds with the
      * role's health rather than fighting it.
      *
+     * <p>Always fills the enlarged pool. The library applies the bonus through {@code applyFortify}
+     * ({@link PlacementFortifySystem} at the add, the sweep's {@code upkeep}), which fills it only on a
+     * fresh spawn or when the bonus was missing; this method is kept for a consumer linking 2.2.0.
+     *
      * <p>Never throws: a stat-less entity simply keeps the role's own health.
      */
     public static void fortify(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, double bonus) {
@@ -217,13 +227,99 @@ public final class NpcPlacementService {
             if (stats == null) {
                 return;
             }
-            int healthIndex = DefaultEntityStatTypes.getHealth();
-            stats.putModifier(healthIndex, FORTIFY_MODIFIER,
-                    new StaticModifier(Modifier.ModifierTarget.MAX,
-                            StaticModifier.CalculationType.ADDITIVE, (float) bonus));
-            stats.maximizeStatValue(healthIndex);
+            applyFortify(stats, bonus, true);
         } catch (Throwable t) {
             SafeLog.fine("[placement] could not fortify a placed NPC: " + t.getMessage());
+        }
+    }
+
+    /**
+     * Apply {@code bonus} as the {@code Fortify} max-health modifier on {@code stats}. Idempotent: the
+     * modifier sits under one fixed key, so a second call replaces it with itself, and the enlarged pool
+     * is filled only on a fresh spawn or when the bonus was not there before ({@link #fillsPool}), so a
+     * copy that already had it keeps its current health. The one Fortify write behind {@link #fortify},
+     * {@link PlacementFortifySystem} and {@link #upkeep}.
+     */
+    static void applyFortify(@Nonnull EntityStatMap stats, double bonus, boolean freshSpawn) {
+        int healthIndex = DefaultEntityStatTypes.getHealth();
+        Modifier before = stats.putModifier(healthIndex, FORTIFY_MODIFIER,
+                new StaticModifier(Modifier.ModifierTarget.MAX,
+                        StaticModifier.CalculationType.ADDITIVE, (float) bonus));
+        if (fillsPool(freshSpawn, before != null)) {
+            stats.maximizeStatValue(healthIndex);
+        }
+    }
+
+    /**
+     * Whether applying {@code Fortify} fills the enlarged pool: on a fresh spawn, or when the bonus was
+     * missing (a copy back from a park or an older build). Package-private for the test.
+     */
+    static boolean fillsPool(boolean freshSpawn, boolean bonusWasThere) {
+        return freshSpawn || !bonusWasThere;
+    }
+
+    /** What the sweep's upkeep does for one copy it keeps. Package-private for the test. */
+    record Upkeep(boolean recordPosition, boolean pin, boolean fortify) {
+    }
+
+    /**
+     * The upkeep for one copy the sweep keeps: record its position unless one is cached (the cached one
+     * is where its pin was taken, and {@link #releaseInstance} unpins there), take its keep-alive pin when
+     * the placement keeps its chunk loaded and the instance holds no claim yet, and apply {@code Fortify}
+     * when the placement authors it. Package-private for the test.
+     */
+    @Nonnull
+    static Upkeep upkeepFor(boolean positionCached, boolean pinClaimed, boolean keepAlive, boolean fortify) {
+        return new Upkeep(!positionCached, keepAlive && !pinClaimed, fortify);
+    }
+
+    /**
+     * Give one copy the sweep keeps (a KEEP, or the one adoption per instance) what {@link #place} gives a
+     * fresh one: its cached position (from its transform), its keep-alive pin (at the cached position) and
+     * its {@code Fortify} bonus. A copy back from a park, or one met after a restart (the pin table and the
+     * position cache live in memory), never ran place's bookkeeping. Only a copy live when a sweep runs is
+     * reached: after a restart the boot sweep finds the hub parked and skips it, so its pin returns at a
+     * later sweep that finds it awake ({@code Fortify} is saved with the entity). World thread, in the sweep's world
+     * task, outside any system's processing window; each step is idempotent ({@link #upkeepFor},
+     * {@link #applyFortify}). Never throws.
+     */
+    static void upkeep(@Nonnull World world, @Nonnull Store<EntityStore> store, @Nonnull String worldName,
+            @Nullable NpcPlacementAsset placement, @Nonnull String placementId, @Nonnull String anchorKey,
+            @Nonnull UUID uuid) {
+        try {
+            Ref<EntityStore> ref = store.getExternalData().getRefFromUUID(uuid);
+            if (ref == null || !ref.isValid()) {
+                return;
+            }
+            NpcPlacementAsset.Lifecycle lifecycle = placement == null ? null : placement.getLifecycle();
+            NpcPlacementPositionCache.Entry cached =
+                    NpcPlacementPositionCache.get(worldName, placementId, anchorKey);
+            Upkeep step = upkeepFor(cached != null,
+                    PlacementKeepAlivePins.holdsClaim(world, instanceKey(placementId, anchorKey)),
+                    lifecycle != null && lifecycle.effectiveKeepAlive(),
+                    lifecycle != null && lifecycle.effectiveFortify());
+            if (step.fortify() && lifecycle != null) {
+                EntityStatMap stats = store.getComponent(ref,
+                        EntityStatsModule.get().getEntityStatMapComponentType());
+                if (stats != null) {
+                    applyFortify(stats, lifecycle.effectiveFortifyHealth(), false);
+                }
+            }
+            if (step.recordPosition()) {
+                TransformComponent at = store.getComponent(ref, TransformComponent.getComponentType());
+                if (at == null) {
+                    return;
+                }
+                NpcPlacementPositionCache.record(worldName, placementId, anchorKey,
+                        at.getPosition().x, at.getPosition().y, at.getPosition().z);
+                cached = NpcPlacementPositionCache.get(worldName, placementId, anchorKey);
+            }
+            if (step.pin() && cached != null) {
+                pinChunk(world, placementId, anchorKey, cached.x(), cached.z());
+            }
+        } catch (Throwable t) {
+            SafeLog.fine("[placement] upkeep failed for '" + placementId + "' at " + anchorKey + ": "
+                    + t.getMessage());
         }
     }
 
@@ -318,6 +414,44 @@ public final class NpcPlacementService {
             return null;
         }
         return world.getChunkStore().getStore().getComponent(chunkRef, WorldChunk.getComponentType());
+    }
+
+    /**
+     * The placement instances ({@link #instanceKey}) with a copy held in chunk {@code section}: its parked
+     * or saved holders, which come back as loads when the section wakes ({@code EntitySection
+     * .getEntityHolders()}). Read off each holder's {@code ZiggfreedCommon:PlacedNpc} stamp, since a copy
+     * that was parked or saved has no ledger row to name it. Never loads, never wakes; empty when the
+     * section is not in memory or cannot be read. World thread only.
+     */
+    @Nonnull
+    static Set<String> heldInstances(@Nonnull World world, @Nonnull SectionPos section) {
+        Set<String> held = new HashSet<>();
+        try {
+            ComponentType<EntityStore, PlacedNpcComponent> type = PlacedNpcComponent.getComponentType();
+            if (type == null) {
+                return held;
+            }
+            ChunkStore chunks = world.getChunkStore();
+            Ref<ChunkStore> sectionRef = chunks.getChunkSectionReference(section.x(), section.y(), section.z());
+            if (sectionRef == null || !sectionRef.isValid()) {
+                return held;
+            }
+            EntitySection entities = chunks.getStore().getComponent(sectionRef, EntitySection.getComponentType());
+            if (entities == null) {
+                return held;
+            }
+            for (Holder<EntityStore> holder : entities.getEntityHolders()) {
+                PlacedNpcComponent placed = holder.getComponent(type);
+                PlacedNpcIdentity identity = placed == null ? PlacedNpcIdentity.UNKNOWN : placed.toIdentity();
+                if (!identity.isUnknown()) {
+                    held.add(instanceKey(identity.placementId(), identity.anchorKey()));
+                }
+            }
+        } catch (Throwable t) {
+            SafeLog.fine("[placement] could not read the NPCs held in chunk section " + section + ": "
+                    + t.getMessage());
+        }
+        return held;
     }
 
     // ==================== helpers ====================
