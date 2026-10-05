@@ -28,6 +28,10 @@ import com.ziggfreed.common.util.SafeLog;
  * <p><b>Scope.</b> Menus and leaderboards only: a chat line or a notice names a player plainly and
  * never through {@link #displayName}; {@link #plainName} is that plain name, never decorated. The
  * seam ships filled: unfilled, every name is its plain text.
+ *
+ * <p><b>Presence.</b> A decorator answers the same whether the player is online or not, and a row
+ * names every player through {@link #displayName}, online or not, so a decoration never tells a
+ * viewer who is online.
  */
 public final class PlayerDisplayNames {
 

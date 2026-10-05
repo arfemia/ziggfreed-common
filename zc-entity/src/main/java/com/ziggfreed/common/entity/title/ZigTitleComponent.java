@@ -4,6 +4,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -14,6 +15,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
@@ -35,11 +37,12 @@ import com.ziggfreed.common.util.SafeLog;
  * never shows an unearned title, and revoking the shown title also stops showing it.
  *
  * <p>{@link #register} runs once from the library's setup, BEFORE any world loads (a component type
- * registered later cannot be read off entities saved carrying it), and {@link #install} hangs the
- * connect hook that attaches one to every player and seeds {@link ActiveTitles}, plus the
- * disconnect hook that forgets them there. Write it only through zc-objectives' title write path,
- * which announces each change and keeps the mirror current. A reader PEEKS it ({@code TYPE} is null
- * when registration failed) and treats a missing record as no titles.
+ * registered later cannot be read off entities saved carrying it), and {@link #install} reads back
+ * the record of what every player shows ({@link ActiveTitles}), hangs the connect hook that attaches
+ * one to every player and seeds that record, plus the disconnect hook that writes it down: a player
+ * who leaves keeps their title on every row. Write it only through zc-objectives' title write path,
+ * which announces each change and keeps {@link ActiveTitles} current. A reader PEEKS it
+ * ({@code TYPE} is null when registration failed) and treats a missing record as no titles.
  */
 public class ZigTitleComponent implements Component<EntityStore> {
 
@@ -138,8 +141,14 @@ public class ZigTitleComponent implements Component<EntityStore> {
         }
     }
 
-    /** Hang the connect hook (attach and seed the mirror) and the disconnect hook (forget). */
+    /**
+     * Read back the record of shown titles (written a moment after each change, on the server's
+     * scheduler), then hang the connect hook (attach and seed the record) and the disconnect hook
+     * (write it down).
+     */
     public static void install(@Nonnull PluginBase plugin) {
+        ActiveTitles.persistTo(ActiveTitles.DEFAULT_FILE, flush -> HytaleServer.SCHEDULED_EXECUTOR.schedule(
+                flush, ActiveTitles.FLUSH_DELAY_SECONDS, TimeUnit.SECONDS));
         plugin.getEventRegistry().register(PlayerConnectEvent.class, ZigTitleComponent::onPlayerConnect);
         plugin.getEventRegistry().register(PlayerDisconnectEvent.class, ZigTitleComponent::onPlayerDisconnect);
     }
@@ -160,17 +169,23 @@ public class ZigTitleComponent implements Component<EntityStore> {
 
     private static void onPlayerDisconnect(@Nonnull PlayerDisconnectEvent event) {
         try {
-            PlayerRef playerRef = event.getPlayerRef();
-            UUID id = playerRef == null ? null : playerRef.getUuid();
-            if (id != null) {
-                ActiveTitles.evict(id);
-            }
+            left();
         } catch (Throwable t) {
-            SafeLog.warn("[title] could not forget a leaving player's shown title: " + t.getMessage());
+            SafeLog.warn("[title] could not write down a leaving player's shown title: " + t.getMessage());
         }
     }
 
-    /** Put what {@code record} shows into the mirror for {@code playerId}; nothing to key, nothing done. */
+    /**
+     * A player left. They keep their entry in {@link ActiveTitles}, so a row naming them offline shows
+     * the title it would show online and says nothing about presence; the record is written down now,
+     * so a restart keeps it. A server stopping disconnects every player first, so this also writes it
+     * at shutdown.
+     */
+    static void left() {
+        ActiveTitles.flush();
+    }
+
+    /** Put what {@code record} shows into the record for {@code playerId}; nothing to key, nothing done. */
     static void seed(@Nullable UUID playerId, @Nullable ZigTitleComponent record) {
         if (playerId == null) {
             return;

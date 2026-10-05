@@ -23,7 +23,7 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Registers this module's own per-player state and plumbing at plugin {@code setup()}: the
  * station-performer identity component, the unlocked-flair set with its connect hook, the title
- * record and its mirror, the {@link PlayerIdentityCache} lifecycle listeners, the equip-stat
+ * record and who shows which, the {@link PlayerIdentityCache} lifecycle listeners, the equip-stat
  * bridge, the gear-set engine that hangs on it with its per-player look record, and the two systems
  * behind the overhead indicators.
  * Ordered phases, each called once from {@code ZiggfreedCommonPlugin.setup()}, which stays the one
@@ -154,11 +154,12 @@ public final class EntityBootstrap {
     }
 
     /**
-     * Register the per-player title record ({@link ZigTitleComponent}) and hang its two hooks: the
-     * connect hook attaches it to every player's holder before the entity joins a store and seeds the
-     * off-thread mirror ({@code ActiveTitles}) with the shown title, and the disconnect hook forgets
-     * the player there. The library's for the flair reason: the mod that grants a title and the
-     * menus that show it are routinely different mods.
+     * Register the per-player title record ({@link ZigTitleComponent}), read back the persisted
+     * record of who shows what ({@code ActiveTitles}) and hang its two hooks: the connect hook
+     * attaches the component to every player's holder before the entity joins a store and seeds
+     * {@code ActiveTitles} with the shown title, and the disconnect hook writes that record down, so
+     * a player who left keeps their title on every row. The library's for the flair reason: the mod
+     * that grants a title and the menus that show it are routinely different mods.
      */
     public static void registerTitles(@Nonnull PluginBase plugin) {
         try {
