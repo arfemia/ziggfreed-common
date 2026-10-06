@@ -481,35 +481,56 @@ public final class DialogueEngine {
      * <p>{@code onceFamily} is the prefix the beat's EARLIER windows were filed under when its
      * {@code Once} has a {@code Period}: the spend clears it before writing {@code onceKey}, so a daily
      * beat keeps one key rather than one per day. Null for a beat spent for good.
+     *
+     * <p>{@code actions} are the beat's own {@code Actions}, carried only beside a pending {@code onceKey}:
+     * the page runs them once, at the spend ({@link DialogueEngine#runBeatActions}).
      */
     public record EntryResolution(@Nullable String nodeId, @Nullable String onceKey,
-                                  @Nullable Destination destination, @Nullable String onceFamily) {
+                                  @Nullable Destination destination, @Nullable String onceFamily,
+                                  @Nonnull List<DialogueAction> actions) {
 
         /** Nothing to show at all (a conversation with no screens). */
         public static final EntryResolution NONE = new EntryResolution(null, null, null, null);
 
+        public EntryResolution {
+            actions = actions == null ? List.of() : List.copyOf(actions);
+        }
+
+        /** The form with no beat actions, as it was before beats carried any. */
+        public EntryResolution(@Nullable String nodeId, @Nullable String onceKey,
+                               @Nullable Destination destination, @Nullable String onceFamily) {
+            this(nodeId, onceKey, destination, onceFamily, List.of());
+        }
+
         /** The form without a window family, for a beat whose {@code Once} is spent for good. */
         public EntryResolution(@Nullable String nodeId, @Nullable String onceKey,
                                @Nullable Destination destination) {
-            this(nodeId, onceKey, destination, null);
+            this(nodeId, onceKey, destination, null, List.of());
         }
 
         /** A screen of this conversation, with the {@code Once} it will spend on completion. */
         @Nonnull
         public static EntryResolution ofNode(@Nullable String nodeId, @Nullable String onceKey) {
-            return new EntryResolution(nodeId, onceKey, null, null);
+            return new EntryResolution(nodeId, onceKey, null, null, List.of());
         }
 
         /** A screen whose beat carries a {@code Once}: the key it spends and the windows that spend clears. */
         @Nonnull
         public static EntryResolution ofSlot(@Nullable String nodeId, @Nonnull DialogueOnce.Slot slot) {
-            return new EntryResolution(nodeId, slot.key(), null, slot.staleFamily());
+            return ofSlot(nodeId, slot, List.of());
+        }
+
+        /** As {@link #ofSlot(String, DialogueOnce.Slot)}, with the beat's own actions to run at the spend. */
+        @Nonnull
+        public static EntryResolution ofSlot(@Nullable String nodeId, @Nonnull DialogueOnce.Slot slot,
+                                             @Nonnull List<DialogueAction> actions) {
+            return new EntryResolution(nodeId, slot.key(), null, slot.staleFamily(), actions);
         }
 
         /** Somewhere else entirely; the conversation does not open. */
         @Nonnull
         public static EntryResolution ofDestination(@Nonnull Destination destination) {
-            return new EntryResolution(null, null, destination, null);
+            return new EntryResolution(null, null, destination, null, List.of());
         }
 
         /** True when this opens something other than a screen of the conversation. */
@@ -595,7 +616,9 @@ public final class DialogueEngine {
             }
             // Read the Once only after the beat applied, so a scope warning cannot fire for a beat
             // the player was never eligible for anyway.
-            DialogueOnce.Slot slot = once.slotFor(DialogueStateKeys.entryOnce(dialogue.getId(), nodeId),
+            // A beat naming an OnceId shares that claim with every beat naming it; else it is its screen's.
+            String claim = beat.getOnceId() != null ? beat.getOnceId() : nodeId;
+            DialogueOnce.Slot slot = once.slotFor(DialogueStateKeys.entryOnce(dialogue.getId(), claim),
                     ctx, clock.getAsLong());
             if (slot == null) {
                 return EntryResolution.ofNode(nodeId, null);
@@ -603,7 +626,7 @@ public final class DialogueEngine {
             if (ctx.flags().has(slot.key())) {
                 continue;
             }
-            return EntryResolution.ofSlot(nodeId, slot);
+            return EntryResolution.ofSlot(nodeId, slot, beat.getActions());
         }
         return null;
     }
@@ -847,6 +870,20 @@ public final class DialogueEngine {
         }
         DialogueOnce.Slot slot = optionOnceSlot(dialogue, nodeId, option, ctx);
         return slot == null || !ctx.flags().has(slot.key());
+    }
+
+    /**
+     * Run a completed beat's own {@code Actions}: once, at the moment its pending {@code Once} is spent
+     * (a chosen line, a line an extension added, or the Farewell row; never Escape). Call before the
+     * chosen line's own actions and before {@link #consumeOnce}. Nothing runs when no claim is pending:
+     * a beat with no {@code Once}, one already spent, or one whose scope does not reach this world.
+     */
+    public void runBeatActions(@Nullable String pendingEntryOnceKey, @Nonnull List<DialogueAction> beatActions,
+                               @Nonnull DialogueExecContext ctx) {
+        if (pendingEntryOnceKey == null || beatActions.isEmpty()) {
+            return;
+        }
+        executor.execute(beatActions, ctx);
     }
 
     /**

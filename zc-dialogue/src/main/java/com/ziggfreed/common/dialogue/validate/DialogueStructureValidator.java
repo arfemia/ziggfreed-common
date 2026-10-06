@@ -275,6 +275,7 @@ public final class DialogueStructureValidator {
             }
             checkConditions(beat.getWhen(), where, id, out, factors, engine);
             checkOnce(beat.getOnce(), null, where, id, out);
+            checkBeatClaim(beat, where, id, out, engine);
 
             if (beat.hasNode() && beat.hasPick()) {
                 out.add(error("START_NODE_AND_PICK",
@@ -301,6 +302,25 @@ public final class DialogueStructureValidator {
                 collectStartNode(dialogue, option == null ? null : option.getNode(),
                         where + " variant " + variant++, id, out, entryNodes);
             }
+        }
+    }
+
+    /** A beat's OnceId and Actions mean something only beside a Once, and its Actions must be runnable. */
+    private static void checkBeatClaim(@Nonnull DialogueStart.Beat beat, @Nonnull String where,
+                                       @Nonnull String id, @Nonnull List<Finding> out,
+                                       @Nullable DialogueEngine engine) {
+        if (beat.getOnce() == null && !beat.getActions().isEmpty()) {
+            out.add(error("BEAT_ACTIONS_WITHOUT_ONCE",
+                    "Dialogue '" + id + "' " + where + " has Actions but no Once, so they never run: a beat's"
+                            + " Actions run at the moment its Once is spent - add a Once", id));
+        }
+        if (beat.getOnce() == null && beat.getOnceId() != null) {
+            out.add(warning("BEAT_ONCE_ID_WITHOUT_ONCE",
+                    "Dialogue '" + id + "' " + where + " names the OnceId '" + beat.getOnceId() + "' but has no"
+                            + " Once, so it shares nothing - add a Once or drop the OnceId", id));
+        }
+        for (DialogueAction action : beat.getActions()) {
+            checkActionKnown(action, where, id, out, engine);
         }
     }
 
