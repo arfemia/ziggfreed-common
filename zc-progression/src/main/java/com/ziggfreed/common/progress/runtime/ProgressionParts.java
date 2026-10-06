@@ -65,6 +65,7 @@ import com.ziggfreed.common.util.SafeLog;
  * @param momentListener            every registered moment listener, fanned out
  * @param killAttribution           every registered kill attribution, first real answer wins
  * @param killQualifier             every registered kill qualifier, first real answer wins
+ * @param questCompletionQualifier  every registered quest-completion qualifier, first real answer wins
  * @param feedbackHook              every registered feedback hook, fanned out
  * @param textSources               every registered text source, in registration order
  * @param iconSources               every registered icon source, in registration order
@@ -88,6 +89,7 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                         @Nonnull MomentListener momentListener,
                         @Nonnull KillAttribution killAttribution,
                         @Nonnull KillQualifier killQualifier,
+                        @Nonnull QuestCompletionQualifier questCompletionQualifier,
                         @Nonnull ProgressionFeedbackHook feedbackHook,
                         @Nonnull List<ProgressionTextSource> textSources,
                         @Nonnull List<ProgressionIconSource> iconSources) {
@@ -127,8 +129,8 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
             ProgressionCallScope.DIRECT, ProgressionCallScope.DIRECT,
             null, DEFAULT_WARN, QuestGates.OPEN, AchievementGates.OPEN,
             ProgressionSystemGate.OPEN, ProgressDispatchTap.NONE, MomentListener.NONE,
-            KillAttribution.NONE, KillQualifier.NONE, ProgressionFeedbackHook.NONE, List.of(),
-            List.of());
+            KillAttribution.NONE, KillQualifier.NONE, QuestCompletionQualifier.NONE,
+            ProgressionFeedbackHook.NONE, List.of(), List.of());
 
     // ==================== the forwarders the engines are built over ====================
 
@@ -349,6 +351,10 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
     /** The composed kill qualifier, read LIVE. */
     static final KillQualifier KILL_QUALIFIER = (store, victimRef) ->
             ProgressionRuntime.parts().killQualifier().qualifierFor(store, victimRef);
+
+    /** The composed quest-completion qualifier, read LIVE. */
+    static final QuestCompletionQualifier QUEST_COMPLETION_QUALIFIER = questId ->
+            ProgressionRuntime.parts().questCompletionQualifier().qualifierFor(questId);
 
     /**
      * The composed owner switch, read LIVE, so a system gate registered after the engines were built
@@ -738,6 +744,34 @@ record ProgressionParts(@Nonnull QuestProgressStore questStore,
                     }
                 } catch (Throwable t) {
                     warn.accept("a kill qualifier failed: " + t.getMessage());
+                }
+            }
+            return null;
+        };
+    }
+
+    /**
+     * Every registered quest-completion qualifier, asked in registration order; the first non-null
+     * answer wins. A THROWING one is skipped with a warn and the next is asked, and a fully failed
+     * ask answers null - so one mod's broken resolver costs at most its own answer, and the
+     * completion still produces its one moment, carrying the quest's own cadence.
+     */
+    @Nonnull
+    static QuestCompletionQualifier composeQuestCompletionQualifiers(
+            @Nonnull List<QuestCompletionQualifier> qualifiers, @Nonnull Consumer<String> warn) {
+        if (qualifiers.isEmpty()) {
+            return QuestCompletionQualifier.NONE;
+        }
+        List<QuestCompletionQualifier> frozen = List.copyOf(qualifiers);
+        return questId -> {
+            for (QuestCompletionQualifier qualifier : frozen) {
+                try {
+                    String answer = qualifier.qualifierFor(questId);
+                    if (answer != null) {
+                        return answer;
+                    }
+                } catch (Throwable t) {
+                    warn.accept("a quest-completion qualifier failed: " + t.getMessage());
                 }
             }
             return null;

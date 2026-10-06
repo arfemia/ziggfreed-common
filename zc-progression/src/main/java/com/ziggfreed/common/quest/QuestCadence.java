@@ -59,4 +59,15 @@ public enum QuestCadence {
         }
         return howOftenMs >= DAILY_FROM_MS ? DAILY : REPEATABLE;
     }
+
+    /**
+     * The word a finished quest of this cadence carries as the qualifier of its
+     * {@code COMPLETE_QUEST} moment, so a criterion authoring {@code "Qualifier": "DAILY"} counts the
+     * dailies a player finishes: {@code NORMAL} for a one-shot, every other cadence its own name.
+     * The spelling is what content is written against, so it never changes.
+     */
+    @Nonnull
+    public String qualifier() {
+        return this == NONE ? "NORMAL" : name();
+    }
 }

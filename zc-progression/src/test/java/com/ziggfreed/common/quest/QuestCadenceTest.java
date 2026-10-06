@@ -86,4 +86,20 @@ class QuestCadenceTest {
             assertEquals(QuestCadence.of(repeat), repeat.cadence());
         }
     }
+
+    /**
+     * The word a finished quest's {@code COMPLETE_QUEST} moment carries as its qualifier. A criterion
+     * authoring {@code "Qualifier": "DAILY"} counts the dailies a player finishes, so the spelling is
+     * the contract content is written against: a one-shot reads {@code NORMAL} (the word content has
+     * always authored), every other cadence its own name.
+     */
+    @Test
+    void eachCadenceNamesTheQualifierAFinishedQuestCarries() {
+        assertEquals("NORMAL", QuestCadence.NONE.qualifier(), "a one-shot is the NORMAL kind of quest");
+        assertEquals("REPEATABLE", QuestCadence.REPEATABLE.qualifier());
+        assertEquals("DAILY", QuestCadence.DAILY.qualifier());
+        assertEquals("WEEKLY", QuestCadence.WEEKLY.qualifier());
+        assertEquals("NORMAL", QuestCadence.of(null).qualifier(), "read straight off a quest with no repeat rule");
+        assertEquals("DAILY", QuestCadence.of(calendar(DAY)).qualifier());
+    }
 }

@@ -131,6 +131,8 @@ public final class ProgressionRuntime {
     private static final List<Contribution<MomentListener>> MOMENT_LISTENERS = new ArrayList<>();
     private static final List<Contribution<KillAttribution>> KILL_ATTRIBUTIONS = new ArrayList<>();
     private static final List<Contribution<KillQualifier>> KILL_QUALIFIERS = new ArrayList<>();
+    private static final List<Contribution<QuestCompletionQualifier>> QUEST_COMPLETION_QUALIFIERS =
+            new ArrayList<>();
     private static final List<Contribution<ProgressionFeedbackHook>> FEEDBACK_HOOKS = new ArrayList<>();
     private static final List<Contribution<ProgressionTextSource>> TEXT_SOURCES = new ArrayList<>();
     private static final List<Contribution<ProgressionIconSource>> ICON_SOURCES = new ArrayList<>();
@@ -348,6 +350,13 @@ public final class ProgressionRuntime {
     static synchronized void addKillQualifier(@Nonnull ProgressionRegistrar registrar,
                                               @Nonnull KillQualifier qualifier) {
         if (addContribution(KILL_QUALIFIERS, registrar.owner(), qualifier)) {
+            rederive();
+        }
+    }
+
+    static synchronized void addQuestCompletionQualifier(@Nonnull ProgressionRegistrar registrar,
+                                                         @Nonnull QuestCompletionQualifier qualifier) {
+        if (addContribution(QUEST_COMPLETION_QUALIFIERS, registrar.owner(), qualifier)) {
             rederive();
         }
     }
@@ -596,6 +605,23 @@ public final class ProgressionRuntime {
     @Nonnull
     public static synchronized List<String> killQualifierOwners() {
         return ownerNames(KILL_QUALIFIERS);
+    }
+
+    /**
+     * THE composed answer to "this finished quest's completion carries that qualifier", read LIVE:
+     * every registered {@link QuestCompletionQualifier} asked in order, first non-null answer wins,
+     * a throwing one skipped with a warn. Answers null for a quest nobody answers for, which leaves
+     * the completion carrying the quest's own cadence.
+     */
+    @Nonnull
+    public static QuestCompletionQualifier questCompletionQualifier() {
+        return ProgressionParts.QUEST_COMPLETION_QUALIFIER;
+    }
+
+    /** Who registered a quest-completion qualifier, in registration order. */
+    @Nonnull
+    public static synchronized List<String> questCompletionQualifierOwners() {
+        return ownerNames(QUEST_COMPLETION_QUALIFIERS);
     }
 
     /** Who registered a SYSTEM gate, in registration order. */
@@ -885,6 +911,7 @@ public final class ProgressionRuntime {
         MOMENT_LISTENERS.clear();
         KILL_ATTRIBUTIONS.clear();
         KILL_QUALIFIERS.clear();
+        QUEST_COMPLETION_QUALIFIERS.clear();
         FEEDBACK_HOOKS.clear();
         ProgressionParts.FEEDBACK_SILENCE_REPORTED.set(false);
         TEXT_SOURCES.clear();
@@ -929,6 +956,7 @@ public final class ProgressionRuntime {
                 ProgressionParts.composeMomentListeners(values(MOMENT_LISTENERS), warn),
                 ProgressionParts.composeKillAttributions(values(KILL_ATTRIBUTIONS), warn),
                 ProgressionParts.composeKillQualifiers(values(KILL_QUALIFIERS), warn),
+                ProgressionParts.composeQuestCompletionQualifiers(values(QUEST_COMPLETION_QUALIFIERS), warn),
                 ProgressionParts.composeFeedbackHooks(values(FEEDBACK_HOOKS), warn),
                 ProgressionParts.freezeTextSources(values(TEXT_SOURCES)),
                 ProgressionParts.freezeIconSources(values(ICON_SOURCES)));
@@ -1002,7 +1030,8 @@ public final class ProgressionRuntime {
                 + ", feedback hooks=" + owners(FEEDBACK_HOOKS)
                 + ", moment listeners=" + owners(MOMENT_LISTENERS)
                 + ", kill attributions=" + owners(KILL_ATTRIBUTIONS)
-                + ", kill qualifiers=" + owners(KILL_QUALIFIERS));
+                + ", kill qualifiers=" + owners(KILL_QUALIFIERS)
+                + ", quest-completion qualifiers=" + owners(QUEST_COMPLETION_QUALIFIERS));
         SafeLog.info("[progression]   content     quests=" + counts(QUEST_LAYERS)
                 + ", achievements=" + counts(ACHIEVEMENT_LAYERS)
                 + ", milestones=" + counts(MILESTONE_LAYERS));

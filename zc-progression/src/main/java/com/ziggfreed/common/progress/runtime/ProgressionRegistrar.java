@@ -306,6 +306,23 @@ public final class ProgressionRegistrar {
         return this;
     }
 
+    /**
+     * Add this mod's answer to "this finished quest's completion carries that qualifier", for a
+     * quest whose own repeat rule does not say how often it comes round - e.g. a contract whose
+     * board turns over daily - so the {@code COMPLETE_QUEST} moment its collect produces matches the
+     * criteria authored against that cadence.
+     *
+     * <p>Every registered qualifier is asked in registration order and the first non-null answer
+     * stands; one that throws is skipped with a warn, and the completion still produces its one
+     * moment (carrying the quest's own cadence when no answer survives). See
+     * {@link QuestCompletionQualifier}.
+     */
+    @Nonnull
+    public ProgressionRegistrar questCompletionQualifier(@Nonnull QuestCompletionQualifier qualifier) {
+        ProgressionRuntime.addQuestCompletionQualifier(this, qualifier);
+        return this;
+    }
+
     /** Answer for what this mod's content is CALLED, for a surface with no catalogue of its own. */
     @Nonnull
     public ProgressionRegistrar textSource(@Nonnull ProgressionTextSource source) {
