@@ -20,6 +20,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.icon.IconSpec;
+import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.route.Destination;
@@ -43,12 +44,18 @@ public final class ZigMenu {
     public static final String EVENT_KEY = "Menu";
 
     static final String TAB_TEMPLATE = "Pages/ZigMenuTab.ui";
-    static final String ROW_LINE = "#TabLine";
+    /** A tab at rest: the Button holding the picture slot and {@code #Label}. */
     static final String BUTTON = "#TabBtn";
-    static final String MARKER = "#Marker";
     static final String ICON_SLOT = "#TabIconSlot";
+    /** The selected tab: the Group shown in the button's place, holding the bar, its picture slot and its label. */
+    static final String SELECTED = "#TabSelected";
+    static final String MARKER = "#Marker";
+    static final String SELECTED_ICON_SLOT = "#SelIconSlot";
+    static final String SELECTED_LABEL = "#SelectedLabel";
+    /** A section heading. */
     static final String HEADER = "#Header";
-    static final String SPACER = "#Spacer";
+    /** The rule between the consumer's section and the library's tabs. */
+    static final String RULE = "#Rule";
 
     private static final Map<MenuSlot, MenuEntry> SLOTS = new ConcurrentHashMap<>();
     private static final AtomicReference<Supplier<MenuDeps>> CONSUMER = new AtomicReference<>();
@@ -101,10 +108,12 @@ public final class ZigMenu {
 
     /**
      * Append a page's template and paint its frame, naming the panels the paint reaches (pass
-     * {@link MenuFrame#RAIL} with the page's own bordered panels). A consumer that paints the frame by its
-     * own policy ({@link MenuDeps#theme()}) does both; otherwise the library appends and paints the frame
-     * from {@link MenuDeps#palette()}. Paint is decoration: a theme that throws falls back to the plain
-     * append, the shape the book's own {@code appendTemplate} has always used.
+     * {@link MenuFrame#RAIL} with the page's own bordered panels). The rail's pane is repainted by
+     * {@link #paint} from the palette after this, so a frame paint that reaches the rail never leaves its art
+     * under it. A consumer that paints the frame by its own policy ({@link MenuDeps#theme()}) does both;
+     * otherwise the library appends and paints the frame from {@link MenuDeps#palette()}. Paint is decoration:
+     * a theme that throws falls back to the plain append, the shape the book's own {@code appendTemplate} has
+     * always used.
      */
     public static void appendThemed(@Nonnull UICommandBuilder cmd, @Nonnull String template,
             @Nonnull String... frameSelectors) {
@@ -141,7 +150,9 @@ public final class ZigMenu {
             @Nonnull DestinationContext viewer, @Nullable String selectedId, boolean titleRow) {
         MenuDeps deps = resolved();
         MenuPalette.Resolved colours = MenuPalette.resolve(deps.palette());
-        // The rail's branding labels take the palette's text colours whether or not a painter shows them.
+        // The rail's pane, after any frame paint so a theme's panel art never stays under the rail, and its
+        // branding labels in the palette's text colours whether or not a painter shows them.
+        UiRetint.fill(cmd, MenuFrame.RAIL, colours.background());
         cmd.set("#BrandingServerName.Style.TextColor", colours.textPrimary());
         cmd.set("#BrandingDescription.Style.TextColor", colours.textMuted());
         try {
@@ -171,14 +182,16 @@ public final class ZigMenu {
         String sel = MenuFrame.LIST + "[" + index + "]";
         switch (row.kind()) {
             case HEADER -> {
-                cmd.set(sel + " " + ROW_LINE + ".Visible", false);
+                cmd.set(sel + " " + BUTTON + ".Visible", false);
                 cmd.set(sel + " " + HEADER + ".Visible", true);
                 cmd.set(sel + " " + HEADER + ".TextSpans", row.header());
                 cmd.set(sel + " " + HEADER + ".Style.TextColor", colours.textMuted());
             }
             case SPACER -> {
-                cmd.set(sel + " " + ROW_LINE + ".Visible", false);
-                cmd.set(sel + " " + SPACER + ".Visible", true);
+                // The gap between the consumer's section and the library's tabs: vanilla's rule.
+                cmd.set(sel + " " + BUTTON + ".Visible", false);
+                cmd.set(sel + " " + RULE + ".Visible", true);
+                UiRetint.fill(cmd, sel + " " + RULE, colours.divider());
             }
             case ENTRY -> paintEntry(cmd, events, sel, index, row.entry(), selectedId, colours);
         }
@@ -187,30 +200,35 @@ public final class ZigMenu {
     private static void paintEntry(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull String sel, int index, @Nonnull MenuEntry entry, @Nullable String selectedId,
             @Nonnull MenuPalette.Resolved colours) {
-        String button = sel + " " + BUTTON;
-        boolean selected = entry.id().equals(selectedId);
-        String fill = selected ? colours.header() : colours.background();
-        ZigRichButton.text(cmd, button, entry.label());
-        cmd.set(sel + " " + ROW_LINE + ".Background", colours.background());
-        cmd.set(button + ".Style.Default.Background", fill);
-        cmd.set(button + ".Style.Hovered.Background", colours.header());
-        cmd.set(button + ".Style.Pressed.Background", fill);
-        ZigRichButton.color(cmd, button, selected ? colours.textPrimary() : colours.textMuted());
-        IconSpec icon = entry.icon();
-        if (icon != null && !icon.isEmpty()) {
-            String slot = sel + " " + ICON_SLOT;
-            cmd.set(slot + ".Visible", IconRenderer.applyIcon(cmd, slot, icon));
-        }
-        if (selected) {
-            // The selected tab: a bar beside it (a shape, not only a colour), a bold label on the selected
-            // fill, and no binding, so pressing the page you are on does nothing.
-            cmd.set(sel + " " + MARKER + ".Visible", true);
-            cmd.set(sel + " " + MARKER + ".Background", colours.accent());
-            cmd.set(button + " " + ZigRichButton.LABEL + ".Style.RenderBold", true);
+        if (entry.id().equals(selectedId)) {
+            // The selected tab: vanilla's bold label under the gold mask on the selected fill, a bar beside it (a
+            // shape, not only a colour), and no binding, so pressing the page you are on does nothing.
+            String selected = sel + " " + SELECTED;
+            cmd.set(sel + " " + BUTTON + ".Visible", false);
+            cmd.set(selected + ".Visible", true);
+            UiRetint.fill(cmd, selected, colours.header());
+            UiRetint.fill(cmd, selected + " " + MARKER, colours.accent());
+            cmd.set(selected + " " + SELECTED_LABEL + ".TextSpans", entry.label());
+            cmd.set(selected + " " + SELECTED_LABEL + ".Style.TextColor", colours.textPrimary());
+            paintIcon(cmd, selected + " " + SELECTED_ICON_SLOT, entry.icon());
             return;
         }
+        String button = sel + " " + BUTTON;
+        ZigRichButton.text(cmd, button, entry.label());
+        ZigRichButton.color(cmd, button, colours.textMuted());
+        // Only the hover and press fills: the resting Default is authored "no fill" and never pushed.
+        UiRetint.fill(cmd, button + ".Style.Hovered", colours.header());
+        UiRetint.fill(cmd, button + ".Style.Pressed", colours.header());
+        paintIcon(cmd, button + " " + ICON_SLOT, entry.icon());
         events.addEventBinding(CustomUIEventBindingType.Activating, button,
                 EventData.of(EVENT_KEY, Integer.toString(index)), false);
+    }
+
+    /** Shows the slot's picture when the tab has one; with none the authored hidden slot stays hidden. */
+    private static void paintIcon(@Nonnull UICommandBuilder cmd, @Nonnull String slot, @Nullable IconSpec icon) {
+        if (icon != null && !icon.isEmpty()) {
+            cmd.set(slot + ".Visible", IconRenderer.applyIcon(cmd, slot, icon));
+        }
     }
 
     // ==================== what the rail lists ====================

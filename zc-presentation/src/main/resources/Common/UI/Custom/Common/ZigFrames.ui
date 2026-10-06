@@ -49,11 +49,11 @@ $C = "../Common.ui";
 // Four label sizes for the shared menu frame and every page that wants to read like it: caption 12,
 // body 14, heading 16, title 20. Nothing a player reads in the frame or rail is under 12px. Spread one and
 // override a leaf: Style: (...$F.@ZigBodyLabelStyle, TextColor: #ffffff);. The colours are the menu's
-// default palette (com.ziggfreed.common.ui.menu.MenuPalette), which keeps 4.5:1 on the rail's fills; a page on
+// default palette (com.ziggfreed.common.ui.menu.MenuPalette), vanilla's own label grey and white; a page on
 // the menu frame gets them repainted from the palette in force.
-@ZigCaptionLabelStyle = LabelStyle(FontSize: 12, TextColor: #b6c9de, VerticalAlignment: Center);
-@ZigBodyLabelStyle = LabelStyle(FontSize: 14, TextColor: #b6c9de, VerticalAlignment: Center);
-@ZigHeadingLabelStyle = LabelStyle(FontSize: 16, TextColor: #b6c9de, RenderBold: true, VerticalAlignment: Center);
+@ZigCaptionLabelStyle = LabelStyle(FontSize: 12, TextColor: #96a9be, VerticalAlignment: Center);
+@ZigBodyLabelStyle = LabelStyle(FontSize: 14, TextColor: #96a9be, VerticalAlignment: Center);
+@ZigHeadingLabelStyle = LabelStyle(FontSize: 16, TextColor: #96a9be, RenderBold: true, VerticalAlignment: Center);
 @ZigTitleLabelStyle = LabelStyle(FontSize: 20, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
 
 // ── the shared menu frame (com.ziggfreed.common.ui.menu.ZigMenu) ──────────────
@@ -61,11 +61,12 @@ $C = "../Common.ui";
 //   $F.@ZigMenuFrame { #Content { Group #RightPanel { ... } Group #SidePanel { ... } } }
 //
 // ONE size for every page on the rail (com.ziggfreed.common.ui.menu.MenuFrame holds the same numbers and a
-// test holds the two together). The rail is the first child of #Content; a page adds its own columns to
-// #Content after it, the way a page adds children to any template child. The rail's rows are appended
-// into #MenuList from Java (Pages/ZigMenuTab.ui, by index); the three branding hosts keep their ids, so a
-// branding template appended into #BrandingContainerLeft lands where it always has. A page never sets the
-// frame's Anchor, LayoutMode or Padding.
+// test holds the two together). The rail is the first child of #Content, on vanilla's faint dark pane, then
+// vanilla's vertical separator; a page adds its own columns to #Content after them, the way a page adds
+// children to any template child. The rail's rows are appended into #MenuList from Java
+// (Pages/ZigMenuTab.ui, by index); the three branding hosts keep their ids, so a branding template appended
+// into #BrandingContainerLeft lands where it always has. A page never sets the frame's Anchor, LayoutMode or
+// Padding. The pane's colour is a palette token that ZigMenu.paint pushes after any frame paint.
 @ZigMenuFrame = Group {
   @CloseButton = true;
   @Ornaments = true;
@@ -79,9 +80,9 @@ $C = "../Common.ui";
 
     Group #MenuRail {
       Anchor: (Width: 250);
-      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+      Background: (Color: #000000(0.15));
       LayoutMode: Top;
-      Padding: (Full: 12);
+      Padding: (Full: 8);
 
       Group #BrandingContainerLeft {
         Visible: false;
@@ -107,6 +108,12 @@ $C = "../Common.ui";
         ScrollbarStyle: $C.@DefaultScrollbarStyle;
         Padding: (Right: 4);
       }
+    }
+
+    // Vanilla's vertical separator between the rail and the page (Common.ui's @VerticalSeparator, with
+    // Pages/Point/PointInspectorPage.ui's 8px either side); MenuFrame.BODY_WIDTH leaves room for it.
+    $C.@VerticalSeparator #MenuSeparator {
+      Anchor: (Width: 6, Top: -2, Left: 8, Right: 8);
     }
   }
 

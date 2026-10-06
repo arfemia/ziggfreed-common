@@ -1,5 +1,6 @@
 package com.ziggfreed.common;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -8,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -17,8 +19,9 @@ import com.ziggfreed.common.ui.menu.MenuFrame;
 
 /**
  * Every label on the library's four menu tabs ships in English and stays on one line at the rail's width
- * in every locale the library ships, counted in characters (MenuFrame.RAIL_LABEL_MAX_CHARS, the body size's
- * proxy for width). A locale that lacks a key falls back to English, which is checked.
+ * in every locale the library ships, counted in characters once uppercased, as the rail draws it
+ * (MenuFrame.RAIL_LABEL_MAX_CHARS, the body size's proxy for width). A locale that lacks a key falls back to
+ * English, which is checked.
  */
 class RailLabelLengthTest {
 
@@ -44,11 +47,21 @@ class RailLabelLengthTest {
                     if (value == null) {
                         continue;
                     }
-                    assertTrue(value.length() <= MenuFrame.RAIL_LABEL_MAX_CHARS, locale.getFileName() + " "
+                    assertTrue(shownLength(value) <= MenuFrame.RAIL_LABEL_MAX_CHARS, locale.getFileName() + " "
                             + label.key() + " = '" + value + "' is longer than a rail label can be on one line");
                 }
             }
         }
+    }
+
+    @Test
+    void theMeasureIsTheLabelAsTheRailDrawsIt() {
+        assertEquals("STRASSE".length(), shownLength("Straße"), "the rail draws capitals, and a capital ß is two letters");
+    }
+
+    /** A label's length as the rail shows it: uppercased (the row's RenderUppercase), whatever the locale. */
+    static int shownLength(String value) {
+        return value.toUpperCase(Locale.ROOT).length();
     }
 
     private static Map<String, String> values(Path file) throws IOException {

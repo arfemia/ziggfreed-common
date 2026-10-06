@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.almanac.AlmanacText;
+import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.ui.menu.MenuEntry;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 
@@ -23,6 +24,9 @@ public final class AlmanacMenuTab {
     }
 
     private static volatile Knobs knobs = Knobs.DEFAULTS;
+
+    /** The tab's picture: a scroll, apart from the Quests tab's book. */
+    static final String ICON = "Deco_Scroll";
 
     private AlmanacMenuTab() {
     }
@@ -46,7 +50,7 @@ public final class AlmanacMenuTab {
     /** The Almanac's tab in the shared menu. */
     @Nonnull
     public static MenuEntry entry() {
-        return MenuSlot.ALMANAC.entry(AlmanacText.line("title"), null, AlmanacDestinations.ALMANAC,
+        return MenuSlot.ALMANAC.entry(AlmanacText.line("title"), IconSpec.ofItem(ICON), AlmanacDestinations.ALMANAC,
                 viewer -> AlmanacPages.menuTabVisible());
     }
 

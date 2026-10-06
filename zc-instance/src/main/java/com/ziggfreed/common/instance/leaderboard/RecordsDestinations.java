@@ -10,6 +10,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
+import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.ui.menu.MenuEntry;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.route.Destination;
@@ -30,6 +31,9 @@ public final class RecordsDestinations {
     public static final String TYPE = "Records";
     public static final Records RECORDS = new Records();
 
+    /** The tab's picture: a pile of skulls, for the boss fights it records. */
+    static final String ICON = "Deco_Bone_Skulls";
+
     private RecordsDestinations() {
     }
 
@@ -41,7 +45,8 @@ public final class RecordsDestinations {
     /** The Records tab in the shared menu. */
     @Nonnull
     public static MenuEntry entry() {
-        return MenuSlot.RECORDS.entry(EncounterLeaderboardMessages.line("menu.records"), null, RECORDS,
+        return MenuSlot.RECORDS.entry(EncounterLeaderboardMessages.line("menu.records"), IconSpec.ofItem(ICON),
+                RECORDS,
                 viewer -> shows(EncounterLeaderboardListener.board(), EncounterBindingConfig.getInstance().all().values()));
     }
 

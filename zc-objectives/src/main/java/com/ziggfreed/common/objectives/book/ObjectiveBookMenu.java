@@ -6,6 +6,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionSystem;
 import com.ziggfreed.common.subject.Subject;
@@ -22,19 +23,26 @@ public final class ObjectiveBookMenu {
 
     private static final String PREFIX = "ziggfreedcommon.";
 
+    /** The Quests tab's picture: the brown grimoire, the Objective Book's own art. */
+    static final String QUESTS_ICON = "Weapon_Spellbook_Grimoire_Brown";
+
+    /** The Achievements tab's picture: the base game's one trophy. */
+    static final String ACHIEVEMENTS_ICON = "Deco_Trophy_Harvest";
+
     private ObjectiveBookMenu() {
     }
 
     @Nonnull
     public static MenuEntry quests() {
-        return MenuSlot.QUESTS.entry(Msg.tr(PREFIX, "progression.book.tab.quests"), null,
+        return MenuSlot.QUESTS.entry(Msg.tr(PREFIX, "progression.book.tab.quests"), IconSpec.ofItem(QUESTS_ICON),
                 ObjectiveBookDestinations.QUEST_LOG, ObjectiveBookMenu::questsShow);
     }
 
     @Nonnull
     public static MenuEntry achievements() {
-        return MenuSlot.ACHIEVEMENTS.entry(Msg.tr(PREFIX, "progression.book.tab.achievements"), null,
-                ObjectiveBookDestinations.ACHIEVEMENTS, ObjectiveBookMenu::achievementsShow);
+        return MenuSlot.ACHIEVEMENTS.entry(Msg.tr(PREFIX, "progression.book.tab.achievements"),
+                IconSpec.ofItem(ACHIEVEMENTS_ICON), ObjectiveBookDestinations.ACHIEVEMENTS,
+                ObjectiveBookMenu::achievementsShow);
     }
 
     static boolean questsShow(@Nonnull DestinationContext viewer) {
