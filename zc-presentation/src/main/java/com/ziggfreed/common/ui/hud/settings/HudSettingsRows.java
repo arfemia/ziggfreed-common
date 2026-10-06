@@ -7,38 +7,24 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.ui.hud.HudPreferenceComponent;
 import com.ziggfreed.common.ui.hud.panel.HudPanelAsset;
 import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
 
 /**
- * What the HUD settings page lists on each tab, worked out with nothing but the player's own
- * preference and the folded panels in hand: an ordered plan of rows the page then appends one by
- * one. The plan IS the control set of a tab, so what each tab offers is a fact a test reads rather
- * than a side effect of a builder the engine cannot stand up outside a client.
- *
- * <p><b>Mine</b> is one switch hiding every bar, then for each panel a header, a picker over the
- * spots measured for it (the server's own choice first) and a switch showing that panel alone. It
- * carries NO field: a player moves their own panels between the spots on offer and nothing more.
+ * What the HUD settings page lists, worked out with nothing but the folded panels in hand: an ordered
+ * plan of rows the page then appends one by one. The plan IS the control set of a tab, so what each tab
+ * offers is a fact a test reads rather than a side effect of a builder the engine cannot stand up outside
+ * a client.
  *
  * <p><b>Server</b> is for each panel a header, its on-for-everyone switch, its spot, and every
  * inline leaf ({@link HudServerLeaf}, in its order) as a field showing what the panel's file
  * states, then the note on what Save writes.
  *
  * <p>A row id is the control's name in the one event shape ({@link HudSettingsEventData}): one of
- * the prefixes here with the panel id after the colon, or {@link #HIDE_ALL} alone. Labels and
- * hints are keys under the family's {@code settings.} family, resolved on the reader's client.
+ * the prefixes here with the panel id after the colon. Labels and hints are keys under the family's
+ * {@code settings.} family, resolved on the reader's client.
  */
 final class HudSettingsRows {
-
-    /** The Mine switch over every panel. */
-    static final String HIDE_ALL = "hideAll";
-
-    /** A Mine picker: {@code pick:<panel>}. */
-    static final String PICK = "pick:";
-
-    /** A Mine show switch: {@code show:<panel>}. */
-    static final String SHOW = "show:";
 
     /** A Server on-for-everyone switch: {@code enabled:<panel>}. */
     static final String ENABLED = "enabled:";
@@ -46,7 +32,7 @@ final class HudSettingsRows {
     /** A Server spot picker: {@code placement:<panel>}. */
     static final String PLACEMENT = "placement:";
 
-    /** The dropdown value meaning "no pick of my own" on Mine, and "as the shipped file says" on Server. */
+    /** The dropdown value meaning "as the shipped file says". */
     static final String NONE = "";
 
     /** Which template a row is appended from, and which parts of it the page paints. */
@@ -72,7 +58,7 @@ final class HudSettingsRows {
      * @param labelKey the settings key of the row's title, or of a note's text; null for a header,
      *                 whose title is the panel's own name
      * @param hintKey  the settings key of the line under the control, or null for none
-     * @param noneKey  the settings key wording a dropdown's first, "no spot of my own" entry, else null
+     * @param noneKey  the settings key wording a dropdown's first, "as the shipped file says" entry, else null
      * @param on       a toggle's state
      * @param value    a dropdown's chosen id or a field's text, else blank
      */
@@ -108,23 +94,6 @@ final class HudSettingsRows {
     }
 
     private HudSettingsRows() {
-    }
-
-    /**
-     * The Mine tab for a player whose preference is {@code prefs} (null for none recorded): the
-     * hide-all switch, then per panel in {@code panelIds} its header, its picker and its show switch.
-     */
-    @Nonnull
-    static List<Row> mine(@Nullable HudPreferenceComponent prefs, @Nonnull List<String> panelIds) {
-        List<Row> rows = new ArrayList<>();
-        rows.add(Row.toggle(HIDE_ALL, "hide_all", "hide_all_hint", prefs != null && prefs.hideAll()));
-        for (String id : panelIds) {
-            rows.add(Row.header(id));
-            String pick = prefs == null ? null : prefs.placementOf(id);
-            rows.add(Row.dropdown(PICK + id, id, "spot", "spot_hint", "server_spot", pick == null ? NONE : pick));
-            rows.add(Row.toggle(SHOW + id, "show_panel", null, prefs == null || !prefs.isHiddenAlone(id)));
-        }
-        return rows;
     }
 
     /**

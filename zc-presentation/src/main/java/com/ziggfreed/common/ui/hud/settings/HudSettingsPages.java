@@ -15,14 +15,14 @@ import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The way in to {@link HudSettingsPage}, and the one place a consumer says who may see its Server
- * tab and how it is painted.
+ * The way in to {@link HudSettingsPage}, and the one place a consumer says who may see it and how it
+ * is painted.
  *
  * <p><b>The paradigm this page sets.</b> A setting about a shared surface is the library's to
  * present: the panels are the library's, the preference is the library's component, so the page
  * that edits them is the library's too, and a consumer's own settings menu LAUNCHES it (a button
  * calling {@link #open}) rather than growing a copy. One page, whichever mods are installed, and a
- * server running only this library still has it through {@code /zighud open}.
+ * player's own choices are on the Settings tab.
  *
  * <p>Deliberately NOT a registered destination: the Server tab writes the owner file, and an
  * admin surface must not be pack-addressable. The only routes here are this direct static call
@@ -62,36 +62,29 @@ public final class HudSettingsPages {
         }
     }
 
-    /** Whether {@code player} may see the Server tab right now, by the registered audience. */
-    static boolean mayAdminister(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+    /** Whether {@code player} may see the server's HUD layout right now, by the registered audience. */
+    public static boolean mayAdminister(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull Player player) {
         return resolvedDeps().mayAdministerGuarded(store, ref, player);
     }
 
-    /** Open the page on its Mine tab for {@code player}. True when the screen was taken. */
-    public static boolean open(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull Player player) {
-        return open(store, ref, player, HudSettingsPage.TAB_MINE);
-    }
-
     /**
-     * Open the page on {@code tab} for {@code player}: {@link HudSettingsPage#TAB_MINE} for their
-     * own picks, {@link HudSettingsPage#TAB_SERVER} for the owner defaults, which falls back to
-     * Mine when the audience withholds it. True when the screen was taken; false when the entity
-     * is not a player or the open threw.
+     * Open the server's HUD layout for {@code player}. False when the entity is not a player, when the
+     * registered audience withholds it (a player's own HUD choices are on the Settings tab), or when the
+     * open threw; the caller still owes the client an answer then.
      */
     public static boolean open(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-            @Nonnull Player player, @Nonnull String tab) {
+            @Nonnull Player player) {
         PlayerRef playerRef = PlayerAccess.playerRef(player);
         if (playerRef == null) {
             SafeLog.fine("[hud-settings] the page was asked for by an entity that is not a player");
             return false;
         }
-        boolean admin = mayAdminister(store, ref, player);
-        String shown = admin && HudSettingsPage.TAB_SERVER.equals(tab)
-                ? HudSettingsPage.TAB_SERVER : HudSettingsPage.TAB_MINE;
+        if (!mayAdminister(store, ref, player)) {
+            return false;
+        }
         try {
-            player.getPageManager().openCustomPage(ref, store, new HudSettingsPage(playerRef, shown, admin));
+            player.getPageManager().openCustomPage(ref, store, new HudSettingsPage(playerRef));
             return true;
         } catch (Throwable t) {
             SafeLog.warn("[hud-settings] the page failed to open", t);

@@ -98,6 +98,9 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.recipe.RecipeIndex;
+import com.ziggfreed.common.settings.PlayerSettingsAsset;
+import com.ziggfreed.common.settings.PlayerSettingsConfig;
+import com.ziggfreed.common.settings.PlayerSettingsOwnerLayers;
 import com.ziggfreed.common.stats.gearset.GearSetAsset;
 import com.ziggfreed.common.stats.gearset.GearSetConfig;
 import com.ziggfreed.common.stats.gearset.GearSetOwnerLayers;
@@ -490,6 +493,23 @@ public final class FrameworkAssetRegistrar {
                     TrackedQuestHuds.repaintAllOnline();
                 });
 
+        // --- Player settings (Pattern A) - the owner's defaults and locks over every player's own
+        //     choices that are not a HUD panel's: the quest tracker's show and spot, the quest and
+        //     achievement notification level. The library ships Default.json (zc-presentation's
+        //     resources); a consumer's same-id file wins by pack order. Owner layer
+        //     mods/ziggfreedcommon/player-settings.json; a reload repaints every online bar panel and
+        //     tracker, which re-read the record as they draw. ---
+        AssetStoreRegistrar.registerStore(PlayerSettingsAsset.class,
+                new DefaultAssetMap<String, PlayerSettingsAsset>(), PlayerSettingsAsset.TYPE_ROOT,
+                PlayerSettingsAsset::getId, PlayerSettingsAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, PlayerSettingsAsset.class,
+                (LoadedAssetsEvent<String, PlayerSettingsAsset, DefaultAssetMap<String, PlayerSettingsAsset>> ev) -> {
+                    PlayerSettingsConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    PlayerSettingsOwnerLayers.reload();
+                    HudPanels.repaintAllOnline();
+                    TrackedQuestHuds.repaintAllOnline();
+                });
+
         // --- Quests (Pattern A) - one authored quest per file, with native Parent inheritance and a
         //     per-objective-id merge, so a child quest retunes one step and keeps its siblings.
         //     Common ships no quest CONTENT; every entry is consumer pack JSON. The shared publish
@@ -779,6 +799,7 @@ public final class FrameworkAssetRegistrar {
                             + "Lootables, RollPools, BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
                             + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
+                            + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "
                             + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Almanac (owner file mods/ziggfreedcommon/almanac.json), "
                             + "Currencies, Shops, ShopPools, ShopEntries, "

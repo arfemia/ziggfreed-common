@@ -13,7 +13,7 @@
     "least height. To nudge it without changing the spot, add a Position block here with only the",
     "leaves you want different, or a Columns, RowsPerColumn, Gap, Cutout, MinHeight or Color leaf;",
     "anything you leave out keeps the spot's own value. A player may pick either spot for",
-    "themselves in the HUD settings.",
+    "themselves on their Settings tab.",
     "",
     "MaxVisible is unstated, so every slot the spot's columns can hold is available. RepaintMs is",
     "how often the panel redraws at most: a movement redraws immediately when the last redraw is",
@@ -22,6 +22,11 @@
     "panel (Order 10) comes before the Activity ledger (Order 20), with room between them for a",
     "panel of your own. Order is only the listing; it does not change which panel draws over the",
     "other where two overlap on screen.",
+    "",
+    "Player is what each player may change about this panel on their Settings tab:",
+    "Show.Default is whether it shows for a player who has not chosen, Show.Locked fixes that",
+    "for everyone and takes the switch off the tab, and Spot.Locked does the same for where it",
+    "sits. A player's own choice is kept while a lock is on, so it comes back when you lift it.",
     "",
     "To change a leaf without copying this file, add an entry keyed 'World_Bars' to",
     "mods/ziggfreedcommon/hud-panels.json with only the leaves you want different, or use the",
@@ -32,5 +37,9 @@
   "LabelKey": "ziggfreedcommon.hud.panel.world_bars",
   "Placement": "Top_Right",
   "Order": 10,
-  "RepaintMs": 250
+  "RepaintMs": 250,
+  "Player": {
+    "Show": { "Default": true, "Locked": false },
+    "Spot": { "Locked": false }
+  }
 }

@@ -1,0 +1,7 @@
+# settings/ - a player's own choices, and the owner's defaults and locks over them
+
+- `PlayerSettingsComponent` is the one per-player record. Its save key is 2.1.0's `ZiggfreedCommon:HudPreferences`, so ECS saves and consumer database blobs load unchanged: never rename it. It writes `Hud { Spots, Shown, HideAll }` and `Notifications { Level }`, every choice nullable (null is the owner's default), and still READS 2.1.0's flat `Placements`, `Hidden` and `HideAll` through getters that answer null: never remove those three readers.
+- Read and write only through `PlayerSettings`, on the world thread. A read answers the effective value (a lock returns the owner's value, else the player's choice, else the owner's default); every REAL write fires one `ZigPlayerSettingChangedEvent` and runs the `watch`ers; a write for a player with no record is refused with one line.
+- A lock never clears the player's stored choice: lifting it brings the choice back.
+- A surface is a HUD panel id or `PlayerSettings.QUEST_TRACKER`, matched ignoring case. Its owner rules are `SurfaceRules` (a panel file's `Player` group, the player-settings record's `QuestTracker`); the level's are `NotificationRules`. Defaults ship as `Server/ZiggfreedCommon/PlayerSettings/Default.json`; the owner layer is `mods/ziggfreedcommon/player-settings.json`, keyed `Default`.
+- `NotificationLevel` is the one closed vocabulary here; it grades only a toast whose moment set `PlayerLevel`, by the moment's values and never its id.

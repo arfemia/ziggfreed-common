@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.settings.SurfaceRules;
 import com.ziggfreed.common.ui.hud.card.HudCardLook;
 
 /**
@@ -37,8 +38,8 @@ import com.ziggfreed.common.ui.hud.card.HudCardLook;
  * how the rows spread there. The inline {@code Position}, {@code Columns}, {@code RowsPerColumn},
  * {@code Gap}, {@code Cutout}, {@code MinHeight} and {@code Color} are optional restatements OVER that
  * spot, for an owner who wants a nudge, a different spread or a look of this panel's own without
- * authoring a spot of their own. A player may pick another offered spot for themselves in the HUD
- * settings, and their pick replaces the whole group. {@link HudSpot#resolve} is the one
+ * authoring a spot of their own. A player may pick another offered spot for themselves on their
+ * Settings tab, and their pick replaces the whole group. {@link HudSpot#resolve} is the one
  * place that fold is worked out.
  */
 public final class HudPanelAsset
@@ -79,6 +80,7 @@ public final class HudPanelAsset
     @Nullable private Integer minHeight;
     @Nullable private String color;
     @Nullable private Long repaintMs;
+    @Nullable private SurfaceRules player;
 
     public static final AssetBuilderCodec<String, HudPanelAsset> CODEC = AssetBuilderCodec.builder(
                     HudPanelAsset.class,
@@ -93,7 +95,7 @@ public final class HudPanelAsset
             .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether the panel draws at all, for everyone. Set false to switch every bar "
                     + "on it off at once. Unauthored reads true. A player hides a panel for themselves "
-                    + "in the HUD settings instead.")
+                    + "on their Settings tab instead.")
             .add()
             .appendInherited(new KeyedCodec<>("LabelKey", Codec.STRING, false),
                     (a, v) -> a.labelKey = v, a -> a.labelKey, (a, p) -> a.labelKey = p.labelKey)
@@ -180,6 +182,14 @@ public final class HudPanelAsset
                     + "sooner is drawn at the window's end instead, so the number on screen is never "
                     + "waiting on a later movement to catch up. Lower is livelier and costs more "
                     + "packets.")
+            .add()
+            .appendInherited(new KeyedCodec<>("Player", SurfaceRules.CODEC, false),
+                    (a, v) -> a.player = v, a -> a.player, (a, p) -> a.player = p.player)
+            .documentation("What each player may change about this panel for themselves on their Settings "
+                    + "tab. Show.Default is whether it shows for a player who has not chosen (unauthored, it "
+                    + "shows); Show.Locked fixes that for everyone and takes the switch off the Settings tab; "
+                    + "Spot.Locked does the same for where it sits, so every player gets the Placement above. "
+                    + "A player's own choice is kept while a lock holds and comes back when it lifts.")
             .add()
             .build();
 
@@ -294,5 +304,11 @@ public final class HudPanelAsset
     /** How often the panel redraws at most; {@value #DEFAULT_REPAINT_MS} ms when unauthored or nonsense. */
     public long repaintMs() {
         return repaintMs != null && repaintMs > 0 ? repaintMs : DEFAULT_REPAINT_MS;
+    }
+
+    /** What a player may change about this panel for themselves; {@link SurfaceRules#NONE} when unauthored. */
+    @Nonnull
+    public SurfaceRules player() {
+        return player != null ? player : SurfaceRules.NONE;
     }
 }

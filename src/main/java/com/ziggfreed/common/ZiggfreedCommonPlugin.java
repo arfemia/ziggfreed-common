@@ -73,11 +73,11 @@ import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.reward.CostumeRewardKind;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.rotation.SelectionStrategies;
+import com.ziggfreed.common.settings.PlayerSettings;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.stats.gearset.GearSets;
 import com.ziggfreed.common.stats.gearset.ZigGearSetTierChangedEvent;
-import com.ziggfreed.common.ui.hud.HudPreferences;
 import com.ziggfreed.common.ui.hud.panel.HudPanels;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
@@ -416,16 +416,14 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
      * itself replaces both in its own {@code setup()}.
      */
     /**
-     * What a player has said about their own HUD, and the two ways they say it: the per-player
-     * {@code HudPreferenceComponent} (where they put each shared panel, which they hid), registered
-     * here BEFORE any world loads so it can be read off entities saved carrying it, and the
-     * {@code /zighud} family, which opens the HUD settings page and drives the same facade the page
-     * does. The page itself is opened by a consumer's own settings menu through
-     * {@code HudSettingsPages.open}; the verb is the way in on a server with no such menu.
+     * What a player has chosen for their own screen, and the verbs that change it: the per-player
+     * {@code PlayerSettingsComponent} (a spot and a Show per surface, the switch over every bar panel, the
+     * notification level), registered here BEFORE any world loads so it reads off entities saved carrying
+     * it (2.1.0's HUD preferences included), and the {@code /zighud} family.
      */
     private void registerHudSettings() {
         try {
-            HudPreferences.install(this);
+            PlayerSettings.install(this);
             getCommandRegistry().registerCommand(new ZigHudCommand());
         } catch (Throwable t) {
             SafeLog.warn("[hud] HUD settings wiring failed", t);

@@ -11,7 +11,7 @@ import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.command.AbstractTargetPlayerCommand;
-import com.ziggfreed.common.ui.hud.HudPreferences;
+import com.ziggfreed.common.settings.PlayerSettings;
 import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
 import com.ziggfreed.common.ui.hud.panel.HudPanelLayout;
 import com.ziggfreed.common.ui.hud.panel.HudPanels;
@@ -48,7 +48,7 @@ final class HudHideCommand extends AbstractTargetPlayerCommand<PlayerRef> {
         boolean every = panelId == null || panelId.isBlank()
                 || HudCommandLine.ALL.equalsIgnoreCase(panelId.trim());
         if (every) {
-            HudPreferences.setHideAll(target, hide);
+            PlayerSettings.setHideAll(target, hide);
             HudMessages.done(ctx, hide ? "hide.all" : "show.all");
             return;
         }
@@ -57,7 +57,7 @@ final class HudHideCommand extends AbstractTargetPlayerCommand<PlayerRef> {
             HudMessages.refused(ctx, "panel.unknown", panelId);
             return;
         }
-        HudPreferences.setHidden(target, layout.panelId(), hide);
+        PlayerSettings.setShown(target, layout.panelId(), !hide);
         HudMessages.done(ctx, hide ? "hide.done" : "show.done",
                 HudPanelConfig.getInstance().panel(layout.panelId()).label());
     }

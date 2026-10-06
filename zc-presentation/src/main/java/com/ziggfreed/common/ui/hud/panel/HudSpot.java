@@ -15,7 +15,7 @@ import com.ziggfreed.common.util.SafeLog;
  * reads, worked out from the layers that may have a say, in the order they have it.
  *
  * <ol>
- *   <li><b>The player's own pick</b>, when they made one in the HUD settings and the spot still
+ *   <li><b>The player's own pick</b>, when they made one on their Settings tab and the spot still
  *       exists, is enabled and fits the panel. It swaps the WHOLE group, corner, offsets, spread,
  *       band, cut, floor and colour together, because an owner's inline nudge belongs to the
  *       owner's corner and would put the player's spot somewhere nobody chose if it folded over

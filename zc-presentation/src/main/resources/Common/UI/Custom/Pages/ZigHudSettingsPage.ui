@@ -2,15 +2,10 @@ $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
 
-// The HUD settings page (com.ziggfreed.common.ui.hud.settings.HudSettingsPage): where the shared
-// bar panels sit and which of them show. Two tabs painted from Java into ONE row container:
-//
-//   Mine     a hide-every-bar switch, then per panel a spot picker and a show switch, each kept
-//            the moment it changes.
-//   Server   (only when the consumer's audience says the viewer may) per panel an on-for-everyone
-//            switch, a spot picker and one field per inline leaf (the offsets, the spread, the
-//            band, the cut, the least height, the colour), written by #SaveButton into the owner
-//            file for everyone.
+// The server's HUD layout (com.ziggfreed.common.ui.hud.settings.HudSettingsPage), for the audience the
+// consumer registered: per bar panel an on-for-everyone switch, a spot picker and one field per inline
+// leaf (the offsets, the spread, the band, the cut, the least height, the colour), written by #SaveButton
+// into the owner file for everyone. A player's own HUD choices are on the Settings tab.
 //
 // #Rows is the appendable list container and MUST stay childless here: rows are the shared
 // Pages/ZigForm*Row.ui templates, addressed by indexed parent ("#Rows[3] #Dropdown"), so a
@@ -43,31 +38,6 @@ $F.@ZigDecoratedFrame {
       Style: (FontSize: 12, TextColor: #93a4b8, VerticalAlignment: Center);
     }
 
-    Group #Tabs {
-      LayoutMode: Left;
-      Anchor: (Height: 34, Bottom: 10);
-
-      Button #TabMine {
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 150, Height: 30, Right: 8);
-        Label #Label {
-          FlexWeight: 1;
-          Text: "";
-          Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
-        }
-      }
-
-      Button #TabServer {
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 150, Height: 30);
-        Label #Label {
-          FlexWeight: 1;
-          Text: "";
-          Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
-        }
-      }
-    }
-
     Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
 
     Group #Rows {
@@ -96,7 +66,6 @@ $F.@ZigDecoratedFrame {
       Button #SaveButton {
         Style: $Z.@ZigRichPrimaryBtnStyle;
         Anchor: (Width: 160, Height: 32);
-        Visible: false;
         Label #Label {
           FlexWeight: 1;
           Text: "";

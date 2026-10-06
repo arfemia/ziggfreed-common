@@ -24,56 +24,37 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.i18n.ContentKeys;
-import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.ZigRichButton;
-import com.ziggfreed.common.ui.hud.HudPreferenceComponent;
-import com.ziggfreed.common.ui.hud.HudPreferences;
+import com.ziggfreed.common.ui.hud.command.HudMessages;
 import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
 import com.ziggfreed.common.ui.hud.panel.HudPanelOwnerWriter;
 import com.ziggfreed.common.ui.hud.panel.HudPanels;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
-import com.ziggfreed.common.ui.hud.command.HudMessages;
 import com.ziggfreed.common.ui.hud.settings.HudSettingsRows.Row;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The HUD settings page: where the shared bar panels sit and which of them show, for the player
- * looking at it and, on the Server tab, for everyone.
+ * The server's HUD layout: for each shared bar panel, whether it is on for everyone, the spot it sits at,
+ * and every inline leaf an owner may restate over that spot ({@link HudServerLeaf}), for the audience the
+ * consumer registered. A player's own HUD choices are on the Settings tab ({@code settings/page}).
  *
- * <p><b>Mine.</b> One switch hiding every bar, then for each panel: a picker over the spots
- * measured for it (the server's own choice first), and a switch showing or hiding that panel alone.
- * Every change is kept the moment it is made, through {@link HudPreferences}, and the player's
- * panels move on screen behind the page as it happens.
+ * <p>The on/off switch is kept at once; the rest is a draft written by Save, in exactly the shape an owner
+ * would type into {@code mods/ziggfreedcommon/hud-panels.json}, through {@link HudPanelOwnerWriter}. A
+ * blank field REMOVES that leaf, so the spot's own value applies again; a field that will not read is
+ * named in a toast and NOTHING is written, for any panel, until it is fixed.
  *
- * <p><b>Server</b> (shown only to the audience the consumer registered): for each panel, whether it
- * is on for everyone, the spot it sits at, and every inline leaf an owner may restate over that
- * spot ({@link HudServerLeaf}: the offsets, the spread, the band, the cut, the least height and the
- * colour), each a field. The on/off switch is kept at once; the rest is a draft written by Save,
- * in exactly the shape an owner would type into {@code mods/ziggfreedcommon/hud-panels.json},
- * through {@link HudPanelOwnerWriter}, so the file stays readable and editable by hand
- * afterwards. A blank field REMOVES that leaf, so the spot's own value applies again; a field that
- * will not read is named in a toast and NOTHING is written, for any panel, until it is fixed.
- *
- * <p>What each tab lists is {@link HudSettingsRows}, a plan worked out with no builder in hand;
- * this page appends it row by row from the shared settings-row templates into {@code #Rows},
- * addressed by index, so the page ships no per-panel markup and a third panel would cost it
- * nothing. Every control speaks the one event shape ({@link HudSettingsEventData}): {@code field}
- * with the row's id and live value, or {@code press} with the row's id. A tab switch reopens the
- * page; nothing else does, so the scroll position survives every edit.
+ * <p>What it lists is {@link HudSettingsRows#server}, a plan worked out with no builder in hand, appended
+ * row by row from the shared settings-row templates into {@code #Rows} by index. Every control speaks the
+ * one event shape ({@link HudSettingsEventData}). Every handler re-checks the audience, since a page
+ * outlives a permission change.
  */
 public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
 
     static final String PAGE_TEMPLATE = "Pages/ZigHudSettingsPage.ui";
-
-    /** The Mine tab: the player's own picks. */
-    public static final String TAB_MINE = "mine";
-
-    /** The Server tab: the owner defaults, written for everyone. */
-    public static final String TAB_SERVER = "server";
 
     /** The key a row's live value rides under; the {@code @} is the client's resolve-as-path directive. */
     static final String VALUE_KEY = "@Value";
@@ -85,21 +66,16 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
     private static final String ROW_FIELD = "Pages/ZigFormFieldRow.ui";
     private static final String ROW_NOTE = "Pages/ZigFormNoteRow.ui";
 
-    @Nonnull private final String tab;
-    private final boolean admin;
-
     /** Row id to its selector, so a partial update can address the control that changed. */
     private final Map<String, String> rowOf = new LinkedHashMap<>();
 
-    /** The Server tab's draft: row id to the live value the admin typed or chose, until Save. */
+    /** The draft: row id to the live value the admin typed or chose, until Save. */
     private final Map<String, String> draft = new LinkedHashMap<>();
 
     private int rows;
 
-    HudSettingsPage(@Nonnull PlayerRef playerRef, @Nonnull String tab, boolean admin) {
+    HudSettingsPage(@Nonnull PlayerRef playerRef) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, HudSettingsEventData.CODEC);
-        this.admin = admin;
-        this.tab = admin && TAB_SERVER.equals(tab) ? TAB_SERVER : TAB_MINE;
     }
 
     /** A line of this page, from the family's own lang file. */
@@ -120,23 +96,10 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
 
         cmd.set("#Title.TextSpans", msg("title"));
         cmd.set("#Subtitle.TextSpans", msg("subtitle"));
-        ZigRichButton.text(cmd, "#TabMine", msg("tab.mine"));
-        ZigRichButton.text(cmd, "#TabServer", msg("tab.server"));
-        SettingsUiUtil.setTabActive(cmd, "#TabMine", TAB_MINE.equals(tab));
-        SettingsUiUtil.setTabActive(cmd, "#TabServer", TAB_SERVER.equals(tab));
-        cmd.set("#Tabs.Visible", admin);
-        SettingsUiUtil.bindButton(events, "#TabMine", "tab", "Tab", TAB_MINE);
-        SettingsUiUtil.bindButton(events, "#TabServer", "tab", "Tab", TAB_SERVER);
-
-        if (TAB_SERVER.equals(tab)) {
-            render(cmd, events, HudSettingsRows.server(panelIds(), HudPanelConfig.getInstance()));
-        } else {
-            render(cmd, events, HudSettingsRows.mine(HudPreferences.component(playerRef), panelIds()));
-        }
+        render(cmd, events, HudSettingsRows.server(panelIds(), HudPanelConfig.getInstance()));
 
         ZigRichButton.text(cmd, "#BackButton", msg("back"));
         ZigRichButton.text(cmd, "#SaveButton", msg("save"));
-        cmd.set("#SaveButton.Visible", TAB_SERVER.equals(tab));
         SettingsUiUtil.bindButton(events, "#SaveButton", "save");
         events.addEventBinding(CustomUIEventBindingType.Activating, "#BackButton", EventData.of("Action", "back"));
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
@@ -153,7 +116,7 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
         cmd.append(PAGE_TEMPLATE);
     }
 
-    /** The panels the page lists, by each panel's authored {@code Order}: the ONE list both tabs read. */
+    /** The panels the page lists, by each panel's authored {@code Order}. */
     @Nonnull
     private static List<String> panelIds() {
         return HudPanels.listing();
@@ -175,10 +138,8 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
     }
 
     /**
-     * The spots offered for {@code panelId}, behind a first entry meaning "no spot of my own",
-     * worded by {@code noneKey}: the server's choice on Mine, the shipped file's on Server. A
-     * dropdown entry is resolved by the client from its message id, so each entry carries the
-     * placement's full label key rather than a server-rendered string.
+     * The spots offered for {@code panelId}, behind a first entry meaning "as the shipped file says",
+     * worded by {@code noneKey}. A dropdown entry is resolved by the client from its message id.
      */
     @Nonnull
     private static List<DropdownEntryInfo> spotEntries(@Nonnull String panelId, @Nonnull String noneKey) {
@@ -271,13 +232,13 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
             @Nonnull HudSettingsEventData data) {
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) {
+            this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
             return;
         }
         String action = data.action == null ? "" : data.action;
         switch (action) {
-            case "tab" -> HudSettingsPages.open(store, ref, player, data.tab == null ? TAB_MINE : data.tab);
             case "field" -> handleField(data.field, data.value);
-            case "press" -> handlePress(data.field);
+            case "press" -> handlePress(store, ref, player, data.field);
             case "save" -> handleSave(store, ref, player);
             case "back" -> {
                 if (!HudSettingsPages.resolvedDeps().backGuarded(store, ref, player)) {
@@ -289,56 +250,21 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
         }
     }
 
-    /** A dropdown or field changed: a Mine pick is kept at once, a Server value waits for Save. */
+    /** A dropdown or field changed: it waits in the draft for Save. */
     private void handleField(@Nullable String field, @Nullable String value) {
-        if (field == null) {
-            this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
-            return;
+        if (field != null) {
+            draft.put(field, value == null ? "" : value.trim());
         }
-        String text = value == null ? "" : value.trim();
-        if (field.startsWith(HudSettingsRows.PICK)) {
-            String panelId = field.substring(HudSettingsRows.PICK.length());
-            boolean clear = text.isEmpty();
-            if (HudPreferences.setPlacementPick(playerRef, panelId, clear ? null : text)) {
-                showToast(ToastKind.SUCCESS, clear ? msg("pick_cleared", panelLabel(panelId))
-                        : msg("pick_saved", panelLabel(panelId), spotLabel(text)));
-            } else if (HudPreferences.component(playerRef) == null) {
-                showToast(ToastKind.ERROR, msg("not_kept"));
-            }
-            this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
-            return;
-        }
-        draft.put(field, text);
         this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
     }
 
-    /** A toggle was clicked: flip it, keep it, and repaint that one control. */
-    private void handlePress(@Nullable String field) {
+    /** The on-for-everyone switch was clicked: flip it, keep it, and repaint that one control. */
+    private void handlePress(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Player player, @Nullable String field) {
         UICommandBuilder cmd = new UICommandBuilder();
         String sel = field == null ? null : rowOf.get(field);
-        if (sel == null) {
-            this.sendUpdate(cmd, new UIEventBuilder(), false);
-            return;
-        }
-        if (HudSettingsRows.HIDE_ALL.equals(field)) {
-            boolean hide = !HudPreferences.isHideAll(playerRef);
-            if (HudPreferences.setHideAll(playerRef, hide)) {
-                paintToggle(cmd, sel, hide);
-                showToast(ToastKind.SUCCESS, msg(hide ? "hide_all_on" : "hide_all_off"));
-            } else {
-                showToast(ToastKind.ERROR, msg("not_kept"));
-            }
-        } else if (field.startsWith(HudSettingsRows.SHOW)) {
-            String panelId = field.substring(HudSettingsRows.SHOW.length());
-            HudPreferenceComponent prefs = HudPreferences.component(playerRef);
-            boolean hide = prefs == null || !prefs.isHiddenAlone(panelId);
-            if (HudPreferences.setHidden(playerRef, panelId, hide)) {
-                paintToggle(cmd, sel, !hide);
-                showToast(ToastKind.SUCCESS, msg(hide ? "hidden" : "shown", panelLabel(panelId)));
-            } else {
-                showToast(ToastKind.ERROR, msg("not_kept"));
-            }
-        } else if (field.startsWith(HudSettingsRows.ENABLED) && admin) {
+        if (sel != null && field.startsWith(HudSettingsRows.ENABLED)
+                && HudSettingsPages.mayAdminister(store, ref, player)) {
             String panelId = field.substring(HudSettingsRows.ENABLED.length());
             boolean on = !HudPanelConfig.getInstance().panel(panelId).enabled();
             if (HudPanelOwnerWriter.setEnabled(panelId, on)) {
@@ -352,13 +278,13 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
     }
 
     /**
-     * Save reads every panel's draft FIRST, so a field that will not read is named and nothing is
-     * written for any panel; then writes each panel's leaves as an owner would type them and
-     * reopens the tab so the fold shows through.
+     * Save reads every panel's draft FIRST, so a field that will not read is named and nothing is written
+     * for any panel; then writes each panel's leaves as an owner would type them and reopens the page so
+     * the fold shows through.
      */
     private void handleSave(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull Player player) {
-        if (!admin || !TAB_SERVER.equals(tab)) {
+        if (!HudSettingsPages.mayAdminister(store, ref, player)) {
             this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
             return;
         }
@@ -385,17 +311,13 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
             }
         }
         showToast(ToastKind.SUCCESS, msg("saved"));
-        HudSettingsPages.open(store, ref, player, TAB_SERVER);
+        if (!HudSettingsPages.open(store, ref, player)) {
+            this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
+        }
     }
 
     @Nonnull
     private static Message panelLabel(@Nonnull String panelId) {
         return HudPanelConfig.getInstance().panel(panelId).label();
-    }
-
-    @Nonnull
-    private static Message spotLabel(@Nonnull String placementId) {
-        HudSpotAsset spot = HudSpotConfig.getInstance().spot(placementId);
-        return spot != null ? spot.label() : Msg.raw(placementId);
     }
 }
