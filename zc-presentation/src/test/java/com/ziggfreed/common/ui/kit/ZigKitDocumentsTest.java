@@ -273,7 +273,8 @@ class ZigKitDocumentsTest {
         assertEquals(216, size(leaf(anchor, "Width")));
         assertEquals(128, size(leaf(anchor, "Height")));
         String tile = block(ui, "#StatTile");
-        assertEquals("(Color: $ZK.@ZigSurfaceRow)", property(tile, "Background"));
+        assertEquals("(TexturePath: \"../Pages/Memories/Tiles/TileDefault.png\", Border: 8)", property(tile, "Background"),
+                "every tile in the family sits on vanilla's Memories tile");
         assertPicture(tile, "#Pic", 40);
         assertEquals("$ZX.@ZigFigureStyle", property(block(tile, "#Figure"), "Style"));
         assertTrue(property(block(tile, "#Name"), "Style").contains("WrapMaxLines: 2"), "the name takes two lines");
@@ -473,6 +474,34 @@ class ZigKitDocumentsTest {
         String gradient = property(block(hero, "#HeroGradient"), "Anchor");
         assertEquals(962, size(leaf(gradient, "Width")), "the gradient spans the plate");
         assertEquals(240, size(leaf(gradient, "Height")), "the gradient spans the plate");
+    }
+
+    @Test
+    void theHeroPlateDrawsItsOwnPlateAndHostsTheComposedItemsUnderTheFade() throws IOException {
+        String hero = template(document("Common/ZigKit.ui"), "@ZigHeroPlate");
+        assertEquals("\"../Common/ZigHeroPlate.png\"", property(hero, "Background"),
+                "the plate is the hero's own background: an AssetImage with no path drew nothing in game (spike SP14)");
+        assertHidden(hero, "#HeroArt");
+        assertEquals("Group", type(hero, "#HeroItems"));
+        String items = block(hero, "#HeroItems");
+        assertEquals("Full", property(items, "LayoutMode"), "each composed item is placed by its own anchor");
+        String anchor = property(items, "Anchor");
+        assertEquals(962, size(leaf(anchor, "Width")), "the items' host spans the plate");
+        assertEquals(240, size(leaf(anchor, "Height")), "the items' host spans the plate");
+        assertTrue(hero.indexOf("#HeroGlow") < hero.indexOf("#HeroItems")
+                && hero.indexOf("#HeroItems") < hero.indexOf("#HeroFade"), "the items lie over the glow, under the fade");
+    }
+
+    @Test
+    void everyButtonAPainterGivesATooltipCarriesTheTooltipStyle() throws IOException {
+        // A TooltipText with no TextTooltipStyle draws nothing, so the toggle and the action buttons carry vanilla's.
+        String kit = document("Common/ZigKit.ui");
+        assertEquals("$C.@DefaultTextTooltipStyle",
+                property(block(template(kit, "@ZigDetailPage"), "#DToggle"), "TextTooltipStyle"), "#DToggle");
+        String bar = template(kit, "@ZigActionBar");
+        for (String button : List.of("#Danger", "#Secondary", "#Primary")) {
+            assertEquals("$C.@DefaultTextTooltipStyle", property(block(bar, button), "TextTooltipStyle"), button);
+        }
     }
 
     // ---- rules across every kit document ----

@@ -40,9 +40,12 @@ public final class ObjectiveBookPages {
         DEPS.set(supplier);
     }
 
-    /** The deps in force right now: the registered consumer's, else the library defaults. Guarded. */
+    /**
+     * The deps in force right now: the registered consumer's, else the library defaults. Guarded. Public so a page
+     * outside the book (the NPC quest page) reads a quest through the same consumer seams the book does.
+     */
     @Nonnull
-    static ObjectiveBookDeps resolvedDeps() {
+    public static ObjectiveBookDeps resolvedDeps() {
         Supplier<ObjectiveBookDeps> supplier = DEPS.get();
         if (supplier == null) {
             return ObjectiveBookDeps.DEFAULTS;
