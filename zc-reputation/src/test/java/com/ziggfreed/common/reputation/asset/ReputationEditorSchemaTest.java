@@ -69,6 +69,16 @@ class ReputationEditorSchemaTest {
     }
 
     @Test
+    void theKillAmountAndTheBeyondEveryDeclareTheirZeroDefaults() {
+        ObjectSchema row = ReputationAsset.Kill.CODEC.toSchema(new SchemaContext());
+        assertEquals(Integer.valueOf(0), ((IntegerSchema) row.getProperties().get("Amount")).getDefault(),
+                "an unauthored Amount moves nothing, and the schema must say so");
+        ObjectSchema beyond = ReputationAsset.Beyond.CODEC.toSchema(new SchemaContext());
+        assertEquals(Integer.valueOf(0), ((IntegerSchema) beyond.getProperties().get("Every")).getDefault(),
+                "an unauthored Every pays nothing, and the schema must say so");
+    }
+
+    @Test
     void theBeyondRewardsListSaysWhatItHolds() {
         ObjectSchema beyond = ReputationAsset.Beyond.CODEC.toSchema(new SchemaContext());
         assertNotNull(((ArraySchema) beyond.getProperties().get("Rewards")).getItems());

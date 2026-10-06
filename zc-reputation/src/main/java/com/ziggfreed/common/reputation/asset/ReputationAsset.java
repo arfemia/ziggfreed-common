@@ -289,6 +289,7 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
                         + "is in any of them.").add()
                 .appendInherited(new KeyedCodec<>("Amount", Codec.INTEGER, false),
                         (o, v) -> o.amount = v, o -> o.amount, (o, p) -> o.amount = p.amount)
+                .metadata(EditorSchema.defaultValue(0))
                 .documentation("Standing per kill: positive to gain, negative to lose.").add()
                 .build();
 
@@ -325,6 +326,7 @@ public final class ReputationAsset implements JsonAssetWithMap<String, DefaultAs
         public static final BuilderCodec<Beyond> CODEC = BuilderCodec.builder(Beyond.class, Beyond::new)
                 .appendInherited(new KeyedCodec<>("Every", Codec.INTEGER, false),
                         (o, v) -> o.every = v, o -> o.every, (o, p) -> o.every = p.every)
+                .metadata(EditorSchema.defaultValue(0))
                 .documentation("How much earned standing past the top rank's floor each payout takes. Zero or "
                         + "less, or unauthored, pays nothing.").add()
                 .appendInherited(new KeyedCodec<>("Rewards",

@@ -6,8 +6,9 @@ apply from: "$rootDir/gradle/zc-module.gradle"
 // top rank), the one writer over the native value, three readings, the Reputation reward kind, the change
 // event, the World bar, the rank notice, the kill table and the rail tab.
 //
-// Nothing in the library depends on this module except zc-objectives, which turns the change event into
-// REPUTATION_RANK progress from above (ZigReputationProducer), the way it turns the calendar's attendance.
+// Nothing in the library depends on this module except zc-objectives, which turns
+// ZigReputationRanksHeldEvent (the ranks a check credits) into REPUTATION_RANK progress from above
+// (ZigReputationProducer), the way it turns the calendar's attendance.
 //
 // Ships .ui (the Reputation page), so it needs zc-presentation at runtime as well as at compile time.
 
