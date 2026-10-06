@@ -206,6 +206,7 @@ $ZS = "ZigStyles.ui";
     Button #Danger {
       Anchor: (Width: 120, Height: $ZK.@ZigActionHeight, Left: $ZK.@ZigSpace2);
       Style: $ZS.@ZigButtonDangerStyle;
+      TextTooltipStyle: $C.@DefaultTextTooltipStyle;
       Visible: false;
 
       Label #Label {
@@ -218,6 +219,7 @@ $ZS = "ZigStyles.ui";
     Button #Secondary {
       Anchor: (Width: 140, Height: $ZK.@ZigActionHeight, Left: $ZK.@ZigSpace2);
       Style: $ZS.@ZigButtonSecondaryStyle;
+      TextTooltipStyle: $C.@DefaultTextTooltipStyle;
       Visible: false;
 
       Label #Label {
@@ -230,6 +232,7 @@ $ZS = "ZigStyles.ui";
     Button #Primary {
       Anchor: (Width: 160, Height: $ZK.@ZigActionHeight, Left: $ZK.@ZigSpace2);
       Style: $ZS.@ZigButtonPrimaryStyle;
+      TextTooltipStyle: $C.@DefaultTextTooltipStyle;
       Visible: false;
 
       Label #Label {
@@ -289,6 +292,7 @@ $ZS = "ZigStyles.ui";
     Button #DToggle {
       Anchor: (Width: 120, Height: $ZK.@ZigControlHeight, Left: $ZK.@ZigSpace3);
       Style: $ZS.@ZigButtonSecondaryStyle;
+      TextTooltipStyle: $C.@DefaultTextTooltipStyle;
       Visible: false;
 
       Label #Label {
@@ -357,18 +361,23 @@ $ZS = "ZigStyles.ui";
 };
 
 // ── @ZigHeroPlate: a season's hero, 962 x 240. Its layers stack, each placed by its own anchor: ──
-// #HeroArt, the season's art (an AssetImage; with no art it draws the plate); #HeroGradient and #HeroGlow, two
-// white layers a page tints to compose a hero with no art (a colour falling from the top, a glow behind the
-// picture); #HeroFade, the dark ramp the words sit on; #HeroPic, the season's picture for a composed hero;
-// #HeroText, the chip, the name and the dates; #HeroAccent, the season's colour along the bottom edge.
+// the plate itself, the hero's own background, so a season with no art never shows the bare panel; #HeroArt, the
+// season's art (an AssetImage, shown only when there is art); #HeroGradient and #HeroGlow, two white layers a page
+// tints to compose a hero with no art (a colour falling from the top, a glow behind the pictures); #HeroItems, the
+// composed hero's item pictures, each placed by its own anchor under the fade; #HeroFade, the dark ramp the words
+// sit on; #HeroPic, the season's picture when nothing else is set; #HeroText, the chip, the name and the dates;
+// #HeroAccent, the season's colour along the bottom edge. Nothing clips a child to the plate, so every layer a page
+// places stays inside 962 x 240.
 @ZigHeroPlate = Group {
   @Anchor = ();
   LayoutMode: Full;
   Anchor: (...@Anchor, Width: 962, Height: 240);
+  Background: "../Common/ZigHeroPlate.png";
 
   AssetImage #HeroArt {
     Anchor: (Left: 0, Top: 0, Width: 962, Height: 240);
     FallbackTexturePath: "UI/Custom/Common/ZigHeroPlate.png";
+    Visible: false;
   }
 
   Group #HeroGradient {
@@ -381,6 +390,11 @@ $ZS = "ZigStyles.ui";
     Anchor: (Right: 40, Top: 0, Width: 240, Height: 240);
     Background: (TexturePath: "../Common/Kit/HeroGlow.png", Color: $ZK.@ZigInkBright);
     Visible: false;
+  }
+
+  Group #HeroItems {
+    Anchor: (Left: 0, Top: 0, Width: 962, Height: 240);
+    LayoutMode: Full;
   }
 
   Group #HeroFade {

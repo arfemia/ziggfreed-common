@@ -20,7 +20,7 @@ import com.ziggfreed.common.ui.menu.MenuFrame;
 import com.ziggfreed.common.ui.rows.BuiltRows;
 
 /**
- * What the pre-redesign tabs ({@link BookQuestsTab}, {@link BookAchievementsTab}) read off the page before the
+ * What the pre-redesign tabs ({@code BookQuestsTab}, {@code BookAchievementsTab}) read off the page before the
  * shell replaced it: their templates, filter reads, binding state and row tints. Nothing constructs one and
  * nothing calls those tabs; this exists only so they keep compiling, unreferenced, until the phase-2 streams port
  * their assertions and delete them (W1-58 plan, sections 3.4 and 3.19). It goes with the last of them.
