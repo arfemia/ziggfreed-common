@@ -1,54 +1,119 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$Z = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
 
-// The Almanac (com.ziggfreed.common.almanac.page.AlmanacPage): every season this server runs on the
-// left, the one being read on the right.
+// The Almanac (com.ziggfreed.common.almanac.page.AlmanacPage): every season this server runs on the left, the
+// one being read on the right, inside the shared menu frame (its rail first, the Almanac tab selected; the frame
+// owns the size, the padding and the close button). page/AlmanacLayout holds this document's numbers and
+// AlmanacPageDocumentTest holds the two together, and every id the page addresses.
 //
-// Inside the shared menu frame: the frame's rail comes first (ui/menu/ZigMenu, the Almanac tab
-// selected), then the season list and the season. The frame owns the size, the padding and the close
-// button.
+// LEFT (#LeftColumn, 300): the title and its lead; #BannerCard, the cross-season achievement (hidden until one is
+// in circulation or earned); #SeasonList, where the kit's LedgerPainter appends a section per group (On now, then
+// All seasons) of Pages/ZigLedgerRow.ui rows; #Glance, the year at a glance, twelve month rows each holding one
+// Pages/ZigAlmanacMonthMark.ui dot per season running that month (a click opens the first); #RecordCard, seasons
+// taken part in and keepsakes earned, under the list.
 //
-// LEFT: the title, the cross-season banner (#BannerLabel, hidden until a cross-season achievement is
-// in circulation), and the scrolling #SeasonList the page appends Pages/ZigSelectRow.ui into.
-// #EmptyListLabel carries the one line a server with no seasons shows.
+// RIGHT (#RightColumn, 962): the kit's hero plate #Hero (art, or a hero composed from item pictures appended onto
+// its #HeroItems, or the season's own picture; then the chip, the name, the dates and the accent strip), over
+// #SeasonBody, which scrolls: the flavor, #YearChips (Pages/ZigSegment.ui, a year each and Every season), the
+// scope header, #StatGrid (Pages/ZigStatTile.ui), the first-time #Hint, the keepsake header and #KeepsakeShelf
+// (Pages/ZigKeepsakeTile.ui), the achievements header, bar and #FeatList (Pages/ZigPill.ui), and #Links.
 //
-// RIGHT: the season's picture and name, whether it is on, its flavor line, and #DetailList, which
-// takes one Pages/ZigDetailLine.ui per line: section headings, the tallies, the keepsakes and the
-// achievements. Picking a season reopens the page, so every build is a full one.
-//
-// #DetailIconSlot holds the picture the season's page names (its Icon), drawn by ui/icon/IconRenderer
-// into #IcoItem (an item id) or #IcoTex (a texture path). It ships hidden and the page shows it only
-// when there is a picture to draw, so a season without one reads as its name alone. Its size matches
-// a ZigDetailLine.ui icon, so the picture lines up with the pictures in the list below it.
-//
-// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in-game.
+// #AlmanacEmpty takes the right column's place, and the list's, when no season is listed. Every pick (a season,
+// a year, a month) reopens the page, so every build is a full one.
+
+// One month row of the year at a glance: the month's short name, then its marks. A click opens the first season
+// marked there.
+@AlmanacMonth = Button {
+  Anchor: (Height: 22);
+  LayoutMode: Left;
+  Padding: (Horizontal: $ZK.@ZigSpace2);
+  Style: $ZS.@ZigSectionHeadStyle;
+
+  Label #Label {
+    Anchor: (Width: 48, Height: 22);
+    Text: "";
+    Style: $ZX.@ZigCaptionStyle;
+  }
+
+  Group #Marks {
+    FlexWeight: 1;
+    LayoutMode: Left;
+    Anchor: (Height: 22);
+  }
+};
+
+// One of the season's links, filled in order; hidden until painted.
+@AlmanacLink = Button {
+  Anchor: (Width: 200, Height: $ZK.@ZigControlHeight, Right: $ZK.@ZigSpace2);
+  Style: $ZS.@ZigButtonSecondaryStyle;
+  Visible: false;
+
+  Label #Label {
+    FlexWeight: 1;
+    Text: "";
+    Style: $ZX.@ZigButtonLabelStyle;
+  }
+};
 
 $C.@PageOverlay {}
 
 $F.@ZigMenuFrame {
   #Content {
-    Group #LeftPanel {
-      Anchor: (Width: 320);
-      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+    Group #LeftColumn {
+      Anchor: (Width: 300);
       LayoutMode: Top;
-      Padding: (Full: 14);
+      Padding: (Full: 12);
 
       Label #AlmanacTitle {
+        Anchor: (Height: 28, Bottom: 4);
         Text: "";
-        Anchor: (Height: 32, Bottom: 4);
-        Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+        Style: (...$ZX.@ZigTitleStyle, VerticalAlignment: Center, WrapMaxLines: 1);
       }
 
-      Label #BannerLabel {
+      Label #AlmanacLead {
+        Anchor: (Height: 34, Bottom: 12);
         Text: "";
+        Style: (...$ZX.@ZigCaptionStyle, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 2);
+      }
+
+      Group #BannerCard {
+        Anchor: (Height: 84, Bottom: 12);
+        LayoutMode: Left;
+        Padding: (Full: $ZK.@ZigSpace3);
+        Background: (Color: $ZK.@ZigSurfaceRow);
         Visible: false;
-        Anchor: (Height: 20, Bottom: 8);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #c8a86a, VerticalAlignment: Center);
-      }
 
-      Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
+        $ZW.@ZigPicture #BannerPic {
+          @Size = $ZK.@ZigPicTile;
+          @Anchor = (Top: 10, Right: $ZK.@ZigSpace3);
+        }
+
+        Group #BannerText {
+          FlexWeight: 1;
+          LayoutMode: Top;
+
+          Label #BannerName {
+            Anchor: (Height: 22);
+            Text: "";
+            Style: (...$ZX.@ZigRowTitleStyle, TextColor: $ZK.@ZigAccent);
+          }
+
+          Label #BannerMeta {
+            Anchor: (Height: 18);
+            Text: "";
+            Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+          }
+
+          $ZW.@ZigProgressBar #BannerBar {
+            @Height = 4;
+            @Anchor = (Top: $ZK.@ZigSpace2);
+          }
+        }
+      }
 
       Group #SeasonList {
         FlexWeight: 1;
@@ -57,72 +122,170 @@ $F.@ZigMenuFrame {
         Padding: (Right: 4);
       }
 
-      Label #EmptyListLabel {
-        Text: "";
-        Visible: false;
-        Anchor: (Height: 40, Top: 8);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+      Group #Glance {
+        Anchor: (Height: 288, Top: 12);
+        LayoutMode: Top;
+
+        Label #GlanceTitle {
+          Anchor: (Height: 24);
+          Text: "";
+          Style: $ZX.@ZigSectionLabelStyle;
+        }
+
+        @AlmanacMonth #Month1 {}
+        @AlmanacMonth #Month2 {}
+        @AlmanacMonth #Month3 {}
+        @AlmanacMonth #Month4 {}
+        @AlmanacMonth #Month5 {}
+        @AlmanacMonth #Month6 {}
+        @AlmanacMonth #Month7 {}
+        @AlmanacMonth #Month8 {}
+        @AlmanacMonth #Month9 {}
+        @AlmanacMonth #Month10 {}
+        @AlmanacMonth #Month11 {}
+        @AlmanacMonth #Month12 {}
+      }
+
+      Group #RecordCard {
+        Anchor: (Height: 100, Top: 12);
+        LayoutMode: Top;
+        Padding: (Top: 8, Bottom: 8, Horizontal: $ZK.@ZigSpace3);
+        Background: (Color: $ZK.@ZigSurfaceRow);
+
+        Label #RecordTitle {
+          Anchor: (Height: 18, Bottom: 2);
+          Text: "";
+          Style: $ZX.@ZigSectionLabelStyle;
+        }
+
+        Group #RecordFigures {
+          LayoutMode: Left;
+          Anchor: (Height: 64);
+
+          Group #RecordSeasons {
+            FlexWeight: 1;
+            LayoutMode: Top;
+
+            Label #RecordSeasonsValue {
+              Anchor: (Height: 28);
+              Text: "";
+              Style: (...$ZX.@ZigFigureStyle, HorizontalAlignment: Start);
+            }
+
+            Label #RecordSeasonsLabel {
+              Anchor: (Height: 34);
+              Text: "";
+              Style: (...$ZX.@ZigCaptionStyle, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 2);
+            }
+          }
+
+          Group #RecordKeepsakes {
+            FlexWeight: 1;
+            LayoutMode: Top;
+            Anchor: (Left: $ZK.@ZigSpace2);
+
+            Label #RecordKeepsakesValue {
+              Anchor: (Height: 28);
+              Text: "";
+              Style: (...$ZX.@ZigFigureStyle, HorizontalAlignment: Start);
+            }
+
+            Label #RecordKeepsakesLabel {
+              Anchor: (Height: 34);
+              Text: "";
+              Style: (...$ZX.@ZigCaptionStyle, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 2);
+            }
+          }
+        }
       }
     }
 
-    Group #RightPanel {
-      FlexWeight: 1;
+    Group #RightColumn {
+      Anchor: (Width: 962, Left: 12);
       LayoutMode: Top;
-      Padding: (Full: 20);
 
-      Group #DetailHeader {
-        LayoutMode: Left;
-        Anchor: (Height: 30, Bottom: 4);
+      $ZW.@ZigHeroPlate #Hero {}
 
-        Group #DetailIconSlot {
-          Anchor: (Width: 28, Height: 28, Right: 8);
-          Visible: false;
-
-          ItemGrid #IcoItem {
-            Anchor: (Width: 28, Height: 28);
-            Visible: false;
-            SlotsPerRow: 1;
-            AreItemsDraggable: false;
-            DisplayItemQuantity: false;
-            Style: $Z.@ZigIconGrid28;
-          }
-
-          AssetImage #IcoTex {
-            Anchor: (Width: 28, Height: 28);
-            Visible: false;
-            FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
-          }
-        }
-
-        Label #DetailTitle {
-          FlexWeight: 1;
-          Text: "";
-          Anchor: (Height: 30);
-          Style: (FontSize: $ZT.@ZigFontDisplay, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
-        }
-      }
-
-      Label #DetailStatus {
-        Text: "";
-        Anchor: (Height: 20, Bottom: 8);
-        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
-      }
-
-      Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
-
-      Label #Flavor {
-        Text: "";
-        Visible: false;
-        Anchor: (Bottom: 12);
-        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, Wrap: true);
-      }
-
-      Group #DetailList {
+      Group #SeasonBody {
         FlexWeight: 1;
         LayoutMode: TopScrolling;
         ScrollbarStyle: $C.@DefaultScrollbarStyle;
-        Padding: (Right: 4);
+        Padding: (Left: 24, Right: 32, Top: 16, Bottom: 16);
+
+        Label #Flavor {
+          Anchor: (Bottom: $ZK.@ZigSpace4);
+          Text: "";
+          Visible: false;
+          Style: (...$ZX.@ZigLeadStyle, WrapMaxLines: 3);
+        }
+
+        Group #YearChips {
+          LayoutMode: LeftWrap;
+          Anchor: (Bottom: $ZK.@ZigSpace2);
+        }
+
+        $C.@PanelSeparatorFancy #ScopeRule {
+          @Anchor = (Top: $ZK.@ZigSpace1, Bottom: $ZK.@ZigSpace3);
+        }
+
+        $ZW.@ZigSectionHeader #ScopeHeader {
+          @Anchor = (Bottom: $ZK.@ZigSpace3);
+        }
+
+        Group #StatGrid {
+          LayoutMode: LeftWrap;
+        }
+
+        Label #Hint {
+          Anchor: (Height: 20, Top: $ZK.@ZigSpace1);
+          Text: "";
+          Visible: false;
+          Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+        }
+
+        $ZW.@ZigSectionHeader #KeepsakeHeader {
+          @Anchor = (Top: $ZK.@ZigSpace4, Bottom: $ZK.@ZigSpace3);
+          Visible: false;
+        }
+
+        Group #KeepsakeShelf {
+          LayoutMode: LeftWrap;
+          Visible: false;
+        }
+
+        $ZW.@ZigSectionHeader #AchHeader {
+          @Anchor = (Top: $ZK.@ZigSpace4, Bottom: $ZK.@ZigSpace3);
+          Visible: false;
+        }
+
+        $ZW.@ZigProgressBar #AchBar {
+          @Height = 6;
+          @Anchor = (Bottom: $ZK.@ZigSpace3);
+          Visible: false;
+        }
+
+        Group #FeatList {
+          LayoutMode: LeftWrap;
+          Visible: false;
+        }
+
+        Group #Links {
+          LayoutMode: Left;
+          Anchor: (Height: $ZK.@ZigControlHeight, Top: $ZK.@ZigSpace4);
+          Visible: false;
+
+          @AlmanacLink #Link1 {}
+          @AlmanacLink #Link2 {}
+          @AlmanacLink #Link3 {}
+          @AlmanacLink #Link4 {}
+        }
       }
+    }
+
+    $ZW.@ZigEmptyState #AlmanacEmpty {
+      Visible: false;
+      FlexWeight: 1;
+      Anchor: (Left: 12);
     }
   }
 }

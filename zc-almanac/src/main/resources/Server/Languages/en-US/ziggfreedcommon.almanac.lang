@@ -89,3 +89,8 @@ headline.live = {0} is on now
 stats.section = Seasons
 stats.row.meta = {0, number} {0, plural, one{season taken part in} other{seasons taken part in}}
 stats.open = Open in the Almanac
+
+# The season list's second head (after On now), and a year as a label (a year chip, a keepsake tile): text, so
+# no locale groups its digits.
+seasons.all = All seasons
+year = {0}

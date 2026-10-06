@@ -27,10 +27,7 @@ public final class AlmanacText {
 
     /** Every key this module speaks, for the test that holds the English file to it. */
     public static final List<String> SPOKEN = List.of(
-            "title", "seasons.empty", "status.live", "status.between",
-            "section.season", "section.last", "section.lifetime", "section.keepsakes",
-            "section.achievements", "attended.yes", "attended.count", "stat.line", "stat.none",
-            "keepsake.line", "keepsake.none", "achievements.count", "banner.line", "banner.earned",
+            "title", "status.live", "achievements.count",
             "desc.family", "desc.open", "desc.arg.event",
             "open.needsPlayer", "open.failed", "open.off",
             "achievement.category.seasons",
@@ -47,7 +44,7 @@ public final class AlmanacText {
             "tile.in_all", "tile.server", "keepsakes.title", "keepsakes.meta", "keepsake.to_earn",
             "keepsake.missed", "achievements.title", "record.title", "record.seasons", "record.keepsakes",
             "empty.none.title", "empty.none.line", "hint.first_time", "glance.title", "headline.live",
-            "stats.section", "stats.row.meta", "stats.open");
+            "stats.section", "stats.row.meta", "stats.open", "seasons.all", "year");
 
     private static final Color BAD = new Color(0xFF5555);
 

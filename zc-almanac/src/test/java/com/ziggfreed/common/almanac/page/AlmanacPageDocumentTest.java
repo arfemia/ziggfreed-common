@@ -1,5 +1,6 @@
 package com.ziggfreed.common.almanac.page;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,52 +10,262 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.MonthDay;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.protocol.packets.interface_.CustomUICommand;
+import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBinding;
+import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
+import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
+import com.ziggfreed.common.almanac.page.AlmanacDestinations.Almanac;
+import com.ziggfreed.common.almanac.view.AlmanacView.Banner;
+import com.ziggfreed.common.almanac.view.AlmanacView.Feat;
+import com.ziggfreed.common.almanac.view.AlmanacView.Hero;
+import com.ziggfreed.common.almanac.view.AlmanacView.HeroComposition;
+import com.ziggfreed.common.almanac.view.AlmanacView.HeroGlow;
+import com.ziggfreed.common.almanac.view.AlmanacView.HeroGradient;
+import com.ziggfreed.common.almanac.view.AlmanacView.HeroItem;
+import com.ziggfreed.common.almanac.view.AlmanacView.MonthMarks;
+import com.ziggfreed.common.almanac.view.AlmanacView.Record;
+import com.ziggfreed.common.almanac.view.AlmanacView.Scope;
+import com.ziggfreed.common.almanac.view.AlmanacView.Season;
+import com.ziggfreed.common.almanac.view.AlmanacView.SeasonAchievements;
+import com.ziggfreed.common.almanac.view.AlmanacView.SeasonLink;
+import com.ziggfreed.common.almanac.view.AlmanacView.SeasonPage;
+import com.ziggfreed.common.almanac.view.AlmanacView.Tally;
+import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
+import com.ziggfreed.common.almanac.view.AlmanacView.YearChip;
+import com.ziggfreed.common.almanac.view.AlmanacView.YearKeepsake;
 import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.ui.kit.KeepsakeState;
+import com.ziggfreed.common.ui.kit.RowSize;
+import com.ziggfreed.common.ui.menu.MenuFrame;
 
 /**
- * The page document, and the shared list row the page appends, against the elements the page paints
- * into. The page itself cannot run in a unit JVM (the engine's command builder reaches the item
- * store), and a command against an element the document lacks crashes the client, so each document
- * is held to the ids the Java addresses.
+ * The page document against the Java that paints it. The page cannot run in a unit JVM (its build reaches the
+ * player's store), but what it paints can: {@link AlmanacPage#paint} is driven here with full plans (under the
+ * engine's log manager, in {@code engineItemTest}) and every selector it sends is held to the documents it lands
+ * in, since a command against an id a document lacks disconnects the player. Beside the ids: every picture slot is an {@code AssetImage} (the season list's row
+ * included), every text size is a {@code Common/ZigType.ui} step at the floor or above, every colour is a token,
+ * and {@link AlmanacLayout} is the document's geometry.
  */
 class AlmanacPageDocumentTest {
 
-    private static final Pattern SHIPS_HIDDEN = Pattern.compile("\\bVisible\\s*:\\s*false\\s*;");
+    private static final String KIT = "Common/ZigKit.ui";
+    private static final String FRAMES = "Common/ZigFrames.ui";
 
+    /** A declaration of an element: its id, then the brace that opens its block. */
+    private static final Pattern DECLARED = Pattern.compile("#([A-Za-z][A-Za-z0-9]*)\\s*\\{");
+
+    private static final Pattern FONT_SIZE = Pattern.compile("(?:MinShrinkTextToFitFontSize|FontSize)\\s*:\\s*([^,;)]+)");
+    private static final Set<String> STEPS = Set.of("Caption", "Section", "Body", "Emphasis", "Heading", "Subtitle",
+            "Title", "Display", "DisplayLarge", "Hero");
+
+    /** A colour written as a literal ({@code #rgb}, {@code #rrggbb}, {@code #rrggbbaa}), not as a token. */
+    private static final Pattern COLOUR_LITERAL = Pattern.compile("#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\\b");
+
+    // ---- every id the page addresses exists ----
+
+    /** Tagged {@code engine-items}: a {@link UICommandBuilder}'s static init reaches the engine's item codec. */
     @Test
-    void theSeasonsPictureHasTheSlotThePagePaintsItInto() throws IOException {
-        String slot = block(document(AlmanacPage.PAGE_TEMPLATE), AlmanacPage.SEASON_ICON);
-
-        assertNotNull(slot, AlmanacPage.PAGE_TEMPLATE + " declares no " + AlmanacPage.SEASON_ICON
-                + ", which the page paints the season's picture into on every build");
-        assertTrue(slot.contains("ItemGrid " + IconRenderer.ITEM_ICON_ID),
-                "the slot holds the grid an item's picture is drawn in");
-        assertTrue(slot.contains("AssetImage " + IconRenderer.TEXTURE_ICON_ID),
-                "the slot holds the image a texture's picture is drawn in");
+    @Tag("engine-items")
+    void everyIdThePageAddressesIsDeclaredWhereItLands() throws IOException {
+        Set<String> declared = new HashSet<>();
+        for (String doc : List.of(AlmanacPage.PAGE_TEMPLATE, KIT, FRAMES)) {
+            Matcher m = DECLARED.matcher(document(doc));
+            while (m.find()) {
+                declared.add(m.group(1));
+            }
+        }
+        List<String> missing = new ArrayList<>();
+        for (AlmanacPagePlan plan : List.of(fullPlan(composedHero()), fullPlan(artHero()), fullPlan(pictureHero()),
+                emptyPlan())) {
+            UICommandBuilder cmd = new UICommandBuilder();
+            UIEventBuilder events = new UIEventBuilder();
+            AlmanacPage.paint(cmd, events, plan, null);
+            List<String> selectors = new ArrayList<>();
+            for (CustomUICommand command : cmd.getCommands()) {
+                if (command.selector != null) {
+                    selectors.add(command.selector);
+                }
+            }
+            for (CustomUIEventBinding binding : events.getEvents()) {
+                selectors.add(binding.selector);
+            }
+            for (String selector : selectors) {
+                for (String id : ownIds(selector)) {
+                    if (!declared.contains(id)) {
+                        missing.add(selector + " (#" + id + ")");
+                    }
+                }
+            }
+        }
+        assertTrue(missing.isEmpty(), "the page sends commands to ids no document declares: " + missing);
     }
 
     @Test
-    void eachListedSeasonsRowHasAHiddenSlotThePagePaintsItsPictureInto() throws IOException {
-        String slot = block(document(AlmanacPage.ROW_TEMPLATE), AlmanacPage.ROW_ICON);
-
-        assertNotNull(slot, AlmanacPage.ROW_TEMPLATE + " declares no " + AlmanacPage.ROW_ICON
-                + ", which the page paints each listed season's picture into");
-        assertTrue(SHIPS_HIDDEN.matcher(ownProperties(slot)).find(),
-                "the slot itself ships Visible: false, so a list that paints no picture, and a section "
-                        + "heading, reads as it did before the slot existed");
-        assertTrue(slot.contains("ItemGrid " + IconRenderer.ITEM_ICON_ID),
-                "the slot holds the grid an item's picture is drawn in");
-        assertTrue(slot.contains("AssetImage " + IconRenderer.TEXTURE_ICON_ID),
-                "the slot holds the image a texture's picture is drawn in");
+    void theHerosPicturesHangUnderItsFadeAndEachIsAnAssetImage() throws IOException {
+        String plate = template(document(KIT), "@ZigHeroPlate");
+        int glow = plate.indexOf("#HeroGlow");
+        int items = plate.indexOf("#HeroItems");
+        int fade = plate.indexOf("#HeroFade");
+        assertTrue(glow > 0 && items > glow && fade > items,
+                "@ZigHeroPlate holds #HeroItems between its glow and its fade, so the fade draws over the pictures");
+        assertTrue(document(AlmanacPage.PAGE_TEMPLATE).contains("$ZW.@ZigHeroPlate #Hero"));
+        assertTrue(AlmanacPage.HERO_PICTURE.contains("AssetImage " + IconRenderer.TEXTURE_ICON_ID),
+                "a composed hero's picture is the one plain picture slot: no tooltip, no rarity square");
+        assertFalse(AlmanacPage.HERO_PICTURE.contains("ItemGrid") || AlmanacPage.HERO_PICTURE.contains("ItemIcon"));
     }
+
+    // ---- pictures ----
+
+    @Test
+    void eachListedSeasonsRowHasThePictureSlotThePagePaintsItsPictureInto() throws IOException {
+        assertEquals("Pages/ZigLedgerRow.ui", RowSize.STANDARD.template(), "the season list paints the kit's row");
+        String row = document(RowSize.STANDARD.template());
+        assertTrue(Pattern.compile("\\$ZW\\.@ZigPicture\\s+#Pic\\s*\\{").matcher(row).find(),
+                "the row declares the kit's picture slot #Pic, which the painter draws each season's picture into");
+        assertFalse(row.contains("ItemGrid") || row.contains("ItemIcon"),
+                "a row's picture shows no item tooltip and no rarity square");
+        String picture = template(document(KIT), "@ZigPicture");
+        assertTrue(picture.contains("AssetImage " + IconRenderer.TEXTURE_ICON_ID),
+                "the slot is the AssetImage IconRenderer.applyPlainIcon paints an item's own icon into");
+    }
+
+    @Test
+    void everyPictureSlotIsAnAssetImage() throws IOException {
+        for (String doc : List.of(AlmanacPage.PAGE_TEMPLATE, AlmanacPage.MARK_TEMPLATE)) {
+            String ui = document(doc);
+            assertFalse(ui.contains("ItemGrid"), doc + " draws no item grid: a picture here only displays");
+            assertFalse(ui.contains("ItemIcon"), doc + " declares no ItemIcon (it drew blank in game)");
+        }
+        String page = document(AlmanacPage.PAGE_TEMPLATE);
+        for (String slot : List.of("#BannerPic")) {
+            assertTrue(Pattern.compile("\\$ZW\\.@ZigPicture\\s+" + slot + "\\s*\\{").matcher(page).find(),
+                    slot + " is the kit's picture slot");
+        }
+    }
+
+    // ---- type and colour ----
+
+    @Test
+    void everyTextSizeIsATypeStepAtTheFloorOrAbove() throws IOException {
+        for (String doc : List.of(AlmanacPage.PAGE_TEMPLATE, AlmanacPage.MARK_TEMPLATE)) {
+            Matcher m = FONT_SIZE.matcher(document(doc));
+            while (m.find()) {
+                String value = m.group(1).trim();
+                assertTrue(value.startsWith("$ZT.@ZigFont") && STEPS.contains(value.substring("$ZT.@ZigFont".length())),
+                        doc + ": a size is a ZigType step of 13 or more, never a number: " + value);
+            }
+        }
+    }
+
+    @Test
+    void everyColourIsAToken() throws IOException {
+        for (String doc : List.of(AlmanacPage.PAGE_TEMPLATE, AlmanacPage.MARK_TEMPLATE)) {
+            Matcher m = COLOUR_LITERAL.matcher(document(doc));
+            String found = m.find() ? m.group() : null;
+            assertEquals(null, found, doc + " spells a colour instead of naming a Common/ZigTokens.ui token");
+        }
+        for (String source : List.of("AlmanacPage.java", "AlmanacPagePlan.java")) {
+            String java = Files.readString(Path.of("src", "main", "java", "com", "ziggfreed", "common", "almanac",
+                    "page", source), StandardCharsets.UTF_8);
+            Matcher m = Pattern.compile("\"#[0-9a-fA-F]{6}").matcher(java);
+            assertFalse(m.find(), source + " pushes a hex literal; a colour is a ZigTokens constant or a clamped "
+                    + "data accent");
+        }
+    }
+
+    // ---- the layout ----
+
+    @Test
+    void theLayoutAddsUpAndTheDocumentSpellsIt() throws IOException {
+        assertEquals(MenuFrame.BODY_WIDTH, AlmanacLayout.LEFT_WIDTH + AlmanacLayout.GAP + AlmanacLayout.RIGHT_WIDTH,
+                "the two columns and the gap fill the frame's body");
+        assertEquals(962, AlmanacLayout.RIGHT_WIDTH);
+        assertEquals(AlmanacLayout.RIGHT_WIDTH, AlmanacLayout.HERO_WIDTH, "the hero spans the right column");
+        assertEquals(276, AlmanacLayout.LEFT_INNER);
+        assertEquals(906, AlmanacLayout.CONTENT_WIDTH, "the scrolling body's content");
+        assertTrue(AlmanacLayout.STAT_TILES_PER_ROW * AlmanacLayout.STAT_TILE_STEP <= AlmanacLayout.CONTENT_WIDTH,
+                "four stat tiles a row");
+        assertTrue(AlmanacLayout.KEEPSAKES_PER_ROW * AlmanacLayout.KEEPSAKE_STEP <= AlmanacLayout.CONTENT_WIDTH,
+                "seven keepsakes a row");
+        assertTrue(AlmanacLayout.LINK_SLOTS * AlmanacLayout.LINK_STEP <= AlmanacLayout.CONTENT_WIDTH,
+                "the links fit one line");
+        assertTrue(AlmanacLayout.MONTH_MARKS_MAX * (AlmanacLayout.MONTH_MARK + 4) + 48 + 16 <= AlmanacLayout.LEFT_INNER,
+                "a month row holds its label and its marks");
+        int left = AlmanacLayout.BODY_HEIGHT - 2 * AlmanacLayout.LEFT_PADDING
+                - (AlmanacLayout.TITLE_HEIGHT + AlmanacLayout.TITLE_GAP)
+                - (AlmanacLayout.LEAD_HEIGHT + AlmanacLayout.LEAD_GAP)
+                - (AlmanacLayout.BANNER_HEIGHT + AlmanacLayout.BANNER_GAP)
+                - (AlmanacLayout.GLANCE_GAP + AlmanacLayout.GLANCE_HEIGHT)
+                - (AlmanacLayout.RECORD_GAP + AlmanacLayout.RECORD_HEIGHT);
+        assertTrue(left >= AlmanacLayout.LIST_MIN_HEIGHT, "the season list keeps room beside every fixed block: " + left);
+
+        String ui = document(AlmanacPage.PAGE_TEMPLATE);
+        assertEquals(AlmanacLayout.LEFT_WIDTH, anchor(ui, "#LeftColumn", "Width"));
+        assertEquals(AlmanacLayout.LEFT_PADDING, leaf(property(block(ui, "#LeftColumn"), "Padding"), "Full"));
+        assertEquals(AlmanacLayout.RIGHT_WIDTH, anchor(ui, "#RightColumn", "Width"));
+        assertEquals(AlmanacLayout.GAP, anchor(ui, "#RightColumn", "Left"));
+        assertEquals(AlmanacLayout.TITLE_HEIGHT, anchor(ui, "#AlmanacTitle", "Height"));
+        assertEquals(AlmanacLayout.LEAD_HEIGHT, anchor(ui, "#AlmanacLead", "Height"));
+        assertEquals(AlmanacLayout.BANNER_HEIGHT, anchor(ui, "#BannerCard", "Height"));
+        assertEquals(AlmanacLayout.GLANCE_HEIGHT, anchor(ui, "#Glance", "Height"));
+        assertEquals(AlmanacLayout.GLANCE_TITLE_HEIGHT, anchor(ui, "#GlanceTitle", "Height"));
+        assertEquals(AlmanacLayout.RECORD_HEIGHT, anchor(ui, "#RecordCard", "Height"));
+        String body = property(block(ui, "#SeasonBody"), "Padding");
+        assertEquals(AlmanacLayout.BODY_PAD_LEFT, leaf(body, "Left"));
+        assertEquals(AlmanacLayout.BODY_PAD_RIGHT + AlmanacLayout.SCROLL_GUTTER, leaf(body, "Right"));
+        assertEquals(AlmanacLayout.BODY_PAD_TOP, leaf(body, "Top"));
+        String month = template(ui, "@AlmanacMonth");
+        assertEquals(AlmanacLayout.MONTH_HEIGHT, leaf(property(month, "Anchor"), "Height"));
+        String link = template(ui, "@AlmanacLink");
+        assertEquals(AlmanacLayout.LINK_WIDTH, leaf(property(link, "Anchor"), "Width"));
+        String mark = block(document(AlmanacPage.MARK_TEMPLATE), "#ZigAlmanacMonthMark");
+        assertEquals(AlmanacLayout.MONTH_MARK, leaf(property(mark, "Anchor"), "Width"));
+        assertEquals(AlmanacLayout.MONTH_MARK, leaf(property(mark, "Anchor"), "Height"));
+    }
+
+    @Test
+    void theYearAtAGlanceIsTwelveAuthoredMonthRowsEachAButtonWithItsMarks() throws IOException {
+        String ui = document(AlmanacPage.PAGE_TEMPLATE);
+        String month = template(ui, "@AlmanacMonth");
+        assertTrue(month.trim().startsWith("Button"), "a month row is a button: a click selects its first season");
+        assertTrue(month.contains("Label #Label"), "its label is the button's own #Label");
+        assertTrue(month.contains("Group #Marks"), "its marks host");
+        for (int m = 1; m <= AlmanacLayout.MONTHS; m++) {
+            assertTrue(Pattern.compile("@AlmanacMonth\\s+#Month" + m + "\\s*\\{").matcher(ui).find(), "#Month" + m);
+        }
+        assertFalse(ui.contains("#Month13"));
+        for (int i = 1; i <= AlmanacLayout.LINK_SLOTS; i++) {
+            assertTrue(Pattern.compile("@AlmanacLink\\s+#Link" + i + "\\s*\\{").matcher(ui).find(), "#Link" + i);
+        }
+    }
+
+    @Test
+    void everyWrappingGridIsAVanillaWrap() throws IOException {
+        String ui = document(AlmanacPage.PAGE_TEMPLATE);
+        for (String grid : List.of("#YearChips", "#StatGrid", "#KeepsakeShelf", "#FeatList")) {
+            assertEquals("LeftWrap", property(block(ui, grid), "LayoutMode"),
+                    grid + " wraps left to right (vanilla TriggerVolumeBrowseVolumeRow.ui)");
+        }
+    }
+
+    // ---- the handler ----
 
     @Test
     void theAlmanacSitsInTheSharedMenuAndAnswersTheRailFirst() throws IOException {
@@ -62,14 +273,95 @@ class AlmanacPageDocumentTest {
         assertTrue(ui.contains("$F.@ZigMenuFrame"), "the Almanac carries the shared rail, so it is no dead end");
         assertFalse(ui.contains("@ZigDecoratedFrame"));
 
-        String page = Files.readString(Path.of("src", "main", "java", "com", "ziggfreed", "common", "almanac",
-                "page", "AlmanacPage.java"), StandardCharsets.UTF_8);
+        String page = source();
         assertTrue(page.contains("ZigMenu.paint("), "the page paints the rail");
         int handler = page.indexOf("public void handleDataEvent(");
         int rail = page.indexOf("rail.handle(", handler);
         int action = page.indexOf("data.action", handler);
         assertTrue(handler > 0 && rail > handler && rail < action,
-                "a rail click carries no Action, and the page closes on anything it does not know");
+                "a rail click carries no Action, so the rail hears every event first");
+    }
+
+    @Test
+    void everyExitOfTheHandlerAnswersTheNullPlayerIncluded() throws IOException {
+        String page = source();
+        int handler = page.indexOf("public void handleDataEvent(");
+        int none = page.indexOf("player == null", handler);
+        assertTrue(none > handler, "the handler checks for a missing player");
+        String branch = page.substring(none, page.indexOf('}', none));
+        assertTrue(branch.contains("answer()"), "a missing player still gets an update, so the client never locks: "
+                + branch);
+    }
+
+    // ---- fixtures ----
+
+    private static AlmanacPagePlan fullPlan(Hero hero) {
+        MonthDay oct1 = MonthDay.of(10, 1);
+        MonthDay nov3 = MonthDay.of(11, 3);
+        Season live = new Season("hallows_eve", "almanac.test.title", "almanac.test.flavor", "Test_Icon", true, 2026);
+        Season later = new Season("harvest_moon", null, null, null, false, 0);
+        Timing timing = new Timing(true, 27, false, null, false, oct1, nov3, LocalDate.of(2027, 10, 1), false);
+        Timing between = new Timing(false, null, false, 23, false, oct1, nov3, LocalDate.of(2026, 10, 29), false);
+        List<YearChip> years = List.of(new YearChip(2025, false, true, true), new YearChip(2026, true, true, false));
+        SeasonPage page = new SeasonPage(live, timing, years, new Scope(2026), true,
+                List.of(new Tally("bombs_thrown", "almanac.test.bombs", "Test_Bomb", 5L, 12L, 40L)),
+                List.of(new YearKeepsake(2025, KeepsakeState.EARNED, "Keepsake_2025", "Test_Keepsake"),
+                        new YearKeepsake(2026, KeepsakeState.TO_EARN, "Keepsake_2026", "Test_Keepsake")),
+                new SeasonAchievements(4, 9, List.of(new Feat("Feat_One", "Test_Icon"))), hero, "#E8752A",
+                List.of(new SeasonLink("almanac.test.link", Almanac.of("harvest_moon"))));
+        List<MonthMarks> months = new ArrayList<>();
+        for (int m = 1; m <= 12; m++) {
+            months.add(new MonthMarks(m, m == 10 || m == 11 ? List.of("hallows_eve", "harvest_moon") : List.of()));
+        }
+        return AlmanacPagePlan.of(List.of(live, later), Map.of("hallows_eve", timing, "harvest_moon", between), page,
+                new Record(2L, 1L), months, Map.of("hallows_eve", "#E8752A"), 10,
+                new Banner("Seasons_Of_Orbis", false, 2, 4), "Deco_Scroll");
+    }
+
+    private static AlmanacPagePlan emptyPlan() {
+        List<MonthMarks> months = new ArrayList<>();
+        for (int m = 1; m <= 12; m++) {
+            months.add(new MonthMarks(m, List.of()));
+        }
+        return AlmanacPagePlan.of(List.of(), Map.of(), null, new Record(0L, 0L), months, Map.of(), 10, null, null);
+    }
+
+    private static Hero composedHero() {
+        return new Hero(null, new HeroComposition("#121a2e", "UI/Custom/Almanac/Sky.png",
+                new HeroGradient("#0a0f1e", "#2a1a2c"), new HeroGlow("#a0501a", 514, -78, 400),
+                List.of(new HeroItem("Lantern", "Icons/ItemsGenerated/Lantern.png", 650, 58, 128),
+                        new HeroItem("Bomb", "Icons/ItemsGenerated/Bomb.png", 562, 14, 64))), "Icons/ItemsGenerated/X.png");
+    }
+
+    private static Hero artHero() {
+        return new Hero("UI/Custom/Almanac/Hallows_Eve.png", null, "Icons/ItemsGenerated/X.png");
+    }
+
+    private static Hero pictureHero() {
+        return new Hero(null, null, "Icons/ItemsGenerated/X.png");
+    }
+
+    /**
+     * The ids a selector names in documents the page declares: everything before the first index (what follows an
+     * index is an appended template's, which the kit's own tests pin), each property suffix dropped.
+     */
+    @Nonnull
+    private static Set<String> ownIds(@Nonnull String selector) {
+        int index = selector.indexOf('[');
+        String head = index < 0 ? selector : selector.substring(0, index);
+        Set<String> ids = new TreeSet<>();
+        for (String token : head.trim().split("\\s+")) {
+            if (token.startsWith("#")) {
+                ids.add(token.substring(1).split("\\.")[0]);
+            }
+        }
+        return ids;
+    }
+
+    @Nonnull
+    private static String source() throws IOException {
+        return Files.readString(Path.of("src", "main", "java", "com", "ziggfreed", "common", "almanac", "page",
+                "AlmanacPage.java"), StandardCharsets.UTF_8);
     }
 
     /** The shipped document with every {@code //} comment removed, so a sentence never satisfies a check. */
@@ -86,28 +378,39 @@ class AlmanacPageDocumentTest {
         }
     }
 
-    /** The block the element {@code id} declares, from its opening brace to the one that closes it; null for none. */
-    @Nullable
+    /** The block the element {@code id} declares, from its type to the brace that closes it; fails for none. */
+    @Nonnull
     private static String block(@Nonnull String ui, @Nonnull String id) {
-        Matcher declaration = Pattern.compile("\\w+\\s+" + Pattern.quote(id) + "\\s*\\{").matcher(ui);
-        if (!declaration.find()) {
-            return null;
-        }
+        Matcher declaration = Pattern.compile("[\\w@$.]+\\s+" + Pattern.quote(id) + "\\s*\\{").matcher(ui);
+        assertTrue(declaration.find(), "the document declares " + id);
+        return braces(ui, declaration.start(), declaration.end() - 1);
+    }
+
+    /** A named template's body, {@code @Name = Type { ... }}. */
+    @Nonnull
+    private static String template(@Nonnull String ui, @Nonnull String name) {
+        Matcher declaration = Pattern.compile(Pattern.quote(name) + "\\s*=\\s*(\\w+)\\s*\\{").matcher(ui);
+        assertTrue(declaration.find(), "the document defines " + name);
+        return braces(ui, declaration.start(1), declaration.end() - 1);
+    }
+
+    @Nonnull
+    private static String braces(@Nonnull String ui, int from, int open) {
         int depth = 0;
-        for (int i = declaration.end() - 1; i < ui.length(); i++) {
+        for (int i = open; i < ui.length(); i++) {
             char c = ui.charAt(i);
             if (c == '{') {
                 depth++;
             } else if (c == '}' && --depth == 0) {
-                return ui.substring(declaration.start(), i + 1);
+                return ui.substring(from, i + 1);
             }
         }
-        return null;
+        throw new AssertionError("an unclosed block at " + from);
     }
 
-    /** What a block says about its own element: its text inside its braces, minus every block nested in it. */
-    @Nonnull
-    private static String ownProperties(@Nonnull String block) {
+    /** A property's value written on the block's own element (not in a nested block), or null. */
+    @Nullable
+    private static String property(@Nonnull String block, @Nonnull String name) {
         StringBuilder own = new StringBuilder();
         int depth = 0;
         for (int i = 0; i < block.length(); i++) {
@@ -120,6 +423,19 @@ class AlmanacPageDocumentTest {
                 own.append(c);
             }
         }
-        return own.toString();
+        Matcher m = Pattern.compile("(?<![\\w@])" + Pattern.quote(name) + "\\s*:\\s*([^;]+);").matcher(own);
+        return m.find() ? m.group(1).trim() : null;
+    }
+
+    /** An integer leaf of a {@code (Key: value, ...)} object. */
+    private static int leaf(@Nullable String object, @Nonnull String key) {
+        assertNotNull(object, "no object holds " + key);
+        Matcher m = Pattern.compile("\\b" + Pattern.quote(key) + "\\s*:\\s*(\\d+)").matcher(object);
+        assertTrue(m.find(), object + " says " + key);
+        return Integer.parseInt(m.group(1));
+    }
+
+    private static int anchor(@Nonnull String ui, @Nonnull String id, @Nonnull String key) {
+        return leaf(property(block(ui, id), "Anchor"), key);
     }
 }

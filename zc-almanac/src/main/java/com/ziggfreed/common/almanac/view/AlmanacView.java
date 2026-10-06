@@ -21,6 +21,7 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.asset.common.CommonAssetRegistry;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.almanac.AlmanacCalendar;
@@ -32,8 +33,10 @@ import com.ziggfreed.common.almanac.asset.AlmanacHeroAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacLinkAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacStatAsset;
 import com.ziggfreed.common.counter.CounterMap;
+import com.ziggfreed.common.inventory.ItemIds;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.kit.KeepsakeState;
 import com.ziggfreed.common.ui.route.Destination;
 
 /**
@@ -198,6 +201,28 @@ public final class AlmanacView {
     public record Hero(@Nullable String art, @Nullable HeroComposition composition, @Nullable String iconPath) {
     }
 
+    /**
+     * One keepsake tile: a year the season ran (or the player counted in, or earned a copy for), oldest
+     * first; earned, still to earn (the run on now), or missed. {@code achievementId} is that year's copy
+     * (null when the catalogue has none for the year); {@code icon} is the copy's item, else any copy's.
+     */
+    public record YearKeepsake(int year, @Nonnull KeepsakeState state, @Nullable String achievementId,
+                               @Nullable String icon) {
+    }
+
+    /**
+     * Everything a season's page says for one player: when it runs, the years to read and the scope read,
+     * whether the player took part in that scope, the tiles, the keepsake shelf (null: the section is
+     * absent, for a season with no keepsake, no subject loaded, or a first run still ahead), the
+     * achievements (null: absent, nothing filed or no subject), the resolved hero, the season's authored
+     * accent ({@code #rrggbb}, unclamped; null when none) and the links.
+     */
+    public record SeasonPage(@Nonnull Season season, @Nonnull Timing timing, @Nonnull List<YearChip> years,
+                             @Nonnull Scope scope, boolean tookPartInScope, @Nonnull List<Tally> tallies,
+                             @Nullable List<YearKeepsake> keepsakes, @Nullable SeasonAchievements achievements,
+                             @Nonnull Hero hero, @Nullable String accentHex, @Nonnull List<SeasonLink> links) {
+    }
+
     private AlmanacView() {
     }
 
@@ -321,6 +346,40 @@ public final class AlmanacView {
 
     // ==================== the redesigned season page ====================
 
+    /**
+     * One season's page for one player, read in {@code requested} scope when that scope is listed (null:
+     * the default, today's rule: the year on now, else the last year taken part in, else every season).
+     * {@code page} is the season's loaded page (null: no tiles, no keepsakes, no links); a null engine or
+     * subject leaves the keepsake and achievement sections absent.
+     */
+    @Nonnull
+    public static SeasonPage page(@Nonnull Season season, @Nullable AlmanacEntryAsset page,
+            @Nonnull CounterMap tallies, @Nullable AchievementEngine engine, @Nullable Subject subject,
+            @Nullable Scope requested, @Nonnull AlmanacCalendar calendar, @Nonnull ServerTallies server,
+            long nowMs) {
+        return page(season, page, tallies, engine, subject, requested, calendar, server, nowMs,
+                AlmanacView::textureShips, ItemIds::iconPath);
+    }
+
+    /** {@link #page} with the texture and item-picture lookups handed in, for a test with no asset store. */
+    @Nonnull
+    static SeasonPage page(@Nonnull Season season, @Nullable AlmanacEntryAsset page, @Nonnull CounterMap tallies,
+            @Nullable AchievementEngine engine, @Nullable Subject subject, @Nullable Scope requested,
+            @Nonnull AlmanacCalendar calendar, @Nonnull ServerTallies server, long nowMs,
+            @Nonnull Predicate<String> textureShips, @Nonnull Function<String, String> iconPaths) {
+        String eventId = season.eventId();
+        Dates dates = calendar.dates(eventId, nowMs);
+        Timing timing = timing(season, dates, nowMs);
+        Map<Integer, Achievement> copies = keepsakeCopies(page, engine);
+        Set<Integer> earned = yearsEarned(copies, engine, subject);
+        List<YearChip> years = years(season, timing, dates, tallies, earned);
+        Scope scope = scope(requested, season, timing, years);
+        return new SeasonPage(season, timing, years, scope, tookPartIn(scope, years),
+                tallies(page, eventId, tallies, scope, server), keepsakes(page, engine, subject, copies, earned, years),
+                achievements(eventId, page, engine, subject), hero(season, page, textureShips, iconPaths),
+                page == null ? null : page.accent(), links(page));
+    }
+
     /** When {@code season} runs, as the calendar knows it at {@code nowMs}: its chip, row line and dates. */
     @Nonnull
     public static Timing timing(@Nonnull Season season, @Nonnull AlmanacCalendar calendar, long nowMs) {
@@ -423,17 +482,20 @@ public final class AlmanacView {
         return false;
     }
 
-    /** The season's tiles in {@code scope}, by Order then name; a tile nothing counted reads 0. */
+    /**
+     * The season's tiles in {@code scope}, by Order then name; a tile nothing counted reads 0. A null
+     * {@code server} reads no server line (a surface that shows only the player's own figures).
+     */
     @Nonnull
-    static List<Tally> tallies(@Nullable AlmanacEntryAsset page, @Nonnull String eventId, @Nonnull CounterMap tallies,
-            @Nonnull Scope scope, @Nonnull ServerTallies server) {
+    public static List<Tally> tallies(@Nullable AlmanacEntryAsset page, @Nonnull String eventId,
+            @Nonnull CounterMap tallies, @Nonnull Scope scope, @Nullable ServerTallies server) {
         List<Tally> out = new ArrayList<>();
         for (Map.Entry<String, AlmanacStatAsset> stat : orderedStats(page)) {
             String statId = stat.getKey();
             String lifetimeKey = AlmanacKeys.lifetime(eventId, statId);
             long lifetime = tallies.get(lifetimeKey);
             String scopedKey = scope.every() ? lifetimeKey : AlmanacKeys.season(eventId, scope.year(), statId);
-            long serverTotal = server.get(scopedKey);
+            long serverTotal = server == null ? 0L : server.get(scopedKey);
             out.add(new Tally(statId, stat.getValue().getTextKey(), stat.getValue().getIcon(),
                     scope.every() ? lifetime : tallies.get(scopedKey), scope.every() ? null : Long.valueOf(lifetime),
                     serverTotal > 0L ? Long.valueOf(serverTotal) : null));
@@ -536,6 +598,47 @@ public final class AlmanacView {
             }
         }
         return out;
+    }
+
+    /**
+     * The keepsake shelf: a tile per year the player can read (and any year a copy was earned), oldest
+     * first; earned, still to earn for the run on now, else missed. Null (the section absent) for a season
+     * with no keepsake in the catalogue, with no subject loaded, and while its first run is still ahead.
+     */
+    @Nullable
+    static List<YearKeepsake> keepsakes(@Nullable AlmanacEntryAsset page, @Nullable AchievementEngine engine,
+            @Nullable Subject subject, @Nonnull Map<Integer, Achievement> copies, @Nonnull Set<Integer> earned,
+            @Nonnull List<YearChip> years) {
+        if (page == null || page.getKeepsake() == null || engine == null || subject == null || copies.isEmpty()) {
+            return null;
+        }
+        TreeSet<Integer> shelf = new TreeSet<>(earned);
+        Integer liveYear = null;
+        for (YearChip chip : years) {
+            shelf.add(chip.year());
+            if (chip.live()) {
+                liveYear = chip.year();
+            }
+        }
+        if (shelf.isEmpty()) {
+            return null;
+        }
+        String anyIcon = null;
+        for (Achievement copy : copies.values()) {
+            if (copy.icon() != null) {
+                anyIcon = copy.icon();
+                break;
+            }
+        }
+        List<YearKeepsake> out = new ArrayList<>();
+        for (int year : shelf) {
+            Achievement copy = copies.get(year);
+            KeepsakeState state = earned.contains(year) ? KeepsakeState.EARNED
+                    : liveYear != null && liveYear == year ? KeepsakeState.TO_EARN : KeepsakeState.MISSED;
+            out.add(new YearKeepsake(year, state, copy == null ? null : copy.id(),
+                    copy != null && copy.icon() != null ? copy.icon() : anyIcon));
+        }
+        return List.copyOf(out);
     }
 
     /**
@@ -728,6 +831,21 @@ public final class AlmanacView {
             return path == null || path.isBlank() ? null : path;
         } catch (Throwable t) {
             return null;
+        }
+    }
+
+    /**
+     * Does the game ship this Common-rooted texture, or its {@code @2x} twin? The engine's own rule for a UI
+     * picture ({@code CommonAssetValidator}: a missing {@code X.png} is fine when {@code X@2x.png} ships).
+     * False in a JVM with no asset registry.
+     */
+    static boolean textureShips(@Nonnull String path) {
+        try {
+            String unix = path.replace('\\', '/');
+            return CommonAssetRegistry.hasCommonAsset(unix) || (unix.endsWith(".png")
+                    && CommonAssetRegistry.hasCommonAsset(unix.substring(0, unix.length() - 4) + "@2x.png"));
+        } catch (Throwable t) {
+            return false;
         }
     }
 

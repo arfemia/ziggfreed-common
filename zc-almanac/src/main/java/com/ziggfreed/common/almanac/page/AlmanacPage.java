@@ -1,12 +1,15 @@
 package com.ziggfreed.common.almanac.page;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
@@ -15,63 +18,136 @@ import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
+import com.hypixel.hytale.server.core.ui.Anchor;
+import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
+import com.ziggfreed.common.almanac.AlmanacCalendar;
 import com.ziggfreed.common.almanac.AlmanacComponent;
 import com.ziggfreed.common.almanac.AlmanacText;
 import com.ziggfreed.common.almanac.OccurrenceAlmanacCalendar;
+import com.ziggfreed.common.almanac.ServerTallies;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryConfig;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.AchievementShelf;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.BannerCard;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.GlanceMonth;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroBox;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroLight;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroPicture;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.HeroPlan;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.KeepsakeShelf;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.LinkButton;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.RecordCard;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.SeasonBody;
+import com.ziggfreed.common.almanac.page.AlmanacPagePlan.YearChoice;
 import com.ziggfreed.common.almanac.view.AlmanacView;
+import com.ziggfreed.common.almanac.view.AlmanacView.Banner;
+import com.ziggfreed.common.almanac.view.AlmanacView.Scope;
+import com.ziggfreed.common.almanac.view.AlmanacView.Season;
+import com.ziggfreed.common.almanac.view.AlmanacView.SeasonPage;
+import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 import com.ziggfreed.common.counter.CounterMap;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
-import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.UiRetint;
-import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.ui.kit.EmptyStatePainter;
+import com.ziggfreed.common.ui.kit.LedgerBindings;
+import com.ziggfreed.common.ui.kit.LedgerPainter;
+import com.ziggfreed.common.ui.kit.LedgerRow;
+import com.ziggfreed.common.ui.kit.LedgerSection;
+import com.ziggfreed.common.ui.kit.PillPainter;
+import com.ziggfreed.common.ui.kit.RowSize;
+import com.ziggfreed.common.ui.kit.SegmentPainter;
+import com.ziggfreed.common.ui.kit.TilePainter;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.ui.menu.MenuFrame;
 import com.ziggfreed.common.ui.menu.MenuRail;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
+import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The Almanac: every season this server runs on the left, the one being read on the right. It paints
- * {@link AlmanacView} and decides nothing: which seasons are listed, which year a section shows and
- * what counts as earned are the view's. Picking a season reopens the page, so every build is a full
- * one and no row is ever addressed by a recomputed index. It sits in the shared menu frame with the
- * Almanac tab selected on the rail. Every {@code handleDataEvent} exit opens a page, closes this one, or
- * answers a rail click nothing opened for.
+ * The Almanac: every season this server runs on the left (a ledger list, On now first, the year at a glance and
+ * the record card under it), the one being read on the right (its hero, the years to read, its tiles, keepsakes,
+ * achievements and links). It paints {@link AlmanacPagePlan} through the kit and decides nothing: what a season
+ * says is {@link AlmanacView}'s, how the page maps it onto the kit is the plan's. Every pick (a season, a year, a
+ * month) reopens the page, so every build is a full one and no row is addressed by a recomputed index. It sits in
+ * the shared menu frame with the Almanac tab selected on the rail. Every {@code handleDataEvent} exit opens a
+ * page, closes this one, or answers with an update, the missing-player exit included.
  */
 public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData> {
 
     static final String PAGE_TEMPLATE = "Pages/ZigAlmanacPage.ui";
-    static final String ROW_TEMPLATE = "Pages/ZigSelectRow.ui";
-    private static final String LINE_TEMPLATE = "Pages/ZigDetailLine.ui";
 
-    /** The slot beside the season's name that holds its picture: the two widgets {@link IconRenderer} drives. */
-    static final String SEASON_ICON = "#DetailIconSlot";
+    /** One season's mark on a month row of the year at a glance: an 8 x 8 dot, tinted to the season's accent. */
+    static final String MARK_TEMPLATE = "Pages/ZigAlmanacMonthMark.ui";
+
+    /** The pill each earned feat shows as ({@code Pages/ZigPill.ui}, addressed {@code host[i] #Pill}). */
+    static final String FEAT_TEMPLATE = "Pages/ZigPill.ui";
 
     /**
-     * The same picture's slot in each season's list row: the shared row's own hidden slot, addressed
-     * under the row's indexed parent.
+     * One composed hero's item picture, appended onto the plate's {@code #HeroItems} and placed by a whole Anchor:
+     * the kit's plain picture slot, an {@code AssetImage #IcoTex} painted through {@code IconRenderer.applyPlainIcon}
+     * (no tooltip, no rarity square), filling the box the Anchor gives it.
      */
-    static final String ROW_ICON = "#RowIconSlot";
+    static final String HERO_PICTURE = "Group { AssetImage #IcoTex { Anchor: (Full: 0); Visible: false; "
+            + "FallbackTexturePath: \"UI/Custom/Common/Glyphs/Blank.png\"; } }";
 
-    private static final String LIVE_DOT = "#7ad17a";
-    private static final String IDLE_DOT = "#96a9be";
-    private static final String HEADING = "#ffd97a";
-    private static final String ROW_SELECTED_TINT = "#1a2d44";
-    private static final String ROW_SELECTED_TEXT = "#ffffff";
+    // The hero plate's own layers (Common/ZigKit.ui's @ZigHeroPlate, instanced as #Hero): the kit has no painter
+    // for the plate, so the page addresses them here, and AlmanacPageDocumentTest holds each id to the kit.
+    private static final String HERO = "#Hero";
+    private static final String HERO_ART = HERO + " #HeroArt";
+    private static final String HERO_SKY = HERO + " #HeroGradient";
+    private static final String HERO_GLOW = HERO + " #HeroGlow";
+    private static final String HERO_ITEMS = HERO + " #HeroItems";
+    private static final String HERO_PIC = HERO + " #HeroPic";
+    private static final String HERO_CHIP = HERO + " #HeroChip";
+    private static final String HERO_TITLE = HERO + " #HeroTitle";
+    private static final String HERO_DATES = HERO + " #HeroDates";
+    private static final String HERO_ACCENT = HERO + " #HeroAccent";
+
+    // A standalone @ZigSectionHeader's label and meta (no kit painter for one outside a detail block).
+    private static final String HEAD_LABEL = " #HeadLabel";
+    private static final String HEAD_META = " #Meta";
+
+    /** Where the season's row clicks go: each reopens the page on that season. */
+    private static final LedgerBindings SEASON_ROWS = new LedgerBindings() {
+        @Override
+        public EventData row(LedgerSection s, LedgerRow r) {
+            return EventData.of("Action", "select").append("Season", r.id());
+        }
+
+        @Override
+        public EventData section(LedgerSection s) {
+            return null;
+        }
+
+        @Override
+        public EventData showMore(LedgerSection s) {
+            return null;
+        }
+    };
 
     @Nullable
     private String selected;
+
+    /** The scope a year chip asked for; null reads the season's default (the year on now, else the last taken part in). */
+    @Nullable
+    private Scope requested;
+
+    /** The plan the last build painted: a month click and a link click are answered from it, never recomputed. */
+    @Nullable
+    private AlmanacPagePlan painted;
 
     /** The rail this build painted. */
     @Nonnull private MenuRail rail = MenuRail.EMPTY;
@@ -84,31 +160,27 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     @Override
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
-        ZigMenu.appendThemed(cmd, PAGE_TEMPLATE, MenuFrame.RAIL, "#LeftPanel");
+        ZigMenu.appendThemed(cmd, PAGE_TEMPLATE, MenuFrame.RAIL);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
-        cmd.set("#AlmanacTitle.TextSpans", AlmanacText.line("title"));
-        // The shared menu's rail, the Almanac tab selected; painted before the empty-list early return.
+        // The shared menu's rail, the Almanac tab selected; painted before anything that could fail.
         rail = ZigMenu.paint(cmd, events, store, ref, store.getComponent(ref, Player.getComponentType()),
                 MenuSlot.ALMANAC.id(), false);
-
-        Map<String, AlmanacEntryAsset> pages = AlmanacEntryConfig.getInstance().all();
-        List<AlmanacView.Season> seasons = AlmanacView.seasons(pages, OccurrenceAlmanacCalendar.INSTANCE);
-        AchievementEngine engine = ProgressionRuntime.achievements();
-        Subject subject = achievementSubject(store, ref);
-        paintBanner(cmd, engine, subject);
-
-        AlmanacView.Season season = AlmanacView.pick(seasons, selected);
-        if (season == null) {
-            cmd.set("#EmptyListLabel.TextSpans", AlmanacText.line("seasons.empty"));
-            cmd.set("#EmptyListLabel.Visible", true);
-            cmd.set("#RightPanel.Visible", false);
-            return;
+        AlmanacPagePlan plan;
+        try {
+            plan = plan(store, ref);
+        } catch (Throwable t) {
+            SafeLog.warn("[almanac] the page could not read its seasons, so it shows none: " + t.getMessage());
+            plan = AlmanacPagePlan.of(List.of(), Map.of(), null, new AlmanacView.Record(0L, 0L), List.of(), Map.of(),
+                    0, null, null);
         }
-        selected = season.eventId();
-        for (int i = 0; i < seasons.size(); i++) {
-            paintRow(cmd, events, i, seasons.get(i));
+        painted = plan;
+        selected = plan.selected();
+        try {
+            paint(cmd, events, plan, playerRef);
+        } catch (Throwable t) {
+            // A build never throws: the page keeps what was painted before the fault, and the rail still answers.
+            SafeLog.warn("[almanac] the page could not paint every part of the season: " + t.getMessage());
         }
-        paintDetail(cmd, AlmanacView.detail(season, pages.get(season.eventId()), tallies(store, ref), engine, subject));
     }
 
     @Override
@@ -116,137 +188,150 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
             @Nonnull AlmanacEventData data) {
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) {
+            answer();
             return;
         }
         if (rail.handle(data.menu, store, ref, player, this::answer)) {
             return;
         }
-        if ("select".equals(data.action) && data.season != null && !data.season.isBlank()) {
-            selected = data.season;
-            player.getPageManager().openCustomPage(ref, store, this);
-            return;
+        String action = data.action == null ? "" : data.action;
+        switch (action) {
+            case "select" -> {
+                if (data.season == null || data.season.isBlank()) {
+                    answer();
+                    return;
+                }
+                selected = data.season;
+                requested = scope(data.year);
+                reopen(ref, store, player);
+            }
+            case "month" -> {
+                String first = monthFirst(data.month);
+                if (first == null) {
+                    answer();
+                    return;
+                }
+                selected = first;
+                requested = null;
+                reopen(ref, store, player);
+            }
+            case "link" -> {
+                LinkButton link = link(data.link);
+                if (link == null || !openLink(link, ref, store, player)) {
+                    answer();
+                }
+            }
+            default -> player.getPageManager().setPage(ref, store, Page.None);
         }
-        player.getPageManager().setPage(ref, store, Page.None);
     }
 
-    /** An empty update, for a rail click nothing opened for: the client always hears back. */
+    /** An empty update, for an event nothing opened for: the client always hears back. */
     private void answer() {
         sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
     }
 
-    private void paintRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, int index,
-            @Nonnull AlmanacView.Season season) {
-        cmd.append("#SeasonList", ROW_TEMPLATE);
-        String sel = "#SeasonList[" + index + "]";
-        ZigRichButton.text(cmd, sel + " #RowBtn", AlmanacText.authored(season.titleKey(), season.eventId()));
-        String icon = sel + " " + ROW_ICON;
-        cmd.set(icon + ".Visible", IconRenderer.applyIcon(cmd, icon, season.icon(), null));
-        cmd.set(sel + " #StatusDot.Background", season.live() ? LIVE_DOT : IDLE_DOT);
-        if (season.live()) {
-            cmd.set(sel + " #RowBadge.Visible", true);
-            UiText.setText(cmd, sel + " #RowBadge.Text", AlmanacText.line("status.live"));
+    private void reopen(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player) {
+        try {
+            player.getPageManager().openCustomPage(ref, store, this);
+        } catch (Throwable t) {
+            SafeLog.warn("[almanac] the page could not reopen: " + t.getMessage());
+            answer();
         }
-        if (season.eventId().equals(selected)) {
-            UiRetint.retintButtonStates(cmd, sel + " #RowBtn", ROW_SELECTED_TINT, ROW_SELECTED_TINT, ROW_SELECTED_TINT);
-            ZigRichButton.color(cmd, sel + " #RowBtn", ROW_SELECTED_TEXT);
-        }
-        events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #RowBtn",
-                EventData.of("Action", "select").append("Season", season.eventId()), false);
     }
 
-    private static void paintBanner(@Nonnull UICommandBuilder cmd, @Nonnull AchievementEngine engine,
-            @Nullable Subject subject) {
-        AlmanacView.Banner banner = subject == null ? null : AlmanacView.banner(engine, subject);
-        if (banner == null) {
-            return;
+    private boolean openLink(@Nonnull LinkButton link, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Store<EntityStore> store, @Nonnull Player player) {
+        try {
+            return Destinations.open(link.destination(), DestinationContext.of(store, ref, player));
+        } catch (Throwable t) {
+            SafeLog.warn("[almanac] a season's link could not open: " + t.getMessage());
+            return false;
         }
-        Message title = ProgressionTexts.titleOrUntitled(banner.achievementId());
-        Message line;
-        if (banner.earned()) {
-            line = AlmanacText.line("banner.earned", title);
-        } else if (banner.childrenTotal() > 0) {
-            line = AlmanacText.line("banner.line", title, banner.childrenEarned(), banner.childrenTotal());
-        } else {
-            line = title;
-        }
-        cmd.set("#BannerLabel.TextSpans", line);
-        cmd.set("#BannerLabel.Visible", true);
     }
 
-    private static void paintDetail(@Nonnull UICommandBuilder cmd, @Nonnull AlmanacView.Detail detail) {
-        AlmanacView.Season season = detail.season();
-        cmd.set("#DetailTitle.TextSpans", AlmanacText.authored(season.titleKey(), season.eventId()));
-        cmd.set(SEASON_ICON + ".Visible", IconRenderer.applyIcon(cmd, SEASON_ICON, season.icon(), null));
-        cmd.set("#DetailStatus.TextSpans", AlmanacText.line(season.live() ? "status.live" : "status.between"));
-        if (season.flavorKey() != null) {
-            cmd.set("#Flavor.TextSpans", AlmanacText.authored(season.flavorKey(), season.eventId()));
-            cmd.set("#Flavor.Visible", true);
+    /** A year chip's pick as a scope: {@link AlmanacEventData#EVERY}, a year, or null (the season's default). */
+    @Nullable
+    static Scope scope(@Nullable String year) {
+        if (year == null || year.isBlank()) {
+            return null;
         }
-        int at = 0;
-        Integer year = detail.shownYear();
-        if (year != null) {
-            // A year is a label, never a quantity: passed as text so no locale groups it.
-            at = heading(cmd, at, AlmanacText.line(season.live() ? "section.season" : "section.last",
-                    String.valueOf(year)));
-            if (detail.attendedShownYear()) {
-                at = line(cmd, at, AlmanacText.line("attended.yes"), null);
+        if (AlmanacEventData.EVERY.equals(year.trim())) {
+            return Scope.EVERY;
+        }
+        try {
+            return new Scope(Integer.parseInt(year.trim()));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** The first season the last build marked in {@code month}, or null. */
+    @Nullable
+    private String monthFirst(@Nullable String month) {
+        AlmanacPagePlan plan = painted;
+        if (plan == null || month == null) {
+            return null;
+        }
+        try {
+            int m = Integer.parseInt(month.trim());
+            for (GlanceMonth row : plan.months()) {
+                if (row.month() == m) {
+                    return row.firstEventId();
+                }
             }
-            at = statLines(cmd, at, detail.seasonLines());
+        } catch (NumberFormatException e) {
+            return null;
         }
-        at = heading(cmd, at, AlmanacText.line("section.lifetime"));
-        at = line(cmd, at, AlmanacText.line("attended.count", detail.seasonsAttended()), null);
-        at = statLines(cmd, at, detail.lifetimeLines());
-        at = heading(cmd, at, AlmanacText.line("section.keepsakes"));
-        if (detail.keepsakes().isEmpty()) {
-            at = line(cmd, at, AlmanacText.line("keepsake.none"), null);
+        return null;
+    }
+
+    /** The link the last build painted at {@code index}, or null. */
+    @Nullable
+    private LinkButton link(@Nullable String index) {
+        AlmanacPagePlan plan = painted;
+        SeasonBody body = plan == null ? null : plan.body();
+        if (body == null || index == null) {
+            return null;
         }
-        for (AlmanacView.Keepsake keepsake : detail.keepsakes()) {
-            at = line(cmd, at, AlmanacText.line("keepsake.line", String.valueOf(keepsake.year()),
-                    ProgressionTexts.titleOrUntitled(keepsake.achievementId())), keepsake.icon());
-        }
-        if (detail.achievementsListed() > 0 || !detail.feats().isEmpty()) {
-            at = heading(cmd, at, AlmanacText.line("section.achievements"));
-            if (detail.achievementsListed() > 0) {
-                at = line(cmd, at, AlmanacText.line("achievements.count", detail.achievementsEarned(),
-                        detail.achievementsListed()), null);
-            }
-            for (AlmanacView.Feat feat : detail.feats()) {
-                at = line(cmd, at, ProgressionTexts.titleOrUntitled(feat.achievementId()), feat.icon());
-            }
+        try {
+            int i = Integer.parseInt(index.trim());
+            return i >= 0 && i < body.links().size() ? body.links().get(i) : null;
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 
-    private static int statLines(@Nonnull UICommandBuilder cmd, int at, @Nonnull List<AlmanacView.StatLine> lines) {
-        if (lines.isEmpty()) {
-            return line(cmd, at, AlmanacText.line("stat.none"), null);
-        }
-        int next = at;
-        for (AlmanacView.StatLine stat : lines) {
-            next = line(cmd, next, AlmanacText.line("stat.line",
-                    AlmanacText.authored(stat.textKey(), stat.statId()), stat.count()), stat.icon());
-        }
-        return next;
-    }
+    // ==================== reading ====================
 
-    private static int heading(@Nonnull UICommandBuilder cmd, int at, @Nonnull Message text) {
-        int next = line(cmd, at, text, null);
-        cmd.set("#DetailList[" + at + "] #LineText.Style.TextColor", HEADING);
-        return next;
-    }
-
-    private static int line(@Nonnull UICommandBuilder cmd, int at, @Nonnull Message text, @Nullable String icon) {
-        cmd.append("#DetailList", LINE_TEMPLATE);
-        String sel = "#DetailList[" + at + "]";
-        cmd.set(sel + " #LineText.TextSpans", text);
-        cmd.set(sel + " #LineIconSlot.Visible", IconRenderer.applyIcon(cmd, sel, icon, null));
-        return at + 1;
-    }
-
+    /** Everything the page shows for this player now, read once per build. */
     @Nonnull
-    private static CounterMap tallies(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
-        ComponentType<EntityStore, AlmanacComponent> type = AlmanacComponent.TYPE;
-        AlmanacComponent record = type == null ? null : store.getComponent(ref, type);
-        return record == null ? new CounterMap() : record.tallies;
+    private AlmanacPagePlan plan(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        long now = System.currentTimeMillis();
+        Map<String, AlmanacEntryAsset> pages = AlmanacEntryConfig.getInstance().all();
+        AlmanacCalendar calendar = OccurrenceAlmanacCalendar.INSTANCE;
+        List<Season> seasons = AlmanacView.seasons(pages, calendar);
+        AchievementEngine engine = ProgressionRuntime.achievements();
+        Subject subject = achievementSubject(store, ref);
+        CounterMap tallies = AlmanacComponent.talliesOf(store, ref);
+
+        Map<String, Timing> timings = new HashMap<>();
+        Map<String, String> accents = new HashMap<>();
+        for (Season season : seasons) {
+            timings.put(season.eventId(), AlmanacView.timing(season, calendar, now));
+            AlmanacEntryAsset page = pages.get(season.eventId());
+            if (page != null && page.accent() != null) {
+                accents.put(season.eventId(), page.accent());
+            }
+        }
+        Season season = AlmanacView.pick(seasons, selected);
+        SeasonPage page = season == null ? null : AlmanacView.page(season, pages.get(season.eventId()), tallies,
+                engine, subject, requested, calendar, ServerTallies.shared(), now);
+        Banner banner = subject == null ? null : AlmanacView.banner(engine, subject);
+        Achievement bannerAchievement = banner == null ? null : engine.achievement(banner.achievementId());
+        int month = Instant.ofEpochMilli(now).atZone(ZoneId.systemDefault()).getMonthValue();
+        return AlmanacPagePlan.of(seasons, timings, page, AlmanacView.record(seasons, pages, tallies, engine, subject),
+                AlmanacView.yearAtAGlance(seasons, calendar, now), accents, month, banner,
+                bannerAchievement == null ? null : bannerAchievement.icon());
     }
 
     @Nullable
@@ -257,5 +342,206 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
             SafeLog.warn("[almanac] no achievement subject for the page: " + t.getMessage());
             return null;
         }
+    }
+
+    // ==================== painting ====================
+
+    /**
+     * Paint {@code plan} into a freshly appended page document. Package-private so the document test can drive it
+     * and hold every selector it sends to the documents.
+     */
+    static void paint(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull AlmanacPagePlan plan,
+            @Nullable PlayerRef viewer) {
+        cmd.set("#AlmanacTitle.TextSpans", AlmanacText.line("title"));
+        cmd.set("#AlmanacLead.TextSpans", AlmanacText.line("lead"));
+        paintBanner(cmd, plan.banner());
+        SeasonBody body = plan.body();
+        if (body == null) {
+            cmd.set("#SeasonList.Visible", false);
+            cmd.set("#Glance.Visible", false);
+            cmd.set("#RecordCard.Visible", false);
+            cmd.set("#RightColumn.Visible", false);
+            cmd.set("#AlmanacEmpty.Visible", true);
+            EmptyStatePainter.paint(cmd, events, "#AlmanacEmpty", plan.empty(), null);
+            return;
+        }
+        LedgerPainter.paint(cmd, events, "#SeasonList", plan.seasons(), Set.of(), plan.selected(), SEASON_ROWS,
+                RowSize.STANDARD, viewer);
+        paintGlance(cmd, events, plan.months());
+        paintRecord(cmd, plan.record());
+        paintHero(cmd, body.hero());
+        paintBody(cmd, events, body, viewer);
+    }
+
+    private static void paintBanner(@Nonnull UICommandBuilder cmd, @Nullable BannerCard banner) {
+        cmd.set("#BannerCard.Visible", banner != null);
+        if (banner == null) {
+            return;
+        }
+        IconRenderer.applyPlainIcon(cmd, "#BannerPic", banner.picture().itemId(), banner.picture().texturePath());
+        cmd.set("#BannerName.TextSpans", banner.name());
+        optional(cmd, "#BannerMeta", banner.meta());
+        Float fraction = banner.fraction();
+        cmd.set("#BannerBar.Visible", fraction != null);
+        if (fraction != null) {
+            cmd.set("#BannerBar #Bar.Value", fraction.floatValue());
+        }
+    }
+
+    private static void paintGlance(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull List<GlanceMonth> months) {
+        cmd.set("#GlanceTitle.TextSpans", AlmanacText.line("glance.title"));
+        for (GlanceMonth month : months) {
+            String row = "#Month" + month.month();
+            ZigRichButton.text(cmd, row, month.label());
+            if (month.current()) {
+                ZigRichButton.color(cmd, row, ZigTokens.INK_STRONG);
+            }
+            String marks = row + " #Marks";
+            List<String> hexes = month.markHexes();
+            for (int i = 0; i < hexes.size(); i++) {
+                cmd.append(marks, MARK_TEMPLATE);
+                UiRetint.retintColor(cmd, marks + "[" + i + "]", hexes.get(i));
+            }
+            if (month.firstEventId() != null) {
+                events.addEventBinding(CustomUIEventBindingType.Activating, row,
+                        EventData.of("Action", "month").append("Month", String.valueOf(month.month())), false);
+            }
+        }
+    }
+
+    private static void paintRecord(@Nonnull UICommandBuilder cmd, @Nonnull RecordCard record) {
+        cmd.set("#RecordTitle.TextSpans", AlmanacText.line("record.title"));
+        cmd.set("#RecordSeasonsValue.TextSpans", record.seasonsFigure());
+        cmd.set("#RecordSeasonsLabel.TextSpans", record.seasonsCaption());
+        cmd.set("#RecordKeepsakesValue.TextSpans", record.keepsakesFigure());
+        cmd.set("#RecordKeepsakesLabel.TextSpans", record.keepsakesCaption());
+    }
+
+    /**
+     * The hero's layers, each set both ways so nothing the template ships shows by accident: the art layer only for
+     * art (or a composition's texture); the flat fill over the plate, the tinted sky, the glow fitted onto the plate
+     * and the item pictures for a composition; the season's own picture otherwise; then the chip, the name, the
+     * dates and the accent strip.
+     */
+    private static void paintHero(@Nonnull UICommandBuilder cmd, @Nonnull HeroPlan hero) {
+        String art = hero.artTexture();
+        cmd.set(HERO_ART + ".Visible", art != null);
+        if (art != null) {
+            cmd.set(HERO_ART + ".AssetPath", art);
+        }
+        if (hero.fillHex() != null) {
+            UiRetint.fill(cmd, HERO, hero.fillHex());
+        }
+        String sky = hero.skyHex();
+        cmd.set(HERO_SKY + ".Visible", sky != null);
+        if (sky != null) {
+            UiRetint.retintColor(cmd, HERO_SKY, sky);
+        }
+        HeroLight glow = hero.glow();
+        cmd.set(HERO_GLOW + ".Visible", glow != null);
+        if (glow != null) {
+            cmd.setObject(HERO_GLOW + ".Anchor", anchor(glow.box()));
+            UiRetint.retintColor(cmd, HERO_GLOW, glow.colorHex());
+        }
+        List<HeroPicture> pictures = hero.pictures();
+        for (int i = 0; i < pictures.size(); i++) {
+            HeroPicture picture = pictures.get(i);
+            String slot = HERO_ITEMS + "[" + i + "]";
+            cmd.appendInline(HERO_ITEMS, HERO_PICTURE);
+            cmd.setObject(slot + ".Anchor", anchor(picture.box()));
+            IconRenderer.applyPlainIcon(cmd, slot, null, picture.iconPath());
+        }
+        String own = hero.pictureTexture();
+        cmd.set(HERO_PIC + ".Visible", own != null);
+        if (own != null) {
+            IconRenderer.applyPlainIcon(cmd, HERO_PIC, null, own);
+        }
+        PillPainter.paint(cmd, HERO_CHIP, hero.chip());
+        cmd.set(HERO_TITLE + ".TextSpans", hero.title());
+        optional(cmd, HERO_DATES, hero.dates());
+        UiRetint.fill(cmd, HERO_ACCENT, hero.accentHex());
+    }
+
+    private static void paintBody(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull SeasonBody body, @Nullable PlayerRef viewer) {
+        optional(cmd, "#Flavor", body.flavor());
+
+        List<YearChoice> years = body.years();
+        cmd.set("#YearChips.Visible", !years.isEmpty());
+        for (YearChoice year : years) {
+            SegmentPainter.append(cmd, events, "#YearChips", year.label(), year.on(), year.check(), year.dot(),
+                    EventData.of("Action", "select").append("Season", body.eventId()).append("Year", year.value()));
+        }
+
+        header(cmd, "#ScopeHeader", body.scopeHeader(), body.scopeMeta());
+        cmd.set("#StatGrid.Visible", !body.tiles().isEmpty());
+        TilePainter.stats(cmd, "#StatGrid", body.tiles());
+        cmd.set("#Hint.Visible", body.hint());
+        if (body.hint()) {
+            cmd.set("#Hint.TextSpans", AlmanacText.line("hint.first_time"));
+        }
+
+        KeepsakeShelf keepsakes = body.keepsakes();
+        cmd.set("#KeepsakeHeader.Visible", keepsakes != null);
+        cmd.set("#KeepsakeShelf.Visible", keepsakes != null);
+        if (keepsakes != null) {
+            header(cmd, "#KeepsakeHeader", AlmanacText.line("keepsakes.title"), keepsakes.meta());
+            TilePainter.keepsakes(cmd, "#KeepsakeShelf", keepsakes.tiles());
+        }
+
+        AchievementShelf achievements = body.achievements();
+        cmd.set("#AchHeader.Visible", achievements != null);
+        cmd.set("#AchBar.Visible", achievements != null && achievements.fraction() != null);
+        cmd.set("#FeatList.Visible", achievements != null && !achievements.feats().isEmpty());
+        if (achievements != null) {
+            header(cmd, "#AchHeader", AlmanacText.line("achievements.title"), achievements.meta());
+            if (achievements.fraction() != null) {
+                cmd.set("#AchBar #Bar.Value", achievements.fraction().floatValue());
+            }
+            for (int i = 0; i < achievements.feats().size(); i++) {
+                cmd.append("#FeatList", FEAT_TEMPLATE);
+                PillPainter.paint(cmd, "#FeatList[" + i + "] #Pill", achievements.feats().get(i));
+            }
+        }
+
+        List<LinkButton> links = body.links();
+        cmd.set("#Links.Visible", !links.isEmpty());
+        for (int i = 0; i < AlmanacLayout.LINK_SLOTS; i++) {
+            String button = "#Link" + (i + 1);
+            boolean shown = i < links.size();
+            cmd.set(button + ".Visible", shown);
+            if (shown) {
+                ZigRichButton.text(cmd, button, links.get(i).label());
+                events.addEventBinding(CustomUIEventBindingType.Activating, button,
+                        EventData.of("Action", "link").append("Link", String.valueOf(i)), false);
+            }
+        }
+    }
+
+    /** A standalone section header's label and meta (the meta hidden when there is none). */
+    private static void header(@Nonnull UICommandBuilder cmd, @Nonnull String header, @Nonnull Message label,
+            @Nullable Message meta) {
+        cmd.set(header + HEAD_LABEL + ".TextSpans", label);
+        optional(cmd, header + HEAD_META, meta);
+    }
+
+    /** A label shown with {@code text}, or hidden when there is none. */
+    private static void optional(@Nonnull UICommandBuilder cmd, @Nonnull String label, @Nullable Message text) {
+        if (text != null) {
+            cmd.set(label + ".TextSpans", text);
+        }
+        cmd.set(label + ".Visible", text != null);
+    }
+
+    /** A whole Anchor for a box on the plate: the only form a layout input changes in from Java. */
+    @Nonnull
+    private static Anchor anchor(@Nonnull HeroBox box) {
+        Anchor anchor = new Anchor();
+        anchor.setLeft(Value.of(box.x()));
+        anchor.setTop(Value.of(box.y()));
+        anchor.setWidth(Value.of(box.width()));
+        anchor.setHeight(Value.of(box.height()));
+        return anchor;
     }
 }

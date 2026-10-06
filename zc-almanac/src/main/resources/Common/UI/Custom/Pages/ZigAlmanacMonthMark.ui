@@ -1,0 +1,10 @@
+$ZK = "../Common/ZigTokens.ui";
+
+// One season's mark on a month row of the Almanac's year at a glance (Pages/ZigAlmanacPage.ui), appended by
+// com.ziggfreed.common.almanac.page.AlmanacPage into a row's #Marks and addressed by index as "#MonthN #Marks[i]":
+// an 8 x 8 dot, the kit's white Dot glyph, which the page tints to the season's accent by its .Background.Color.
+
+Group #ZigAlmanacMonthMark {
+  Anchor: (Width: 8, Height: 8, Top: 7, Right: 4);
+  Background: (TexturePath: "../Common/Glyphs/Dot.png", Color: $ZK.@ZigAccent);
+}

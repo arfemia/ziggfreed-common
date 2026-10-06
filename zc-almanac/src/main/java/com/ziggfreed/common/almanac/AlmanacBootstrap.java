@@ -7,7 +7,9 @@ import com.ziggfreed.common.almanac.asset.AlmanacOwnerLayers;
 import com.ziggfreed.common.almanac.command.ZigAlmanacCommand;
 import com.ziggfreed.common.almanac.page.AlmanacDestinations;
 import com.ziggfreed.common.almanac.page.AlmanacMenuTab;
+import com.ziggfreed.common.almanac.stats.AlmanacStatistics;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.ui.kit.LedgerContributions;
 import com.ziggfreed.common.ui.menu.MenuSlot;
 import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.util.SafeLog;
@@ -15,8 +17,8 @@ import com.ziggfreed.common.util.SafeLog;
 /**
  * Registers the Almanac at library setup, called once from the wiring root's {@code setup()}: the
  * per-player record and its connect hook (before any world loads), the server's own totals and their
- * file, the owner's switch, the feature, the destination, the moment counter and the {@code /zigalmanac}
- * family. The page store itself is registered with the other framework stores. Registration only
+ * file, the owner's switch, the feature, the destination, the moment counter, the book's Seasons
+ * statistics and the {@code /zigalmanac} family. The page store itself is registered with the other framework stores. Registration only
  * ({@code RootRegistrationOnlyTest}).
  */
 public final class AlmanacBootstrap {
@@ -43,7 +45,8 @@ public final class AlmanacBootstrap {
 
     /**
      * The plugin-free half: the feature (before the first progression publish), the destination and
-     * the menu tab (before any asset decodes) and the counter, at the library-default rank.
+     * the menu tab (before any asset decodes), the counter, at the library-default rank, and the book's
+     * Seasons statistics (read on every look, so it needs nothing loaded yet).
      */
     public static void registerVocabulary() {
         AlmanacSwitch.registerFeature();
@@ -51,5 +54,6 @@ public final class AlmanacBootstrap {
         ZigMenu.fill(MenuSlot.ALMANAC, AlmanacMenuTab.entry());
         ProgressionRuntime.defaults(OWNER).momentListener(new AlmanacMomentListener(
                 OccurrenceAlmanacCalendar.INSTANCE, ServerTallies.shared()));
+        LedgerContributions.contribute(LedgerContributions.STATISTICS, AlmanacStatistics.production());
     }
 }

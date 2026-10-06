@@ -46,12 +46,15 @@ import com.ziggfreed.common.almanac.view.AlmanacView.Scope;
 import com.ziggfreed.common.almanac.view.AlmanacView.Season;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonAchievements;
 import com.ziggfreed.common.almanac.view.AlmanacView.SeasonLink;
+import com.ziggfreed.common.almanac.view.AlmanacView.SeasonPage;
 import com.ziggfreed.common.almanac.view.AlmanacView.Tally;
 import com.ziggfreed.common.almanac.view.AlmanacView.Timing;
 import com.ziggfreed.common.almanac.view.AlmanacView.YearChip;
+import com.ziggfreed.common.almanac.view.AlmanacView.YearKeepsake;
 import com.ziggfreed.common.counter.CounterMap;
 import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.kit.KeepsakeState;
 import com.ziggfreed.common.ui.route.Destinations;
 
 /**
@@ -559,6 +562,164 @@ class AlmanacViewPageTest {
         Season unknownIcon = new Season(TEST_SEASON, null, null, "No_Such_Item", true, 2026);
         assertNull(AlmanacView.hero(unknownIcon, null, SHIPPED, ICONS).iconPath(),
                 "an unknown picture is no picture: the plate stands alone");
+    }
+
+    // ---- the whole page and its keepsake shelf ----
+
+    /** A yearly keepsake copy found by its minted id, filed where a season pack files it. */
+    private static Achievement keepsake(int year) {
+        return Achievement.builder("test_keepsake_" + year).category("Seasons").subcategory("Test_Season").build();
+    }
+
+    private static Achievement keepsake(int year, String icon) {
+        return Achievement.builder("test_keepsake_" + year).category("Seasons").subcategory("Test_Season")
+                .icon(icon).build();
+    }
+
+    private static SeasonPage read(Season season, AlmanacEntryAsset page, CounterMap tallies,
+            AchievementEngine engine, Subject subject, Scope requested, Dates dates, long nowMs) {
+        FixedCalendar calendar = new FixedCalendar().season(TEST_SEASON, dates);
+        return AlmanacView.page(season, page, tallies, engine, subject, requested, calendar, server(), nowMs,
+                SHIPPED, ICONS);
+    }
+
+    @Test
+    void theKeepsakeShelfIsEarnedStillToEarnAndMissed() throws Exception {
+        Achievement y2026 = keepsake(2026, "Test_Lantern");
+        AchievementEngine engine = engine(keepsake(2025), y2026, keepsake(2027), keepsake(2028));
+        engine.unlock(ALICE, y2026);
+
+        List<YearKeepsake> live = read(live(2027), seasonPage(), new CounterMap(), engine, ALICE, null,
+                liveIn(2027, 2025), noon("2027-10-07")).keepsakes();
+
+        assertEquals(List.of(
+                new YearKeepsake(2025, KeepsakeState.MISSED, "test_keepsake_2025", "Test_Lantern"),
+                new YearKeepsake(2026, KeepsakeState.EARNED, "test_keepsake_2026", "Test_Lantern"),
+                new YearKeepsake(2027, KeepsakeState.TO_EARN, "test_keepsake_2027", "Test_Lantern")), live,
+                "a past year not earned is missed, the run on now's is still to earn, and next year's copy is"
+                        + " not on the shelf; a copy with no picture borrows another year's");
+
+        List<YearKeepsake> between = read(between(), seasonPage(), new CounterMap(), engine, ALICE, null,
+                betweenAfter(2027, 2025), noon("2028-01-10")).keepsakes();
+
+        assertEquals(List.of(KeepsakeState.MISSED, KeepsakeState.EARNED, KeepsakeState.MISSED),
+                between.stream().map(YearKeepsake::state).toList(), "no still-to-earn tile while nothing runs");
+    }
+
+    @Test
+    void aYearEarnedOutsideTheCalendarsRunsStillHasItsTile() throws Exception {
+        Achievement y2024 = keepsake(2024);
+        AchievementEngine engine = engine(y2024, keepsake(2026));
+        engine.unlock(ALICE, y2024);
+
+        List<YearKeepsake> shelf = read(live(2026), seasonPage(), new CounterMap(), engine, ALICE, null,
+                liveIn(2026, 2026), noon("2026-10-07")).keepsakes();
+
+        assertEquals(List.of(2024, 2026), shelf.stream().map(YearKeepsake::year).toList(),
+                "what a player earned stays on their shelf");
+        assertEquals(KeepsakeState.EARNED, shelf.get(0).state());
+    }
+
+    @Test
+    void theKeepsakeShelfIsAbsentForNoKeepsakeNoSubjectNoCopyOrAFirstRunAhead() throws Exception {
+        AchievementEngine engine = engine(keepsake(2026));
+        Dates dates = liveIn(2026, 2026);
+        long now = noon("2026-10-07");
+
+        assertNotNull(read(live(2026), seasonPage(), new CounterMap(), engine, ALICE, null, dates, now).keepsakes());
+        assertNull(read(live(2026), AlmanacFixtures.page("{}", "Test_Season"), new CounterMap(), engine, ALICE, null,
+                dates, now).keepsakes(), "a season that names no Keepsake");
+        assertNull(read(live(2026), seasonPage(), new CounterMap(), engine, null, null, dates, now).keepsakes(),
+                "no subject loaded");
+        assertNull(read(live(2026), seasonPage(), new CounterMap(), null, ALICE, null, dates, now).keepsakes(),
+                "no catalogue");
+        assertNull(read(live(2026), seasonPage(), new CounterMap(), engine(), ALICE, null, dates, now).keepsakes(),
+                "a Keepsake the catalogue holds no copy of");
+
+        SeasonPage ahead = read(between(), seasonPage(), new CounterMap(), engine, ALICE, new Scope(2026),
+                new Dates(null, autumn(2026), List.of(), 2026, UTC), noon("2026-09-08"));
+        assertTrue(ahead.timing().startsLater());
+        assertTrue(ahead.years().isEmpty(), "no year chips before the first run");
+        assertEquals(Scope.EVERY, ahead.scope());
+        assertFalse(ahead.tookPartInScope());
+        assertNull(ahead.keepsakes(), "a first run still ahead");
+    }
+
+    @Test
+    void theAchievementsSectionIsAbsentFromThePageWithNoSubjectOrNothingFiled() throws Exception {
+        Achievement filed = Achievement.builder("test_first").category("Seasons").subcategory("Test_Season").build();
+        Dates dates = liveIn(2026, 2026);
+        long now = noon("2026-10-07");
+
+        assertNotNull(read(live(2026), seasonPage(), new CounterMap(), engine(filed), ALICE, null, dates, now)
+                .achievements());
+        assertNull(read(live(2026), seasonPage(), new CounterMap(), engine(filed), null, null, dates, now)
+                .achievements(), "no subject loaded");
+        assertNull(read(live(2026), seasonPage(), new CounterMap(), engine(keepsake(2026)), ALICE, null, dates, now)
+                .achievements(), "a keepsake filed under the season is the shelf's, not an achievement");
+    }
+
+    @Test
+    void thePageReadsTheScopeItIsAskedForElseTodaysRule() throws Exception {
+        CounterMap tallies = new CounterMap();
+        tallies.add(AlmanacKeys.season(TEST_SEASON, 2026, "bombs_thrown"), 5L);
+        tallies.add(AlmanacKeys.season(TEST_SEASON, 2027, "bombs_thrown"), 2L);
+        tallies.add(AlmanacKeys.lifetime(TEST_SEASON, "bombs_thrown"), 7L);
+        Dates dates = liveIn(2027, 2026);
+        long now = noon("2027-10-07");
+
+        SeasonPage byDefault = read(live(2027), seasonPage(), tallies, null, null, null, dates, now);
+        assertEquals(new Scope(2027), byDefault.scope(), "the year on now");
+        assertTrue(byDefault.tookPartInScope());
+        assertEquals(List.of(2026, 2027), byDefault.years().stream().map(YearChip::year).toList());
+        assertEquals(2L, byDefault.tallies().get(0).figure());
+        assertEquals(7L, byDefault.tallies().get(0).allSeasons());
+        assertTrue(byDefault.timing().live());
+
+        SeasonPage past = read(live(2027), seasonPage(), tallies, null, null, new Scope(2026), dates, now);
+        assertEquals(new Scope(2026), past.scope());
+        assertEquals(5L, past.tallies().get(0).figure());
+
+        SeasonPage every = read(live(2027), seasonPage(), tallies, null, null, Scope.EVERY, dates, now);
+        assertEquals(Scope.EVERY, every.scope());
+        assertEquals(7L, every.tallies().get(0).figure());
+        assertNull(every.tallies().get(0).allSeasons());
+    }
+
+    @Test
+    void thePageCarriesTheHeroTheAccentAndTheLinks() throws Exception {
+        AlmanacDestinations.register();
+        AlmanacEntryAsset page = AlmanacFixtures.page("""
+                { "Icon": "Test_Icon", "Accent": "#E8752A", "Hero": { "Art": "UI/Custom/Almanac/Test.png" },
+                  "Links": [ { "TextKey": "almanac.test.link", "Destination": { "Type": "Almanac", "Event": "Other" } } ] }
+                """, "Test_Season");
+        Dates dates = liveIn(2026, 2026);
+        long now = noon("2026-10-07");
+
+        SeasonPage dressed = read(live(2026), page, new CounterMap(), null, null, null, dates, now);
+        assertEquals("UI/Custom/Almanac/Test.png", dressed.hero().art());
+        assertEquals("Icons/ItemsGenerated/Test_Icon.png", dressed.hero().iconPath());
+        assertEquals("#e8752a", dressed.accentHex(), "as authored; the page clamps it");
+        assertEquals(List.of("almanac.test.link"), dressed.links().stream().map(SeasonLink::textKey).toList());
+
+        SeasonPage bare = read(live(2026), null, new CounterMap(), null, null, null, dates, now);
+        assertNull(bare.hero().art());
+        assertNull(bare.accentHex());
+        assertTrue(bare.links().isEmpty());
+        assertTrue(bare.tallies().isEmpty());
+        assertNull(bare.keepsakes());
+    }
+
+    @Test
+    void theProductionPageReadsWithNoAssetStore() throws Exception {
+        FixedCalendar calendar = new FixedCalendar().season(TEST_SEASON, liveIn(2026, 2026));
+
+        SeasonPage page = AlmanacView.page(live(2026), dressed("{ \"Art\": \"UI/Custom/Almanac/Test.png\" }"),
+                new CounterMap(), null, null, null, calendar, server(), noon("2026-10-07"));
+
+        assertNull(page.hero().art(), "no asset registry: the art does not ship");
+        assertNull(page.hero().iconPath(), "and no item store: no picture");
+        assertFalse(AlmanacView.textureShips("UI/Custom/Almanac/Test.png"));
     }
 
     // ---- the record card and the year at a glance ----
