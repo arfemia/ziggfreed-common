@@ -28,14 +28,15 @@
 // here rather than the stacked panel's 96: a cell this size has to leave the name room to be read,
 // and a skill name is what a glance is actually looking for.
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
-@BarLabelStyle = (FontSize: 13, TextColor: #e6e9ee, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
+@BarLabelStyle = (FontSize: $ZT.@ZigFontBody, TextColor: #e6e9ee, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
-@BarGainStyle = (FontSize: 13, TextColor: #ffd24a, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: End, VerticalAlignment: Center);
+@BarGainStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #ffd24a, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: End, VerticalAlignment: Center);
 
 // The two words at a bar's ends: what its reading counts from, and what it counts toward. Dim and
 // small, because they are a scale beside the bar and never the thing being read.
-@BarCapStyle = (FontSize: 11, TextColor: #9fb0c4, RenderBold: true, VerticalAlignment: Center, HorizontalAlignment: Center);
+@BarCapStyle = (FontSize: $ZT.@ZigFontMicro, TextColor: #9fb0c4, RenderBold: true, VerticalAlignment: Center, HorizontalAlignment: Center);
 
 // The dressing that makes a bar read as a bar rather than a coloured rectangle, all of it
 // COLOUR-AGNOSTIC so it sits over any fill colour a mod picks at runtime. The native linear

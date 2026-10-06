@@ -1,4 +1,5 @@
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One row of a selectable list: a quest list, a storefront's catalogue, a board's contracts.
 // Appended into a page's list container and addressed per row via the INDEXED PARENT
@@ -81,7 +82,7 @@ Group #ZigSelectRow {
         FlexWeight: 1;
         Text: "";
         Anchor: (Height: 36);
-        Style: (FontSize: 14, TextColor: #b6c9de, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, VerticalAlignment: Center);
       }
     }
 
@@ -91,14 +92,14 @@ Group #ZigSelectRow {
       Visible: false;
       Anchor: (Height: 36);
       Padding: (Left: 4);
-      Style: (FontSize: 12, TextColor: #c2d4e8, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontSection, TextColor: #c2d4e8, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
     }
 
     Label #RowBadge {
       Text: "";
       Visible: false;
       Anchor: (Width: 80, Height: 36);
-      Style: (FontSize: 12, TextColor: #c8a86a, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #c8a86a, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
@@ -107,6 +108,6 @@ Group #ZigSelectRow {
     Visible: false;
     Anchor: (Height: 18);
     Padding: (Left: 4);
-    Style: (FontSize: 12, TextColor: #9fb3c8, VerticalAlignment: Center);
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #9fb3c8, VerticalAlignment: Center);
   }
 }

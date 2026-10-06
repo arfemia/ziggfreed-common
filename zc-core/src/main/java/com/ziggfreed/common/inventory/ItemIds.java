@@ -36,4 +36,24 @@ public final class ItemIds {
             return false;
         }
     }
+
+    /**
+     * The item's own picture as a Common-rooted texture path (its {@code Icon}, e.g.
+     * {@code Icons/ItemsGenerated/Deco_Lever.png}), for a surface that draws the picture alone in an
+     * {@code AssetImage}: no item tooltip and no rarity square, at any size. Null for a blank or
+     * unknown id, an item with no icon, or a JVM with no asset store.
+     */
+    @Nullable
+    public static String iconPath(@Nullable String itemId) {
+        if (itemId == null || itemId.isBlank()) {
+            return null;
+        }
+        try {
+            Item item = Item.getAssetMap().getAsset(itemId);
+            String icon = item == null ? null : item.getIcon();
+            return icon == null || icon.isBlank() ? null : icon;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
 }

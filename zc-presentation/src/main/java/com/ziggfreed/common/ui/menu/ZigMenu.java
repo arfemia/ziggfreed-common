@@ -224,10 +224,13 @@ public final class ZigMenu {
                 EventData.of(EVENT_KEY, Integer.toString(index)), false);
     }
 
-    /** Shows the slot's picture when the tab has one; with none the authored hidden slot stays hidden. */
+    /**
+     * Shows the slot's picture when the tab has one, as a plain picture (no item tooltip or rarity square on the
+     * tab); with none the authored hidden slot stays hidden.
+     */
     private static void paintIcon(@Nonnull UICommandBuilder cmd, @Nonnull String slot, @Nullable IconSpec icon) {
         if (icon != null && !icon.isEmpty()) {
-            cmd.set(slot + ".Visible", IconRenderer.applyIcon(cmd, slot, icon));
+            cmd.set(slot + ".Visible", IconRenderer.applyPlainIcon(cmd, slot, icon));
         }
     }
 

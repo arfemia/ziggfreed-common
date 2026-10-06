@@ -1,5 +1,6 @@
 $C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One quest-log entry (appended into #ActiveQuestList / #QuestList; see ObjectiveBookPage).
 // Addressed per row via the INDEXED PARENT ("#QuestList[0] #QuestName"), so the bare descendant
@@ -11,9 +12,9 @@ $Z = "../Common/ZigButtons.ui";
 // Claim); pre-bound even while hidden so a partial update can morph it without a re-bind.
 
 @ZigExpandToggleStyle = TextButtonStyle(
-  Default: (Background: #1e2a38, LabelStyle: (FontSize: 14, TextColor: #96a9be, RenderBold: true, VerticalAlignment: Center, HorizontalAlignment: Center)),
-  Hovered: (Background: #2a3a4e, LabelStyle: (FontSize: 14, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center, HorizontalAlignment: Center)),
-  Pressed: (Background: #142030, LabelStyle: (FontSize: 14, TextColor: #4a9eff, RenderBold: true, VerticalAlignment: Center, HorizontalAlignment: Center)),
+  Default: (Background: #1e2a38, LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #96a9be, RenderBold: true, VerticalAlignment: Center, HorizontalAlignment: Center)),
+  Hovered: (Background: #2a3a4e, LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center, HorizontalAlignment: Center)),
+  Pressed: (Background: #142030, LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #4a9eff, RenderBold: true, VerticalAlignment: Center, HorizontalAlignment: Center)),
   Sounds: $C.@ButtonSounds
 );
 
@@ -37,7 +38,7 @@ Group #ZigQuestLogRow {
     Label #QuestName {
       Text: "";
       FlexWeight: 1;
-      Style: (FontSize: 14, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
     }
 
     // Track pill: the shared $Z.@ZigPinBtnStyle (backgrounds + Sounds, no LabelStyle). Its hover
@@ -81,7 +82,7 @@ Group #ZigQuestLogRow {
       Text: "";
       Visible: false;
       Anchor: (Width: 80);
-      Style: (FontSize: 12, TextColor: #c47fff, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #c47fff, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
     }
 
     Group { Anchor: (Width: 8); }
@@ -89,7 +90,7 @@ Group #ZigQuestLogRow {
     Label #QuestStatus {
       Text: "";
       Anchor: (Width: 130);
-      Style: (FontSize: 13, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
     }
   }
 
@@ -97,7 +98,7 @@ Group #ZigQuestLogRow {
     Text: "";
     Anchor: (Top: 4);
     Padding: (Left: 11);
-    Style: (FontSize: 14, TextColor: #b6c9de, Wrap: true);
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, Wrap: true);
   }
 
   // Compact per-row objective progress; hidden for rows with nothing under way.
@@ -120,7 +121,7 @@ Group #ZigQuestLogRow {
     Label #RowBarText {
       Text: "";
       Anchor: (Width: 70, Height: 12);
-      Style: (FontSize: 11, TextColor: #8fa6bd, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8fa6bd, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
@@ -141,7 +142,7 @@ Group #ZigQuestLogRow {
       Anchor: (Bottom: 4);
       Padding: (Left: 11);
       Visible: false;
-      Style: (FontSize: 12, TextColor: #96a9be, Wrap: true);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, Wrap: true);
     }
 
     Group { Anchor: (Height: 4); }
@@ -151,7 +152,7 @@ Group #ZigQuestLogRow {
       Anchor: (Height: 18);
       Padding: (Left: 11);
       Visible: false;
-      Style: (FontSize: 11, TextColor: #6a7a8e, RenderBold: true, LetterSpacing: 1);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #6a7a8e, RenderBold: true, LetterSpacing: 1);
     }
 
     Group #ObjectivesContainer {
@@ -169,7 +170,7 @@ Group #ZigQuestLogRow {
       Label #RewardsHeader {
         Text: "";
         Anchor: (Bottom: 2);
-        Style: (FontSize: 12, TextColor: #a07fff, RenderBold: true, RenderUppercase: true, LetterSpacing: 1);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #a07fff, RenderBold: true, RenderUppercase: true, LetterSpacing: 1);
       }
 
       Group #RewardsList {
@@ -191,7 +192,7 @@ Group #ZigQuestLogRow {
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: 14, TextColor: #4aff7f, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #4aff7f, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
         }
       }
 
@@ -201,7 +202,7 @@ Group #ZigQuestLogRow {
         Text: "";
         Anchor: (Height: 28);
         Visible: false;
-        Style: (FontSize: 12, TextColor: #96a9be, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, VerticalAlignment: Center);
       }
 
       Button #ActionBtn {
@@ -211,7 +212,7 @@ Group #ZigQuestLogRow {
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: 14, TextColor: #eef4fb, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
         }
       }
 
@@ -222,7 +223,7 @@ Group #ZigQuestLogRow {
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: 14, TextColor: #ff6b6b, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ff6b6b, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
         }
       }
 
@@ -232,7 +233,7 @@ Group #ZigQuestLogRow {
         Text: "";
         Anchor: (Height: 28);
         Visible: false;
-        Style: (FontSize: 12, TextColor: #ff9944, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ff9944, VerticalAlignment: Center);
       }
 
       Group { Anchor: (Width: 8); }
@@ -241,7 +242,7 @@ Group #ZigQuestLogRow {
         Text: "";
         Anchor: (Width: 200, Height: 28);
         Visible: false;
-        Style: (FontSize: 12, TextColor: #96a9be, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, VerticalAlignment: Center);
       }
     }
 

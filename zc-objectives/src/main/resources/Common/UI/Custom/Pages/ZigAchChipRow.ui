@@ -1,4 +1,5 @@
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One related-achievement chip in the detail column (a meta capstone's required list, the
 // capstones this one is part of, a ladder's tiers). `Button` + inner `Label #Label`: the chip
@@ -20,7 +21,7 @@ Group #ZigAchChipRow {
       Text: "";
       FlexWeight: 1;
       Anchor: (Height: 26);
-      Style: (FontSize: 12, TextColor: #96a9be, HorizontalAlignment: Start, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, HorizontalAlignment: Start, VerticalAlignment: Center);
     }
   }
 }

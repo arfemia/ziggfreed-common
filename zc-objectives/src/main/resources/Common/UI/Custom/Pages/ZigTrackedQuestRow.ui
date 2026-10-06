@@ -1,4 +1,5 @@
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One row of a tracked-quests SIDE PANEL (appended into a host page's #TrackedQuestsList by
 // objectives/hud/TrackedQuestPanelRenderer; addressed per row via the INDEXED PARENT,
@@ -6,7 +7,7 @@ $Z = "../Common/ZigButtons.ui";
 // and across mods). `Button` + inner `Label #Label` (not a TextButton): the quest title is a
 // Message that only substitutes on a Label's .TextSpans (pushed via ZigRichButton.text). The
 // button uses the shared $Z.@ZigRichRowBtnStyle; the bar textures are the client's own.
-@TrackedQuestLabelStyle = (FontSize: 12, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+@TrackedQuestLabelStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
 
 Group #ZigTrackedQuestRow {
   LayoutMode: Top;
@@ -50,7 +51,7 @@ Group #ZigTrackedQuestRow {
     Label #TrackedQuestProgressText {
       Text: "0/0";
       Anchor: (Width: 80, Height: 12);
-      Style: (FontSize: 10, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 }

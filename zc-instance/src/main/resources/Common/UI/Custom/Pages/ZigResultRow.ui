@@ -1,4 +1,5 @@
 $C = "../Common.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One two-cell results row (appended into #ResultsList and #BreakdownList; see
 // ResultsPage). Left cell (name / column label) flexes; right cell (score / value) is
@@ -13,13 +14,13 @@ Group #ZigResultRow {
     FlexWeight: 1;
     Padding: (Left: 12);
     Text: "";
-    Style: (FontSize: 14, TextColor: #d7e4f0, VerticalAlignment: Center);
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, VerticalAlignment: Center);
   }
 
   Label #Cell2 {
     Anchor: (Width: 140);
     Padding: (Right: 12);
     Text: "";
-    Style: (FontSize: 14, TextColor: #d7e4f0, VerticalAlignment: Center, HorizontalAlignment: End);
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, VerticalAlignment: Center, HorizontalAlignment: End);
   }
 }

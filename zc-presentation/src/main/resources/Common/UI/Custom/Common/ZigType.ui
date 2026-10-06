@@ -1,0 +1,35 @@
+// ── ziggfreed-common's type scale: every text size the family draws ───────────
+// Imported per document as:  $ZT = "../Common/ZigType.ui";  (from Pages/; "ZigType.ui" from Common/) and used as
+//   Style: (FontSize: $ZT.@ZigFontBody, TextColor: ...);
+// so a size changes here, once, for every page, HUD and toast of zc and the mods built on it. The client's own
+// HUD reads a shared size the same way (Interface/InGame/Hud/ObjectivePanelObjectiveSlot.ui:
+// FontSize: $ObjectiveCommon.@FontSize). com.ziggfreed.common.ui.ZigType holds the same numbers for the few sizes
+// Java sets, and ZigTypeTest holds the two together.
+//
+// The maintainer's readability ruling (2026-10-06): no player text under 13; descriptions, captions and hints 13;
+// row labels and body text 14; headings and titles keep their sizes. A document never writes a size under
+// @ZigFontEmphasis as a number (the family's RepoHygieneTest), and MinShrinkTextToFitFontSize takes these steps
+// too, so shrink-to-fit never draws under the floor.
+
+// The floor: captions, descriptions, hints, counts, timestamps, a row's second line.
+@ZigFontCaption = 13;
+// An uppercase section label (vanilla's own section label is 13, bold, uppercase).
+@ZigFontSection = 13;
+// Row labels, body text, buttons, fields, chips.
+@ZigFontBody = 14;
+// A name that leads its row or card.
+@ZigFontEmphasis = 15;
+// A heading inside a page.
+@ZigFontHeading = 16;
+// A large heading or a sub-title.
+@ZigFontSubtitle = 18;
+// A page title.
+@ZigFontTitle = 20;
+// A big number or a hero title.
+@ZigFontDisplay = 22;
+@ZigFontDisplayLarge = 24;
+
+// The ONE exception under the floor, by the maintainer's ruling (2026-10-06, "Exempt them"): a label inside a
+// HUD box too small for 13 (a HUD bar's end words, an ability cooldown's key, the mob inspector's HP text, a skill
+// card's percent). The family's RepoHygieneTest allows it in those documents only.
+@ZigFontMicro = 11;

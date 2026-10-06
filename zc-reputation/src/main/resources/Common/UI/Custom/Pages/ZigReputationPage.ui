@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // The Reputation page (com.ziggfreed.common.reputation.page.ReputationPage): every reputation the player
 // has met on the left, the one being read on the right.
@@ -35,7 +36,7 @@ $F.@ZigMenuFrame {
       Label #ReputationTitle {
         Text: "";
         Anchor: (Height: 32, Bottom: 4);
-        Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
       }
 
       Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
@@ -51,7 +52,7 @@ $F.@ZigMenuFrame {
         Text: "";
         Visible: false;
         Anchor: (Height: 40, Top: 8);
-        Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
       }
     }
 
@@ -88,14 +89,14 @@ $F.@ZigMenuFrame {
           FlexWeight: 1;
           Text: "";
           Anchor: (Height: 30);
-          Style: (FontSize: 22, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+          Style: (FontSize: $ZT.@ZigFontDisplay, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
         }
       }
 
       Label #DetailRank {
         Text: "";
         Anchor: (Height: 20, Bottom: 8);
-        Style: (FontSize: 14, TextColor: #96a9be, RenderBold: true, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #96a9be, RenderBold: true, VerticalAlignment: Center);
       }
 
       Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }

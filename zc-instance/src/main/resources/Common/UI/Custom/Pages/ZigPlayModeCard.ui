@@ -1,5 +1,6 @@
 $C = "../Common.ui";
 $M = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One Play-screen mode card (appended into #ModeCards; see PlayModePage). A vertical card:
 // an item-glyph icon (set from Java via #CardIcon.Slots - a DATA property, settable, unlike
@@ -52,6 +53,6 @@ Group #ZigPlayModeCard {
   Label #CardSub {
     FlexWeight: 1;
     Text: "";
-    Style: (FontSize: 11, TextColor: #b6c9de, HorizontalAlignment: Center, Wrap: true);
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b6c9de, HorizontalAlignment: Center, Wrap: true);
   }
 }

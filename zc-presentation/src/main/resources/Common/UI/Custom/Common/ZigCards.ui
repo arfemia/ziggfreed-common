@@ -1,4 +1,5 @@
 $C = "../Common.ui";
+$ZT = "ZigType.ui";
 
 // ziggfreed-common's shared CARD shapes, for any page laid out as headed cards (the Settings tab today):
 // a section card, the heading over it, a page's title and description, and a tile that opens another
@@ -16,9 +17,9 @@ $C = "../Common.ui";
 // (#TileAccent). Those ids and the 210 x 104 size are what every page painting a tile relies on;
 // ZigCardsDocumentTest pins them. All text is set from Java on .TextSpans.
 
-@ZigCardHeaderStyle = LabelStyle(FontSize: 13, RenderBold: true, RenderUppercase: true, TextColor: #9aacbc, HorizontalAlignment: Start);
-@ZigPageTitleStyle = LabelStyle(FontSize: 18, RenderBold: true, TextColor: #d6e4ee, VerticalAlignment: Center);
-@ZigPageDescriptionStyle = LabelStyle(FontSize: 12, TextColor: #7f93a6, Wrap: true);
+@ZigCardHeaderStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, RenderBold: true, RenderUppercase: true, TextColor: #9aacbc, HorizontalAlignment: Start);
+@ZigPageTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontSubtitle, RenderBold: true, TextColor: #d6e4ee, VerticalAlignment: Center);
+@ZigPageDescriptionStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: #7f93a6, Wrap: true);
 
 // One card: the inset panel a section's rows or tiles sit in.
 @ZigSectionCard = Group {
@@ -54,8 +55,8 @@ $C = "../Common.ui";
   Sounds: $C.@ButtonSounds
 );
 
-@ZigTileTitleStyle = LabelStyle(FontSize: 14, TextColor: #d6e4ee, RenderBold: true, VerticalAlignment: Center, Wrap: true);
-@ZigTileSubtitleStyle = LabelStyle(FontSize: 12, TextColor: #7f93a6, VerticalAlignment: Start, Wrap: true);
+@ZigTileTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #d6e4ee, RenderBold: true, VerticalAlignment: Center, Wrap: true);
+@ZigTileSubtitleStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: #7f93a6, VerticalAlignment: Start, Wrap: true);
 
 // One tile: drop one in as  $K.@ZigTile #OpenFooBtn {}  and fill it from Java by id.
 @ZigTile = Button {

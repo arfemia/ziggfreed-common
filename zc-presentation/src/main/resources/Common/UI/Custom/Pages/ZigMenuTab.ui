@@ -1,11 +1,12 @@
 $C = "../Common.ui";
-$Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One row of the shared menu's rail (com.ziggfreed.common.ui.menu.ZigMenu), appended by index into the
 // frame's #MenuList and addressed as "#MenuList[i] #TabBtn", so a tab's id never becomes an element id.
 //
 // Vanilla's own left-rail row (Pages/WorldEvent/WorldEventNavButton.ui, Pages/UIGallery/CategoryButton.ui):
-// 32 high and 4 below, 10 in from each side, a 14px uppercase label that shrinks to fit (never under 12), a
+// 32 high and 4 below, 10 in from each side, a body-size (14) uppercase label that shrinks to fit (never under
+// the 13 floor; every size is a Common/ZigType.ui step), a
 // faint dark fill under the cursor; the selected tab is vanilla's bold label under the gold gradient mask on
 // the same fill, with a slim bar beside it so it reads by shape and not only colour.
 //
@@ -18,12 +19,14 @@ $Z = "../Common/ZigButtons.ui";
 //   #Rule         the gap between the consumer's section and the library's tabs: vanilla's 1px separator.
 // Every colour here is a ui/menu/MenuPalette default (an alpha one spelled #rrggbb(a)), and ZigMenu repaints
 // each from the palette in force on every build (ZigMenuDocumentsTest). A picture slot (#TabIconSlot,
-// #SelIconSlot) takes an optional 20px picture through ui/icon/IconRenderer; it ships hidden, and a tab never
-// shows a picture without its label.
+// #SelIconSlot) takes an optional 28px picture, centred in the row, through ui/icon/IconRenderer.applyPlainIcon;
+// it ships hidden, and a tab never shows a picture without its label. The picture is an AssetImage of the item's
+// own icon texture, which only displays: an ItemGrid would show the item's tooltip and rarity square on the tab,
+// and an ItemIcon draws blank (UiIconWidgetHygieneTest).
 
-@TabLabelStyle = LabelStyle(FontSize: 14, TextColor: #96a9be, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
-@SelectedLabelStyle = LabelStyle(FontSize: 14, TextColor: #ffffff, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
-@SectionLabelStyle = LabelStyle(FontSize: 13, TextColor: #96a9be, RenderBold: true, RenderUppercase: true, VerticalAlignment: End);
+@TabLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #96a9be, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
+@SelectedLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
+@SectionLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, TextColor: #96a9be, RenderBold: true, RenderUppercase: true, VerticalAlignment: End);
 
 Group #ZigMenuTab {
   LayoutMode: Top;
@@ -41,20 +44,11 @@ Group #ZigMenuTab {
     );
 
     Group #TabIconSlot {
-      Anchor: (Width: 20, Height: 20, Top: 6, Right: 8);
+      Anchor: (Width: 28, Height: 28, Top: 2, Right: 8);
       Visible: false;
 
-      ItemGrid #IcoItem {
-        Anchor: (Width: 20, Height: 20);
-        Visible: false;
-        SlotsPerRow: 1;
-        AreItemsDraggable: false;
-        DisplayItemQuantity: false;
-        Style: $Z.@ZigIconGrid20;
-      }
-
       AssetImage #IcoTex {
-        Anchor: (Width: 20, Height: 20);
+        Anchor: (Width: 28, Height: 28);
         Visible: false;
         FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
       }
@@ -86,20 +80,11 @@ Group #ZigMenuTab {
     }
 
     Group #SelIconSlot {
-      Anchor: (Width: 20, Height: 20, Top: 6, Right: 8);
+      Anchor: (Width: 28, Height: 28, Top: 2, Right: 8);
       Visible: false;
 
-      ItemGrid #IcoItem {
-        Anchor: (Width: 20, Height: 20);
-        Visible: false;
-        SlotsPerRow: 1;
-        AreItemsDraggable: false;
-        DisplayItemQuantity: false;
-        Style: $Z.@ZigIconGrid20;
-      }
-
       AssetImage #IcoTex {
-        Anchor: (Width: 20, Height: 20);
+        Anchor: (Width: 28, Height: 28);
         Visible: false;
         FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
       }

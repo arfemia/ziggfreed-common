@@ -1,4 +1,5 @@
 $C = "../Common.ui";
+$ZT = "ZigType.ui";
 
 // ── ziggfreed-common shared RICH-ROW button style (Button + inner Label) ──────
 // Imported per page as:  $Z = "../Common/ZigButtons.ui";  then  Style: $Z.@ZigRichRowBtnStyle;
@@ -51,7 +52,7 @@ $C = "../Common.ui";
 // Overridable params: @Style (ButtonStyle), @LabelStyle, @Anchor, @Height, @IconSize.
 @ZigRichBtn = Button {
   @Style = @ZigRichRowBtnStyle;
-  @LabelStyle = (FontSize: 13, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center);
+  @LabelStyle = (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center);
   @Anchor = Anchor();
   @Height = 28;
   @IconSize = 16;
@@ -109,9 +110,9 @@ $C = "../Common.ui";
 
 // Dialogue option row button - left-aligned label, soft steel patch, non-bold.
 @ZigOptionBtnStyle = TextButtonStyle(
-  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #6f8398), LabelStyle: (FontSize: 14, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center)),
-  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #9fb3c8), LabelStyle: (FontSize: 14, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center)),
-  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #5a6e82), LabelStyle: (FontSize: 14, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center)),
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #6f8398), LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #9fb3c8), LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #5a6e82), LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Start, VerticalAlignment: Center)),
   Sounds: $C.@ButtonSounds
 );
 
@@ -124,9 +125,9 @@ $C = "../Common.ui";
 // tint (the same technique DialoguePage uses to paint an option row by its action kind),
 // so there is no separate active style to drift. Keep Sounds or the tab is silent on click.
 @ZigTabBtnStyle = TextButtonStyle(
-  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #4a596b), LabelStyle: (FontSize: 13, TextColor: #b6c9de, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
-  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #6f8398), LabelStyle: (FontSize: 13, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
-  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #3a4658), LabelStyle: (FontSize: 13, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #4a596b), LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #6f8398), LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #3a4658), LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
   Sounds: $C.@ButtonSounds
 );
 
@@ -138,9 +139,9 @@ $C = "../Common.ui";
 // centered (NOT Start - the option style is left-aligned for dialogue rows). Keep Sounds or the
 // button is silent on click.
 @ZigPrimaryBtnStyle = TextButtonStyle(
-  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #7d93aa), LabelStyle: (FontSize: 14, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
-  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #a8bdd2), LabelStyle: (FontSize: 14, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
-  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #66798c), LabelStyle: (FontSize: 14, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #7d93aa), LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #a8bdd2), LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #66798c), LabelStyle: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, RenderBold: false, HorizontalAlignment: Center, VerticalAlignment: Center)),
   Sounds: $C.@ButtonSounds
 );
 
@@ -153,9 +154,9 @@ $C = "../Common.ui";
 // Java via the same style() helper that tints the tabs (default tint mirrors INACTIVE_TINT
 // #2f3b49). Right-aligned to line up with the numeric cells below it. Keep Sounds or it is silent.
 @ZigSortHeaderBtnStyle = TextButtonStyle(
-  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #2f3b49), LabelStyle: (FontSize: 11, TextColor: #8696a8, RenderBold: false, HorizontalAlignment: End, VerticalAlignment: Center)),
-  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #445364), LabelStyle: (FontSize: 11, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: End, VerticalAlignment: Center)),
-  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #2f3b49), LabelStyle: (FontSize: 11, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: End, VerticalAlignment: Center)),
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #2f3b49), LabelStyle: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, RenderBold: false, HorizontalAlignment: End, VerticalAlignment: Center)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: 12, Color: #445364), LabelStyle: (FontSize: $ZT.@ZigFontSection, TextColor: #ffffff, RenderBold: false, HorizontalAlignment: End, VerticalAlignment: Center)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: 12, Color: #2f3b49), LabelStyle: (FontSize: $ZT.@ZigFontSection, TextColor: #e6eef7, RenderBold: false, HorizontalAlignment: End, VerticalAlignment: Center)),
   Sounds: $C.@ButtonSounds
 );
 
@@ -171,7 +172,7 @@ $C = "../Common.ui";
 //   Style: (...$Z.@ZigSectionHeaderStyle, TextColor: #ff9944);
 // A heading painted from Java into an appended line (the objective book's step headings) sets the
 // same four leaves on its label, since a named style cannot be pushed whole from Java.
-@ZigSectionHeaderStyle = LabelStyle(FontSize: 12, TextColor: #8fb4dc, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+@ZigSectionHeaderStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, TextColor: #8fb4dc, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
 
 // Blank-icon-slot fix: an ItemGrid with no Style renders nothing. This ladder gives every
 // ItemGrid in the library a ready-made style; a page picks the rung matching its own

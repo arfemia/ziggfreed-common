@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $M = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // Generic end-of-game results screen (com.ziggfreed.common.instance.result.ResultsPage):
 // outcome header, team-grouped per-player rows (Pages/ZigResultRow.ui), the viewer's
@@ -16,12 +17,12 @@ $F.@ZigDecoratedFrame {
     Label #OutcomeTitle {
       Text: "";
       Anchor: (Height: 34, Bottom: 2);
-      Style: (FontSize: 24, TextColor: #ffd700, RenderBold: true, HorizontalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontDisplayLarge, TextColor: #ffd700, RenderBold: true, HorizontalAlignment: Center);
     }
     Label #Duration {
       Text: "";
       Anchor: (Height: 18, Bottom: 8);
-      Style: (FontSize: 12, TextColor: #8696a8, HorizontalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center);
     }
 
     Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
@@ -38,7 +39,7 @@ $F.@ZigDecoratedFrame {
     Label #BreakdownTitle {
       Text: "";
       Anchor: (Height: 20, Bottom: 4);
-      Style: (FontSize: 14, TextColor: #ffd97a, RenderBold: true);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, RenderBold: true);
     }
     Group #BreakdownList {
       Anchor: (Height: 158, Bottom: 8);
@@ -51,7 +52,7 @@ $F.@ZigDecoratedFrame {
     Label #StatsTitle {
       Text: "";
       Anchor: (Height: 20, Bottom: 4);
-      Style: (FontSize: 14, TextColor: #ffd97a, RenderBold: true);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, RenderBold: true);
     }
     Group #StatsList {
       Anchor: (Height: 126, Bottom: 8);
@@ -63,7 +64,7 @@ $F.@ZigDecoratedFrame {
     Label #RewardsTitle {
       Text: "";
       Anchor: (Height: 20, Bottom: 4);
-      Style: (FontSize: 14, TextColor: #ffd97a, RenderBold: true);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, RenderBold: true);
     }
     // Reward chips flow left and WRAP onto further rows (LeftCenterWrap) instead of running off
     // the panel edge - the height holds up to three rows of pills; the consumer merges duplicate
@@ -76,13 +77,13 @@ $F.@ZigDecoratedFrame {
       Text: "";
       Visible: false;
       Anchor: (Height: 18, Bottom: 4);
-      Style: (FontSize: 12, TextColor: #8696a8);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8);
     }
     Label #PendingNote {
       Text: "";
       Visible: false;
       Anchor: (Height: 18, Bottom: 6);
-      Style: (FontSize: 11, TextColor: #e0a030);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #e0a030);
     }
 
     // Claim button (full-width, the primary action) + footer CTAs.

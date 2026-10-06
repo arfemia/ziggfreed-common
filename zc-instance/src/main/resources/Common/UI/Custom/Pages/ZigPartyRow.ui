@@ -1,5 +1,6 @@
 $C = "../Common.ui";
 $M = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One party / invite / online-roster row (appended into #PartyList; see
 // PartyInvitePage). A name label + an optional owner badge + up to two action buttons
@@ -17,14 +18,14 @@ Group #ZigPartyRow {
     FlexWeight: 1;
     Padding: (Left: 12);
     Text: "";
-    Style: (FontSize: 14, TextColor: #d7e4f0, VerticalAlignment: Center);
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, VerticalAlignment: Center);
   }
 
   Label #RowBadge {
     Visible: false;
     Anchor: (Width: 70, Height: 40);
     Text: "";
-    Style: (FontSize: 11, TextColor: #ffd97a, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffd97a, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
   }
 
   TextButton #RowBtnPrimary {

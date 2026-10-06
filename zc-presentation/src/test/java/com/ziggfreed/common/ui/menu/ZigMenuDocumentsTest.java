@@ -1,6 +1,5 @@
 package com.ziggfreed.common.ui.menu;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -20,8 +19,9 @@ import org.junit.jupiter.api.Test;
 /**
  * The frame and the rail row against what the Java addresses, what vanilla's own rail is and what the
  * readability standards ask: one size, the frame contract a theme retints, the pane and the separator, every
- * element {@link ZigMenu} sets, vanilla's row (32 high, 4 below, a 14px uppercase label shrinking to 12, the
- * selected label under the gold mask, a picture before the label), no text under 12px, a four-step type scale,
+ * element {@link ZigMenu} sets, vanilla's row (32 high, 4 below, a body-size uppercase label shrinking to the
+ * floor, the selected label under the gold mask, a picture before the label), every size a step of the family's
+ * type scale ({@code Common/ZigType.ui}, never a number, so none is under its floor), four label styles on it,
  * and no colour that is not one of the default palette's ({@link MenuPalette}, an alpha one spelled
  * {@code #rrggbb(a)}). A command against an element the document lacks disconnects the player, which no
  * server-side check sees.
@@ -30,9 +30,12 @@ class ZigMenuDocumentsTest {
 
     /** A colour as a document spells it: {@code #rrggbb}, optionally followed by vanilla's alpha {@code (a)}. */
     private static final Pattern COLOUR = Pattern.compile("(?<![0-9A-Za-z])#[0-9a-fA-F]{6}(?:\\([0-9.]+\\))?(?![0-9A-Za-z])");
-    private static final Pattern FONT = Pattern.compile("FontSize:\\s*(\\d+)");
+    /** A size written as a number ({@code FontSize} or {@code MinShrinkTextToFitFontSize}), not a type-scale step. */
+    private static final Pattern NUMBER_SIZE = Pattern.compile("FontSize:\\s*\\d");
     private static final List<String> STYLES = List.of("@ZigCaptionLabelStyle", "@ZigBodyLabelStyle",
             "@ZigHeadingLabelStyle", "@ZigTitleLabelStyle");
+    private static final List<String> STEPS = List.of("@ZigFontCaption", "@ZigFontBody", "@ZigFontHeading",
+            "@ZigFontTitle");
 
     @Test
     void theMenuFrameIsTheOneSizeAndCarriesTheFrameContract() throws IOException {
@@ -74,7 +77,7 @@ class ZigMenuDocumentsTest {
         String row = document(ZigMenu.TAB_TEMPLATE);
         for (String id : List.of("#ZigMenuTab", ZigMenu.BUTTON, ZigMenu.ICON_SLOT, "#Label", ZigMenu.SELECTED,
                 ZigMenu.MARKER, ZigMenu.SELECTED_ICON_SLOT, ZigMenu.SELECTED_LABEL, ZigMenu.HEADER, ZigMenu.RULE,
-                "#IcoItem", "#IcoTex")) {
+                "#IcoTex")) {
             assertTrue(Pattern.compile("\\w+\\s+" + Pattern.quote(id) + "\\s*\\{").matcher(row).find(),
                     ZigMenu.TAB_TEMPLATE + " declares " + id);
         }
@@ -86,9 +89,12 @@ class ZigMenuDocumentsTest {
         assertFalse(row.contains("TextButton"), "never a TextButton");
         for (String slot : List.of(ZigMenu.ICON_SLOT, ZigMenu.SELECTED_ICON_SLOT)) {
             String widgets = block(row, slot);
-            assertTrue(widgets.contains("ItemGrid #IcoItem {") && widgets.contains("AssetImage #IcoTex {"),
-                    slot + " holds IconRenderer's two widgets");
+            assertTrue(widgets.contains("AssetImage #IcoTex {") && !widgets.contains("#IcoItem"),
+                    slot + " holds the one plain picture IconRenderer.applyPlainIcon paints");
         }
+        assertFalse(row.contains("ItemGrid"),
+                "a tab's picture only displays: an item grid shows the item's tooltip and rarity square on the tab");
+        assertFalse(Pattern.compile("\\bItemIcon\\b").matcher(row).find(), "an ItemIcon draws blank in game");
     }
 
     @Test
@@ -106,10 +112,11 @@ class ZigMenuDocumentsTest {
         String tabLabel = styleLine(row, "@TabLabelStyle");
         String selectedLabel = styleLine(row, "@SelectedLabelStyle");
         for (String label : List.of(tabLabel, selectedLabel)) {
-            assertTrue(label.contains("FontSize: " + MenuFrame.LABEL_SIZE + ","), label);
+            assertTrue(label.contains("FontSize: $ZT.@ZigFontBody,"), "the body step, MenuFrame.LABEL_SIZE: " + label);
             assertTrue(label.contains("RenderUppercase: true"), label);
             assertTrue(label.contains("ShrinkTextToFit: true"), label);
-            assertTrue(label.contains("MinShrinkTextToFitFontSize: " + MenuFrame.LABEL_MIN_SIZE), label);
+            assertTrue(label.contains("MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption"),
+                    "shrinks no further than the floor, MenuFrame.LABEL_MIN_SIZE: " + label);
         }
         assertTrue(selectedLabel.contains("RenderBold: true"), "the selected label is bold");
         assertTrue(own(block(button, "#Label")).contains("Style: @TabLabelStyle"));
@@ -119,7 +126,7 @@ class ZigMenuDocumentsTest {
                 "vanilla's gold gradient mask, authored in the row since no Java push sets it");
 
         String section = styleLine(row, "@SectionLabelStyle");
-        assertTrue(section.contains("FontSize: " + MenuFrame.SECTION_LABEL_SIZE + ",")
+        assertTrue(section.contains("FontSize: $ZT.@ZigFontSection,")
                 && section.contains("RenderBold: true") && section.contains("RenderUppercase: true"), section);
         assertTrue(own(block(row, ZigMenu.HEADER)).contains("Style: @SectionLabelStyle"));
 
@@ -142,25 +149,28 @@ class ZigMenuDocumentsTest {
             String anchor = own(block(row, slot));
             assertTrue(anchor.contains("Width: " + MenuFrame.ICON_SIZE + ", Height: " + MenuFrame.ICON_SIZE),
                     slot + " is MenuFrame's picture size");
+            assertTrue(anchor.contains("Top: " + MenuFrame.ICON_INSET), slot + " sits centred in the row");
             assertTrue(anchor.contains("Right: " + MenuFrame.ICON_GAP), slot + " keeps its gap before the label");
+            String size = "Anchor: (Width: " + MenuFrame.ICON_SIZE + ", Height: " + MenuFrame.ICON_SIZE + ");";
+            String widgets = block(row, slot);
+            assertTrue(own(block(widgets, "#IcoTex")).contains(size), slot + "'s picture fills the slot");
         }
     }
 
     @Test
-    void theTypeScaleIsFourStepsAndNoTextIsUnderTheFloor() throws IOException {
+    void everySizeInTheFrameAndRailIsATypeScaleStep() throws IOException {
         String frames = document("Common/ZigFrames.ui");
-        int[] sizes = {MenuFrame.CAPTION_SIZE, MenuFrame.BODY_SIZE, MenuFrame.HEADING_SIZE, MenuFrame.TITLE_SIZE};
+        assertTrue(frames.contains("$ZT = \"ZigType.ui\";"), "ZigFrames.ui imports the type scale beside it");
+        assertTrue(document(ZigMenu.TAB_TEMPLATE).contains("$ZT = \"../Common/ZigType.ui\";"),
+                ZigMenu.TAB_TEMPLATE + " imports the type scale");
         for (int i = 0; i < STYLES.size(); i++) {
-            Matcher m = Pattern.compile(Pattern.quote(STYLES.get(i)) + "\\s*=\\s*LabelStyle\\(FontSize:\\s*(\\d+)").matcher(frames);
-            assertTrue(m.find(), "ZigFrames.ui defines " + STYLES.get(i));
-            assertEquals(sizes[i], Integer.parseInt(m.group(1)), STYLES.get(i));
+            assertTrue(styleLine(frames, STYLES.get(i)).contains("FontSize: $ZT." + STEPS.get(i) + ","),
+                    STYLES.get(i) + " is sized by " + STEPS.get(i));
         }
         for (String region : regions()) {
-            Matcher font = FONT.matcher(region);
-            while (font.find()) {
-                assertTrue(Integer.parseInt(font.group(1)) >= MenuFrame.FONT_FLOOR,
-                        "text in the frame or rail at " + font.group(1) + "px, under the " + MenuFrame.FONT_FLOOR + "px floor");
-            }
+            assertFalse(NUMBER_SIZE.matcher(region).find(),
+                    "a size in the frame or rail is a Common/ZigType.ui step, never a number, so none is under the "
+                            + "floor and one edit there resizes them all: " + region);
         }
     }
 

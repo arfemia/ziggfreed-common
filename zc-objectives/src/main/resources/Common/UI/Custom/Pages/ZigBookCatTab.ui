@@ -1,4 +1,5 @@
 $C = "../Common.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One filter chip of the Objective Book (quest categories, status filters, achievement sort /
 // status / subcategory chips), appended into its bar and addressed by index.
@@ -23,7 +24,7 @@ Group {
       Text: "";
       FlexWeight: 1;
       Anchor: (Height: $C.@SmallButtonHeight);
-      Style: (FontSize: 13, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
     }
   }
 }

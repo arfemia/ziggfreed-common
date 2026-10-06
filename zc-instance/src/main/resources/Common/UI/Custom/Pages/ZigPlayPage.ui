@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $M = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // Generic Play screen (com.ziggfreed.common.instance.play.PlayModePage). ONE page that
 // morphs between the mode-card chooser (#ModeCards) and the live roster (#RosterArea) -
@@ -18,12 +19,12 @@ $F.@ZigDecoratedFrame {
     Label #Title {
       Text: "";
       Anchor: (Height: 30, Bottom: 4);
-      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
+      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true);
     }
     Label #Subtitle {
       Text: "";
       Anchor: (Height: 20, Bottom: 10);
-      Style: (FontSize: 14, TextColor: #d7e4f0);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0);
     }
 
     Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
@@ -51,17 +52,17 @@ $F.@ZigDecoratedFrame {
       Label #PlayerCount {
         Text: "";
         Anchor: (Height: 20, Bottom: 4);
-        Style: (FontSize: 14, TextColor: #d7e4f0);
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0);
       }
       Label #Status {
         Text: "";
         Anchor: (Height: 22, Bottom: 4);
-        Style: (FontSize: 16, TextColor: #5ab0ff, RenderBold: true);
+        Style: (FontSize: $ZT.@ZigFontHeading, TextColor: #5ab0ff, RenderBold: true);
       }
       Label #WaitEstimate {
         Text: "";
         Anchor: (Height: 18, Bottom: 8);
-        Style: (FontSize: 11, TextColor: #8696a8);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8);
       }
 
       Group #RosterList {

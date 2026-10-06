@@ -1,3 +1,4 @@
+$ZT = "../Common/ZigType.ui";
 // ── ziggfreed-common appendable SETTINGS-FORM section header row ─────────────
 // Appended by SettingsForm.buildRows into a consumer's list container:
 //   cmd.append("#MyForm", "Pages/ZigFormHeaderRow.ui");
@@ -11,6 +12,6 @@ Group #ZigFormHeaderRow {
 
   Label #Title {
     Text: "";
-    Style: (FontSize: 15, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
+    Style: (FontSize: $ZT.@ZigFontEmphasis, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
   }
 }

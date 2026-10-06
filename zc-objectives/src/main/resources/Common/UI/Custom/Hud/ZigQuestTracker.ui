@@ -1,3 +1,4 @@
+$ZT = "../Common/ZigType.ui";
 // The tracked-quest HUD (ziggfreed-common, zc-objectives: objectives/hud/TrackedQuestHud), drawn to
 // match the NATIVE objective HUD (client Data/Game/Interface/InGame/Hud/ObjectivePanel + ObjectiveSlot
 // + ObjectivePanelTask + ObjectiveCommon): a content-sized top-right panel (NO fixed height - it hugs
@@ -16,11 +17,11 @@
 // Wrap, like the task lines below: a quest title is authored text of any length, and without it
 // the client truncates a long one to a single ellipsised line. The panel is content-sized, so a
 // title that takes two lines simply makes its block taller.
-@QuestTitleStyle = (FontSize: 15, RenderBold: true, RenderUppercase: true, TextColor: #b7b8b9, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center, Wrap: true);
+@QuestTitleStyle = (FontSize: $ZT.@ZigFontEmphasis, RenderBold: true, RenderUppercase: true, TextColor: #b7b8b9, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center, Wrap: true);
 
-@TaskTextStyle = (FontSize: 15, RenderBold: true, LetterSpacing: 1, TextColor: #ca9f37, VerticalAlignment: Center, Wrap: true);
+@TaskTextStyle = (FontSize: $ZT.@ZigFontEmphasis, RenderBold: true, LetterSpacing: 1, TextColor: #ca9f37, VerticalAlignment: Center, Wrap: true);
 
-@TaskCountStyle = (FontSize: 15, RenderBold: true, LetterSpacing: 1, TextColor: #b7b8b9, HorizontalAlignment: End, VerticalAlignment: Center);
+@TaskCountStyle = (FontSize: $ZT.@ZigFontEmphasis, RenderBold: true, LetterSpacing: 1, TextColor: #b7b8b9, HorizontalAlignment: End, VerticalAlignment: Center);
 
 // A task line is a flex row (LayoutMode: Left) of three parts: a fixed glyph column, the task text
 // taking everything left over, and the count sized to its own digits against the panel's inner

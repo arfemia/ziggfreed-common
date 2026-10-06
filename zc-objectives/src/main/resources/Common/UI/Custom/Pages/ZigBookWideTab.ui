@@ -1,4 +1,5 @@
 $C = "../Common.ui";
+$ZT = "../Common/ZigType.ui";
 
 // The wide sibling of ZigBookCatTab.ui, for a chip that carries a name PLUS a count (the
 // achievements tab's category tabs, "Combat  12/40"). Same Button + inner #Label shape, same
@@ -19,7 +20,7 @@ Group {
       Text: "";
       FlexWeight: 1;
       Anchor: (Height: $C.@SmallButtonHeight);
-      Style: (FontSize: 13, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
     }
   }
 }

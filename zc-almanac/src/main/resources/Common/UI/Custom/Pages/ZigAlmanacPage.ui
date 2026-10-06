@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // The Almanac (com.ziggfreed.common.almanac.page.AlmanacPage): every season this server runs on the
 // left, the one being read on the right.
@@ -37,14 +38,14 @@ $F.@ZigMenuFrame {
       Label #AlmanacTitle {
         Text: "";
         Anchor: (Height: 32, Bottom: 4);
-        Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
       }
 
       Label #BannerLabel {
         Text: "";
         Visible: false;
         Anchor: (Height: 20, Bottom: 8);
-        Style: (FontSize: 12, TextColor: #c8a86a, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #c8a86a, VerticalAlignment: Center);
       }
 
       Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
@@ -60,7 +61,7 @@ $F.@ZigMenuFrame {
         Text: "";
         Visible: false;
         Anchor: (Height: 40, Top: 8);
-        Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
       }
     }
 
@@ -97,14 +98,14 @@ $F.@ZigMenuFrame {
           FlexWeight: 1;
           Text: "";
           Anchor: (Height: 30);
-          Style: (FontSize: 22, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+          Style: (FontSize: $ZT.@ZigFontDisplay, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
         }
       }
 
       Label #DetailStatus {
         Text: "";
         Anchor: (Height: 20, Bottom: 8);
-        Style: (FontSize: 13, TextColor: #96a9be, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
       }
 
       Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
@@ -113,7 +114,7 @@ $F.@ZigMenuFrame {
         Text: "";
         Visible: false;
         Anchor: (Bottom: 12);
-        Style: (FontSize: 14, TextColor: #b6c9de, Wrap: true);
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, Wrap: true);
       }
 
       Group #DetailList {

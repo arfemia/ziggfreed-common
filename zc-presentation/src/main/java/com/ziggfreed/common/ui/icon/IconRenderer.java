@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.ui.ItemGridSlot;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 
 import com.ziggfreed.common.icon.IconSpec;
+import com.ziggfreed.common.inventory.ItemIds;
 
 /**
  * The ONE seam that paints an {@link IconSpec} into a row or a chip, so every icon-bearing surface
@@ -30,6 +31,10 @@ import com.ziggfreed.common.icon.IconSpec;
  * nothing answers to costs the picture, never the row: the texture, where there is one, is drawn
  * instead, and otherwise both hide. The child ids ({@code #IcoItem} / {@code #IcoTex}) are fixed
  * by convention across every icon-bearing row.
+ *
+ * <p>An item grid shows the item's own tooltip and its rarity square. A picture that should only display
+ * (a menu tab's) declares the {@code AssetImage #IcoTex} alone and is painted by {@link #applyPlainIcon},
+ * which draws an item as its own icon texture.
  */
 public final class IconRenderer {
 
@@ -72,6 +77,42 @@ public final class IconRenderer {
             cmd.set(texSel + ".AssetPath", texturePath);
         }
         return hasItem || hasTexture;
+    }
+
+    /**
+     * Paint {@code spec} as a PLAIN picture into a row that declares only the {@code AssetImage #IcoTex}: an
+     * item draws as its own icon texture ({@link ItemIds#iconPath}, e.g. {@code Icons/ItemsGenerated/X.png}),
+     * so it only displays, with no item tooltip and no rarity square, at whatever size the row authors, and
+     * the button around it keeps the hover and the click (a menu tab's picture). An item with no icon (or
+     * none this server ships) falls back to the spec's texture; with neither the picture hides. Never an
+     * {@code ItemIcon} widget, whose pictures drew blank in game ({@code UiIconWidgetHygieneTest}).
+     *
+     * @return whether anything was drawn, for a caller that also collapses a surrounding slot
+     */
+    public static boolean applyPlainIcon(@Nonnull UICommandBuilder cmd, @Nonnull String rowSelector,
+            @Nullable IconSpec spec) {
+        return applyPlainIcon(cmd, rowSelector, spec == null ? null : spec.itemId(),
+                spec == null ? null : spec.texturePath());
+    }
+
+    /**
+     * Paint a plain picture from its two leaves, for a caller holding them apart rather than as a spec.
+     * A shipped item's own icon wins over the texture; both missing hides the picture.
+     *
+     * @return whether anything was drawn
+     */
+    public static boolean applyPlainIcon(@Nonnull UICommandBuilder cmd, @Nonnull String rowSelector,
+            @Nullable String itemId, @Nullable String texturePath) {
+        String texSel = rowSelector + " " + TEXTURE_ICON_ID;
+        String path = ItemIds.iconPath(itemId);
+        if (path == null && texturePath != null && !texturePath.isBlank()) {
+            path = texturePath;
+        }
+        cmd.set(texSel + ".Visible", path != null);
+        if (path != null) {
+            cmd.set(texSel + ".AssetPath", path);
+        }
+        return path != null;
     }
 
     /**

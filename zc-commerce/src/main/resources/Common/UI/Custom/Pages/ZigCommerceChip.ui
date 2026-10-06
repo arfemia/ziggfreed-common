@@ -1,4 +1,5 @@
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One chip of a commerce strip: a picture and a number, side by side. A balance reading in a page
 // header, one component of a price, one component of a reroll's price - all the same chip, appended
@@ -31,6 +32,6 @@ Group #ZigCommerceChip {
     FlexWeight: 1;
     Text: "";
     Anchor: (Height: 26);
-    Style: (FontSize: 12, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
   }
 }

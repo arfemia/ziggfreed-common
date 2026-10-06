@@ -1,3 +1,4 @@
+$ZT = "../Common/ZigType.ui";
 // ── ziggfreed-common appendable SETTINGS-FORM note row ────────────────────────
 // Appended by SettingsForm.buildRows into a consumer's list container:
 //   cmd.append("#MyForm", "Pages/ZigFormNoteRow.ui");
@@ -13,6 +14,6 @@ Group #ZigFormNoteRow {
 
   Label #Note {
     Text: "";
-    Style: (FontSize: 11, TextColor: #aabccf, Wrap: true);
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #aabccf, Wrap: true);
   }
 }

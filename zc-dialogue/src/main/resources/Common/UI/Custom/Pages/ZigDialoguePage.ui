@@ -1,5 +1,6 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
+$ZT = "../Common/ZigType.ui";
 
 // Generic branching NPC dialogue page (lifted from hyMMO, de-MMO'd): name header,
 // optional one-line annotation, node-text panel, dynamic option rows appended from
@@ -20,7 +21,7 @@ $F.@ZigDecoratedFrame {
     Label #NpcName {
       Text: "";
       Anchor: (Height: 30, Bottom: 6);
-      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
+      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true);
     }
 
     // Optional one-line annotation under the name (hidden until the consumer's
@@ -39,7 +40,7 @@ $F.@ZigDecoratedFrame {
         FlexWeight: 1;
         Padding: (Left: 8);
         Text: "";
-        Style: (FontSize: 12, TextColor: #b6c9de, VerticalAlignment: Center, Wrap: true);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b6c9de, VerticalAlignment: Center, Wrap: true);
       }
     }
 
@@ -55,7 +56,7 @@ $F.@ZigDecoratedFrame {
       Label #NodeText {
         Text: "";
         Anchor: (Bottom: 4);
-        Style: (FontSize: 14, TextColor: #d7e4f0, Wrap: true);
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, Wrap: true);
       }
     }
 

@@ -2,6 +2,7 @@ $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
 $S = "../Common/ZigSearchRow.ui";
+$ZT = "../Common/ZigType.ui";
 
 // The NPC placement admin page (com.ziggfreed.common.npc.placement.admin.NpcPlacementAdminPage).
 // Two stacked panels, each painted from Java:
@@ -39,13 +40,13 @@ $F.@ZigDecoratedFrame {
     Label #Title {
       Text: "";
       Anchor: (Height: 32, Bottom: 2);
-      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
     }
 
     Label #Subtitle {
       Text: "";
       Anchor: (Height: 20, Bottom: 10);
-      Style: (FontSize: 12, TextColor: #93a4b8, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #93a4b8, VerticalAlignment: Center);
     }
 
     Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
@@ -59,7 +60,7 @@ $F.@ZigDecoratedFrame {
       Label #PlacementsHeading {
         Text: "";
         Anchor: (Height: 22, Bottom: 6);
-        Style: (FontSize: 14, TextColor: #cdd8e6, RenderBold: true, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, RenderBold: true, VerticalAlignment: Center);
       }
 
       Group #Rows {
@@ -73,7 +74,7 @@ $F.@ZigDecoratedFrame {
         Text: "";
         Visible: false;
         Anchor: (Height: 40, Top: 8);
-        Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
       }
     }
 
@@ -86,13 +87,13 @@ $F.@ZigDecoratedFrame {
       Label #PlaceHeading {
         Text: "";
         Anchor: (Height: 22, Bottom: 2);
-        Style: (FontSize: 14, TextColor: #cdd8e6, RenderBold: true, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, RenderBold: true, VerticalAlignment: Center);
       }
 
       Label #PlaceHint {
         Text: "";
         Anchor: (Height: 18, Bottom: 6);
-        Style: (FontSize: 11, TextColor: #8696a8, Wrap: true);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, Wrap: true);
       }
 
       $S.@ZigSearchRow #RoleSearch {
@@ -110,7 +111,7 @@ $F.@ZigDecoratedFrame {
         Text: "";
         Visible: false;
         Anchor: (Height: 34, Top: 6);
-        Style: (FontSize: 12, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
       }
     }
 
@@ -126,7 +127,7 @@ $F.@ZigDecoratedFrame {
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
         }
       }
     }

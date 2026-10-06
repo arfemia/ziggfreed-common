@@ -4,6 +4,7 @@
 
 $C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 Group #ZigAchCategoryCard {
   LayoutMode: Top;
@@ -23,12 +24,12 @@ Group #ZigAchCategoryCard {
     Label #CategoryName {
       Text: "";
       FlexWeight: 1;
-      Style: (FontSize: 13, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
     }
     Label #Counts {
       Text: "";
       Anchor: (Width: 62);
-      Style: (FontSize: 12, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
@@ -51,7 +52,7 @@ Group #ZigAchCategoryCard {
       Label #Label {
         FlexWeight: 1;
         Text: "";
-        Style: (FontSize: 12, TextColor: #cfe0f2, HorizontalAlignment: Center, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #cfe0f2, HorizontalAlignment: Center, VerticalAlignment: Center);
       }
     }
   }

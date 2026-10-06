@@ -42,6 +42,7 @@ import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.ZigSearchRow;
+import com.ziggfreed.common.ui.ZigType;
 
 import static com.ziggfreed.common.objectives.book.BookWidths.CAT_TAB_OUTER_WIDTH;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.CAT_TAB_TEMPLATE;
@@ -79,7 +80,7 @@ final class BookQuestsTab {
      * Label's style is pushed leaf by leaf from Java, never as the named constant.
      */
     private static final String STEP_HEADING_COLOR = "#8fb4dc";
-    private static final int STEP_HEADING_FONT_SIZE = 12;
+    private static final int STEP_HEADING_FONT_SIZE = ZigType.SECTION;
 
     /** The colour a custom category's strip hashes to, so one category is always one colour. */
     private static final String[] CUSTOM_CATEGORY_COLORS = {

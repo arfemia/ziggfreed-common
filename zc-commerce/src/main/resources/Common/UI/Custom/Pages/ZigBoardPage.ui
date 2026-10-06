@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // The board page (com.ziggfreed.common.commerce.page.ZigBoardPage): what a board is posting on the
 // left, the contract being read on the right, and the clock to the next turnover across the top.
@@ -60,7 +61,7 @@ $F.@ZigDecoratedFrame {
           FlexWeight: 1;
           Text: "";
           Anchor: (Height: 32);
-          Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+          Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
         }
       }
 
@@ -68,13 +69,13 @@ $F.@ZigDecoratedFrame {
         Text: "";
         Visible: false;
         Anchor: (Bottom: 6);
-        Style: (FontSize: 12, TextColor: #b3c4d6, Wrap: true);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b3c4d6, Wrap: true);
       }
 
       Label #RefreshLabel {
         Text: "";
         Anchor: (Height: 20, Bottom: 6);
-        Style: (FontSize: 12, TextColor: #9fb3c8, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #9fb3c8, VerticalAlignment: Center);
       }
 
       Group #BalanceRow {
@@ -93,7 +94,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 
@@ -104,7 +105,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
       }
@@ -112,7 +113,7 @@ $F.@ZigDecoratedFrame {
       Label #BountyCount {
         Text: "";
         Anchor: (Height: 20, Bottom: 6);
-        Style: (FontSize: 12, TextColor: #b3c4d6, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b3c4d6, VerticalAlignment: Center);
       }
 
       Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
@@ -128,7 +129,7 @@ $F.@ZigDecoratedFrame {
         Text: "";
         Visible: false;
         Anchor: (Height: 40, Top: 8);
-        Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center, Wrap: true);
       }
     }
 
@@ -140,7 +141,7 @@ $F.@ZigDecoratedFrame {
       Label #DetailTitle {
         Text: "";
         Anchor: (Height: 30, Bottom: 4);
-        Style: (FontSize: 22, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontDisplay, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
       }
 
       Group #DetailMetaRow {
@@ -150,7 +151,7 @@ $F.@ZigDecoratedFrame {
         Label #DetailStatus {
           Anchor: (Width: 160, Height: 20);
           Text: "";
-          Style: (FontSize: 13, TextColor: #96a9be, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
+          Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, RenderBold: true, LetterSpacing: 1, VerticalAlignment: Center);
         }
 
         Label #DetailGrade {
@@ -158,7 +159,7 @@ $F.@ZigDecoratedFrame {
           Text: "";
           Visible: false;
           Anchor: (Height: 20);
-          Style: (FontSize: 13, TextColor: #c8a86a, VerticalAlignment: Center);
+          Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #c8a86a, VerticalAlignment: Center);
         }
       }
 
@@ -168,7 +169,7 @@ $F.@ZigDecoratedFrame {
         Text: "";
         Visible: false;
         Anchor: (Bottom: 12);
-        Style: (FontSize: 14, TextColor: #b6c9de, Wrap: true);
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, Wrap: true);
       }
 
       Label #ObjectivesHeader {
@@ -218,7 +219,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 14, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 
@@ -229,7 +230,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 14, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 
@@ -240,7 +241,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 14, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #eef4fb, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 
@@ -251,7 +252,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 14, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 
@@ -262,7 +263,7 @@ $F.@ZigDecoratedFrame {
           Label #Label {
             FlexWeight: 1;
             Text: "";
-            Style: (FontSize: 14, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: $ZT.@ZigFontBody, TextColor: #c6d4e4, HorizontalAlignment: Center, VerticalAlignment: Center);
           }
         }
 

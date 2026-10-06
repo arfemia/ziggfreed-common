@@ -1,5 +1,7 @@
 package com.ziggfreed.common.ui.menu;
 
+import com.ziggfreed.common.ui.ZigType;
+
 /**
  * The shared menu frame's one set of numbers. {@code ZigFrames.ui}'s {@code @ZigMenuFrame} and
  * {@code Pages/ZigMenuTab.ui} spell the same values (a document cannot read a Java constant), and
@@ -43,31 +45,31 @@ public final class MenuFrame {
     public static final int ROW_GAP = 4;
     public static final int ROW_PADDING = 10;
 
-    /** A tab's picture, before its label, and the space after it. */
-    public static final int ICON_SIZE = 20;
+    /**
+     * A tab's picture, before its label, centred in the row ({@link #ICON_INSET} above and below), and the space
+     * after it.
+     */
+    public static final int ICON_SIZE = 28;
+    public static final int ICON_INSET = (ROW_HEIGHT - ICON_SIZE) / 2;
     public static final int ICON_GAP = 8;
 
     /** The selected tab's accent bar. */
     public static final int MARKER_WIDTH = 3;
 
-    /** A tab label: 14, uppercase, shrinking to fit but never under 12. A section heading: 13, bold, uppercase. */
-    public static final int LABEL_SIZE = 14;
-    public static final int LABEL_MIN_SIZE = 12;
-    public static final int SECTION_LABEL_SIZE = 13;
+    /**
+     * A tab label: the body step, uppercase, shrinking to fit but never under the floor. A section heading:
+     * vanilla's section step, bold, uppercase. The sizes are {@link ZigType}'s ({@code Common/ZigType.ui}).
+     */
+    public static final int LABEL_SIZE = ZigType.BODY;
+    public static final int LABEL_MIN_SIZE = ZigType.FLOOR;
+    public static final int SECTION_LABEL_SIZE = ZigType.SECTION;
 
     /**
      * The longest rail label, in characters once uppercased (the rail draws it in capitals), that stays on one
      * line: the label has {@code RAIL_WIDTH - 2 * RAIL_PADDING - 4 (the list's scroll gutter) - 2 * ROW_PADDING
-     * - ICON_SIZE - ICON_GAP} = 182px, and a capital at the 12px shrink floor is about 8px.
+     * - ICON_SIZE - ICON_GAP} = 174px, and a capital at the 13px shrink floor is about 8.7px.
      */
-    public static final int RAIL_LABEL_MAX_CHARS = 22;
-
-    /** The type scale: no player text in the frame or rail is smaller than {@link #FONT_FLOOR}. */
-    public static final int FONT_FLOOR = 12;
-    public static final int CAPTION_SIZE = 12;
-    public static final int BODY_SIZE = 14;
-    public static final int HEADING_SIZE = 16;
-    public static final int TITLE_SIZE = 20;
+    public static final int RAIL_LABEL_MAX_CHARS = 20;
 
     private MenuFrame() {
     }

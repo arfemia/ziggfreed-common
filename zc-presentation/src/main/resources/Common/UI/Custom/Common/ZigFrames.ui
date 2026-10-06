@@ -1,4 +1,5 @@
 $C = "../Common.ui";
+$ZT = "ZigType.ui";
 
 // ── ziggfreed-common shared decorated panel frame (de-MMO'd) ──────────────────
 // Imported per page as:  $F = "../Common/ZigFrames.ui";  then used as a container:
@@ -45,16 +46,17 @@ $C = "../Common.ui";
   }
 };
 
-// ── the type scale ────────────────────────────────────────────────────────────
-// Four label sizes for the shared menu frame and every page that wants to read like it: caption 12,
-// body 14, heading 16, title 20. Nothing a player reads in the frame or rail is under 12px. Spread one and
-// override a leaf: Style: (...$F.@ZigBodyLabelStyle, TextColor: #ffffff);. The colours are the menu's
-// default palette (com.ziggfreed.common.ui.menu.MenuPalette), vanilla's own label grey and white; a page on
-// the menu frame gets them repainted from the palette in force.
-@ZigCaptionLabelStyle = LabelStyle(FontSize: 12, TextColor: #96a9be, VerticalAlignment: Center);
-@ZigBodyLabelStyle = LabelStyle(FontSize: 14, TextColor: #96a9be, VerticalAlignment: Center);
-@ZigHeadingLabelStyle = LabelStyle(FontSize: 16, TextColor: #96a9be, RenderBold: true, VerticalAlignment: Center);
-@ZigTitleLabelStyle = LabelStyle(FontSize: 20, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+// ── the label styles ──────────────────────────────────────────────────────────
+// Four label styles for the shared menu frame and every page that wants to read like it: caption, body,
+// heading and title, each sized from the family's type scale (Common/ZigType.ui, imported as $ZT), so nothing
+// a player reads is under its 13px floor. Spread one and override a leaf:
+// Style: (...$F.@ZigBodyLabelStyle, TextColor: #ffffff);. The colours are the menu's default palette
+// (com.ziggfreed.common.ui.menu.MenuPalette), vanilla's own label grey and white; a page on the menu frame gets
+// them repainted from the palette in force.
+@ZigCaptionLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, VerticalAlignment: Center);
+@ZigBodyLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: #96a9be, VerticalAlignment: Center);
+@ZigHeadingLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontHeading, TextColor: #96a9be, RenderBold: true, VerticalAlignment: Center);
+@ZigTitleLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontTitle, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
 
 // ── the shared menu frame (com.ziggfreed.common.ui.menu.ZigMenu) ──────────────
 // Imported per page as:  $F = "../Common/ZigFrames.ui";  then

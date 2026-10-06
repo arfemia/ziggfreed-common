@@ -1,5 +1,6 @@
 $C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
+$ZT = "ZigType.ui";
 
 // ── ziggfreed-common shared SEARCH ROW (field + Search + Clear) ───────────────
 // Imported per page as:  $S = "../Common/ZigSearchRow.ui";  then instantiated WITH AN ID:
@@ -40,7 +41,7 @@ $Z = "../Common/ZigButtons.ui";
     Anchor: (Height: @Height);
     Padding: (Horizontal: 8);
     PlaceholderText: @Placeholder;
-    Style: (FontSize: 13, TextColor: #b6c9de);
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de);
   }
 
   Group { Anchor: (Width: 4); }
@@ -51,7 +52,7 @@ $Z = "../Common/ZigButtons.ui";
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
     }
   }
 
@@ -65,7 +66,7 @@ $Z = "../Common/ZigButtons.ui";
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: 13, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ff9a8a, HorizontalAlignment: Center, VerticalAlignment: Center);
     }
   }
 };

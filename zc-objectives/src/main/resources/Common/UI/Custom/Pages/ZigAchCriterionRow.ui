@@ -1,4 +1,5 @@
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One criterion line in the achievement detail column: a met/unmet tick, the criterion's own
 // picture and line, and its count. Colours are set from Java per state.
@@ -24,7 +25,7 @@ Group #ZigAchCriterionRow {
   Label #StatusTick {
     Text: "";
     Anchor: (Width: 14);
-    Style: (FontSize: 14, TextColor: #6a7a8e, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #6a7a8e, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
   }
 
   Group #LineIconSlot {
@@ -50,12 +51,12 @@ Group #ZigAchCriterionRow {
   Label #CritText {
     Text: "";
     FlexWeight: 1;
-    Style: (FontSize: 16, TextColor: #96a9be, VerticalAlignment: Center);
+    Style: (FontSize: $ZT.@ZigFontHeading, TextColor: #96a9be, VerticalAlignment: Center);
   }
 
   Label #CritProgress {
     Text: "";
     Anchor: (Width: 90, Height: 30);
-    Style: (FontSize: 14, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
   }
 }

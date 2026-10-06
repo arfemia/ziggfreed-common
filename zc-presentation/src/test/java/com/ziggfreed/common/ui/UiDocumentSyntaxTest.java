@@ -9,7 +9,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -50,6 +52,15 @@ class UiDocumentSyntaxTest {
 
     /** The client's LabelAlignment values: vanilla aligns a label to the bottom with End, never Bottom. */
     private static final Set<String> ALIGNMENTS = Set.of("Start", "Center", "End");
+
+    /** An import, {@code $Alias = "relative/path.ui";}. */
+    private static final Pattern IMPORT = Pattern.compile("(?m)^\\s*\\$([A-Za-z][A-Za-z0-9]*)\\s*=\\s*\"([^\"]+)\"\\s*;");
+
+    /** The one vanilla document this module's documents import (as {@code $C}); the game ships it, not this module. */
+    private static final String VANILLA_COMMON = "Common.ui";
+
+    /** A reference into an import, {@code $Alias.@Name}. */
+    private static final Pattern REFERENCE = Pattern.compile("\\$([A-Za-z][A-Za-z0-9]*)\\.@([A-Za-z][A-Za-z0-9]*)");
 
     @Test
     void everyElementIdIsLettersAndDigitsOnly() throws IOException {
@@ -93,6 +104,37 @@ class UiDocumentSyntaxTest {
         assertTrue(bad.isEmpty(),
                 "a label's alignment is Start, Center or End (vanilla's LabelAlignment); Top, Bottom, Left or "
                         + "Right fails the client's parse and disconnects every player at load. Offending: " + bad);
+    }
+
+    @Test
+    void everyCrossDocumentReferenceResolves() throws IOException {
+        Path root = customRoot();
+        List<String> bad = new ArrayList<>();
+        for (Path doc : documents()) {
+            String text = stripComments(Files.readString(doc, StandardCharsets.UTF_8));
+            Map<String, Path> imports = new HashMap<>();
+            Matcher imported = IMPORT.matcher(text);
+            while (imported.find()) {
+                imports.put(imported.group(1), doc.getParent().resolve(imported.group(2)).normalize());
+            }
+            Matcher ref = REFERENCE.matcher(text);
+            while (ref.find()) {
+                Path target = imports.get(ref.group(1));
+                String where = root.relativize(doc) + " $" + ref.group(1) + ".@" + ref.group(2);
+                if (target == null) {
+                    bad.add(where + ": no $" + ref.group(1) + " import");
+                } else if (!Files.isRegularFile(target) && !target.equals(root.resolve(VANILLA_COMMON))) {
+                    bad.add(where + ": imports " + root.relativize(target) + ", which neither this module nor the "
+                            + "game ships");
+                } else if (Files.isRegularFile(target) && !defines(target, ref.group(2))) {
+                    bad.add(where + ": " + root.relativize(target) + " defines no @" + ref.group(2));
+                }
+            }
+        }
+        assertTrue(bad.isEmpty(),
+                "every $Alias.@Name names an import the document declares and a value that document defines (a "
+                        + "type-scale step, a style); one that does not resolve fails the client's parse and disconnects "
+                        + "every player at load. Vanilla's own documents are not read here. Offending: " + bad);
     }
 
     @Test
@@ -147,14 +189,26 @@ class UiDocumentSyntaxTest {
         throw new AssertionError("no shipped document at " + template);
     }
 
-    /** Every {@code .ui} this module ships. */
-    private static List<Path> documents() throws IOException {
+    /** Does {@code doc} define {@code @name} (a value, a style or a template)? */
+    private static boolean defines(Path doc, String name) throws IOException {
+        return Pattern.compile("(?m)^\\s*@" + Pattern.quote(name) + "\\s*=")
+                .matcher(stripComments(Files.readString(doc, StandardCharsets.UTF_8))).find();
+    }
+
+    /** This module's {@code Common/UI/Custom} directory, the root every document path is relative to. */
+    private static Path customRoot() {
         Path root = Paths.get("src/main/resources/Common/UI/Custom");
         if (!Files.isDirectory(root)) {
             // Run from the repository root rather than the module: same tree, longer path.
             root = Paths.get("zc-presentation/src/main/resources/Common/UI/Custom");
         }
         assertTrue(Files.isDirectory(root), "no Custom UI directory found to check, at " + root.toAbsolutePath());
+        return root.toAbsolutePath().normalize();
+    }
+
+    /** Every {@code .ui} this module ships. */
+    private static List<Path> documents() throws IOException {
+        Path root = customRoot();
         try (Stream<Path> walk = Files.walk(root)) {
             List<Path> docs = walk.filter(p -> p.toString().endsWith(".ui")).sorted().toList();
             assertTrue(!docs.isEmpty(), "no .ui documents found under " + root.toAbsolutePath());

@@ -2,6 +2,7 @@ $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
 $S = "../Common/ZigSearchRow.ui";
+$ZT = "../Common/ZigType.ui";
 
 // The Objective Book (com.ziggfreed.common.objectives.book.ObjectiveBookPage), inside the shared menu
 // frame: the frame's rail on the left (ui/menu/ZigMenu paints it, with this book's Quests or
@@ -42,7 +43,7 @@ $F.@ZigMenuFrame {
           Label #PanelTitle {
             Text: "";
             FlexWeight: 1;
-            Style: (...$C.@TitleStyle, FontSize: 24);
+            Style: (...$C.@TitleStyle, FontSize: $ZT.@ZigFontDisplayLarge);
           }
         }
 
@@ -59,12 +60,12 @@ $F.@ZigMenuFrame {
             Label #Stat0Value {
               Text: "";
               Anchor: (Height: 24);
-              Style: (FontSize: 22, TextColor: #4a9eff, RenderBold: true);
+              Style: (FontSize: $ZT.@ZigFontDisplay, TextColor: #4a9eff, RenderBold: true);
             }
             Label #Stat0Label {
               Text: "";
-              Anchor: (Height: 16);
-              Style: (...$C.@DefaultLabelStyle, FontSize: 11);
+              Anchor: (Height: 17);
+              Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontCaption);
             }
           }
 
@@ -74,12 +75,12 @@ $F.@ZigMenuFrame {
             Label #Stat1Value {
               Text: "";
               Anchor: (Height: 24);
-              Style: (FontSize: 22, TextColor: #ffaa4a, RenderBold: true);
+              Style: (FontSize: $ZT.@ZigFontDisplay, TextColor: #ffaa4a, RenderBold: true);
             }
             Label #Stat1Label {
               Text: "";
-              Anchor: (Height: 16);
-              Style: (...$C.@DefaultLabelStyle, FontSize: 11);
+              Anchor: (Height: 17);
+              Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontCaption);
             }
           }
 
@@ -90,12 +91,12 @@ $F.@ZigMenuFrame {
             Label #Stat2Value {
               Text: "";
               Anchor: (Height: 24);
-              Style: (FontSize: 18, TextColor: #ffd24a, RenderBold: true);
+              Style: (FontSize: $ZT.@ZigFontSubtitle, TextColor: #ffd24a, RenderBold: true);
             }
             Label #Stat2Label {
               Text: "";
-              Anchor: (Height: 16);
-              Style: (...$C.@DefaultLabelStyle, FontSize: 11);
+              Anchor: (Height: 17);
+              Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontCaption);
             }
           }
         }
@@ -105,7 +106,7 @@ $F.@ZigMenuFrame {
         Text: "";
         Visible: false;
         Anchor: (Height: 20, Bottom: 4);
-        Style: (...$C.@DefaultLabelStyle, FontSize: 12);
+        Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontCaption);
       }
 
       $C.@ContentSeparator { Anchor: (Bottom: 8); }
@@ -166,7 +167,7 @@ $F.@ZigMenuFrame {
           Text: "";
           Anchor: (Height: 30);
           Visible: false;
-          Style: (...$C.@DefaultLabelStyle, FontSize: 14, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, VerticalAlignment: Center);
         }
 
         // The ONE scroll region: the pre-expanded Active section rides above the browse list so
@@ -184,7 +185,7 @@ $F.@ZigMenuFrame {
             Label #ActiveHeader {
               Text: "";
               Anchor: (Height: 22, Bottom: 6);
-              Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2, TextColor: #4a9eff);
+              Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2, TextColor: #4a9eff);
             }
 
             Group #ActiveQuestList {
@@ -276,7 +277,7 @@ $F.@ZigMenuFrame {
               Text: "";
               Anchor: (Height: 30);
               Visible: false;
-              Style: (...$C.@DefaultLabelStyle, FontSize: 14, HorizontalAlignment: Center, VerticalAlignment: Center);
+              Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, VerticalAlignment: Center);
             }
 
             Group #AListScroll {
@@ -293,7 +294,7 @@ $F.@ZigMenuFrame {
                 Text: "";
                 Anchor: (Height: 22, Top: 8, Bottom: 4);
                 Visible: false;
-                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2, TextColor: #ffd24a);
+                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2, TextColor: #ffd24a);
               }
 
               Group #FeatsList {
@@ -322,41 +323,41 @@ $F.@ZigMenuFrame {
               Label #OvRecentHeader {
                 Text: "";
                 Anchor: (Height: 20, Bottom: 4);
-                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
               }
               Group #RecentList { LayoutMode: Top; }
               Label #RecentEmpty {
                 Text: "";
                 Anchor: (Height: 24);
                 Visible: false;
-                Style: (FontSize: 12, TextColor: #6a7a8e, VerticalAlignment: Center);
+                Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #6a7a8e, VerticalAlignment: Center);
               }
 
               Label #OvNearestHeader {
                 Text: "";
                 Anchor: (Height: 20, Top: 8, Bottom: 4);
-                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
               }
               Group #NearestList { LayoutMode: Top; }
               Label #NearestEmpty {
                 Text: "";
                 Anchor: (Height: 24);
                 Visible: false;
-                Style: (FontSize: 12, TextColor: #6a7a8e, VerticalAlignment: Center);
+                Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #6a7a8e, VerticalAlignment: Center);
               }
 
               Label #OvPinnedHeader {
                 Text: "";
                 Anchor: (Height: 20, Top: 8, Bottom: 4);
                 Visible: false;
-                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
               }
               Group #PinnedList { LayoutMode: Top; }
 
               Label #OvCategoriesHeader {
                 Text: "";
                 Anchor: (Height: 20, Top: 8, Bottom: 4);
-                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
               }
               Group #CategoriesGrid { LayoutMode: LeftCenterWrap; }
 
@@ -364,7 +365,7 @@ $F.@ZigMenuFrame {
                 Text: "";
                 Anchor: (Height: 20, Top: 8, Bottom: 4);
                 Visible: false;
-                Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2, TextColor: #ffd24a);
+                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2, TextColor: #ffd24a);
               }
               Group #MilestoneList { LayoutMode: Top; }
             }
@@ -420,18 +421,18 @@ $F.@ZigMenuFrame {
                 Label #DTitle {
                   Text: "";
                   FlexWeight: 1;
-                  Style: (FontSize: 18, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+                  Style: (FontSize: $ZT.@ZigFontSubtitle, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
                 }
                 Label #DFirstBadge {
                   Text: "";
                   Anchor: (Width: 110);
-                  Style: (FontSize: 12, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
                 }
                 Group { Anchor: (Width: 6); }
                 Label #DPoints {
                   Text: "";
                   Anchor: (Width: 70);
-                  Style: (FontSize: 13, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
                 }
               }
 
@@ -443,17 +444,17 @@ $F.@ZigMenuFrame {
                 Label #DCategoryChip {
                   Text: "";
                   Anchor: (Width: 220);
-                  Style: (FontSize: 12, TextColor: #96a9be, VerticalAlignment: Center);
+                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, VerticalAlignment: Center);
                 }
                 Label #DDate {
                   Text: "";
                   FlexWeight: 1;
-                  Style: (FontSize: 12, TextColor: #96a9be, VerticalAlignment: Center);
+                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, VerticalAlignment: Center);
                 }
                 Label #DStatus {
                   Text: "";
                   Anchor: (Width: 110);
-                  Style: (FontSize: 13, TextColor: #ffaa4a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffaa4a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
                 }
               }
 
@@ -462,14 +463,14 @@ $F.@ZigMenuFrame {
                 Anchor: (Top: 2);
                 Padding: (Left: 11);
                 Visible: false;
-                Style: (FontSize: 11, TextColor: #96a9be, Wrap: true);
+                Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, Wrap: true);
               }
 
               Label #DDescription {
                 Text: "";
                 Anchor: (Top: 4);
                 Padding: (Left: 11);
-                Style: (FontSize: 14, TextColor: #b6c9de, Wrap: true);
+                Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, Wrap: true);
               }
 
               Group #DProgressRow {
@@ -490,7 +491,7 @@ $F.@ZigMenuFrame {
                 Label #DBarText {
                   Text: "";
                   Anchor: (Width: 140, Height: 16);
-                  Style: (FontSize: 12, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
+                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
                 }
               }
 
@@ -504,7 +505,7 @@ $F.@ZigMenuFrame {
                   Text: "";
                   Anchor: (Height: 20, Top: 8, Bottom: 2);
                   Visible: false;
-                  Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                  Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
                 }
                 Group #DCriteriaList { LayoutMode: Top; }
 
@@ -512,7 +513,7 @@ $F.@ZigMenuFrame {
                   Text: "";
                   Anchor: (Height: 20, Top: 8, Bottom: 2);
                   Visible: false;
-                  Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                  Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
                 }
                 Group #DRequiresList { LayoutMode: Top; }
 
@@ -520,7 +521,7 @@ $F.@ZigMenuFrame {
                   Text: "";
                   Anchor: (Height: 20, Top: 8, Bottom: 2);
                   Visible: false;
-                  Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                  Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
                 }
                 Group #DPartOfList { LayoutMode: Top; }
 
@@ -528,7 +529,7 @@ $F.@ZigMenuFrame {
                   Text: "";
                   Anchor: (Height: 20, Top: 8, Bottom: 2);
                   Visible: false;
-                  Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+                  Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
                 }
                 Group #DChainList { LayoutMode: Top; }
 
@@ -536,7 +537,7 @@ $F.@ZigMenuFrame {
                   Text: "";
                   Anchor: (Height: 20, Top: 8, Bottom: 2);
                   Visible: false;
-                  Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2, TextColor: #ffd24a);
+                  Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2, TextColor: #ffd24a);
                 }
                 Group #DRewardsList { LayoutMode: Top; }
 
@@ -551,7 +552,7 @@ $F.@ZigMenuFrame {
                     Label #Label {
                       FlexWeight: 1;
                       Text: "";
-                      Style: (FontSize: 14, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+                      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
                     }
                   }
                 }
@@ -578,7 +579,7 @@ $F.@ZigMenuFrame {
         Label #TrackedQuestHeader {
           Text: "";
           Anchor: (Height: 22, Bottom: 4);
-          Style: (...$C.@SubtitleStyle, FontSize: 12, LetterSpacing: 2);
+          Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
         }
 
         $C.@ContentSeparator { Anchor: (Bottom: 8); }
@@ -587,7 +588,7 @@ $F.@ZigMenuFrame {
           Text: "";
           Visible: false;
           Anchor: (Height: 40);
-          Style: (FontSize: 12, TextColor: #6a7a8e, Wrap: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #6a7a8e, Wrap: true, HorizontalAlignment: Center, VerticalAlignment: Center);
         }
 
         Group #TrackedQuestsList {

@@ -1,4 +1,5 @@
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // ── ziggfreed-common appendable SETTINGS-FORM toggle row ──────────────────────
 // Appended by SettingsForm.buildRows into a consumer's list container:
@@ -24,7 +25,7 @@ Group #ZigFormToggleRow {
     Label #Title {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: 13, TextColor: #cdd8e6, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, VerticalAlignment: Center);
     }
 
     Button #Toggle {
@@ -33,7 +34,7 @@ Group #ZigFormToggleRow {
       Label #Label {
         FlexWeight: 1;
         Text: "";
-        Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
       }
     }
   }
@@ -42,6 +43,6 @@ Group #ZigFormToggleRow {
     Visible: false;
     Text: "";
     Padding: (Right: 96);
-    Style: (FontSize: 11, TextColor: #aabccf, Wrap: true);
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #aabccf, Wrap: true);
   }
 }

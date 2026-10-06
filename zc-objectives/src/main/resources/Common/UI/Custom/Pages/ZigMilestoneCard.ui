@@ -4,6 +4,7 @@
 
 $C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 Group #ZigMilestoneCard {
   LayoutMode: Top;
@@ -18,27 +19,27 @@ Group #ZigMilestoneCard {
     Label #MilestoneName {
       Text: "";
       FlexWeight: 1;
-      Style: (FontSize: 14, TextColor: #ffd24a, RenderBold: true, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd24a, RenderBold: true, VerticalAlignment: Center);
     }
 
     Label #MilestoneStatus {
       Text: "";
       Anchor: (Width: 120);
-      Style: (FontSize: 12, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
   Label #MilestoneDescription {
     Text: "";
     Anchor: (Top: 2);
-    Style: (FontSize: 12, TextColor: #96a9be, Wrap: true);
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, Wrap: true);
   }
 
   Label #MilestoneRewardsHeader {
     Text: "";
     Anchor: (Top: 4);
     Visible: false;
-    Style: (FontSize: 12, TextColor: #ffd24a, RenderBold: true, RenderUppercase: true, LetterSpacing: 1);
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffd24a, RenderBold: true, RenderUppercase: true, LetterSpacing: 1);
   }
 
   Group #MilestoneRewardsList {
@@ -68,7 +69,7 @@ Group #ZigMilestoneCard {
       Label #Label {
         FlexWeight: 1;
         Text: "";
-        Style: (FontSize: 12, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
       }
     }
   }

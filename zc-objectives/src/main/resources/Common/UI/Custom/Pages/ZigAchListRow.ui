@@ -1,5 +1,6 @@
 $C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One compact achievement row (the achievements tab's list, feats, and the overview's recent /
 // nearest / pinned blocks). Clicking the name (#Open) selects the achievement into the detail
@@ -79,7 +80,7 @@ Group #ZigAchRow {
         Text: "";
         FlexWeight: 1;
         Anchor: (Height: 28);
-        Style: (FontSize: 14, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
       }
     }
 
@@ -88,7 +89,7 @@ Group #ZigAchRow {
     Label #Points {
       Text: "";
       Anchor: (Width: 62);
-      Style: (FontSize: 12, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
     }
 
     Group { Anchor: (Width: 4); }
@@ -96,7 +97,7 @@ Group #ZigAchRow {
     Label #Date {
       Text: "";
       Anchor: (Width: 78);
-      Style: (FontSize: 11, TextColor: #96a9be, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, HorizontalAlignment: End, VerticalAlignment: Center);
     }
 
     Group { Anchor: (Width: 4); }
@@ -104,7 +105,7 @@ Group #ZigAchRow {
     Label #Status {
       Text: "";
       Anchor: (Width: 92);
-      Style: (FontSize: 12, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
@@ -126,7 +127,7 @@ Group #ZigAchRow {
     Label #BarText {
       Text: "";
       Anchor: (Width: 120, Height: 14);
-      Style: (FontSize: 11, TextColor: #8fa6bd, HorizontalAlignment: End, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8fa6bd, HorizontalAlignment: End, VerticalAlignment: Center);
     }
   }
 
@@ -141,7 +142,7 @@ Group #ZigAchRow {
       Label #Label {
         FlexWeight: 1;
         Text: "";
-        Style: (FontSize: 12, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+        Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
       }
     }
   }

@@ -2,6 +2,7 @@ $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $M = "../Common/ZigButtons.ui";
 $S = "../Common/ZigSearchRow.ui";
+$ZT = "../Common/ZigType.ui";
 
 // Generic party + invite screen (com.ziggfreed.common.party.page.PartyInvitePage).
 // Two tabs over the one shared decorated frame: Party (roster + incoming invites +
@@ -19,7 +20,7 @@ $F.@ZigDecoratedFrame {
     Label #Title {
       Text: "";
       Anchor: (Height: 30, Bottom: 6);
-      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
+      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true);
     }
 
     // Tab bar (active tab tinted from Java).
@@ -34,7 +35,7 @@ $F.@ZigDecoratedFrame {
       Text: "";
       Visible: false;
       Anchor: (Height: 18, Bottom: 6);
-      Style: (FontSize: 12, TextColor: #b6c9de);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b6c9de);
     }
 
     // Search row (revealed on the Invite tab from Java): the shared search row, its field
@@ -59,7 +60,7 @@ $F.@ZigDecoratedFrame {
       Text: "";
       Visible: false;
       Anchor: (Height: 22, Top: 8);
-      Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center);
     }
 
     // Footer (revealed on the Party tab from Java; the buttons toggle per role). #PrivacyBtn is

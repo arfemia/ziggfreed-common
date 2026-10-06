@@ -1,4 +1,5 @@
 $C = "../Common.ui";
+$ZT = "../Common/ZigType.ui";
 
 // One ranked leaderboard row (appended into #LeaderboardList; see LeaderboardPage):
 // Rank / Player / Total / Score(best) / Time / Plays. Medal ranks + the viewer's row are
@@ -8,10 +9,10 @@ Group #ZigLeaderboardRow {
   LayoutMode: Left;
   Anchor: (Height: 28, Bottom: 2);
 
-  Label #Rank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: 13, TextColor: #d7e4f0, VerticalAlignment: Center, RenderBold: true); }
-  Label #Player { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: 13, TextColor: #d7e4f0, VerticalAlignment: Center); }
-  Label #Total  { Anchor: (Width: 100); Text: ""; Style: (FontSize: 13, TextColor: #e6d6a0, VerticalAlignment: Center, HorizontalAlignment: End); }
-  Label #Score  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: 13, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
-  Label #Time   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: 13, TextColor: #b6c9de, VerticalAlignment: Center, HorizontalAlignment: End); }
-  Label #Plays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 13, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Label #Rank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, VerticalAlignment: Center, RenderBold: true); }
+  Label #Player { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #d7e4f0, VerticalAlignment: Center); }
+  Label #Total  { Anchor: (Width: 100); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6d6a0, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Label #Score  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #cfe3c0, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Label #Time   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, VerticalAlignment: Center, HorizontalAlignment: End); }
+  Label #Plays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
 }

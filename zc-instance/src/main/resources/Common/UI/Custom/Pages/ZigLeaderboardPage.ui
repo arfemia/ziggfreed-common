@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $M = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // Generic leaderboard page (com.ziggfreed.common.instance.leaderboard.LeaderboardPage):
 // an optional PRIMARY tab row (#GroupBar, difficulty) over the SECONDARY tab row (#TabBar,
@@ -18,7 +19,7 @@ $F.@ZigDecoratedFrame {
     Label #Title {
       Text: "";
       Anchor: (Height: 30, Bottom: 8);
-      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
+      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true);
     }
 
     // "Which leaderboard" selectors: a primary axis (difficulty) over a secondary axis (party size),
@@ -26,14 +27,14 @@ $F.@ZigDecoratedFrame {
     Group #GroupRow {
       LayoutMode: Left;
       Anchor: (Height: 34, Bottom: 6);
-      Label #GroupLabel { Anchor: (Width: 84); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: 12, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label #GroupLabel { Anchor: (Width: 84); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #8696a8, VerticalAlignment: Center); }
       Group #GroupBar { FlexWeight: 1; LayoutMode: Left; }
     }
 
     Group #TabRow {
       LayoutMode: Left;
       Anchor: (Height: 34, Bottom: 8);
-      Label #TabLabel { Anchor: (Width: 84); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: 12, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label #TabLabel { Anchor: (Width: 84); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #8696a8, VerticalAlignment: Center); }
       Group #TabBar { FlexWeight: 1; LayoutMode: Left; }
     }
 
@@ -45,7 +46,7 @@ $F.@ZigDecoratedFrame {
       LayoutMode: Left;
       Anchor: (Height: 30, Bottom: 10);
 
-      Label #SortLabel { Anchor: (Width: 48); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: 12, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label #SortLabel { Anchor: (Width: 48); Padding: (Left: 2); Visible: false; Text: ""; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #8696a8, VerticalAlignment: Center); }
       Group #SortGroup {
         LayoutMode: Left;
         FlexWeight: 1;
@@ -54,7 +55,7 @@ $F.@ZigDecoratedFrame {
         TextButton #SortTime  { Anchor: (Width: 108, Right: 6); Text: ""; Style: $M.@ZigTabBtnStyle; }
       }
 
-      Label #ViewLabel { Anchor: (Width: 44); Text: ""; Visible: false; Style: (FontSize: 12, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label #ViewLabel { Anchor: (Width: 44); Text: ""; Visible: false; Style: (FontSize: $ZT.@ZigFontBody, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
       Group #ViewGroup {
         LayoutMode: Left;
         Anchor: (Width: 226);
@@ -67,12 +68,12 @@ $F.@ZigDecoratedFrame {
     Group #TableHeader {
       LayoutMode: Left;
       Anchor: (Height: 22, Bottom: 4);
-      Label #HdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
-      Label #HdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
-      Label #HdrTotal  { Anchor: (Width: 100); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
-      Label #HdrScore  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
-      Label #HdrTime   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
-      Label #HdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label #HdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label #HdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label #HdrTotal  { Anchor: (Width: 100); Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label #HdrScore  { Anchor: (Width: 90);  Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label #HdrTime   { Anchor: (Width: 70);  Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
+      Label #HdrPlays  { Anchor: (Width: 60);  Padding: (Right: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center, HorizontalAlignment: End); }
     }
 
     // Stats column header (4 generic stat cells; the page hides the unused ones). The stat cells +
@@ -82,8 +83,8 @@ $F.@ZigDecoratedFrame {
       LayoutMode: Left;
       Visible: false;
       Anchor: (Height: 22, Bottom: 4);
-      Label      #SHdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
-      Label      #SHdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label      #SHdrRank   { Anchor: (Width: 48);  Padding: (Left: 10); Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center); }
+      Label      #SHdrPlayer { FlexWeight: 1;        Padding: (Left: 4);  Text: ""; Style: (FontSize: $ZT.@ZigFontSection, TextColor: #8696a8, VerticalAlignment: Center); }
       TextButton #SHdrCol0   { Anchor: (Width: 110); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
       TextButton #SHdrCol1   { Anchor: (Width: 110); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
       TextButton #SHdrCol2   { Anchor: (Width: 110); Text: ""; Style: $M.@ZigSortHeaderBtnStyle; }
@@ -104,14 +105,14 @@ $F.@ZigDecoratedFrame {
       Text: "";
       Visible: false;
       Anchor: (Height: 22, Top: 6);
-      Style: (FontSize: 13, TextColor: #8696a8, HorizontalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center);
     }
 
     Group { Anchor: (Height: 1, Top: 8); Background: #1e2a36; }
     Label #YourRank {
       Text: "";
       Anchor: (Height: 24, Top: 6);
-      Style: (FontSize: 13, TextColor: #ffd97a, VerticalAlignment: Center, HorizontalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffd97a, VerticalAlignment: Center, HorizontalAlignment: Center);
     }
   }
 }

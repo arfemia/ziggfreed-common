@@ -1,5 +1,6 @@
 $C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // ── ziggfreed-common generic appendable LIST ROW ──────────────────────────────
 // Appended into a consumer's list container:  cmd.append("#MyList", "Pages/ZigListRow.ui");
@@ -57,11 +58,11 @@ Group #ZigListRow {
     Padding: (Left: 8);
     Label #Title {
       Text: "";
-      Style: (FontSize: 14, TextColor: #e6eef7, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, VerticalAlignment: Center);
     }
     Label #Sub {
       Text: "";
-      Style: (FontSize: 11, TextColor: #93a4b8, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #93a4b8, VerticalAlignment: Center);
     }
   }
 
@@ -69,7 +70,7 @@ Group #ZigListRow {
     Visible: false;
     Anchor: (Width: 74, Height: 40);
     Text: "";
-    Style: (FontSize: 11, TextColor: #8fd0a6, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8fd0a6, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
   }
 
   Button #EditBtn {
@@ -78,7 +79,7 @@ Group #ZigListRow {
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: 12, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
     }
   }
 
@@ -89,7 +90,7 @@ Group #ZigListRow {
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: 12, TextColor: #ff9a9a, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ff9a9a, HorizontalAlignment: Center, VerticalAlignment: Center);
     }
   }
 }
