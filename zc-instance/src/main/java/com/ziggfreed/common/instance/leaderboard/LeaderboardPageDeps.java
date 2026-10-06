@@ -3,6 +3,7 @@ package com.ziggfreed.common.instance.leaderboard;
 import java.util.List;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * The immutable consumer-policy bundle a {@link LeaderboardPage} is built from: the
@@ -16,6 +17,10 @@ import javax.annotation.Nonnull;
  * {@code primary + "_" + secondary} unless the board composes its own; with one axis it is that
  * axis's tab key as it stands (back-compat with a single-axis board). When {@code primaryTabs} /
  * {@code statColumns} are empty the page renders exactly the original single-axis, score-only board.
+ *
+ * <p>{@link #menuTab} puts the page on the shared menu's rail with that tab selected
+ * ({@link #withMenuTab}); every constructor leaves it null, so a board built without it keeps the page's
+ * own frame.
  */
 public final class LeaderboardPageDeps {
 
@@ -37,6 +42,7 @@ public final class LeaderboardPageDeps {
     private final List<StatColumnDef> statColumns;
     private final LeaderboardScreenMessages text;
     private final BucketKeys bucketKeys;
+    @Nullable private final String menuTab;
 
     /** Back-compat: a single-axis, score-only board (no difficulty axis, no stats view). */
     public LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> tabs,
@@ -55,12 +61,35 @@ public final class LeaderboardPageDeps {
     public LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> primaryTabs,
                                @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull List<StatColumnDef> statColumns,
                                @Nonnull LeaderboardScreenMessages text, @Nonnull BucketKeys bucketKeys) {
+        this(board, primaryTabs, tabs, statColumns, text, bucketKeys, null);
+    }
+
+    private LeaderboardPageDeps(@Nonnull Leaderboard board, @Nonnull List<LeaderboardBucketTab> primaryTabs,
+                                @Nonnull List<LeaderboardBucketTab> tabs, @Nonnull List<StatColumnDef> statColumns,
+                                @Nonnull LeaderboardScreenMessages text, @Nonnull BucketKeys bucketKeys,
+                                @Nullable String menuTab) {
         this.board = board;
         this.primaryTabs = List.copyOf(primaryTabs);
         this.tabs = List.copyOf(tabs);
         this.statColumns = List.copyOf(statColumns);
         this.text = text;
         this.bucketKeys = bucketKeys;
+        this.menuTab = menuTab;
+    }
+
+    /**
+     * A copy that puts the page on the shared menu's rail with {@code tab} selected (a menu entry's id,
+     * such as the Records tab's); null puts it back in its own frame. Everything else is kept.
+     */
+    @Nonnull
+    public LeaderboardPageDeps withMenuTab(@Nullable String tab) {
+        return new LeaderboardPageDeps(board, primaryTabs, tabs, statColumns, text, bucketKeys, tab);
+    }
+
+    /** The rail tab to select, or null for the page's own frame. */
+    @Nullable
+    public String menuTab() {
+        return menuTab;
     }
 
     @Nonnull

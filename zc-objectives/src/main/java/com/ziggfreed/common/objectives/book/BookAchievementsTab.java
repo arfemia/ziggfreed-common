@@ -44,6 +44,7 @@ import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.ZigSearchRow;
 
+import static com.ziggfreed.common.objectives.book.BookWidths.WIDE_TAB_OUTER_WIDTH;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CATEGORY_CARD_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CHIP_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CRITERION_TEMPLATE;
@@ -51,7 +52,6 @@ import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_ROW_TEM
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.LINE_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MAX_ROWS;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MILESTONE_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.WIDE_TAB_OUTER_WIDTH;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.WIDE_TAB_TEMPLATE;
 
 /**
@@ -203,7 +203,7 @@ final class BookAchievementsTab {
         List<String> categories = orderedCategories(counts);
 
         boolean allActive = ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory());
-        if (!ObjectiveBookPage.categoryChipsFit(categories.size(), WIDE_TAB_OUTER_WIDTH,
+        if (!BookWidths.categoryChipsFit(categories.size(), WIDE_TAB_OUTER_WIDTH,
                 page.stripWidthBudget())) {
             cmd.set("#ACategoryDropdown.Visible", true);
             List<DropdownEntryInfo> entries = new ArrayList<>(categories.size() + 1);
@@ -609,6 +609,7 @@ final class BookAchievementsTab {
             cmd.set(sel + " #PinBtn.Visible", false);
         } else {
             ObjectiveBookPage.paintPinIcon(cmd, sel + " #PinBtn", pinned);
+            cmd.set(sel + " #PinBtn.TooltipText", page.text("book.tooltip.pin"));
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #PinBtn",
                     page.fullState("togglepin").append("Id", achievement.id())
                             .append("Selector", sel), false);
@@ -700,6 +701,7 @@ final class BookAchievementsTab {
         cmd.set("#DPinBtn.Visible", offersPin);
         if (offersPin) {
             ObjectiveBookPage.paintPinIcon(cmd, "#DPinBtn", pinned);
+            cmd.set("#DPinBtn.TooltipText", page.text("book.tooltip.pin"));
         }
 
         ObjectiveBookDeps.FirstClaim claim = achievement.serverFirst()

@@ -35,6 +35,24 @@ public final class AlmanacPages {
     }
 
     /**
+     * The one rule a menu tab or a hub tile asks: the Almanac is on and lists a season, the owner shows
+     * the tab, and, when it is shown only while a season runs, one is running. A failing read hides it.
+     */
+    public static boolean menuTabVisible() {
+        try {
+            return menuTabVisible(FactorAlmanacCalendar.INSTANCE);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    static boolean menuTabVisible(@Nonnull AlmanacCalendar calendar) {
+        boolean listed = available(calendar);
+        boolean live = listed && AlmanacView.anySeasonLive(AlmanacEntryConfig.getInstance().all(), calendar);
+        return AlmanacMenuTab.visible(listed, AlmanacMenuTab.knobs(), live);
+    }
+
+    /**
      * Open the Almanac for {@code player}, on {@code eventId}'s season when it is listed (else the one
      * on now, else the first). Opened on the PLAYER's own ref, since the page reads their record. False
      * when it is switched off, when a handle is missing, or when the page manager refused.

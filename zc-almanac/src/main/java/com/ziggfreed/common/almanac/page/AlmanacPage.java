@@ -35,14 +35,19 @@ import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.ui.menu.MenuFrame;
+import com.ziggfreed.common.ui.menu.MenuRail;
+import com.ziggfreed.common.ui.menu.MenuSlot;
+import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The Almanac: every season this server runs on the left, the one being read on the right. It paints
  * {@link AlmanacView} and decides nothing: which seasons are listed, which year a section shows and
  * what counts as earned are the view's. Picking a season reopens the page, so every build is a full
- * one and no row is ever addressed by a recomputed index. Every {@code handleDataEvent} exit opens a
- * page or closes this one.
+ * one and no row is ever addressed by a recomputed index. It sits in the shared menu frame with the
+ * Almanac tab selected on the rail. Every {@code handleDataEvent} exit opens a page, closes this one, or
+ * answers a rail click nothing opened for.
  */
 public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData> {
 
@@ -68,6 +73,9 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     @Nullable
     private String selected;
 
+    /** The rail this build painted. */
+    @Nonnull private MenuRail rail = MenuRail.EMPTY;
+
     public AlmanacPage(@Nonnull PlayerRef playerRef, @Nullable String selectedEventId) {
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, AlmanacEventData.CODEC);
         this.selected = selectedEventId;
@@ -76,9 +84,12 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     @Override
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
-        cmd.append(PAGE_TEMPLATE);
+        ZigMenu.appendThemed(cmd, PAGE_TEMPLATE, MenuFrame.RAIL, "#LeftPanel");
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
         cmd.set("#AlmanacTitle.TextSpans", AlmanacText.line("title"));
+        // The shared menu's rail, the Almanac tab selected; painted before the empty-list early return.
+        rail = ZigMenu.paint(cmd, events, store, ref, store.getComponent(ref, Player.getComponentType()),
+                MenuSlot.ALMANAC.id(), false);
 
         Map<String, AlmanacEntryAsset> pages = AlmanacEntryConfig.getInstance().all();
         List<AlmanacView.Season> seasons = AlmanacView.seasons(pages, FactorAlmanacCalendar.INSTANCE);
@@ -107,12 +118,20 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
         if (player == null) {
             return;
         }
+        if (rail.handle(data.menu, store, ref, player, this::answer)) {
+            return;
+        }
         if ("select".equals(data.action) && data.season != null && !data.season.isBlank()) {
             selected = data.season;
             player.getPageManager().openCustomPage(ref, store, this);
             return;
         }
         player.getPageManager().setPage(ref, store, Page.None);
+    }
+
+    /** An empty update, for a rail click nothing opened for: the client always hears back. */
+    private void answer() {
+        sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
     }
 
     private void paintRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, int index,

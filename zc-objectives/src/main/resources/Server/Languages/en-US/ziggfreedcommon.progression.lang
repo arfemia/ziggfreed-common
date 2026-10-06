@@ -9,6 +9,10 @@ book.empty.achievements = No achievements are available to you yet.
 book.progress = {0}/{1}
 book.more = +{0} more
 
+# What the book's two picture-only buttons say when hovered.
+book.tooltip.track = Track this quest on your screen
+book.tooltip.pin = Pin this achievement
+
 # How often a quest comes round, badged on every list that shows quests. Derived from the
 # quest's own repeat rule, so nothing is authored on a quest to make it appear.
 quest.cadence.repeatable = Repeatable

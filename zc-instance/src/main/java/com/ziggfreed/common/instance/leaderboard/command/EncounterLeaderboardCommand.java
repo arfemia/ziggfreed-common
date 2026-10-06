@@ -21,7 +21,6 @@ import com.ziggfreed.common.encounter.asset.EncounterBindingConfig;
 import com.ziggfreed.common.encounter.run.EncounterLifecycle;
 import com.ziggfreed.common.instance.leaderboard.EncounterBoards;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
-import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardMessages;
 import com.ziggfreed.common.instance.leaderboard.Leaderboard;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardPage;
 import com.ziggfreed.common.instance.leaderboard.LeaderboardPageDeps;
@@ -56,12 +55,10 @@ final class EncounterLeaderboardCommand extends AbstractAsyncCommand {
             return CompletableFuture.completedFuture(null);
         }
         EncounterBindingAsset row = pick(ctx, board, encounterArg.provided(ctx) ? encounterArg.get(ctx) : null);
-        EncounterBindingAsset.Leaderboard group = row == null ? null : row.getLeaderboard();
-        if (group == null) {
+        LeaderboardPageDeps deps = row == null ? null : EncounterBoards.deps(board, row);
+        if (deps == null) {
             return CompletableFuture.completedFuture(null);
         }
-        LeaderboardPageDeps deps = EncounterBoards.deps(board, group, EncounterBoards.layoutFor(group),
-                new EncounterLeaderboardMessages(row.getNameKey()));
         Store<EntityStore> store = ref.getStore();
         World world = store.getExternalData().getWorld();
         return runAsync(ctx, () -> open(ctx, store, ref, deps), world);

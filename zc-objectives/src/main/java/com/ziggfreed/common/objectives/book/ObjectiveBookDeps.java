@@ -27,21 +27,17 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>Every seam here has a DEFAULT that leaves the book fully working on a bare server: the
  * catalogue, the subject and the display text all come from the shared progression runtime, so a
- * consumer fills a seam only to say something the library genuinely cannot know - its own menu
- * rail, its board-managed quests, who claimed a server-first, its points-milestone ladder.
+ * consumer fills a seam only to say something the library genuinely cannot know - its own
+ * statistics column, its board-managed quests, who claimed a server-first, its points-milestone
+ * ladder. The book's frame paint and its rail are the shared menu's, said through
+ * {@code ZigMenu.consumer}.
  *
  * <ul>
- *   <li>{@link NpcQuestPageDeps.PageTheme} - how the frame and its inner panels are painted; the
- *       default falls through to the theme registered on {@link ObjectiveBookPages}, else the
- *       plain append.</li>
- *   <li>{@link ChromePainter} (rail) - paints the whole left rail (branding, navigation) and may
- *       repaint the header region; unfilled, the rail column is hidden and the book reads clean on
- *       a bare server. A painted control binds back through {@link Chrome#bindExt} and the click
- *       lands on {@link ExtHandler}.</li>
- *   <li>{@link ChromePainter} (side panel) - paints the achievements tab's side column the same
- *       way; unfilled, that column hides on the achievements tab.</li>
- *   <li>{@link ExtHandler} - answers every {@code ext} click a painted control bound, whichever
- *       painter bound it: one channel for rail navigation, drill-downs, anything consumer-drawn.</li>
+ *   <li>{@link ChromePainter} (side panel) - paints the achievements tab's side column; unfilled,
+ *       that column hides on the achievements tab. A painted control binds back through
+ *       {@link Chrome#bindExt} and the click lands on {@link ExtHandler}.</li>
+ *   <li>{@link ExtHandler} - answers every {@code ext} click a painted control bound: drill-downs,
+ *       anything consumer-drawn.</li>
  *   <li>{@link BoardManagedQuests} - which quests a board manages, and how their rows read: the
  *       plumbing tags are suppressed, the pills say what the board says, accept is replaced by the
  *       at-the-board hint, and abandoning one forces a full repaint.</li>
@@ -143,8 +139,8 @@ public final class ObjectiveBookDeps {
     }
 
     /**
-     * Paints one deps-owned region (the left rail, or the achievements side column). Return true
-     * when something was painted; false leaves the region hidden.
+     * Paints the achievements tab's side column. Return true when something was painted; false
+     * leaves it hidden.
      */
     @FunctionalInterface
     public interface ChromePainter {
@@ -357,15 +353,6 @@ public final class ObjectiveBookDeps {
                 @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
     }
 
-    /**
-     * The library's default frame paint: whatever theme was registered on
-     * {@link ObjectiveBookPages#theme}, else the plain append - so a consumer that only ever
-     * registered the one-call theme keeps its painted frame with no deps at all.
-     */
-    public static final NpcQuestPageDeps.PageTheme LEGACY_THEME =
-            (cmd, template, frameSelectors) ->
-                    ObjectiveBookPages.resolvedTheme().appendThemed(cmd, template, frameSelectors);
-
     /** Nothing painted, so the region hides. */
     public static final ChromePainter NO_CHROME = chrome -> false;
 
@@ -404,8 +391,6 @@ public final class ObjectiveBookDeps {
     /** Everything at its library default: a book that works on a server running nothing else. */
     public static final ObjectiveBookDeps DEFAULTS = builder().build();
 
-    @Nonnull private final NpcQuestPageDeps.PageTheme theme;
-    @Nonnull private final ChromePainter railPainter;
     @Nonnull private final ChromePainter sidePanelPainter;
     @Nonnull private final ExtHandler extHandler;
     @Nonnull private final BoardManagedQuests boardManaged;
@@ -419,8 +404,6 @@ public final class ObjectiveBookDeps {
     @Nonnull private final QuestClaimPreCheck claimPreCheck;
 
     private ObjectiveBookDeps(@Nonnull Builder builder) {
-        this.theme = builder.theme;
-        this.railPainter = builder.railPainter;
         this.sidePanelPainter = builder.sidePanelPainter;
         this.extHandler = builder.extHandler;
         this.boardManaged = builder.boardManaged;
@@ -437,16 +420,6 @@ public final class ObjectiveBookDeps {
     @Nonnull
     public static Builder builder() {
         return new Builder();
-    }
-
-    @Nonnull
-    public NpcQuestPageDeps.PageTheme theme() {
-        return theme;
-    }
-
-    @Nonnull
-    public ChromePainter railPainter() {
-        return railPainter;
     }
 
     @Nonnull
@@ -633,8 +606,6 @@ public final class ObjectiveBookDeps {
     /** Immutable-by-copy assembly; every knob defaults to the library's own answer. */
     public static final class Builder {
 
-        @Nonnull private NpcQuestPageDeps.PageTheme theme = LEGACY_THEME;
-        @Nonnull private ChromePainter railPainter = NO_CHROME;
         @Nonnull private ChromePainter sidePanelPainter = NO_CHROME;
         @Nonnull private ExtHandler extHandler = NO_EXT;
         @Nonnull private BoardManagedQuests boardManaged = NO_BOARDS;
@@ -648,18 +619,6 @@ public final class ObjectiveBookDeps {
         @Nonnull private QuestClaimPreCheck claimPreCheck = NO_CLAIM_PRECHECK;
 
         private Builder() {
-        }
-
-        @Nonnull
-        public Builder theme(@Nullable NpcQuestPageDeps.PageTheme value) {
-            this.theme = value != null ? value : LEGACY_THEME;
-            return this;
-        }
-
-        @Nonnull
-        public Builder railPainter(@Nullable ChromePainter value) {
-            this.railPainter = value != null ? value : NO_CHROME;
-            return this;
         }
 
         @Nonnull

@@ -4,7 +4,10 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.instance.leaderboard.EncounterLeaderboardListener;
+import com.ziggfreed.common.instance.leaderboard.RecordsDestinations;
 import com.ziggfreed.common.instance.leaderboard.command.ZigLeaderboardCommand;
+import com.ziggfreed.common.ui.menu.MenuSlot;
+import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -33,6 +36,18 @@ public final class InstanceBootstrap {
             plugin.getCommandRegistry().registerCommand(new ZigLeaderboardCommand());
         } catch (Throwable t) {
             SafeLog.warn("[encounter] /zigleaderboard could not be registered", t);
+        }
+    }
+
+    /**
+     * The Records destination (before any asset decodes) and its tab in the shared menu. Registration only.
+     */
+    public static void registerRecords() {
+        try {
+            RecordsDestinations.register();
+            ZigMenu.fill(MenuSlot.RECORDS, RecordsDestinations.entry());
+        } catch (Throwable t) {
+            SafeLog.warn("[encounter] the Records destination and menu tab could not be registered", t);
         }
     }
 }

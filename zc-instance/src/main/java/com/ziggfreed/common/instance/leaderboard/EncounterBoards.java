@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.ui.menu.MenuSlot;
 
 /**
  * One boss fight's records, readable on any server: how the rows {@link EncounterLeaderboardListener}
@@ -94,6 +95,19 @@ public final class EncounterBoards {
         }
         return new LeaderboardPageDeps(board, difficultyTabs, partyTabs, statColumns(layout, text), text,
                 (difficulty, party) -> keyOf(group, partyOrZero(party), difficulty));
+    }
+
+    /**
+     * The page for {@code row}'s records on {@code board}, named and laid out as the row says, on the shared
+     * menu's rail with the Records tab selected; null when the row ranks nothing. The Records destination and
+     * {@code /zigleaderboard encounter} both open this.
+     */
+    @Nullable
+    public static LeaderboardPageDeps deps(@Nonnull Leaderboard board, @Nonnull EncounterBindingAsset row) {
+        EncounterBindingAsset.Leaderboard group = row.getLeaderboard();
+        return group == null ? null
+                : deps(board, group, layoutFor(group), new EncounterLeaderboardMessages(row.getNameKey()))
+                        .withMenuTab(MenuSlot.RECORDS.id());
     }
 
     /** The layout named after {@code group}'s bucket, or null when no pack authored one. */

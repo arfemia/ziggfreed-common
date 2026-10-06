@@ -5,6 +5,10 @@ $Z = "../Common/ZigButtons.ui";
 // The Almanac (com.ziggfreed.common.almanac.page.AlmanacPage): every season this server runs on the
 // left, the one being read on the right.
 //
+// Inside the shared menu frame: the frame's rail comes first (ui/menu/ZigMenu, the Almanac tab
+// selected), then the season list and the season. The frame owns the size, the padding and the close
+// button.
+//
 // LEFT: the title, the cross-season banner (#BannerLabel, hidden until a cross-season achievement is
 // in circulation), and the scrolling #SeasonList the page appends Pages/ZigSelectRow.ui into.
 // #EmptyListLabel carries the one line a server with no seasons shows.
@@ -22,16 +26,8 @@ $Z = "../Common/ZigButtons.ui";
 
 $C.@PageOverlay {}
 
-$F.@ZigDecoratedFrame {
-  @CloseButton = true;
-  @Ornaments = true;
-  Anchor: (Width: 980, Height: 760);
-
+$F.@ZigMenuFrame {
   #Content {
-    Anchor: (Top: 0);
-    LayoutMode: Left;
-    Padding: (Full: 0);
-
     Group #LeftPanel {
       Anchor: (Width: 320);
       Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);

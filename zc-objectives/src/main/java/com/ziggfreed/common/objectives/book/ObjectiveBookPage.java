@@ -41,6 +41,10 @@ import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.ZigSearchRow;
+import com.ziggfreed.common.ui.menu.MenuFrame;
+import com.ziggfreed.common.ui.menu.MenuRail;
+import com.ziggfreed.common.ui.menu.MenuSlot;
+import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.ui.rows.BuiltRows;
 import com.ziggfreed.common.i18n.NativeNames;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -48,8 +52,8 @@ import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The Objective Book: the full-screen two-tab progression menu (quests, achievements) over THE
- * shared progression runtime. The quests tab is the quest log - category / search / tag / status
+ * The Objective Book: the progression book inside the shared menu frame (quests and achievements,
+ * each a tab on the frame's rail) over THE shared progression runtime. The quests tab is the quest log - category / search / tag / status
  * filters, a pre-expanded Active section over the browse list, per-row expand, accept / claim /
  * hand-in / abandon / track, and the tracked-quests side panel. The achievements tab is a
  * two-panel browser - a filter strip and compact rows on the left, the selected achievement's
@@ -59,7 +63,7 @@ import com.ziggfreed.common.util.SafeLog;
  * <p>It reads the one merged catalogue, whoever authored each entry, and every mutating call is
  * wrapped in the registered {@link ProgressionCallScope} - so a quest claimed here fires exactly
  * what the owning mod's own menu would have fired. What the library cannot know - a consumer's
- * menu rail, its board-managed quests, its milestone ladder, who claimed a server-first - rides
+ * statistics column, its board-managed quests, its milestone ladder, who claimed a server-first - rides
  * {@link ObjectiveBookDeps}, and every seam's default leaves the book working on a bare server.
  *
  * <p><b>State model.</b> The FILTER state is stateless across events: every binding round-trips
@@ -117,30 +121,6 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     /** A hard ceiling on rendered rows per list, so a huge catalogue cannot build an unbounded page. */
     static final int MAX_ROWS = 200;
 
-    // The filter strips' width geometry, from the page's own template
-    // (Pages/ZigObjectiveBookPage.ui): the 1800 frame minus the #Content padding (12 a side),
-    // then per open minus the consumer rail (250) and the side panel (320) where painted, and
-    // the #RightPanel padding (20 a side). Each chip is its template's FIXED #CatBtn width plus
-    // its 6px leading spacer, so a fit check against these numbers is exact, not a guess.
-    private static final int FRAME_INNER_WIDTH = 1800 - 24;
-    private static final int RAIL_WIDTH = 250;
-    private static final int SIDE_PANEL_WIDTH = 320;
-    private static final int RIGHT_PANEL_PADDING = 40;
-
-    /** {@code Pages/ZigBookCatTab.ui}'s #CatBtn width (96) plus its leading spacer (6). */
-    static final int CAT_TAB_OUTER_WIDTH = 102;
-
-    /** {@code Pages/ZigBookWideTab.ui}'s #CatBtn width (160) plus its leading spacer (6). */
-    static final int WIDE_TAB_OUTER_WIDTH = 166;
-
-    // The book's own tab strip contrast, shared with the leaderboard page's treatment.
-    private static final String TAB_ACTIVE_TINT = "#5e86bd";
-    private static final String TAB_ACTIVE_HOVER = "#6f97cf";
-    private static final String TAB_ACTIVE_TEXT = "#ffffff";
-    private static final String TAB_INACTIVE_TINT = "#2f3b49";
-    private static final String TAB_INACTIVE_HOVER = "#445364";
-    private static final String TAB_INACTIVE_TEXT = "#9fb0c2";
-
     /** The selected achievement row's tint, and the resting row fill it swaps against. */
     static final String ROW_SELECTED_TINT = "#1a2d44";
     static final String ROW_TINT = "#1a2233";
@@ -174,9 +154,11 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
      */
     private final BuiltRows builtQuestRows = new BuiltRows();
 
-    /** Whether the consumer's rail / side column painted THIS open; they narrow the strips. */
-    private boolean railPainted;
+    /** Whether the side column painted THIS open; it narrows the strips. */
     private boolean sidePanelPainted;
+
+    /** The rail this build painted, which a rail click is routed through. */
+    @Nonnull private MenuRail rail = MenuRail.EMPTY;
 
     /** The deps resolved for THIS open, so build and its partial updates read one consistent set. */
     @Nonnull private ObjectiveBookDeps deps = ObjectiveBookDeps.DEFAULTS;
@@ -277,30 +259,9 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         return deps;
     }
 
-    /**
-     * The width the ACTIVE tab's filter strip actually gets this open, from the template's own
-     * geometry minus whichever consumer columns painted. Both tabs size their chips-vs-dropdown
-     * decision against it.
-     */
+    /** The width the ACTIVE tab's filter strip gets this open (see {@link BookWidths}). */
     int stripWidthBudget() {
-        int width = FRAME_INNER_WIDTH - RIGHT_PANEL_PADDING;
-        if (railPainted) {
-            width -= RAIL_WIDTH;
-        }
-        if (sidePanelPainted) {
-            width -= SIDE_PANEL_WIDTH;
-        }
-        return width;
-    }
-
-    /**
-     * The ONE chips-vs-dropdown rule, shared by both tabs: chips render only when every chip -
-     * the All chip included - fits the strip's width budget on a single line; otherwise the
-     * native dropdown carries the categories. The chip containers never wrap, so a wrong count
-     * can only clip at the strip's right edge, never paint over the row below.
-     */
-    static boolean categoryChipsFit(int categoryCount, int chipOuterWidth, int widthBudget) {
-        return (categoryCount + 1) * chipOuterWidth <= widthBudget;
+        return BookWidths.stripWidthBudget(sidePanelPainted);
     }
 
     @Nonnull
@@ -313,59 +274,48 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         this.sendUpdate(cmd, events, false);
     }
 
+    /** An empty update, for a click that changed nothing: the client always hears back. */
+    private void answer() {
+        this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
+    }
+
     // ==================== build ====================
 
     @Override
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
                       @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
         deps = ObjectiveBookPages.resolvedDeps();
-        appendTemplate(cmd);
+        // The page's markup and the frame's paint, reaching the rail and the side column.
+        ZigMenu.appendThemed(cmd, PAGE_TEMPLATE, MenuFrame.RAIL, "#SidePanel");
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton",
                 EventData.of("Action", "close"));
 
         boolean achievementsTab = TAB_ACHIEVEMENTS.equals(tab);
         cmd.set("#PanelTitle.TextSpans",
                 text(achievementsTab ? "book.tab.achievements" : "book.tab.quests"));
-        ZigRichButton.text(cmd, "#TabQuests", text("book.tab.quests"));
-        ZigRichButton.text(cmd, "#TabAchievements", text("book.tab.achievements"));
-        bindTab(events, "#TabQuests", TAB_QUESTS);
-        bindTab(events, "#TabAchievements", TAB_ACHIEVEMENTS);
-        styleTab(cmd, "#TabQuests", !achievementsTab);
-        styleTab(cmd, "#TabAchievements", achievementsTab);
 
         Player player = store.getComponent(ref, Player.getComponentType());
 
-        // Consumer chrome: the rail, and (on the achievements tab) the side column. Painted before
-        // the tab body so a painter's title suppression wins over the default title above.
-        if (player != null) {
+        // The shared menu's rail with this tab selected: the Quests | Achievements switch is the rail's
+        // two tabs. Painted after the default title, so a consumer's header-row branding wins over it.
+        rail = ZigMenu.paint(cmd, events, store, ref, player,
+                achievementsTab ? MenuSlot.ACHIEVEMENTS.id() : MenuSlot.QUESTS.id(), true);
+
+        if (!achievementsTab) {
+            // The quests tab's third column is the tracked-quests panel, always on.
+            sidePanelPainted = true;
+        } else if (player != null) {
             ObjectiveBookDeps.Chrome chrome = new ObjectiveBookDeps.Chrome(cmd, events, store, ref,
                     player, tab, (selector, extId) ->
                             events.addEventBinding(CustomUIEventBindingType.Activating, selector,
                                     fullState("ext").append("Id", extId), false));
-            railPainted = deps.paintGuarded(deps.railPainter(), chrome, "rail");
-            cmd.set("#LeftPanel.Visible", railPainted);
-            if (achievementsTab) {
-                sidePanelPainted = deps.paintGuarded(deps.sidePanelPainter(), chrome, "side panel");
-                cmd.set("#SidePanel.Visible", sidePanelPainted);
-                cmd.set("#AchSideContent.Visible", sidePanelPainted);
-            } else {
-                // The quests tab's third column is the tracked-quests panel, always on.
-                sidePanelPainted = true;
-            }
+            sidePanelPainted = deps.paintGuarded(deps.sidePanelPainter(), chrome, "side panel");
+            cmd.set("#SidePanel.Visible", sidePanelPainted);
+            cmd.set("#AchSideContent.Visible", sidePanelPainted);
         } else {
-            railPainted = false;
-            sidePanelPainted = !achievementsTab;
-            cmd.set("#LeftPanel.Visible", false);
-            if (achievementsTab) {
-                cmd.set("#SidePanel.Visible", false);
-            }
+            sidePanelPainted = false;
+            cmd.set("#SidePanel.Visible", false);
         }
-
-        // A painted rail carries its own Quests / Achievements entries, so the in-panel strip is
-        // redundant chrome there: it hides, the rail's highlight is the one tab indicator, and the
-        // header row reflows (the title grows into the space, the stats stay right-aligned). A bare
-        // server keeps the strip - it is the only switcher then.
-        cmd.set("#TabBar.Visible", !railPainted);
 
         cmd.set(achievementsTab ? "#AchievementsTab.Visible" : "#QuestsTab.Visible", true);
 
@@ -405,23 +355,6 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         renderToastInto(cmd);
     }
 
-    /**
-     * Get the page's markup onto the screen, through the consumer's theme where there is one.
-     * Guarded with the plain append as the fallback: a theme is decoration, and a decoration that
-     * throws must not cost the player the whole screen. A theme that threw AFTER appending would
-     * append twice, so the retry only runs when nothing landed.
-     */
-    private void appendTemplate(@Nonnull UICommandBuilder cmd) {
-        try {
-            deps.theme().appendThemed(cmd, PAGE_TEMPLATE, "#LeftPanel", "#SidePanel");
-            return;
-        } catch (Throwable t) {
-            SafeLog.warn("[progression] a page theme failed, so the objective book renders plain: "
-                    + t.getMessage());
-        }
-        cmd.append(PAGE_TEMPLATE);
-    }
-
     private void selfHeal(@Nonnull QuestEngine questEngine,
                           @Nonnull AchievementEngine achievementEngine, @Nonnull Subject subject) {
         try {
@@ -452,14 +385,8 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
      */
     @Nonnull
     EventData fullState(@Nonnull String action) {
-        return fullState(action, tab);
-    }
-
-    /** {@link #fullState(String)} with the tab overridden - the tab buttons' own form. */
-    @Nonnull
-    EventData fullState(@Nonnull String action, @Nonnull String forTab) {
         EventData state = EventData.of("Action", action)
-                .append("Tab", forTab)
+                .append("Tab", tab)
                 .append("Category", filterCategory)
                 .append("Status", filterStatus)
                 .append("Search", searchText)
@@ -473,20 +400,6 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
     @Nonnull
     String activeSearchRow() {
         return TAB_ACHIEVEMENTS.equals(tab) ? ACH_SEARCH : QUEST_SEARCH;
-    }
-
-    private void bindTab(@Nonnull UIEventBuilder events, @Nonnull String selector,
-                         @Nonnull String target) {
-        events.addEventBinding(CustomUIEventBindingType.Activating, selector,
-                fullState("tab", target).append("Id", ""), false);
-    }
-
-    private static void styleTab(@Nonnull UICommandBuilder cmd, @Nonnull String selector,
-                                 boolean active) {
-        String base = active ? TAB_ACTIVE_TINT : TAB_INACTIVE_TINT;
-        UiRetint.retintButtonStates(cmd, selector, base,
-                active ? TAB_ACTIVE_HOVER : TAB_INACTIVE_HOVER, base);
-        ZigRichButton.color(cmd, selector, active ? TAB_ACTIVE_TEXT : TAB_INACTIVE_TEXT);
     }
 
     /**
@@ -544,6 +457,11 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
         if (player == null) {
             return;
         }
+        // A rail click carries the row's index and no Action: it is answered here, opened or refused,
+        // before the empty action below would close the book.
+        if (rail.handle(data.menu, store, ref, player, this::answer)) {
+            return;
+        }
         String action = data.action == null ? "" : data.action;
         if (action.isEmpty() || "close".equals(action)) {
             player.getPageManager().setPage(ref, store, Page.None);
@@ -556,11 +474,6 @@ public final class ObjectiveBookPage extends ToastablePage<ObjectiveBookEventDat
                 : (data.search != null ? data.search : searchText);
 
         switch (action) {
-            case "tab" -> {
-                // A tab switch is a fresh view: the two tabs speak different filter vocabularies,
-                // so nothing but the tab carries across.
-                open(player, ref, store, new ObjectiveBookPage(playerRef, data.tab));
-            }
             case "category" -> {
                 String value = firstNonBlank(data.id, data.dropdownValue, FILTER_ALL);
                 // A new category resets the subcategory: the old one belongs to the old category.

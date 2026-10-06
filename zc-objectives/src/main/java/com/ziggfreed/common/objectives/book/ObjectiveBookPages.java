@@ -13,25 +13,17 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.inventory.PlayerAccess;
-import com.ziggfreed.common.objectives.questlist.NpcQuestPageDeps;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The way in to {@link ObjectiveBookPage}, and the one place a consumer says how the book should
- * be painted.
- *
- * <p>The book is fully working with nothing registered - the plain append is the default - and a
- * consumer shipping a theme registers a supplier once at setup, resolved lazily on each open, the
- * same contract {@link com.ziggfreed.common.objectives.questlist.NpcQuestPages} keeps for the NPC
- * quest list. The seam TYPE is that page's own {@link NpcQuestPageDeps.PageTheme}, shared
- * deliberately: one theme signature, however many shared pages a consumer paints.
+ * The way in to {@link ObjectiveBookPage}, and the one place a consumer says what it adds to the book
+ * ({@link ObjectiveBookDeps}: the statistics column, board-managed quests, milestones and the rest). The
+ * book sits in the shared menu frame, so its paint and its rail are the menu's: a consumer's palette or
+ * frame paint reaches it through {@code ZigMenu.consumer}.
  *
  * <p>World thread.
  */
 public final class ObjectiveBookPages {
-
-    private static final AtomicReference<Supplier<NpcQuestPageDeps.PageTheme>> THEME =
-            new AtomicReference<>();
 
     private static final AtomicReference<Supplier<ObjectiveBookDeps>> DEPS =
             new AtomicReference<>();
@@ -40,16 +32,7 @@ public final class ObjectiveBookPages {
     }
 
     /**
-     * Say how this book's frame is painted. Call once from a consumer's setup; pass null to go
-     * back to the plain append. The narrow, theme-only registration - a consumer with more to say
-     * registers {@link #deps(Supplier)} instead, whose default theme falls through to this one.
-     */
-    public static void theme(@Nullable Supplier<NpcQuestPageDeps.PageTheme> supplier) {
-        THEME.set(supplier);
-    }
-
-    /**
-     * Say everything a consumer may about the book ({@link ObjectiveBookDeps}: rail, side panel,
+     * Say everything a consumer may about the book ({@link ObjectiveBookDeps}: side panel,
      * board-managed quests, milestones, ...). Call once from a consumer's setup; pass null to go
      * back to the library defaults. Resolved lazily on each open.
      */
@@ -70,22 +53,6 @@ public final class ObjectiveBookPages {
         } catch (Throwable t) {
             SafeLog.warn("[progression] objective book deps failed to resolve: " + t.getMessage());
             return ObjectiveBookDeps.DEFAULTS;
-        }
-    }
-
-    /** The theme in force right now: the registered consumer's, else the plain append. Guarded. */
-    @Nonnull
-    static NpcQuestPageDeps.PageTheme resolvedTheme() {
-        Supplier<NpcQuestPageDeps.PageTheme> supplier = THEME.get();
-        if (supplier == null) {
-            return NpcQuestPageDeps.PLAIN_THEME;
-        }
-        try {
-            NpcQuestPageDeps.PageTheme theme = supplier.get();
-            return theme != null ? theme : NpcQuestPageDeps.PLAIN_THEME;
-        } catch (Throwable t) {
-            SafeLog.warn("[progression] objective book theme failed to resolve: " + t.getMessage());
-            return NpcQuestPageDeps.PLAIN_THEME;
         }
     }
 

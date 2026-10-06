@@ -24,6 +24,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
+import com.ziggfreed.common.ui.menu.MenuFrame;
+import com.ziggfreed.common.ui.menu.MenuRail;
+import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.ui.name.PlayerDisplayNames;
 import com.ziggfreed.common.util.NumberFormatter;
 
@@ -41,6 +44,10 @@ import com.ziggfreed.common.util.NumberFormatter;
  * (primary, secondary, sort, statSort, view) state carried on every event binding. Every
  * {@code handleDataEvent} exit path sends a response.
  *
+ * <p>With {@link LeaderboardPageDeps#menuTab} set, the same body sits in the shared menu frame with that
+ * tab selected on the rail, and a rail click is answered before the page reads its own action; every
+ * reopen carries the deps, and so the rail. Without it the page keeps its own frame.
+ *
  * <p>Each tab axis with two or more concrete tabs synthesizes a trailing "All" tab (reserved
  * bucket key {@code "*"}) that aggregates every concrete bucket on that axis, so All+All is the
  * full lifetime roll-up. The Stats view honors the tab selection and is sortable by each stat
@@ -49,6 +56,8 @@ import com.ziggfreed.common.util.NumberFormatter;
 public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventData> {
 
     private static final String PAGE_TEMPLATE = "Pages/ZigLeaderboardPage.ui";
+    /** The same body inside the shared menu frame, for deps that name a rail tab ({@link LeaderboardPageDeps#menuTab}). */
+    private static final String MENU_PAGE_TEMPLATE = "Pages/ZigLeaderboardMenuPage.ui";
     private static final String ROW_TEMPLATE = "Pages/ZigLeaderboardRow.ui";
     private static final String STATS_ROW_TEMPLATE = "Pages/ZigLeaderboardStatsRow.ui";
     private static final String TAB_TEMPLATE = "Pages/ZigLeaderboardTab.ui";
@@ -70,6 +79,9 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     private final SortMode sort;
     private final String statSort; // the active Stats-view column metric ("" when no stat columns)
     private final boolean statsView;
+
+    /** The rail this build painted (none when the deps name no tab), which a rail click is routed through. */
+    @Nonnull private MenuRail rail = MenuRail.EMPTY;
 
     /**
      * Open the leaderboard with no deep-link context: defaults BOTH tab axes to the synthesized
@@ -215,7 +227,16 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
                       @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
         LeaderboardScreenMessages t = deps.text();
-        cmd.append(PAGE_TEMPLATE);
+        String menuTab = deps.menuTab();
+        if (menuTab == null) {
+            cmd.append(PAGE_TEMPLATE);
+        } else {
+            // On the shared menu's rail: the same body in the menu frame, the rail painted with the
+            // deps' tab selected before anything else, so every reopen (tab, sort, view) keeps it.
+            ZigMenu.appendThemed(cmd, MENU_PAGE_TEMPLATE, MenuFrame.RAIL);
+            rail = ZigMenu.paint(cmd, events, store, ref, store.getComponent(ref, Player.getComponentType()),
+                    menuTab, false);
+        }
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton", EventData.of("Action", "close"));
 
         UiText.setText(cmd, "#Title.Text", t.title());
@@ -476,6 +497,11 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         if (player == null) {
             return;
         }
+        // A rail click carries the row's index and no Action: it is answered here, opened or refused,
+        // before the missing action below would close the page.
+        if (rail.handle(data.menu, store, ref, player, this::answer)) {
+            return;
+        }
         if (data.action == null || "close".equals(data.action)) {
             player.getPageManager().setPage(ref, store, Page.None);
             return;
@@ -486,6 +512,11 @@ public class LeaderboardPage extends InteractiveCustomUIPage<LeaderboardEventDat
         boolean nextStats = "stats".equals(data.view);
         player.getPageManager().openCustomPage(ref, store,
                 new LeaderboardPage(playerRef, deps, primary, secondary, nextSort, data.statSort, nextStats));
+    }
+
+    /** An empty update, for a rail click nothing opened for: the client always hears back. */
+    private void answer() {
+        sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
     }
 
     @Nonnull

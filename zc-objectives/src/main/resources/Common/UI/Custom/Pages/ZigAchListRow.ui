@@ -34,10 +34,12 @@ Group #ZigAchRow {
     Group { Anchor: (Width: 8); }
 
     // Pin pill: the shared $Z.@ZigPinBtnStyle; the waypoint-marker icon lives in the nested
-    // #PinIconOff / #PinIconOn groups, retinted per-state from Java.
+    // #PinIconOff / #PinIconOn groups, retinted per-state from Java. Its hover tooltip's words are
+    // set from Java (.TooltipText), the way vanilla's own pages do.
     Button #PinBtn {
       Anchor: (Width: 22, Height: 22);
       Style: $Z.@ZigPinBtnStyle;
+      TextTooltipStyle: $C.@DefaultTextTooltipStyle;
 
       Group #PinIconOff {
         Anchor: (Width: 14, Height: 14, Left: 4, Top: 4);

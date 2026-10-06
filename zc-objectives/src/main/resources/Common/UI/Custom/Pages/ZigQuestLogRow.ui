@@ -40,11 +40,13 @@ Group #ZigQuestLogRow {
       Style: (FontSize: 14, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
     }
 
-    // Track pill: the shared $Z.@ZigPinBtnStyle (backgrounds + Sounds, no LabelStyle).
+    // Track pill: the shared $Z.@ZigPinBtnStyle (backgrounds + Sounds, no LabelStyle). Its hover
+    // tooltip's words are set from Java (.TooltipText), the way vanilla's own pages do.
     Button #TrackBtn {
       Anchor: (Width: 36, Height: 24);
       Visible: false;
       Style: $Z.@ZigPinBtnStyle;
+      TextTooltipStyle: $C.@DefaultTextTooltipStyle;
 
       // Baked icon variants (waypoint marker), centered via absolute anchors. Java toggles
       // .Visible + retints the pill, and never pushes a TexturePath from Java (that renders a

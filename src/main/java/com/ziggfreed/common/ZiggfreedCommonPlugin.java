@@ -61,6 +61,7 @@ import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementConfig;
 import com.ziggfreed.common.npc.placement.registry.PlacementFactorRegistry;
 import com.ziggfreed.common.objectives.bonus.BonusRowBootstrap;
+import com.ziggfreed.common.objectives.book.ObjectiveBookBootstrap;
 import com.ziggfreed.common.objectives.calendar.CalendarSweepBootstrap;
 import com.ziggfreed.common.objectives.dialogue.DialogueBootstrap;
 import com.ziggfreed.common.objectives.flair.FlairBootstrap;
@@ -81,6 +82,7 @@ import com.ziggfreed.common.ui.hud.panel.HudPanels;
 import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
 import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.command.ZigHudCommand;
+import com.ziggfreed.common.ui.menu.command.ZigMenuCommand;
 import com.ziggfreed.common.util.SafeLog;
 import com.ziggfreed.common.world.placed.PlacedBlockBootstrap;
 import com.ziggfreed.common.world.stash.BlockStashBootstrap;
@@ -102,7 +104,7 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  * {@code EntityBootstrap} (zc-entity), {@code NpcBootstrap} (zc-dialogue),
  * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} (zc-world), {@code CalendarBootstrap}
  * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
- * + {@code CalendarSweepBootstrap} (zc-objectives), and
+ * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} (zc-objectives), and
  * {@code AlmanacBootstrap} (zc-almanac). Each bootstrap lives in
  * the module that already sees
  * everything its phase wires, so the phase can be read and reasoned about without standing up the
@@ -220,15 +222,18 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         DialogueBootstrap.registerDialogueVocabulary();
         DialogueBootstrap.registerDialogueMemories(this);
         ProgressionBootstrap.registerQuestListHost();
+        ObjectiveBookBootstrap.registerMenu();
         EncounterBootstrap.install(this);
         registerEncounterSeams();
         InstanceBootstrap.installEncounterLeaderboard(this);
+        InstanceBootstrap.registerRecords();
         // The shared progress-bar panels on every player: a row is created by the mod that reports
         // a value moved and dressed by what it said, and this only attaches the panels and takes
         // them down again. What a player said about their own HUD, and the page and command that
         // say it, are registered right after, beside the panels they move.
         HudPanels.install(this);
         registerHudSettings();
+        registerMenu();
         // The Almanac: its per-player record and connect hook, the owner's switch and its feature, its
         // destination, its moment counter and the /zigalmanac family. Its page store is registered with
         // the other framework stores.
@@ -424,6 +429,19 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
             getCommandRegistry().registerCommand(new ZigHudCommand());
         } catch (Throwable t) {
             SafeLog.warn("[hud] HUD settings wiring failed", t);
+        }
+    }
+
+    /**
+     * {@code /ziggui}, the shared menu's way in for every player. The menu's four tabs are filled by the
+     * modules that own their screens (their bootstraps, called in this setup); a consumer adds its own
+     * section at its own setup.
+     */
+    private void registerMenu() {
+        try {
+            getCommandRegistry().registerCommand(new ZigMenuCommand());
+        } catch (Throwable t) {
+            SafeLog.warn("[menu] /ziggui could not be registered", t);
         }
     }
 

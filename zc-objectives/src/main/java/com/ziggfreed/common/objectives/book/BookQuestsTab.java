@@ -43,7 +43,7 @@ import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.ZigSearchRow;
 
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.CAT_TAB_OUTER_WIDTH;
+import static com.ziggfreed.common.objectives.book.BookWidths.CAT_TAB_OUTER_WIDTH;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.CAT_TAB_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.LINE_TEMPLATE;
 import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MAX_ROWS;
@@ -288,7 +288,7 @@ final class BookQuestsTab {
         categories.sort(String.CASE_INSENSITIVE_ORDER);
 
         boolean allActive = ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory());
-        if (!ObjectiveBookPage.categoryChipsFit(categories.size(), CAT_TAB_OUTER_WIDTH,
+        if (!BookWidths.categoryChipsFit(categories.size(), CAT_TAB_OUTER_WIDTH,
                 page.stripWidthBudget())) {
             // The rendered chips cannot fit the strip: the native dropdown carries them (its
             // panel scrolls by itself). A dropdown entry is a String-only sink, so labels
@@ -424,6 +424,7 @@ final class BookQuestsTab {
             cmd.set(sel + " #TrackBtn.Visible", true);
             cmd.set(sel + " #TrackBtnSpacer.Visible", true);
             ObjectiveBookPage.paintPinIcon(cmd, sel + " #TrackBtn", tracked);
+            cmd.set(sel + " #TrackBtn.TooltipText", page.text("book.tooltip.track"));
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #TrackBtn",
                     page.fullState("toggletrack").append("Id", quest.id()).append("Selector", sel),
                     false);

@@ -1,0 +1,89 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// One row of the shared menu's rail (com.ziggfreed.common.ui.menu.ZigMenu), appended by index into the
+// frame's #MenuList and addressed as "#MenuList[i] #TabBtn", so a tab's id never becomes an element id.
+//
+// ONE template for every kind of row, the way Pages/ZigSelectRow.ui is one row for a list: a tab shows
+// #TabLine, a section heading hides it and shows #Header, the gap between two sections shows #Spacer.
+// Every row is the same height, so the rail keeps one rhythm whatever a row says.
+//
+// #TabBtn is a Button with an inner Label #Label, labelled on .TextSpans (ui/ZigRichButton), never a
+// TextButton. The selected tab shows #Marker (a bar, so it is told apart by shape and not only colour), a
+// bold white label on the selected fill, and carries no click binding. Every colour here is a
+// ui/menu/MenuPalette default, and ui/menu/ZigMenu repaints each from the palette in force on every
+// build, so a theme recolours the rail with no document of its own (ZigMenuDocumentsTest).
+//
+// #TabIconSlot takes an optional picture through ui/icon/IconRenderer (#IcoItem or #IcoTex); it ships
+// hidden and a tab never shows a picture without its label.
+
+Group #ZigMenuTab {
+  LayoutMode: Top;
+  Anchor: (Height: 34, Bottom: 2);
+
+  Group #TabLine {
+    LayoutMode: Left;
+    Anchor: (Height: 34);
+    Background: #0a1119;
+
+    Group #Marker {
+      Anchor: (Width: 4, Height: 34);
+      Background: #ffd24a;
+      Visible: false;
+    }
+
+    Group #TabIconSlot {
+      Anchor: (Width: 20, Height: 20, Top: 7, Left: 6);
+      Visible: false;
+
+      ItemGrid #IcoItem {
+        Anchor: (Width: 20, Height: 20);
+        Visible: false;
+        SlotsPerRow: 1;
+        AreItemsDraggable: false;
+        DisplayItemQuantity: false;
+        Style: $Z.@ZigIconGrid20;
+      }
+
+      AssetImage #IcoTex {
+        Anchor: (Width: 20, Height: 20);
+        Visible: false;
+        FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+      }
+    }
+
+    Button #TabBtn {
+      FlexWeight: 1;
+      Anchor: (Height: 34);
+      Padding: (Left: 10, Right: 6);
+      LayoutMode: Left;
+      Style: ButtonStyle(
+        Default: (Background: #0a1119),
+        Hovered: (Background: #1a2633),
+        Pressed: (Background: #0a1119),
+        Sounds: $C.@ButtonSounds
+      );
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Anchor: (Height: 34);
+        Style: $F.@ZigBodyLabelStyle;
+      }
+    }
+  }
+
+  Label #Header {
+    Text: "";
+    Visible: false;
+    Anchor: (Height: 34);
+    Padding: (Left: 4);
+    Style: $F.@ZigHeadingLabelStyle;
+  }
+
+  Group #Spacer {
+    Anchor: (Height: 34);
+    Visible: false;
+  }
+}

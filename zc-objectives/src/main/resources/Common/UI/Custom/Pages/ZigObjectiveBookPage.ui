@@ -3,11 +3,11 @@ $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
 $S = "../Common/ZigSearchRow.ui";
 
-// The Objective Book (com.ziggfreed.common.objectives.book.ObjectiveBookPage): a full-screen
-// two-tab progression menu. Three columns: #LeftPanel is a host column a consumer mod may paint
-// its own navigation rail into (hidden when nothing paints it), #RightPanel carries the
-// Quests | Achievements tab strip over one surface per tab, and #SidePanel shows the tracked-quests
-// panel on the quests tab or a consumer-painted column on the achievements tab.
+// The Objective Book (com.ziggfreed.common.objectives.book.ObjectiveBookPage), inside the shared menu
+// frame: the frame's rail on the left (ui/menu/ZigMenu paints it, with this book's Quests or
+// Achievements tab selected), then two columns of the book's own. #RightPanel carries one surface per
+// tab, and #SidePanel shows the tracked-quests panel on the quests tab or a consumer-painted column on
+// the achievements tab.
 //
 // The quests tab is a filterable quest log: category chips (or a dropdown once the rendered
 // chips cannot fit the strip), the shared search row (#QSearch), a tag dropdown (shown only when
@@ -18,55 +18,14 @@ $S = "../Common/ZigSearchRow.ui";
 // right, and an overview (recent / nearest / pinned / categories / milestones) filling the right
 // panel while nothing is selected.
 //
-// The Full: 12 padding on #Content is load-bearing: at 0 the #LeftPanel / #SidePanel bevels stack
-// against the frame bevel and read as a heavy dark shadow down the menu edges.
+// The frame owns the size, the padding and the rail. book/BookWidths holds the two widths the
+// chips-or-dropdown rule adds (#RightPanel's padding, #SidePanel's width); BookWidthsTest holds them to
+// this document.
 
 $C.@PageOverlay {}
 
-$F.@ZigDecoratedFrame {
-  @CloseButton = true;
-  @Ornaments = true;
-  Anchor: (Width: 1800, Height: 1000);
-
+$F.@ZigMenuFrame {
   #Content {
-    Anchor: (Top: 0);
-    LayoutMode: Left;
-    Padding: (Full: 12);
-
-    // Consumer-painted navigation rail. The page shows it only when the registered rail painter
-    // painted something, so a bare server gets the two-column look with no empty gutter.
-    Group #LeftPanel {
-      Anchor: (Width: 250);
-      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
-      LayoutMode: Top;
-      Padding: (Full: 16);
-      Visible: false;
-
-      Group #BrandingContainerLeft {
-        Visible: false;
-      }
-
-      Label #BrandingServerName {
-        Text: "";
-        Visible: false;
-        Anchor: (Height: 20, Bottom: 2);
-        Style: (...$C.@DefaultLabelStyle, FontSize: 14, TextColor: #ffffff, RenderBold: true);
-      }
-
-      Label #BrandingDescription {
-        Text: "";
-        Visible: false;
-        Anchor: (Height: 18, Bottom: 8);
-        Style: (...$C.@DefaultLabelStyle, FontSize: 11);
-      }
-
-      // Everything below the branding block is appended by the rail painter.
-      Group #RailContent {
-        FlexWeight: 1;
-        LayoutMode: Top;
-      }
-    }
-
     Group #RightPanel {
       FlexWeight: 1;
       LayoutMode: Top;
@@ -84,34 +43,6 @@ $F.@ZigDecoratedFrame {
             Text: "";
             FlexWeight: 1;
             Style: (...$C.@TitleStyle, FontSize: 24);
-          }
-        }
-
-        // The book's own tab strip. Java hides it whole when a consumer rail painted (the rail
-        // carries its own Quests / Achievements entries, so this would be a second switcher);
-        // hidden it takes no layout space, so the title grows into the gap.
-        Group #TabBar {
-          LayoutMode: Left;
-          Anchor: (Width: 300);
-
-          Button #TabQuests {
-            Style: $Z.@ZigRichRowBtnStyle;
-            Anchor: (Width: 144, Height: 34, Right: 6);
-            Label #Label {
-              FlexWeight: 1;
-              Text: "";
-              Style: (FontSize: 14, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
-            }
-          }
-
-          Button #TabAchievements {
-            Style: $Z.@ZigRichRowBtnStyle;
-            Anchor: (Width: 144, Height: 34);
-            Label #Label {
-              FlexWeight: 1;
-              Text: "";
-              Style: (FontSize: 14, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
-            }
           }
         }
 
@@ -338,7 +269,7 @@ $F.@ZigDecoratedFrame {
           LayoutMode: Left;
 
           Group #AListPane {
-            Anchor: (Width: 580);
+            Anchor: (Width: 480);
             LayoutMode: Top;
 
             Label #AEmptyMessage {
@@ -460,6 +391,7 @@ $F.@ZigDecoratedFrame {
                   Anchor: (Width: 22, Height: 22);
                   Visible: false;
                   Style: $Z.@ZigPinBtnStyle;
+                  TextTooltipStyle: $C.@DefaultTextTooltipStyle;
 
                   Group #PinIconOff {
                     Anchor: (Width: 14, Height: 14, Left: 4, Top: 4);

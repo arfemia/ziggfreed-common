@@ -59,6 +59,24 @@ public final class Palette {
         this.panelBorder = 4;
     }
 
+    /** A slot-for-slot copy, so a holder can hand its palette out without handing out the right to change it. */
+    public Palette copy() {
+        Palette copy = new Palette(primary, accent, background);
+        copy.frame = frame;
+        copy.header = header;
+        copy.divider = divider;
+        copy.buttonNeutral = buttonNeutral;
+        copy.buttonPositive = buttonPositive;
+        copy.buttonClaim = buttonClaim;
+        copy.buttonDestructive = buttonDestructive;
+        copy.textPrimary = textPrimary;
+        copy.textMuted = textMuted;
+        copy.textureDir = textureDir;
+        copy.frameBorder = frameBorder;
+        copy.panelBorder = panelBorder;
+        return copy;
+    }
+
     /** True only when this theme declares a bespoke texture set to swap in. */
     public boolean hasTextures() {
         return textureDir != null && !textureDir.isEmpty();

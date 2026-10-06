@@ -3,17 +3,18 @@ package com.ziggfreed.common.objectives.book;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.ui.menu.ZigMenu;
 
 /**
  * The state the Objective Book page round-trips on every binding.
  *
- * <p>{@code action} is one of {@code close}, {@code tab} (switch to the tab named in {@code tab},
- * resetting the other tab's filters), a quest verb ({@code primary} / {@code abandon} /
+ * <p>{@code action} is one of {@code close}, a quest verb ({@code primary} / {@code abandon} /
  * {@code turn_in} / {@code toggletrack} / {@code toggle}, acting on {@code id} and repainting the
  * row named in {@code selector}), an achievement verb ({@code select} / {@code togglepin} /
  * {@code claim} / {@code claim_milestone}), a filter verb ({@code category} / {@code subfilter} /
  * {@code status} / {@code sort} / {@code search} / {@code clear_search} / {@code tag}), or
- * {@code ext} (a consumer-painted control; {@code id} carries the consumer's own token).
+ * {@code ext} (a consumer-painted control; {@code id} carries the consumer's own token). A rail
+ * click, which carries {@code menu} and no action, is the shared menu's.
  *
  * <p>The FILTER state is stateless across events: every binding carries the full next state, the
  * live search-field text riding {@code @SearchInput} on every one so typed-but-unsubmitted text
@@ -42,6 +43,8 @@ public class ObjectiveBookEventData {
     public String dropdownValue;
     /** The live search-field value captured at click time ({@code @SearchInput}). */
     public String searchInput;
+    /** The rail row a click came from ({@code ZigMenu.EVENT_KEY}); null for every event of the book's own. */
+    public String menu;
 
     public static final BuilderCodec<ObjectiveBookEventData> CODEC =
             BuilderCodec.builder(ObjectiveBookEventData.class, ObjectiveBookEventData::new)
@@ -113,6 +116,10 @@ public class ObjectiveBookEventData {
                     .append(new KeyedCodec<>("SearchInput", Codec.STRING),
                             (data, value, info) -> data.searchInput = value,
                             (data, info) -> data.searchInput)
+                    .add()
+                    .append(new KeyedCodec<>(ZigMenu.EVENT_KEY, Codec.STRING),
+                            (data, value, info) -> data.menu = value,
+                            (data, info) -> data.menu)
                     .add()
                     .build();
 }

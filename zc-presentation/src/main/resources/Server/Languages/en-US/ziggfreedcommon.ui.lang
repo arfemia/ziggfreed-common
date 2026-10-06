@@ -11,3 +11,8 @@ hud.bar.gain = +{0, number}
 # The same gain from ten thousand up, arriving already written compact ("12.3k") because the wide
 # panel's gain column has no room for the grouped form; the entry only signs it.
 hud.bar.gain.compact = +{0}
+
+# The shared menu's command, /ziggui. menu.desc is what the engine's help shows for it.
+menu.desc = Open your menu of quests, achievements and more.
+menu.open.needsPlayer = Only a player can open the menu.
+menu.open.nothing = There is nothing to open in the menu on this server yet.

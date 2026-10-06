@@ -24,6 +24,7 @@ import com.ziggfreed.common.encounter.asset.EncounterBindingAsset;
 import com.ziggfreed.common.encounter.event.EncounterDefeatedEvent;
 import com.ziggfreed.common.encounter.ledger.ParticipantShare;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.ui.menu.MenuSlot;
 
 /**
  * A boss fight's records read back from the listener's own board: the axes the binding row's split
@@ -198,5 +199,19 @@ class EncounterBoardsTest {
         Leaderboard board = new Leaderboard("test");
         defeat(board, kept.getLeaderboard(), 2, null);
         assertEquals(List.of(kept), EncounterBoards.ranked(board, List.of(unranked, empty, kept)));
+    }
+
+    /** The build Records and /zigleaderboard encounter share puts the page on the rail with Records selected. */
+    @Test
+    void aFightsRecordsOpenOnTheRailWithRecordsSelected() throws IOException {
+        Leaderboard board = new Leaderboard("test");
+        LeaderboardPageDeps deps = EncounterBoards.deps(board,
+                row("A_Boss", "{ \"Leaderboard\": { \"Bucket\": \"a\", \"ByPartySize\": true } }"));
+
+        assertNotNull(deps);
+        assertEquals(MenuSlot.RECORDS.id(), deps.menuTab());
+        assertNull(EncounterBoards.deps(board, row("C_Boss", "{}")), "a row that ranks nothing has no page");
+        assertNull(EncounterBoards.deps(board, group("{ \"Bucket\": \"a\" }"), null, TEXT).menuTab(),
+                "the group form a consumer builds its own board with stays in its own frame");
     }
 }

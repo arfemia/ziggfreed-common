@@ -6,7 +6,10 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.ziggfreed.common.almanac.asset.AlmanacOwnerLayers;
 import com.ziggfreed.common.almanac.command.ZigAlmanacCommand;
 import com.ziggfreed.common.almanac.page.AlmanacDestinations;
+import com.ziggfreed.common.almanac.page.AlmanacMenuTab;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.ui.menu.MenuSlot;
+import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -37,12 +40,13 @@ public final class AlmanacBootstrap {
     }
 
     /**
-     * The plugin-free half: the feature (before the first progression publish), the destination
-     * (before any asset decodes) and the counter, at the library-default rank.
+     * The plugin-free half: the feature (before the first progression publish), the destination and
+     * the menu tab (before any asset decodes) and the counter, at the library-default rank.
      */
     public static void registerVocabulary() {
         AlmanacSwitch.registerFeature();
         AlmanacDestinations.register();
+        ZigMenu.fill(MenuSlot.ALMANAC, AlmanacMenuTab.entry());
         ProgressionRuntime.defaults(OWNER).momentListener(new AlmanacMomentListener(FactorAlmanacCalendar.INSTANCE));
     }
 }

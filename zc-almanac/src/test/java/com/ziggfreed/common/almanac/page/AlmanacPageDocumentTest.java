@@ -1,11 +1,14 @@
 package com.ziggfreed.common.almanac.page;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -51,6 +54,22 @@ class AlmanacPageDocumentTest {
                 "the slot holds the grid an item's picture is drawn in");
         assertTrue(slot.contains("AssetImage " + IconRenderer.TEXTURE_ICON_ID),
                 "the slot holds the image a texture's picture is drawn in");
+    }
+
+    @Test
+    void theAlmanacSitsInTheSharedMenuAndAnswersTheRailFirst() throws IOException {
+        String ui = document(AlmanacPage.PAGE_TEMPLATE);
+        assertTrue(ui.contains("$F.@ZigMenuFrame"), "the Almanac carries the shared rail, so it is no dead end");
+        assertFalse(ui.contains("@ZigDecoratedFrame"));
+
+        String page = Files.readString(Path.of("src", "main", "java", "com", "ziggfreed", "common", "almanac",
+                "page", "AlmanacPage.java"), StandardCharsets.UTF_8);
+        assertTrue(page.contains("ZigMenu.paint("), "the page paints the rail");
+        int handler = page.indexOf("public void handleDataEvent(");
+        int rail = page.indexOf("rail.handle(", handler);
+        int action = page.indexOf("data.action", handler);
+        assertTrue(handler > 0 && rail > handler && rail < action,
+                "a rail click carries no Action, and the page closes on anything it does not know");
     }
 
     /** The shipped document with every {@code //} comment removed, so a sentence never satisfies a check. */

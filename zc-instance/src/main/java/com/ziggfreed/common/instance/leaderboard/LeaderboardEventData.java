@@ -3,6 +3,7 @@ package com.ziggfreed.common.instance.leaderboard;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.ui.menu.ZigMenu;
 
 /**
  * The state event the leaderboard page round-trips. {@code action} is one of
@@ -11,7 +12,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * {@code sort}), {@code statsort} (Stats-view column metric, value in {@code statSort}),
  * {@code view} (rankings/stats, value in {@code view}), or {@code close}. The Rankings sort
  * ({@code sort}) and the Stats sort ({@code statSort}) are carried independently on every
- * binding so both views' sort states survive a round-trip.
+ * binding so both views' sort states survive a round-trip. On the shared menu's rail, a rail click
+ * carries {@code menu} and no action.
  */
 public class LeaderboardEventData {
 
@@ -21,6 +23,8 @@ public class LeaderboardEventData {
     public String sort;
     public String statSort;
     public String view;
+    /** The rail row a click came from ({@code ZigMenu.EVENT_KEY}); null for every event of the page's own. */
+    public String menu;
 
     public static final BuilderCodec<LeaderboardEventData> CODEC =
             BuilderCodec.builder(LeaderboardEventData.class, LeaderboardEventData::new)
@@ -47,6 +51,10 @@ public class LeaderboardEventData {
                     .append(new KeyedCodec<>("View", Codec.STRING),
                             (data, value, info) -> data.view = value,
                             (data, info) -> data.view)
+                    .add()
+                    .append(new KeyedCodec<>(ZigMenu.EVENT_KEY, Codec.STRING),
+                            (data, value, info) -> data.menu = value,
+                            (data, info) -> data.menu)
                     .add()
                     .build();
 }
