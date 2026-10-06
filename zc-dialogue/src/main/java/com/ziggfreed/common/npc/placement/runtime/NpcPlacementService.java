@@ -279,9 +279,9 @@ public final class NpcPlacementService {
      * its {@code Fortify} bonus. A copy back from a park, or one met after a restart (the pin table and the
      * position cache live in memory), never ran place's bookkeeping. Only a copy live when a sweep runs is
      * reached: after a restart the boot sweep finds the hub parked and skips it, so its pin returns at a
-     * later sweep that finds it awake ({@code Fortify} is saved with the entity). World thread, in the sweep's world
-     * task, outside any system's processing window; each step is idempotent ({@link #upkeepFor},
-     * {@link #applyFortify}). Never throws.
+     * later sweep that finds it awake ({@code Fortify} is saved with the entity). World thread, in the
+     * sweep's world task, outside any system's processing window; each step is idempotent
+     * ({@link #upkeepFor}, {@link #applyFortify}). Never throws.
      */
     static void upkeep(@Nonnull World world, @Nonnull Store<EntityStore> store, @Nonnull String worldName,
             @Nullable NpcPlacementAsset placement, @Nonnull String placementId, @Nonnull String anchorKey,
