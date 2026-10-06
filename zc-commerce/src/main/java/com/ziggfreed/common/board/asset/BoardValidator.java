@@ -37,8 +37,9 @@ import com.ziggfreed.common.world.WhereValidator;
  * {@link WhereValidator}, so a lock or a selector reads here exactly as it does on a quest.
  *
  * <p><b>Every unknown id is a WARNING, never an error</b> - the standing library rule. A thing that
- * is impossible whatever anybody installs - a board with no contracts, a slot no band can fill - is
- * an error.
+ * is impossible whatever anybody installs - a board with no contracts, a required slot no band can fill -
+ * is an error. An {@code Optional} slot no contract fills is a note (INFO): a mod this server does not
+ * run may be the one that fills it, which is what {@code Optional} is for.
  */
 public final class BoardValidator {
 
@@ -151,12 +152,17 @@ public final class BoardValidator {
             }
             slotBands.add(band);
             int available = bands.getOrDefault(band, 0);
-            if (available == 0) {
+            if (available == 0 && slot.isOptional()) {
+                // Optional is for a band only some servers fill (a companion mod's contracts): a note, not an error.
+                out.add(Finding.info(DOMAIN, "UNFILLABLE_SLOT",
+                        "an optional slot posts the band '" + slot.getDifficulty() + "', which no contract on this "
+                                + "board carries under Boards.Difficulty, so it is quietly skipped every rotation "
+                                + "until a mod adds contracts at that band", id));
+            } else if (available == 0) {
                 out.add(Finding.error(DOMAIN, "UNFILLABLE_SLOT",
                         "a slot posts the band '" + slot.getDifficulty() + "', which no contract on this board "
-                                + "carries under Boards.Difficulty; the slot can never be filled" + (
-                                slot.isOptional() ? " and is quietly skipped every rotation"
-                                        : " and leaves a visible gap"), id));
+                                + "carries under Boards.Difficulty; the slot can never be filled and leaves a "
+                                + "visible gap", id));
             } else if (available < slot.countOrOne()) {
                 out.add(Finding.warning(DOMAIN, "OVERSUBSCRIBED_BOARD",
                         "a slot wants " + slot.countOrOne() + " DISTINCT contracts of band '"
