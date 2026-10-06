@@ -31,3 +31,27 @@ feedback.rank.with = with {0}
 # A REPUTATION_RANK step: {1} is the rank it names. The .any twin reads when a step names no rank.
 objective.reputation_rank = Reach {1}
 objective.reputation_rank.any = Reach a new rank
+
+# The Reputation page.
+page.title = Reputation
+page.empty = Nobody knows you yet. Help someone out and it shows up here.
+# A row: {0} the reputation, {1} the rank held.
+page.row = {0}: {1}
+# The row with what comes next: {0} the row so far, {1} how far, {2} the next rank.
+page.row.next = {0}, {1, number} to {2}
+# Past the top: {0} the row so far, {1} how far to the next reward.
+page.row.reward = {0}, {1, number} to the next reward
+# With gear: {0} the row so far, {1} what gear adds (or takes, in the .loss line).
+page.row.gear = {0} (+{1, number} from gear)
+page.row.gear.loss = {0} ({1, number} from gear)
+# The row's badge: the standing, gear included.
+page.badge = {0, number}
+
+# The detail lines.
+detail.earned = Earned: {0, number}
+detail.gear = From gear: +{0, number}
+detail.gear.loss = From gear: {0, number}
+detail.next = Next rank: {0} at {1, number}
+detail.reward = Next reward at {0, number}
+detail.top = You have reached the top rank.
+detail.cap = The most you can earn: {0, number}

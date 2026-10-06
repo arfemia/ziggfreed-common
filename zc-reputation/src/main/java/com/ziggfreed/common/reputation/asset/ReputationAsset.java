@@ -39,7 +39,7 @@ import com.ziggfreed.common.text.ContentTextAsset;
  *   "Cap": 21000,
  *   "Ranks": { "Friendly": { "Name": "yourmod.reputation.traders.rank.friendly" } },
  *   "Kills": [ { "NPCGroups": [ "Your_Bandits" ], "Amount": 5 } ],
- *   "Beyond": { "Every": 5000, "Rewards": [ { "Kind": "Lootable", "Params": { "Id": "Your_Cache" } } ] } }
+ *   "Beyond": { "Every": 5000, "Rewards": [ { "Kind": "Lootable", "Params": { "Lootable": "Your_Cache" } } ] } }
  * }</pre>
  *
  * <p>A native group with no file here still works: it reads by its id, with no gear, no cap and no

@@ -21,6 +21,7 @@ public enum MenuSlot {
     ACHIEVEMENTS("achievements"),
     ALMANAC("almanac"),
     RECORDS("records"),
+    REPUTATION("reputation"),
     SETTINGS("settings");
 
     private final String id;

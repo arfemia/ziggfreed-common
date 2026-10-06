@@ -29,7 +29,11 @@ public final class ReputationText {
             "rank.hated", "rank.unfriendly", "rank.neutral", "rank.friendly", "rank.honored", "rank.revered",
             "rank.exalted", "rank.none",
             "reward.gain", "reward.loss",
-            "hud.caption");
+            "hud.caption",
+            "page.title", "page.empty", "page.row", "page.row.next", "page.row.reward", "page.row.gear",
+            "page.row.gear.loss", "page.badge",
+            "detail.earned", "detail.gear", "detail.gear.loss", "detail.next", "detail.reward", "detail.top",
+            "detail.cap");
 
     private ReputationText() {
     }
