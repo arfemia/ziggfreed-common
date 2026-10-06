@@ -20,3 +20,14 @@ factor.reputation_rank = a rank with a reputation
 # A reputation reward as it reads in a reward list: {0} the amount, {1} the reputation's name.
 reward.gain = +{0, number} {1}
 reward.loss = {0, number} {1}
+
+# The World bar's name for a reputation: {0} the reputation, {1} the rank the player holds.
+hud.caption = {0}: {1}
+
+# The notice when a player's rank rises during play: {0} the new rank, then the reputation's name.
+feedback.rank.title = You are now {0}
+feedback.rank.with = with {0}
+
+# A REPUTATION_RANK step: {1} is the rank it names. The .any twin reads when a step names no rank.
+objective.reputation_rank = Reach {1}
+objective.reputation_rank.any = Reach a new rank

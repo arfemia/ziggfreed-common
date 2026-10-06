@@ -28,7 +28,8 @@ public final class ReputationText {
     public static final List<String> SPOKEN = List.of(
             "rank.hated", "rank.unfriendly", "rank.neutral", "rank.friendly", "rank.honored", "rank.revered",
             "rank.exalted", "rank.none",
-            "reward.gain", "reward.loss");
+            "reward.gain", "reward.loss",
+            "hud.caption");
 
     private ReputationText() {
     }
