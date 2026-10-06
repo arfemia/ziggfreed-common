@@ -71,10 +71,13 @@ public final class LedgerPainter {
             String head = root + " #Head";
             KitPaint.text(cmd, head + " #Label", section.label());
             KitPaint.text(cmd, head + " #Count", Msg.num(section.rows().size()));
-            bind(events, head, bindings.section(section));
+            EventData toggle = bindings.section(section);
+            bind(events, head, toggle);
             boolean open = isOpen(section, openSections);
             index.section(section.id(), s, open);
             chevron(cmd, head, open);
+            // A head nothing answers shows no chevron, so it never looks as if it folds.
+            cmd.set(head + " #Chevron.Visible", toggle != null);
             cmd.set(root + " #Rows.Visible", open);
             if (open) {
                 appendRows(cmd, events, index, s, section, bindings);

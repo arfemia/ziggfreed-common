@@ -54,6 +54,7 @@ class LedgerPainterTest {
         assertTrue(run.p.has("#L[0] #Head #Label.TextSpans"));
         assertTrue(run.p.set("#L[0] #Head #Count.TextSpans").contains("ziggfreedcommon.fmt.num"),
                 "the count is a typed number");
+        assertTrue(run.p.shown("#L[0] #Head #Chevron.Visible"), "a head the page answers shows its chevron");
         assertTrue(run.p.shown("#L[0] #Head #Chevron #Open.Visible"));
         assertFalse(run.p.shown("#L[0] #Head #Chevron #Closed.Visible"));
         assertTrue(run.p.shown("#L[0] #Rows.Visible"));
@@ -159,7 +160,10 @@ class LedgerPainterTest {
         UICommandBuilder cmd = new UICommandBuilder();
         UIEventBuilder events = new UIEventBuilder();
         LedgerPainter.paint(cmd, events, LIST, model(), Set.of(), null, none, RowSize.STANDARD, null);
-        assertEquals(0, Painted.of(cmd, events).bindingCount());
+        Painted p = Painted.of(cmd, events);
+        assertEquals(0, p.bindingCount());
+        assertFalse(p.shown("#L[0] #Head #Chevron.Visible"), "a head nothing answers shows no chevron, so it never looks foldable");
+        assertFalse(p.shown("#L[1] #Head #Chevron.Visible"));
     }
 
     @Test

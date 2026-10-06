@@ -175,6 +175,33 @@ class DetailPainterTest {
     }
 
     @Test
+    void aLineWithAPlainPictureCarriesItsOwnTooltipOnThePicture() {
+        UICommandBuilder cmd = new UICommandBuilder();
+        UIEventBuilder events = new UIEventBuilder();
+        DetailLine coins = DetailLine.of(Picture.texture(TEXTURE), Message.raw("Hallow Coins"))
+                .withTooltip(Message.raw("Spend them at Old Jack's stall."));
+        DetailPainter.lines(cmd, events, "#Rewards", List.of(coins), l -> null);
+        Painted p = Painted.of(cmd, events);
+        assertTrue(p.set("#Rewards[0] #LineIconSlot.TooltipText").contains("Old Jack"),
+                "a currency or boost reward says what it is on hover, as its old card did");
+    }
+
+    @Test
+    void aLineThatOpensSomethingOrShowsAnItemsOwnTooltipGetsNoTooltipOfItsOwn() {
+        UICommandBuilder cmd = new UICommandBuilder();
+        UIEventBuilder events = new UIEventBuilder();
+        Message tip = Message.raw("Not shown");
+        DetailLine opens = new DetailLine(Picture.texture(TEXTURE), Message.raw("Ghoul Breaker"), null, null,
+                Tick.NONE, "ghoul_breaker", false).withTooltip(tip);
+        DetailLine item = DetailLine.of(Picture.tooltipItem("No_Such_Item").or(Picture.texture(TEXTURE)),
+                Message.raw("Hallow Sweets")).withTooltip(tip);
+        DetailPainter.lines(cmd, events, "#L", List.of(opens, item), l -> EventData.of("Open", l.selectId()));
+        Painted p = Painted.of(cmd, events);
+        assertFalse(p.has("#L[0] #LineIconSlot.TooltipText"), "a tooltip on the picture would swallow the line's click");
+        assertFalse(p.has("#L[1] #LineIconSlot.TooltipText"), "the item grid's own tooltip is the point");
+    }
+
+    @Test
     void aRewardLineKeepsTheItemGridForItsTooltip() {
         DetailLine reward = DetailLine.of(Picture.tooltipItem("No_Such_Item").or(Picture.texture(TEXTURE)),
                 Message.raw("Hallow Sweets"));
