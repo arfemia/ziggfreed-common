@@ -1,0 +1,37 @@
+# What the reputation module says to players, it-IT. The file name is the key PREFIX: an entry here resolves
+# as ziggfreedcommon.reputation.<key>. The en-US file's comments say what each placeholder holds.
+
+rank.hated = Odiato
+rank.unfriendly = Non amichevole
+rank.neutral = Neutrale
+rank.friendly = Amichevole
+rank.honored = Onorato
+rank.revered = Riverito
+rank.exalted = Osannato
+rank.none = Senza rango
+factor.reputation = un punteggio di reputazione
+factor.reputation_earned = un punteggio di reputazione guadagnato
+factor.reputation_rank = un rango di reputazione
+reward.gain = +{0, number} {1}
+reward.loss = {0, number} {1}
+hud.caption = {0}: {1}
+feedback.rank.title = Ora sei {0}
+feedback.rank.with = presso {0}
+objective.reputation_rank = Raggiungi il rango {1}
+objective.reputation_rank.any = Raggiungi un nuovo rango
+page.title = Reputazione
+page.empty = Ancora nessuno ti conosce. Dai una mano a qualcuno e comparirà qui.
+page.row = {0}: {1}
+page.row.next = {0}, {1, number} per {2}
+page.row.reward = {0}, {1, number} per la prossima ricompensa
+page.row.gear = {0} (+{1, number} dall'equipaggiamento)
+page.row.gear.loss = {0} ({1, number} dall'equipaggiamento)
+page.badge = {0, number}
+detail.earned = Guadagnata: {0, number}
+detail.gear = Dall'equipaggiamento: +{0, number}
+detail.gear.loss = Dall'equipaggiamento: {0, number}
+detail.next = Prossimo rango: {0} a {1, number}
+detail.reward = Prossima ricompensa a {0, number}
+detail.top = Hai raggiunto il rango più alto.
+detail.cap = Il massimo che puoi guadagnare: {0, number}
+menu.tab = Reputazione

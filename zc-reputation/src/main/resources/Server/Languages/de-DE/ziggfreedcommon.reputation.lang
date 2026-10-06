@@ -1,0 +1,43 @@
+# What the reputation module says to players, de-DE. The file name is the key PREFIX: an entry here resolves
+# as ziggfreedcommon.reputation.<key>. The en-US file's comments say what each placeholder holds.
+
+# Die sieben Ränge der einen Leiter des Servers.
+rank.hated = Hasserfüllt
+rank.unfriendly = Unfreundlich
+rank.neutral = Neutral
+rank.friendly = Freundlich
+rank.honored = Wohlwollend
+rank.revered = Respektvoll
+rank.exalted = Ehrfürchtig
+rank.none = Ohne Rang
+
+# Wie eine Bedingung auf einen Rufwert heißt, wenn kein Paket seinen Ruf selbst benennt; steht hinter "Benötigt" in der Sperrzeile.
+factor.reputation = Ruf bei einer Fraktion
+factor.reputation_earned = verdienten Ruf bei einer Fraktion
+factor.reputation_rank = einen Rang bei einer Fraktion
+
+reward.gain = +{0, number} {1}
+reward.loss = {0, number} {1}
+hud.caption = {0}: {1}
+feedback.rank.title = Du bist jetzt {0}
+feedback.rank.with = Ruf: {0}
+objective.reputation_rank = Erreiche {1}
+objective.reputation_rank.any = Erreiche einen neuen Rang
+
+# Die Ruf-Seite.
+page.title = Ruf
+page.empty = Noch kennt dich niemand. Hilf jemandem, und es taucht hier auf.
+page.row = {0}: {1}
+page.row.next = {0}, noch {1, number} bis {2}
+page.row.reward = {0}, noch {1, number} bis zur nächsten Belohnung
+page.row.gear = {0} (+{1, number} durch Ausrüstung)
+page.row.gear.loss = {0} ({1, number} durch Ausrüstung)
+page.badge = {0, number}
+detail.earned = Verdient: {0, number}
+detail.gear = Durch Ausrüstung: +{0, number}
+detail.gear.loss = Durch Ausrüstung: {0, number}
+detail.next = Nächster Rang: {0} bei {1, number}
+detail.reward = Nächste Belohnung bei {0, number}
+detail.top = Du hast den höchsten Rang erreicht.
+detail.cap = Maximal zu verdienen: {0, number}
+menu.tab = Ruf

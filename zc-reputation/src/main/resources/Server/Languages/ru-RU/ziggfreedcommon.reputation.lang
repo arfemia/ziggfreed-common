@@ -1,0 +1,37 @@
+# What the reputation module says to players, ru-RU. The file name is the key PREFIX: an entry here resolves
+# as ziggfreedcommon.reputation.<key>. The en-US file's comments say what each placeholder holds.
+
+rank.hated = Ненависть
+rank.unfriendly = Неприязнь
+rank.neutral = Равнодушие
+rank.friendly = Дружелюбие
+rank.honored = Уважение
+rank.revered = Почтение
+rank.exalted = Превознесение
+rank.none = Без ранга
+factor.reputation = репутация
+factor.reputation_earned = заработанная репутация
+factor.reputation_rank = ранг репутации
+reward.gain = {1}: +{0, number}
+reward.loss = {1}: {0, number}
+hud.caption = {0}: {1}
+feedback.rank.title = Новый ранг: {0}
+feedback.rank.with = Репутация: {0}
+objective.reputation_rank = Достигните ранга «{1}»
+objective.reputation_rank.any = Достигните нового ранга
+page.title = Репутация
+page.empty = Вас пока никто не знает. Помогите кому-нибудь, и это появится здесь.
+page.row = {0}: {1}
+page.row.next = {0}, ещё {1, number} до ранга «{2}»
+page.row.reward = {0}, ещё {1, number} до следующей награды
+page.row.gear = {0} (+{1, number} от снаряжения)
+page.row.gear.loss = {0} ({1, number} от снаряжения)
+page.badge = {0, number}
+detail.earned = Заработано: {0, number}
+detail.gear = От снаряжения: +{0, number}
+detail.gear.loss = От снаряжения: {0, number}
+detail.next = Следующий ранг: {0} при {1, number}
+detail.reward = Следующая награда при {0, number}
+detail.top = Вы достигли высшего ранга.
+detail.cap = Больше всего можно заработать: {0, number}
+menu.tab = Репутация

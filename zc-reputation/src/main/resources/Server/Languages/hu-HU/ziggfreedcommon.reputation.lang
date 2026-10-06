@@ -1,0 +1,36 @@
+# What the reputation module says to players, hu-HU. The file name is the key PREFIX: an entry here resolves
+# as ziggfreedcommon.reputation.<key>. The en-US file's comments say what each placeholder holds.
+rank.hated = Gyűlölt
+rank.unfriendly = Barátságtalan
+rank.neutral = Semleges
+rank.friendly = Barátságos
+rank.honored = Tisztelt
+rank.revered = Nagyra becsült
+rank.exalted = Magasztalt
+rank.none = Rang nélkül
+factor.reputation = egy hírnév állása
+factor.reputation_earned = egy hírnév megszerzett állása
+factor.reputation_rank = egy hírnév rangja
+reward.gain = +{0, number} {1}
+reward.loss = {0, number} {1}
+hud.caption = {0}: {1}
+feedback.rank.title = Mostantól {0} vagy
+feedback.rank.with = Hírnév: {0}
+objective.reputation_rank = Érd el a rangot: {1}
+objective.reputation_rank.any = Érj el egy új rangot
+page.title = Hírnév
+page.empty = Még senki sem ismer. Segíts ki valakit, és itt megjelenik.
+page.row = {0}: {1}
+page.row.next = {0}, {2} rangig még {1, number}
+page.row.reward = {0}, a következő jutalomig még {1, number}
+page.row.gear = {0} (+{1, number} a felszerelésből)
+page.row.gear.loss = {0} ({1, number} a felszerelésből)
+page.badge = {0, number}
+detail.earned = Megszerezve: {0, number}
+detail.gear = Felszerelésből: +{0, number}
+detail.gear.loss = Felszerelésből: {0, number}
+detail.next = Következő rang: {0}, {1, number} hírnévnél
+detail.reward = Következő jutalom: {0, number} hírnévnél
+detail.top = Elérted a legmagasabb rangot.
+detail.cap = Legfeljebb ennyit szerezhetsz: {0, number}
+menu.tab = Hírnév

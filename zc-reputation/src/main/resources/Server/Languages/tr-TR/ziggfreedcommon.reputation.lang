@@ -1,0 +1,45 @@
+# What the reputation module says to players, tr-TR. The file name is the key PREFIX: an entry here resolves
+# as ziggfreedcommon.reputation.<key>. The en-US file's comments say what each placeholder holds.
+
+rank.hated = Nefret Edilen
+rank.unfriendly = Düşmanca
+rank.neutral = Tarafsız
+rank.friendly = Dostane
+rank.honored = Saygın
+rank.revered = Muhterem
+rank.exalted = Yüce
+rank.none = Rütbesiz
+
+factor.reputation = bir itibardaki puan
+factor.reputation_earned = bir itibarda kazanılmış puan
+factor.reputation_rank = bir itibarda bir rütbe
+
+reward.gain = +{0, number} {1}
+reward.loss = {0, number} {1}
+
+hud.caption = {0}: {1}
+
+feedback.rank.title = Artık {0} rütbesindesin
+feedback.rank.with = {0} ile
+
+objective.reputation_rank = {1} rütbesine ulaş
+objective.reputation_rank.any = Yeni bir rütbeye ulaş
+
+page.title = İtibar
+page.empty = Henüz kimse seni tanımıyor. Birine yardım et, burada görünür.
+page.row = {0}: {1}
+page.row.next = {0}, {2} rütbesine {1, number} kaldı
+page.row.reward = {0}, sonraki ödüle {1, number} kaldı
+page.row.gear = {0} (teçhizattan +{1, number})
+page.row.gear.loss = {0} (teçhizattan {1, number})
+page.badge = {0, number}
+
+detail.earned = Kazanılan: {0, number}
+detail.gear = Teçhizattan: +{0, number}
+detail.gear.loss = Teçhizattan: {0, number}
+detail.next = Sonraki rütbe: {1, number} puanda {0}
+detail.reward = Sonraki ödül: {0, number} puanda
+detail.top = En yüksek rütbeye ulaştın.
+detail.cap = Kazanabileceğin en fazla puan: {0, number}
+
+menu.tab = İtibar
