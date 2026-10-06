@@ -94,8 +94,11 @@ public final class IconRenderer {
         return hasItem;
     }
 
-    /** Fill the grid's one slot with {@code itemId}; false when the id cannot be made a stack. */
-    private static boolean pushItem(@Nonnull UICommandBuilder cmd, @Nonnull String gridSelector,
+    /**
+     * Fill an item grid's one slot with {@code itemId}, for a widget that is the grid itself (a tile's
+     * icon); false when the id cannot be made a stack.
+     */
+    public static boolean pushItem(@Nonnull UICommandBuilder cmd, @Nonnull String gridSelector,
             @Nonnull String itemId) {
         try {
             cmd.set(gridSelector + ".Slots", List.of(new ItemGridSlot(new ItemStack(itemId, 1))));

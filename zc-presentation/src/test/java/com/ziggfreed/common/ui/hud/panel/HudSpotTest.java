@@ -205,6 +205,21 @@ class HudSpotTest {
     }
 
     @Test
+    void theTrackerIsOfferedOnlyTheSpotsThatNameIt() throws Exception {
+        HudSpotAsset open = spot("{ \"Position\": { \"Preset\": \"TopLeft\" } }", "Open");
+        HudSpotAsset bars = spot("{ \"Panels\": [\"World_Bars\"] }", "Bars");
+        HudSpotAsset tracker = spot("{ \"Panels\": [\"quest_tracker\"] }", "Tracker");
+
+        assertTrue(open.fits("World_Bars"), "a spot naming no panel is every bar panel's");
+        assertFalse(open.fits("Quest_Tracker"), "but never the tracker's, whose card is another shape");
+        assertFalse(bars.fits("Quest_Tracker"));
+        assertTrue(tracker.fits("Quest_Tracker"));
+        assertTrue(tracker.names("QUEST_TRACKER"), "named ignoring case");
+        assertFalse(tracker.fits("World_Bars"));
+        assertFalse(open.names("World_Bars"), "naming none is not naming it");
+    }
+
+    @Test
     void thePickerListsWhatFitsInListingOrderAndSkipsWhatIsOff() throws Exception {
         spots.mergeOwnerLayer(Map.of(
                 "Top_Right", spot("{ \"Enabled\": false }", "Top_Right"),

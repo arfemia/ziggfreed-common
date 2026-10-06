@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-/** The picker's consumer seams: plain and closable by default, and fail-safe when a consumer's throw. */
+import com.ziggfreed.common.ui.route.Destinations;
+
+/** The picker's consumer seams: plain by default with Back to the Settings tab, and fail-safe when a consumer's throw. */
 class TitlePickerDepsTest {
 
     @AfterEach
@@ -15,10 +17,10 @@ class TitlePickerDepsTest {
     }
 
     @Test
-    void aBareServerGetsAPlainClosablePicker() {
+    void aBareServerGetsAPlainPickerWhoseBackReturnsToSettings() {
         assertSame(TitlePickerDeps.DEFAULTS, TitlePickerPages.resolvedDeps());
         assertSame(TitlePickerDeps.PLAIN_THEME, TitlePickerDeps.DEFAULTS.theme());
-        assertSame(TitlePickerDeps.CLOSE_PAGE, TitlePickerDeps.DEFAULTS.back());
+        assertSame(TitlePickerDeps.TO_SETTINGS, TitlePickerDeps.DEFAULTS.back());
     }
 
     @Test
@@ -26,7 +28,7 @@ class TitlePickerDepsTest {
         TitlePickerDeps deps = TitlePickerDeps.builder().theme(null).back(null).build();
 
         assertSame(TitlePickerDeps.PLAIN_THEME, deps.theme());
-        assertSame(TitlePickerDeps.CLOSE_PAGE, deps.back());
+        assertSame(TitlePickerDeps.TO_SETTINGS, deps.back());
     }
 
     @Test
@@ -42,5 +44,13 @@ class TitlePickerDepsTest {
             throw new IllegalStateException("boom");
         });
         assertSame(TitlePickerDeps.DEFAULTS, TitlePickerPages.resolvedDeps());
+    }
+
+    @Test
+    void withNothingToOpenBackClosesThePicker() {
+        Destinations.clearForTests();
+
+        assertFalse(TitlePickerDeps.DEFAULTS.backGuarded(null, null, null),
+                "no Settings tab registered: Back takes nothing and the picker closes");
     }
 }

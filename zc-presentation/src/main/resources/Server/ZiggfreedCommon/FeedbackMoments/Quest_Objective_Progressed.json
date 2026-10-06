@@ -23,6 +23,13 @@
     "tick always shows. Delete it to show every tick. A mod that lets each player pick how chatty",
     "their own screen is decides for them and is told whether the tick crossed a mark.",
     "",
+    "PlayerLevel true hands the toast to each player's own notification level, chosen on their",
+    "Settings tab: Every update, Milestones, Finishes or None. A variant replaces the whole toast,",
+    "so it says PlayerLevel again. Delete it to show the toast as written whatever they chose.",
+    "A quest the player can see on their quest tracker shows none of these toasts in the corner,",
+    "at any level, since the tracker already says it; drawn into an open page they still show,",
+    "and the sound still plays.",
+    "",
     "The Variants entry swaps the whole Toast for the finishing tick, so its wording and tone can",
     "differ from an ordinary tick's without a second file: an ordinary tick is neutral Info, the",
     "finish is green Success. A variant replaces the whole group rather than editing it, so every",
@@ -36,7 +43,8 @@
       "Args": ["step", "current", "required"]
     },
     "Tone": "Info",
-    "EveryPercent": 25
+    "EveryPercent": 25,
+    "PlayerLevel": true
   },
   "Variants": [
     {
@@ -46,7 +54,8 @@
           "Key": "ziggfreedcommon.feedback.quest.objective_finished",
           "Args": ["step"]
         },
-        "Tone": "Success"
+        "Tone": "Success",
+        "PlayerLevel": true
       }
     }
   ]

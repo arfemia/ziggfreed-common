@@ -8,6 +8,9 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.settings.page.SettingsDestinations;
+import com.ziggfreed.common.ui.route.DestinationContext;
+import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -37,7 +40,11 @@ public final class TitlePickerDeps {
     /** Back takes nothing, so the page closes. */
     public static final BackHandler CLOSE_PAGE = (store, ref, player) -> false;
 
-    /** Every seam at its default. */
+    /** Back returns to the player's Settings tab, where the title tile opened the picker. */
+    public static final BackHandler TO_SETTINGS = (store, ref, player) ->
+            Destinations.open(SettingsDestinations.SETTINGS, DestinationContext.of(store, ref, player));
+
+    /** Every seam at its default: a plain picker whose Back returns to the Settings tab. */
     public static final TitlePickerDeps DEFAULTS = builder().build();
 
     @Nonnull private final PageTheme theme;
@@ -78,7 +85,7 @@ public final class TitlePickerDeps {
     public static final class Builder {
 
         @Nonnull private PageTheme theme = PLAIN_THEME;
-        @Nonnull private BackHandler back = CLOSE_PAGE;
+        @Nonnull private BackHandler back = TO_SETTINGS;
 
         private Builder() {
         }
@@ -91,7 +98,7 @@ public final class TitlePickerDeps {
 
         @Nonnull
         public Builder back(@Nullable BackHandler value) {
-            this.back = value != null ? value : CLOSE_PAGE;
+            this.back = value != null ? value : TO_SETTINGS;
             return this;
         }
 

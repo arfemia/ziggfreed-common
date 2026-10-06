@@ -16,3 +16,17 @@ hud.bar.gain.compact = +{0}
 menu.desc = Open your menu of quests, achievements and more.
 menu.open.needsPlayer = Only a player can open the menu.
 menu.open.nothing = There is nothing to open in the menu on this server yet.
+
+# The shared menu's Settings tab (settings/page/SettingsPage): a player's own choices for this server,
+# each kept the moment it changes. The level.* words are the notification level's four choices.
+menu.settings = Settings
+settings.title = Settings
+settings.description = Your own choices on this server. Each one is kept the moment you change it.
+settings.notifications = Notifications
+settings.level = Quests and achievements
+settings.level.hint = How many quest and achievement notices you see. Finished quests and rewards show unless you pick None. A quest you are tracking shows no notices in the corner while the tracker shows it; inside a menu they still appear.
+settings.level.everyupdate = Every update
+settings.level.milestones = Milestones
+settings.level.finishes = Finishes
+settings.level.none = None
+settings.show = Show

@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nonnull;
 
@@ -140,6 +141,24 @@ class TrackedQuestSnapshotTest {
                 .audience(subject -> subject.id().equals(player.id())).build();
         assertTrue(TrackedQuestSnapshot.of(engine, player, asked).panelVisible(),
                 "the audience is asked about THIS subject");
+    }
+
+    @Test
+    void thePlayersOwnShowComesFirstAndTheConsumerCanOnlyNarrowIt() {
+        Quest quest = gather("q_logs");
+        engine.setQuests(List.of(quest));
+        engine.accept(player, quest);
+        engine.track(player, quest.id());
+        AtomicInteger asked = new AtomicInteger();
+        TrackedQuestHudDeps yes = TrackedQuestHudDeps.builder().audience(subject -> asked.incrementAndGet() > 0).build();
+        TrackedQuestHudDeps no = TrackedQuestHudDeps.builder().audience(subject -> false).build();
+
+        assertFalse(TrackedQuestSnapshot.of(engine, player, yes, false).panelVisible(),
+                "a player who hid the tracker never sees it, whatever the consumer says");
+        assertEquals(0, asked.get(), "and the consumer is not even asked");
+        assertTrue(TrackedQuestSnapshot.of(engine, player, yes, true).panelVisible());
+        assertFalse(TrackedQuestSnapshot.of(engine, player, no, true).panelVisible(),
+                "the consumer's own rule can still hide it (a world with HUDs off)");
     }
 
     // ==================== rows ====================

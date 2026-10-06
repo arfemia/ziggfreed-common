@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.settings.PlayerSettings;
 import com.ziggfreed.common.ui.hud.card.HudCardLook;
 
 /**
@@ -37,7 +38,8 @@ import com.ziggfreed.common.ui.hud.card.HudCardLook;
  * <p>{@code Panels} is which panels the spot was measured for. Each panel's document has its own
  * column width, so a spot that clears the hotbar with 200-wide columns may not with 296-wide ones;
  * a spot that names panels is offered to those alone, and one that names none is offered to
- * every panel. A spot is never a requirement: a panel names one, and a panel that names none,
+ * every bar panel (never to the quest tracker, which is offered only the spots that name
+ * {@code Quest_Tracker}). A spot is never a requirement: a panel names one, and a panel that names none,
  * or names one that has gone, sits where its document says.
  *
  * <p>Three leaves shape the panel's height at the spot. {@code Gap} ({@link HudSpotGap}) leaves a
@@ -155,9 +157,10 @@ public final class HudSpotAsset
             .add()
             .appendInherited(new KeyedCodec<>("Panels", Codec.STRING_ARRAY, false),
                     (a, v) -> a.panels = v, a -> a.panels, (a, p) -> a.panels = p.panels)
-            .documentation("The panel ids this spot was measured for: \"Activity_Ledger\" is the tall "
-                    + "ledger, \"World_Bars\" the wide block. Only those panels offer it. Left out, "
-                    + "every panel does.")
+            .documentation("The surfaces this spot was measured for: \"Activity_Ledger\" is the tall "
+                    + "ledger, \"World_Bars\" the wide block, \"Quest_Tracker\" the tracker of pinned "
+                    + "quests. Only those offer it. Left out, every bar panel does, but never the quest "
+                    + "tracker, which is offered only the spots that name it.")
             .add()
             .appendInherited(new KeyedCodec<>("Order", Codec.INTEGER, false),
                     (a, v) -> a.order = v, a -> a.order, (a, p) -> a.order = p.order)
@@ -239,16 +242,28 @@ public final class HudSpotAsset
         return HudCardLook.authored(color, "Server/" + TYPE_ROOT + "/" + id + ".json (or its owner entry)");
     }
 
-    /** Whether this spot is offered to the panel {@code panelId}: it names it, or names no panel at all. */
-    public boolean fits(@Nullable String panelId) {
-        if (panelId == null || panelId.isBlank()) {
+    /**
+     * Whether this spot is offered to {@code surfaceId}: it names it, or it names no surface and the
+     * surface is a bar panel. The quest tracker ({@link PlayerSettings#QUEST_TRACKER}) is offered only the
+     * spots that name it, since its card is a different shape from any bar panel's.
+     */
+    public boolean fits(@Nullable String surfaceId) {
+        if (surfaceId == null || surfaceId.isBlank()) {
             return false;
         }
         if (panels == null || panels.length == 0) {
-            return true;
+            return !PlayerSettings.QUEST_TRACKER.equalsIgnoreCase(surfaceId.trim());
+        }
+        return names(surfaceId);
+    }
+
+    /** Whether this spot's {@code Panels} list names {@code surfaceId} itself, ignoring case. */
+    public boolean names(@Nullable String surfaceId) {
+        if (surfaceId == null || surfaceId.isBlank() || panels == null) {
+            return false;
         }
         for (String panel : panels) {
-            if (panel != null && panel.trim().equalsIgnoreCase(panelId.trim())) {
+            if (panel != null && panel.trim().equalsIgnoreCase(surfaceId.trim())) {
                 return true;
             }
         }

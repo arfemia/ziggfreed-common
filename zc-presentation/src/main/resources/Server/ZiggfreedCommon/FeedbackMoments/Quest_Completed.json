@@ -17,6 +17,13 @@
     "Sound is any SoundEvent id, played at the player's own position. Delete either group in your",
     "override to drop that half; add a Broadcast group to tell the whole server.",
     "",
+    "PlayerLevel true hands the toast to each player's own notification level, chosen on their",
+    "Settings tab: Every update, Milestones, Finishes or None. A variant replaces the whole toast,",
+    "so it says PlayerLevel again. Delete it to show the toast as written whatever they chose.",
+    "A quest the player can see on their quest tracker shows none of these toasts in the corner,",
+    "at any level, since the tracker already says it; drawn into an open page they still show,",
+    "and the sound still plays.",
+    "",
     "Tone colours the whole notification, frame and words together - gold Reward here, because a",
     "quest paying out is a payout. What it actually paid lists itself as rows under the headline",
     "on the in-page toast: a loot table shows the items it rolled rather than its name, and a roll",
@@ -28,7 +35,8 @@
       "Key": "ziggfreedcommon.feedback.quest.completed",
       "Args": ["title"]
     },
-    "Tone": "Reward"
+    "Tone": "Reward",
+    "PlayerLevel": true
   },
   "Sound": {
     "Id": "SFX_Discovery_Z2_Short"

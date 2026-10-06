@@ -290,6 +290,7 @@ public final class FeedbackMomentAsset
         @Nullable protected Rows rows;
         @Nullable protected Integer everyPercent;
         @Nullable protected Boolean merge;
+        @Nullable protected Boolean playerLevel;
 
         public static final BuilderCodec<Toast> CODEC = BuilderCodec.builder(Toast.class, Toast::new)
                 .appendInherited(new KeyedCodec<>("Title", Line.CODEC, false),
@@ -330,7 +331,7 @@ public final class FeedbackMomentAsset
                         + "the way, for instance 25 for the quarter marks. The step finishing always shows. "
                         + "Unauthored shows every tick. A mod that lets each player pick how chatty their "
                         + "own screen is decides for them instead, and is told whether the tick crossed "
-                        + "this mark.")
+                        + "this mark. A toast marked PlayerLevel is graded by the player's own level instead.")
                 .add()
                 .appendInherited(new KeyedCodec<>("Merge", Codec.BOOLEAN, false),
                         (o, v) -> o.merge = v, o -> o.merge, (o, p) -> o.merge = p.merge)
@@ -347,6 +348,19 @@ public final class FeedbackMomentAsset
                         + "of the same picture read as the same item, which grows a count rather than "
                         + "rewriting the line. This is the corner feed only: with a menu open the same "
                         + "words are drawn into the page as before.")
+                .add()
+                .appendInherited(new KeyedCodec<>("PlayerLevel", Codec.BOOLEAN, false),
+                        (o, v) -> o.playerLevel = v, o -> o.playerLevel, (o, p) -> o.playerLevel = p.playerLevel)
+                .metadata(EditorSchema.defaultValue(false))
+                .documentation("True hands this toast to the player's own notification level, chosen on "
+                        + "their Settings tab: Every update shows it every time, Milestones shows a progress "
+                        + "tick only at an EveryPercent mark or when the step finishes, Finishes only when it "
+                        + "finishes, and None never. A toast that is no progress tick (a completion, a claim, "
+                        + "an unlock) shows at every level but None. Left out, the toast shows as authored "
+                        + "whatever the player chose. A marked toast about something already on the player's "
+                        + "own HUD (a quest drawn on their quest tracker) is not drawn as a corner notice; "
+                        + "drawn into an open page it still shows. A variant replaces the whole toast, so "
+                        + "restate it there.")
                 .add()
                 .build();
 
@@ -407,6 +421,11 @@ public final class FeedbackMomentAsset
          */
         public boolean merge() {
             return !Boolean.FALSE.equals(merge);
+        }
+
+        /** Whether the player's own notification level grades this toast; false unless authored. */
+        public boolean playerLevel() {
+            return Boolean.TRUE.equals(playerLevel);
         }
 
         /**

@@ -1,0 +1,26 @@
+{
+  "$Comment": [
+    "A spot the quest tracker can sit at: the top right, where the game's own objective list",
+    "sits, so the tracker reads like the native one. Panels names Quest_Tracker, which is how a",
+    "spot is offered to the tracker at all: a spot that names no panel is offered to every bar",
+    "panel but never to the tracker, whose card is a different shape. A player picks it under",
+    "Quest tracker on their Settings tab.",
+    "",
+    "Position is a corner preset plus pixel offsets from the edges that preset pins. Keep a Top",
+    "preset: the tracker grows down as quests are pinned, and a spot pinning it anywhere else is",
+    "not taken. Only Position is read for the tracker; the bar leaves (Columns, Gap, Cutout and",
+    "the rest) mean nothing to it. LabelKey names the spot on the Settings tab and Order is where",
+    "it is listed, lower first.",
+    "",
+    "To change a leaf without copying this file, add an entry keyed 'Quest_Tracker_Right' to",
+    "mods/ziggfreedcommon/hud-spots.json with only the leaves you want different."
+  ],
+  "LabelKey": "ziggfreedcommon.hud.spot.quest_tracker_right",
+  "Position": {
+    "Preset": "TopRight",
+    "OffsetX": 24,
+    "OffsetY": 120
+  },
+  "Panels": ["Quest_Tracker"],
+  "Order": 10
+}

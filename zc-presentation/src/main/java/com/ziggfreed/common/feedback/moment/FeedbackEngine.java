@@ -29,6 +29,8 @@ import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.i18n.Msg;
+import com.ziggfreed.common.settings.NotificationLevel;
+import com.ziggfreed.common.settings.PlayerSettings;
 import com.ziggfreed.common.sound.Sound3D;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
@@ -98,6 +100,15 @@ public final class FeedbackEngine {
     public static final String MILESTONE_ARG = "milestone";
 
     /**
+     * Set by a producer, as {@code true}, when what the moment is about is already on the player's own
+     * HUD (a quest drawn on their quest tracker). A toast marked {@code PlayerLevel} is then not drawn as
+     * a corner notice, whatever the player's level; drawn into an open page it still shows, graded by the
+     * level as usual, since a menu covers the HUD. The banner, the sound and the command are unchanged,
+     * and an unmarked toast ignores it. This engine never sets it.
+     */
+    public static final String ON_SCREEN_ARG = "onScreen";
+
+    /**
      * The players a moment is ABOUT as a group, by uuid, under one fixed name: a fight's members, a
      * round's party. A producer with such a group offers it here and an authored banner's
      * {@code ToParticipants} reaches them wherever they stand; a moment that carries none is
@@ -155,7 +166,8 @@ public final class FeedbackEngine {
         // for, asks whether this player wanted one; the other three parts are not one player's
         // screen, and a subject with no screen is nobody to ask.
         if (toastSpec != null && playerRef != null) {
-            toast(momentId, toastSpec, playerRef, values, wantsToast(subject, momentId, toastSpec, values));
+            NotificationLevel level = toastSpec.playerLevel() ? PlayerSettings.levelForToast(playerRef) : null;
+            toast(momentId, toastSpec, playerRef, values, wantsToast(subject, momentId, toastSpec, values, level));
         }
         broadcast(momentId, resolved.broadcast(), playerRef, values);
         sound(resolved.sound(), playerRef);
@@ -195,7 +207,11 @@ public final class FeedbackEngine {
             // (a step counting up on the quest tracker it is pinned to) makes the feed notice a
             // second copy of what the player is looking at, so it is dropped rather than stacked on
             // top. Asked only here, after the page branch: a menu covers such a panel, and a moment
-            // drawn INTO the menu is not a repeat of anything.
+            // drawn INTO the menu is not a repeat of anything. A marked toast whose producer said its
+            // subject is on the player's HUD goes first; the surfaces answer for an unmarked one.
+            if (onScreen(spec, args)) {
+                return;
+            }
             if (viewer != null && FeedbackSurfaces.alreadyReadable(viewer, momentId, args)) {
                 return;
             }
@@ -204,6 +220,15 @@ public final class FeedbackEngine {
         } catch (Throwable t) {
             SafeLog.fine("moment toast failed: " + t.getMessage());
         }
+    }
+
+    /**
+     * Does this toast skip the corner because what it is about is already on the player's HUD? Only a
+     * toast marked {@code PlayerLevel} whose moment carries {@link #ON_SCREEN_ARG} {@code true}; the
+     * level still decides whether it is drawn into an open page.
+     */
+    static boolean onScreen(@Nonnull FeedbackMomentAsset.Toast spec, @Nonnull Map<String, Object> args) {
+        return spec.playerLevel() && Boolean.TRUE.equals(args.get(ON_SCREEN_ARG));
     }
 
     /**
@@ -485,20 +510,33 @@ public final class FeedbackEngine {
         return out;
     }
 
+    /** {@link #wantsToast(Subject, String, FeedbackMomentAsset.Toast, Map, NotificationLevel)} with no level read. */
+    static boolean wantsToast(@Nonnull Subject subject, @Nonnull String momentId,
+            @Nonnull FeedbackMomentAsset.Toast spec, @Nonnull Map<String, Object> args) {
+        return wantsToast(subject, momentId, spec, args, null);
+    }
+
     /**
-     * Should this toast be drawn for this subject? Its own handle answers when it has an opinion
-     * ({@link FeedbackAudience}), told everything the moment carries plus whether a progress tick
-     * crossed the authored {@code EveryPercent} mark; a handle that offers none gets what was
-     * authored - every tick when no mark was set, the marks and the finish when one was - and an
+     * Should this toast be drawn for this subject? A toast that marked itself {@code PlayerLevel} is first
+     * graded by the player's own level ({@code level}; null when it could not be read here, which leaves
+     * the toast as authored); then the subject's own handle answers when it has an opinion
+     * ({@link FeedbackAudience}), told everything the moment carries plus whether a progress tick crossed
+     * the authored mark, and it can only take away. A handle with no opinion gets what was authored (every
+     * tick with no mark, the marks and the finish with one) unless the level already decided, and an
      * opinion that throws is not allowed to cost the moment.
      */
     static boolean wantsToast(@Nonnull Subject subject, @Nonnull String momentId,
-            @Nonnull FeedbackMomentAsset.Toast spec, @Nonnull Map<String, Object> args) {
+            @Nonnull FeedbackMomentAsset.Toast spec, @Nonnull Map<String, Object> args,
+            @Nullable NotificationLevel level) {
         Boolean crossed = crossedMark(spec.getEveryPercent(), args);
+        boolean graded = spec.playerLevel() && level != null;
+        if (graded && !level.allows(args, crossed)) {
+            return false;
+        }
         try {
             FeedbackAudience audience = subject.handleAs(FeedbackAudience.class);
             if (audience == null) {
-                return crossed == null || crossed;
+                return graded || crossed == null || crossed;
             }
             Map<String, Object> asked = args;
             if (crossed != null) {

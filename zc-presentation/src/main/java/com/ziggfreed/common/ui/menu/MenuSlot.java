@@ -11,7 +11,7 @@ import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.DestinationContext;
 
 /**
- * The library's four tabs, in the order the rail lists them under a consumer's section. Each is filled
+ * The library's tabs, in the order the rail lists them under a consumer's section. Each is filled
  * at setup by the module that owns its screen, through {@link ZigMenu#fill}, so this module never sees
  * theirs; an unfilled slot draws nothing.
  */
@@ -20,7 +20,8 @@ public enum MenuSlot {
     QUESTS("quests"),
     ACHIEVEMENTS("achievements"),
     ALMANAC("almanac"),
-    RECORDS("records");
+    RECORDS("records"),
+    SETTINGS("settings");
 
     private final String id;
 

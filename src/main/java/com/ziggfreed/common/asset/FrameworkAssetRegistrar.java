@@ -98,6 +98,9 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.recipe.RecipeIndex;
+import com.ziggfreed.common.settings.PlayerSettingsAsset;
+import com.ziggfreed.common.settings.PlayerSettingsConfig;
+import com.ziggfreed.common.settings.PlayerSettingsOwnerLayers;
 import com.ziggfreed.common.stats.gearset.GearSetAsset;
 import com.ziggfreed.common.stats.gearset.GearSetConfig;
 import com.ziggfreed.common.stats.gearset.GearSetOwnerLayers;
@@ -442,10 +445,11 @@ public final class FrameworkAssetRegistrar {
                 });
 
         // --- HUD spots (Pattern A) - a named spot a panel can sit at: corner, offsets,
-        //     how the rows spread there, and which panels offer it. The library ships three
-        //     (zc-presentation's resources); a pack adds a spot by dropping one more file and every
-        //     picker offers it. Owner layer mods/ziggfreedcommon/hud-spots.json; a reload
-        //     repaints every online panel, which re-anchors it as it draws. ---
+        //     how the rows spread there, and which panels offer it (the quest tracker among them). The
+        //     library ships three bar spots and two tracker spots (zc-presentation's resources); a pack
+        //     adds a spot by dropping one more file and every picker offers it. Owner layer
+        //     mods/ziggfreedcommon/hud-spots.json; a reload repaints every online panel, which
+        //     re-anchors it as it draws, and re-anchors every tracker. ---
         AssetStoreRegistrar.registerStore(HudSpotAsset.class,
                 new DefaultAssetMap<String, HudSpotAsset>(), HudSpotAsset.TYPE_ROOT,
                 HudSpotAsset::getId, HudSpotAsset.CODEC, null);
@@ -454,6 +458,7 @@ public final class FrameworkAssetRegistrar {
                     HudSpotConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
                     HudOwnerLayers.reloadSpots();
                     HudPanels.repaintAllOnline();
+                    TrackedQuestHuds.repositionAllOnline();
                 });
 
         // --- HUD panels (Pattern A) - the panel the rows are drawn on: on/off, the spot it names
@@ -488,6 +493,23 @@ public final class FrameworkAssetRegistrar {
                     HudCardOwnerLayers.reload();
                     HudPanels.repaintAllOnline();
                     TrackedQuestHuds.repaintAllOnline();
+                });
+
+        // --- Player settings (Pattern A) - the owner's defaults and locks over every player's own
+        //     choices that are not a HUD panel's: the quest tracker's show and spot, the quest and
+        //     achievement notification level. The library ships Default.json (zc-presentation's
+        //     resources); a consumer's same-id file wins by pack order. Owner layer
+        //     mods/ziggfreedcommon/player-settings.json; a reload repaints every online bar panel and
+        //     re-anchors every tracker, which re-read the record as they draw. ---
+        AssetStoreRegistrar.registerStore(PlayerSettingsAsset.class,
+                new DefaultAssetMap<String, PlayerSettingsAsset>(), PlayerSettingsAsset.TYPE_ROOT,
+                PlayerSettingsAsset::getId, PlayerSettingsAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, PlayerSettingsAsset.class,
+                (LoadedAssetsEvent<String, PlayerSettingsAsset, DefaultAssetMap<String, PlayerSettingsAsset>> ev) -> {
+                    PlayerSettingsConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    PlayerSettingsOwnerLayers.reload();
+                    HudPanels.repaintAllOnline();
+                    TrackedQuestHuds.repositionAllOnline();
                 });
 
         // --- Quests (Pattern A) - one authored quest per file, with native Parent inheritance and a
@@ -779,6 +801,7 @@ public final class FrameworkAssetRegistrar {
                             + "Lootables, RollPools, BonusRows (owner file mods/ziggfreedcommon/bonus-rows.json), "
                             + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
+                            + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "
                             + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, Achievements, AchievementCategories, "
                             + "AchievementMilestones, Almanac (owner file mods/ziggfreedcommon/almanac.json), "
                             + "Currencies, Shops, ShopPools, ShopEntries, "

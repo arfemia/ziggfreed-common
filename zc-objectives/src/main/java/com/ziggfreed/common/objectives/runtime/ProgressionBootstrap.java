@@ -10,6 +10,7 @@ import com.ziggfreed.common.feedback.moment.FeedbackSurfaces;
 import com.ziggfreed.common.npc.NpcQuestListHosts;
 import com.ziggfreed.common.objectives.book.ObjectiveBookInteractions;
 import com.ziggfreed.common.objectives.command.ZigProgressCommand;
+import com.ziggfreed.common.objectives.hud.TrackedQuestFeedback;
 import com.ziggfreed.common.objectives.hud.TrackedQuestHuds;
 import com.ziggfreed.common.objectives.questlist.NpcQuestPages;
 import com.ziggfreed.common.objectives.store.ZigProgressComponent;
@@ -107,6 +108,10 @@ public final class ProgressionBootstrap {
      * owner NAME is decided by whichever registration under it ran first, and this library's name
      * must always read as a library default whoever got there first.
      *
+     * <p>Each quest moment is first told whether its quest is on the player's tracker
+     * ({@code TrackedQuestFeedback}), so a quest the player can see draws none of its toasts in the
+     * corner.
+     *
      * <p>It is registered with its own "do I answer this moment?" question beside its reaction, so a
      * moment nobody authored a file for costs the engine that announced it nothing - which is what
      * lets one be announced on every objective tick.
@@ -114,7 +119,8 @@ public final class ProgressionBootstrap {
     public static void registerFeedbackMoments() {
         try {
             ProgressionRuntime.defaults(ProgressionDefaults.OWNER).feedbackHook(
-                    ProgressionFeedbackHook.of(FeedbackEngine::fire, FeedbackEngine::answers));
+                    ProgressionFeedbackHook.of(TrackedQuestFeedback.marking(FeedbackEngine::fire),
+                            FeedbackEngine::answers));
             FeedbackSurfaces.register(TrackedQuestHuds::alreadyShows);
         } catch (Throwable t) {
             SafeLog.warn("[feedback] could not wire the authored feedback moments", t);

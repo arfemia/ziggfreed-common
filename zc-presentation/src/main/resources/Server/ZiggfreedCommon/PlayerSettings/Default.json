@@ -1,0 +1,32 @@
+{
+  "$Comment": [
+    "What a player gets on their Settings tab before they choose anything, and what you fix for",
+    "everyone. Every player can still change a choice that is not Locked; a Locked choice reads",
+    "the Default here for everyone and leaves the Settings tab. A player's own choice is kept",
+    "while a lock is on, so it comes back when you lift it.",
+    "",
+    "QuestTracker is the panel of a player's pinned quests. Show.Default is whether it shows for a",
+    "player who has not chosen. Spot.Locked keeps it where the server puts it, so players cannot",
+    "move it. The spots a player may pick for it are the files under",
+    "Server/ZiggfreedCommon/HudSpots/ whose Panels list Quest_Tracker.",
+    "",
+    "Notifications.Level is how chatty quest and achievement notices are: EveryUpdate shows each",
+    "step as it moves, Milestones shows a step only at its marks and when it is done, Finishes",
+    "shows a step only when it is done, and None shows none of them. Finished quests, rewards and",
+    "unlocks show at every level but None.",
+    "",
+    "The two progress displays (XP and reputation gains, crafting progress) carry the same Show and",
+    "Spot rules in their own files under Server/ZiggfreedCommon/HudPanels/, in a Player group.",
+    "",
+    "To change a leaf without copying this file, add an entry keyed 'Default' to",
+    "mods/ziggfreedcommon/player-settings.json with only the leaves you want different, for",
+    "instance { \"Default\": { \"Notifications\": { \"Level\": { \"Default\": \"Milestones\" } } } }."
+  ],
+  "QuestTracker": {
+    "Show": { "Default": true, "Locked": false },
+    "Spot": { "Locked": false }
+  },
+  "Notifications": {
+    "Level": { "Default": "EveryUpdate", "Locked": false }
+  }
+}

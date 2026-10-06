@@ -14,7 +14,7 @@ public final class HudCommandLine {
     /** The command family every HUD verb hangs off. */
     public static final String FAMILY = "zighud";
 
-    /** Open the HUD settings page. */
+    /** Open the caller's Settings tab (as plain {@code /zighud} does). */
     public static final String OPEN = "open";
 
     /** Put a panel at a named spot for yourself. */

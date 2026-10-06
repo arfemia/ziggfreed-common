@@ -21,6 +21,11 @@ import com.ziggfreed.common.util.SafeLog;
  * still runs, and with a menu open the in-page toast is drawn as before, since the surface behind
  * the menu is not being read.
  *
+ * <p>A stronger rule sits beside it, decided in {@link FeedbackEngine}: a producer may say a moment's
+ * subject is already on the player's HUD ({@link FeedbackEngine#ON_SCREEN_ARG}), and a toast marked
+ * {@code PlayerLevel} is then not drawn as a corner notice; drawn into an open page it still shows. A
+ * reader here is what still applies to a toast that is not marked.
+ *
  * <p><b>Who registers.</b> Whoever OWNS such a surface, from its own setup, because only that layer
  * can see both the moment's vocabulary and the panel drawing it; this library's own tracked-quest
  * HUD is registered from the progression bootstrap. Readers are additive and asked in registration

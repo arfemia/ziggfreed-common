@@ -76,6 +76,9 @@ import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.asset.QuestAsset;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
+import com.ziggfreed.common.settings.NotificationRules;
+import com.ziggfreed.common.settings.PlayerSettingsAsset;
+import com.ziggfreed.common.settings.SurfaceRules;
 import com.ziggfreed.common.shop.asset.PoolSlotAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryAsset;
 import com.ziggfreed.common.shop.asset.ShopEntryGeneratorAsset;
@@ -155,6 +158,16 @@ class AssetCodecInitTest {
         assertNotNull(HudSpotGap.CODEC, "the shared Gap group codec must static-init");
         assertNotNull(HudSpotCutout.CODEC, "the shared Cutout group codec must static-init");
         assertNotNull(HudCardAsset.CODEC, "HudCardAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void playerSettingsCodecsInitialize() {
+        assertNotNull(PlayerSettingsAsset.CODEC, "PlayerSettingsAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(SurfaceRules.CODEC, "the shared Show and Spot group codec must static-init");
+        assertNotNull(SurfaceRules.ShowRule.CODEC, "the Show group codec must static-init");
+        assertNotNull(SurfaceRules.SpotRule.CODEC, "the Spot group codec must static-init");
+        assertNotNull(NotificationRules.CODEC, "the Notifications group codec must static-init");
+        assertNotNull(NotificationRules.LevelRule.CODEC, "the Level group codec must static-init");
     }
 
     @Test

@@ -81,14 +81,23 @@ public record TrackedQuestSnapshot(boolean panelVisible, @Nonnull List<Block> bl
         return ids;
     }
 
-    /**
-     * What {@code subject}'s tracker shows right now. A null subject (nobody to read) or a tracker
-     * the deps say is switched off or unwanted is {@link #HIDDEN}; so is an empty pin list.
-     */
+    /** {@link #of(QuestEngine, Subject, TrackedQuestHudDeps, boolean)} for a player who shows the tracker. */
     @Nonnull
     public static TrackedQuestSnapshot of(@Nonnull QuestEngine engine, @Nullable Subject subject,
             @Nonnull TrackedQuestHudDeps deps) {
-        if (subject == null || !deps.isEnabled() || !deps.wantsHud(subject)) {
+        return of(engine, subject, deps, true);
+    }
+
+    /**
+     * What {@code subject}'s tracker shows right now. Hidden when there is nobody to read, when the owner
+     * has the tracker off, when the player chose to hide it ({@code playerShows}, asked first, so a
+     * consumer's audience is never asked about a player who hid it), when the consumer's audience says
+     * no, or when nothing is pinned.
+     */
+    @Nonnull
+    public static TrackedQuestSnapshot of(@Nonnull QuestEngine engine, @Nullable Subject subject,
+            @Nonnull TrackedQuestHudDeps deps, boolean playerShows) {
+        if (subject == null || !deps.isEnabled() || !playerShows || !deps.wantsHud(subject)) {
             return HIDDEN;
         }
         List<Quest> tracked = engine.trackedActive(subject);

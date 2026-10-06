@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.objectives.hud.TrackedQuestSnapshot.Block;
 import com.ziggfreed.common.objectives.hud.TrackedQuestSnapshot.Row;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.settings.PlayerSettings;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.UiText;
@@ -23,6 +24,7 @@ import com.ziggfreed.common.ui.hud.KeyedCustomHud;
 import com.ziggfreed.common.ui.hud.RepaintCoalescer;
 import com.ziggfreed.common.ui.hud.card.HudCardConfig;
 import com.ziggfreed.common.ui.hud.card.HudCardLook;
+import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -36,9 +38,10 @@ import com.ziggfreed.common.util.SafeLog;
  * tick: a pin, an accept, an objective moving, a completion, a claim and an abandon each fire an
  * {@code IEvent} the engine already announces (the pin one included), {@link TrackedQuestHuds}
  * listens, and this repaints. A burst of events in one tick paints once
- * ({@link RepaintCoalescer}). Two things no quest event covers - a player hiding the HUD for
- * themselves, a rule of the world they walked into - are the consumer's to know about, and it
- * pushes {@link TrackedQuestHuds#repaint(PlayerRef)} from those two sites.
+ * ({@link RepaintCoalescer}). Two things no quest event covers: a player's own Show and spot pick,
+ * which the settings watcher answers by re-anchoring and repainting ({@link #reposition()}), and a rule
+ * of the world they walked into, which is the consumer's to know about, and it pushes
+ * {@link TrackedQuestHuds#repaint(PlayerRef)} from that site.
  *
  * <p><b>World thread.</b> A repaint may be ASKED for from any thread; the paint itself always runs
  * on the player's own world thread, because reading the tracked state resolves the player's
@@ -116,10 +119,12 @@ public final class TrackedQuestHud extends KeyedCustomHud implements TrackedQues
         return 0L;
     }
 
+    /** Where THIS player's tracker sits: their offered pick over the server's position. World thread. */
     @Nonnull
     @Override
     protected HudPosition configuredPosition() {
-        return TrackedQuestHuds.resolvedDeps().position();
+        return TrackedQuestSpot.position(TrackedQuestHuds.resolvedDeps().position(),
+                PlayerSettings.spot(getPlayerRef(), PlayerSettings.QUEST_TRACKER), HudSpotConfig.getInstance());
     }
 
     /**
@@ -187,10 +192,30 @@ public final class TrackedQuestHud extends KeyedCustomHud implements TrackedQues
         }
     }
 
-    /** World thread: the state to draw, off the runtime's own subject for this player. */
+    /** Re-anchor to where the player's settings put it now, then repaint, on the player's world thread. Any thread. */
+    @Override
+    public void reposition() {
+        World world = worldOf(getPlayerRef());
+        if (world != null) {
+            world.execute(this::repositionNow);
+        }
+    }
+
+    private void repositionNow() {
+        try {
+            pushPositionUpdate(configuredPosition());
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] the tracked-quest HUD failed to move for "
+                    + getPlayerRef().getUsername() + ": " + t.getMessage());
+        }
+        repaint();
+    }
+
+    /** World thread: the state to draw, off the runtime's own subject for this player and their own Show. */
     @Nonnull
     private TrackedQuestSnapshot snapshot(@Nonnull TrackedQuestHudDeps deps) {
-        TrackedQuestSnapshot snapshot = TrackedQuestSnapshot.of(ProgressionRuntime.quests(), subject(), deps);
+        TrackedQuestSnapshot snapshot = TrackedQuestSnapshot.of(ProgressionRuntime.quests(), subject(), deps,
+                PlayerSettings.shown(getPlayerRef(), PlayerSettings.QUEST_TRACKER));
         shownQuestIds = snapshot.questIds();
         shownPanelVisible = snapshot.panelVisible();
         return snapshot;

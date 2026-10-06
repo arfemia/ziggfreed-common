@@ -9,9 +9,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * settings row speaks: {@code Action} names what happened, {@code Field} which row, and
  * {@code @Value} the row's live value.
  *
- * <p>{@code action} is one of {@code close}, {@code back}, {@code tab} (switch to the tab named in
- * {@code tab}), {@code field} (a dropdown or text field changed), {@code press} (a toggle was
- * clicked) or {@code save} (the Server tab's Save button).
+ * <p>{@code action} is one of {@code close}, {@code back}, {@code field} (a dropdown or text field
+ * changed), {@code press} (a toggle was clicked) or {@code save}.
  *
  * <p>{@code value} arrives under the key {@code @Value}. The {@code @} is load-bearing: it is the
  * client's directive to resolve the binding's value as an element path and ship what the control
@@ -21,7 +20,6 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 public class HudSettingsEventData {
 
     public String action;
-    public String tab;
     public String field;
     public String value;
 
@@ -30,10 +28,6 @@ public class HudSettingsEventData {
                     .append(new KeyedCodec<>("Action", Codec.STRING),
                             (data, v, info) -> data.action = v,
                             (data, info) -> data.action)
-                    .add()
-                    .append(new KeyedCodec<>("Tab", Codec.STRING),
-                            (data, v, info) -> data.tab = v,
-                            (data, info) -> data.tab)
                     .add()
                     .append(new KeyedCodec<>("Field", Codec.STRING),
                             (data, v, info) -> data.field = v,

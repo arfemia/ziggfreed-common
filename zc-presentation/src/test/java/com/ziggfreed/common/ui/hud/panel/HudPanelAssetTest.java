@@ -3,6 +3,7 @@ package com.ziggfreed.common.ui.hud.panel;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.settings.SurfaceRules;
 
 /**
  * The panel file: every leaf is optional and reads as "the layer below decides", the spot it names
@@ -142,5 +144,22 @@ class HudPanelAssetTest {
         HudPanelConfig.getInstance().mergePackLayer(Map.of("activity_ledger", off));
         assertFalse(HudPanelConfig.getInstance().ledger().enabled(),
                 "the folded Activity_Ledger panel is the one the ledger draws, whatever case it was keyed in");
+    }
+
+    @Test
+    void thePlayerGroupReadsBackAndAChildKeepsWhatItDoesNotRestate() throws Exception {
+        assertSame(SurfaceRules.NONE, HudPanelAsset.defaults().player(), "unauthored: shown, nothing fixed");
+
+        HudPanelAsset pack = panel("{ \"Player\": { \"Show\": { \"Default\": false }, \"Spot\": { \"Locked\": true } } }",
+                "World_Bars", null, null);
+        assertFalse(pack.player().showDefault());
+        assertFalse(pack.player().showLocked());
+        assertTrue(pack.player().spotLocked());
+
+        HudPanelAsset owner = panel("{ \"Player\": { \"Show\": { \"Locked\": true } } }",
+                "World_Bars", "World_Bars", pack);
+        assertFalse(owner.player().showDefault(), "the leaf the owner did not restate stands");
+        assertTrue(owner.player().showLocked());
+        assertTrue(owner.player().spotLocked(), "and so does the group it did not restate");
     }
 }
