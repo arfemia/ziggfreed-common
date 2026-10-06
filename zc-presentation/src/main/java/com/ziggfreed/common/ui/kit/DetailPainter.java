@@ -179,6 +179,11 @@ public final class DetailPainter {
                 ? IconRenderer.applyIcon(cmd, slot, picture.itemId(), picture.texturePath())
                 : KitPaint.picture(cmd, slot, picture);
         cmd.set(slot + ".Visible", drawn);
+        // The picture's own words, for a picture that says nothing on hover; never over a line that opens
+        // something (the tooltip would take its click) or an item grid whose tooltip is the point.
+        if (drawn && data.tooltip() != null && data.selectId() == null && !picture.tooltip()) {
+            KitPaint.tooltip(cmd, slot, data.tooltip());
+        }
 
         KitPaint.text(cmd, line + " #LineText", data.text());
         if (data.current()) {

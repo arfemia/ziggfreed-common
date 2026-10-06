@@ -502,6 +502,9 @@ class ZigKitDocumentsTest {
         for (String button : List.of("#Danger", "#Secondary", "#Primary")) {
             assertEquals("$C.@DefaultTextTooltipStyle", property(block(bar, button), "TextTooltipStyle"), button);
         }
+        assertEquals("$C.@DefaultTextTooltipStyle",
+                property(block(document("Pages/ZigDetailLine.ui"), "#LineIconSlot"), "TextTooltipStyle"),
+                "a detail line's picture carries a reward's own words on hover");
     }
 
     // ---- rules across every kit document ----
