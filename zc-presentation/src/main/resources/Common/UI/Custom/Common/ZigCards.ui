@@ -1,0 +1,99 @@
+$C = "../Common.ui";
+
+// ziggfreed-common's shared CARD shapes, for any page laid out as headed cards (the Settings tab today):
+// a section card, the heading over it, a page's title and description, and a tile that opens another
+// screen. Structure from the family's admin hub; type from the game's own World Event pages
+// (Pages/WorldEvent/WorldEventSectionLabel.ui and WorldEventPanelPage.ui), so a card page reads like a
+// native one. A page imports this file and uses the names:
+//
+//   $K = "../Common/ZigCards.ui";
+//   Label #Heading { Anchor: (Top: 10, Bottom: 4, Left: 2); Style: $K.@ZigCardHeaderStyle; }
+//   $K.@ZigSectionCard #Card { ... }
+//   $K.@ZigTile #OpenFooBtn {}
+//
+// A tile is one Button, so a click anywhere on it opens its screen: an item icon (#TileIcon, an ItemGrid
+// whose one slot Java fills), a title (#TileTitle), one line (#TileSubtitle) and an accent bar
+// (#TileAccent). Those ids and the 210 x 104 size are what every page painting a tile relies on;
+// ZigCardsDocumentTest pins them. All text is set from Java on .TextSpans.
+
+@ZigCardHeaderStyle = LabelStyle(FontSize: 13, RenderBold: true, RenderUppercase: true, TextColor: #9aacbc, HorizontalAlignment: Start);
+@ZigPageTitleStyle = LabelStyle(FontSize: 18, RenderBold: true, TextColor: #d6e4ee, VerticalAlignment: Center);
+@ZigPageDescriptionStyle = LabelStyle(FontSize: 12, TextColor: #7f93a6, Wrap: true);
+
+// One card: the inset panel a section's rows or tiles sit in.
+@ZigSectionCard = Group {
+  Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+  LayoutMode: Top;
+  Padding: (Full: 12);
+  Anchor: (Bottom: 10);
+};
+
+// The tile's icon: the native recessed slot the inventory uses, one item drawn in it. An id the server
+// does not know draws the empty slot rather than failing.
+@ZigTileIconGridStyle = ItemGridStyle(
+  SlotSize: 40, SlotIconSize: 34, SlotSpacing: 0,
+  SlotBackground: "../Common/ContainerPanelPatch.png",
+  QuantityPopupSlotOverlay: "../Common/ContainerPanelPatch.png",
+  BrokenSlotBackgroundOverlay: "../Common/ContainerPanelPatch.png",
+  BrokenSlotIconOverlay: "../Common/ContainerPanelPatch.png",
+  DefaultItemIcon: "../Common/ContainerPanelPatch.png",
+  DurabilityBar: "../Common/ContainerPanelPatch.png",
+  DurabilityBarBackground: "../Common/ContainerPanelPatch.png",
+  DurabilityBarAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0),
+  DurabilityBarColorStart: #a63232, DurabilityBarColorEnd: #63b649,
+  CursedIconPatch: "../Common/ContainerPanelPatch.png",
+  CursedIconAnchor: (Bottom: 0, Left: 0, Width: 0, Height: 0)
+);
+
+// Flat per-state colours rather than a tinted patch: a PatchStyle tint multiplies and can only darken,
+// and a tile wants to BRIGHTEN under the cursor.
+@ZigTileBtnStyle = ButtonStyle(
+  Default: (Background: #1b2430),
+  Hovered: (Background: #27333f),
+  Pressed: (Background: #141c26),
+  Sounds: $C.@ButtonSounds
+);
+
+@ZigTileTitleStyle = LabelStyle(FontSize: 14, TextColor: #d6e4ee, RenderBold: true, VerticalAlignment: Center, Wrap: true);
+@ZigTileSubtitleStyle = LabelStyle(FontSize: 12, TextColor: #7f93a6, VerticalAlignment: Start, Wrap: true);
+
+// One tile: drop one in as  $K.@ZigTile #OpenFooBtn {}  and fill it from Java by id.
+@ZigTile = Button {
+  Anchor: (Width: 210, Height: 104, Right: 8, Bottom: 8);
+  Padding: (Full: 10);
+  LayoutMode: Top;
+  Style: @ZigTileBtnStyle;
+
+  Group {
+    LayoutMode: Left;
+    Anchor: (Height: 40, Bottom: 6);
+
+    ItemGrid #TileIcon {
+      Anchor: (Width: 40, Height: 40);
+      SlotsPerRow: 1;
+      AreItemsDraggable: false;
+      DisplayItemQuantity: false;
+      Style: @ZigTileIconGridStyle;
+    }
+
+    Group { Anchor: (Width: 8); }
+
+    Label #TileTitle {
+      FlexWeight: 1;
+      Anchor: (Height: 40);
+      Text: "";
+      Style: @ZigTileTitleStyle;
+    }
+  }
+
+  Label #TileSubtitle {
+    FlexWeight: 1;
+    Text: "";
+    Style: @ZigTileSubtitleStyle;
+  }
+
+  Group #TileAccent {
+    Anchor: (Height: 3, Left: 0, Right: 0);
+    Background: #4aff7f;
+  }
+};

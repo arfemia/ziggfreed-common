@@ -3,7 +3,6 @@ package com.ziggfreed.common.ui.hud.settings;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
@@ -17,21 +16,19 @@ import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
-import com.hypixel.hytale.server.core.ui.LocalizableString;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.i18n.ContentKeys;
+import com.ziggfreed.common.settings.page.SettingsOption;
+import com.ziggfreed.common.settings.page.SpotOptions;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.hud.command.HudMessages;
 import com.ziggfreed.common.ui.hud.panel.HudPanelConfig;
 import com.ziggfreed.common.ui.hud.panel.HudPanelOwnerWriter;
 import com.ziggfreed.common.ui.hud.panel.HudPanels;
-import com.ziggfreed.common.ui.hud.panel.HudSpotAsset;
-import com.ziggfreed.common.ui.hud.panel.HudSpotConfig;
 import com.ziggfreed.common.ui.hud.settings.HudSettingsRows.Row;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastablePage;
@@ -137,21 +134,12 @@ public final class HudSettingsPage extends ToastablePage<HudSettingsEventData> {
         }
     }
 
-    /**
-     * The spots offered for {@code panelId}, behind a first entry meaning "as the shipped file says",
-     * worded by {@code noneKey}. A dropdown entry is resolved by the client from its message id.
-     */
+    /** The spots offered for {@code panelId}, behind a first entry worded by {@code noneKey}: {@link SpotOptions}. */
     @Nonnull
     private static List<DropdownEntryInfo> spotEntries(@Nonnull String panelId, @Nonnull String noneKey) {
         List<DropdownEntryInfo> entries = new ArrayList<>();
-        entries.add(new DropdownEntryInfo(
-                LocalizableString.fromMessageId(HudMessages.key("settings." + noneKey)), HudSettingsRows.NONE));
-        for (HudSpotAsset spot : HudSpotConfig.getInstance().offeredFor(panelId)) {
-            String key = spot.labelKey();
-            LocalizableString label = key != null
-                    ? LocalizableString.fromMessageId(ContentKeys.resolved(key))
-                    : LocalizableString.fromString(spot.getId());
-            entries.add(new DropdownEntryInfo(label, spot.getId().toLowerCase(Locale.ROOT)));
+        for (SettingsOption option : SpotOptions.of(panelId, noneKey)) {
+            entries.add(new DropdownEntryInfo(option.label(), option.value()));
         }
         return entries;
     }

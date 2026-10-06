@@ -1,0 +1,6 @@
+$K = "../Common/ZigCards.ui";
+
+// One tile of the Settings tab, appended into a section's #Tiles by index and addressed as its own
+// indexed parent ("#Sections[3] #Tiles[0] #TileTitle"). The tile is the shared @ZigTile.
+
+$K.@ZigTile #ZigSettingsTile {}

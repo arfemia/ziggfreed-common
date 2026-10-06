@@ -181,3 +181,6 @@ book.achievements.overview.browse = Browse >
 book.achievements.feat_tag = FEAT
 book.achievements.points_tag = {0} pts
 book.achievements.feat_since = Feat of Strength since {0}
+
+# The Settings tab's quest tracker card.
+settings.tracker = Quest tracker

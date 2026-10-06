@@ -60,11 +60,11 @@ final class HudDefaultCommand extends AbstractAsyncCommand {
         }
         HudSpotAsset spot = HudSpotConfig.getInstance().spot(wanted);
         if (spot == null || !spot.enabled()) {
-            HudMessages.refused(ctx, "placement.unknown", wanted.trim());
+            HudMessages.refused(ctx, "spot.unknown", wanted.trim());
             return CompletableFuture.completedFuture(null);
         }
         if (!spot.fits(layout.panelId())) {
-            HudMessages.refused(ctx, "placement.unfit", spot.label(), panelLabel);
+            HudMessages.refused(ctx, "spot.unfit", spot.label(), panelLabel);
             return CompletableFuture.completedFuture(null);
         }
         if (HudPanelOwnerWriter.setPlacement(layout.panelId(), spot.getId())) {

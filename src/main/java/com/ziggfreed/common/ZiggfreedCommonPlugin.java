@@ -68,12 +68,14 @@ import com.ziggfreed.common.objectives.flair.FlairBootstrap;
 import com.ziggfreed.common.objectives.interaction.ProgressInteractionsBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionBootstrap;
 import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
+import com.ziggfreed.common.objectives.settings.ObjectivesSettingsBootstrap;
 import com.ziggfreed.common.objectives.title.TitleBootstrap;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
 import com.ziggfreed.common.reward.CostumeRewardKind;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.rotation.SelectionStrategies;
 import com.ziggfreed.common.settings.PlayerSettings;
+import com.ziggfreed.common.settings.page.SettingsBootstrap;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
 import com.ziggfreed.common.stats.gearset.GearSets;
@@ -223,6 +225,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         DialogueBootstrap.registerDialogueMemories(this);
         ProgressionBootstrap.registerQuestListHost();
         ObjectiveBookBootstrap.registerMenu();
+        ObjectivesSettingsBootstrap.registerSections();
         EncounterBootstrap.install(this);
         registerEncounterSeams();
         InstanceBootstrap.installEncounterLeaderboard(this);
@@ -234,6 +237,10 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         HudPanels.install(this);
         registerHudSettings();
         registerMenu();
+        // The Settings tab: its destination, its tab on the rail after Records, and the library's own
+        // Notifications section. zc-objectives fills the quest tracker and title sections from its own
+        // bootstrap; a consumer adds its sections with ZigSettings.consumer.
+        SettingsBootstrap.registerPage();
         // The Almanac: its per-player record and connect hook, the owner's switch and its feature, its
         // destination, its moment counter and the /zigalmanac family. Its page store is registered with
         // the other framework stores.
@@ -431,7 +438,7 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
     }
 
     /**
-     * {@code /ziggui}, the shared menu's way in for every player. The menu's four tabs are filled by the
+     * {@code /ziggui}, the shared menu's way in for every player. The menu's tabs are filled by the
      * modules that own their screens (their bootstraps, called in this setup); a consumer adds its own
      * section at its own setup.
      */

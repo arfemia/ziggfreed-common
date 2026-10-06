@@ -27,8 +27,8 @@ import com.ziggfreed.common.quest.event.QuestClaimedEvent;
 import com.ziggfreed.common.quest.event.QuestCompletedEvent;
 import com.ziggfreed.common.quest.event.QuestObjectiveProgressedEvent;
 import com.ziggfreed.common.quest.event.QuestTrackedEvent;
+import com.ziggfreed.common.settings.PlayerSettings;
 import com.ziggfreed.common.ui.hud.HudPosition;
-import com.ziggfreed.common.ui.hud.KeyedCustomHud;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -47,10 +47,11 @@ import com.ziggfreed.common.util.SafeLog;
  * the one that fires on ordinary play - is first checked against what the tracker last showed, so a
  * quest the player is not watching costs no paint. Nothing here ticks.
  *
- * <p><b>The two pushes.</b> A player hiding the HUD for themselves and a world rule hiding every
- * HUD are things no quest event announces; the consumer that owns those answers calls
- * {@link #repaint(PlayerRef)} from those two sites. Owner-wide changes (a moved panel, the tracker
- * switched off) go through {@link #refreshPositionForAllOnline} and {@link #repaintAllOnline}.
+ * <p><b>The pushes.</b> A player's own Show and spot pick are zc-presentation's {@code PlayerSettings},
+ * whose watcher re-anchors and repaints that player's tracker ({@code onSettingsChanged}). A world rule
+ * hiding every HUD is something no event here announces; the consumer that owns it calls
+ * {@link #repaint(PlayerRef)} from that site. Owner-wide changes (a moved panel, a spot or a lock
+ * changed, the tracker switched off) go through {@link #repositionAllOnline} and {@link #repaintAllOnline}.
  *
  * <p><b>Deps resolve lazily.</b> A consumer's layout, audience and theme exist long after this
  * module's setup, so a supplier is registered once and asked on every paint; a consumer that
@@ -76,6 +77,11 @@ public final class TrackedQuestHuds {
          * the player cannot see it.
          */
         boolean drawing(@Nonnull String questId);
+
+        /** Re-anchor to where the player's settings put it now, then repaint. Any thread. */
+        default void reposition() {
+            repaint();
+        }
     }
 
     /** Every live tracker by player uuid: written at attach, dropped at detach, read by every event. */
@@ -135,9 +141,10 @@ public final class TrackedQuestHuds {
             events.registerGlobal(QuestCompletedEvent.class, TrackedQuestHuds::onCompleted);
             events.registerGlobal(QuestClaimedEvent.class, TrackedQuestHuds::onClaimed);
             events.registerGlobal(QuestAbandonedEvent.class, TrackedQuestHuds::onAbandoned);
+            PlayerSettings.watch(playerRef -> onSettingsChanged(playerRef.getUuid()));
             SafeLog.info("[progression] tracked-quest HUD installed: attaches at player ready, repaints on"
                     + " QuestTracked, QuestAccepted, QuestObjectiveProgressed, QuestCompleted,"
-                    + " QuestClaimed and QuestAbandoned (no tick)");
+                    + " QuestClaimed and QuestAbandoned (no tick), and on a player's own settings changing");
         } catch (Throwable t) {
             SafeLog.warn("[progression] the tracked-quest HUD could not be installed; the tracker will"
                     + " not appear or will not update this boot", t);
@@ -219,9 +226,31 @@ public final class TrackedQuestHuds {
         }
     }
 
-    /** Re-anchor every online player's tracker live: the owner moved it. */
+    /**
+     * A player's own settings changed (their Show, their spot pick): re-anchor and repaint their tracker.
+     * Any thread; a player with no tracker costs nothing.
+     */
+    static void onSettingsChanged(@Nullable UUID playerId) {
+        Tracker tracker = playerId == null ? null : LIVE.get(playerId);
+        if (tracker != null) {
+            tracker.reposition();
+        }
+    }
+
+    /** Re-anchor and repaint every online player's tracker: the owner moved it, or a spot or a lock changed. */
+    public static void repositionAllOnline() {
+        for (Tracker tracker : LIVE.values()) {
+            tracker.reposition();
+        }
+    }
+
+    /**
+     * The owner moved the tracker: every online tracker re-anchors to its OWN configured position (the
+     * consumer's new layout, or the player's pick, which still wins). The argument is kept for the
+     * consumer's existing call and no longer decides where a player's tracker sits.
+     */
     public static void refreshPositionForAllOnline(@Nonnull HudPosition position) {
-        KeyedCustomHud.refreshPositionForAllOnline(TrackedQuestHud.HUD_KEY, position);
+        repositionAllOnline();
     }
 
     // ==================== lifecycle ====================
@@ -321,6 +350,11 @@ public final class TrackedQuestHuds {
      * <p><b>The tick that FINISHES a step still announces.</b> A finish is a result rather than a
      * reading, and all the panel does for it is tick a box, so silencing it would leave the moment a
      * player most wants to see as the quietest thing on screen.
+     *
+     * <p>The library's own quest toasts are marked {@code PlayerLevel}, so for them a stronger rule
+     * answers first: {@link TrackedQuestFeedback} marks every moment about a quest drawn here, the finish,
+     * the park and the collect included, and the engine draws none of its toasts in the corner. This
+     * reader is what still applies to a toast an owner unmarked.
      *
      * <p>Everything else keeps its notice: another moment, a moment naming no quest, a quest this
      * panel is not painting, a player who hid the tracker, and a player who has none.

@@ -51,6 +51,11 @@ final class HudPlaceCommand extends AbstractTargetPlayerCommand<PlayerRef> {
             return;
         }
         var panelLabel = HudPanelConfig.getInstance().panel(layout.panelId()).label();
+        String locked = HudCommandLocks.placeRefusal(layout.panelId());
+        if (locked != null) {
+            HudMessages.refused(ctx, locked, panelLabel);
+            return;
+        }
         String wanted = placementArg.get(ctx);
         boolean clear = wanted == null || wanted.isBlank()
                 || HudCommandLine.SERVER_CHOICE.equalsIgnoreCase(wanted.trim());
@@ -64,11 +69,11 @@ final class HudPlaceCommand extends AbstractTargetPlayerCommand<PlayerRef> {
         }
         HudSpotAsset spot = HudSpotConfig.getInstance().spot(wanted);
         if (spot == null || !spot.enabled()) {
-            HudMessages.refused(ctx, "placement.unknown", wanted.trim());
+            HudMessages.refused(ctx, "spot.unknown", wanted.trim());
             return;
         }
         if (!spot.fits(layout.panelId())) {
-            HudMessages.refused(ctx, "placement.unfit", spot.label(), panelLabel);
+            HudMessages.refused(ctx, "spot.unfit", spot.label(), panelLabel);
             return;
         }
         if (PlayerSettings.setSpot(target, layout.panelId(), spot.getId())) {

@@ -1,6 +1,11 @@
 package com.ziggfreed.common.ui.hud.command;
 
-import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
+import java.util.concurrent.CompletableFuture;
+
+import javax.annotation.Nonnull;
+
+import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncCommand;
 import com.hypixel.hytale.server.core.permissions.provider.HytalePermissionsProvider;
 
 /**
@@ -9,7 +14,8 @@ import com.hypixel.hytale.server.core.permissions.provider.HytalePermissionsProv
  * <h2>The verbs</h2>
  *
  * <pre>
- * /zighud open                                              open the HUD settings page
+ * /zighud                                                   open your Settings tab
+ * /zighud open                                              the same
  * /zighud place --panel=&lt;id&gt; --placement=&lt;id|server&gt; [--player=&lt;name&gt;]
  *                                                           put a panel at a spot for yourself
  * /zighud hide [--panel=&lt;id|all&gt;] [--player=&lt;name&gt;]        hide a panel, or every panel
@@ -36,7 +42,7 @@ import com.hypixel.hytale.server.core.permissions.provider.HytalePermissionsProv
  * server running this library and nothing else still gets a way to move its bars, and a consumer
  * mod wanting {@code /myhud} registers an alias that calls straight through.
  */
-public final class ZigHudCommand extends AbstractCommandCollection {
+public final class ZigHudCommand extends AbstractAsyncCommand {
 
     public ZigHudCommand() {
         super(HudCommandLine.FAMILY, HudMessages.desc("family"));
@@ -46,5 +52,12 @@ public final class ZigHudCommand extends AbstractCommandCollection {
         addSubCommand(new HudHideCommand(true));
         addSubCommand(new HudHideCommand(false));
         addSubCommand(new HudDefaultCommand());
+    }
+
+    /** Plain {@code /zighud}: the caller's Settings tab. A first word naming a verb runs that verb instead. */
+    @Override
+    @Nonnull
+    protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx) {
+        return HudOpenCommand.openSettings(this, ctx);
     }
 }

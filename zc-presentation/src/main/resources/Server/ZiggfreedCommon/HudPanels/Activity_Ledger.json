@@ -30,8 +30,9 @@
     "",
     "To change a leaf without copying this file, add an entry keyed 'Activity_Ledger' to",
     "mods/ziggfreedcommon/hud-panels.json with only the leaves you want different, or use the",
-    "Server tab of the HUD settings, which writes that file for you. Set Enabled to false there to",
-    "switch this whole panel off for everyone."
+    "server HUD layout page, which writes that file for you: open the Settings tab (/zighud opens",
+    "it) and pick its Server HUD layout tile, which shows only to players the server lets change",
+    "the layout. Set Enabled to false on that page to switch this whole panel off for everyone."
   ],
   "Enabled": true,
   "LabelKey": "ziggfreedcommon.hud.panel.activity_ledger",

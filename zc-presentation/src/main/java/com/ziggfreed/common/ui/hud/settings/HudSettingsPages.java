@@ -24,9 +24,9 @@ import com.ziggfreed.common.util.SafeLog;
  * calling {@link #open}) rather than growing a copy. One page, whichever mods are installed, and a
  * player's own choices are on the Settings tab.
  *
- * <p>Deliberately NOT a registered destination: the Server tab writes the owner file, and an
- * admin surface must not be pack-addressable. The only routes here are this direct static call
- * from a consumer's own menu and the {@code /zighud} verb.
+ * <p>Deliberately NOT a registered destination: this page writes the owner file, and an admin
+ * surface must not be pack-addressable. The only route here is this direct static call, from a
+ * consumer's own menu or the Settings tab's server HUD layout tile.
  *
  * <p>World thread.
  */
@@ -38,9 +38,9 @@ public final class HudSettingsPages {
     }
 
     /**
-     * Say who may see the Server tab, how Back routes, and how the frame is painted
+     * Say who may see the page, how Back routes, and how the frame is painted
      * ({@link HudSettingsDeps}). Call once from a consumer's setup; pass null to go back to the
-     * library defaults (which withhold the Server tab from everyone). Resolved lazily on each open.
+     * library defaults (which withhold the page from everyone). Resolved lazily on each open.
      */
     public static void deps(@Nullable Supplier<HudSettingsDeps> supplier) {
         DEPS.set(supplier);

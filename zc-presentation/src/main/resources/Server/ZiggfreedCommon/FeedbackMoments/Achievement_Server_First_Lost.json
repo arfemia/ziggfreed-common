@@ -9,6 +9,10 @@
     "marks it as a setback without shouting. A mod that ships a file with this same name in its own",
     "pack replaces it, and a server owner can do the same from the owner layer.",
     "",
+    "PlayerLevel true hands the toast to each player's own notification level, chosen on their",
+    "Settings tab: Every update, Milestones, Finishes or None. A variant replaces the whole toast,",
+    "so it says PlayerLevel again. Delete it to show the toast as written whatever they chose.",
+    "",
     "The moment carries 'achievement' (its id) and 'title' (its name in the reader's language),",
     "and no picture. 'player' is always the name of who was beaten. Add a Sound group if you would",
     "rather it made a noise."
@@ -18,6 +22,7 @@
       "Key": "ziggfreedcommon.feedback.achievement.server_first_lost",
       "Args": ["title"]
     },
-    "Tone": "Warning"
+    "Tone": "Warning",
+    "PlayerLevel": true
   }
 }

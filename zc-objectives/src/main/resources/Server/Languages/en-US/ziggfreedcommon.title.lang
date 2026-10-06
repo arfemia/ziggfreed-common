@@ -22,3 +22,10 @@ picker.back = Back
 picker.shown = Now showing {0}.
 picker.cleared = No title is shown now.
 picker.not_kept = Your choice could not be kept. Rejoin and try again.
+
+# The Settings tab's title card: its heading and the tile opening the picker. In settings_wearing, {0} is
+# the title's name.
+picker.settings_heading = Title
+picker.settings_tile = Your title
+picker.settings_wearing = Showing {0}
+picker.settings_none = No title shown

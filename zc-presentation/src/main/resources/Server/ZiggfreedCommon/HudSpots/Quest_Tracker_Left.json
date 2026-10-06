@@ -1,0 +1,25 @@
+{
+  "$Comment": [
+    "A spot the quest tracker can sit at: the top left, below where the Activity ledger sits as",
+    "shipped, for a player who keeps the right side of the screen clear. Panels names",
+    "Quest_Tracker, which is how a spot is offered to the tracker at all. A player picks it under",
+    "Quest tracker on their Settings tab.",
+    "",
+    "OffsetY is measured down from the top edge and is a starting point: where the ledger ends",
+    "depends on how many rows it shows and on a screen's own scale, so move it until the tracker",
+    "clears the ledger on your screen. Keep a Top preset: a spot pinning the tracker anywhere",
+    "else is not taken. Only Position is read for the tracker. LabelKey names the spot on the",
+    "Settings tab and Order is where it is listed, lower first.",
+    "",
+    "To change a leaf without copying this file, add an entry keyed 'Quest_Tracker_Left' to",
+    "mods/ziggfreedcommon/hud-spots.json with only the leaves you want different."
+  ],
+  "LabelKey": "ziggfreedcommon.hud.spot.quest_tracker_left",
+  "Position": {
+    "Preset": "TopLeft",
+    "OffsetX": 16,
+    "OffsetY": 260
+  },
+  "Panels": ["Quest_Tracker"],
+  "Order": 20
+}

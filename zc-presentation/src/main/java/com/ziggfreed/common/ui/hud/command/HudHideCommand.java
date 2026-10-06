@@ -57,6 +57,11 @@ final class HudHideCommand extends AbstractTargetPlayerCommand<PlayerRef> {
             HudMessages.refused(ctx, "panel.unknown", panelId);
             return;
         }
+        String locked = HudCommandLocks.showRefusal(layout.panelId());
+        if (locked != null) {
+            HudMessages.refused(ctx, locked, HudPanelConfig.getInstance().panel(layout.panelId()).label());
+            return;
+        }
         PlayerSettings.setShown(target, layout.panelId(), !hide);
         HudMessages.done(ctx, hide ? "hide.done" : "show.done",
                 HudPanelConfig.getInstance().panel(layout.panelId()).label());

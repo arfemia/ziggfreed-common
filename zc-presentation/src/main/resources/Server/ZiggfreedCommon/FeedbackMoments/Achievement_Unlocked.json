@@ -19,6 +19,10 @@
     "entry per thing) and anything the mod that catalogued it attached under its own names.",
     "'player' is always the name of who earned it.",
     "",
+    "PlayerLevel true hands the toast to each player's own notification level, chosen on their",
+    "Settings tab: Every update, Milestones, Finishes or None. A variant replaces the whole toast,",
+    "so it says PlayerLevel again. Delete it to show the toast as written whatever they chose.",
+    "",
     "Add a Broadcast group to tell the whole server; a line whose Key is a KeyArg reads its key",
     "from one of the moment's own values, which is how a mod announces some achievements with",
     "their own words and stays quiet about the rest."
@@ -32,7 +36,8 @@
       "Key": "ziggfreedcommon.feedback.achievement.points",
       "Args": ["points"]
     },
-    "Tone": "Reward"
+    "Tone": "Reward",
+    "PlayerLevel": true
   },
   "Sound": {
     "Id": "SFX_Capture_Crate_Capture_Succeed_Local"

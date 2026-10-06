@@ -18,6 +18,13 @@
     "matches wins. Below, a full-bag park reads as a red Error and stays quiet (the reward is not",
     "lost, it waits until there is room); every other park gets the same notice and jingle.",
     "",
+    "PlayerLevel true hands the toast to each player's own notification level, chosen on their",
+    "Settings tab: Every update, Milestones, Finishes or None. A variant replaces the whole toast,",
+    "so it says PlayerLevel again. Delete it to show the toast as written whatever they chose.",
+    "A quest the player can see on their quest tracker shows none of these toasts in the corner,",
+    "at any level, since the tracker already says it; drawn into an open page they still show,",
+    "and the sound still plays.",
+    "",
     "Tone colours the whole notification, frame and words together: gold Reward for a reward",
     "waiting to be collected, red Error for the full bag. The waiting rewards list themselves as",
     "rows under the headline on the in-page toast; the Toast's Rows group tunes that."
@@ -27,7 +34,8 @@
       "Key": "ziggfreedcommon.feedback.quest.parked",
       "Args": ["title"]
     },
-    "Tone": "Reward"
+    "Tone": "Reward",
+    "PlayerLevel": true
   },
   "Sound": {
     "Id": "SFX_Discovery_Z1_Short"
@@ -40,7 +48,8 @@
           "Key": "ziggfreedcommon.feedback.quest.parked.no_space",
           "Args": ["title"]
         },
-        "Tone": "Error"
+        "Tone": "Error",
+        "PlayerLevel": true
       },
       "Sound": {}
     }

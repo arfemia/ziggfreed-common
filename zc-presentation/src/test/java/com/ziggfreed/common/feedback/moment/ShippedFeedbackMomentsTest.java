@@ -154,7 +154,64 @@ class ShippedFeedbackMomentsTest {
         assertEquals("desc", on.toast().getSecondary().getArgs()[0]);
     }
 
+    /**
+     * Every quest and achievement notice the library ships is graded by the player's own level: the base
+     * toast and each variant's, since a variant replaces the whole toast. Every other shipped notice keeps
+     * what it authored.
+     */
+    @Test
+    void everyQuestAndAchievementToastIsGradedByThePlayersLevel() throws IOException {
+        Set<String> graded = Set.of("Quest_Objective_Progressed", "Quest_Completed", "Quest_Parked",
+                "Quest_Claimed", "Achievement_Unlocked", "Achievement_Claimed", "Achievement_Server_First_Lost");
+        for (Map.Entry<String, FeedbackMomentAsset> moment : shipped().entrySet()) {
+            for (FeedbackMomentAsset.Toast toast : toastsOf(moment.getValue())) {
+                assertEquals(graded.contains(moment.getKey()), toast.playerLevel(),
+                        moment.getKey() + (graded.contains(moment.getKey())
+                                ? " is a quest or achievement notice, so every toast it draws is graded"
+                                : " is not a quest or achievement notice, so it keeps what it authored"));
+            }
+        }
+        assertTrue(shipped().keySet().containsAll(graded), "every graded moment ships");
+    }
+
+    /**
+     * A quest on the player's quest tracker skips the corner notice for every toast the library ships for
+     * it (its steps, its finish, its parking and its collect), since each is marked; the same quest off
+     * the tracker keeps them. Drawn into an open page they still show, graded by the level. This is the
+     * engine's half; zc-objectives' {@code TrackedQuestFeedbackTest} pins the half that marks the moment.
+     */
+    @Test
+    void aQuestOnThePlayersTrackerSkipsTheCornerForEveryShippedQuestToast() throws IOException {
+        Map<String, Object> onScreen = Map.of("quest", "q", "title", "x", FeedbackEngine.ON_SCREEN_ARG, true);
+        Map<String, Object> offScreen = Map.of("quest", "q", "title", "x");
+        for (String id : List.of("Quest_Objective_Progressed", "Quest_Completed", "Quest_Parked", "Quest_Claimed")) {
+            List<FeedbackMomentAsset.Toast> toasts = toastsOf(shipped().get(id));
+            assertFalse(toasts.isEmpty(), id + " draws a toast");
+            for (FeedbackMomentAsset.Toast toast : toasts) {
+                assertTrue(FeedbackEngine.onScreen(toast, onScreen),
+                        id + " about a quest on the tracker draws no corner notice");
+                assertFalse(FeedbackEngine.onScreen(toast, offScreen),
+                        id + " about a quest off the tracker keeps its corner notice");
+            }
+        }
+    }
+
     // ==================== helpers ====================
+
+    /** Every toast a moment can draw: its own and each variant's, since a variant replaces the whole toast. */
+    @Nonnull
+    private static List<FeedbackMomentAsset.Toast> toastsOf(@Nonnull FeedbackMomentAsset moment) {
+        List<FeedbackMomentAsset.Toast> toasts = new ArrayList<>();
+        if (moment.getToast() != null) {
+            toasts.add(moment.getToast());
+        }
+        for (FeedbackMomentAsset.Variant variant : moment.getVariants()) {
+            if (variant.toast != null) {
+                toasts.add(variant.toast);
+            }
+        }
+        return toasts;
+    }
 
     @Nonnull
     private static Map<String, FeedbackMomentAsset> shipped() throws IOException {

@@ -10,6 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +32,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.i18n.LangCatalog;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.settings.NotificationLevel;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastLine;
@@ -393,6 +397,127 @@ class FeedbackEngineTest {
         FeedbackEngine.wantsToast(curious, "m", toastWith(null), progress(1, 8, false));
         assertFalse(asked.get(2).containsKey(FeedbackEngine.MILESTONE_ARG),
                 "no mark authored, nothing to report: absent rather than false");
+    }
+
+    // ==================== the player's own level ====================
+
+    @Nonnull
+    private static FeedbackMomentAsset.Toast markedToast(@Nullable Integer everyPercent) throws IOException {
+        String mark = everyPercent == null ? "" : ", \"EveryPercent\": " + everyPercent;
+        return moment("Quest_Objective_Progressed", """
+                { "Toast": { "Title": { "Key": "tick", "Args": ["step"] }, "PlayerLevel": true%s } }
+                """.formatted(mark)).getToast();
+    }
+
+    /** A toast says whether the player's own level grades it; unauthored, it does not. */
+    @Test
+    void aToastIsGradedOnlyWhenItSaysSo() throws IOException {
+        assertTrue(markedToast(null).playerLevel());
+        assertFalse(toastWith(null).playerLevel());
+    }
+
+    /**
+     * The player's level decides a marked toast by what the moment carries: every update shows every tick,
+     * milestones the marks and the finish, finishes only the finish, none nothing; a moment that is no
+     * tick shows at every level but none.
+     */
+    @Test
+    void aMarkedToastIsGradedByThePlayersLevel() throws IOException {
+        FeedbackMomentAsset.Toast quarters = markedToast(25);
+
+        assertTrue(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(1, 8, false),
+                NotificationLevel.EVERY_UPDATE), "every update shows the tick between marks the file would skip");
+        assertFalse(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(1, 8, false),
+                NotificationLevel.MILESTONES));
+        assertTrue(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(2, 8, false),
+                NotificationLevel.MILESTONES), "2 of 8 crosses the first quarter");
+        assertFalse(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(2, 8, false),
+                NotificationLevel.FINISHES));
+        assertTrue(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(3, 3, true),
+                NotificationLevel.FINISHES));
+        assertFalse(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(3, 3, true),
+                NotificationLevel.NONE));
+        assertTrue(FeedbackEngine.wantsToast(handleless, "m", quarters, Map.of("title", "x"),
+                NotificationLevel.FINISHES), "a completion shows at every level but none");
+        assertFalse(FeedbackEngine.wantsToast(handleless, "m", quarters, Map.of("title", "x"),
+                NotificationLevel.NONE));
+    }
+
+    /** A toast that did not mark itself ignores the player's level, however quiet. */
+    @Test
+    void anUnmarkedToastIgnoresTheLevel() throws IOException {
+        assertTrue(FeedbackEngine.wantsToast(handleless, "m", toastWith(null), progress(1, 8, false),
+                NotificationLevel.NONE));
+    }
+
+    /** No level read (no player, off the world thread): the toast keeps what was authored. */
+    @Test
+    void aLevelThatCouldNotBeReadLeavesTheToastAsAuthored() throws IOException {
+        FeedbackMomentAsset.Toast quarters = markedToast(25);
+
+        assertFalse(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(1, 8, false), null));
+        assertTrue(FeedbackEngine.wantsToast(handleless, "m", quarters, progress(2, 8, false), null));
+    }
+
+    /** The subject's own answer can only take a toast away from what the player's level allows. */
+    @Test
+    void theSubjectsOwnAudienceCanOnlyNarrowTheLevel() throws IOException {
+        Subject quiet = new Subject(UUID.randomUUID(), "tester", new QuietHandle());
+        Subject noisy = new Subject(UUID.randomUUID(), "tester", (Subject.HandleFacets)
+                type -> type == FeedbackAudience.class ? (FeedbackAudience) (momentId, args) -> true : null);
+        FeedbackMomentAsset.Toast marked = markedToast(null);
+
+        assertFalse(FeedbackEngine.wantsToast(quiet, "m", marked, Map.of("title", "x"),
+                NotificationLevel.EVERY_UPDATE), "the level allows it and the subject still says no");
+        assertFalse(FeedbackEngine.wantsToast(noisy, "m", marked, Map.of("title", "x"),
+                NotificationLevel.NONE), "the subject cannot bring back what the level hides");
+        assertTrue(FeedbackEngine.wantsToast(noisy, "m", marked, Map.of("title", "x"),
+                NotificationLevel.EVERY_UPDATE));
+    }
+
+    // ==================== something already on the player's HUD ====================
+
+    /**
+     * A marked toast whose moment says its subject is already on the player's HUD skips only the corner
+     * notice: the rule holds for it, never for an unmarked toast or a moment that does not say so (or
+     * says false), and the level still grades the toast whatever the argument says, since drawn into an
+     * open page it still shows.
+     */
+    @Test
+    void aMarkedToastAboutSomethingOnScreenSkipsOnlyTheCornerNotice() throws IOException {
+        FeedbackMomentAsset.Toast marked = markedToast(null);
+        Map<String, Object> onScreen = Map.of("title", "x", FeedbackEngine.ON_SCREEN_ARG, true);
+
+        assertTrue(FeedbackEngine.onScreen(marked, onScreen), "a marked toast about something on screen");
+        assertFalse(FeedbackEngine.onScreen(toastWith(null), onScreen), "an unmarked toast ignores it");
+        assertFalse(FeedbackEngine.onScreen(marked, Map.of("title", "x")), "a moment that does not say so");
+        assertFalse(FeedbackEngine.onScreen(marked, Map.of("title", "x", FeedbackEngine.ON_SCREEN_ARG, false)),
+                "false is not on screen");
+        for (NotificationLevel level : NotificationLevel.values()) {
+            assertEquals(level != NotificationLevel.NONE,
+                    FeedbackEngine.wantsToast(handleless, "m", marked, onScreen, level),
+                    "the level alone grades the toast an open page would still draw, at " + level.id());
+        }
+    }
+
+    /**
+     * The on-screen rule is asked only after the page branch: with a menu open the HUD is behind it, so a
+     * toast drawn into the page repeats nothing and still shows. It sits beside the surfaces' own rule,
+     * before the corner feed is drawn. No test can stand the toast up (it writes packets), so the source
+     * is read.
+     */
+    @Test
+    void theOnScreenRuleIsAskedAfterThePageBranchAndBeforeTheCorner() throws IOException {
+        String engine = Files.readString(Path.of("src", "main", "java", "com", "ziggfreed", "common", "feedback",
+                "moment", "FeedbackEngine.java"), StandardCharsets.UTF_8);
+        int toast = engine.indexOf("private static void toast(");
+        int page = engine.indexOf("ToastablePage.isShowing(", toast);
+        int onScreen = engine.indexOf("onScreen(", toast);
+        int corner = engine.indexOf("Notify.withIcon(", toast);
+
+        assertTrue(toast > 0 && page > toast, "the toast draws into an open page first");
+        assertTrue(onScreen > page, "a toast drawn into an open page is never dropped by the on-screen rule");
+        assertTrue(onScreen < corner, "and the corner notice is");
     }
 
     // ==================== the corner feed's merge tag ====================

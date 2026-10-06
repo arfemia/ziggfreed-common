@@ -41,6 +41,7 @@ class TrackedQuestHudEventTest {
     private static final class Recording implements TrackedQuestHuds.Tracker {
 
         final AtomicInteger repaints = new AtomicInteger();
+        final AtomicInteger repositions = new AtomicInteger();
         final Set<String> showing;
         boolean panelVisible = true;
 
@@ -51,6 +52,11 @@ class TrackedQuestHudEventTest {
         @Override
         public void repaint() {
             repaints.incrementAndGet();
+        }
+
+        @Override
+        public void reposition() {
+            repositions.incrementAndGet();
         }
 
         @Override
@@ -193,5 +199,23 @@ class TrackedQuestHudEventTest {
         TrackedQuestHuds.repaintAllOnline();
         assertEquals(1, watcherHud.repaints.get());
         assertEquals(1, strangerHud.repaints.get());
+    }
+
+    @Test
+    void aSettingsChangeRepositionsOnlyThatPlayersTracker() {
+        TrackedQuestHuds.onSettingsChanged(watcher);
+
+        assertEquals(1, watcherHud.repositions.get());
+        assertEquals(0, strangerHud.repositions.get());
+        TrackedQuestHuds.onSettingsChanged(UUID.randomUUID());
+        assertEquals(1, watcherHud.repositions.get(), "a player with no tracker costs nothing");
+    }
+
+    @Test
+    void anOwnerChangeRepositionsEveryTracker() {
+        TrackedQuestHuds.repositionAllOnline();
+
+        assertEquals(1, watcherHud.repositions.get());
+        assertEquals(1, strangerHud.repositions.get());
     }
 }

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import com.ziggfreed.common.ui.menu.MenuFrame;
 
 /**
- * Every label on the library's four menu tabs ships in English and stays on one line at the rail's width
+ * Every label on the library's menu tabs ships in English and stays on one line at the rail's width
  * in every locale the library ships, counted in characters (MenuFrame.RAIL_LABEL_MAX_CHARS, the body size's
  * proxy for width). A locale that lacks a key falls back to English, which is checked.
  */
@@ -29,7 +29,8 @@ class RailLabelLengthTest {
             new Label("zc-objectives", "ziggfreedcommon.progression.lang", "book.tab.quests"),
             new Label("zc-objectives", "ziggfreedcommon.progression.lang", "book.tab.achievements"),
             new Label("zc-almanac", "ziggfreedcommon.almanac.lang", "title"),
-            new Label("zc-instance", "ziggfreedcommon.leaderboard.lang", "menu.records"));
+            new Label("zc-instance", "ziggfreedcommon.leaderboard.lang", "menu.records"),
+            new Label("zc-presentation", "ziggfreedcommon.ui.lang", "menu.settings"));
 
     @Test
     void everyTabLabelShipsInEnglishAndFitsTheRailInEveryLocale() throws IOException {

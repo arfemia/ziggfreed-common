@@ -9,8 +9,8 @@ spot.top_right = Top right
 spot.bottom_left = Bottom left
 
 # The two panels, as the pickers and the answers name them.
-panel.activity_ledger = Activity ledger
-panel.world_bars = World bars
+panel.activity_ledger = Crafting progress
+panel.world_bars = XP and reputation gains
 
 # The HUD settings page.
 settings.title = HUD bars
@@ -57,8 +57,8 @@ settings.panel_off = {0} is off for everyone.
 settings.not_kept = That could not be kept. Reconnect and try again.
 
 # The /zighud family: help text and answers.
-desc.family = Move or hide the shared HUD bar panels.
-desc.open = Open the HUD bar settings.
+desc.family = Open your settings, or move and hide the shared HUD displays.
+desc.open = Open your settings.
 desc.place = Put a panel at a named spot, for yourself.
 desc.hide = Hide a panel for yourself, or every panel.
 desc.show = Show a panel you hid, or every panel.
@@ -85,3 +85,16 @@ show.all = Every panel shows again.
 default.done = {0} sits at {1} for everyone. Written to {2}.
 default.cleared = {0} sits where its shipped file says again. Written to {1}.
 default.failed = Could not write to {0}. The file was left as it was.
+
+# The quest tracker's two spots (Server/ZiggfreedCommon/HudSpots/Quest_Tracker_*.json), as the
+# Settings tab lists them.
+spot.quest_tracker_right = Right
+spot.quest_tracker_left = Left
+
+# The Settings tab's tile for whoever may change the server's HUD layout, opening the HUD settings page.
+settings.layout_tile = Server HUD layout
+settings.layout_tile_line = Where the HUD sits for everyone
+
+# /zighud on a choice the server has fixed for everyone (player-settings.json or a panel's Player group).
+place.locked = The server has fixed where {0} sits.
+hide.locked = The server has fixed whether {0} shows.
