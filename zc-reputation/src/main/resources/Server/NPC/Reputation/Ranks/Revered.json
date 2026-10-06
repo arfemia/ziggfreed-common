@@ -1,0 +1,6 @@
+{
+  "$Comment": "Near the top, where a group's NPCs treat the player as Revered. Every reputation shares these seven ranks; ship a file of this same name in your own pack to retune it.",
+  "MinValue": 9000,
+  "MaxValue": 21000,
+  "Attitude": "Revered"
+}

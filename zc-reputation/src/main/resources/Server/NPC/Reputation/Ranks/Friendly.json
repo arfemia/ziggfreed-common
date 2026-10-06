@@ -1,0 +1,6 @@
+{
+  "$Comment": "The first rank above a fresh start, where a group's NPCs turn Friendly. Content often gates on it through the ziggfreedcommon:reputation_rank reading (Param <Reputation>/Friendly). Every reputation shares these seven ranks.",
+  "MinValue": 1000,
+  "MaxValue": 3000,
+  "Attitude": "Friendly"
+}

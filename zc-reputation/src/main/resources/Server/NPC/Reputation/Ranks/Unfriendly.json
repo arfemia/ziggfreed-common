@@ -1,0 +1,6 @@
+{
+  "$Comment": "Standing has gone below a fresh start. A rank runs from its MinValue up to, but not including, its MaxValue, which is where the next rank (Neutral) begins. Every reputation shares these seven ranks.",
+  "MinValue": -3000,
+  "MaxValue": 0,
+  "Attitude": "Neutral"
+}

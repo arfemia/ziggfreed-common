@@ -1,0 +1,6 @@
+{
+  "$Comment": "The bottom rank of the server's one reputation ladder: the engine never lets earned standing fall below this MinValue, and a group's NPCs turn Hostile toward a player down here. Every reputation shares these seven ranks; ship a file of this same name in your own pack to retune one.",
+  "MinValue": -30000,
+  "MaxValue": -3000,
+  "Attitude": "Hostile"
+}
