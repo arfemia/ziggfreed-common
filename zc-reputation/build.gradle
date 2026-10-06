@@ -1,0 +1,28 @@
+apply from: "$rootDir/gradle/zc-module.gradle"
+
+// Standing with a faction or with one NPC, on Hytale's own (dormant) reputation system: the one global
+// rank ladder (seven native ReputationRank files), the companion asset zc keeps beside a native
+// ReputationGroup of the same id (names, gear favor, cap, rank names, kill standing, the payout past the
+// top rank), the one writer over the native value, three readings, the Reputation reward kind, the change
+// event, the World bar, the rank notice, the kill table and the rail tab.
+//
+// Nothing in the library depends on this module except zc-objectives, which turns
+// ZigReputationRanksHeldEvent (the ranks a check credits) into REPUTATION_RANK progress from above
+// (ZigReputationProducer), the way it turns the calendar's attendance.
+//
+// Ships .ui (the Reputation page), so it needs zc-presentation at runtime as well as at compile time.
+
+dependencies {
+    // SafeLog, the keyed asset bases and the owner-file reader, the factor vocabulary, the native-event
+    // seam, i18n and content keys, the content text group, validation findings, the icon spec.
+    implementation project(':zc-core')
+    // StatIndexCache: the gear share is a stat's folded maximum, resolved the way hytale:stat resolves it.
+    implementation project(':zc-entity')
+    // The reward vocabulary: the Reputation kind, its chip reading, the Beyond payout.
+    implementation project(':zc-loot')
+    // The shared moment stream the kill table listens on, the reward entry shape, the runtime's subjects
+    // and its reward retry queue.
+    implementation project(':zc-progression')
+    // The World bars, the feedback engine, the destination vocabulary, the shared menu and its rows.
+    implementation project(':zc-presentation')
+}

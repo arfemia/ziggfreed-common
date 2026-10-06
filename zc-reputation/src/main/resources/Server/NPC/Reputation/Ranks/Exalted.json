@@ -1,0 +1,6 @@
+{
+  "$Comment": "The top rank, open-ended in practice: the engine keeps earned standing one below this MaxValue. A reputation's Beyond block pays rewards for standing earned past this rank's floor. Every reputation shares these seven ranks.",
+  "MinValue": 21000,
+  "MaxValue": 2000000000,
+  "Attitude": "Revered"
+}

@@ -22,6 +22,7 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.dialogue.type.DialogueAction;
 import com.ziggfreed.common.dialogue.type.DialogueActionExecutor;
 import com.ziggfreed.common.dialogue.DialogueEngine;
 import com.ziggfreed.common.dialogue.DialogueExecContext;
@@ -105,6 +106,12 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
      * cleared as the key is spent so a player keeps one key per beat. Null for a beat spent for good.
      */
     @Nullable private String pendingEntryOnceFamily;
+
+    /**
+     * The pending beat's own {@code Actions}, run once at the spend (an option click or the implicit
+     * Farewell), before the spend itself. Empty when the beat carries none or holds no claim.
+     */
+    @Nonnull private List<DialogueAction> pendingEntryActions = List.of();
 
     /**
      * The beat {@link DialogueOpener} already worked out, used for the FIRST render and dropped after
@@ -232,6 +239,7 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
             currentNodeId = entry.nodeId();
             pendingEntryOnceKey = entry.onceKey();
             pendingEntryOnceFamily = entry.onceFamily();
+            pendingEntryActions = entry.actions();
         }
         String nodeId = currentNodeId;
         DialogueNode node = dialogue.getNode(nodeId);
@@ -483,13 +491,16 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
 
         DialogueQuests quests = DialogueEngine.shared().quests();
         ParkedQuestWatch parked = ParkedQuestWatch.begin(quests, ctx);
+        // The beat is done: its own Actions run first, once, then the chosen line's, then the spend.
+        DialogueEngine.shared().runBeatActions(pendingEntryOnceKey, pendingEntryActions, ctx);
         DialogueActionExecutor.Outcome outcome =
                 DialogueEngine.shared().executor().execute(option.getActions(), ctx);
-        // The beat is done: spend the entry's first-visit Once and the option's own.
+        // Spend the entry's first-visit Once and the option's own.
         DialogueEngine.shared().consumeOnce(pendingEntryOnceKey, pendingEntryOnceFamily, dialogue,
                 data.node, option, ctx);
         pendingEntryOnceKey = null;
         pendingEntryOnceFamily = null;
+        pendingEntryActions = List.of();
 
         // A quest the actions just parked for collection is the bigger moment, and it takes the
         // screen over whatever the option itself opened, jumped to or closed: the player lands on
@@ -545,23 +556,26 @@ public class DialoguePage extends ToastablePage<DialogueEventData> {
 
     /**
      * Spend a pending first-visit {@code Once} when the player leaves through the implicit
-     * Farewell row. No option ran, so only the entry's own key is at stake.
+     * Farewell row. No option ran, so only the entry's own key and the beat's own actions are at stake.
      */
     private void consumeFarewell(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
                                  @Nonnull Player player, @Nullable String nodeId) {
         if (pendingEntryOnceKey == null || nodeId == null) {
             pendingEntryOnceKey = null;
             pendingEntryOnceFamily = null;
+            pendingEntryActions = List.of();
             return;
         }
         NpcDialogue dialogue = DialogueAssetStore.getInstance().dialogue(dialogueId);
         if (dialogue != null) {
             DialogueExecContext ctx = context(dialogue, nodeId, -1, ref, store, player);
+            DialogueEngine.shared().runBeatActions(pendingEntryOnceKey, pendingEntryActions, ctx);
             DialogueEngine.shared().consumeOnce(pendingEntryOnceKey, pendingEntryOnceFamily, dialogue,
                     nodeId, null, ctx);
         }
         pendingEntryOnceKey = null;
         pendingEntryOnceFamily = null;
+        pendingEntryActions = List.of();
     }
 
     private static int parseIndex(@Nullable String raw) {

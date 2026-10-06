@@ -76,6 +76,7 @@ import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.asset.QuestAsset;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
+import com.ziggfreed.common.reputation.asset.ReputationAsset;
 import com.ziggfreed.common.settings.NotificationRules;
 import com.ziggfreed.common.settings.PlayerSettingsAsset;
 import com.ziggfreed.common.settings.SurfaceRules;
@@ -204,6 +205,17 @@ class AssetCodecInitTest {
     @Test
     void titleAssetCodecInitializes() {
         assertNotNull(TitleAsset.CODEC, "TitleAsset.CODEC must static-init (PascalCase keys)");
+    }
+
+    @Test
+    void reputationCodecsInitialize() {
+        assertNotNull(ReputationAsset.CODEC, "ReputationAsset.CODEC must static-init (PascalCase keys)");
+        // The groups are embedded rather than stored, so a lower-case key in one would fail at a pack
+        // author's decode instead of at this build.
+        assertNotNull(ReputationAsset.Gear.CODEC, "the Gear group codec must static-init");
+        assertNotNull(ReputationAsset.RankName.CODEC, "the rank name codec must static-init");
+        assertNotNull(ReputationAsset.Kill.CODEC, "the kill row codec must static-init");
+        assertNotNull(ReputationAsset.Beyond.CODEC, "the Beyond group codec must static-init");
     }
 
     @Test

@@ -1,0 +1,6 @@
+{
+  "$Comment": "A rank of real standing. A reputation can call each rank its own name in its companion file (Ranks, Name); this file only sets the numbers and the attitude. Every reputation shares these seven ranks.",
+  "MinValue": 3000,
+  "MaxValue": 9000,
+  "Attitude": "Friendly"
+}

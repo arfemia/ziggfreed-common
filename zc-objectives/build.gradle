@@ -49,4 +49,8 @@ dependencies {
     // same engines every other moment feeds (ZigCalendarProducer). One-way by the same position
     // argument: zc-calendar never imports this module.
     implementation project(':zc-calendar')
+    // The reputation module's ranks-held event, so holding a rank with a reputation feeds the same
+    // engines every other moment feeds (ZigReputationProducer). One-way by the same position argument:
+    // zc-reputation never imports this module.
+    implementation project(':zc-reputation')
 }

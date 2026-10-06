@@ -71,6 +71,7 @@ import com.ziggfreed.common.objectives.runtime.ProgressionDefaults;
 import com.ziggfreed.common.objectives.settings.ObjectivesSettingsBootstrap;
 import com.ziggfreed.common.objectives.title.TitleBootstrap;
 import com.ziggfreed.common.progress.asset.ProgressEditorDataSets;
+import com.ziggfreed.common.reputation.ReputationBootstrap;
 import com.ziggfreed.common.reward.CostumeRewardKind;
 import com.ziggfreed.common.reward.EffectRewardKind;
 import com.ziggfreed.common.rotation.SelectionStrategies;
@@ -107,7 +108,7 @@ import com.ziggfreed.common.world.stash.BlockStashBootstrap;
  * {@code PlacedBlockBootstrap} + {@code BlockStashBootstrap} (zc-world), {@code CalendarBootstrap}
  * (zc-calendar), {@code ProgressionBootstrap} + {@code DialogueBootstrap} + {@code BonusRowBootstrap}
  * + {@code CalendarSweepBootstrap} + {@code ObjectiveBookBootstrap} (zc-objectives), and
- * {@code AlmanacBootstrap} (zc-almanac). Each bootstrap lives in
+ * {@code AlmanacBootstrap} (zc-almanac) and {@code ReputationBootstrap} (zc-reputation). Each bootstrap lives in
  * the module that already sees
  * everything its phase wires, so the phase can be read and reasoned about without standing up the
  * whole plugin. What remains a ROOT-OWNED body is only what no single module can host, each phase
@@ -245,6 +246,11 @@ public class ZiggfreedCommonPlugin extends JavaPlugin {
         // destination, its moment counter and the /zigalmanac family. Its page store is registered with
         // the other framework stores.
         AlmanacBootstrap.install(this);
+        // Reputation: the owner's switch, the three readings, the Reputation reward kind, the kill table on the
+        // shared moment stream, the rank checks at login and on every equip (after the equip bridge above is
+        // installed), and the once-at-boot log of broken reputation files. Its companion store is registered
+        // with the other framework stores.
+        ReputationBootstrap.install(this);
 
         LOGGER.atInfo().log("ZiggfreedCommon setup complete (framework stores + shared primitives available).");
     }

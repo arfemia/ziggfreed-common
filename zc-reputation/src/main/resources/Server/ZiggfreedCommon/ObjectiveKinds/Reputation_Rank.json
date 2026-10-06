@@ -1,0 +1,8 @@
+{
+  "$Comment": "Holding a rank with a reputation. Target is the rank id (Friendly, Revered, or any rank on the server's ladder); Qualifier is the reputation id (its native ReputationGroup id), so a step without one counts any reputation. Standing counts with gear included, and every rank from the reputation's starting rank up to the one held is credited, at login, after every reward or kill and whenever gear moves the rank, so a jump never misses a rank and a repeat changes nothing. Below the starting rank, only the ranks reached going down are credited. A step reads {\"Kind\": \"REPUTATION_RANK\", \"Target\": \"Revered\", \"Qualifier\": \"Your_Traders\", \"Amount\": 1}.",
+  "ValueBased": false,
+  "Producible": true,
+  "Presentation": {
+    "TextKey": "ziggfreedcommon.reputation.objective.reputation_rank"
+  }
+}

@@ -75,6 +75,18 @@ public interface BoardSpec {
         return Map.of();
     }
 
+    /**
+     * Who may take the contract the slot at {@code slotIndex} (its position in {@link #slots()}) posts,
+     * whatever its grade, or null when that slot is open to everyone. Checked at ACCEPT only, after
+     * {@link #requires()} and the grade's {@link #acceptRequires()}, so the posting stays on show. A spec
+     * answers the same slot instances from every {@link #slots()} call, which is how the engine finds a
+     * posting's slot.
+     */
+    @Nullable
+    default GateSpec slotRequires(int slotIndex) {
+        return null;
+    }
+
     /** Who may use the board at all, as the ONE shared requirement block. Null asks for nothing. */
     @Nullable
     default GateSpec requires() {

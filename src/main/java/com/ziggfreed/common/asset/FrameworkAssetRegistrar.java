@@ -98,6 +98,9 @@ import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.recipe.RecipeIndex;
+import com.ziggfreed.common.reputation.asset.ReputationAsset;
+import com.ziggfreed.common.reputation.asset.ReputationConfig;
+import com.ziggfreed.common.reputation.asset.ReputationOwnerLayers;
 import com.ziggfreed.common.settings.PlayerSettingsAsset;
 import com.ziggfreed.common.settings.PlayerSettingsConfig;
 import com.ziggfreed.common.settings.PlayerSettingsOwnerLayers;
@@ -777,6 +780,20 @@ public final class FrameworkAssetRegistrar {
                     TitleOwnerLayers.reload();
                 });
 
+        // --- Reputations (Pattern A) - zc's companion to a native ReputationGroup of the same id (the
+        //     file name, any case): what it is called, its picture, the stat gear moves it by, its cap,
+        //     its rank names, its kill standing and the payout past the top rank. The library ships none.
+        //     Owner file mods/ziggfreedcommon/reputation.json ($Enabled switches the module off; an entry
+        //     retunes or switches off one), re-read on this same event for the usual reason. ---
+        AssetStoreRegistrar.registerStore(ReputationAsset.class,
+                new DefaultAssetMap<String, ReputationAsset>(), ReputationAsset.TYPE_ROOT,
+                ReputationAsset::getId, ReputationAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, ReputationAsset.class,
+                (LoadedAssetsEvent<String, ReputationAsset, DefaultAssetMap<String, ReputationAsset>> ev) -> {
+                    ReputationConfig.getInstance().mergePackLayer(AssetMergeAdapter.layer(ev.getAssetMap()));
+                    ReputationOwnerLayers.reload();
+                });
+
         // --- The native recipe index (zc-entity) - not a store of ours: a read-side index over the
         //     ENGINE's CraftingRecipe store, built on first read. It is dropped on every recipe and
         //     item load and removal (an item reload reloads the recipes authored inside it), so the
@@ -807,7 +824,8 @@ public final class FrameworkAssetRegistrar {
                             + "Currencies, Shops, ShopPools, ShopEntries, "
                             + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation, "
                             + "CalendarEvents (owner file mods/ziggfreedcommon/calendar.json), CalendarSpawns, "
-                            + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), Titles (owner file mods/ziggfreedcommon/titles.json)).");
+                            + "GearSets (owner file mods/ziggfreedcommon/gear-sets.json), Titles (owner file mods/ziggfreedcommon/titles.json), "
+                            + "Reputations (owner file mods/ziggfreedcommon/reputation.json)).");
         } catch (Throwable ignored) {
             // log-manager-less unit JVM: never let a presence log escape into setup().
         }

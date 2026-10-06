@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:reputation reading for requirement lines. Param is a reputation id (a native ReputationGroup id, any case); the reading is the player's standing with it, gear included, and nothing for a reputation this server lacks or has switched off. To name one of your own reputations in a requirement line, ship a Factors file of your own with a ParamNames Keys entry for its id.",
+  "Factor": "ziggfreedcommon:reputation",
+  "Text": { "TitleKey": "ziggfreedcommon.reputation.factor.reputation" }
+}

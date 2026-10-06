@@ -56,6 +56,7 @@ import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
+import com.ziggfreed.common.rotation.PoolSlot;
 import com.ziggfreed.common.rotation.RerollSpec;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.text.ContentTextAsset;
@@ -367,11 +368,18 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
             @Nonnull Subject subject, @Nonnull BoardAssetSpec board, @Nonnull BountyRef ref,
             @Nonnull Quest quest, long now) {
         QuestStatus status = quests.status(subject, quest);
-        boolean acceptable = engine.canAccept(subject, board, ref, now).ok();
+        boolean acceptable = engine.canAccept(subject, board, ref, postedIn(engine, subject, board, ref, now), now).ok();
         boolean settlesHere = quests.settlesTurnInAt(subject, quest, board.boardId());
         boolean collectHere = quests.canCompleteAt(subject, quest, board.boardId());
         boolean spent = engine.completedThisPeriod(subject, board, ref.bountyId(), now);
         return BoardSections.classify(status, acceptable, settlesHere, collectHere, spent);
+    }
+
+    /** The slot that posted {@code ref} for this player, so its own gate applies to the accept. */
+    @Nullable
+    private static PoolSlot postedIn(@Nonnull BoardEngine engine, @Nonnull Subject subject,
+            @Nonnull BoardAssetSpec board, @Nonnull BountyRef ref, long now) {
+        return engine.postedSlot(subject, board, CommerceCatalogs.boards().pool(), ref.bountyId(), now);
     }
 
     // ==================== the list ====================
@@ -646,9 +654,10 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
     private int renderLockedDetail(@Nonnull UICommandBuilder cmd, @Nonnull BoardEngine engine,
             @Nonnull Subject subject, @Nonnull BoardAssetSpec board, @Nonnull BountyRef ref,
             long now, int index) {
-        String reason = engine.canAccept(subject, board, ref, now).reason();
+        PoolSlot posted = postedIn(engine, subject, board, ref, now);
+        String reason = engine.canAccept(subject, board, ref, posted, now).reason();
         if (GateRefusal.fromToken(reason) != null) {
-            List<Message> lines = LockReasons.linesOf(engine.acceptGateRefusals(subject, board, ref));
+            List<Message> lines = LockReasons.linesOf(engine.acceptGateRefusals(subject, board, ref, posted));
             if (!lines.isEmpty()) {
                 for (Message line : lines) {
                     index = renderLine(cmd, line, index);
@@ -817,8 +826,10 @@ public final class ZigBoardPage extends ToastablePage<BoardEventData> {
      */
     private void doAccept(@Nonnull BoardEngine engine, @Nonnull Subject subject,
             @Nonnull BoardAssetSpec board, @Nonnull BountyRef bounty) {
-        BoardEngine.BoardCheck result =
-                scoped(subject, s -> engine.accept(s, board, bounty, System.currentTimeMillis()));
+        BoardEngine.BoardCheck result = scoped(subject, s -> {
+            long now = System.currentTimeMillis();
+            return engine.accept(s, board, bounty, postedIn(engine, s, board, bounty, now), now);
+        });
         if (result != null && result.ok()) {
             this.selectedBountyId = bounty.bountyId();
             showToast(ToastKind.SUCCESS, text("board.toast.accepted"));

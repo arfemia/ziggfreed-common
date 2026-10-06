@@ -1,0 +1,60 @@
+# What the reputation module says to players. The file name is the key PREFIX: an entry here resolves
+# as ziggfreedcommon.reputation.<key>.
+
+# The seven ranks of the server's one ladder, used wherever a reputation names no rank of its own.
+rank.hated = Hated
+rank.unfriendly = Unfriendly
+rank.neutral = Neutral
+rank.friendly = Friendly
+rank.honored = Honored
+rank.revered = Revered
+rank.exalted = Exalted
+# Shown when the server has no usable ladder (fewer than two ranks).
+rank.none = Unranked
+
+# How a requirement on a reputation reading is named when no pack names its own reputation.
+factor.reputation = standing with a reputation
+factor.reputation_earned = standing earned with a reputation
+factor.reputation_rank = a rank with a reputation
+
+# A reputation reward as it reads in a reward list: {0} the amount, {1} the reputation's name.
+reward.gain = +{0, number} {1}
+reward.loss = {0, number} {1}
+
+# The World bar's name for a reputation: {0} the reputation, {1} the rank the player holds.
+hud.caption = {0}: {1}
+
+# The notice when a player's rank rises during play: {0} the new rank, then the reputation's name.
+feedback.rank.title = You are now {0}
+feedback.rank.with = with {0}
+
+# A REPUTATION_RANK step: {1} is the rank it names. The .any twin reads when a step names no rank.
+objective.reputation_rank = Reach {1}
+objective.reputation_rank.any = Reach a new rank
+
+# The Reputation page.
+page.title = Reputation
+page.empty = Nobody knows you yet. Help someone out and it shows up here.
+# A row: {0} the reputation, {1} the rank held.
+page.row = {0}: {1}
+# The row with what comes next: {0} the row so far, {1} how far, {2} the next rank.
+page.row.next = {0}, {1, number} to {2}
+# Past the top: {0} the row so far, {1} how far to the next reward.
+page.row.reward = {0}, {1, number} to the next reward
+# With gear: {0} the row so far, {1} what gear adds (or takes, in the .loss line).
+page.row.gear = {0} (+{1, number} from gear)
+page.row.gear.loss = {0} ({1, number} from gear)
+# The row's badge: the standing, gear included.
+page.badge = {0, number}
+
+# The detail lines.
+detail.earned = Earned: {0, number}
+detail.gear = From gear: +{0, number}
+detail.gear.loss = From gear: {0, number}
+detail.next = Next rank: {0} at {1, number}
+detail.reward = Next reward at {0, number}
+detail.top = You have reached the top rank.
+detail.cap = The most you can earn: {0, number}
+
+# The shared menu's tab.
+menu.tab = Reputation

@@ -25,6 +25,7 @@ import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.dialogue.state.DialogueOnce;
+import com.ziggfreed.common.dialogue.type.DialogueAction;
 import com.ziggfreed.common.dialogue.type.DialogueCondition;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.ui.route.Destination;
@@ -146,6 +147,8 @@ public final class DialogueStart {
         @Nullable Variant[] pick;
         @Nullable DialogueCondition[] when;
         @Nullable DialogueOnce once;
+        @Nullable String onceId;
+        @Nullable DialogueAction[] actions;
 
         public Beat() {
         }
@@ -177,6 +180,20 @@ public final class DialogueStart {
         @Nonnull
         public Beat once(@Nullable DialogueOnce once) {
             this.once = once;
+            return this;
+        }
+
+        /** Java-side construction: the same beat, filing its Once under {@code onceId} instead of its screen. */
+        @Nonnull
+        public Beat onceId(@Nullable String onceId) {
+            this.onceId = onceId;
+            return this;
+        }
+
+        /** Java-side construction: the same beat, running {@code actions} once when it is completed. */
+        @Nonnull
+        public Beat actions(@Nullable DialogueAction... actions) {
+            this.actions = actions == null ? null : actions.clone();
             return this;
         }
 
@@ -216,6 +233,26 @@ public final class DialogueStart {
         @Nullable
         public DialogueOnce getOnce() {
             return once;
+        }
+
+        /**
+         * The name this beat's {@code Once} is filed under instead of its screen, trimmed; null when it
+         * names none. Beats of one conversation naming the same OnceId share one claim, so several
+         * wordings of one greeting are spent together.
+         */
+        @Nullable
+        public String getOnceId() {
+            return onceId == null || onceId.isBlank() ? null : onceId.trim();
+        }
+
+        /**
+         * What runs once when the player completes this beat, at the moment its {@code Once} is spent
+         * (any line on its screen, a line an extension added, or the Farewell row; never Escape), before
+         * the chosen line's own actions. Empty when none; nothing runs on a beat with no {@code Once}.
+         */
+        @Nonnull
+        public List<DialogueAction> getActions() {
+            return actions == null ? Collections.emptyList() : List.of(actions);
         }
     }
 

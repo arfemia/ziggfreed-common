@@ -1,0 +1,30 @@
+{
+  "$Comment": [
+    "What a player sees and hears when their rank with a reputation rises during play: a reward, a kill or",
+    "a piece of gear lifted their standing (earned plus what their gear adds) into a higher rank. It never",
+    "fires for a fall, nor at login: the first look after login only notes where the player stands.",
+    "",
+    "This is the library's own neutral default. A mod that ships a file with this same name in its own pack",
+    "replaces it (a pack that lists this library as a dependency loads after it), and a server owner can do",
+    "the same. Override the whole file rather than editing this one.",
+    "",
+    "The moment carries 'rank' (the rank's name as that reputation calls it, in the reader's language),",
+    "'name' (the reputation's name) and the reputation id under 'source'; 'player' is always who rose.",
+    "Key is a line from a .lang file and Args names which of those values fill its blanks, in order. Sound",
+    "is any SoundEvent id, played at the player's own position."
+  ],
+  "Toast": {
+    "Title": {
+      "Key": "ziggfreedcommon.reputation.feedback.rank.title",
+      "Args": ["rank"]
+    },
+    "Secondary": {
+      "Key": "ziggfreedcommon.reputation.feedback.rank.with",
+      "Args": ["name"]
+    },
+    "Tone": "Reward"
+  },
+  "Sound": {
+    "Id": "SFX_Discovery_Z2_Short"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "$Comment": "Where a reputation starting at 0 begins. MinValue is included and MaxValue is not, so each rank starts exactly where the one below ends. Every reputation shares these seven ranks.",
+  "MinValue": 0,
+  "MaxValue": 1000,
+  "Attitude": "Neutral"
+}

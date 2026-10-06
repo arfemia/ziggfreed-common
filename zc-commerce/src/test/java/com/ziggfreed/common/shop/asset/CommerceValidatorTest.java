@@ -316,6 +316,48 @@ class CommerceValidatorTest {
         }
 
         @Test
+        void anOptionalSlotNoContractCanFillIsANoteAndARequiredOneStaysAnError() throws Exception {
+            List<Finding> findings = BoardValidator.validate(
+                    one("daily", board("""
+                            { "Slots": [ { "Difficulty": "Training" },
+                                         { "Difficulty": "Skill", "Optional": true } ] }
+                            """, "Daily")),
+                    one("bounty_easy", bounty("""
+                            { "Boards": [ { "Board": "Daily", "Difficulty": "Training" } ],
+                              "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
+                            """, "Bounty_Easy")),
+                    WALLETS, null, null, null, null);
+
+            Finding optional = find(findings, "UNFILLABLE_SLOT");
+            assertEquals(Severity.INFO, optional.severity(),
+                    "Optional is for a band only some servers fill (a companion mod's contracts), so an empty one is a note");
+            assertTrue(optional.message().contains("Skill"), optional.message());
+            assertFalse(findings.stream().anyMatch(f -> f.severity() == Severity.ERROR),
+                    "the board posts its one required slot every rotation, so nothing here is an error");
+        }
+
+        @Test
+        void aSlotsRequiresIsAuditedAtItsOwnPath() throws Exception {
+            List<Finding> findings = BoardValidator.validate(
+                    one("daily", board("""
+                            { "Slots": [ { "Difficulty": "Training" },
+                                         { "Difficulty": "Training", "Optional": true,
+                                           "Requires": { "Factors": [ { "Factor": "nobody:favor", "Min": 1 } ] } } ] }
+                            """, "Daily")),
+                    one("bounty_easy", bounty("""
+                            { "Boards": [ { "Board": "Daily", "Difficulty": "Training" } ],
+                              "Objectives": { "main": { "Kind": "KILL_ENTITY", "Amount": 1 } },
+                              "Rewards": { "Claim": [ { "Kind": "Currency", "Params": { "Currency": "bounty_token" } } ] } }
+                            """, "Bounty_Easy")),
+                    WALLETS, null, null, null, "hytale:stat"::equals);
+
+            Finding unknown = find(findings, "UNKNOWN_FACTOR");
+            assertEquals(Severity.WARNING, unknown.severity(), "an unknown id is a warning, never an error");
+            assertEquals("daily.Slots[1].Requires", unknown.sourceId());
+        }
+
+        @Test
         void gatingABandNoSlotEverPostsIsCalledOut() throws Exception {
             List<Finding> findings = BoardValidator.validate(
                     one("daily", board("""

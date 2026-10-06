@@ -418,6 +418,16 @@ public final class DialogueTypeTable {
                                 (b, v) -> b.once = v, b -> b.once)
                         .documentation("Show this beat only until the player has played it through. Write true "
                                 + "for once per character, or name a world family to keep it per place.").add()
+                        .append(new KeyedCodec<>("OnceId", Codec.STRING, false),
+                                (b, v) -> b.onceId = v, b -> b.onceId)
+                        .documentation("Files this beat's Once under this name instead of its screen, so beats "
+                                + "naming the same OnceId share one claim: several wordings of one daily greeting "
+                                + "are spent together. Needs a Once.").add()
+                        .append(new KeyedCodec<>("Actions", actionsArray, false),
+                                (b, v) -> b.actions = v, b -> b.actions)
+                        .documentation("Steps run once when the player completes this beat, the moment its Once "
+                                + "is spent: by any line on its screen or the Farewell row, never by leaving with "
+                                + "Escape. They run before the chosen line's own Actions. Needs a Once.").add()
                         .build();
 
         BuilderCodec<DialogueStart> startGroup =
