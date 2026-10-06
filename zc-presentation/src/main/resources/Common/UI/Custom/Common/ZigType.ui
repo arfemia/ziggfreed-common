@@ -6,7 +6,7 @@
 // FontSize: $ObjectiveCommon.@FontSize). com.ziggfreed.common.ui.ZigType holds the same numbers for the few sizes
 // Java sets, and ZigTypeTest holds the two together.
 //
-// The maintainer's readability ruling (2026-10-06): no player text under 13; descriptions, captions and hints 13;
+// The rule: no player text under 13; descriptions, captions and hints 13;
 // row labels and body text 14; headings and titles keep their sizes. A document never writes a size under
 // @ZigFontEmphasis as a number (the family's RepoHygieneTest), and MinShrinkTextToFitFontSize takes these steps
 // too, so shrink-to-fit never draws under the floor.
@@ -29,7 +29,7 @@
 @ZigFontDisplay = 22;
 @ZigFontDisplayLarge = 24;
 
-// The ONE exception under the floor, by the maintainer's ruling (2026-10-06, "Exempt them"): a label inside a
+// The ONE exception under the floor: a label inside a
 // HUD box too small for 13 (a HUD bar's end words, an ability cooldown's key, the mob inspector's HP text, a skill
 // card's percent). The family's RepoHygieneTest allows it in those documents only.
 @ZigFontMicro = 11;
