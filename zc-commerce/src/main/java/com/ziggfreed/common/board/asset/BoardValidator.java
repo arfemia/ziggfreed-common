@@ -133,10 +133,15 @@ public final class BoardValidator {
 
         int required = 0;
         Set<String> slotBands = new LinkedHashSet<>();
-        for (BoardSlotAsset slot : board.slotsOrEmpty()) {
+        BoardSlotAsset[] authoredSlots = board.slotsOrEmpty();
+        for (int slotIndex = 0; slotIndex < authoredSlots.length; slotIndex++) {
+            BoardSlotAsset slot = authoredSlots[slotIndex];
             if (slot == null) {
                 continue;
             }
+            // A slot's own accept gate reads exactly as a band's does: the shared requirement audit, at its path.
+            out.addAll(GateValidator.validate(slot.getRequires(), DOMAIN, id + ".Slots[" + slotIndex + "].Requires",
+                    NOUN, gateKinds, knownFactors, null));
             Integer authoredCount = slot.getCount();
             if (authoredCount != null && authoredCount < 1) {
                 out.add(Finding.warning(DOMAIN, "NON_POSITIVE_SLOT_COUNT",

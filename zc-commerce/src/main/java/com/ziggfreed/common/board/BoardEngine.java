@@ -253,13 +253,24 @@ public final class BoardEngine {
     // ==================== Accept ====================
 
     /**
-     * May this subject take {@code bounty} off {@code board} right now? Board access, the
-     * per-difficulty accept gate, the period lock, and whether they are already carrying it - asked
-     * in that order, without taking anything.
+     * May this subject take {@code bounty} off {@code board} right now? The slot-less form: no slot's own
+     * gate applies. A board surface calls {@link #canAccept(Subject, BoardSpec, BountyRef, PoolSlot, long)}.
      */
     @Nonnull
     public BoardCheck canAccept(@Nonnull Subject subject, @Nonnull BoardSpec board,
             @Nonnull BountyRef bounty, long nowMs) {
+        return canAccept(subject, board, bounty, null, nowMs);
+    }
+
+    /**
+     * May this subject take {@code bounty}, posted in {@code postedIn} ({@link #postedSlot}), off
+     * {@code board} right now? Board access, the per-difficulty accept gate, the posting slot's own gate,
+     * the period lock, and whether they are already carrying it - asked in that order, without taking
+     * anything.
+     */
+    @Nonnull
+    public BoardCheck canAccept(@Nonnull Subject subject, @Nonnull BoardSpec board,
+            @Nonnull BountyRef bounty, @Nullable PoolSlot postedIn, long nowMs) {
         if (!board.enabled()) {
             return BoardCheck.refused(REASON_DISABLED);
         }
@@ -275,6 +286,10 @@ public final class BoardEngine {
         if (gradeFailure != null) {
             return BoardCheck.refused(gradeFailure);
         }
+        String slotFailure = gates.firstFailure(subject, slotGateFor(board, postedIn));
+        if (slotFailure != null) {
+            return BoardCheck.refused(slotFailure);
+        }
         if (quests.isCarried(subject, bounty.bountyId())) {
             return BoardCheck.refused(REASON_ALREADY_CARRIED);
         }
@@ -284,14 +299,21 @@ public final class BoardEngine {
         return BoardCheck.OK;
     }
 
-    /**
-     * Take {@code bounty} off {@code board}, recording the BOARD as where it was taken, so the
-     * quest engine binds the hand-in to it.
-     */
+    /** Take {@code bounty} off {@code board}; the slot-less form, as {@link #canAccept(Subject, BoardSpec, BountyRef, long)}. */
     @Nonnull
     public BoardCheck accept(@Nonnull Subject subject, @Nonnull BoardSpec board,
             @Nonnull BountyRef bounty, long nowMs) {
-        BoardCheck check = canAccept(subject, board, bounty, nowMs);
+        return accept(subject, board, bounty, null, nowMs);
+    }
+
+    /**
+     * Take {@code bounty}, posted in {@code postedIn}, off {@code board}, recording the BOARD as where it
+     * was taken, so the quest engine binds the hand-in to it.
+     */
+    @Nonnull
+    public BoardCheck accept(@Nonnull Subject subject, @Nonnull BoardSpec board,
+            @Nonnull BountyRef bounty, @Nullable PoolSlot postedIn, long nowMs) {
+        BoardCheck check = canAccept(subject, board, bounty, postedIn, nowMs);
         if (!check.ok()) {
             return check;
         }
@@ -301,20 +323,29 @@ public final class BoardEngine {
         return BoardCheck.OK;
     }
 
-    /**
-     * EVERY unmet gate requirement standing between {@code subject} and taking {@code bounty} off
-     * {@code board}, as structured records: the board's own {@code Requires} first, then the
-     * per-difficulty accept gate, in the evaluator's own order. Empty when the gates pass - which
-     * says nothing about the other accept checks ({@link #canAccept} still owns the decision), so
-     * this is the DETAIL read for a locked row's panel, never a second accept authority.
-     */
+    /** Every unmet gate requirement; the slot-less form, as {@link #canAccept(Subject, BoardSpec, BountyRef, long)}. */
     @Nonnull
     public List<GateRefusal> acceptGateRefusals(@Nonnull Subject subject, @Nonnull BoardSpec board,
             @Nonnull BountyRef bounty) {
+        return acceptGateRefusals(subject, board, bounty, null);
+    }
+
+    /**
+     * EVERY unmet gate requirement standing between {@code subject} and taking {@code bounty}, posted in
+     * {@code postedIn}, off {@code board}, as structured records: the board's own {@code Requires} first,
+     * then the per-difficulty accept gate, then the posting slot's own gate, in the evaluator's own order.
+     * Empty when the gates pass - which says nothing about the other accept checks ({@link #canAccept}
+     * still owns the decision), so this is the DETAIL read for a locked row's panel, never a second accept
+     * authority.
+     */
+    @Nonnull
+    public List<GateRefusal> acceptGateRefusals(@Nonnull Subject subject, @Nonnull BoardSpec board,
+            @Nonnull BountyRef bounty, @Nullable PoolSlot postedIn) {
         List<GateRefusal> refusals =
                 new ArrayList<>(gates.allRefusals(subject, board.requires()));
         refusals.addAll(gates.allRefusals(subject,
                 acceptGateFor(board, bounty.difficultyOn(board.boardId()))));
+        refusals.addAll(gates.allRefusals(subject, slotGateFor(board, postedIn)));
         return refusals;
     }
 
@@ -335,6 +366,45 @@ public final class BoardEngine {
         for (Map.Entry<String, GateSpec> entry : gatesByGrade.entrySet()) {
             if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(difficulty.trim())) {
                 return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The gate on the slot {@code postedIn} names, or null when it has none (or no slot is named). The
+     * slot is found by INSTANCE among {@code board.slots()}: two slots alike in every field (an open Night
+     * slot and a gated one) carry different gates.
+     */
+    @Nullable
+    public GateSpec slotGateFor(@Nonnull BoardSpec board, @Nullable PoolSlot postedIn) {
+        if (postedIn == null) {
+            return null;
+        }
+        List<PoolSlot> slots = board.slots();
+        for (int index = 0; index < slots.size(); index++) {
+            if (slots.get(index) == postedIn) {
+                return board.slotRequires(index);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The slot that posted {@code bountyId} for this subject at {@code nowMs}: the base draw's slot at the
+     * contract's position in what they are shown. A reroll keeps its position, so it keeps that slot and
+     * its gate. Null when the contract is not on show for them, or the board draws without slots.
+     */
+    @Nullable
+    public PoolSlot postedSlot(@Nonnull Subject subject, @Nonnull BoardSpec board,
+            @Nonnull Collection<BountyRef> pool, @Nullable String bountyId, long nowMs) {
+        if (bountyId == null) {
+            return null;
+        }
+        List<BountyRef> shown = activeSetFor(subject, board, pool, nowMs);
+        for (int position = 0; position < shown.size(); position++) {
+            if (shown.get(position).bountyId().equalsIgnoreCase(bountyId)) {
+                return drawFor(board, pool, nowMs).slotAt(position);
             }
         }
         return null;

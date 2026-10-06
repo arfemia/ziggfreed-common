@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -12,9 +13,13 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.AssetExtraInfo;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.board.asset.BoardAsset;
+import com.ziggfreed.common.board.asset.BoardSlotAsset;
 import com.ziggfreed.common.board.asset.BountyAsset;
+import com.ziggfreed.common.commerce.fold.BoardAssetSpec;
 import com.ziggfreed.common.currency.asset.CurrencyAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.QuestTurnInSite;
@@ -196,6 +201,36 @@ class CommerceCodecTest {
             assertEquals("hard", daily.slotsOrEmpty()[1].label());
             assertEquals(1, daily.slotsOrEmpty()[1].countOrOne(), "an unauthored Count yields one");
             assertTrue(daily.slotsOrEmpty()[1].isOptional());
+        }
+
+        @Test
+        void aSlotsRequiresDecodesAndReachesTheEngineViewInSlotOrder() throws Exception {
+            BoardAsset daily = board("""
+                    { "Slots": [ { "Difficulty": "Night" },
+                                 { "Difficulty": "Night", "Optional": true,
+                                   "Requires": { "Factors": [ { "Factor": "test:favor", "Param": "Jack/Friendly", "Min": 1 } ] } },
+                                 { "Difficulty": "Skill", "Optional": true } ] }
+                    """, "daily", null, null);
+
+            assertNull(daily.slotsOrEmpty()[0].getRequires(), "unauthored asks for nothing");
+            GateSpec favor = daily.slotsOrEmpty()[1].getRequires();
+            assertNotNull(favor);
+            assertEquals("test:favor", favor.factorsOrEmpty()[0].getFactor());
+            assertEquals("Jack/Friendly", favor.factorsOrEmpty()[0].getParam());
+
+            BoardAssetSpec spec = BoardAssetSpec.of(daily);
+            assertNull(spec.slotRequires(0));
+            assertSame(favor, spec.slotRequires(1), "the gate travels at its slot's position in slots()");
+            assertNull(spec.slotRequires(2));
+            assertNull(spec.slotRequires(-1));
+            assertNull(spec.slotRequires(9));
+        }
+
+        @Test
+        void aSlotsRequiresIsDocumentedForTheEditor() {
+            Schema requires = BoardSlotAsset.CODEC.toSchema(new SchemaContext()).getProperties().get("Requires");
+            assertNotNull(requires, "the slot declares its Requires leaf");
+            assertNotNull(requires.getMarkdownDescription(), "and says what it does");
         }
 
         @Test

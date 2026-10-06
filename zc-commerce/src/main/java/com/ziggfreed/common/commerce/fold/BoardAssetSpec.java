@@ -1,6 +1,8 @@
 package com.ziggfreed.common.commerce.fold;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -9,6 +11,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.board.BoardSpec;
 import com.ziggfreed.common.board.asset.BoardAsset;
+import com.ziggfreed.common.board.asset.BoardSlotAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.rotation.PoolSlot;
 import com.ziggfreed.common.rotation.RerollSpec;
@@ -32,6 +35,7 @@ public final class BoardAssetSpec implements BoardSpec {
     private final RotationSpec rotation;
     private final SelectionSpec selection;
     private final List<PoolSlot> slots;
+    private final List<GateSpec> slotGates;
     @Nullable private final RerollSpec reroll;
 
     private BoardAssetSpec(@Nonnull BoardAsset asset) {
@@ -40,6 +44,7 @@ public final class BoardAssetSpec implements BoardSpec {
         this.rotation = CommerceFold.rotation(asset.getRotation(), id);
         this.selection = CommerceFold.selection(asset.getSelection());
         this.slots = CommerceFold.slots(asset.slotsOrEmpty());
+        this.slotGates = slotGates(asset.slotsOrEmpty());
         this.reroll = CommerceFold.reroll(asset.getReroll(), id);
     }
 
@@ -93,6 +98,12 @@ public final class BoardAssetSpec implements BoardSpec {
 
     @Override
     @Nullable
+    public GateSpec slotRequires(int slotIndex) {
+        return slotIndex >= 0 && slotIndex < slotGates.size() ? slotGates.get(slotIndex) : null;
+    }
+
+    @Override
+    @Nullable
     public GateSpec requires() {
         // The lock only: a feature that decides whether the board exists is never an accept reason.
         return asset.lockRequires();
@@ -113,5 +124,18 @@ public final class BoardAssetSpec implements BoardSpec {
     @Override
     public String toString() {
         return "BoardAssetSpec[" + boardId() + "]";
+    }
+
+    /** Each authored slot's gate, null slots skipped exactly as {@code CommerceFold.slots} skips them. */
+    @Nonnull
+    private static List<GateSpec> slotGates(@Nonnull BoardSlotAsset[] authored) {
+        List<GateSpec> out = new ArrayList<>(authored.length);
+        for (BoardSlotAsset slot : authored) {
+            if (slot != null) {
+                out.add(slot.getRequires());
+            }
+        }
+        // Not List.copyOf: an open slot's gate is null, and the list keeps it in place.
+        return Collections.unmodifiableList(out);
     }
 }
