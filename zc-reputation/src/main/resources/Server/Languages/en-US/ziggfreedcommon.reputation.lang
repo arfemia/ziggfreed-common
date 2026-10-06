@@ -55,3 +55,6 @@ detail.next = Next rank: {0} at {1, number}
 detail.reward = Next reward at {0, number}
 detail.top = You have reached the top rank.
 detail.cap = The most you can earn: {0, number}
+
+# The shared menu's tab.
+menu.tab = Reputation

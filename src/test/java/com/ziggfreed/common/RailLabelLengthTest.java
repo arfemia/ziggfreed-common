@@ -33,6 +33,7 @@ class RailLabelLengthTest {
             new Label("zc-objectives", "ziggfreedcommon.progression.lang", "book.tab.achievements"),
             new Label("zc-almanac", "ziggfreedcommon.almanac.lang", "title"),
             new Label("zc-instance", "ziggfreedcommon.leaderboard.lang", "menu.records"),
+            new Label("zc-reputation", "ziggfreedcommon.reputation.lang", "menu.tab"),
             new Label("zc-presentation", "ziggfreedcommon.ui.lang", "menu.settings"));
 
     @Test

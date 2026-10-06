@@ -33,7 +33,7 @@ public final class ReputationText {
             "page.title", "page.empty", "page.row", "page.row.next", "page.row.reward", "page.row.gear",
             "page.row.gear.loss", "page.badge",
             "detail.earned", "detail.gear", "detail.gear.loss", "detail.next", "detail.reward", "detail.top",
-            "detail.cap");
+            "detail.cap", "menu.tab");
 
     private ReputationText() {
     }

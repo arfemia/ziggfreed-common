@@ -11,13 +11,18 @@ import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.reputation.asset.ReputationOwnerLayers;
+import com.ziggfreed.common.reputation.page.ReputationDestinations;
+import com.ziggfreed.common.reputation.page.ReputationMenuTab;
+import com.ziggfreed.common.ui.menu.MenuSlot;
+import com.ziggfreed.common.ui.menu.ZigMenu;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers the reputation module at library setup, called once from the wiring root's {@code setup()}
  * (after the equip bridge is installed): the owner's switch, the three readings, the Reputation reward kind
- * and how it reads, the kill table on the shared moment stream, the effective-rank checks at login, on
- * every equip and their memory dropped at disconnect, and the once-at-boot log of broken reputation files.
+ * and how it reads, the kill table on the shared moment stream, the Reputation destination and its tab in
+ * the shared menu, the effective-rank checks at login, on every equip and their memory dropped at
+ * disconnect, and the once-at-boot log of broken reputation files.
  * The companion store is registered with the other framework stores. Registration only
  * ({@code RootRegistrationOnlyTest}).
  */
@@ -37,6 +42,7 @@ public final class ReputationBootstrap {
             SafeLog.warn("[reputation] the owner's reputation switch could not be read", t);
         }
         registerVocabulary();
+        registerMenu();
         registerRankChecks(plugin);
         registerAudit(plugin);
     }
@@ -52,6 +58,16 @@ public final class ReputationBootstrap {
                     new ReputationKillListener(service, ReputationKillListener.WORLD_THREAD));
         } catch (Throwable t) {
             SafeLog.warn("[reputation] could not declare the reputation readings, reward kind and kill table", t);
+        }
+    }
+
+    /** The Reputation destination (before any asset decodes) and its tab in the shared menu. */
+    public static void registerMenu() {
+        try {
+            ReputationDestinations.register();
+            ZigMenu.fill(MenuSlot.REPUTATION, ReputationMenuTab.entry());
+        } catch (Throwable t) {
+            SafeLog.warn("[reputation] the Reputation destination and menu tab could not be registered", t);
         }
     }
 
