@@ -44,15 +44,15 @@ import com.ziggfreed.common.ui.UiText;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.ZigSearchRow;
 
-import static com.ziggfreed.common.objectives.book.BookWidths.WIDE_TAB_OUTER_WIDTH;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CATEGORY_CARD_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CHIP_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_CRITERION_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.ACH_ROW_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.LINE_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MAX_ROWS;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MILESTONE_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.WIDE_TAB_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.BookLegacy.WIDE_TAB_OUTER_WIDTH;
+import static com.ziggfreed.common.objectives.book.BookLegacy.ACH_CATEGORY_CARD_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.BookLegacy.ACH_CHIP_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.BookLegacy.ACH_CRITERION_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.BookLegacy.ACH_ROW_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.BookLegacy.LINE_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.BookLegacy.MAX_ROWS;
+import static com.ziggfreed.common.objectives.book.BookLegacy.MILESTONE_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.BookLegacy.WIDE_TAB_TEMPLATE;
 
 /**
  * The achievements tab of the Objective Book: a two-panel browser. LEFT is the filter strip
@@ -63,7 +63,7 @@ import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.WIDE_TAB_TE
  * claim button - or, while nothing is selected, the OVERVIEW: recent unlocks, nearest to
  * complete, pinned, the category grid, and the consumer's points milestones.
  *
- * <p>Everything here paints; the verbs live on {@link ObjectiveBookPage}. Selecting a row
+ * <p>Everything here paints; the verbs live on {@link BookVerbs}. Selecting a row
  * repaints the right panel alone, scroll preserved, through the clear + re-append + bind-fresh
  * partial-update pattern.
  */
@@ -80,7 +80,7 @@ final class BookAchievementsTab {
 
     // ==================== build ====================
 
-    static void render(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    static void render(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
                        @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store,
                        @Nonnull Ref<EntityStore> ref, @Nonnull Subject subject,
                        @Nonnull AchievementEngine engine) {
@@ -122,7 +122,7 @@ final class BookAchievementsTab {
         events.addEventBinding(CustomUIEventBindingType.Activating, "#DClaimBtn",
                 page.fullState("claim"));
         ZigRichButton.text(cmd, "#DClaimBtn", page.text("book.achievements.claim_button"));
-        ObjectiveBookPage.applyGoldClaim(cmd, "#DClaimBtn");
+        BookLegacy.applyGoldClaim(cmd, "#DClaimBtn");
 
         // The detail header's pin toggle, bound the same way: once, id-less, acting on the live
         // selection. paintDetail repaints its glyph and hides it where no Pin is offered.
@@ -141,7 +141,7 @@ final class BookAchievementsTab {
         }
     }
 
-    private static void renderHeaderStats(@Nonnull ObjectiveBookPage page,
+    private static void renderHeaderStats(@Nonnull BookLegacy page,
             @Nonnull UICommandBuilder cmd, @Nonnull Subject subject,
             @Nonnull AchievementEngine engine,
             @Nonnull List<ObjectiveBookDeps.MilestoneView> milestones) {
@@ -166,7 +166,7 @@ final class BookAchievementsTab {
     }
 
     /** The third header stat: the next unclaimed milestone; hidden where no ladder exists. */
-    static void paintNextMilestoneStat(@Nonnull ObjectiveBookPage page,
+    static void paintNextMilestoneStat(@Nonnull BookLegacy page,
             @Nonnull UICommandBuilder cmd, int points,
             @Nonnull List<ObjectiveBookDeps.MilestoneView> milestones) {
         if (milestones.isEmpty()) {
@@ -190,7 +190,7 @@ final class BookAchievementsTab {
 
     // ==================== the filter strip ====================
 
-    private static void renderFilterStrip(@Nonnull ObjectiveBookPage page,
+    private static void renderFilterStrip(@Nonnull BookLegacy page,
             @Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull Subject subject, @Nonnull AchievementEngine engine) {
         Map<String, int[]> counts = categoryCounts(subject, engine);
@@ -202,15 +202,15 @@ final class BookAchievementsTab {
         }
         List<String> categories = orderedCategories(counts);
 
-        boolean allActive = ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory());
-        if (!BookWidths.categoryChipsFit(categories.size(), WIDE_TAB_OUTER_WIDTH,
+        boolean allActive = BookLegacy.FILTER_ALL.equalsIgnoreCase(page.filterCategory());
+        if (!BookLegacy.categoryChipsFit(categories.size(), WIDE_TAB_OUTER_WIDTH,
                 page.stripWidthBudget())) {
             cmd.set("#ACategoryDropdown.Visible", true);
             List<DropdownEntryInfo> entries = new ArrayList<>(categories.size() + 1);
             entries.add(SettingsUiUtil.entry(
                     UiText.flatten(page.text("book.quests.filter.all"))
                             + "  " + grandUnlocked + "/" + grandTotal,
-                    ObjectiveBookPage.FILTER_ALL));
+                    BookLegacy.FILTER_ALL));
             for (String category : categories) {
                 int[] pair = counts.getOrDefault(category, new int[]{0, 0});
                 entries.add(SettingsUiUtil.entry(
@@ -218,7 +218,7 @@ final class BookAchievementsTab {
                                 + "  " + pair[0] + "/" + pair[1], category));
             }
             SettingsUiUtil.populate(cmd, "#ACategoryDropdown", entries,
-                    allActive ? ObjectiveBookPage.FILTER_ALL : page.filterCategory());
+                    allActive ? BookLegacy.FILTER_ALL : page.filterCategory());
             events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#ACategoryDropdown",
                     page.fullState("category").append("@DropdownValue", "#ACategoryDropdown.Value"),
                     false);
@@ -228,7 +228,7 @@ final class BookAchievementsTab {
             int index = appendWideTab(page, cmd, events, 0,
                     Msg.join(page.text("book.quests.filter.all"),
                             Msg.raw("  " + grandUnlocked + "/" + grandTotal)),
-                    allActive, ObjectiveBookPage.FILTER_ALL);
+                    allActive, BookLegacy.FILTER_ALL);
             for (String category : categories) {
                 int[] pair = counts.getOrDefault(category, new int[]{0, 0});
                 index = appendWideTab(page, cmd, events, index,
@@ -257,7 +257,7 @@ final class BookAchievementsTab {
         // Search (the shared row; the full state already carries the live text under the same
         // key), sort dropdown, status chips.
         ZigSearchRow.wire(cmd, events, page.activeSearchRow(), page.searchText(),
-                ObjectiveBookPage.SEARCH_KEY, page.fullState("search"),
+                BookLegacy.SEARCH_KEY, page.fullState("search"),
                 page.fullState("clear_search"));
         // Sort is a single choice, so it rides the native dropdown and every label renders
         // whole. A dropdown entry is a String-only sink, so labels flatten here.
@@ -271,7 +271,7 @@ final class BookAchievementsTab {
         int statusIndex = 0;
         for (String status : STATUS_FILTERS) {
             boolean active = "all".equals(status)
-                    ? ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterStatus())
+                    ? BookLegacy.FILTER_ALL.equalsIgnoreCase(page.filterStatus())
                     : status.equalsIgnoreCase(page.filterStatus());
             statusIndex = appendBarChip(page, cmd, events, "#AStatusBar", statusIndex,
                     page.text(statusKey(status)), active, "status", status);
@@ -296,37 +296,37 @@ final class BookAchievementsTab {
         };
     }
 
-    private static int appendWideTab(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    private static int appendWideTab(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, int index, @Nonnull Message label, boolean active,
             @Nonnull String value) {
         cmd.append("#ACategoryTabs", WIDE_TAB_TEMPLATE);
         String sel = "#ACategoryTabs[" + index + "]";
         ZigRichButton.text(cmd, sel + " #CatBtn", label);
-        ObjectiveBookPage.styleChipActive(cmd, sel + " #CatBtn", active);
+        BookLegacy.styleChipActive(cmd, sel + " #CatBtn", active);
         events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #CatBtn",
                 page.fullState("category").append("Id", value), false);
         return index + 1;
     }
 
-    private static int appendSubChip(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    private static int appendSubChip(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, int index, @Nonnull Message label, boolean active,
             @Nonnull String value) {
-        cmd.append("#ASubcategoryTabs", ObjectiveBookPage.CAT_TAB_TEMPLATE);
+        cmd.append("#ASubcategoryTabs", BookLegacy.CAT_TAB_TEMPLATE);
         String sel = "#ASubcategoryTabs[" + index + "]";
         ZigRichButton.text(cmd, sel + " #CatBtn", label);
-        ObjectiveBookPage.styleChipActive(cmd, sel + " #CatBtn", active);
+        BookLegacy.styleChipActive(cmd, sel + " #CatBtn", active);
         events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #CatBtn",
                 page.fullState("subfilter").append("Id", value), false);
         return index + 1;
     }
 
-    private static int appendBarChip(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    private static int appendBarChip(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull String container, int index,
             @Nonnull Message label, boolean active, @Nonnull String action, @Nonnull String value) {
-        cmd.append(container, ObjectiveBookPage.CAT_TAB_TEMPLATE);
+        cmd.append(container, BookLegacy.CAT_TAB_TEMPLATE);
         String sel = container + "[" + index + "]";
         ZigRichButton.text(cmd, sel + " #CatBtn", label);
-        ObjectiveBookPage.styleChipActive(cmd, sel + " #CatBtn", active);
+        BookLegacy.styleChipActive(cmd, sel + " #CatBtn", active);
         events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #CatBtn",
                 page.fullState(action).append("Id", value), false);
         return index + 1;
@@ -409,7 +409,7 @@ final class BookAchievementsTab {
      * climbed, then sorted per the picked mode with pinned rows first.
      */
     @Nonnull
-    private static List<Achievement> filteredAchievements(@Nonnull ObjectiveBookPage page,
+    private static List<Achievement> filteredAchievements(@Nonnull BookLegacy page,
             @Nonnull Subject subject, @Nonnull AchievementEngine engine, boolean feats) {
         List<Achievement> result = new ArrayList<>();
         String needle = page.searchText().toLowerCase(Locale.ROOT).trim();
@@ -421,7 +421,7 @@ final class BookAchievementsTab {
                     unlocked, () -> engine.isVisible(subject, achievement)) != wanted) {
                 continue;
             }
-            if (!ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory())
+            if (!BookLegacy.FILTER_ALL.equalsIgnoreCase(page.filterCategory())
                     && !page.filterCategory().equalsIgnoreCase(bucketOf(achievement))) {
                 continue;
             }
@@ -522,7 +522,7 @@ final class BookAchievementsTab {
     }
 
     @Nonnull
-    private static List<Achievement> unlockedFeats(@Nonnull ObjectiveBookPage page,
+    private static List<Achievement> unlockedFeats(@Nonnull BookLegacy page,
             @Nonnull Subject subject, @Nonnull AchievementEngine engine) {
         List<Achievement> result = new ArrayList<>();
         for (Achievement achievement : engine.achievements()) {
@@ -531,7 +531,7 @@ final class BookAchievementsTab {
                     unlocked, () -> false) != AchievementShelves.Shelf.FEATS) {
                 continue;
             }
-            if (!ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory())
+            if (!BookLegacy.FILTER_ALL.equalsIgnoreCase(page.filterCategory())
                     && !page.filterCategory().equalsIgnoreCase(bucketOf(achievement))) {
                 continue;
             }
@@ -581,7 +581,7 @@ final class BookAchievementsTab {
      * {@code showDate} swaps the status column for the unlock date (the overview's recent block
      * reads better dated).
      */
-    private static void paintListRow(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    private static void paintListRow(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull String sel, @Nonnull Achievement achievement,
             @Nonnull Subject subject, @Nonnull AchievementEngine engine, boolean allowPin,
             boolean showDate) {
@@ -608,7 +608,7 @@ final class BookAchievementsTab {
                 engine.pinnable(subject, achievement.id()))) {
             cmd.set(sel + " #PinBtn.Visible", false);
         } else {
-            ObjectiveBookPage.paintPinIcon(cmd, sel + " #PinBtn", pinned);
+            BookLegacy.paintPinIcon(cmd, sel + " #PinBtn", pinned);
             cmd.set(sel + " #PinBtn.TooltipText", page.text("book.tooltip.pin"));
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #PinBtn",
                     page.fullState("togglepin").append("Id", achievement.id())
@@ -635,7 +635,7 @@ final class BookAchievementsTab {
         if (unlocked && status != AchievementStatus.CLAIMED && !achievement.claimRewards().isEmpty()) {
             cmd.set(sel + " #ClaimRow.Visible", true);
             ZigRichButton.text(cmd, sel + " #ClaimBtn", page.text("book.achievements.claim_button"));
-            ObjectiveBookPage.applyGoldClaim(cmd, sel + " #ClaimBtn");
+            BookLegacy.applyGoldClaim(cmd, sel + " #ClaimBtn");
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #ClaimBtn",
                     page.fullState("select").append("Id", achievement.id()).append("Selector", sel),
                     false);
@@ -644,7 +644,7 @@ final class BookAchievementsTab {
 
     /** The selected row's tint swap, shared by the build pass and the partial selection swap. */
     static void tintRowSelected(@Nonnull UICommandBuilder cmd, @Nonnull String sel, boolean selected) {
-        String tint = selected ? ObjectiveBookPage.ROW_SELECTED_TINT : ObjectiveBookPage.ROW_TINT;
+        String tint = selected ? BookLegacy.ROW_SELECTED_TINT : BookLegacy.ROW_TINT;
         cmd.set(sel + ".Background", tint);
         cmd.set(sel + " #Open.Style.Default.Background", tint);
     }
@@ -656,7 +656,7 @@ final class BookAchievementsTab {
      * appended hosts, hide every optional header, re-append, and bind the fresh chips in the
      * partial update's own event builder.
      */
-    static void repaintDetailPartial(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    static void repaintDetailPartial(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, @Nonnull Subject subject,
             @Nonnull AchievementEngine engine, @Nonnull Achievement achievement) {
@@ -677,7 +677,7 @@ final class BookAchievementsTab {
         paintDetail(page, cmd, events, subject, engine, achievement);
     }
 
-    private static void paintDetail(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    private static void paintDetail(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull Subject subject,
             @Nonnull AchievementEngine engine, @Nonnull Achievement achievement) {
         AchievementStatus status = engine.status(subject, achievement.id());
@@ -700,7 +700,7 @@ final class BookAchievementsTab {
                 engine.pinnable(subject, achievement.id()));
         cmd.set("#DPinBtn.Visible", offersPin);
         if (offersPin) {
-            ObjectiveBookPage.paintPinIcon(cmd, "#DPinBtn", pinned);
+            BookLegacy.paintPinIcon(cmd, "#DPinBtn", pinned);
             cmd.set("#DPinBtn.TooltipText", page.text("book.tooltip.pin"));
         }
 
@@ -759,7 +759,7 @@ final class BookAchievementsTab {
         paintRewards(page, cmd, subject, engine, achievement, unlocked, claimed);
     }
 
-    private static void paintCriteria(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    private static void paintCriteria(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull Subject subject, @Nonnull AchievementEngine engine,
             @Nonnull Achievement achievement, boolean unlocked) {
         if (achievement.criteria().size() <= 1 || achievement.isMeta()) {
@@ -792,7 +792,7 @@ final class BookAchievementsTab {
      * capstones this one feeds, and the whole ladder it is a rung of (each rung marked earned /
      * here / ahead, the current rung highlighted).
      */
-    private static void paintRelatives(@Nonnull ObjectiveBookPage page,
+    private static void paintRelatives(@Nonnull BookLegacy page,
             @Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull Subject subject,
             @Nonnull AchievementEngine engine, @Nonnull Achievement achievement) {
         // The capstone's required list.
@@ -878,7 +878,7 @@ final class BookAchievementsTab {
         }
     }
 
-    private static void appendChip(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    private static void appendChip(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull String container, int index,
             @Nonnull Message label, @Nullable String color, @Nonnull String targetId) {
         cmd.append(container, ACH_CHIP_TEMPLATE);
@@ -891,7 +891,7 @@ final class BookAchievementsTab {
                 page.fullState("select").append("Id", targetId), false);
     }
 
-    private static void paintRewards(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    private static void paintRewards(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull Subject subject, @Nonnull AchievementEngine engine,
             @Nonnull Achievement achievement, boolean unlocked, boolean claimed) {
         List<RewardChip> autoChips =
@@ -960,7 +960,7 @@ final class BookAchievementsTab {
 
     // ==================== the overview (nothing selected) ====================
 
-    private static void paintOverview(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    private static void paintOverview(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, @Nonnull Subject subject,
             @Nonnull AchievementEngine engine,
@@ -1070,7 +1070,7 @@ final class BookAchievementsTab {
     }
 
     /** The points-milestone block; hidden whole where the consumer ships no ladder. */
-    private static void paintMilestones(@Nonnull ObjectiveBookPage page,
+    private static void paintMilestones(@Nonnull BookLegacy page,
             @Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull Subject subject,
             @Nonnull AchievementEngine engine,
             @Nonnull List<ObjectiveBookDeps.MilestoneView> milestones) {
@@ -1118,7 +1118,7 @@ final class BookAchievementsTab {
                 cmd.set(sel + " #ClaimRow.Visible", true);
                 ZigRichButton.text(cmd, sel + " #MilestoneClaimBtn",
                         page.text("book.achievements.milestone_claim"));
-                ObjectiveBookPage.applyGoldClaim(cmd, sel + " #MilestoneClaimBtn");
+                BookLegacy.applyGoldClaim(cmd, sel + " #MilestoneClaimBtn");
                 events.addEventBinding(CustomUIEventBindingType.Activating,
                         sel + " #MilestoneClaimBtn",
                         page.fullState("claim_milestone")
@@ -1132,7 +1132,7 @@ final class BookAchievementsTab {
      * clear the card host, re-append, bind the fresh claim buttons in the partial update's own
      * event builder.
      */
-    static void repaintMilestonesPartial(@Nonnull ObjectiveBookPage page,
+    static void repaintMilestonesPartial(@Nonnull BookLegacy page,
             @Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull Subject subject, @Nonnull AchievementEngine engine) {
@@ -1157,7 +1157,7 @@ final class BookAchievementsTab {
 
     /** The worth column: the FEAT tag for a feat, "{points} pts" for everything else. */
     @Nonnull
-    private static Message pointsTag(@Nonnull ObjectiveBookPage page,
+    private static Message pointsTag(@Nonnull BookLegacy page,
             @Nonnull Achievement achievement) {
         return achievement.featOfStrength()
                 ? page.text("book.achievements.feat_tag")
@@ -1183,7 +1183,7 @@ final class BookAchievementsTab {
     }
 
     @Nonnull
-    private static Message categoryDisplayName(@Nonnull ObjectiveBookPage page,
+    private static Message categoryDisplayName(@Nonnull BookLegacy page,
             @Nonnull String bucket) {
         if (bucket.isEmpty()) {
             return page.text("book.achievements.category.uncategorised");
@@ -1208,7 +1208,7 @@ final class BookAchievementsTab {
 
     /** The unlock stamp as an ISO date, or the localized unknown mark for a legacy unlock. */
     @Nonnull
-    private static Message unlockDateMsg(@Nonnull ObjectiveBookPage page, long epochMillis) {
+    private static Message unlockDateMsg(@Nonnull BookLegacy page, long epochMillis) {
         if (epochMillis <= 0) {
             return page.text("book.achievements.unlock_date_unknown");
         }
@@ -1221,7 +1221,7 @@ final class BookAchievementsTab {
     private record Aggregate(double fraction, long current, long required, boolean criteriaStyle) {
 
         @Nonnull
-        Message text(@Nonnull ObjectiveBookPage page, boolean unlocked) {
+        Message text(@Nonnull BookLegacy page, boolean unlocked) {
             long shownCurrent = unlocked ? required : current;
             if (criteriaStyle) {
                 return Msg.join(Msg.raw(shownCurrent + "/" + required + " "),

@@ -96,6 +96,8 @@ import com.ziggfreed.common.progress.asset.ObjectiveKindConfig;
 import com.ziggfreed.common.progress.asset.ObjectiveKindFold;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.quest.asset.QuestAssetStore;
+import com.ziggfreed.common.quest.asset.QuestCategoryAsset;
+import com.ziggfreed.common.quest.asset.QuestCategoryConfig;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.recipe.RecipeIndex;
 import com.ziggfreed.common.reputation.asset.ReputationAsset;
@@ -576,6 +578,17 @@ public final class FrameworkAssetRegistrar {
                         AchievementCategoryConfig.getInstance().mergePackLayer(
                                 AssetMergeAdapter.layer(ev.getAssetMap())));
 
+        // --- Quest categories (Pattern A) - the same presentation for a quest's Listing.Category:
+        //     where the category sorts, what illustrates it, what it is called and its accent. Every
+        //     leaf is nullable, and a category no file describes still lists. ---
+        AssetStoreRegistrar.registerStore(QuestCategoryAsset.class,
+                new DefaultAssetMap<String, QuestCategoryAsset>(), QuestCategoryAsset.TYPE_ROOT,
+                QuestCategoryAsset::getId, QuestCategoryAsset.CODEC, null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, QuestCategoryAsset.class,
+                (LoadedAssetsEvent<String, QuestCategoryAsset, DefaultAssetMap<String, QuestCategoryAsset>> ev) ->
+                        QuestCategoryConfig.getInstance().mergePackLayer(
+                                AssetMergeAdapter.layer(ev.getAssetMap())));
+
         // --- Achievement milestones (Pattern A) - the points ladder: a reward for reaching a
         //     running TOTAL rather than for any one achievement. The Threshold inside a file is its
         //     identity, so two files naming one number are one rung whatever they are called. The
@@ -819,7 +832,8 @@ public final class FrameworkAssetRegistrar {
                             + "StatDisplays, RewardKinds, BandedEffects, PrefabPlacements, Leaderboard, "
                             + "Arenas, Party, NpcPlacements, NpcIdentities, Factors, FeedbackMoments, HudRows, HudSpots, HudPanels, HudCards, "
                             + "PlayerSettings (owner file mods/ziggfreedcommon/player-settings.json), "
-                            + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, Achievements, AchievementCategories, "
+                            + "Quests (owner folder mods/ziggfreedcommon/quests/), QuestGenerators, QuestCategories, "
+                            + "Achievements, AchievementCategories, "
                             + "AchievementMilestones, Almanac (owner file mods/ziggfreedcommon/almanac.json), "
                             + "Currencies, Shops, ShopPools, ShopEntries, "
                             + "ShopEntryGenerators, Boards, Bounties, Encounters, EncounterParticipation, "

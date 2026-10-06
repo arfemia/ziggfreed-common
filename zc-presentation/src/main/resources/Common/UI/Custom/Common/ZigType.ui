@@ -25,11 +25,13 @@
 @ZigFontSubtitle = 18;
 // A page title.
 @ZigFontTitle = 20;
-// A big number or a hero title.
+// A big number.
 @ZigFontDisplay = 22;
 @ZigFontDisplayLarge = 24;
+// A hero title over full-width art (the Almanac's season name), the largest step.
+@ZigFontHero = 28;
 
 // The ONE exception under the floor: a label inside a
-// HUD box too small for 13 (a HUD bar's end words, an ability cooldown's key, the mob inspector's HP text, a skill
-// card's percent). The family's RepoHygieneTest allows it in those documents only.
+// HUD box too small for 13 (a HUD bar's end words, an ability cooldown's key, the mob inspector's HP text).
+// The family's RepoHygieneTest allows it in those documents only.
 @ZigFontMicro = 11;

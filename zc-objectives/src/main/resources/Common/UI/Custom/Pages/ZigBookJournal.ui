@@ -1,0 +1,13 @@
+$ZW = "../Common/ZigKit.ui";
+
+// The Objective Book's Quests tab (com.ziggfreed.common.objectives.book.quest.QuestJournalTab), appended into
+// the shell's #TabBody: 1266 wide, 896 high (book/LedgerLayout). It holds one empty state.
+
+Group #Journal {
+  Anchor: (Height: 896);
+  LayoutMode: Top;
+
+  $ZW.@ZigEmptyState #JournalEmpty {
+    FlexWeight: 1;
+  }
+}

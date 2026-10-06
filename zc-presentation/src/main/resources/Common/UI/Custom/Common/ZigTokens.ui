@@ -1,0 +1,76 @@
+// ── ziggfreed-common's UI tokens: every colour and named size the kit draws with ──
+// Imported per document as:  $ZK = "../Common/ZigTokens.ui";  (from Pages/; "ZigTokens.ui" from Common/) and
+// used as  TextColor: $ZK.@ZigInkBody  or  Anchor: (Height: $ZK.@ZigRowHeight);  a named value reads across
+// documents the way vanilla reads $C.@ColorDefaultLabel and $C.@SmallButtonHeight.
+//
+// No other kit document spells a colour: a colour changes here, once, for every row, tile, pill and page built on
+// the kit. com.ziggfreed.common.ui.kit.ZigTokens holds the same names and values for the few colours Java pushes
+// (a tone's fill on an accent bar, a dot's tint), and the kit's document tests hold the two together; its contrast
+// test measures every ink and tone here against the row surface laid over the frame body.
+//
+// This document imports nothing: it is where every value starts.
+
+// Inks: text colours, brightest first. Faint is the darkest player text allowed.
+@ZigInkBright = #ffffff;
+@ZigInkStrong = #d6e4ee;
+@ZigInkBody = #b6c9de;
+@ZigInkMuted = #96a9be;
+@ZigInkFaint = #7f93a6;
+@ZigInkSection = #8fb4dc;
+@ZigInkHeading = #9aacbc;
+
+// Surfaces: vanilla's pane, its list row in three states and its selected row, the scrim under a pill, the rule.
+@ZigSurfacePane = #000000(0.15);
+@ZigSurfaceRow = #101925(0.55);
+@ZigSurfaceRowHover = #132033(0.8);
+@ZigSurfaceRowPressed = #182a40(0.9);
+@ZigSurfaceRowSelected = #4274a5;
+@ZigSurfaceScrim = #0a1119(0.8);
+@ZigDivider = #2b3542;
+// Gold: points and Collect only.
+@ZigAccent = #e8a93b;
+
+// Tones: a meaning's fill (an accent bar, a dot, a pill) and its text (a state word). Tones are semantic, so a
+// theme never changes them: done reads green in every theme.
+@ZigToneActiveFill = #4274a5;
+@ZigToneActiveText = #7a9cc6;
+@ZigToneCollectFill = #e8a93b;
+@ZigToneCollectText = #e8a93b;
+@ZigToneDoneFill = #4f9e63;
+@ZigToneDoneText = #7fc893;
+@ZigToneLiveFill = #4f9e63;
+@ZigToneLiveText = #7fc893;
+@ZigToneAvailableFill = #c08a3a;
+@ZigToneAvailableText = #d9a75e;
+@ZigToneWaitingFill = #7a64a0;
+@ZigToneWaitingText = #b3a0d1;
+@ZigToneBlockedFill = #5c6e80;
+@ZigToneBlockedText = #96a9be;
+@ZigToneDangerFill = #b04a4a;
+@ZigToneDangerText = #e08080;
+
+// Spacing: gaps, paddings and margins.
+@ZigSpace1 = 4;
+@ZigSpace2 = 8;
+@ZigSpace3 = 12;
+@ZigSpace4 = 16;
+@ZigSpace5 = 24;
+@ZigSpace6 = 32;
+
+// Heights.
+@ZigRowHeight = 56;
+@ZigCompactRowHeight = 44;
+@ZigSectionHeadHeight = 32;
+@ZigLineHeight = 32;
+@ZigControlHeight = 32;
+@ZigActionHeight = 40;
+@ZigHeaderHeight = 60;
+@ZigPillHeight = 24;
+
+// Picture rungs. 64 is an item icon's own size, so no picture draws one larger.
+@ZigPicInline = 20;
+@ZigPicLine = 28;
+@ZigPicRow = 32;
+@ZigPicTile = 40;
+@ZigPicHeader = 48;
+@ZigPicLarge = 64;

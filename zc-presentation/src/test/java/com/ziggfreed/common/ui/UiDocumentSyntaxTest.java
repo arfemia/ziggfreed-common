@@ -24,7 +24,9 @@ import com.ziggfreed.common.ui.hud.panel.LedgerPanelHud;
 import com.ziggfreed.common.ui.hud.panel.WorldPanelHud;
 
 /**
- * Holds every shipped {@code .ui} document to what the client's parser will actually accept.
+ * Holds every shipped {@code .ui} document to what the client's parser will actually accept: every zc module's,
+ * not only this module's, since the modules merge into one jar and their documents into one Custom UI tree (a page
+ * in zc-objectives imports this module's {@code Common/ZigType.ui} and kit documents by path).
  *
  * <p><b>Why this exists.</b> A {@code .ui} is not compiled and the SERVER never reads one: Custom UI
  * documents are parsed by the client, so a headless boot check loads, validates and runs a whole
@@ -108,26 +110,27 @@ class UiDocumentSyntaxTest {
 
     @Test
     void everyCrossDocumentReferenceResolves() throws IOException {
-        Path root = customRoot();
         List<String> bad = new ArrayList<>();
         for (Path doc : documents()) {
+            Path root = rootOf(doc);
             String text = stripComments(Files.readString(doc, StandardCharsets.UTF_8));
             Map<String, Path> imports = new HashMap<>();
             Matcher imported = IMPORT.matcher(text);
             while (imported.find()) {
-                imports.put(imported.group(1), doc.getParent().resolve(imported.group(2)).normalize());
+                // An import is relative to its document; every module's documents merge into one Custom UI tree.
+                imports.put(imported.group(1), root.relativize(doc.getParent().resolve(imported.group(2)).normalize()));
             }
             Matcher ref = REFERENCE.matcher(text);
             while (ref.find()) {
                 Path target = imports.get(ref.group(1));
-                String where = root.relativize(doc) + " $" + ref.group(1) + ".@" + ref.group(2);
+                String where = moduleOf(root) + ": " + root.relativize(doc) + " $" + ref.group(1) + ".@" + ref.group(2);
+                Path shipped = target == null ? null : shipped(target);
                 if (target == null) {
                     bad.add(where + ": no $" + ref.group(1) + " import");
-                } else if (!Files.isRegularFile(target) && !target.equals(root.resolve(VANILLA_COMMON))) {
-                    bad.add(where + ": imports " + root.relativize(target) + ", which neither this module nor the "
-                            + "game ships");
-                } else if (Files.isRegularFile(target) && !defines(target, ref.group(2))) {
-                    bad.add(where + ": " + root.relativize(target) + " defines no @" + ref.group(2));
+                } else if (shipped == null && !target.equals(Paths.get(VANILLA_COMMON))) {
+                    bad.add(where + ": imports " + target + ", which neither a zc module nor the game ships");
+                } else if (shipped != null && !defines(shipped, ref.group(2))) {
+                    bad.add(where + ": " + target + " defines no @" + ref.group(2));
                 }
             }
         }
@@ -195,7 +198,7 @@ class UiDocumentSyntaxTest {
                 .matcher(stripComments(Files.readString(doc, StandardCharsets.UTF_8))).find();
     }
 
-    /** This module's {@code Common/UI/Custom} directory, the root every document path is relative to. */
+    /** This module's {@code Common/UI/Custom} directory. */
     private static Path customRoot() {
         Path root = Paths.get("src/main/resources/Common/UI/Custom");
         if (!Files.isDirectory(root)) {
@@ -206,14 +209,63 @@ class UiDocumentSyntaxTest {
         return root.toAbsolutePath().normalize();
     }
 
-    /** Every {@code .ui} this module ships. */
-    private static List<Path> documents() throws IOException {
-        Path root = customRoot();
-        try (Stream<Path> walk = Files.walk(root)) {
-            List<Path> docs = walk.filter(p -> p.toString().endsWith(".ui")).sorted().toList();
-            assertTrue(!docs.isEmpty(), "no .ui documents found under " + root.toAbsolutePath());
-            return docs;
+    /**
+     * Every zc module's {@code Common/UI/Custom} directory: the modules merge into one jar, so their documents share
+     * one tree on the client, and a page in zc-objectives imports {@code Common/ZigType.ui} from this module.
+     */
+    private static List<Path> customRoots() throws IOException {
+        // Custom <- UI <- Common <- resources <- main <- src <- the module <- the repository
+        Path repository = customRoot().getParent().getParent().getParent().getParent().getParent().getParent()
+                .getParent();
+        try (Stream<Path> modules = Files.list(repository)) {
+            List<Path> roots = modules.filter(m -> m.getFileName().toString().startsWith("zc-"))
+                    .map(m -> m.resolve("src/main/resources/Common/UI/Custom")).filter(Files::isDirectory).sorted()
+                    .toList();
+            assertTrue(roots.contains(customRoot()), "this module is one of the roots read: " + roots);
+            return roots;
         }
+    }
+
+    /** The {@code Common/UI/Custom} directory a document ships under. */
+    private static Path rootOf(Path doc) throws IOException {
+        for (Path root : customRoots()) {
+            if (doc.startsWith(root)) {
+                return root;
+            }
+        }
+        throw new AssertionError(doc + " is under no module's Custom UI directory");
+    }
+
+    /** The module a {@code Common/UI/Custom} directory belongs to, for a failure message. */
+    private static String moduleOf(Path root) {
+        // Custom <- UI <- Common <- resources <- main <- src <- the module
+        return root.getParent().getParent().getParent().getParent().getParent().getParent().getFileName().toString();
+    }
+
+    /** The shipped file at a path under {@code Common/UI/Custom}, in whichever zc module ships it; null when none. */
+    private static Path shipped(Path underCustom) throws IOException {
+        for (Path root : customRoots()) {
+            Path file = root.resolve(underCustom);
+            if (Files.isRegularFile(file)) {
+                return file;
+            }
+        }
+        return null;
+    }
+
+    /** Every {@code .ui} every zc module ships. */
+    private static List<Path> documents() throws IOException {
+        List<Path> docs = new ArrayList<>();
+        for (Path root : customRoots()) {
+            try (Stream<Path> walk = Files.walk(root)) {
+                walk.filter(p -> p.toString().endsWith(".ui")).sorted().forEach(docs::add);
+            }
+        }
+        assertTrue(docs.stream().anyMatch(d -> d.startsWith(customRoot())), "no .ui documents found under "
+                + customRoot());
+        assertTrue(docs.stream().anyMatch(d -> !d.startsWith(customRoot())),
+                "the other zc modules' documents are read too (zc-objectives ships pages)");
+        return docs;
     }
 
     /** A line with its {@code //} comment removed; a comment may say anything. */

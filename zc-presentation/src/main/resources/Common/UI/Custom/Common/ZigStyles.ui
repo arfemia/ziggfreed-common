@@ -1,0 +1,129 @@
+$C = "../Common.ui";
+$ZT = "ZigType.ui";
+$ZK = "ZigTokens.ui";
+$ZX = "ZigText.ui";
+
+// ── ziggfreed-common's default theme: the named looks Java swaps on a kit element ──
+// A row, a segment, a tile, an action button and a state word change look by REFERENCE to a style named here,
+// the way vanilla's own list pages swap a row to its selected style:
+//   cmd.set(sel + ".Style", Value.ref("Common/ZigStyles.ui", "ZigRowSelectedStyle"))
+// com.ziggfreed.common.ui.kit.ZigStyles names each style Java may ask for, and the kit's document tests hold every
+// one of those names to every theme document. A theme is another document with these same names, chosen per
+// viewer; a template reads its resting look from this one.
+//
+// Structure is themed (rows, segments, tiles, buttons); tones are not: a state word's colour is its tone's text
+// token in every theme. Every button style carries Sounds, or the button clicks silently. Every colour is a token
+// of Common/ZigTokens.ui and every size a step of Common/ZigType.ui.
+
+// ── Rows: vanilla's list row in its three states, and its steel-blue selected row ──
+@ZigRowStyle = ButtonStyle(
+  Default: (Background: (Color: $ZK.@ZigSurfaceRow)),
+  Hovered: (Background: (Color: $ZK.@ZigSurfaceRowHover)),
+  Pressed: (Background: (Color: $ZK.@ZigSurfaceRowPressed)),
+  Sounds: $C.@ButtonSounds
+);
+
+@ZigRowSelectedStyle = ButtonStyle(
+  Default: (Background: (Color: $ZK.@ZigSurfaceRowSelected)),
+  Hovered: (Background: (Color: $ZK.@ZigSurfaceRowSelected)),
+  Pressed: (Background: (Color: $ZK.@ZigSurfaceRowSelected)),
+  Sounds: $C.@ButtonSounds
+);
+
+// The words on a selected row turn white: the muted and tone inks do not read on the steel blue.
+@ZigRowTitleOnSelectedStyle = LabelStyle(...$ZX.@ZigRowTitleStyle, TextColor: $ZK.@ZigInkBright);
+@ZigRowMetaOnSelectedStyle = LabelStyle(...$ZX.@ZigCaptionStyle, TextColor: $ZK.@ZigInkBright, Wrap: true, WrapMaxLines: 1);
+@ZigRowValueOnSelectedStyle = LabelStyle(...$ZX.@ZigCountStyle, TextColor: $ZK.@ZigInkBright);
+
+// A list section's head: the faint pane at rest, the row's hover under the cursor.
+@ZigSectionHeadStyle = ButtonStyle(
+  Default: (Background: (Color: $ZK.@ZigSurfacePane)),
+  Hovered: (Background: (Color: $ZK.@ZigSurfaceRowHover)),
+  Pressed: (Background: (Color: $ZK.@ZigSurfaceRowPressed)),
+  Sounds: $C.@ButtonSounds
+);
+
+// ── Segments: vanilla's tertiary button, and its gold-framed active patch for the chosen one ──
+@ZigSegmentStyle = ButtonStyle(
+  Default: (Background: $C.@TertiaryDefaultButtonBackground),
+  Hovered: (Background: $C.@TertiaryHoveredButtonBackground),
+  Pressed: (Background: $C.@TertiaryPressedButtonBackground),
+  Disabled: (Background: $C.@TertiaryDisabledButtonBackground),
+  Sounds: $C.@ButtonSounds
+);
+
+@ZigSegmentOnStyle = ButtonStyle(
+  Default: (Background: $C.@TertiaryActiveButtonBackground),
+  Hovered: (Background: $C.@TertiaryActiveButtonBackground),
+  Pressed: (Background: $C.@TertiaryPressedButtonBackground),
+  Disabled: (Background: $C.@TertiaryDisabledButtonBackground),
+  Sounds: $C.@ButtonSounds
+);
+
+// ── Tiles: vanilla's Memories tiles (Border 8), lighter under the cursor ──
+@ZigTileStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileHovered.png", Border: 8)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileHovered.png", Border: 8)),
+  Sounds: $C.@ButtonSounds
+);
+
+@ZigTileCompleteStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileComplete.png", Border: 8)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileHovered.png", Border: 8)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Pages/Memories/Tiles/TileHovered.png", Border: 8)),
+  Sounds: $C.@ButtonSounds
+);
+
+// ── Action buttons (a Button holding Label #Label): each greys out when Java disables it ──
+// Primary: vanilla's square primary patch.
+@ZigButtonPrimaryStyle = ButtonStyle(
+  Default: (Background: $C.@DefaultSquareButtonDefaultBackground),
+  Hovered: (Background: $C.@DefaultSquareButtonHoveredBackground),
+  Pressed: (Background: $C.@DefaultSquareButtonPressedBackground),
+  Disabled: (Background: $C.@DefaultSquareButtonDisabledBackground),
+  Sounds: $C.@ButtonSounds
+);
+
+// Secondary: vanilla's secondary patch.
+@ZigButtonSecondaryStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: $C.@ButtonBorder)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: $C.@ButtonBorder)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: $C.@ButtonBorder)),
+  Disabled: (Background: PatchStyle(TexturePath: "../Common/Buttons/Disabled.png", Border: $C.@ButtonBorder)),
+  Sounds: $C.@ButtonSounds
+);
+
+// Collect: the secondary patch tinted gold (a tint multiplies, so the label stays light).
+@ZigButtonCollectStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary.png", Border: $C.@ButtonBorder, Color: $ZK.@ZigAccent)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Hovered.png", Border: $C.@ButtonBorder, Color: $ZK.@ZigAccent)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Secondary_Pressed.png", Border: $C.@ButtonBorder, Color: $ZK.@ZigAccent)),
+  Disabled: (Background: PatchStyle(TexturePath: "../Common/Buttons/Disabled.png", Border: $C.@ButtonBorder)),
+  Sounds: $C.@ButtonSounds
+);
+
+// Danger (Abandon): vanilla's destructive patch and its destructive sound.
+@ZigButtonDangerStyle = ButtonStyle(
+  Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Destructive.png", Border: $C.@ButtonBorder)),
+  Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Destructive_Hovered.png", Border: $C.@ButtonBorder)),
+  Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Destructive_Pressed.png", Border: $C.@ButtonBorder)),
+  Disabled: (Background: PatchStyle(TexturePath: "../Common/Buttons/Disabled.png", Border: $C.@ButtonBorder)),
+  Sounds: $C.@ButtonDestructiveSounds
+);
+
+// ── State words: a row's or a pill's state, 13, bold, uppercase, one line, in its tone's text colour ──
+@ZigStateStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkBody, RenderBold: true, RenderUppercase: true, HorizontalAlignment: End, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+@ZigStateActiveStyle = LabelStyle(...@ZigStateStyle, TextColor: $ZK.@ZigToneActiveText);
+@ZigStateCollectStyle = LabelStyle(...@ZigStateStyle, TextColor: $ZK.@ZigToneCollectText);
+@ZigStateDoneStyle = LabelStyle(...@ZigStateStyle, TextColor: $ZK.@ZigToneDoneText);
+@ZigStateLiveStyle = LabelStyle(...@ZigStateStyle, TextColor: $ZK.@ZigToneLiveText);
+@ZigStateAvailableStyle = LabelStyle(...@ZigStateStyle, TextColor: $ZK.@ZigToneAvailableText);
+@ZigStateWaitingStyle = LabelStyle(...@ZigStateStyle, TextColor: $ZK.@ZigToneWaitingText);
+@ZigStateBlockedStyle = LabelStyle(...@ZigStateStyle, TextColor: $ZK.@ZigToneBlockedText);
+@ZigStateDangerStyle = LabelStyle(...@ZigStateStyle, TextColor: $ZK.@ZigToneDangerText);
+// A state word on the selected row.
+@ZigStateOnSelectedStyle = LabelStyle(...@ZigStateStyle, TextColor: $ZK.@ZigInkBright);
+
+// ── Figures: points read gold ──
+@ZigFigureAccentStyle = LabelStyle(...$ZX.@ZigFigureStyle, TextColor: $ZK.@ZigAccent);

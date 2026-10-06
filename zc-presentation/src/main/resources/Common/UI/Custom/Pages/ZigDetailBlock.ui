@@ -1,0 +1,23 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One block of a kit reading page (Objectives, Rewards, Criteria, a contributed block), appended by
+// com.ziggfreed.common.ui.kit.DetailPainter into the page's #DBlocks and addressed by index as "#DBlocks[i] #Block":
+// a section header (#Head, with its #HeadLabel and #Meta) over #Lines, where the block's Pages/ZigDetailLine.ui lines
+// append. A new kind of block is data a page hands the painter, never a new document.
+
+Group #ZigDetailBlock {
+  LayoutMode: Top;
+  Anchor: (Bottom: $ZK.@ZigSpace4);
+
+  Group #Block {
+    LayoutMode: Top;
+
+    $ZW.@ZigSectionHeader #Head {}
+
+    Group #Lines {
+      LayoutMode: Top;
+      Anchor: (Top: $ZK.@ZigSpace1);
+    }
+  }
+}

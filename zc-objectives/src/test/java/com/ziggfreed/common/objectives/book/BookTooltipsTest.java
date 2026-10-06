@@ -30,10 +30,11 @@ class BookTooltipsTest {
     private record Glyph(String document, String button, String painter) {
     }
 
+    // The detail column's #DPinBtn left ZigObjectiveBookPage.ui with the shell (W1-58, RD-SH): the page's pin
+    // is the kit's labelled toggle, whose tooltip the Achievements tab's own test holds once it lands.
     private static final List<Glyph> GLYPHS = List.of(
             new Glyph("ZigQuestLogRow.ui", "#TrackBtn", "BookQuestsTab.java"),
-            new Glyph("ZigAchListRow.ui", "#PinBtn", "BookAchievementsTab.java"),
-            new Glyph("ZigObjectiveBookPage.ui", "#DPinBtn", "BookAchievementsTab.java"));
+            new Glyph("ZigAchListRow.ui", "#PinBtn", "BookAchievementsTab.java"));
 
     @Test
     void eachGlyphButtonCarriesTheSharedTooltipStyle() throws IOException {

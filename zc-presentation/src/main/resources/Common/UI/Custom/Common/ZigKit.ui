@@ -1,0 +1,425 @@
+$C = "../Common.ui";
+$ZK = "ZigTokens.ui";
+$ZX = "ZigText.ui";
+$ZS = "ZigStyles.ui";
+
+// ── ziggfreed-common's kit templates: the pieces a page builds a list, a reading page or a tile from ──
+// Imported per document as:  $ZW = "../Common/ZigKit.ui";  and instanced under an id the page picks:
+//   $ZW.@ZigPicture #Pic { @Size = 40; }
+//   $ZW.@ZigDetailPage #Page {}
+// A page never spells a template's child ids itself: com.ziggfreed.common.ui.kit's painters own them (the
+// appended templates under Pages/ hold the same pieces for a list a painter appends by index). Every id here is
+// pinned by the kit's document tests, since a command against an id a template lacks disconnects the player.
+//
+// Pictures are the one plain picture slot, @ZigPicture: an AssetImage #IcoTex painted by
+// ui/icon/IconRenderer.applyPlainIcon with an item's own icon texture, so it only displays (no tooltip, no rarity
+// square) at any rung of Common/ZigTokens.ui. Glyphs are white textures under Common/Glyphs/ drawn as a tintable
+// patch, so Java retints one by its .Background.Color. Every size is a Common/ZigType.ui step, every colour a
+// Common/ZigTokens.ui token, every button a Button with an inner Label #Label and a named style.
+
+// ── @ZigPicture: the one picture slot. @Size is a picture rung (20, 28, 32, 40, 48 or 64). ──
+@ZigPicture = Group {
+  @Anchor = ();
+  @Size = 32;
+  Anchor: (...@Anchor, Width: @Size, Height: @Size);
+
+  AssetImage #IcoTex {
+    Anchor: (Width: @Size, Height: @Size);
+    Visible: false;
+    FallbackTexturePath: "UI/Custom/Common/Glyphs/Blank.png";
+  }
+};
+
+// ── @ZigProgressBar: vanilla's bar, its track behind and its fill in #Bar (Value 0 to 1). @Height is 4, 6 or 8. ──
+@ZigProgressBar = Group {
+  @Anchor = ();
+  @Height = 6;
+  Anchor: (...@Anchor, Height: @Height);
+  Background: "../Common/ProgressBar.png";
+
+  ProgressBar #Bar {
+    BarTexturePath: "../Common/ProgressBarFill.png";
+    Value: 0.0;
+  }
+};
+
+// ── @ZigProgressBlock: "12 / 50" and its percent over an 8px bar. ──
+@ZigProgressBlock = Group {
+  @Anchor = ();
+  LayoutMode: Top;
+  Anchor: (...@Anchor, Height: 32);
+
+  Group #ProgressText {
+    LayoutMode: Left;
+    Anchor: (Height: 20, Bottom: 4);
+
+    Label #Count {
+      FlexWeight: 1;
+      Text: "";
+      Style: (...$ZX.@ZigBodyStyle, RenderBold: true);
+    }
+
+    Label #Percent {
+      Anchor: (Width: 96);
+      Text: "";
+      Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End);
+    }
+  }
+
+  @ZigProgressBar #BarTrack {
+    @Height = 8;
+  }
+};
+
+// ── @ZigPill: a word on the scrim (or a tone's fill), with an optional 8px dot; as wide as its words. ──
+@ZigPill = Group {
+  @Anchor = ();
+  LayoutMode: Left;
+  Anchor: (...@Anchor, Height: $ZK.@ZigPillHeight);
+  Padding: (Horizontal: 10);
+  Background: (Color: $ZK.@ZigSurfaceScrim);
+
+  Group #Dot {
+    Anchor: (Width: 8, Height: 8, Top: 8, Right: 6);
+    Background: (TexturePath: "../Common/Glyphs/Dot.png", Color: $ZK.@ZigInkBody);
+    Visible: false;
+  }
+
+  Label #Label {
+    Anchor: (Height: $ZK.@ZigPillHeight);
+    Text: "";
+    Style: $ZS.@ZigStateStyle;
+  }
+};
+
+// ── @ZigSegment: one choice of a segmented control, 132 x 32; the chosen one swaps to ZigSegmentOnStyle. ──
+// #Check marks a choice taken part in (a year); #Dot marks one that is live.
+@ZigSegment = Button {
+  @Anchor = ();
+  Anchor: (...@Anchor, Width: 132, Height: $ZK.@ZigControlHeight);
+  LayoutMode: Left;
+  Padding: (Horizontal: 10);
+  Style: $ZS.@ZigSegmentStyle;
+
+  Group #Check {
+    Anchor: (Width: 16, Height: 16, Top: 8, Right: 4);
+    Background: (TexturePath: "../Common/Checkmark.png", Color: $ZK.@ZigToneDoneText);
+    Visible: false;
+  }
+
+  Label #Label {
+    FlexWeight: 1;
+    Anchor: (Height: $ZK.@ZigControlHeight);
+    Text: "";
+    Style: $ZX.@ZigButtonLabelStyle;
+  }
+
+  Group #Dot {
+    Anchor: (Width: 8, Height: 8, Top: 12, Left: 4);
+    Background: (TexturePath: "../Common/Glyphs/Dot.png", Color: $ZK.@ZigToneLiveFill);
+    Visible: false;
+  }
+};
+
+// ── @ZigStat: a header's number over its caption, 150 x 60, both at the end. ──
+@ZigStat = Group {
+  @Anchor = ();
+  LayoutMode: Top;
+  Anchor: (...@Anchor, Width: 150, Height: 60);
+
+  Label #Value {
+    Anchor: (Height: 38);
+    Text: "";
+    Style: $ZX.@ZigFigureStyle;
+  }
+
+  Label #Label {
+    Anchor: (Height: 20);
+    Text: "";
+    Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+  }
+};
+
+// ── @ZigSectionHeader: a section's label, an optional meta and link at the end, a 1px rule under. ──
+// The label is #HeadLabel, so "#Head #Label" can only mean the link's own label.
+@ZigSectionHeader = Group {
+  @Anchor = ();
+  LayoutMode: Top;
+  Anchor: (...@Anchor, Height: $ZK.@ZigSectionHeadHeight);
+
+  Group #HeadLine {
+    LayoutMode: Left;
+    Anchor: (Height: 31);
+
+    Label #HeadLabel {
+      FlexWeight: 1;
+      Text: "";
+      Style: $ZX.@ZigSectionLabelStyle;
+    }
+
+    Label #Meta {
+      Anchor: (Width: 280);
+      Text: "";
+      Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+    }
+
+    Button #Link {
+      Anchor: (Width: 140, Height: 26, Top: 2, Left: 8);
+      Style: $ZS.@ZigButtonSecondaryStyle;
+      Visible: false;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: $ZX.@ZigButtonLabelStyle;
+      }
+    }
+  }
+
+  Group #Rule {
+    Anchor: (Height: 1);
+    Background: (Color: $ZK.@ZigDivider);
+  }
+};
+
+// ── @ZigActionBar: a rule, a two-line hint, then Danger, Secondary and Primary (each hidden until painted). ──
+@ZigActionBar = Group {
+  @Anchor = ();
+  LayoutMode: Top;
+  Anchor: (...@Anchor, Height: 44);
+
+  Group #ActionRule {
+    Anchor: (Height: 1, Bottom: 3);
+    Background: (Color: $ZK.@ZigDivider);
+  }
+
+  Group #ActionRow {
+    LayoutMode: Left;
+    Anchor: (Height: $ZK.@ZigActionHeight);
+
+    Label #Hint {
+      FlexWeight: 1;
+      Text: "";
+      Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 2);
+    }
+
+    Button #Danger {
+      Anchor: (Width: 120, Height: $ZK.@ZigActionHeight, Left: $ZK.@ZigSpace2);
+      Style: $ZS.@ZigButtonDangerStyle;
+      Visible: false;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: $ZX.@ZigButtonLabelStyle;
+      }
+    }
+
+    Button #Secondary {
+      Anchor: (Width: 140, Height: $ZK.@ZigActionHeight, Left: $ZK.@ZigSpace2);
+      Style: $ZS.@ZigButtonSecondaryStyle;
+      Visible: false;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: $ZX.@ZigButtonLabelStyle;
+      }
+    }
+
+    Button #Primary {
+      Anchor: (Width: 160, Height: $ZK.@ZigActionHeight, Left: $ZK.@ZigSpace2);
+      Style: $ZS.@ZigButtonPrimaryStyle;
+      Visible: false;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: $ZX.@ZigButtonLabelStyle;
+      }
+    }
+  }
+};
+
+// ── @ZigDetailPage: the reading page. It fills its parent (a 750 x 852 card in the book, 640 wide elsewhere). ──
+// #DHeader: picture, title (two lines), meta, a faint sub-meta, badge pills, and one labelled toggle (Pin, Track);
+// #DProgress; #DLead, the reading paragraph; #DBlocks, the scrolling host of Pages/ZigDetailBlock.ui blocks;
+// #DActions, the action bar the page binds once.
+@ZigDetailPage = Group {
+  LayoutMode: Top;
+  Padding: (Full: $ZK.@ZigSpace4);
+
+  Group #DHeader {
+    LayoutMode: Left;
+    Anchor: (Bottom: $ZK.@ZigSpace3);
+
+    @ZigPicture #DPic {
+      @Size = $ZK.@ZigPicHeader;
+      @Anchor = (Right: $ZK.@ZigSpace3);
+    }
+
+    Group #DHeadText {
+      FlexWeight: 1;
+      LayoutMode: Top;
+
+      Label #DTitle {
+        Text: "";
+        Style: $ZX.@ZigTitleStyle;
+      }
+
+      Label #DMeta {
+        Anchor: (Height: 18);
+        Text: "";
+        Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+      }
+
+      Label #DSubMeta {
+        Anchor: (Height: 18);
+        Text: "";
+        Visible: false;
+        Style: $ZX.@ZigFaintStyle;
+      }
+
+      Group #DBadges {
+        LayoutMode: Left;
+        Anchor: (Height: $ZK.@ZigPillHeight, Top: $ZK.@ZigSpace1);
+      }
+    }
+
+    Button #DToggle {
+      Anchor: (Width: 120, Height: $ZK.@ZigControlHeight, Left: $ZK.@ZigSpace3);
+      Style: $ZS.@ZigButtonSecondaryStyle;
+      Visible: false;
+
+      Label #Label {
+        FlexWeight: 1;
+        Text: "";
+        Style: $ZX.@ZigButtonLabelStyle;
+      }
+    }
+  }
+
+  @ZigProgressBlock #DProgress {
+    @Anchor = (Bottom: $ZK.@ZigSpace3);
+    Visible: false;
+  }
+
+  Label #DLead {
+    Anchor: (Bottom: $ZK.@ZigSpace3);
+    Text: "";
+    Style: $ZX.@ZigLeadStyle;
+  }
+
+  Group #DBlocks {
+    FlexWeight: 1;
+    LayoutMode: TopScrolling;
+    ScrollbarStyle: $C.@DefaultScrollbarStyle;
+    Padding: (Right: $ZK.@ZigSpace2);
+  }
+
+  @ZigActionBar #DActions {
+    @Anchor = (Top: $ZK.@ZigSpace2);
+  }
+};
+
+// ── @ZigEmptyState: a centred picture, a title, a line and an optional action; it fills its parent. ──
+@ZigEmptyState = Group {
+  LayoutMode: MiddleCenter;
+
+  @ZigPicture #EPic {
+    @Size = $ZK.@ZigPicLarge;
+    @Anchor = (Bottom: $ZK.@ZigSpace3);
+  }
+
+  Label #ETitle {
+    Anchor: (Bottom: $ZK.@ZigSpace2);
+    Text: "";
+    Style: (...$ZX.@ZigSubtitleStyle, HorizontalAlignment: Center);
+  }
+
+  Label #ELine {
+    Anchor: (MaxWidth: 440, Bottom: $ZK.@ZigSpace4);
+    Text: "";
+    Style: (...$ZX.@ZigBodyStyle, HorizontalAlignment: Center, Wrap: true);
+  }
+
+  Button #EAction {
+    Anchor: (Width: 160, Height: $ZK.@ZigActionHeight);
+    Style: $ZS.@ZigButtonSecondaryStyle;
+    Visible: false;
+
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: $ZX.@ZigButtonLabelStyle;
+    }
+  }
+};
+
+// ── @ZigHeroPlate: a season's hero, 962 x 240. Its layers stack, each placed by its own anchor: ──
+// #HeroArt, the season's art (an AssetImage; with no art it draws the plate); #HeroGradient and #HeroGlow, two
+// white layers a page tints to compose a hero with no art (a colour falling from the top, a glow behind the
+// picture); #HeroFade, the dark ramp the words sit on; #HeroPic, the season's picture for a composed hero;
+// #HeroText, the chip, the name and the dates; #HeroAccent, the season's colour along the bottom edge.
+@ZigHeroPlate = Group {
+  @Anchor = ();
+  LayoutMode: Full;
+  Anchor: (...@Anchor, Width: 962, Height: 240);
+
+  AssetImage #HeroArt {
+    Anchor: (Left: 0, Top: 0, Width: 962, Height: 240);
+    FallbackTexturePath: "UI/Custom/Common/ZigHeroPlate.png";
+  }
+
+  Group #HeroGradient {
+    Anchor: (Left: 0, Top: 0, Width: 962, Height: 240);
+    Background: (TexturePath: "../Common/Kit/HeroGradient.png", Color: $ZK.@ZigInkBright);
+    Visible: false;
+  }
+
+  Group #HeroGlow {
+    Anchor: (Right: 40, Top: 0, Width: 240, Height: 240);
+    Background: (TexturePath: "../Common/Kit/HeroGlow.png", Color: $ZK.@ZigInkBright);
+    Visible: false;
+  }
+
+  Group #HeroFade {
+    Anchor: (Left: 0, Bottom: 0, Width: 962, Height: 140);
+    Background: "../Common/ZigHeroFade.png";
+  }
+
+  @ZigPicture #HeroPic {
+    @Size = $ZK.@ZigPicLarge;
+    @Anchor = (Right: 128, Top: 88);
+    Visible: false;
+  }
+
+  Group #HeroText {
+    LayoutMode: Top;
+    Anchor: (Left: 28, Bottom: 24, Width: 680, Height: 92);
+
+    Group #HeroChipRow {
+      LayoutMode: Left;
+      Anchor: (Height: $ZK.@ZigPillHeight, Bottom: 4);
+
+      @ZigPill #HeroChip {}
+    }
+
+    Label #HeroTitle {
+      Anchor: (Height: 40);
+      Text: "";
+      Style: $ZX.@ZigHeroTitleStyle;
+    }
+
+    Label #HeroDates {
+      Anchor: (Height: 24);
+      Text: "";
+      Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, Wrap: true, WrapMaxLines: 1);
+    }
+  }
+
+  Group #HeroAccent {
+    Anchor: (Left: 0, Bottom: 0, Width: 962, Height: 4);
+    Background: (Color: $ZK.@ZigAccent);
+  }
+};

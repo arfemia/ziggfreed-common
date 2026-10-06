@@ -1,5 +1,6 @@
 package com.ziggfreed.common.objectives.book;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,12 +15,17 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.questlist.NpcQuestPageDeps;
+import com.ziggfreed.common.progress.gate.GateClause;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.kit.DetailBlock;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -58,6 +64,10 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>{@link QuestClaimPreCheck} - a last word before a quest's claim reaches the engine, for a
  *       refusal only the consumer can know about (a board that wants its own room check, a paused
  *       economy). Default nothing to refuse, so every claim reaches the engine unchanged.</li>
+ *   <li>{@link DetailBlockSource} - extra blocks after a quest's or an achievement's own on its page;
+ *       default none.</li>
+ *   <li>{@link SeenMarks} - when the player last opened each achievement category, so a tile can say
+ *       something new was earned there; default none, so nothing reads as new.</li>
  * </ul>
  *
  * <p>Immutable; build one at setup and register a supplier via
@@ -363,7 +373,7 @@ public final class ObjectiveBookDeps {
     public static final BoardManagedQuests NO_BOARDS = quest -> false;
 
     /** The generic gate reading: prerequisite quests, and nothing a factor vocabulary must name. */
-    public static final RequirementText GENERIC_REQUIREMENTS = BookQuestsTab::genericRequirementLine;
+    public static final RequirementText GENERIC_REQUIREMENTS = ObjectiveBookDeps::genericRequirementLine;
 
     /** The raw tag tidied up, the same contract free-string tags carry everywhere. */
     public static final TagLabelSource RAW_TAGS = tag -> Msg.raw(prettifyTag(tag));
@@ -402,6 +412,8 @@ public final class ObjectiveBookDeps {
     @Nonnull private final MilestoneClaim milestoneClaim;
     @Nonnull private final ActionFeedback actionFeedback;
     @Nonnull private final QuestClaimPreCheck claimPreCheck;
+    @Nonnull private final DetailBlockSource detailBlocks;
+    @Nonnull private final SeenMarks seen;
 
     private ObjectiveBookDeps(@Nonnull Builder builder) {
         this.sidePanelPainter = builder.sidePanelPainter;
@@ -415,6 +427,8 @@ public final class ObjectiveBookDeps {
         this.milestoneClaim = builder.milestoneClaim;
         this.actionFeedback = builder.actionFeedback;
         this.claimPreCheck = builder.claimPreCheck;
+        this.detailBlocks = builder.detailBlocks;
+        this.seen = builder.seen;
     }
 
     @Nonnull
@@ -480,6 +494,16 @@ public final class ObjectiveBookDeps {
     @Nonnull
     public QuestClaimPreCheck claimPreCheck() {
         return claimPreCheck;
+    }
+
+    @Nonnull
+    public DetailBlockSource detailBlocks() {
+        return detailBlocks;
+    }
+
+    @Nonnull
+    public SeenMarks seen() {
+        return seen;
     }
 
     // ==================== guarded reads ====================
@@ -575,6 +599,63 @@ public final class ObjectiveBookDeps {
         }
     }
 
+    /** The consumer's extra blocks on a quest's page, guarded: a throwing or null answer adds none. */
+    @Nonnull
+    public List<DetailBlock> detailBlocksGuarded(@Nonnull Quest quest, @Nullable Subject subject) {
+        try {
+            return blocksOrNone(detailBlocks.quest(quest, subject));
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] the book's detail blocks failed for a quest: " + t.getMessage());
+            return List.of();
+        }
+    }
+
+    /** The consumer's extra blocks on an achievement's page, guarded: a throwing or null answer adds none. */
+    @Nonnull
+    public List<DetailBlock> detailBlocksGuarded(@Nonnull Achievement achievement, @Nullable Subject subject) {
+        try {
+            return blocksOrNone(detailBlocks.achievement(achievement, subject));
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] the book's detail blocks failed for an achievement: " + t.getMessage());
+            return List.of();
+        }
+    }
+
+    @Nonnull
+    private static List<DetailBlock> blocksOrNone(@Nullable List<DetailBlock> blocks) {
+        if (blocks == null || blocks.isEmpty()) {
+            return List.of();
+        }
+        List<DetailBlock> kept = new ArrayList<>(blocks.size());
+        for (DetailBlock block : blocks) {
+            if (block != null) {
+                kept.add(block);
+            }
+        }
+        return List.copyOf(kept);
+    }
+
+    /**
+     * When {@code subject} last opened {@code category}, guarded: a throwing mark reads as seen just now
+     * ({@link Long#MAX_VALUE}), so a failing marker never lights a tile.
+     */
+    public long seenAtGuarded(@Nullable Subject subject, @Nonnull String category) {
+        try {
+            return seen.seenAt(subject, category);
+        } catch (Throwable t) {
+            return Long.MAX_VALUE;
+        }
+    }
+
+    /** Record that {@code subject} opened {@code category}, guarded: a throwing mark costs only itself. */
+    public void markSeenGuarded(@Nullable Subject subject, @Nonnull String category, long nowMs) {
+        try {
+            seen.markSeen(subject, category, nowMs);
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] the book's seen marks failed: " + t.getMessage());
+        }
+    }
+
     /** Run one deps-owned painter, guarded: a throwing painter reads as nothing painted. */
     public boolean paintGuarded(@Nonnull ChromePainter painter, @Nonnull Chrome chrome,
             @Nonnull String what) {
@@ -584,6 +665,73 @@ public final class ObjectiveBookDeps {
             SafeLog.warn("[progression] the book's " + what + " painter failed: " + t.getMessage());
             return false;
         }
+    }
+
+    /**
+     * The library's default requirements reading: the gate's prerequisite quests and permission leaf,
+     * comma-joined, {@code AnyOf} alternatives bracketed. A {@code Not} group is deliberately never shown:
+     * printing what must NOT be true reads as an instruction to go and do the thing that keeps the quest shut.
+     * Null when nothing displayable is asked.
+     */
+    @Nullable
+    static Message genericRequirementLine(@Nonnull Quest quest) {
+        GateSpec requires = quest.requires();
+        if (requires == null || requires.isEmpty()) {
+            return null;
+        }
+        List<Message> items = new ArrayList<>(clauseItems(requires));
+        for (GateClause clause : requires.allOfOrEmpty()) {
+            if (clause != null) {
+                items.addAll(clauseItems(clause));
+            }
+        }
+        for (GateClause clause : requires.anyOfOrEmpty()) {
+            if (clause == null) {
+                continue;
+            }
+            List<Message> alternatives = clauseItems(clause);
+            if (alternatives.isEmpty()) {
+                continue;
+            }
+            Message joined = joinWithCommas(alternatives);
+            items.add(alternatives.size() > 1 ? Msg.cat(Msg.raw("("), joined, Msg.raw(")")) : joined);
+        }
+        if (items.isEmpty()) {
+            return null;
+        }
+        // The joined list rides as a PARAM, so it is built with the param-safe composite.
+        return Msg.key("ziggfreedcommon.progression.book.quests.requires", joinWithCommas(items));
+    }
+
+    /** Every displayable requirement ONE clause asks for. */
+    @Nonnull
+    private static List<Message> clauseItems(@Nonnull GateClause clause) {
+        List<Message> items = new ArrayList<>();
+        for (String questId : clause.questsOrEmpty()) {
+            if (questId == null || questId.isBlank()) {
+                continue;
+            }
+            Message name = ProgressionTexts.title(questId);
+            items.add(Msg.key("ziggfreedcommon.progression.book.quests.req.quest",
+                    name != null ? name : Msg.raw(questId)));
+        }
+        String permission = clause.getPermission();
+        if (permission != null && !permission.isBlank()) {
+            items.add(Msg.key("ziggfreedcommon.progression.book.quests.req.permission", permission));
+        }
+        return items;
+    }
+
+    @Nonnull
+    private static Message joinWithCommas(@Nonnull List<Message> parts) {
+        List<Message> out = new ArrayList<>(parts.size() * 2);
+        for (int i = 0; i < parts.size(); i++) {
+            if (i > 0) {
+                out.add(Msg.raw(", "));
+            }
+            out.add(parts.get(i));
+        }
+        return Msg.cat(out.toArray(new Message[0]));
     }
 
     /** {@code "wilds_side"} reads as {@code "Wilds Side"}: word breaks on {@code _-}, title case. */
@@ -617,6 +765,8 @@ public final class ObjectiveBookDeps {
         @Nonnull private MilestoneClaim milestoneClaim = NO_MILESTONE_CLAIM;
         @Nonnull private ActionFeedback actionFeedback = NO_FEEDBACK;
         @Nonnull private QuestClaimPreCheck claimPreCheck = NO_CLAIM_PRECHECK;
+        @Nonnull private DetailBlockSource detailBlocks = DetailBlockSource.NONE;
+        @Nonnull private SeenMarks seen = SeenMarks.NONE;
 
         private Builder() {
         }
@@ -684,6 +834,18 @@ public final class ObjectiveBookDeps {
         @Nonnull
         public Builder claimPreCheck(@Nullable QuestClaimPreCheck value) {
             this.claimPreCheck = value != null ? value : NO_CLAIM_PRECHECK;
+            return this;
+        }
+
+        @Nonnull
+        public Builder detailBlocks(@Nullable DetailBlockSource value) {
+            this.detailBlocks = value != null ? value : DetailBlockSource.NONE;
+            return this;
+        }
+
+        @Nonnull
+        public Builder seen(@Nullable SeenMarks value) {
+            this.seen = value != null ? value : SeenMarks.NONE;
             return this;
         }
 

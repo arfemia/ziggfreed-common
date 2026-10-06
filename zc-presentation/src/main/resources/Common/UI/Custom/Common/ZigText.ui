@@ -1,0 +1,42 @@
+$ZT = "ZigType.ui";
+$ZK = "ZigTokens.ui";
+
+// ── ziggfreed-common's named text styles: one per role a label plays on a kit page ──
+// Imported per document as:  $ZX = "../Common/ZigText.ui";  (from Pages/; "ZigText.ui" from Common/) and used
+// whole,  Style: $ZX.@ZigCaptionStyle;  or spread with one leaf changed,
+//   Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End);
+// Each takes its size from Common/ZigType.ui and its colour from Common/ZigTokens.ui, so no size here is under the
+// 13 floor and no colour is spelled twice. A style Java swaps at runtime (a state word's tone, a figure in gold, a
+// title on the selected row) lives in Common/ZigStyles.ui, the theme document, instead.
+//
+// A one-line label says Wrap with WrapMaxLines 1, and the client ends it with "..."; a label that must fit a fixed
+// width shrinks, never under the floor. Default font throughout; the two headline styles take Secondary.
+
+// Meta and sub lines, subtitles, hints, captions.
+@ZigCaptionStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkMuted, VerticalAlignment: Center);
+// A finished row's meta, a claimant line: the darkest player text, one line.
+@ZigFaintStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkFaint, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+// Counts and points at a row's end.
+@ZigCountStyle = LabelStyle(FontSize: $ZT.@ZigFontCaption, TextColor: $ZK.@ZigInkBody, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+// OBJECTIVES, REWARDS, a list section's head: vanilla's section label in the family's steel.
+@ZigSectionLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontSection, TextColor: $ZK.@ZigInkSection, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, VerticalAlignment: Center);
+// Body text, form labels, an empty state's line.
+@ZigBodyStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBody, VerticalAlignment: Center);
+// The label inside every kit Button (#Label): bold, and shrinking to fit a fixed width, never under 13.
+@ZigButtonLabelStyle = LabelStyle(FontSize: $ZT.@ZigFontBody, TextColor: $ZK.@ZigInkBright, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontCaption);
+// A list row's, a tile's or a card's name: one line.
+@ZigRowTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: $ZK.@ZigInkStrong, RenderBold: true, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+// A category tile's name: the headline face, uppercase, two lines.
+@ZigTileNameStyle = LabelStyle(FontSize: $ZT.@ZigFontEmphasis, TextColor: $ZK.@ZigInkStrong, RenderBold: true, FontName: "Secondary", RenderUppercase: true, VerticalAlignment: Center, Wrap: true, WrapMaxLines: 2);
+// A card's or a block's title.
+@ZigHeadingStyle = LabelStyle(FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkStrong, RenderBold: true, VerticalAlignment: Center);
+// A page's reading paragraph: a description, a quest's flavour.
+@ZigLeadStyle = LabelStyle(FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkBody, Wrap: true);
+// An empty state's title.
+@ZigSubtitleStyle = LabelStyle(FontSize: $ZT.@ZigFontSubtitle, TextColor: $ZK.@ZigInkStrong, RenderBold: true, VerticalAlignment: Center);
+// A page's title, the detail page's title: two lines at most.
+@ZigTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontTitle, TextColor: $ZK.@ZigInkStrong, RenderBold: true, Wrap: true, WrapMaxLines: 2);
+// A big number: a header stat, a stat tile's figure, the hero's numbers. Numbers sit at the end of their space.
+@ZigFigureStyle = LabelStyle(FontSize: $ZT.@ZigFontDisplay, TextColor: $ZK.@ZigInkStrong, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontSubtitle);
+// The hero's season name over its art: the headline face, uppercase, white.
+@ZigHeroTitleStyle = LabelStyle(FontSize: $ZT.@ZigFontHero, TextColor: $ZK.@ZigInkBright, RenderBold: true, FontName: "Secondary", RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: $ZT.@ZigFontTitle);

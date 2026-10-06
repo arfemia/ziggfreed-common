@@ -184,3 +184,11 @@ book.achievements.feat_since = Feat of Strength since {0}
 
 # The Settings tab's quest tracker card.
 settings.tracker = Quest tracker
+
+# The book's views (the Achievements tab's Overview, Browse and Statistics segments).
+book.view.overview = Overview
+book.view.browse = Browse
+book.view.statistics = Statistics
+
+# Shown by a book tab while its page is being rebuilt.
+book.placeholder = This tab is being rebuilt.
