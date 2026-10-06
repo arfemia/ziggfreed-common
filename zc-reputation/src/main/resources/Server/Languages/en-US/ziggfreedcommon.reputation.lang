@@ -11,3 +11,8 @@ rank.revered = Revered
 rank.exalted = Exalted
 # Shown when the server has no usable ladder (fewer than two ranks).
 rank.none = Unranked
+
+# How a requirement on a reputation reading is named when no pack names its own reputation.
+factor.reputation = standing with a reputation
+factor.reputation_earned = standing earned with a reputation
+factor.reputation_rank = a rank with a reputation

@@ -1,0 +1,5 @@
+{
+  "$Comment": "Names the ziggfreedcommon:reputation_earned reading for requirement lines. Param is a reputation id; the reading is the standing the player earned with it, without what their gear adds. To name one of your own reputations, ship a Factors file of your own with a ParamNames Keys entry for its id.",
+  "Factor": "ziggfreedcommon:reputation_earned",
+  "Text": { "TitleKey": "ziggfreedcommon.reputation.factor.reputation_earned" }
+}
