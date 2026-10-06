@@ -1,0 +1,13 @@
+# What the reputation module says to players. The file name is the key PREFIX: an entry here resolves
+# as ziggfreedcommon.reputation.<key>.
+
+# The seven ranks of the server's one ladder, used wherever a reputation names no rank of its own.
+rank.hated = Hated
+rank.unfriendly = Unfriendly
+rank.neutral = Neutral
+rank.friendly = Friendly
+rank.honored = Honored
+rank.revered = Revered
+rank.exalted = Exalted
+# Shown when the server has no usable ladder (fewer than two ranks).
+rank.none = Unranked
