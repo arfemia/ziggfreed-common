@@ -4,7 +4,6 @@
 
 title = Almanach
 seasons.empty = Auf diesem Server laufen noch keine Saisonereignisse.
-badge.live = Läuft jetzt
 status.live = Läuft jetzt
 status.between = Zwischen den Saisons
 section.season = Diese Saison ({0})

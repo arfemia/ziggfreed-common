@@ -14,9 +14,10 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Registers the Almanac at library setup, called once from the wiring root's {@code setup()}: the
- * per-player record and its connect hook (before any world loads), the owner's switch, the feature,
- * the destination, the moment counter and the {@code /zigalmanac} family. The page store itself is
- * registered with the other framework stores. Registration only ({@code RootRegistrationOnlyTest}).
+ * per-player record and its connect hook (before any world loads), the server's own totals and their
+ * file, the owner's switch, the feature, the destination, the moment counter and the {@code /zigalmanac}
+ * family. The page store itself is registered with the other framework stores. Registration only
+ * ({@code RootRegistrationOnlyTest}).
  */
 public final class AlmanacBootstrap {
 
@@ -30,6 +31,7 @@ public final class AlmanacBootstrap {
     public static void install(@Nonnull PluginBase plugin) {
         AlmanacComponent.register(plugin.getEntityStoreRegistry());
         AlmanacComponent.install(plugin);
+        ServerTallies.shared().init(plugin.getDataDirectory());
         AlmanacOwnerLayers.readSwitch();
         registerVocabulary();
         try {
@@ -47,6 +49,7 @@ public final class AlmanacBootstrap {
         AlmanacSwitch.registerFeature();
         AlmanacDestinations.register();
         ZigMenu.fill(MenuSlot.ALMANAC, AlmanacMenuTab.entry());
-        ProgressionRuntime.defaults(OWNER).momentListener(new AlmanacMomentListener(FactorAlmanacCalendar.INSTANCE));
+        ProgressionRuntime.defaults(OWNER).momentListener(new AlmanacMomentListener(
+                OccurrenceAlmanacCalendar.INSTANCE, ServerTallies.shared()));
     }
 }

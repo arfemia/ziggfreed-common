@@ -54,7 +54,7 @@ class AlmanacViewTest {
     }
 
     @Test
-    void onlySeasonsTheCalendarAnswersForAreListedByOrderThenId() throws Exception {
+    void onlySeasonsTheCalendarAnswersForAreListedOnNowFirstThenByOrderThenId() throws Exception {
         Map<String, AlmanacEntryAsset> pages = Map.of(
                 "late", AlmanacFixtures.page("{ \"Order\": 20 }", "Late"),
                 "early", AlmanacFixtures.page("{ \"Order\": 10 }", "Early"),
@@ -68,11 +68,25 @@ class AlmanacViewTest {
 
         List<Season> seasons = AlmanacView.seasons(pages, calendar);
 
-        assertEquals(List.of("early", "late", "unordered"), seasons.stream().map(Season::eventId).toList(),
-                "a season the calendar does not answer for is absent; the rest read by Order, then id");
-        assertFalse(seasons.get(0).live());
-        assertTrue(seasons.get(1).live());
-        assertEquals(2026, seasons.get(1).liveYear());
+        assertEquals(List.of("late", "early", "unordered"), seasons.stream().map(Season::eventId).toList(),
+                "a season the calendar does not answer for is absent; the one on now leads; the rest read by "
+                        + "Order, then id");
+        assertTrue(seasons.get(0).live());
+        assertEquals(2026, seasons.get(0).liveYear());
+        assertFalse(seasons.get(1).live());
+    }
+
+    @Test
+    void severalSeasonsOnAtOnceKeepTheirOrderAmongThemselves() throws Exception {
+        Map<String, AlmanacEntryAsset> pages = Map.of(
+                "harvest", AlmanacFixtures.page("{ \"Order\": 11 }", "Harvest"),
+                "autumn", AlmanacFixtures.page("{ \"Order\": 10 }", "Autumn"),
+                "spring", AlmanacFixtures.page("{ \"Order\": 1 }", "Spring"));
+        AlmanacCalendar calendar = id -> "spring".equals(id) ? SeasonState.BETWEEN : SeasonState.liveIn(2026);
+
+        assertEquals(List.of("autumn", "harvest", "spring"),
+                AlmanacView.seasons(pages, calendar).stream().map(Season::eventId).toList(),
+                "two seasons on now can overlap; each group reads by Order");
     }
 
     @Test

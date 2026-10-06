@@ -1,6 +1,7 @@
 package com.ziggfreed.common.calendar;
 
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -22,13 +23,15 @@ import com.ziggfreed.common.occurrence.OccurrenceSource;
  * <p><b>Absent beats everything.</b> An event switched off (by the owner's global switch or its own
  * {@code Enabled}) or unable to run ({@linkplain CalendarEventAsset#isReservedId an id another switch
  * uses or an attendance record cannot save}, no readable Window, or no FirstYear from 1970 to 9999) is
- * not enabled, never live and has no history, whatever a force says. A force then beats the dates:
- * forced off is never live; forced on runs the run of the current year (never before FirstYear) even
- * outside its dates, so what a forced run earns is filed under that year.
+ * not enabled, never live, has no history and no next run, whatever a force says. A force then beats
+ * the dates: forced off is never live; forced on runs the run of the current year (never before
+ * FirstYear) even outside its dates, so what a forced run earns is filed under that year. The next run
+ * is the dates' next one that is not the run going on.
  *
- * <p><b>The years outlive the switches.</b> {@link #firstYear} and {@link #currentYear} answer for any
- * loaded event, switched on or not, so what a player earned in a past run keeps its years after the
- * owner switches the event off. A FirstYear outside 1970 to 9999 is no first year at all.
+ * <p><b>The years and the clock outlive the switches.</b> {@link #firstYear}, {@link #currentYear} and
+ * {@link #zone} answer for any loaded event, switched on or not, so what a player earned in a past run
+ * keeps its years after the owner switches the event off. A FirstYear outside 1970 to 9999 is no first
+ * year at all.
  */
 public final class CalendarService implements OccurrenceSource {
 
@@ -142,6 +145,42 @@ public final class CalendarService implements OccurrenceSource {
         }
         Occurrence run = event.canRun() ? liveOf(event, nowMs) : null;
         return run != null ? run.year() : AnnualWindow.yearOf(nowMs, event.zone());
+    }
+
+    /**
+     * The first run by the event's dates to start after {@code nowMs}, from its FirstYear on, that is not
+     * the run {@link #live} answers (runs compared by year, since a forced-on run keeps its window's
+     * dates): forced on ahead of its dates, this year's run is going on already and the next is the year
+     * after; forced off, nothing is going on and the next is whenever the dates next come round. Null when
+     * the event is absent.
+     */
+    @Override
+    @Nullable
+    public Occurrence next(@Nonnull String eventId, long nowMs) {
+        CalendarEventAsset event = runnable(eventId);
+        if (event == null) {
+            return null;
+        }
+        AnnualWindow window = event.annualWindow();
+        ZoneId zone = event.zone();
+        // A run starts at its first day's midnight in its own clock, so that instant's year is the run's year.
+        int year = AnnualWindow.yearOf(window.nextStartMs(nowMs, zone, event.firstYear()), zone);
+        Occurrence running = liveOf(event, nowMs);
+        if (running != null && year <= running.year()) {
+            year = running.year() + 1;
+        }
+        return occurrence(event, window, zone, year);
+    }
+
+    /**
+     * The loaded event's Clock (UTC when it names none or one nobody knows), whatever its switches say;
+     * UTC for no such event.
+     */
+    @Override
+    @Nonnull
+    public ZoneId zone(@Nonnull String eventId) {
+        CalendarEventAsset event = event(eventId);
+        return event == null ? ZoneOffset.UTC : event.zone();
     }
 
     /** Every event running at {@code nowMs}, by id, in id order. */

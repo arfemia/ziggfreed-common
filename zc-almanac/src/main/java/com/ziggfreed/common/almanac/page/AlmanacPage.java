@@ -23,7 +23,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.almanac.AlmanacComponent;
 import com.ziggfreed.common.almanac.AlmanacText;
-import com.ziggfreed.common.almanac.FactorAlmanacCalendar;
+import com.ziggfreed.common.almanac.OccurrenceAlmanacCalendar;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryConfig;
 import com.ziggfreed.common.almanac.view.AlmanacView;
@@ -92,7 +92,7 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
                 MenuSlot.ALMANAC.id(), false);
 
         Map<String, AlmanacEntryAsset> pages = AlmanacEntryConfig.getInstance().all();
-        List<AlmanacView.Season> seasons = AlmanacView.seasons(pages, FactorAlmanacCalendar.INSTANCE);
+        List<AlmanacView.Season> seasons = AlmanacView.seasons(pages, OccurrenceAlmanacCalendar.INSTANCE);
         AchievementEngine engine = ProgressionRuntime.achievements();
         Subject subject = achievementSubject(store, ref);
         paintBanner(cmd, engine, subject);
@@ -144,7 +144,7 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
         cmd.set(sel + " #StatusDot.Background", season.live() ? LIVE_DOT : IDLE_DOT);
         if (season.live()) {
             cmd.set(sel + " #RowBadge.Visible", true);
-            UiText.setText(cmd, sel + " #RowBadge.Text", AlmanacText.line("badge.live"));
+            UiText.setText(cmd, sel + " #RowBadge.Text", AlmanacText.line("status.live"));
         }
         if (season.eventId().equals(selected)) {
             UiRetint.retintButtonStates(cmd, sel + " #RowBtn", ROW_SELECTED_TINT, ROW_SELECTED_TINT, ROW_SELECTED_TINT);

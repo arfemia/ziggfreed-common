@@ -1,10 +1,22 @@
 package com.ziggfreed.common.almanac.view;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.MonthDay;
+import java.time.YearMonth;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -12,11 +24,17 @@ import javax.annotation.Nullable;
 import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.achievement.AchievementEngine;
 import com.ziggfreed.common.almanac.AlmanacCalendar;
+import com.ziggfreed.common.almanac.AlmanacCalendar.Dates;
 import com.ziggfreed.common.almanac.AlmanacKeys;
+import com.ziggfreed.common.almanac.ServerTallies;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryAsset;
+import com.ziggfreed.common.almanac.asset.AlmanacHeroAsset;
+import com.ziggfreed.common.almanac.asset.AlmanacLinkAsset;
 import com.ziggfreed.common.almanac.asset.AlmanacStatAsset;
 import com.ziggfreed.common.counter.CounterMap;
+import com.ziggfreed.common.occurrence.Occurrence;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.route.Destination;
 
 /**
  * What the Almanac shows, as plain data: which seasons it lists, what one season's page says for one
@@ -25,13 +43,44 @@ import com.ziggfreed.common.subject.Subject;
  *
  * <p><b>Achievements are found by where content files them.</b> A season's own are filed under
  * {@value #SEASONS_CATEGORY} with the event id as subcategory; a cross-season one (Seasons of Orbis)
- * under {@value #SEASONS_CATEGORY} with no subcategory; a keepsake is the catalogue's
- * {@code <Keepsake>_<yyyy>}, wherever it is filed.
+ * under {@value #SEASONS_CATEGORY} with no subcategory; a keepsake is the catalogue's yearly copy of the
+ * page's {@code Keepsake}, found by the occurrence it was minted for ({@link Achievement#occurrence()}),
+ * or by its {@code <Keepsake>_<yyyy>} id when it carries none.
+ *
+ * <p><b>Dates are counted in the event's own clock</b>, the last day included: on a run's last day the
+ * page says "Last day", and a run from October 1 to November 3 has 28 days left on October 7.
  */
 public final class AlmanacView {
 
     /** The category every season's achievements file under. */
     public static final String SEASONS_CATEGORY = "seasons";
+
+    /** The hero plate's size: what a composed hero's items are kept inside. */
+    public static final int HERO_WIDTH = 962;
+    public static final int HERO_HEIGHT = 240;
+
+    /** How many items a composed hero draws. */
+    public static final int HERO_MAX_ITEMS = AlmanacEntryAsset.HERO_MAX_ITEMS;
+
+    /** A hero item's side: unauthored, and the range it is kept to. */
+    public static final int HERO_ITEM_SIZE = 64;
+    public static final int HERO_ITEM_MIN = 24;
+    public static final int HERO_ITEM_MAX = 128;
+
+    /** A hero glow's box: unauthored side, the side's range, and how far the box may hang past the plate. */
+    public static final int GLOW_SIZE = 240;
+    public static final int GLOW_MIN = 32;
+    public static final int GLOW_MAX = 480;
+    public static final int GLOW_X_MIN = -480;
+    public static final int GLOW_X_MAX = 1442;
+    public static final int GLOW_Y_MIN = -480;
+    public static final int GLOW_Y_MAX = 720;
+
+    /** A season returning within this many days is "soon": its chip and row take the near tone. */
+    public static final int SOON_DAYS = 14;
+
+    /** How dark a composed hero's derived background is: the accent at this share of its brightness. */
+    private static final double DERIVED_BACKGROUND_SHARE = 0.35;
 
     /** One listed season. {@code liveYear} is the season on right now's opening year, 0 when none is on. */
     public record Season(@Nonnull String eventId, @Nullable String titleKey, @Nullable String flavorKey,
@@ -64,17 +113,106 @@ public final class AlmanacView {
                          int achievementsEarned, int achievementsListed, @Nonnull List<Feat> feats) {
     }
 
+    /**
+     * When a season runs, as its chip, its row and its dates line read it. While it is on: the days left
+     * (the last day counted; null for a run forced on outside its dates) and whether today is the last
+     * day. Between runs: the days until the next start, and whether that is within {@link #SOON_DAYS}.
+     * The window's month-days come from the run going on, else the next, else the last; {@code
+     * startsLater} is a season whose first run is still ahead.
+     */
+    public record Timing(boolean live, @Nullable Integer daysLeft, boolean lastDay, @Nullable Integer daysUntil,
+                         boolean soon, @Nullable MonthDay windowStart, @Nullable MonthDay windowEnd,
+                         @Nullable LocalDate nextStart, boolean startsLater) {
+    }
+
+    /** One year a player can read: whether it is the run on now, whether they took part, and its keepsake. */
+    public record YearChip(int year, boolean live, boolean tookPart, boolean keepsakeEarned) {
+    }
+
+    /** Which figures a page reads: one season's year, or every season ({@link #EVERY}, a null year). */
+    public record Scope(@Nullable Integer year) {
+
+        /** Every season together: lifetime figures. */
+        public static final Scope EVERY = new Scope(null);
+
+        /** Is this every season rather than one year? */
+        public boolean every() {
+            return year == null;
+        }
+    }
+
+    /**
+     * One tile: the scope's figure, the every-season count as its caption while a year is shown (null on
+     * every season), and what everyone on the server counted in the same scope (null until someone has).
+     */
+    public record Tally(@Nonnull String statId, @Nullable String textKey, @Nullable String icon, long figure,
+                        @Nullable Long allSeasons, @Nullable Long server) {
+    }
+
+    /** The record card: seasons taken part in and keepsakes earned, across every listed season. */
+    public record Record(long seasonsTakenPart, long keepsakes) {
+    }
+
+    /** The season's achievements: how many of those listed are earned, and its earned feats. */
+    public record SeasonAchievements(int earned, int total, @Nonnull List<Feat> feats) {
+    }
+
+    /** A line at the foot of a season's page that opens another screen. */
+    public record SeasonLink(@Nonnull String textKey, @Nonnull Destination destination) {
+    }
+
+    /** One month of the year at a glance (1 to 12) and the seasons running in it, in list order. */
+    public record MonthMarks(int month, @Nonnull List<String> eventIds) {
+    }
+
+    /** One item picture on a composed hero: its own icon texture, its top-left corner, its side. */
+    public record HeroItem(@Nonnull String itemId, @Nonnull String iconPath, int x, int y, int size) {
+    }
+
+    /** A composed hero's vertical sky: the colour at the plate's top edge (y 0) and at its bottom (y 240). */
+    public record HeroGradient(@Nonnull String topHex, @Nonnull String bottomHex) {
+    }
+
+    /**
+     * A composed hero's soft light: its colour and its square box by the top-left corner, kept to its
+     * bounds but NOT to the plate (the box may hang past any edge; the page clips it to the plate).
+     */
+    public record HeroGlow(@Nonnull String colorHex, int x, int y, int size) {
+    }
+
+    /**
+     * A hero composed from pictures the game has, drawn bottom up: {@code backgroundHex} (null under a
+     * gradient, and when neither the composition nor the season names a colour), the {@code gradient},
+     * the {@code backgroundTexture}, the {@code glow}, then the {@code items} in order (at least one).
+     */
+    public record HeroComposition(@Nullable String backgroundHex, @Nullable String backgroundTexture,
+                                  @Nullable HeroGradient gradient, @Nullable HeroGlow glow,
+                                  @Nonnull List<HeroItem> items) {
+    }
+
+    /**
+     * Which top a season's page draws: the shipped {@code art} when it is shown and ships; else the
+     * {@code composition}; else the season's own picture, {@code iconPath} (null for a season with no
+     * picture the server has: the plate alone).
+     */
+    public record Hero(@Nullable String art, @Nullable HeroComposition composition, @Nullable String iconPath) {
+    }
+
     private AlmanacView() {
     }
 
-    /** Every season to list: each page whose event the calendar answers for, by Order, then id. */
+    /**
+     * Every season to list: each page whose event the calendar answers for, the seasons on now first,
+     * then by Order, then id, within each group.
+     */
     @Nonnull
     public static List<Season> seasons(@Nonnull Map<String, AlmanacEntryAsset> pages,
             @Nonnull AlmanacCalendar calendar) {
         List<Map.Entry<String, AlmanacEntryAsset>> ordered = new ArrayList<>(pages.entrySet());
         ordered.sort(Comparator.comparingInt((Map.Entry<String, AlmanacEntryAsset> e) -> e.getValue().orderOrLast())
                 .thenComparing(e -> AlmanacKeys.normalize(e.getKey())));
-        List<Season> out = new ArrayList<>();
+        List<Season> live = new ArrayList<>();
+        List<Season> rest = new ArrayList<>();
         for (Map.Entry<String, AlmanacEntryAsset> entry : ordered) {
             String eventId = AlmanacKeys.normalize(entry.getKey());
             if (!AlmanacKeys.usableId(eventId)) {
@@ -85,10 +223,12 @@ public final class AlmanacView {
                 continue;
             }
             AlmanacEntryAsset page = entry.getValue();
-            out.add(new Season(eventId, page.titleKey(), page.flavorKey(), page.getIcon(), state.live(),
-                    state.live() ? state.year() : 0));
+            Season season = new Season(eventId, page.titleKey(), page.flavorKey(), page.getIcon(), state.live(),
+                    state.live() ? state.year() : 0);
+            (season.live() ? live : rest).add(season);
         }
-        return List.copyOf(out);
+        live.addAll(rest);
+        return List.copyOf(live);
     }
 
     /**
@@ -143,42 +283,18 @@ public final class AlmanacView {
         long seasonsAttended = tallies.get(AlmanacKeys.lifetime(eventId, AlmanacKeys.ATTENDED));
 
         List<Keepsake> keepsakes = new ArrayList<>();
-        List<Feat> feats = new ArrayList<>();
-        int earned = 0;
-        int listed = 0;
         if (engine != null && subject != null) {
-            String mintPrefix = page == null || page.getKeepsake() == null
-                    ? null : AlmanacKeys.normalize(page.getKeepsake()) + "_";
-            for (Achievement achievement : byId(engine)) {
-                String id = achievement.id();
-                boolean unlocked = engine.isUnlocked(subject, id);
-                int mintYear = mintPrefix == null ? 0 : mintYear(id, mintPrefix);
-                if (mintYear > 0) {
-                    if (unlocked) {
-                        keepsakes.add(new Keepsake(id, mintYear, achievement.icon()));
-                    }
-                    continue;
-                }
-                if (!SEASONS_CATEGORY.equals(achievement.category()) || !eventId.equals(achievement.subcategory())) {
-                    continue;
-                }
-                if (achievement.featOfStrength()) {
-                    if (unlocked) {
-                        feats.add(new Feat(id, achievement.icon()));
-                    }
-                    continue;
-                }
-                if (engine.isVisible(subject, achievement)) {
-                    listed++;
-                    if (unlocked) {
-                        earned++;
-                    }
+            for (Map.Entry<Integer, Achievement> copy : keepsakeCopies(page, engine).entrySet()) {
+                if (engine.isUnlocked(subject, copy.getValue().id())) {
+                    keepsakes.add(new Keepsake(copy.getValue().id(), copy.getKey(), copy.getValue().icon()));
                 }
             }
         }
-        keepsakes.sort(Comparator.comparingInt(Keepsake::year));
+        SeasonAchievements achievements = achievements(eventId, page, engine, subject);
         return new Detail(season, shown, attended, seasonsAttended, seasonLines, lifetimeLines,
-                List.copyOf(keepsakes), earned, listed, List.copyOf(feats));
+                List.copyOf(keepsakes), achievements == null ? 0 : achievements.earned(),
+                achievements == null ? 0 : achievements.total(),
+                achievements == null ? List.of() : achievements.feats());
     }
 
     /** The first cross-season achievement in circulation or earned, or null: absent while it is off. */
@@ -203,26 +319,362 @@ public final class AlmanacView {
         return null;
     }
 
+    // ==================== the redesigned season page ====================
+
+    /** When {@code season} runs, as the calendar knows it at {@code nowMs}: its chip, row line and dates. */
+    @Nonnull
+    public static Timing timing(@Nonnull Season season, @Nonnull AlmanacCalendar calendar, long nowMs) {
+        return timing(season, calendar.dates(season.eventId(), nowMs), nowMs);
+    }
+
+    @Nonnull
+    static Timing timing(@Nonnull Season season, @Nonnull Dates dates, long nowMs) {
+        ZoneId zone = dates.zone();
+        LocalDate today = day(nowMs, zone);
+        Occurrence live = dates.live();
+        Occurrence next = dates.next();
+        Occurrence framing = live != null ? live : next != null ? next : last(dates.history());
+        MonthDay windowStart = framing == null ? null : MonthDay.from(day(framing.startMs(), zone));
+        MonthDay windowEnd = framing == null ? null : MonthDay.from(lastDay(framing, zone));
+        LocalDate nextStart = next == null ? null : day(next.startMs(), zone);
+        if (live != null || season.live()) {
+            Integer daysLeft = null;
+            boolean lastDay = false;
+            if (live != null && live.contains(nowMs)) {
+                LocalDate last = lastDay(live, zone);
+                daysLeft = (int) Math.max(1L, ChronoUnit.DAYS.between(today, last) + 1L);
+                lastDay = !today.isBefore(last);
+            }
+            return new Timing(true, daysLeft, lastDay, null, false, windowStart, windowEnd, nextStart, false);
+        }
+        Integer daysUntil = nextStart == null ? null : (int) Math.max(0L, ChronoUnit.DAYS.between(today, nextStart));
+        boolean soon = daysUntil != null && daysUntil <= SOON_DAYS;
+        boolean startsLater = next != null && dates.history().isEmpty();
+        return new Timing(false, null, false, daysUntil, soon, windowStart, windowEnd, nextStart, startsLater);
+    }
+
+    /**
+     * Every year a player can read, oldest first: each run the calendar has had, every year the player
+     * holds a tally for, and the run on now. None while the first run is still ahead.
+     */
+    @Nonnull
+    static List<YearChip> years(@Nonnull Season season, @Nonnull Timing timing, @Nonnull Dates dates,
+            @Nonnull CounterMap tallies, @Nonnull Set<Integer> keepsakeYearsEarned) {
+        if (timing.startsLater()) {
+            return List.of();
+        }
+        SortedSet<Integer> tookPart = AlmanacKeys.seasonYears(tallies, season.eventId());
+        TreeSet<Integer> years = new TreeSet<>(tookPart);
+        for (Occurrence run : dates.history()) {
+            years.add(run.year());
+        }
+        Integer liveYear = dates.live() != null ? Integer.valueOf(dates.live().year())
+                : season.live() && season.liveYear() > 0 ? Integer.valueOf(season.liveYear()) : null;
+        if (liveYear != null) {
+            years.add(liveYear);
+        }
+        List<YearChip> out = new ArrayList<>();
+        for (int year : years) {
+            out.add(new YearChip(year, liveYear != null && year == liveYear, tookPart.contains(year),
+                    keepsakeYearsEarned.contains(year)));
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * The scope a page reads: the one asked for when it is listed (Every season always is, while any year
+     * is); else the year on now; else the last year the player took part in; else every season.
+     */
+    @Nonnull
+    static Scope scope(@Nullable Scope requested, @Nonnull Season season, @Nonnull Timing timing,
+            @Nonnull List<YearChip> years) {
+        if (years.isEmpty()) {
+            return Scope.EVERY;
+        }
+        if (requested != null) {
+            if (requested.every()) {
+                return Scope.EVERY;
+            }
+            for (YearChip chip : years) {
+                if (chip.year() == requested.year()) {
+                    return requested;
+                }
+            }
+        }
+        YearChip lastTookPart = null;
+        for (YearChip chip : years) {
+            if (chip.live()) {
+                return new Scope(chip.year());
+            }
+            if (chip.tookPart()) {
+                lastTookPart = chip;
+            }
+        }
+        return lastTookPart == null ? Scope.EVERY : new Scope(lastTookPart.year());
+    }
+
+    /** Did the player take part in {@code scope}: that year, or any year for every season? */
+    static boolean tookPartIn(@Nonnull Scope scope, @Nonnull List<YearChip> years) {
+        for (YearChip chip : years) {
+            if (chip.tookPart() && (scope.every() || chip.year() == scope.year())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The season's tiles in {@code scope}, by Order then name; a tile nothing counted reads 0. */
+    @Nonnull
+    static List<Tally> tallies(@Nullable AlmanacEntryAsset page, @Nonnull String eventId, @Nonnull CounterMap tallies,
+            @Nonnull Scope scope, @Nonnull ServerTallies server) {
+        List<Tally> out = new ArrayList<>();
+        for (Map.Entry<String, AlmanacStatAsset> stat : orderedStats(page)) {
+            String statId = stat.getKey();
+            String lifetimeKey = AlmanacKeys.lifetime(eventId, statId);
+            long lifetime = tallies.get(lifetimeKey);
+            String scopedKey = scope.every() ? lifetimeKey : AlmanacKeys.season(eventId, scope.year(), statId);
+            long serverTotal = server.get(scopedKey);
+            out.add(new Tally(statId, stat.getValue().getTextKey(), stat.getValue().getIcon(),
+                    scope.every() ? lifetime : tallies.get(scopedKey), scope.every() ? null : Long.valueOf(lifetime),
+                    serverTotal > 0L ? Long.valueOf(serverTotal) : null));
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * The season's achievements: those filed under {@code Seasons > <event>}, its keepsake copies apart.
+     * Null (the section absent) with no engine or subject, and when nothing is filed or earned there.
+     */
+    @Nullable
+    static SeasonAchievements achievements(@Nonnull String eventId, @Nullable AlmanacEntryAsset page,
+            @Nullable AchievementEngine engine, @Nullable Subject subject) {
+        if (engine == null || subject == null) {
+            return null;
+        }
+        Set<String> keepsakeIds = new TreeSet<>();
+        for (Achievement copy : keepsakeCopies(page, engine).values()) {
+            keepsakeIds.add(copy.id());
+        }
+        List<Feat> feats = new ArrayList<>();
+        int earned = 0;
+        int listed = 0;
+        for (Achievement achievement : byId(engine)) {
+            if (!SEASONS_CATEGORY.equals(achievement.category()) || !eventId.equals(achievement.subcategory())
+                    || keepsakeIds.contains(achievement.id())) {
+                continue;
+            }
+            boolean unlocked = engine.isUnlocked(subject, achievement.id());
+            if (achievement.featOfStrength()) {
+                if (unlocked) {
+                    feats.add(new Feat(achievement.id(), achievement.icon()));
+                }
+                continue;
+            }
+            if (engine.isVisible(subject, achievement)) {
+                listed++;
+                if (unlocked) {
+                    earned++;
+                }
+            }
+        }
+        return listed == 0 && feats.isEmpty() ? null : new SeasonAchievements(earned, listed, List.copyOf(feats));
+    }
+
+    /** The season's links that have words and somewhere this server can open, in the order written. */
+    @Nonnull
+    static List<SeasonLink> links(@Nullable AlmanacEntryAsset page) {
+        if (page == null) {
+            return List.of();
+        }
+        List<SeasonLink> out = new ArrayList<>();
+        for (AlmanacLinkAsset link : page.links()) {
+            String textKey = link.textKey();
+            Destination destination = link.destination();
+            if (textKey != null && destination != null) {
+                out.add(new SeasonLink(textKey, destination));
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * Every yearly copy of the season's keepsake in the catalogue, by year: an achievement minted for an
+     * occurrence of the page's {@code Keepsake} base id, else one whose id is {@code <Keepsake>_<yyyy>}.
+     * Empty for a season with no keepsake or no catalogue.
+     */
+    @Nonnull
+    static Map<Integer, Achievement> keepsakeCopies(@Nullable AlmanacEntryAsset page,
+            @Nullable AchievementEngine engine) {
+        if (page == null || page.getKeepsake() == null || engine == null) {
+            return Map.of();
+        }
+        String base = AlmanacKeys.normalize(page.getKeepsake());
+        Map<Integer, Achievement> out = new TreeMap<>();
+        for (Achievement achievement : byId(engine)) {
+            Achievement.Occurrence occurrence = achievement.occurrence();
+            int year = occurrence != null
+                    ? (base.equals(occurrence.baseId()) ? occurrence.year() : 0)
+                    : mintYear(achievement.id(), base + "_");
+            if (year > 0) {
+                out.putIfAbsent(year, achievement);
+            }
+        }
+        return out;
+    }
+
+    /** The years among {@code copies} the subject has earned. */
+    @Nonnull
+    static Set<Integer> yearsEarned(@Nonnull Map<Integer, Achievement> copies, @Nullable AchievementEngine engine,
+            @Nullable Subject subject) {
+        if (engine == null || subject == null) {
+            return Set.of();
+        }
+        Set<Integer> out = new TreeSet<>();
+        for (Map.Entry<Integer, Achievement> copy : copies.entrySet()) {
+            if (engine.isUnlocked(subject, copy.getValue().id())) {
+                out.add(copy.getKey());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Which top a season's page draws. In order: the {@code Hero.Art} while {@code ShowArt} is true and
+     * the texture ships; else the {@code Hero.Composition} when at least one of its items is one the server
+     * has; else the season's own icon. A composition's items are kept on the plate (side 24 to 128, then
+     * the corner clamped so the whole picture shows), unknown ones skipped, the first twelve drawn.
+     */
+    @Nonnull
+    static Hero hero(@Nonnull Season season, @Nullable AlmanacEntryAsset page, @Nonnull Predicate<String> textureShips,
+            @Nonnull Function<String, String> iconPaths) {
+        String ownIcon = iconPath(season.icon(), iconPaths);
+        AlmanacHeroAsset authored = page == null ? null : page.hero();
+        if (authored == null) {
+            return new Hero(null, null, ownIcon);
+        }
+        String art = authored.art();
+        if (authored.showArt() && art != null && ships(art, textureShips)) {
+            return new Hero(art, null, ownIcon);
+        }
+        HeroComposition composition = composition(authored.composition(), page.accent(), textureShips, iconPaths);
+        return new Hero(null, composition, ownIcon);
+    }
+
+    @Nullable
+    private static HeroComposition composition(@Nullable AlmanacHeroAsset.Composition authored,
+            @Nullable String accent, @Nonnull Predicate<String> textureShips,
+            @Nonnull Function<String, String> iconPaths) {
+        if (authored == null) {
+            return null;
+        }
+        List<HeroItem> items = new ArrayList<>();
+        for (AlmanacHeroAsset.Placement placement : authored.items()) {
+            if (items.size() >= HERO_MAX_ITEMS) {
+                break;
+            }
+            String icon = iconPath(placement.item(), iconPaths);
+            if (icon == null) {
+                continue;
+            }
+            int size = clamp(placement.size(), HERO_ITEM_SIZE, HERO_ITEM_MIN, HERO_ITEM_MAX);
+            items.add(new HeroItem(placement.item(), icon, clamp(placement.x(), 0, 0, HERO_WIDTH - size),
+                    clamp(placement.y(), 0, 0, HERO_HEIGHT - size), size));
+        }
+        if (items.isEmpty()) {
+            return null;
+        }
+        AlmanacHeroAsset.Gradient sky = authored.gradient();
+        HeroGradient gradient = sky == null ? null : new HeroGradient(sky.top(), sky.bottom());
+        String background = gradient != null ? null
+                : authored.background() != null ? authored.background() : darken(accent);
+        String texture = authored.backgroundTexture();
+        AlmanacHeroAsset.Glow light = authored.glow();
+        HeroGlow glow = light == null ? null : new HeroGlow(light.color(),
+                clamp(light.x(), 0, GLOW_X_MIN, GLOW_X_MAX), clamp(light.y(), 0, GLOW_Y_MIN, GLOW_Y_MAX),
+                clamp(light.size(), GLOW_SIZE, GLOW_MIN, GLOW_MAX));
+        return new HeroComposition(background, texture != null && ships(texture, textureShips) ? texture : null,
+                gradient, glow, List.copyOf(items));
+    }
+
+    /** The record card across every listed season: seasons taken part in, and keepsakes earned. */
+    @Nonnull
+    public static Record record(@Nonnull List<Season> seasons, @Nonnull Map<String, AlmanacEntryAsset> pages,
+            @Nonnull CounterMap tallies, @Nullable AchievementEngine engine, @Nullable Subject subject) {
+        long seasonsTakenPart = 0L;
+        long keepsakes = 0L;
+        for (Season season : seasons) {
+            seasonsTakenPart += tallies.get(AlmanacKeys.lifetime(season.eventId(), AlmanacKeys.ATTENDED));
+            keepsakes += yearsEarned(keepsakeCopies(pages.get(season.eventId()), engine), engine, subject).size();
+        }
+        return new Record(seasonsTakenPart, keepsakes);
+    }
+
+    /**
+     * The year at a glance: twelve months, January first, each with the seasons running in it, in list
+     * order. A season is marked on every month its run touches (the run on now, else the next, else the
+     * last), a run crossing the new year marking December and January; one with no dates marks none.
+     */
+    @Nonnull
+    public static List<MonthMarks> yearAtAGlance(@Nonnull List<Season> seasons, @Nonnull AlmanacCalendar calendar,
+            long nowMs) {
+        List<List<String>> months = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            months.add(new ArrayList<>());
+        }
+        for (Season season : seasons) {
+            Dates dates = calendar.dates(season.eventId(), nowMs);
+            Occurrence run = dates.live() != null ? dates.live() : dates.next() != null ? dates.next()
+                    : last(dates.history());
+            if (run == null) {
+                continue;
+            }
+            YearMonth month = YearMonth.from(day(run.startMs(), dates.zone()));
+            YearMonth end = YearMonth.from(lastDay(run, dates.zone()));
+            for (int i = 0; i < 12 && !month.isAfter(end); i++, month = month.plusMonths(1)) {
+                List<String> marks = months.get(month.getMonthValue() - 1);
+                if (!marks.contains(season.eventId())) {
+                    marks.add(season.eventId());
+                }
+            }
+        }
+        List<MonthMarks> out = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            out.add(new MonthMarks(i + 1, List.copyOf(months.get(i))));
+        }
+        return List.copyOf(out);
+    }
+
+    // ==================== helpers ====================
+
     @Nonnull
     private static List<StatLine> lines(@Nullable AlmanacEntryAsset page, @Nonnull CounterMap tallies,
             @Nonnull String eventId, @Nullable Integer year) {
+        List<StatLine> out = new ArrayList<>();
+        for (Map.Entry<String, AlmanacStatAsset> stat : orderedStats(page)) {
+            String key = year == null
+                    ? AlmanacKeys.lifetime(eventId, stat.getKey()) : AlmanacKeys.season(eventId, year, stat.getKey());
+            out.add(new StatLine(stat.getKey(), stat.getValue().getTextKey(), stat.getValue().getIcon(), tallies.get(key)));
+        }
+        return List.copyOf(out);
+    }
+
+    /** The page's usable stat lines, keyed by their normalized id, by Order then id. */
+    @Nonnull
+    private static List<Map.Entry<String, AlmanacStatAsset>> orderedStats(@Nullable AlmanacEntryAsset page) {
         if (page == null) {
             return List.of();
         }
         List<Map.Entry<String, AlmanacStatAsset>> stats = new ArrayList<>(page.getStats().entrySet());
         stats.sort(Comparator.comparingInt((Map.Entry<String, AlmanacStatAsset> e) -> e.getValue().orderOrLast())
                 .thenComparing(e -> AlmanacKeys.normalize(e.getKey())));
-        List<StatLine> out = new ArrayList<>();
+        List<Map.Entry<String, AlmanacStatAsset>> out = new ArrayList<>();
         for (Map.Entry<String, AlmanacStatAsset> stat : stats) {
             String statId = AlmanacKeys.normalize(stat.getKey());
-            if (!AlmanacKeys.usableId(statId) || stat.getValue().isBlank()) {
-                continue;
+            if (AlmanacKeys.usableId(statId) && !stat.getValue().isBlank()) {
+                out.add(Map.entry(statId, stat.getValue()));
             }
-            String key = year == null
-                    ? AlmanacKeys.lifetime(eventId, statId) : AlmanacKeys.season(eventId, year, statId);
-            out.add(new StatLine(statId, stat.getValue().getTextKey(), stat.getValue().getIcon(), tallies.get(key)));
         }
-        return List.copyOf(out);
+        return out;
     }
 
     /** The catalogue in id order, so every read walks it the same way. */
@@ -247,5 +699,65 @@ public final class AlmanacView {
             year = year * 10 + (c - '0');
         }
         return year;
+    }
+
+    @Nonnull
+    private static LocalDate day(long ms, @Nonnull ZoneId zone) {
+        return Instant.ofEpochMilli(ms).atZone(zone).toLocalDate();
+    }
+
+    /** A run's last day: its end is the midnight after it. */
+    @Nonnull
+    private static LocalDate lastDay(@Nonnull Occurrence run, @Nonnull ZoneId zone) {
+        return day(run.endMs(), zone).minusDays(1);
+    }
+
+    @Nullable
+    private static Occurrence last(@Nonnull List<Occurrence> runs) {
+        return runs.isEmpty() ? null : runs.get(runs.size() - 1);
+    }
+
+    /** {@code itemId}'s own picture, or null for no id, an item the server lacks, or a failing lookup. */
+    @Nullable
+    private static String iconPath(@Nullable String itemId, @Nonnull Function<String, String> iconPaths) {
+        if (itemId == null || itemId.isBlank()) {
+            return null;
+        }
+        try {
+            String path = iconPaths.apply(itemId.trim());
+            return path == null || path.isBlank() ? null : path;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static boolean ships(@Nonnull String texture, @Nonnull Predicate<String> textureShips) {
+        try {
+            return textureShips.test(texture);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private static int clamp(@Nullable Integer value, int unauthored, int min, int max) {
+        int v = value == null ? unauthored : value;
+        return Math.max(min, Math.min(max, v));
+    }
+
+    /** {@code hex} at {@link #DERIVED_BACKGROUND_SHARE} of its brightness, or null for no colour. */
+    @Nullable
+    static String darken(@Nullable String hex) {
+        if (hex == null || hex.length() != 7) {
+            return null;
+        }
+        try {
+            int rgb = Integer.parseInt(hex.substring(1), 16);
+            int r = (int) Math.round(((rgb >> 16) & 0xff) * DERIVED_BACKGROUND_SHARE);
+            int g = (int) Math.round(((rgb >> 8) & 0xff) * DERIVED_BACKGROUND_SHARE);
+            int b = (int) Math.round((rgb & 0xff) * DERIVED_BACKGROUND_SHARE);
+            return String.format(Locale.ROOT, "#%02x%02x%02x", r, g, b);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

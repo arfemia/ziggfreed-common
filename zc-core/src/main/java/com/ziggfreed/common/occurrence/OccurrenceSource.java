@@ -1,5 +1,7 @@
 package com.ziggfreed.common.occurrence;
 
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -14,9 +16,10 @@ import javax.annotation.Nullable;
  * <p>An event this server does not have, or one its owner switched off, is ABSENT: it is not
  * enabled, never live, and has no history. Off means absent, never locked.
  *
- * <p>The two YEAR questions are the one exception: {@link #firstYear} and {@link #currentYear} answer
- * for any event LOADED on this server whatever its switches say, so a reader that keeps what a player
- * earned in a past run (a yearly trophy) still knows its years after the owner switches the event off.
+ * <p>The two YEAR questions and the clock are the exceptions: {@link #firstYear}, {@link #currentYear}
+ * and {@link #zone} answer for any event LOADED on this server whatever its switches say, so a reader
+ * that keeps what a player earned in a past run (a yearly trophy) still knows its years after the owner
+ * switches the event off.
  */
 public interface OccurrenceSource {
 
@@ -81,5 +84,30 @@ public interface OccurrenceSource {
     @Nullable
     default Integer currentYear(@Nonnull String eventId, long nowMs) {
         return null;
+    }
+
+    /**
+     * The first run of {@code eventId} to start after {@code nowMs} (a run's first instant is already
+     * inside it), never one before its first year and never the run {@link #live} answers: while a run
+     * goes on, the next is the one after it. Forces count as {@link #live} counts them: a run forced on
+     * ahead of its dates is already going on, so the next is the year after it; a run forced off returns
+     * when its dates next come round. Null when the event is absent, and from a source that knows no
+     * dates (the default).
+     */
+    @Nullable
+    default Occurrence next(@Nonnull String eventId, long nowMs) {
+        return null;
+    }
+
+    /**
+     * The clock {@code eventId}'s days are counted in: every run starts at this zone's midnight and its
+     * year is this zone's year, so a reader counting the days left or naming a run's first and last day
+     * counts in this zone. Answers for any event LOADED on this server whatever its switches say. UTC for
+     * an event the source does not know or one that names no clock, and from a source that knows no
+     * clocks (the default).
+     */
+    @Nonnull
+    default ZoneId zone(@Nonnull String eventId) {
+        return ZoneOffset.UTC;
     }
 }
