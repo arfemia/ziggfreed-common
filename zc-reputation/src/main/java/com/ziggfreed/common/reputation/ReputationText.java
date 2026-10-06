@@ -27,7 +27,8 @@ public final class ReputationText {
     /** Every key the code speaks, for the test that holds the English file to it. */
     public static final List<String> SPOKEN = List.of(
             "rank.hated", "rank.unfriendly", "rank.neutral", "rank.friendly", "rank.honored", "rank.revered",
-            "rank.exalted", "rank.none");
+            "rank.exalted", "rank.none",
+            "reward.gain", "reward.loss");
 
     private ReputationText() {
     }
