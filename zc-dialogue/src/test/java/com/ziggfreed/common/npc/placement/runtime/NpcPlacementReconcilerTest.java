@@ -291,9 +291,12 @@ class NpcPlacementReconcilerTest {
 
     @Test
     void upkeepCoversEveryKeptCopyAndNeverASurplusOne() {
-        AdoptedRow guide = new AdoptedRow("guide", "worldspawn:0", UUID.fromString("00000000-0000-0000-0000-000000000003"));
-        AdoptedRow hub = new AdoptedRow("hub", "worldspawn:0", UUID.fromString("00000000-0000-0000-0000-000000000001"));
-        AdoptedRow hubAgain = new AdoptedRow("hub", "worldspawn:0", UUID.fromString("00000000-0000-0000-0000-000000000002"));
+        AdoptedRow guide = new AdoptedRow("guide", "worldspawn:0",
+                UUID.fromString("00000000-0000-0000-0000-000000000003"));
+        AdoptedRow hub = new AdoptedRow("hub", "worldspawn:0",
+                UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        AdoptedRow hubAgain = new AdoptedRow("hub", "worldspawn:0",
+                UUID.fromString("00000000-0000-0000-0000-000000000002"));
 
         List<AdoptedRow> rows = NpcPlacementReconciler.upkeepRows(List.of(guide),
                 NpcPlacementReconciler.planAdoptions(List.of(hub, hubAgain)));

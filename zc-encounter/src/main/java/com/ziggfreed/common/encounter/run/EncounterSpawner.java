@@ -1,6 +1,8 @@
 package com.ziggfreed.common.encounter.run;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.function.BiFunction;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -144,23 +146,43 @@ public final class EncounterSpawner {
     }
 
     /**
-     * {@link #trySpawn} once the chunk section under {@code at} is loaded and ticking. Completes on the
-     * world thread, always: a section the store cannot bring up, or a store that is shutting down,
-     * answers {@link Refusal#ENGINE_FAILED} rather than throwing.
+     * {@link #trySpawn} once the chunk section under {@code at} is loaded and ticking. Always completes,
+     * once, and never exceptionally: a section the store cannot bring up, or a store that is shutting
+     * down, answers {@link Refusal#ENGINE_FAILED}. It completes on the world thread, except when the world
+     * takes no more tasks (it is stopping): that {@code ENGINE_FAILED} answers on the thread that landed
+     * the wake.
      */
     @Nonnull
     public static CompletableFuture<Outcome> spawnWhenLoaded(@Nonnull World world, @Nonnull String encounterAssetId,
             @Nonnull TransformComponent at, @Nonnull SpawnOptions options) {
-        CompletableFuture<Outcome> outcome = new CompletableFuture<>();
         try {
-            TickingSections.wake(world, at.getPosition().x, at.getPosition().y, at.getPosition().z)
-                    .whenCompleteAsync((sectionRef, error) -> outcome.complete(
-                            spawnInLoadedSection(world, encounterAssetId, at, options, sectionRef, error)), world);
+            return whenWoken(TickingSections.wake(world, at.getPosition().x, at.getPosition().y, at.getPosition().z),
+                    world, encounterAssetId, (sectionRef, error) ->
+                            spawnInLoadedSection(world, encounterAssetId, at, options, sectionRef, error));
         } catch (Throwable t) {
             SafeLog.warn(Encounters.LOG_PREFIX + " could not ask for the chunk section under '" + encounterAssetId
                     + "'", t);
-            outcome.complete(new Outcome(null, Refusal.ENGINE_FAILED));
+            return CompletableFuture.completedFuture(new Outcome(null, Refusal.ENGINE_FAILED));
         }
+    }
+
+    /**
+     * {@code spawn}'s answer once {@code woken} lands, run on {@code worldThread}. A world thread that takes
+     * no more tasks (a stopping world's execute throws) never runs it, which fails only the dependent future:
+     * that answers {@link Refusal#ENGINE_FAILED} instead, once. Package-private for the test.
+     */
+    @Nonnull
+    static CompletableFuture<Outcome> whenWoken(@Nonnull CompletableFuture<Ref<ChunkStore>> woken,
+            @Nonnull Executor worldThread, @Nonnull String encounterAssetId,
+            @Nonnull BiFunction<Ref<ChunkStore>, Throwable, Outcome> spawn) {
+        CompletableFuture<Outcome> outcome = new CompletableFuture<>();
+        woken.whenCompleteAsync((sectionRef, error) -> outcome.complete(spawn.apply(sectionRef, error)), worldThread)
+                .whenComplete((ignored, rejected) -> {
+                    if (rejected != null && outcome.complete(new Outcome(null, Refusal.ENGINE_FAILED))) {
+                        SafeLog.warn(Encounters.LOG_PREFIX + " not spawning '" + encounterAssetId
+                                + "': the world thread took no task for it: " + rejected);
+                    }
+                });
         return outcome;
     }
 

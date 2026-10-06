@@ -26,8 +26,8 @@ import org.joml.Vector3d;
 
 /**
  * Stand a script up: at the sender when they are a player, at the named world's spawn point from
- * the console, or wherever {@code --x= --y= --z=} say. The chunk under the spot is brought up
- * ticking first, so a console spawn into a chunk nobody is standing in takes.
+ * the console, or wherever {@code --x= --y= --z=} say. The chunk section under the spot is brought up
+ * ticking first, so a console spawn into a section nobody is standing in takes.
  */
 final class EncounterSpawnCommand extends AbstractAsyncCommand {
 

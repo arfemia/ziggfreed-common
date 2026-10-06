@@ -197,7 +197,9 @@ public final class NpcPlacementReconciler {
      * <p>Requested once per section per world: the same anchor is walked on every pass. The claim is
      * released when the request completes, landed or not, but only a landed section sweeps again
      * ({@link #sweepAfterLanding}): a section the chunk store failed to bring up is asked for again by the
-     * next sweep the retry chain or a trigger runs, never by a loop of its own.
+     * next sweep the retry chain or a trigger runs, never by a loop of its own. A world that stops taking
+     * tasks before its request completes never runs that completion, so its key stays until
+     * {@link #onWorldRemoved} clears it (a stopping world sweeps no more, so nothing asks for it meanwhile).
      *
      * @return true when a request was made on this call
      */
@@ -458,7 +460,7 @@ public final class NpcPlacementReconciler {
 
     // ==================== the sweep ====================
 
-    /** What one sweep did. {@code unresolvedAnchors} is the retry signal - see {@link #deferSweep}. */
+    /** What one sweep did. {@code unresolvedAnchors} is the retry signal - see {@link #runSweepAndMaybeRetry}. */
     public record SweepSummary(int scanned, int despawned, int rebound, int placed, int unresolvedAnchors) {
     }
 
@@ -750,8 +752,8 @@ public final class NpcPlacementReconciler {
 
     /**
      * What one place pass did: how many it placed, how many wanted a position or a ticking section it
-     * could not have yet (the retry signal - see {@link #deferSweep}), and whether it woke an anchor's
-     * section (the signal for {@link #settleRounds}' second round).
+     * could not have yet (the retry signal - see {@link #runSweepAndMaybeRetry}), and whether it woke an
+     * anchor's section (the signal for {@link #settleRounds}' second round).
      */
     private record PlacePass(int placed, int unresolvedAnchors, boolean wokeASection) {
     }

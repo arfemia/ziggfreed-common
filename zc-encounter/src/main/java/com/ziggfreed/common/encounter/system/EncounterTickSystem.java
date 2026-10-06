@@ -48,9 +48,9 @@ import com.ziggfreed.common.util.SafeLog;
  * Once per tick per encounter entity, AFTER the engine's own tick has run the script: re-resolve
  * the subject and the members and refresh the hot indexes (the encounter's spawn lineage among
  * them), seed the party, credit presence, apply or reconcile the health scale, scale the adds its
- * spawners raised since the last tick, hold the chunk ticking while the fight is open (or owned and
- * still waiting for its party), watch for a wipe or a timeout, and move the map marker. Nothing here
- * decides the fight; it reads what the engine decided.
+ * spawners raised since the last tick, hold its chunk section and its subject's ticking while the fight
+ * is open (or owned and still waiting for its party), watch for a wipe or a timeout, and move the map
+ * marker. Nothing here decides the fight; it reads what the engine decided.
  *
  * <p>Not parallel: members are player entities that may stand in two overlapping fights at once,
  * which is the same reason the engine's own member tick is serial.
