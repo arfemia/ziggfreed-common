@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -44,6 +45,12 @@ class UiDocumentSyntaxTest {
     /** Every {@code #...} token, however malformed, so one the {@link #ID} shape rejects is still seen. */
     private static final Pattern ID_TOKEN = Pattern.compile("#([A-Za-z][A-Za-z0-9_.\\-]*)");
 
+    /** A label's alignment value, whatever word it is spelt with. */
+    private static final Pattern ALIGNMENT = Pattern.compile("\\b((?:Vertical|Horizontal)Alignment)\\s*:\\s*([A-Za-z]+)");
+
+    /** The client's LabelAlignment values: vanilla aligns a label to the bottom with End, never Bottom. */
+    private static final Set<String> ALIGNMENTS = Set.of("Start", "Center", "End");
+
     @Test
     void everyElementIdIsLettersAndDigitsOnly() throws IOException {
         List<String> bad = new ArrayList<>();
@@ -66,6 +73,26 @@ class UiDocumentSyntaxTest {
                 "a UI element id must be a letter followed by letters and digits; the client's parser "
                         + "stops at anything else and the whole document then fails to load, which no "
                         + "server-side check can see. Offending ids: " + bad);
+    }
+
+    @Test
+    void everyAlignmentIsAValueTheClientAccepts() throws IOException {
+        List<String> bad = new ArrayList<>();
+        for (Path doc : documents()) {
+            String text = Files.readString(doc, StandardCharsets.UTF_8);
+            String[] lines = text.split("\n");
+            for (int i = 0; i < lines.length; i++) {
+                Matcher m = ALIGNMENT.matcher(stripComment(lines[i]));
+                while (m.find()) {
+                    if (!ALIGNMENTS.contains(m.group(2))) {
+                        bad.add(doc.getFileName() + ":" + (i + 1) + " " + m.group(1) + ": " + m.group(2));
+                    }
+                }
+            }
+        }
+        assertTrue(bad.isEmpty(),
+                "a label's alignment is Start, Center or End (vanilla's LabelAlignment); Top, Bottom, Left or "
+                        + "Right fails the client's parse and disconnects every player at load. Offending: " + bad);
     }
 
     @Test

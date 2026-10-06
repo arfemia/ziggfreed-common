@@ -23,7 +23,7 @@ $Z = "../Common/ZigButtons.ui";
 
 @TabLabelStyle = LabelStyle(FontSize: 14, TextColor: #96a9be, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
 @SelectedLabelStyle = LabelStyle(FontSize: 14, TextColor: #ffffff, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
-@SectionLabelStyle = LabelStyle(FontSize: 13, TextColor: #96a9be, RenderBold: true, RenderUppercase: true, VerticalAlignment: Bottom);
+@SectionLabelStyle = LabelStyle(FontSize: 13, TextColor: #96a9be, RenderBold: true, RenderUppercase: true, VerticalAlignment: End);
 
 Group #ZigMenuTab {
   LayoutMode: Top;
