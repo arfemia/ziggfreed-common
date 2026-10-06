@@ -1,0 +1,12 @@
+# zc-reputation
+
+Standing with a faction or one NPC, on Hytale's native reputation system.
+
+- A reputation IS a native `ReputationGroup` (`Server/NPC/Reputation/Groups/<Id>.json`); `ReputationAsset` (`Server/ZiggfreedCommon/Reputations/<Owner>/<Id>.json`) is zc's companion keyed by the same id, matched without regard to case. The engine's maps are keyed exactly, so every native call takes the engine's own spelling (`ReputationDef.id()`), never the authored one.
+- zc ships the one global ladder (`Server/NPC/Reputation/Ranks/`, seven files). The engine reads ranks and groups once at start: a change needs a restart. A group with no `NPCGroups` key, or one naming an unloaded NPC group, makes the engine throw on every NPC add.
+- Every engine call goes through `ReputationNative` (production `EngineReputationNative`; tests `FakeReputationNative`). `ReputationService.change` is the only zc writer: cap, the engine's `changeReputation`, then the fan-out (change event, World bar, Beyond payout) and a rank check. The admin `/reputation` writes the native value directly and raises nothing; every reading still reads the native value.
+- Effective standing = earned + the `Gear.Stat`'s folded MAX. Factors, the page, the bar and the rank checks read effective; the engine's NPC attitude reads earned; Beyond payouts count earned.
+- Ranks are "effective rank, self-healing": `ReputationRankWatch` checks on every change, after every equip recompute (one listener on the installed equip bridge, run on a later world task) and once at login. A check credits the ranks from the reputation's starting rank (where its `InitialReputationValue` lands) up to the current one, or below the start only the ranks reached going down (`ReputationLadder.credited`, `ZigReputationRanksHeldEvent`, which zc-objectives turns into `REPUTATION_RANK`); only a rise during play raises the `Reputation_Rank` notice. The last-seen ranks are transient and single-process, dropped at disconnect; the first check after login is a silent hydrate.
+- A kill's change runs on a later world task, never inside the death system that fired the moment.
+- Off means absent: `$Enabled` in `mods/ziggfreedcommon/reputation.json` (read at setup and with the companions) or a companion's `Enabled: false` makes the reputation unknown (factors null, rewards refused, no page row); native standing is untouched.
+- Never import zc-objectives here: it depends on this module, not the reverse.
