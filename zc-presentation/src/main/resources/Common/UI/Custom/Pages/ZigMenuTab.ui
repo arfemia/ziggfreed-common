@@ -1,40 +1,47 @@
 $C = "../Common.ui";
-$F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
 
 // One row of the shared menu's rail (com.ziggfreed.common.ui.menu.ZigMenu), appended by index into the
 // frame's #MenuList and addressed as "#MenuList[i] #TabBtn", so a tab's id never becomes an element id.
 //
-// ONE template for every kind of row, the way Pages/ZigSelectRow.ui is one row for a list: a tab shows
-// #TabLine, a section heading hides it and shows #Header, the gap between two sections shows #Spacer.
-// Every row is the same height, so the rail keeps one rhythm whatever a row says.
+// Vanilla's own left-rail row (Pages/WorldEvent/WorldEventNavButton.ui, Pages/UIGallery/CategoryButton.ui):
+// 32 high and 4 below, 10 in from each side, a 14px uppercase label that shrinks to fit (never under 12), a
+// faint dark fill under the cursor; the selected tab is vanilla's bold label under the gold gradient mask on
+// the same fill, with a slim bar beside it so it reads by shape and not only colour.
 //
-// #TabBtn is a Button with an inner Label #Label, labelled on .TextSpans (ui/ZigRichButton), never a
-// TextButton. The selected tab shows #Marker (a bar, so it is told apart by shape and not only colour), a
-// bold white label on the selected fill, and carries no click binding. Every colour here is a
-// ui/menu/MenuPalette default, and ui/menu/ZigMenu repaints each from the palette in force on every
-// build, so a theme recolours the rail with no document of its own (ZigMenuDocumentsTest).
-//
-// #TabIconSlot takes an optional picture through ui/icon/IconRenderer (#IcoItem or #IcoTex); it ships
-// hidden and a tab never shows a picture without its label.
+// ONE template for every kind of row; ZigMenu shows one child and hides the rest:
+//   #TabBtn       a tab: a Button with an inner Label #Label on .TextSpans (ui/ZigRichButton), never a
+//                 TextButton; no resting fill, the hover fill on Hovered and Pressed, click sounds.
+//   #TabSelected  the selected tab: a Group (no click, no hover) with #Marker, its picture and #SelectedLabel,
+//                 whose mask no Java push can set, so it is authored here.
+//   #Header       a section heading: vanilla's section label (13, bold, uppercase).
+//   #Rule         the gap between the consumer's section and the library's tabs: vanilla's 1px separator.
+// Every colour here is a ui/menu/MenuPalette default (an alpha one spelled #rrggbb(a)), and ZigMenu repaints
+// each from the palette in force on every build (ZigMenuDocumentsTest). A picture slot (#TabIconSlot,
+// #SelIconSlot) takes an optional 20px picture through ui/icon/IconRenderer; it ships hidden, and a tab never
+// shows a picture without its label.
+
+@TabLabelStyle = LabelStyle(FontSize: 14, TextColor: #96a9be, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
+@SelectedLabelStyle = LabelStyle(FontSize: 14, TextColor: #ffffff, RenderBold: true, RenderUppercase: true, VerticalAlignment: Center, ShrinkTextToFit: true, MinShrinkTextToFitFontSize: 12);
+@SectionLabelStyle = LabelStyle(FontSize: 13, TextColor: #96a9be, RenderBold: true, RenderUppercase: true, VerticalAlignment: Bottom);
 
 Group #ZigMenuTab {
   LayoutMode: Top;
-  Anchor: (Height: 34, Bottom: 2);
+  Anchor: (Height: 32, Bottom: 4);
 
-  Group #TabLine {
+  Button #TabBtn {
+    Anchor: (Height: 32);
+    Padding: (Horizontal: 10);
     LayoutMode: Left;
-    Anchor: (Height: 34);
-    Background: #0a1119;
-
-    Group #Marker {
-      Anchor: (Width: 4, Height: 34);
-      Background: #ffd24a;
-      Visible: false;
-    }
+    Style: ButtonStyle(
+      Default: (Background: (Color: #000000(0))),
+      Hovered: (Background: (Color: #000000(0.2))),
+      Pressed: (Background: (Color: #000000(0.2))),
+      Sounds: $C.@ButtonSounds
+    );
 
     Group #TabIconSlot {
-      Anchor: (Width: 20, Height: 20, Top: 7, Left: 6);
+      Anchor: (Width: 20, Height: 20, Top: 6, Right: 8);
       Visible: false;
 
       ItemGrid #IcoItem {
@@ -53,37 +60,71 @@ Group #ZigMenuTab {
       }
     }
 
-    Button #TabBtn {
+    Label #Label {
       FlexWeight: 1;
-      Anchor: (Height: 34);
-      Padding: (Left: 10, Right: 6);
-      LayoutMode: Left;
-      Style: ButtonStyle(
-        Default: (Background: #0a1119),
-        Hovered: (Background: #1a2633),
-        Pressed: (Background: #0a1119),
-        Sounds: $C.@ButtonSounds
-      );
+      Text: "";
+      Anchor: (Height: 32);
+      Style: @TabLabelStyle;
+    }
+  }
 
-      Label #Label {
-        FlexWeight: 1;
-        Text: "";
-        Anchor: (Height: 34);
-        Style: $F.@ZigBodyLabelStyle;
+  Group #TabSelected {
+    Anchor: (Height: 32);
+    LayoutMode: Left;
+    Padding: (Right: 10);
+    Background: (Color: #000000(0.2));
+    Visible: false;
+
+    Group #Marker {
+      Anchor: (Width: 3, Height: 32);
+      Background: (Color: #e8a93b);
+    }
+
+    // The bar plus this gap is the button's 10 of padding, so a picture and a label line up with the tabs'.
+    Group {
+      Anchor: (Width: 7);
+    }
+
+    Group #SelIconSlot {
+      Anchor: (Width: 20, Height: 20, Top: 6, Right: 8);
+      Visible: false;
+
+      ItemGrid #IcoItem {
+        Anchor: (Width: 20, Height: 20);
+        Visible: false;
+        SlotsPerRow: 1;
+        AreItemsDraggable: false;
+        DisplayItemQuantity: false;
+        Style: $Z.@ZigIconGrid20;
       }
+
+      AssetImage #IcoTex {
+        Anchor: (Width: 20, Height: 20);
+        Visible: false;
+        FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+      }
+    }
+
+    Label #SelectedLabel {
+      FlexWeight: 1;
+      Text: "";
+      Anchor: (Height: 32);
+      Style: @SelectedLabelStyle;
+      MaskTexturePath: $C.@TextHighlightGradientMask;
     }
   }
 
   Label #Header {
     Text: "";
     Visible: false;
-    Anchor: (Height: 34);
-    Padding: (Left: 4);
-    Style: $F.@ZigHeadingLabelStyle;
+    Anchor: (Height: 32);
+    Padding: (Left: 2);
+    Style: @SectionLabelStyle;
   }
 
-  Group #Spacer {
-    Anchor: (Height: 34);
+  Group #Rule {
+    Anchor: (Top: 15, Height: 1);
+    Background: (Color: #2b3542);
     Visible: false;
   }
 }

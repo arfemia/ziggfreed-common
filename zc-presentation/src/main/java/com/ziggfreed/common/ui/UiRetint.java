@@ -17,7 +17,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
  * skin) owns the policy - which selectors, which palette, whether a theme is
  * gated - and delegates each leaf push to here.
  *
- * <p><b>Three shipped mechanisms, source-validated against the official Hytale
+ * <p><b>Four shipped mechanisms, source-validated against the official Hytale
  * shared source</b>:
  * <ul>
  *   <li><b>{@link #retintColor} (CONFIRMED):</b> a {@code .Background.Color}
@@ -35,6 +35,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
  *       ({@code PatchStyle.CODEC} is in {@code UICommandBuilder.CODEC_MAP}). The
  *       Color retint needs no such check; only a Java-sent {@code TexturePath}'s
  *       resolution form is unproven on a live client.</li>
+ *   <li><b>{@link #fill}:</b> a flat colour fill sent as a typed {@code PatchStyle}, alpha kept (vanilla's own form for an alpha colour).</li>
  * </ul>
  *
  * <p>It NEVER sets a bare-String {@code .Background} (a String overwrites the whole
@@ -72,6 +73,21 @@ public final class UiRetint {
             return;
         }
         cmd.set(selector + ".Background.Color", hex);
+    }
+
+    /**
+     * Paint a flat colour fill: a whole typed {@code PatchStyle} carrying only a {@code Color}, sent to
+     * {@code selector + ".Background"} through {@code setObject}, the form vanilla's own pages push a colour with
+     * ({@code PointInspectorPage}, {@code TriggerVolumeInspectorPage}), so an eight-digit {@code #rrggbbaa} keeps
+     * its alpha and the slot never receives a bare String. For a solid or translucent fill (a pane, a row, a
+     * button state as {@code "#Btn.Style.Hovered"}); it replaces a texture rather than tinting it. A no-op for a
+     * null / non-hex value, so the element keeps its authored fill.
+     */
+    public static void fill(@Nonnull UICommandBuilder cmd, @Nonnull String selector, @Nullable String hex) {
+        if (!isHex(hex)) {
+            return;
+        }
+        cmd.setObject(selector + ".Background", new PatchStyle().setColor(Value.of(hex)));
     }
 
     /**
