@@ -1,0 +1,14 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One segment of a segmented control (a view, a status filter, a year), appended by
+// com.ziggfreed.common.ui.kit.SegmentPainter and addressed by index as "#Host[i] #Seg": the kit's @ZigSegment
+// (Common/ZigKit.ui), 132 x 32, a Button with its #Label, #Check and #Dot. The chosen segment swaps to
+// ZigSegmentOnStyle by reference.
+
+Group #ZigSegment {
+  LayoutMode: Left;
+  Anchor: (Width: 132, Height: $ZK.@ZigControlHeight, Right: 6);
+
+  $ZW.@ZigSegment #Seg {}
+}

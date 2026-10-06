@@ -1,0 +1,13 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One pill of a run of pills (a page's badges, a feat, a reward's state), appended by
+// com.ziggfreed.common.ui.kit.PillPainter's callers and addressed by index as "#Host[i] #Pill": the kit's @ZigPill
+// (Common/ZigKit.ui), 24 high and as wide as its words, with its #Dot and #Label.
+
+Group #ZigPill {
+  LayoutMode: Left;
+  Anchor: (Height: $ZK.@ZigPillHeight, Right: 6, Bottom: $ZK.@ZigSpace1);
+
+  $ZW.@ZigPill #Pill {}
+}

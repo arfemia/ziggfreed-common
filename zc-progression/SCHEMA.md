@@ -10,6 +10,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 
 - [QuestAsset](#type-questasset)
 - [QuestObjective](#type-questobjective)
+- [QuestCategoryAsset](#type-questcategoryasset)
 - [AchievementAsset](#type-achievementasset)
 - [AchievementCategoryAsset](#type-achievementcategoryasset)
 - [AchievementMilestoneAsset](#type-achievementmilestoneasset)
@@ -354,6 +355,17 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `Enabled` | `boolean` | `null` | Whether the character is marked on the world map and compass for this situation. Unauthored means no. |
 | `Icon` | `string` | `null` | The map marker texture, e.g. "Coordinate.png". Unauthored takes whatever the marker service draws by default. |
 
+<a id="type-questcategoryasset"></a>
+## QuestCategoryAsset
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
+| `Order` | `integer` | `null` | Where this category sits among the others, lowest first. It is a sort key rather than an index, so leave gaps (0, 10, 20) and a later category slots between two without renumbering the rest. Unauthored sorts after every category that named one. |
+| `Icon` | `string` | `null` | An item id standing for the whole category: the picture on its tile, and the one shown for content in it that illustrated itself with nothing of its own. |
+| `TitleKey` | `string` | `null` | The translation key this category is called by, so every player reads it in their own language. Unauthored, a surface reads the convention key for its kind of content (achievement.category.<id> or quest.category.<id>), and failing that the id itself, tidied into words. A subcategory reads this key plus .<subcategory> first. |
+| `Accent` | `string` | `null` | The colour this category's strip and tile are marked in, written #rrggbb. A surface keeps it readable against its own background and uses its own accent when it is not. Unauthored, or written any other way, the category takes a steady colour of its own from the shared palette. |
+
 <a id="type-achievementasset"></a>
 ## AchievementAsset
 
@@ -437,9 +449,12 @@ Every field is optional and defaults to `null` unless its Default column reads *
 |---|---|---|---|
 | `Tags` | map of array of `string` | `null` | Tags are a general way to describe an asset that can be interpreted by other systems in a way they see fit.<br><br>For example you could tag something with a **Material** tag with the values **Solid** and **Stone**, And another single tag **Ore**.<br><br>Tags will be expanded into a single list of tags automatically. Using the above example with **Material** and **Ore** the end result would be the following list of tags: **Ore**, **Material**, **Solid**, **Stone**, **Material=Solid** and **Material=Stone**. |
 | `Order` | `integer` | `null` | Where this category sits among the others, lowest first. It is a sort key rather than an index, so leave gaps (0, 10, 20) and a later category slots between two without renumbering the rest. Unauthored sorts after every category that named one. |
-| `Icon` | `string` | `null` | An item id standing for the whole category, shown for content in it that illustrated itself with nothing of its own. |
-| `TitleKey` | `string` | `null` | The translation key a surface labels this group with, so every player reads it in their own language. Unauthored leaves the label to whatever the surface does by convention. |
+| `Icon` | `string` | `null` | An item id standing for the whole category: the picture on its tile, and the one shown for content in it that illustrated itself with nothing of its own. |
+| `TitleKey` | `string` | `null` | The translation key this category is called by, so every player reads it in their own language. Unauthored, a surface reads the convention key for its kind of content (achievement.category.<id> or quest.category.<id>), and failing that the id itself, tidied into words. A subcategory reads this key plus .<subcategory> first. |
+| `Accent` | `string` | `null` | The colour this category's strip and tile are marked in, written #rrggbb. A surface keeps it readable against its own background and uses its own accent when it is not. Unauthored, or written any other way, the category takes a steady colour of its own from the shared palette. |
 | `Subcategories` | array of `string` | `null` | The reading order of the groups INSIDE this category. One left out still shows, it just sorts after the named ones. This is ONE leaf: author it and an inherited list is replaced whole. |
+| `Event` | `string` | `null` | The calendar event this whole category belongs to, by the event's id (its file name). A listing marks the category as on now while that event runs. Unauthored ties it to no event. |
+| `SubcategoryEvents` | `boolean` | `null` | Each subcategory in this category is a calendar event, filed under that event's own id (one group per season, say). A listing marks a group as on now while its event runs, and a group nothing else names reads its event's own name. Unauthored means false. |
 
 <a id="type-achievementmilestoneasset"></a>
 ## AchievementMilestoneAsset

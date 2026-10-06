@@ -30,6 +30,7 @@ import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.asset.QuestAsset;
+import com.ziggfreed.common.quest.asset.QuestCategoryAsset;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
 import com.ziggfreed.common.text.ContentTextAsset;
@@ -91,6 +92,7 @@ public final class SchemaDocWriter {
     static {
         register("QuestAsset", QuestAsset.CODEC);
         register("QuestObjective", QuestObjectiveAsset.CODEC);
+        register("QuestCategoryAsset", QuestCategoryAsset.CODEC);
         register("AchievementAsset", AchievementAsset.CODEC);
         register("AchievementCategoryAsset", AchievementCategoryAsset.CODEC);
         register("AchievementMilestoneAsset", AchievementMilestoneAsset.CODEC);

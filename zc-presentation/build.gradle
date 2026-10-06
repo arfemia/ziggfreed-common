@@ -11,3 +11,12 @@ dependencies {
     implementation project(':zc-core')
     implementation project(':zc-loot')
 }
+
+// UiDocumentSyntaxTest reads every zc module's Custom UI documents as one merged tree (the way the client loads
+// them), so those documents are inputs of this module's tests: an edit to any module's .ui reruns it instead of
+// letting a stale green pass a document that would disconnect every client at load.
+tasks.withType(Test).configureEach {
+    inputs.files(fileTree(rootDir) { include 'zc-*/src/main/resources/Common/UI/Custom/**/*.ui' })
+            .withPropertyName('zcUiDocuments')
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+}

@@ -1,0 +1,13 @@
+$ZW = "../Common/ZigKit.ui";
+
+// The Objective Book's Achievements tab (com.ziggfreed.common.objectives.book.achievement.AchievementsTab),
+// appended into the shell's #TabBody: 1266 wide, 896 high (book/LedgerLayout). It holds one empty state.
+
+Group #Achievements {
+  Anchor: (Height: 896);
+  LayoutMode: Top;
+
+  $ZW.@ZigEmptyState #AchievementsEmpty {
+    FlexWeight: 1;
+  }
+}

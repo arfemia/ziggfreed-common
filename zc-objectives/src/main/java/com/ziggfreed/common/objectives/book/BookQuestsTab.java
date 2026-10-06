@@ -22,15 +22,12 @@ import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.icon.IconSpec;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardChips;
-import com.ziggfreed.common.npc.NpcNames;
 import com.ziggfreed.common.objectives.render.QuestCadenceBadge;
 import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.progress.runtime.ProgressionIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
-import com.ziggfreed.common.progress.gate.GateClause;
-import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
@@ -44,12 +41,12 @@ import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.ZigSearchRow;
 import com.ziggfreed.common.ui.ZigType;
 
-import static com.ziggfreed.common.objectives.book.BookWidths.CAT_TAB_OUTER_WIDTH;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.CAT_TAB_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.LINE_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.MAX_ROWS;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.QUEST_ROW_TEMPLATE;
-import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.TAG_CHIP_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.BookLegacy.CAT_TAB_OUTER_WIDTH;
+import static com.ziggfreed.common.objectives.book.BookLegacy.CAT_TAB_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.BookLegacy.LINE_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.BookLegacy.MAX_ROWS;
+import static com.ziggfreed.common.objectives.book.BookLegacy.QUEST_ROW_TEMPLATE;
+import static com.ziggfreed.common.objectives.book.BookLegacy.TAG_CHIP_TEMPLATE;
 
 /**
  * The quests tab of the Objective Book: the full quest log. Category chips (a dropdown once they
@@ -59,7 +56,7 @@ import static com.ziggfreed.common.objectives.book.ObjectiveBookPage.TAG_CHIP_TE
  * accept, collect, hand in, abandon, track - answers with a scroll-preserving partial update
  * wherever a partial can tell the truth.
  *
- * <p>Everything here paints; the verbs live on {@link ObjectiveBookPage}. Board-managed quests
+ * <p>Everything here paints; the verbs live on {@link BookVerbs}. Board-managed quests
  * read through {@link ObjectiveBookDeps.BoardManagedQuests}: hidden unless carried, their plumbing
  * tags swapped for the board's own pills, Accept swapped for the at-the-board hint. A GIVER-BOUND
  * quest (one whose {@link Quest#npcViewId()} names the character that hands it out) stays listed
@@ -100,7 +97,7 @@ final class BookQuestsTab {
 
     // ==================== build ====================
 
-    static void render(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    static void render(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
                        @Nonnull UIEventBuilder events, @Nonnull Subject subject,
                        @Nonnull QuestEngine engine) {
         // Rank each quest's state ONCE before filtering and sorting: a comparator key extractor
@@ -162,9 +159,9 @@ final class BookQuestsTab {
         }
     }
 
-    private static boolean anyQuestFilterActive(@Nonnull ObjectiveBookPage page) {
-        return !ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory())
-                || !ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterStatus())
+    private static boolean anyQuestFilterActive(@Nonnull BookLegacy page) {
+        return !BookLegacy.FILTER_ALL.equalsIgnoreCase(page.filterCategory())
+                || !BookLegacy.FILTER_ALL.equalsIgnoreCase(page.filterStatus())
                 || !page.searchText().isEmpty()
                 || !page.filterTag().isEmpty();
     }
@@ -177,7 +174,7 @@ final class BookQuestsTab {
      * authored order and the name. {@code rankState} receives each kept quest's evaluated state.
      */
     @Nonnull
-    private static List<Quest> filteredQuests(@Nonnull ObjectiveBookPage page,
+    private static List<Quest> filteredQuests(@Nonnull BookLegacy page,
             @Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull String tagFilter,
             @Nonnull Map<String, QuestStatus> rankState) {
         List<Quest> result = new ArrayList<>();
@@ -196,7 +193,7 @@ final class BookQuestsTab {
                     && status != QuestStatus.ACTIVE && status != QuestStatus.COMPLETED_UNCLAIMED) {
                 continue;
             }
-            if (!ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory())
+            if (!BookLegacy.FILTER_ALL.equalsIgnoreCase(page.filterCategory())
                     && !page.filterCategory().equalsIgnoreCase(quest.category())) {
                 continue;
             }
@@ -266,7 +263,7 @@ final class BookQuestsTab {
 
     // ==================== the filter bar ====================
 
-    private static void renderFilterBar(@Nonnull ObjectiveBookPage page,
+    private static void renderFilterBar(@Nonnull BookLegacy page,
             @Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull List<Quest> preTagQuests) {
         // Categories come from what this player can SEE, sorted so two mods' content interleaves
@@ -288,8 +285,8 @@ final class BookQuestsTab {
         }
         categories.sort(String.CASE_INSENSITIVE_ORDER);
 
-        boolean allActive = ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(page.filterCategory());
-        if (!BookWidths.categoryChipsFit(categories.size(), CAT_TAB_OUTER_WIDTH,
+        boolean allActive = BookLegacy.FILTER_ALL.equalsIgnoreCase(page.filterCategory());
+        if (!BookLegacy.categoryChipsFit(categories.size(), CAT_TAB_OUTER_WIDTH,
                 page.stripWidthBudget())) {
             // The rendered chips cannot fit the strip: the native dropdown carries them (its
             // panel scrolls by itself). A dropdown entry is a String-only sink, so labels
@@ -297,20 +294,20 @@ final class BookQuestsTab {
             cmd.set("#QCategoryDropdown.Visible", true);
             List<DropdownEntryInfo> entries = new ArrayList<>(categories.size() + 1);
             entries.add(SettingsUiUtil.entry(
-                    UiText.flatten(page.text("book.quests.filter.all")), ObjectiveBookPage.FILTER_ALL));
+                    UiText.flatten(page.text("book.quests.filter.all")), BookLegacy.FILTER_ALL));
             for (String category : categories) {
                 entries.add(SettingsUiUtil.entry(
                         UiText.flatten(categoryLabel(page, category)), category));
             }
             SettingsUiUtil.populate(cmd, "#QCategoryDropdown", entries,
-                    allActive ? ObjectiveBookPage.FILTER_ALL : page.filterCategory());
+                    allActive ? BookLegacy.FILTER_ALL : page.filterCategory());
             events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#QCategoryDropdown",
                     page.fullState("category").append("@DropdownValue", "#QCategoryDropdown.Value"),
                     false);
         } else {
             int index = appendChip(page, cmd, events, "#QDynamicCategories", 0,
                     page.text("book.quests.filter.all"), allActive, "category",
-                    ObjectiveBookPage.FILTER_ALL);
+                    BookLegacy.FILTER_ALL);
             for (String category : categories) {
                 index = appendChip(page, cmd, events, "#QDynamicCategories", index,
                         categoryLabel(page, category),
@@ -321,7 +318,7 @@ final class BookQuestsTab {
         // Search: the shared row. The full state already carries the live text under the same
         // key, so the Search click and every other binding agree on what was typed.
         ZigSearchRow.wire(cmd, events, page.activeSearchRow(), page.searchText(),
-                ObjectiveBookPage.SEARCH_KEY, page.fullState("search"),
+                BookLegacy.SEARCH_KEY, page.fullState("search"),
                 page.fullState("clear_search"));
 
         // The tag dropdown, collected pre-tag-filter; labels ride the consumer's tag reading.
@@ -361,13 +358,13 @@ final class BookQuestsTab {
     }
 
     /** One filter chip: append the shared template, label it, mark it active, bind the full state. */
-    private static int appendChip(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    private static int appendChip(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull String container, int index,
             @Nonnull Message label, boolean active, @Nonnull String action, @Nonnull String value) {
         cmd.append(container, CAT_TAB_TEMPLATE);
         String sel = container + "[" + index + "]";
         ZigRichButton.text(cmd, sel + " #CatBtn", label);
-        ObjectiveBookPage.styleChipActive(cmd, sel + " #CatBtn", active);
+        BookLegacy.styleChipActive(cmd, sel + " #CatBtn", active);
         events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #CatBtn",
                 page.fullState(action).append("Id", value), false);
         return index + 1;
@@ -378,7 +375,7 @@ final class BookQuestsTab {
      * its authored id prettified - a pack's own category is its own vocabulary.
      */
     @Nonnull
-    private static Message categoryLabel(@Nonnull ObjectiveBookPage page, @Nonnull String category) {
+    private static Message categoryLabel(@Nonnull BookLegacy page, @Nonnull String category) {
         String id = category.toLowerCase(Locale.ROOT);
         if ("main".equals(id) || "daily".equals(id) || "misc".equals(id)) {
             return page.text("book.quests.category." + id);
@@ -387,8 +384,8 @@ final class BookQuestsTab {
     }
 
     @Nonnull
-    private static Message statusLabel(@Nonnull ObjectiveBookPage page, @Nonnull String status) {
-        return ObjectiveBookPage.FILTER_ALL.equalsIgnoreCase(status)
+    private static Message statusLabel(@Nonnull BookLegacy page, @Nonnull String status) {
+        return BookLegacy.FILTER_ALL.equalsIgnoreCase(status)
                 ? page.text("book.quests.filter.all")
                 : page.text("book.quests.filter.status." + status.toLowerCase(Locale.ROOT));
     }
@@ -404,7 +401,7 @@ final class BookQuestsTab {
 
     // ==================== one quest row ====================
 
-    private static void paintQuestRow(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    private static void paintQuestRow(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull String sel, @Nonnull Quest quest,
             @Nonnull Subject subject, @Nonnull QuestEngine engine, boolean expanded) {
         if (expanded) {
@@ -424,7 +421,7 @@ final class BookQuestsTab {
             boolean tracked = engine.tracked(subject).contains(quest.id());
             cmd.set(sel + " #TrackBtn.Visible", true);
             cmd.set(sel + " #TrackBtnSpacer.Visible", true);
-            ObjectiveBookPage.paintPinIcon(cmd, sel + " #TrackBtn", tracked);
+            BookLegacy.paintPinIcon(cmd, sel + " #TrackBtn", tracked);
             cmd.set(sel + " #TrackBtn.TooltipText", page.text("book.tooltip.track"));
             events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #TrackBtn",
                     page.fullState("toggletrack").append("Id", quest.id()).append("Selector", sel),
@@ -614,7 +611,7 @@ final class BookQuestsTab {
             case COMPLETED_UNCLAIMED -> {
                 cmd.set(sel + " #ActionBtn.Visible", true);
                 ZigRichButton.text(cmd, sel + " #ActionBtn", page.text("book.quests.btn.claim"));
-                ObjectiveBookPage.applyGoldClaim(cmd, sel + " #ActionBtn");
+                BookLegacy.applyGoldClaim(cmd, sel + " #ActionBtn");
                 events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #ActionBtn",
                         page.fullState("primary").append("Id", quest.id()).append("Selector", sel));
             }
@@ -653,7 +650,7 @@ final class BookQuestsTab {
      * ones - so a locked group draws neither its heading nor its lines until it opens. The ordering
      * hint reads the quest's whole shape either way, since that is what it describes.
      */
-    private static void paintObjectives(@Nonnull ObjectiveBookPage page,
+    private static void paintObjectives(@Nonnull BookLegacy page,
             @Nonnull UICommandBuilder cmd, @Nonnull String sel, @Nonnull Quest quest,
             @Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull QuestStatus status) {
         List<ObjectiveDef> objectives = engine.listedObjectives(subject, quest);
@@ -708,7 +705,7 @@ final class BookQuestsTab {
     }
 
     /** One objective line: its text plus the running count, coloured by its state. */
-    private static void paintObjectiveLine(@Nonnull ObjectiveBookPage page,
+    private static void paintObjectiveLine(@Nonnull BookLegacy page,
             @Nonnull UICommandBuilder cmd, @Nonnull String objSel, @Nonnull Quest quest,
             @Nonnull ObjectiveDef objective,
             @Nullable Map<String, ObjectiveProgressState> progress, boolean locked) {
@@ -762,25 +759,13 @@ final class BookQuestsTab {
      * untouched, and hiding one from the book entirely stays {@code Visibility.hidden}'s job.
      */
     static boolean giverBound(@Nonnull Quest quest) {
-        return quest.npcViewId() != null;
+        return BookVerbs.giverBound(quest);
     }
 
-    /**
-     * Where a giver-bound quest is taken, naming the character when the placement and identity
-     * assets can ({@link NpcNames#nameFor(String)}, the same reading every other surface uses, so
-     * the hint and the nameplate can never disagree) - the name rides as a nested client-resolved
-     * {@link Message}. When nothing names the character, the plain hint.
-     */
+    /** Where a giver-bound quest is taken ({@link BookVerbs#giverHint}). */
     @Nonnull
-    static Message giverHint(@Nonnull ObjectiveBookPage page, @Nonnull Quest quest) {
-        Message name = null;
-        try {
-            name = NpcNames.nameFor(quest.npcViewId());
-        } catch (Throwable ignored) {
-            // A naming walk failing costs the name, never the row.
-        }
-        return name != null ? page.text("book.quests.giver_hint", name)
-                : page.text("book.quests.giver_hint_plain");
+    static Message giverHint(@Nonnull BookLegacy page, @Nonnull Quest quest) {
+        return BookVerbs.giverHint(quest);
     }
 
     // ==================== shared readings ====================
@@ -806,79 +791,10 @@ final class BookQuestsTab {
         };
     }
 
-    /**
-     * The library's default requirements reading: the gate's prerequisite quests and permission
-     * leaf, comma-joined, {@code AnyOf} alternatives bracketed. A {@code Not} group is
-     * deliberately never shown - printing what must NOT be true reads as an instruction to go and
-     * do the thing that keeps the quest shut. Null when nothing displayable is asked.
-     */
-    @Nullable
-    static Message genericRequirementLine(@Nonnull Quest quest) {
-        GateSpec requires = quest.requires();
-        if (requires == null || requires.isEmpty()) {
-            return null;
-        }
-        List<Message> items = new ArrayList<>(clauseItems(requires));
-        for (GateClause clause : requires.allOfOrEmpty()) {
-            if (clause != null) {
-                items.addAll(clauseItems(clause));
-            }
-        }
-        for (GateClause clause : requires.anyOfOrEmpty()) {
-            if (clause == null) {
-                continue;
-            }
-            List<Message> alternatives = clauseItems(clause);
-            if (alternatives.isEmpty()) {
-                continue;
-            }
-            Message joined = joinWithCommas(alternatives);
-            items.add(alternatives.size() > 1
-                    ? Msg.cat(Msg.raw("("), joined, Msg.raw(")"))
-                    : joined);
-        }
-        if (items.isEmpty()) {
-            return null;
-        }
-        // The joined list rides as a PARAM, so it is built with the param-safe composite.
-        return Msg.key("ziggfreedcommon.progression.book.quests.requires", joinWithCommas(items));
-    }
-
-    /** Every displayable requirement ONE clause asks for. */
-    @Nonnull
-    private static List<Message> clauseItems(@Nonnull GateClause clause) {
-        List<Message> items = new ArrayList<>();
-        for (String questId : clause.questsOrEmpty()) {
-            if (questId == null || questId.isBlank()) {
-                continue;
-            }
-            Message name = ProgressionTexts.title(questId);
-            items.add(Msg.key("ziggfreedcommon.progression.book.quests.req.quest",
-                    name != null ? name : Msg.raw(questId)));
-        }
-        String permission = clause.getPermission();
-        if (permission != null && !permission.isBlank()) {
-            items.add(Msg.key("ziggfreedcommon.progression.book.quests.req.permission", permission));
-        }
-        return items;
-    }
-
-    @Nonnull
-    private static Message joinWithCommas(@Nonnull List<Message> parts) {
-        List<Message> out = new ArrayList<>(parts.size() * 2);
-        for (int i = 0; i < parts.size(); i++) {
-            if (i > 0) {
-                out.add(Msg.raw(", "));
-            }
-            out.add(parts.get(i));
-        }
-        return Msg.cat(out.toArray(new Message[0]));
-    }
-
     // ==================== partial updates ====================
 
     /** Recalculate the active-count header (the browse count only moves on a full repaint). */
-    static void updateHeaderCounts(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    static void updateHeaderCounts(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull Subject subject, @Nonnull QuestEngine engine) {
         int active = engine.activeCount(subject);
         int maxActive = engine.maxActive();
@@ -905,7 +821,7 @@ final class BookQuestsTab {
      * hand-in that moved the row out of the carried block rebuilds the page instead, so this is
      * never asked about one.
      */
-    static void refreshTurnedInRow(@Nonnull ObjectiveBookPage page, @Nonnull UICommandBuilder cmd,
+    static void refreshTurnedInRow(@Nonnull BookLegacy page, @Nonnull UICommandBuilder cmd,
             @Nonnull String sel, @Nonnull Quest quest, @Nonnull Subject subject,
             @Nonnull QuestEngine engine) {
         QuestStatus status = engine.status(subject, quest);
@@ -920,7 +836,7 @@ final class BookQuestsTab {
                 cmd.set(sel + " #TrackBtnSpacer.Visible", false);
                 cmd.set(sel + " #ActionBtn.Visible", true);
                 ZigRichButton.text(cmd, sel + " #ActionBtn", page.text("book.quests.btn.claim"));
-                ObjectiveBookPage.applyGoldClaim(cmd, sel + " #ActionBtn");
+                BookLegacy.applyGoldClaim(cmd, sel + " #ActionBtn");
                 cmd.set(sel + " #QuestStatus.TextSpans", page.text("book.quests.status.unclaimed"));
                 cmd.set(sel + " #QuestStatus.Style.TextColor", StatusTones.READY.hex());
                 paintRowBar(cmd, sel, subject, engine, quest);
@@ -944,7 +860,7 @@ final class BookQuestsTab {
      * uses. Order-grouped quests inserted step headings at build, which shift this index, so those
      * repaint cosmetically off until the next open - accepted imprecision a full repaint corrects.
      */
-    private static void repaintRowObjectives(@Nonnull ObjectiveBookPage page,
+    private static void repaintRowObjectives(@Nonnull BookLegacy page,
             @Nonnull UICommandBuilder cmd, @Nonnull String sel, @Nonnull Quest quest,
             @Nonnull Subject subject, @Nonnull QuestEngine engine) {
         Map<String, ObjectiveProgressState> progress = engine.progressOf(subject, quest.id());

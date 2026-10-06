@@ -74,6 +74,7 @@ import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateClause;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.asset.QuestAsset;
+import com.ziggfreed.common.quest.asset.QuestCategoryAsset;
 import com.ziggfreed.common.quest.asset.QuestGeneratorAsset;
 import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
 import com.ziggfreed.common.reputation.asset.ReputationAsset;
@@ -312,6 +313,7 @@ class AssetCodecInitTest {
     void questCodecsInitialize() {
         assertNotNull(QuestAsset.CODEC, "QuestAsset.CODEC must static-init (PascalCase keys)");
         assertNotNull(QuestGeneratorAsset.CODEC, "QuestGeneratorAsset.CODEC must static-init (PascalCase keys)");
+        assertNotNull(QuestCategoryAsset.CODEC, "QuestCategoryAsset.CODEC must static-init (PascalCase keys)");
         // The nested groups and the two leaf types are embedded rather than stored, so a lower-case
         // key in any of them would fail at a consumer's decode instead of at this build.
         assertNotNull(ContentTextAsset.CODEC, "ContentTextAsset.CODEC must static-init (PascalCase keys)");

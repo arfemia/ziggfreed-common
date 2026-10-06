@@ -36,7 +36,7 @@ The family's shared library of mod-agnostic Hytale primitives and engines. It de
 
 - Log through `util.SafeLog`, never the plugin's `LOGGER`: the raw logger throws an `Error` in a unit-test JVM, and it escapes `catch (Exception)`.
 - A test that builds a real engine item (`Item`, `ItemStack`, `ItemQuality`, an `ItemToolSpec` array) is tagged `engine-items` and runs in the `engineItemTest` task under the engine's log manager; untagged, it dies in class init. Every other test runs in `test` with no log manager, like a consumer's test JVM, and `check` runs both. Never tag a logging-guard test: it would pass without proving its guard.
-- A `.ui` element id is a letter followed by letters or digits; an underscore makes the client refuse the document at join. `UiDocumentSyntaxTest` checks only zc-presentation's documents, so a page `.ui` in any other module goes unchecked.
+- A `.ui` element id is a letter followed by letters or digits; an underscore makes the client refuse the document at join. zc-presentation's `UiDocumentSyntaxTest` checks every zc module's documents as one merged tree (ids, braces, alignments, cross-document references), and its task takes them as inputs, so an edit in any module reruns it.
 - A new labeled button is a `ui/ZigRichButton` (a `Button` holding `Label #Label`, labelled on `.TextSpans`), never a `TextButton`, whose label fills no `{0}` params and prints markup tags. The zc-instance pages and the dialogue option row are older `TextButton`s, labelled through `UiText.setText`.
 
 ## Release notes

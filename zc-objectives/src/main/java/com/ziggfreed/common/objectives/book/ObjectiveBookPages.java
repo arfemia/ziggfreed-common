@@ -17,7 +17,7 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The way in to {@link ObjectiveBookPage}, and the one place a consumer says what it adds to the book
- * ({@link ObjectiveBookDeps}: the statistics column, board-managed quests, milestones and the rest). The
+ * ({@link ObjectiveBookDeps}: board-managed quests, milestones, extra page blocks and the rest). The
  * book sits in the shared menu frame, so its paint and its rail are the menu's: a consumer's palette or
  * frame paint reaches it through {@code ZigMenu.consumer}.
  *
@@ -32,8 +32,8 @@ public final class ObjectiveBookPages {
     }
 
     /**
-     * Say everything a consumer may about the book ({@link ObjectiveBookDeps}: side panel,
-     * board-managed quests, milestones, ...). Call once from a consumer's setup; pass null to go
+     * Say everything a consumer may about the book ({@link ObjectiveBookDeps}: board-managed quests,
+     * milestones, page blocks, ...). Call once from a consumer's setup; pass null to go
      * back to the library defaults. Resolved lazily on each open.
      */
     public static void deps(@Nullable Supplier<ObjectiveBookDeps> supplier) {
@@ -63,13 +63,24 @@ public final class ObjectiveBookPages {
      */
     public static boolean open(@Nullable String tab, @Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
+        return open(tab, null, store, ref, player);
+    }
+
+    /**
+     * Open the book for {@code player} on {@code tab} with the row {@code selectedId} chosen (a quest id on
+     * Quests, an achievement id on Achievements; null opens on the tab's landing), in the view that shows it
+     * ({@link BookState#opening}). True when the screen was taken.
+     */
+    public static boolean open(@Nullable String tab, @Nullable String selectedId, @Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> ref, @Nonnull Player player) {
         PlayerRef playerRef = PlayerAccess.playerRef(player);
         if (playerRef == null) {
             SafeLog.fine("[progression] the objective book was asked for by an entity that is not a player");
             return false;
         }
         try {
-            player.getPageManager().openCustomPage(ref, store, new ObjectiveBookPage(playerRef, tab));
+            player.getPageManager().openCustomPage(ref, store,
+                    new ObjectiveBookPage(playerRef, BookState.opening(tab, selectedId)));
             return true;
         } catch (Throwable t) {
             SafeLog.warn("[progression] the objective book failed to open", t);

@@ -1,6 +1,8 @@
 package com.ziggfreed.common.objectives.book;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -14,7 +16,10 @@ import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.ui.route.Destination;
 import com.ziggfreed.common.ui.route.Destinations;
 
-/** The book's two screens in the shared vocabulary, unprefixed because the library owns them. */
+/**
+ * The book's two screens in the shared vocabulary, unprefixed because the library owns them; each takes an
+ * optional {@code Select}, the row the book opens on.
+ */
 class ObjectiveBookDestinationsTest {
 
     @BeforeEach
@@ -42,5 +47,33 @@ class ObjectiveBookDestinationsTest {
     void theBareWordsDecode() throws IOException {
         assertInstanceOf(ObjectiveBookDestinations.QuestLog.class, decode("\"Quest_Log\""));
         assertInstanceOf(ObjectiveBookDestinations.Achievements.class, decode("{ \"Type\": \"Achievements\" }"));
+    }
+
+    @Test
+    void aBareScreenSelectsNothing() throws IOException {
+        assertNull(((ObjectiveBookDestinations.QuestLog) decode("\"Quest_Log\"")).getSelect());
+        assertNull(((ObjectiveBookDestinations.Achievements) decode("\"Achievements\"")).getSelect());
+        assertNull(ObjectiveBookDestinations.QUEST_LOG.getSelect(), "the menu's tab opens on no row");
+        assertNull(ObjectiveBookDestinations.ACHIEVEMENTS.getSelect());
+    }
+
+    @Test
+    void selectNamesTheRowTheBookOpensOn() throws IOException {
+        ObjectiveBookDestinations.QuestLog quest = assertInstanceOf(ObjectiveBookDestinations.QuestLog.class,
+                decode("{ \"Type\": \"Quest_Log\", \"Select\": \"the_lantern\" }"));
+        assertEquals("the_lantern", quest.getSelect());
+        ObjectiveBookDestinations.Achievements achievement = assertInstanceOf(
+                ObjectiveBookDestinations.Achievements.class,
+                decode("{ \"Type\": \"Achievements\", \"Select\": \" Ghoul_Breaker_2026 \" }"));
+        assertEquals("Ghoul_Breaker_2026", achievement.getSelect(), "trimmed, its case kept");
+        assertNull(((ObjectiveBookDestinations.QuestLog) decode("{ \"Type\": \"Quest_Log\", \"Select\": \" \" }"))
+                .getSelect(), "a blank selection is none");
+    }
+
+    @Test
+    void javaBuildsTheSameValues() {
+        assertEquals("the_lantern", ObjectiveBookDestinations.QuestLog.of("the_lantern").getSelect());
+        assertEquals("a1", ObjectiveBookDestinations.Achievements.of("a1").getSelect());
+        assertNull(ObjectiveBookDestinations.Achievements.of(null).getSelect());
     }
 }

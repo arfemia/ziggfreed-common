@@ -1,0 +1,60 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// One collapsible section of a kit list, appended by com.ziggfreed.common.ui.kit.LedgerPainter and addressed by
+// index as "#List[i] #Section": #Head, a 32px Button (its chevron shows #Open or #Closed, its #Label is the section
+// name, its #Count the number of rows), over #Rows, where the section's Pages/ZigLedgerRow.ui rows append.
+// Collapsing a section hides #Rows; a closed section's rows append when it first opens. The head holds no other
+// button, so a click anywhere on it toggles the section.
+
+Group #ZigLedgerSection {
+  LayoutMode: Top;
+  Anchor: (Bottom: $ZK.@ZigSpace2);
+
+  Group #Section {
+    LayoutMode: Top;
+
+    Button #Head {
+      Anchor: (Height: $ZK.@ZigSectionHeadHeight);
+      LayoutMode: Left;
+      Padding: (Horizontal: $ZK.@ZigSpace2);
+      Style: $ZS.@ZigSectionHeadStyle;
+
+      Group #Chevron {
+        Anchor: (Width: 16, Height: 16, Top: 8, Right: $ZK.@ZigSpace2);
+        LayoutMode: Full;
+
+        Group #Open {
+          Anchor: (Full: 0);
+          Background: (TexturePath: "../Common/Glyphs/ChevronDown.png", Color: $ZK.@ZigInkSection);
+          Visible: false;
+        }
+
+        Group #Closed {
+          Anchor: (Full: 0);
+          Background: (TexturePath: "../Common/Glyphs/ChevronRight.png", Color: $ZK.@ZigInkSection);
+          Visible: false;
+        }
+      }
+
+      Label #Label {
+        FlexWeight: 1;
+        Anchor: (Height: $ZK.@ZigSectionHeadHeight);
+        Text: "";
+        Style: $ZX.@ZigSectionLabelStyle;
+      }
+
+      Label #Count {
+        Anchor: (Width: 64, Height: $ZK.@ZigSectionHeadHeight);
+        Text: "";
+        Style: $ZX.@ZigCountStyle;
+      }
+    }
+
+    Group #Rows {
+      LayoutMode: Top;
+      Anchor: (Top: $ZK.@ZigSpace1);
+    }
+  }
+}

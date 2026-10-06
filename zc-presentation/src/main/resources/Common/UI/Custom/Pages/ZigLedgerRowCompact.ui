@@ -1,0 +1,80 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// The kit's compact row (an overview strip, a tracked or pinned panel), 44 high: Pages/ZigLedgerRow.ui's ids
+// without its #Meta line, the title and its bar on one line. Appended by
+// com.ziggfreed.common.ui.kit.LedgerPainter and addressed by index as "#Rows[i] #Select", like the standard row;
+// a painter treats the two alike, so the ids here match that row's exactly.
+
+Group #ZigLedgerRowCompact {
+  LayoutMode: Left;
+  Anchor: (Height: $ZK.@ZigCompactRowHeight, Bottom: $ZK.@ZigSpace1);
+
+  Button #Select {
+    FlexWeight: 1;
+    LayoutMode: Left;
+    Padding: (Right: 10);
+    Style: $ZS.@ZigRowStyle;
+
+    Group #Accent {
+      Anchor: (Width: 4, Right: $ZK.@ZigSpace2);
+      Background: (Color: $ZK.@ZigToneBlockedFill);
+    }
+
+    $ZW.@ZigPicture #Pic {
+      @Size = $ZK.@ZigPicLine;
+      @Anchor = (Top: 8, Right: $ZK.@ZigSpace2);
+    }
+
+    Label #Title {
+      FlexWeight: 1;
+      Anchor: (Height: $ZK.@ZigCompactRowHeight);
+      Text: "";
+      Style: $ZX.@ZigRowTitleStyle;
+    }
+
+    Group #Mark {
+      Anchor: (Width: 16, Height: 16, Top: 14, Left: $ZK.@ZigSpace1);
+      LayoutMode: Full;
+      Visible: false;
+
+      Group #Pinned {
+        Anchor: (Full: 0);
+        Background: (TexturePath: "../Common/Glyphs/PinFilled.png", Color: $ZK.@ZigAccent);
+        Visible: false;
+      }
+
+      Group #Tracked {
+        Anchor: (Full: 0);
+        Background: (TexturePath: "../Common/Glyphs/Pin.png", Color: $ZK.@ZigInkSection);
+        Visible: false;
+      }
+    }
+
+    $ZW.@ZigProgressBar #BarTrack {
+      @Height = 4;
+      @Anchor = (Width: 96, Top: 20, Left: $ZK.@ZigSpace2);
+      Visible: false;
+    }
+
+    Group #Trail {
+      Anchor: (Width: 92, Left: $ZK.@ZigSpace2);
+      LayoutMode: Top;
+      Padding: (Top: 3);
+
+      Label #Value {
+        Anchor: (Height: 19);
+        Text: "";
+        Style: $ZX.@ZigCountStyle;
+      }
+
+      Label #State {
+        Anchor: (Height: 19);
+        Text: "";
+        Style: $ZS.@ZigStateStyle;
+      }
+    }
+  }
+}

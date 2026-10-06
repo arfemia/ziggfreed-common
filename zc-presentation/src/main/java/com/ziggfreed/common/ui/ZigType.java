@@ -33,9 +33,12 @@ public final class ZigType {
     /** A page title. */
     public static final int TITLE = 20;
 
-    /** A big number or a hero title. */
+    /** A big number. */
     public static final int DISPLAY = 22;
     public static final int DISPLAY_LARGE = 24;
+
+    /** A hero title over full-width art (the Almanac's season name), the largest step. */
+    public static final int HERO = 28;
 
     /**
      * The one exception under {@link #FLOOR}, by the maintainer's ruling: a label inside a HUD box too small for

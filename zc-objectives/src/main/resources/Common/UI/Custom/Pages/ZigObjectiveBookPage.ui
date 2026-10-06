@@ -1,27 +1,20 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
-$Z = "../Common/ZigButtons.ui";
-$S = "../Common/ZigSearchRow.ui";
-$ZT = "../Common/ZigType.ui";
+$ZX = "../Common/ZigText.ui";
+$ZW = "../Common/ZigKit.ui";
 
-// The Objective Book (com.ziggfreed.common.objectives.book.ObjectiveBookPage), inside the shared menu
-// frame: the frame's rail on the left (ui/menu/ZigMenu paints it, with this book's Quests or
-// Achievements tab selected), then two columns of the book's own. #RightPanel carries one surface per
-// tab, and #SidePanel shows the tracked-quests panel on the quests tab or a consumer-painted column on
-// the achievements tab.
+// The Objective Book's shell (com.ziggfreed.common.objectives.book.ObjectiveBookPage), inside the shared menu
+// frame: the frame's rail on the left (ui/menu/ZigMenu paints it, with the book's Quests or Achievements tab
+// selected), then one column of the book's own.
 //
-// The quests tab is a filterable quest log: category chips (or a dropdown once the rendered
-// chips cannot fit the strip), the shared search row (#QSearch), a tag dropdown (shown only when
-// a visible quest carries a tag), status chips, then ONE scrolling region holding the
-// pre-expanded Active section above the browse list (rows are Pages/ZigQuestLogRow.ui). The
-// achievements tab is a two-panel browser: a filter strip (its own search row, #ASearch) +
-// compact rows (Pages/ZigAchListRow.ui) on the left, the selected achievement's detail on the
-// right, and an overview (recent / nearest / pinned / categories / milestones) filling the right
-// panel while nothing is selected.
+// #Header is the band every tab shares: the page title in #TitleContainer (a consumer's white-label branding
+// writes #TitleContainer, #PanelTitle and #BrandingDescriptionRight), a one-sentence #PageSubtitle, and three
+// stat blocks the active tab fills. #TabBody is empty here: the active tab appends its own document into it
+// (Pages/ZigBookJournal.ui or Pages/ZigBookAchievements.ui). #BookEmpty shows across the body instead when there
+// is no progress to show.
 //
-// The frame owns the size, the padding and the rail. book/BookWidths holds the two widths the
-// chips-or-dropdown rule adds (#RightPanel's padding, #SidePanel's width); BookWidthsTest holds them to
-// this document.
+// The frame owns the size and the rail; book/LedgerLayout holds this column's numbers and LedgerLayoutTest holds
+// them to this document.
 
 $C.@PageOverlay {}
 
@@ -30,579 +23,71 @@ $F.@ZigMenuFrame {
     Group #RightPanel {
       FlexWeight: 1;
       LayoutMode: Top;
-      Padding: (Full: 20);
+      Padding: (Full: 4);
 
-      Group #HeaderSection {
+      Group #Header {
         LayoutMode: Left;
-        Anchor: (Height: 50);
+        Anchor: (Height: 60, Bottom: 12);
 
-        Group #TitleContainer {
+        Group #TitleBlock {
           FlexWeight: 1;
-          LayoutMode: Left;
+          LayoutMode: Top;
 
-          Label #PanelTitle {
+          Group #TitleContainer {
+            LayoutMode: Left;
+            Anchor: (Height: 26);
+
+            Label #PanelTitle {
+              Text: "";
+              FlexWeight: 1;
+              Style: $ZX.@ZigTitleStyle;
+            }
+          }
+
+          Label #PageSubtitle {
             Text: "";
-            FlexWeight: 1;
-            Style: (...$C.@TitleStyle, FontSize: $ZT.@ZigFontDisplayLarge);
-          }
-        }
-
-        // Up to three stat blocks; the page fills values, colours and labels per tab and hides
-        // the third where the tab has only two numbers to show.
-        Group #HeaderStats {
-          LayoutMode: Left;
-          Anchor: (Width: 360);
-          Padding: (Left: 12);
-
-          Group #Stat0Block {
-            FlexWeight: 1;
-            LayoutMode: Top;
-            Label #Stat0Value {
-              Text: "";
-              Anchor: (Height: 24);
-              Style: (FontSize: $ZT.@ZigFontDisplay, TextColor: #4a9eff, RenderBold: true);
-            }
-            Label #Stat0Label {
-              Text: "";
-              Anchor: (Height: 17);
-              Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontCaption);
-            }
-          }
-
-          Group #Stat1Block {
-            FlexWeight: 1;
-            LayoutMode: Top;
-            Label #Stat1Value {
-              Text: "";
-              Anchor: (Height: 24);
-              Style: (FontSize: $ZT.@ZigFontDisplay, TextColor: #ffaa4a, RenderBold: true);
-            }
-            Label #Stat1Label {
-              Text: "";
-              Anchor: (Height: 17);
-              Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontCaption);
-            }
-          }
-
-          Group #Stat2Block {
-            FlexWeight: 1;
-            LayoutMode: Top;
             Visible: false;
-            Label #Stat2Value {
-              Text: "";
-              Anchor: (Height: 24);
-              Style: (FontSize: $ZT.@ZigFontSubtitle, TextColor: #ffd24a, RenderBold: true);
-            }
-            Label #Stat2Label {
-              Text: "";
-              Anchor: (Height: 17);
-              Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontCaption);
-            }
-          }
-        }
-      }
-
-      Label #BrandingDescriptionRight {
-        Text: "";
-        Visible: false;
-        Anchor: (Height: 20, Bottom: 4);
-        Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontCaption);
-      }
-
-      $C.@ContentSeparator { Anchor: (Bottom: 8); }
-
-      // ==================== QUESTS TAB ====================
-      Group #QuestsTab {
-        FlexWeight: 1;
-        LayoutMode: Top;
-        Visible: false;
-
-        Group #QCategoryRow {
-          LayoutMode: Left;
-          Anchor: (Height: 36, Bottom: 6);
-
-          Group #QDynamicCategories {
-            LayoutMode: Left;
+            Anchor: (Height: 17);
+            Style: $ZX.@ZigCaptionStyle;
           }
 
-          // Swapped in for the chip row once the rendered chips cannot fit the strip.
-          $C.@DropdownBox #QCategoryDropdown {
-            Anchor: (Width: 220, Height: $C.@SmallButtonHeight);
+          Label #BrandingDescriptionRight {
+            Text: "";
             Visible: false;
-          }
-
-          Group { FlexWeight: 1; }
-        }
-
-        Group #QSearchRow {
-          LayoutMode: Left;
-          Anchor: (Height: 36);
-
-          $S.@ZigSearchRow #QSearch {
-            @Anchor = (Width: 346);
-            @Height = 32;
-            @Placeholder = %ziggfreedcommon.progression.book.quests.filter.searchPlaceholder;
-          }
-
-          // The tag filter shows only when a visible quest actually carries a tag; an empty
-          // dropdown filtering on nothing is noise, so the spacer hides with it.
-          Group #QTagSpacer { Anchor: (Width: 8); Visible: false; }
-
-          $C.@DropdownBox #QTagFilter {
-            Anchor: (Width: 160, Height: $C.@SmallButtonHeight);
-            Visible: false;
-          }
-
-          Group { Anchor: (Width: 12); }
-
-          Group #QStatusBar {
-            FlexWeight: 1;
-            LayoutMode: Left;
+            Anchor: (Height: 17);
+            Style: $ZX.@ZigCaptionStyle;
           }
         }
 
-        $C.@ContentSeparator { Anchor: (Top: 8, Bottom: 8); }
-
-        Label #QEmptyMessage {
-          Text: "";
-          Anchor: (Height: 30);
+        $ZW.@ZigStat #Stat0 {
           Visible: false;
-          Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, VerticalAlignment: Center);
         }
 
-        // The ONE scroll region: the pre-expanded Active section rides above the browse list so
-        // both scroll together.
-        Group #QuestListContainer {
-          FlexWeight: 1;
-          LayoutMode: TopScrolling;
-          ScrollbarStyle: $C.@DefaultScrollbarStyle;
-          Padding: (Right: 8);
-
-          Group #ActiveSection {
-            LayoutMode: Top;
-            Visible: false;
-
-            Label #ActiveHeader {
-              Text: "";
-              Anchor: (Height: 22, Bottom: 6);
-              Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2, TextColor: #4a9eff);
-            }
-
-            Group #ActiveQuestList {
-              LayoutMode: Top;
-            }
-
-            $C.@ContentSeparator { Anchor: (Top: 8, Bottom: 8); }
-          }
-
-          Group #QuestList {
-            LayoutMode: Top;
-          }
-        }
-      }
-
-      // ==================== ACHIEVEMENTS TAB ====================
-      Group #AchievementsTab {
-        FlexWeight: 1;
-        LayoutMode: Top;
-        Visible: false;
-
-        // The chip container never wraps: the page falls to the dropdown once the rendered chips
-        // cannot fit the strip's width, so a chip overflow can never paint over the row below.
-        Group #ACategoryRow {
-          LayoutMode: Left;
-          Anchor: (Height: 36, Bottom: 6);
-
-          Group #ACategoryTabs {
-            LayoutMode: Left;
-          }
-
-          $C.@DropdownBox #ACategoryDropdown {
-            Anchor: (Width: 240, Height: $C.@SmallButtonHeight);
-            Visible: false;
-          }
-
-          Group { FlexWeight: 1; }
+        Group #StatGap0 {
+          Anchor: (Width: 8);
         }
 
-        Group #ASubcatRow {
-          LayoutMode: Left;
-          Anchor: (Height: 36, Bottom: 6);
+        $ZW.@ZigStat #Stat1 {
           Visible: false;
-
-          Group #ASubcategoryTabs {
-            LayoutMode: Left;
-          }
-
-          Group { FlexWeight: 1; }
         }
 
-        Group #ASearchRow {
-          LayoutMode: Left;
-          Anchor: (Height: 36);
-
-          $S.@ZigSearchRow #ASearch {
-            @Anchor = (Width: 346);
-            @Height = 32;
-            @Placeholder = %ziggfreedcommon.progression.book.achievements.searchPlaceholder;
-          }
-
-          Group { Anchor: (Width: 10); }
-
-          // Sort is a single choice, so it rides the native dropdown; every sort label renders
-          // whole where a fixed-width chip would truncate it.
-          $C.@DropdownBox #ASortDropdown {
-            Anchor: (Width: 190, Height: $C.@SmallButtonHeight);
-          }
-
-          Group { Anchor: (Width: 10); }
-
-          Group #AStatusBar {
-            FlexWeight: 1;
-            LayoutMode: Left;
-          }
+        Group #StatGap1 {
+          Anchor: (Width: 8);
         }
 
-        $C.@ContentSeparator { Anchor: (Top: 8, Bottom: 8); }
-
-        Group #ASplit {
-          FlexWeight: 1;
-          LayoutMode: Left;
-
-          Group #AListPane {
-            Anchor: (Width: 480);
-            LayoutMode: Top;
-
-            Label #AEmptyMessage {
-              Text: "";
-              Anchor: (Height: 30);
-              Visible: false;
-              Style: (...$C.@DefaultLabelStyle, FontSize: $ZT.@ZigFontBody, HorizontalAlignment: Center, VerticalAlignment: Center);
-            }
-
-            Group #AListScroll {
-              FlexWeight: 1;
-              LayoutMode: TopScrolling;
-              ScrollbarStyle: $C.@DefaultScrollbarStyle;
-              Padding: (Right: 6);
-
-              Group #AchList {
-                LayoutMode: Top;
-              }
-
-              Label #FeatsHeader {
-                Text: "";
-                Anchor: (Height: 22, Top: 8, Bottom: 4);
-                Visible: false;
-                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2, TextColor: #ffd24a);
-              }
-
-              Group #FeatsList {
-                LayoutMode: Top;
-              }
-            }
-          }
-
-          $C.@VerticalSeparator {}
-
-          Group #ADetailPane {
-            FlexWeight: 1;
-            LayoutMode: Top;
-            Padding: (Left: 12);
-
-            // The overview fills the detail column while no row is selected: what was earned
-            // lately, what is closest, what is pinned, how each category stands, and the points
-            // milestones.
-            Group #AOverview {
-              FlexWeight: 1;
-              LayoutMode: TopScrolling;
-              ScrollbarStyle: $C.@DefaultScrollbarStyle;
-              Padding: (Right: 6);
-              Visible: false;
-
-              Label #OvRecentHeader {
-                Text: "";
-                Anchor: (Height: 20, Bottom: 4);
-                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
-              }
-              Group #RecentList { LayoutMode: Top; }
-              Label #RecentEmpty {
-                Text: "";
-                Anchor: (Height: 24);
-                Visible: false;
-                Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #6a7a8e, VerticalAlignment: Center);
-              }
-
-              Label #OvNearestHeader {
-                Text: "";
-                Anchor: (Height: 20, Top: 8, Bottom: 4);
-                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
-              }
-              Group #NearestList { LayoutMode: Top; }
-              Label #NearestEmpty {
-                Text: "";
-                Anchor: (Height: 24);
-                Visible: false;
-                Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #6a7a8e, VerticalAlignment: Center);
-              }
-
-              Label #OvPinnedHeader {
-                Text: "";
-                Anchor: (Height: 20, Top: 8, Bottom: 4);
-                Visible: false;
-                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
-              }
-              Group #PinnedList { LayoutMode: Top; }
-
-              Label #OvCategoriesHeader {
-                Text: "";
-                Anchor: (Height: 20, Top: 8, Bottom: 4);
-                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
-              }
-              Group #CategoriesGrid { LayoutMode: LeftCenterWrap; }
-
-              Label #OvMilestoneHeader {
-                Text: "";
-                Anchor: (Height: 20, Top: 8, Bottom: 4);
-                Visible: false;
-                Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2, TextColor: #ffd24a);
-              }
-              Group #MilestoneList { LayoutMode: Top; }
-            }
-
-            // The selected achievement's detail column.
-            Group #ADetail {
-              FlexWeight: 1;
-              LayoutMode: Top;
-              Visible: false;
-
-              Group #DHeaderRow {
-                LayoutMode: Left;
-                Anchor: (Height: 34);
-
-                Group #DStrip {
-                  Anchor: (Width: 3, Height: 28);
-                  Background: #4a9eff;
-                }
-                Group { Anchor: (Width: 8); }
-                // The detail header's pin toggle, mirroring the list rows': the shared pill
-                // style, the baked #PinIconOff / #PinIconOn glyph variants Java flips and
-                // retints. Bound once id-less (it toggles the live selection); hidden for a feat.
-                Button #DPinBtn {
-                  Anchor: (Width: 22, Height: 22);
-                  Visible: false;
-                  Style: $Z.@ZigPinBtnStyle;
-                  TextTooltipStyle: $C.@DefaultTextTooltipStyle;
-
-                  Group #PinIconOff {
-                    Anchor: (Width: 14, Height: 14, Left: 4, Top: 4);
-                    Background: (TexturePath: "RespawnPointArrow.png", Color: #6f7d8c);
-                    Visible: true;
-                  }
-                  Group #PinIconOn {
-                    Anchor: (Width: 14, Height: 14, Left: 4, Top: 4);
-                    Background: (TexturePath: "RespawnPointArrow.png", Color: #ffffff);
-                    Visible: false;
-                  }
-                }
-                Group { Anchor: (Width: 6); }
-                Group #DIconSlot {
-                  Anchor: (Width: 28, Height: 28);
-                  Visible: false;
-                  ItemGrid #DIcon {
-                    Anchor: (Width: 28, Height: 28);
-                    SlotsPerRow: 1;
-                    AreItemsDraggable: false;
-                    DisplayItemQuantity: false;
-                    Style: $Z.@ZigIconGrid28;
-                  }
-                }
-                Group { Anchor: (Width: 8); }
-                Label #DTitle {
-                  Text: "";
-                  FlexWeight: 1;
-                  Style: (FontSize: $ZT.@ZigFontSubtitle, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
-                }
-                Label #DFirstBadge {
-                  Text: "";
-                  Anchor: (Width: 110);
-                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
-                }
-                Group { Anchor: (Width: 6); }
-                Label #DPoints {
-                  Text: "";
-                  Anchor: (Width: 70);
-                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffd24a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
-                }
-              }
-
-              Group #DMetaRow {
-                LayoutMode: Left;
-                Anchor: (Height: 22, Top: 4);
-                Padding: (Left: 11);
-
-                Label #DCategoryChip {
-                  Text: "";
-                  Anchor: (Width: 220);
-                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, VerticalAlignment: Center);
-                }
-                Label #DDate {
-                  Text: "";
-                  FlexWeight: 1;
-                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, VerticalAlignment: Center);
-                }
-                Label #DStatus {
-                  Text: "";
-                  Anchor: (Width: 110);
-                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ffaa4a, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: Center);
-                }
-              }
-
-              Label #DFirstClaimed {
-                Text: "";
-                Anchor: (Top: 2);
-                Padding: (Left: 11);
-                Visible: false;
-                Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #96a9be, Wrap: true);
-              }
-
-              Label #DDescription {
-                Text: "";
-                Anchor: (Top: 4);
-                Padding: (Left: 11);
-                Style: (FontSize: $ZT.@ZigFontBody, TextColor: #b6c9de, Wrap: true);
-              }
-
-              Group #DProgressRow {
-                LayoutMode: Left;
-                Anchor: (Height: 16, Top: 6);
-                Padding: (Left: 11);
-
-                Group #DBarOuter {
-                  FlexWeight: 1;
-                  Anchor: (Height: 8);
-                  Background: "../Common/ProgressBar.png";
-                  ProgressBar #DBar {
-                    BarTexturePath: "../Common/ProgressBarFill.png";
-                    Value: 0.0;
-                  }
-                }
-                Group { Anchor: (Width: 8); }
-                Label #DBarText {
-                  Text: "";
-                  Anchor: (Width: 140, Height: 16);
-                  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #b6c9de, HorizontalAlignment: End, VerticalAlignment: Center);
-                }
-              }
-
-              Group #DBodyScroll {
-                FlexWeight: 1;
-                LayoutMode: TopScrolling;
-                ScrollbarStyle: $C.@DefaultScrollbarStyle;
-                Padding: (Right: 6);
-
-                Label #DCriteriaHeader {
-                  Text: "";
-                  Anchor: (Height: 20, Top: 8, Bottom: 2);
-                  Visible: false;
-                  Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
-                }
-                Group #DCriteriaList { LayoutMode: Top; }
-
-                Label #DRequiresHeader {
-                  Text: "";
-                  Anchor: (Height: 20, Top: 8, Bottom: 2);
-                  Visible: false;
-                  Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
-                }
-                Group #DRequiresList { LayoutMode: Top; }
-
-                Label #DPartOfHeader {
-                  Text: "";
-                  Anchor: (Height: 20, Top: 8, Bottom: 2);
-                  Visible: false;
-                  Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
-                }
-                Group #DPartOfList { LayoutMode: Top; }
-
-                Label #DChainHeader {
-                  Text: "";
-                  Anchor: (Height: 20, Top: 8, Bottom: 2);
-                  Visible: false;
-                  Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
-                }
-                Group #DChainList { LayoutMode: Top; }
-
-                Label #DRewardsHeader {
-                  Text: "";
-                  Anchor: (Height: 20, Top: 8, Bottom: 2);
-                  Visible: false;
-                  Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2, TextColor: #ffd24a);
-                }
-                Group #DRewardsList { LayoutMode: Top; }
-
-                Group #DClaimRow {
-                  LayoutMode: Right;
-                  Anchor: (Height: 30, Top: 8);
-                  Visible: false;
-
-                  Button #DClaimBtn {
-                    Style: $Z.@ZigRichPrimaryBtnStyle;
-                    Anchor: (Width: 180, Height: 28);
-                    Label #Label {
-                      FlexWeight: 1;
-                      Text: "";
-                      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #ffcc4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // The third column: the tracked-quests panel on the quests tab, a consumer-painted column on
-    // the achievements tab. Hidden whole when the active tab has nothing to put in it.
-    Group #SidePanel {
-      Anchor: (Width: 320);
-      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
-      LayoutMode: Top;
-      Padding: (Full: 14);
-
-      Group #QuestSideContent {
-        FlexWeight: 1;
-        LayoutMode: Top;
-        Visible: false;
-
-        Label #TrackedQuestHeader {
-          Text: "";
-          Anchor: (Height: 22, Bottom: 4);
-          Style: (...$C.@SubtitleStyle, FontSize: $ZT.@ZigFontCaption, LetterSpacing: 2);
-        }
-
-        $C.@ContentSeparator { Anchor: (Bottom: 8); }
-
-        Label #TrackedQuestsEmpty {
-          Text: "";
+        $ZW.@ZigStat #Stat2 {
           Visible: false;
-          Anchor: (Height: 40);
-          Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #6a7a8e, Wrap: true, HorizontalAlignment: Center, VerticalAlignment: Center);
-        }
-
-        Group #TrackedQuestsList {
-          FlexWeight: 1;
-          LayoutMode: TopScrolling;
-          ScrollbarStyle: $C.@DefaultScrollbarStyle;
-          Padding: (Right: 6);
         }
       }
 
-      Group #AchSideContent {
-        FlexWeight: 1;
+      Group #TabBody {
+        Anchor: (Height: 896);
         LayoutMode: Top;
+      }
+
+      $ZW.@ZigEmptyState #BookEmpty {
         Visible: false;
+        FlexWeight: 1;
       }
     }
   }

@@ -6,21 +6,17 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.ui.menu.ZigMenu;
 
 /**
- * The state the Objective Book page round-trips on every binding.
+ * What one of the Objective Book's bindings sends back: the action, its payload, and the whole book state
+ * ({@link BookState#event}, decoded by {@link BookState#decode}).
  *
- * <p>{@code action} is one of {@code close}, a quest verb ({@code primary} / {@code abandon} /
- * {@code turn_in} / {@code toggletrack} / {@code toggle}, acting on {@code id} and repainting the
- * row named in {@code selector}), an achievement verb ({@code select} / {@code togglepin} /
- * {@code claim} / {@code claim_milestone}), a filter verb ({@code category} / {@code subfilter} /
- * {@code status} / {@code sort} / {@code search} / {@code clear_search} / {@code tag}), or
- * {@code ext} (a consumer-painted control; {@code id} carries the consumer's own token). A rail
- * click, which carries {@code menu} and no action, is the shared menu's.
- *
- * <p>The FILTER state is stateless across events: every binding carries the full next state, the
- * live search-field text riding {@code @SearchInput} on every one so typed-but-unsubmitted text
- * survives any action. Row expansion and the selected achievement are per-instance UI memory
- * instead (the page threads them into the reopened instance), because a partial update cannot ask
- * the client what it currently shows.
+ * <p>{@code action} is one of {@link BookActions#ALL}. The state keys are {@code Tab}, {@code View},
+ * {@code Category}, {@code Status}, {@code Sort}, {@code Search}, {@code Tag}, {@code Selected} and
+ * {@code OpenSections}; the payload keys are {@code Id} (the row an action names, or a consumer's own token on
+ * {@code ext}), {@code Section} with {@code Open} (a section toggle), {@code ObjectiveId}, {@code Threshold},
+ * the live {@code @DropdownValue} and the live {@code @SearchInput}, which rides every binding so text typed
+ * and not yet searched survives any click. A rail click carries {@code menu} and no action, and is the shared
+ * menu's. Every key the pre-redesign book's bindings sent is still declared ({@code Subcategory} and
+ * {@code Selector} among them), so an event from one decodes.
  */
 public class ObjectiveBookEventData {
 
@@ -45,6 +41,16 @@ public class ObjectiveBookEventData {
     public String searchInput;
     /** The rail row a click came from ({@code ZigMenu.EVENT_KEY}); null for every event of the book's own. */
     public String menu;
+    /** The view the binding's state was on ({@link BookState#view}). */
+    public String view;
+    /** The selected row in the binding's state ({@link BookState#selectedId}). */
+    public String selected;
+    /** The sections opened or closed by hand in the binding's state, comma-joined ({@link BookState#openSections}). */
+    public String openSections;
+    /** A section toggle's section id. */
+    public String section;
+    /** A section toggle's ask: {@code "true"} opens the section, {@code "false"} closes it. */
+    public String open;
 
     public static final BuilderCodec<ObjectiveBookEventData> CODEC =
             BuilderCodec.builder(ObjectiveBookEventData.class, ObjectiveBookEventData::new)
@@ -120,6 +126,26 @@ public class ObjectiveBookEventData {
                     .append(new KeyedCodec<>(ZigMenu.EVENT_KEY, Codec.STRING),
                             (data, value, info) -> data.menu = value,
                             (data, info) -> data.menu)
+                    .add()
+                    .append(new KeyedCodec<>(BookState.KEY_VIEW, Codec.STRING),
+                            (data, value, info) -> data.view = value,
+                            (data, info) -> data.view)
+                    .add()
+                    .append(new KeyedCodec<>(BookState.KEY_SELECTED, Codec.STRING),
+                            (data, value, info) -> data.selected = value,
+                            (data, info) -> data.selected)
+                    .add()
+                    .append(new KeyedCodec<>(BookState.KEY_OPEN_SECTIONS, Codec.STRING),
+                            (data, value, info) -> data.openSections = value,
+                            (data, info) -> data.openSections)
+                    .add()
+                    .append(new KeyedCodec<>(BookState.KEY_SECTION, Codec.STRING),
+                            (data, value, info) -> data.section = value,
+                            (data, info) -> data.section)
+                    .add()
+                    .append(new KeyedCodec<>(BookState.KEY_OPEN, Codec.STRING),
+                            (data, value, info) -> data.open = value,
+                            (data, info) -> data.open)
                     .add()
                     .build();
 }
