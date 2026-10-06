@@ -140,17 +140,33 @@ public final class DetailPainter {
             String root = KitPaint.child(list, b) + " #Block";
             KitPaint.text(cmd, root + " #Head #HeadLabel", block.label());
             KitPaint.optional(cmd, root + " #Head #Meta", block.meta());
-            String lines = root + " #Lines";
-            for (int l = 0; l < block.lines().size(); l++) {
-                DetailLine line = block.lines().get(l);
-                cmd.append(lines, LINE_TEMPLATE);
-                String sel = KitPaint.child(lines, l);
-                line(cmd, sel, line);
-                EventData data = line.selectId() == null ? null : bindings.line(block, line);
-                cmd.set(sel + " #LineSelect.Visible", data != null);
-                if (data != null) {
-                    events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #LineSelect", data);
-                }
+            appendLines(cmd, events, root + " #Lines", block.lines(), line -> bindings.line(block, line));
+        }
+    }
+
+    /**
+     * Paint {@code lines} into a plain list the page owns (a {@code Group} holding nothing else), each a
+     * {@code Pages/ZigDetailLine.ui}: the list is cleared first, so a repaint never doubles it, and a line whose
+     * {@code selectId} is set and whose binding answers shows and binds its {@code #LineSelect}. For lines outside a
+     * detail page, such as the title picker's titles still to earn.
+     */
+    public static void lines(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull String list,
+            @Nonnull List<DetailLine> lines, @Nonnull Function<DetailLine, EventData> binding) {
+        cmd.clear(list);
+        appendLines(cmd, events, list, lines, binding);
+    }
+
+    private static void appendLines(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull String host, @Nonnull List<DetailLine> lines, @Nonnull Function<DetailLine, EventData> binding) {
+        for (int l = 0; l < lines.size(); l++) {
+            DetailLine line = lines.get(l);
+            cmd.append(host, LINE_TEMPLATE);
+            String sel = KitPaint.child(host, l);
+            line(cmd, sel, line);
+            EventData data = line.selectId() == null ? null : binding.apply(line);
+            cmd.set(sel + " #LineSelect.Visible", data != null);
+            if (data != null) {
+                events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #LineSelect", data);
             }
         }
     }
