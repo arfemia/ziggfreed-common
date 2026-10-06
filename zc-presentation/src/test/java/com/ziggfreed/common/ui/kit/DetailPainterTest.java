@@ -142,6 +142,39 @@ class DetailPainterTest {
     }
 
     @Test
+    void standaloneLinesAreClearedAppendedAndOnlyTheSelectableBound() {
+        UICommandBuilder cmd = new UICommandBuilder();
+        UIEventBuilder events = new UIEventBuilder();
+        DetailLine open = new DetailLine(Picture.texture(TEXTURE), Message.raw("Ghoul Breaker"), Message.raw("3 / 50"),
+                null, Tick.NONE, "ghoul_breaker", false);
+        DetailLine plain = DetailLine.of(Picture.NONE, Message.raw("A hidden achievement"));
+        DetailPainter.lines(cmd, events, "#ToEarn", List.of(open, plain), l -> EventData.of("Open", l.selectId()));
+        Painted p = Painted.of(cmd, events);
+        assertTrue(p.clears().contains("#ToEarn"), "cleared first, so a repaint never doubles the list");
+        assertEquals(2, p.appends().stream()
+                .filter(a -> a.equals("#ToEarn <- " + DetailPainter.LINE_TEMPLATE)).count());
+        assertTrue(p.set("#ToEarn[0] #LineText.TextSpans").contains("Ghoul Breaker"));
+        assertTrue(p.set("#ToEarn[0] #Count.TextSpans").contains("3 / 50"));
+        assertTrue(p.set("#ToEarn[0] #LineIconSlot #IcoTex.AssetPath").contains(TEXTURE));
+        assertTrue(p.shown("#ToEarn[0] #LineSelect.Visible"));
+        assertTrue(p.binding("#ToEarn[0] #LineSelect").contains("\"ghoul_breaker\""), "a selectable line is bound");
+        assertFalse(p.shown("#ToEarn[1] #LineSelect.Visible"), "a line with no select id stays plain");
+        assertNull(p.binding("#ToEarn[1] #LineSelect"));
+    }
+
+    @Test
+    void aStandaloneLineWhoseBindingDeclinesIsNeitherShownSelectableNorBound() {
+        UICommandBuilder cmd = new UICommandBuilder();
+        UIEventBuilder events = new UIEventBuilder();
+        DetailLine open = new DetailLine(Picture.NONE, Message.raw("Ghoul Breaker"), null, null, Tick.NONE,
+                "ghoul_breaker", false);
+        DetailPainter.lines(cmd, events, "#ToEarn", List.of(open), l -> null);
+        Painted p = Painted.of(cmd, events);
+        assertFalse(p.shown("#ToEarn[0] #LineSelect.Visible"));
+        assertNull(p.binding("#ToEarn[0] #LineSelect"));
+    }
+
+    @Test
     void aRewardLineKeepsTheItemGridForItsTooltip() {
         DetailLine reward = DetailLine.of(Picture.tooltipItem("No_Such_Item").or(Picture.texture(TEXTURE)),
                 Message.raw("Hallow Sweets"));

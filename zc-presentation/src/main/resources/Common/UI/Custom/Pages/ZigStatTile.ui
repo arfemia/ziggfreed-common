@@ -2,7 +2,8 @@ $ZK = "../Common/ZigTokens.ui";
 $ZX = "../Common/ZigText.ui";
 $ZW = "../Common/ZigKit.ui";
 
-// One counted thing (a season's tally, a statistic), 216 x 128, appended by com.ziggfreed.common.ui.kit.TilePainter
+// One counted thing (a season's tally, a statistic), 216 x 128 on vanilla's Memories tile, appended by
+// com.ziggfreed.common.ui.kit.TilePainter
 // into a wrapping grid and addressed by index as "#Grid[i] #StatTile": the 40px picture (#Pic, painted through
 // IconRenderer.applyPlainIcon) beside the figure (#Figure, at the end), the thing's name in two lines (#Name), a
 // caption ("1,204 in all") and, when the server counts it too, a faint server line (#Server, hidden otherwise).
@@ -14,7 +15,7 @@ Group #ZigStatTile {
     Anchor: (Full: 0);
     LayoutMode: Top;
     Padding: (Top: 10, Bottom: 8, Horizontal: $ZK.@ZigSpace3);
-    Background: (Color: $ZK.@ZigSurfaceRow);
+    Background: (TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8);
 
     Group #StatHead {
       LayoutMode: Left;
