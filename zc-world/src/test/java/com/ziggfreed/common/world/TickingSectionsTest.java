@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -26,8 +25,9 @@ import com.ziggfreed.common.world.TickingSections.State;
  * Whether an entity added at a block stays in the world, driven through the package-private section
  * seam, since a unit JVM holds no chunk store: which section a block is filed under, that a step never
  * runs while its section sleeps (X29, the hub NPC parked on a headless Update 7 boot), that it runs on
- * the world thread once a wake lands, and what a failed, refused or throwing wake answers. The engine
- * reads behind the seam are proved by the leg's linkage check and the coordinator's boot.
+ * the world thread once a wake lands, and what a failed, refused or throwing wake, or a world that takes
+ * no more tasks, answers. The engine reads behind the seam are proved by the leg's linkage check and the
+ * coordinator's boot.
  */
 class TickingSectionsTest {
 
@@ -143,13 +143,15 @@ class TickingSectionsTest {
         FakeSections sections = new FakeSections().with(HUB, State.PARKING);
         HeldTasks world = new HeldTasks();
         List<State> seenByTheStep = new ArrayList<>();
+        List<String> refused = new ArrayList<>();
 
         TickingSections.whenTicking(sections, world, HUB, () -> seenByTheStep.add(sections.stateOf(HUB)),
-                why -> fail(why));
+                refused::add);
 
         assertEquals(List.of(State.TICKING), seenByTheStep, "woken on the world thread, then run during the call");
         assertEquals(1, sections.wakes);
         assertEquals(0, world.pending());
+        assertEquals(List.of(), refused);
     }
 
     @Test
@@ -157,14 +159,16 @@ class TickingSectionsTest {
         FakeSections sections = new FakeSections();
         HeldTasks world = new HeldTasks();
         List<State> seenByTheStep = new ArrayList<>();
+        List<String> refused = new ArrayList<>();
 
         TickingSections.whenTicking(sections, world, HUB, () -> seenByTheStep.add(sections.stateOf(HUB)),
-                why -> fail(why));
+                refused::add);
         assertTrue(seenByTheStep.isEmpty(), "nothing runs while the section loads");
         sections.land(HUB);
         assertTrue(seenByTheStep.isEmpty(), "never on the thread that landed the load");
         assertEquals(1, world.runAll());
         assertEquals(List.of(State.TICKING), seenByTheStep);
+        assertEquals(List.of(), refused);
     }
 
     @Test
@@ -213,13 +217,49 @@ class TickingSectionsTest {
             throw new IllegalStateException("the role is not registered");
         };
 
+        List<String> refused = new ArrayList<>();
+
         FakeSections ticking = new FakeSections().with(HUB, State.TICKING);
-        assertDoesNotThrow(() -> TickingSections.whenTicking(ticking, world, HUB, broken, why -> fail(why)));
+        assertDoesNotThrow(() -> TickingSections.whenTicking(ticking, world, HUB, broken, refused::add));
 
         FakeSections absent = new FakeSections();
-        TickingSections.whenTicking(absent, world, HUB, broken, why -> fail(why));
+        TickingSections.whenTicking(absent, world, HUB, broken, refused::add);
         assertDoesNotThrow(() -> absent.land(HUB));
         assertDoesNotThrow(world::runAll, "the step's own throw stays inside its continuation");
+        assertEquals(List.of(), refused, "a step that throws is logged, never refused");
+    }
+
+    @Test
+    void aWorldThatTakesNoMoreTasksRefusesOnceAndNeverRunsTheStep() {
+        // A stopping world's execute throws instead of queueing the continuation, so the continuation never
+        // runs: only the rejection itself can tell the caller.
+        Executor stopping = task -> {
+            throw new IllegalStateException("World thread is not accepting tasks");
+        };
+        int[] ran = {0};
+
+        FakeSections landing = new FakeSections();
+        List<String> refused = new ArrayList<>();
+        TickingSections.whenTicking(landing, stopping, HUB, () -> ran[0]++, refused::add);
+        assertTrue(refused.isEmpty(), "nothing is refused while the section loads");
+        assertDoesNotThrow(() -> landing.land(HUB), "the rejection never reaches the loading thread");
+        assertEquals(1, refused.size(), "refused on the thread that landed the wake");
+        assertTrue(refused.get(0).contains("not accepting tasks"), refused.get(0));
+
+        FakeSections failing = new FakeSections();
+        List<String> refusedOnce = new ArrayList<>();
+        TickingSections.whenTicking(failing, stopping, HUB, () -> ran[0]++, refusedOnce::add);
+        assertDoesNotThrow(() -> failing.fail(HUB, new IllegalStateException("generation failed")));
+        assertEquals(1, refusedOnce.size(), "a failed wake the world takes no task for is refused once, not twice");
+
+        FakeSections throwing = new FakeSections();
+        throwing.wakeThrows = new IllegalStateException("the store is shutting down");
+        List<String> refusedAtOnce = new ArrayList<>();
+        assertDoesNotThrow(() -> TickingSections.whenTicking(throwing, stopping, HUB, () -> ran[0]++,
+                refusedAtOnce::add));
+        assertEquals(1, refusedAtOnce.size(), "a wake already over is refused during the call");
+
+        assertEquals(0, ran[0], "the step never runs");
     }
 
     @Test
@@ -236,7 +276,8 @@ class TickingSectionsTest {
 
         FakeSections offThread = new FakeSections().with(HUB, State.PARKING);
         offThread.wakesWithinTheCall = false;
-        assertFalse(TickingSections.ensureTicking(offThread, HUB), "a wake that has not landed is not a ticking section");
+        assertFalse(TickingSections.ensureTicking(offThread, HUB),
+                "a wake that has not landed is not a ticking section");
     }
 
     @Test

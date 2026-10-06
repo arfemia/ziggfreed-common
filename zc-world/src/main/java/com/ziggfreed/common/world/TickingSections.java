@@ -123,7 +123,9 @@ public final class TickingSections {
      * Run {@code next} once the section holding {@code (x, y, z)} ticks: during this call when it already
      * ticks or wakes here on the world thread, else on the world thread once a wake lands, after reading the
      * section again. A wake that fails, or lands with the section asleep again, reaches {@code refused}
-     * with the reason and {@code next} never runs. Neither throws into the caller or the loading thread.
+     * with the reason and {@code next} never runs; so does a world that takes no more tasks (it is
+     * stopping), refused once on the thread that landed the wake. A wake still loading while the world
+     * stops may reach neither. Nothing throws into the caller or the loading thread.
      */
     public static void whenTicking(@Nonnull World world, double x, double y, double z, @Nonnull Runnable next,
             @Nonnull Consumer<String> refused) {
@@ -184,7 +186,13 @@ public final class TickingSections {
             run(next, section);
             return;
         }
+        // Settled once: by the continuation, or by the world thread refusing to take it (a stopping world's
+        // execute throws), which fails only the dependent future and would otherwise answer nobody.
+        AtomicBoolean settled = new AtomicBoolean();
         woken.whenCompleteAsync((sectionRef, error) -> {
+            if (!settled.compareAndSet(false, true)) {
+                return;
+            }
             if (error == null && stateOf(sections, section) == State.TICKING) {
                 run(next, section);
             } else {
@@ -192,7 +200,11 @@ public final class TickingSections {
                         ? "the chunk section " + section + " could not be brought up: " + error
                         : "the chunk section " + section + " is still not ticking");
             }
-        }, worldThread);
+        }, worldThread).whenComplete((ignored, rejected) -> {
+            if (rejected != null && settled.compareAndSet(false, true)) {
+                refuse(refused, "the world thread took no task for chunk section " + section + ": " + rejected);
+            }
+        });
     }
 
     static boolean holdTicking(@Nonnull Sections sections, @Nonnull SectionPos section) {
@@ -228,7 +240,8 @@ public final class TickingSections {
     private static void report(@Nonnull String what, @Nonnull Throwable t) {
         if (t instanceof LinkageError) {
             if (LINKAGE_REPORTED.compareAndSet(false, true)) {
-                SafeLog.warn("[TickingSections] the chunk-section " + what + " does not link on this server build: " + t);
+                SafeLog.warn("[TickingSections] the chunk-section " + what
+                        + " does not link on this server build: " + t);
             }
             return;
         }
