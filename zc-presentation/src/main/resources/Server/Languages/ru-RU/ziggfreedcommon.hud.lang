@@ -9,23 +9,17 @@ spot.top_right = Верхний правый
 spot.bottom_left = Нижний левый
 
 # The two panels, as the pickers and the answers name them.
-panel.activity_ledger = Журнал действий
-panel.world_bars = Полосы мира
+panel.activity_ledger = Ход крафта
+panel.world_bars = Прирост опыта и репутации
 
 # The HUD settings page.
 settings.title = Панели HUD
 settings.subtitle = Где расположены панели полосок и какие из них отображаются.
-settings.tab.mine = Мои
-settings.tab.server = Сервер
 settings.back = Назад
 settings.save = Сохранить
 settings.on = Вкл
 settings.off = Выкл
-settings.hide_all = Скрыть все полоски
-settings.hide_all_hint = Все панели остаются скрыты, пока вы не отключите эту опцию.
-settings.show_panel = Показать эту панель
 settings.spot = Где расположена
-settings.spot_hint = Выберите свое место или оставьте выбор сервера.
 settings.server_spot = Выбор сервера
 settings.shipped_spot = Как отправлено
 settings.server_spot_hint = Место, которое получают все, если только они не выберут свое.
@@ -46,12 +40,6 @@ settings.saved = Сохранено. Панели всех игроков пер
 settings.save_failed = Не удалось записать файл владельца. Ничего не изменилось.
 settings.invalid_number = {0} требует целого числа или ничего.
 settings.invalid_color = {0} требует hex-цвет вроде #ffffff или #ffffffb8, или ничего.
-settings.pick_saved = {0} теперь находится в {1}.
-settings.pick_cleared = {0} снова следует выбору сервера.
-settings.hidden = {0} скрыта для вас.
-settings.shown = {0} снова отображается.
-settings.hide_all_on = Каждая полоска скрыта для вас.
-settings.hide_all_off = Ваши полоски снова отображаются.
 settings.panel_on = {0} включена для всех.
 settings.panel_off = {0} отключена для всех.
 settings.not_kept = Это не удалось сохранить. Переподключитесь и попробуйте еще раз.
@@ -85,3 +73,10 @@ show.all = Каждая панель снова отображается.
 default.done = {0} находится в {1} для всех. Записано в {2}.
 default.cleared = {0} снова находится там, где это сказано в отправленном файле. Записано в {1}.
 default.failed = Не удалось записать в {0}. Файл остался как был.
+
+spot.quest_tracker_right = Справа
+spot.quest_tracker_left = Слева
+settings.layout_tile = Расположение HUD на сервере
+settings.layout_tile_line = Где HUD находится у всех
+place.locked = Сервер закрепил, где находится {0}.
+hide.locked = Сервер закрепил, показывается ли {0}.

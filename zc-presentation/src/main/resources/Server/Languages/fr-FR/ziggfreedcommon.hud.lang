@@ -9,23 +9,17 @@ spot.top_right = Haut droit
 spot.bottom_left = Bas gauche
 
 # Les deux panneaux, tels que les sélecteurs et les réponses les nomment.
-panel.activity_ledger = Journal d'activité
-panel.world_bars = Barres du monde
+panel.activity_ledger = Progression de la fabrication
+panel.world_bars = Gains d'XP et de réputation
 
 # La page des paramètres HUD.
 settings.title = Barres HUD
 settings.subtitle = Où les panneaux de barres se situent, et lesquels s'affichent.
-settings.tab.mine = Personnel
-settings.tab.server = Serveur
 settings.back = Retour
 settings.save = Enregistrer
 settings.on = Activé
 settings.off = Désactivé
-settings.hide_all = Masquer toutes les barres
-settings.hide_all_hint = Chaque panneau reste masqué jusqu'à ce que vous le réactiviez.
-settings.show_panel = Afficher ce panneau
 settings.spot = Où il se situe
-settings.spot_hint = Choisissez un emplacement personnel ou conservez celui du serveur.
 settings.server_spot = Choix du serveur
 settings.shipped_spot = Par défaut
 settings.server_spot_hint = L'emplacement par défaut, sauf si vous en choisissez un.
@@ -46,12 +40,6 @@ settings.saved = Enregistré. Tous les panneaux des joueurs ont bougé.
 settings.save_failed = Impossible d'écrire le fichier de configuration. Rien n'a changé.
 settings.invalid_number = {0} doit être un nombre entier, ou rien du tout.
 settings.invalid_color = {0} doit être une couleur hex comme #ffffff ou #ffffffb8, ou rien du tout.
-settings.pick_saved = {0} se trouve maintenant à {1}.
-settings.pick_cleared = {0} suit de nouveau le choix du serveur.
-settings.hidden = {0} est masqué pour vous.
-settings.shown = {0} s'affiche de nouveau.
-settings.hide_all_on = Toutes les barres sont masquées pour vous.
-settings.hide_all_off = Vos barres s'affichent de nouveau.
 settings.panel_on = {0} est activé pour tous.
 settings.panel_off = {0} est désactivé pour tous.
 settings.not_kept = Cela n'a pas pu être conservé. Reconnectez-vous et réessayez.
@@ -85,3 +73,10 @@ show.all = Tous les panneaux s'affichent de nouveau.
 default.done = {0} se trouve à {1} pour tous. Écrit dans {2}.
 default.cleared = {0} se trouve où le fichier par défaut l'indique de nouveau. Écrit dans {1}.
 default.failed = Impossible d'écrire dans {0}. Le fichier a été laissé tel quel.
+
+spot.quest_tracker_right = Droite
+spot.quest_tracker_left = Gauche
+settings.layout_tile = Disposition du HUD du serveur
+settings.layout_tile_line = Où le HUD se situe pour tout le monde
+place.locked = Le serveur a fixé l'emplacement de {0}.
+hide.locked = Le serveur a fixé si {0} s'affiche.

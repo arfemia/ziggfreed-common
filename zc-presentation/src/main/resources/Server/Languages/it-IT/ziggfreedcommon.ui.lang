@@ -11,3 +11,18 @@ hud.bar.gain = +{0, number}
 # The same gain from ten thousand up, arriving already written compact ("12.3k") because the wide
 # panel's gain column has no room for the grouped form; the entry only signs it.
 hud.bar.gain.compact = +{0}
+
+menu.desc = Apri il tuo menu di missioni, traguardi e altro.
+menu.open.needsPlayer = Solo un giocatore può aprire il menu.
+menu.open.nothing = Su questo server non c'è ancora nulla da aprire nel menu.
+menu.settings = Impostazioni
+settings.title = Impostazioni
+settings.description = Le tue scelte personali su questo server. Ognuna viene conservata nel momento in cui la cambi.
+settings.notifications = Notifiche
+settings.level = Missioni e traguardi
+settings.level.hint = Quanti avvisi di missioni e traguardi vedi. Le missioni completate e le ricompense si mostrano, a meno che tu non scelga Nessuno. Una missione che stai seguendo non mostra avvisi nell'angolo finché il tracciamento la mostra; dentro un menu compaiono comunque.
+settings.level.everyupdate = Ogni aggiornamento
+settings.level.milestones = Traguardi intermedi
+settings.level.finishes = Completamenti
+settings.level.none = Nessuno
+settings.show = Mostra

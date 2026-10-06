@@ -169,3 +169,7 @@ book.achievements.overview.browse = Смотреть >
 book.achievements.feat_tag = ПОДВИГ
 book.achievements.points_tag = {0} очк.
 book.achievements.feat_since = Подвиг доблести с {0}
+
+book.tooltip.track = Отслеживать это задание на экране
+book.tooltip.pin = Закрепить это достижение
+settings.tracker = Трекер заданий

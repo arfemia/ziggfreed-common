@@ -167,3 +167,6 @@ book.achievements.overview.browse = Ansehen >
 book.achievements.feat_tag = HELDENTAT
 book.achievements.points_tag = {0} Pkte
 book.achievements.feat_since = Heldentat seit {0}
+book.tooltip.track = Diese Quest auf dem Bildschirm verfolgen
+book.tooltip.pin = Diesen Erfolg anheften
+settings.tracker = Quest-Tracker

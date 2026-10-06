@@ -167,3 +167,6 @@ book.achievements.overview.browse = Böngészés >
 book.achievements.feat_tag = ERŐPRÓBA
 book.achievements.points_tag = {0} pt
 book.achievements.feat_since = Erőpróba teljesítve ekkor: {0}
+book.tooltip.track = Küldetés követése a képernyőn
+book.tooltip.pin = Teljesítmény kitűzése
+settings.tracker = Küldetés nyomkövető

@@ -22,4 +22,8 @@ picker.back = Vissza
 picker.shown = Mostantól ez látszik: {0}.
 picker.cleared = Most nem látszik cím.
 picker.not_kept = A választásodat nem sikerült megőrizni. Lépj be újra, és próbáld meg még egyszer.
+picker.settings_heading = Cím
+picker.settings_tile = A címed
+picker.settings_wearing = Látszik: {0}
+picker.settings_none = Nem látszik cím
 

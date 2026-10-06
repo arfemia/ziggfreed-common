@@ -167,3 +167,6 @@ book.achievements.overview.browse = Göz At >
 book.achievements.feat_tag = GÜÇ
 book.achievements.points_tag = {0} puan
 book.achievements.feat_since = {0} tarihinden beri Güç Gösterisi
+book.tooltip.track = Bu görevi ekranında takip et
+book.tooltip.pin = Bu başarımı sabitle
+settings.tracker = Görev takibi

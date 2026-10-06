@@ -40,3 +40,5 @@ command.encounter.none = Ни у одного боя с боссом пока н
 command.encounter.choose = Рекорды есть у нескольких боёв с боссами. Выберите один:
 command.encounter.choice = {0}: /zigleaderboard encounter --encounter={1}
 
+menu.records = Рекорды
+

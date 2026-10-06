@@ -19,4 +19,8 @@ picker.back = Zurück
 picker.shown = Angezeigt wird jetzt {0}.
 picker.cleared = Es wird kein Titel angezeigt.
 picker.not_kept = Deine Wahl konnte nicht gespeichert werden. Verbinde dich neu und versuche es erneut.
+picker.settings_heading = Titel
+picker.settings_tile = Dein Titel
+picker.settings_wearing = Angezeigt wird {0}
+picker.settings_none = Kein Titel angezeigt
 

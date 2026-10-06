@@ -23,3 +23,8 @@ picker.shown = {0} est maintenant affiché.
 picker.cleared = Aucun titre n'est affiché.
 picker.not_kept = Votre choix n'a pas pu être conservé. Reconnectez-vous et réessayez.
 
+picker.settings_heading = Titre
+picker.settings_tile = Votre titre
+picker.settings_wearing = Affiché : {0}
+picker.settings_none = Aucun titre affiché
+

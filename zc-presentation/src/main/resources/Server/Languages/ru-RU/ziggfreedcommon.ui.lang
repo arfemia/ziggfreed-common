@@ -11,3 +11,18 @@ hud.bar.gain = +{0, number}
 # The same gain from ten thousand up, arriving already written compact ("12.3k") because the wide
 # panel's gain column has no room for the grouped form; the entry only signs it.
 hud.bar.gain.compact = +{0}
+
+menu.desc = Открыть меню заданий, достижений и не только.
+menu.open.needsPlayer = Открыть меню может только игрок.
+menu.open.nothing = На этом сервере в меню пока нечего открывать.
+menu.settings = Настройки
+settings.title = Настройки
+settings.description = Ваши личные настройки на этом сервере. Каждая сохраняется сразу, как вы её меняете.
+settings.notifications = Уведомления
+settings.level = Задания и достижения
+settings.level.hint = Сколько уведомлений о заданиях и достижениях вы видите. Завершённые задания и награды показываются, пока вы не выберете «Нет». Отслеживаемое задание не даёт уведомлений в углу, пока его показывает трекер; внутри меню они всё равно появляются.
+settings.level.everyupdate = Каждое изменение
+settings.level.milestones = Вехи
+settings.level.finishes = Завершения
+settings.level.none = Нет
+settings.show = Показывать

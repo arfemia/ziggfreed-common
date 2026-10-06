@@ -19,4 +19,8 @@ picker.back = Geri
 picker.shown = Şimdi {0} gösteriliyor.
 picker.cleared = Şu an gösterilen unvan yok.
 picker.not_kept = Seçimin kaydedilemedi. Yeniden katıl ve tekrar dene.
+picker.settings_heading = Unvan
+picker.settings_tile = Unvanın
+picker.settings_wearing = {0} gösteriliyor
+picker.settings_none = Gösterilen unvan yok
 

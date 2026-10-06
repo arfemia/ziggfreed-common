@@ -36,4 +36,5 @@ command.encounter.unranked = '{0}' führt auf diesem Server keine Rekorde.
 command.encounter.none = Noch kein Bosskampf hat einen Rekord.
 command.encounter.choose = Mehr als ein Bosskampf hat Rekorde. Wähle einen:
 command.encounter.choice = {0}: /zigleaderboard encounter --encounter={1}
+menu.records = Rekorde
 

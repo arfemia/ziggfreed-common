@@ -169,3 +169,7 @@ book.achievements.overview.browse = Parcourir >
 book.achievements.feat_tag = EXPLOIT
 book.achievements.points_tag = {0} pts
 book.achievements.feat_since = Exploit de bravoure depuis {0}
+
+book.tooltip.track = Suivre cette quête à l'écran
+book.tooltip.pin = Épingler ce succès
+settings.tracker = Suivi de quête

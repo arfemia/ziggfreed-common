@@ -39,4 +39,5 @@ command.encounter.unranked = '{0}' no guarda récords en este servidor.
 command.encounter.none = Ningún combate contra un jefe tiene aún un récord.
 command.encounter.choose = Más de un combate contra un jefe tiene récords. Elige uno:
 command.encounter.choice = {0}: /zigleaderboard encounter --encounter={1}
+menu.records = Récords
 

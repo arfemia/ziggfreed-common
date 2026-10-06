@@ -11,3 +11,18 @@ hud.bar.gain = +{0, number}
 # The same gain from ten thousand up, arriving already written compact ("12.3k") because the wide
 # panel's gain column has no room for the grouped form; the entry only signs it.
 hud.bar.gain.compact = +{0}
+
+menu.desc = Nyisd meg a küldetések, teljesítmények és egyebek menüjét.
+menu.open.needsPlayer = A menüt csak játékos nyithatja meg.
+menu.open.nothing = Ezen a szerveren még nincs mit megnyitni a menüben.
+menu.settings = Beállítások
+settings.title = Beállítások
+settings.description = A saját választásaid ezen a szerveren. Mindegyik azonnal mentődik, amint módosítod.
+settings.notifications = Értesítések
+settings.level = Küldetések és teljesítmények
+settings.level.hint = Mennyi küldetés- és teljesítményértesítést látsz. A befejezett küldetések és a jutalmak megjelennek, kivéve ha a Nincs lehetőséget választod. A követett küldetésről nem jön értesítés a sarokban, amíg a nyomkövető mutatja; a menükben továbbra is megjelenik.
+settings.level.everyupdate = Minden frissítés
+settings.level.milestones = Mérföldkövek
+settings.level.finishes = Befejezések
+settings.level.none = Nincs
+settings.show = Mutat

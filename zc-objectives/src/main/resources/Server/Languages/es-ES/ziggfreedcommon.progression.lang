@@ -167,3 +167,6 @@ book.achievements.overview.browse = Ver >
 book.achievements.feat_tag = GESTA
 book.achievements.points_tag = {0} ptos
 book.achievements.feat_since = Gesta de Valor desde {0}
+book.tooltip.track = Sigue esta misión en tu pantalla
+book.tooltip.pin = Fija este logro
+settings.tracker = Rastreador de misiones

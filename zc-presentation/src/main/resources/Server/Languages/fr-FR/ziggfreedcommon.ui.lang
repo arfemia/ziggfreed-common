@@ -11,3 +11,18 @@ hud.bar.gain = +{0, number}
 # The same gain from ten thousand up, arriving already written compact ("12.3k") because the wide
 # panel's gain column has no room for the grouped form; the entry only signs it.
 hud.bar.gain.compact = +{0}
+
+menu.desc = Ouvre votre menu de quêtes, de succès et plus encore.
+menu.open.needsPlayer = Seul un joueur peut ouvrir le menu.
+menu.open.nothing = Il n'y a encore rien à ouvrir dans le menu sur ce serveur.
+menu.settings = Paramètres
+settings.title = Paramètres
+settings.description = Vos choix personnels sur ce serveur. Chacun est conservé dès que vous le changez.
+settings.notifications = Notifications
+settings.level = Quêtes et succès
+settings.level.hint = Combien d'avis de quêtes et de succès vous voyez. Les quêtes terminées et les récompenses s'affichent sauf si vous choisissez Aucun. Une quête que vous suivez n'affiche aucun avis dans le coin tant que le suivi l'affiche ; dans un menu, ils apparaissent quand même.
+settings.level.everyupdate = Chaque progrès
+settings.level.milestones = Paliers
+settings.level.finishes = Fins
+settings.level.none = Aucun
+settings.show = Afficher

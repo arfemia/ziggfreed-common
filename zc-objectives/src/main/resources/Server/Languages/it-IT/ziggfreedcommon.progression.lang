@@ -167,3 +167,6 @@ book.achievements.overview.browse = Sfoglia >
 book.achievements.feat_tag = IMPRESA
 book.achievements.points_tag = {0} pti
 book.achievements.feat_since = Impresa di Valore dal {0}
+book.tooltip.track = Segui questa missione sullo schermo
+book.tooltip.pin = Fissa questo traguardo
+settings.tracker = Tracciamento missioni

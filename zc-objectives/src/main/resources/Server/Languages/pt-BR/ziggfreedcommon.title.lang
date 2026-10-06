@@ -23,3 +23,8 @@ picker.shown = Agora mostrando {0}.
 picker.cleared = Nenhum título é mostrado agora.
 picker.not_kept = Sua escolha não pôde ser guardada. Entre de novo e tente outra vez.
 
+picker.settings_heading = Título
+picker.settings_tile = Seu título
+picker.settings_wearing = Mostrando {0}
+picker.settings_none = Nenhum título mostrado
+

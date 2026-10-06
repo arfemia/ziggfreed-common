@@ -167,3 +167,6 @@ book.achievements.overview.browse = Ver >
 book.achievements.feat_tag = FEITO
 book.achievements.points_tag = {0} pts
 book.achievements.feat_since = Feito de Bravura desde {0}
+book.tooltip.track = Acompanhe esta missão na tela
+book.tooltip.pin = Fixe esta conquista
+settings.tracker = Rastreador de missões

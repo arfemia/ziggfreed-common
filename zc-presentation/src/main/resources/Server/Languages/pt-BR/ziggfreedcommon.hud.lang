@@ -9,23 +9,17 @@ spot.top_right = Canto superior direito
 spot.bottom_left = Canto inferior esquerdo
 
 # Os dois painéis, como os seletores e as respostas os nomeiam.
-panel.activity_ledger = Registro de atividades
-panel.world_bars = Barras do mundo
+panel.activity_ledger = Progresso de criação
+panel.world_bars = Ganhos de XP e reputação
 
 # A página de configurações do HUD.
 settings.title = Barras HUD
 settings.subtitle = Onde os painéis de barra ficam, e quais mostram.
-settings.tab.mine = Meu
-settings.tab.server = Server
 settings.back = Voltar
 settings.save = Salvar
 settings.on = Ativado
 settings.off = Desativado
-settings.hide_all = Ocultar cada barra
-settings.hide_all_hint = Cada painel fica oculto até você desativar isto novamente.
-settings.show_panel = Mostrar este painel
 settings.spot = Onde fica
-settings.spot_hint = Escolha um local seu, ou mantenha o do servidor.
 settings.server_spot = Escolha do servidor
 settings.shipped_spot = Como foi enviado
 settings.server_spot_hint = O local que todos recebem a menos que escolham o próprio.
@@ -46,12 +40,6 @@ settings.saved = Salvo. Os painéis de cada jogador se moveram.
 settings.save_failed = Não foi possível escrever o arquivo de proprietário. Nada mudou.
 settings.invalid_number = {0} precisa de um número inteiro, ou nada.
 settings.invalid_color = {0} precisa de uma cor hex como #ffffff ou #ffffffb8, ou nada.
-settings.pick_saved = {0} agora fica em {1}.
-settings.pick_cleared = {0} segue a escolha do servidor novamente.
-settings.hidden = {0} está oculto para você.
-settings.shown = {0} aparece novamente.
-settings.hide_all_on = Cada barra está oculta para você.
-settings.hide_all_off = Suas barras aparecem novamente.
 settings.panel_on = {0} está ativado para todos.
 settings.panel_off = {0} está desativado para todos.
 settings.not_kept = Isto não pôde ser mantido. Reconecte e tente novamente.
@@ -85,3 +73,10 @@ show.all = Cada painel aparece novamente.
 default.done = {0} fica em {1} para todos. Escrito em {2}.
 default.cleared = {0} fica onde seu arquivo enviado diz novamente. Escrito em {1}.
 default.failed = Não foi possível escrever em {0}. O arquivo foi deixado como estava.
+
+spot.quest_tracker_right = Direita
+spot.quest_tracker_left = Esquerda
+settings.layout_tile = Layout do HUD do servidor
+settings.layout_tile_line = Onde o HUD fica para todos
+place.locked = O servidor fixou onde {0} fica.
+hide.locked = O servidor fixou se {0} aparece.

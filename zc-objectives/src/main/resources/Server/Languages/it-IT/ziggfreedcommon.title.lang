@@ -19,4 +19,8 @@ picker.back = Indietro
 picker.shown = Ora mostri {0}.
 picker.cleared = Ora non è mostrato nessun titolo.
 picker.not_kept = Non è stato possibile conservare la tua scelta. Rientra e riprova.
+picker.settings_heading = Titolo
+picker.settings_tile = Il tuo titolo
+picker.settings_wearing = Mostri {0}
+picker.settings_none = Nessun titolo mostrato
 

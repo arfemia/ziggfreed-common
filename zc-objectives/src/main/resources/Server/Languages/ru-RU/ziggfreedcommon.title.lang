@@ -23,3 +23,8 @@ picker.shown = Теперь показан титул: {0}.
 picker.cleared = Сейчас титул не показывается.
 picker.not_kept = Ваш выбор не удалось сохранить. Перезайдите и повторите.
 
+picker.settings_heading = Титул
+picker.settings_tile = Ваш титул
+picker.settings_wearing = Показан: {0}
+picker.settings_none = Титул не показан
+

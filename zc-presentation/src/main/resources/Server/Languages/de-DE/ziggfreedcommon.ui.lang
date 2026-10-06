@@ -11,3 +11,18 @@ hud.bar.gain = +{0, number}
 # The same gain from ten thousand up, arriving already written compact ("12.3k") because the wide
 # panel's gain column has no room for the grouped form; the entry only signs it.
 hud.bar.gain.compact = +{0}
+
+menu.desc = Öffne dein Menü mit Quests, Erfolgen und mehr.
+menu.open.needsPlayer = Nur ein Spieler kann das Menü öffnen.
+menu.open.nothing = Auf diesem Server gibt es im Menü noch nichts zu öffnen.
+menu.settings = Einstellungen
+settings.title = Einstellungen
+settings.description = Deine eigenen Entscheidungen auf diesem Server. Jede wird sofort gespeichert, sobald du sie änderst.
+settings.notifications = Benachrichtigungen
+settings.level = Quests und Erfolge
+settings.level.hint = Wie viele Quest- und Erfolgsmeldungen du siehst. Abgeschlossene Quests und Belohnungen werden angezeigt, außer du wählst Keine. Eine Quest, die du verfolgst, zeigt keine Meldungen in der Ecke, solange der Tracker sie anzeigt; in einem Menü erscheinen sie weiterhin.
+settings.level.everyupdate = Jede Änderung
+settings.level.milestones = Meilensteine
+settings.level.finishes = Abschlüsse
+settings.level.none = Keine
+settings.show = Anzeigen

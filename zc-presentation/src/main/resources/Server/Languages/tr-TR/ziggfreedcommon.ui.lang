@@ -11,3 +11,18 @@ hud.bar.gain = +{0, number}
 # The same gain from ten thousand up, arriving already written compact ("12.3k") because the wide
 # panel's gain column has no room for the grouped form; the entry only signs it.
 hud.bar.gain.compact = +{0}
+
+menu.desc = Görevlerini, başarımlarını ve daha fazlasını içeren menünü aç.
+menu.open.needsPlayer = Menüyü yalnızca bir oyuncu açabilir.
+menu.open.nothing = Bu sunucuda menüde henüz açılacak bir şey yok.
+menu.settings = Ayarlar
+settings.title = Ayarlar
+settings.description = Bu sunucudaki kendi tercihlerin. Her biri değiştirdiğin anda saklanır.
+settings.notifications = Bildirimler
+settings.level = Görevler ve başarımlar
+settings.level.hint = Kaç görev ve başarım bildirimi gördüğün. Biten görevler ve ödüller, Hiçbiri'ni seçmedikçe gösterilir. Takip ettiğin bir görev, takip aracı onu gösterirken köşede bildirim göstermez; bir menünün içinde yine görünür.
+settings.level.everyupdate = Her güncelleme
+settings.level.milestones = Dönüm noktaları
+settings.level.finishes = Bitişler
+settings.level.none = Hiçbiri
+settings.show = Göster
