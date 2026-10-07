@@ -6,6 +6,7 @@ import javax.annotation.Nonnull;
 
 import com.ziggfreed.common.calendar.asset.CalendarEventAsset;
 import com.ziggfreed.common.factor.FeatureFlags;
+import com.ziggfreed.common.season.SeasonGate;
 
 /**
  * The calendar's switches as {@code ziggfreedcommon:feature} features, so content gated on them VANISHES
@@ -25,8 +26,8 @@ import com.ziggfreed.common.factor.FeatureFlags;
  */
 public final class CalendarFeatures {
 
-    /** The feature namespace, read as {@code ziggfreedcommon:feature}. */
-    public static final String NAMESPACE = "ziggfreedcommon";
+    /** The feature namespace, read as {@code ziggfreedcommon:feature}; zc-core's {@link SeasonGate} reads it too. */
+    public static final String NAMESPACE = SeasonGate.NAMESPACE;
 
     /** Who the features are attributed to in the factor ledger. */
     public static final String OWNER = "ziggfreedcommon";
@@ -34,8 +35,8 @@ public final class CalendarFeatures {
     /** The global switch's feature id. */
     public static final String CALENDAR = "Calendar";
 
-    /** Appended to an event id for its running feature. */
-    public static final String LIVE_SUFFIX = "_Live";
+    /** Appended to an event id for its running feature; spelled once, in {@link SeasonGate}. */
+    public static final String LIVE_SUFFIX = SeasonGate.LIVE_SUFFIX;
 
     private CalendarFeatures() {
     }
@@ -56,7 +57,7 @@ public final class CalendarFeatures {
                 continue;
             }
             FeatureFlags.register(NAMESPACE, id, OWNER, () -> service.isEnabled(id));
-            FeatureFlags.register(NAMESPACE, id + LIVE_SUFFIX, OWNER,
+            FeatureFlags.register(NAMESPACE, SeasonGate.featureOf(id), OWNER,
                     () -> service.live(id, clock.getAsLong()) != null);
         }
     }
