@@ -110,4 +110,14 @@ public interface OccurrenceSource {
     default ZoneId zone(@Nonnull String eventId) {
         return ZoneOffset.UTC;
     }
+
+    /**
+     * Do {@code eventId}'s days move from year to year (a rule such as Easter or the Nth weekday of a month,
+     * or days set for particular years)? A reader that would call the days "every year" asks this first and
+     * names the run's own year instead when they move. Answers for any event LOADED whatever its switches
+     * say; false for an event the source does not know, and from a source that knows no dates (the default).
+     */
+    default boolean datesMove(@Nonnull String eventId) {
+        return false;
+    }
 }

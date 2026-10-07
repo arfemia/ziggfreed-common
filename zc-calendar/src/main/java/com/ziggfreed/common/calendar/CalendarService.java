@@ -186,6 +186,14 @@ public final class CalendarService implements OccurrenceSource {
         return event == null ? ZoneOffset.UTC : event.zone();
     }
 
+    /** Do the loaded event's days move from year to year, whatever its switches say? False for no such event. */
+    @Override
+    public boolean datesMove(@Nonnull String eventId) {
+        CalendarEventAsset event = event(eventId);
+        AnnualWindow window = event == null ? null : event.annualWindow();
+        return window != null && window.moves();
+    }
+
     /** Every event running at {@code nowMs}, by id, in id order. */
     @Nonnull
     public Map<String, Occurrence> liveAll(long nowMs) {

@@ -66,6 +66,7 @@ month.short.10 = Oct
 month.short.11 = Nov
 month.short.12 = Dec
 window = Every year, {0} {1, number} to {2} {3, number}
+window.year = In {0}, {1} {2, number} to {3} {4, number}
 scope.year = Your {0} season
 scope.every = Every season
 scope.took_part = You took part
