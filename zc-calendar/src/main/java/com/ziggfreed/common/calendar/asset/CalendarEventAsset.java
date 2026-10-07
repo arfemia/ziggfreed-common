@@ -20,6 +20,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.calendar.AnnualWindow;
+import com.ziggfreed.common.season.SeasonGate;
 
 /**
  * One event that comes round every year, at {@code Server/ZiggfreedCommon/CalendarEvents/<Owner>/<Id>.json}.
@@ -83,8 +84,11 @@ public final class CalendarEventAsset implements JsonAssetWithMap<String, Defaul
      */
     private static final Set<String> RESERVED_IDS = Set.of("calendar", "almanac");
 
-    /** An event's running switch is its id plus {@code _Live}, so no event id may end in it. Lower-cased. */
-    private static final String RESERVED_SUFFIX = "_live";
+    /**
+     * An event's running switch is its id plus {@code _Live} ({@link SeasonGate#LIVE_SUFFIX}), so no event id
+     * may end in it. Lower-cased.
+     */
+    private static final String RESERVED_SUFFIX = SeasonGate.LIVE_SUFFIX.toLowerCase(Locale.ROOT);
 
     private String id;
     private AssetExtraInfo.Data data;
