@@ -150,9 +150,6 @@ book.view.overview = Overview
 book.view.browse = Browse
 book.view.statistics = Statistics
 
-# Shown by a book tab while its page is being rebuilt.
-book.placeholder = This tab is being rebuilt.
-
 # The Achievements tab: the header band, the overview, Browse's toolbar, rows and the achievement's page.
 book.achievements.subtitle = {0, number} of {1, number} earned
 book.achievements.subtitle_waiting = {0, number} of {1, number} earned, {2, number} {2, plural, one{reward} other{rewards}} waiting
