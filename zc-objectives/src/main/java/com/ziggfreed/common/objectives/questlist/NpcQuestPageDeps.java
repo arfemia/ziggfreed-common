@@ -21,6 +21,8 @@ import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.npc.NpcIdentities;
 import com.ziggfreed.common.npc.NpcNames;
+import com.ziggfreed.common.objectives.book.ObjectiveBookPages;
+import com.ziggfreed.common.objectives.journal.QuestPresentation;
 import com.ziggfreed.common.objectives.render.ClaimToasts;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -57,6 +59,10 @@ import com.ziggfreed.common.ui.toast.ToastSpec;
  *       line ({@link #handInToast}), because nothing was paid for a consumer to announce.</li>
  *   <li>{@link PageTheme} - how the page frame is painted, for a consumer shipping a theme.</li>
  * </ul>
+ *
+ * <p>How a quest READS here is not a seam of this record: it is the objective book's reading
+ * ({@link #presentation()}), so a quest reads at its giver exactly as it reads in the book, with this record's reward
+ * reading and character names.
  *
  * <p>Immutable; build one at setup and hand the same instance back on every open.
  */
@@ -227,6 +233,17 @@ public final class NpcQuestPageDeps {
     @Nonnull
     public CompletionToast completionToast() {
         return completionToast;
+    }
+
+    /**
+     * How a quest reads on the page, as the objective book reads it: the book's consumer seams (a board's quests and
+     * their pills, the requirements line, tag names, the claim pre-check, extra page blocks) from the deps the book
+     * runs on ({@link ObjectiveBookPages#resolvedDeps}, guarded), with this record's reward reading and character
+     * names.
+     */
+    @Nonnull
+    public QuestPresentation presentation() {
+        return QuestPresentation.of(ObjectiveBookPages.resolvedDeps(), this);
     }
 
     /**

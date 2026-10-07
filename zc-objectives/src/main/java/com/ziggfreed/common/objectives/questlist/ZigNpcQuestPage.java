@@ -1,7 +1,8 @@
 package com.ziggfreed.common.objectives.questlist;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,96 +24,101 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import com.ziggfreed.common.i18n.Msg;
-import com.ziggfreed.common.icon.IconSpec;
-import com.ziggfreed.common.loot.reward.RewardChip;
-import com.ziggfreed.common.npc.NpcNames;
-import com.ziggfreed.common.loot.reward.RewardChips;
 import com.ziggfreed.common.loot.reward.RewardGrants;
-import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Entry;
+import com.ziggfreed.common.npc.NpcNames;
+import com.ziggfreed.common.objectives.book.ObjectiveBookMenu;
+import com.ziggfreed.common.objectives.journal.QuestActions;
+import com.ziggfreed.common.objectives.journal.QuestReader;
 import com.ziggfreed.common.objectives.questlist.NpcQuestSections.Section;
 import com.ziggfreed.common.objectives.render.ClaimToasts;
-import com.ziggfreed.common.objectives.render.QuestCadenceBadge;
-import com.ziggfreed.common.progress.ObjectiveDef;
 import com.ziggfreed.common.progress.ObjectiveProgressState;
 import com.ziggfreed.common.progress.runtime.ProgressionCallScope;
-import com.ziggfreed.common.progress.runtime.ProgressionIcons;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.common.progress.runtime.ProgressionTexts;
-import com.ziggfreed.common.quest.LockReasons;
 import com.ziggfreed.common.quest.NpcOfferProviders;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestEngine;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.subject.Subject;
-import com.ziggfreed.common.text.ContentTextAsset;
-import com.ziggfreed.common.ui.StatusTones;
-import com.ziggfreed.common.ui.icon.IconRenderer;
-import com.ziggfreed.common.ui.rows.BuiltRows;
-import com.ziggfreed.common.ui.UiRetint;
-import com.ziggfreed.common.ui.ZigRichButton;
+import com.ziggfreed.common.ui.kit.ActionSlot;
+import com.ziggfreed.common.ui.kit.DetailBindings;
+import com.ziggfreed.common.ui.kit.DetailBlock;
+import com.ziggfreed.common.ui.kit.DetailLine;
+import com.ziggfreed.common.ui.kit.DetailPainter;
+import com.ziggfreed.common.ui.kit.DetailToggle;
+import com.ziggfreed.common.ui.kit.EmptyState;
+import com.ziggfreed.common.ui.kit.EmptyStatePainter;
+import com.ziggfreed.common.ui.kit.LedgerBindings;
+import com.ziggfreed.common.ui.kit.LedgerIndex;
+import com.ziggfreed.common.ui.kit.LedgerModel;
+import com.ziggfreed.common.ui.kit.LedgerPainter;
+import com.ziggfreed.common.ui.kit.LedgerRow;
+import com.ziggfreed.common.ui.kit.LedgerSection;
+import com.ziggfreed.common.ui.kit.Picture;
+import com.ziggfreed.common.ui.kit.RowSize;
+import com.ziggfreed.common.ui.kit.SegmentPainter;
 import com.ziggfreed.common.ui.toast.ToastKind;
 import com.ziggfreed.common.ui.toast.ToastSpec;
 import com.ziggfreed.common.ui.toast.ToastablePage;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * What a character has to offer: a list of their quests on the left, the one being read on the
- * right, and every lifecycle affordance a player standing in front of somebody expects - take it on,
- * hand it in here, collect it, drop it, pin it.
+ * What a character has to offer: a list of their quests on the left, the one being read on the right, and every
+ * lifecycle affordance a player standing in front of somebody expects - take it on, hand it in here, collect it,
+ * drop it, track it.
  *
- * <p>This is the GENERIC screen, driven entirely through the shared progression runtime and the open
- * offer table, so it renders a server's whole merged catalogue whoever authored each entry. A
- * consumer contributes what the library cannot know through {@link NpcQuestPageDeps} - a character's
- * name, its alias set, its theme, what follows a settled quest - and never a page of its own.
+ * <p>This is the GENERIC screen, driven entirely through the shared progression runtime and the open offer table, so
+ * it renders a server's whole merged catalogue whoever authored each entry. A consumer contributes what the library
+ * cannot know through {@link NpcQuestPageDeps} - a character's name, its alias set, its theme, what follows a settled
+ * quest - and never a page of its own.
+ *
+ * <h2>The book's quest page, at the giver</h2>
+ *
+ * <p>The list is the kit's ledger ({@link LedgerPainter}) and the right-hand side is the kit's reading page
+ * ({@link DetailPainter}), built from the same {@link QuestReader} as the Objective Book's Quests tab, so a quest
+ * reads identically here and in the book and one fix lands in both. What differs is the place: the reader is handed
+ * this character's {@link CharacterQuestListing}, so the action bar offers Accept for what is Available here (a
+ * giver-bound quest is taken at its giver), Hand in where a step resolves here, and Collect only where the quest may
+ * be collected ({@link QuestActions}).
  *
  * <h2>Two lists, one character</h2>
  *
- * <p>The HERE list is what this character is holding out ({@link NpcOfferProviders}, asked over the
- * character's whole answer set) plus anything already being carried whose outstanding step resolves
- * here. The MINE list is everything the player is carrying or has finished but not collected,
- * wherever it came from, so a player who walked away from the giver can still see it.
+ * <p>The HERE list is what this character is holding out ({@link NpcOfferProviders}, asked over the character's whole
+ * answer set) plus anything already being carried whose business is here. The MINE list is everything the player is
+ * carrying or has finished but not collected, wherever it came from, so a player who walked away from the giver can
+ * still see it. Both are sectioned by what the player can do about each quest ({@link NpcQuestSections}).
  *
  * <h2>The routed hand-in</h2>
  *
- * <p>A ready quest never takes over a conversation on its own; wherever one surfaces as a clickable
- * option, the click ROUTES here with that quest highlighted. A highlighted quest is pinned to the
- * top of the list and is what the detail panel opens on - there is no scroll-to on a page, so being
- * the first row IS "take me to it". The hand-in itself is a press on this page, and an inline
- * dialogue turn-in happens only where an author wrote one.
+ * <p>A ready quest never takes over a conversation on its own; wherever one surfaces as a clickable option, the click
+ * ROUTES here with that quest highlighted. A highlighted quest leads the list in its own open section and is what the
+ * page opens on - there is no scroll-to on a page, so being the first row IS "take me to it"
+ * ({@code NpcQuestPagePlan}).
  *
  * <h2>Instance state, on purpose</h2>
  *
- * <p>Unlike the objective book, this page KEEPS its selection, its tab and the exact row order it
- * last built, and reopens as {@code this}. That is what a scroll-preserving partial update needs: a
- * {@code sendUpdate} runs against the DOM the last full {@code build} produced, so a row index must
- * be one that build RECORDED, never one recomputed from a list whose ordering is state-dependent. A
- * recomputed index can land on a section heading, whose {@code #StatusDot} does not exist, and an
- * unresolved selector disconnects the player. {@link BuiltRows} holds that record, and when the
- * recorded index is gone, every path falls back to a full reopen instead.
+ * <p>This page KEEPS its list, selection, open sections and the {@link LedgerIndex} its last full paint returned, and
+ * reopens as {@code this}: a {@code sendUpdate} runs against the DOM the last build produced, so a selection moves
+ * through the index that build recorded, never one recomputed. An action repaints the whole list and the page in one
+ * partial update (every element it binds is appended in that same update), so a quest that moved section is drawn
+ * under its new head with the scroll kept. The three action buttons and the header toggle are bound ONCE per build
+ * with no quest id and are dispatched on the live state of whatever the page shows.
  *
- * <p>It holds each row's SECTION too, which is what decides whether a partial update can tell the
- * truth after an action. Accepting, dropping or collecting a quest moves it between sections, and a
- * section is on screen as a heading with rows ranked under it, so a quest repainted in place would
- * sit under a heading that now lies about it. Any such move reopens; a change that leaves the row
- * where it was drawn - a step of progress, a pin - keeps its scroll.
- *
- * <p>EVERY exit path sends a response - a reopen, a partial update, or a close - or the client spins
- * forever.
+ * <p>EVERY exit path sends a response - a reopen, a partial update, or a close - or the client spins forever.
  */
 public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
 
     /** The list of what this character is holding out; also the default. */
-    public static final String TAB_HERE = "here";
+    public static final String TAB_HERE = NpcQuestPagePlan.TAB_HERE;
 
     /** The list of what the player is carrying, wherever it came from. */
-    public static final String TAB_MINE = "mine";
+    public static final String TAB_MINE = NpcQuestPagePlan.TAB_MINE;
 
-    private static final String PAGE_TEMPLATE = "Pages/ZigNpcQuestPage.ui";
-    private static final String ROW_TEMPLATE = "Pages/ZigSelectRow.ui";
-    private static final String LINE_TEMPLATE = "Pages/ZigDetailLine.ui";
-
-    /** What a theme is offered to repaint: the panel carrying the list. */
-    private static final String FRAME_SELECTOR = "#LeftPanel";
+    /**
+     * Whether an action, a section's fold and "Show more" repaint the list in a partial update (appending sections
+     * and rows into the live list), or reopen the page with its state kept. The one switch for that mechanism.
+     */
+    static final boolean LIST_IN_PLACE = true;
 
     /** This library's own lang namespace; {@link Msg#tr} concatenates it with the key verbatim. */
     private static final String PREFIX = "ziggfreedcommon.";
@@ -120,54 +126,82 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     /** The domain segment every key on this page carries (the {@code ziggfreedcommon.progression.lang} file). */
     private static final String DOMAIN = "progression.";
 
-    /** A hard ceiling on list rows, so a very large catalogue cannot build an unbounded page. */
-    private static final int MAX_ROWS = 200;
-
-    /** A ceiling on the lines inside one detail section (steps, rewards, refusals). */
-    private static final int MAX_LINES = 24;
-
-    // The selected row's accent, and the shared row style's own per-state colours to revert to.
-    private static final String ROW_SELECTED_TINT = "#1a2d44";
-    private static final String ROW_SELECTED_TEXT = "#ffffff";
-    private static final String ROW_TINT = "#41506a";
-    private static final String ROW_HOVER_TINT = "#5b6f8c";
-    private static final String ROW_PRESSED_TINT = "#344156";
-    private static final String ROW_TEXT = "#b6c9de";
-
-    private static final String HEADER_TEXT = "#8696a8";
-    private static final String LINE_DONE = "#7affa0";
-    private static final String LINE_OPEN = "#c6d4e4";
-    private static final String LINE_UNSTARTED = "#8fa6bd";
-    private static final String LINE_REFUSAL = "#ff9944";
-
-    // Active/inactive tab contrast, the same treatment the objective book uses.
-    private static final String TAB_ACTIVE_TINT = "#5e86bd";
-    private static final String TAB_ACTIVE_HOVER = "#6f97cf";
-    private static final String TAB_ACTIVE_TEXT = "#ffffff";
-    private static final String TAB_INACTIVE_TINT = "#2f3b49";
-    private static final String TAB_INACTIVE_HOVER = "#445364";
-    private static final String TAB_INACTIVE_TEXT = "#9fb0c2";
+    // The actions the page's bindings carry.
+    private static final String CLOSE = "close";
+    private static final String TAB = "tab";
+    private static final String SELECT = "select";
+    private static final String SECTION = "section";
+    private static final String MORE = "more";
+    private static final String LINE = "line";
+    private static final String PRIMARY = "primary";
+    private static final String SECONDARY = "secondary";
+    private static final String DANGER = "danger";
+    private static final String TOGGLE = "toggle";
 
     @Nullable private final String npcId;
 
     @Nonnull private final NpcQuestPageDeps deps;
 
-    /** The quest this page was ROUTED to, pinned top and preselected for as long as the page lives. */
+    /** The quest this page was ROUTED to, leading the list and preselected for as long as the page lives. */
     @Nullable private final String highlightQuestId;
 
     @Nullable private String selectedQuestId;
 
     @Nonnull private String activeTab = TAB_HERE;
 
+    /** Whether the routed quest has had its say about which list opens; only the first build asks. */
+    private boolean routed;
+
     /**
-     * The exact rows the last full build rendered - each quest's index and the section it was drawn
-     * under, section headings occupying an index of their own - so a partial update addresses the
-     * row the client DOM actually holds and knows when a quest has moved out from under its heading.
+     * Whether the routed quest still picks what the page opens on: on the first paint of a list, and never again
+     * once the player has chosen, so an action on another quest does not jump the page back to the routed one.
      */
-    private final BuiltRows builtRows = new BuiltRows();
+    private boolean routeSelects = true;
+
+    /** The player's open and closed sections ({@link LedgerPainter#withSection}), for the list on screen. */
+    @Nonnull private Set<String> openSections = new LinkedHashSet<>();
+
+    /** How many rows each section shows, by section id, once "Show more" was pressed. */
+    @Nonnull private Map<String, Integer> caps = new HashMap<>();
+
+    /** The list the last paint drew. */
+    @Nullable private LedgerModel model;
+
+    /** Where the last paint put every row and section; null when the list was empty. */
+    @Nullable private LedgerIndex index;
 
     /** The character's answer set, resolved once per build and read by every question after it. */
     private Set<String> answersTo = Set.of();
+
+    private final LedgerBindings ledgerBindings = new LedgerBindings() {
+        @Override
+        public EventData row(LedgerSection s, LedgerRow r) {
+            return EventData.of("Action", SELECT).append("QuestId", r.id());
+        }
+
+        @Override
+        public EventData section(LedgerSection s) {
+            return EventData.of("Action", SECTION).append("Section", s.id());
+        }
+
+        @Override
+        public EventData showMore(LedgerSection s) {
+            return EventData.of("Action", MORE).append("Section", s.id());
+        }
+    };
+
+    private final DetailBindings detailBindings = new DetailBindings() {
+        @Override
+        public EventData line(DetailBlock b, DetailLine l) {
+            return l.selectId() == null ? null : EventData.of("Action", LINE).append("QuestId", l.selectId());
+        }
+
+        @Override
+        public EventData toggle(DetailToggle t) {
+            // Bound once in build (bindActionsOnce), never by a repaint.
+            return null;
+        }
+    };
 
     public ZigNpcQuestPage(@Nonnull PlayerRef playerRef, @Nullable String npcId,
             @Nullable String highlightQuestId, @Nonnull NpcQuestPageDeps deps) {
@@ -187,83 +221,133 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     @Override
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
             @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
+        try {
+            paint(ref, cmd, events, store);
+        } catch (Throwable t) {
+            // A build that throws leaves the client with no page at all; log it and send what was painted.
+            SafeLog.warn("[progression] the npc quest page's build failed", t);
+        }
+        renderToastInto(cmd);
+    }
+
+    private void paint(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder cmd,
+            @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
         appendTemplate(cmd);
-        events.addEventBinding(CustomUIEventBindingType.Activating, "#CloseButton",
-                EventData.of("Action", "close"));
+        events.addEventBinding(CustomUIEventBindingType.Activating, NpcQuestPagePlan.CLOSE,
+                EventData.of("Action", CLOSE));
+        bindTabs(events);
+        // Bound ONCE per build with no quest id: a press is dispatched on the live state of whatever the page shows,
+        // so a partial update can swap the page without a binding it cannot add.
+        DetailPainter.bindActionsOnce(events, NpcQuestPagePlan.PAGE,
+                slot -> EventData.of("Action", slotAction(slot)), EventData.of("Action", TOGGLE));
 
         this.answersTo = deps.answerSetOrOwn(npcId);
-        cmd.set("#NpcHeader.TextSpans", headerText(store, ref));
+        cmd.set(NpcQuestPagePlan.HEADER + ".TextSpans", headerText(store, ref));
 
         QuestEngine engine = ProgressionRuntime.quests();
         // The build argument is the page's ANCHOR, which at a character is that character's own
         // entity, so the player is resolved from the reference this page was built with.
         Subject subject = ProgressionRuntime.subjects().questSubject(store, playerEntityRef(ref));
         if (subject == null) {
-            // Nothing can be read for this player, so say so once rather than painting an empty list
-            // that reads as "this character has nothing", which is a different sentence.
-            cmd.set("#QuestCount.TextSpans", text("npcquests.count", 0));
-            paintTabs(cmd, events);
-            showEmpty(cmd, text("npcquests.empty.unavailable"));
-            renderToastInto(cmd);
+            // Nothing can be read for this player, so say so once rather than painting an empty list that reads as
+            // "this character has nothing", which is a different sentence.
+            this.model = null;
+            this.index = null;
+            cmd.set(NpcQuestPagePlan.COUNT + ".TextSpans", text("npcquests.count", 0));
+            paintTabs(cmd);
+            showEmpty(cmd, events, text("npcquests.empty.unavailable"));
             return;
         }
 
-        // Both engines document self-heal as "whenever a surface opens", and it matters most at a
-        // character: a finished daily whose cooldown has elapsed must read as re-acceptable HERE
-        // rather than staying stuck on "completed", and a standing-value step is settled in the same
-        // pass, so a level gained since the quest was taken shows before the rows are ranked.
+        // Both engines document self-heal as "whenever a surface opens", and it matters most at a character: a
+        // finished daily whose cooldown has elapsed must read as re-acceptable HERE rather than staying stuck on
+        // "completed", and a standing-value step is settled in the same pass.
         selfHeal(engine, subject);
 
-        List<Quest> quests = TAB_MINE.equals(activeTab)
-                ? engine.activeAndUnclaimed(subject)
-                : listing(subject, engine).questsHere();
-        // A routed quest that is not on this character's list still has to be reachable, so the page
-        // opens on the list that does hold it rather than on an empty panel.
-        if (highlightQuestId != null && !containsQuest(quests, highlightQuestId)
-                && TAB_HERE.equals(activeTab)) {
-            List<Quest> mine = engine.activeAndUnclaimed(subject);
-            if (containsQuest(mine, highlightQuestId)) {
-                this.activeTab = TAB_MINE;
-                quests = mine;
+        CharacterQuestListing listing = listing(subject, engine);
+        if (!routed) {
+            routed = true;
+            if (highlightQuestId != null) {
+                // A routed quest that is not on this character's list still has to be reachable, so the page opens
+                // on the list that does hold it rather than on an empty panel.
+                this.activeTab = NpcQuestPagePlan.tab(activeTab, highlightQuestId,
+                        NpcQuestPagePlan.quests(TAB_HERE, listing, engine, subject),
+                        NpcQuestPagePlan.quests(TAB_MINE, listing, engine, subject));
             }
         }
+        paintTabs(cmd);
+        paintList(cmd, events, engine, subject, listing, false);
+    }
 
+    /**
+     * Paint the count, the list and the page from the engine's state now: the list through the kit's ledger, the
+     * selected quest through the kit's page, or the empty state. Used by the build and by the partial update after
+     * an action (every element it binds is appended in the same update).
+     *
+     * @param partial true in a partial update, where the list's previous rows are cleared by the painter and the
+     *                empty state's leftovers are hidden explicitly
+     */
+    private void paintList(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, @Nonnull QuestEngine engine,
+            @Nonnull Subject subject, @Nonnull CharacterQuestListing listing, boolean partial) {
+        List<Quest> quests = NpcQuestPagePlan.quests(activeTab, listing, engine, subject);
+        QuestReader reader = reader(engine, subject);
         Map<String, Quest> byId = new LinkedHashMap<>();
-        List<Entry> entries = new ArrayList<>();
         for (Quest quest : quests) {
             byId.put(quest.id(), quest);
-            entries.add(Entry.of(quest.id(), listing(subject, engine).sectionOf(quest),
-                    quest.id().equals(highlightQuestId)));
         }
-        List<Entry> ordered = NpcQuestSections.sort(entries);
+        LedgerModel next = NpcQuestPagePlan.model(
+                NpcQuestPagePlan.entries(quests, listing::sectionOf, highlightQuestId),
+                id -> {
+                    Quest quest = byId.get(id);
+                    return quest == null ? null : reader.row(quest);
+                },
+                this::sectionLabel, caps);
+        this.model = next;
+        this.selectedQuestId = NpcQuestPagePlan.select(next, routeSelects ? highlightQuestId : null,
+                selectedQuestId);
+        this.routeSelects = false;
+        cmd.set(NpcQuestPagePlan.COUNT + ".TextSpans", text("npcquests.count", NpcQuestPagePlan.rowCount(next)));
 
-        cmd.set("#QuestCount.TextSpans", text("npcquests.count", ordered.size()));
-        paintTabs(cmd, events);
-
-        List<String> orderedIds = new ArrayList<>();
-        for (Entry entry : ordered) {
-            orderedIds.add(entry.questId());
-        }
-        this.selectedQuestId = NpcQuestSections.select(orderedIds, highlightQuestId, selectedQuestId);
-
-        builtRows.clear();
-        if (ordered.isEmpty()) {
-            showEmptyList(cmd);
-            renderToastInto(cmd);
+        if (next.isEmpty()) {
+            this.index = null;
+            if (partial) {
+                cmd.clear(NpcQuestPagePlan.LIST);
+            }
+            showEmpty(cmd, events, text(TAB_MINE.equals(activeTab)
+                    ? "npcquests.empty.mine" : "npcquests.empty.here"));
             return;
         }
-        appendRows(cmd, events, subject, engine, ordered, byId);
-
-        // Bound ONCE per build with no quest id: the handlers act on whatever the detail panel is
-        // showing, so a partial update can swap the panel without needing a binding it cannot add.
-        bindDetailButtons(events);
+        this.openSections = NpcQuestPagePlan.openSections(next, openSections, selectedQuestId);
+        this.index = LedgerPainter.paint(cmd, events, NpcQuestPagePlan.LIST, next, openSections, selectedQuestId,
+                ledgerBindings, RowSize.STANDARD, playerRef);
         Quest selected = selectedQuestId == null ? null : byId.get(selectedQuestId);
         if (selected != null) {
-            renderDetail(cmd, subject, engine, selected);
+            paintPage(cmd, events, reader, listing, selected);
         } else {
-            cmd.set("#RightPanel.Visible", false);
+            showEmpty(cmd, events, text("npcquests.empty.here"));
         }
-        renderToastInto(cmd);
+    }
+
+    /** The selected quest's page: the book's page, with this character's buttons. */
+    private void paintPage(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull QuestReader reader, @Nonnull CharacterQuestListing listing, @Nonnull Quest quest) {
+        cmd.set(NpcQuestPagePlan.PAGE_EMPTY + ".Visible", false);
+        cmd.set(NpcQuestPagePlan.PAGE + ".Visible", true);
+        DetailPainter.paint(cmd, events, NpcQuestPagePlan.PAGE,
+                NpcQuestPagePlan.page(reader, quest, NpcQuestPagePlan.place(npcId, listing)), detailBindings,
+                playerRef);
+    }
+
+    /**
+     * The empty state in the page's place, the segments left on screen and bound: a whole-page empty state would
+     * hide the only route back to the other list.
+     */
+    private static void showEmpty(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nonnull Message line) {
+        cmd.set(NpcQuestPagePlan.PAGE + ".Visible", false);
+        cmd.set(NpcQuestPagePlan.PAGE_EMPTY + ".Visible", true);
+        EmptyStatePainter.paint(cmd, events, NpcQuestPagePlan.PAGE_EMPTY,
+                new EmptyState(Picture.item(ObjectiveBookMenu.QUESTS_ICON), line, null, null), null);
     }
 
     /**
@@ -275,13 +359,13 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
      */
     private void appendTemplate(@Nonnull UICommandBuilder cmd) {
         try {
-            deps.theme().appendThemed(cmd, PAGE_TEMPLATE, FRAME_SELECTOR);
+            deps.theme().appendThemed(cmd, NpcQuestPagePlan.DOCUMENT, NpcQuestPagePlan.FRAME_PANEL);
             return;
         } catch (Throwable t) {
             SafeLog.warn("[progression] a page theme failed, so the npc quest page renders plain: "
                     + t.getMessage());
         }
-        cmd.append(PAGE_TEMPLATE);
+        cmd.append(NpcQuestPagePlan.DOCUMENT);
     }
 
     private void selfHeal(@Nonnull QuestEngine engine, @Nonnull Subject subject) {
@@ -316,340 +400,53 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     /**
-     * What this character is to this player's quests, read the one way every surface reads it:
-     * which quests belong on the list, which section each sits in, and the place-aware facts
-     * behind both ({@link CharacterQuestListing}). The indicator floating over the character's
-     * head reads the same class, so the two cannot disagree. Built per question; it holds nothing
-     * but the engine, the subject and the answer set resolved at build.
+     * What this character is to this player's quests, read the one way every surface reads it: which quests belong
+     * on the list, which section each sits in, and the place-aware facts behind both. The indicator floating over
+     * the character's head reads the same class, so the two cannot disagree.
      */
     @Nonnull
     private CharacterQuestListing listing(@Nonnull Subject subject, @Nonnull QuestEngine engine) {
         return new CharacterQuestListing(engine, subject, answersTo);
     }
 
-    // ==================== the list ====================
-
-    private void appendRows(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-            @Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull List<Entry> ordered,
-            @Nonnull Map<String, Quest> byId) {
-        Section open = null;
-        int index = 0;
-        for (Entry entry : ordered) {
-            Quest quest = byId.get(entry.questId());
-            if (quest == null) {
-                continue;
-            }
-            // A highlighted row is pinned above its own section, so drawing that section's heading in
-            // front of it would file it under a group it has jumped out of.
-            boolean opensSection = !entry.highlighted() && entry.section() != open;
-            // A heading and the row it heads are budgeted TOGETHER, so a list cut short by the row
-            // ceiling never ends on a heading with nothing under it.
-            if (index + (opensSection ? 1 : 0) >= MAX_ROWS) {
-                break;
-            }
-            if (opensSection) {
-                open = entry.section();
-                index = appendHeader(cmd, index, sectionText(entry.section()));
-            }
-            index = appendQuestRow(cmd, events, index, entry, quest);
-        }
-    }
-
-    /** A heading, drawn as a row whose button is hidden and whose label carries the group's name. */
-    private int appendHeader(@Nonnull UICommandBuilder cmd, int index, @Nonnull Message label) {
-        String sel = appendRow(cmd, index);
-        builtRows.addHeader();
-        cmd.set(sel + " #RowBtn.Visible", false);
-        cmd.set(sel + " #StatusDot.Visible", false);
-        cmd.set(sel + " #SectionLabel.TextSpans", label);
-        cmd.set(sel + " #SectionLabel.Style.TextColor", HEADER_TEXT);
-        cmd.set(sel + " #SectionLabel.Visible", true);
-        return index + 1;
-    }
-
-    private int appendQuestRow(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events, int index,
-            @Nonnull Entry entry, @Nonnull Quest quest) {
-        String sel = appendRow(cmd, index);
-        builtRows.add(quest.id(), entry.section().name());
-        ZigRichButton.text(cmd, sel + " #RowBtn", questName(quest.id()));
-        cmd.set(sel + " #StatusDot.Background", dotColor(entry.section()));
-        // How often it comes round, from the quest's own repeat rule: a daily that is being waited
-        // out sits under "Comes back", and the badge is what says how often it does.
-        QuestCadenceBadge.paint(cmd, sel + " #RowBadge", quest);
-        if (quest.id().equals(selectedQuestId)) {
-            paintRowSelected(cmd, sel, true);
-        }
-        events.addEventBinding(CustomUIEventBindingType.Activating, sel + " #RowBtn",
-                EventData.of("Action", "select").append("QuestId", quest.id()), false);
-        return index + 1;
-    }
-
+    /** How a quest reads here: as the book reads it, with this page's reward reading and character names. */
     @Nonnull
-    private static String appendRow(@Nonnull UICommandBuilder cmd, int index) {
-        cmd.append("#QuestList", ROW_TEMPLATE);
-        return "#QuestList[" + index + "]";
+    private QuestReader reader(@Nonnull QuestEngine engine, @Nonnull Subject subject) {
+        return QuestReader.of(engine, subject, deps.presentation(), playerRef.getUuid(), System.currentTimeMillis());
     }
 
-    /**
-     * The selected row's accent, and the exact per-state colours of the shared row style to revert
-     * to. Tinting the button's states is what a partial update can do; replacing its background with
-     * a bare string is what red-Xes a patch style.
-     */
-    private static void paintRowSelected(@Nonnull UICommandBuilder cmd, @Nonnull String rowSel,
-            boolean selected) {
-        if (selected) {
-            UiRetint.retintButtonStates(cmd, rowSel + " #RowBtn",
-                    ROW_SELECTED_TINT, ROW_SELECTED_TINT, ROW_SELECTED_TINT);
-            ZigRichButton.color(cmd, rowSel + " #RowBtn", ROW_SELECTED_TEXT);
-            cmd.set(rowSel + " #RowBtn #Label.Style.RenderBold", true);
-        } else {
-            UiRetint.retintButtonStates(cmd, rowSel + " #RowBtn",
-                    ROW_TINT, ROW_HOVER_TINT, ROW_PRESSED_TINT);
-            ZigRichButton.color(cmd, rowSel + " #RowBtn", ROW_TEXT);
-            cmd.set(rowSel + " #RowBtn #Label.Style.RenderBold", false);
-        }
-    }
+    // ==================== the segments ====================
 
-    /**
-     * The empty-state line, with the tab bar left visible and bound: a whole-page empty state would
-     * hide the only route back to the other list.
-     */
-    private void showEmptyList(@Nonnull UICommandBuilder cmd) {
-        showEmpty(cmd, text(TAB_MINE.equals(activeTab)
-                ? "npcquests.empty.mine" : "npcquests.empty.here"));
-    }
-
-    private static void showEmpty(@Nonnull UICommandBuilder cmd, @Nonnull Message line) {
-        cmd.set("#EmptyListLabel.TextSpans", line);
-        cmd.set("#EmptyListLabel.Visible", true);
-        cmd.set("#RightPanel.Visible", false);
-    }
-
-    private void paintTabs(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
+    private void paintTabs(@Nonnull UICommandBuilder cmd) {
         boolean mine = TAB_MINE.equals(activeTab);
-        ZigRichButton.text(cmd, "#TabHere", text("npcquests.tab.here"));
-        ZigRichButton.text(cmd, "#TabMine", text("npcquests.tab.mine"));
-        bindTab(events, "#TabHere", TAB_HERE);
-        bindTab(events, "#TabMine", TAB_MINE);
-        styleTab(cmd, "#TabHere", !mine);
-        styleTab(cmd, "#TabMine", mine);
+        SegmentPainter.set(cmd, NpcQuestPagePlan.SEGMENT_HERE, text("npcquests.tab.here"), !mine, playerRef);
+        SegmentPainter.set(cmd, NpcQuestPagePlan.SEGMENT_MINE, text("npcquests.tab.mine"), mine, playerRef);
     }
 
-    private static void bindTab(@Nonnull UIEventBuilder events, @Nonnull String selector,
-            @Nonnull String target) {
-        events.addEventBinding(CustomUIEventBindingType.Activating, selector,
-                EventData.of("Action", "tab").append("Tab", target), false);
-    }
-
-    private static void styleTab(@Nonnull UICommandBuilder cmd, @Nonnull String selector, boolean active) {
-        String base = active ? TAB_ACTIVE_TINT : TAB_INACTIVE_TINT;
-        UiRetint.retintButtonStates(cmd, selector, base,
-                active ? TAB_ACTIVE_HOVER : TAB_INACTIVE_HOVER, base);
-        ZigRichButton.color(cmd, selector, active ? TAB_ACTIVE_TEXT : TAB_INACTIVE_TEXT);
-    }
-
-    // ==================== the detail panel ====================
-
-    /**
-     * Paint the right-hand panel for {@code quest}. IDEMPOTENT, so a partial update can re-render it
-     * in place for a newly selected or just-changed quest: it clears every appended container first
-     * and sets EVERY conditional control's visibility explicitly, so nothing from the previous quest
-     * survives.
-     */
-    private void renderDetail(@Nonnull UICommandBuilder cmd, @Nonnull Subject subject,
-            @Nonnull QuestEngine engine, @Nonnull Quest quest) {
-        cmd.clear("#ObjectivesSection");
-        cmd.clear("#RewardsList");
-        cmd.clear("#RequirementsSection");
-        cmd.set("#RightPanel.Visible", true);
-        cmd.set("#AcceptBtn.Visible", false);
-        cmd.set("#TurnInBtn.Visible", false);
-        cmd.set("#ClaimBtn.Visible", false);
-        cmd.set("#AbandonBtn.Visible", false);
-        cmd.set("#TrackBtn.Visible", false);
-        cmd.set("#RewardsHeader.Visible", false);
-        cmd.set("#RequirementsHeader.Visible", false);
-        cmd.set("#Flavor.Visible", false);
-
-        QuestStatus status = engine.status(subject, quest);
-        Section section = listing(subject, engine).sectionOf(quest);
-
-        cmd.set("#DetailTitle.TextSpans", questName(quest.id()));
-        cmd.set("#DetailStatus.TextSpans", sectionText(section));
-        cmd.set("#DetailStatus.Style.TextColor", dotColor(section));
-
-        // The narrative this quest reads with where it stands, when any text source has one, and the
-        // one line under the title otherwise. Most content has only the latter.
-        Message body = ProgressionTexts.lore(quest.id(), loreState(status));
-        if (body == null) {
-            body = ProgressionTexts.flavor(quest.id());
-        }
-        if (body != null) {
-            cmd.set("#Flavor.TextSpans", body);
-            cmd.set("#Flavor.Visible", true);
-        }
-
-        renderObjectives(cmd, subject, engine, quest, status);
-        renderRewards(cmd, quest);
-
-        switch (section) {
-            case AVAILABLE -> {
-                ZigRichButton.text(cmd, "#AcceptBtn", text("book.action.accept"));
-                cmd.set("#AcceptBtn.Visible", true);
-            }
-            // A gate's refusal and a running clock read the same way: one line per reason under
-            // the REQUIRED header, and for the clock that line says when it comes back.
-            case LOCKED, COOLDOWN -> renderRefusals(cmd, engine.canAccept(subject, quest));
-            case READY -> {
-                ZigRichButton.text(cmd, "#ClaimBtn", text("book.action.claim"));
-                cmd.set("#ClaimBtn.Visible", true);
-            }
-            case PARKED -> {
-                // Finished, and its rewards belong at a character this one is not. The status line
-                // has already said so; offering a button that would refuse says it worse.
-            }
-            case TURN_IN, ACTIVE -> {
-                CharacterQuestListing.TurnIn turnIn = listing(subject, engine).turnInHere(quest);
-                if (turnIn != null) {
-                    // A report-back hand-in delivers nothing, so it reads as finishing the step
-                    // rather than as handing something over.
-                    ZigRichButton.text(cmd, "#TurnInBtn",
-                            text(turnIn.step().target().isEmpty()
-                                    ? "npcquests.action.complete" : "book.action.turn_in"));
-                    cmd.set("#TurnInBtn.Visible", true);
-                }
-                ZigRichButton.text(cmd, "#AbandonBtn", text("npcquests.action.abandon"));
-                cmd.set("#AbandonBtn.Visible", true);
-                renderTrack(cmd, subject, engine, quest);
-            }
-            case DONE -> {
-                // Finished and collected: there is nothing left to press.
-            }
-        }
-    }
-
-    /**
-     * The pin, offered only on a quest being CARRIED: what a pinned quest means is "keep this in
-     * front of me while I work on it", which a finished one has nothing left to be.
-     */
-    private void renderTrack(@Nonnull UICommandBuilder cmd, @Nonnull Subject subject,
-            @Nonnull QuestEngine engine, @Nonnull Quest quest) {
-        boolean pinned = engine.tracked(subject).contains(quest.id());
-        ZigRichButton.text(cmd, "#TrackBtn",
-                text(pinned ? "npcquests.action.untrack" : "npcquests.action.track"));
-        cmd.set("#TrackBtn.Visible", true);
-    }
-
-    /**
-     * Every step the engine says to list, with its count where the player is carrying the quest and
-     * without one where they are not - a quest being read BEFORE it is taken shows what it asks for,
-     * not a wall of zeroes. Which steps that is comes from {@link QuestEngine#listedObjectives}: all
-     * of them, or, for a quest that hides its locked steps, only the ones the player can work on.
-     */
-    private void renderObjectives(@Nonnull UICommandBuilder cmd, @Nonnull Subject subject,
-            @Nonnull QuestEngine engine, @Nonnull Quest quest, @Nonnull QuestStatus status) {
-        cmd.set("#ObjectivesHeader.TextSpans", text("npcquests.header.objectives"));
-        boolean carried = status == QuestStatus.ACTIVE || status == QuestStatus.COMPLETED_UNCLAIMED;
-        Map<String, ObjectiveProgressState> progress = carried
-                ? engine.progressOf(subject, quest.id()) : Map.of();
-        List<ObjectiveDef> objectives = engine.listedObjectives(subject, quest);
-        int shown = Math.min(objectives.size(), MAX_LINES);
-        for (int i = 0; i < shown; i++) {
-            ObjectiveDef objective = objectives.get(i);
-            Message name = ProgressionTexts.objective(quest.id(), objective.id());
-            if (name == null) {
-                name = text("book.quests.step.untitled");
-            }
-            String sel = appendLine(cmd, "#ObjectivesSection", i);
-            setLineIcon(cmd, sel, ProgressionIcons.forObjective(quest.id(), objective));
-            if (!carried) {
-                setLine(cmd, sel, name, LINE_UNSTARTED);
-                continue;
-            }
-            ObjectiveProgressState state = progress.get(objective.id());
-            int current = state != null ? state.current() : 0;
-            int required = state != null ? state.required() : objective.amountAsInt();
-            boolean done = state != null && state.isCompleted();
-            setLine(cmd, sel, Msg.join(name, Msg.raw("  "), text("book.progress", current, required)),
-                    done ? LINE_DONE : LINE_OPEN);
-        }
-    }
-
-    private void renderRewards(@Nonnull UICommandBuilder cmd, @Nonnull Quest quest) {
-        List<RewardChip> chips = RewardChips.chipsFor(quest.rewards(), deps.rewardChips());
-        if (chips.isEmpty()) {
-            return;
-        }
-        cmd.set("#RewardsHeader.TextSpans", text("npcquests.header.rewards"));
-        cmd.set("#RewardsHeader.Visible", true);
-        int shown = Math.min(chips.size(), MAX_LINES);
-        for (int i = 0; i < shown; i++) {
-            RewardChip chip = chips.get(i);
-            String sel = appendLine(cmd, "#RewardsList", i);
-            setLine(cmd, sel, chip.label(), LINE_OPEN);
-            setLineIcon(cmd, sel, chip.icon());
-        }
-    }
-
-    /**
-     * Why a visible quest cannot be taken, so a locked row explains itself instead of sitting inert,
-     * and when a repeat comes back, so a waiting row says how long.
-     *
-     * <p>The token-to-line mapping is {@link LockReasons}, the same one the objective book reads,
-     * so the two surfaces cannot disagree - a gate shut by another quest names that quest instead
-     * of reading as a generic "not available", and a daily finished today quotes the wait the
-     * engine's check already carries rather than "not available yet".
-     */
-    private void renderRefusals(@Nonnull UICommandBuilder cmd, @Nonnull QuestEngine.AcceptCheck check) {
-        List<Message> lines = LockReasons.lines(check);
-        if (lines.isEmpty()) {
-            return;
-        }
-        cmd.set("#RequirementsHeader.TextSpans", text("npcquests.header.required"));
-        cmd.set("#RequirementsHeader.Visible", true);
-        int index = 0;
-        for (Message line : lines) {
-            if (index >= MAX_LINES) {
-                break;
-            }
-            setLine(cmd, appendLine(cmd, "#RequirementsSection", index), line, LINE_REFUSAL);
-            index++;
-        }
+    private static void bindTabs(@Nonnull UIEventBuilder events) {
+        events.addEventBinding(CustomUIEventBindingType.Activating, NpcQuestPagePlan.SEGMENT_HERE,
+                EventData.of("Action", TAB).append("Tab", TAB_HERE), false);
+        events.addEventBinding(CustomUIEventBindingType.Activating, NpcQuestPagePlan.SEGMENT_MINE,
+                EventData.of("Action", TAB).append("Tab", TAB_MINE), false);
     }
 
     @Nonnull
-    private static String appendLine(@Nonnull UICommandBuilder cmd, @Nonnull String container, int index) {
-        cmd.append(container, LINE_TEMPLATE);
-        return container + "[" + index + "]";
+    private static String slotAction(@Nonnull ActionSlot slot) {
+        return switch (slot) {
+            case PRIMARY -> PRIMARY;
+            case SECONDARY -> SECONDARY;
+            case DANGER -> DANGER;
+        };
     }
 
-    private static void setLine(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
-            @Nonnull Message text, @Nonnull String color) {
-        cmd.set(sel + " #LineText.TextSpans", text);
-        cmd.set(sel + " #LineText.Style.TextColor", color);
-    }
-
-    /**
-     * The picture beside one line, and the slot that holds it. A line with nothing to show keeps the
-     * slot collapsed so its text starts where an unpictured line's text has always started.
-     */
-    private static void setLineIcon(@Nonnull UICommandBuilder cmd, @Nonnull String sel,
-            @Nullable IconSpec icon) {
-        cmd.set(sel + " #LineIconSlot.Visible", IconRenderer.applyIcon(cmd, sel, icon));
-    }
-
-    private void bindDetailButtons(@Nonnull UIEventBuilder events) {
-        bindAction(events, "#AcceptBtn", "accept");
-        bindAction(events, "#TurnInBtn", "turnIn");
-        bindAction(events, "#ClaimBtn", "claim");
-        bindAction(events, "#AbandonBtn", "abandon");
-        bindAction(events, "#TrackBtn", "track");
-    }
-
-    private static void bindAction(@Nonnull UIEventBuilder events, @Nonnull String selector,
-            @Nonnull String action) {
-        events.addEventBinding(CustomUIEventBindingType.Activating, selector,
-                EventData.of("Action", action), false);
+    @Nullable
+    private static ActionSlot slotOf(@Nonnull String action) {
+        return switch (action) {
+            case PRIMARY -> ActionSlot.PRIMARY;
+            case SECONDARY -> ActionSlot.SECONDARY;
+            case DANGER -> ActionSlot.DANGER;
+            default -> null;
+        };
     }
 
     // ==================== events ====================
@@ -657,90 +454,203 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     @Override
     public void handleDataEvent(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull NpcQuestEventData data) {
-        Player player = store.getComponent(ref, Player.getComponentType());
+        Player player;
+        try {
+            player = store.getComponent(ref, Player.getComponentType());
+        } catch (Throwable t) {
+            player = null;
+        }
         if (player == null) {
+            answer();
             return;
         }
+        try {
+            handle(ref, store, player, data);
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] the npc quest page could not answer an event", t);
+            answer();
+        }
+    }
+
+    private void handle(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player,
+            @Nonnull NpcQuestEventData data) {
         String action = data.action;
-        if (action == null || "close".equals(action)) {
+        if (action == null || CLOSE.equals(action)) {
             player.getPageManager().setPage(ref, store, Page.None);
             return;
         }
-        if ("tab".equals(action)) {
-            this.activeTab = TAB_MINE.equals(data.tab) ? TAB_MINE : TAB_HERE;
-            // The new list auto-selects its own first row, unless the routed quest is on it.
-            this.selectedQuestId = null;
-            player.getPageManager().openCustomPage(ref, store, this);
-            return;
-        }
-        if ("select".equals(action)) {
-            selectQuest(ref, store, player, data.questId);
-            return;
+        switch (action) {
+            case TAB -> {
+                this.activeTab = TAB_MINE.equals(data.tab) ? TAB_MINE : TAB_HERE;
+                // The new list opens on its own first row, unless the routed quest is on it.
+                this.selectedQuestId = null;
+                this.routeSelects = true;
+                this.openSections = new LinkedHashSet<>();
+                this.caps = new HashMap<>();
+                reopen(ref, store, player);
+                return;
+            }
+            case SELECT, LINE -> {
+                selectQuest(ref, store, player, data.questId);
+                return;
+            }
+            case SECTION -> {
+                toggleSection(ref, store, player, data.section);
+                return;
+            }
+            case MORE -> {
+                if (data.section != null) {
+                    this.caps = NpcQuestPagePlan.showMore(caps, data.section);
+                }
+                refresh(ref, store, player);
+                return;
+            }
+            default -> {
+                // A press on the page: its three buttons and its header toggle.
+            }
         }
 
         QuestEngine engine = ProgressionRuntime.quests();
         Subject subject = ProgressionRuntime.subjects().questSubject(store, playerEntityRef(ref));
         Quest quest = selectedQuestId == null ? null : engine.quest(selectedQuestId);
         if (subject == null || quest == null) {
-            player.getPageManager().openCustomPage(ref, store, this);
+            reopen(ref, store, player);
             return;
         }
-        if ("turnIn".equals(action)) {
-            // The hand-in owns its own response, because a settled quest may hand the screen over to
+        CharacterQuestListing listing = listing(subject, engine);
+        String verb = verbFor(action, quest, reader(engine, subject), listing);
+        if (verb == null) {
+            refresh(ref, store, player);
+            return;
+        }
+        switch (verb) {
+            // The hand-in and the collect own their own response: a settled quest may hand the screen over to
             // whatever comes next instead of returning to this page.
-            turnIn(ref, store, player, subject, engine, quest);
-            return;
+            case QuestActions.HAND_IN -> turnIn(ref, store, player, subject, engine, listing, quest);
+            case QuestActions.COLLECT -> claim(ref, store, player, subject, engine, listing, quest);
+            case QuestActions.ACCEPT -> {
+                accept(subject, engine, quest);
+                refresh(ref, store, player);
+            }
+            case QuestActions.ABANDON -> {
+                abandon(subject, engine, quest);
+                refresh(ref, store, player);
+            }
+            case QuestActions.TRACK -> {
+                track(subject, engine, quest);
+                refresh(ref, store, player);
+            }
+            default -> refresh(ref, store, player);
         }
-        if ("claim".equals(action)) {
-            // Collecting owns its own response for the same reason: the giver may have something to
-            // say once the reward is in the player's hands.
-            claim(ref, store, player, subject, engine, quest);
-            return;
-        }
-        if ("accept".equals(action)) {
-            accept(subject, engine, quest);
-        } else if ("abandon".equals(action)) {
-            abandon(subject, engine, quest);
-        } else if ("track".equals(action)) {
-            track(subject, engine, quest);
-        }
-        refreshOrReopen(ref, store, player, subject, engine, quest);
     }
 
     /**
-     * Swap the highlighted row and re-render the detail panel in place, so the list keeps its scroll
-     * position. Falls back to a full reopen when the clicked row is not one the last build recorded,
-     * because a recomputed index can address a different row entirely.
+     * The verb a press means on the quest's state NOW: a slot through {@link QuestActions#dispatch} at this character
+     * (or by the book's rules with nobody in front of the player), the header toggle as Track when the page offers
+     * it. Null for a press that means nothing any more (a stale screen).
+     */
+    @Nullable
+    private String verbFor(@Nonnull String action, @Nonnull Quest quest, @Nonnull QuestReader reader,
+            @Nonnull CharacterQuestListing listing) {
+        CharacterQuestListing here = NpcQuestPagePlan.place(npcId, listing);
+        if (TOGGLE.equals(action)) {
+            return NpcQuestPagePlan.page(reader, quest, here).toggle() != null ? QuestActions.TRACK : null;
+        }
+        ActionSlot slot = slotOf(action);
+        return slot == null ? null : QuestActions.dispatch(slot, quest, reader, here);
+    }
+
+    /**
+     * Move the selection and repaint the page in place, so the list keeps its scroll. A quest whose row the last
+     * build did not draw (in a closed section, or not on the list) reopens instead, which opens its section.
      */
     private void selectQuest(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
             @Nonnull Player player, @Nullable String questId) {
         QuestEngine engine = ProgressionRuntime.quests();
         Quest quest = questId == null ? null : engine.quest(questId);
-        int row = builtRows.indexOf(questId);
+        LedgerModel shown = this.model;
+        if (quest == null || shown == null || !shown.contains(questId)) {
+            // Nothing on this list to open: a stale click, or a line naming a quest this list does not hold.
+            answer();
+            return;
+        }
         Subject subject = ProgressionRuntime.subjects().questSubject(store, playerEntityRef(ref));
-        if (quest == null || row < 0 || subject == null) {
+        LedgerIndex painted = this.index;
+        if (subject == null || painted == null || painted.rowSelector(questId) == null) {
             this.selectedQuestId = questId;
-            player.getPageManager().openCustomPage(ref, store, this);
+            reopen(ref, store, player);
             return;
         }
         String previous = this.selectedQuestId;
         this.selectedQuestId = questId;
         UICommandBuilder cmd = new UICommandBuilder();
-        int oldRow = builtRows.indexOf(previous);
-        if (oldRow >= 0 && oldRow != row) {
-            paintRowSelected(cmd, "#QuestList[" + oldRow + "]", false);
-        }
-        paintRowSelected(cmd, "#QuestList[" + row + "]", true);
-        renderDetail(cmd, subject, engine, quest);
-        this.sendUpdate(cmd, new UIEventBuilder(), false);
+        UIEventBuilder events = new UIEventBuilder();
+        LedgerPainter.select(cmd, painted, previous, questId, playerRef);
+        paintPage(cmd, events, reader(engine, subject), listing(subject, engine), quest);
+        this.sendUpdate(cmd, events, false);
     }
+
+    /** Fold or unfold a section, remembering the player's answer for every repaint after it. */
+    private void toggleSection(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
+            @Nonnull Player player, @Nullable String sectionId) {
+        LedgerModel shown = this.model;
+        LedgerIndex painted = this.index;
+        LedgerSection section = shown == null || sectionId == null ? null : sectionOf(shown, sectionId);
+        if (section == null || painted == null) {
+            answer();
+            return;
+        }
+        boolean open = !painted.isOpen(sectionId);
+        this.openSections = LedgerPainter.withSection(openSections, sectionId, open);
+        if (!LIST_IN_PLACE) {
+            reopen(ref, store, player);
+            return;
+        }
+        UICommandBuilder cmd = new UICommandBuilder();
+        UIEventBuilder events = new UIEventBuilder();
+        if (open) {
+            LedgerPainter.openSection(cmd, events, painted, section, ledgerBindings);
+        } else {
+            LedgerPainter.closeSection(cmd, painted, sectionId);
+        }
+        this.sendUpdate(cmd, events, false);
+    }
+
+    /**
+     * Repaint the count, the list and the page from the engine's state now, in place, so the scroll survives and a
+     * quest that moved section is drawn under its new head; reopen when the list cannot be repainted in place.
+     */
+    private void refresh(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player) {
+        QuestEngine engine = ProgressionRuntime.quests();
+        Subject subject = ProgressionRuntime.subjects().questSubject(store, playerEntityRef(ref));
+        if (!LIST_IN_PLACE || subject == null) {
+            reopen(ref, store, player);
+            return;
+        }
+        UICommandBuilder cmd = new UICommandBuilder();
+        UIEventBuilder events = new UIEventBuilder();
+        this.answersTo = deps.answerSetOrOwn(npcId);
+        paintList(cmd, events, engine, subject, listing(subject, engine), true);
+        this.sendUpdate(cmd, events, false);
+    }
+
+    private void reopen(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player) {
+        player.getPageManager().openCustomPage(ref, store, this);
+    }
+
+    /** An empty update, for an event that changed nothing: the client always hears back. */
+    private void answer() {
+        this.sendUpdate(new UICommandBuilder(), new UIEventBuilder(), false);
+    }
+
+    // ==================== the verbs ====================
 
     /**
      * Take the quest on, RECORDING that it was taken here.
      *
-     * <p>The site is what makes a quest that must be settled where it was taken work at all, and what
-     * puts it on this character's tab while it is being carried. Passing it always is deliberate: the
-     * content decides whether it matters, and a surface that decided for it would have to know.
+     * <p>The site is what makes a quest that must be settled where it was taken work at all, and what puts it on
+     * this character's list while it is being carried. Passing it always is deliberate: the content decides whether
+     * it matters, and a surface that decided for it would have to know.
      */
     private void accept(@Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull Quest quest) {
         ProgressionCallScope scope = ProgressionRuntime.questScope();
@@ -751,47 +661,58 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     /**
-     * Collect a parked quest AT the id this character answered under, and answer the player one way
-     * or another on every path. The engine re-checks the site itself, so a quest belonging somewhere
-     * else refuses here even if a stale screen offered it.
+     * Collect a finished quest AT the id this character answered under, and answer the player one way or another on
+     * every path. The consumer's pre-check (the book's, so a full bag refuses here as it does there) is asked first;
+     * the engine re-checks the site itself, so a quest belonging somewhere else refuses here even if a stale screen
+     * offered it.
      *
-     * <p>Collecting is the moment a quest's closing conversation is FOR: a quest that names one has
-     * it played here, through the same hand-off the hand-in uses, and only where there is somebody in
-     * front of the player to speak it. The same claim from the objective book or out in a field stays
-     * silent by that routing's own rule, so nothing here has to ask.
+     * <p>Collecting is the moment a quest's closing conversation is FOR: a quest that names one has it played here,
+     * through the same hand-off the hand-in uses, and only where there is somebody in front of the player to speak
+     * it.
      */
-    private void claim(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
-            @Nonnull Player player, @Nonnull Subject subject, @Nonnull QuestEngine engine,
+    private void claim(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player,
+            @Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull CharacterQuestListing listing,
             @Nonnull Quest quest) {
-        String site = listing(subject, engine).collectionSite(quest);
+        Message refusal = preCheck(quest, store, ref, player);
+        if (refusal != null) {
+            showToast(ToastKind.ERROR, refusal);
+            refresh(ref, store, player);
+            return;
+        }
+        String site = listing.collectionSite(quest);
         RewardGrants.GrantOutcome paid = ProgressionRuntime.questScope()
                 .around(subject, s -> engine.tryClaim(s, quest, site));
         if (paid == null) {
             showToast(ToastKind.WARNING, text("book.toast.claim_failed"));
-            refreshOrReopen(ref, store, player, subject, engine, quest);
+            refresh(ref, store, player);
             return;
         }
-        // ORDER IS LOAD-BEARING, exactly as on the hand-in below: the toast goes up FIRST, because
-        // whatever the hand-off opens repaints the shared per-player toast state.
-        //
-        // The toast NAMES what was collected, one row per thing actually handed over, through the
-        // same chip reading the detail panel previewed the claim with - a player who presses
-        // Collect should not have to open the book to find out what they were given. The rows are
-        // the claim's RECEIPT (a rolled table as the items it produced), never the authored list
-        // and never the auto rewards the quest settled with earlier.
+        // ORDER IS LOAD-BEARING, exactly as on the hand-in below: the toast goes up FIRST, because whatever the
+        // hand-off opens repaints the shared per-player toast state. The toast NAMES what was collected, one row per
+        // thing actually handed over (the claim's RECEIPT), through the same chip reading the page previewed it with.
         showToast(ClaimToasts.rewardToast(text("book.toast.claimed"), paid.receipt(),
                 deps.rewardChips(), dropped -> text("book.more", dropped)));
         if (!handOff(quest, store, ref, player)) {
-            refreshOrReopen(ref, store, player, subject, engine, quest);
+            refresh(ref, store, player);
+        }
+    }
+
+    /** The consumer's refusal of a Collect before the engine is asked; guarded: a seam that throws refuses nothing. */
+    @Nullable
+    private Message preCheck(@Nonnull Quest quest, @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull Player player) {
+        try {
+            return deps.presentation().claimPreCheck(quest, store, ref, player);
+        } catch (Throwable t) {
+            return null;
         }
     }
 
     private void abandon(@Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull Quest quest) {
         boolean ok = Boolean.TRUE.equals(ProgressionRuntime.questScope()
                 .around(subject, s -> Boolean.valueOf(engine.abandon(s, quest.id()))));
-        if (ok) {
-            showToast(ToastKind.INFO, text("npcquests.toast.abandoned"));
-        }
+        showToast(ok ? ToastKind.INFO : ToastKind.WARNING,
+                text(ok ? "npcquests.toast.abandoned" : "book.toast.abandon_failed"));
     }
 
     private void track(@Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull Quest quest) {
@@ -806,25 +727,23 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
     }
 
     /**
-     * Hand in the outstanding step here, and answer the player one way or another on every path.
+     * Hand in every outstanding step this character is owed, and answer the player one way or another on every path.
      *
-     * <p>The button is offered whenever a step is outstanding rather than only when the player is
-     * carrying everything, so a shortfall is answered with what is still owed instead of a control
-     * that is silently not there.
+     * <p>The button is offered whenever a step is outstanding here rather than only when the player is carrying
+     * everything, so a shortfall is answered with what is still owed instead of a control that is silently not
+     * there.
      */
-    private void turnIn(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
-            @Nonnull Player player, @Nonnull Subject subject, @Nonnull QuestEngine engine,
+    private void turnIn(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player,
+            @Nonnull Subject subject, @Nonnull QuestEngine engine, @Nonnull CharacterQuestListing listing,
             @Nonnull Quest quest) {
-        CharacterQuestListing.TurnIn turnIn = listing(subject, engine).turnInHere(quest);
+        CharacterQuestListing.TurnIn turnIn = listing.turnInHere(quest);
         if (turnIn == null) {
-            refreshOrReopen(ref, store, player, subject, engine, quest);
+            refresh(ref, store, player);
             return;
         }
-        // Handed in AT the id this character answered under: the hand-in that finishes a quest at its
-        // own collection site pays out there and then, while the same hand-in from nowhere parks it.
-        // EVERY outstanding step this character is owed, not just the first: three separate
-        // deliveries to one person is one errand to the player, and making them press the button
-        // once per line reads as the earlier presses having failed.
+        // Handed in AT the id this character answered under: the hand-in that finishes a quest at its own collection
+        // site pays out there and then, while the same hand-in from nowhere parks it. EVERY outstanding step this
+        // character is owed, not just the first: three deliveries to one person is one errand to the player.
         QuestEngine.TurnInOutcome handed = ProgressionRuntime.questScope().around(subject,
                 s -> engine.tryAllTurnIns(s, quest, turnIn.atId()));
         if (handed == null || !handed.creditedAny()) {
@@ -832,52 +751,39 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
             showToast(ToastKind.WARNING, state == null
                     ? text("book.toast.turn_in_failed")
                     : text("npcquests.toast.turn_in_short", state.current(), state.required()));
-            refreshOrReopen(ref, store, player, subject, engine, quest);
+            refresh(ref, store, player);
             return;
         }
         if (engine.status(subject, quest) == QuestStatus.ACTIVE) {
             showToast(ToastKind.SUCCESS, text("book.toast.turned_in"));
-            refreshOrReopen(ref, store, player, subject, engine, quest);
+            refresh(ref, store, player);
             return;
         }
-        // What this press PAID: the settle inside the hand-in when the quest paid out here, else
-        // the collect right behind it. A hand-in made HERE also COLLECTS here: a player who just
-        // walked the delivery over should not have to press a second button for a reward the
-        // engine is already holding for them. The claim is attempted in the SAME call scope,
-        // right behind the hand-in that earned it; a refusal (no room, or the quest wants
-        // collecting somewhere else) simply leaves it parked with nothing paid, and the completion
-        // toast and hand-off below cover both outcomes alike.
+        // What this press PAID: the settle inside the hand-in when the quest paid out here, else the collect right
+        // behind it. A hand-in made HERE also COLLECTS here, in the SAME call scope; a refusal (no room, or the quest
+        // wants collecting somewhere else) simply leaves it parked with nothing paid.
         RewardGrants.GrantOutcome paid = handed.paid();
         if (engine.status(subject, quest) == QuestStatus.COMPLETED_UNCLAIMED) {
             paid = ProgressionRuntime.questScope().around(subject,
                     s -> engine.tryClaim(s, quest, turnIn.atId()));
         }
-
-        // ORDER IS LOAD-BEARING: the toast goes up FIRST, because whatever the hand-off opens
-        // repaints the shared per-player toast state, so showing it afterwards would post it to a
-        // screen that has already gone.
+        // ORDER IS LOAD-BEARING: the toast goes up FIRST, because whatever the hand-off opens repaints the shared
+        // per-player toast state. False from the hand-off means nothing was painted, so this page still owes the
+        // player a response.
         showToast(handInToast(quest, paid));
-        // What follows a settled quest is the routing layer's decision, never this page's: the giver
-        // reacts, or nothing does because the quest names no conversation, nobody carries it, or
-        // there is nobody in front of the player. False means nothing was painted, so this page
-        // still owes the player a response.
         if (!handOff(quest, store, ref, player)) {
-            refreshOrReopen(ref, store, player, subject, engine, quest);
+            refresh(ref, store, player);
         }
     }
 
     /**
-     * The toast for a quest this hand-in finished: when it paid out here, the same gold "quest
-     * complete" line the book's Collect floats, listing what was actually handed over (a rolled
-     * table as the items it produced, an empty roll as no row); when it only parked, for a full
-     * bag or a collect somewhere else, the plain "Handed in." line with nothing under it, since
-     * nothing has been paid. The split is the deps' to apply, so it is pinned with no page behind
-     * it.
+     * The toast for a quest this hand-in finished: the gold "quest complete" line listing what was actually handed
+     * over when it paid out here, the plain "Handed in." line when it only parked. The split is the deps' to apply.
      */
     @Nonnull
     private ToastSpec handInToast(@Nonnull Quest quest, @Nullable RewardGrants.GrantOutcome paid) {
         return deps.handInToast(quest, paid,
-                text("book.toast.quest_complete", questName(quest.id())),
+                text("book.toast.quest_complete", ProgressionTexts.titleOrUntitled(quest.id())),
                 text("book.toast.turned_in"),
                 dropped -> text("book.more", dropped));
     }
@@ -892,70 +798,10 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         }
     }
 
-    /**
-     * Refresh the acted-on quest's row and detail in place, scroll preserved; reopen when the quest
-     * has left this list, has moved out from under the heading it was drawn beneath, or its row is
-     * not one the last build recorded.
-     */
-    private void refreshOrReopen(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store,
-            @Nonnull Player player, @Nonnull Subject subject, @Nonnull QuestEngine engine,
-            @Nonnull Quest quest) {
-        if (staysInSection(subject, engine, quest) && staysInList(subject, engine, quest)
-                && sendSelectedUpdate(subject, engine, quest)) {
-            return;
-        }
-        player.getPageManager().openCustomPage(ref, store, this);
-    }
-
-    /**
-     * Is the quest still in the section its row was drawn under? Taking a quest on, dropping it,
-     * handing it in and collecting it all move it between sections, and a section is on screen as a
-     * heading with its rows ranked beneath: recolouring the dot of a row sitting under the wrong
-     * heading tells the player half the truth and leaves the order wrong, so a move rebuilds.
-     */
-    private boolean staysInSection(@Nonnull Subject subject, @Nonnull QuestEngine engine,
-            @Nonnull Quest quest) {
-        return !builtRows.moved(quest.id(), listing(subject, engine).sectionOf(quest).name());
-    }
-
-    /**
-     * Is the quest still on the list currently being shown? The HERE list keeps everything it drew
-     * (a re-acceptable or locked row is still this character's business), while the MINE list holds
-     * only what is being carried - so a quest just claimed or abandoned leaves it and the page has to
-     * rebuild rather than leave a row for something the list no longer contains.
-     */
-    private boolean staysInList(@Nonnull Subject subject, @Nonnull QuestEngine engine,
-            @Nonnull Quest quest) {
-        if (!TAB_MINE.equals(activeTab)) {
-            return true;
-        }
-        return containsQuest(engine.activeAndUnclaimed(subject), quest.id());
-    }
-
-    private boolean sendSelectedUpdate(@Nonnull Subject subject, @Nonnull QuestEngine engine,
-            @Nonnull Quest quest) {
-        int row = builtRows.indexOf(quest.id());
-        if (row < 0) {
-            return false;
-        }
-        UICommandBuilder cmd = new UICommandBuilder();
-        cmd.set("#QuestList[" + row + "] #StatusDot.Background",
-                dotColor(listing(subject, engine).sectionOf(quest)));
-        renderDetail(cmd, subject, engine, quest);
-        this.sendUpdate(cmd, new UIEventBuilder(), false);
-        return true;
-    }
-
     // ==================== text ====================
 
     @Nonnull
-    private Message questName(@Nonnull String questId) {
-        Message name = ProgressionTexts.title(questId);
-        return name != null ? name : text("book.quests.untitled");
-    }
-
-    @Nonnull
-    private Message sectionText(@Nonnull Section section) {
+    private Message sectionLabel(@Nonnull Section section) {
         return switch (section) {
             case READY -> text("npcquests.section.ready");
             case TURN_IN -> text("npcquests.section.turn_in");
@@ -968,48 +814,19 @@ public final class ZigNpcQuestPage extends ToastablePage<NpcQuestEventData> {
         };
     }
 
-    /**
-     * One colour vocabulary for a row's dot and the detail panel's status line: the shared
-     * {@link StatusTones}, so this list, the objective book's rows and any other progression
-     * surface say "ready", "locked" and "comes back on its own" in the same colours (the last is
-     * the purple every cadence badge and cooldown readout already wears).
-     */
-    @Nonnull
-    private static String dotColor(@Nonnull Section section) {
-        return switch (section) {
-            case READY, TURN_IN, DONE -> StatusTones.READY.hex();
-            case ACTIVE -> StatusTones.IN_PROGRESS.hex();
-            case AVAILABLE -> StatusTones.AVAILABLE.hex();
-            case COOLDOWN -> StatusTones.LIMITED.hex();
-            case PARKED, LOCKED -> StatusTones.SOFT_BLOCK.hex();
-        };
-    }
-
-    /**
-     * Which narrative a quest reads with where it stands: the lower-case lifecycle word the shared
-     * text seam is asked for, matching the convention keys content already uses.
-     */
-    @Nonnull
-    private static String loreState(@Nonnull QuestStatus status) {
-        return switch (status) {
-            case ACTIVE -> ContentTextAsset.Lore.STATE_ACTIVE;
-            case COMPLETED, COMPLETED_UNCLAIMED -> ContentTextAsset.Lore.STATE_COMPLETE;
-            case NOT_STARTED, ON_COOLDOWN -> ContentTextAsset.Lore.STATE_INCOMPLETE;
-        };
-    }
-
     @Nonnull
     private Message text(@Nonnull String key, @Nonnull Object... args) {
         return Msg.tr(PREFIX, DOMAIN + key, args);
     }
 
-    private static boolean containsQuest(@Nonnull List<Quest> quests, @Nonnull String questId) {
-        for (Quest quest : quests) {
-            if (quest.id().equals(questId)) {
-                return true;
+    @Nullable
+    private static LedgerSection sectionOf(@Nonnull LedgerModel model, @Nonnull String sectionId) {
+        for (LedgerSection section : model.sections()) {
+            if (section.id().equals(sectionId)) {
+                return section;
             }
         }
-        return false;
+        return null;
     }
 
     @Nullable
