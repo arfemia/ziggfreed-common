@@ -45,7 +45,8 @@ public final class AlmanacText {
             "tile.in_all", "tile.server", "keepsakes.title", "keepsakes.meta", "keepsake.to_earn",
             "keepsake.missed", "achievements.title", "record.title", "record.seasons", "record.keepsakes",
             "empty.none.title", "empty.none.line", "hint.first_time", "glance.title", "headline.live",
-            "stats.section", "stats.row.meta", "stats.open", "seasons.all", "year");
+            "headline.live.two", "headline.live.more", "stats.section", "stats.row.meta", "stats.open",
+            "seasons.all", "year");
 
     private static final Color BAD = new Color(0xFF5555);
 

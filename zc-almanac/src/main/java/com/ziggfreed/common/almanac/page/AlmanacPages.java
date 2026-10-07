@@ -1,5 +1,8 @@
 package com.ziggfreed.common.almanac.page;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -56,9 +59,9 @@ public final class AlmanacPages {
     }
 
     /**
-     * The line a consumer's tile shows while a season runs, "Hallow's Eve is on now" (the first season on
-     * now, in list order), or null while none runs, while the Almanac is off, or when the read fails: the
-     * tile then keeps its own line.
+     * The line a consumer's tile shows while a season runs, "Hallow's Eve is on now": it names every season on
+     * now, in list order (one, two, or the first and how many more). Null while none runs, while the Almanac is
+     * off, or when the read fails: the tile then keeps its own line.
      */
     @Nullable
     public static Message headline() {
@@ -71,8 +74,16 @@ public final class AlmanacPages {
 
     @Nullable
     static Message headline(@Nonnull AlmanacCalendar calendar) {
-        AlmanacView.Season season = seasonOnNow(calendar);
-        return season == null ? null : AlmanacLines.headline(season);
+        if (!AlmanacSwitch.isOn()) {
+            return null;
+        }
+        List<AlmanacView.Season> live = new ArrayList<>();
+        for (AlmanacView.Season season : AlmanacView.seasons(AlmanacEntryConfig.getInstance().all(), calendar)) {
+            if (season.live()) {
+                live.add(season);
+            }
+        }
+        return AlmanacLines.headline(live);
     }
 
     /**
