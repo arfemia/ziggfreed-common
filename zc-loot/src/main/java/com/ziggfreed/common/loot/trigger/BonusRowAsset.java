@@ -12,8 +12,10 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.LootRef;
+import com.ziggfreed.common.season.SeasonGate;
 
 /**
  * Something extra a moment hands over, ON TOP of what the game already gives for it: a find in a
@@ -32,11 +34,12 @@ import com.ziggfreed.common.loot.LootRef;
  *
  * <p>A row fires on every matching moment with no other gate: any block a player breaks that they
  * did not place, any kill credited to a player, any item a player harvests by hand. Where several
- * rows match one name the one pinning down the most characters wins; anything more selective than a
- * name (a season, a skill, a held tool) belongs in a roll's own {@code Conditions}. A row with no
- * {@code Loot} is a deliberate hole that stops a broader pattern covering the name; {@code Enabled:
- * false} takes the row out entirely. A server owner retunes or switches off a row by id in
- * {@code mods/ziggfreedcommon/bonus-rows.json} ({@link BonusRowOwnerLayers}).
+ * rows match one name the one pinning down the most characters wins; a calendar event's run is the
+ * row's own {@code Season}; anything else more selective than a name (a skill, a held tool) belongs in
+ * a roll's own {@code Conditions}. A row with no {@code Loot} is a deliberate hole that stops a
+ * broader pattern covering the name; {@code Enabled: false} takes the row out entirely, and so does
+ * its {@code Season} while that event is not running. A server owner retunes or switches off a row
+ * by id in {@code mods/ziggfreedcommon/bonus-rows.json} ({@link BonusRowOwnerLayers}).
  */
 public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, BonusRowAsset>> {
 
@@ -50,6 +53,7 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable private FactorFormula chance;
     @Nullable private LootRef loot;
     @Nullable private Boolean enabled;
+    @Nullable private String season;
 
     /** WHEN the row fires: the moment, and which block, mob or item within it. */
     public static final class When {
@@ -107,7 +111,7 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
         }
     }
 
-    public static final AssetBuilderCodec<String, BonusRowAsset> CODEC = AssetBuilderCodec.builder(
+    public static final AssetBuilderCodec<String, BonusRowAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
                     BonusRowAsset.class,
                     BonusRowAsset::new,
                     Codec.STRING,
@@ -136,7 +140,8 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
             .metadata(EditorSchema.defaultValue(true))
             .documentation("Set false to take this row out of the table entirely, which lets a broader "
                     + "pattern cover the same names again. To keep the row but hand nothing over, leave it "
-                    + "on and write no Loot.").add()
+                    + "on and write no Loot.").add(),
+                    (a, v) -> a.season = v, a -> a.season)
             .build();
 
     public BonusRowAsset() {
@@ -191,5 +196,14 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
     /** True unless the row was switched off. */
     public boolean isEnabled() {
         return enabled == null || enabled;
+    }
+
+    /**
+     * The calendar event this row belongs to, trimmed, or null when it rolls all year. Out of its
+     * season the row is out of the table, exactly as {@code Enabled: false} would leave it.
+     */
+    @Nullable
+    public String getSeason() {
+        return SeasonGate.normalize(season);
     }
 }
