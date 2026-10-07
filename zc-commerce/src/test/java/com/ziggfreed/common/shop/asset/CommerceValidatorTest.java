@@ -412,6 +412,29 @@ class CommerceValidatorTest {
         }
 
         @Test
+        void aGradeColourThatCannotPaintAsWrittenIsAWarning() throws Exception {
+            List<Finding> findings = BoardValidator.validate(
+                    one("harvest", board("""
+                            { "Slots": [ { "Difficulty": "Feast" }, { "Difficulty": "Dusk" },
+                                         { "Difficulty": "Odd" } ],
+                              "Grades": { "Feast": { "Color": "#c08a3a" },
+                                          "Dusk": { "Color": "#1f2a3a" },
+                                          "Odd": { "Color": "orange" } } }
+                            """, "Harvest")),
+                    Map.of(), WALLETS, null, null, null, null);
+
+            List<Finding> colours = findings.stream()
+                    .filter(f -> "UNREADABLE_GRADE_COLOR".equals(f.code())).toList();
+            assertEquals(2, colours.size(), "a colour that reads on a row says nothing: " + colours);
+            for (Finding colour : colours) {
+                assertEquals(Severity.WARNING, colour.severity(),
+                        "the board still works; the band paints in the shared accent");
+            }
+            assertTrue(colours.get(0).message().contains("dusk"), colours.get(0).message());
+            assertTrue(colours.get(1).message().contains("odd"), colours.get(1).message());
+        }
+
+        @Test
         void aContractWithNoBandOnABoardWhoseSlotsAllNameOneIsCalledOut() throws Exception {
             List<Finding> findings = BoardValidator.validate(
                     one("daily", board("""

@@ -24,6 +24,8 @@ import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.progress.gate.GateValidator;
 import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
 import com.ziggfreed.common.shop.asset.ShopValidator;
+import com.ziggfreed.common.ui.UiRetint;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.world.WhereValidator;
 
@@ -181,11 +183,20 @@ public final class BoardValidator {
                             + " name this board, so it comes up short every rotation", id));
         }
 
-        for (String band : board.grades().keySet()) {
+        for (Map.Entry<String, BoardGradeSpec> grade : board.grades().entrySet()) {
+            String band = grade.getKey();
             if (!slotBands.isEmpty() && !slotBands.contains(band)) {
                 out.add(Finding.warning(DOMAIN, "NAME_FOR_UNPOSTED_BAND",
                         "Grades names the band '" + band + "', which none of this board's slots ever posts, so "
                                 + "the word is never read; check the spelling against the slots", id));
+            }
+            String color = grade.getValue().color();
+            if (color != null && !ZigTokens.clampAccent(color).equalsIgnoreCase(color)) {
+                out.add(Finding.warning(DOMAIN, "UNREADABLE_GRADE_COLOR",
+                        "Grades gives the band '" + band + "' the colour '" + color + "', which "
+                                + (UiRetint.isSixDigitHex(color) ? "is too dark to read against a row"
+                                        : "is not a #rrggbb colour")
+                                + ", so the band paints in the shared accent instead", id));
             }
         }
 
