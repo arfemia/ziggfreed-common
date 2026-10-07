@@ -31,6 +31,7 @@ The family's shared library of mod-agnostic Hytale primitives and engines. It de
 - A content-like default (words, colours, sounds, icons, item lists) ships as JSON in the owning module's resources; a structural default (what the mechanism does when nothing is registered) stays code.
 - After boot, write an asset store only through `asset/AssetStoreWriter`: a direct mutator called on a ticking world thread (a player command, a page handler, a `world.execute` task) deadlocks it. Only the MMO build's `RepoHygieneTest` catches one.
 - A content validator reports an unknown id as a `WARNING`, never an `ERROR`: its owner may register later, or be a mod this server does not run.
+- A file whose plain top-level `hytale:mod_installed` `Min: 1` condition names a mod this server lacks is dropped in its store's load handler (`AssetMergeAdapter.layer(map, keep)` with the store's `passesModGate` read), so it never reaches a fold, a validator or an audit. A store that gains a top-level `Requires` wires the same filter and joins `FrameworkModGateWiringTest`'s list; a store with none cannot be gated (list it in the test's javadoc instead).
 
 ## Code
 
