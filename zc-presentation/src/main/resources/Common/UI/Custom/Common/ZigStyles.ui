@@ -103,13 +103,15 @@ $ZX = "ZigText.ui";
   Sounds: $C.@ButtonSounds
 );
 
-// Danger (Abandon): vanilla's destructive patch and its destructive sound.
+// Danger (Abandon): vanilla's destructive patch and the cancel set its destructive buttons play. Never Common.ui's
+// @ButtonDestructiveSounds: it aliases a @ButtonsDestructive the server's Sounds.ui does not define (only the client's
+// own does), so the client's parse fails at load and every player disconnects.
 @ZigButtonDangerStyle = ButtonStyle(
   Default: (Background: PatchStyle(TexturePath: "../Common/Buttons/Destructive.png", Border: $C.@ButtonBorder)),
   Hovered: (Background: PatchStyle(TexturePath: "../Common/Buttons/Destructive_Hovered.png", Border: $C.@ButtonBorder)),
   Pressed: (Background: PatchStyle(TexturePath: "../Common/Buttons/Destructive_Pressed.png", Border: $C.@ButtonBorder)),
   Disabled: (Background: PatchStyle(TexturePath: "../Common/Buttons/Disabled.png", Border: $C.@ButtonBorder)),
-  Sounds: $C.@ButtonDestructiveSounds
+  Sounds: $C.@ButtonsCancel
 );
 
 // ── State words: a row's or a pill's state, 13, bold, uppercase, one line, in its tone's text colour ──

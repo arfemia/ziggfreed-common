@@ -64,6 +64,15 @@ class UiDocumentSyntaxTest {
     /** A reference into an import, {@code $Alias.@Name}. */
     private static final Pattern REFERENCE = Pattern.compile("\\$([A-Za-z][A-Za-z0-9]*)\\.@([A-Za-z][A-Za-z0-9]*)");
 
+    /**
+     * Vanilla {@code Common.ui} names whose own definition points at nothing on the server: {@code Common.ui:36}
+     * aliases {@code @ButtonDestructiveSounds} to {@code $Sounds.@ButtonsDestructive}, which only the client's built-in
+     * {@code Sounds.ui} defines, never the {@code Custom/Sounds.ui} the server sends (the 0.6.8 and the Update 7
+     * Assets.zip alike). Vanilla never uses the alias, so it never trips; a document that does fails the client's parse
+     * at {@code Common.ui (36:28)}.
+     */
+    private static final Set<String> VANILLA_DANGLING = Set.of("ButtonDestructiveSounds");
+
     @Test
     void everyElementIdIsLettersAndDigitsOnly() throws IOException {
         List<String> bad = new ArrayList<>();
@@ -114,12 +123,7 @@ class UiDocumentSyntaxTest {
         for (Path doc : documents()) {
             Path root = rootOf(doc);
             String text = stripComments(Files.readString(doc, StandardCharsets.UTF_8));
-            Map<String, Path> imports = new HashMap<>();
-            Matcher imported = IMPORT.matcher(text);
-            while (imported.find()) {
-                // An import is relative to its document; every module's documents merge into one Custom UI tree.
-                imports.put(imported.group(1), root.relativize(doc.getParent().resolve(imported.group(2)).normalize()));
-            }
+            Map<String, Path> imports = importsOf(root, doc, text);
             Matcher ref = REFERENCE.matcher(text);
             while (ref.find()) {
                 Path target = imports.get(ref.group(1));
@@ -138,6 +142,27 @@ class UiDocumentSyntaxTest {
                 "every $Alias.@Name names an import the document declares and a value that document defines (a "
                         + "type-scale step, a style); one that does not resolve fails the client's parse and disconnects "
                         + "every player at load. Vanilla's own documents are not read here. Offending: " + bad);
+    }
+
+    @Test
+    void noReferenceReachesAVanillaAliasTheServerLeavesDangling() throws IOException {
+        List<String> bad = new ArrayList<>();
+        for (Path doc : documents()) {
+            Path root = rootOf(doc);
+            String text = stripComments(Files.readString(doc, StandardCharsets.UTF_8));
+            Map<String, Path> imports = importsOf(root, doc, text);
+            Matcher ref = REFERENCE.matcher(text);
+            while (ref.find()) {
+                if (Paths.get(VANILLA_COMMON).equals(imports.get(ref.group(1)))
+                        && VANILLA_DANGLING.contains(ref.group(2))) {
+                    bad.add(moduleOf(root) + ": " + root.relativize(doc) + " $" + ref.group(1) + ".@" + ref.group(2));
+                }
+            }
+        }
+        assertTrue(bad.isEmpty(),
+                "a vanilla Common.ui name that aliases a sound set the server's Sounds.ui never defines fails the "
+                        + "client's parse and disconnects every player at load (Abandon uses $C.@ButtonsCancel, the "
+                        + "set the client's own destructive buttons play). Offending: " + bad);
     }
 
     @Test
@@ -190,6 +215,17 @@ class UiDocumentSyntaxTest {
             }
         }
         throw new AssertionError("no shipped document at " + template);
+    }
+
+    /** A document's imports by alias, each as its path under {@code Common/UI/Custom}. */
+    private static Map<String, Path> importsOf(Path root, Path doc, String text) {
+        Map<String, Path> imports = new HashMap<>();
+        Matcher imported = IMPORT.matcher(text);
+        while (imported.find()) {
+            // An import is relative to its document; every module's documents merge into one Custom UI tree.
+            imports.put(imported.group(1), root.relativize(doc.getParent().resolve(imported.group(2)).normalize()));
+        }
+        return imports;
     }
 
     /** Does {@code doc} define {@code @name} (a value, a style or a template)? */

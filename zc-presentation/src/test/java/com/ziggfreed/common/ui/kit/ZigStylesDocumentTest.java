@@ -30,7 +30,8 @@ import org.junit.jupiter.api.Test;
  * reference to a name the document lacks fails on the client. The default theme is {@code Common/ZigStyles.ui};
  * another theme is a document under {@code Common/Themes/} with the same names. Beside the names, the default's
  * styles are vanilla's own: its row states, its tertiary and active segment patches, the Memories tiles, a sound on
- * every button and the destructive sound on the danger button, and a tone's own text colour on its state word.
+ * every button and the cancel sound vanilla's destructive buttons play on the danger button, and a tone's own text
+ * colour on its state word.
  */
 class ZigStylesDocumentTest {
 
@@ -108,8 +109,9 @@ class ZigStylesDocumentTest {
                 "@ZigButtonCollectStyle", "@ZigButtonDangerStyle")) {
             assertTrue(style(ui, name).contains("Sounds: $C.@"), name + " clicks with a sound");
         }
-        assertTrue(style(ui, "@ZigButtonDangerStyle").contains("Sounds: $C.@ButtonDestructiveSounds"),
-                "Abandon sounds like vanilla's destructive buttons");
+        assertTrue(style(ui, "@ZigButtonDangerStyle").contains("Sounds: $C.@ButtonsCancel"),
+                "Abandon sounds like vanilla's destructive buttons, whose set is the cancel set; vanilla's "
+                        + "$C.@ButtonDestructiveSounds alias dangles on the server and fails the client's parse");
         assertTrue(style(ui, "@ZigButtonCollectStyle").contains("$ZK.@ZigAccent"), "Collect is gold");
         for (String name : List.of("@ZigButtonPrimaryStyle", "@ZigButtonSecondaryStyle", "@ZigButtonCollectStyle",
                 "@ZigButtonDangerStyle")) {
