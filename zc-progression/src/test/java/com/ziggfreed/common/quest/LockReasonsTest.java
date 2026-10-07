@@ -368,6 +368,18 @@ class LockReasonsTest {
     }
 
     @Test
+    void aQuestSpentForItsRunSaysItComesBackWithItsSeason() {
+        long threeDays = 3L * 86_400_000L;
+        assertEquals(NS + "lock.run_spent.in", LockReasons.line(QuestGates.REASON_RUN_SPENT, threeDays).getMessageId());
+        assertEquals(NS + "lock.run_spent", LockReasons.line(QuestGates.REASON_RUN_SPENT, 0L).getMessageId());
+        assertEquals(NS + "lock.max_completions",
+                LockReasons.line(QuestGates.REASON_RUN_SPENT, Long.MAX_VALUE).getMessageId(),
+                "an event with no run left brings it back never");
+        assertEquals(1, LockReasons.lines(List.of(QuestGates.REASON_RUN_SPENT, QuestGates.REASON_RUN_SPENT),
+                threeDays).size(), "the token is its own line, said once");
+    }
+
+    @Test
     void theWaitOnlyEverChangesTheClockTokens() {
         assertEquals(NS + "lock.prerequisites",
                 LockReasons.line(QuestGates.REASON_PREREQUISITES, 3 * HOUR).getMessageId());

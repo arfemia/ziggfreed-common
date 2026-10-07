@@ -25,6 +25,8 @@ import com.ziggfreed.common.factor.FactorRegistry;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.occurrence.OccurrenceSource;
+import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.progress.DispatchOptions;
 import com.ziggfreed.common.progress.ObjectiveArithmetic;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -1552,8 +1554,19 @@ public final class QuestEngine implements QuestStateReader {
         }
         int total = raised(prior.totalCount());
         int claimed = claimedNow ? raised(prior.claimedCount()) : prior.claimedCount();
-        store.setCompletions(subject, quest.id(),
-                new QuestProgressStore.CompletionRecord(nowMs, periodCount, total, claimed));
+        Integer runYear = null;
+        int runCount = 0;
+        Quest.Repeat.PerRun perRun = repeat.perRun();
+        if (perRun != null) {
+            // Keyed (event, year): the run going on, else the next one a carried-over quest is finished for.
+            OccurrenceSource occurrences = Occurrences.source();
+            runYear = PerRuns.yearFor(perRun, nowMs, occurrences);
+            if (runYear != null) {
+                runCount = raised(PerRuns.spentIn(prior, runYear, perRun, nowMs, occurrences));
+            }
+        }
+        store.setCompletions(subject, quest.id(), new QuestProgressStore.CompletionRecord(
+                nowMs, periodCount, total, claimed, runYear, runCount));
     }
 
     /**
@@ -1580,7 +1593,7 @@ public final class QuestEngine implements QuestStateReader {
         QuestProgressStore.CompletionRecord prior = store.completions(subject, quest.id());
         store.setCompletions(subject, quest.id(), new QuestProgressStore.CompletionRecord(
                 prior.lastCompletionMs(), prior.periodCount(), prior.totalCount(),
-                raised(prior.claimedCount())));
+                raised(prior.claimedCount()), prior.runYear(), prior.runCount()));
     }
 
     /** One more, unless the tally has already run out of room. */
@@ -1901,7 +1914,12 @@ public final class QuestEngine implements QuestStateReader {
         return out;
     }
 
-    /** The pinned quests that are still being carried, capped at {@link #maxTracked()}. */
+    /**
+     * The pinned quests that are still being carried and that the catalogue offers right now
+     * ({@link Quest#available()}), capped at {@link #maxTracked()}. A carried quest that is not offered
+     * (a once-a-run quest between runs) is left off with its pin and progress kept, so it comes back by
+     * itself when it is offered again.
+     */
     @Nonnull
     public List<Quest> trackedActive(@Nonnull Subject subject) {
         List<Quest> out = new ArrayList<>();
@@ -1910,7 +1928,9 @@ public final class QuestEngine implements QuestStateReader {
                 continue;
             }
             Quest quest = quests.get(questId);
-            if (quest == null) {
+            if (quest == null || !quest.available()) {
+                // Off-season the quest leaves the tracker with its season. Never filter in isActive or
+                // pruneStaleTracked: a pin dropped there is gone for good, and this one must come back.
                 continue;
             }
             out.add(quest);
