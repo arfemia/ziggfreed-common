@@ -21,6 +21,9 @@ import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardChip;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
+import com.ziggfreed.common.objectives.book.ObjectiveBookDeps;
+import com.ziggfreed.common.objectives.book.ObjectiveBookPages;
+import com.ziggfreed.common.objectives.journal.QuestPresentation;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.ui.toast.RewardToastLines;
 import com.ziggfreed.common.ui.toast.ToastKind;
@@ -40,6 +43,7 @@ class NpcQuestPageDepsTest {
     @AfterEach
     void clearRegisteredDeps() {
         NpcQuestPages.deps(null);
+        ObjectiveBookPages.deps(null);
     }
 
     // ==================== the defaults ====================
@@ -250,6 +254,49 @@ class NpcQuestPageDepsTest {
 
         assertEquals(ToastKind.REWARD, spec.kind());
         assertEquals(2, spec.lines().size(), "the library line, with the receipt under it");
+    }
+
+    // ==================== how a quest reads ====================
+
+    /**
+     * Smoke 18: a quest reads at its giver exactly as it reads in the book, so the page reads it through the book's
+     * consumer seams (a board's quests, tag names, the claim pre-check), with its own reward reading on top.
+     */
+    @Test
+    void aQuestReadsAtItsGiverAsTheBookReadsIt() {
+        ObjectiveBookPages.deps(() -> ObjectiveBookDeps.builder()
+                .boardManaged(quest -> "q_board".equals(quest.id()))
+                .tagLabels(tag -> Msg.raw("Tag " + tag))
+                .build());
+        NpcQuestPageDeps deps = NpcQuestPageDeps.builder().rewardChips(naming()).build();
+
+        QuestPresentation presentation = deps.presentation();
+
+        assertTrue(presentation.managed(Quest.builder("q_board").build()), "the book's board manages it here too");
+        assertFalse(presentation.managed(Quest.builder("q_other").build()));
+        assertEquals("Tag x", presentation.tagLabel("x").getRawText(), "the book's tag names");
+        assertEquals("Coin_Gold", presentation.rewardChips()
+                .chipFor(RewardSpec.of("Item", Map.of("Item", "Coin_Gold"))).label().getRawText(),
+                "the page's own reward reading");
+    }
+
+    @Test
+    void withNoBookConsumerAQuestReadsAsTheLibrarysBook() {
+        Quest quest = Quest.builder("q").build();
+        QuestPresentation presentation = NpcQuestPageDeps.DEFAULTS.presentation();
+
+        assertFalse(presentation.managed(quest), "nothing is board-managed on a bare server");
+        assertNull(presentation.acceptHint(quest));
+        assertTrue(presentation.pills(quest).isEmpty());
+    }
+
+    @Test
+    void aBookWhoseDepsFailCostsTheBooksSeamsNotThePage() {
+        ObjectiveBookPages.deps(() -> {
+            throw new IllegalStateException("boom");
+        });
+
+        assertFalse(NpcQuestPageDeps.DEFAULTS.presentation().managed(Quest.builder("q").build()));
     }
 
     // ==================== the deps supplier ====================

@@ -4,6 +4,6 @@
 - The default offer provider walks the whole catalogue on every ask. Do not index offers by giver until the engine publishes a catalogue generation: a stale giver index is a character offering quests that are no longer theirs.
 - A finished quest collected elsewhere reads as parked: ask `canCompleteAt` once per id the character answers to, and claim at the id that answered.
 - Accept, hand-in and collect all thread the site id. On collect, raise the toast first, then the completion hand-off (`deps.completion().handOff`), and repaint only when nothing took the screen.
-- The page keeps instance state and reopens as `this`, because a partial update runs against the last full build's DOM: rows are addressed through its `BuiltRows` record (see zc-presentation's `ui/rows`).
-- The five action buttons are bound once per build with no quest id in the binding and act on whatever the detail panel shows; never put a quest id in their bindings.
+- The page keeps instance state (the list, the selection, the open sections, the kit's `LedgerIndex`) and reopens as `this`, because a partial update runs against the last full build's DOM; an action repaints the whole list and page in one partial (`ZigNpcQuestPage.LIST_IN_PLACE` turns that into a reopen). What a quest reads like comes from `journal/QuestReader.page(quest, here)`, the book's own page with this character's buttons.
+- The three action-bar buttons and the header's Track toggle are bound once per build with no quest id and dispatched on the live state through `journal/QuestActions` at this character; never put a quest id in their bindings.
 - `NpcQuestPages.open` reads the player's own reference off `player`, never off `ref`: at a press-F, `ref` is the character's entity.
