@@ -16,6 +16,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
+import com.ziggfreed.common.asset.PresenceRequiresCodec;
 
 /**
  * A named, reusable loot table: {@code Server/ZiggfreedCommon/Lootables/<Name>.json}, body
@@ -81,6 +82,7 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable private Roll[] rolls;
     @Nullable private LootPool pool;
     @Nullable private String contributesTo;
+    @Nullable private PresenceRequiresCodec.Block requires;
 
     public static final AssetBuilderCodec<String, LootableAsset> CODEC = AssetBuilderCodec.builder(
                     LootableAsset.class,
@@ -111,6 +113,9 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
             .documentation("Another table's id to fold this file's rolls and pool entries INTO, on top of what "
                     + "that table already has. The way to enrich a table shipped by someone else without "
                     + "owning its file. How many picks the merged pool makes stays the target's decision.").add()
+            .appendInherited(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
+                    (a, v) -> a.requires = v, a -> a.requires, (a, parent) -> a.requires = parent.requires)
+            .documentation(PresenceRequiresCodec.DOCUMENTATION).add()
             .build();
 
     /**
@@ -167,6 +172,12 @@ public final class LootableAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable
     public String getContributesTo() {
         return contributesTo;
+    }
+
+    /** Whether this table loads here at all (a companion mod's presence), or null when it always does. */
+    @Nullable
+    public PresenceRequiresCodec.Block getRequires() {
+        return requires;
     }
 
     /** This table's rolls as a list, empty when it authors none. */
