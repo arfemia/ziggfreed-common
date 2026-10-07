@@ -2,6 +2,7 @@ package com.ziggfreed.common.almanac.view;
 
 import java.time.LocalDate;
 import java.time.MonthDay;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -136,9 +137,32 @@ public final class AlmanacLines {
         return AlmanacText.line("record.keepsakes", keepsakes);
     }
 
-    /** "Hallow's Eve is on now", for a consumer's tile. */
+    /** "Hallow's Eve is on now", for a consumer's tile: one season by name. */
     @Nonnull
     public static Message headline(@Nonnull Season season) {
-        return AlmanacText.line("headline.live", AlmanacText.authored(season.titleKey(), season.eventId()));
+        return AlmanacText.line("headline.live", name(season));
+    }
+
+    /**
+     * The tile line for every season on now, in list order: one by name, two by name, or the first by name and
+     * how many more; null when none is on.
+     */
+    @Nullable
+    public static Message headline(@Nonnull List<Season> live) {
+        if (live.isEmpty()) {
+            return null;
+        }
+        if (live.size() == 1) {
+            return headline(live.get(0));
+        }
+        if (live.size() == 2) {
+            return AlmanacText.line("headline.live.two", name(live.get(0)), name(live.get(1)));
+        }
+        return AlmanacText.line("headline.live.more", name(live.get(0)), (long) (live.size() - 1));
+    }
+
+    @Nonnull
+    private static Message name(@Nonnull Season season) {
+        return AlmanacText.authored(season.titleKey(), season.eventId());
     }
 }
