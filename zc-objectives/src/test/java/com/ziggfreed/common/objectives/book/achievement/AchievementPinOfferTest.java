@@ -1,4 +1,4 @@
-package com.ziggfreed.common.objectives.book;
+package com.ziggfreed.common.objectives.book.achievement;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

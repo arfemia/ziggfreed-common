@@ -1,4 +1,4 @@
-package com.ziggfreed.common.objectives.book;
+package com.ziggfreed.common.objectives.book.achievement;
 
 import java.util.function.BooleanSupplier;
 

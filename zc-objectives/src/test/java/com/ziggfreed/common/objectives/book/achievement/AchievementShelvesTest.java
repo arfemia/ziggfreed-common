@@ -1,4 +1,4 @@
-package com.ziggfreed.common.objectives.book;
+package com.ziggfreed.common.objectives.book.achievement;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -8,7 +8,7 @@ import java.util.function.BooleanSupplier;
 
 import org.junit.jupiter.api.Test;
 
-import com.ziggfreed.common.objectives.book.AchievementShelves.Shelf;
+import com.ziggfreed.common.objectives.book.achievement.AchievementShelves.Shelf;
 
 /**
  * Where the achievement tab lists an achievement, away from the page that paints it (no test reaches

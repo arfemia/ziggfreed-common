@@ -19,9 +19,7 @@ book.quests.section.locked = Verrouillées
 book.quests.untitled = Quête sans nom
 book.quests.step.untitled = Étape sans nom
 
-book.achievements.points = {0}/{1}
 book.achievements.category.uncategorised = Autres
-book.achievements.untitled = Succès sans nom
 book.achievements.criterion.untitled = Étape sans nom
 
 book.action.accept = Accepter
@@ -117,58 +115,20 @@ book.toast.quest_complete = Quête terminée : {0} !
 book.toast.turn_in = Remis {0}/{1} {2}
 
 # The lifted achievements browser (filter strip, rows, the detail column, the overview).
-book.achievements.unlocked_label = Débloqués
-book.achievements.points_label = Points
-book.achievements.status.unlocked = Débloqué
-book.achievements.status.in_progress = En cours
 book.achievements.status.all = Tous
 book.achievements.sort.default = Tri : Défaut
 book.achievements.sort.alpha = Tri : A-Z
-book.achievements.sort.progress = Tri : % Progression
-book.achievements.subfilter_all = All
 book.achievements.empty = Aucun succès dans cette catégorie.
-book.achievements.no_search_results = No achievements match your search.
 book.achievements.searchPlaceholder = Search achievements…
-book.achievements.criteria_suffix = criteria
-book.achievements.criteria_header = CRITÈRES
-book.achievements.chain_header = PALIERS DE LA CHAÎNE
-book.achievements.requires_header = REQUIRED ACHIEVEMENTS
-book.achievements.part_of = FAIT PARTIE DE
-book.achievements.feats_header = FEATS OF STRENGTH
-book.achievements.server_first = SERVER FIRST
-book.achievements.server_first_self = You claimed this Server First!
-book.achievements.server_first_other = Claimed by {0}
 book.achievements.pin_cap = You can only pin {0} achievements at a time.
 book.toast.pinned = Pinned: {0}
 book.toast.unpinned = Unpinned: {0}
-book.achievements.unlock_date_unknown = --
-book.achievements.unlock_date_label = Débloqué
-book.achievements.rewards_header = RÉCOMPENSES
-book.achievements.reward_auto = Auto
-book.achievements.reward_pending = En attente
-book.achievements.reward_claimed = Réclamé
-book.achievements.reward_locked = Verrouillé
-book.achievements.claim_button = RÉCLAMER LES RÉCOMPENSES
 book.achievements.claim_success = Récompenses réclamées !
 book.achievements.inventory_full = Pas assez d'espace dans l'inventaire pour réclamer !
-book.achievements.milestones_header = PALIERS DE POINTS
-book.achievements.milestone_claimed = Réclamé
-book.achievements.milestone_available = Réclamer !
-book.achievements.milestone_claim = RÉCLAMER
-book.achievements.next_milestone = Prochain palier
 book.achievements.all_milestones_claimed = Tous réclamés
 book.achievements.overview.recent = DÉBLOCAGES RÉCENTS
-book.achievements.overview.nearest = PRESQUE TERMINÉS
 book.achievements.overview.pinned = ÉPINGLÉS
 book.achievements.overview.categories = CATÉGORIES
-book.achievements.overview.no_unlocks = Aucun succès débloqué pour l'instant.
-book.achievements.overview.no_progress = Aucun succès en cours.
-book.achievements.overview.browse = Parcourir >
-
-# Tags the old surfaces shipped unkeyed; the worth column reads them on every row.
-book.achievements.feat_tag = EXPLOIT
-book.achievements.points_tag = {0} pts
-book.achievements.feat_since = Exploit de bravoure depuis {0}
 
 book.tooltip.track = Suivre cette quête à l'écran
 book.tooltip.pin = Épingler ce succès

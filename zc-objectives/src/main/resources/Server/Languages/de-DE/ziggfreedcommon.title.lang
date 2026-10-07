@@ -12,7 +12,6 @@ unlocked_hint = Wähle den Titel, den du zeigst, mit /zigtitle open
 picker.title = Titel
 picker.subtitle = Wähle den Titel, der neben deinem Namen in Menüs und Bestenlisten steht.
 picker.preview = Du erscheinst als: {0}
-picker.none = Du hast noch keinen Titel verdient.
 picker.on = Angezeigt
 picker.off = Anzeigen
 picker.back = Zurück

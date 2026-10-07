@@ -1,4 +1,4 @@
-package com.ziggfreed.common.objectives.book;
+package com.ziggfreed.common.objectives.book.achievement;
 
 /**
  * Where the achievement tab offers Pin: the list row and the detail header both ask this, so the two
