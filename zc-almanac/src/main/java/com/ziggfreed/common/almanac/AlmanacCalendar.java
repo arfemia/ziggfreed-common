@@ -1,13 +1,19 @@
 package com.ziggfreed.common.almanac;
 
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.List;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import com.ziggfreed.common.occurrence.Occurrence;
 
 /**
  * Where one season stands, as the Almanac needs to know it: on or not, and the year the season on
  * right now opened in. Null means the calendar has no such event switched on, and the Almanac treats
- * that season as absent. The production answer is {@link FactorAlmanacCalendar}; a test hands in a
- * lambda.
+ * that season as absent. The production answer is {@link OccurrenceAlmanacCalendar}; a test hands in a
+ * lambda, which knows no dates ({@link #dates} answers {@link Dates#UNKNOWN}).
  */
 @FunctionalInterface
 public interface AlmanacCalendar {
@@ -25,10 +31,36 @@ public interface AlmanacCalendar {
         }
     }
 
+    /**
+     * What the calendar knows of a season's runs at one moment: the run going on (forces counted), the
+     * next run to start, every run begun so far oldest first (the one going on included), the first year,
+     * and the clock its days are counted in. A run's {@code endMs} is the midnight after its last day.
+     */
+    record Dates(@Nullable Occurrence live, @Nullable Occurrence next, @Nonnull List<Occurrence> history,
+                 @Nullable Integer firstYear, @Nonnull ZoneId zone) {
+
+        /** Nothing known: no runs, no years, counted in UTC. What an absent season or a dateless calendar says. */
+        public static final Dates UNKNOWN = new Dates(null, null, List.of(), null, ZoneOffset.UTC);
+
+        public Dates {
+            history = history == null ? List.of() : List.copyOf(history);
+            zone = zone == null ? ZoneOffset.UTC : zone;
+        }
+    }
+
     /** A calendar that knows no season: the Almanac lists nothing and counts nothing. */
     AlmanacCalendar NONE = eventId -> null;
 
     /** Where {@code eventId}'s season stands, or null when the calendar has no such event switched on. */
     @Nullable
     SeasonState state(@Nonnull String eventId);
+
+    /**
+     * The season's runs as the calendar knows them at {@code nowMs}, for the dates and the countdown a page
+     * shows. {@link Dates#UNKNOWN} for an absent season, and from a calendar that knows no dates.
+     */
+    @Nonnull
+    default Dates dates(@Nonnull String eventId, long nowMs) {
+        return Dates.UNKNOWN;
+    }
 }

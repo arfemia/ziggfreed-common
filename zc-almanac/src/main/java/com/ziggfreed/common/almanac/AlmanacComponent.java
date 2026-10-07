@@ -12,6 +12,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -99,6 +101,22 @@ public class AlmanacComponent implements Component<EntityStore> {
         } catch (Throwable t) {
             SafeLog.warn("[almanac] could not register AlmanacComponent", t);
             return null;
+        }
+    }
+
+    /**
+     * The tallies {@code ref}'s record holds, peeked: a fresh empty bag when the type never registered,
+     * the player carries no record, or the read fails. Read on the world thread that owns {@code store}.
+     */
+    @Nonnull
+    public static CounterMap talliesOf(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
+        try {
+            ComponentType<EntityStore, AlmanacComponent> type = TYPE;
+            AlmanacComponent record = type == null ? null : store.getComponent(ref, type);
+            return record == null || record.tallies == null ? new CounterMap() : record.tallies;
+        } catch (Throwable t) {
+            SafeLog.warn("[almanac] could not read a player's Almanac record: " + t.getMessage());
+            return new CounterMap();
         }
     }
 

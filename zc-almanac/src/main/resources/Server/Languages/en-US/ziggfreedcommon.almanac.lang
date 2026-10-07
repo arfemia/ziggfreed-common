@@ -4,7 +4,6 @@
 
 title = Almanac
 seasons.empty = No seasonal events run on this server yet.
-badge.live = On now
 status.live = On now
 status.between = Between seasons
 section.season = This season ({0})
@@ -31,3 +30,67 @@ open.off = The Almanac is switched off on this server.
 
 # The achievement book labels the Seasons category with this key (see AchievementCategories/Seasons.json).
 achievement.category.seasons = Seasons
+
+# The redesigned page: its lead line, a season's countdown and dates, the year being read, the tiles,
+# the keepsake shelf, the record card, the empty page, the year at a glance, the line a consumer's
+# tile shows while a season runs, and the Seasons section of the achievement book's Statistics.
+lead = Every season this server runs, and what you did in each.
+chip.live = On now - {0, number} {0, plural, one{day left} other{days left}}
+chip.last_day = Last day
+chip.returns_in = Returns in {0, number} {0, plural, one{day} other{days}}
+chip.returns_on = Returns {0} {1, number}
+chip.starts_in = Starts in {0, number} {0, plural, one{day} other{days}}
+chip.between = Between seasons
+month.1 = January
+month.2 = February
+month.3 = March
+month.4 = April
+month.5 = May
+month.6 = June
+month.7 = July
+month.8 = August
+month.9 = September
+month.10 = October
+month.11 = November
+month.12 = December
+month.short.1 = Jan
+month.short.2 = Feb
+month.short.3 = Mar
+month.short.4 = Apr
+month.short.5 = May
+month.short.6 = Jun
+month.short.7 = Jul
+month.short.8 = Aug
+month.short.9 = Sep
+month.short.10 = Oct
+month.short.11 = Nov
+month.short.12 = Dec
+window = Every year, {0} {1, number} to {2} {3, number}
+scope.year = Your {0} season
+scope.every = Every season
+scope.took_part = You took part
+scope.not_yet = You have not taken part yet
+scope.taken_part_count = {0, number} {0, plural, one{season taken part in} other{seasons taken part in}}
+tile.in_all = {0, number} in all
+tile.server = {0, number} on this server
+keepsakes.title = Keepsakes
+keepsakes.meta = {0, number} of {1, number} years
+keepsake.to_earn = Still to earn
+keepsake.missed = Missed
+achievements.title = Achievements
+record.title = Your record
+record.seasons = {0, plural, one{season taken part in} other{seasons taken part in}}
+record.keepsakes = {0, plural, one{keepsake} other{keepsakes}}
+empty.none.title = No seasons yet
+empty.none.line = Seasonal events show up here once this server runs one.
+hint.first_time = Your tallies start the first time you play during the season.
+glance.title = The year at a glance
+headline.live = {0} is on now
+stats.section = Seasons
+stats.row.meta = {0, number} {0, plural, one{season taken part in} other{seasons taken part in}}
+stats.open = Open in the Almanac
+
+# The season list's second head (after On now), and a year as a label (a year chip, a keepsake tile): text, so
+# no locale groups its digits.
+seasons.all = All seasons
+year = {0}

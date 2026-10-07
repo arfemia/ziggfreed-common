@@ -4,7 +4,6 @@
 
 title = Альманах
 seasons.empty = На этом сервере пока нет сезонных событий.
-badge.live = Идёт сейчас
 status.live = Идёт сейчас
 status.between = Между сезонами
 section.season = Этот сезон ({0})

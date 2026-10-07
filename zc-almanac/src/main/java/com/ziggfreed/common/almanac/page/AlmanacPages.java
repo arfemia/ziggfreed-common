@@ -5,20 +5,23 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.almanac.AlmanacCalendar;
 import com.ziggfreed.common.almanac.AlmanacSwitch;
-import com.ziggfreed.common.almanac.FactorAlmanacCalendar;
+import com.ziggfreed.common.almanac.OccurrenceAlmanacCalendar;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryConfig;
+import com.ziggfreed.common.almanac.view.AlmanacLines;
 import com.ziggfreed.common.almanac.view.AlmanacView;
 import com.ziggfreed.common.inventory.PlayerAccess;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
- * The way in to {@link AlmanacPage}, for the command, the destination and a consumer's own menu, and
- * the answer a menu tile asks first: is there an Almanac to offer at all. World thread.
+ * The way in to {@link AlmanacPage}, for the command, the destination and a consumer's own menu, the
+ * answer a menu tile asks first (is there an Almanac to offer at all), and the line it may show while a
+ * season runs. World thread.
  */
 public final class AlmanacPages {
 
@@ -27,7 +30,7 @@ public final class AlmanacPages {
 
     /** True while the Almanac is switched on and at least one season is listed. */
     public static boolean available() {
-        return available(FactorAlmanacCalendar.INSTANCE);
+        return available(OccurrenceAlmanacCalendar.INSTANCE);
     }
 
     static boolean available(@Nonnull AlmanacCalendar calendar) {
@@ -40,7 +43,7 @@ public final class AlmanacPages {
      */
     public static boolean menuTabVisible() {
         try {
-            return menuTabVisible(FactorAlmanacCalendar.INSTANCE);
+            return menuTabVisible(OccurrenceAlmanacCalendar.INSTANCE);
         } catch (Throwable t) {
             return false;
         }
@@ -50,6 +53,33 @@ public final class AlmanacPages {
         boolean listed = available(calendar);
         boolean live = listed && AlmanacView.anySeasonLive(AlmanacEntryConfig.getInstance().all(), calendar);
         return AlmanacMenuTab.visible(listed, AlmanacMenuTab.knobs(), live);
+    }
+
+    /**
+     * The line a consumer's tile shows while a season runs, "Hallow's Eve is on now" (the first season on
+     * now, in list order), or null while none runs, while the Almanac is off, or when the read fails: the
+     * tile then keeps its own line.
+     */
+    @Nullable
+    public static Message headline() {
+        try {
+            return headline(OccurrenceAlmanacCalendar.INSTANCE);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    @Nullable
+    static Message headline(@Nonnull AlmanacCalendar calendar) {
+        if (!AlmanacSwitch.isOn()) {
+            return null;
+        }
+        for (AlmanacView.Season season : AlmanacView.seasons(AlmanacEntryConfig.getInstance().all(), calendar)) {
+            if (season.live()) {
+                return AlmanacLines.headline(season);
+            }
+        }
+        return null;
     }
 
     /**

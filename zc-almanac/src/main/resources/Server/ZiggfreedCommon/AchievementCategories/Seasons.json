@@ -1,3 +1,5 @@
 {
-  "$Comment": "The category every seasonal event's achievements file under, with the event id as the subcategory (Listing: Category Seasons, Subcategory the event id). The Almanac reads a season's achievements from here, and shows an achievement filed here with no subcategory as a cross-season one above its list. The label is the achievement.category.seasons key; a pack may add Order, Icon or Subcategories in its own Seasons.json."
+  "$Comment": "The category every seasonal event's achievements file under, with the event id as the subcategory (Listing: Category Seasons, Subcategory the event id). The Almanac reads a season's achievements from here, and shows an achievement filed here with no subcategory as a cross-season one above its list. SubcategoryEvents says each subcategory is a calendar event id, so the achievement book can say which season is on now; Icon is the category's picture, the Almanac's own scroll. The label is the achievement.category.seasons key, and a season's name is achievement.category.seasons.<event id> from its pack; a pack may add Order, Accent or Subcategories in its own Seasons.json.",
+  "Icon": "Deco_Scroll",
+  "SubcategoryEvents": true
 }

@@ -4,7 +4,6 @@
 
 title = Almanak
 seasons.empty = Bu sunucuda henüz sezonluk etkinlik yok.
-badge.live = Şimdi açık
 status.live = Şimdi açık
 status.between = Sezonlar arası
 section.season = Bu sezon ({0})

@@ -4,7 +4,6 @@
 
 title = Almanaque
 seasons.empty = Aún no hay eventos de temporada en este servidor.
-badge.live = En curso
 status.live = En curso
 status.between = Entre temporadas
 section.season = Esta temporada ({0})

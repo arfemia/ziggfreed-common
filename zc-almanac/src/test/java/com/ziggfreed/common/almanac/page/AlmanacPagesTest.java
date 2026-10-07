@@ -1,6 +1,9 @@
 package com.ziggfreed.common.almanac.page;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -8,12 +11,14 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.almanac.AlmanacCalendar.SeasonState;
 import com.ziggfreed.common.almanac.AlmanacFixtures;
 import com.ziggfreed.common.almanac.AlmanacSwitch;
+import com.ziggfreed.common.almanac.AlmanacText;
 import com.ziggfreed.common.almanac.asset.AlmanacEntryConfig;
 
-/** Whether there is an Almanac to offer, which is what a consumer's menu tile asks. */
+/** Whether there is an Almanac to offer, which is what a consumer's menu tile asks, and the line it reads. */
 class AlmanacPagesTest {
 
     @AfterEach
@@ -40,5 +45,26 @@ class AlmanacPagesTest {
         assertFalse(AlmanacPages.open(null, null, null, null));
         AlmanacSwitch.set(false);
         assertFalse(AlmanacPages.open("test_season", null, null, null));
+    }
+
+    @Test
+    void theHeadlineNamesTheSeasonOnNowAndIsAbsentWhileNothingRuns() throws Exception {
+        AlmanacEntryConfig.getInstance().mergePackLayer(Map.of("test_season",
+                AlmanacFixtures.page(AlmanacFixtures.SEASON_PAGE, "Test_Season")));
+
+        assertNull(AlmanacPages.headline(id -> SeasonState.BETWEEN), "between seasons: the tile keeps its own line");
+        assertNull(AlmanacPages.headline(id -> null), "an absent season is never on");
+
+        Message headline = AlmanacPages.headline(id -> SeasonState.liveIn(2026));
+        assertNotNull(headline);
+        assertEquals(AlmanacText.PREFIX + "headline.live", headline.getFormattedMessage().messageId);
+
+        AlmanacSwitch.set(false);
+        assertNull(AlmanacPages.headline(id -> SeasonState.liveIn(2026)), "switched off means absent");
+    }
+
+    @Test
+    void theProductionHeadlineIsAbsentWithNoCalendar() {
+        assertNull(AlmanacPages.headline());
     }
 }

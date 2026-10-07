@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -155,6 +157,163 @@ class CalendarServiceTest {
         OccurrenceSource source = service;
         assertTrue(source.isEnabled("Hallows_Eve"));
         assertEquals(2026, source.live("hallows_eve", at("2026-10-02T12:00:00Z")).year());
+        assertEquals(2027, source.next("Hallows_Eve", at("2026-10-02T12:00:00Z")).year());
+        assertEquals(ZoneOffset.UTC, source.zone("hallows_eve"));
+    }
+
+    /** One run of Hallow's Eve as its dates give it: October 1st through November 3rd of {@code year}, in UTC. */
+    private static Occurrence hallowsEveIn(int year) {
+        return new Occurrence("hallows_eve", year, at(year + "-10-01T00:00:00Z"), at(year + "-11-04T00:00:00Z"));
+    }
+
+    @Test
+    void theNextRunIsTheFirstToStartAfterNowAndNeverTheRunGoingOn() {
+        assertEquals(hallowsEveIn(2026), service.next("Hallows_Eve", at("2026-06-01T00:00:00Z")),
+                "before its dates, this year's run");
+        long during = at("2026-10-02T12:00:00Z");
+        assertNotNull(service.live("hallows_eve", during));
+        assertEquals(hallowsEveIn(2027), service.next("hallows_eve", during),
+                "while this year's run goes on, the next is next year's");
+        assertEquals(hallowsEveIn(2027), service.next("hallows_eve", at("2026-10-01T00:00:00Z")),
+                "a run's first instant is already inside it, so it is no longer to come");
+        assertEquals(hallowsEveIn(2027), service.next("hallows_eve", at("2026-12-31T23:59:59Z")),
+                "after this year's run, across the new year, next October's");
+    }
+
+    @Test
+    void onTheLastDayTheNextRunIsNextYearsAndARunEndsAtTheMidnightAfterItsLastDay() {
+        long lastDay = at("2026-11-03T23:59:59Z");
+        assertNotNull(service.live("hallows_eve", lastDay), "the last day is in the run");
+        assertEquals(hallowsEveIn(2027), service.next("hallows_eve", lastDay),
+                "its end is the first instant of November 4th, so November 3rd counts whole");
+        assertEquals(hallowsEveIn(2027), service.next("hallows_eve", at("2026-11-04T00:00:00Z")),
+                "the moment it is over, the same run is next");
+    }
+
+    @Test
+    void aWindowCrossingTheNewYearBelongsToTheYearItStartsIn() {
+        CalendarFixtures.loadEvents(Map.of("winter_fair", CalendarFixtures.event("Winter_Fair",
+                "{ \"Window\": { \"Start\": \"12-20\", \"End\": \"01-05\" }, \"FirstYear\": 2024 }")));
+        assertEquals(new Occurrence("winter_fair", 2026, at("2026-12-20T00:00:00Z"), at("2027-01-06T00:00:00Z")),
+                service.next("winter_fair", at("2026-12-01T00:00:00Z")), "it ends in the next year's January");
+        long earlyJanuary = at("2027-01-03T12:00:00Z");
+        assertEquals(2026, service.live("winter_fair", earlyJanuary).year(), "early January is December's run");
+        Occurrence thisDecember =
+                new Occurrence("winter_fair", 2027, at("2027-12-20T00:00:00Z"), at("2028-01-06T00:00:00Z"));
+        assertEquals(thisDecember, service.next("winter_fair", earlyJanuary),
+                "the run going on began last December, so the next begins this December");
+        assertEquals(thisDecember, service.next("winter_fair", at("2027-01-06T00:00:00Z")),
+                "and once it is over, still this December's");
+    }
+
+    @Test
+    void theNextRunIsNeverBeforeTheFirstYear() {
+        CalendarFixtures.loadEvents(Map.of("later_fair", CalendarFixtures.event("Later_Fair",
+                "{ \"Window\": { \"Start\": \"10-01\", \"End\": \"11-03\" }, \"FirstYear\": 2028 }")));
+        long october2026 = at("2026-10-02T12:00:00Z");
+        assertNull(service.live("later_fair", october2026), "inside its dates, two years early");
+        assertEquals(new Occurrence("later_fair", 2028, at("2028-10-01T00:00:00Z"), at("2028-11-04T00:00:00Z")),
+                service.next("later_fair", october2026), "its first run is still the next");
+    }
+
+    @Test
+    void forcedOffTheNextRunIsWhenItsDatesNextComeRound() {
+        long during = at("2026-10-02T12:00:00Z");
+        CalendarForces.getInstance().force("Hallows_Eve", false);
+        assertNull(service.live("hallows_eve", during));
+        assertEquals(hallowsEveIn(2027), service.next("hallows_eve", during),
+                "a stopped run returns next October, since this October's start has passed");
+        assertEquals(hallowsEveIn(2026), service.next("hallows_eve", at("2026-06-01T00:00:00Z")),
+                "before its dates, stopped or not, the next is this year's by its dates");
+    }
+
+    @Test
+    void forcedOnAheadOfItsDatesTheRunGoingOnIsNeverTheNext() {
+        long june = at("2026-06-01T00:00:00Z");
+        CalendarForces.getInstance().force("hallows_eve", true);
+        assertEquals(2026, service.live("hallows_eve", june).year());
+        assertEquals(hallowsEveIn(2027), service.next("hallows_eve", june),
+                "this year's run is going on already, forced, so the next is next year's");
+        CalendarForces.getInstance().clear("hallows_eve");
+        assertEquals(hallowsEveIn(2026), service.next("hallows_eve", june), "cleared, this year's run is ahead again");
+
+        CalendarFixtures.loadEvents(Map.of("later_fair", CalendarFixtures.event("Later_Fair",
+                "{ \"Window\": { \"Start\": \"10-01\", \"End\": \"11-03\" }, \"FirstYear\": 2028 }")));
+        CalendarForces.getInstance().force("later_fair", true);
+        assertEquals(2028, service.live("later_fair", june).year(), "a forced run is filed under the first year");
+        assertEquals(2029, service.next("later_fair", june).year(), "so the next run is the year after it");
+    }
+
+    @Test
+    void anAbsentEventHasNoNextRun() {
+        long june = at("2026-06-01T00:00:00Z");
+        CalendarFixtures.loadEvents(Map.of(
+                "hallows_eve", CalendarFixtures.event("Hallows_Eve", "{ \"Enabled\": false,"
+                        + " \"Window\": { \"Start\": \"10-01\", \"End\": \"11-03\" }, \"FirstYear\": 2026 }"),
+                "harvest_moon", CalendarFixtures.event("Harvest_Moon", CalendarFixtures.HARVEST_MOON),
+                "no_year", CalendarFixtures.event("No_Year",
+                        "{ \"Window\": { \"Start\": \"10-01\", \"End\": \"11-03\" } }")));
+        assertNull(service.next("hallows_eve", june), "switched off in itself");
+        assertNull(service.next("no_year", june), "it cannot run");
+        assertNull(service.next("no_such_event", june), "not loaded");
+        assertNotNull(service.next("harvest_moon", june));
+        CalendarForces.getInstance().force("harvest_moon", true);
+        CalendarEventConfig.getInstance().setGlobalEnabled(false);
+        assertNull(service.next("harvest_moon", june), "the owner's switch beats the dates and a force");
+    }
+
+    @Test
+    void theDaysAreCountedInTheEventsOwnClock() {
+        CalendarFixtures.loadEvents(Map.of(
+                "hallows_eve", CalendarFixtures.event("Hallows_Eve", CalendarFixtures.HALLOWS_EVE),
+                "tokyo_fair", CalendarFixtures.event("Tokyo_Fair",
+                        "{ \"Window\": { \"Start\": \"06-01\", \"End\": \"06-07\" }, \"FirstYear\": 2026,"
+                                + " \"Clock\": \"Asia/Tokyo\" }"),
+                "mars_fair", CalendarFixtures.event("Mars_Fair",
+                        "{ \"Window\": { \"Start\": \"06-01\", \"End\": \"06-07\" }, \"FirstYear\": 2026,"
+                                + " \"Clock\": \"Mars/Olympus\" }")));
+        assertEquals(ZoneId.of("Asia/Tokyo"), service.zone("Tokyo_Fair"));
+        assertEquals(ZoneOffset.UTC, service.zone("hallows_eve"), "a file with no Clock counts in UTC");
+        assertEquals(ZoneOffset.UTC, service.zone("mars_fair"), "a Clock java.time does not know runs on UTC");
+        assertEquals(ZoneOffset.UTC, service.zone("no_such_event"));
+
+        long lateMayInTokyo = at("2026-05-31T14:00:00Z");
+        assertEquals(new Occurrence("tokyo_fair", 2026, at("2026-05-31T15:00:00Z"), at("2026-06-07T15:00:00Z")),
+                service.next("tokyo_fair", lateMayInTokyo),
+                "June 1st begins at Tokyo's midnight, 15:00 the day before in UTC, and June 7th counts whole there");
+        long juneFirstInTokyo = at("2026-05-31T16:00:00Z");
+        assertNotNull(service.live("tokyo_fair", juneFirstInTokyo), "still May 31st in UTC, already June 1st in Tokyo");
+        assertEquals(2027, service.next("tokyo_fair", juneFirstInTokyo).year());
+    }
+
+    @Test
+    void theNextRunsYearIsTheYearInTheEventsOwnClock() {
+        CalendarFixtures.loadEvents(Map.of("new_year_fair", CalendarFixtures.event("New_Year_Fair",
+                "{ \"Window\": { \"Start\": \"01-01\", \"End\": \"01-03\" }, \"FirstYear\": 2026,"
+                        + " \"Clock\": \"Asia/Tokyo\" }")));
+        assertEquals(new Occurrence("new_year_fair", 2027, at("2026-12-31T15:00:00Z"), at("2027-01-03T15:00:00Z")),
+                service.next("new_year_fair", at("2026-12-31T14:00:00Z")),
+                "an hour before Tokyo's new year it starts within the hour, in 2027 though UTC still reads 2026");
+        assertEquals(2028, service.next("new_year_fair", at("2026-12-31T15:00:00Z")).year(),
+                "at Tokyo's midnight the 2027 run is going on, so the next is 2028's");
+    }
+
+    @Test
+    void theClockOutlivesTheSwitches() {
+        long may = at("2026-05-01T00:00:00Z");
+        for (boolean ownSwitch : List.of(true, false)) {
+            CalendarFixtures.loadEvents(Map.of("tokyo_fair", CalendarFixtures.event("Tokyo_Fair",
+                    "{ \"Enabled\": " + ownSwitch + ", \"Window\": { \"Start\": \"06-01\", \"End\": \"06-07\" },"
+                            + " \"FirstYear\": 2026, \"Clock\": \"Asia/Tokyo\" }")));
+            for (boolean ownersSwitch : List.of(true, false)) {
+                CalendarEventConfig.getInstance().setGlobalEnabled(ownersSwitch);
+                String switches = " (its own switch " + ownSwitch + ", the owner's " + ownersSwitch + ")";
+                assertEquals(ownSwitch && ownersSwitch, service.next("tokyo_fair", may) != null,
+                        "a next run only while switched on" + switches);
+                assertEquals(ZoneId.of("Asia/Tokyo"), service.zone("tokyo_fair"),
+                        "loaded, so its clock is known, like its years" + switches);
+            }
+        }
     }
 
     @Test
