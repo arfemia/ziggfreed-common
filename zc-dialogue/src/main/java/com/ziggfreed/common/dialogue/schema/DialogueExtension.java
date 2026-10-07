@@ -7,6 +7,8 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.season.SeasonGate;
+
 /**
  * One dialogue extension as the engine uses it: the lines it adds and where they land.
  *
@@ -18,7 +20,9 @@ import javax.annotation.Nullable;
  *
  * <p>Its lines are marked copies ({@link DialogueOption#getInjectedBy()}), so a line knows which
  * extension it came from: its {@code Once} keys by the extension, not by the screen it shows on, and
- * the audit reads it once, against its extension, instead of once per conversation it reaches.
+ * the audit reads it once, against its extension, instead of once per conversation it reaches. Its
+ * {@code Season} rides each copy too ({@link DialogueOption#getInjectedSeason()}): the splice ignores
+ * it, and the option predicate offers the line only while that calendar event runs.
  */
 public final class DialogueExtension {
 
@@ -27,32 +31,46 @@ public final class DialogueExtension {
     @Nullable private final DialogueSelector dialogues;
     @Nullable private final NodeSelector on;
     private final boolean enabled;
+    @Nullable private final String season;
 
     private DialogueExtension(@Nonnull String id, @Nonnull List<DialogueOption> options,
                               @Nullable DialogueSelector dialogues, @Nullable NodeSelector on,
-                              boolean enabled) {
+                              boolean enabled, @Nullable String season) {
         this.id = id;
         this.options = options;
         this.dialogues = dialogues;
         this.on = on;
         this.enabled = enabled;
+        this.season = season;
     }
 
-    /** One extension, its id folded and its lines marked as its own. */
+    /** One extension on all year, its id folded and its lines marked as its own. */
     @Nonnull
     public static DialogueExtension of(@Nonnull String id, @Nullable DialogueOption[] options,
                                        @Nullable DialogueSelector dialogues, @Nullable NodeSelector on,
                                        boolean enabled) {
+        return of(id, options, dialogues, on, enabled, null);
+    }
+
+    /**
+     * One extension, its id folded and its lines marked as its own, each carrying {@code season} so
+     * the line is offered only while that calendar event runs (null or blank for all year).
+     */
+    @Nonnull
+    public static DialogueExtension of(@Nonnull String id, @Nullable DialogueOption[] options,
+                                       @Nullable DialogueSelector dialogues, @Nullable NodeSelector on,
+                                       boolean enabled, @Nullable String season) {
         String folded = NodeSelector.fold(id);
+        String seasonId = SeasonGate.normalize(season);
         List<DialogueOption> lines = new ArrayList<>();
         if (options != null) {
             for (DialogueOption option : options) {
                 if (option != null) {
-                    lines.add(option.injectedCopy(folded));
+                    lines.add(option.injectedCopy(folded, seasonId));
                 }
             }
         }
-        return new DialogueExtension(folded, List.copyOf(lines), dialogues, on, enabled);
+        return new DialogueExtension(folded, List.copyOf(lines), dialogues, on, enabled, seasonId);
     }
 
     /** The extension's id: its file name, lower-cased. */
@@ -82,6 +100,12 @@ public final class DialogueExtension {
     /** In circulation? */
     public boolean isEnabled() {
         return enabled;
+    }
+
+    /** The calendar event this extension's lines belong to, or null for all year. */
+    @Nullable
+    public String getSeason() {
+        return season;
     }
 
     /**

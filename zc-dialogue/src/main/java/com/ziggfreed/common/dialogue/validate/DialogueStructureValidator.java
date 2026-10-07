@@ -38,6 +38,7 @@ import com.ziggfreed.common.dialogue.schema.NpcDialogue;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueActions;
 import com.ziggfreed.common.dialogue.quest.QuestDialogueConditions;
 import com.ziggfreed.common.factor.FactorRegistry;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.ui.route.Destinations;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.world.WhereValidator;
@@ -1064,8 +1065,8 @@ public final class DialogueStructureValidator {
      * reach. Its lines are skipped wherever they were spliced, so a mistake in one line is one finding
      * naming the extension rather than one per conversation it landed in. Checked here as well is
      * what only an extension can get wrong: a line with no {@code LabelKey}, a {@code Goto}, a memory,
-     * an id no loaded conversation answers, an {@code On} that names no screen, and an extension that
-     * reached no screen at all.
+     * an id no loaded conversation answers, an {@code On} that names no screen, a {@code Season} no
+     * calendar event declares, and an extension that reached no screen at all.
      */
     private static void checkExtensions(@Nonnull Collection<NpcDialogue> dialogues,
                                         @Nullable FactorRegistry factors,
@@ -1080,6 +1081,7 @@ public final class DialogueStructureValidator {
                 continue;
             }
             String id = extension.getId();
+            SeasonGate.checkKnown(out, DOMAIN, extension.getSeason(), id);
             if (extension.getOptions().isEmpty()) {
                 out.add(warning("EXTENSION_NO_OPTIONS",
                         "Dialogue extension '" + id + "' has no Options, so it adds nothing anywhere", id));

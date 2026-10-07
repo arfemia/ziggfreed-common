@@ -12,12 +12,14 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.codec.DeferredCodec;
 import com.ziggfreed.common.dialogue.schema.DialogueExtension;
 import com.ziggfreed.common.dialogue.schema.DialogueOption;
 import com.ziggfreed.common.dialogue.schema.DialogueSelector;
 import com.ziggfreed.common.dialogue.schema.DialogueTypeTable;
 import com.ziggfreed.common.dialogue.schema.NodeSelector;
+import com.ziggfreed.common.season.SeasonGate;
 
 /**
  * Lines a pack adds to conversations it did not write, at
@@ -43,6 +45,9 @@ import com.ziggfreed.common.dialogue.schema.NodeSelector;
  * with every character the line reaches. Give every line a {@code LabelKey}; a {@code Goto} or a
  * memory has no meaning in a conversation the line does not know, and the audit says so.
  *
+ * <p>{@code Season} names the calendar event the lines belong to: they stay spliced all year, and are
+ * offered only while that event runs, read live at every render and click.
+ *
  * <p>To take a shipped extension out, override the file by id with {@code "Enabled": false}.
  */
 public final class DialogueExtensionAsset
@@ -58,6 +63,7 @@ public final class DialogueExtensionAsset
     @Nullable private DialogueSelector dialogues;
     @Nullable private NodeSelector on;
     @Nullable private DialogueOption[] options;
+    @Nullable private String season;
 
     /**
      * An option row's codec is the vocabulary the installed mods register while they start up, so it
@@ -67,7 +73,7 @@ public final class DialogueExtensionAsset
     private static final DeferredCodec<DialogueOption[]> OPTIONS =
             new DeferredCodec<>(() -> DialogueTypeTable.get().optionsArray());
 
-    public static final AssetBuilderCodec<String, DialogueExtensionAsset> CODEC = AssetBuilderCodec.builder(
+    public static final AssetBuilderCodec<String, DialogueExtensionAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
                     DialogueExtensionAsset.class,
                     DialogueExtensionAsset::new,
                     Codec.STRING,
@@ -102,7 +108,8 @@ public final class DialogueExtensionAsset
                     + "the shared groups it pulls in. Give each a LabelKey and gate it with Conditions like "
                     + "any line. A Once on one of these lines is the line's own: spent with one character, "
                     + "it is spent with every character the line reaches.")
-            .add()
+            .add(),
+                    (a, v) -> a.season = v, a -> a.season)
             .build();
 
     public DialogueExtensionAsset() {
@@ -118,6 +125,12 @@ public final class DialogueExtensionAsset
         return enabled == null || enabled;
     }
 
+    /** The calendar event these lines belong to, trimmed, or null for all year. */
+    @Nullable
+    public String getSeason() {
+        return SeasonGate.normalize(season);
+    }
+
     /** The lines as decoded (unmarked), or null when the file wrote none. */
     @Nullable
     public DialogueOption[] getOptions() {
@@ -127,6 +140,6 @@ public final class DialogueExtensionAsset
     /** The file as the engine uses it, under the folded id the fold hands in. */
     @Nonnull
     public DialogueExtension toExtension(@Nonnull String foldedId) {
-        return DialogueExtension.of(foldedId, options, dialogues, on, isEnabled());
+        return DialogueExtension.of(foldedId, options, dialogues, on, isEnabled(), getSeason());
     }
 }

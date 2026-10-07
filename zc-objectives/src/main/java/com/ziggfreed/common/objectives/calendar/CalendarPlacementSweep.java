@@ -16,15 +16,17 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * Re-reads every NPC placement when a calendar event starts or ends, so a character placed only while
- * an event runs (a placement whose {@code Requires} reads the event's {@code <Id>_Live} feature) appears
- * at the start and leaves at the end with no restart.
+ * an event runs (a placement whose {@code Season} names the event, or whose {@code Requires} reads the
+ * event's {@code <Id>_Live} feature) appears at the start and leaves at the end with no restart.
  *
- * <p>A placement's {@code Requires} is read only when a sweep runs, and the reconciler sweeps a world
- * once and then latches it until something that changes the answer clears the latch. A calendar
- * transition changes the answer and clears nothing, so this forces a sweep of every live world on both
- * of the calendar's native events. Every path that changes whether an event runs reaches them: its
- * dates, {@code /zigcalendar force}, an owner's switch read by {@code /zigcalendar reload} or a pack
- * reload, and the boot's resumed start.
+ * <p>A placement's {@code Season} and {@code Requires} are read only when a sweep runs, and the
+ * reconciler sweeps a world once and then latches it until something that changes the answer clears
+ * the latch. A calendar transition changes the answer and clears nothing, so this forces a sweep of
+ * every live world on both of the calendar's native events. It re-reads every placement, never a
+ * chosen few, so a placement gated by its {@code Season} alone is swept like any other, and the gate
+ * chain reads the season afresh on that sweep. Every path that changes whether an event runs reaches
+ * those two events: its dates, {@code /zigcalendar force}, an owner's switch read by
+ * {@code /zigcalendar reload} or a pack reload, and the boot's resumed start.
  *
  * <p>The events arrive on the calendar's tick thread (the boot thread for a resumed start), never a
  * world thread. {@link NpcPlacementReconciler#forceSweep} only marks the world and queues the sweep onto

@@ -13,6 +13,7 @@ import com.ziggfreed.common.npc.placement.asset.NpcPlacementAsset;
 import com.ziggfreed.common.npc.placement.asset.NpcPlacementOverrides;
 import com.ziggfreed.common.npc.placement.registry.PlacementGate.GateContext;
 import com.ziggfreed.common.npc.placement.registry.PlacementGate.GateVerdict;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -21,8 +22,9 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p><b>Any deny wins</b>, and the FIRST deny is the one reported, so a diagnostic listing names
  * the most fundamental reason rather than the last one checked. Order therefore matters, and the
- * two built-ins run first: the asset's own {@code Enabled} leaf, then the server owner's override
- * file. A consumer's veto (and the authored {@code Requires} evaluation) runs after them.
+ * built-ins run first: the asset's own {@code Enabled} leaf, the server owner's override file, then
+ * the asset's {@code Season}. A consumer's veto (and the authored {@code Requires} evaluation) runs
+ * after them.
  *
  * <p><b>A deny DESPAWNS what is already standing.</b> The gate is not consulted only at placement
  * time: the reconciler asks it about every resident placed NPC too, so disabling one takes effect
@@ -38,6 +40,8 @@ public final class PlacementGates {
     public static final String REASON_DISABLED = "placement.denied.disabled";
     /** Reason key: the server owner switched this placement (or everything) off. */
     public static final String REASON_OWNER_OVERRIDE = "placement.denied.owner_override";
+    /** Reason key: the placement's {@code Season} is not running. */
+    public static final String REASON_SEASON = "placement.denied.season";
     /** Reason key: an authored {@code Requires} condition did not pass. */
     public static final String REASON_REQUIRES = "placement.denied.requires";
 
@@ -53,7 +57,13 @@ public final class PlacementGates {
         GATES.add(ctx -> NpcPlacementOverrides.getInstance().isEnabled(ctx.placementId())
                 ? GateVerdict.allow()
                 : GateVerdict.deny(REASON_OWNER_OVERRIDE));
-        // 3. The authored Requires block, resolved through the open factor vocabulary. It sits in
+        // 3. The Season leaf: a placement of a calendar event stands only while that event runs, read
+        //    live through zc-core's SeasonGate (the reading a <Id>_Live hide gate gets), so the
+        //    calendar's forced start and end sweeps move it with nothing cached.
+        GATES.add(ctx -> SeasonGate.live(ctx.placement().getSeason())
+                ? GateVerdict.allow()
+                : GateVerdict.deny(REASON_SEASON));
+        // 4. The authored Requires block, resolved through the open factor vocabulary. It sits in
         //    the chain rather than beside it so one call answers "may this stand here" completely.
         GATES.add(ctx -> {
             String failed = PlacementFactorRegistry.firstFailure(
@@ -66,7 +76,7 @@ public final class PlacementGates {
     }
 
     /**
-     * Append a consumer veto to the chain. Runs AFTER the three built-ins, so an owner's off
+     * Append a consumer veto to the chain. Runs AFTER the four built-ins, so an owner's off
      * switch is always reported in preference to a domain reason.
      */
     public static void register(@Nullable PlacementGate gate) {
