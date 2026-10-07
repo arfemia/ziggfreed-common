@@ -32,10 +32,11 @@ import com.ziggfreed.common.validation.Severity;
  *   <li>ERROR {@link #TOO_FEW_RANKS} (the engine's clamp needs two ranks), {@link #GROUP_WITHOUT_NPC_GROUPS}
  *       (the engine throws on every NPC added while one exists), {@link #KILL_WITHOUT_GROUPS},
  *       {@link #FROM_ON_SHARED_RANK}, {@link #TIER_OUT_OF_RANGE}, {@link #TIER_SHARES_FLOOR} (a floor that would
- *       move a shared rank or can never be reached; ignored);</li>
+ *       move a shared rank or can never be reached; ignored), {@link #TIER_SHARES_ID} (a rank of its own written
+ *       twice in two cases; the second is ignored);</li>
  *   <li>WARNING {@link #NO_NATIVE_GROUP}, {@link #UNKNOWN_NPC_GROUP}, {@link #UNKNOWN_KILL_GROUP},
  *       {@link #UNKNOWN_GEAR_STAT}, {@link #UNKNOWN_ICON}, {@link #UNKNOWN_RANK}, {@link #CAP_BELOW_LADDER},
- *       {@link #TIER_ABOVE_CAP}.</li>
+ *       {@link #TIER_ABOVE_CAP}, {@link #TIER_WITHOUT_NAME} (a rank of its own with no Name shows its id).</li>
  * </ul>
  */
 public final class ReputationValidator {
@@ -55,7 +56,9 @@ public final class ReputationValidator {
     public static final String FROM_ON_SHARED_RANK = "FROM_ON_SHARED_RANK";
     public static final String TIER_OUT_OF_RANGE = "TIER_OUT_OF_RANGE";
     public static final String TIER_SHARES_FLOOR = "TIER_SHARES_FLOOR";
+    public static final String TIER_SHARES_ID = "TIER_SHARES_ID";
     public static final String TIER_ABOVE_CAP = "TIER_ABOVE_CAP";
+    public static final String TIER_WITHOUT_NAME = "TIER_WITHOUT_NAME";
 
     private static final AtomicBoolean LOGGED = new AtomicBoolean();
 
@@ -170,6 +173,13 @@ public final class ReputationValidator {
             refused.add(tier.id().toLowerCase(Locale.ROOT));
             auditRefusedTier(where, id, tier, shared.top(), out);
         }
+        List<ReputationLadder.Rank> ownTiers = own.ranks().subList(shared.ranks().size(), own.ranks().size());
+        for (ReputationLadder.Rank tier : ownTiers) {
+            if (companion.rankNameKey(tier.id()) == null) {
+                out.add(Finding.warning(DOMAIN, TIER_WITHOUT_NAME, where + " gives its own rank '" + tier.id()
+                        + "' a From but no Name, so players read the rank's id where its name belongs", id));
+            }
+        }
         for (Map.Entry<String, String> rank : companion.rankNames().entrySet()) {
             if (own.byId(rank.getKey()) == null && !refused.contains(rank.getKey().toLowerCase(Locale.ROOT))) {
                 out.add(Finding.warning(DOMAIN, UNKNOWN_RANK, where + " names the rank '" + rank.getKey()
@@ -184,7 +194,7 @@ public final class ReputationValidator {
                     + "bottom (" + bottom.min() + "), so every gain is cut to nothing", id));
         }
         if (cap != null) {
-            for (ReputationLadder.Rank tier : own.ranks().subList(shared.ranks().size(), own.ranks().size())) {
+            for (ReputationLadder.Rank tier : ownTiers) {
                 if (tier.min() > cap) {
                     out.add(Finding.warning(DOMAIN, TIER_ABOVE_CAP, where + " sets Cap " + cap + ", below the "
                             + "floor of its own rank '" + tier.id() + "' (" + tier.min() + "), so rewards and kills "
@@ -214,6 +224,10 @@ public final class ReputationValidator {
             case SHARED_FLOOR -> out.add(Finding.error(DOMAIN, TIER_SHARES_FLOOR, where + " gives the rank '"
                     + tier.id() + "' the same From (" + tier.from() + ") as another of its ranks, so one of them "
                     + "could never be reached; '" + tier.id() + "' is left off this reputation's ladder", id));
+            case SHARED_ID -> out.add(Finding.error(DOMAIN, TIER_SHARES_ID, where + " writes its rank '" + tier.id()
+                    + "' (From " + tier.from() + ") a second time in another case; ids match without regard to "
+                    + "case, so only the first by floor stands and this one is left off this reputation's ladder",
+                    id));
         }
     }
 

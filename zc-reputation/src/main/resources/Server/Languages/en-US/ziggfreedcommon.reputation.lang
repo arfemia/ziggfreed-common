@@ -16,6 +16,8 @@ rank.none = Unranked
 factor.reputation = standing with a reputation
 factor.reputation_earned = standing earned with a reputation
 factor.reputation_rank = a rank with a reputation
+# A lock line's name for a rank gate on a reputation that names itself: {0} the rank, {1} the reputation.
+factor.rank_with = {0} with {1}
 
 # A reputation reward as it reads in a reward list: {0} the amount, {1} the reputation's name.
 reward.gain = +{0, number} {1}

@@ -1,5 +1,5 @@
 {
-  "$Comment": "Names the ziggfreedcommon:reputation_rank reading for requirement lines. Param is a reputation id and a rank id joined by a slash (Your_Traders/Friendly); the reading is 1 while the player's standing, gear included, is at or above that rank's floor and 0 below it. Write Min 1 to require the rank. To make a lock line read 'Requires Friendly with the Traders', ship a Factors file of your own with a ParamNames Keys entry for that exact Param.",
+  "$Comment": "Names the ziggfreedcommon:reputation_rank reading for requirement lines. Param is a reputation id and a rank id joined by a slash (Your_Traders/Friendly); the reading is 1 while the player's standing, gear included, is at or above that rank's floor and 0 below it. Write Min 1 to require the rank. A reputation whose own file has a Text.TitleKey gets its lock lines worded for it ('Requires Friendly with the Traders', using the rank's Name from its Ranks entry). To word one gate differently, ship a Factors file of your own with a ParamNames Keys entry for that exact Param.",
   "Factor": "ziggfreedcommon:reputation_rank",
   "Text": { "TitleKey": "ziggfreedcommon.reputation.factor.reputation_rank" }
 }
