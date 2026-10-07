@@ -26,33 +26,48 @@ import com.ziggfreed.common.util.SafeLog;
  * line goes to each player once, on their first attendance of that run (so a player online at the start and
  * one joining days later see it alike, and nobody twice); when one credit names several runs, their start
  * banners queue a gap apart so none overwrites the one before. Its END line goes to everyone online when a run
- * ends by its dates or a command, never when the owner switches the event off (off means absent).
+ * ends by its dates or a command, never when the owner switches the event off (off means absent); when one tick
+ * ends several runs, their end banners queue the same gap apart.
  */
 public final class CalendarHerald {
 
-    /** A banner's whole time on screen (fade in, hold, fade out), so the one before is read before the next. */
+    /** A banner's whole time on screen (fade in, hold, fade out): the gap between two queued banners, start or end. */
     public static final long START_GAP_MS = Math.round(
             (EventTitles.DEFAULT_FADE_IN + EventTitles.DEFAULT_DURATION + EventTitles.DEFAULT_FADE_OUT) * 1000.0);
 
     private CalendarHerald() {
     }
 
-    /** The end banners {@code tick} owes: real ends whose event authors an End line with a title. */
+    /** One banner a moment owes a player: its event, its line, and how long after the moment it shows. */
+    public record QueuedBanner(@Nonnull String eventId, @Nonnull CalendarEventAsset.HeraldLine line, long delayMs) {
+    }
+
+    /** The end banners {@code tick} owes, in tick order: the lines of {@link #endQueue}. */
     @Nonnull
     public static List<CalendarEventAsset.HeraldLine> endLines(@Nonnull CalendarTick tick,
             @Nonnull Function<String, CalendarEventAsset> events) {
         List<CalendarEventAsset.HeraldLine> out = new ArrayList<>();
-        for (CalendarTick.Ended ended : tick.ended()) {
-            if (ended.switchedOff()) {
-                continue;
-            }
-            CalendarEventAsset event = events.apply(ended.occurrence().eventId());
-            CalendarEventAsset.HeraldLine line = event == null ? null : event.heraldEnd();
-            if (line != null && line.titleKey() != null) {
-                out.add(line);
-            }
+        for (QueuedBanner banner : endQueue(tick, events)) {
+            out.add(banner.line());
         }
         return out;
+    }
+
+    /**
+     * The end banners {@code tick} owes, queued as a credit's start banners are: the first at once, each later
+     * one {@link #START_GAP_MS} after the one before. A switch-off (off means absent) and an event authoring
+     * no End line take no slot.
+     */
+    @Nonnull
+    public static List<QueuedBanner> endQueue(@Nonnull CalendarTick tick,
+            @Nonnull Function<String, CalendarEventAsset> events) {
+        List<String> ended = new ArrayList<>();
+        for (CalendarTick.Ended end : tick.ended()) {
+            if (!end.switchedOff()) {
+                ended.add(end.occurrence().eventId());
+            }
+        }
+        return queue(ended, id -> endLine(events.apply(id)));
     }
 
     /** The start banner of {@code event}, or null when it authors none with a title. */
@@ -62,8 +77,11 @@ public final class CalendarHerald {
         return line == null || line.titleKey() == null ? null : line;
     }
 
-    /** One start banner a credit owes: its event, its line, and how long after the credit it shows. */
-    public record QueuedStart(@Nonnull String eventId, @Nonnull CalendarEventAsset.HeraldLine line, long delayMs) {
+    /** The end banner of {@code event}, or null when it authors none with a title. */
+    @Nullable
+    public static CalendarEventAsset.HeraldLine endLine(@Nullable CalendarEventAsset event) {
+        CalendarEventAsset.HeraldLine line = event == null ? null : event.heraldEnd();
+        return line == null || line.titleKey() == null ? null : line;
     }
 
     /**
@@ -71,31 +89,35 @@ public final class CalendarHerald {
      * after the one before. A run whose event authors no start line (or is no longer loaded) takes no slot.
      */
     @Nonnull
-    public static List<QueuedStart> startQueue(@Nonnull List<String> eventIds,
+    public static List<QueuedBanner> startQueue(@Nonnull List<String> eventIds,
             @Nonnull Function<String, CalendarEventAsset> events) {
-        List<QueuedStart> out = new ArrayList<>();
+        return queue(eventIds, id -> startLine(events.apply(id)));
+    }
+
+    /** One banner per event that has a line, a gap apart, the first at once. */
+    @Nonnull
+    private static List<QueuedBanner> queue(@Nonnull List<String> eventIds,
+            @Nonnull Function<String, CalendarEventAsset.HeraldLine> lineOf) {
+        List<QueuedBanner> out = new ArrayList<>();
         for (String eventId : eventIds) {
-            CalendarEventAsset.HeraldLine line = startLine(events.apply(eventId));
+            CalendarEventAsset.HeraldLine line = lineOf.apply(eventId);
             if (line != null) {
-                out.add(new QueuedStart(eventId, line, out.size() * START_GAP_MS));
+                out.add(new QueuedBanner(eventId, line, out.size() * START_GAP_MS));
             }
         }
         return out;
     }
 
-    /** A tick listener: everyone online sees each end banner the tick owes. */
+    /** A tick listener: everyone online sees each end banner the tick owes, a gap apart. */
     public static void onTick(@Nonnull CalendarTick tick) {
-        List<CalendarEventAsset.HeraldLine> lines = endLines(tick, CalendarRuntime.service()::event);
-        if (lines.isEmpty()) {
+        List<QueuedBanner> queue = endQueue(tick, CalendarRuntime.service()::event);
+        if (queue.isEmpty()) {
             return;
         }
         try {
             for (PlayerRef player : Universe.get().getPlayers()) {
-                if (player == null) {
-                    continue;
-                }
-                for (CalendarEventAsset.HeraldLine line : lines) {
-                    show(player, line);
+                if (player != null) {
+                    showQueued(player, queue);
                 }
             }
         } catch (Throwable t) {
@@ -108,11 +130,16 @@ public final class CalendarHerald {
      * once, each later one waits its turn in {@link #startQueue}.
      */
     public static void showStarts(@Nonnull PlayerRef player, @Nonnull List<String> eventIds) {
-        for (QueuedStart start : startQueue(eventIds, CalendarRuntime.service()::event)) {
-            if (start.delayMs() <= 0L) {
-                show(player, start.line());
+        showQueued(player, startQueue(eventIds, CalendarRuntime.service()::event));
+    }
+
+    /** Show a queue to one player: a banner due now at once, each later one when its turn comes. */
+    private static void showQueued(@Nonnull PlayerRef player, @Nonnull List<QueuedBanner> queue) {
+        for (QueuedBanner banner : queue) {
+            if (banner.delayMs() <= 0L) {
+                show(player, banner.line());
             } else {
-                showLater(player.getUuid(), start.line(), start.delayMs());
+                showLater(player.getUuid(), banner.line(), banner.delayMs());
             }
         }
     }
@@ -123,7 +150,7 @@ public final class CalendarHerald {
             HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> showIfStillHere(playerId, line), delayMs,
                     TimeUnit.MILLISECONDS);
         } catch (Throwable t) {
-            SafeLog.warn("[calendar] could not queue a start banner", t);
+            SafeLog.warn("[calendar] could not queue a banner", t);
         }
     }
 
@@ -141,11 +168,11 @@ public final class CalendarHerald {
                         show(player, line);
                     }
                 } catch (Throwable t) {
-                    SafeLog.warn("[calendar] a queued start banner failed", t);
+                    SafeLog.warn("[calendar] a queued banner failed", t);
                 }
             });
         } catch (Throwable t) {
-            SafeLog.warn("[calendar] a queued start banner failed", t);
+            SafeLog.warn("[calendar] a queued banner failed", t);
         }
     }
 
