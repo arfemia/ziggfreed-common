@@ -25,6 +25,7 @@ import com.ziggfreed.common.achievement.AchievementProgressStore;
 import com.ziggfreed.common.achievement.AchievementStatus;
 import com.ziggfreed.common.quest.QuestProgressStore.CompletionRecord;
 import com.ziggfreed.common.quest.QuestStatus;
+import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -41,7 +42,7 @@ import com.ziggfreed.common.util.SafeLog;
  * stores are the active ones: a
  * conversation remembers things on a server whose quests belong to somebody else.
  *
- * <p><b>Twelve packed string leaves, not twelve collections.</b> Each one travels as a single
+ * <p><b>Thirteen packed string leaves, not thirteen collections.</b> Each one travels as a single
  * string through {@link ProgressBlob}, which is the shape a codec-persisted ECS component reliably
  * supports; the component is the thing that is saved into every world, so the wire format is a
  * contract and a plain string is the least surprising one to keep.
@@ -125,6 +126,12 @@ public final class ZigProgressComponent implements Component<EntityStore> {
             .append(new KeyedCodec<>("Migrations", Codec.STRING),
                     (c, v) -> c.migrations = ProgressBlob.deserializeSet(v),
                     c -> ProgressBlob.serializeSet(ProgressBlob.ordered(c.migrations))).add()
+            // When the player last opened each achievement category (category -> epoch ms), so a category
+            // tile can say something new was earned there. Appended last: a blob saved before it decodes to
+            // no marks, which the book reads as "nothing opened yet".
+            .append(new KeyedCodec<>("AchievementSeen", Codec.STRING),
+                    (c, v) -> c.achievementSeen = ProgressBlob.deserializeLongs(v),
+                    c -> ProgressBlob.serializeLongs(ProgressBlob.ordered(c.achievementSeen))).add()
             .build();
 
     /** questId -> {@link QuestStatus#name()}. */
@@ -182,6 +189,10 @@ public final class ZigProgressComponent implements Component<EntityStore> {
     /** One-time moves already performed for this player, by their own namespaced ids. */
     @Nonnull
     private Set<String> migrations = ConcurrentHashMap.newKeySet();
+
+    /** Achievement category (lower case) -> when the player last opened it, in epoch milliseconds. */
+    @Nonnull
+    private Map<String, Long> achievementSeen = new ConcurrentHashMap<>();
 
     public ZigProgressComponent() {
     }
@@ -503,6 +514,69 @@ public final class ZigProgressComponent implements Component<EntityStore> {
         return achievementPins.remove(achievementId) != null;
     }
 
+    // ==================== achievement seen marks ====================
+
+    /**
+     * When the player last opened achievement {@code category}, in epoch milliseconds, or {@code 0} when never. A
+     * category reads under any casing (the marks are kept lower case).
+     */
+    public long achievementSeen(@Nonnull String category) {
+        String key = seenKey(category);
+        Long stamp = key == null ? null : achievementSeen.get(key);
+        return stamp == null ? 0L : stamp;
+    }
+
+    /**
+     * Record that the player opened {@code category} at {@code epochMs}; a later mark replaces an earlier one. A
+     * non-positive stamp clears the mark, and a category the blob format reserves ({@code |} or {@code =}) or a
+     * blank one is refused, since it could not be read back.
+     */
+    public void setAchievementSeen(@Nonnull String category, long epochMs) {
+        String key = seenKey(category);
+        if (key == null) {
+            return;
+        }
+        if (epochMs <= 0L) {
+            achievementSeen.remove(key);
+            return;
+        }
+        achievementSeen.put(key, Long.valueOf(epochMs));
+    }
+
+    /** Every seen mark, as {@code category -> epoch milliseconds}, categories lower case. */
+    @Nonnull
+    public Map<String, Long> achievementSeenMarks() {
+        return Map.copyOf(achievementSeen);
+    }
+
+    /** The key a category's mark is kept under, or null when the category cannot be kept. */
+    @Nullable
+    private static String seenKey(@Nullable String category) {
+        if (category == null || category.isBlank() || category.indexOf('|') >= 0 || category.indexOf('=') >= 0) {
+            return null;
+        }
+        return category.trim().toLowerCase(Locale.ROOT);
+    }
+
+    // ==================== the component a subject answers for ====================
+
+    /**
+     * The component {@code subject}'s handle answers for: the component itself where the handle is one, else the
+     * {@link ProgressHandle}'s; null when there is none (a bare subject, a consumer's own store).
+     */
+    @Nullable
+    public static ZigProgressComponent of(@Nullable Subject subject) {
+        if (subject == null) {
+            return null;
+        }
+        ZigProgressComponent direct = subject.handleAs(ZigProgressComponent.class);
+        if (direct != null) {
+            return direct;
+        }
+        ProgressHandle handle = subject.handleAs(ProgressHandle.class);
+        return handle == null ? null : handle.component();
+    }
+
     // ==================== dialogue state ====================
 
     /** True when this player currently holds the dialogue state key {@code flag}. */
@@ -570,6 +644,7 @@ public final class ZigProgressComponent implements Component<EntityStore> {
         c.questCompletions = ProgressBlob.copy(this.questCompletions);
         c.dialogueMemories = ProgressBlob.copySet(this.dialogueMemories);
         c.migrations = ProgressBlob.copySet(this.migrations);
+        c.achievementSeen = ProgressBlob.copy(this.achievementSeen);
         return c;
     }
 

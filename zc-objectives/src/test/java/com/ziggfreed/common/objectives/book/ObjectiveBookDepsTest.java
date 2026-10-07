@@ -1,11 +1,13 @@
 package com.ziggfreed.common.objectives.book;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
@@ -13,9 +15,13 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.achievement.Achievement;
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.kit.DetailBlock;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -43,6 +49,52 @@ class ObjectiveBookDepsTest {
                 ObjectiveBookDeps.NO_MILESTONE_CLAIM.claim(100, null, null, null));
         assertNull(deps.claimPreCheckGuarded(quest, null, null, null));
         assertFalse(deps.announcesActions());
+        assertSame(DetailBlockSource.NONE, deps.detailBlocks());
+        assertSame(SeenMarks.NONE, deps.seen());
+        assertTrue(deps.detailBlocksGuarded(quest, null).isEmpty(), "no consumer blocks on a quest");
+        assertTrue(deps.detailBlocksGuarded(Achievement.builder("a").build(), null).isEmpty(),
+                "nor on an achievement");
+        assertEquals(Long.MAX_VALUE, deps.seenAtGuarded(null, "combat"), "with no marks, nothing reads as new");
+        deps.markSeenGuarded(null, "combat", 1000L);
+        assertEquals(Long.MAX_VALUE, deps.seenAtGuarded(null, "combat"), "and marking remembers nothing");
+    }
+
+    @Test
+    void aFilledBlockSourceAddsItsBlocksToBothPages() {
+        DetailBlock block = new DetailBlock("mmo_xp", Msg.raw("Skill XP"), null, List.of());
+        ObjectiveBookDeps deps = ObjectiveBookDeps.builder()
+                .detailBlocks(new DetailBlockSource() {
+                    @Nonnull
+                    @Override
+                    public List<DetailBlock> quest(@Nonnull Quest q, @Nullable Subject s) {
+                        return List.of(block);
+                    }
+                })
+                .build();
+        assertEquals(List.of(block), deps.detailBlocksGuarded(Quest.builder("q").build(), null));
+        assertTrue(deps.detailBlocksGuarded(Achievement.builder("a").build(), null).isEmpty(),
+                "a source that says nothing about achievements adds nothing there");
+    }
+
+    @Test
+    void filledMarksRememberWhatWasSeen() {
+        Map<String, Long> marks = new HashMap<>();
+        ObjectiveBookDeps deps = ObjectiveBookDeps.builder()
+                .seen(new SeenMarks() {
+                    @Override
+                    public long seenAt(@Nullable Subject s, @Nonnull String category) {
+                        return marks.getOrDefault(category, 0L);
+                    }
+
+                    @Override
+                    public void markSeen(@Nullable Subject s, @Nonnull String category, long nowMs) {
+                        marks.put(category, nowMs);
+                    }
+                })
+                .build();
+        assertEquals(0L, deps.seenAtGuarded(null, "combat"));
+        deps.markSeenGuarded(null, "combat", 1234L);
+        assertEquals(1234L, deps.seenAtGuarded(null, "combat"));
     }
 
     @Test
@@ -58,7 +110,6 @@ class ObjectiveBookDepsTest {
     @Test
     void nullFillsFallBackToDefaults() {
         ObjectiveBookDeps deps = ObjectiveBookDeps.builder()
-                .sidePanelPainter(null)
                 .extHandler(null)
                 .boardManaged(null)
                 .requirementText(null)
@@ -69,8 +120,11 @@ class ObjectiveBookDepsTest {
                 .milestoneClaim(null)
                 .actionFeedback(null)
                 .claimPreCheck(null)
+                .detailBlocks(null)
+                .seen(null)
                 .build();
-        assertSame(ObjectiveBookDeps.NO_CHROME, deps.sidePanelPainter());
+        assertSame(DetailBlockSource.NONE, deps.detailBlocks());
+        assertSame(SeenMarks.NONE, deps.seen());
         assertSame(ObjectiveBookDeps.NO_EXT, deps.extHandler());
         assertSame(ObjectiveBookDeps.NO_BOARDS, deps.boardManaged());
         assertSame(ObjectiveBookDeps.NO_FIRST_CLAIMS, deps.firstClaims());
@@ -109,6 +163,30 @@ class ObjectiveBookDepsTest {
                 .claimPreCheck((q, store, ref, player) -> {
                     throw new IllegalStateException("boom");
                 })
+                .detailBlocks(new DetailBlockSource() {
+                    @Nonnull
+                    @Override
+                    public List<DetailBlock> quest(@Nonnull Quest q, @Nullable Subject s) {
+                        throw new IllegalStateException("boom");
+                    }
+
+                    @Nonnull
+                    @Override
+                    public List<DetailBlock> achievement(@Nonnull Achievement a, @Nullable Subject s) {
+                        return null;
+                    }
+                })
+                .seen(new SeenMarks() {
+                    @Override
+                    public long seenAt(@Nullable Subject s, @Nonnull String category) {
+                        throw new IllegalStateException("boom");
+                    }
+
+                    @Override
+                    public void markSeen(@Nullable Subject s, @Nonnull String category, long nowMs) {
+                        throw new IllegalStateException("boom");
+                    }
+                })
                 .build();
         Quest quest = Quest.builder("q").build();
         assertFalse(deps.managedGuarded(quest));
@@ -118,6 +196,17 @@ class ObjectiveBookDepsTest {
         assertNull(deps.claimOfGuarded("first_kill", null));
         assertTrue(deps.milestonesGuarded(null, null, null).isEmpty());
         assertNull(deps.claimPreCheckGuarded(quest, null, null, null));
+        assertTrue(deps.detailBlocksGuarded(quest, null).isEmpty(), "a throwing source costs its blocks");
+        assertTrue(deps.detailBlocksGuarded(Achievement.builder("a").build(), null).isEmpty(),
+                "a null answer reads as none");
+        assertEquals(Long.MAX_VALUE, deps.seenAtGuarded(null, "combat"), "a throwing mark reads as seen");
+        deps.markSeenGuarded(null, "combat", 1L);
+    }
+
+    @Test
+    void theGenericRequirementsReadingSurvivesTheOldQuestsTab() {
+        assertNull(ObjectiveBookDeps.GENERIC_REQUIREMENTS.lineFor(Quest.builder("q").build()),
+                "a quest that asks nothing has no requirements line");
     }
 
     @Test

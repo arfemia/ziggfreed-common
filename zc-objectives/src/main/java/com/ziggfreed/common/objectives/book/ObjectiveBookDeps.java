@@ -1,5 +1,6 @@
 package com.ziggfreed.common.objectives.book;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -10,16 +11,19 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
-import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
+import com.ziggfreed.common.achievement.Achievement;
 import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.loot.reward.RewardGrants;
 import com.ziggfreed.common.loot.reward.RewardSpec;
 import com.ziggfreed.common.objectives.questlist.NpcQuestPageDeps;
+import com.ziggfreed.common.progress.gate.GateClause;
+import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.progress.runtime.ProgressionTexts;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.subject.Subject;
+import com.ziggfreed.common.ui.kit.DetailBlock;
 import com.ziggfreed.common.util.SafeLog;
 
 /**
@@ -27,17 +31,13 @@ import com.ziggfreed.common.util.SafeLog;
  *
  * <p>Every seam here has a DEFAULT that leaves the book fully working on a bare server: the
  * catalogue, the subject and the display text all come from the shared progression runtime, so a
- * consumer fills a seam only to say something the library genuinely cannot know - its own
- * statistics column, its board-managed quests, who claimed a server-first, its points-milestone
- * ladder. The book's frame paint and its rail are the shared menu's, said through
- * {@code ZigMenu.consumer}.
+ * consumer fills a seam only to say something the library genuinely cannot know - its
+ * board-managed quests, who claimed a server-first, its points-milestone ladder. The book's frame
+ * paint and its rail are the shared menu's, said through {@code ZigMenu.consumer}; a consumer's
+ * statistics reach the book as a {@code LedgerContributions.STATISTICS} source.
  *
  * <ul>
- *   <li>{@link ChromePainter} (side panel) - paints the achievements tab's side column; unfilled,
- *       that column hides on the achievements tab. A painted control binds back through
- *       {@link Chrome#bindExt} and the click lands on {@link ExtHandler}.</li>
- *   <li>{@link ExtHandler} - answers every {@code ext} click a painted control bound: drill-downs,
- *       anything consumer-drawn.</li>
+ *   <li>{@link ExtHandler} - answers an {@code ext} click the book receives.</li>
  *   <li>{@link BoardManagedQuests} - which quests a board manages, and how their rows read: the
  *       plumbing tags are suppressed, the pills say what the board says, accept is replaced by the
  *       at-the-board hint, and abandoning one forces a full repaint.</li>
@@ -58,6 +58,11 @@ import com.ziggfreed.common.util.SafeLog;
  *   <li>{@link QuestClaimPreCheck} - a last word before a quest's claim reaches the engine, for a
  *       refusal only the consumer can know about (a board that wants its own room check, a paused
  *       economy). Default nothing to refuse, so every claim reaches the engine unchanged.</li>
+ *   <li>{@link DetailBlockSource} - extra blocks after a quest's or an achievement's own on its page;
+ *       default none.</li>
+ *   <li>{@link SeenMarks} - when the player last opened each achievement category, so a tile can say
+ *       something new was earned there; default the library's own, kept in the player's progress
+ *       component ({@link ComponentSeenMarks}); {@link SeenMarks#NONE} turns the marks off.</li>
  * </ul>
  *
  * <p>Immutable; build one at setup and register a supplier via
@@ -66,90 +71,7 @@ import com.ziggfreed.common.util.SafeLog;
 public final class ObjectiveBookDeps {
 
     /**
-     * The live page surfaces a painter or handler works against: the builders, the player, and the
-     * one way a painted control binds a click back to the consumer.
-     */
-    public static final class Chrome {
-
-        private final UICommandBuilder cmd;
-        private final UIEventBuilder events;
-        private final Store<EntityStore> store;
-        private final Ref<EntityStore> ref;
-        private final Player player;
-        private final String activeTab;
-        private final ExtBinder binder;
-
-        Chrome(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
-                @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
-                @Nonnull Player player, @Nonnull String activeTab, @Nonnull ExtBinder binder) {
-            this.cmd = cmd;
-            this.events = events;
-            this.store = store;
-            this.ref = ref;
-            this.player = player;
-            this.activeTab = activeTab;
-            this.binder = binder;
-        }
-
-        @Nonnull
-        public UICommandBuilder cmd() {
-            return cmd;
-        }
-
-        @Nonnull
-        public UIEventBuilder events() {
-            return events;
-        }
-
-        @Nonnull
-        public Store<EntityStore> store() {
-            return store;
-        }
-
-        @Nonnull
-        public Ref<EntityStore> ref() {
-            return ref;
-        }
-
-        @Nonnull
-        public Player player() {
-            return player;
-        }
-
-        /** The tab being built ({@link ObjectiveBookPage#TAB_QUESTS} / {@link ObjectiveBookPage#TAB_ACHIEVEMENTS}). */
-        @Nonnull
-        public String activeTab() {
-            return activeTab;
-        }
-
-        /**
-         * Bind a painted control so its click reaches {@link ExtHandler#handle} carrying
-         * {@code extId}. The page owns the wire format, so a consumer never composes an
-         * {@code EventData} of its own and every painted control keeps the filter state alive.
-         */
-        public void bindExt(@Nonnull String selector, @Nonnull String extId) {
-            binder.bindExt(selector, extId);
-        }
-    }
-
-    /** The page-supplied half of {@link Chrome#bindExt}; never implemented by a consumer. */
-    interface ExtBinder {
-
-        void bindExt(@Nonnull String selector, @Nonnull String extId);
-    }
-
-    /**
-     * Paints the achievements tab's side column. Return true when something was painted; false
-     * leaves it hidden.
-     */
-    @FunctionalInterface
-    public interface ChromePainter {
-
-        boolean paint(@Nonnull Chrome chrome);
-    }
-
-    /**
-     * Answers a click on a deps-painted control. Return true when the handler took the screen
+     * Answers an {@code ext} click the book receives. Return true when the handler took the screen
      * (opened another page); false and the book stays up and answers the client itself.
      */
     @FunctionalInterface
@@ -353,9 +275,6 @@ public final class ObjectiveBookDeps {
                 @Nonnull Ref<EntityStore> ref, @Nonnull Player player);
     }
 
-    /** Nothing painted, so the region hides. */
-    public static final ChromePainter NO_CHROME = chrome -> false;
-
     /** No consumer controls, so an unexpected ext click is answered by the book alone. */
     public static final ExtHandler NO_EXT = (extId, store, ref, player) -> false;
 
@@ -363,7 +282,7 @@ public final class ObjectiveBookDeps {
     public static final BoardManagedQuests NO_BOARDS = quest -> false;
 
     /** The generic gate reading: prerequisite quests, and nothing a factor vocabulary must name. */
-    public static final RequirementText GENERIC_REQUIREMENTS = BookQuestsTab::genericRequirementLine;
+    public static final RequirementText GENERIC_REQUIREMENTS = ObjectiveBookDeps::genericRequirementLine;
 
     /** The raw tag tidied up, the same contract free-string tags carry everywhere. */
     public static final TagLabelSource RAW_TAGS = tag -> Msg.raw(prettifyTag(tag));
@@ -388,10 +307,13 @@ public final class ObjectiveBookDeps {
     /** Nothing to refuse, so every claim reaches the engine unchanged. */
     public static final QuestClaimPreCheck NO_CLAIM_PRECHECK = (quest, store, ref, player) -> null;
 
+    /** The marks a deps whose builder named none carries ({@link #libraryMarks}). */
+    @Nonnull
+    private static volatile SeenMarks libraryMarks = SeenMarks.NONE;
+
     /** Everything at its library default: a book that works on a server running nothing else. */
     public static final ObjectiveBookDeps DEFAULTS = builder().build();
 
-    @Nonnull private final ChromePainter sidePanelPainter;
     @Nonnull private final ExtHandler extHandler;
     @Nonnull private final BoardManagedQuests boardManaged;
     @Nonnull private final RequirementText requirementText;
@@ -402,9 +324,11 @@ public final class ObjectiveBookDeps {
     @Nonnull private final MilestoneClaim milestoneClaim;
     @Nonnull private final ActionFeedback actionFeedback;
     @Nonnull private final QuestClaimPreCheck claimPreCheck;
+    @Nonnull private final DetailBlockSource detailBlocks;
+    /** The builder's marks, or null for the library's own ({@link #libraryMarks}), read at each use. */
+    @Nullable private final SeenMarks seen;
 
     private ObjectiveBookDeps(@Nonnull Builder builder) {
-        this.sidePanelPainter = builder.sidePanelPainter;
         this.extHandler = builder.extHandler;
         this.boardManaged = builder.boardManaged;
         this.requirementText = builder.requirementText;
@@ -415,6 +339,8 @@ public final class ObjectiveBookDeps {
         this.milestoneClaim = builder.milestoneClaim;
         this.actionFeedback = builder.actionFeedback;
         this.claimPreCheck = builder.claimPreCheck;
+        this.detailBlocks = builder.detailBlocks;
+        this.seen = builder.seen;
     }
 
     @Nonnull
@@ -422,9 +348,12 @@ public final class ObjectiveBookDeps {
         return new Builder();
     }
 
-    @Nonnull
-    public ChromePainter sidePanelPainter() {
-        return sidePanelPainter;
+    /**
+     * Install the library's own seen marks ({@link ComponentSeenMarks}, from {@link ObjectiveBookBootstrap}): the
+     * marks every deps carries whose builder named none. Null goes back to {@link SeenMarks#NONE}.
+     */
+    public static void libraryMarks(@Nullable SeenMarks marks) {
+        libraryMarks = marks != null ? marks : SeenMarks.NONE;
     }
 
     @Nonnull
@@ -480,6 +409,17 @@ public final class ObjectiveBookDeps {
     @Nonnull
     public QuestClaimPreCheck claimPreCheck() {
         return claimPreCheck;
+    }
+
+    @Nonnull
+    public DetailBlockSource detailBlocks() {
+        return detailBlocks;
+    }
+
+    @Nonnull
+    public SeenMarks seen() {
+        SeenMarks own = seen;
+        return own != null ? own : libraryMarks;
     }
 
     // ==================== guarded reads ====================
@@ -575,15 +515,128 @@ public final class ObjectiveBookDeps {
         }
     }
 
-    /** Run one deps-owned painter, guarded: a throwing painter reads as nothing painted. */
-    public boolean paintGuarded(@Nonnull ChromePainter painter, @Nonnull Chrome chrome,
-            @Nonnull String what) {
+    /** The consumer's extra blocks on a quest's page, guarded: a throwing or null answer adds none. */
+    @Nonnull
+    public List<DetailBlock> detailBlocksGuarded(@Nonnull Quest quest, @Nullable Subject subject) {
         try {
-            return painter.paint(chrome);
+            return blocksOrNone(detailBlocks.quest(quest, subject));
         } catch (Throwable t) {
-            SafeLog.warn("[progression] the book's " + what + " painter failed: " + t.getMessage());
-            return false;
+            SafeLog.warn("[progression] the book's detail blocks failed for a quest: " + t.getMessage());
+            return List.of();
         }
+    }
+
+    /** The consumer's extra blocks on an achievement's page, guarded: a throwing or null answer adds none. */
+    @Nonnull
+    public List<DetailBlock> detailBlocksGuarded(@Nonnull Achievement achievement, @Nullable Subject subject) {
+        try {
+            return blocksOrNone(detailBlocks.achievement(achievement, subject));
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] the book's detail blocks failed for an achievement: " + t.getMessage());
+            return List.of();
+        }
+    }
+
+    @Nonnull
+    private static List<DetailBlock> blocksOrNone(@Nullable List<DetailBlock> blocks) {
+        if (blocks == null || blocks.isEmpty()) {
+            return List.of();
+        }
+        List<DetailBlock> kept = new ArrayList<>(blocks.size());
+        for (DetailBlock block : blocks) {
+            if (block != null) {
+                kept.add(block);
+            }
+        }
+        return List.copyOf(kept);
+    }
+
+    /**
+     * When {@code subject} last opened {@code category}, guarded: a throwing mark reads as seen just now
+     * ({@link Long#MAX_VALUE}), so a failing marker never lights a tile.
+     */
+    public long seenAtGuarded(@Nullable Subject subject, @Nonnull String category) {
+        try {
+            return seen().seenAt(subject, category);
+        } catch (Throwable t) {
+            return Long.MAX_VALUE;
+        }
+    }
+
+    /** Record that {@code subject} opened {@code category}, guarded: a throwing mark costs only itself. */
+    public void markSeenGuarded(@Nullable Subject subject, @Nonnull String category, long nowMs) {
+        try {
+            seen().markSeen(subject, category, nowMs);
+        } catch (Throwable t) {
+            SafeLog.warn("[progression] the book's seen marks failed: " + t.getMessage());
+        }
+    }
+
+    /**
+     * The library's default requirements reading: the gate's prerequisite quests and permission leaf,
+     * comma-joined, {@code AnyOf} alternatives bracketed. A {@code Not} group is deliberately never shown:
+     * printing what must NOT be true reads as an instruction to go and do the thing that keeps the quest shut.
+     * Null when nothing displayable is asked.
+     */
+    @Nullable
+    static Message genericRequirementLine(@Nonnull Quest quest) {
+        GateSpec requires = quest.requires();
+        if (requires == null || requires.isEmpty()) {
+            return null;
+        }
+        List<Message> items = new ArrayList<>(clauseItems(requires));
+        for (GateClause clause : requires.allOfOrEmpty()) {
+            if (clause != null) {
+                items.addAll(clauseItems(clause));
+            }
+        }
+        for (GateClause clause : requires.anyOfOrEmpty()) {
+            if (clause == null) {
+                continue;
+            }
+            List<Message> alternatives = clauseItems(clause);
+            if (alternatives.isEmpty()) {
+                continue;
+            }
+            Message joined = joinWithCommas(alternatives);
+            items.add(alternatives.size() > 1 ? Msg.cat(Msg.raw("("), joined, Msg.raw(")")) : joined);
+        }
+        if (items.isEmpty()) {
+            return null;
+        }
+        // The joined list rides as a PARAM, so it is built with the param-safe composite.
+        return Msg.key("ziggfreedcommon.progression.book.quests.requires", joinWithCommas(items));
+    }
+
+    /** Every displayable requirement ONE clause asks for. */
+    @Nonnull
+    private static List<Message> clauseItems(@Nonnull GateClause clause) {
+        List<Message> items = new ArrayList<>();
+        for (String questId : clause.questsOrEmpty()) {
+            if (questId == null || questId.isBlank()) {
+                continue;
+            }
+            Message name = ProgressionTexts.title(questId);
+            items.add(Msg.key("ziggfreedcommon.progression.book.quests.req.quest",
+                    name != null ? name : Msg.raw(questId)));
+        }
+        String permission = clause.getPermission();
+        if (permission != null && !permission.isBlank()) {
+            items.add(Msg.key("ziggfreedcommon.progression.book.quests.req.permission", permission));
+        }
+        return items;
+    }
+
+    @Nonnull
+    private static Message joinWithCommas(@Nonnull List<Message> parts) {
+        List<Message> out = new ArrayList<>(parts.size() * 2);
+        for (int i = 0; i < parts.size(); i++) {
+            if (i > 0) {
+                out.add(Msg.raw(", "));
+            }
+            out.add(parts.get(i));
+        }
+        return Msg.cat(out.toArray(new Message[0]));
     }
 
     /** {@code "wilds_side"} reads as {@code "Wilds Side"}: word breaks on {@code _-}, title case. */
@@ -606,7 +659,6 @@ public final class ObjectiveBookDeps {
     /** Immutable-by-copy assembly; every knob defaults to the library's own answer. */
     public static final class Builder {
 
-        @Nonnull private ChromePainter sidePanelPainter = NO_CHROME;
         @Nonnull private ExtHandler extHandler = NO_EXT;
         @Nonnull private BoardManagedQuests boardManaged = NO_BOARDS;
         @Nonnull private RequirementText requirementText = GENERIC_REQUIREMENTS;
@@ -617,14 +669,10 @@ public final class ObjectiveBookDeps {
         @Nonnull private MilestoneClaim milestoneClaim = NO_MILESTONE_CLAIM;
         @Nonnull private ActionFeedback actionFeedback = NO_FEEDBACK;
         @Nonnull private QuestClaimPreCheck claimPreCheck = NO_CLAIM_PRECHECK;
+        @Nonnull private DetailBlockSource detailBlocks = DetailBlockSource.NONE;
+        @Nullable private SeenMarks seen;
 
         private Builder() {
-        }
-
-        @Nonnull
-        public Builder sidePanelPainter(@Nullable ChromePainter value) {
-            this.sidePanelPainter = value != null ? value : NO_CHROME;
-            return this;
         }
 
         @Nonnull
@@ -684,6 +732,19 @@ public final class ObjectiveBookDeps {
         @Nonnull
         public Builder claimPreCheck(@Nullable QuestClaimPreCheck value) {
             this.claimPreCheck = value != null ? value : NO_CLAIM_PRECHECK;
+            return this;
+        }
+
+        @Nonnull
+        public Builder detailBlocks(@Nullable DetailBlockSource value) {
+            this.detailBlocks = value != null ? value : DetailBlockSource.NONE;
+            return this;
+        }
+
+        /** The book's seen marks; null (the default) carries the library's own ({@link ObjectiveBookDeps#libraryMarks(SeenMarks)}). */
+        @Nonnull
+        public Builder seen(@Nullable SeenMarks value) {
+            this.seen = value;
             return this;
         }
 

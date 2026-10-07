@@ -15,7 +15,9 @@ import org.junit.jupiter.api.Test;
  * The book's strip, rail seam and narrow theme seam are gone, and the book answers a rail click before it
  * reads its own action. A command against an element the document no longer has disconnects the player,
  * so the deleted ids may not survive in the page or its document; comments are read too, so the rewritten
- * javadoc names none of them.
+ * javadoc names none of them. The redesign retired the rest of the old seams once nothing called them: the
+ * side column painter and its chrome, the pre-redesign whole-state constructor, and the tracked-quests side
+ * panel's renderer and row (the kit's compact rows, through {@code panel/ObjectivePanels}, replace it).
  */
 class BookChromeRetiredTest {
 
@@ -36,13 +38,25 @@ class BookChromeRetiredTest {
             assertFalse(page.contains(gone), "ObjectiveBookPage still carries " + gone);
         }
         String deps = Files.readString(BOOK.resolve("ObjectiveBookDeps.java"), StandardCharsets.UTF_8);
-        for (String gone : List.of("railPainter", "LEGACY_THEME", "PageTheme")) {
+        for (String gone : List.of("railPainter", "LEGACY_THEME", "PageTheme", "sidePanelPainter", "ChromePainter",
+                "NO_CHROME", "class Chrome", "paintGuarded", "bindExt", "ExtBinder")) {
             assertFalse(deps.contains(gone), "ObjectiveBookDeps still carries " + gone);
         }
+        assertFalse(page.contains("String filterSubcategory"),
+                "the pre-redesign whole-state constructor is gone; ObjectiveBookPages.open opens on a row");
         String pages = Files.readString(BOOK.resolve("ObjectiveBookPages.java"), StandardCharsets.UTF_8);
         for (String gone : List.of("resolvedTheme", "PageTheme")) {
             assertFalse(pages.contains(gone), "ObjectiveBookPages still carries " + gone);
         }
+    }
+
+    @Test
+    void theTrackedQuestsSidePanelIsGone() {
+        Path objectives = Path.of("src", "main", "java", "com", "ziggfreed", "common", "objectives");
+        assertFalse(Files.exists(objectives.resolve("hud").resolve("TrackedQuestPanelRenderer.java")),
+                "a page shows tracked quests through panel/ObjectivePanels");
+        assertFalse(Files.exists(UI.resolveSibling("ZigTrackedQuestRow.ui")),
+                "its row is the kit's Pages/ZigLedgerRowCompact.ui");
     }
 
     @Test

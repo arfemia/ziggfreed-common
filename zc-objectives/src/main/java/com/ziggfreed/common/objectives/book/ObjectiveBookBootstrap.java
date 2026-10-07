@@ -6,8 +6,9 @@ import com.ziggfreed.common.util.SafeLog;
 
 /**
  * The book's place in the shared menu, called once from the wiring root's {@code setup()}: its two
- * destinations (before any asset decodes) and the Quests and Achievements tabs. Registration only
- * ({@code RootRegistrationOnlyTest}).
+ * destinations (before any asset decodes), the Quests and Achievements tabs, and the library's own seen
+ * marks ({@link ComponentSeenMarks}, kept in the player's progress component) that light a category
+ * tile's "new" mark. Registration only ({@code RootRegistrationOnlyTest}).
  */
 public final class ObjectiveBookBootstrap {
 
@@ -15,6 +16,7 @@ public final class ObjectiveBookBootstrap {
     }
 
     public static void registerMenu() {
+        ObjectiveBookDeps.libraryMarks(ComponentSeenMarks.INSTANCE);
         try {
             ObjectiveBookDestinations.register();
             ZigMenu.fill(MenuSlot.QUESTS, ObjectiveBookMenu.quests());

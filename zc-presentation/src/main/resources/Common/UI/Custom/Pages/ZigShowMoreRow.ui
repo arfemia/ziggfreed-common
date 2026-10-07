@@ -1,0 +1,25 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// The last row of a long section: "Show 40 more", appended by com.ziggfreed.common.ui.kit.LedgerPainter under a
+// section's rows when it holds more than it shows, and addressed by index as "#Rows[i] #More".
+
+Group #ZigShowMoreRow {
+  LayoutMode: Left;
+  Anchor: (Height: $ZK.@ZigControlHeight, Bottom: $ZK.@ZigSpace1);
+
+  Button #More {
+    FlexWeight: 1;
+    LayoutMode: Left;
+    Padding: (Horizontal: $ZK.@ZigSpace3);
+    Style: $ZS.@ZigRowStyle;
+
+    Label #Label {
+      FlexWeight: 1;
+      Anchor: (Height: $ZK.@ZigControlHeight);
+      Text: "";
+      Style: (...$ZX.@ZigBodyStyle, RenderBold: true, HorizontalAlignment: Center);
+    }
+  }
+}

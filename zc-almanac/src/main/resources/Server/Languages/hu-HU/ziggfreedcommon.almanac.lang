@@ -4,7 +4,6 @@
 
 title = Almanach
 seasons.empty = Ezen a szerveren még nem fut szezonális esemény.
-badge.live = Most tart
 status.live = Most tart
 status.between = Szezonok között
 section.season = Ez a szezon ({0})

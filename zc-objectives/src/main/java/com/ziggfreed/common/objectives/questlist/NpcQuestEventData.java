@@ -7,20 +7,22 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 /**
  * The state {@link ZigNpcQuestPage} round-trips on every binding.
  *
- * <p>{@code action} is one of {@code close}, {@code tab} (switch to the list named in {@code tab}),
- * {@code select} (open the detail panel on {@code questId}), or one of the lifecycle presses
- * {@code accept} / {@code turnIn} / {@code claim} / {@code abandon} / {@code track}.
+ * <p>{@code action} is one of {@code close}, {@code tab} (switch to the list named in {@code tab}), {@code select}
+ * (open the page on {@code questId}), {@code line} (a page line naming {@code questId}), {@code section} (fold or
+ * unfold the list section named in {@code section}), {@code more} (show more of that section's rows), or a press on
+ * the page: {@code primary} / {@code secondary} / {@code danger} (its action bar) and {@code toggle} (its header's
+ * Track toggle).
  *
- * <p>The lifecycle presses carry NO quest id on purpose. They act on whatever the detail panel is
- * currently showing, so the same binding survives a partial update that swaps which quest is on the
- * right - and a page update cannot add or change an event binding, only restyle what is already
- * there.
+ * <p>The presses carry NO quest id on purpose. They act on whatever the page is currently showing, dispatched on that
+ * quest's live state, so the same binding survives a partial update that swaps which quest is on the right; a binding
+ * on a live element is never added twice.
  */
 public class NpcQuestEventData {
 
     public String action;
     public String questId;
     public String tab;
+    public String section;
 
     public static final BuilderCodec<NpcQuestEventData> CODEC =
             BuilderCodec.builder(NpcQuestEventData.class, NpcQuestEventData::new)
@@ -35,6 +37,10 @@ public class NpcQuestEventData {
                     .append(new KeyedCodec<>("Tab", Codec.STRING),
                             (data, value, info) -> data.tab = value,
                             (data, info) -> data.tab)
+                    .add()
+                    .append(new KeyedCodec<>("Section", Codec.STRING),
+                            (data, value, info) -> data.section = value,
+                            (data, info) -> data.section)
                     .add()
                     .build();
 }

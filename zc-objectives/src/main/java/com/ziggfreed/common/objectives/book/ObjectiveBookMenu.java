@@ -24,10 +24,10 @@ public final class ObjectiveBookMenu {
     private static final String PREFIX = "ziggfreedcommon.";
 
     /** The Quests tab's picture: the brown grimoire, the Objective Book's own art. */
-    static final String QUESTS_ICON = "Weapon_Spellbook_Grimoire_Brown";
+    public static final String QUESTS_ICON = "Weapon_Spellbook_Grimoire_Brown";
 
     /** The Achievements tab's picture: the base game's one trophy. */
-    static final String ACHIEVEMENTS_ICON = "Deco_Trophy_Harvest";
+    public static final String ACHIEVEMENTS_ICON = "Deco_Trophy_Harvest";
 
     private ObjectiveBookMenu() {
     }

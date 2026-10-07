@@ -1,0 +1,106 @@
+$C = "../Common.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One category tile of a collection (the achievements overview's categories), 196 x 128, appended by
+// com.ziggfreed.common.ui.kit.TilePainter into a wrapping grid and addressed by index as "#Grid[i] #Tile".
+//
+// The whole tile is one Button on vanilla's Memories tiles (Pages/Memories/MemoriesCategory.ui): ZigTileStyle at
+// rest and ZigTileCompleteStyle once complete, swapped by reference (Common/ZigStyles.ui). Inside it:
+//   #Pic          the 40px picture, painted through IconRenderer.applyPlainIcon
+//   #Name         the category's name in the headline face, two lines
+//   #Count        "12 / 40"
+//   #BarTrack     a 6px progress bar
+//   #Check        the Memories tile's green check, once complete
+//   #Badge        a pill ("On now")
+//   #New          the Memories "new" corner, once something was earned there since the last look
+//   #Ring         the completion ring (vanilla's CircularProgressBar) while the category is underway; a
+//                 complete tile shows #Check in the same corner instead
+//   #AccentStrip  the category's colour along the top edge
+// The overlays ship hidden and none carries a tooltip, so a click anywhere reaches the tile.
+
+Group #ZigCollectionTile {
+  Anchor: (Width: 196, Height: 128, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
+
+  Button #Tile {
+    Anchor: (Full: 0);
+    LayoutMode: Full;
+    Style: $ZS.@ZigTileStyle;
+
+    Group #TileBody {
+      Anchor: (Full: 0);
+      LayoutMode: Top;
+      Padding: (Full: $ZK.@ZigSpace3);
+
+      Group #TileHead {
+        LayoutMode: Left;
+        Anchor: (Height: $ZK.@ZigPicTile);
+        Padding: (Right: 20);
+
+        $ZW.@ZigPicture #Pic {
+          @Size = $ZK.@ZigPicTile;
+          @Anchor = (Right: 10);
+        }
+
+        Label #Name {
+          FlexWeight: 1;
+          Anchor: (Height: $ZK.@ZigPicTile);
+          Text: "";
+          Style: $ZX.@ZigTileNameStyle;
+        }
+      }
+
+      Group {
+        FlexWeight: 1;
+      }
+
+      Group #TileFoot {
+        LayoutMode: Left;
+        Anchor: (Height: $ZK.@ZigPillHeight, Bottom: 6);
+
+        Label #Count {
+          FlexWeight: 1;
+          Anchor: (Height: $ZK.@ZigPillHeight);
+          Text: "";
+          Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+        }
+
+        $ZW.@ZigPill #Badge {
+          Visible: false;
+        }
+      }
+
+      $ZW.@ZigProgressBar #BarTrack {
+        @Height = 6;
+      }
+    }
+
+    Group #AccentStrip {
+      Anchor: (Left: 0, Top: 0, Width: 196, Height: 4);
+      Background: (Color: $ZK.@ZigAccent);
+      Visible: false;
+    }
+
+    Group #New {
+      Anchor: (Left: 0, Top: 0, Width: 105, Height: 128);
+      Background: "../Pages/Memories/Tiles/NewMemoryIndicator.png";
+      Visible: false;
+    }
+
+    Group #Check {
+      Anchor: (Top: 10, Right: 10, Width: 16, Height: 16);
+      Background: "../Pages/Memories/Checkmark.png";
+      Visible: false;
+    }
+
+    $C.@CircularProgressBar #Ring {
+      @Size = 20;
+      @Anchor = (Top: 8, Right: 8);
+      Value: 0.0;
+      Color: $ZK.@ZigToneActiveFill;
+      Visible: false;
+    }
+  }
+}

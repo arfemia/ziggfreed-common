@@ -1,22 +1,25 @@
 $C = "../Common.ui";
-$F = "../Common/ZigFrames.ui";
-$Z = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZF = "../Common/ZigFrames.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
 
-// The title picker (com.ziggfreed.common.objectives.title.page.TitlePickerPage): which earned title
-// shows beside the player's name in menus and leaderboards. A preview line, then one row per title
-// painted from Java into ONE row container.
+// The title picker (com.ziggfreed.common.objectives.title.page.TitlePickerPage): which earned title shows beside
+// the player's name in menus and on boards. A title and subtitle, the preview bar ("You appear as: ..."), then one
+// scrolling body: EARNED, the earned titles as two columns of Pages/ZigTitleTile.ui tiles with a Show / Shown
+// button each, and NOT EARNED YET, one Pages/ZigDetailLine.ui line per title still to earn, naming the achievement
+// that gives it and how far along the player is; a line opens the objective book on that achievement. With nothing
+// earned, #NoneYet heads the lines; with no title on the server at all, the empty state replaces the body. Back and
+// Show none sit in the footer.
 //
-// #Rows is the appendable list container and MUST stay childless here: rows are the shared
-// Pages/ZigFormToggleRow.ui and Pages/ZigFormNoteRow.ui templates, addressed by indexed parent
-// ("#Rows[2] #Toggle"), so a pre-authored child would shift every index. All text is set from Java
-// on .TextSpans, and every labeled button is a Button + inner #Label.
-//
-// Shipped once in ziggfreed-common; neutral Zig* ids. Smoke-test in game.
+// #Earned and #NotEarned are the appendable hosts and stay childless here, so every index a painter counts is its
+// own. #Earned is the one place the tiles' wrapping layout is written: 286-wide tiles wrap two to a row in the
+// body's width. Every text lands from Java on .TextSpans, and every labelled button is a Button holding Label #Label.
 
 $C.@PageOverlay {}
 
-$F.@ZigDecoratedFrame {
+$ZF.@ZigDecoratedFrame {
   @CloseButton = true;
   @Ornaments = true;
   Anchor: (Width: 640, Height: 560);
@@ -27,47 +30,98 @@ $F.@ZigDecoratedFrame {
     Padding: (Full: 18);
 
     Label #Title {
+      Anchor: (Height: 28, Bottom: 2);
       Text: "";
-      Anchor: (Height: 32, Bottom: 2);
-      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true, VerticalAlignment: Center);
+      Style: (...$ZX.@ZigTitleStyle, VerticalAlignment: Center, WrapMaxLines: 1);
     }
 
     Label #Subtitle {
+      Anchor: (Height: 18, Bottom: $ZK.@ZigSpace3);
       Text: "";
-      Anchor: (Height: 20, Bottom: 6);
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #93a4b8, VerticalAlignment: Center);
+      Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
     }
 
-    Label #Preview {
-      Text: "";
-      Anchor: (Height: 24, Bottom: 10);
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, VerticalAlignment: Center);
+    Group #PreviewBar {
+      Anchor: (Height: 44, Bottom: $ZK.@ZigSpace3);
+      LayoutMode: Left;
+      Padding: (Horizontal: $ZK.@ZigSpace3);
+      Background: (Color: $ZK.@ZigSurfaceRow);
+
+      Label #Preview {
+        FlexWeight: 1;
+        Anchor: (Height: 44);
+        Text: "";
+        Style: (...$ZX.@ZigHeadingStyle, RenderBold: false, Wrap: true, WrapMaxLines: 1);
+      }
     }
 
-    Group { Anchor: (Height: 1, Bottom: 12); Background: #1e2a36; }
-
-    Group #Rows {
+    Group #Body {
       FlexWeight: 1;
       LayoutMode: TopScrolling;
       ScrollbarStyle: $C.@DefaultScrollbarStyle;
-      Padding: (Right: 4);
+      Padding: (Right: $ZK.@ZigSpace2);
+
+      Label #NoneYet {
+        Anchor: (Height: 24, Bottom: $ZK.@ZigSpace2);
+        Text: "";
+        Visible: false;
+        Style: (...$ZX.@ZigBodyStyle, Wrap: true, WrapMaxLines: 1);
+      }
+
+      Label #EarnedHead {
+        Anchor: (Height: 24, Bottom: $ZK.@ZigSpace1);
+        Text: "";
+        Style: $ZX.@ZigSectionLabelStyle;
+      }
+
+      Group #Earned {
+        LayoutMode: LeftWrap;
+        Anchor: (Bottom: $ZK.@ZigSpace2);
+      }
+
+      Label #NotEarnedHead {
+        Anchor: (Height: 24, Bottom: $ZK.@ZigSpace1);
+        Text: "";
+        Style: $ZX.@ZigSectionLabelStyle;
+      }
+
+      Group #NotEarned {
+        LayoutMode: Top;
+      }
+    }
+
+    $ZW.@ZigEmptyState #Empty {
+      Visible: false;
+      FlexWeight: 1;
     }
 
     Group #Footer {
-      Anchor: (Height: 36, Top: 12);
+      Anchor: (Height: $ZK.@ZigActionHeight, Top: $ZK.@ZigSpace3);
       LayoutMode: Left;
 
       Button #BackButton {
-        Style: $Z.@ZigRichRowBtnStyle;
-        Anchor: (Width: 140, Height: 32);
+        Anchor: (Width: 140, Height: $ZK.@ZigActionHeight);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+
         Label #Label {
           FlexWeight: 1;
           Text: "";
-          Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Style: $ZX.@ZigButtonLabelStyle;
         }
       }
 
       Group { FlexWeight: 1; }
+
+      Button #ShowNone {
+        Anchor: (Width: 140, Height: $ZK.@ZigActionHeight);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
     }
   }
 }

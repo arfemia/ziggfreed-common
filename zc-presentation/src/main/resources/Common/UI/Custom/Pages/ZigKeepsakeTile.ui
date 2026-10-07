@@ -1,0 +1,73 @@
+$C = "../Common.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// One keepsake of a collection shelf (a season's keepsake for one year), 112 x 148, appended by
+// com.ziggfreed.common.ui.kit.TilePainter into a wrapping shelf and addressed by index as "#Shelf[i] #Keep".
+//
+// Vanilla's Memories tile (Pages/Memories/Memory.ui), which shows a memory's state by showing one of its
+// backgrounds: #KeepEarned (TileComplete), #KeepToEarn (TileDefault) or #KeepMissed (TileEmpty), exactly one
+// visible. Over it the 64px picture (#Pic, painted through IconRenderer.applyPlainIcon), a #Scrim that dims the
+// picture of a keepsake still to earn, the year (#Label) and a state line (#StateLine). The keepsake's own words
+// show as #Keep's tooltip, set from Java; nothing on the tile is clickable.
+
+Group #ZigKeepsakeTile {
+  Anchor: (Width: 112, Height: 148, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
+
+  Group #Keep {
+    Anchor: (Full: 0);
+    LayoutMode: Full;
+    TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+
+    Group #KeepEarned {
+      Anchor: (Full: 0);
+      Background: (TexturePath: "../Pages/Memories/Tiles/TileComplete.png", Border: 8);
+      Visible: false;
+    }
+
+    Group #KeepToEarn {
+      Anchor: (Full: 0);
+      Background: (TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8);
+    }
+
+    Group #KeepMissed {
+      Anchor: (Full: 0);
+      Background: (TexturePath: "../Pages/Memories/Tiles/TileEmpty.png", Border: 8);
+      Visible: false;
+    }
+
+    Group #KeepBody {
+      Anchor: (Full: 0);
+      LayoutMode: Top;
+      Padding: (Top: 12, Horizontal: $ZK.@ZigSpace2);
+
+      Group #PicRow {
+        LayoutMode: Center;
+        Anchor: (Height: $ZK.@ZigPicLarge, Bottom: 10);
+
+        $ZW.@ZigPicture #Pic {
+          @Size = $ZK.@ZigPicLarge;
+        }
+      }
+
+      Label #Label {
+        Anchor: (Height: 22);
+        Text: "";
+        Style: (...$ZX.@ZigRowTitleStyle, HorizontalAlignment: Center);
+      }
+
+      Label #StateLine {
+        Anchor: (Height: 18);
+        Text: "";
+        Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center, Wrap: true, WrapMaxLines: 1);
+      }
+    }
+
+    Group #Scrim {
+      Anchor: (Left: 24, Top: 12, Width: 64, Height: 64);
+      Background: (Color: $ZK.@ZigSurfaceScrim);
+      Visible: false;
+    }
+  }
+}

@@ -26,9 +26,7 @@ book.quests.section.locked = Locked
 book.quests.untitled = Unnamed quest
 book.quests.step.untitled = Unnamed step
 
-book.achievements.points = {0}/{1}
 book.achievements.category.uncategorised = Other
-book.achievements.untitled = Unnamed achievement
 book.achievements.criterion.untitled = Unnamed step
 
 book.action.accept = Accept
@@ -92,10 +90,6 @@ npcquests.toast.untracked = Quest no longer tracked.
 npcquests.toast.track_full = You are already tracking as many quests as you can.
 npcquests.toast.turn_in_short = Not enough yet: {0}/{1}.
 
-# The tracked-quests side panel a page embeds (objectives/hud/TrackedQuestPanelRenderer): the note
-# shown when nothing is pinned. The HUD itself speaks no line of its own.
-tracked.empty = Track a quest to see it here.
-
 # The lifted quest-log surface (categories, statuses, row actions, objectives, requirements).
 book.quests.count = {0} Quests
 book.quests.active_count = {0} Active
@@ -129,58 +123,83 @@ book.toast.quest_complete = Quest complete: {0}!
 book.toast.turn_in = Turned in {0}/{1} {2}
 
 # The lifted achievements browser (filter strip, rows, the detail column, the overview).
-book.achievements.unlocked_label = Unlocked
-book.achievements.points_label = Points
-book.achievements.status.unlocked = Unlocked
-book.achievements.status.in_progress = In Progress
 book.achievements.status.all = All
 book.achievements.sort.default = Sort: Default
 book.achievements.sort.alpha = Sort: A-Z
-book.achievements.sort.progress = Sort: % Progress
-book.achievements.subfilter_all = All
 book.achievements.empty = No achievements in this category.
-book.achievements.no_search_results = No achievements match your search.
 book.achievements.searchPlaceholder = Search achievements…
-book.achievements.criteria_suffix = criteria
-book.achievements.criteria_header = CRITERIA
-book.achievements.chain_header = CHAIN TIERS
-book.achievements.requires_header = REQUIRED ACHIEVEMENTS
-book.achievements.part_of = PART OF
-book.achievements.feats_header = FEATS OF STRENGTH
-book.achievements.server_first = SERVER FIRST
-book.achievements.server_first_self = You claimed this Server First!
-book.achievements.server_first_other = Claimed by {0}
 book.achievements.pin_cap = You can only pin {0} achievements at a time.
 book.toast.pinned = Pinned: {0}
 book.toast.unpinned = Unpinned: {0}
-book.achievements.unlock_date_unknown = --
-book.achievements.unlock_date_label = Unlocked
-book.achievements.rewards_header = REWARDS
-book.achievements.reward_auto = Auto
-book.achievements.reward_pending = Pending
-book.achievements.reward_claimed = Claimed
-book.achievements.reward_locked = Locked
-book.achievements.claim_button = CLAIM REWARDS
 book.achievements.claim_success = Rewards claimed!
 book.achievements.inventory_full = Not enough inventory space to claim!
-book.achievements.milestones_header = POINT MILESTONES
-book.achievements.milestone_claimed = Claimed
-book.achievements.milestone_available = Ready
-book.achievements.milestone_claim = CLAIM
-book.achievements.next_milestone = Next milestone
 book.achievements.all_milestones_claimed = All claimed
 book.achievements.overview.recent = RECENT UNLOCKS
-book.achievements.overview.nearest = NEAREST TO COMPLETE
 book.achievements.overview.pinned = PINNED
 book.achievements.overview.categories = CATEGORIES
-book.achievements.overview.no_unlocks = No achievements unlocked yet.
-book.achievements.overview.no_progress = No achievements in progress.
-book.achievements.overview.browse = Browse >
-
-# Tags the old surfaces shipped unkeyed; the worth column reads them on every row.
-book.achievements.feat_tag = FEAT
-book.achievements.points_tag = {0} pts
-book.achievements.feat_since = Feat of Strength since {0}
 
 # The Settings tab's quest tracker card.
 settings.tracker = Quest tracker
+
+# The book's views (the Achievements tab's Overview, Browse and Statistics segments).
+book.view.overview = Overview
+book.view.browse = Browse
+book.view.statistics = Statistics
+
+# The Achievements tab: the header band, the overview, Browse's toolbar, rows and the achievement's page.
+book.achievements.subtitle = {0, number} of {1, number} earned
+book.achievements.subtitle_waiting = {0, number} of {1, number} earned, {2, number} {2, plural, one{reward} other{rewards}} waiting
+book.achievements.stat.earned = Earned
+book.achievements.stat.points = Points
+book.achievements.stat.next = Next milestone
+book.achievements.hero.waiting = {0, number} {0, plural, one{reward} other{rewards}} waiting
+book.achievements.hero.show = Show
+book.achievements.milestone.title = {0, number} points: {1}
+book.achievements.milestone.all_collected = All milestones collected
+book.achievements.milestone.more_after = {0, number} more after this
+book.achievements.overview.nearly = Nearly there
+book.achievements.overview.pinned_empty = Pin up to {0, number} achievements to keep them here.
+book.achievements.overview.recent_empty = Nothing earned yet. What you earn shows up here.
+book.achievements.overview.nearly_empty = Nothing in progress yet.
+book.achievements.tile.count = {0, number} / {1, number}
+book.achievements.tile.on_now = On now
+book.achievements.tile.feats = Feats of Strength
+book.achievements.tile.feats_count = {0, number} earned
+book.achievements.status.progress = In progress
+book.achievements.status.earned = Earned
+book.achievements.status.waiting = Waiting
+book.achievements.status.feats = Feats
+book.achievements.sort.closest = Sort: Closest first
+book.achievements.category.all = All categories
+book.achievements.page.breadcrumb = {0} > {1}
+book.achievements.page.points = {0, number} {0, plural, one{point} other{points}}
+book.achievements.page.claimant = First claimed by {0}
+book.achievements.page.empty = Choose something from the list to see it here.
+book.achievements.row.points = {0, number} pts
+book.achievements.pill.server_first = Server first
+book.achievements.pill.seasonal = Seasonal
+book.achievements.pill.feat_since = Feat of Strength since {0}
+book.achievements.block.criteria = Criteria
+book.achievements.block.needs = Needs
+book.achievements.block.part_of = Part of
+book.achievements.block.ladder = Ladder
+book.achievements.block.rewards = Rewards
+book.achievements.block.more_in = More in {0}
+book.achievements.tier = Tier {0, number} of {1, number}
+book.achievements.tier_short = Tier {0, number}
+book.achievements.reward.auto = Auto
+book.achievements.reward.waiting = Waiting
+book.achievements.reward.collected = Collected
+book.achievements.reward.locked = Locked
+book.achievements.hint.earned_on = Earned on {0}
+book.achievements.hint.to_go = {0, number} to go
+book.achievements.meta.ends_in = Ends in {0, number} {0, plural, one{day} other{days}}
+book.achievements.meta.steps = {0, number} / {1, number} steps
+book.achievements.action.pin = Pin
+book.achievements.action.unpin = Unpin
+book.achievements.action.collect = Collect
+book.achievements.state.done = Done
+book.achievements.state.progress = In progress
+book.achievements.state.collect = Collect
+book.achievements.state.feat = Feat
+book.tooltip.unpin = Unpin this achievement

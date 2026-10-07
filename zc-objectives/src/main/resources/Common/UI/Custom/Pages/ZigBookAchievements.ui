@@ -1,0 +1,377 @@
+$C = "../Common.ui";
+$S = "../Common/ZigSearchRow.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
+
+// The Objective Book's Achievements tab (com.ziggfreed.common.objectives.book.achievement.AchievementsTab),
+// appended into the shell's #TabBody: 1266 wide, 896 high (book/LedgerLayout). AchievementsTab holds every number
+// spelled here and ZigBookAchievementsDocumentTest holds the two together.
+//
+// #Toolbar is on every view: the view segments (Overview, Browse, and Statistics while a module contributes any)
+// at the left, the shared search row at the right. #Filters is Browse's second row: the status segments, the
+// category dropdown and the sort dropdown. Segments are Pages/ZigSegment.ui, appended by the kit's SegmentPainter.
+//
+// #Overview scrolls: the hero card and the next-milestone card, the category tiles (Pages/ZigCollectionTile.ui in
+// a wrapping grid), and three strips of compact rows (Pinned, Recently earned, Nearly there).
+//
+// #Split is Browse's and Statistics' list and page: the list of collapsible sections at the left (the kit's
+// LedgerPainter), the selected row's page at the right (the kit's @ZigDetailPage, painted by DetailPainter). Each
+// has an empty state for when it has nothing to show. #AchievementsEmpty covers the whole tab when there is
+// nothing at all to list.
+
+Group #Achievements {
+  Anchor: (Height: 896);
+  LayoutMode: Top;
+
+  Group #Toolbar {
+    LayoutMode: Left;
+    Anchor: (Height: 32, Bottom: 12);
+
+    Group #Views {
+      LayoutMode: Left;
+      Anchor: (Width: 414);
+    }
+
+    Group #ToolbarSpace {
+      FlexWeight: 1;
+    }
+
+    $S.@ZigSearchRow #Search {
+      @Anchor = (Width: 346);
+      @Height = 32;
+      @Placeholder = %ziggfreedcommon.progression.book.achievements.searchPlaceholder;
+    }
+  }
+
+  Group #Filters {
+    LayoutMode: Left;
+    Anchor: (Height: 32, Bottom: 12);
+    Visible: false;
+
+    Group #Statuses {
+      LayoutMode: Left;
+      Anchor: (Width: 690);
+    }
+
+    Group #FiltersSpace {
+      FlexWeight: 1;
+    }
+
+    $C.@DropdownBox #Category {
+      Anchor: (Width: 240, Height: 32);
+    }
+
+    Group #FiltersGap {
+      Anchor: (Width: 8);
+    }
+
+    $C.@DropdownBox #Sort {
+      Anchor: (Width: 220, Height: 32);
+    }
+  }
+
+  // Overview.
+  Group #Overview {
+    FlexWeight: 1;
+    LayoutMode: TopScrolling;
+    ScrollbarStyle: $C.@DefaultScrollbarStyle;
+    Padding: (Right: 8);
+    Visible: false;
+
+    Group #CardRow {
+      LayoutMode: Left;
+      Anchor: (Height: 132, Bottom: $ZK.@ZigSpace4);
+
+      // Earned of total and the points, one completion bar, and the rewards still to collect.
+      Group #Hero {
+        Anchor: (Width: 620, Height: 132);
+        LayoutMode: Top;
+        Padding: (Full: $ZK.@ZigSpace3);
+        Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+
+        Group #HeroFigures {
+          LayoutMode: Left;
+          Anchor: (Height: 40);
+
+          Label #HeroEarned {
+            FlexWeight: 1;
+            Text: "";
+            Style: (...$ZX.@ZigFigureStyle, HorizontalAlignment: Start);
+          }
+
+          Label #HeroPoints {
+            Anchor: (Width: 280);
+            Text: "";
+            Style: $ZS.@ZigFigureAccentStyle;
+          }
+        }
+
+        Group #HeroBarRow {
+          LayoutMode: Left;
+          Anchor: (Height: 20, Top: $ZK.@ZigSpace2);
+
+          Group #HeroTrack {
+            FlexWeight: 1;
+            Anchor: (Height: 8, Top: 6);
+            Background: "../Common/ProgressBar.png";
+
+            ProgressBar #HeroBar {
+              BarTexturePath: "../Common/ProgressBarFill.png";
+              Value: 0.0;
+            }
+          }
+
+          Label #HeroPercent {
+            Anchor: (Width: 64);
+            Text: "";
+            Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End);
+          }
+        }
+
+        Group #HeroWaiting {
+          LayoutMode: Left;
+          Anchor: (Height: 28, Top: $ZK.@ZigSpace2);
+          Visible: false;
+
+          Label #HeroWaitingLine {
+            FlexWeight: 1;
+            Text: "";
+            Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigAccent, RenderBold: true, Wrap: true, WrapMaxLines: 1);
+          }
+
+          Button #HeroShow {
+            Anchor: (Width: 100, Height: 28);
+            Style: $ZS.@ZigButtonSecondaryStyle;
+
+            Label #Label {
+              FlexWeight: 1;
+              Text: "";
+              Style: $ZX.@ZigButtonLabelStyle;
+            }
+          }
+        }
+      }
+
+      Group #CardGap {
+        Anchor: (Width: 8);
+      }
+
+      // The next points milestone: its name, Collect when it pays, its bar, its rewards and how many follow.
+      // #Track is where rung markers sit along the bar.
+      Group #Milestone {
+        Anchor: (Width: 630, Height: 132);
+        LayoutMode: Top;
+        Padding: (Full: $ZK.@ZigSpace3);
+        Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+        Visible: false;
+
+        Group #MsHead {
+          LayoutMode: Left;
+          Anchor: (Height: 32);
+
+          Label #MsTitle {
+            FlexWeight: 1;
+            Text: "";
+            Style: (...$ZX.@ZigHeadingStyle, Wrap: true, WrapMaxLines: 1);
+          }
+
+          Button #MsCollect {
+            Anchor: (Width: 120, Height: 32, Left: $ZK.@ZigSpace2);
+            Style: $ZS.@ZigButtonCollectStyle;
+            Visible: false;
+
+            Label #Label {
+              FlexWeight: 1;
+              Text: "";
+              Style: $ZX.@ZigButtonLabelStyle;
+            }
+          }
+        }
+
+        Group #MsBarRow {
+          LayoutMode: Left;
+          Anchor: (Height: 20, Top: $ZK.@ZigSpace2);
+
+          Group #MsTrack {
+            FlexWeight: 1;
+            Anchor: (Height: 8, Top: 6);
+            Background: "../Common/ProgressBar.png";
+
+            ProgressBar #MsBar {
+              BarTexturePath: "../Common/ProgressBarFill.png";
+              Value: 0.0;
+            }
+          }
+
+          Label #MsCount {
+            Anchor: (Width: 160);
+            Text: "";
+            Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+          }
+        }
+
+        // The ladder's rung markers (Pages/ZigMilestoneRung.ui), shown for a ladder of two rungs or more. #Rungs has
+        // no layout of its own: each marker is placed by its whole Anchor from Java. #RungsEnd matches #MsCount's
+        // width, so #Rungs spans exactly the bar above it.
+        Group #Track {
+          LayoutMode: Left;
+          Anchor: (Height: 12, Top: $ZK.@ZigSpace1);
+          Visible: false;
+
+          Group #Rungs {
+            FlexWeight: 1;
+          }
+
+          Group #RungsEnd {
+            Anchor: (Width: 160);
+          }
+        }
+
+        Group #MsFoot {
+          LayoutMode: Left;
+          Anchor: (Height: 20, Top: $ZK.@ZigSpace2);
+
+          Label #MsRewards {
+            FlexWeight: 1;
+            Text: "";
+            Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 1);
+          }
+
+          Label #MsAfter {
+            Anchor: (Width: 220);
+            Text: "";
+            Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: End, Wrap: true, WrapMaxLines: 1);
+          }
+        }
+      }
+    }
+
+    Label #CategoriesLabel {
+      Anchor: (Height: 32);
+      Text: "";
+      Style: $ZX.@ZigSectionLabelStyle;
+    }
+
+    Group #CategoriesRule {
+      Anchor: (Height: 1, Bottom: $ZK.@ZigSpace2);
+      Background: (Color: $ZK.@ZigDivider);
+    }
+
+    // One tile per category, then the Feats tile; each tile carries its own right and bottom margin.
+    Group #Tiles {
+      LayoutMode: LeftWrap;
+      Anchor: (Bottom: $ZK.@ZigSpace3);
+    }
+
+    Group #Strips {
+      LayoutMode: Left;
+      Anchor: (Bottom: $ZK.@ZigSpace4);
+
+      Group #PinnedStrip {
+        Anchor: (Width: 408);
+        LayoutMode: Top;
+
+        Group #PinnedList {
+          LayoutMode: Top;
+        }
+
+        Label #PinnedEmpty {
+          Anchor: (Top: $ZK.@ZigSpace1);
+          Text: "";
+          Visible: false;
+          Style: (...$ZX.@ZigCaptionStyle, Wrap: true);
+        }
+      }
+
+      Group #StripGapOne {
+        Anchor: (Width: 17);
+      }
+
+      Group #RecentStrip {
+        Anchor: (Width: 408);
+        LayoutMode: Top;
+
+        Group #RecentList {
+          LayoutMode: Top;
+        }
+
+        Label #RecentEmpty {
+          Anchor: (Top: $ZK.@ZigSpace1);
+          Text: "";
+          Visible: false;
+          Style: (...$ZX.@ZigCaptionStyle, Wrap: true);
+        }
+      }
+
+      Group #StripGapTwo {
+        Anchor: (Width: 17);
+      }
+
+      Group #NearlyStrip {
+        Anchor: (Width: 408);
+        LayoutMode: Top;
+
+        Group #NearlyList {
+          LayoutMode: Top;
+        }
+
+        Label #NearlyEmpty {
+          Anchor: (Top: $ZK.@ZigSpace1);
+          Text: "";
+          Visible: false;
+          Style: (...$ZX.@ZigCaptionStyle, Wrap: true);
+        }
+      }
+    }
+  }
+
+  // Browse and Statistics: the list and the selected row's page.
+  Group #Split {
+    FlexWeight: 1;
+    LayoutMode: Left;
+    Visible: false;
+
+    Group #ListColumn {
+      Anchor: (Width: 500);
+      LayoutMode: Top;
+
+      Group #List {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 8);
+      }
+
+      $ZW.@ZigEmptyState #ListEmpty {
+        FlexWeight: 1;
+        Visible: false;
+      }
+    }
+
+    Group #SplitGutter {
+      Anchor: (Width: 16);
+    }
+
+    Group #PageCard {
+      Anchor: (Width: 750);
+      LayoutMode: Top;
+      Background: (TexturePath: "../Common/ContainerPanelPatch.png", Border: 4);
+
+      $ZW.@ZigDetailPage #Page {
+        FlexWeight: 1;
+      }
+
+      $ZW.@ZigEmptyState #PageEmpty {
+        FlexWeight: 1;
+        Visible: false;
+      }
+    }
+  }
+
+  $ZW.@ZigEmptyState #AchievementsEmpty {
+    FlexWeight: 1;
+    Visible: false;
+  }
+}

@@ -1,0 +1,70 @@
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+
+// One earned title in the title picker, 286 x 88, appended by
+// com.ziggfreed.common.objectives.title.page.TitlePickerPage two to a row and addressed by index as "#Earned[i]".
+//
+// Vanilla's Memories tile (Pages/Memories/Memory.ui), which shows a state by showing one of its backgrounds:
+// #FaceRest (TileDefault) for a title on offer, #FaceShown (TileComplete) for the title shown now, exactly one
+// visible. Over it:
+//   #Name     the title's name, one line
+//   #Flavor   how it was earned, two lines, hidden when the title says nothing
+//   #Show     Show, or Shown on the title shown now (its style swaps to the primary look); a Button holding
+//             Label #Label, the tile's only click target
+
+Group #ZigTitleTile {
+  Anchor: (Width: 286, Height: 88, Right: $ZK.@ZigSpace2, Bottom: $ZK.@ZigSpace2);
+
+  Group #Face {
+    Anchor: (Full: 0);
+    LayoutMode: Full;
+
+    Group #FaceShown {
+      Anchor: (Full: 0);
+      Background: (TexturePath: "../Pages/Memories/Tiles/TileComplete.png", Border: 8);
+      Visible: false;
+    }
+
+    Group #FaceRest {
+      Anchor: (Full: 0);
+      Background: (TexturePath: "../Pages/Memories/Tiles/TileDefault.png", Border: 8);
+    }
+
+    Group #TileBody {
+      Anchor: (Full: 0);
+      LayoutMode: Left;
+      Padding: (Horizontal: $ZK.@ZigSpace3, Vertical: 10);
+
+      Group #TileText {
+        FlexWeight: 1;
+        LayoutMode: Top;
+        Padding: (Right: $ZK.@ZigSpace2);
+
+        Label #Name {
+          Anchor: (Height: 22);
+          Text: "";
+          Style: $ZX.@ZigRowTitleStyle;
+        }
+
+        Label #Flavor {
+          Anchor: (Height: 36);
+          Text: "";
+          Visible: false;
+          Style: (...$ZX.@ZigCaptionStyle, Wrap: true, WrapMaxLines: 2);
+        }
+      }
+
+      Button #Show {
+        Anchor: (Width: 88, Height: $ZK.@ZigControlHeight, Top: 18);
+        Style: $ZS.@ZigButtonSecondaryStyle;
+
+        Label #Label {
+          FlexWeight: 1;
+          Text: "";
+          Style: $ZX.@ZigButtonLabelStyle;
+        }
+      }
+    }
+  }
+}

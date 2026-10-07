@@ -1,0 +1,88 @@
+$C = "../Common.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZW = "../Common/ZigKit.ui";
+$S = "../Common/ZigSearchRow.ui";
+
+// The Objective Book's Quests tab (com.ziggfreed.common.objectives.book.quest.QuestJournalTab), appended into
+// the shell's #TabBody: 1266 wide, 896 high (book/LedgerLayout holds the numbers, ZigBookJournalDocumentTest holds
+// this document to them).
+//
+// #Toolbar: four status segments, the category dropdown, the tag dropdown (shown only while a quest carries a
+// tag) and the search row. #Split: the list column (#List, the sections the kit's ledger painter appends; #ListEmpty
+// when the filters hide every quest) and the page card (#Page, the selected quest's page). #JournalEmpty shows
+// across the whole body instead when the log holds no quest at all.
+
+Group #Journal {
+  Anchor: (Height: 896);
+  LayoutMode: Top;
+
+  Group #Toolbar {
+    LayoutMode: Left;
+    Anchor: (Height: 32, Bottom: 12);
+
+    $ZW.@ZigSegment #SegAll {}
+    $ZW.@ZigSegment #SegProgress {}
+    $ZW.@ZigSegment #SegAvailable {}
+    $ZW.@ZigSegment #SegDone {}
+
+    $C.@DropdownBox #CategoryDropdown {
+      Anchor: (Width: 200, Height: 32, Left: 12);
+    }
+
+    $C.@DropdownBox #TagDropdown {
+      Anchor: (Width: 200, Height: 32, Left: 12);
+      Visible: false;
+    }
+
+    Group #ToolbarGap {
+      FlexWeight: 1;
+    }
+
+    $S.@ZigSearchRow #Search {
+      @Anchor = (Width: 300);
+      @Height = 32;
+      @Placeholder = %ziggfreedcommon.journal.search.placeholder;
+    }
+  }
+
+  Group #Split {
+    LayoutMode: Left;
+    Anchor: (Height: 852);
+
+    Group #ListColumn {
+      Anchor: (Width: 500);
+      LayoutMode: Top;
+
+      Group #List {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 8);
+      }
+
+      $ZW.@ZigEmptyState #ListEmpty {
+        Visible: false;
+        FlexWeight: 1;
+      }
+    }
+
+    Group #SplitGutter {
+      Anchor: (Width: 16);
+    }
+
+    Group #PageCard {
+      Anchor: (Width: 750);
+      LayoutMode: Top;
+      Background: (Color: $ZK.@ZigSurfaceRow);
+
+      $ZW.@ZigDetailPage #Page {
+        FlexWeight: 1;
+      }
+    }
+  }
+
+  $ZW.@ZigEmptyState #JournalEmpty {
+    Visible: false;
+    FlexWeight: 1;
+  }
+}

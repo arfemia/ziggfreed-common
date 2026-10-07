@@ -1,0 +1,56 @@
+# The quest journal: the book's Quests tab and the quest page it shares with the NPC quest page.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.journal.<key>.
+
+# The list's sections, in the order they read.
+section.ready = Ready to collect
+section.progress = In progress
+section.available = Available
+section.not_yet = Not yet available
+section.waiting = Waiting
+section.completed = Completed
+
+# A row's state word. In back_in, {0} is how long until the quest comes back.
+state.collect = Collect
+state.progress = In progress
+state.available = Available
+state.locked = Locked
+state.back_in = Back in {0}
+state.done = Done
+
+# The header's three numbers and the line under the title.
+stat.progress = In progress
+stat.collect = To collect
+stat.tracking = Tracking
+subtitle = {0, number} in progress, {1, number} ready to collect
+
+# The toolbar.
+status.all = All
+status.progress = In progress
+status.available = Available
+status.done = Done
+category.all = All categories
+tag.all = All tags
+
+# The quest page.
+block.requirements = Requirements
+block.objectives = Objectives
+block.step = Step {0, number}
+block.rewards = Rewards
+action.accept = Accept
+action.hand_in = Hand in
+action.collect = Collect
+action.abandon = Abandon
+action.track = Track
+action.untrack = Untrack
+hint.talk_to = Talk to {0} to take this quest
+hint.log_full = Your log is full ({0, number})
+hint.collect_at_site = Collect it where you handed it in
+progress.steps = {0, number} / {1, number} steps
+
+# An empty log.
+empty.title = No quests yet
+empty.line = People around Orbis have work for you. When you take a quest it shows up here.
+
+hint.talk_to_plain = Talk to its quest giver to take this quest
+reward.waiting = Waiting
+search.placeholder = Search quests...

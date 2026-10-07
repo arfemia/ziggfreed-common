@@ -57,6 +57,15 @@ class ZigTypeTest {
         assertEquals(14, ZigType.BODY, "the maintainer's ruling: row labels and body text at 14");
     }
 
+    @Test
+    void theHeroStepIsTheLargest() throws IOException {
+        Map<String, Integer> steps = steps();
+        assertEquals(Integer.valueOf(28), steps.get("Hero"), "@ZigFontHero, the Almanac hero's season name");
+        for (Map.Entry<String, Integer> step : steps.entrySet()) {
+            assertTrue(step.getValue() <= steps.get("Hero"), "@ZigFont" + step.getKey() + " is no larger than the hero");
+        }
+    }
+
     /** {@code DisplayLarge} names the constant {@code DISPLAY_LARGE}. */
     private static String constantName(String step) {
         return step.replaceAll("([a-z])([A-Z])", "$1_$2").toUpperCase(Locale.ROOT);

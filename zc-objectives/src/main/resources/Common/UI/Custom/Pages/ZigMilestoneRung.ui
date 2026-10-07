@@ -1,0 +1,34 @@
+$ZK = "../Common/ZigTokens.ui";
+
+// One rung marker on the achievements overview's milestone card, 12 x 12, appended by
+// com.ziggfreed.common.objectives.book.achievement.MilestoneTrack into the card's #Rungs and placed along the bar
+// by its whole Anchor from Java, the way vanilla's Memories page places its chest markers
+// (Pages/Memories/ChestMarker.ui in a host with no layout of its own).
+//
+// Exactly one dot shows, tinted for how the rung reads:
+//   #Reached  the points reached it (done green)
+//   #Next     the rung the card is working toward (gold)
+//   #Ahead    further up the ladder (faint)
+// No tooltip and no click: the card's own title, count and Collect say the rest.
+
+Group #ZigMilestoneRung {
+  Anchor: (Left: 0, Top: 0, Width: 12, Height: 12);
+  LayoutMode: Full;
+
+  Group #Reached {
+    Anchor: (Full: 0);
+    Background: (TexturePath: "../Common/Glyphs/Dot.png", Color: $ZK.@ZigToneDoneFill);
+    Visible: false;
+  }
+
+  Group #Next {
+    Anchor: (Full: 0);
+    Background: (TexturePath: "../Common/Glyphs/Dot.png", Color: $ZK.@ZigAccent);
+    Visible: false;
+  }
+
+  Group #Ahead {
+    Anchor: (Full: 0);
+    Background: (TexturePath: "../Common/Glyphs/Dot.png", Color: $ZK.@ZigInkFaint);
+  }
+}

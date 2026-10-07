@@ -12,7 +12,6 @@ unlocked_hint = Gösterdiğin unvanı /zigtitle open ile seç
 picker.title = Unvanlar
 picker.subtitle = Menülerde ve liderlik tablolarında adının yanında görünen unvanı seç.
 picker.preview = Şöyle görünürsün: {0}
-picker.none = Henüz bir unvan kazanmadın.
 picker.on = Gösteriliyor
 picker.off = Göster
 picker.back = Geri

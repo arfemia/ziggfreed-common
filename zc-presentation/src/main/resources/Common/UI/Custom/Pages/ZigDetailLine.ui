@@ -1,5 +1,10 @@
+$C = "../Common.ui";
 $Z = "../Common/ZigButtons.ui";
 $ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZS = "../Common/ZigStyles.ui";
+$ZW = "../Common/ZigKit.ui";
 
 // One line of a detail panel: a step and its count, a reward and its picture, or a reason
 // something is out of reach. ONE template for all three, because the three differ in what they SAY
@@ -23,40 +28,103 @@ $ZT = "../Common/ZigType.ui";
 // Style comes from the shared ZigButtons.ui ladder; a grid with no Style draws nothing - pick the
 // rung matching the grid's Anchor if the size changes), and #IcoTex draws a Common-rooted texture
 // path - which is how a creature is shown, from the still the client renders of it. #IcoTex
-// carries a fallback so a creature that never had one rendered still lines up.
+// carries a fallback so a creature that never had one rendered still lines up. The slot itself carries the
+// tooltip style, so a picture with nothing to say on hover (a currency, a boost) can carry the line's own words.
 //
 // All text lands on #LineText.TextSpans: a Message on a Label's .Text neither substitutes {0} nor
 // renders markup. A caller that wants a line to read as a heading restyles #LineText's leaves
 // (colour, size, bold, spacing) rather than appending a second template into the same list, so
 // every index in that list has one child set.
+//
+// The kit's reading page (com.ziggfreed.common.ui.kit.DetailPainter) uses four more slots, each hidden
+// so a line that sets none of them reads exactly as before:
+//   #Tick        a 20px glyph before the line: #Done, #Current, #Ahead or #Locked, one shown, tinted by its tone
+//   #Count       a bold count at the line's end, 96 wide ("12 / 50")
+//   #Tag         a pill at the line's end (a reward's state, "Collected")
+//   #LineSelect  a row-styled Button behind the whole line, shown when the line opens something; the line's
+//                words draw over it and carry no tooltip, so a click anywhere on the line reaches it
 
 Group #ZigDetailLine {
-  LayoutMode: Left;
-  Anchor: (Height: 30, Bottom: 2);
+  LayoutMode: Full;
+  Anchor: (Height: $ZK.@ZigLineHeight, Bottom: 2);
 
-  Group #LineIconSlot {
-    Anchor: (Width: 28, Height: 28, Right: 8);
+  Button #LineSelect {
+    Anchor: (Full: 0);
+    Style: $ZS.@ZigRowStyle;
     Visible: false;
-
-    ItemGrid #IcoItem {
-      Anchor: (Width: 28, Height: 28);
-      Visible: false;
-      SlotsPerRow: 1;
-      AreItemsDraggable: false;
-      DisplayItemQuantity: false;
-      Style: $Z.@ZigIconGrid28;
-    }
-
-    AssetImage #IcoTex {
-      Anchor: (Width: 28, Height: 28);
-      Visible: false;
-      FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
-    }
   }
 
-  Label #LineText {
-    FlexWeight: 1;
-    Text: "";
-    Style: (FontSize: $ZT.@ZigFontHeading, TextColor: #c6d4e4, VerticalAlignment: Center);
+  Group #LineRow {
+    Anchor: (Full: 0);
+    LayoutMode: Left;
+
+    Group #Tick {
+      Anchor: (Width: 20, Height: 20, Top: 6, Right: $ZK.@ZigSpace2);
+      LayoutMode: Full;
+      Visible: false;
+
+      Group #Done {
+        Anchor: (Full: 0);
+        Background: (TexturePath: "../Common/Checkmark.png", Color: $ZK.@ZigToneDoneText);
+        Visible: false;
+      }
+
+      Group #Current {
+        Anchor: (Full: 0);
+        Background: (TexturePath: "../Common/Glyphs/Dot.png", Color: $ZK.@ZigToneActiveText);
+        Visible: false;
+      }
+
+      Group #Ahead {
+        Anchor: (Full: 0);
+        Background: (TexturePath: "../Common/Glyphs/Dot.png", Color: $ZK.@ZigInkFaint);
+        Visible: false;
+      }
+
+      Group #Locked {
+        Anchor: (Full: 0);
+        Background: (TexturePath: "../Common/Glyphs/Lock.png", Color: $ZK.@ZigInkFaint);
+        Visible: false;
+      }
+    }
+
+    Group #LineIconSlot {
+      Anchor: (Width: 28, Height: 28, Top: 2, Right: 8);
+      TextTooltipStyle: $C.@DefaultTextTooltipStyle;
+      Visible: false;
+
+      ItemGrid #IcoItem {
+        Anchor: (Width: 28, Height: 28);
+        Visible: false;
+        SlotsPerRow: 1;
+        AreItemsDraggable: false;
+        DisplayItemQuantity: false;
+        Style: $Z.@ZigIconGrid28;
+      }
+
+      AssetImage #IcoTex {
+        Anchor: (Width: 28, Height: 28);
+        Visible: false;
+        FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+      }
+    }
+
+    Label #LineText {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: $ZT.@ZigFontHeading, TextColor: $ZK.@ZigInkStrong, VerticalAlignment: Center);
+    }
+
+    Label #Count {
+      Anchor: (Width: 96, Left: $ZK.@ZigSpace2);
+      Text: "";
+      Visible: false;
+      Style: (...$ZX.@ZigBodyStyle, RenderBold: true, HorizontalAlignment: End);
+    }
+
+    $ZW.@ZigPill #Tag {
+      @Anchor = (Top: 4, Left: $ZK.@ZigSpace2);
+      Visible: false;
+    }
   }
 }

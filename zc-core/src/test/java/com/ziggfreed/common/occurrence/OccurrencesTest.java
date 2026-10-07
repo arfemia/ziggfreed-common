@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -79,6 +81,43 @@ class OccurrencesTest {
         }
     };
 
+    /** The run {@link #DATED} has still to come. */
+    private static final Occurrence NEXT_RUN = new Occurrence("Spring_Fair", 2027, 3_000L, 4_000L);
+
+    private static final ZoneId TOKYO = ZoneId.of("Asia/Tokyo");
+
+    /** A source that answers the dates: one event, its next run still ahead, its days counted in Tokyo. */
+    private static final OccurrenceSource DATED = new OccurrenceSource() {
+        @Override
+        public boolean isEnabled(@Nonnull String eventId) {
+            return "spring_fair".equalsIgnoreCase(eventId);
+        }
+
+        @Override
+        @Nullable
+        public Occurrence live(@Nonnull String eventId, long nowMs) {
+            return null;
+        }
+
+        @Override
+        @Nonnull
+        public List<Occurrence> history(@Nonnull String eventId, long nowMs) {
+            return List.of();
+        }
+
+        @Override
+        @Nullable
+        public Occurrence next(@Nonnull String eventId, long nowMs) {
+            return isEnabled(eventId) && nowMs < NEXT_RUN.startMs() ? NEXT_RUN : null;
+        }
+
+        @Override
+        @Nonnull
+        public ZoneId zone(@Nonnull String eventId) {
+            return isEnabled(eventId) ? TOKYO : ZoneOffset.UTC;
+        }
+    };
+
     @BeforeEach
     @AfterEach
     void emptyTheSlot() {
@@ -114,6 +153,26 @@ class OccurrencesTest {
         Occurrences.fill(ONE_RUN);
         assertNull(Occurrences.source().firstYear("spring_fair"), "the default answers nothing");
         assertNull(Occurrences.source().currentYear("spring_fair", 1_500L));
+    }
+
+    @Test
+    void aSourceThatDoesNotAnswerTheDatesKnowsNoNextRunAndCountsInUtc() {
+        OccurrenceSource none = Occurrences.source();
+        assertNull(none.next("spring_fair", 500L), "no calendar, no next run");
+        assertEquals(ZoneOffset.UTC, none.zone("spring_fair"), "and no clock but UTC");
+        Occurrences.fill(ONE_RUN);
+        assertNull(Occurrences.source().next("spring_fair", 500L),
+                "the default answers no next run, even for an event the source has");
+        assertEquals(ZoneOffset.UTC, Occurrences.source().zone("spring_fair"), "and counts its days in UTC");
+    }
+
+    @Test
+    void theDatesAnswerThroughTheSlot() {
+        Occurrences.fill(DATED);
+        assertEquals(NEXT_RUN, Occurrences.source().next("Spring_Fair", 1_500L));
+        assertEquals(TOKYO, Occurrences.source().zone("Spring_Fair"));
+        assertNull(Occurrences.source().next("no_such_event", 1_500L));
+        assertEquals(ZoneOffset.UTC, Occurrences.source().zone("no_such_event"));
     }
 
     @Test
