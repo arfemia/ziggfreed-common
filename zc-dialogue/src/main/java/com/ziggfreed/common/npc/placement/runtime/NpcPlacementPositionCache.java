@@ -79,7 +79,7 @@ public final class NpcPlacementPositionCache {
         CACHE.remove(key(worldName, placementId, anchorKey));
     }
 
-    /** Forget a whole world (it was removed). */
+    /** Forget a whole world (it was deleted, and its ledger rows went with it). */
     public static void forgetWorld(@Nonnull String worldName) {
         String prefix = worldName.toLowerCase(Locale.ROOT) + '\0';
         CACHE.keySet().removeIf(k -> k.startsWith(prefix));
