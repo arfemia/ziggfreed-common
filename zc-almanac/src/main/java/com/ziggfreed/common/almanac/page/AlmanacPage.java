@@ -58,6 +58,7 @@ import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.UiRetint;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.icon.IconRenderer;
+import com.ziggfreed.common.ui.kit.DetailPainter;
 import com.ziggfreed.common.ui.kit.EmptyStatePainter;
 import com.ziggfreed.common.ui.kit.LedgerBindings;
 import com.ziggfreed.common.ui.kit.LedgerPainter;
@@ -93,7 +94,7 @@ public final class AlmanacPage extends InteractiveCustomUIPage<AlmanacEventData>
     static final String MARK_TEMPLATE = "Pages/ZigAlmanacMonthMark.ui";
 
     /** The pill each earned feat shows as ({@code Pages/ZigPill.ui}, addressed {@code host[i] #Pill}). */
-    static final String FEAT_TEMPLATE = "Pages/ZigPill.ui";
+    static final String FEAT_TEMPLATE = DetailPainter.PILL_TEMPLATE;
 
     /**
      * One composed hero's item picture, appended onto the plate's {@code #HeroItems} and placed by a whole Anchor:

@@ -70,10 +70,6 @@ public final class BookActions {
     public static final String CLAIM = "claim";
     public static final String CLAIM_MILESTONE = "claim_milestone";
 
-    /** The pre-redesign book's row expand and subcategory chips: answered, and nothing changes. */
-    public static final String LEGACY_EXPAND = "toggle";
-    public static final String LEGACY_SUBFILTER = "subfilter";
-
     /** Every verb, each answered by a reopen on the same state. */
     public static final List<String> VERBS = List.of(PRIMARY, ACCEPT, COLLECT, HAND_IN, ABANDON, TRACK, PIN, CLAIM,
             CLAIM_MILESTONE);
@@ -81,7 +77,7 @@ public final class BookActions {
     /** Every action the shell answers. */
     public static final List<String> ALL = List.of(CLOSE, VIEW, SECTION, SELECT, OPEN, CATEGORY, STATUS, SORT, TAG,
             SEARCH, CLEAR_SEARCH, CLEAR_FILTERS, EXT, PRIMARY, ACCEPT, COLLECT, HAND_IN, ABANDON, TRACK, PIN, CLAIM,
-            CLAIM_MILESTONE, LEGACY_EXPAND, LEGACY_SUBFILTER);
+            CLAIM_MILESTONE);
 
     private BookActions() {
     }
@@ -205,9 +201,8 @@ public final class BookActions {
             });
             case CLAIM_MILESTONE -> verbThenReopen(ctx, () -> ctx.verbs().claimMilestone(threshold(data.threshold))
                     == ObjectiveBookDeps.MilestoneClaimOutcome.SUCCESS);
-            case LEGACY_SUBFILTER -> ctx.reopen(state);
             default -> {
-                // An unknown action, or the old row expand: the empty update below answers it.
+                // An unknown action: the empty update below answers it.
             }
         }
     }

@@ -588,6 +588,7 @@ public final class AchievementReader {
             IconSpec icon = ProgressionIcons.forObjective(a.id(), a.criteria().get(index));
             return icon == null || icon.isEmpty() ? Picture.NONE : new Picture(icon.itemId(), icon.texturePath());
         } catch (Throwable t) {
+            SafeLog.fine("[progression] a criterion picture could not be read for " + a.id(), t);
             return Picture.NONE;
         }
     }
@@ -601,6 +602,7 @@ public final class AchievementReader {
         try {
             return categories.apply(bucket);
         } catch (Throwable t) {
+            SafeLog.fine("[progression] the achievement category '" + bucket + "' could not be read", t);
             return null;
         }
     }
@@ -639,6 +641,7 @@ public final class AchievementReader {
             CalendarEventAsset.Presentation presentation = event == null ? null : event.presentation();
             return presentation == null ? null : presentation.titleKey();
         } catch (Throwable t) {
+            SafeLog.fine("[progression] the calendar title for '" + eventId + "' could not be read", t);
             return null;
         }
     }
@@ -687,6 +690,7 @@ public final class AchievementReader {
         try {
             return seen.seenAt(subject, bucket);
         } catch (Throwable t) {
+            SafeLog.fine("[progression] the seen mark for '" + bucket + "' could not be read", t);
             return Long.MAX_VALUE;
         }
     }

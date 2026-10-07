@@ -147,7 +147,7 @@ class ZigTokensDocumentTest {
 
     /**
      * One of the Java mirror's maps, read by reflection so this document test compiles on its own: the mirror is
-     * {@code com.ziggfreed.common.ui.kit.ZigTokens}, whose {@code colours()} and {@code integers()} key each token
+     * {@code ZigTokens}, whose {@code colours()} and {@code integers()} key each token
      * by its document name without the {@code @}.
      */
     @Nonnull

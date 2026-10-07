@@ -1180,6 +1180,7 @@ public final class AchievementsTab implements BookTab {
         try {
             return ProgressionRuntime.achievements().maxPinned();
         } catch (Throwable t) {
+            SafeLog.fine("[progression] the pin cap could not be read", t);
             return 0;
         }
     }
