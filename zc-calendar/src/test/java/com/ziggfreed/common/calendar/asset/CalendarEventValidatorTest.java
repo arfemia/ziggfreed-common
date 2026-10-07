@@ -103,6 +103,25 @@ class CalendarEventValidatorTest {
     }
 
     @Test
+    void aRuleThatCouldStartARunInTheYearBeforeIsAnErrorAndASetAsideYearsEntryAWarning() {
+        List<Finding> findings = audit(
+                CalendarFixtures.event("Early_Hunt",
+                        "{ \"Window\": { \"Rule\": { \"Type\": \"Easter\", \"Before\": 81 } }, \"FirstYear\": 2027 }"),
+                CalendarFixtures.event("Dated_Fair", """
+                        { "Window": { "Start": "06-01", "End": "06-07",
+                                      "Years": { "2025": { "Start": "06-02", "End": "06-08" } } }, "FirstYear": 2026 }
+                        """));
+
+        Finding invalid = only(findings, CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID);
+        assertEquals(Severity.ERROR, invalid.severity(), "the event never runs");
+        assertEquals("early_hunt", invalid.sourceId());
+        assertTrue(invalid.message().contains("so it never runs"), invalid.message());
+        Finding ignored = only(findings, CalendarEventAsset.PROBLEM_YEARS_ENTRY_IGNORED);
+        assertEquals(Severity.WARNING, ignored.severity(), "the event still runs; only that entry is set aside");
+        assertEquals("dated_fair", ignored.sourceId());
+    }
+
+    @Test
     void anIdAnotherSwitchUsesOrTheAttendanceRecordCannotSaveIsAnError() {
         List<Finding> findings = audit(CalendarFixtures.event("Almanac", CalendarFixtures.HARVEST_MOON),
                 CalendarFixtures.event("Spring|Fair", CalendarFixtures.HARVEST_MOON));

@@ -34,11 +34,17 @@ public final class CalendarEventConfig extends AbstractKeyedAssetConfig<Calendar
         globalEnabled = on;
     }
 
-    /** One warning per problem per event, so an author learns why an event never runs. */
+    /**
+     * One warning per problem per event, so an author learns why an event never runs, and one info line per
+     * note, so an author learns what the file states that is not used.
+     */
     public void reportProblems() {
         for (Map.Entry<String, CalendarEventAsset> entry : all().entrySet()) {
             for (String problem : entry.getValue().problems()) {
                 SafeLog.warn("[calendar] the calendar event '" + entry.getKey() + "' " + sentence(problem));
+            }
+            for (String note : entry.getValue().notes()) {
+                SafeLog.info("[calendar] the calendar event '" + entry.getKey() + "' " + sentence(note));
             }
         }
     }
@@ -54,7 +60,17 @@ public final class CalendarEventConfig extends AbstractKeyedAssetConfig<Calendar
                             + " runs; rename its file";
             case CalendarEventAsset.PROBLEM_WINDOW_MISSING -> "has no Window, so it never runs";
             case CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE ->
-                    "has a Window whose Start or End is not an MM-DD day, so it never runs";
+                    "has a Window whose days cannot be read (a Start or End that is not an MM-DD day, or a Rule "
+                            + "missing its Month, Weekday or Nth), so it never runs";
+            case CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID ->
+                    "has a Window Rule whose runs could start in the year before or last more than 366 days (or "
+                            + "a negative Before or After, or an Nth other than 1 to 5 or -1), so it never runs";
+            case CalendarEventAsset.PROBLEM_YEARS_ENTRY_IGNORED ->
+                    "has a Window Years entry that is not a four-digit year from its FirstYear on with MM-DD "
+                            + "Start and End days, so that entry is not used";
+            case CalendarEventAsset.NOTE_START_END_IGNORED ->
+                    "has a Window Rule, so its Window Start and End are not used; to give it the same days "
+                            + "every year, write Rule { Type: Fixed, Start, End }";
             case CalendarEventAsset.PROBLEM_FIRST_YEAR_MISSING -> "has no FirstYear, so it never runs";
             case CalendarEventAsset.PROBLEM_FIRST_YEAR_OUT_OF_RANGE ->
                     "has a FirstYear before " + CalendarEventAsset.MIN_FIRST_YEAR + " or after "
