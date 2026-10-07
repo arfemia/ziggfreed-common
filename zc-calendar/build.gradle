@@ -1,9 +1,10 @@
 apply from: "$rootDir/gradle/zc-module.gradle"
 
-// The yearly CALENDAR: events that recur on the same dates every year (Start and End month-days),
-// the owner's switches over them, the occurrence answers every other module reads through zc-core's
-// occurrence seam, a once-a-minute tick that announces a start and an end as native events, the
-// attendance record, the herald, and the native world-spawn rules an event writes while it runs.
+// The yearly CALENDAR: events that recur every year (fixed month-days, days around Easter or the Nth
+// weekday of a month, days set for particular years), the owner's switches over them, the occurrence
+// answers every other module reads through zc-core's occurrence seam, a once-a-minute tick that
+// announces a start and an end as native events, the attendance record, the herald, and the native
+// world-spawn rules an event writes while it runs.
 //
 // It depends on the primitive floor and on zc-presentation for the one event-title seam the herald
 // speaks through, and on nothing that holds progression: zc-progression reads occurrences through

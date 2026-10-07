@@ -4,11 +4,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.MonthDay;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -100,5 +105,27 @@ class AnnualWindowTest {
                 "a run starting this very instant is not the next one");
         assertEquals(at("2026-10-01T00:00:00Z"), window.nextStartMs(at("2026-06-01T00:00:00Z"), UTC, 2026));
         assertEquals(at("2030-10-01T00:00:00Z"), window.nextStartMs(at("2026-06-01T00:00:00Z"), UTC, 2030));
+    }
+
+    @Test
+    void aWindowWithNoRunLeftAnswersNoNextStartAtOnce() {
+        AnnualWindow window = AnnualWindow.of(null,
+                Map.of(2026, new YearRule.Fixed(MonthDay.of(6, 1), MonthDay.of(6, 7))));
+        assertNotNull(window);
+        assertEquals(at("2026-06-01T00:00:00Z"), window.nextStartMs(at("2026-01-01T00:00:00Z"), UTC, 2026));
+        assertTimeoutPreemptively(Duration.ofSeconds(1),
+                () -> assertNull(window.nextStartMs(at("2026-07-01T00:00:00Z"), UTC, 2026)));
+        assertNull(window.nextRunYear(2027));
+        assertFalse(window.hasRun(2027));
+        assertThrows(IllegalArgumentException.class, () -> window.startMs(2027, UTC),
+                "a year with no run has no first instant to ask for");
+    }
+
+    @Test
+    void theNextStartStopsAtTheLastFourDigitYear() {
+        AnnualWindow window = AnnualWindow.parse("10-01", "11-03");
+        assertNotNull(window);
+        assertTimeoutPreemptively(Duration.ofSeconds(1),
+                () -> assertNull(window.nextStartMs(at("9999-12-01T00:00:00Z"), UTC, 2026)));
     }
 }

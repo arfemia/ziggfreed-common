@@ -31,9 +31,10 @@ import com.ziggfreed.common.validation.TextKeyAudit;
  * load log already says them in. The codes, each a stable machine token a consumer may filter on:
  * <ul>
  *   <li>ERROR every problem that stops the event running ({@code ID_RESERVED}, {@code ID_UNSAVABLE},
- *       {@code WINDOW_MISSING}, {@code WINDOW_UNREADABLE}, {@code FIRST_YEAR_MISSING},
+ *       {@code WINDOW_MISSING}, {@code WINDOW_UNREADABLE}, {@code WINDOW_RUN_INVALID}, {@code FIRST_YEAR_MISSING},
  *       {@code FIRST_YEAR_OUT_OF_RANGE}), {@link #SPAWN_NO_EVENT}, {@link #SPAWN_NO_RULE_BODY};</li>
- *   <li>WARNING every other problem ({@code CLOCK_UNKNOWN}: the event runs, on UTC), {@link #UNKNOWN_ICON},
+ *   <li>WARNING every other problem ({@code CLOCK_UNKNOWN}: the event runs, on UTC; {@code YEARS_ENTRY_IGNORED}:
+ *       the event runs, without that one Years entry), {@link #UNKNOWN_ICON},
  *       {@link #HERALD_WITHOUT_TITLE}, {@link #SPAWN_UNKNOWN_EVENT}, and {@link TextKeyAudit#UNKNOWN_TEXT_KEY}
  *       for a Presentation or Herald key no loaded lang file ships.</li>
  * </ul>
@@ -57,6 +58,7 @@ public final class CalendarEventValidator {
             CalendarEventAsset.PROBLEM_ID_UNSAVABLE,
             CalendarEventAsset.PROBLEM_WINDOW_MISSING,
             CalendarEventAsset.PROBLEM_WINDOW_UNREADABLE,
+            CalendarEventAsset.PROBLEM_WINDOW_RUN_INVALID,
             CalendarEventAsset.PROBLEM_FIRST_YEAR_MISSING,
             CalendarEventAsset.PROBLEM_FIRST_YEAR_OUT_OF_RANGE);
 
