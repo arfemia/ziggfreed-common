@@ -222,4 +222,19 @@ class CalendarWindowRuleServiceTest {
         assertFalse(record.markAttended(byDates.eventId(), byDates.year()), "and attendance is still credited once");
         assertEquals(List.of(2026), record.yearsAttended("Harvest_Feast"));
     }
+
+    @Test
+    void anEventSaysWhetherItsDaysMove() {
+        CalendarFixtures.loadEvents(Map.of(
+                "egg_hunt", CalendarFixtures.event("Egg_Hunt", EASTER_HUNT),
+                "hallows_eve", CalendarFixtures.event("Hallows_Eve", CalendarFixtures.HALLOWS_EVE),
+                "dated_fair", CalendarFixtures.event("Dated_Fair", """
+                        { "Window": { "Start": "06-01", "End": "06-07",
+                                      "Years": { "2028": { "Start": "06-05", "End": "06-11" } } }, "FirstYear": 2026 }
+                        """)));
+        assertTrue(service.datesMove("egg_hunt"), "Easter moves");
+        assertTrue(service.datesMove("Dated_Fair"), "one dated year is enough to stop saying 'every year'");
+        assertFalse(service.datesMove("hallows_eve"));
+        assertFalse(service.datesMove("no_such_event"));
+    }
 }

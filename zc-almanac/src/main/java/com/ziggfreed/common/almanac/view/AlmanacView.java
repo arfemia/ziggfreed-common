@@ -121,11 +121,19 @@ public final class AlmanacView {
      * (the last day counted; null for a run forced on outside its dates) and whether today is the last
      * day. Between runs: the days until the next start, and whether that is within {@link #SOON_DAYS}.
      * The window's month-days come from the run going on, else the next, else the last; {@code
-     * startsLater} is a season whose first run is still ahead.
+     * startsLater} is a season whose first run is still ahead. {@code windowYear} is the framing run's
+     * year when the season's days move, null when they are the same every year.
      */
     public record Timing(boolean live, @Nullable Integer daysLeft, boolean lastDay, @Nullable Integer daysUntil,
                          boolean soon, @Nullable MonthDay windowStart, @Nullable MonthDay windowEnd,
-                         @Nullable LocalDate nextStart, boolean startsLater) {
+                         @Nullable LocalDate nextStart, boolean startsLater, @Nullable Integer windowYear) {
+
+        /** A season whose days are the same every year: no run's year to name. */
+        public Timing(boolean live, @Nullable Integer daysLeft, boolean lastDay, @Nullable Integer daysUntil,
+                boolean soon, @Nullable MonthDay windowStart, @Nullable MonthDay windowEnd,
+                @Nullable LocalDate nextStart, boolean startsLater) {
+            this(live, daysLeft, lastDay, daysUntil, soon, windowStart, windowEnd, nextStart, startsLater, null);
+        }
     }
 
     /** One year a player can read: whether it is the run on now, whether they took part, and its keepsake. */
@@ -396,6 +404,7 @@ public final class AlmanacView {
         MonthDay windowStart = framing == null ? null : MonthDay.from(day(framing.startMs(), zone));
         MonthDay windowEnd = framing == null ? null : MonthDay.from(lastDay(framing, zone));
         LocalDate nextStart = next == null ? null : day(next.startMs(), zone);
+        Integer windowYear = dates.datesMove() && framing != null ? Integer.valueOf(framing.year()) : null;
         if (live != null || season.live()) {
             Integer daysLeft = null;
             boolean lastDay = false;
@@ -404,12 +413,14 @@ public final class AlmanacView {
                 daysLeft = (int) Math.max(1L, ChronoUnit.DAYS.between(today, last) + 1L);
                 lastDay = !today.isBefore(last);
             }
-            return new Timing(true, daysLeft, lastDay, null, false, windowStart, windowEnd, nextStart, false);
+            return new Timing(true, daysLeft, lastDay, null, false, windowStart, windowEnd, nextStart, false,
+                    windowYear);
         }
         Integer daysUntil = nextStart == null ? null : (int) Math.max(0L, ChronoUnit.DAYS.between(today, nextStart));
         boolean soon = daysUntil != null && daysUntil <= SOON_DAYS;
         boolean startsLater = next != null && dates.history().isEmpty();
-        return new Timing(false, null, false, daysUntil, soon, windowStart, windowEnd, nextStart, startsLater);
+        return new Timing(false, null, false, daysUntil, soon, windowStart, windowEnd, nextStart, startsLater,
+                windowYear);
     }
 
     /**

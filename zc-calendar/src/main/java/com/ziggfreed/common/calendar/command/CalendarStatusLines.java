@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.ziggfreed.common.calendar.AnnualWindow;
 import com.ziggfreed.common.calendar.CalendarService;
@@ -60,7 +61,8 @@ public final class CalendarStatusLines {
             return Line.of("row.stopped", id);
         }
         Long next = service.nextStartMs(id, nowMs);
-        return next == null ? Line.of("row.off", id) : Line.of("row.waiting", id, day(next, event.zone()));
+        // Switched on and runnable, with no start ahead: a window of per-year days that has run out.
+        return next == null ? Line.of("row.done", id) : Line.of("row.waiting", id, day(next, event.zone()));
     }
 
     /** Everything status says: the row, the dates and zone, the first year, the runs so far, any problem. */
@@ -74,8 +76,17 @@ public final class CalendarStatusLines {
         out.add(row(service, eventId, nowMs));
         AnnualWindow window = event.annualWindow();
         ZoneId zone = event.zone();
-        out.add(Line.of("status.window", window == null ? "?" : window.toString(),
-                ZoneOffset.UTC.equals(zone) ? "UTC" : zone.getId()));
+        String clock = ZoneOffset.UTC.equals(zone) ? "UTC" : zone.getId();
+        if (window != null && window.moves()) {
+            out.add(Line.of("status.window.moving", window.toString(), clock));
+            Occurrence framing = framing(service, event.getId(), nowMs);
+            if (framing != null) {
+                out.add(Line.of("status.run", Integer.toString(framing.year()), day(framing.startMs(), zone),
+                        day(framing.endMs() - 1, zone)));
+            }
+        } else {
+            out.add(Line.of("status.window", window == null ? "?" : window.toString(), clock));
+        }
         Integer firstYear = event.firstYear();
         out.add(firstYear == null ? Line.of("status.first.none") : Line.of("status.first", firstYear.toString()));
         List<String> years = service.history(event.getId(), nowMs).stream()
@@ -84,7 +95,25 @@ public final class CalendarStatusLines {
         for (String problem : event.problems()) {
             out.add(Line.of("status.problem", problem));
         }
+        for (String note : event.notes()) {
+            out.add(Line.of("status.note", note));
+        }
         return out;
+    }
+
+    /** The run a moving window's dates line frames: the one going on, else the next, else the last; null when absent. */
+    @Nullable
+    private static Occurrence framing(@Nonnull CalendarService service, @Nonnull String eventId, long nowMs) {
+        Occurrence live = service.live(eventId, nowMs);
+        if (live != null) {
+            return live;
+        }
+        Occurrence next = service.next(eventId, nowMs);
+        if (next != null) {
+            return next;
+        }
+        List<Occurrence> history = service.history(eventId, nowMs);
+        return history.isEmpty() ? null : history.get(history.size() - 1);
     }
 
     /** {@code ms} as its {@code yyyy-MM-dd} day in {@code zone}. */
