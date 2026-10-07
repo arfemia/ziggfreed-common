@@ -12,6 +12,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.asset.EditorDataSets;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.LootRef;
@@ -54,6 +55,7 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable private LootRef loot;
     @Nullable private Boolean enabled;
     @Nullable private String season;
+    @Nullable private PresenceRequiresCodec.Block requires;
 
     /** WHEN the row fires: the moment, and which block, mob or item within it. */
     public static final class When {
@@ -140,7 +142,10 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
             .metadata(EditorSchema.defaultValue(true))
             .documentation("Set false to take this row out of the table entirely, which lets a broader "
                     + "pattern cover the same names again. To keep the row but hand nothing over, leave it "
-                    + "on and write no Loot.").add(),
+                    + "on and write no Loot.").add()
+            .appendInherited(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
+                    (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
+            .documentation(PresenceRequiresCodec.DOCUMENTATION).add(),
                     (a, v) -> a.season = v, a -> a.season)
             .build();
 
@@ -205,5 +210,11 @@ public final class BonusRowAsset implements JsonAssetWithMap<String, DefaultAsse
     @Nullable
     public String getSeason() {
         return SeasonGate.normalize(season);
+    }
+
+    /** Whether this row loads here at all (a companion mod's presence), or null when it always does. */
+    @Nullable
+    public PresenceRequiresCodec.Block getRequires() {
+        return requires;
     }
 }
