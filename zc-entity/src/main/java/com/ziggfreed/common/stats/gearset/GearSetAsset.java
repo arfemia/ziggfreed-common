@@ -20,6 +20,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.PresenceRequiresCodec;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.text.ContentTextAsset;
 
@@ -81,6 +82,7 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable protected Boolean enabled;
     @Nullable protected String[] members;
     @Nullable protected Tier[] bonuses;
+    @Nullable protected PresenceRequiresCodec.Block requires;
 
     public static final AssetBuilderCodec<String, GearSetAsset> CODEC = AssetBuilderCodec.builder(
                     GearSetAsset.class,
@@ -108,6 +110,9 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
             .documentation("The tiers, in order. Every tier whose minimums all hold applies at once, so "
                     + "they stack by construction. Under Parent this list replaces the parent's whole; "
                     + "restate every tier you keep.").add()
+            .appendInherited(new KeyedCodec<>("Requires", PresenceRequiresCodec.CODEC, false),
+                    (a, v) -> a.requires = v, a -> a.requires, (a, p) -> a.requires = p.requires)
+            .documentation(PresenceRequiresCodec.DOCUMENTATION).add()
             .build();
 
     public GearSetAsset() {
@@ -133,6 +138,12 @@ public final class GearSetAsset implements JsonAssetWithMap<String, DefaultAsset
     /** Whether the set applies at all; unauthored means yes. */
     public boolean isEnabled() {
         return enabled == null || enabled;
+    }
+
+    /** Whether this set loads here at all (a companion mod's presence), or null when it always does. */
+    @Nullable
+    public PresenceRequiresCodec.Block getRequires() {
+        return requires;
     }
 
     /** The members exactly as authored, or null when none were written. */
