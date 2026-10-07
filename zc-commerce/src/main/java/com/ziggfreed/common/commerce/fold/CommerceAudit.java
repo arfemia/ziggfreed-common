@@ -12,9 +12,11 @@ import com.ziggfreed.common.board.asset.BoardAssetStore;
 import com.ziggfreed.common.board.asset.BoardConfig;
 import com.ziggfreed.common.board.asset.BoardValidator;
 import com.ziggfreed.common.currency.asset.CurrencyConfig;
+import com.ziggfreed.common.currency.asset.CurrencyValidator;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.progress.gate.GateKindRegistry;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.shop.asset.ShopAssetStore;
 import com.ziggfreed.common.shop.asset.ShopConfig;
 import com.ziggfreed.common.shop.asset.ShopPoolConfig;
@@ -60,6 +62,7 @@ public final class CommerceAudit {
         collect(out, "wallet", CommerceAudit::auditCurrencies);
         collect(out, "shop", CommerceAudit::auditShops);
         collect(out, "board", CommerceAudit::auditBoards);
+        collect(out, "season", CommerceAudit::auditSeasons);
         return out;
     }
 
@@ -121,6 +124,28 @@ public final class CommerceAudit {
         out.addAll(BoardValidator.validate(BoardConfig.getInstance().all(),
                 BoardAssetStore.getInstance().assets(), CommerceAudit::definesCurrency, rewardKinds(),
                 objectiveKinds(), gateKinds(), null));
+        return out;
+    }
+
+    /**
+     * Every commerce file naming a {@code Season} no loaded calendar event declares, in its own
+     * domain's name. Authored files only, skeletons included: a generated offer inherits its base's
+     * season, so a typo is one line. Asked at audit time, once every store (the calendar's among them)
+     * has loaded.
+     */
+    @Nonnull
+    static List<Finding> auditSeasons() {
+        List<Finding> out = new ArrayList<>();
+        CurrencyConfig.getInstance().all().forEach((id, wallet) ->
+                SeasonGate.checkKnown(out, CurrencyValidator.DOMAIN, wallet.getSeason(), id));
+        ShopAssetStore.getInstance().assets().forEach((id, offer) ->
+                SeasonGate.checkKnown(out, ShopValidator.DOMAIN, offer.getSeason(), id));
+        ShopConfig.getInstance().all().forEach((id, shop) ->
+                SeasonGate.checkKnown(out, ShopValidator.DOMAIN, shop.getSeason(), id));
+        BoardConfig.getInstance().all().forEach((id, board) ->
+                SeasonGate.checkKnown(out, BoardValidator.DOMAIN, board.getSeason(), id));
+        BoardAssetStore.getInstance().assets().forEach((id, contract) ->
+                SeasonGate.checkKnown(out, BoardValidator.DOMAIN, contract.getSeason(), id));
         return out;
     }
 

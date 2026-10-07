@@ -18,6 +18,7 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.asset.CostAsset;
 import com.ziggfreed.common.commerce.asset.HideAxis;
@@ -25,6 +26,7 @@ import com.ziggfreed.common.progress.asset.ContentListingAsset;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.asset.RewardEntryAsset;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
@@ -81,10 +83,11 @@ public final class ShopEntryAsset
     @Nullable private Limits limits;
     @Nullable private PoolMembership pool;
     @Nullable private GateSpec requires;
+    @Nullable private String season;
     @Nullable private RewardEntryAsset[] rewards;
     @Nullable private Map<String, JsonElement> meta;
 
-    public static final AssetBuilderCodec<String, ShopEntryAsset> CODEC = AssetBuilderCodec.builder(
+    public static final AssetBuilderCodec<String, ShopEntryAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
                     ShopEntryAsset.class,
                     ShopEntryAsset::new,
                     Codec.STRING,
@@ -164,7 +167,8 @@ public final class ShopEntryAsset
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
             .documentation(ContentMeta.DOCUMENTATION)
-            .add()
+            .add(),
+                    (a, v) -> a.season = v, a -> a.season)
             .build();
 
     public ShopEntryAsset() {
@@ -180,13 +184,19 @@ public final class ShopEntryAsset
         return enabled == null || enabled;
     }
 
+    /** The calendar event this belongs to, trimmed, or null when it is on all year. */
+    @Nullable
+    public String getSeason() {
+        return SeasonGate.normalize(season);
+    }
+
     /**
-     * Is the offer on this server RIGHT NOW: for sale, and every plain top-level feature or mod
-     * condition in {@code Requires} reading on at this moment? An offer that answers false is off the
-     * page and cannot be bought.
+     * Is the offer on this server RIGHT NOW: for sale and in its {@code Season}, and every plain
+     * top-level feature or mod condition in {@code Requires} reading on at this moment? An offer that
+     * answers false is off the page and cannot be bought.
      */
     public boolean isAvailable() {
-        return HideAxis.present(isEnabled(), requires);
+        return HideAxis.present(isEnabled(), getSeason(), requires);
     }
 
     /** The purchase lock: {@code Requires} with the hide axis taken out, or null when nothing is left. */

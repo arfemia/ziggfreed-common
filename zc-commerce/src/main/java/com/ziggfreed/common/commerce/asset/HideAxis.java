@@ -32,7 +32,17 @@ public final class HideAxis {
      * False when it is switched off, or when any lifted condition reads off at this moment.
      */
     public static boolean present(boolean enabled, @Nullable GateSpec requires) {
-        return enabled && FeatureLift.allOn(FeatureLift.liftKnown(requires).lifted());
+        return present(enabled, null, requires);
+    }
+
+    /**
+     * Is content with this {@code Enabled} switch, this {@code Season} and this {@code Requires} block
+     * present right now? False when it is switched off, out of season, or when any lifted condition
+     * reads off at this moment, all through the one presence read ({@link FeatureLift#present}). A
+     * season is a hide only: {@link #lock} never sees it.
+     */
+    public static boolean present(boolean enabled, @Nullable String season, @Nullable GateSpec requires) {
+        return FeatureLift.present(enabled, season, FeatureLift.liftKnown(requires).lifted());
     }
 
     /**
