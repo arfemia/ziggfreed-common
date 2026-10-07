@@ -23,6 +23,7 @@ import com.ziggfreed.common.codec.ScalarStringCodec;
 import com.ziggfreed.common.codec.Vec3;
 import com.ziggfreed.common.factor.FactorCondition;
 import com.ziggfreed.common.factor.FactorFormula;
+import com.ziggfreed.common.factor.ModGates;
 import com.ziggfreed.common.npc.NpcDestinations;
 import com.ziggfreed.common.npc.placement.registry.AnchorResolverRegistry;
 import com.ziggfreed.common.season.SeasonGate;
@@ -772,6 +773,15 @@ public final class NpcPlacementAsset
         @Nonnull
         public FactorCondition[] conditionsOrEmpty() {
             return conditions == null ? new FactorCondition[0] : conditions;
+        }
+
+        /**
+         * Does a placement carrying {@code requires} load on this server? False only when a plain
+         * {@code hytale:mod_installed} condition with {@code Min: 1} names a mod this server lacks
+         * (zc-core {@code ModGates}): such a placement never reaches the store, a sweep or the audit.
+         */
+        public static boolean passesModGate(@Nullable Requires requires) {
+            return requires == null || ModGates.keep(requires.conditionsOrEmpty());
         }
     }
 
