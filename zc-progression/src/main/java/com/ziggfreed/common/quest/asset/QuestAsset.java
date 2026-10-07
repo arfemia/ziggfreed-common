@@ -30,6 +30,7 @@ import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.common.asset.NestedAssetId;
+import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.progress.MatchMode;
 import com.ziggfreed.common.progress.ObjectiveDef;
@@ -40,6 +41,7 @@ import com.ziggfreed.common.progress.gate.FeatureLift;
 import com.ziggfreed.common.progress.gate.GateSpec;
 import com.ziggfreed.common.quest.Quest;
 import com.ziggfreed.common.quest.QuestTurnInSite;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.time.DurationGroup;
 import com.ziggfreed.common.util.PeriodMath;
@@ -118,12 +120,13 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
     @Nullable private String turnInAt;
     @Nullable private String completionDialogue;
     @Nullable private GateSpec requires;
+    @Nullable private String season;
     @Nullable private Map<String, QuestObjectiveAsset> objectives;
     @Nullable private ContentRewardsAsset rewards;
     @Nullable private QuestIndicatorSpec indicator;
     @Nullable private Map<String, JsonElement> meta;
 
-    public static final AssetBuilderCodec<String, QuestAsset> CODEC = AssetBuilderCodec.builder(
+    public static final AssetBuilderCodec<String, QuestAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
                     QuestAsset.class,
                     QuestAsset::new,
                     Codec.STRING,
@@ -231,7 +234,9 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
             .documentation(ContentMeta.DOCUMENTATION)
-            .add()
+            .add(),
+                    // The calendar event this quest belongs to: a hide that survives Parent.
+                    (a, v) -> a.season = v, a -> a.season)
             // The engine names a quest after its FILE and ignores the folders above it. This folds
             // every _-marked folder back into the id, so an author can group quests into folders AND
             // keep the ids apart. See NestedAssetId.
@@ -387,6 +392,12 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         return requires;
     }
 
+    /** The calendar event this quest belongs to, trimmed, or null for a quest on all year. */
+    @Nullable
+    public String getSeason() {
+        return SeasonGate.normalize(season);
+    }
+
     /** The authored steps in authored order, keyed by objective id. */
     @Nonnull
     public Map<String, QuestObjectiveAsset> objectivesOrEmpty() {
@@ -419,9 +430,10 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
      * in {@code Requires} is lifted out by {@link FeatureLift#liftKnown} (for every namespace that
      * has declared features, plus {@code hytale:mod_installed}), the rest of the block is what
      * {@link QuestDefinition#requires()} carries, and {@link Quest#available()} answers
-     * {@code Enabled} AND every lifted condition LIVE on each read, so a feature toggled while the
-     * server is up moves the quest on the next look with no republish. Fold after every mod has
-     * declared its features; a namespace declared later is not lifted until the next publish.
+     * {@code Enabled}, the {@code Season} ({@link FeatureLift#present}) AND every lifted condition LIVE
+     * on each read, so a feature toggled while the server is up moves the quest on the next look with
+     * no republish. Fold after every mod has declared its features; a namespace declared later is not
+     * lifted until the next publish.
      *
      * <p>A step whose kind is a registered alias is built on the pair the alias runs as; see
      * {@code ObjectiveLeafAsset#toDefBuilder}.
@@ -459,11 +471,12 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .turnInAt(turnInSite(giverId))
                 .tags(listing == null ? List.of() : listing.tagList())
                 .indicator(indicator);
-        if (lifted.isEmpty()) {
-            quest.available(enabled);
-        } else {
-            BooleanSupplier live = () -> enabled && FeatureLift.allOn(lifted);
+        String seasonId = getSeason();
+        if (FeatureLift.isLive(seasonId, lifted)) {
+            BooleanSupplier live = () -> FeatureLift.present(enabled, seasonId, lifted);
             quest.available(live);
+        } else {
+            quest.available(enabled);
         }
 
         Map<String, String> objectiveText = new LinkedHashMap<>();
