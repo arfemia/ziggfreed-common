@@ -127,7 +127,7 @@ public final class TitleSources {
         List<String> titles = new ArrayList<>();
         for (List<RewardSpec> rewards : List.of(achievement.autoRewards(), achievement.claimRewards())) {
             for (RewardSpec reward : rewards) {
-                if (reward == null || !TitleRewardKind.KIND.equalsIgnoreCase(reward.kind())) {
+                if (!TitleRewardKind.isTitleReward(reward)) {
                     continue;
                 }
                 String titleId = key(TitleRewardKind.titleOf(reward));

@@ -62,7 +62,7 @@ public final class AlmanacEntryAsset implements JsonAssetWithMap<String, Default
     /** How many items a composed hero draws. */
     public static final int HERO_MAX_ITEMS = 12;
 
-    private static final String DOMAIN = "almanac";
+    private static final String DOMAIN = AlmanacValidator.DOMAIN;
 
     private String id;
     private AssetExtraInfo.Data data;

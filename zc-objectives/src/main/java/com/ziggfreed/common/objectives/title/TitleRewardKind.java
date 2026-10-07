@@ -46,6 +46,11 @@ public final class TitleRewardKind implements RewardHandler {
         kinds.register(KIND, OWNER, new TitleRewardKind());
     }
 
+    /** Is {@code spec} a reward of this kind? The kind id matches without regard to case, as a grant matches it. */
+    public static boolean isTitleReward(@Nullable RewardSpec spec) {
+        return spec != null && KIND.equalsIgnoreCase(spec.kind());
+    }
+
     /** Which title {@code spec} unlocks, in either spelling, trimmed; empty when it names none. */
     @Nonnull
     public static String titleOf(@Nonnull RewardSpec spec) {
