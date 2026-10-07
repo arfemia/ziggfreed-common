@@ -659,6 +659,9 @@ public final class ZigProgressComponent implements Component<EntityStore> {
      * <p>A value with only THREE fields is a save written before the collected tally existed. It
      * reads back with claimed equal to total, because under the rule those saves were written under
      * a finish was the payout.
+     *
+     * <p>A once-a-run quest's record adds {@code ,runYear,runCount}, so it travels as six numbers;
+     * every other record keeps its four.
      */
     private static final char FIELD_SEPARATOR = ',';
 
@@ -681,9 +684,13 @@ public final class ZigProgressComponent implements Component<EntityStore> {
         Map<String, String> out = new LinkedHashMap<>();
         for (Map.Entry<String, CompletionRecord> entry : records.entrySet()) {
             CompletionRecord record = entry.getValue();
-            out.put(entry.getKey(), record.lastCompletionMs() + "" + FIELD_SEPARATOR
+            String value = record.lastCompletionMs() + "" + FIELD_SEPARATOR
                     + record.periodCount() + FIELD_SEPARATOR + record.totalCount()
-                    + FIELD_SEPARATOR + record.claimedCount());
+                    + FIELD_SEPARATOR + record.claimedCount();
+            if (record.runYear() != null) {
+                value = value + FIELD_SEPARATOR + record.runYear() + FIELD_SEPARATOR + record.runCount();
+            }
+            out.put(entry.getKey(), value);
         }
         return out;
     }
@@ -695,7 +702,7 @@ public final class ZigProgressComponent implements Component<EntityStore> {
             return null;
         }
         String[] fields = value.split(String.valueOf(FIELD_SEPARATOR), -1);
-        if (fields.length != 3 && fields.length != 4) {
+        if (fields.length != 3 && fields.length != 4 && fields.length != 6) {
             return null;
         }
         try {
@@ -705,7 +712,12 @@ public final class ZigProgressComponent implements Component<EntityStore> {
             if (fields.length == 3) {
                 return CompletionRecord.withoutCollectedTally(last, period, total);
             }
-            return new CompletionRecord(last, period, total, Integer.parseInt(fields[3].trim()));
+            int claimed = Integer.parseInt(fields[3].trim());
+            if (fields.length == 4) {
+                return new CompletionRecord(last, period, total, claimed);
+            }
+            return new CompletionRecord(last, period, total, claimed, Integer.parseInt(fields[4].trim()),
+                    Integer.parseInt(fields[5].trim()));
         } catch (NumberFormatException malformed) {
             return null;
         }

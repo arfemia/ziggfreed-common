@@ -6,8 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import org.bson.BsonDocument;
 import org.bson.BsonString;
@@ -16,6 +22,12 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.ziggfreed.common.achievement.AchievementProgressStore;
 import com.ziggfreed.common.achievement.AchievementStatus;
+import com.ziggfreed.common.occurrence.Occurrence;
+import com.ziggfreed.common.occurrence.OccurrenceSource;
+import com.ziggfreed.common.quest.PerRuns;
+import com.ziggfreed.common.quest.Quest;
+import com.ziggfreed.common.quest.QuestGates;
+import com.ziggfreed.common.quest.QuestLifecycle;
 import com.ziggfreed.common.quest.QuestProgressStore.CompletionRecord;
 import com.ziggfreed.common.quest.QuestStatus;
 
@@ -270,6 +282,105 @@ class ZigProgressComponentTest {
                 "a run finished and never collected keeps its uncollected tally through a save");
     }
 
+    @Test
+    void aOnceARunRecordCarriesItsRunTallyAndEveryOtherKeepsFourNumbers() {
+        Map<String, CompletionRecord> records = Map.of(
+                "q_fair", new CompletionRecord(1_700_000_000_000L, 0, 3, 3, 2026, 1),
+                "q_daily", new CompletionRecord(5L, 1, 1, 1));
+
+        Map<String, String> packed = ZigProgressComponent.encodeCompletions(records);
+        assertEquals("1700000000000,0,3,3,2026,1", packed.get("q_fair"));
+        assertEquals("5,1,1,1", packed.get("q_daily"), "a quest with no once-a-run rule saves exactly as before");
+
+        Map<String, CompletionRecord> back = ZigProgressComponent.decodeCompletions(
+                "q_fair=" + packed.get("q_fair") + "|q_daily=" + packed.get("q_daily"));
+        assertEquals(records.get("q_fair"), back.get("q_fair"));
+        assertEquals(Integer.valueOf(2026), back.get("q_fair").runYear());
+        assertEquals(1, back.get("q_fair").runCount());
+        assertEquals(records.get("q_daily"), back.get("q_daily"));
+        assertNull(back.get("q_daily").runYear());
+    }
+
+    /**
+     * A run forced on outside its dates is still the run of its year, yet a finish in it falls on none
+     * of that run's days. Only the saved run year keeps the quest spent for that run once the player
+     * logs back in: read back as four numbers, it would be an old record whose last finish no run's
+     * days hold, offered again in the very run it was finished in.
+     */
+    @Test
+    void aFinishInARunForcedOnOutsideItsDatesStaysSpentForThatRunThroughASave() {
+        ForcedFair fair = new ForcedFair();
+        Quest.Repeat repeat = new Quest.Repeat(0L, Quest.Repeat.CooldownFrom.CLAIM, null, 0,
+                new Quest.Repeat.PerRun(ForcedFair.EVENT, 1));
+        long forcedFinish = at("2026-12-10T12:00:00Z");
+        Integer counted = PerRuns.yearFor(repeat.perRun(), forcedFinish, fair);
+        assertEquals(Integer.valueOf(2026), counted, "forced on in December it is the 2026 run");
+        CompletionRecord finished = new CompletionRecord(forcedFinish, 0, 1, 1, counted, 1);
+
+        ZigProgressComponent component = new ZigProgressComponent();
+        component.setQuestCompletions("q_fair", finished);
+        BsonDocument saved = ZigProgressComponent.CODEC.encode(component, ExtraInfo.THREAD_LOCAL.get());
+        ZigProgressComponent loaded = new ZigProgressComponent();
+        ZigProgressComponent.CODEC.decode(BsonDocument.parse(saved.toJson()), loaded, ExtraInfo.THREAD_LOCAL.get());
+        CompletionRecord back = loaded.questCompletions("q_fair");
+        assertEquals(finished, back, "the run tally survives a save and a load");
+
+        long laterInTheForcedRun = at("2026-12-15T12:00:00Z");
+        QuestLifecycle.RepeatCheck check = QuestLifecycle.repeatCheck(repeat, 0L, back, laterInTheForcedRun, fair);
+        assertFalse(check.available(), "still spent for the 2026 run");
+        assertEquals(QuestGates.REASON_RUN_SPENT, check.reason());
+        assertTrue(QuestLifecycle.repeatCheck(repeat, 0L, new CompletionRecord(forcedFinish, 0, 1, 1),
+                laterInTheForcedRun, fair).available(), "four numbers alone would have offered it twice in one run");
+    }
+
+    /**
+     * One event with runs in 2026 and 2027, each October 1 through November 3 (UTC), forced on: as the
+     * calendar answers a force, the run going on outside the dates is the current year's run, with that
+     * year's days. The next run is the first to start after the one going on.
+     */
+    private static final class ForcedFair implements OccurrenceSource {
+
+        static final String EVENT = "Spring_Fair";
+
+        private final List<Occurrence> runs = List.of(
+                new Occurrence(EVENT, 2026, at("2026-10-01T00:00:00Z"), at("2026-11-04T00:00:00Z")),
+                new Occurrence(EVENT, 2027, at("2027-10-01T00:00:00Z"), at("2027-11-04T00:00:00Z")));
+
+        @Override
+        public boolean isEnabled(@Nonnull String eventId) {
+            return EVENT.equalsIgnoreCase(eventId.trim());
+        }
+
+        @Override
+        @Nullable
+        public Occurrence live(@Nonnull String eventId, long nowMs) {
+            if (!isEnabled(eventId)) {
+                return null;
+            }
+            int year = Instant.ofEpochMilli(nowMs).atZone(ZoneOffset.UTC).getYear();
+            return runs.stream().filter(run -> run.contains(nowMs) || run.year() == year).findFirst().orElse(null);
+        }
+
+        @Override
+        @Nonnull
+        public List<Occurrence> history(@Nonnull String eventId, long nowMs) {
+            return isEnabled(eventId) ? runs.stream().filter(run -> run.startMs() <= nowMs).toList() : List.of();
+        }
+
+        @Override
+        @Nullable
+        public Occurrence next(@Nonnull String eventId, long nowMs) {
+            Occurrence running = live(eventId, nowMs);
+            return isEnabled(eventId) ? runs.stream()
+                    .filter(run -> run.startMs() > nowMs && (running == null || run.year() > running.year()))
+                    .findFirst().orElse(null) : null;
+        }
+    }
+
+    private static long at(@Nonnull String isoInstant) {
+        return Instant.parse(isoInstant).toEpochMilli();
+    }
+
     /**
      * The compatibility half: a value written before the collected tally existed carries three
      * fields, and every finish it recorded was paid out under the rule it was written under. Reading
@@ -319,7 +430,7 @@ class ZigProgressComponentTest {
         assertNull(back.get("q_bad"));
         assertNull(back.get("q_short"));
         assertNull(back.get("q_long"),
-                "three fields and four are the two widths there are; anything longer is unreadable");
+                "three, four and six fields are the widths there are; five is unreadable");
         assertEquals(CompletionRecord.withoutCollectedTally(5L, 1, 3), back.get("q_good"));
     }
 
