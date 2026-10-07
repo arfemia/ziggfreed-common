@@ -1,0 +1,56 @@
+# The quest journal: the book's Quests tab and the quest page it shares with the NPC quest page.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.journal.<key>.
+
+# The list's sections, in the order they read.
+section.ready = Átvehető
+section.progress = Folyamatban
+section.available = Elérhető
+section.not_yet = Még nem elérhető
+section.waiting = Várakozó
+section.completed = Befejezett
+
+# A row's state word. In back_in, {0} is how long until the quest comes back.
+state.collect = Átvehető
+state.progress = Folyamatban
+state.available = Elérhető
+state.locked = Zárolt
+state.back_in = {0} múlva visszatér
+state.done = Kész
+
+# The header's three numbers and the line under the title.
+stat.progress = Folyamatban
+stat.collect = Átvehető
+stat.tracking = Követett
+subtitle = {0, number} folyamatban, {1, number} átvehető
+
+# The toolbar.
+status.all = Mind
+status.progress = Folyamatban
+status.available = Elérhető
+status.done = Kész
+category.all = Minden kategória
+tag.all = Minden címke
+
+# The quest page.
+block.requirements = Feltételek
+block.objectives = Célok
+block.step = {0, number}. lépés
+block.rewards = Jutalmak
+action.accept = Elfogadás
+action.hand_in = Leadás
+action.collect = Átvétel
+action.abandon = Feladás
+action.track = Követés
+action.untrack = Követés leállítása
+hint.talk_to = A küldetés felvételéhez beszélj vele: {0}
+hint.log_full = Tele van a naplód ({0, number})
+hint.collect_at_site = Ott veheted át, ahol leadtad
+progress.steps = {0, number} / {1, number} lépés
+
+# An empty log.
+empty.title = Még nincs küldetésed
+empty.line = Orbis lakóinak akad munkájuk a számodra. Amikor elvállalsz egy küldetést, itt jelenik meg.
+
+hint.talk_to_plain = A küldetés felvételéhez beszélj a küldetésadóval
+reward.waiting = Függőben
+search.placeholder = Küldetések keresése...

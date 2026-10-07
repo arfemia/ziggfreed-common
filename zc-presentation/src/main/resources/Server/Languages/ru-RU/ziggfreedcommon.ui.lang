@@ -26,3 +26,12 @@ settings.level.milestones = Вехи
 settings.level.finishes = Завершения
 settings.level.none = Нет
 settings.show = Показывать
+
+# Набор страниц (ui/kit): длинный раздел заканчивается строкой, которая показывает следующие строки; список,
+# фильтры которого скрыли все строки, говорит об этом и предлагает их сбросить; блок прогресса читает счёт и процент.
+kit.show_more = Показать ещё {0, number}
+kit.nothing_matches = Ничего не подходит
+kit.nothing_matches_line = Здесь ничего не подходит под эти фильтры. Сбросьте их, чтобы снова увидеть всё.
+kit.clear_filters = Сбросить фильтры
+kit.count = {0, number} / {1, number}
+kit.percent = {0, number}%

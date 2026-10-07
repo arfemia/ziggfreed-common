@@ -23,3 +23,13 @@ picker.settings_tile = Dein Titel
 picker.settings_wearing = Angezeigt wird {0}
 picker.settings_none = Kein Titel angezeigt
 
+# Die erhaltenen Kacheln der Auswahl und die Titel, die noch zu verdienen sind; picker.on und picker.off oben sind
+# der Anzeigen-Knopf einer Kachel. Die zwei Abschnittsköpfe stehen in Großbuchstaben. In from ist {0} der Erfolg,
+# der den Titel gibt, {1} der Stand des Spielers dafür und {2} sein Ziel.
+picker.earned = Erhalten
+picker.not_earned = Noch nicht erhalten
+picker.show_none = Keinen anzeigen
+picker.from = Von "{0}", {1, number} / {2, number}
+picker.none_yet = Noch keine Titel. Diese Erfolge verleihen einen:
+picker.none_on_server = Auf diesem Server gibt es keine Titel zu verdienen.
+

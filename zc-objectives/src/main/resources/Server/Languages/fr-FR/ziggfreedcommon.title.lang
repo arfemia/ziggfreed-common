@@ -27,3 +27,13 @@ picker.settings_tile = Votre titre
 picker.settings_wearing = Affiché : {0}
 picker.settings_none = Aucun titre affiché
 
+# Les tuiles des titres obtenus et les titres encore à obtenir ; picker.on et picker.off ci-dessus sont le bouton
+# Afficher d'une tuile. Les deux en-têtes de section s'affichent en capitales. Dans from, {0} est le succès qui
+# donne le titre, {1} le compte du joueur pour l'obtenir et {2} son objectif.
+picker.earned = Obtenus
+picker.not_earned = Pas encore obtenus
+picker.show_none = N'en afficher aucun
+picker.from = Via "{0}", {1, number} / {2, number}
+picker.none_yet = Aucun titre pour le moment. Ces succès en donnent un :
+picker.none_on_server = Ce serveur n'a aucun titre à obtenir.
+

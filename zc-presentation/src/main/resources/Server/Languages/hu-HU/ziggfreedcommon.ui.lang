@@ -26,3 +26,13 @@ settings.level.milestones = Mérföldkövek
 settings.level.finishes = Befejezések
 settings.level.none = Nincs
 settings.show = Mutat
+
+# Az oldalkészlet (ui/kit): egy hosszú szakasz egy sorral végződik, amely a következő sorokat mutatja, egy lista,
+# amelynek szűrői minden sort elrejtenek, ezt jelzi és felajánlja a törlésüket, egy haladásblokk pedig
+# számot és százalékot mutat.
+kit.show_more = Még {0, number} megjelenítése
+kit.nothing_matches = Nincs találat
+kit.nothing_matches_line = Itt semmi sem felel meg ezeknek a szűrőknek. Töröld őket, hogy újra mindent láss.
+kit.clear_filters = Szűrők törlése
+kit.count = {0, number} / {1, number}
+kit.percent = {0, number}%

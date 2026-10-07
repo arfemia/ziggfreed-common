@@ -26,3 +26,13 @@ picker.settings_tile = A címed
 picker.settings_wearing = Látszik: {0}
 picker.settings_none = Nem látszik cím
 
+# A választó megszerzett csempéi és a még megszerezhető címek; a fenti picker.on és picker.off egy csempe
+# Mutat gombja. A két szakaszfejléc nagybetűvel jelenik meg. A from-ban {0} a címet adó teljesítmény, {1}
+# a játékos eddigi állása, {2} pedig a cél.
+picker.earned = Megszerzett
+picker.not_earned = Még nem szerezted meg
+picker.show_none = Cím elrejtése
+picker.from = Forrás: "{0}", {1, number} / {2, number}
+picker.none_yet = Még nincs címed. Ezek a teljesítmények adnak egyet:
+picker.none_on_server = Ezen a szerveren nincs megszerezhető cím.
+

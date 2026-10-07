@@ -28,3 +28,67 @@ open.failed = Non è stato possibile aprire l'Almanacco.
 open.off = L'Almanacco è disattivato su questo server.
 achievement.category.seasons = Stagioni
 
+# La pagina rinnovata: la riga d'apertura, il conto alla rovescia e le date di una stagione, l'anno in lettura,
+# i riquadri, lo scaffale dei ricordi, la scheda dei risultati, la pagina vuota, l'anno a colpo d'occhio e la
+# sezione Stagioni delle Statistiche del libro degli obiettivi.
+lead = Ogni stagione di questo server, e ciò che hai fatto in ciascuna.
+chip.live = In corso - {0, number} {0, plural, one{giorno rimanente} other{giorni rimanenti}}
+chip.last_day = Ultimo giorno
+chip.returns_in = Torna tra {0, number} {0, plural, one{giorno} other{giorni}}
+chip.returns_on = Torna il {1, number} {0}
+chip.starts_in = Inizia tra {0, number} {0, plural, one{giorno} other{giorni}}
+chip.between = Tra una stagione e l'altra
+month.1 = gennaio
+month.2 = febbraio
+month.3 = marzo
+month.4 = aprile
+month.5 = maggio
+month.6 = giugno
+month.7 = luglio
+month.8 = agosto
+month.9 = settembre
+month.10 = ottobre
+month.11 = novembre
+month.12 = dicembre
+month.short.1 = gen
+month.short.2 = feb
+month.short.3 = mar
+month.short.4 = apr
+month.short.5 = mag
+month.short.6 = giu
+month.short.7 = lug
+month.short.8 = ago
+month.short.9 = set
+month.short.10 = ott
+month.short.11 = nov
+month.short.12 = dic
+window = Ogni anno, dal {1, number} {0} al {3, number} {2}
+scope.year = La tua stagione del {0}
+scope.every = Ogni stagione
+scope.took_part = Hai partecipato
+scope.not_yet = Non hai ancora partecipato
+scope.taken_part_count = {0, number} {0, plural, one{stagione a cui hai partecipato} other{stagioni a cui hai partecipato}}
+tile.in_all = {0, number} in tutto
+tile.server = {0, number} su questo server
+keepsakes.title = Ricordi
+keepsakes.meta = {0, number} su {1, number} anni
+keepsake.to_earn = Ancora da ottenere
+keepsake.missed = Perso
+achievements.title = Obiettivi
+record.title = I tuoi risultati
+record.seasons = {0, plural, one{stagione a cui hai partecipato} other{stagioni a cui hai partecipato}}
+record.keepsakes = {0, plural, one{ricordo} other{ricordi}}
+empty.none.title = Ancora nessuna stagione
+empty.none.line = Gli eventi stagionali compaiono qui quando questo server ne organizza uno.
+hint.first_time = I tuoi conteggi partono la prima volta che giochi durante la stagione.
+glance.title = L'anno a colpo d'occhio
+headline.live = {0} è in corso
+stats.section = Stagioni
+stats.row.meta = {0, number} {0, plural, one{stagione a cui hai partecipato} other{stagioni a cui hai partecipato}}
+stats.open = Apri nell'Almanacco
+
+# La seconda intestazione dell'elenco delle stagioni (dopo In corso), e un anno come etichetta: testo, così
+# nessuna lingua ne raggruppa le cifre.
+seasons.all = Tutte le stagioni
+year = {0}
+

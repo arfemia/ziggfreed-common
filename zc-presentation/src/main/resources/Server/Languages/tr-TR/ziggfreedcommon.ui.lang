@@ -26,3 +26,12 @@ settings.level.milestones = Dönüm noktaları
 settings.level.finishes = Bitişler
 settings.level.none = Hiçbiri
 settings.show = Göster
+
+# Sayfa kiti (ui/kit): uzun bir bölüm sonraki satırları gösteren bir satırla biter, filtreleri her satırı
+# gizleyen bir liste bunu söyler ve filtreleri temizlemeyi önerir, bir ilerleme bloğu sayı ve yüzde okur.
+kit.show_more = {0, number} tane daha göster
+kit.nothing_matches = Eşleşen bir şey yok
+kit.nothing_matches_line = Burada bu filtrelere uyan bir şey yok. Her şeyi yeniden görmek için filtreleri temizle.
+kit.clear_filters = Filtreleri temizle
+kit.count = {0, number} / {1, number}
+kit.percent = %{0, number}

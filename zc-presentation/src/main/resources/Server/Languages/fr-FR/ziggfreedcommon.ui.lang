@@ -26,3 +26,13 @@ settings.level.milestones = Paliers
 settings.level.finishes = Fins
 settings.level.none = Aucun
 settings.show = Afficher
+
+# Le kit de page (ui/kit) : une longue section se termine par une ligne qui affiche les lignes suivantes, une liste
+# dont les filtres masquent toutes les lignes le dit et propose de les effacer, et un bloc de progression affiche
+# un compte et un pourcentage.
+kit.show_more = Afficher {0, number} de plus
+kit.nothing_matches = Rien ne correspond
+kit.nothing_matches_line = Rien ici ne correspond à ces filtres. Effacez-les pour tout revoir.
+kit.clear_filters = Effacer les filtres
+kit.count = {0, number} / {1, number}
+kit.percent = {0, number} %

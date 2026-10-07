@@ -31,3 +31,67 @@ open.off = El Almanaque está desactivado en este servidor.
 # El libro de logros rotula la categoría Temporadas con esta clave (ver AchievementCategories/Seasons.json).
 achievement.category.seasons = Temporadas
 
+# La página rediseñada: su línea de entrada, la cuenta atrás y las fechas de una temporada, el año que se lee, las fichas,
+# el estante de recuerdos, la tarjeta del historial, la página vacía, el año de un vistazo, la línea que muestra la ficha
+# de un consumidor mientras dura una temporada, y la sección Temporadas de las Estadísticas del libro de logros.
+lead = Todas las temporadas de este servidor, y lo que hiciste en cada una.
+chip.live = En curso - {0, number} {0, plural, one{día restante} other{días restantes}}
+chip.last_day = Último día
+chip.returns_in = Vuelve en {0, number} {0, plural, one{día} other{días}}
+chip.returns_on = Vuelve el {1, number} de {0}
+chip.starts_in = Empieza en {0, number} {0, plural, one{día} other{días}}
+chip.between = Entre temporadas
+month.1 = enero
+month.2 = febrero
+month.3 = marzo
+month.4 = abril
+month.5 = mayo
+month.6 = junio
+month.7 = julio
+month.8 = agosto
+month.9 = septiembre
+month.10 = octubre
+month.11 = noviembre
+month.12 = diciembre
+month.short.1 = ene
+month.short.2 = feb
+month.short.3 = mar
+month.short.4 = abr
+month.short.5 = may
+month.short.6 = jun
+month.short.7 = jul
+month.short.8 = ago
+month.short.9 = sept
+month.short.10 = oct
+month.short.11 = nov
+month.short.12 = dic
+window = Cada año, del {1, number} de {0} al {3, number} de {2}
+scope.year = Tu temporada de {0}
+scope.every = Todas las temporadas
+scope.took_part = Participaste
+scope.not_yet = Aún no has participado
+scope.taken_part_count = {0, number} {0, plural, one{temporada en la que participaste} other{temporadas en las que participaste}}
+tile.in_all = {0, number} en total
+tile.server = {0, number} en este servidor
+keepsakes.title = Recuerdos
+keepsakes.meta = {0, number} de {1, number} años
+keepsake.to_earn = Por conseguir
+keepsake.missed = Perdido
+achievements.title = Logros
+record.title = Tu historial
+record.seasons = {0, plural, one{temporada en la que participaste} other{temporadas en las que participaste}}
+record.keepsakes = {0, plural, one{recuerdo} other{recuerdos}}
+empty.none.title = Aún no hay temporadas
+empty.none.line = Los eventos de temporada aparecen aquí cuando este servidor celebra uno.
+hint.first_time = Tus recuentos empiezan la primera vez que juegas durante la temporada.
+glance.title = El año de un vistazo
+headline.live = {0} está en curso
+stats.section = Temporadas
+stats.row.meta = {0, number} {0, plural, one{temporada en la que participaste} other{temporadas en las que participaste}}
+stats.open = Abrir en el Almanaque
+
+# La segunda cabecera de la lista de temporadas (tras En curso), y un año como etiqueta (una ficha de año, una ficha
+# de recuerdo): texto, para que ningún idioma agrupe sus dígitos.
+seasons.all = Todas las temporadas
+year = {0}
+

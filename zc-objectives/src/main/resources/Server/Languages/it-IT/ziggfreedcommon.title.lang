@@ -23,3 +23,12 @@ picker.settings_tile = Il tuo titolo
 picker.settings_wearing = Mostri {0}
 picker.settings_none = Nessun titolo mostrato
 
+# I riquadri dei titoli ottenuti e i titoli ancora da ottenere. In from, {0} è l'obiettivo che dà il titolo,
+# {1} il conteggio del giocatore e {2} il suo obiettivo numerico.
+picker.earned = Ottenuti
+picker.not_earned = Non ancora ottenuti
+picker.show_none = Non mostrare nessuno
+picker.from = Da "{0}", {1, number} / {2, number}
+picker.none_yet = Ancora nessun titolo. Questi obiettivi ne danno uno:
+picker.none_on_server = Su questo server non ci sono titoli da ottenere.
+

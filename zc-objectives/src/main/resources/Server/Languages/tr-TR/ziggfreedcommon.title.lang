@@ -23,3 +23,13 @@ picker.settings_tile = Unvanın
 picker.settings_wearing = {0} gösteriliyor
 picker.settings_none = Gösterilen unvan yok
 
+# Seçicinin kazanılmış kutucukları ve henüz kazanılacak unvanlar; yukarıdaki picker.on ve picker.off bir
+# kutucuğun Göster düğmesidir. İki bölüm başlığı büyük harfle çizilir. from satırında {0} unvanı veren
+# başarım, {1} oyuncunun ona doğru sayısı ve {2} hedefidir.
+picker.earned = Kazanılanlar
+picker.not_earned = Henüz kazanılmayanlar
+picker.show_none = Hiçbirini gösterme
+picker.from = "{0}" başarımından, {1, number} / {2, number}
+picker.none_yet = Henüz unvan yok. Şu başarımlar unvan verir:
+picker.none_on_server = Bu sunucuda kazanılacak unvan yok.
+

@@ -1,0 +1,56 @@
+# The quest journal: the book's Quests tab and the quest page it shares with the NPC quest page.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.journal.<key>.
+
+# The list's sections, in the order they read.
+section.ready = Готово к получению
+section.progress = В процессе
+section.available = Доступные
+section.not_yet = Пока недоступные
+section.waiting = Ожидают
+section.completed = Завершённые
+
+# A row's state word. In back_in, {0} is how long until the quest comes back.
+state.collect = Получить
+state.progress = В процессе
+state.available = Доступно
+state.locked = Закрыто
+state.back_in = Вернётся через {0}
+state.done = Выполнено
+
+# The header's three numbers and the line under the title.
+stat.progress = В процессе
+stat.collect = К получению
+stat.tracking = Отслеживаются
+subtitle = В процессе: {0, number}, готово к получению: {1, number}
+
+# The toolbar.
+status.all = Все
+status.progress = В процессе
+status.available = Доступные
+status.done = Выполненные
+category.all = Все категории
+tag.all = Все метки
+
+# The quest page.
+block.requirements = Требования
+block.objectives = Цели
+block.step = Этап {0, number}
+block.rewards = Награды
+action.accept = Принять
+action.hand_in = Сдать
+action.collect = Получить
+action.abandon = Отказаться
+action.track = Отслеживать
+action.untrack = Не отслеживать
+hint.talk_to = Поговорите с {0}, чтобы взять этот квест
+hint.log_full = Журнал заполнен ({0, number})
+hint.collect_at_site = Получите награду там, где сдали квест
+progress.steps = Этапы: {0, number} / {1, number}
+
+# An empty log.
+empty.title = Квестов пока нет
+empty.line = У жителей Орбиса есть для вас работа. Когда вы возьмёте квест, он появится здесь.
+
+hint.talk_to_plain = Чтобы взять этот квест, поговорите с тем, кто его выдаёт
+reward.waiting = Ожидает
+search.placeholder = Поиск квестов...

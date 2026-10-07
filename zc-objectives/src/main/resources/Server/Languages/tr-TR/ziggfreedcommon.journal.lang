@@ -1,0 +1,56 @@
+# The quest journal: the book's Quests tab and the quest page it shares with the NPC quest page.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.journal.<key>.
+
+# The list's sections, in the order they read.
+section.ready = Alınmaya hazır
+section.progress = Devam ediyor
+section.available = Mevcut
+section.not_yet = Henüz mevcut değil
+section.waiting = Beklemede
+section.completed = Tamamlandı
+
+# A row's state word. In back_in, {0} is how long until the quest comes back.
+state.collect = Al
+state.progress = Devam ediyor
+state.available = Mevcut
+state.locked = Kilitli
+state.back_in = {0} sonra geri gelir
+state.done = Tamamlandı
+
+# The header's three numbers and the line under the title.
+stat.progress = Devam eden
+stat.collect = Alınacak
+stat.tracking = Takipte
+subtitle = {0, number} devam ediyor, {1, number} alınmaya hazır
+
+# The toolbar.
+status.all = Tümü
+status.progress = Devam eden
+status.available = Açık
+status.done = Tamamlanan
+category.all = Tüm kategoriler
+tag.all = Tüm etiketler
+
+# The quest page.
+block.requirements = Gerekenler
+block.objectives = Hedefler
+block.step = Adım {0, number}
+block.rewards = Ödüller
+action.accept = Kabul et
+action.hand_in = Teslim et
+action.collect = Al
+action.abandon = Bırak
+action.track = Takip et
+action.untrack = Takibi bırak
+hint.talk_to = Bu görevi almak için {0} ile konuş
+hint.log_full = Görev kaydın dolu ({0, number})
+hint.collect_at_site = Teslim ettiğin yerden al
+progress.steps = {0, number} / {1, number} adım
+
+# An empty log.
+empty.title = Henüz görev yok
+empty.line = Orbis'in dört bir yanında insanların sana işi var. Bir görev aldığında burada görünür.
+
+hint.talk_to_plain = Bu görevi almak için görev vereniyle konuş
+reward.waiting = Beklemede
+search.placeholder = Görev ara...

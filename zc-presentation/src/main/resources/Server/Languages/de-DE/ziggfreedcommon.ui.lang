@@ -26,3 +26,13 @@ settings.level.milestones = Meilensteine
 settings.level.finishes = Abschlüsse
 settings.level.none = Keine
 settings.show = Anzeigen
+
+# Das Seiten-Kit (ui/kit): ein langer Abschnitt endet in einer Zeile, die die nächsten Zeilen zeigt, eine Liste,
+# deren Filter jede Zeile ausblenden, sagt das und bietet an, sie zurückzusetzen, und ein Fortschrittsblock
+# zeigt eine Anzahl und einen Prozentwert.
+kit.show_more = {0, number} weitere anzeigen
+kit.nothing_matches = Keine Treffer
+kit.nothing_matches_line = Hier passt nichts zu diesen Filtern. Setze sie zurück, um wieder alles zu sehen.
+kit.clear_filters = Filter zurücksetzen
+kit.count = {0, number} / {1, number}
+kit.percent = {0, number}%

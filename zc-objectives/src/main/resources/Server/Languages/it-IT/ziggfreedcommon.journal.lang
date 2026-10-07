@@ -1,0 +1,56 @@
+# The quest journal: the book's Quests tab and the quest page it shares with the NPC quest page.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.journal.<key>.
+
+# The list's sections, in the order they read.
+section.ready = Pronte da riscuotere
+section.progress = In corso
+section.available = Disponibili
+section.not_yet = Non ancora disponibili
+section.waiting = In attesa
+section.completed = Completate
+
+# A row's state word. In back_in, {0} is how long until the quest comes back.
+state.collect = Riscuoti
+state.progress = In corso
+state.available = Disponibile
+state.locked = Bloccata
+state.back_in = Torna tra {0}
+state.done = Completata
+
+# The header's three numbers and the line under the title.
+stat.progress = In corso
+stat.collect = Da riscuotere
+stat.tracking = Seguite
+subtitle = {0, number} in corso, {1, number} pronte da riscuotere
+
+# The toolbar.
+status.all = Tutte
+status.progress = In corso
+status.available = Disponibili
+status.done = Completate
+category.all = Tutte le categorie
+tag.all = Tutte le etichette
+
+# The quest page.
+block.requirements = Requisiti
+block.objectives = Obiettivi
+block.step = Fase {0, number}
+block.rewards = Ricompense
+action.accept = Accetta
+action.hand_in = Consegna
+action.collect = Riscuoti
+action.abandon = Abbandona
+action.track = Segui
+action.untrack = Non seguire più
+hint.talk_to = Parla con {0} per accettare questa missione
+hint.log_full = Il tuo registro è pieno ({0, number})
+hint.collect_at_site = Riscuotila dove l'hai consegnata
+progress.steps = {0, number} / {1, number} fasi
+
+# An empty log.
+empty.title = Ancora nessuna missione
+empty.line = In giro per Orbis c'è gente che ha del lavoro per te. Quando accetti una missione, compare qui.
+
+hint.talk_to_plain = Parla con chi offre questa missione per accettarla
+reward.waiting = In attesa
+search.placeholder = Cerca missioni...

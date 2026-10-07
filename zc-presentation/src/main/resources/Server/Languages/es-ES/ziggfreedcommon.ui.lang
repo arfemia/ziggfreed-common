@@ -25,3 +25,12 @@ settings.level.milestones = Hitos
 settings.level.finishes = Finales
 settings.level.none = Ninguno
 settings.show = Mostrar
+
+# El kit de páginas (ui/kit): una sección larga termina en una fila que muestra las siguientes, una lista cuyos filtros
+# ocultan todas las filas lo dice y ofrece borrarlos, y un bloque de progreso muestra un recuento y un porcentaje.
+kit.show_more = Mostrar {0, number} más
+kit.nothing_matches = Nada coincide
+kit.nothing_matches_line = Nada de aquí encaja con estos filtros. Bórralos para volver a verlo todo.
+kit.clear_filters = Borrar filtros
+kit.count = {0, number} / {1, number}
+kit.percent = {0, number}%

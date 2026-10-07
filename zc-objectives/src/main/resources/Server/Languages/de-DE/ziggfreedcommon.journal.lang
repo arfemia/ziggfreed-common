@@ -1,0 +1,56 @@
+# The quest journal: the book's Quests tab and the quest page it shares with the NPC quest page.
+# The file name is the key PREFIX: an entry here resolves as ziggfreedcommon.journal.<key>.
+
+# The list's sections, in the order they read.
+section.ready = Abholbereit
+section.progress = In Arbeit
+section.available = Verfügbar
+section.not_yet = Noch nicht verfügbar
+section.waiting = Wartend
+section.completed = Abgeschlossen
+
+# A row's state word. In back_in, {0} is how long until the quest comes back.
+state.collect = Abholen
+state.progress = In Arbeit
+state.available = Verfügbar
+state.locked = Gesperrt
+state.back_in = Wieder in {0}
+state.done = Erledigt
+
+# The header's three numbers and the line under the title.
+stat.progress = In Arbeit
+stat.collect = Abzuholen
+stat.tracking = Verfolgt
+subtitle = {0, number} in Arbeit, {1, number} abholbereit
+
+# The toolbar.
+status.all = Alle
+status.progress = In Arbeit
+status.available = Verfügbar
+status.done = Erledigt
+category.all = Alle Kategorien
+tag.all = Alle Schlagwörter
+
+# The quest page.
+block.requirements = Voraussetzungen
+block.objectives = Ziele
+block.step = Schritt {0, number}
+block.rewards = Belohnungen
+action.accept = Annehmen
+action.hand_in = Abgeben
+action.collect = Abholen
+action.abandon = Aufgeben
+action.track = Verfolgen
+action.untrack = Nicht mehr verfolgen
+hint.talk_to = Sprich mit {0}, um diese Quest anzunehmen
+hint.log_full = Dein Questlog ist voll ({0, number})
+hint.collect_at_site = Hol sie dort ab, wo du sie abgegeben hast
+progress.steps = {0, number} / {1, number} Schritte
+
+# An empty log.
+empty.title = Noch keine Quests
+empty.line = Überall in Orbis haben Leute Arbeit für dich. Wenn du eine Quest annimmst, erscheint sie hier.
+
+hint.talk_to_plain = Sprich mit ihrem Questgeber, um diese Quest anzunehmen
+reward.waiting = Ausstehend
+search.placeholder = Quests suchen...

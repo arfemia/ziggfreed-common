@@ -27,3 +27,13 @@ picker.settings_tile = Seu título
 picker.settings_wearing = Mostrando {0}
 picker.settings_none = Nenhum título mostrado
 
+# Os blocos de títulos desbloqueados do seletor e os títulos ainda por desbloquear; picker.on e picker.off acima são
+# o botão Mostrar de um bloco. Os dois cabeçalhos de seção aparecem em maiúsculas. Em from, {0} é a conquista que dá
+# o título, {1} a contagem do jogador para ela e {2} a meta.
+picker.earned = Desbloqueados
+picker.not_earned = Ainda não desbloqueados
+picker.show_none = Não mostrar nenhum
+picker.from = De "{0}", {1, number} / {2, number}
+picker.none_yet = Nenhum título ainda. Estas conquistas dão um:
+picker.none_on_server = Este servidor não tem títulos para desbloquear.
+

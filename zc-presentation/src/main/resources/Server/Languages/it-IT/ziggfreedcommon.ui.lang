@@ -26,3 +26,12 @@ settings.level.milestones = Traguardi intermedi
 settings.level.finishes = Completamenti
 settings.level.none = Nessuno
 settings.show = Mostra
+
+# The page kit (ui/kit): a long section ends in a row that shows the next rows, a list whose filters hide
+# every row says so and offers to clear them, and a progress block reads a count and a percent.
+kit.show_more = Mostra altri {0, number}
+kit.nothing_matches = Nessuna corrispondenza
+kit.nothing_matches_line = Qui niente corrisponde a questi filtri. Cancellali per rivedere tutto.
+kit.clear_filters = Cancella filtri
+kit.count = {0, number} / {1, number}
+kit.percent = {0, number}%

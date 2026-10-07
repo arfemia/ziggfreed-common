@@ -26,3 +26,13 @@ picker.settings_tile = Tu título
 picker.settings_wearing = Se muestra {0}
 picker.settings_none = Ningún título mostrado
 
+# Las fichas de títulos conseguidos del selector y los títulos aún por conseguir; picker.on y picker.off de arriba son
+# el botón Mostrar de una ficha. Las dos cabeceras de sección se dibujan en mayúsculas. En from, {0} es el logro que da
+# el título, {1} el recuento del jugador hacia él y {2} su objetivo.
+picker.earned = Conseguidos
+picker.not_earned = Aún no conseguidos
+picker.show_none = No mostrar ninguno
+picker.from = De "{0}", {1, number} / {2, number}
+picker.none_yet = Aún no tienes títulos. Estos logros dan uno:
+picker.none_on_server = Este servidor no tiene títulos que conseguir.
+

@@ -31,3 +31,67 @@ open.off = L'Almanach est désactivé sur ce serveur.
 # Le livre des succès nomme la catégorie Saisons avec cette clé (voir AchievementCategories/Seasons.json).
 achievement.category.seasons = Saisons
 
+# La page repensée : sa ligne d'introduction, le compte à rebours et les dates d'une saison, l'année lue,
+# les tuiles, l'étagère des souvenirs, la carte du bilan, la page vide, l'année en un coup d'œil, la ligne
+# qu'affiche la tuile d'un consommateur pendant une saison, et la section Saisons des Statistiques du livre des succès.
+lead = Chaque saison de ce serveur, et ce que vous avez fait dans chacune.
+chip.live = En cours - {0, number} {0, plural, one{jour restant} other{jours restants}}
+chip.last_day = Dernier jour
+chip.returns_in = Revient dans {0, number} {0, plural, one{jour} other{jours}}
+chip.returns_on = Revient le {1, number} {0}
+chip.starts_in = Commence dans {0, number} {0, plural, one{jour} other{jours}}
+chip.between = Entre deux saisons
+month.1 = janvier
+month.2 = février
+month.3 = mars
+month.4 = avril
+month.5 = mai
+month.6 = juin
+month.7 = juillet
+month.8 = août
+month.9 = septembre
+month.10 = octobre
+month.11 = novembre
+month.12 = décembre
+month.short.1 = janv.
+month.short.2 = févr.
+month.short.3 = mars
+month.short.4 = avr.
+month.short.5 = mai
+month.short.6 = juin
+month.short.7 = juil.
+month.short.8 = août
+month.short.9 = sept.
+month.short.10 = oct.
+month.short.11 = nov.
+month.short.12 = déc.
+window = Chaque année, du {1, number} {0} au {3, number} {2}
+scope.year = Votre saison {0}
+scope.every = Toutes les saisons
+scope.took_part = Vous avez participé
+scope.not_yet = Vous n'avez pas encore participé
+scope.taken_part_count = {0, number} {0, plural, one{saison jouée} other{saisons jouées}}
+tile.in_all = {0, number} au total
+tile.server = {0, number} sur ce serveur
+keepsakes.title = Souvenirs
+keepsakes.meta = Années : {0, number} sur {1, number}
+keepsake.to_earn = Encore à obtenir
+keepsake.missed = Manqué
+achievements.title = Succès
+record.title = Votre bilan
+record.seasons = {0, plural, one{saison jouée} other{saisons jouées}}
+record.keepsakes = {0, plural, one{souvenir} other{souvenirs}}
+empty.none.title = Aucune saison pour le moment
+empty.none.line = Les événements saisonniers s'affichent ici dès que ce serveur en organise un.
+hint.first_time = Vos compteurs démarrent la première fois que vous jouez pendant la saison.
+glance.title = L'année en un coup d'œil
+headline.live = En cours : {0}
+stats.section = Saisons
+stats.row.meta = {0, number} {0, plural, one{saison jouée} other{saisons jouées}}
+stats.open = Ouvrir dans l'Almanach
+
+# Le deuxième en-tête de la liste des saisons (après En cours), et une année comme étiquette (une puce d'année,
+# une tuile de souvenir) : du texte, pour qu'aucune langue ne groupe ses chiffres.
+seasons.all = Toutes les saisons
+year = {0}
+
