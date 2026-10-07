@@ -54,3 +54,7 @@ empty.line = As pessoas de Orbis têm trabalho para você. Quando você aceitar 
 hint.talk_to_plain = Fale com quem oferece esta missão para aceitá-la
 reward.waiting = Aguardando
 search.placeholder = Buscar missões...
+
+# A finished quest collected somewhere other than where the player stands: its state word, and its hint, where {0} is the character who collects it.
+state.elsewhere = Outro local
+hint.collect_from = Receba com {0}

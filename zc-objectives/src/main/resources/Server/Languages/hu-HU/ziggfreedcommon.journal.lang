@@ -54,3 +54,6 @@ empty.line = Orbis lakóinak akad munkájuk a számodra. Amikor elvállalsz egy 
 hint.talk_to_plain = A küldetés felvételéhez beszélj a küldetésadóval
 reward.waiting = Függőben
 search.placeholder = Küldetések keresése...
+# A finished quest collected somewhere other than where the player stands: its state word, and its hint, where {0} is the character who collects it.
+state.elsewhere = Máshol
+hint.collect_from = Átvétel helye: {0}
