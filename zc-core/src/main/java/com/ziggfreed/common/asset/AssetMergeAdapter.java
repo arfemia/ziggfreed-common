@@ -1,9 +1,12 @@
 package com.ziggfreed.common.asset;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 
@@ -23,6 +26,9 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
  *     MyConfig.getInstance().mergePackLayer(
  *         AssetMergeAdapter.layer(ev.getAssetMap(), (id, a) -> a.toModel(id)), replace));
  * }</pre>
+ *
+ * <p>A store whose files can be gated on a mod passes its keep filter to
+ * {@link #layer(DefaultAssetMap, Predicate)}.
  */
 public final class AssetMergeAdapter {
 
@@ -57,6 +63,47 @@ public final class AssetMergeAdapter {
             if (value != null) {
                 out.put(id, value);
             }
+        }
+        return out;
+    }
+
+    /**
+     * Rebuild the pack layer, leaving out every asset {@code keep} refuses: the load handler's form for
+     * a store whose files can be gated on a mod being installed (pass the store's {@code passesModGate}
+     * read), so a refused file never reaches the store, its folds, its validators or its audits.
+     */
+    @Nonnull
+    public static <T extends JsonAsset<String>> Map<String, T> layer(@Nonnull DefaultAssetMap<String, T> assetMap,
+                                                                     @Nonnull Predicate<T> keep) {
+        return layer(assetMap, keep, (id, asset) -> asset);
+    }
+
+    /** {@link #layer(DefaultAssetMap, BiFunction)} with the {@code keep} filter applied first. */
+    @Nonnull
+    public static <T extends JsonAsset<String>, V> Map<String, V> layer(@Nonnull DefaultAssetMap<String, T> assetMap,
+                                              @Nonnull Predicate<T> keep, @Nonnull BiFunction<String, T, V> mapper) {
+        return layer(assetMap, (id, asset) -> keep.test(asset) ? mapper.apply(id, asset) : null);
+    }
+
+    /**
+     * The ids {@code keep} refuses in {@code assetMap}, lower-cased, engine-base entries skipped: what a
+     * store that resolves one file against another (a generator's {@code Base}) needs, to leave out a
+     * family whose base was refused instead of reporting the base as missing. An asset's own id is used
+     * where it has one (a marked folder folds into it), else the map key.
+     */
+    @Nonnull
+    public static <T extends JsonAsset<String>> Set<String> refused(@Nonnull DefaultAssetMap<String, T> assetMap,
+                                                                    @Nonnull Predicate<T> keep) {
+        Set<String> out = new LinkedHashSet<>();
+        for (Map.Entry<String, T> entry : assetMap.getAssetMap().entrySet()) {
+            String key = entry.getKey();
+            T asset = entry.getValue();
+            if (asset == null || DefaultAssetMap.DEFAULT_PACK_KEY.equals(assetMap.getAssetPack(key))
+                    || keep.test(asset)) {
+                continue;
+            }
+            String id = asset.getId();
+            out.add((id == null || id.isBlank() ? key : id).toLowerCase(Locale.ROOT));
         }
         return out;
     }
