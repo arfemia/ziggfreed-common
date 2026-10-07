@@ -3,8 +3,10 @@ package com.ziggfreed.common.reputation;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.factor.FactorContext;
 import com.ziggfreed.common.factor.FactorContributions;
+import com.ziggfreed.common.factor.FactorNames;
 
 /**
  * The three reputation readings, contributed to every vocabulary on the server. {@code Param} names the
@@ -32,11 +34,12 @@ public final class ReputationFactors {
     private ReputationFactors() {
     }
 
-    /** Claim the three ids process-wide. Once, at library setup. */
+    /** Claim the three ids process-wide, and name a rank gate's lock line. Once, at library setup. */
     public static void contribute(@Nonnull ReputationService service) {
         FactorContributions.register(STANDING, OWNER, ctx -> standing(service, ctx));
         FactorContributions.register(EARNED, OWNER, ctx -> earned(service, ctx));
         FactorContributions.register(RANK, OWNER, ctx -> rank(service, ctx));
+        FactorNames.registerParamNamer(RANK, param -> rankLockName(service, param));
     }
 
     @Nullable
@@ -69,5 +72,28 @@ public final class ReputationFactors {
         }
         ReputationService.Standing standing = service.standing(ctx.store(), ctx.subject(), reputationId);
         return standing == null ? null : standing.effective() >= rank.min() ? 1.0 : 0.0;
+    }
+
+    /**
+     * What a lock line on {@code <Id>/<Rank>} calls the gate: the rank's name with that reputation (its
+     * {@code Ranks.<Rank>.Name}, else the library's word) and the reputation's own name, as
+     * {@code factor.rank_with}. Null, so the generic line reads, when the reputation names itself nowhere
+     * ({@code Text.TitleKey}) or the rank is not on its ladder. A pack's ParamNames entry for the exact
+     * Param is asked first and still wins.
+     */
+    @Nullable
+    static Message rankLockName(@Nonnull ReputationService service, @Nonnull String param) {
+        int slash = param.lastIndexOf('/');
+        if (slash <= 0 || slash == param.length() - 1) {
+            return null;
+        }
+        ReputationDef def = service.known(param.substring(0, slash).trim());
+        if (def == null || def.titleKey() == null) {
+            return null;
+        }
+        ReputationLadder ladder = service.ladderFor(def);
+        ReputationLadder.Rank rank = ladder.usable() ? ladder.byId(param.substring(slash + 1)) : null;
+        return rank == null ? null
+                : ReputationText.line("factor.rank_with", ReputationText.rankName(def, rank), ReputationText.name(def));
     }
 }

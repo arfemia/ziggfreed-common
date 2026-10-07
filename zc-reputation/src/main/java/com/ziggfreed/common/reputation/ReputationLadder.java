@@ -56,7 +56,12 @@ public final class ReputationLadder {
         /** {@code From} at or below the shared top's floor, or at or past its ceiling. */
         OUT_OF_RANGE,
         /** {@code From} equal to another tier's, so one of the two could never be reached. */
-        SHARED_FLOOR
+        SHARED_FLOOR,
+        /**
+         * The id of a tier already on the ladder, written in another case: ids match without regard to case,
+         * so the ladder holds each once, and the second by floor (then by id as written) is left out.
+         */
+        SHARED_ID
     }
 
     /** One tier a reputation authored that its ladder leaves out, and why. */
@@ -68,7 +73,8 @@ public final class ReputationLadder {
      * tiers above the shared top, each from its {@code From} floor to the next tier's floor, the highest to
      * the shared top's ceiling; the shared top then reaches only to the first tier. A floor on a shared rank
      * id, at or below the shared top's floor (or at or past its ceiling), or equal to another tier's is left
-     * out ({@link #refusedTiers}), so the shared floors never move. With no tiers this is {@link #of(Collection)}.
+     * out ({@link #refusedTiers}), so the shared floors never move, and so is a second tier whose id one already
+     * on the ladder holds in another case. With no tiers this is {@link #of(Collection)}.
      */
     @Nonnull
     public static ReputationLadder of(@Nonnull Collection<Rank> global, @Nonnull Map<String, Integer> fromFloors) {
@@ -99,8 +105,11 @@ public final class ReputationLadder {
                 tiers.add(Map.entry(entry.getKey().trim(), entry.getValue()));
             }
         }
+        // Floor, then id without case, then id as written: a total order, so which of two ids that differ only
+        // by case comes second never depends on the order the file lists them in.
         tiers.sort(Comparator.comparingInt((Map.Entry<String, Integer> tier) -> tier.getValue())
-                .thenComparing(tier -> tier.getKey().toLowerCase(Locale.ROOT)));
+                .thenComparing(tier -> tier.getKey().toLowerCase(Locale.ROOT))
+                .thenComparing(tier -> tier.getKey()));
         List<Rank> kept = new ArrayList<>();
         List<RefusedTier> refused = new ArrayList<>();
         for (Map.Entry<String, Integer> tier : tiers) {
@@ -131,6 +140,11 @@ public final class ReputationLadder {
         }
         if (top == null || !shared.usable() || from <= top.min() || from >= top.max()) {
             return Refusal.OUT_OF_RANGE;
+        }
+        for (Rank tier : kept) {
+            if (tier.id().equalsIgnoreCase(id)) {
+                return Refusal.SHARED_ID;
+            }
         }
         if (!kept.isEmpty() && kept.get(kept.size() - 1).min() == from) {
             return Refusal.SHARED_FLOOR;

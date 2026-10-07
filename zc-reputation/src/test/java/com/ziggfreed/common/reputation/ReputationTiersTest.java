@@ -1,6 +1,7 @@
 package com.ziggfreed.common.reputation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,8 +17,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.event.IEvent;
+import com.hypixel.hytale.server.core.Message;
 import com.ziggfreed.common.event.NativeEventSeam;
 import com.ziggfreed.common.factor.FactorContext;
+import com.ziggfreed.common.factor.FactorNames;
 import com.ziggfreed.common.reputation.asset.ReputationAsset;
 import com.ziggfreed.common.reputation.event.ReputationEvents;
 import com.ziggfreed.common.reputation.event.ZigReputationRanksHeldEvent;
@@ -143,7 +146,8 @@ class ReputationTiersTest {
     void aFloorThatWouldMoveASharedRankIsAnErrorAndIgnored() {
         ReputationAsset odd = ReputationFixtures.companion(FESTIVAL, """
                 { "Ranks": { "Exalted": { "From": 50000 }, "Test_Low": { "From": 21000 },
-                             "Test_Wayfarer": { "From": 60000 }, "Test_Zeal": { "From": 60000 } } }
+                             "Test_Wayfarer": { "Name": "test.festival.rank.wayfarer", "From": 60000 },
+                             "Test_Zeal": { "From": 60000 } } }
                 """);
         ReputationFixtures.loadCompanions(Map.of("test_festival", odd));
 
@@ -168,11 +172,71 @@ class ReputationTiersTest {
                 engine.groups(), engine.ranks(), group -> true, stat -> true, item -> true),
                 "a name for its own tier is no UNKNOWN_RANK");
         List<Finding> capped = ReputationValidator.audit(List.of(ReputationFixtures.companion(FESTIVAL, """
-                        { "Cap": 100000, "Ranks": { "Test_Wayfarer": { "From": 60000 },
-                                                    "Test_Luminary": { "From": 150000 } } }
+                        { "Cap": 100000,
+                          "Ranks": { "Test_Wayfarer": { "Name": "test.festival.rank.wayfarer", "From": 60000 },
+                                     "Test_Luminary": { "Name": "test.festival.rank.luminary", "From": 150000 } } }
                         """)), engine.groups(), engine.ranks(), group -> true, stat -> true, item -> true);
         assertEquals(List.of(ReputationValidator.TIER_ABOVE_CAP), capped.stream().map(Finding::code).toList());
         assertEquals(Severity.WARNING, capped.get(0).severity());
         assertTrue(capped.get(0).message().contains("Test_Luminary"), capped.get(0).message());
+    }
+
+    @Test
+    void aTierOnTheLadderWithNoNameIsAWarning() {
+        List<Finding> findings = ReputationValidator.audit(List.of(ReputationFixtures.companion(FESTIVAL, """
+                        { "Ranks": { "Test_Wayfarer": { "Name": "test.festival.rank.wayfarer", "From": 60000 },
+                                     "Test_Luminary": { "From": 150000 }, "Test_Low": { "From": 21000 },
+                                     "Exalted": { "From": 50000 } } }
+                        """)), engine.groups(), engine.ranks(), group -> true, stat -> true, item -> true);
+        assertEquals(List.of(ReputationValidator.TIER_OUT_OF_RANGE, ReputationValidator.FROM_ON_SHARED_RANK,
+                        ReputationValidator.TIER_WITHOUT_NAME), findings.stream().map(Finding::code).toList(),
+                "only a tier that stands on the ladder needs a name: a refused one already has its ERROR, and a "
+                        + "shared rank reads with the library's word");
+        assertEquals(Severity.WARNING, findings.get(2).severity());
+        assertTrue(findings.get(2).message().contains("Test_Luminary"), findings.get(2).message());
+    }
+
+    @Test
+    void aTierWrittenTwiceInTwoCasesIsAnErrorAndTheSecondByFloorIsIgnored() {
+        ReputationAsset twice = ReputationFixtures.companion(FESTIVAL, """
+                { "Ranks": { "test_wayfarer": { "Name": "test.festival.rank.wayfarer.late", "From": 90000 },
+                             "Test_Wayfarer": { "Name": "test.festival.rank.wayfarer", "From": 60000 } } }
+                """);
+        ReputationFixtures.loadCompanions(Map.of("test_festival", twice));
+
+        assertEquals(List.of("Hated", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted",
+                "Test_Wayfarer"), ids(service.ladderOf(FESTIVAL)), "ids match without regard to case");
+
+        List<Finding> findings = ReputationValidator.audit(List.of(twice), engine.groups(), engine.ranks(),
+                group -> true, stat -> true, item -> true);
+        assertEquals(List.of(ReputationValidator.TIER_SHARES_ID), findings.stream().map(Finding::code).toList());
+        assertEquals(Severity.ERROR, findings.get(0).severity());
+        assertTrue(findings.get(0).message().contains("'test_wayfarer'"), findings.get(0).message());
+    }
+
+    @Test
+    void aGateOnATierNamesTheRankAndTheReputationWithNoOverlay() {
+        ReputationFactors.contribute(service);
+
+        Message line = FactorNames.name(ReputationFactors.RANK, FESTIVAL + "/Test_Wayfarer");
+
+        assertNotNull(line, "no Factors file names this gate, and none has to");
+        assertEquals(ReputationText.PREFIX + "factor.rank_with", line.getMessageId());
+        assertEquals("test.festival.rank.wayfarer", line.getFormattedMessage().messageParams.get("0").messageId,
+                "{0} is the rank's own name with this reputation");
+        assertEquals("test.festival.name", line.getFormattedMessage().messageParams.get("1").messageId,
+                "{1} is the reputation's name");
+        assertEquals(ReputationText.PREFIX + "rank.honored", FactorNames.name(ReputationFactors.RANK,
+                        FESTIVAL + "/Honored").getFormattedMessage().messageParams.get("0").messageId,
+                "a shared rank it does not rename reads with the library's word");
+    }
+
+    @Test
+    void aReputationThatNamesItselfNowhereKeepsTheGenericLine() {
+        assertNull(ReputationFactors.rankLockName(service, ReputationFixtures.OLD_JACK + "/Friendly"),
+                "no TitleKey, so a raw id never reaches a lock line");
+        assertNull(ReputationFactors.rankLockName(service, FESTIVAL + "/Test_Nowhere"), "a rank not on its ladder");
+        assertNull(ReputationFactors.rankLockName(service, "Nobody/Friendly"));
+        assertNull(ReputationFactors.rankLockName(service, FESTIVAL));
     }
 }

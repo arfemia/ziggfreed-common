@@ -140,4 +140,32 @@ class ReputationLadderTest {
                 ReputationLadder.refusedTiers(ReputationFixtures.LADDER, floors),
                 "in floor order; of two tiers on one floor the first by id stands");
     }
+
+    @Test
+    void aTierWhoseIdAnotherTierHoldsInAnotherCaseIsLeftOut() {
+        Map<String, Integer> floors = new LinkedHashMap<>();
+        floors.put("test_a", 70_000);
+        floors.put("Test_A", 60_000);
+        floors.put("test_b", 80_000);
+        floors.put("TEST_B", 80_000);
+
+        ReputationLadder tiered = ReputationLadder.of(ReputationFixtures.LADDER, floors);
+
+        assertEquals(List.of("Hated", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted",
+                "Test_A", "TEST_B"), ids(tiered.ranks()),
+                "ids match without regard to case, so a ladder holds each once");
+        assertEquals(new Rank("Test_A", 60_000, 80_000), tiered.byId("test_a"));
+        assertEquals(List.of(
+                        new ReputationLadder.RefusedTier("test_a", 70_000, ReputationLadder.Refusal.SHARED_ID),
+                        new ReputationLadder.RefusedTier("test_b", 80_000, ReputationLadder.Refusal.SHARED_ID)),
+                ReputationLadder.refusedTiers(ReputationFixtures.LADDER, floors),
+                "the second by floor is left out; on one floor the second by id as written ('TEST_B' sorts before "
+                        + "'test_b'), whatever order the file lists them in, and its reason is the id, not the floor");
+
+        Map<String, Integer> past = new LinkedHashMap<>();
+        past.put("Test_C", 21_000);
+        past.put("test_c", 90_000);
+        assertEquals(new Rank("test_c", 90_000, 2_000_000_000), ReputationLadder.of(ReputationFixtures.LADDER, past)
+                .byId("Test_C"), "only a tier on the ladder holds its id: one refused for its floor leaves it free");
+    }
 }

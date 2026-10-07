@@ -17,6 +17,7 @@ import com.hypixel.hytale.assetstore.AssetExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 
 import com.hypixel.hytale.server.core.Message;
+import com.ziggfreed.common.i18n.Msg;
 import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
@@ -32,6 +33,7 @@ class FactorNamesTest {
     @AfterEach
     void clearTheProcessWideConfig() {
         DerivedFactorConfig.getInstance().mergePackLayer(Map.of());
+        FactorNames.clearParamNamersForTests();
     }
 
     private static ContentTextAsset title(String key) {
@@ -291,5 +293,50 @@ class FactorNamesTest {
         assertTrue(DerivedFactorConfig.getInstance().definedIds().isEmpty(),
                 "a naming overlay is not a defined factor, so it never leaks into the vocabulary "
                         + "listing");
+    }
+
+    @Test
+    void aCodeNamerAnswersOnlyWhereNoOverlayClaimsTheExactParam() {
+        Map<String, DerivedFactorAsset> files = Map.of(
+                "rank_generic", DerivedFactorAsset.of("rank_generic", null, "test:rank", null,
+                        title("test.rank.generic"), null),
+                "jack_overlay", DerivedFactorAsset.of("jack_overlay", null, "test:rank", null, null,
+                        DerivedFactorAsset.ParamNames.of(null, Map.of(
+                                "Jack/Friendly", "test.jack.regular",
+                                "Jack/Honored", "test.jack.trusted"))));
+        Set<String> shipped = Set.of("test.rank.generic", "test.jack.regular");
+        FactorNames.ParamNamer namer = param -> Msg.raw("composed " + param);
+
+        assertEquals("test.jack.regular",
+                FactorNames.name("test:rank", "Jack/Friendly", files, shipped::contains, namer).getMessageId(),
+                "a shipped Keys entry for the exact Param still wins");
+        assertEquals("test.rank.generic",
+                FactorNames.name("test:rank", "Jack/Honored", files, shipped::contains, namer).getMessageId(),
+                "a Keys entry whose key is not shipped yet still claims its Param: the namer stays out and "
+                        + "the walk answers exactly as it did before");
+        assertEquals("composed Festival/Wayfarer",
+                FactorNames.name("test:rank", "Festival/Wayfarer", files, shipped::contains, namer).getRawText(),
+                "a Param no file claims is named in code, ahead of the factor's generic name");
+        assertEquals("test.rank.generic",
+                FactorNames.name("test:rank", "Festival/Wayfarer", files, shipped::contains, param -> null)
+                        .getMessageId(), "a namer with nothing to say leaves the generic name");
+        assertEquals("composed X/Y", FactorNames.name("test:rank", "X/Y", Map.of(), NO_KEYS, namer).getRawText(),
+                "a namer answers where no file names the factor at all");
+        assertEquals("test.rank.generic", FactorNames.name("test:rank", "X/Y", files, shipped::contains,
+                param -> {
+                    throw new IllegalStateException("boom");
+                }).getMessageId(), "a namer that throws costs only its own answer");
+        assertEquals("test.rank.generic",
+                FactorNames.name("test:rank", "X/Y", files, shipped::contains).getMessageId(),
+                "the four-argument core is the walk with no namer, exactly as before");
+    }
+
+    @Test
+    void aRegisteredNamerIsWhatThePublicLookupAsks() {
+        FactorNames.registerParamNamer("test:registered", param -> Msg.raw("named " + param));
+
+        assertEquals("named A/B", FactorNames.name("test:registered", "A/B").getRawText());
+        assertEquals("named A/B", FactorNames.name("TEST:REGISTERED", "A/B").getRawText(), "ids in any case");
+        assertNull(FactorNames.name("test:registered", null), "a namer names a Param, and none was given");
     }
 }
