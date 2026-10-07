@@ -21,6 +21,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.asset.HideAxis;
@@ -34,6 +35,7 @@ import com.ziggfreed.common.quest.QuestTurnInSite;
 import com.ziggfreed.common.quest.asset.QuestAsset;
 import com.ziggfreed.common.quest.asset.QuestDefinition;
 import com.ziggfreed.common.quest.asset.QuestObjectiveAsset;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
@@ -95,11 +97,12 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
     @Nullable private QuestAsset.Flow flow;
     @Nullable private BoardMembership[] boards;
     @Nullable private GateSpec requires;
+    @Nullable private String season;
     @Nullable private Map<String, QuestObjectiveAsset> objectives;
     @Nullable private ContentRewardsAsset rewards;
     @Nullable private Map<String, JsonElement> meta;
 
-    public static final AssetBuilderCodec<String, BountyAsset> CODEC = AssetBuilderCodec.builder(
+    public static final AssetBuilderCodec<String, BountyAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
                     BountyAsset.class,
                     BountyAsset::new,
                     Codec.STRING,
@@ -180,7 +183,8 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
             .documentation(ContentMeta.DOCUMENTATION)
-            .add()
+            .add(),
+                    (a, v) -> a.season = v, a -> a.season)
             .build();
 
     public BountyAsset() {
@@ -196,13 +200,19 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
         return enabled == null || enabled;
     }
 
+    /** The calendar event this belongs to, trimmed, or null when it is on all year. */
+    @Nullable
+    public String getSeason() {
+        return SeasonGate.normalize(season);
+    }
+
     /**
-     * In circulation RIGHT NOW: switched on, and every plain top-level feature or mod condition in
-     * {@code Requires} reading on at this moment. What the draw asks; a contract answering false is
-     * never posted, and one already carried is still finished at its board.
+     * In circulation RIGHT NOW: switched on and in its {@code Season}, and every plain top-level feature
+     * or mod condition in {@code Requires} reading on at this moment. What the draw asks; a contract
+     * answering false is never posted, and one already carried is still finished at its board.
      */
     public boolean isAvailable() {
-        return HideAxis.present(isEnabled(), requires);
+        return HideAxis.present(isEnabled(), getSeason(), requires);
     }
 
     /** A skeleton that exists only to be inherited from, never posted. */
@@ -299,9 +309,10 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
      *
      * <p><b>The hide axis is folded here, exactly as the shared quest fold folds it.</b> A plain
      * top-level feature or mod-presence condition in {@code Requires} leaves the gate
-     * ({@link FeatureLift#liftKnown}) and {@link Quest#available()} answers {@code Enabled} AND every
-     * lifted condition live, so a contract whose feature is off is never offered rather than offered
-     * locked. The draw reads the same axis through {@link #isAvailable()}.
+     * ({@link FeatureLift#liftKnown}) and {@link Quest#available()} answers {@code Enabled}, the
+     * {@code Season} ({@link FeatureLift#present}) AND every lifted condition live, so a contract whose
+     * feature is off, or whose season is not running, is never offered rather than offered locked. The
+     * draw reads the same axis through {@link #isAvailable()}.
      *
      * @param generatedBy the generator that produced this contract, or null when authored by hand
      */
@@ -337,11 +348,12 @@ public final class BountyAsset implements JsonAssetWithMap<String, DefaultAssetM
                 // Collected at whatever posted it, so any board of that id answers.
                 .turnInAt(QuestTurnInSite.ACCEPT_SITE)
                 .tags(listing == null ? List.of() : listing.tagList());
-        if (lifted.isEmpty()) {
-            quest.available(enabled);
-        } else {
-            BooleanSupplier live = () -> enabled && FeatureLift.allOn(lifted);
+        String seasonId = getSeason();
+        if (FeatureLift.isLive(seasonId, lifted)) {
+            BooleanSupplier live = () -> FeatureLift.present(enabled, seasonId, lifted);
             quest.available(live);
+        } else {
+            quest.available(enabled);
         }
 
         Map<String, String> objectiveText = new LinkedHashMap<>();

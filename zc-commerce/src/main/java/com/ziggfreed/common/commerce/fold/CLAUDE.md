@@ -10,3 +10,4 @@
 - Registration belongs to the wiring root: nothing in this package registers itself.
 - `ShopEntryOffer.enabled()` reads its own hide axis and its storefront's live, so a press on a page drawn before either was hidden refuses as `disabled` rather than sells; `requires()` is the offer's lock only.
 - `AssetBoardCatalog.boards()` is the viewer-less board list (admin verbs, server-wide questions); a player's list is `boardsIn(viewer)`, which drops a board whose `Where` leaves that player's world out. The engine views (`BoardAssetSpec.enabled()`, `ShopEntryOffer.enabled()`) have no viewer and never read `Where`.
+- `CommerceAudit.auditSeasons` reports an authored file whose `Season` no loaded calendar event declares (`UNKNOWN_SEASON`, WARNING, in the wallet, shop or board domain), once per file and never per generated offer.

@@ -18,12 +18,14 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.schema.metadata.ui.UIEditor;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.codec.InheritMapCodec;
 import com.ziggfreed.common.commerce.asset.CommerceEditorDataSets;
 import com.ziggfreed.common.commerce.asset.HideAxis;
 import com.ziggfreed.common.commerce.asset.WhereAxis;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.text.ContentTextAsset;
 import com.ziggfreed.common.world.WhereValidator.LoadedWorld;
 import com.ziggfreed.common.world.WorldSelector;
@@ -87,10 +89,11 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
     @Nullable private String[] categoryOrder;
     @Nullable private Map<String, ContentTextAsset> categories;
     @Nullable private GateSpec requires;
+    @Nullable private String season;
     @Nullable private WorldSelector where;
     @Nullable private Map<String, JsonElement> meta;
 
-    public static final AssetBuilderCodec<String, StorefrontAsset> CODEC = AssetBuilderCodec.builder(
+    public static final AssetBuilderCodec<String, StorefrontAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
                     StorefrontAsset.class,
                     StorefrontAsset::new,
                     Codec.STRING,
@@ -166,7 +169,8 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
             .documentation(ContentMeta.DOCUMENTATION)
-            .add()
+            .add(),
+                    (a, v) -> a.season = v, a -> a.season)
             .build();
 
     public StorefrontAsset() {
@@ -185,14 +189,20 @@ public final class StorefrontAsset implements JsonAssetWithMap<String, DefaultAs
         return enabled == null || enabled;
     }
 
+    /** The calendar event this belongs to, trimmed, or null when it is on all year. */
+    @Nullable
+    public String getSeason() {
+        return SeasonGate.normalize(season);
+    }
+
     /**
-     * Is the storefront on this server RIGHT NOW: switched on, and every plain top-level feature or
-     * mod condition in {@code Requires} reading on at this moment ({@link HideAxis#present})? What
-     * every listing, the unnamed default and the page ask. Read live, so a feature toggled while the
-     * server is up moves the storefront on the next look.
+     * Is the storefront on this server RIGHT NOW: switched on and in its {@code Season}, and every plain
+     * top-level feature or mod condition in {@code Requires} reading on at this moment
+     * ({@link HideAxis#present})? What every listing, the unnamed default and the page ask. Read live,
+     * so a feature toggled while the server is up moves the storefront on the next look.
      */
     public boolean isAvailable() {
-        return HideAxis.present(isEnabled(), requires);
+        return HideAxis.present(isEnabled(), getSeason(), requires);
     }
 
     /**

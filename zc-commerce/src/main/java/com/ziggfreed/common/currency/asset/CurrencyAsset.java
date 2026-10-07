@@ -16,9 +16,11 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.ziggfreed.common.asset.EditorSchema;
+import com.ziggfreed.common.asset.SeasonLeaf;
 import com.ziggfreed.common.commerce.asset.HideAxis;
 import com.ziggfreed.common.progress.asset.ContentMeta;
 import com.ziggfreed.common.progress.gate.GateSpec;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.text.ContentTextAsset;
 
 /**
@@ -75,9 +77,10 @@ public final class CurrencyAsset
     @Nullable private OnDeath onDeath;
     @Nullable private Decay decay;
     @Nullable private GateSpec requires;
+    @Nullable private String season;
     @Nullable private Map<String, JsonElement> meta;
 
-    public static final AssetBuilderCodec<String, CurrencyAsset> CODEC = AssetBuilderCodec.builder(
+    public static final AssetBuilderCodec<String, CurrencyAsset> CODEC = SeasonLeaf.append(AssetBuilderCodec.builder(
                     CurrencyAsset.class,
                     CurrencyAsset::new,
                     Codec.STRING,
@@ -145,7 +148,8 @@ public final class CurrencyAsset
             .appendInherited(new KeyedCodec<>(ContentMeta.KEY, ContentMeta.CODEC, false),
                     (a, v) -> a.meta = v, a -> a.meta, (a, p) -> a.meta = p.meta)
             .documentation(ContentMeta.DOCUMENTATION)
-            .add()
+            .add(),
+                    (a, v) -> a.season = v, a -> a.season)
             .build();
 
     public CurrencyAsset() {
@@ -161,14 +165,20 @@ public final class CurrencyAsset
         return enabled == null || enabled;
     }
 
+    /** The calendar event this belongs to, trimmed, or null when it is on all year. */
+    @Nullable
+    public String getSeason() {
+        return SeasonGate.normalize(season);
+    }
+
     /**
-     * Is the wallet LISTED right now: switched on, and every plain top-level feature or mod
-     * condition in {@code Requires} reading on? Only listings ask. A wallet that is not listed still
-     * resolves for a credit or a charge, so its balances are kept, still earned, and all there when
-     * it comes back.
+     * Is the wallet LISTED right now: switched on and in its {@code Season}, and every plain top-level
+     * feature or mod condition in {@code Requires} reading on? Only listings ask. A wallet that is not
+     * listed still resolves for a credit or a charge, so its balances are kept, still earned, and all
+     * there when it comes back.
      */
     public boolean isListed() {
-        return HideAxis.present(isEnabled(), requires);
+        return HideAxis.present(isEnabled(), getSeason(), requires);
     }
 
     @Nullable
