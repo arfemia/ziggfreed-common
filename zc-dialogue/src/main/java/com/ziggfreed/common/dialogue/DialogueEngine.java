@@ -53,6 +53,7 @@ import com.ziggfreed.common.quest.NpcOffer;
 import com.ziggfreed.common.quest.NpcOfferProviders;
 import com.ziggfreed.common.quest.QuestStatus;
 import com.ziggfreed.common.registry.RegistryLedger;
+import com.ziggfreed.common.season.SeasonGate;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.ui.route.Destination;
 
@@ -900,13 +901,17 @@ public final class DialogueEngine {
     }
 
     /**
-     * Whether {@code option} should be offered right now: its conditions pass AND its own
-     * {@code Once} (if any) has not been spent in the current window. The ONE predicate a page uses
-     * both when rendering a node and when re-checking a click, so a stale click can never run a spent
-     * option, and a click landing after a window turned over is judged by the window it lands in.
+     * Whether {@code option} should be offered right now: for a line an extension added, that
+     * extension's {@code Season} is running; its conditions pass; AND its own {@code Once} (if any) has
+     * not been spent in the current window. The ONE predicate a page uses both when rendering a node
+     * and when re-checking a click, so a stale click can never run a spent or out-of-season option,
+     * and a click landing after a window turned over is judged by the window it lands in.
      */
     public boolean optionAvailable(@Nonnull NpcDialogue dialogue, @Nonnull String nodeId,
                                    @Nonnull DialogueOption option, @Nonnull DialogueContext ctx) {
+        if (!SeasonGate.live(option.getInjectedSeason())) {
+            return false;
+        }
         if (option.hasConditions() && !conditionsPass(option.getConditions(), ctx)) {
             return false;
         }
