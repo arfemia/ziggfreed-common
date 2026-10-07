@@ -80,6 +80,7 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `CooldownFrom` | `string` | `null` | Which instant the rolling wait counts from: Claim (the reward being taken, the default) or Complete (the steps being finished). Choose Complete for a quest belonging to a rotating offer, so collecting late does not burn a slot in the next period. |
 | `Reset` | [Reset](#field-questasset-repeat-reset) | `null` | A calendar allowance: how many times the quest may be finished inside one fixed window (a day, a week, eight hours, a fortnight), counted from a boundary on the clock rather than from the player's last go. Unauthored means no calendar limit. |
 | `MaxCompletions` | `integer` | `null` | A lifetime cap: how many times one player may ever finish it. 0 or unauthored means uncapped. A player who has spent the cap sees the quest as finished for good. |
+| `PerRun` | [PerRun](#field-questasset-repeat-perrun) | `null` | Once a run of a calendar event: the quest is offered only while a run of Event is going on, and at most Times finishes count in one run. A run forced on, or one whose days the server owner moved, is still the run it was. A quest left unfinished when its run ends keeps its progress for the next run. Unauthored means no run allowance. |
 | `ResetsOnComplete` | array of `string` | `null` | Quest ids whose progress is wiped when this one finishes, so a chain can come round again. Handy for a weekly that re-arms its dailies. |
 
 <a id="field-questasset-npc"></a>
@@ -127,6 +128,14 @@ Every field is optional and defaults to `null` unless its Default column reads *
 | `AtMinutes` | `integer` | `null` | How many minutes past the boundary the window rolls over, on the server clock in UTC. Unauthored means midnight UTC; 240 moves it to 04:00, which is how a server whose players are all in one part of the world stops a daily flipping over in the middle of their evening. On an eight-hour window it shifts every boundary of the day by the same amount. |
 | `Weekday` | `string` | `null` | Which day the window starts on (Monday, Tuesday, ...), for a window that is a whole number of weeks: Weekly, or Every {"Weeks": 2}. Unauthored means Monday. It does nothing on any other length. |
 | `Times` | `integer` | `null` | How many FINISHES fit inside one window. Unauthored means 1. A run whose reward is still waiting to be collected has already spent its slot here. |
+
+<a id="field-questasset-repeat-perrun"></a>
+#### QuestAsset.Repeat.PerRun
+
+| Key | Type | Default | Documentation |
+|---|---|---|---|
+| `Event` | `string` | `null` | The calendar event whose runs the quest counts by, by its file name (a CalendarEvents id). Required: a PerRun naming none is ignored. |
+| `Times` | `integer` | `null` | How many FINISHES fit inside one run of the event. Unauthored means 1. A run whose reward is still waiting to be collected has already spent its slot. |
 
 <a id="field-questasset-indicator-collect"></a>
 #### QuestAsset.Indicator.Collect

@@ -670,8 +670,8 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
      * <p><b>Authoring this block AT ALL is what makes a quest repeatable</b>, so the smallest
      * repeatable quest is {@code "Repeat": {}} - nothing holds it back, and whatever offers it
      * decides when it comes round. Everything inside is an independent constraint and they all have
-     * to pass: a rolling {@code Cooldown} wait, a {@code Reset} calendar allowance, and a lifetime
-     * {@code MaxCompletions} cap.
+     * to pass: a rolling {@code Cooldown} wait, a {@code Reset} calendar allowance, a lifetime
+     * {@code MaxCompletions} cap, and a {@code PerRun} allowance over a calendar event's runs.
      */
     public static final class Repeat {
 
@@ -685,6 +685,7 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         @Nullable protected String cooldownFrom;
         @Nullable protected Reset reset;
         @Nullable protected Integer maxCompletions;
+        @Nullable protected PerRun perRun;
         @Nullable protected String[] resetsOnComplete;
 
         public static final BuilderCodec<Repeat> CODEC = BuilderCodec.builder(Repeat.class, Repeat::new)
@@ -714,6 +715,12 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                         (o, p) -> o.maxCompletions = p.maxCompletions)
                 .documentation("A lifetime cap: how many times one player may ever finish it. 0 or unauthored "
                         + "means uncapped. A player who has spent the cap sees the quest as finished for good.").add()
+                .appendInherited(new KeyedCodec<>("PerRun", PerRun.CODEC, false),
+                        (o, v) -> o.perRun = v, o -> o.perRun, (o, p) -> o.perRun = p.perRun)
+                .documentation("Once a run of a calendar event: the quest is offered only while a run of Event "
+                        + "is going on, and at most Times finishes count in one run. A run forced on, or one whose "
+                        + "days the server owner moved, is still the run it was. A quest left unfinished when its "
+                        + "run ends keeps its progress for the next run. Unauthored means no run allowance.").add()
                 .appendInherited(new KeyedCodec<>("ResetsOnComplete", Codec.STRING_ARRAY, false),
                         (o, v) -> o.resetsOnComplete = v, o -> o.resetsOnComplete,
                         (o, p) -> o.resetsOnComplete = p.resetsOnComplete)
@@ -791,6 +798,12 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
             return maxCompletions;
         }
 
+        /** The authored once-a-run allowance, or null when the quest authors none. */
+        @Nullable
+        public PerRun getPerRun() {
+            return perRun;
+        }
+
         @Nullable
         public String[] getResetsOnComplete() {
             return resetsOnComplete == null ? null : resetsOnComplete.clone();
@@ -817,7 +830,8 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
         @Nonnull
         public Quest.Repeat toRepeat() {
             return new Quest.Repeat(cooldownMs(), effectiveCooldownFrom(),
-                    reset == null ? null : reset.toReset(), maxCompletions());
+                    reset == null ? null : reset.toReset(), maxCompletions(),
+                    perRun == null ? null : perRun.toPerRun());
         }
 
         // ==================== Reset ====================
@@ -1010,6 +1024,52 @@ public final class QuestAsset implements JsonAssetWithMap<String, DefaultAssetMa
                         atMinutes == null ? 0 : atMinutes.intValue(),
                         parsedWeekday == null ? DayOfWeek.MONDAY : parsedWeekday,
                         times == null ? 1 : times.intValue());
+            }
+        }
+
+        // ==================== PerRun ====================
+
+        /**
+         * Once a run of a calendar event: the event whose runs the quest counts by, and how many finishes one
+         * run allows. The engine's form is {@link Quest.Repeat.PerRun}.
+         */
+        public static final class PerRun {
+
+            @Nullable protected String event;
+            @Nullable protected Integer times;
+
+            public static final BuilderCodec<PerRun> CODEC = BuilderCodec.builder(PerRun.class, PerRun::new)
+                    .appendInherited(new KeyedCodec<>("Event", Codec.STRING, false),
+                            (o, v) -> o.event = v, o -> o.event, (o, p) -> o.event = p.event)
+                    .documentation("The calendar event whose runs the quest counts by, by its file name (a "
+                            + "CalendarEvents id). Required: a PerRun naming none is ignored.").add()
+                    .appendInherited(new KeyedCodec<>("Times", Codec.INTEGER, false),
+                            (o, v) -> o.times = v, o -> o.times, (o, p) -> o.times = p.times)
+                    .metadata(EditorSchema.defaultValue(1))
+                    .documentation("How many FINISHES fit inside one run of the event. Unauthored means 1. A run "
+                            + "whose reward is still waiting to be collected has already spent its slot.").add()
+                    .build();
+
+            public PerRun() {
+            }
+
+            /** The authored event exactly as written; null when unauthored. */
+            @Nullable
+            public String getEvent() {
+                return event;
+            }
+
+            /** The authored allowance exactly as written, for a validator. */
+            @Nullable
+            public Integer getTimes() {
+                return times;
+            }
+
+            /** The engine's rule, or null when no event is named; Times below 1 reads as 1. */
+            @Nullable
+            public Quest.Repeat.PerRun toPerRun() {
+                return event == null || event.isBlank() ? null
+                        : new Quest.Repeat.PerRun(event, times == null ? 1 : times.intValue());
             }
         }
     }

@@ -177,6 +177,20 @@ public final class QuestPoolValidator {
                     "Repeat.MaxCompletions is negative, which reads as uncapped; use 0 to say uncapped",
                     questId));
         }
+        QuestAsset.Repeat.PerRun perRun = repeat.getPerRun();
+        if (perRun != null) {
+            if (perRun.getEvent() == null || perRun.getEvent().isBlank()) {
+                out.add(Finding.error(DOMAIN, "REPEAT_PER_RUN_NO_EVENT",
+                        "Repeat.PerRun names no Event, so it is ignored and the quest comes round by its other "
+                                + "Repeat leaves alone; name the calendar event whose runs it counts by", questId));
+            }
+            Integer times = perRun.getTimes();
+            if (times != null && times.intValue() < 1) {
+                out.add(Finding.warning(DOMAIN, "REPEAT_PER_RUN_TIMES_NON_POSITIVE",
+                        "Repeat.PerRun.Times is " + times + ", which would allow nothing at all; it is treated "
+                                + "as 1", questId));
+            }
+        }
         QuestAsset.Repeat.Reset reset = repeat.getReset();
         if (reset != null) {
             validateReset(reset, questId, out);

@@ -273,6 +273,40 @@ class QuestAssetCodecTest {
         }
 
         @Test
+        void perRunCountsByACalendarEventsRunsAndDefaultsToOnce() throws Exception {
+            Quest.Repeat repeat = decodeRoot("""
+                    { "Repeat": { "PerRun": { "Event": "Spring_Fair" } } }
+                    """, "fair").toDefinition(null).quest().repeat();
+
+            assertNotNull(repeat);
+            assertEquals(new Quest.Repeat.PerRun("Spring_Fair", 1), repeat.perRun(), "unauthored Times means once a run");
+            assertEquals(0L, repeat.cooldownMs(), "no rolling wait comes with it");
+            assertNull(repeat.reset(), "nor a calendar window");
+        }
+
+        @Test
+        void aChildRetunesTimesAndKeepsTheParentsEvent() throws Exception {
+            QuestAsset parent = decodeRoot("""
+                    { "Repeat": { "PerRun": { "Event": "Spring_Fair" }, "MaxCompletions": 5 } }
+                    """, "fair_base");
+            QuestAsset child = decode("{ \"Repeat\": { \"PerRun\": { \"Times\": 2 } } }", "fair_child", "fair_base",
+                    parent);
+
+            Quest.Repeat repeat = child.toDefinition(null).quest().repeat();
+            assertEquals(new Quest.Repeat.PerRun("Spring_Fair", 2), repeat.perRun());
+            assertEquals(5, repeat.maxCompletions(), "the sibling leaves are inherited untouched");
+        }
+
+        @Test
+        void aPerRunWithNoEventIsIgnoredAndTheAuditSaysSo() throws Exception {
+            QuestAsset asset = decodeRoot("{ \"Repeat\": { \"PerRun\": { \"Times\": 0 } } }", "no_event");
+
+            assertNull(asset.toDefinition(null).quest().repeat().perRun());
+            assertTrue(codes(asset).contains("REPEAT_PER_RUN_NO_EVENT"));
+            assertTrue(codes(asset).contains("REPEAT_PER_RUN_TIMES_NON_POSITIVE"));
+        }
+
+        @Test
         void anUnknownEnumFallsBackAndTheValidatorSaysSo() throws Exception {
             QuestAsset asset = decodeRoot("""
                     { "Repeat": { "CooldownFrom": "Whenever",

@@ -28,8 +28,8 @@ import com.ziggfreed.common.util.NumberFormatter;
  * <p>Tokens come in two families. The engine's own flat tokens ({@link QuestGates}) each map to a
  * fixed line - every one of them, so a daily finished today reads "Comes back in 5h 12m" and a
  * quest already carried reads "Already in your quest log" rather than both collapsing onto the
- * catch-all. The two clock tokens ({@code on_cooldown}, {@code period_spent}) quote WHEN when the
- * caller hands over the remaining wait beside the tokens ({@link #lines(List, long)} and its
+ * catch-all. The three clock tokens ({@code on_cooldown}, {@code period_spent}, {@code run_spent})
+ * quote WHEN when the caller hands over the remaining wait beside the tokens ({@link #lines(List, long)} and its
  * siblings, or the {@link QuestEngine.AcceptCheck} forms that carry it already), and fall back to
  * their no-clock twins when a caller has no wait to hand over (a token lifted from somewhere with
  * no record behind it). The wait is composed by {@link #waitLine} as its own translatable line, whole
@@ -171,7 +171,7 @@ public final class LockReasons {
     }
 
     /**
-     * {@link #line(String)} told when the quest comes back. Only the two clock tokens read the
+     * {@link #line(String)} told when the quest comes back. Only the three clock tokens read the
      * wait: a positive one is quoted on their "in {0}" line through {@link #waitLine}, none
      * ({@code 0}) leaves the no-clock twin, and {@link Long#MAX_VALUE} - nothing brings it back -
      * reads as the finished-for-good line rather than as a number no player can use. Every other
@@ -186,6 +186,7 @@ public final class LockReasons {
             case QuestGates.REASON_UNAVAILABLE -> text("lock.unavailable");
             case QuestGates.REASON_ON_COOLDOWN -> clockLine("lock.on_cooldown", waitMs);
             case QuestGates.REASON_PERIOD_SPENT -> clockLine("lock.period_spent", waitMs);
+            case QuestGates.REASON_RUN_SPENT -> clockLine("lock.run_spent", waitMs);
             case QuestGates.REASON_MAX_COMPLETIONS -> text("lock.max_completions");
             case QuestGates.REASON_ALREADY_STARTED -> text("lock.already_started");
             case QuestGates.REASON_SYSTEM_DISABLED -> text("lock.system_disabled");
@@ -431,9 +432,9 @@ public final class LockReasons {
         }
         return switch (reason) {
             case QuestGates.REASON_UNAVAILABLE, QuestGates.REASON_ON_COOLDOWN,
-                    QuestGates.REASON_PERIOD_SPENT, QuestGates.REASON_MAX_COMPLETIONS,
-                    QuestGates.REASON_ALREADY_STARTED, QuestGates.REASON_SYSTEM_DISABLED,
-                    QuestGates.REASON_LOG_FULL -> reason;
+                    QuestGates.REASON_PERIOD_SPENT, QuestGates.REASON_RUN_SPENT,
+                    QuestGates.REASON_MAX_COMPLETIONS, QuestGates.REASON_ALREADY_STARTED,
+                    QuestGates.REASON_SYSTEM_DISABLED, QuestGates.REASON_LOG_FULL -> reason;
             case QuestGates.REASON_PREREQUISITES -> "prerequisites";
             default -> "other";
         };

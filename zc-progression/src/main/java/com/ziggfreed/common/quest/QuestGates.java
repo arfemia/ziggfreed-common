@@ -36,6 +36,12 @@ public interface QuestGates {
     /** A repeatable finished as often as it ever can be; nothing brings it back. */
     String REASON_MAX_COMPLETIONS = "max_completions";
 
+    /**
+     * A once-a-run quest already finished as often as one run of its calendar event allows, or whose event
+     * is not running; it returns when the event's next run starts.
+     */
+    String REASON_RUN_SPENT = "run_spent";
+
     /** The player is already carrying as many quests as the engine allows. */
     String REASON_LOG_FULL = "log_full";
 

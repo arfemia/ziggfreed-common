@@ -68,8 +68,14 @@ public interface QuestProgressStore {
      * the other one, and a record that lost the distinction (one built by
      * {@link CompletionRecord#withoutCollectedTally}) cannot be talked into counting one collection
      * twice.
+     *
+     * <p><b>A once-a-run quest also keeps its run</b>: {@code runYear} is the year of the run of its
+     * event its last finish counted for, and {@code runCount} how many finishes that run holds. Both are
+     * null and 0 for any other quest and for a record saved before the tally existed, which belongs to
+     * the run whose days hold its last finish ({@link PerRuns}).
      */
-    record CompletionRecord(long lastCompletionMs, int periodCount, int totalCount, int claimedCount) {
+    record CompletionRecord(long lastCompletionMs, int periodCount, int totalCount, int claimedCount,
+                            @Nullable Integer runYear, int runCount) {
 
         /** Nothing recorded: never finished, nothing spent, nothing counted, nothing collected. */
         public static final CompletionRecord NONE = new CompletionRecord(0L, 0, 0, 0);
@@ -79,6 +85,12 @@ public interface QuestProgressStore {
             periodCount = Math.max(0, periodCount);
             totalCount = Math.max(0, totalCount);
             claimedCount = Math.min(Math.max(0, claimedCount), totalCount);
+            runCount = runYear == null ? 0 : Math.max(0, runCount);
+        }
+
+        /** A record that keeps no run tally: a quest with no once-a-run rule, or a value saved before the tally existed. */
+        public CompletionRecord(long lastCompletionMs, int periodCount, int totalCount, int claimedCount) {
+            this(lastCompletionMs, periodCount, totalCount, claimedCount, null, 0);
         }
 
         /**

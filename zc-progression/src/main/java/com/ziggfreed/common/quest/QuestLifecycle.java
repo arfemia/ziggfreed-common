@@ -3,6 +3,8 @@ package com.ziggfreed.common.quest;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.occurrence.OccurrenceSource;
+import com.ziggfreed.common.occurrence.Occurrences;
 import com.ziggfreed.common.quest.Quest.Repeat;
 import com.ziggfreed.common.quest.QuestProgressStore.CompletionRecord;
 import com.ziggfreed.common.subject.Subject;
@@ -67,11 +69,24 @@ public final class QuestLifecycle {
     }
 
     /**
-     * The pure rule. Three INDEPENDENT constraints, ANDed; the first refusal wins, and the order is
+     * {@link #repeatCheck(Repeat, long, CompletionRecord, long, OccurrenceSource)} over the occurrence
+     * slot, asked only for a once-a-run rule.
+     */
+    @Nonnull
+    public static RepeatCheck repeatCheck(@Nullable Repeat repeat, long cooldownStampMs,
+                                          @Nonnull CompletionRecord completions, long nowMs) {
+        return repeatCheck(repeat, cooldownStampMs, completions, nowMs,
+                repeat != null && repeat.perRun() != null ? Occurrences.source() : OccurrenceSource.NONE);
+    }
+
+    /**
+     * The pure rule. Four INDEPENDENT constraints, ANDed; the first refusal wins, and the order is
      * chosen so a player is told the most actionable thing:
      * <ol>
      *   <li>the LIFETIME cap, first because "back in three hours" is a worse message than the truth
      *   for a quest somebody can never take again;
+     *   <li>the RUN allowance ({@link Repeat.PerRun}), read for the run of its event going on, keyed
+     *   (event, year); with no run going on it comes back when the next one starts ({@link PerRuns});
      *   <li>the CALENDAR allowance, read against the window the last completion fell in, so a tally
      *   left over from an earlier window costs nothing and nothing has to sweep it;
      *   <li>the ROLLING cooldown. Which instant its stamp holds was already decided by
@@ -95,12 +110,20 @@ public final class QuestLifecycle {
      */
     @Nonnull
     public static RepeatCheck repeatCheck(@Nullable Repeat repeat, long cooldownStampMs,
-                                          @Nonnull CompletionRecord completions, long nowMs) {
+                                          @Nonnull CompletionRecord completions, long nowMs,
+                                          @Nonnull OccurrenceSource occurrences) {
         if (repeat == null) {
             return RepeatCheck.AVAILABLE;
         }
         if (repeat.maxCompletions() > 0 && completions.totalCount() >= repeat.maxCompletions()) {
             return new RepeatCheck(false, QuestGates.REASON_MAX_COMPLETIONS, Long.MAX_VALUE);
+        }
+        Repeat.PerRun perRun = repeat.perRun();
+        if (perRun != null) {
+            RepeatCheck spent = PerRuns.refusal(perRun, completions, nowMs, occurrences);
+            if (spent != null) {
+                return spent;
+            }
         }
         Repeat.Reset reset = repeat.reset();
         if (reset != null) {
